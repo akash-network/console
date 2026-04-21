@@ -30,7 +30,6 @@ jobs:
       - name: Decide whether to run scan
         id: decide
         run: | # shell
-          # If upstream CI failed, we must report failure (required check)
           if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
             echo "run_scan=false" >> "$GITHUB_OUTPUT"
             echo "skip_reason=Upstream CI conclusion is '${{ github.event.workflow_run.conclusion }}'" >> "$GITHUB_OUTPUT"
@@ -68,45 +67,13 @@ jobs:
 
             core.setOutput("check_run_id", String(res.data.id));
 
-      - name: Early-complete check as success when not running scan
-        if: ${{ steps.decide.outputs.run_scan != 'true' }}
-        uses: actions/github-script@v7
-        env:
-          CHECK_RUN_ID: ${{ steps.create_check.outputs.check_run_id }}
-          SKIP_REASON: ${{ steps.decide.outputs.skip_reason }}
-          RELATED_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-        with:
-          script: | # js
-            const sha = context.payload.workflow_run.head_sha;
-            const checkRunId = Number(process.env.CHECK_RUN_ID);
-            const conclusion = process.env.RELATED_WORKFLOW_CONCLUSION === 'success' ? 'success' : 'failure';
-            const summary = process.env.RELATED_WORKFLOW_CONCLUSION === 'success'
-              ? `Skipped (treated as pass)`
-              : `Blocked`;
-
-            await github.rest.checks.update({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              check_run_id: checkRunId,
-              head_sha: sha,
-              status: "completed",
-              conclusion,
-              output: {
-                title: "Security scan",
-                summary: `${summary}: ${process.env.SKIP_REASON}`
-              }
-            });
-
-  setup:
+  setup-static-analyses:
     needs: [create-check-run]
     if: ${{ needs.create-check-run.outputs.run_scan == 'true' }}
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.matrix.outputs.value }}
-      should_run_static_analyses: ${{ steps.check_label.outputs.should_run_static_analyses }}
-      skip_reason_static_analyses: ${{ steps.check_label.outputs.skip_reason_static_analyses }}
-      should_run_deps_scan: ${{ steps.check_label.outputs.should_run_deps_scan }}
-      skip_reason_deps_scan: ${{ steps.check_label.outputs.skip_reason_deps_scan }}
+      should_run: ${{ !contains(fromJson(steps.associated_pr.outputs.labels), 'ignore-static-analyses') }}
       pr_head_ref: ${{ steps.associated_pr.outputs.head_ref }}
       pr_head_repo: ${{ steps.associated_pr.outputs.head_repo }}
     steps:
@@ -118,62 +85,10 @@ jobs:
         uses: ./.github/actions/associated-pr
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
-
-      - name: Display associated PR details
-        if: steps.associated_pr.outputs.number != ''
-        env:
-          PR_NUMBER: ${{ steps.associated_pr.outputs.number }}
-          PR_TITLE: ${{ steps.associated_pr.outputs.title }}
-        run: | # shell
-          pr_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/${PR_NUMBER}"
-          echo "### Associated PR" >> "$GITHUB_STEP_SUMMARY"
-          echo "[#${PR_NUMBER} - ${PR_TITLE}](${pr_url})" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Check for skip labels
-        id: check_label
-        env:
-          PR_NUMBER: ${{ steps.associated_pr.outputs.number }}
-          PR_LABELS: ${{ steps.associated_pr.outputs.labels }}
-        uses: actions/github-script@v7
-        with:
-          script: | # js
-            const prNumber = process.env.PR_NUMBER;
-            const labels = (process.env.PR_LABELS || '').split(',').map(l => l.trim());
-
-            const checks = [
-              { output: 'static_analyses', ignoreLabel: 'ignore-static-security-analysis' },
-              { output: 'deps_scan', ignoreLabel: 'ignore-apps-deps-scan', run: requiredIfPackageLockChanged }
-            ];
-
-            for (const check of checks) {
-              if (!prNumber) {
-                core.setOutput(`should_run_${check.output}`, 'false');
-                core.setOutput(`skip_reason_${check.output}`, 'No PR found for commit');
-              } else if (labels.includes(check.ignoreLabel)) {
-                core.setOutput(`should_run_${check.output}`, 'false');
-                core.setOutput(`skip_reason_${check.output}`, `Label '${check.ignoreLabel}' is present`);
-              } else if (check.run) {
-                const result = await check.run();
-                core.setOutput(`should_run_${check.output}`, result.required ? 'true' : 'false');
-                core.setOutput(`skip_reason_${check.output}`, result.reason);
-              } else {
-                core.setOutput(`should_run_${check.output}`, 'true');
-                core.setOutput(`skip_reason_${check.output}`, '');
-              }
-            }
-
-            async function requiredIfPackageLockChanged() {
-              const files = await github.paginate(github.rest.pulls.listFiles, {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: Number(prNumber),
-              });
-              const hasLockfileChange = files.some(f => f.filename === 'package-lock.json');
-              return { required: hasLockfileChange, reason: hasLockfileChange ? '' : 'package-lock.json not changed' };
-            }
+          display-pr-details: 'true'
 
       - name: Build matrix from changed files
-        if: steps.check_label.outputs.should_run_static_analyses == 'true'
+        if: steps.associated_pr.outputs.labels != '' && steps.associated_pr.outputs.labels != '[]'
         id: matrix
         env:
           GH_TOKEN: ${{ github.token }}
@@ -199,11 +114,11 @@ jobs:
             echo 'value={"workspace":'"$workspaces"'}' >> "$GITHUB_OUTPUT"
           fi
 
-  security-scan:
-    needs: [setup]
-    if: ${{ needs.setup.outputs.should_run_static_analyses == 'true' && needs.setup.outputs.matrix != '' }}
+  static-analyses:
+    needs: [setup-static-analyses]
+    if: ${{ needs.setup-static-analyses.outputs.should_run == 'true' && needs.setup-static-analyses.outputs.matrix != '' }}
     strategy:
-      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.setup-static-analyses.outputs.matrix) }}
       fail-fast: false
     uses: ./.github/workflows/reusable-validate-app-unsafe.yml
     secrets:
@@ -211,13 +126,12 @@ jobs:
       snyk-token: ${{ secrets.SNYK_TOKEN }}
     with:
       path: apps/${{ matrix.workspace }}
-      pr_head_ref: ${{ needs.setup.outputs.pr_head_ref }}
-      pr_head_repo: ${{ needs.setup.outputs.pr_head_repo }}
-      skip_change_detection: true
+      pr_head_ref: ${{ needs.setup-static-analyses.outputs.pr_head_ref }}
+      pr_head_repo: ${{ needs.setup-static-analyses.outputs.pr_head_repo }}
 
   apps-deps-scan:
-    needs: [setup]
-    if: ${{ needs.setup.outputs.should_run_deps_scan == 'true' }}
+    needs: [create-check-run]
+    if: needs.create-check-run.outputs.run_scan == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -226,7 +140,18 @@ jobs:
           sparse-checkout: |
             .github
 
+      - name: Get associated PR
+        id: associated_pr
+        uses: ./.github/actions/associated-pr
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          display-pr-details: 'true'
+          export-file-changes: package-lock.json
+
       - name: Check snyk status
+        if: >-
+          contains(fromJson(steps.associated_pr.outputs.changes), 'package-lock.json')
+          && !contains(fromJson(steps.associated_pr.outputs.labels), 'ignore-apps-deps-scan')
         uses: ./.github/actions/poll-check-status
         with:
           name: "security/snyk (corysturtevant)"
@@ -234,63 +159,117 @@ jobs:
           check_type: status
 
       - name: Check socketio status
+        if: >-
+          contains(fromJson(steps.associated_pr.outputs.changes), 'package-lock.json')
+          && !contains(fromJson(steps.associated_pr.outputs.labels), 'ignore-apps-deps-scan')
         uses: ./.github/actions/poll-check-status
         with:
           name: "Socket Security: Pull Request Alerts"
           sha: ${{ github.event.workflow_run.head_sha }}
 
+  codeql-scan:
+    if: needs.create-check-run.outputs.run_scan == 'true'
+    needs: [create-check-run]
+    name: Analyze (${{ matrix.language }})
+    # Runner size impacts CodeQL analysis time. To learn more, please see:
+    #   - https://gh.io/recommended-hardware-resources-for-running-codeql
+    #   - https://gh.io/supported-runners-and-hardware-resources
+    #   - https://gh.io/using-larger-runners (GitHub.com only)
+    # Consider using larger runners or machines with greater resources for possible analysis time improvements.
+    runs-on: ubuntu-latest
+    permissions:
+      # required for all workflows
+      security-events: write
+      # required to fetch internal or private CodeQL packs
+      packages: read
+      # only required for workflows in private repositories
+      actions: read
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: actions
+          - language: javascript-typescript
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Get associated PR
+        id: associated_pr
+        uses: ./.github/actions/associated-pr
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          display-pr-details: 'true'
+      - name: Initialize CodeQL
+        if: ${{ !contains(fromJson(steps.associated_pr.outputs.labels), 'ignore-codeql-scan') }}
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+      - name: Perform CodeQL Analysis
+        if: ${{ !contains(fromJson(steps.associated_pr.outputs.labels), 'ignore-codeql-scan') }}
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{matrix.language}}"
+
   finalize:
     runs-on: ubuntu-latest
-    needs: [create-check-run, setup, security-scan, apps-deps-scan]
-    if: ${{ always() && needs.create-check-run.outputs.run_scan == 'true' }}
+    needs: [create-check-run, static-analyses, codeql-scan, apps-deps-scan]
+    if: ${{ always() && needs.create-check-run.result == 'success' }}
     steps:
       - name: Final conclusion and summary
         id: final
         env:
-          SHOULD_RUN_STATIC_ANALYSES: ${{ needs.setup.outputs.should_run_static_analyses }}
-          SKIP_REASON_STATIC_ANALYSES: ${{ needs.setup.outputs.skip_reason_static_analyses }}
-          SHOULD_RUN_DEPS_SCAN: ${{ needs.setup.outputs.should_run_deps_scan }}
-          SKIP_REASON_DEPS_SCAN: ${{ needs.setup.outputs.skip_reason_deps_scan }}
-          MATRIX: ${{ needs.setup.outputs.matrix }}
-          STATIC_ANALYZES_RESULT: ${{ needs.security-scan.result }}
-          APPS_DEPS_STATIC_ANALYZES_RESULT: ${{ needs.apps-deps-scan.result }}
+          RUN_SCAN: ${{ needs.create-check-run.outputs.run_scan }}
+          SKIP_REASON: ${{ needs.create-check-run.outputs.skip_reason }}
+          RELATED_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          STATIC_ANALYSES_RESULT: ${{ needs.static-analyses.result }}
+          APPS_DEPS_SCAN_RESULT: ${{ needs.apps-deps-scan.result }}
+          CODEQL_SCAN_RESULT: ${{ needs.codeql-scan.result }}
         run: | # shell
+          emit_output() {
+            local conclusion="$1"
+            local summary="$2"
+            local workflow_run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            summary="$summary"$'\n\n'"Managed in [this workflow run]($workflow_run_url)"
+            {
+              echo "conclusion=$conclusion"
+              echo "summary<<SUMMARY_EOF"
+              echo "$summary"
+              echo "SUMMARY_EOF"
+            } >> "$GITHUB_OUTPUT"
+          }
+
+          if [[ "$RUN_SCAN" != "true" ]]; then
+            if [[ "$RELATED_WORKFLOW_CONCLUSION" == "success" ]]; then
+              emit_output "success" "Skipped (treated as pass): $SKIP_REASON"
+            else
+              emit_output "failure" "Blocked: $SKIP_REASON"
+            fi
+            exit 0
+          fi
+
+          scans=(
+            "Static analysis|$STATIC_ANALYSES_RESULT"
+            "Apps deps scan|$APPS_DEPS_SCAN_RESULT"
+            "CodeQL scan|$CODEQL_SCAN_RESULT"
+          )
           conclusion="success"
           details=()
 
-          # Evaluate static analysis scan
-          if [[ "$SHOULD_RUN_STATIC_ANALYSES" != "true" ]]; then
-            details+=("Static analysis: skipped ($SKIP_REASON_STATIC_ANALYSES)")
-          elif [[ -z "$MATRIX" ]]; then
-            details+=("Static analysis: skipped (no apps changed in this PR)")
-          elif [[ "$STATIC_ANALYZES_RESULT" != "success" ]]; then
-            conclusion="failure"
-            details+=("Static analysis: failed (result=$STATIC_ANALYZES_RESULT)")
-          else
-            details+=("Static analysis: passed")
-          fi
+          for scan in "${scans[@]}"; do
+            label="${scan%%|*}"
+            result="${scan#*|}"
+            if [[ "$result" == "success" ]]; then
+              details+=("$label: passed")
+            else
+              conclusion="failure"
+              details+=("$label: failed (result=$result)")
+            fi
+          done
 
-          # Evaluate apps dependencies scan
-          if [[ "$SHOULD_RUN_DEPS_SCAN" != "true" ]]; then
-            details+=("Apps deps scan: skipped ($SKIP_REASON_DEPS_SCAN)")
-          elif [[ "$APPS_DEPS_STATIC_ANALYZES_RESULT" != "success" ]]; then
-            conclusion="failure"
-            details+=("Apps deps scan: failed (result=$APPS_DEPS_STATIC_ANALYZES_RESULT)")
-          else
-            details+=("Apps deps scan: passed")
-          fi
-
-          workflow_run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           summary=$(printf '%s\n' "${details[@]}")
-          summary="$summary"$'\n\n'"Managed in [this workflow run]($workflow_run_url)"
-
-          # Use delimiter syntax for multiline output
-          {
-            echo "conclusion=$conclusion"
-            echo "summary<<SUMMARY_EOF"
-            echo "$summary"
-            echo "SUMMARY_EOF"
-          } >> "$GITHUB_OUTPUT"
+          emit_output "$conclusion" "$summary"
 
       - name: Complete check run
         uses: actions/github-script@v7

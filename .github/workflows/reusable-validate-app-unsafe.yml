@@ -20,11 +20,6 @@ on:
         description: "PR head repository full name (optional, defaults to github.event.pull_request.head.repo.full_name)"
         required: false
         type: string
-      skip_change_detection:
-        description: "Skip change detection and always run (useful when called from workflow_run context)"
-        required: false
-        type: boolean
-        default: false
     secrets:
       gh-token:
         description: "github token used to fetch changed files in PR"
@@ -38,21 +33,11 @@ permissions:
   pull-requests: read
 
 jobs:
-  should-validate-unsafe:
-    if: ${{ !inputs.skip_change_detection }}
-    uses: ./.github/workflows/reusable-should-validate.yml
-    secrets:
-      gh-token: ${{ secrets.gh-token }}
-    with:
-      path: ${{ inputs.path }}
-
   validate-unsafe:
-    needs: should-validate-unsafe
     runs-on: ubuntu-latest
-    if: always() && (inputs.skip_change_detection || needs.should-validate-unsafe.outputs.has_changes == 'true')
     steps:
-      - name: Checkout UNTRUSTED user's fork
-        uses: actions/checkout@v4
+      - name: Checkout UNTRUSTED fork
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.pr_head_ref || github.event.pull_request.head.ref }}
           repository: ${{ inputs.pr_head_repo || github.event.pull_request.head.repo.full_name }}
