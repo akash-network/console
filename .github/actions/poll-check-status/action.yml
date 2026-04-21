@@ -37,7 +37,7 @@ runs:
         MAX_RETRIES: ${{ inputs.max_retries }}
         EXPECTED_CONCLUSIONS: ${{ inputs.expected_conclusions }}
       with:
-        script: |
+        script: | # js
           const checkName = process.env.CHECK_NAME;
           const sha = process.env.CHECK_SHA;
           const checkType = process.env.CHECK_TYPE;

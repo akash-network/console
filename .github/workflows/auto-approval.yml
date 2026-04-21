@@ -52,7 +52,7 @@ jobs:
               return;
             }
 
-            const labels = (process.env.PR_LABELS ?? "").split(",").filter(Boolean);
+            const labels = JSON.parse(process.env.PR_LABELS || "[]");
             core.info(`PR labels: ${labels.join(", ")}`);
 
             if (!labels.includes("experienced-contributor")) {

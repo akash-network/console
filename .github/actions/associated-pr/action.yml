@@ -10,6 +10,17 @@ inputs:
     description: GitHub user to Slack user mapping
     required: false
     default: "{}"
+  display-pr-details:
+    description: Whether to display associated PR details in the step summary
+    required: false
+    default: "false"
+  export-file-changes:
+    description: |
+      Newline-separated list of filenames to check for changes in the PR.
+      When provided, populates the `changes` output with the subset of these files
+      that were modified in the PR.
+    required: false
+    default: ""
 
 outputs:
   number:
@@ -31,11 +42,16 @@ outputs:
     description: The head repository full name of the PR
     value: ${{ steps.associated-pr.outputs.head_repo }}
   labels:
-    description: Comma-separated list of PR labels
+    description: JSON array of PR label names (use `fromJSON(...)` in expressions)
     value: ${{ steps.associated-pr.outputs.labels }}
   closed:
     description: Whether the PR is closed
     value: ${{ steps.associated-pr.outputs.closed }}
+  changes:
+    description: |
+      JSON array of filenames from `export-file-changes` that were modified in the PR.
+      Empty array when `export-file-changes` is not provided or no PR was found.
+    value: ${{ steps.associated-pr.outputs.changes }}
 
 runs:
   using: "composite"
@@ -73,36 +89,44 @@ runs:
       env:
         GH_USER_TO_SLACK_USER: ${{ inputs.gh-user-to-slack-user }}
         INPUT_SHA: ${{ steps.get-sha.outputs.sha }}
+        INPUT_EXPORT_FILE_CHANGES: ${{ inputs.export-file-changes }}
       with:
         script: | # js
           const commitSha = process.env.INPUT_SHA || context.sha;
-          let pr = context.payload.pull_request;
+          const filesToTrack = (process.env.INPUT_EXPORT_FILE_CHANGES || '')
+            .split('\n')
+            .map(s => s.trim())
+            .filter(Boolean);
+          core.setOutput('changes', '[]');
+          core.setOutput('labels', '[]');
 
-          if (!pr || pr.head?.sha !== commitSha) {
-            const maxRetries = 5;
-            const baseDelay = 2000;
+          let pr;
+          const maxRetries = 5;
+          const baseDelay = 2000;
 
-            // Retry logic to handle timing issues with GitHub API
-            // Sometimes the commit-PR association isn't immediately available after merge
-            for (let attempt = 0; attempt < maxRetries; attempt++) {
-              if (attempt > 0) {
-                // Exponential backoff: 2s, 4s, 8s, 16s, 32s
-                const delay = baseDelay * Math.pow(2, attempt - 1);
-                core.info(`PR not found, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-              }
+          // Always fetch from the API rather than reading context.payload.pull_request:
+          // the webhook payload is frozen at event-fire time and does not reflect
+          // label/metadata changes made afterwards.
+          // Retry logic also handles timing issues where the commit-PR association
+          // isn't immediately available after merge.
+          for (let attempt = 0; attempt < maxRetries; attempt++) {
+            if (attempt > 0) {
+              // Exponential backoff: 2s, 4s, 8s, 16s, 32s
+              const delay = baseDelay * Math.pow(2, attempt - 1);
+              core.info(`PR not found, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
 
-              const response = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-                commit_sha: commitSha,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-              });
+            const response = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              commit_sha: commitSha,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
 
-              if (response.data && response.data.length > 0) {
-                pr = response.data[0];
-                core.info(`Found PR #${pr.number} on attempt ${attempt + 1}`);
-                break;
-              }
+            if (response.data && response.data.length > 0) {
+              pr = response.data[0];
+              core.info(`Found PR #${pr.number} on attempt ${attempt + 1}`);
+              break;
             }
           }
 
@@ -124,7 +148,7 @@ runs:
           core.setOutput('title', pr.title);
           core.setOutput('head_ref', pr.head.ref);
           core.setOutput('head_repo', pr.head.repo?.full_name || '');
-          core.setOutput('labels', (pr.labels || []).map(l => l.name).join(','));
+          core.setOutput('labels', JSON.stringify((pr.labels || []).map(l => l.name)));
           core.setOutput('closed', pr.closed_at ? 'true' : 'false');
 
           const author = pr.merged_by?.login || pr.user.login;
@@ -132,3 +156,25 @@ runs:
 
           const userMapping = JSON.parse(process.env.GH_USER_TO_SLACK_USER || '{}');
           core.setOutput('slack-user', userMapping[author] || "");
+
+          if (filesToTrack.length > 0) {
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+            });
+            const changedFilenames = new Set(files.map(f => f.filename));
+            const changes = filesToTrack.filter(f => changedFilenames.has(f));
+            core.setOutput('changes', JSON.stringify(changes));
+          }
+
+    - name: Display associated PR details
+      if: steps.associated-pr.outputs.number != '' && inputs.display-pr-details == 'true'
+      env:
+        PR_NUMBER: ${{ steps.associated-pr.outputs.number }}
+        PR_TITLE: ${{ steps.associated-pr.outputs.title }}
+      shell: bash
+      run: | # shell
+        pr_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/${PR_NUMBER}"
+        echo "### Associated PR" >> "$GITHUB_STEP_SUMMARY"
+        echo "[#${PR_NUMBER} - ${PR_TITLE}](${pr_url})" >> "$GITHUB_STEP_SUMMARY"
