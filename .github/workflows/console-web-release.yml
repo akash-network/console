@@ -65,7 +65,7 @@ jobs:
           auth0-m2m-client-id: ${{ secrets.AUTH0_M2M_CLIENT_ID }}
           auth0-m2m-client-secret: ${{ secrets.AUTH0_M2M_CLIENT_SECRET }}
           mailsac-api-key: ${{ secrets.MAILSAC_API_KEY }}
-          email-verification-strategy: ${{ vars.EMAIL_VERIFICATION_STRATEGY || 'mailsac' }}
+          email-verification-strategy: ${{ vars.EMAIL_VERIFICATION_STRATEGY || 'mailsac-code' }}
           test-user-email: ${{ secrets.CONSOLE_WEB_E2E_TEST_USER_EMAIL }}
           test-user-password: ${{ secrets.CONSOLE_WEB_E2E_TEST_USER_PASSWORD }}
 
