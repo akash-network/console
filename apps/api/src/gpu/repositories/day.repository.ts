@@ -7,4 +7,15 @@ export class DayRepository {
   async getDaysAfter(date: Date): Promise<Day[]> {
     return await Day.findAll({ where: { date: { [Op.gte]: date } }, raw: true });
   }
+
+  async getLatestAktPrice(): Promise<number | null> {
+    const day = await Day.findOne({
+      where: { aktPrice: { [Op.ne]: null } },
+      order: [["date", "DESC"]],
+      attributes: ["aktPrice"],
+      raw: true
+    });
+
+    return day?.aktPrice ?? null;
+  }
 }
