@@ -8,7 +8,7 @@ import { NotificationHandler } from "@src/interfaces/notifications-events/handle
 import { NotificationsModule } from "@src/modules/notifications/notifications.module";
 
 @Module({
-  imports: [CommonModule, NotificationsModule, BrokerModule, ConfigModule.forRoot({ isGlobal: true })],
+  imports: [CommonModule, NotificationsModule, BrokerModule, ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true })],
   providers: [NotificationHandler],
   controllers: [WorkerHealthzController]
 })

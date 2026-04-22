@@ -8,7 +8,7 @@ import { ChainEventsHandler } from "@src/interfaces/alert-events/handlers/chain-
 import { AlertModule } from "@src/modules/alert/alert.module";
 
 @Module({
-  imports: [BrokerModule, AlertModule, CommonModule, ConfigModule.forRoot({ isGlobal: true })],
+  imports: [BrokerModule, AlertModule, CommonModule, ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true })],
   providers: [ChainEventsHandler],
   controllers: [WorkerHealthzController]
 })

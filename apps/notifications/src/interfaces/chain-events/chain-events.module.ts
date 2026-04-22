@@ -7,7 +7,7 @@ import { HealthzController } from "@src/interfaces/chain-events/controllers/heal
 import { ChainModule } from "@src/modules/chain/chain.module";
 
 @Module({
-  imports: [CommonModule, ChainModule, BrokerModule, ConfigModule.forRoot({ isGlobal: true })],
+  imports: [CommonModule, ChainModule, BrokerModule, ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true })],
   controllers: [HealthzController]
 })
 export default class ChainEventsModule {}

@@ -7,6 +7,8 @@ import { defineConfig, type Options } from "tsup";
 import packageJson from "./package.json";
 import tsconfig from "./tsconfig.build.json";
 
+const isProduction = process.env.NODE_ENV === "production";
+
 type Plugin = Required<Options>["plugins"][number];
 
 const copyDrizzleConfigPlugin: Plugin = {
@@ -40,7 +42,7 @@ export default defineConfig(async overrideOptions =>
         }
       }
     } as Options["swc"],
-    onSuccess: overrideOptions.watch ? "node --enable-source-maps dist/main.js" : undefined,
+    onSuccess: overrideOptions.watch && !isProduction ? "npm run prod" : undefined,
     ...overrideOptions
   })
 );

@@ -18,7 +18,7 @@ import { HttpResultInterceptor } from "./interceptors/http-result/http-result.in
 import { AuthService } from "./services/auth/auth.service";
 
 @Module({
-  imports: [CommonModule, AlertModule, NotificationsModule, BrokerModule, ConfigModule.forRoot({ isGlobal: true })],
+  imports: [CommonModule, AlertModule, NotificationsModule, BrokerModule, ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true })],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: ZodSerializerInterceptor },
     { provide: APP_INTERCEPTOR, useClass: HttpResultInterceptor },
