@@ -8,6 +8,8 @@ ARG GITHUB_PAT
 ARG WORKSPACE
 ENV WORKSPACE $WORKSPACE
 ENV HUSKY 0
+# tells node-gyp-build the libc flavor so it skips existsSync('/etc/alpine-release'), which fails under --permission
+ENV LIBC musl
 
 WORKDIR /app
 
