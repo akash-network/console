@@ -30,7 +30,7 @@ jobs:
       TEST_SCRIPT_NAME: ${{ github.event_name == 'merge_group' && 'test' || 'test:cov' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - uses: ./.github/actions/setup-app-deps
         with:
@@ -58,7 +58,7 @@ jobs:
         run: |
           npm run knip -- --workspace apps/${{ inputs.app }}
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
         if: ${{ steps.tests_details.outputs.requires_env_setup == 'true' }}
 
       - name: Normalize branch name
@@ -88,8 +88,9 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() && steps.tests_details.outputs.has_tests == 'true' && github.event_name != 'merge_group' }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
+          report_type: test_results
           files: ./junit.xml
           name: ${{ inputs.app }}-test-results
           flags: ${{ inputs.app }}
@@ -97,7 +98,7 @@ jobs:
 
       - name: Upload Test Coverage
         if: steps.tests_details.outputs.has_tests == 'true' && github.event_name != 'merge_group'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
           fail_ci_if_error: true
           directory: ./apps/${{ inputs.app }}/coverage
@@ -110,7 +111,7 @@ jobs:
     if: needs.should-validate.outputs.has_changes == 'true'
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Build the Docker image for API
         env:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
@@ -129,7 +130,7 @@ jobs:
       checks: read
     steps:
       - name: Checkout gha
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout: |
             .github

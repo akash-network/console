@@ -38,7 +38,7 @@ jobs:
       skip_reason: ${{ steps.decide.outputs.skip_reason }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout: .github
       - name: Get associated PR
@@ -68,7 +68,7 @@ jobs:
 
       - name: Create check run
         id: create_check
-        uses: actions/github-script@v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: | # js
             const sha = process.env.PARENT_WORKFLOW_HEAD_SHA;
@@ -99,7 +99,7 @@ jobs:
       pr_head_repo: ${{ steps.associated_pr.outputs.head_repo }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Get associated PR
         id: associated_pr
@@ -157,7 +157,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout: |
             .github
@@ -215,7 +215,7 @@ jobs:
             wait-for-check: true
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
       - name: Get associated PR
@@ -225,13 +225,13 @@ jobs:
           ref: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
       - name: Initialize CodeQL
         if: ${{ !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-codeql-security') }}
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
         with:
           languages: ${{ matrix.language }}
           build-mode: none
       - name: Perform CodeQL Analysis
         if: ${{ !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-codeql-security') }}
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
         with:
           category: "/language:${{matrix.language}}"
           # Override GITHUB_SHA/REF (default branch under workflow_run) so the
@@ -306,7 +306,7 @@ jobs:
           emit_output "$conclusion" "$summary"
 
       - name: Complete check run
-        uses: actions/github-script@v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           CHECK_RUN_ID: ${{ needs.create-check-run.outputs.check_run_id }}
           CONCLUSION: ${{ steps.final.outputs.conclusion }}

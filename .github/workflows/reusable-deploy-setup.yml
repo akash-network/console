@@ -73,7 +73,7 @@ jobs:
       - name: Concurrency guard against old versions
         id: stale-guard
         if: ${{ steps.extract.outputs.image_tag != '' && inputs.cancel-if-stale }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const version = '${{ steps.extract.outputs.image_tag }}';

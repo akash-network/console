@@ -14,15 +14,13 @@ jobs:
   lint:
     runs-on: [self-hosted, akash]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - run: gh extension install https://github.com/cschleiden/gh-actionlint --pin v1.0.3
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: |
           gh actionlint \
-            -ignore 'description is required in metadata' \
-            -ignore 'input "[^"]+" is not defined in action "codecov/codecov-action@v5"' \
-            -ignore 'the runner of "[^"]+" action is too old'
+            -ignore 'description is required in metadata'
         env:
           SHELLCHECK_OPTS: >-
             -e SC2129 # exclude Consider using { cmd1; cmd2; } >> file instead of individual redirects
