@@ -22,6 +22,8 @@ export const test = baseTest.extend<{ login: () => Promise<void> }>({
       const authPage = new AuthPage(page);
       await authPage.signIn({ email: testEnvConfig.TEST_USER_EMAIL, password: testEnvConfig.TEST_USER_PASSWORD });
       await page.waitForURL(url => !url.pathname.includes("/login"), { timeout: 15_000 });
+
+      await page.getByLabel("Connected wallet name and balance").waitFor({ timeout: 30_000 });
     };
 
     await use(login);

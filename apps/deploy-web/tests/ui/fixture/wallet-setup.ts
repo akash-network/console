@@ -69,7 +69,7 @@ export async function createWallet(context: BrowserContext): Promise<{
 
 export async function connectWalletViaLeap(context: BrowserContext, page: Page) {
   if (!(await isWalletConnected(page))) {
-    await page.getByTestId("connect-wallet-btn").click();
+    await page.getByRole("button", { name: /connect wallet/i }).click({ timeout: 30_000 });
     const popupPagePromise = context.waitForEvent("page").catch(() => null);
 
     await page.getByRole("button", { name: "Leap Leap" }).click();

@@ -30,14 +30,7 @@ test.describe("Managed wallet credits", () => {
     });
 
     await test.step("submit payment", async () => {
-      const dialog = page.getByRole("dialog", { name: "Add Funds" });
-      await expect(dialog.getByText("Add credits")).toBeVisible({ timeout: 10_000 });
-
-      await dialog.getByRole("combobox").click();
-      await dialog.getByRole("option").first().click();
-
-      await dialog.getByRole("spinbutton", { name: /amount/i }).fill("20");
-      await billingPage.getPayButton().click();
+      await billingPage.submitPayment("20");
     });
 
     await test.step("verify payment success", async () => {

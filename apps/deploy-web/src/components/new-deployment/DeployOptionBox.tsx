@@ -12,10 +12,9 @@ type Props = {
   bottomIcons?: IconType[];
   onClick: () => void;
   children?: React.ReactNode;
-  testId?: string;
 };
 
-export const DeployOptionBox: React.FunctionComponent<Props> = ({ title, description, topIcons, bottomIcons, onClick, testId }) => {
+export const DeployOptionBox: React.FunctionComponent<Props> = ({ title, description, topIcons, bottomIcons, onClick }) => {
   const { resolvedTheme } = useTheme();
 
   const getIconSrc = (icon: IconType): string => {
@@ -24,7 +23,7 @@ export const DeployOptionBox: React.FunctionComponent<Props> = ({ title, descrip
   };
 
   return (
-    <Card className="min-h-[100px] cursor-pointer text-center hover:bg-secondary/60 dark:hover:bg-secondary/30" onClick={onClick} data-testid={testId}>
+    <Card className="min-h-[100px] cursor-pointer text-center hover:bg-secondary/60 dark:hover:bg-secondary/30" onClick={onClick} aria-label={title}>
       <CardHeader className="pb-2">
         <div className="mb-2 flex items-center justify-center">
           <div className="flex items-center space-x-2 rounded-sm bg-secondary p-1">

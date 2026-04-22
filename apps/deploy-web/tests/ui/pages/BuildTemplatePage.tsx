@@ -1,14 +1,13 @@
 import { testEnvConfig } from "../fixture/test-env.config";
-import { DeployBasePage } from "./DeployBasePage";
+import { DeployPage } from "./DeployPage";
 
-export class BuildTemplatePage extends DeployBasePage {
+export class BuildTemplatePage extends DeployPage {
   async gotoInteractive() {
     await this.page.goto(testEnvConfig.BASE_URL);
-    await this.page.getByTestId("sidebar-sdl-builder-link").first().click();
-  }
-
-  async fillImageName(imageName: string) {
-    await this.page.getByTestId("image-name-input").fill(imageName);
+    await this.page
+      .getByRole("link", { name: /sdl builder/i })
+      .first()
+      .click();
   }
 
   async addService() {
@@ -23,20 +22,12 @@ export class BuildTemplatePage extends DeployBasePage {
     await this.page.getByRole("button", { name: /preview/i }).click();
   }
 
-  async clickReset() {
-    await this.page.getByRole("button", { name: /reset/i }).click();
-  }
-
   getPreviewTextLocator(text: string) {
     return this.page.getByText(text).first();
   }
 
   async closePreview() {
     await this.page.getByRole("button", { name: /close/i }).first().click();
-  }
-
-  getImageNameInput() {
-    return this.page.getByTestId("image-name-input");
   }
 
   getDeployButton() {
@@ -54,10 +45,6 @@ export class BuildTemplatePage extends DeployBasePage {
   getServiceLocator(serviceName: string) {
     const escapedName = serviceName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     return this.page.getByText(new RegExp(`${escapedName}:`)).first();
-  }
-
-  getServiceNameInput(serviceName: string) {
-    return this.page.getByRole("textbox").filter({ hasText: serviceName });
   }
 
   async waitForServiceAdded(serviceName: string, timeout = 10000) {

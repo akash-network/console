@@ -37,7 +37,7 @@ export const testEnvConfig = testEnvSchema.parse({
 });
 
 export const PROVIDERS_WHITELIST = {
-  mainnet: ["provider.hurricane.akash.pub", "provider.europlots.com"],
-  sandbox: ["provider.provider-02.sandbox-01.aksh.pw", "provider.europlots-sandbox.com"],
+  mainnet: ["akash15tl6v6gd0nte0syyxnv57zmmspgju4c3xfmdhk", "akash18ga02jzaq8cw52anyhzkwta5wygufgu6zsz6xc"],
+  sandbox: ["akash1d4fletej4cwn9x8jzpzmnk6zkqeh90ejjskpmu", "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh"],
   testnet: []
 } satisfies Record<"mainnet" | "sandbox" | "testnet", string[]>;

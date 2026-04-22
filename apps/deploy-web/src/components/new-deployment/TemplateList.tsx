@@ -124,7 +124,6 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
               "/images/python.png"
             ]}
             onClick={handleGithubTemplate}
-            testId="build-and-deploy-card"
           />
 
           <DeployOptionBox
@@ -133,7 +132,6 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
             topIcons={["/images/docker-logo.png", "/images/vm.png"]}
             bottomIcons={["/images/ubuntu.png", "/images/centos.png", "/images/debian.png", "/images/suse.png"]}
             onClick={() => onSDLBuilderClick("deploy-linux")}
-            testId="plain-linux-card"
           />
 
           <DeployOptionBox
@@ -141,7 +139,6 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
             description="Run your own docker container stored in a private or public container registry"
             topIcons={["/images/docker-logo.png"]}
             onClick={() => onSDLBuilderClick()}
-            testId="custom-container-card"
           />
         </CardContent>
       </Card>
@@ -157,7 +154,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
                 href={UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: helloWorldTemplate.code })}
                 className="text-inherit underline"
                 prefetch={false}
-                data-testid="hello-world-card"
+                aria-label="Hello World"
               >
                 Try hello world app!
               </Link>

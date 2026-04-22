@@ -28,18 +28,26 @@ export class MailsacCodeVerificationStrategy implements EmailVerificationStrateg
   private async pollForVerificationCode(email: string): Promise<string> {
     const maxAttempts = 30;
     const pollIntervalMs = 2_000;
+    let lastMessageCount = 0;
+    let lastSubject: string | undefined;
+    let lastBodyPreview: string | undefined;
+    let codeNotFoundInBody = false;
     const errors: Error[] = [];
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const messages = await this.fetchMessages(email);
+        lastMessageCount = messages.length;
 
         const verificationMessage = messages.find(m => m.subject?.toLowerCase().includes("verif") || m.subject?.toLowerCase().includes("code"));
 
         if (verificationMessage) {
+          lastSubject = verificationMessage.subject;
           const body = await this.fetchMessageBody(email, verificationMessage._id);
+          lastBodyPreview = body.slice(0, 200);
           const match = body.match(/\b(\d{6})\b/);
           if (match) return match[1];
+          codeNotFoundInBody = true;
         }
       } catch (error) {
         errors.push(error instanceof Error ? error : new Error(String(error)));
@@ -48,7 +56,18 @@ export class MailsacCodeVerificationStrategy implements EmailVerificationStrateg
       await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
     }
 
-    throw new AggregateError(errors, `Verification code email not received at ${email} within ${(maxAttempts * pollIntervalMs) / 1_000}s`);
+    const timeoutSec = (maxAttempts * pollIntervalMs) / 1_000;
+    const hints = [
+      `email: ${email}`,
+      `timeout: ${timeoutSec}s`,
+      `messages found: ${lastMessageCount}`,
+      lastSubject ? `last matching subject: "${lastSubject}"` : "no matching subject found",
+      codeNotFoundInBody ? `6-digit code not found in body: "${lastBodyPreview}"` : null
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    throw new AggregateError(errors, `Verification code not received. ${hints}`);
   }
 
   private async fetchMessages(email: string) {

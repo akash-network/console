@@ -29,7 +29,7 @@ test.describe("SDL Builder Deployment Flow", () => {
 
     await sdlBuilderPage.clickDeploy();
 
-    await expect(page.getByTestId("connect-wallet-btn").first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole("button", { name: /connect wallet/i }).first()).toBeVisible({ timeout: 10000 });
   });
 
   test("add multiple services", async ({ page, context }) => {
@@ -86,7 +86,7 @@ test.describe("SDL Builder Deployment Flow", () => {
   });
 
   test("preview button always available with valid image", async ({ page, context }) => {
-    const sdlBuilderPage = new BuildTemplatePage(context, page, "sdl-builder");
+    const sdlBuilderPage = new BuildTemplatePage(context, page);
     await sdlBuilderPage.gotoInteractive();
 
     await sdlBuilderPage.fillImageName("alpine:latest");
@@ -95,7 +95,7 @@ test.describe("SDL Builder Deployment Flow", () => {
   });
 
   async function setup({ page, context, imageName }: { page: Page; context: BrowserContext; imageName?: string }) {
-    const sdlBuilderPage = new BuildTemplatePage(context, page, "sdl-builder");
+    const sdlBuilderPage = new BuildTemplatePage(context, page);
     await sdlBuilderPage.gotoInteractive();
 
     if (imageName) {
