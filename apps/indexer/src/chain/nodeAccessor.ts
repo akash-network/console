@@ -25,7 +25,9 @@ class NodeAccessor {
     console.log("Saving node status...");
     const statuses = this.nodes.map(x => x.getSavedNodeInfo());
 
-    await fs.promises.writeFile(savedNodeInfoPath, JSON.stringify(statuses, null, 2));
+    await fs.promises.writeFile(savedNodeInfoPath, JSON.stringify(statuses, (k, value) => {
+      return typeof value === "number" && Number.isNaN(value) ? null : value;
+    }, 2));
   }
 
   private async refetchNodeStatus() {
@@ -90,15 +92,21 @@ class NodeAccessor {
     return latestAvailableHeight;
   }
 
-  public async waitForAvailableNode(height?: number): Promise<void> {
-    while (!this.isNodeAvailable(height)) {
-      await sleep(5);
-    }
+  public async waitForAvailableNode(height?: number): Promise<NodeInfo> {
+    let node: NodeInfo | null = null;
+    do {
+      node = this.getAvailableNode(height);
+      if (node) return node;
+
+      await sleep(500);
+    } while (!node);
+
+    throw new Error("No available nodes");
   }
 
   public async waitForAllFinished(): Promise<void> {
     while (this.nodes.some(x => x.activeQueries.length > 0)) {
-      await sleep(5);
+      await sleep(500);
     }
   }
 
@@ -107,20 +115,17 @@ class NodeAccessor {
   }
 
   private async fetch(path: string, height?: number): Promise<any> {
-    let node = this.getAvailableNode(height);
-
-    if (!node) await this.waitForAvailableNode(height);
-    node = this.getAvailableNode(height);
+    const node = await this.waitForAvailableNode(height);
 
     try {
       return await node.query(path, height);
-    } catch (err) {
+    } catch (err: any) {
       err.message = "[NodeAccessError] " + err.message;
       throw err;
     }
   }
 
-  private getAvailableNode(height?: number): NodeInfo {
+  private getAvailableNode(height?: number): NodeInfo | null {
     const availableNodes = this.nodes.filter(x => x.isAvailable(height));
 
     if (availableNodes.length === 0) return null;

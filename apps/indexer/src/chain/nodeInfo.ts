@@ -23,7 +23,7 @@ export enum NodeStatus {
 export interface SavedNodeInfo {
   url: string;
   status: NodeStatus;
-  earliestBlockHeight: number;
+  earliestBlockHeight?: number;
   maxConcurrentQuery: number;
   delayBetweenRequests: number;
 }
@@ -37,7 +37,7 @@ export class NodeInfo {
   lastErrorDate?: Date;
   lastQueryDate?: Date;
   status: NodeStatus;
-  earliestBlockHeight?: number;
+  earliestBlockHeight: number;
   maxConcurrentQuery: number;
   delayBetweenRequests: number;
 
@@ -47,7 +47,7 @@ export class NodeInfo {
     this.successCount = 0;
     this.errorCount = 0;
     this.status = NodeStatus.UNKNOWN;
-    this.earliestBlockHeight = undefined;
+    this.earliestBlockHeight = NaN;
     this.maxConcurrentQuery = maxConcurrentQuery;
     this.delayBetweenRequests = 0;
   }
@@ -66,7 +66,7 @@ export class NodeInfo {
     this.status = savedNodeInfo.status;
     this.maxConcurrentQuery = savedNodeInfo.maxConcurrentQuery;
     this.delayBetweenRequests = savedNodeInfo.delayBetweenRequests;
-    this.earliestBlockHeight = savedNodeInfo.earliestBlockHeight;
+    this.earliestBlockHeight = savedNodeInfo.earliestBlockHeight ?? NaN;
 
     switch (this.status) {
       case NodeStatus.RATE_LIMIT:
@@ -167,7 +167,7 @@ export class NodeInfo {
       const response = await axios.get(`${this.url}${path}`, { timeout: QueryTimeout });
       this.successCount++;
       return response.data;
-    } catch (err) {
+    } catch (err: any) {
       const rpcError = err.response?.data?.error?.data;
       let error = err.message || "Unknown error";
 
@@ -176,10 +176,10 @@ export class NodeInfo {
       } else if (height && rpcError) {
         if (/^height \d+ must be less than or equal to the current blockchain height \d+$/i.test(rpcError)) {
           error = "Block was missing";
-          this.handleMissingBlock(height, parseInt(/blockchain height (\d+)$/i.exec(rpcError)[1]));
+          this.handleMissingBlock(height, parseInt(/blockchain height (\d+)$/i.exec(rpcError)?.[1] ?? "0"));
         } else if (/^height \d+ is not available, lowest height is \d+$/i.test(rpcError)) {
           error = "Block was pruned";
-          this.earliestBlockHeight = parseInt(/lowest height is (\d+)$/i.exec(rpcError)[1]);
+          this.earliestBlockHeight = parseInt(/lowest height is (\d+)$/i.exec(rpcError)?.[1] ?? "0");
         }
       } else {
         this.status = NodeStatus.UNAVAILABLE;
