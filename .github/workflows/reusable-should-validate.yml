@@ -35,7 +35,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - uses: ./.github/actions/local-dependencies
         if: contains(inputs.path, 'apps/')
@@ -44,7 +44,7 @@ jobs:
           path: ${{ inputs.path }}
 
       - name: Check for changes
-        uses: dorny/paths-filter@v3.0.2
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: has_changes
         with:
           token: ${{ secrets.gh-token }}
@@ -56,7 +56,7 @@ jobs:
               - ".github/workflows/reusable-validate-app.yml"
               - ".github/workflows/reusable-validate-app-unsafe.yml"
             package_workflows: &package_workflows
-              - ".github/workflows/local-packages-validate.yml"
+              - ".github/workflows/local-packages-ci.yml"
             value:
               - "${{ inputs.path }}/**"
               - package-lock.json

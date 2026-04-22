@@ -11,11 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Load kubeconfig
         id: op-load-secret
-        uses: 1password/load-secrets-action@v2
+        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
         with:
           export-env: true
         env:
@@ -25,7 +25,7 @@ jobs:
           TS_OAUTH_SECRET: ${{ vars.OP_TS_OAUTH_CLIENT_SECRET_URI }}
 
       - name: Tailscale
-        uses: tailscale/github-action@v3
+        uses: tailscale/github-action@306e68a486fd2350f2bfc3b19fcd143891a4a2d8 # v4.1.2
         with:
           oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ env.TS_OAUTH_SECRET }}

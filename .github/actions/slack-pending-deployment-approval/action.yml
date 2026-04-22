@@ -43,7 +43,7 @@ runs:
         gh-user-to-slack-user: ${{ inputs.gh-user-to-slack-user }}
         ref: ${{ inputs.app }}/v${{ inputs.new-version }}
     - name: Notify in Slack
-      uses: slackapi/slack-github-action@v2.0.0
+      uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
       with:
         webhook-type: incoming-webhook
         webhook: ${{ inputs.slack-webhook-url }}
