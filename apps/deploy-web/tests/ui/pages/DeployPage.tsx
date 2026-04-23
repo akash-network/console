@@ -26,7 +26,7 @@ export class DeployPage {
   }
 
   async selectTemplate(name: string) {
-    await this.page.getByRole("button", { name }).or(this.page.getByRole("link", { name })).click();
+    await this.page.getByLabel(name).or(this.page.getByRole("link", { name })).first().click();
   }
 
   async fillImageName(name: string) {
@@ -89,9 +89,13 @@ export class DeployPage {
 
   async validateLease() {
     await this.page.waitForURL(new RegExp(`${testEnvConfig.BASE_URL}/deployments/\\d+`));
-    await this.page.getByRole("tab", { name: /Leases/i }).click();
+    await this.openTab("Leases");
     await expect(this.page.getByLabel(/URIs/i).getByRole("link").first()).toBeVisible();
     await expect(this.page.getByLabel("Lease 0 state")).toHaveText("active");
+  }
+
+  async openTab(name: string) {
+    await this.page.getByRole("tab", { name }).click();
   }
 
   async closeDeployment() {

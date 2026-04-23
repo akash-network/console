@@ -1,3 +1,4 @@
+import { createManagedDeployment } from "./actions/deploy";
 import { expect, test } from "./fixture/authenticated-test";
 import { AuthPage } from "./pages/AuthPage";
 import { BillingPage } from "./pages/BillingPage";
@@ -22,49 +23,20 @@ test.describe("Managed wallet deployment", () => {
       await login();
     });
 
-    await test.step("select hello-world template", async () => {
-      await openHelloWorldTemplate();
-    });
-
     await test.step("create deployment", async () => {
-      let depositDialog = await deployPage.openDepositDialog();
-      let continueButton = depositDialog.getByRole("button", { name: /^continue$/i });
-
-      const needsTopUp = await expect(continueButton)
-        .toBeDisabled({ timeout: 10_000 })
-        .then(
-          () => true,
-          () => false
-        );
-
-      if (needsTopUp) {
-        await depositDialog.getByRole("button", { name: /buy credits/i }).click();
-        await billingPage.waitForPage();
-        await billingPage.submitPayment("20");
-        await expect(page.getByText("Payment Successful!")).toBeVisible({ timeout: 60_000 });
-        await expect(page.getByText("Payment Successful!")).toBeHidden({ timeout: 30_000 });
-
-        await openHelloWorldTemplate();
-        depositDialog = await deployPage.openDepositDialog();
-        continueButton = depositDialog.getByRole("button", { name: /^continue$/i });
-      }
-
-      await expect(continueButton).toBeEnabled({ timeout: 30_000 });
-      await continueButton.click();
-    });
-
-    async function openHelloWorldTemplate() {
-      await sidebar.openDeploy();
-      await deployPage.selectTemplate("Hello World");
-      await page.getByLabel("SDL editor").waitFor({ state: "visible", timeout: 15_000 });
-    }
-
-    await test.step("select provider and create lease", async () => {
-      await deployPage.createLease();
-    });
-
-    await test.step("verify lease is active", async () => {
-      await deployPage.validateLease();
+      await createManagedDeployment(
+        page,
+        { sidebar, deployPage, billingPage, templateName: "Hello World" },
+        {
+          onPaymentSuccess: async () => {
+            await expect(page.getByText("Payment Successful!")).toBeVisible({ timeout: 60_000 });
+            await expect(page.getByText("Payment Successful!")).toBeHidden({ timeout: 30_000 });
+          },
+          onDepositEnabled: async () => {
+            await expect(deployPage.page.getByRole("button", { name: /^continue$/i })).toBeEnabled({ timeout: 30_000 });
+          }
+        }
+      );
     });
 
     await test.step("verify auto-deposit is enabled", async () => {
