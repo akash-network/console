@@ -3,8 +3,8 @@ import type { Page } from "@playwright/test";
 export class DeploymentAlertsForm {
   constructor(readonly page: Page) {}
 
-  private getSection(heading: string) {
-    return this.page.locator(".rounded-lg.border").filter({ hasText: heading });
+  private getSection(label: string) {
+    return this.page.getByLabel(label);
   }
 
   getEscrowEnabledToggle() {

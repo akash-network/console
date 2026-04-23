@@ -26,7 +26,7 @@ export class DeployPage {
   }
 
   async selectTemplate(name: string) {
-    await this.page.getByRole("button", { name }).or(this.page.getByRole("link", { name })).click();
+    await this.page.getByLabel(name).or(this.page.getByRole("link", { name })).first().click();
   }
 
   async fillImageName(name: string) {
@@ -95,7 +95,7 @@ export class DeployPage {
   }
 
   async openTab(name: string) {
-    await this.page.getByRole("tab", { name: new RegExp(name, "i") }).click();
+    await this.page.getByRole("tab", { name }).click();
   }
 
   async closeDeployment() {
