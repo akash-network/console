@@ -12,7 +12,7 @@ import { useNotificator } from "@src/hooks/useNotificator";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useWhen } from "@src/hooks/useWhen";
 import type { DeploymentDto } from "@src/types/deployment";
-import { ceilDecimal, denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
+import { ceilDecimal, denomToUdenom, roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 
 type DeploymentAlertsInput = components["schemas"]["DeploymentAlertCreateInput"]["data"];
 export type DeploymentAlertsOutput = components["schemas"]["DeploymentAlertsResponse"]["data"];
@@ -115,7 +115,7 @@ export const DeploymentAlertsContainer: FC<Props> = ({ children, deployment, dep
         return merge({}, data?.data, {
           alerts: {
             deploymentBalance: {
-              threshold: ceilDecimal(value * price)
+              threshold: roundDecimal(value * price, 6)
             }
           }
         });

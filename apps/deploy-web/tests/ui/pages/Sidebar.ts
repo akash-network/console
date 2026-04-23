@@ -9,4 +9,8 @@ export class Sidebar {
       .first()
       .click();
   }
+
+  async openAlerts() {
+    await this.page.getByRole("link", { name: /^alerts$/i }).click();
+  }
 }

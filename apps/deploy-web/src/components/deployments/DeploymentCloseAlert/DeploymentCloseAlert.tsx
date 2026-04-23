@@ -13,6 +13,7 @@ export const DeploymentCloseAlert: FC<{ disabled?: boolean }> = ({ disabled }) =
 
   return (
     <Fieldset
+      aria-label="Deployment Close alert"
       label={
         <div className="flex items-center justify-between">
           <p className="mr-3 text-xl font-bold">Deployment Close</p>

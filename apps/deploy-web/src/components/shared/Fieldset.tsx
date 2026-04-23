@@ -7,11 +7,12 @@ type Props = {
   subLabel?: string;
   className?: string;
   children: React.ReactNode;
+  "aria-label"?: string;
 };
 
-export const Fieldset: React.FunctionComponent<Props> = ({ label, subLabel, className = "", children }) => {
+export const Fieldset: React.FunctionComponent<Props> = ({ label, subLabel, className = "", children, "aria-label": ariaLabel }) => {
   return (
-    <Card className={className}>
+    <Card className={className} aria-label={ariaLabel}>
       <CardHeader>
         {label}
         {subLabel && <p className="text-gray-400">{subLabel}</p>}

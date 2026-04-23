@@ -18,6 +18,7 @@ export const DeploymentBalanceAlert: FC<Props> = ({ disabled }) => {
 
   return (
     <Fieldset
+      aria-label="Escrow Balance alert"
       label={
         <div className="flex items-center justify-between">
           <p className="mr-3 text-xl font-bold">Escrow Balance</p>
