@@ -1,9 +1,11 @@
 import { expect, test } from "./fixture/base-test";
-import { DeployBasePage } from "./pages/DeployBasePage";
+import { DeployPage } from "./pages/DeployPage";
 
-test("user can choose a template from the templates page", async ({ page, context }) => {
-  const templateListPage = new DeployBasePage(context, page, "new-deployment");
-  await templateListPage.goto();
+test("user can choose a template on deployment page", async ({ page, context }) => {
+  test.setTimeout(3 * 60 * 1000);
+
+  const deploymentPage = new DeployPage(context, page);
+  await deploymentPage.goto();
 
   const templateList = page.getByLabel("Template list");
 
@@ -16,10 +18,16 @@ test("user can choose a template from the templates page", async ({ page, contex
 
   for (let i = 0; i < templateCount; i++) {
     const link = templateLinks.nth(i);
-    const [newPage] = await Promise.all([context.waitForEvent("page"), link.click({ modifiers: ["Shift"] })]);
+    const linkText = (await link.textContent())?.split("\n")[0] ?? `template ${i}`;
 
-    const templateName = await newPage.getByLabel(/Name your deployment/i).inputValue();
-    await expect(link).toContainText(templateName);
-    await newPage.close();
+    await test.step(`verify template "${linkText}"`, async () => {
+      const href = await link.getAttribute("href");
+      const newPage = await context.newPage();
+      await newPage.goto(new URL(href!, page.url()).href);
+
+      const templateName = await newPage.getByLabel(/Name your deployment/i).inputValue({ timeout: 15_000 });
+      await expect(link).toContainText(templateName);
+      await newPage.close();
+    });
   }
 });

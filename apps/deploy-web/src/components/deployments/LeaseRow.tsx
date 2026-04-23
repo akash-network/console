@@ -170,7 +170,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
         <CardHeader className="rounded-t-lg bg-secondary py-2">
           <div className="flex items-center">
             <div className="inline-flex items-center text-xs text-muted-foreground">
-              <span data-testid={`lease-row-${index}-state`}>{lease.state}</span>
+              <span aria-label={`Lease ${index} state`}>{lease.state}</span>
               <StatusPill state={lease.state} size="small" />
 
               <span className="ml-6 text-muted-foreground">GSEQ:</span>

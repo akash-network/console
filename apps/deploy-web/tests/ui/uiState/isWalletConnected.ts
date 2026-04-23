@@ -8,7 +8,7 @@ export async function isWalletConnected(page: Page) {
       .then(() => true)
       .catch(() => null),
     page
-      .getByTestId("connect-wallet-btn")
+      .getByRole("button", { name: /connect wallet/i })
       .waitFor({ state: "visible" })
       .then(() => false)
       .catch(() => null)

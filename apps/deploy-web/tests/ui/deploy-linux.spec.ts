@@ -1,17 +1,26 @@
 import { expect, test } from "./fixture/base-test";
-import { PlainLinuxPage } from "./pages/PlainLinuxPage";
+import { HomePage } from "./pages/HomePage";
+import { Sidebar } from "./pages/Sidebar";
+
+import { PlainLinuxPage } from "@tests/ui/pages/PlainLinuxPage";
 
 test("ssh keys generation", async ({ page, context }) => {
-  const plainLinuxPage = new PlainLinuxPage(context, page, "deploy-linux", "plain-linux-card");
-  await plainLinuxPage.gotoInteractive();
-  await plainLinuxPage.selectDistro("Ubuntu 24.04");
+  const homePage = new HomePage(page);
+  const sidebar = new Sidebar(page);
+  const deployPage = new PlainLinuxPage(context, page);
 
-  const { input, download } = await plainLinuxPage.generateSSHKeys();
+  await homePage.goto();
+  await sidebar.openDeploy();
+
+  await deployPage.selectTemplate("Launch Container-VM");
+  await deployPage.selectDistro("Ubuntu 24.04");
+
+  const { input, download } = await deployPage.generateSSHKeys();
 
   expect(download.suggestedFilename()).toBe("keypair.zip");
   await expect(input).toHaveValue(/ssh-/);
 
-  await page.getByTestId("create-deployment-btn").click();
+  await page.getByRole("button", { name: /create deployment/i }).click();
 
-  await expect(plainLinuxPage.page.getByTestId("connect-wallet-btn").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /connect wallet/i }).first()).toBeVisible();
 });

@@ -210,6 +210,7 @@ export const BidRow: React.FunctionComponent<Props> = ({
                     onChange={() => handleBidSelected(bid)}
                     disabled={bid.state !== "open" || disabled}
                     aria-label={provider?.name ?? provider?.hostUri ?? "Unknown Provider"}
+                    aria-description={provider?.owner}
                   />
                 </c.RadioGroup>
               )}
