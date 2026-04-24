@@ -141,6 +141,29 @@ describe(ChainErrorService.name, () => {
       expect(appErr.message).toBe("Failed to create deployment: Invalid deployment hash");
     });
 
+    it("returns 400 for invalid unit price error", async () => {
+      const { service } = setup();
+      const err = new Error(
+        "Query failed with (6): rpc error: code = Unknown desc = group dcloud: error: invalid unit price (10000000 > 12000000.000000000000000000uact fails) with gas used: '1150': unknown request"
+      );
+
+      const appErr = await service.toAppError(err, encodeMessages);
+      expect(appErr).toBeInstanceOf(BadRequest);
+      expect(appErr.message).toBe("Unit price exceeds the maximum allowed by the network");
+    });
+
+    it("returns 400 for invalid unit price error with message prefix", async () => {
+      const { service } = setup();
+      const err = new Error(
+        "Query failed with (6): rpc error: code = Unknown desc = group dcloud: error: invalid unit price (10000000 > 12000000.000000000000000000uact fails) message index: 0"
+      );
+      const messages: EncodeObject[] = [{ typeUrl: "/akash.deployment.v1beta4.MsgCreateDeployment", value: {} }];
+
+      const appErr = await service.toAppError(err, messages);
+      expect(appErr).toBeInstanceOf(BadRequest);
+      expect(appErr.message).toBe("Failed to create deployment: Unit price exceeds the maximum allowed by the network");
+    });
+
     it("returns 402 for insufficient balance error", async () => {
       const { service } = setup();
       const err = new Error(

@@ -58,6 +58,10 @@ export class ChainErrorService {
       code: 400,
       message: "Cannot create lease: The associated order has already been matched or closed. Re-create the deployment to generate a new order and try again."
     },
+    "invalid unit price": {
+      code: 400,
+      message: "Unit price exceeds the maximum allowed by the network"
+    },
     "insufficient balance": {
       code: 402,
       message: "Insufficient balance"
