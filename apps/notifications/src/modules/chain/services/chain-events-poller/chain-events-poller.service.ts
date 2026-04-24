@@ -1,14 +1,12 @@
 import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
-import { StargateClient } from "@cosmjs/stargate";
-import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { Injectable, OnApplicationBootstrap, OnModuleDestroy } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { ExponentialBackoff, handleAll, retry, TaskCancelledError } from "cockatiel";
 import { once } from "events";
-import { backOff } from "exponential-backoff";
 import { setTimeout as delay } from "timers/promises";
 
 import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { LoggerService } from "@src/common/services/logger/logger.service";
-import { ShutdownService } from "@src/common/services/shutdown/shutdown.service";
 import type { HealthzService, ProbeResult } from "@src/common/types/healthz.type";
 import { BrokerService } from "@src/infrastructure/broker";
 import type { ChainEventsConfig } from "@src/modules/chain/config";
@@ -18,10 +16,33 @@ import { TxEventsService } from "@src/modules/chain/services/tx-events-service/t
 import { BlockMessageService } from "../block-message/block-message.service";
 
 @Injectable()
-export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy, HealthzService {
+export class ChainEventsPollerService implements OnApplicationBootstrap, OnModuleDestroy, HealthzService {
   readonly name = "chain-events-poller";
 
-  private abortController?: AbortController;
+  private readonly abortController = new AbortController();
+
+  private lastProcessedBlockTime?: Date;
+
+  private isStale = false;
+
+  private staleStartedAt?: Date;
+
+  private get signal() {
+    return this.abortController.signal;
+  }
+
+  private get pollingConfig() {
+    return this.configService.getOrThrow("chain.pollingConfig");
+  }
+
+  private readonly blockRetryExecutor = retry(handleAll, {
+    maxAttempts: this.pollingConfig.numOfAttempts,
+    backoff: new ExponentialBackoff({
+      initialDelay: this.pollingConfig.startingDelay,
+      maxDelay: this.pollingConfig.maxDelay,
+      exponent: this.pollingConfig.timeMultiple
+    })
+  });
 
   constructor(
     private readonly brokerService: BrokerService,
@@ -29,56 +50,90 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy, 
     private readonly txEventsService: TxEventsService,
     private readonly loggerService: LoggerService,
     private readonly blockCursorRepository: BlockCursorRepository,
-    private readonly stargateClient: StargateClient,
-    private readonly shutdownService: ShutdownService,
     private readonly configService: ConfigService<ChainEventsConfig>
   ) {
     this.loggerService.setContext(ChainEventsPollerService.name);
+    this.blockRetryExecutor.onRetry(event => {
+      this.logProcessingError("error" in event ? event.error : undefined, event.attempt);
+      this.trackBlockStaleness();
+    });
   }
 
-  async onModuleInit(): Promise<void> {
-    const blockHeight = await this.ensureInitialized();
-    this.subscribeToChainEvents(blockHeight);
+  async onApplicationBootstrap(): Promise<void> {
+    this.subscribeToChainEvents();
   }
 
-  private async ensureInitialized(): Promise<number> {
-    const height = await this.stargateClient.getHeight();
-    await this.blockCursorRepository.ensureInitialized(height);
-
-    return height;
-  }
-
-  private subscribeToChainEvents(blockHeight: number) {
-    this.abortController = new AbortController();
-    this.loggerService.log({ event: "START_CHAIN_POLLER", blockHeight });
+  private subscribeToChainEvents() {
+    this.loggerService.log({ event: "START_CHAIN_POLLER" });
     this.processBlocksLooping().catch(error => {
-      this.abortController?.abort();
-      this.loggerService.error({
-        event: "CHAIN_POLLER_FAILURE",
-        error
-      });
-      this.loggerService.fatal({ event: "APPLICATION_STOP" });
-      this.shutdownService.shutdown();
+      if (!this.abortController.signal.aborted) {
+        this.loggerService.error({ event: "UNEXPECTED_POLLER_FAILURE", error });
+      }
     });
   }
 
   private async processBlocksLooping() {
-    const signal = this.abortController?.signal;
-    while (signal && !signal.aborted) {
-      const processedBlock = await this.processNextBlockWithRetries();
-      await this.delayAfterBlock(processedBlock, signal);
+    try {
+      while (!this.signal.aborted) {
+        try {
+          const processedBlock = await this.processNextBlockWithRetries();
+          this.trackBlockProgress(processedBlock);
+          await this.delayAfterBlock(processedBlock);
+        } catch (error) {
+          if (this.signal.aborted || error instanceof TaskCancelledError) break;
+          this.loggerService.debug({ event: "CHAIN_POLLER_RETRY", error });
+          this.trackBlockStaleness();
+          await delay(this.configService.getOrThrow("chain.pollingConfig").maxDelay, null, { signal: this.signal }).catch(e =>
+            e?.name === "AbortError" ? undefined : Promise.reject(e)
+          );
+        }
+      }
+    } catch (error) {
+      if (!this.signal.aborted && !(error instanceof TaskCancelledError)) throw error;
+    } finally {
+      this.signal.dispatchEvent(new Event("complete"));
     }
-    signal?.dispatchEvent(new Event("complete"));
+  }
+
+  private trackBlockProgress(block: BlockData) {
+    this.lastProcessedBlockTime = new Date(block.time);
+
+    if (this.isStale) {
+      const staleDurationSeconds = Math.round((Date.now() - (this.staleStartedAt?.getTime() ?? Date.now())) / 1000);
+      this.loggerService.log({
+        event: "CHAIN_POLLER_RECOVERED",
+        blockHeight: block.height,
+        staleDurationSeconds
+      });
+      this.isStale = false;
+      this.staleStartedAt = undefined;
+    }
+  }
+
+  private trackBlockStaleness() {
+    if (!this.lastProcessedBlockTime) {
+      return;
+    }
+
+    const gapSeconds = Math.round((Date.now() - this.lastProcessedBlockTime.getTime()) / 1000);
+    const thresholdSeconds = this.configService.getOrThrow("chain.BLOCK_STALE_THRESHOLD_SEC");
+
+    if (gapSeconds > thresholdSeconds && !this.isStale) {
+      this.isStale = true;
+      this.staleStartedAt = new Date();
+      this.loggerService.error({
+        event: "CHAIN_POLLER_STALE",
+        lastBlockTime: this.lastProcessedBlockTime.toISOString(),
+        gapSeconds
+      });
+    }
   }
 
   private async processNextBlockWithRetries(): Promise<BlockData> {
-    return await backOff(async () => await this.processNextBlock(), {
-      ...this.configService.getOrThrow("chain.pollingConfig"),
-      retry: (error, attempt) => {
-        this.logProcessingError(error, attempt);
-        return true;
-      }
-    });
+    return await this.blockRetryExecutor.execute(async ({ signal: retrySignal }) => {
+      retrySignal.throwIfAborted();
+      return await this.processNextBlock();
+    }, this.signal);
   }
 
   private async processNextBlock(): Promise<BlockData> {
@@ -88,14 +143,18 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy, 
         blockHeight: nextBlockHeight
       });
 
-      const block = await this.blockMessageService.getMessages(nextBlockHeight, [MsgCloseDeployment["$type"], MsgCreateDeployment["$type"]]);
+      const block = await this.blockMessageService.getMessages(nextBlockHeight, [MsgCloseDeployment["$type"], MsgCreateDeployment["$type"]], this.signal);
 
-      const txEvents = await this.txEventsService.getBlockEvents(nextBlockHeight, {
-        module: "deployment",
-        version: "v1",
-        source: "akash",
-        action: ["deployment-closed"]
-      });
+      const txEvents = await this.txEventsService.getBlockEvents(
+        nextBlockHeight,
+        {
+          module: "deployment",
+          version: "v1",
+          source: "akash",
+          action: ["deployment-closed"]
+        },
+        this.signal
+      );
 
       await this.brokerService.publishAll([
         {
@@ -126,19 +185,19 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy, 
     });
   }
 
-  private async delayAfterBlock(block: BlockData, signal: AbortSignal) {
+  private async delayAfterBlock(block: BlockData) {
     const blockTimeMs = this.configService.getOrThrow("chain.BLOCK_TIME_SEC") * 1000;
     const date = new Date(block.time);
     const nextBlockDate = new Date(date.getTime() + blockTimeMs);
     const nextRunDelay = nextBlockDate.getTime() - Date.now();
 
     if (nextRunDelay > 0) {
-      await delay(nextRunDelay, null, { signal }).catch(error => (error?.name === "AbortError" ? undefined : Promise.reject(error)));
+      await delay(nextRunDelay, null, { signal: this.signal }).catch(error => (error?.name === "AbortError" ? undefined : Promise.reject(error)));
     }
   }
 
   async getReadinessStatus(): Promise<ProbeResult> {
-    const isLive = !this.abortController?.signal?.aborted;
+    const isLive = !this.abortController.signal.aborted;
     return {
       status: isLive ? "ok" : "error",
       data: { poller: isLive }
@@ -154,11 +213,10 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy, 
   }
 
   private async finishPolling() {
-    if (this.abortController && !this.abortController.signal.aborted) {
+    if (!this.abortController.signal.aborted) {
       const completePolling = once(this.abortController.signal, "complete");
       this.abortController.abort();
       await completePolling;
-      this.abortController = undefined;
     }
   }
 }

@@ -16,8 +16,8 @@ export class BlockMessageService {
    * @param messageTypes Optional array of message types to filter for
    * @returns The block data with messages
    */
-  async getMessages(height: number | "latest", messageTypes?: MessageTypeFilter[]): Promise<BlockData> {
-    const block = await this.blockchainClient.getBlock(height);
+  async getMessages(height: number | "latest", messageTypes?: MessageTypeFilter[], signal?: AbortSignal): Promise<BlockData> {
+    const block = await this.blockchainClient.getBlock(height, signal);
     return this.blockMessageParser.parseBlockMessages(block, messageTypes);
   }
 }
