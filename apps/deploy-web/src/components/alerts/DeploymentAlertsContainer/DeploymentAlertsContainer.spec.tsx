@@ -6,10 +6,9 @@ import type { RequestFn, RequestFnResponse } from "@openapi-qraft/react";
 import merge from "lodash/merge";
 import { describe, expect, it, vi } from "vitest";
 
-import type { ChildrenProps, ContainerInput, Props } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
+import type { ChildrenProps, ContainerInput } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
 import { DeploymentAlertsContainer } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
-import { UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
-import type { usePricing } from "@src/hooks/usePricing/usePricing";
+import { USDC_IBC_DENOMS } from "@src/config/denom.config";
 import { queryClient } from "@src/queries";
 import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 
@@ -20,38 +19,33 @@ import { createContainerTestingChildCapturer } from "@tests/unit/container-testi
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(DeploymentAlertsContainer.name, () => {
-  [
-    { denom: UAKT_DENOM, threshold: 2000000 },
-    { denom: USDC_IBC_DENOMS["mainnet"], threshold: 4000000 }
-  ].forEach(({ denom, threshold }) => {
-    it(`triggers ${denom} deployment alert request with the correct values`, async () => {
-      const { requestFn, input, child, dseq } = await setup({ denom });
+  it("triggers deployment alert request with the correct values", async () => {
+    const { requestFn, input, child, dseq } = await setup();
 
-      await act(() => child.upsert(input));
+    await act(() => child.upsert(input));
 
-      expect(requestFn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "post",
-          url: "/v1/deployment-alerts/{dseq}"
-        }),
-        expect.objectContaining({
-          parameters: {
-            path: { dseq }
-          },
-          body: {
-            data: merge({}, input, {
-              alerts: {
-                deploymentBalance: {
-                  threshold
-                }
+    expect(requestFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "post",
+        url: "/v1/deployment-alerts/{dseq}"
+      }),
+      expect.objectContaining({
+        parameters: {
+          path: { dseq }
+        },
+        body: {
+          data: merge({}, input, {
+            alerts: {
+              deploymentBalance: {
+                threshold: 4000000
               }
-            })
-          }
-        })
-      );
-      await vi.waitFor(() => {
-        expect(screen.getByTestId("alert-config-success-notification")).toBeInTheDocument();
-      });
+            }
+          })
+        }
+      })
+    );
+    await vi.waitFor(() => {
+      expect(screen.getByTestId("alert-config-success-notification")).toBeInTheDocument();
     });
   });
 
@@ -192,8 +186,11 @@ describe(DeploymentAlertsContainer.name, () => {
     });
   });
 
-  async function setup({ denom }: { denom?: "uakt" | (typeof USDC_IBC_DENOMS)["mainnet"] | (typeof USDC_IBC_DENOMS)["sandbox"] } = {}) {
-    const rpcDeployment = buildRpcDeployment({ denom });
+  async function setup() {
+    const rpcDeployment = buildRpcDeployment({
+      denom: USDC_IBC_DENOMS["mainnet"],
+      escrow_account: { state: { funds: [{ denom: USDC_IBC_DENOMS["mainnet"], amount: "5000000.000000000000000000" }] } }
+    });
     const deployment = deploymentToDto(rpcDeployment);
     const dseq = deployment.dseq;
     const input: ContainerInput = {
@@ -230,30 +227,12 @@ describe(DeploymentAlertsContainer.name, () => {
         })
     };
 
-    const AKT_PRICE = 2;
-    const mockPricing = {
-      usdToAkt: vi.fn((amount: number) => amount / AKT_PRICE),
-      getPriceForDenom: vi.fn((denom: string) => {
-        if (denom === "uakt") {
-          return AKT_PRICE;
-        } else {
-          return 1;
-        }
-      })
-    } as unknown as ReturnType<typeof usePricing>;
-
-    const dependencies: NonNullable<Props["dependencies"]> = {
-      usePricing: () => mockPricing
-    };
-
     const childCapturer = createContainerTestingChildCapturer<ChildrenProps>();
 
     render(
       <CustomSnackbarProvider>
         <TestContainerProvider services={services}>
-          <DeploymentAlertsContainer deployment={deployment} dependencies={dependencies}>
-            {childCapturer.renderChild}
-          </DeploymentAlertsContainer>
+          <DeploymentAlertsContainer deployment={deployment}>{childCapturer.renderChild}</DeploymentAlertsContainer>
         </TestContainerProvider>
       </CustomSnackbarProvider>
     );
