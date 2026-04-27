@@ -96,9 +96,10 @@ export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextArea
   label?: string | React.ReactNode;
 }
 
-const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ className, onChange, inputClassName, label, ...props }, ref) => {
+const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ className, onChange, inputClassName, label, id: textareaId, ...props }, ref) => {
   const id = React.useId();
   const formField = useFormField();
+  const finalId = textareaId ?? formField.id ?? id;
 
   const [value, setValue] = useState("");
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -117,9 +118,9 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ classNa
 
   return (
     <div className={cn("space-y-1", className)}>
-      {label && (formField.id ? <FormLabel>{label}</FormLabel> : <Label htmlFor={`${id}-input`}>{label}</Label>)}
+      {label && (formField.id ? <FormLabel htmlFor={`${finalId}-input`}>{label}</FormLabel> : <Label htmlFor={`${finalId}-input`}>{label}</Label>)}
       <textarea
-        id={`${formField.id ? formField.id : id}-input`}
+        id={`${finalId}-input`}
         className={cn(
           "border-input bg-popover ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full resize-y rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
           inputClassName

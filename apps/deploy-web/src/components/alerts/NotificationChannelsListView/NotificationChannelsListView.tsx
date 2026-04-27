@@ -81,6 +81,7 @@ export const NotificationChannelsListView: FC<NotificationChannelsListViewProps>
                 type="button"
                 className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "text-gray-500 hover:text-gray-700", isRemoving && "pointer-events-none")}
                 aria-disabled={isRemoving}
+                aria-label="Edit notification channel"
                 data-testid="edit-notification-channel-button"
               >
                 <Edit className="text-xs" />
@@ -91,6 +92,7 @@ export const NotificationChannelsListView: FC<NotificationChannelsListViewProps>
                 variant="ghost"
                 size="icon"
                 disabled={isRemoving}
+                aria-label="Remove notification channel"
                 onClick={async () => {
                   const isConfirmed = await confirm({
                     title: "Are you sure you want to remove this notification channel?",
