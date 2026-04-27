@@ -15,7 +15,7 @@ interface IProps {
 export function AddressDeployments({ address }: IProps) {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
-  const [statusFilter, setStatusFilter] = useState("*");
+  const [statusFilter, setStatusFilter] = useState("active");
   const [isSortingReversed, setIsSortingReversed] = useState(true);
   const { data: deploymentsResult, isLoading } = useAddressDeployments(address, page * pageSize, pageSize, isSortingReversed, { status: statusFilter });
   const pageCount = deploymentsResult?.count ? Math.ceil((deploymentsResult.count || 0) / pageSize) : undefined;
@@ -29,17 +29,17 @@ export function AddressDeployments({ address }: IProps) {
   };
 
   const onColumnFiltersChange = (columnFilters: ColumnFiltersState) => {
-    const statusFilter = (columnFilters.find(filter => filter.id === "status")?.value as string) || "*";
+    const statusFilter = (columnFilters.find(filter => filter.id === "status")?.value as string) || "active";
     setStatusFilter(statusFilter);
   };
 
   return (
     <Card>
       <CardContent className="pt-6">
-        {deploymentsResult?.results.length === 0 && statusFilter === "*" ? (
+        {deploymentsResult?.results.length === 0 && statusFilter === "active" ? (
           <div className="flex items-center p-4">
             <SearchX size="1rem" />
-            &nbsp;This address has no deployments
+            &nbsp;This address has no active deployments
           </div>
         ) : (
           <DataTable

@@ -26,6 +26,7 @@ export class TrialValidationService {
     if (userWallet.isTrialing && decoded.typeUrl === `/${MsgCreateDeployment.$type}`) {
       const deployments = await this.deploymentReaderService.listWithResources({
         address: userWallet.address!,
+        status: "active",
         limit: 1
       });
       assert(deployments.count < TRIAL_DEPLOYMENT_LIMIT, 402, "Trial limit reached. Add funds to your account to deploy more.");
