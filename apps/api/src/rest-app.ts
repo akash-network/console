@@ -21,6 +21,7 @@ import type { AppEnv } from "./core/types/app-context";
 import { deploymentSettingRouter } from "./deployment/routes/deployment-setting/deployment-setting.router";
 import { deploymentsRouter } from "./deployment/routes/deployments/deployments.router";
 import { leasesRouter } from "./deployment/routes/leases/leases.router";
+import { shellExecRouter } from "./deployment/routes/shell-exec/shell-exec.router";
 import { healthzRouter } from "./healthz/routes/healthz.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
 import { notificationsApiProxy } from "./notifications/routes/proxy/proxy.route";
@@ -130,6 +131,7 @@ const openApiHonoHandlers: OpenApiHonoHandler[] = [
   deploymentSettingRouter,
   deploymentsRouter,
   leasesRouter,
+  shellExecRouter,
   apiKeysRouter,
   bidsRouter,
   certificateRouter,
