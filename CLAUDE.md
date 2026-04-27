@@ -249,6 +249,12 @@ npm run lint -- --fix
 
 The project uses **semantic release** with **conventional commits** for automated versioning and changelog generation. All commit messages **must comply with the rules defined in `commitlintrc.json`**.
 
+## Git & PR Workflow
+
+- Never push directly to master/main; always create a feature branch and open a PR
+- Use conventional commit types that trigger releases (feat:, fix:, refactor:) — avoid hidden types like test:, chore:, docs: when a release tag is needed
+- After addressing PR review comments, always run lint + typecheck + tests before pushing
+
 ## Dependency Injection
 
 Most backend apps use **tsyringe** for DI. The exception is `apps/notifications` (NestJS built-in DI) and `apps/indexer` (no DI — direct imports).
@@ -297,6 +303,13 @@ All backend apps use these TypeScript path aliases (defined in `tsconfig.build.j
 - `@src/*` → `./src/*`
 - `@test/*` → `./test/*`
 
+## UI Styling Conventions
+
+- Always use design system tokens (not hardcoded hex colors) when styling components
+- Match existing page patterns (e.g., providers page table styling) before introducing new visual treatments
+- For Input components, use `inputClassName` for the inner input element and `className` only for the wrapper
+- When asked to make something 'smaller', ask whether the user means horizontally, vertically, or both before changing CSS
+
 ## Test File Conventions
 
 - **Naming**: `*.spec.ts` (not `*.test.ts`)
@@ -322,3 +335,9 @@ See detailed guidelines:
 ## Writing Tests
 
 Always use the `/console-tests` skill when writing, fixing, reviewing, or refactoring tests in this repo.
+
+## Validation Before Commit
+
+- Always run lint, typecheck, and relevant tests before committing
+- After a fix, verify the dist/build is fresh — stale builds have masked working fixes
+- For DB migrations, prefer DROP + CREATE over `CREATE IF NOT EXISTS` when changing index uniqueness, since the IF NOT EXISTS path silently no-ops on name collision
