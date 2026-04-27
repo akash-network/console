@@ -1,9 +1,9 @@
-# Feature Specification: Bid Precheck
+# Feature Specification: Bid Screening
 
-**Feature Branch**: `001-bid-precheck`
+**Feature Branch**: `001-bid-screening`
 **Created**: 2026-04-27
 **Status**: Draft
-**Input**: User description: "Build bid precheck functionality to prefilter providers from database based on Akash SDL"
+**Input**: User description: "Build bid screening functionality to prefilter providers from database based on Akash SDL"
 
 ## Clarifications
 
@@ -14,7 +14,7 @@
 - Q: Does the replica consistency invariant apply only to GPUs? → A: No. Hardware spec consistency applies to ALL resource types (CPU, memory, storage, GPU). All replicas of the same service MUST resolve to identical resource configurations across every dimension.
 - Q: How are providers filtered beyond resource capacity? → A: Providers are also filtered by placement attributes (key-value pairs with glob/wildcard support) and auditor signatures (signedBy allOf/anyOf). Existing `getProvidersHostUriByAttributes` demonstrates this pattern.
 - Q: What is the input format? → A: The input is a `GroupSpec` from the `@akashnetwork/chain-sdk` protobuf package (deployment/v1beta4), containing placement requirements (attributes + signedBy) and resource units (CPU, memory, GPU, storage[], endpoints, count).
-- Q: What should the precheck return for each matching provider? → A: Provider address (owner), region, uptime (7d), host URI, and audited (boolean).
+- Q: What should the screening return for each matching provider? → A: Provider address (owner), region, uptime (7d), host URI, and audited (boolean).
 - Q: Should attribute filtering run before bin-packing? → A: Yes, as a sanity check. If zero providers match attributes, fail fast. Use the resulting provider addresses to scope subsequent queries for performance. Exact pipeline order is flexible during implementation.
 - Q: What makes a provider "audited"? → A: A provider is audited if it has been signed by a known auditor. Currently the only auditor is Akash (akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63). The list of known auditors may grow over time.
 
@@ -32,7 +32,7 @@ filtered list of providers that can accommodate every resource group
 resource groups — services cannot be split across providers.
 
 **Why this priority**: This is the core value proposition. Without
-basic resource matching, no other precheck feature is useful. Most
+basic resource matching, no other screening feature is useful. Most
 Akash deployments today request only CPU, memory, and ephemeral
 storage.
 
@@ -44,22 +44,22 @@ one node are returned.
 **Acceptance Scenarios**:
 
 1. **Given** a GroupSpec with a single resource unit requesting 1 vCPU,
-   2 GiB memory, 1 GiB ephemeral storage, **When** the precheck is
+   2 GiB memory, 1 GiB ephemeral storage, **When** the screening is
    executed, **Then** all online providers with at least one node
    having sufficient available CPU, memory, and ephemeral storage are
    returned.
 2. **Given** a GroupSpec with a resource unit requesting 500 vCPUs,
-   **When** the precheck is executed, **Then** zero providers are
+   **When** the screening is executed, **Then** zero providers are
    returned because no single node has that capacity.
 3. **Given** a GroupSpec with two resource units (services) each with
-   3 replicas, **When** the precheck is executed, **Then** only
+   3 replicas, **When** the screening is executed, **Then** only
    providers whose node inventory can accommodate all 6 replica
    placements (using greedy bin-packing across nodes) are returned.
 4. **Given** a provider that is offline (isOnline = false), **When**
-   the precheck is executed, **Then** that provider is excluded from
+   the screening is executed, **Then** that provider is excluded from
    results regardless of its resource capacity.
 5. **Given** a GroupSpec with 3 resource units where a provider can
-   fulfil 2 but not the third, **When** the precheck is executed,
+   fulfil 2 but not the third, **When** the screening is executed,
    **Then** that provider is excluded because all services must be
    fulfilled by a single provider.
 
@@ -68,7 +68,7 @@ one node are returned.
 ### User Story 2 - GPU-Aware Filtering (Priority: P2)
 
 A deployment creator specifies GPU requirements in their SDL
-(vendor, model, optional RAM size and interface type). The precheck
+(vendor, model, optional RAM size and interface type). The screening
 filters providers to only those that have matching GPU hardware
 available on their nodes. Wildcard model matching (e.g.,
 "any NVIDIA GPU") is supported.
@@ -85,18 +85,18 @@ containing an available A100 with 80Gi memory are returned.
 **Acceptance Scenarios**:
 
 1. **Given** a GroupSpec requesting 1 GPU with vendor=nvidia,
-   model=a100, **When** the precheck is executed, **Then** only
+   model=a100, **When** the screening is executed, **Then** only
    providers with available NVIDIA A100 GPUs are returned.
 2. **Given** a GroupSpec requesting 1 GPU with vendor=nvidia, model=*
-   (wildcard), **When** the precheck is executed, **Then** providers
+   (wildcard), **When** the screening is executed, **Then** providers
    with any available NVIDIA GPU are returned.
 3. **Given** a GroupSpec requesting 1 GPU with vendor=nvidia,
-   model=a100, ram=80Gi, interface=sxm, **When** the precheck is
+   model=a100, ram=80Gi, interface=sxm, **When** the screening is
    executed, **Then** only providers with A100 GPUs having exactly
    80Gi VRAM and SXM-family interface are returned. Interface
    normalization collapses sxm2/sxm3/sxm4 to match "sxm".
 4. **Given** a GroupSpec requesting 2 GPUs of the same model, **When**
-   the precheck is executed, **Then** only providers with at least 2
+   the screening is executed, **Then** only providers with at least 2
    matching GPUs available on a single node are returned.
 
 ---
@@ -104,7 +104,7 @@ containing an available A100 with 80Gi memory are returned.
 ### User Story 3 - Persistent Storage Class Filtering (Priority: P3)
 
 A deployment creator specifies persistent storage volumes with a
-required storage class (beta1, beta2, or beta3). The precheck
+required storage class (beta1, beta2, or beta3). The screening
 verifies that a provider has both: (a) nodes that support the
 requested storage class, and (b) sufficient cluster-wide persistent
 storage pool capacity for that class.
@@ -122,16 +122,16 @@ storage pool for "beta2" has at least 50 GiB available are returned.
 **Acceptance Scenarios**:
 
 1. **Given** a GroupSpec with a persistent volume of class "beta2"
-   requesting 100 GiB, **When** the precheck is executed, **Then**
+   requesting 100 GiB, **When** the screening is executed, **Then**
    only providers whose nodes declare "beta2" capability AND whose
    cluster storage pool for "beta2" has >= 100 GiB available are
    returned.
 2. **Given** a GroupSpec with a non-persistent storage volume of class
-   "ram", **When** the precheck is executed, **Then** the volume
+   "ram", **When** the screening is executed, **Then** the volume
    quantity is deducted from node memory (not ephemeral storage), and
    providers are filtered accordingly.
 3. **Given** a GroupSpec requesting persistent storage with an empty
-   class or class "ram", **When** the precheck is executed, **Then**
+   class or class "ram", **When** the screening is executed, **Then**
    the request is rejected with a validation error explaining that
    persistent volumes must specify a valid storage class.
 
@@ -142,7 +142,7 @@ storage pool for "beta2" has at least 50 GiB available are returned.
 A deployment creator's SDL includes placement requirements: provider
 attributes (key-value pairs) and auditor constraints (signedBy with
 allOf and/or anyOf lists). Before running the resource bin-packing
-check, the precheck filters providers to only those whose attributes
+check, the screening filters providers to only those whose attributes
 match the required key-value pairs (with glob/wildcard support in
 keys) and whose attribute signatures satisfy the auditor constraints.
 
@@ -161,21 +161,21 @@ returned.
 
 1. **Given** a GroupSpec with placement attribute
    `capabilities/gpu/vendor/nvidia/model/*=true`, **When** the
-   precheck is executed, **Then** only providers whose attributes
+   screening is executed, **Then** only providers whose attributes
    match the glob pattern (any NVIDIA GPU model) are included in the
    candidate set.
 2. **Given** a GroupSpec with `signedBy.allOf` containing auditors
-   [A, B], **When** the precheck is executed, **Then** only providers
+   [A, B], **When** the screening is executed, **Then** only providers
    whose attributes are signed by BOTH auditor A and auditor B are
    included.
 3. **Given** a GroupSpec with `signedBy.anyOf` containing auditors
-   [A, B], **When** the precheck is executed, **Then** providers
+   [A, B], **When** the screening is executed, **Then** providers
    signed by either A or B (or both) are included.
 4. **Given** a GroupSpec with both attributes and signedBy constraints,
-   **When** the precheck is executed, **Then** both filters are
+   **When** the screening is executed, **Then** both filters are
    applied: attribute match AND auditor match must pass.
 5. **Given** a GroupSpec with no placement requirements (empty
-   attributes and signedBy), **When** the precheck is executed,
+   attributes and signedBy), **When** the screening is executed,
    **Then** all online providers are considered candidates (no
    attribute filtering applied).
 
@@ -185,7 +185,7 @@ returned.
 
 A deployment creator defines a GroupSpec with multiple resource units,
 each having different resource requirements and replica counts. The
-precheck performs full bin-packing simulation: replicas are placed
+screening performs full bin-packing simulation: replicas are placed
 greedily across nodes, and a provider passes only if ALL replicas of
 ALL resource groups can be placed. Replicas of the same service MUST
 resolve to identical resource configurations across ALL dimensions
@@ -193,7 +193,7 @@ resolve to identical resource configurations across ALL dimensions
 
 **Why this priority**: Complex deployments with multiple services
 are common in production. Without full bin-packing simulation, the
-precheck would over-report eligible providers.
+screening would over-report eligible providers.
 
 **Independent Test**: Submit a GroupSpec with Resource Unit A
 (4 replicas, 1 vCPU each) and Resource Unit B (2 replicas, 2 vCPU +
@@ -231,11 +231,11 @@ passes only if all 6 placements succeed.
 - What happens when the GroupSpec contains no resource units? The
   request is rejected with a validation error.
 - What happens when a provider's snapshot data is stale (e.g., hours
-  old)? The precheck uses the latest available snapshot. Staleness is
-  accepted as an inherent trade-off of database-based precheck vs.
+  old)? The screening uses the latest available snapshot. Staleness is
+  accepted as an inherent trade-off of database-based screening vs.
   real-time blockchain queries.
 - What happens when two providers tie on eligibility? All eligible
-  providers are returned; the precheck does not rank or sort by
+  providers are returned; the screening does not rank or sort by
   preference.
 - What happens when the GroupSpec requests resources that exceed any
   known provider's total capacity? An empty provider list is returned
@@ -334,30 +334,30 @@ passes only if all 6 placements succeed.
 
 ### Measurable Outcomes
 
-- **SC-001**: The precheck returns results within 5 seconds for 1,000
+- **SC-001**: The screening returns results within 5 seconds for 1,000
   online providers, each with up to 50 nodes, when processing a
   GroupSpec with up to 10 resource units.
-- **SC-002**: The precheck correctly identifies 100% of eligible
+- **SC-002**: The screening correctly identifies 100% of eligible
   providers (no false negatives) when compared against the Go
   reference implementation's matching logic for the same input.
-- **SC-003**: The precheck excludes 100% of ineligible providers (no
+- **SC-003**: The screening excludes 100% of ineligible providers (no
   false positives) when compared against the Go reference
   implementation's matching logic for the same input.
 - **SC-004**: Users see the filtered provider list update within 5
   seconds of editing their SDL in the deployment flow.
-- **SC-005**: The feature handles concurrent precheck requests from
+- **SC-005**: The feature handles concurrent screening requests from
   multiple users without degradation (at least 50 simultaneous
   requests at target latency).
 
 ## Assumptions
 
 - The existing provider snapshot data in the database is sufficiently
-  fresh for precheck purposes. The indexer updates snapshots
-  periodically, and some staleness is acceptable since the precheck
+  fresh for screening purposes. The indexer updates snapshots
+  periodically, and some staleness is acceptable since the screening
   is advisory (the actual bidding happens on-chain).
 - The GroupSpec is provided as the input type. SDL-to-GroupSpec
   parsing is handled upstream and is out of scope for this feature.
-- The precheck operates as a read-only query. It does not modify
+- The screening operates as a read-only query. It does not modify
   provider inventory or create any blockchain transactions.
 - The current ~100 online providers will grow to ~1,000 in the near
   term. The system should handle up to 10,000 providers as an upper

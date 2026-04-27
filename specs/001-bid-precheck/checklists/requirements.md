@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Bid Precheck
+# Specification Quality Checklist: Bid Screening
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-04-27

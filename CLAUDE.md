@@ -322,3 +322,9 @@ See detailed guidelines:
 ## Writing Tests
 
 Always use the `/console-tests` skill when writing, fixing, reviewing, or refactoring tests in this repo.
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+at specs/001-bid-precheck/plan.md
+<!-- SPECKIT END -->
