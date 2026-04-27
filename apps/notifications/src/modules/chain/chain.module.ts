@@ -10,6 +10,7 @@ import { TxEventsService } from "@src/modules/chain/services/tx-events-service/t
 import { RegistryProvider } from "./providers/registry.provider";
 import { StargateClientProvider } from "./providers/stargate-client/stargate-client.provider";
 import { BlockCursorRepository } from "./repositories/block-cursor/block-cursor.repository";
+import { BlockCursorInitializerService } from "./services/block-cursor-initializer/block-cursor-initializer.service";
 import { BlockMessageService } from "./services/block-message/block-message.service";
 import { BlockMessageParserService } from "./services/block-message-parser/block-message-parser.service";
 import { BlockchainClientService } from "./services/blockchain-client/blockchain-client.service";
@@ -22,6 +23,7 @@ import * as schema from "./model-schemas";
 @Module({
   imports: [CommonModule, ConfigModule.forFeature(moduleConfig), ...register(schema), BrokerModule],
   providers: [
+    BlockCursorInitializerService,
     ChainEventsPollerService,
     BlockMessageService,
     BlockMessageParserService,

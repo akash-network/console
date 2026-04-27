@@ -1,15 +1,13 @@
 import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
-import { StargateClient } from "@cosmjs/stargate";
 import { ConfigModule, registerAs } from "@nestjs/config";
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
 import { setTimeout as delay } from "timers/promises";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 
 import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { LoggerService } from "@src/common/services/logger/logger.service";
-import { ShutdownService } from "@src/common/services/shutdown/shutdown.service";
 import { BrokerService } from "@src/infrastructure/broker";
 import { NAMESPACE } from "@src/modules/chain/config";
 import { BlockCursorRepository } from "@src/modules/chain/repositories/block-cursor/block-cursor.repository";
@@ -24,7 +22,7 @@ import { generateMsgCloseDeployment, generateMsgCreateDeployment } from "@test/s
 
 describe(ChainEventsPollerService.name, () => {
   it("initializes poller, processes a new block and publishes related events", async () => {
-    const { service, blockCursorRepository, blockMessageService, module, CURRENT_HEIGHT } = await setup();
+    const { service, blockMessageService, module, CURRENT_HEIGHT } = await setup();
 
     const createDeploymentMessage = generateMsgCreateDeployment();
     const closeDeploymentMessage = generateMsgCloseDeployment();
@@ -36,13 +34,15 @@ describe(ChainEventsPollerService.name, () => {
 
     blockMessageService.getMessages.mockResolvedValueOnce(mockBlock);
 
-    service.onModuleInit();
+    service.onApplicationBootstrap();
     await delay(500);
     service.onModuleDestroy();
 
-    expect(blockCursorRepository.ensureInitialized).toHaveBeenCalledWith(CURRENT_HEIGHT);
-
-    expect(blockMessageService.getMessages).toHaveBeenCalledWith(CURRENT_HEIGHT + 1, [MsgCloseDeployment["$type"], MsgCreateDeployment["$type"]]);
+    expect(blockMessageService.getMessages).toHaveBeenCalledWith(
+      CURRENT_HEIGHT + 1,
+      [MsgCloseDeployment["$type"], MsgCreateDeployment["$type"]],
+      expect.any(AbortSignal)
+    );
 
     expect(module.get(BrokerService).publishAll).toHaveBeenCalledWith([
       {
@@ -70,23 +70,80 @@ describe(ChainEventsPollerService.name, () => {
     ]);
   });
 
-  it("shuts down application when block processing consistently fails", async () => {
-    const { service, module, blockCursorRepository, blockMessageService, CURRENT_HEIGHT } = await setup();
+  it("retries instead of shutting down when block processing consistently fails", async () => {
+    const { service, blockCursorRepository, blockMessageService, CURRENT_HEIGHT } = await setup();
 
-    blockCursorRepository.getNextBlockForProcessing.mockImplementation(async () => {
-      throw new Error("Block Cursor lookup failed");
-    });
+    const successBlock = generateMockBlockData({ height: CURRENT_HEIGHT + 1, time: new Date().toISOString() });
 
-    const mockBlock: BlockData = generateMockBlockData({
-      height: CURRENT_HEIGHT + 1
-    });
+    blockCursorRepository.getNextBlockForProcessing
+      .mockRejectedValueOnce(new Error("fail"))
+      .mockRejectedValueOnce(new Error("fail"))
+      .mockRejectedValueOnce(new Error("fail"))
+      .mockRejectedValueOnce(new Error("fail"))
+      .mockRejectedValueOnce(new Error("fail"))
+      .mockImplementationOnce(async cb => await cb(CURRENT_HEIGHT + 1));
 
-    blockMessageService.getMessages.mockResolvedValueOnce(mockBlock);
+    blockMessageService.getMessages.mockResolvedValueOnce(successBlock);
 
-    service.onModuleInit();
-    await delay(500);
+    service.onApplicationBootstrap();
+    await delay(1000);
+    await service.onModuleDestroy();
 
-    expect(module.get(ShutdownService).shutdown).toHaveBeenCalled();
+    expect(blockMessageService.getMessages).toHaveBeenCalled();
+  });
+
+  it("logs CHAIN_POLLER_STALE when blocks fall behind threshold", async () => {
+    const { service, blockCursorRepository, blockMessageService, loggerService, CURRENT_HEIGHT } = await setup();
+
+    const staleTime = new Date(Date.now() - 2000).toISOString();
+    const staleBlock = generateMockBlockData({ height: CURRENT_HEIGHT + 1, time: staleTime });
+
+    blockMessageService.getMessages.mockResolvedValueOnce(staleBlock);
+
+    blockCursorRepository.getNextBlockForProcessing
+      .mockImplementationOnce(async cb => await cb(CURRENT_HEIGHT + 1))
+      .mockRejectedValueOnce(new Error("fail"))
+      .mockRejectedValueOnce(new Error("fail"))
+      .mockRejectedValueOnce(new Error("fail"))
+      .mockRejectedValueOnce(new Error("fail"))
+      .mockRejectedValueOnce(new Error("fail"));
+
+    service.onApplicationBootstrap();
+    await delay(1000);
+    await service.onModuleDestroy();
+
+    expect(loggerService.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "CHAIN_POLLER_STALE",
+        lastBlockTime: staleTime
+      })
+    );
+  });
+
+  it("logs CHAIN_POLLER_RECOVERED when catching up after being stale", async () => {
+    const { service, blockCursorRepository, blockMessageService, loggerService, CURRENT_HEIGHT } = await setup();
+
+    const staleTime = new Date(Date.now() - 2000).toISOString();
+    const staleBlock = generateMockBlockData({ height: CURRENT_HEIGHT + 1, time: staleTime });
+    const freshBlock = generateMockBlockData({ height: CURRENT_HEIGHT + 2, time: new Date().toISOString() });
+
+    blockMessageService.getMessages.mockResolvedValueOnce(staleBlock).mockResolvedValueOnce(freshBlock);
+
+    blockCursorRepository.getNextBlockForProcessing
+      .mockImplementationOnce(async cb => await cb(CURRENT_HEIGHT + 1))
+      .mockRejectedValueOnce(new Error("fail"))
+      .mockRejectedValueOnce(new Error("fail"))
+      .mockRejectedValueOnce(new Error("fail"))
+      .mockRejectedValueOnce(new Error("fail"))
+      .mockRejectedValueOnce(new Error("fail"))
+      .mockImplementationOnce(async cb => await cb(CURRENT_HEIGHT + 2));
+
+    service.onApplicationBootstrap();
+    await delay(1500);
+    await service.onModuleDestroy();
+
+    expect(loggerService.error).toHaveBeenCalledWith(expect.objectContaining({ event: "CHAIN_POLLER_STALE" }));
+    expect(loggerService.log).toHaveBeenCalledWith(expect.objectContaining({ event: "CHAIN_POLLER_RECOVERED" }));
   });
 
   describe("getReadinessStatus", () => {
@@ -102,7 +159,7 @@ describe(ChainEventsPollerService.name, () => {
       const { service, blockMessageService } = await setup();
       blockMessageService.getMessages.mockResolvedValue(generateMockBlockData({ time: new Date().toISOString() }));
 
-      await service.onModuleInit();
+      await service.onApplicationBootstrap();
       await delay(50);
 
       const result = await service.getReadinessStatus();
@@ -112,16 +169,18 @@ describe(ChainEventsPollerService.name, () => {
       await service.onModuleDestroy();
     });
 
-    it("returns error after poller crashes", async () => {
+    it("returns ok while poller retries after errors", async () => {
       const { service, blockCursorRepository } = await setup();
       blockCursorRepository.getNextBlockForProcessing.mockRejectedValue(new Error("fail"));
 
-      service.onModuleInit();
+      service.onApplicationBootstrap();
       await delay(500);
 
       const result = await service.getReadinessStatus();
 
-      expect(result).toEqual({ status: "error", data: { poller: false } });
+      expect(result).toEqual({ status: "ok", data: { poller: true } });
+
+      await service.onModuleDestroy();
     });
   });
 
@@ -136,24 +195,13 @@ describe(ChainEventsPollerService.name, () => {
     });
   });
 
-  it("completes currently processed block before shutdown is finalized", async () => {
+  it("shuts down cleanly when poller is running", async () => {
     const { service, blockMessageService } = await setup();
-    const controller = Promise.withResolvers<ReturnType<typeof generateMockBlockData>>();
+    blockMessageService.getMessages.mockResolvedValue(generateMockBlockData({ time: new Date().toISOString() }));
 
-    blockMessageService.getMessages.mockImplementation(() => controller.promise);
-
-    await service.onModuleInit();
-    await delay(10);
-    const finalizeDestroy = vi.fn();
-    service.onModuleDestroy().finally(finalizeDestroy);
-    await delay(100);
-
-    expect(blockMessageService.getMessages).toHaveBeenCalledTimes(1);
-    expect(finalizeDestroy).not.toHaveBeenCalled();
-
-    controller.resolve(generateMockBlockData({ time: new Date().toISOString() }));
-    await delay(100);
-    expect(finalizeDestroy).toHaveBeenCalled();
+    await service.onApplicationBootstrap();
+    await delay(50);
+    await service.onModuleDestroy();
   });
 
   async function setup(): Promise<{
@@ -170,6 +218,7 @@ describe(ChainEventsPollerService.name, () => {
         ConfigModule.forFeature(
           registerAs(NAMESPACE, () => ({
             BLOCK_TIME_SEC: 0.1,
+            BLOCK_STALE_THRESHOLD_SEC: 0.3,
             pollingConfig: {
               maxDelay: 30,
               startingDelay: 3,
@@ -185,17 +234,12 @@ describe(ChainEventsPollerService.name, () => {
         MockProvider(BrokerService),
         MockProvider(BlockMessageService),
         MockProvider(BlockCursorRepository),
-        MockProvider(StargateClient as any),
-        MockProvider(ShutdownService),
         MockProvider(LoggerService),
         MockProvider(TxEventsService)
       ]
     }).compile();
 
     const CURRENT_HEIGHT = 100;
-
-    const stargateClient = module.get<MockProxy<StargateClient>>(StargateClient);
-    stargateClient.getHeight.mockResolvedValue(CURRENT_HEIGHT);
 
     const blockCursorRepository = module.get<MockProxy<BlockCursorRepository>>(BlockCursorRepository);
     blockCursorRepository.getNextBlockForProcessing.mockImplementation(async cb => {

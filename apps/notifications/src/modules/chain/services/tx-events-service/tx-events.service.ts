@@ -1,7 +1,7 @@
 import { Comet38Client } from "@cosmjs/tendermint-rpc";
 import { BlockResultsResponse, Event } from "@cosmjs/tendermint-rpc/build/comet38";
 import { Injectable } from "@nestjs/common";
-import { backOff } from "exponential-backoff";
+import { ExponentialBackoff, handleAll, retry } from "cockatiel";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 
@@ -35,7 +35,7 @@ interface EventFilter {
  * Handles event filtering, parsing, and transformation to a standardized format.
  *
  * Features:
- * - Fetches block results using Comet38Client with exponential backoff retry
+ * - Fetches block results using Comet38Client with exponential backoff retry (cockatiel)
  * - Filters events by source, module, version, and action
  * - Transforms raw blockchain events to standardized v1 format
  * - Handles both new Comet38 event format and legacy format
@@ -66,9 +66,9 @@ export class TxEventsService {
    * @param filter - Optional filter to apply to events
    * @returns Array of processed events matching the filter criteria
    */
-  async getBlockEvents(blockHeight: number, filter?: EventFilter): Promise<ProcessedEvent[]> {
+  async getBlockEvents(blockHeight: number, filter?: EventFilter, signal?: AbortSignal): Promise<ProcessedEvent[]> {
     try {
-      const blockResults = await this.fetchBlockResultsWithRetry(blockHeight);
+      const blockResults = await this.fetchBlockResultsWithRetry(blockHeight, signal);
 
       this.loggerService.debug({
         event: "BLOCK_RESULTS_FETCHED",
@@ -87,19 +87,25 @@ export class TxEventsService {
     }
   }
 
+  private readonly retryExecutor = retry(handleAll, {
+    maxAttempts: 5,
+    backoff: new ExponentialBackoff({
+      initialDelay: 500,
+      maxDelay: 7_000,
+      exponent: 2
+    })
+  });
+
   /**
    * Fetches block results from Tendermint with exponential backoff retry logic
    * @param blockHeight - The height of the block to fetch
    * @returns Block results response from Tendermint
    */
-  private async fetchBlockResultsWithRetry(blockHeight: number): Promise<BlockResultsResponse> {
-    return await backOff(() => this.comet38Client.blockResults(blockHeight), {
-      maxDelay: 7_000,
-      startingDelay: 500,
-      timeMultiple: 2,
-      numOfAttempts: 5,
-      jitter: "none"
-    });
+  private async fetchBlockResultsWithRetry(blockHeight: number, signal?: AbortSignal): Promise<BlockResultsResponse> {
+    return await this.retryExecutor.execute(async ({ signal: retrySignal }) => {
+      retrySignal.throwIfAborted();
+      return await this.comet38Client.blockResults(blockHeight);
+    }, signal);
   }
 
   /**

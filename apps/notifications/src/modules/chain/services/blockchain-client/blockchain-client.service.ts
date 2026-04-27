@@ -1,6 +1,6 @@
 import { Block, StargateClient } from "@cosmjs/stargate";
 import { Injectable } from "@nestjs/common";
-import { backOff } from "exponential-backoff";
+import { ExponentialBackoff, handleAll, retry } from "cockatiel";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 
@@ -18,10 +18,10 @@ export class BlockchainClientService {
    * @param height The block height to fetch or 'latest' for the latest block
    * @returns The block data
    */
-  async getBlock(height: number | "latest"): Promise<Block> {
+  async getBlock(height: number | "latest", signal?: AbortSignal): Promise<Block> {
     const blockHeight = await this.toBlockHeight(height);
     this.loggerService.debug(`Fetching block at height: ${blockHeight}`);
-    return await this.getBlockAwaited(blockHeight);
+    return await this.getBlockAwaited(blockHeight, signal);
   }
 
   /**
@@ -33,13 +33,19 @@ export class BlockchainClientService {
     return height === "latest" ? this.stargateClient.getHeight() : height;
   }
 
-  private async getBlockAwaited(height: number): Promise<Block> {
-    return await backOff(() => this.stargateClient.getBlock(height), {
+  private readonly retryExecutor = retry(handleAll, {
+    maxAttempts: 5,
+    backoff: new ExponentialBackoff({
+      initialDelay: 500,
       maxDelay: 5_000,
-      startingDelay: 500,
-      timeMultiple: 2,
-      numOfAttempts: 5,
-      jitter: "none"
-    });
+      exponent: 2
+    })
+  });
+
+  private async getBlockAwaited(height: number, signal?: AbortSignal): Promise<Block> {
+    return await this.retryExecutor.execute(async ({ signal: retrySignal }) => {
+      retrySignal.throwIfAborted();
+      return await this.stargateClient.getBlock(height);
+    }, signal);
   }
 }

@@ -35,7 +35,7 @@ describe(BlockMessageService.name, () => {
 
       const result = await service.getMessages(height);
 
-      expect(blockchainClientService.getBlock).toHaveBeenCalledWith(height);
+      expect(blockchainClientService.getBlock).toHaveBeenCalledWith(height, undefined);
       expect(blockMessageParserService.parseBlockMessages).toHaveBeenCalledWith(mockBlock, undefined);
       expect(result).toEqual(mockBlockData);
     });
@@ -52,7 +52,7 @@ describe(BlockMessageService.name, () => {
 
       const result = await service.getMessages("latest");
 
-      expect(blockchainClientService.getBlock).toHaveBeenCalledWith("latest");
+      expect(blockchainClientService.getBlock).toHaveBeenCalledWith("latest", undefined);
       expect(blockMessageParserService.parseBlockMessages).toHaveBeenCalledWith(mockBlock, undefined);
       expect(result).toEqual(mockBlockData);
     });
@@ -75,7 +75,7 @@ describe(BlockMessageService.name, () => {
 
       const result = await service.getMessages(height, messageTypes);
 
-      expect(blockchainClientService.getBlock).toHaveBeenCalledWith(height);
+      expect(blockchainClientService.getBlock).toHaveBeenCalledWith(height, undefined);
       expect(blockMessageParserService.parseBlockMessages).toHaveBeenCalledWith(mockBlock, messageTypes);
       expect(result).toEqual(mockBlockData);
     });
