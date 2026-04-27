@@ -118,7 +118,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
               className="flex-1"
               ref={turnstileRef}
               siteKey={injectedConfig?.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? siteKey}
-              options={{ execution: "execute" }}
+              options={{ execution: "execute", size: "normal" }}
               onError={error => {
                 setStatus("error");
                 eventBus.current.dispatchEvent(new CustomEvent("error", { detail: { error, reason: "error" } }));
