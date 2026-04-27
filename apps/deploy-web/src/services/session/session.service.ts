@@ -223,7 +223,6 @@ function extractResponseDetails(response: AxiosResponse) {
     url: response.config?.url,
     method: response.config?.method,
     status: response.status,
-    data: response.data,
     headers: {
       "Content-Type": response.headers["content-type"],
       server: response.headers["server"]
