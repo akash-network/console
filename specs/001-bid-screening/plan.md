@@ -21,7 +21,7 @@ host URI, audited status). Target: <5s for 1,000 providers.
 **Testing**: Vitest (unit + functional), setup() pattern, colocated *.spec.ts
 **Target Platform**: Linux server (apps/api)
 **Project Type**: REST API endpoint (web-service)
-**Performance Goals**: <5s response for 1,000 providers, <10s for 10,000; 50 concurrent requests
+**Performance Goals**: <5s hard ceiling for up to 10,000 providers; sub-second for ~1,000; 50 concurrent requests within 5s each
 **Constraints**: Read-only DB access, no schema changes, must match Go reference implementation semantics
 **Scale/Scope**: ~100 providers today, ~1,000 near-term, <10,000 upper bound; 1-50 nodes per provider; 1-10 resource groups per GroupSpec
 

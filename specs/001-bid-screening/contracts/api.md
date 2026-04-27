@@ -133,6 +133,6 @@ Returned when Zod schema validation fails on the request body.
 
 ### Performance
 
-- Target: <5s for 1,000 online providers
-- Graceful degradation: <10s for up to 10,000 providers
-- Concurrent: 50+ simultaneous requests at target latency
+- Hard ceiling: <5s for up to 10,000 online providers
+- Normal load (~1,000 providers): sub-second expected
+- Concurrent: 50 simultaneous requests MUST each complete within 5s

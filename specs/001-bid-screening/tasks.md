@@ -146,6 +146,8 @@
 - [ ] T036 [P] Add input validation for edge cases (FR-007) in `apps/api/src/bid-screening/services/bid-screening/bid-screening.service.ts`: validate GroupSpec has at least one resource unit, validate persistent storage has valid class, validate GPU attributes are well-formed. Throw http-errors BadRequest with descriptive messages.
 - [ ] T037 Add aggregate resource pre-filter to BidScreeningRepository: before full snapshot loading, run a lightweight SQL query to exclude providers whose total available CPU/memory/storage (sum across nodes) is obviously insufficient. This is the Stage 2 optimization from research.md R6.
 - [ ] T038 Add aggregate pre-filter test to `apps/api/src/bid-screening/repositories/bid-screening/bid-screening.repository.spec.ts`: test providers with insufficient aggregate resources are excluded before snapshot loading
+- [ ] T039 [P] Add scale benchmark test in `apps/api/test/functional/bid-screening-benchmark.spec.ts`: seed a synthetic dataset of 10,000 providers (varying node counts 1-50, mixed GPU/storage capabilities), run POST /v1/bid-screening with a representative GroupSpec, assert response completes within 5 seconds. Use Vitest with extended timeout.
+- [ ] T040 [P] Add concurrent load test in `apps/api/test/functional/bid-screening-concurrency.spec.ts`: fire 50 parallel POST /v1/bid-screening requests with a representative GroupSpec against a seeded provider dataset (~1,000 providers), assert all 50 responses return 200 within 5 seconds and produce consistent results. No request may be starved.
 
 ---
 

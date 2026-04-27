@@ -279,9 +279,11 @@ passes only if all 6 placements succeed.
 - **FR-007**: The system MUST reject invalid inputs with descriptive
   error messages (e.g., persistent volume without storage class,
   malformed GPU attributes, empty resource units).
-- **FR-008**: The system MUST return results within 5 seconds for up
-  to 1,000 online providers, and degrade gracefully (best-effort
-  within 10 seconds) for up to 10,000 providers.
+- **FR-008**: The system MUST return results within 5 seconds under
+  all conditions, including concurrent requests and up to 10,000
+  online providers. This is a hard latency ceiling, not a best-effort
+  target. Under normal load (~1,000 providers), responses SHOULD be
+  significantly faster (sub-second).
 - **FR-009**: The system MUST operate in read-only mode against the
   database. No inventory state is modified (equivalent to the Go
   implementation's DryRun mode).
@@ -334,9 +336,10 @@ passes only if all 6 placements succeed.
 
 ### Measurable Outcomes
 
-- **SC-001**: The screening returns results within 5 seconds for 1,000
-  online providers, each with up to 50 nodes, when processing a
-  GroupSpec with up to 10 resource units.
+- **SC-001**: The screening MUST return results within 5 seconds for
+  up to 10,000 online providers, each with up to 50 nodes, when
+  processing a GroupSpec with up to 10 resource units. Under normal
+  load (~1,000 providers), response time SHOULD be sub-second.
 - **SC-002**: The screening correctly identifies 100% of eligible
   providers (no false negatives) when compared against the Go
   reference implementation's matching logic for the same input.
@@ -345,9 +348,9 @@ passes only if all 6 placements succeed.
   implementation's matching logic for the same input.
 - **SC-004**: Users see the filtered provider list update within 5
   seconds of editing their SDL in the deployment flow.
-- **SC-005**: The feature handles concurrent screening requests from
-  multiple users without degradation (at least 50 simultaneous
-  requests at target latency).
+- **SC-005**: 50 simultaneous screening requests MUST each complete
+  within the 5-second ceiling. No request may be starved or timed
+  out under concurrent load.
 
 ## Assumptions
 
