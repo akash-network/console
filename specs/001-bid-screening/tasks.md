@@ -1,6 +1,6 @@
 # Tasks: Bid Screening
 
-**Input**: Design documents from `specs/001-bid-precheck/`
+**Input**: Design documents from `specs/001-bid-screening/`
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/
 
 **Tests**: Tests are included as they are required by the project constitution (Principle III: Test-Covered Changes, api patch target 80%).
