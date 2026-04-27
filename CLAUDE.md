@@ -319,6 +319,11 @@ See detailed guidelines:
 See detailed guidelines:
 @./.claude/instructions/commit-and-pr-conventions.md
 
+## Use `mock<T>()` instead of `as unknown as <Type>` in tests
+
+See detailed guidelines:
+@./.claude/instructions/use-mock-instead-of-as-unknown-as-in-tests.md
+
 ## Writing Tests
 
 Always use the `/console-tests` skill when writing, fixing, reviewing, or refactoring tests in this repo.

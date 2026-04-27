@@ -19,7 +19,7 @@ test.describe("Managed wallet API keys", () => {
     });
 
     await test.step("navigate to API keys via account menu", async () => {
-      await page.getByRole("button", { name: /account menu/i }).hover();
+      await page.getByRole("button", { name: /account menu/i }).click();
       await page.getByText("API Keys").click();
       await apiKeysPage.waitForPage();
     });

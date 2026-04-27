@@ -124,6 +124,23 @@ const stripeService = mock<StripeService>();
 const logger = mock<LoggerService>();
 ```
 
+**Prefer `mock<T>()` over `as unknown as <Type>` for hand-built doubles.** When stubbing a hook return value or service that has many fields, build it with `mock<T>()` and override only the fields the test cares about. Hand-built objects coerced through `as unknown as` silently survive contract changes upstream and hide real regressions.
+
+```typescript
+// Good — stays in sync with the real type, lets the test focus on what matters
+const useCustomUser: typeof DEPENDENCIES.useCustomUser = () =>
+  mock<ReturnType<typeof DEPENDENCIES.useCustomUser>>({
+    user: { username: "alice" },
+    isLoading: false
+  });
+
+// Bad — `UseCustomUser` could grow a required field and this still compiles
+const useCustomUser = () =>
+  ({ user: { username: "alice" }, isLoading: false }) as unknown as ReturnType<typeof DEPENDENCIES.useCustomUser>;
+```
+
+Reserve `as unknown as` for the rare case where the type is structurally incompatible (e.g. branded types) and `mock<T>()` cannot satisfy it.
+
 For config services, use `mockConfigService<T>()` (in `apps/api/test/mocks/config-service.mock.ts`):
 
 ```typescript

@@ -11,7 +11,7 @@ test.describe("Custodial wallet", () => {
 
     const container = page.getByLabel("Connected wallet name and balance");
     await container.waitFor({ state: "visible", timeout: 20_000 });
-    await container.hover({ timeout: 20_000 });
+    await container.click({ timeout: 20_000 });
     await page.getByLabel("wallet address").click();
     const clipboardContent = await page.evaluate(() => navigator.clipboard.readText());
 
