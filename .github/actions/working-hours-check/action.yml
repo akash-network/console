@@ -1,0 +1,75 @@
+name: Working Hours Check
+description: >-
+  Resolves whether the given GitHub actor is currently within their configured
+  working hours. Used to decide whether to auto-approve a prod deploy or fall
+  back to manual approval. Config is a JSON map, e.g.
+  {"ygrishajev":{"tz":"Europe/Berlin","start":9,"end":18}}. Window is Mon-Fri,
+  [start, end) in the actor's local hour. Unknown actors and unparseable
+  config resolve to in-window=false.
+
+inputs:
+  actor:
+    description: GitHub login to evaluate
+    required: true
+  working-hours-config:
+    description: JSON map of actor -> { tz, start, end }
+    required: false
+    default: "{}"
+
+outputs:
+  in-window:
+    description: "'true' if the actor is currently within their working hours window, otherwise 'false'"
+    value: ${{ steps.check.outputs.in-window }}
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      id: check
+      env:
+        ACTOR: ${{ inputs.actor }}
+        CONFIG: ${{ inputs.working-hours-config }}
+      with:
+        script: | # js
+          const actor = process.env.ACTOR || "";
+          let config;
+          try {
+            config = JSON.parse(process.env.CONFIG || "{}");
+          } catch (err) {
+            core.warning(`Could not parse working-hours-config: ${err.message}`);
+            core.setOutput("in-window", "false");
+            return;
+          }
+
+          const cfg = config && typeof config === "object" ? config[actor] : null;
+          if (!cfg) {
+            core.info(`No working-hours config for actor "${actor}" — requiring manual approval`);
+            core.setOutput("in-window", "false");
+            return;
+          }
+
+          let day, hour;
+          try {
+            const fmt = new Intl.DateTimeFormat("en-US", {
+              timeZone: cfg.tz,
+              hour: "2-digit",
+              hour12: false,
+              weekday: "short",
+            });
+            const parts = Object.fromEntries(fmt.formatToParts(new Date()).map(p => [p.type, p.value]));
+            day = parts.weekday;
+            hour = parseInt(parts.hour, 10);
+          } catch (err) {
+            core.warning(`Invalid working-hours config for actor "${actor}": ${err.message}`);
+            core.setOutput("in-window", "false");
+            return;
+          }
+
+          const isWeekday = !["Sat", "Sun"].includes(day);
+          const inWindow = isWeekday && hour >= cfg.start && hour < cfg.end;
+
+          core.info(
+            `actor=${actor} day=${day} hour=${hour} tz=${cfg.tz} ` +
+            `window=${cfg.start}:00-${cfg.end}:00 in_window=${inWindow}`
+          );
+          core.setOutput("in-window", String(inWindow));
