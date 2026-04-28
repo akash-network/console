@@ -17,7 +17,8 @@ const DEFAULT_RECOMMENDED_TEMPLATE_IDS = new Set([
   "akash-network-awesome-akash-openclaw",
   "akash-network-awesome-akash-comfyui",
   "akash-network-awesome-akash-DeepSeek-V3.1",
-  "akash-network-awesome-akash-DeepSeek-R1"
+  "akash-network-awesome-akash-DeepSeek-R1",
+  "akash-network-awesome-akash-Razer-AIKit"
 ]);
 
 const DEFAULT_MOST_POPULAR_TEMPLATE_IDS = new Set([
