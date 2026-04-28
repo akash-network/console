@@ -1,18 +1,16 @@
 "use client";
 
 import type { FC, ReactNode } from "react";
-import { useMemo } from "react";
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 import { merge } from "lodash";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
-import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useWhen } from "@src/hooks/useWhen";
 import type { DeploymentDto } from "@src/types/deployment";
-import { ceilDecimal, denomToUdenom, roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
+import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 
 type DeploymentAlertsInput = components["schemas"]["DeploymentAlertCreateInput"]["data"];
 export type DeploymentAlertsOutput = components["schemas"]["DeploymentAlertsResponse"]["data"];
@@ -42,21 +40,15 @@ export type ChildrenProps = {
   maxBalanceThreshold: number;
 };
 
-const DEPENDENCIES = {
-  usePricing
-};
-
 export type Props = {
-  deployment: Pick<DeploymentDto, "dseq" | "denom" | "escrowBalance">;
+  deployment: Pick<DeploymentDto, "dseq" | "escrowBalance">;
   children: (props: ChildrenProps) => ReactNode;
-  dependencies?: typeof DEPENDENCIES;
 };
 
-export const DeploymentAlertsContainer: FC<Props> = ({ children, deployment, dependencies: d = DEPENDENCIES }) => {
+export const DeploymentAlertsContainer: FC<Props> = ({ children, deployment }) => {
   const { notificationsApi } = useServices();
   const queryClient = useQueryClient();
   const notificator = useNotificator();
-  const { usdToAkt, getPriceForDenom } = d.usePricing();
 
   const { data, isLoading, isFetched, isError } = notificationsApi.v1.getDeploymentAlerts.useQuery({
     path: {
@@ -66,65 +58,34 @@ export const DeploymentAlertsContainer: FC<Props> = ({ children, deployment, dep
 
   const mutation = notificationsApi.v1.upsertDeploymentAlert.useMutation();
 
-  const convert = useCallback(
-    (value: number) => {
-      if (deployment.denom !== "uakt") {
-        return denomToUdenom(value);
-      }
-      const akt = usdToAkt(value);
-
-      if (akt === null) {
-        throw new Error("Could not convert balance to AKT");
-      }
-
-      const converted = denomToUdenom(akt);
-
-      if (converted === null) {
-        throw new Error("Could not convert balance to AKT");
-      }
-
-      return converted;
-    },
-    [deployment.denom, usdToAkt]
-  );
-
-  const prepareInput = useCallback(
-    (input: ContainerInput) => {
-      if ("deploymentBalance" in input.alerts && input.alerts.deploymentBalance.threshold) {
-        return merge({}, input, {
-          alerts: {
-            deploymentBalance: {
-              threshold: convert(input.alerts.deploymentBalance.threshold)
-            }
+  const prepareInput = useCallback((input: ContainerInput) => {
+    if ("deploymentBalance" in input.alerts && input.alerts.deploymentBalance.threshold) {
+      return merge({}, input, {
+        alerts: {
+          deploymentBalance: {
+            threshold: denomToUdenom(input.alerts.deploymentBalance.threshold)
           }
-        });
-      }
+        }
+      });
+    }
 
-      return input;
-    },
-    [convert]
-  );
+    return input;
+  }, []);
 
-  const toOutput = useCallback(
-    (data?: components["schemas"]["DeploymentAlertsResponse"]) => {
-      const deploymentBalance = data?.data?.alerts?.deploymentBalance;
-      if (deploymentBalance?.threshold) {
-        const value = udenomToDenom(deploymentBalance.threshold);
-        const price = getPriceForDenom(deployment.denom);
-
-        return merge({}, data?.data, {
-          alerts: {
-            deploymentBalance: {
-              threshold: roundDecimal(value * price, 6)
-            }
+  const toOutput = useCallback((data?: components["schemas"]["DeploymentAlertsResponse"]) => {
+    const deploymentBalance = data?.data?.alerts?.deploymentBalance;
+    if (deploymentBalance?.threshold) {
+      return merge({}, data?.data, {
+        alerts: {
+          deploymentBalance: {
+            threshold: udenomToDenom(deploymentBalance.threshold)
           }
-        });
-      }
+        }
+      });
+    }
 
-      return data?.data;
-    },
-    [deployment.denom, getPriceForDenom]
-  );
+    return data?.data;
+  }, []);
 
   const output = useMemo(() => toOutput(data), [data, toOutput]);
 
@@ -164,14 +125,8 @@ export const DeploymentAlertsContainer: FC<Props> = ({ children, deployment, dep
   );
 
   const maxBalanceThreshold = useMemo(() => {
-    const denom = udenomToDenom(deployment.escrowBalance);
-    if (deployment.denom !== "uakt") {
-      return denom;
-    }
-    const price = getPriceForDenom(deployment.denom);
-
-    return ceilDecimal(denom * price);
-  }, [deployment.denom, deployment.escrowBalance, getPriceForDenom]);
+    return udenomToDenom(deployment.escrowBalance);
+  }, [deployment.escrowBalance]);
 
   return (
     <>
