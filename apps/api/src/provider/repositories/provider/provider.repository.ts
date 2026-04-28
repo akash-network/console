@@ -31,9 +31,17 @@ export class ProviderRepository {
   }
 
   async getProvidersHostUriByAttributes(attributes: Attribute[], signatures?: Partial<SignedBy>): Promise<string[]> {
-    if (!attributes.length) {
+    return this.queryProviderFieldByAttributes("hostUri", attributes, signatures);
+  }
+
+  async getProvidersOwnersByAttributes(attributes: Attribute[], signatures?: Partial<SignedBy>): Promise<string[]> {
+    return this.queryProviderFieldByAttributes("owner", attributes, signatures);
+  }
+
+  private async queryProviderFieldByAttributes(field: "owner" | "hostUri", attributes: Attribute[], signatures?: Partial<SignedBy>): Promise<string[]> {
+    if (!attributes.length && !signatures?.allOf?.length && !signatures?.anyOf?.length) {
       const providers = await Provider.findAll({
-        attributes: ["hostUri"],
+        attributes: [field],
         where: {
           isOnline: true,
           deletedHeight: null
@@ -41,7 +49,7 @@ export class ProviderRepository {
         raw: true
       });
 
-      return providers.map(provider => provider.hostUri);
+      return providers.map(provider => provider[field]);
     }
 
     const attrAssociation = signatures ? Provider.associations.providerAttributeSignatures : Provider.associations.providerAttributes;
@@ -103,9 +111,10 @@ export class ProviderRepository {
       };
     }
 
+    const groupFields = field === "owner" ? ["provider", "owner"] : ["provider", "hostUri"];
     const rows = await Provider.findAll({
       raw: true,
-      attributes: ["hostUri"],
+      attributes: [field],
       include: [
         {
           model: attrAssociation.target,
@@ -117,13 +126,13 @@ export class ProviderRepository {
         isOnline: true,
         deletedHeight: null
       },
-      group: ["provider", "hostUri"],
+      group: groupFields,
       having: Provider.sequelize!.literal(havingLiterals.join(" AND ")),
       replacements: {
         ...havingParams
       }
     });
-    return rows.map(row => row.hostUri);
+    return rows.map(row => row[field]);
   }
 
   async getWithAttributesAndAuditors({

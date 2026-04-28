@@ -33,6 +33,7 @@ import { web3IndexRouter } from "./routers/web3indexRouter";
 import { bytesToHumanReadableSize } from "./utils/files";
 import { addressRouter } from "./address";
 import { apiKeysRouter, sendVerificationCodeRouter, sendVerificationEmailRouter, signupRouter, verifyEmailCodeRouter } from "./auth";
+import { bidScreeningRouter } from "./bid-screening";
 import {
   getBalancesRouter,
   getWalletListRouter,
@@ -160,7 +161,8 @@ const openApiHonoHandlers: OpenApiHonoHandler[] = [
   templatesRouter,
   leasesDurationRouter,
   addressRouter,
-  blockchainStatusRouter
+  blockchainStatusRouter,
+  bidScreeningRouter
 ];
 for (const handler of openApiHonoHandlers) {
   appHono.route("/", handler);

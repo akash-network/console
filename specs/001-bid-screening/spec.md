@@ -17,6 +17,10 @@
 - Q: What should the screening return for each matching provider? → A: Provider address (owner), region, uptime (7d), host URI, and audited (boolean).
 - Q: Should attribute filtering run before bin-packing? → A: Yes, as a sanity check. If zero providers match attributes, fail fast. Use the resulting provider addresses to scope subsequent queries for performance. Exact pipeline order is flexible during implementation.
 - Q: What makes a provider "audited"? → A: A provider is audited if it has been signed by a known auditor. Currently the only auditor is Akash (akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63). The list of known auditors may grow over time.
+- Q: Do CPU vendor/model configurations need to be consistent across replicas of the same service? → A: Yes. All replicas of the same resource unit MUST land on nodes whose CPU fingerprint (sorted, deduplicated set of "vendor:model" strings from ProviderSnapshotNodeCPU rows for that node) is identical. The fingerprint is established by the first successfully placed replica and pinned for all subsequent replicas of the same group. Nodes with no CPU rows yield a null fingerprint and may not mix with nodes that have CPU info.
+- Q: What happens when GPUs are requested but no GPU attributes (vendor/model) are specified in the SDL? → A: The matcher pins to the first GPU type found on the first successfully placed replica's node. Subsequent replicas for that resource unit must match the same pinned GPU type. If a node has GPU units requested but its snapshot contains no GPU info entries, that node fails (NODE_FAIL) — it cannot be used for GPU workloads regardless of its quantity counter.
+- Q: How should anyOf auditor filtering be implemented in SQL? → A: anyOf auditors MUST be evaluated using `HAVING COUNT(*) FILTER (WHERE pas.auditor IN (:anyOfAuditors)) > 0`, not via a `WHERE IN` clause. A WHERE clause would drop rows from the join result needed for allOf HAVING evaluation, causing providers signed by anyOf-but-not-allOf auditors to fail silently.
+- Q: How should the node-fit pre-filter EXISTS subquery work when a GroupSpec has multiple resource units with different CPU/memory maxima? → A: Use two independent EXISTS subqueries — one checking max per-replica CPU availability and one checking max per-replica memory availability — rather than a single EXISTS requiring both conditions on the same node. A single combined EXISTS produces false negatives when the CPU maximum and the memory maximum come from different resource units that will be placed on different nodes.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -215,12 +219,15 @@ passes only if all 6 placements succeed.
 3. **Given** a GroupSpec where the third replica of a resource unit
    would resolve to a different GPU model than the first two,
    **Then** the provider fails the consistency check and is excluded.
-4. **Given** a GroupSpec where replicas of the same resource unit
-   would land on nodes with different CPU or memory configurations,
-   **Then** this is acceptable as long as each node has sufficient
-   allocatable capacity — the consistency invariant applies to the
-   adjusted resource attributes (particularly GPU matching), not to
-   underlying hardware homogeneity.
+4. **Given** a GroupSpec where the second replica of a resource unit
+   would land on a node with a different CPU vendor/model fingerprint
+   than the first replica, **Then** the provider fails the consistency
+   check and is excluded. The CPU fingerprint is the sorted,
+   deduplicated set of "vendor:model" strings from all
+   ProviderSnapshotNodeCPU rows for that node (e.g.,
+   `"GenuineIntel:Intel(R) Xeon(R) CPU @ 2.30GHz"`). Once pinned by
+   the first replica, all subsequent replicas of the same resource
+   unit MUST match the identical fingerprint.
 
 ---
 
@@ -274,8 +281,21 @@ passes only if all 6 placements succeed.
   are stored as beta1 (HDD), beta2 (SSD), and beta3 (NVMe).
 - **FR-006**: The system MUST enforce the replica consistency
   invariant: all replicas of the same resource unit MUST resolve to
-  identical adjusted resource attributes across ALL dimensions (CPU,
-  memory, storage, GPU).
+  identical adjusted resource attributes across ALL dimensions.
+  Specifically:
+  - **GPU**: After the first replica, the resolved GPU vendor/model
+    (including wildcard expansion) is pinned for all subsequent
+    replicas of the same group. When GPU units > 0 but no GPU
+    attributes are specified, the matcher pins to the first GPU type
+    found on the first placed node. A node with GPU units requested
+    but no GPU info entries fails immediately (NODE_FAIL).
+  - **CPU**: After the first replica, the CPU vendor/model fingerprint
+    (sorted, deduplicated set of `"vendor:model"` strings from all
+    ProviderSnapshotNodeCPU rows for that node) is pinned for all
+    subsequent replicas. Nodes with no CPU info produce a null
+    fingerprint and may not mix with nodes that carry CPU info.
+  - If any subsequent replica lands on a node with a differing GPU or
+    CPU fingerprint, the group match fails with GROUP_RESOURCE_MISMATCH.
 - **FR-007**: The system MUST reject invalid inputs with descriptive
   error messages (e.g., persistent volume without storage class,
   malformed GPU attributes, empty resource units).
@@ -325,6 +345,12 @@ passes only if all 6 placements succeed.
   (beta1/beta2/beta3 mapped to HDD/SSD/NVMe booleans).
 - **Snapshot Node GPU**: A physical GPU on a node, described by
   vendor, model name, model ID, interface type, and memory size.
+- **Snapshot Node CPU**: A physical CPU chip on a snapshot node,
+  described by vendor (e.g., "GenuineIntel"), model string (e.g.,
+  "Intel(R) Xeon(R) CPU @ 2.30GHz"), and vcores. A node may have
+  multiple CPU rows (one per physical chip). The CPU fingerprint for
+  consistency checking is the sorted, deduplicated set of
+  `"vendor:model"` strings across all chips on that node.
 - **Snapshot Storage**: A cluster-wide persistent storage pool,
   described by class (beta1/beta2/beta3) and allocatable/allocated
   capacity in bytes.
@@ -370,8 +396,11 @@ passes only if all 6 placements succeed.
   replicas each.
 - The existing provider snapshot schema (ProviderSnapshot,
   ProviderSnapshotNode, ProviderSnapshotNodeGPU,
-  ProviderSnapshotStorage) contains all data needed for the matching
-  algorithm. No schema changes are required.
+  ProviderSnapshotStorage, ProviderSnapshotNodeCPU) contains all data
+  needed for the matching algorithm. No schema changes are required.
+  The ProviderSnapshotNodeCPU table (vendor, model, vcores per
+  physical CPU chip) must be joined when loading provider snapshots
+  to support the CPU consistency invariant (FR-006).
 - Storage classes in the database are stored as beta1/beta2/beta3,
   matching SDL storage class names directly. No translation is needed.
 - Provider attribute filtering (including glob patterns and
