@@ -46,12 +46,35 @@ jobs:
       appVersion: ${{ needs.setup.outputs.image_tag }}
       environment: staging
 
+  auto-approve-decision:
+    needs: [setup, deploy-beta]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      approve: ${{ steps.check.outputs.in-window }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: .github/actions
+      - uses: ./.github/actions/associated-pr
+        id: pr
+        continue-on-error: true
+        with:
+          ref: notifications/v${{ needs.setup.outputs.image_tag }}
+      - uses: ./.github/actions/working-hours-check
+        id: check
+        with:
+          actor: ${{ steps.pr.outputs.author }}
+          working-hours-config: ${{ vars.WORKING_HOURS_BY_ACTOR }}
+
   deploy-prod:
     permissions:
       contents: read
       pull-requests: read
       deployments: write
-    needs: [setup, deploy-beta]
+    needs: [setup, deploy-beta, auto-approve-decision]
     name: Deploy to prod
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
@@ -59,3 +82,4 @@ jobs:
       app: notifications
       appVersion: ${{ needs.setup.outputs.image_tag }}
       environment: prod
+      approve: ${{ needs.auto-approve-decision.outputs.approve == 'true' }}
