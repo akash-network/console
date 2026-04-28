@@ -27,7 +27,7 @@ export class WebWallet {
   }
 
   async disconnectWallet() {
-    await this.page.getByLabel("Connected wallet name and balance").hover();
+    await this.page.getByLabel("Connected wallet name and balance").click();
     await this.page.getByRole("button", { name: "Disconnect Wallet" }).click();
     await this.page.reload({ waitUntil: "networkidle" });
   }

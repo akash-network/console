@@ -1,9 +1,7 @@
 "use client";
-import { useState } from "react";
 import { FormattedNumber } from "react-intl";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Skeleton } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import ClickAwayListener from "@mui/material/ClickAwayListener";
 import { NavArrowDown, Wallet } from "iconoir-react";
 
 import { useWallet } from "@src/context/WalletProvider";
@@ -13,10 +11,22 @@ import { CustodialWalletPopup } from "../wallet/CustodialWalletPopup/CustodialWa
 import { ManagedWalletPopup } from "../wallet/ManagedWalletPopup/ManagedWalletPopup";
 import { WalletConnectionButtons } from "../wallet/WalletConnectionButtons";
 
-export function WalletStatus() {
-  const { walletName, isWalletLoaded, isWalletConnected, isManaged, isWalletLoading, isTrialing } = useWallet();
-  const { balance: walletBalance, isLoading: isWalletBalanceLoading } = useWalletBalance();
-  const [open, setOpen] = useState(false);
+export const DEPENDENCIES = {
+  useWallet,
+  useWalletBalance,
+  CustodialWalletPopup,
+  ManagedWalletPopup,
+  WalletConnectionButtons,
+  FormattedNumber
+};
+
+interface Props {
+  dependencies?: typeof DEPENDENCIES;
+}
+
+export function WalletStatus({ dependencies: d = DEPENDENCIES }: Props = {}) {
+  const { walletName, isWalletLoaded, isWalletConnected, isManaged, isWalletLoading, isTrialing } = d.useWallet();
+  const { balance: walletBalance, isLoading: isWalletBalanceLoading } = d.useWalletBalance();
   const isLoadingBalance = isWalletBalanceLoading && !walletBalance;
   const isInit = isWalletLoaded && !isWalletLoading && !isLoadingBalance;
 
@@ -26,11 +36,12 @@ export function WalletStatus() {
         isWalletConnected ? (
           <div className="flex w-full items-center">
             <div className="w-full py-2">
-              <DropdownMenu modal={false} open={open}>
+              <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <div
-                    className={cn("flex items-center justify-center space-x-2 rounded-md border bg-accent px-4 py-2 text-sm hover:bg-accent/80")}
-                    onMouseOver={() => setOpen(true)}
+                    className={cn(
+                      "flex cursor-pointer items-center justify-center space-x-2 rounded-md border bg-accent px-4 py-2 text-sm hover:bg-accent/80 [&_*]:cursor-pointer"
+                    )}
                   >
                     <div className="flex items-center space-x-2" aria-label="Connected wallet name and balance">
                       <Wallet className="text-xs" />
@@ -50,7 +61,7 @@ export function WalletStatus() {
 
                     <div className="text-xs">
                       {walletBalance && (
-                        <FormattedNumber
+                        <d.FormattedNumber
                           value={isManaged ? walletBalance.totalDeploymentGrantsUSD : walletBalance.totalUsd}
                           // eslint-disable-next-line react/style-prop-object
                           style="currency"
@@ -64,28 +75,17 @@ export function WalletStatus() {
                     </div>
                   </div>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  onMouseLeave={() => {
-                    setOpen(false);
-                  }}
-                >
-                  <ClickAwayListener
-                    onClickAway={() => {
-                      setOpen(false);
-                    }}
-                  >
-                    <div>
-                      {!isManaged && <CustodialWalletPopup walletBalance={walletBalance} />}
-                      {isManaged && <ManagedWalletPopup walletBalance={walletBalance} />}
-                    </div>
-                  </ClickAwayListener>
+                <DropdownMenuContent align="end">
+                  <div>
+                    {!isManaged && <d.CustodialWalletPopup walletBalance={walletBalance} />}
+                    {isManaged && <d.ManagedWalletPopup walletBalance={walletBalance} />}
+                  </div>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
         ) : (
-          <WalletConnectionButtons className="w-full justify-center" connectWalletButtonClassName="w-full md:w-auto" />
+          <d.WalletConnectionButtons className="w-full justify-center" connectWalletButtonClassName="w-full md:w-auto" />
         )
       ) : (
         <div className="flex items-center space-x-2 rounded-md border bg-accent px-4 py-2">

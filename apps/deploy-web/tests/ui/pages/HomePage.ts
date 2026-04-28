@@ -14,7 +14,7 @@ export class HomePage {
   }
 
   async openSignIn() {
-    await this.page.getByRole("button", { name: /account menu/i }).hover();
+    await this.page.getByRole("button", { name: /account menu/i }).click();
     await this.page.getByText("Sign in").click();
   }
 
