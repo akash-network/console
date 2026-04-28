@@ -30,6 +30,12 @@ $ npm install
 ## Postgresql and Indexes 
 [More details here](./docs/sql.md)
 
+## Environment Variables
+
+| Name | Default | Description |
+|------|---------|-------------|
+| `START_FROM_LATEST_BLOCK` | `false` | When `true`, the block cursor is overwritten with the current chain height on startup, so the poller skips any backlog and begins from the latest block. Useful locally after the app has been off for a while, and occasionally in production when we need to skip blocks after failures or falling behind. |
+
 ## Compile and Run the Project
 
 ```bash
