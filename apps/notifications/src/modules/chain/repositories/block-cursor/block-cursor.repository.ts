@@ -52,4 +52,14 @@ export class BlockCursorRepository {
   async ensureInitialized(height: number): Promise<void> {
     await this.db.insert(schema.BlockCursor).values({ id: this.id, lastProcessedBlock: height }).onConflictDoNothing();
   }
+
+  async setBlockHeight(height: number): Promise<void> {
+    await this.db
+      .insert(schema.BlockCursor)
+      .values({ id: this.id, lastProcessedBlock: height })
+      .onConflictDoUpdate({
+        target: schema.BlockCursor.id,
+        set: { lastProcessedBlock: height, updatedAt: new Date() }
+      });
+  }
 }
