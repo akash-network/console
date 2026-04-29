@@ -6,8 +6,8 @@ import type { IGenesis } from "@src/chain/genesisTypes";
 import * as benchmark from "@src/shared/utils/benchmark";
 
 export abstract class Indexer {
-  name = 'unknown';
-  msgHandlers: Record<string,(decodedMessage: any, height: number, blockGroupTransaction: DbTransaction, msg: Message) => Promise<void>> = {};
+  name = "unknown";
+  msgHandlers: Record<string, (decodedMessage: any, height: number, blockGroupTransaction: DbTransaction, msg: Message) => Promise<void>> = {};
   runForEveryBlocks = false;
   processFailedTxs = false;
 

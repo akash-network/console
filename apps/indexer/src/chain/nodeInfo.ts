@@ -23,7 +23,7 @@ export enum NodeStatus {
 export interface SavedNodeInfo {
   url: string;
   status: NodeStatus;
-  earliestBlockHeight?: number;
+  earliestBlockHeight?: number | null;
   maxConcurrentQuery: number;
   delayBetweenRequests: number;
 }
@@ -63,7 +63,7 @@ export class NodeInfo {
   }
 
   public loadFromSavedNodeInfo(savedNodeInfo: SavedNodeInfo) {
-    this.status = savedNodeInfo.status;
+    this.status = savedNodeInfo.status === NodeStatus.OK && !Number.isFinite(savedNodeInfo.earliestBlockHeight) ? NodeStatus.UNKNOWN : savedNodeInfo.status;
     this.maxConcurrentQuery = savedNodeInfo.maxConcurrentQuery;
     this.delayBetweenRequests = savedNodeInfo.delayBetweenRequests;
     this.earliestBlockHeight = savedNodeInfo.earliestBlockHeight ?? NaN;
