@@ -22,9 +22,6 @@ interface IGraphProps {
   };
 }
 
-const IN_PROGRESS_BAND_BACKGROUND = "rgba(156, 163, 175, 0.09)";
-const IN_PROGRESS_BAND_BORDER = "rgba(156, 163, 175, 0.28)";
-
 const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, completedSnapshots, inProgressSnapshot, snapshotMetadata }) => {
   const { resolvedTheme } = useTheme();
   const intl = useIntl();
@@ -48,8 +45,9 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, completedSnap
   inProgressTimeRef.current = inProgressTime;
 
   const computeBand = useCallback(() => {
+    const clearIfChanged = () => setBandStyle(prev => (prev === null ? prev : null));
     if (!chartRef.current || !chartContainerRef.current || !inProgressTime || !previousCompletedTime) {
-      setBandStyle(null);
+      clearIfChanged();
       return;
     }
     const chart = chartRef.current;
@@ -57,14 +55,14 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, completedSnap
     const todayX = timeScale.timeToCoordinate(inProgressTime as Time);
     const yesterdayX = timeScale.timeToCoordinate(previousCompletedTime as Time);
     if (todayX == null || yesterdayX == null) {
-      setBandStyle(null);
+      clearIfChanged();
       return;
     }
     const rightAxisWidth = chart.priceScale("right").width();
     const plotAreaWidth = Math.max(chartContainerRef.current.clientWidth - rightAxisWidth, 0);
     const { left, width } = computeInProgressBand({ todayX, previousX: yesterdayX, plotAreaWidth });
     const height = Math.max(400 - timeScale.height(), 0);
-    setBandStyle({ left, width, height });
+    setBandStyle(prev => (prev && prev.left === left && prev.width === width && prev.height === height ? prev : { left, width, height }));
   }, [inProgressTime, previousCompletedTime]);
 
   computeBandRef.current = computeBand;
@@ -171,7 +169,14 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, completedSnap
       }
     });
 
-    const scheduleBandRecompute = () => requestAnimationFrame(() => computeBandRef.current());
+    let pendingRafId: number | null = null;
+    const scheduleBandRecompute = () => {
+      if (pendingRafId !== null) return;
+      pendingRafId = requestAnimationFrame(() => {
+        pendingRafId = null;
+        computeBandRef.current();
+      });
+    };
 
     const handleResize = () => {
       if (chartContainerRef.current && chartRef.current) {
@@ -181,8 +186,6 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, completedSnap
       }
     };
 
-    window.addEventListener("resize", handleResize);
-
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(chartContainerRef.current);
 
@@ -190,7 +193,7 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, completedSnap
     chart.timeScale().subscribeVisibleTimeRangeChange(handleVisibleRangeChange);
 
     return () => {
-      window.removeEventListener("resize", handleResize);
+      if (pendingRafId !== null) cancelAnimationFrame(pendingRafId);
       resizeObserver.disconnect();
       chart.timeScale().unsubscribeVisibleTimeRangeChange(handleVisibleRangeChange);
       chartRef.current = null;
@@ -229,13 +232,11 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, completedSnap
           <>
             <div
               aria-hidden
-              className="pointer-events-none absolute top-0 z-20"
+              className="pointer-events-none absolute top-0 z-20 border-l border-dashed border-muted-foreground/30 bg-muted-foreground/10"
               style={{
                 left: `${bandStyle.left}px`,
                 width: `${bandStyle.width}px`,
-                height: `${bandStyle.height}px`,
-                backgroundColor: IN_PROGRESS_BAND_BACKGROUND,
-                borderLeft: `1px dashed ${IN_PROGRESS_BAND_BORDER}`
+                height: `${bandStyle.height}px`
               }}
             />
             <div
