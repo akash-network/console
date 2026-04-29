@@ -6,7 +6,6 @@ import type { HttpClient } from "@akashnetwork/http-sdk";
 import yaml from "js-yaml";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
-import networkStore from "@src/store/networkStore";
 import type { DepositParams } from "@src/types/deployment";
 import { buildManifest, CustomValidationError, Manifest, ManifestVersion, parseSdlInput } from "./helpers";
 
@@ -16,12 +15,12 @@ export const TRIAL_REGISTERED_ATTRIBUTE = "console/trials-registered";
 export const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
 export const MANAGED_WALLET_ALLOWED_AUDITORS = [AUDITOR];
 
-export function getManifest(yamlJson: any, asString: boolean): AkashManifest {
-  return Manifest(yamlJson, "beta3", networkStore.selectedNetworkId, asString);
+export function getManifest(yamlJson: any): AkashManifest {
+  return Manifest(yamlJson);
 }
 
 export async function getManifestVersion(yamlJson: any) {
-  const version = await ManifestVersion(yamlJson, "beta3", networkStore.selectedNetworkId);
+  const version = await ManifestVersion(yamlJson);
 
   return Buffer.from(version).toString("base64");
 }
@@ -112,7 +111,7 @@ export function replaceSdlDenom(yamlStr: string, denom: string): string {
     const pricing = placement.pricing || {};
     for (const [, price] of Object.entries(pricing)) {
       if (price.denom) {
-        price.denom = denom;
+        price.denom = denom as typeof price.denom;
       }
     }
   }
@@ -137,9 +136,8 @@ export async function NewDeploymentData(
   deposit: number | DepositParams[] = browserEnvConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT
 ) {
   try {
-    const networkId = networkStore.selectedNetworkId;
     const sdlInput = parseSdlInput(yamlStr);
-    const manifest = buildManifest(sdlInput, networkId);
+    const manifest = buildManifest(sdlInput);
     const groups = manifest.groupSpecs;
     const mani = manifest.groups;
     const denom = getDenomFromSdl(groups);

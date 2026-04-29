@@ -3,11 +3,9 @@ import type * as monacoModule from "monaco-editor";
 import { describe, expect, it, type Mock, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
-import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
 import { DEPENDENCIES, SDLEditor, type SdlEditorRefType } from "./SDLEditor";
 
 import { act, render } from "@testing-library/react";
-import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(SDLEditor.name || "SDLEditor", () => {
   it("renders editor with yaml language", () => {
@@ -375,32 +373,22 @@ deployment:
     }) as unknown as (typeof DEPENDENCIES)["Editor"];
     Editor.preload = vi.fn();
 
-    const networkStore = mock<AppDIContainer["networkStore"]>({
-      useSelectedNetworkId: () => "mainnet"
-    });
-
     render(
-      <TestContainerProvider
-        services={{
-          networkStore: () => networkStore
+      <SDLEditor
+        ref={el => {
+          ref.current = el;
         }}
-      >
-        <SDLEditor
-          ref={el => {
-            ref.current = el;
-          }}
-          value=""
-          readonly={input?.readonly}
-          onMount={input?.onMount}
-          onChange={input?.onChange}
-          onValidate={input?.onValidate}
-          options={input?.options}
-          dependencies={{
-            ...DEPENDENCIES,
-            Editor
-          }}
-        />
-      </TestContainerProvider>
+        value=""
+        readonly={input?.readonly}
+        onMount={input?.onMount}
+        onChange={input?.onChange}
+        onValidate={input?.onValidate}
+        options={input?.options}
+        dependencies={{
+          ...DEPENDENCIES,
+          Editor
+        }}
+      />
     );
 
     const simulateMount = () => {

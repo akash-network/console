@@ -1,5 +1,5 @@
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
-import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
+import type { IndexedTx } from "@cosmjs/stargate";
 import axios from "axios";
 import { inject, singleton } from "tsyringe";
 

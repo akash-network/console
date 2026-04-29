@@ -293,7 +293,6 @@ describe(SdlService.name, () => {
 
   function setup(input?: { sdl?: string; allowedAuditors?: string[]; deploymentGrantDenom?: string }) {
     const config = {
-      NETWORK: "sandbox",
       DEPLOYMENT_GRANT_DENOM: input?.deploymentGrantDenom ?? "uakt",
       MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: input?.allowedAuditors ?? []
     } as BillingConfig;

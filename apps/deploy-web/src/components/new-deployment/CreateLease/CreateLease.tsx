@@ -207,7 +207,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
 
       try {
         const yamlJson = yaml.load(localDeploymentData.manifest);
-        const mani = deploymentData.getManifest(yamlJson, true);
+        const mani = deploymentData.getManifest(yamlJson);
         const options: SendManifestToProviderOptions = {
           dseq,
           credentials: {
