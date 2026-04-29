@@ -6,7 +6,6 @@ import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1be
 import type { Coin } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { MsgSend } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { BasicAllowance, MsgGrant, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
-import Long from "long";
 
 import type { BidDto, NewDeploymentData } from "@src/types/deployment";
 
@@ -40,7 +39,7 @@ export class TransactionMessageData {
       value: MsgCreateLease.fromPartial({
         bidId: {
           owner: bid.owner,
-          dseq: Long.fromString(bid.dseq, true),
+          dseq: bid.dseq,
           gseq: bid.gseq,
           oseq: bid.oseq,
           provider: bid.provider
@@ -100,7 +99,7 @@ export class TransactionMessageData {
       value: MsgCloseDeployment.fromPartial({
         id: {
           owner: address,
-          dseq: Long.fromString(dseq, true)
+          dseq
         }
       })
     };
