@@ -28,7 +28,8 @@ export class TemplateProcessorService {
     if (!readme) return null;
 
     const markdown = readme
-      .replace(/!\[.*\]\(.+\)\n*/g, "") // Remove images
+      .replace(/\[!\[.*?\]\(.*?\)\]\(.*?\)\n*/g, "") // Remove linked images (badge pattern [![alt](img)](link))
+      .replace(/!\[.*?\]\(.*?\)\n*/g, "") // Remove standalone images (![alt](img))
       .replace(/^#+ .*\n+/g, ""); // Remove first header
 
     const readmeTxt = markdownToTxt(markdown).trim();
