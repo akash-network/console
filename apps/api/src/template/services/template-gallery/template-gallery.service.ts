@@ -14,6 +14,7 @@ import { REPOSITORIES, TemplateFetcherService } from "../template-fetcher/templa
 import { TemplateProcessorService } from "../template-processor/template-processor.service.ts";
 
 const DEFAULT_RECOMMENDED_TEMPLATE_IDS = new Set([
+  "akash-network-awesome-akash-Razer-AIKit",
   "akash-network-awesome-akash-openclaw",
   "akash-network-awesome-akash-comfyui",
   "akash-network-awesome-akash-DeepSeek-V3.1",
@@ -144,11 +145,24 @@ export class TemplateGalleryService {
       return a.title.localeCompare(b.title);
     });
 
+    const recommendedOrder = new Map<string, number>();
+    let recommendedIndex = 0;
+    for (const id of config.recommendedIds) {
+      recommendedOrder.set(id, recommendedIndex++);
+    }
+
     for (const category of gallery) {
       category.templates.sort((a, b) => {
-        const aTagged = config.recommendedIds.has(a.id) || config.popularIds.has(a.id);
-        const bTagged = config.recommendedIds.has(b.id) || config.popularIds.has(b.id);
+        const aRecommendedRank = recommendedOrder.get(a.id);
+        const bRecommendedRank = recommendedOrder.get(b.id);
+        const aTagged = aRecommendedRank !== undefined || config.popularIds.has(a.id);
+        const bTagged = bRecommendedRank !== undefined || config.popularIds.has(b.id);
         if (aTagged !== bTagged) return aTagged ? -1 : 1;
+        if (aRecommendedRank !== undefined && bRecommendedRank !== undefined) {
+          return aRecommendedRank - bRecommendedRank;
+        }
+        if (aRecommendedRank !== undefined) return -1;
+        if (bRecommendedRank !== undefined) return 1;
         return (a.name || "").localeCompare(b.name || "");
       });
     }
