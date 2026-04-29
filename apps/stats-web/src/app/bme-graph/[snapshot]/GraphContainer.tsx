@@ -30,6 +30,7 @@ export default function GraphContainer({ snapshot }: IGraphProps) {
   const { data: snapshotData, status } = useGraphSnapshot(snapshot);
   const snapshotMetadata = useMemo(() => snapshotData && getBmeSnapshotMetadata(snapshot as BmeSnapshots), [snapshotData, snapshot]);
   const completedSnapshots = useCompletedSnapshots(snapshotData?.snapshots);
+  const inProgressSnapshot = useMemo(() => (snapshotData ? { date: new Date().toISOString(), value: snapshotData.currentValue } : undefined), [snapshotData]);
   const rangedData = useMemo(
     () => completedSnapshots && completedSnapshots.slice(Math.max(completedSnapshots.length - selectedRange, 0), completedSnapshots.length),
     [completedSnapshots, selectedRange]
@@ -95,7 +96,7 @@ export default function GraphContainer({ snapshot }: IGraphProps) {
             <TimeRange selectedRange={selectedRange} onRangeChange={setSelectedRange} />
           </div>
 
-          <Graph rangedData={rangedData} completedSnapshots={completedSnapshots} snapshotMetadata={snapshotMetadata} />
+          <Graph rangedData={rangedData} completedSnapshots={completedSnapshots} inProgressSnapshot={inProgressSnapshot} snapshotMetadata={snapshotMetadata} />
           {snapshotData && (
             <div className="mt-8 text-right">
               <Button variant="outline" color="secondary" onClick={onDownloadCSVClick}>

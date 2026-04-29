@@ -1,12 +1,13 @@
 "use client";
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIntl } from "react-intl";
 import { UTCDateMini } from "@date-fns/utc";
 import { format } from "date-fns";
-import type { IChartApi, ISeriesApi } from "lightweight-charts";
+import type { IChartApi, ISeriesApi, Time } from "lightweight-charts";
 import { createChart } from "lightweight-charts";
 import { useTheme } from "next-themes";
 
+import { computeInProgressBand } from "@/components/graph/computeInProgressBand";
 import { customColors } from "@/lib/colors";
 import { nFormatter, roundDecimal } from "@/lib/mathHelpers";
 import type { ISnapshotMetadata, SnapshotValue } from "@/types";
@@ -14,22 +15,59 @@ import type { ISnapshotMetadata, SnapshotValue } from "@/types";
 interface IGraphProps {
   rangedData: SnapshotValue[];
   completedSnapshots: SnapshotValue[];
+  inProgressSnapshot?: SnapshotValue;
   snapshotMetadata: {
     unitFn: (number: any) => ISnapshotMetadata;
     legend?: string;
   };
 }
 
-const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, completedSnapshots, snapshotMetadata }) => {
+const IN_PROGRESS_BAND_BACKGROUND = "rgba(156, 163, 175, 0.09)";
+const IN_PROGRESS_BAND_BORDER = "rgba(156, 163, 175, 0.28)";
+
+const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, completedSnapshots, inProgressSnapshot, snapshotMetadata }) => {
   const { resolvedTheme } = useTheme();
   const intl = useIntl();
   const graphTheme = getTheme(resolvedTheme);
-  const totalGraphData = useMemo(() => mapSnapshotsToLineSeriesData(completedSnapshots, snapshotMetadata), [completedSnapshots, snapshotMetadata]);
+  const totalGraphData = useMemo(() => {
+    const all = inProgressSnapshot ? [...completedSnapshots, inProgressSnapshot] : completedSnapshots;
+    return mapSnapshotsToLineSeriesData(all, snapshotMetadata);
+  }, [completedSnapshots, inProgressSnapshot, snapshotMetadata]);
+
+  const inProgressTime = inProgressSnapshot && totalGraphData.length > 0 ? totalGraphData[totalGraphData.length - 1].time : null;
+  const previousCompletedTime = inProgressSnapshot && totalGraphData.length > 1 ? totalGraphData[totalGraphData.length - 2].time : null;
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const lineSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+
+  const [bandStyle, setBandStyle] = useState<{ left: number; width: number; height: number } | null>(null);
+  const computeBandRef = useRef<() => void>(() => {});
+  const inProgressTimeRef = useRef<string | null>(inProgressTime);
+  inProgressTimeRef.current = inProgressTime;
+
+  const computeBand = useCallback(() => {
+    if (!chartRef.current || !chartContainerRef.current || !inProgressTime || !previousCompletedTime) {
+      setBandStyle(null);
+      return;
+    }
+    const chart = chartRef.current;
+    const timeScale = chart.timeScale();
+    const todayX = timeScale.timeToCoordinate(inProgressTime as Time);
+    const yesterdayX = timeScale.timeToCoordinate(previousCompletedTime as Time);
+    if (todayX == null || yesterdayX == null) {
+      setBandStyle(null);
+      return;
+    }
+    const rightAxisWidth = chart.priceScale("right").width();
+    const plotAreaWidth = Math.max(chartContainerRef.current.clientWidth - rightAxisWidth, 0);
+    const { left, width } = computeInProgressBand({ todayX, previousX: yesterdayX, plotAreaWidth });
+    const height = Math.max(400 - timeScale.height(), 0);
+    setBandStyle({ left, width, height });
+  }, [inProgressTime, previousCompletedTime]);
+
+  computeBandRef.current = computeBand;
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -109,8 +147,9 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, completedSnap
         toolTip.style.display = "none";
       } else {
         const data: any = param.seriesData.get(lineSeries);
+        const isInProgressPoint = inProgressTimeRef.current != null && param.time.toString() === inProgressTimeRef.current;
         toolTip.innerHTML = `<div style='margin-bottom: 0.25rem; font-size: 0.75rem; line-height: 1rem'>
-            ${format(new UTCDateMini(param.time.toString()), "MMMM d, yy")}
+            ${format(new UTCDateMini(param.time.toString()), "MMMM d, yy")}${isInProgressPoint ? " (in progress)" : ""}
             </div>
             <div style="font-weight: 700">${nFormatter(data?.value, 2)}</div>
         `;
@@ -132,17 +171,28 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, completedSnap
       }
     });
 
+    const scheduleBandRecompute = () => requestAnimationFrame(() => computeBandRef.current());
+
     const handleResize = () => {
       if (chartContainerRef.current && chartRef.current) {
         chart.applyOptions({ width: chartContainerRef.current.clientWidth });
         chart.resize(chartContainerRef.current.clientWidth, 400);
+        scheduleBandRecompute();
       }
     };
 
     window.addEventListener("resize", handleResize);
 
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(chartContainerRef.current);
+
+    const handleVisibleRangeChange = () => scheduleBandRecompute();
+    chart.timeScale().subscribeVisibleTimeRangeChange(handleVisibleRangeChange);
+
     return () => {
       window.removeEventListener("resize", handleResize);
+      resizeObserver.disconnect();
+      chart.timeScale().unsubscribeVisibleTimeRangeChange(handleVisibleRangeChange);
       chartRef.current = null;
       lineSeriesRef.current = null;
       chart.remove();
@@ -163,6 +213,10 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, completedSnap
     } else {
       chartRef.current.timeScale().fitContent();
     }
+
+    computeBandRef.current();
+    const rafId = requestAnimationFrame(() => computeBandRef.current());
+    return () => cancelAnimationFrame(rafId);
   }, [totalGraphData, rangedData, resolvedTheme, intl.locale]);
 
   return (
@@ -171,6 +225,28 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, completedSnap
         <span className="text-md font-bold tracking-wide text-muted-foreground opacity-40">stats.akash.network</span>
       </div>
       <div ref={chartContainerRef} className="relative">
+        {bandStyle && (
+          <>
+            <div
+              aria-hidden
+              className="pointer-events-none absolute top-0 z-20"
+              style={{
+                left: `${bandStyle.left}px`,
+                width: `${bandStyle.width}px`,
+                height: `${bandStyle.height}px`,
+                backgroundColor: IN_PROGRESS_BAND_BACKGROUND,
+                borderLeft: `1px dashed ${IN_PROGRESS_BAND_BORDER}`
+              }}
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute z-20 rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+              style={{ left: `${bandStyle.left + 4}px`, top: 4 }}
+            >
+              In progress
+            </div>
+          </>
+        )}
         <div ref={tooltipRef} className="absolute z-50 hidden rounded-sm bg-primary px-3 py-2 leading-4 text-primary-foreground"></div>
         {snapshotMetadata.legend && <div className="absolute right-0 top-1/2 z-50 translate-y-[-50%] text-xs">{snapshotMetadata.legend}</div>}
       </div>
