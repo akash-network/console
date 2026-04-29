@@ -232,7 +232,7 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, completedSnap
           <>
             <div
               aria-hidden
-              className="pointer-events-none absolute top-0 z-20 border-l border-dashed border-muted-foreground/30 bg-muted-foreground/10"
+              className="pointer-events-none absolute top-0 z-20 border-l border-dashed border-muted-foreground/20 bg-muted-foreground/[0.05]"
               style={{
                 left: `${bandStyle.left}px`,
                 width: `${bandStyle.width}px`,
@@ -241,7 +241,7 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, completedSnap
             />
             <div
               aria-hidden
-              className="pointer-events-none absolute z-20 rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+              className="pointer-events-none absolute z-20 whitespace-nowrap rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
               style={{ left: `${bandStyle.left + 4}px`, top: 4 }}
             >
               In progress
