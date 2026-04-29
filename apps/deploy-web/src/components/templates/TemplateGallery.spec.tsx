@@ -13,7 +13,7 @@ describe(TemplateGallery.name, () => {
       templates: [
         makeTemplate({ id: "plain-id", name: "Plain Template" }),
         makeTemplate({ id: "other-id", name: "Recommended Template", tags: ["recommended"] }),
-        makeTemplate({ id: "akash-network-awesome-akash-openclaw", name: "Featured Template" })
+        makeTemplate({ id: "akash-network-awesome-akash-Razer-AIKit", name: "Featured Template" })
       ]
     });
 
