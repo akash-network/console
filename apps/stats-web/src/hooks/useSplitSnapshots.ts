@@ -14,7 +14,7 @@ interface SplitSnapshots {
 
 export function useSplitSnapshots(snapshotData: SplitSnapshotsInput | undefined): SplitSnapshots {
   return useMemo(() => {
-    if (!snapshotData?.snapshots || snapshotData.snapshots.length <= 1) {
+    if (!snapshotData?.snapshots?.length) {
       return { completed: undefined, inProgress: undefined };
     }
     return {
