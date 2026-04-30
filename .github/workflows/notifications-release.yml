@@ -48,7 +48,7 @@ jobs:
 
   auto-approve-decision:
     needs: [setup, deploy-beta]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
     permissions:
       contents: read
       pull-requests: read

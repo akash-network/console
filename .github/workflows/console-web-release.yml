@@ -47,7 +47,7 @@ jobs:
       environment: staging
 
   test-beta:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
     needs:
       - setup
       - deploy-beta
@@ -71,7 +71,7 @@ jobs:
 
   auto-approve-decision:
     needs: [setup, test-beta]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
     permissions:
       contents: read
       pull-requests: read

@@ -22,7 +22,7 @@ permissions:
 jobs:
   release:
     name: Create GitHub Release
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
 
     outputs:
       git_tag: ${{ steps.bumps.outputs.git_tag }}

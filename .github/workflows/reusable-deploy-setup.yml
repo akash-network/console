@@ -30,7 +30,7 @@ permissions:
 
 jobs:
   setup:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
     outputs:
       image_tag: ${{ steps.extract.outputs.image_tag }}
       skip: ${{ steps.stale-guard.outputs.skip }}
