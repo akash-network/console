@@ -19,7 +19,7 @@
     "format": "prettier --write ./*.{js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
     "migration:gen": "drizzle-kit generate",
-    "prod": "node --require ./dist/instrumentation.js ./dist/server.js",
+    "prod": "node --permission --allow-fs-read=./dist/ --allow-fs-read=./env/ --allow-fs-read=./node_modules/ --allow-fs-read=../../node_modules/ --allow-fs-read=../../packages/env-loader/ --allow-fs-read=./drizzle/ --enable-source-maps --require ./dist/instrumentation.js ./dist/server.js",
     "start": "tsup --watch",
     "start:dev": "tsup src/server.ts --watch",
     "test": "vitest run --project=unit --project=functional --project=integration",
