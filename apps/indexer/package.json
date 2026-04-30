@@ -15,7 +15,7 @@
   "type": "commonjs",
   "main": "dist/index.js",
   "scripts": {
-    "build": "NODE_ENV=production tsup",
+    "build": "NODE_ENV=production tsup && tsc -p tsconfig.build.json",
     "build:container": "dc build indexer",
     "dev": "npm run start",
     "dev-nodc": "npm run start",
