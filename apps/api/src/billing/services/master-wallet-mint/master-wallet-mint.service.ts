@@ -17,7 +17,7 @@ type Balances = Awaited<ReturnType<ChainSDK["cosmos"]["bank"]["v1beta1"]["getAll
 @singleton()
 export class MasterWalletMintService {
   private readonly logger = createOtelLogger({ context: MasterWalletMintService.name });
-  private readonly PRICE_SLIPPAGE_MULTIPLIER = 1.02;
+  private readonly PRICE_SLIPPAGE_MULTIPLIER = 1.05;
   private readonly POLL_INTERVAL_MS = 5_000;
   private readonly MAX_POLL_ATTEMPTS = 24;
   private readonly BALANCE_CHECK_INTERVAL_MS = 10_000;
