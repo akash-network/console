@@ -1,4 +1,4 @@
-import type { GenerateManifestResult, Manifest, NetworkId, SDLInput } from "@akashnetwork/chain-sdk";
+import type { GenerateManifestResult, Manifest, SDLInput } from "@akashnetwork/chain-sdk";
 import { generateManifest, generateManifestVersion, yaml } from "@akashnetwork/chain-sdk";
 import { YAMLException } from "js-yaml";
 import { singleton } from "tsyringe";
@@ -7,11 +7,9 @@ import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers"
 
 @singleton()
 export class SdlService {
-  readonly #networkId: NetworkId;
   readonly #config: BillingConfig;
 
   constructor(@InjectBillingConfig() config: BillingConfig) {
-    this.#networkId = config.NETWORK as NetworkId;
     this.#config = config;
   }
 
@@ -45,7 +43,7 @@ export class SdlService {
       this.#appendAuditorRequirement(sdlPlacement, allowedAuditors);
     }
 
-    const result = generateManifest(potentiallyInvalidSDL, this.#networkId);
+    const result = generateManifest(potentiallyInvalidSDL);
     if (!result.ok) return result;
 
     return result;

@@ -1,5 +1,5 @@
+import type { comet38 } from "@cosmjs/tendermint-rpc";
 import { Comet38Client } from "@cosmjs/tendermint-rpc";
-import type { BlockResultsResponse } from "@cosmjs/tendermint-rpc/build/comet38";
 import { Test } from "@nestjs/testing";
 import { describe, expect, it } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
@@ -16,7 +16,7 @@ describe(TxEventsService.name, () => {
       const { module } = await setup();
       const service = module.get<TxEventsService>(TxEventsService);
       const cometClient = module.get<MockProxy<Comet38Client>>(Comet38Client);
-      const blockResults: BlockResultsResponse = {
+      const blockResults: comet38.BlockResultsResponse = {
         height: 22350454,
         results: [
           {

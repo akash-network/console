@@ -20,11 +20,11 @@
     "test:unit": "vitest run --project unit"
   },
   "dependencies": {
-    "@akashnetwork/chain-sdk": "^1.0.0-alpha.30",
+    "@akashnetwork/chain-sdk": "1.0.0-alpha.31",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/instrumentation": "*",
     "@akashnetwork/logging": "*",
-    "@cosmjs/encoding": "~0.36.1",
+    "@cosmjs/encoding": "~0.38.0",
     "@hono/node-server": "^1.19.0",
     "@hono/otel": "~0.4.0",
     "@hono/zod-openapi": "^0.18.4",
@@ -37,7 +37,7 @@
     "@akashnetwork/dev-config": "*",
     "@akashnetwork/docker": "*",
     "@akashnetwork/releaser": "*",
-    "@cosmjs/amino": "~0.36.1",
+    "@cosmjs/amino": "~0.38.0",
     "@types/node": "^24.0.0",
     "@types/ws": "^8.5.4",
     "@typescript-eslint/eslint-plugin": "^7.12.0",
