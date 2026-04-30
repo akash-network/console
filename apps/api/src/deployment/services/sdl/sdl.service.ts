@@ -24,7 +24,7 @@ export class SdlService {
       }
       throw error;
     }
-    const deploymentGrantDenom = this.#config.DEPLOYMENT_GRANT_DENOM as "uakt" | "uact";
+    const deploymentGrantDenom = this.#config.DEPLOYMENT_GRANT_DENOM;
     const sdlPlacement =
       potentiallyInvalidSDL?.profiles?.placement && typeof potentiallyInvalidSDL?.profiles?.placement === "object"
         ? potentiallyInvalidSDL.profiles.placement
