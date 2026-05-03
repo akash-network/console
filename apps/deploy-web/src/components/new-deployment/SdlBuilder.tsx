@@ -18,7 +18,16 @@ import { transformCustomSdlFields, TransformError } from "@src/utils/sdl/transfo
 import RemoteRepositoryDeployManager from "../remote-deploy/RemoteRepositoryDeployManager";
 import { SimpleServiceFormControl } from "../sdl/SimpleServiceFormControl";
 
-interface Props {
+export const DEPENDENCIES = {
+  SimpleServiceFormControl,
+  RemoteRepositoryDeployManager,
+  useSdlBuilder,
+  useWallet,
+  useSdlServiceManager,
+  useGpuModels
+};
+
+export interface Props {
   sdlString: string | null;
   setEditedManifest: Dispatch<string>;
   isGitProviderTemplate?: boolean;
@@ -26,6 +35,7 @@ interface Props {
   deploymentName: string;
   setIsRepoInputValid?: Dispatch<boolean>;
   onValidate?: (event: { isValid: boolean }) => void;
+  dependencies?: typeof DEPENDENCIES;
 }
 
 export type SdlBuilderRefType = {
@@ -34,11 +44,14 @@ export type SdlBuilderRefType = {
 };
 
 export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
-  ({ sdlString, setEditedManifest, isGitProviderTemplate, setDeploymentName, deploymentName, setIsRepoInputValid, onValidate }, ref) => {
+  (
+    { sdlString, setEditedManifest, isGitProviderTemplate, setDeploymentName, deploymentName, setIsRepoInputValid, onValidate, dependencies: d = DEPENDENCIES },
+    ref
+  ) => {
     const [error, setError] = useState<string | null>(null);
     const formRef = useRef<HTMLFormElement>(null);
     const [isInit, setIsInit] = useState(false);
-    const { hasComponent, imageList } = useSdlBuilder();
+    const { hasComponent, imageList } = d.useSdlBuilder();
     const form = useForm<SdlBuilderFormValuesType>({
       defaultValues: {
         services: [getDefaultService({ supportsSSH: hasComponent("ssh") })],
@@ -48,13 +61,13 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
       resolver: zodResolver(SdlBuilderFormValuesSchema)
     });
     const { control, trigger, watch, setValue, formState } = form;
-    const serviceManager = useSdlServiceManager({ control });
+    const serviceManager = d.useSdlServiceManager({ control });
 
     const { services: formServices = [] } = watch();
-    const { data: gpuModels } = useGpuModels();
+    const { data: gpuModels } = d.useGpuModels();
     const [serviceCollapsed, setServiceCollapsed] = useState(isGitProviderTemplate ? [0] : []);
 
-    const wallet = useWallet();
+    const wallet = d.useWallet();
 
     useEffect(() => {
       if (wallet.isManaged) {
@@ -75,27 +88,33 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
       }
     }));
 
+    const lastSyncedSdlRef = useRef<string | null>(null);
+
     useEffect(() => {
       const { unsubscribe } = watch(data => {
         const sdl = generateSdl(data.services as ServiceType[]);
+        lastSyncedSdlRef.current = sdl;
         setEditedManifest(sdl);
       });
-
-      try {
-        if (sdlString) {
-          const services = createAndValidateSdl(sdlString);
-          setValue("services", services as ServiceType[]);
-        }
-      } catch (error) {
-        setError("Error importing SDL");
-      }
-
-      setIsInit(true);
-
       return () => {
         unsubscribe();
       };
-    }, [watch]);
+    }, [watch, setEditedManifest]);
+
+    useEffect(() => {
+      if (sdlString && sdlString !== lastSyncedSdlRef.current) {
+        try {
+          const services = createAndValidateSdl(sdlString);
+          if (services) {
+            lastSyncedSdlRef.current = sdlString;
+            setValue("services", services as ServiceType[]);
+          }
+        } catch (error) {
+          setError("Error importing SDL");
+        }
+      }
+      setIsInit(true);
+    }, [sdlString, setValue]);
 
     useEffect(() => {
       onValidate?.({ isValid: formState.isValid });
@@ -140,7 +159,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
         ) : (
           <>
             {isGitProviderTemplate && (
-              <RemoteRepositoryDeployManager
+              <d.RemoteRepositoryDeployManager
                 setValue={setValue}
                 services={formServices as ServiceType[]}
                 control={control}
@@ -153,7 +172,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
               <form ref={formRef} autoComplete="off">
                 {formServices &&
                   formServices.map((service, serviceIndex) => (
-                    <SimpleServiceFormControl
+                    <d.SimpleServiceFormControl
                       key={service.id}
                       serviceIndex={serviceIndex}
                       gpuModels={gpuModels}
