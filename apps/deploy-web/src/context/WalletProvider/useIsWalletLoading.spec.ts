@@ -3,67 +3,43 @@ import { describe, expect, it } from "vitest";
 import { useIsWalletLoading, type UseIsWalletLoadingInput } from "./useIsWalletLoading";
 
 describe(useIsWalletLoading.name, () => {
-  it("returns true when an authenticated user's managed-wallet query is still loading, regardless of selectedWalletType", () => {
-    const result = useIsWalletLoading(
-      setup({
-        hasAuthenticatedUserId: true,
-        selectedWalletType: "custodial",
-        isManagedWalletLoading: true
-      })
-    );
-
-    expect(result).toBe(true);
+  it.each<{ name: string; input: UseIsWalletLoadingInput; expected: boolean }>([
+    {
+      name: "authenticated user, custodial selected, managed-wallet query still loading (the race-condition case)",
+      input: { hasAuthenticatedUserId: true, selectedWalletType: "custodial", isManagedWalletLoading: true, isCustodialConnecting: false },
+      expected: true
+    },
+    {
+      name: "authenticated user, managed selected, managed-wallet query still loading",
+      input: { hasAuthenticatedUserId: true, selectedWalletType: "managed", isManagedWalletLoading: true, isCustodialConnecting: false },
+      expected: true
+    },
+    {
+      name: "unauthenticated, managed selected, managed-wallet query still loading",
+      input: { hasAuthenticatedUserId: false, selectedWalletType: "managed", isManagedWalletLoading: true, isCustodialConnecting: false },
+      expected: true
+    },
+    {
+      name: "custodial selected and a connection is in progress",
+      input: { hasAuthenticatedUserId: false, selectedWalletType: "custodial", isManagedWalletLoading: false, isCustodialConnecting: true },
+      expected: true
+    },
+    {
+      name: "unauthenticated, custodial selected, no activity",
+      input: { hasAuthenticatedUserId: false, selectedWalletType: "custodial", isManagedWalletLoading: false, isCustodialConnecting: false },
+      expected: false
+    },
+    {
+      name: "unauthenticated, custodial selected, managed query loading is irrelevant",
+      input: { hasAuthenticatedUserId: false, selectedWalletType: "custodial", isManagedWalletLoading: true, isCustodialConnecting: false },
+      expected: false
+    },
+    {
+      name: "authenticated, managed selected, nothing loading",
+      input: { hasAuthenticatedUserId: true, selectedWalletType: "managed", isManagedWalletLoading: false, isCustodialConnecting: false },
+      expected: false
+    }
+  ])("$name → $expected", ({ input, expected }) => {
+    expect(useIsWalletLoading(input)).toBe(expected);
   });
-
-  it("returns true when selectedWalletType is managed and managed-wallet query is loading", () => {
-    const result = useIsWalletLoading(
-      setup({
-        hasAuthenticatedUserId: false,
-        selectedWalletType: "managed",
-        isManagedWalletLoading: true
-      })
-    );
-
-    expect(result).toBe(true);
-  });
-
-  it("returns true when selectedWalletType is custodial and a connection is in progress", () => {
-    const result = useIsWalletLoading(
-      setup({
-        selectedWalletType: "custodial",
-        isCustodialConnecting: true
-      })
-    );
-
-    expect(result).toBe(true);
-  });
-
-  it("returns false when no auth, no managed-wallet loading, and no custodial connecting", () => {
-    const result = useIsWalletLoading(setup({}));
-
-    expect(result).toBe(false);
-  });
-
-  it("returns false for an unauthenticated user with no wallet activity", () => {
-    const result = useIsWalletLoading(
-      setup({
-        hasAuthenticatedUserId: false,
-        selectedWalletType: "custodial",
-        isManagedWalletLoading: true,
-        isCustodialConnecting: false
-      })
-    );
-
-    expect(result).toBe(false);
-  });
-
-  function setup(overrides: Partial<UseIsWalletLoadingInput>): UseIsWalletLoadingInput {
-    return {
-      hasAuthenticatedUserId: false,
-      selectedWalletType: "custodial",
-      isManagedWalletLoading: false,
-      isCustodialConnecting: false,
-      ...overrides
-    };
-  }
 });

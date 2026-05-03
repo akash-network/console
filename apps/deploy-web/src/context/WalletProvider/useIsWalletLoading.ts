@@ -1,4 +1,4 @@
-type SelectedWalletType = "managed" | "custodial";
+import type { SelectedWalletType } from "@src/store/walletStore";
 
 export type UseIsWalletLoadingInput = {
   hasAuthenticatedUserId: boolean;
@@ -8,9 +8,6 @@ export type UseIsWalletLoadingInput = {
 };
 
 export const useIsWalletLoading = (input: UseIsWalletLoadingInput): boolean => {
-  return (
-    (input.hasAuthenticatedUserId && input.isManagedWalletLoading) ||
-    (input.selectedWalletType === "managed" && input.isManagedWalletLoading) ||
-    (input.selectedWalletType === "custodial" && input.isCustodialConnecting)
-  );
+  const isManagedQueryRelevant = input.hasAuthenticatedUserId || input.selectedWalletType === "managed";
+  return (isManagedQueryRelevant && input.isManagedWalletLoading) || (input.selectedWalletType === "custodial" && input.isCustodialConnecting);
 };
