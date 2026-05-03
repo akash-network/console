@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useIntl } from "react-intl";
 import { Button } from "@akashnetwork/ui/components";
 import { Xmark } from "iconoir-react";
@@ -81,12 +81,9 @@ function GenericBanner({ onClose }: { onClose: () => void }) {
       <span className="text-xs font-semibold md:text-sm">
         {message}
         {links?.map(link => (
-          <Fragment key={link.href}>
-            {" "}
-            <a href={link.href} target="_blank" rel="noopener noreferrer" className="underline hover:text-primary-foreground/80">
-              {link.label}
-            </a>
-          </Fragment>
+          <a key={link.href} href={link.href} target="_blank" rel="noopener noreferrer" className="ml-1 underline hover:text-primary-foreground/80">
+            {link.label}
+          </a>
         ))}
       </span>
       <Button variant="text" className="rounded-full hover:text-primary-foreground/80" size="icon" onClick={onClose}>

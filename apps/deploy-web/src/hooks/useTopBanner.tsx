@@ -37,9 +37,7 @@ export function useGenericBannerVisibility(input: { isFlagEnabled: boolean; dism
   const [isOpen, setIsOpenAtom] = useAtom(IS_GENERIC_BANNER_ATOM);
 
   useEffect(() => {
-    if (!isFlagEnabled) return;
-    if (isGenericBannerDismissed(dismissId)) return;
-    setIsOpenAtom(true);
+    setIsOpenAtom(isFlagEnabled && !isGenericBannerDismissed(dismissId));
   }, [isFlagEnabled, dismissId, setIsOpenAtom]);
 
   const setIsOpen = useCallback(
@@ -123,16 +121,20 @@ export type GenericBannerDetails = { message: string; links?: GenericBannerLink[
 export function useGenericBannerDetails(): GenericBannerDetails {
   const genericBannerFlag = useVariant("generic_banner");
   const { errorHandler } = useServices();
+  const enabled = genericBannerFlag?.enabled;
+  const payload = genericBannerFlag?.payload?.value;
 
-  try {
-    const details = genericBannerFlag?.enabled ? (JSON.parse(genericBannerFlag.payload?.value as string) as GenericBannerDetails) : { message: "" };
-    return details;
-  } catch (error) {
-    errorHandler.reportError({
-      error,
-      message: "Failed to parse generic banner details from feature flag",
-      tags: { category: "generic-banner" }
-    });
-    return { message: "" };
-  }
+  return useMemo(() => {
+    if (!enabled) return { message: "" };
+    try {
+      return JSON.parse(payload as string) as GenericBannerDetails;
+    } catch (error) {
+      errorHandler.reportError({
+        error,
+        message: "Failed to parse generic banner details from feature flag",
+        tags: { category: "generic-banner" }
+      });
+      return { message: "" };
+    }
+  }, [enabled, payload, errorHandler]);
 }
