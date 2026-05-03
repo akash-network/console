@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveWalletIsLoading, type DeriveWalletIsLoadingInput } from "./deriveWalletIsLoading";
+import { useIsWalletLoading, type UseIsWalletLoadingInput } from "./useIsWalletLoading";
 
-describe(deriveWalletIsLoading.name, () => {
+describe(useIsWalletLoading.name, () => {
   it("returns true when an authenticated user's managed-wallet query is still loading, regardless of selectedWalletType", () => {
-    const result = deriveWalletIsLoading(
+    const result = useIsWalletLoading(
       setup({
         hasAuthenticatedUserId: true,
         selectedWalletType: "custodial",
@@ -16,7 +16,7 @@ describe(deriveWalletIsLoading.name, () => {
   });
 
   it("returns true when selectedWalletType is managed and managed-wallet query is loading", () => {
-    const result = deriveWalletIsLoading(
+    const result = useIsWalletLoading(
       setup({
         hasAuthenticatedUserId: false,
         selectedWalletType: "managed",
@@ -28,7 +28,7 @@ describe(deriveWalletIsLoading.name, () => {
   });
 
   it("returns true when selectedWalletType is custodial and a connection is in progress", () => {
-    const result = deriveWalletIsLoading(
+    const result = useIsWalletLoading(
       setup({
         selectedWalletType: "custodial",
         isCustodialConnecting: true
@@ -39,13 +39,13 @@ describe(deriveWalletIsLoading.name, () => {
   });
 
   it("returns false when no auth, no managed-wallet loading, and no custodial connecting", () => {
-    const result = deriveWalletIsLoading(setup({}));
+    const result = useIsWalletLoading(setup({}));
 
     expect(result).toBe(false);
   });
 
   it("returns false for an unauthenticated user with no wallet activity", () => {
-    const result = deriveWalletIsLoading(
+    const result = useIsWalletLoading(
       setup({
         hasAuthenticatedUserId: false,
         selectedWalletType: "custodial",
@@ -57,7 +57,7 @@ describe(deriveWalletIsLoading.name, () => {
     expect(result).toBe(false);
   });
 
-  function setup(overrides: Partial<DeriveWalletIsLoadingInput>): DeriveWalletIsLoadingInput {
+  function setup(overrides: Partial<UseIsWalletLoadingInput>): UseIsWalletLoadingInput {
     return {
       hasAuthenticatedUserId: false,
       selectedWalletType: "custodial",
