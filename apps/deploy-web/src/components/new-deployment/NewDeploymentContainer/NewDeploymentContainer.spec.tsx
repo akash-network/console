@@ -287,6 +287,75 @@ describe(NewDeploymentContainer.name, () => {
     expect(screen.queryByTestId("stepper")).not.toBeInTheDocument();
   });
 
+  it("loads new template content when user re-selects a different template", async () => {
+    const templateA = makeTemplate({ id: "template-A", deploy: "version: 2.0\n# template A content" });
+    const templateB = makeTemplate({ id: "template-B", deploy: "version: 2.0\n# template B content" });
+
+    const { ManifestEdit, rerender } = setup({
+      step: RouteStep.editDeployment,
+      templateId: templateA.id,
+      requestedTemplate: templateA
+    });
+
+    await vi.waitFor(() => {
+      expect(ManifestEdit).toHaveBeenCalledWith(expect.objectContaining({ editedManifest: templateA.deploy }), {});
+    });
+
+    ManifestEdit.mockClear();
+    rerender({ templateId: templateB.id, requestedTemplate: templateB });
+
+    await vi.waitFor(() => {
+      expect(ManifestEdit).toHaveBeenCalledWith(expect.objectContaining({ editedManifest: templateB.deploy }), {});
+    });
+  });
+
+  it("does not reload editedManifest when re-rendered with the same templateId", async () => {
+    const templateA = makeTemplate({ id: "template-A", deploy: "version: 2.0\n# template A content" });
+
+    const { ManifestEdit, rerender } = setup({
+      step: RouteStep.editDeployment,
+      templateId: templateA.id,
+      requestedTemplate: templateA
+    });
+
+    await vi.waitFor(() => {
+      expect(ManifestEdit).toHaveBeenCalledWith(expect.objectContaining({ editedManifest: templateA.deploy }), {});
+    });
+
+    const userEditedManifest = "version: 2.0\n# user-edited content";
+    const calls = ManifestEdit.mock.calls as unknown as Array<[{ setEditedManifest: (next: string) => void }]>;
+    const lastProps = calls.at(-1)?.[0];
+    expect(lastProps).toBeDefined();
+    lastProps!.setEditedManifest(userEditedManifest);
+
+    await vi.waitFor(() => {
+      expect(ManifestEdit).toHaveBeenLastCalledWith(expect.objectContaining({ editedManifest: userEditedManifest }), {});
+    });
+
+    ManifestEdit.mockClear();
+    rerender({ templateId: templateA.id, requestedTemplate: templateA });
+
+    await vi.waitFor(() => {
+      expect(ManifestEdit).toHaveBeenCalled();
+    });
+    expect(ManifestEdit).toHaveBeenLastCalledWith(expect.objectContaining({ editedManifest: userEditedManifest }), {});
+  });
+
+  function makeTemplate(overrides: Partial<TemplateOutput> & { id: string; deploy: string }): TemplateOutput {
+    return {
+      name: `Template ${overrides.id}`,
+      config: { ssh: false },
+      summary: "",
+      logoUrl: "",
+      readme: "",
+      path: "",
+      guide: "",
+      githubUrl: "",
+      persistentStorageEnabled: false,
+      ...overrides
+    };
+  }
+
   function setup(
     input: {
       step?: RouteStep;
@@ -303,19 +372,24 @@ describe(NewDeploymentContainer.name, () => {
       hasCiCdImageInSDL?: boolean;
     } = {}
   ) {
-    const searchParams = new Map<string, string>();
-    if (input.step) searchParams.set("step", input.step);
-    if (input.dseq) searchParams.set("dseq", input.dseq);
-    if (input.templateId) searchParams.set("templateId", input.templateId);
-    if (input.gitProvider) searchParams.set("gitProvider", input.gitProvider);
-    if (input.code) searchParams.set("code", input.code);
-    if (input.state) searchParams.set("state", input.state);
-    if (input.redeploy) searchParams.set("redeploy", input.redeploy);
+    const buildSearchParams = (next: typeof input) => {
+      const params = new Map<string, string>();
+      if (next.step) params.set("step", next.step);
+      if (next.dseq) params.set("dseq", next.dseq);
+      if (next.templateId) params.set("templateId", next.templateId);
+      if (next.gitProvider) params.set("gitProvider", next.gitProvider);
+      if (next.code) params.set("code", next.code);
+      if (next.state) params.set("state", next.state);
+      if (next.redeploy) params.set("redeploy", next.redeploy);
+      return {
+        get: (key: string) => params.get(key) ?? null,
+        entries: () => params.entries()
+      } as unknown as ReadonlyURLSearchParams;
+    };
 
-    const mockSearchParams = {
-      get: (key: string) => searchParams.get(key) ?? null,
-      entries: () => searchParams.entries()
-    } as unknown as ReadonlyURLSearchParams;
+    let mockSearchParams = buildSearchParams(input);
+    let currentRequestedTemplate = input.requestedTemplate;
+    let currentTemplateId = input.templateId;
 
     const mockRouter = {
       replace: vi.fn(),
@@ -363,17 +437,35 @@ describe(NewDeploymentContainer.name, () => {
       store.set(sdlStore.deploySdl, input.deploySdl);
     }
 
-    render(
+    const view = render(
       <TestContainerProvider
         services={{
           sdlAnalyzer: () => sdlAnalyzer
         }}
       >
         <JotaiStoreProvider store={store}>
-          <NewDeploymentContainer template={input.requestedTemplate} templateId={input.templateId} dependencies={dependencies} />
+          <NewDeploymentContainer template={currentRequestedTemplate} templateId={currentTemplateId} dependencies={dependencies} />
         </JotaiStoreProvider>
       </TestContainerProvider>
     );
+
+    const rerender = (next: Partial<typeof input>) => {
+      const merged = { ...input, ...next };
+      mockSearchParams = buildSearchParams(merged);
+      currentRequestedTemplate = "requestedTemplate" in next ? next.requestedTemplate : currentRequestedTemplate;
+      currentTemplateId = "templateId" in next ? next.templateId : currentTemplateId;
+      view.rerender(
+        <TestContainerProvider
+          services={{
+            sdlAnalyzer: () => sdlAnalyzer
+          }}
+        >
+          <JotaiStoreProvider store={store}>
+            <NewDeploymentContainer template={currentRequestedTemplate} templateId={currentTemplateId} dependencies={dependencies} />
+          </JotaiStoreProvider>
+        </TestContainerProvider>
+      );
+    };
 
     return {
       mockRouter,
@@ -382,7 +474,8 @@ describe(NewDeploymentContainer.name, () => {
       Layout,
       CreateLease,
       ManifestEdit,
-      TemplateList
+      TemplateList,
+      rerender
     };
   }
 });

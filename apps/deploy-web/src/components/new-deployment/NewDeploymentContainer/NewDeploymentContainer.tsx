@@ -1,6 +1,6 @@
 "use client";
 import type { FC } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TemplateOutput } from "@akashnetwork/http-sdk";
 import { useAtomValue } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -52,6 +52,7 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
   const [isGitProviderTemplate, setIsGitProviderTemplate] = useState<boolean>(false);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateCreation | null>(null);
   const [editedManifest, setEditedManifest] = useState("");
+  const loadedTemplateIdRef = useRef<string | null>(null);
   const deploySdl = useAtomValue(sdlStore.deploySdl);
   const { getDeploymentData } = d.useLocalNotes();
   const router = d.useRouter();
@@ -90,7 +91,7 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
     const templateId = searchParams?.get("templateId");
     const isCreating = !!activeStep && activeStep > getStepIndexByParam(RouteStep.chooseTemplate);
 
-    if (!templates || (isCreating && !!editedManifest && !!templateId)) return;
+    if (!templates || (isCreating && !!editedManifest && !!templateId && loadedTemplateIdRef.current === templateId)) return;
 
     const template = getRedeployTemplate() || getGalleryTemplate() || deploySdl;
     const isUserTemplate = template?.code === USER_TEMPLATE_CODE;
@@ -99,6 +100,7 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
 
     setSelectedTemplate(template as TemplateCreation);
     setEditedManifest(template.content as string);
+    loadedTemplateIdRef.current = templateId ?? "";
 
     if ("config" in template && (template.config?.ssh || (!template.config?.ssh && hasComponent("ssh")))) {
       toggleCmp("ssh");
