@@ -91,7 +91,8 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
     const templateId = searchParams?.get("templateId");
     const isCreating = !!activeStep && activeStep > getStepIndexByParam(RouteStep.chooseTemplate);
 
-    if (!templates || (isCreating && !!editedManifest && !!templateId && loadedTemplateIdRef.current === templateId)) return;
+    const isSameTemplateAlreadyLoaded = !!templateId && loadedTemplateIdRef.current === templateId;
+    if (!templates || (isCreating && !!editedManifest && isSameTemplateAlreadyLoaded)) return;
 
     const template = getRedeployTemplate() || getGalleryTemplate() || deploySdl;
     const isUserTemplate = template?.code === USER_TEMPLATE_CODE;
@@ -100,7 +101,7 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
 
     setSelectedTemplate(template as TemplateCreation);
     setEditedManifest(template.content as string);
-    loadedTemplateIdRef.current = templateId ?? "";
+    loadedTemplateIdRef.current = templateId ?? null;
 
     if ("config" in template && (template.config?.ssh || (!template.config?.ssh && hasComponent("ssh")))) {
       toggleCmp("ssh");

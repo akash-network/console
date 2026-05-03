@@ -14,6 +14,7 @@ import type { TemplateCreation } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
+import type { Props as ManifestEditProps } from "../ManifestEdit/ManifestEdit";
 import { DEPENDENCIES, NewDeploymentContainer } from "./NewDeploymentContainer";
 
 import { render, screen } from "@testing-library/react";
@@ -309,7 +310,7 @@ describe(NewDeploymentContainer.name, () => {
     });
   });
 
-  it("does not reload editedManifest when re-rendered with the same templateId", async () => {
+  it("preserves user-edited manifest when re-rendered with the same templateId", async () => {
     const templateA = makeTemplate({ id: "template-A", deploy: "version: 2.0\n# template A content" });
 
     const { ManifestEdit, rerender } = setup({
@@ -323,8 +324,7 @@ describe(NewDeploymentContainer.name, () => {
     });
 
     const userEditedManifest = "version: 2.0\n# user-edited content";
-    const calls = ManifestEdit.mock.calls as unknown as Array<[{ setEditedManifest: (next: string) => void }]>;
-    const lastProps = calls.at(-1)?.[0];
+    const lastProps = ManifestEdit.mock.calls.at(-1)?.[0];
     expect(lastProps).toBeDefined();
     lastProps!.setEditedManifest(userEditedManifest);
 
@@ -340,21 +340,6 @@ describe(NewDeploymentContainer.name, () => {
     });
     expect(ManifestEdit).toHaveBeenLastCalledWith(expect.objectContaining({ editedManifest: userEditedManifest }), {});
   });
-
-  function makeTemplate(overrides: Partial<TemplateOutput> & { id: string; deploy: string }): TemplateOutput {
-    return {
-      name: `Template ${overrides.id}`,
-      config: { ssh: false },
-      summary: "",
-      logoUrl: "",
-      readme: "",
-      path: "",
-      guide: "",
-      githubUrl: "",
-      persistentStorageEnabled: false,
-      ...overrides
-    };
-  }
 
   function setup(
     input: {
@@ -398,7 +383,7 @@ describe(NewDeploymentContainer.name, () => {
 
     const Layout = vi.fn(({ children }: { children: React.ReactNode }) => <div data-testid="layout">{children}</div>);
     const TemplateList = vi.fn(() => <div data-testid="template-list">TemplateList</div>);
-    const ManifestEdit = vi.fn(() => <div data-testid="manifest-edit">ManifestEdit</div>);
+    const ManifestEdit = vi.fn<(props: ManifestEditProps) => React.ReactElement>(() => <div data-testid="manifest-edit">ManifestEdit</div>);
     const CreateLease = vi.fn(() => <div data-testid="create-lease">CreateLease</div>);
     const CustomizedSteppers = vi.fn(() => <div data-testid="stepper">Stepper</div>);
 
@@ -437,7 +422,7 @@ describe(NewDeploymentContainer.name, () => {
       store.set(sdlStore.deploySdl, input.deploySdl);
     }
 
-    const view = render(
+    const renderTree = () => (
       <TestContainerProvider
         services={{
           sdlAnalyzer: () => sdlAnalyzer
@@ -449,22 +434,14 @@ describe(NewDeploymentContainer.name, () => {
       </TestContainerProvider>
     );
 
+    const view = render(renderTree());
+
     const rerender = (next: Partial<typeof input>) => {
       const merged = { ...input, ...next };
       mockSearchParams = buildSearchParams(merged);
-      currentRequestedTemplate = "requestedTemplate" in next ? next.requestedTemplate : currentRequestedTemplate;
-      currentTemplateId = "templateId" in next ? next.templateId : currentTemplateId;
-      view.rerender(
-        <TestContainerProvider
-          services={{
-            sdlAnalyzer: () => sdlAnalyzer
-          }}
-        >
-          <JotaiStoreProvider store={store}>
-            <NewDeploymentContainer template={currentRequestedTemplate} templateId={currentTemplateId} dependencies={dependencies} />
-          </JotaiStoreProvider>
-        </TestContainerProvider>
-      );
+      currentRequestedTemplate = merged.requestedTemplate;
+      currentTemplateId = merged.templateId;
+      view.rerender(renderTree());
     };
 
     return {
@@ -476,6 +453,21 @@ describe(NewDeploymentContainer.name, () => {
       ManifestEdit,
       TemplateList,
       rerender
+    };
+  }
+
+  function makeTemplate(overrides: Partial<TemplateOutput> & { id: string; deploy: string }): TemplateOutput {
+    return {
+      name: `Template ${overrides.id}`,
+      config: { ssh: false },
+      summary: "",
+      logoUrl: "",
+      readme: "",
+      path: "",
+      guide: "",
+      githubUrl: "",
+      persistentStorageEnabled: false,
+      ...overrides
     };
   }
 });
