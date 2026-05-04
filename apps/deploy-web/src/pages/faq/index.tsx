@@ -63,16 +63,6 @@ const FaqEntries = [
     )
   },
   {
-    anchor: "shell-arrows-and-completion",
-    title: "Shell: UP arrow and TAB autocompletion does not work",
-    content: (
-      <p>
-        Some docker images use "sh" as the default shell. This shell does not support up arrow and TAB autocompletion. You may try sending the "bash" command to
-        switch to a bash shell which support those feature.
-      </p>
-    )
-  },
-  {
     anchor: "send-manifest-resources-mismatch",
     title: `Error while sending manifest to provider. Error: manifest cross-validation error: group "X": service "X": CPU/Memory resources mismatch for ID 1`,
     content: (
