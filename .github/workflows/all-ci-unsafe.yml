@@ -91,7 +91,7 @@ jobs:
   setup-static-analyses:
     needs: [create-check-run]
     if: ${{ needs.create-check-run.outputs.run_scan == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
     outputs:
       matrix: ${{ steps.matrix.outputs.value }}
       should_run: ${{ !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-static-analyses') }}
@@ -154,7 +154,7 @@ jobs:
   apps-deps-scan:
     needs: [create-check-run]
     if: needs.create-check-run.outputs.run_scan == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -197,7 +197,7 @@ jobs:
     #   - https://gh.io/supported-runners-and-hardware-resources
     #   - https://gh.io/using-larger-runners (GitHub.com only)
     # Consider using larger runners or machines with greater resources for possible analysis time improvements.
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
     permissions:
       # required for all workflows
       security-events: write
@@ -247,7 +247,7 @@ jobs:
           max_retries: 10
 
   finalize:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
     needs: [create-check-run, static-analyses, codeql-scan, apps-deps-scan]
     if: ${{ always() && needs.create-check-run.result == 'success' }}
     steps:
