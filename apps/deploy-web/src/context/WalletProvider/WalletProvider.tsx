@@ -26,6 +26,7 @@ import { getStorageWallets, updateStorageManagedWallet, updateStorageWallets } f
 import { useServices } from "../ServicesProvider";
 import { useSettings } from "../SettingsProvider";
 import { settingsIdAtom } from "../SettingsProvider/settingsStore";
+import { deriveWalletIsLoading } from "./deriveWalletIsLoading";
 
 const CONSOLE_MEMO = "akash console";
 
@@ -115,7 +116,12 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     fee: { default: feeGranter }
   } = useAllowance(walletAddress as string, isManaged);
   const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore();
-  const isLoading = (selectedWalletType === "managed" && isManagedWalletLoading) || (selectedWalletType === "custodial" && userWallet.isWalletConnecting);
+  const isLoading = deriveWalletIsLoading({
+    hasAuthenticatedUserId: !!user?.userId,
+    selectedWalletType,
+    isManagedWalletLoading,
+    isCustodialConnecting: userWallet.isWalletConnecting
+  });
 
   useWhen(walletAddress, loadWallet);
 
