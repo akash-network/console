@@ -274,7 +274,7 @@ export class ProviderProxyService {
     signal?: AbortSignal;
   }): WebsocketSession<Uint8Array, ReceivedShellMessage> {
     const argv = input.command ?? ["sh", "-c", "command -v bash >/dev/null 2>&1 && exec bash || exec sh"];
-    const command = argv.map((c, i) => `&cmd${i}=${encodeURIComponent(c)}`).join("");
+    const command = argv.map((c, i) => `cmd${i}=${encodeURIComponent(c)}`).join("&");
     const url = `${providerLeaseUrl({ ...input, type: "shell" })}?stdin=${input.useStdIn ? "1" : "0"}&tty=${input.useTTY ? "1" : "0"}&podIndex=0&${command}&service=${encodeURIComponent(input.service)}`;
 
     return new WebsocketSession<Uint8Array, ReceivedShellMessage>({

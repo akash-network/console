@@ -773,7 +773,7 @@ describe(ProviderProxyService.name, () => {
 
       const sentMessage = JSON.parse((websocket.send as Mock).mock.calls[0][0]);
       expect(sentMessage.url).toBe(
-        "https://provider.example.com/lease/100/2/3/shell?stdin=0&tty=0&podIndex=0&&cmd0=sh&cmd1=-c&cmd2=command%20-v%20bash%20%3E%2Fdev%2Fnull%202%3E%261%20%26%26%20exec%20bash%20%7C%7C%20exec%20sh&service=web-service"
+        "https://provider.example.com/lease/100/2/3/shell?stdin=0&tty=0&podIndex=0&cmd0=sh&cmd1=-c&cmd2=command%20-v%20bash%20%3E%2Fdev%2Fnull%202%3E%261%20%26%26%20exec%20bash%20%7C%7C%20exec%20sh&service=web-service"
       );
     });
 
