@@ -2,8 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AlertDescription, AlertTitle, Button, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { OpenInWindow, WarningCircle } from "iconoir-react";
-import Link from "next/link";
+import { WarningCircle } from "iconoir-react";
 
 import { ViewPanel } from "@src/components/shared/ViewPanel";
 import { useServices } from "@src/context/ServicesProvider";
@@ -16,7 +15,6 @@ import type { ReceivedShellMessage } from "@src/services/provider-proxy/provider
 import type { LeaseDto } from "@src/types/deployment";
 import { LeaseShellCode } from "@src/types/shell";
 import { forEachGeneratedItem } from "@src/utils/array";
-import { UrlService } from "@src/utils/urlUtils";
 import { CreateCredentialsButton } from "./CreateCredentialsButton/CreateCredentialsButton";
 import { LeaseSelect } from "./LeaseSelect";
 import { ServiceSelect } from "./ServiceSelect";
@@ -38,7 +36,6 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   const [selectedLease, setSelectedLease] = useState<LeaseDto | null>(null);
   const [isShowingDownloadModal, setIsShowingDownloadModal] = useState(false);
   const [isChangingSocket, setIsChangingSocket] = useState(false);
-  const [showArrowAndTabWarning, setShowArrowAndTabWarning] = useState(false);
   const { data: providers } = useProviderList();
   const providerCredentials = useProviderCredentials();
   const providerInfo = providers?.find(p => p.owner === selectedLease?.provider);
@@ -118,12 +115,6 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
 
     if (message?.data) {
       const parsedData = textDecoder.decode(Uint8Array.from(message.data.slice(1)));
-
-      // Check if parsedData is either ^[[A, ^[[B, ^[[C or ^[[D
-      const arrowKeyPattern = /\^\[\[[A-D]/;
-      if (arrowKeyPattern.test(parsedData)) {
-        setShowArrowAndTabWarning(true);
-      }
 
       let exitCode;
       try {
@@ -245,40 +236,29 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
           {selectedLease && (
             <>
               {!isConnectionClosed && (
-                <>
-                  <div className="flex h-[56px] items-center space-x-4 p-2">
-                    <div className="flex items-center">
-                      {(leases?.length || 0) > 1 && <LeaseSelect leases={leases || []} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
+                <div className="flex h-[56px] items-center space-x-4 p-2">
+                  <div className="flex items-center">
+                    {(leases?.length || 0) > 1 && <LeaseSelect leases={leases || []} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
 
-                      {services?.length > 0 && selectedService && (
-                        <div className={cn({ ["ml-2"]: (leases?.length || 0) > 1 })}>
-                          <ServiceSelect services={services} defaultValue={selectedService} onSelectedChange={onSelectedServiceChange} />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center">
-                      <Button onClick={onDownloadFileClick} variant="default" size="sm" disabled={!isConnectionEstablished}>
-                        Download file
-                      </Button>
-                    </div>
-
-                    {(isLoadingStatus || isLoadingData) && (
-                      <div>
-                        <Spinner size="small" />
+                    {services?.length > 0 && selectedService && (
+                      <div className={cn({ ["ml-2"]: (leases?.length || 0) > 1 })}>
+                        <ServiceSelect services={services} defaultValue={selectedService} onSelectedChange={onSelectedServiceChange} />
                       </div>
                     )}
                   </div>
 
-                  {showArrowAndTabWarning && (
-                    <Alert variant="warning" className="mb-1 rounded-none">
-                      <Link href={UrlService.faq("shell-arrows-and-completion")} target="_blank" className="inline-flex items-center space-x-2">
-                        <span>Why is my UP arrow and TAB autocompletion not working?</span>
-                        <OpenInWindow className="text-xs" />
-                      </Link>
-                    </Alert>
+                  <div className="flex items-center">
+                    <Button onClick={onDownloadFileClick} variant="default" size="sm" disabled={!isConnectionEstablished}>
+                      Download file
+                    </Button>
+                  </div>
+
+                  {(isLoadingStatus || isLoadingData) && (
+                    <div>
+                      <Spinner size="small" />
+                    </div>
                   )}
-                </>
+                </div>
               )}
 
               <ViewPanel stickToBottom className="overflow-hidden">
