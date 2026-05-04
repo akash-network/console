@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { useIsWalletLoading, type UseIsWalletLoadingInput } from "./useIsWalletLoading";
+import { deriveWalletIsLoading, type DeriveWalletIsLoadingInput } from "./deriveWalletIsLoading";
 
-describe(useIsWalletLoading.name, () => {
-  it.each<{ name: string; input: UseIsWalletLoadingInput; expected: boolean }>([
+describe(deriveWalletIsLoading.name, () => {
+  it.each<{ name: string; input: DeriveWalletIsLoadingInput; expected: boolean }>([
     {
       name: "authenticated user, custodial selected, managed-wallet query still loading (the race-condition case)",
       input: { hasAuthenticatedUserId: true, selectedWalletType: "custodial", isManagedWalletLoading: true, isCustodialConnecting: false },
@@ -40,6 +40,6 @@ describe(useIsWalletLoading.name, () => {
       expected: false
     }
   ])("$name → $expected", ({ input, expected }) => {
-    expect(useIsWalletLoading(input)).toBe(expected);
+    expect(deriveWalletIsLoading(input)).toBe(expected);
   });
 });
