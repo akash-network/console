@@ -29,7 +29,7 @@ import { BinMinusIn, InfoCircle, NavArrowDown } from "iconoir-react";
 import Image from "next/legacy/image";
 
 import { SSHKeyFormControl } from "@src/components/sdl/SSHKeyFromControl";
-import { UAKT_DENOM } from "@src/config/denom.config";
+import { UACT_DENOM } from "@src/config/denom.config";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useFlag } from "@src/hooks/useFlag";
@@ -477,11 +477,11 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                         <div>
                           <strong>Pricing</strong>&nbsp;&nbsp;
                           <span className="inline-flex items-center text-muted-foreground">
-                            Max {udenomToDenom(currentService.placement.pricing.amount, 6)} AKT per block
+                            Max {udenomToDenom(currentService.placement.pricing.amount, 6)} ACT per block
                             <CustomTooltip
                               title={
                                 <>
-                                  The maximum amount of uAKT you're willing to pay per block (~6 seconds).
+                                  The maximum amount of uACT you're willing to pay per block (~6 seconds).
                                   <br />
                                   <br />
                                   Akash will only show providers costing <strong>less</strong> than this amount.
@@ -490,7 +490,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                   <div>
                                     <strong>
                                       ~
-                                      <PriceValue denom={UAKT_DENOM} value={udenomToDenom(getAvgCostPerMonth(currentService.placement.pricing.amount))} />
+                                      <PriceValue denom={UACT_DENOM} value={udenomToDenom(getAvgCostPerMonth(currentService.placement.pricing.amount))} />
                                     </strong>
                                     &nbsp; per month
                                   </div>
