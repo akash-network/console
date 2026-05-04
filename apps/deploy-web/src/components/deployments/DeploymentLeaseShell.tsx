@@ -236,29 +236,31 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
           {selectedLease && (
             <>
               {!isConnectionClosed && (
-                <div className="flex h-[56px] items-center space-x-4 p-2">
-                  <div className="flex items-center">
-                    {(leases?.length || 0) > 1 && <LeaseSelect leases={leases || []} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
+                <>
+                  <div className="flex h-[56px] items-center space-x-4 p-2">
+                    <div className="flex items-center">
+                      {(leases?.length || 0) > 1 && <LeaseSelect leases={leases || []} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
 
-                    {services?.length > 0 && selectedService && (
-                      <div className={cn({ ["ml-2"]: (leases?.length || 0) > 1 })}>
-                        <ServiceSelect services={services} defaultValue={selectedService} onSelectedChange={onSelectedServiceChange} />
+                      {services?.length > 0 && selectedService && (
+                        <div className={cn({ ["ml-2"]: (leases?.length || 0) > 1 })}>
+                          <ServiceSelect services={services} defaultValue={selectedService} onSelectedChange={onSelectedServiceChange} />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center">
+                      <Button onClick={onDownloadFileClick} variant="default" size="sm" disabled={!isConnectionEstablished}>
+                        Download file
+                      </Button>
+                    </div>
+
+                    {(isLoadingStatus || isLoadingData) && (
+                      <div>
+                        <Spinner size="small" />
                       </div>
                     )}
                   </div>
-
-                  <div className="flex items-center">
-                    <Button onClick={onDownloadFileClick} variant="default" size="sm" disabled={!isConnectionEstablished}>
-                      Download file
-                    </Button>
-                  </div>
-
-                  {(isLoadingStatus || isLoadingData) && (
-                    <div>
-                      <Spinner size="small" />
-                    </div>
-                  )}
-                </div>
+                </>
               )}
 
               <ViewPanel stickToBottom className="overflow-hidden">
