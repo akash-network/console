@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useVariant } from "@unleash/nextjs/client";
 import { atom, useAtom } from "jotai";
 
@@ -6,6 +6,18 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useHasCreditCardBanner } from "@src/hooks/useHasCreditCardBanner";
 import { useWhen } from "@src/hooks/useWhen";
 import { useSettings } from "../context/SettingsProvider";
+
+const GENERIC_BANNER_DISMISSED_PREFIX = "generic_banner_dismissed:";
+
+const isGenericBannerDismissed = (dismissId: string | undefined) => {
+  if (!dismissId || typeof window === "undefined") return false;
+  return window.localStorage.getItem(GENERIC_BANNER_DISMISSED_PREFIX + dismissId) === "true";
+};
+
+const persistGenericBannerDismiss = (dismissId: string | undefined) => {
+  if (!dismissId || typeof window === "undefined") return;
+  window.localStorage.setItem(GENERIC_BANNER_DISMISSED_PREFIX + dismissId, "true");
+};
 
 interface ITopBannerContext {
   hasBanner: boolean;
@@ -20,16 +32,41 @@ interface ITopBannerContext {
 const IS_MAINTENANCE_ATOM = atom(false);
 const IS_GENERIC_BANNER_ATOM = atom(false);
 
+export function useGenericBannerVisibility(input: { isFlagEnabled: boolean; dismissId: string | undefined }) {
+  const { isFlagEnabled, dismissId } = input;
+  const [isOpen, setIsOpenAtom] = useAtom(IS_GENERIC_BANNER_ATOM);
+
+  useEffect(() => {
+    setIsOpenAtom(isFlagEnabled && !isGenericBannerDismissed(dismissId));
+  }, [isFlagEnabled, dismissId, setIsOpenAtom]);
+
+  const setIsOpen = useCallback(
+    (open: boolean) => {
+      setIsOpenAtom(open);
+      if (!open) {
+        persistGenericBannerDismiss(dismissId);
+      }
+    },
+    [setIsOpenAtom, dismissId]
+  );
+
+  return [isOpen, setIsOpen] as const;
+}
+
 export function useTopBanner(): ITopBannerContext {
   const maintenanceBannerFlag = useVariant("maintenance_banner");
   const genericBannerFlag = useVariant("generic_banner");
   const { settings } = useSettings();
   const hasCreditCardBanner = useHasCreditCardBanner();
+  const { dismissId } = useGenericBannerDetails();
 
   const [isMaintenanceBannerOpen, setIsMaintenanceBannerOpen] = useAtom(IS_MAINTENANCE_ATOM);
-  const [isGenericBannerOpen, setIsGenericBannerOpen] = useAtom(IS_GENERIC_BANNER_ATOM);
   useWhen(maintenanceBannerFlag.enabled, () => setIsMaintenanceBannerOpen(true));
-  useWhen(genericBannerFlag.enabled, () => setIsGenericBannerOpen(true));
+
+  const [isGenericBannerOpen, setIsGenericBannerOpen] = useGenericBannerVisibility({
+    isFlagEnabled: !!genericBannerFlag.enabled,
+    dismissId
+  });
 
   const hasBanner = useMemo(
     () => isMaintenanceBannerOpen || isGenericBannerOpen || settings.isBlockchainDown || hasCreditCardBanner,
@@ -79,20 +116,25 @@ export function useChainMaintenanceDetails(): ChainMaintenanceDetails {
   }
 }
 
-export type GenericBannerDetails = { message: string };
+export type GenericBannerLink = { label: string; href: string };
+export type GenericBannerDetails = { message: string; links?: GenericBannerLink[]; dismissId?: string };
 export function useGenericBannerDetails(): GenericBannerDetails {
   const genericBannerFlag = useVariant("generic_banner");
   const { errorHandler } = useServices();
+  const enabled = genericBannerFlag?.enabled;
+  const payload = genericBannerFlag?.payload?.value;
 
-  try {
-    const details = genericBannerFlag?.enabled ? (JSON.parse(genericBannerFlag.payload?.value as string) as GenericBannerDetails) : { message: "" };
-    return details;
-  } catch (error) {
-    errorHandler.reportError({
-      error,
-      message: "Failed to parse generic banner details from feature flag",
-      tags: { category: "generic-banner" }
-    });
-    return { message: "" };
-  }
+  return useMemo(() => {
+    if (!enabled) return { message: "" };
+    try {
+      return JSON.parse(payload as string) as GenericBannerDetails;
+    } catch (error) {
+      errorHandler.reportError({
+        error,
+        message: "Failed to parse generic banner details from feature flag",
+        tags: { category: "generic-banner" }
+      });
+      return { message: "" };
+    }
+  }, [enabled, payload, errorHandler]);
 }
