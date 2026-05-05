@@ -110,6 +110,7 @@
     "recharts": "^2.15.4",
     "rehype-highlight": "^6.0.0",
     "rehype-raw": "^7.0.0",
+    "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^3.0.1",
     "sharp": "^0.34.5",
     "ts-results": "^3.3.0",

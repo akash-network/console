@@ -7,6 +7,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { useTheme } from "next-themes";
 import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 
 type MarkdownProps = {
@@ -20,7 +21,7 @@ const Markdown: React.FunctionComponent<MarkdownProps> = ({ children, hasHtml })
   const rehypePlugins: PluggableList = [[rehypeHighlight, { ignoreMissing: true }]];
 
   if (hasHtml) {
-    rehypePlugins.push([rehypeRaw as any]);
+    rehypePlugins.push([rehypeRaw as any], [rehypeSanitize, defaultSchema]);
   }
 
   return (
