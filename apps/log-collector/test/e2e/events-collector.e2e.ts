@@ -15,9 +15,9 @@
  */
 import { config } from "@dotenvx/dotenvx";
 import { AppsV1Api, CoreV1Api, Exec, KubeConfig, RbacAuthorizationV1Api } from "@kubernetes/client-node";
-import { execSync } from "child_process";
-import path from "path";
-import { PassThrough } from "stream";
+import { execFileSync } from "node:child_process";
+import path from "node:path";
+import { PassThrough } from "node:stream";
 import { beforeAll, describe, expect, it } from "vitest";
 
 config({ path: path.resolve(__dirname, "../../k8s/.env.local"), quiet: true });
@@ -30,9 +30,9 @@ const K8S_DIR = path.resolve(__dirname, "../../k8s");
 
 describe("Logs and Events Collector E2E", () => {
   beforeAll(() => {
-    execSync(`kubectl apply -f ${K8S_DIR}`, { stdio: "ignore" });
-    execSync(`kubectl rollout restart deployment/${COLLECTOR_DEPLOYMENT} -n ${NAMESPACE}`, { stdio: "ignore" });
-    execSync(`kubectl rollout status deployment/${COLLECTOR_DEPLOYMENT} -n ${NAMESPACE} --timeout=30s`, { stdio: "ignore" });
+    execFileSync("kubectl", ["apply", "-f", K8S_DIR], { stdio: "ignore" });
+    execFileSync("kubectl", ["rollout", "restart", `deployment/${COLLECTOR_DEPLOYMENT}`, "-n", NAMESPACE], { stdio: "ignore" });
+    execFileSync("kubectl", ["rollout", "status", `deployment/${COLLECTOR_DEPLOYMENT}`, "-n", NAMESPACE, "--timeout=30s"], { stdio: "ignore" });
   });
 
   it("should collect events and logs for existing pods on startup", async () => {
@@ -127,7 +127,7 @@ describe("Logs and Events Collector E2E", () => {
         { timeout: 15_000, interval: 2000 }
       );
     } finally {
-      execSync(`kubectl apply -f ${K8S_DIR}/role.yaml`, { stdio: "ignore" });
+      execFileSync("kubectl", ["apply", "-f", `${K8S_DIR}/role.yaml`], { stdio: "ignore" });
     }
   });
 
