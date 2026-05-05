@@ -86,7 +86,7 @@ function GenericBanner({ onClose }: { onClose: () => void }) {
             href={link.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-1 text-primary-foreground underline hover:text-primary-foreground/80"
+            className="ml-3 text-primary-foreground underline hover:text-primary-foreground/80"
           >
             {link.label}
           </a>
