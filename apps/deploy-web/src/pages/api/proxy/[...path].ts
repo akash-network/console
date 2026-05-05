@@ -1,10 +1,9 @@
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
-import { proxyRequest } from "@src/lib/nextjs/proxyRequest/proxyRequest";
 import { sentryTraceToW3C } from "@src/services/error-handler/error-handler.service";
 
 export default defineApiHandler({
   route: "/api/proxy/[...path]",
-  async handler({ req, res, services }) {
+  async handler({ req, res, services, session }) {
     services.logger.info({ event: "PROXY_API_REQUEST", url: req.url });
     const url = req.url?.replace(/^\/api\/proxy\//, "/") || "";
 
@@ -22,8 +21,6 @@ export default defineApiHandler({
       headers["baggage"] = req.headers["baggage"] as string;
     }
 
-    const session = await services.getSession(req, res);
-
     // Extract and forward cf_clearance and unleash-session-id cookies
     const cookiesToForward = req.headers.cookie
       ?.split(";")
@@ -38,7 +35,7 @@ export default defineApiHandler({
       headers.authorization = `Bearer ${session.accessToken}`;
     }
 
-    await proxyRequest(req, res, {
+    await services.proxyRequest(req, res, {
       target: services.apiUrlService.getBaseApiUrlFor(services.privateConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID) + url,
       headers,
       onError: error => {
