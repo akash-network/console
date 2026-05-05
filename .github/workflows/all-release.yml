@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   setup:
-    runs-on: [self-hosted, akash]
+    runs-on: ubuntu-latest
     outputs:
       backends: ${{ steps.matrix.outputs.backends }}
       nextjs: ${{ steps.matrix.outputs.nextjs }}
