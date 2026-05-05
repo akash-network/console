@@ -2736,6 +2736,388 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/bid-screening": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "name": {
+                    "description": "Group name",
+                    "example": "westcoast",
+                    "type": "string",
+                  },
+                  "requirements": {
+                    "default": {},
+                    "properties": {
+                      "attributes": {
+                        "default": [],
+                        "items": {
+                          "properties": {
+                            "key": {
+                              "description": "Attribute key",
+                              "example": "persistent",
+                              "type": "string",
+                            },
+                            "value": {
+                              "description": "Attribute value",
+                              "example": "false",
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "key",
+                            "value",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                      "signedBy": {
+                        "default": {},
+                        "properties": {
+                          "allOf": {
+                            "default": [],
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                          "anyOf": {
+                            "default": [],
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                        },
+                        "type": "object",
+                      },
+                    },
+                    "type": "object",
+                  },
+                  "resources": {
+                    "description": "Resource units with replica counts",
+                    "items": {
+                      "properties": {
+                        "count": {
+                          "description": "Replica count",
+                          "example": 1,
+                          "minimum": 1,
+                          "type": "integer",
+                        },
+                        "price": {
+                          "properties": {
+                            "amount": {
+                              "type": "string",
+                            },
+                            "denom": {
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "denom",
+                            "amount",
+                          ],
+                          "type": "object",
+                        },
+                        "resource": {
+                          "properties": {
+                            "cpu": {
+                              "properties": {
+                                "attributes": {
+                                  "items": {
+                                    "properties": {
+                                      "key": {
+                                        "description": "Attribute key",
+                                        "example": "persistent",
+                                        "type": "string",
+                                      },
+                                      "value": {
+                                        "description": "Attribute value",
+                                        "example": "false",
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "key",
+                                      "value",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "units": {
+                                  "properties": {
+                                    "val": {
+                                      "description": "String-encoded integer value",
+                                      "example": "1000",
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "val",
+                                  ],
+                                  "type": "object",
+                                },
+                              },
+                              "required": [
+                                "units",
+                                "attributes",
+                              ],
+                              "type": "object",
+                            },
+                            "endpoints": {
+                              "items": {
+                                "nullable": true,
+                              },
+                              "type": "array",
+                            },
+                            "gpu": {
+                              "properties": {
+                                "attributes": {
+                                  "items": {
+                                    "properties": {
+                                      "key": {
+                                        "description": "Attribute key",
+                                        "example": "persistent",
+                                        "type": "string",
+                                      },
+                                      "value": {
+                                        "description": "Attribute value",
+                                        "example": "false",
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "key",
+                                      "value",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "units": {
+                                  "properties": {
+                                    "val": {
+                                      "description": "String-encoded integer value",
+                                      "example": "1000",
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "val",
+                                  ],
+                                  "type": "object",
+                                },
+                              },
+                              "required": [
+                                "units",
+                                "attributes",
+                              ],
+                              "type": "object",
+                            },
+                            "id": {
+                              "description": "Resource unit ID",
+                              "example": 1,
+                              "type": "integer",
+                            },
+                            "memory": {
+                              "properties": {
+                                "attributes": {
+                                  "items": {
+                                    "properties": {
+                                      "key": {
+                                        "description": "Attribute key",
+                                        "example": "persistent",
+                                        "type": "string",
+                                      },
+                                      "value": {
+                                        "description": "Attribute value",
+                                        "example": "false",
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "key",
+                                      "value",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "quantity": {
+                                  "properties": {
+                                    "val": {
+                                      "description": "String-encoded integer value",
+                                      "example": "1000",
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "val",
+                                  ],
+                                  "type": "object",
+                                },
+                              },
+                              "required": [
+                                "quantity",
+                                "attributes",
+                              ],
+                              "type": "object",
+                            },
+                            "storage": {
+                              "items": {
+                                "properties": {
+                                  "attributes": {
+                                    "items": {
+                                      "properties": {
+                                        "key": {
+                                          "description": "Attribute key",
+                                          "example": "persistent",
+                                          "type": "string",
+                                        },
+                                        "value": {
+                                          "description": "Attribute value",
+                                          "example": "false",
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "key",
+                                        "value",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                  "name": {
+                                    "description": "Storage volume name",
+                                    "example": "default",
+                                    "type": "string",
+                                  },
+                                  "quantity": {
+                                    "properties": {
+                                      "val": {
+                                        "description": "String-encoded integer value",
+                                        "example": "1000",
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "val",
+                                    ],
+                                    "type": "object",
+                                  },
+                                },
+                                "required": [
+                                  "name",
+                                  "quantity",
+                                  "attributes",
+                                ],
+                                "type": "object",
+                              },
+                              "type": "array",
+                            },
+                          },
+                          "required": [
+                            "id",
+                            "cpu",
+                            "memory",
+                            "gpu",
+                            "storage",
+                          ],
+                          "type": "object",
+                        },
+                      },
+                      "required": [
+                        "resource",
+                        "count",
+                        "price",
+                      ],
+                      "type": "object",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                },
+                "required": [
+                  "name",
+                  "resources",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "providers": {
+                      "items": {
+                        "properties": {
+                          "hostUri": {
+                            "description": "Provider HTTPS endpoint",
+                            "example": "https://provider.europlots.com:8443",
+                            "type": "string",
+                          },
+                          "isAudited": {
+                            "description": "True if signed by a known auditor",
+                            "type": "boolean",
+                          },
+                          "owner": {
+                            "description": "Provider address",
+                            "example": "akash1q7spv2cw06yszgfp4f9ed59lkka6ytn8g4tkjf",
+                            "type": "string",
+                          },
+                          "region": {
+                            "description": "Geo-resolved region from IP",
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "uptime7d": {
+                            "description": "7-day uptime as decimal (0.0-1.0)",
+                            "example": 0.998,
+                            "nullable": true,
+                            "type": "number",
+                          },
+                        },
+                        "required": [
+                          "owner",
+                          "hostUri",
+                          "region",
+                          "uptime7d",
+                          "isAudited",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "providers",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns matching providers",
+          },
+          "400": {
+            "description": "Invalid request body",
+          },
+        },
+        "security": [],
+        "summary": "Screen providers by deployment resource requirements",
+        "tags": [
+          "Bid Screening",
+        ],
+      },
+    },
     "/v1/bids": {
       "get": {
         "parameters": [
