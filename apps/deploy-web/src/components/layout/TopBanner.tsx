@@ -73,8 +73,10 @@ function MaintenanceBanner({ onClose }: { onClose: () => void }) {
   );
 }
 
-function GenericBanner({ onClose }: { onClose: () => void }) {
-  const { message, links } = useGenericBannerDetails();
+export const DEPENDENCIES = { useGenericBannerDetails };
+
+export function GenericBanner({ onClose, dependencies = DEPENDENCIES }: { onClose: () => void; dependencies?: typeof DEPENDENCIES }) {
+  const { message, links } = dependencies.useGenericBannerDetails();
 
   return (
     <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center gap-2 bg-primary px-3 py-2 text-primary-foreground md:gap-4">
