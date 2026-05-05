@@ -1,4 +1,4 @@
-import type { ResourcePairState } from "../types/inventory.types";
+import type { ResourcePairState } from "../../types/inventory.types";
 
 const UNLIMITED = -1n;
 export const MAX_INT64 = 9223372036854775807n;

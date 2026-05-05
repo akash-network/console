@@ -1,4 +1,4 @@
-import type { ResourcePair } from "../lib/resource-pair";
+import type { ResourcePair } from "../lib/resource-pair/resource-pair";
 
 export interface GpuInfo {
   vendor: string;

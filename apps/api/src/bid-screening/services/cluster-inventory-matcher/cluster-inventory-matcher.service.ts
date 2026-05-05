@@ -1,9 +1,9 @@
 import { singleton } from "tsyringe";
 
-import { mapSnapshotToInventory } from "@src/bid-screening/lib/inventory-mapper";
+import { mapSnapshotToInventory } from "@src/bid-screening/lib/inventory-mapper/inventory-mapper";
 import { ProviderWithSnapshot } from "@src/bid-screening/types/provider";
-import { matchesGPU, type ParsedGPUAttributes, parseGPUAttributes } from "../../lib/gpu-attribute-parser";
-import { parseStorageAttributes } from "../../lib/storage-attribute-parser";
+import { matchesGPU, type ParsedGPUAttributes, parseGPUAttributes } from "../../lib/gpu-attribute-parser/gpu-attribute-parser";
+import { parseStorageAttributes } from "../../lib/storage-attribute-parser/storage-attribute-parser";
 import type { ClusterState, MatchResult, NodeState, RequestedResourceUnit, ResourceAttribute } from "../../types/inventory.types";
 
 interface CanonicalHardware {

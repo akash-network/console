@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ProviderWithSnapshot } from "../types/provider";
+import type { ProviderWithSnapshot } from "../../types/provider";
 import { mapSnapshotToInventory } from "./inventory-mapper";
 
 describe(mapSnapshotToInventory.name, () => {

@@ -1,6 +1,6 @@
 import type { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 
-import type { RequestedResourceUnit, RequestedStorage, ToJSON } from "../types/inventory.types";
+import type { RequestedResourceUnit, RequestedStorage, ToJSON } from "../../types/inventory.types";
 
 function parseResourceValue(val: string): bigint {
   const parsed = BigInt(val);

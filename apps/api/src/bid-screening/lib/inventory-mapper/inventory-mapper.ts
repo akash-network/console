@@ -1,6 +1,6 @@
-import type { ClusterState, CpuInfo, GpuInfo } from "../types/inventory.types";
-import type { ProviderWithSnapshot } from "../types/provider";
-import { ResourcePair } from "./resource-pair";
+import type { ClusterState, CpuInfo, GpuInfo } from "../../types/inventory.types";
+import type { ProviderWithSnapshot } from "../../types/provider";
+import { ResourcePair } from "../resource-pair/resource-pair";
 
 const STORAGE_CLASS_MAP: Record<string, string> = {
   capabilitiesStorageHDD: "beta1",
