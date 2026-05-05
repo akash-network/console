@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useVariant } from "@unleash/nextjs/client";
 import { atom, useAtom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useHasCreditCardBanner } from "@src/hooks/useHasCreditCardBanner";
@@ -8,16 +9,18 @@ import { useWhen } from "@src/hooks/useWhen";
 import { useSettings } from "../context/SettingsProvider";
 
 const GENERIC_BANNER_DISMISSED_PREFIX = "generic_banner_dismissed:";
+const SAFE_LINK_PROTOCOLS = new Set(["http:", "https:"]);
 
-const isGenericBannerDismissed = (dismissId: string | undefined) => {
-  if (!dismissId || typeof window === "undefined") return false;
-  return window.localStorage.getItem(GENERIC_BANNER_DISMISSED_PREFIX + dismissId) === "true";
+const dismissedAtomCache = new Map<string, ReturnType<typeof atomWithStorage<boolean>>>();
+const getGenericBannerDismissedAtom = (dismissId: string) => {
+  const cached = dismissedAtomCache.get(dismissId);
+  if (cached) return cached;
+  const dismissedAtom = atomWithStorage<boolean>(GENERIC_BANNER_DISMISSED_PREFIX + dismissId, false);
+  dismissedAtomCache.set(dismissId, dismissedAtom);
+  return dismissedAtom;
 };
 
-const persistGenericBannerDismiss = (dismissId: string | undefined) => {
-  if (!dismissId || typeof window === "undefined") return;
-  window.localStorage.setItem(GENERIC_BANNER_DISMISSED_PREFIX + dismissId, "true");
-};
+const SESSION_GENERIC_BANNER_DISMISSED_ATOM = atom(false);
 
 interface ITopBannerContext {
   hasBanner: boolean;
@@ -30,25 +33,14 @@ interface ITopBannerContext {
 }
 
 const IS_MAINTENANCE_ATOM = atom(false);
-const IS_GENERIC_BANNER_ATOM = atom(false);
 
 export function useGenericBannerVisibility(input: { isFlagEnabled: boolean; dismissId: string | undefined }) {
   const { isFlagEnabled, dismissId } = input;
-  const [isOpen, setIsOpenAtom] = useAtom(IS_GENERIC_BANNER_ATOM);
+  const dismissedAtom = useMemo(() => (dismissId ? getGenericBannerDismissedAtom(dismissId) : SESSION_GENERIC_BANNER_DISMISSED_ATOM), [dismissId]);
+  const [isDismissed, setIsDismissed] = useAtom(dismissedAtom);
 
-  useEffect(() => {
-    setIsOpenAtom(isFlagEnabled && !isGenericBannerDismissed(dismissId));
-  }, [isFlagEnabled, dismissId, setIsOpenAtom]);
-
-  const setIsOpen = useCallback(
-    (open: boolean) => {
-      setIsOpenAtom(open);
-      if (!open) {
-        persistGenericBannerDismiss(dismissId);
-      }
-    },
-    [setIsOpenAtom, dismissId]
-  );
+  const isOpen = isFlagEnabled && !isDismissed;
+  const setIsOpen = useCallback((open: boolean) => setIsDismissed(!open), [setIsDismissed]);
 
   return [isOpen, setIsOpen] as const;
 }
@@ -118,6 +110,18 @@ export function useChainMaintenanceDetails(): ChainMaintenanceDetails {
 
 export type GenericBannerLink = { label: string; href: string };
 export type GenericBannerDetails = { message: string; links?: GenericBannerLink[]; dismissId?: string };
+
+export function isSafeLink(link: unknown): link is GenericBannerLink {
+  if (!link || typeof link !== "object") return false;
+  const { label, href } = link as Partial<GenericBannerLink>;
+  if (typeof label !== "string" || typeof href !== "string") return false;
+  try {
+    return SAFE_LINK_PROTOCOLS.has(new URL(href).protocol);
+  } catch {
+    return false;
+  }
+}
+
 export function useGenericBannerDetails(): GenericBannerDetails {
   const genericBannerFlag = useVariant("generic_banner");
   const { errorHandler } = useServices();
@@ -127,7 +131,9 @@ export function useGenericBannerDetails(): GenericBannerDetails {
   return useMemo(() => {
     if (!enabled) return { message: "" };
     try {
-      return JSON.parse(payload as string) as GenericBannerDetails;
+      const parsed = JSON.parse(payload as string) as GenericBannerDetails;
+      const links = Array.isArray(parsed.links) ? parsed.links.filter(isSafeLink) : undefined;
+      return { ...parsed, links };
     } catch (error) {
       errorHandler.reportError({
         error,

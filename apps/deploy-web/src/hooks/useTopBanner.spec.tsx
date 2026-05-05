@@ -1,7 +1,7 @@
 import { createStore, Provider as JotaiProvider } from "jotai";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { useGenericBannerVisibility } from "./useTopBanner";
+import { isSafeLink, useGenericBannerVisibility } from "./useTopBanner";
 
 import { act, renderHook } from "@testing-library/react";
 
@@ -78,4 +78,26 @@ describe("useGenericBannerVisibility", () => {
     await act(async () => {});
     return result;
   }
+});
+
+describe(isSafeLink.name, () => {
+  it.each([
+    ["https://akash.network", true],
+    ["http://akash.network", true],
+    ["javascript:alert(1)", false],
+    ["data:text/html,<script>alert(1)</script>", false],
+    ["file:///etc/passwd", false],
+    ["not a url", false],
+    ["", false]
+  ])("returns %s for href %s", (href, expected) => {
+    expect(isSafeLink({ label: "Learn more", href })).toBe(expected);
+  });
+
+  it("rejects entries with non-string label or href", () => {
+    expect(isSafeLink({ label: 1, href: "https://akash.network" })).toBe(false);
+    expect(isSafeLink({ label: "Learn more", href: 1 })).toBe(false);
+    expect(isSafeLink(null)).toBe(false);
+    expect(isSafeLink(undefined)).toBe(false);
+    expect(isSafeLink("https://akash.network")).toBe(false);
+  });
 });
