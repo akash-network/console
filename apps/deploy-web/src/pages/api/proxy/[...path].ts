@@ -21,7 +21,6 @@ export default defineApiHandler({
       headers["baggage"] = req.headers["baggage"] as string;
     }
 
-    // Extract and forward cf_clearance and unleash-session-id cookies
     const cookiesToForward = req.headers.cookie
       ?.split(";")
       .map(c => c.trim())

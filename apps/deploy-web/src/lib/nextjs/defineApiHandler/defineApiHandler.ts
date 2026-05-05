@@ -22,9 +22,9 @@ export function defineApiHandler<TResponse, TSchema extends z.ZodSchema<any> | u
       }
 
       const requestServices = (req as NextApiRequestWithServices)[REQ_SERVICES_KEY] || services;
-      let session: Session | null | undefined = null;
+      let session: Session | null = null;
       try {
-        session = await requestServices.getSession(req, res);
+        session = (await requestServices.getSession(req, res)) ?? null;
       } catch (error) {
         if (isInvalidSessionError(error)) {
           requestServices.logger.warn({ event: "API_SESSION_INVALID", url: req.url, error });

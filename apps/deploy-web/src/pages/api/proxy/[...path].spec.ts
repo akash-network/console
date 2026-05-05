@@ -1,5 +1,7 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import type { NextApiRequest, NextApiResponse } from "next";
+import type { Socket } from "node:net";
+import type { Mock } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -12,38 +14,38 @@ import handler from "./[...path]";
 
 describe("proxy [...path] handler", () => {
   it("forwards Bearer token when session has accessToken", async () => {
-    const { proxyRequest } = await invokeHandler({
+    const { proxyRequest } = await setup({
       session: { accessToken: "valid-token", user: { id: "u1" } } as Session
     });
 
-    const headers = proxyRequest.mock.calls[0]![2].headers as Record<string, string>;
-    expect(headers.authorization).toBe("Bearer valid-token");
+    expect(getForwardedHeaders(proxyRequest).authorization).toBe("Bearer valid-token");
   });
 
   it("does not forward Authorization header when session has no accessToken", async () => {
-    const { proxyRequest } = await invokeHandler({
+    const { proxyRequest } = await setup({
       session: { user: { id: "u1" } } as Session
     });
 
-    const headers = proxyRequest.mock.calls[0]![2].headers as Record<string, string>;
-    expect(headers.authorization).toBeUndefined();
+    expect(getForwardedHeaders(proxyRequest).authorization).toBeUndefined();
   });
 
   it("does not forward Authorization header when there is no session at all", async () => {
-    const { proxyRequest } = await invokeHandler({ session: null });
+    const { proxyRequest } = await setup({ session: null });
 
-    const headers = proxyRequest.mock.calls[0]![2].headers as Record<string, string>;
-    expect(headers.authorization).toBeUndefined();
+    expect(getForwardedHeaders(proxyRequest).authorization).toBeUndefined();
   });
 
   it("forwards cf-connecting-ip and request-id headers", async () => {
-    const { proxyRequest } = await invokeHandler({ session: null });
+    const { proxyRequest } = await setup({ session: null });
 
-    const headers = proxyRequest.mock.calls[0]![2].headers as Record<string, string>;
-    expect(headers["cf-connecting-ip"]).toBe("127.0.0.1");
+    expect(getForwardedHeaders(proxyRequest)["cf-connecting-ip"]).toBe("127.0.0.1");
   });
 
-  async function invokeHandler(input: { session: Session | null }) {
+  function getForwardedHeaders(proxyRequest: Mock): Record<string, string> {
+    return proxyRequest.mock.calls[0]![2].headers as Record<string, string>;
+  }
+
+  async function setup(input: { session: Session | null }) {
     const proxyRequest = vi.fn().mockResolvedValue(undefined);
     const getSession = vi.fn().mockResolvedValue(input.session);
     const logger = mock<LoggerService>();
@@ -55,9 +57,9 @@ describe("proxy [...path] handler", () => {
     const req = {
       url: "/api/proxy/v1/tx",
       method: "POST",
-      headers: {} as Record<string, string | string[] | undefined>,
+      headers: {} as NextApiRequest["headers"],
       cookies: {},
-      socket: { remoteAddress: "127.0.0.1" }
+      socket: { remoteAddress: "127.0.0.1" } as Socket
     } as unknown as NextApiRequest;
     const res = mock<NextApiResponse>();
 
