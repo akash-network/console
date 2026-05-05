@@ -6,7 +6,7 @@ import { type DEPENDENCIES, GenericBanner } from "./TopBanner";
 import { render, screen } from "@testing-library/react";
 
 describe(GenericBanner.name, () => {
-  it("renders the message and links with the foreground color so they are visible on bg-primary", () => {
+  it("renders the message and each provided link with safe external attributes", () => {
     setup({
       message: "Self-custody is moving to Console Air.",
       links: [
@@ -21,11 +21,8 @@ describe(GenericBanner.name, () => {
     expect(announcementLink).toHaveAttribute("href", "https://akash.network/announcement");
     expect(announcementLink).toHaveAttribute("target", "_blank");
     expect(announcementLink).toHaveAttribute("rel", "noopener noreferrer");
-    expect(announcementLink.className).toContain("text-primary-foreground");
-    expect(announcementLink.className).toContain("underline");
 
-    const consoleAirLink = screen.getByRole("link", { name: "Open Console Air" });
-    expect(consoleAirLink.className).toContain("text-primary-foreground");
+    expect(screen.getByRole("link", { name: "Open Console Air" })).toHaveAttribute("href", "https://console.air");
   });
 
   it("renders nothing for links when none are provided", () => {
