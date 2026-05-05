@@ -3,6 +3,7 @@ import "@interchain-ui/react/styles";
 import "@interchain-ui/react/globalStyles";
 
 import { GasPrice } from "@cosmjs/stargate";
+import type { MainWalletBase } from "@cosmos-kit/core";
 import { wallets as keplr } from "@cosmos-kit/keplr";
 import { wallets as leap } from "@cosmos-kit/leap-extension";
 import { ChainProvider } from "@cosmos-kit/react";
@@ -30,7 +31,7 @@ export function CustomChainProvider({ children }: Props) {
       return typeof window !== "undefined" && window.leap;
     }
     return true;
-  });
+  }) as MainWalletBase[];
 
   // Create dynamic chain from environment configuration - no if/else conditions
   // Following the same pattern as akashSandbox but environment-driven
@@ -38,7 +39,7 @@ export function CustomChainProvider({ children }: Props) {
 
   return (
     <ChainProvider
-      chains={[dynamicChain]}
+      chains={[dynamicChain as any]}
       assetLists={assetLists}
       wallets={availableWallets}
       sessionOptions={{
