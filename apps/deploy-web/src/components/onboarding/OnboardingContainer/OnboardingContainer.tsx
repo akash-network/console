@@ -315,7 +315,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
 
           d.localStorage?.removeItem(ONBOARDING_STEP_KEY);
           wallet.connectManagedWallet();
-          router.push(urlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
+          router.replace(urlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
         }
       } catch (error) {
         notificator.error("Failed to deploy template. Please try again.");

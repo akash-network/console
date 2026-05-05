@@ -108,7 +108,7 @@ describe("OnboardingContainer", () => {
       await onComplete("hello-akash");
     });
 
-    expect(mockRouter.push).toHaveBeenCalled();
+    expect(mockRouter.replace).toHaveBeenCalled();
     expect(mockConnectManagedWallet).toHaveBeenCalled();
   });
 
