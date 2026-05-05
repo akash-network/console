@@ -7,6 +7,7 @@ import { mock } from "vitest-mock-extended";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { AuthService } from "@src/services/auth/auth/auth.service";
 import type { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
+import { RouteStep } from "@src/types/route-steps.type";
 import type { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import { OnboardingContainer, OnboardingStepIndex } from "./OnboardingContainer";
@@ -101,14 +102,18 @@ describe("OnboardingContainer", () => {
   });
 
   it("should redirect to deployment and connect managed wallet when onboarding is completed", async () => {
-    const { child, mockRouter, mockConnectManagedWallet } = setup();
+    const { child, mockRouter, mockUrlService, mockConnectManagedWallet } = setup();
 
     const { onComplete } = child.mock.calls[0][0];
     await act(async () => {
       await onComplete("hello-akash");
     });
 
-    expect(mockRouter.replace).toHaveBeenCalled();
+    expect(mockUrlService.newDeployment).toHaveBeenCalledWith({
+      step: RouteStep.createLeases,
+      dseq: "123"
+    });
+    expect(mockRouter.replace).toHaveBeenCalledWith("/deployments/new");
     expect(mockConnectManagedWallet).toHaveBeenCalled();
   });
 
