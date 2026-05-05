@@ -1,0 +1,39 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/internal/users/{userId}/purge": {
+      "post": {
+        "operationId": "purge",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Internal/Account"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "NotificationsAPI (Internal)",
+    "description": "Internal-only endpoints for server-to-server use within the private network. Not exposed to the public internet.",
+    "version": "1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "schemas": {}
+  }
+}

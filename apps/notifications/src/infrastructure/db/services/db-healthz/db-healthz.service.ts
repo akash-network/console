@@ -8,6 +8,7 @@ import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { HealthzService, ProbeResult } from "@src/common/types/healthz.type";
 import { DRIZZLE_PROVIDER_TOKEN } from "../../config/db.config";
+import type { FullSchema } from "../../full-schema";
 
 @Injectable()
 export class DbHealthzService implements HealthzService {
@@ -17,7 +18,7 @@ export class DbHealthzService implements HealthzService {
 
   constructor(
     @InjectDrizzle(DRIZZLE_PROVIDER_TOKEN)
-    private readonly db: NodePgDatabase<any>,
+    private readonly db: NodePgDatabase<FullSchema>,
     private readonly loggerService: LoggerService
   ) {
     loggerService.setContext(DbHealthzService.name);

@@ -8,6 +8,14 @@ import { patchNestJsSwagger } from "nestjs-zod";
 import path from "path";
 
 import { Logger } from "@src/common/providers/logger.provider";
+import { filterDocumentByScope, type SwaggerScope } from "./swagger-scope-filter";
+
+const SCOPES: { scope: SwaggerScope; mountPath: string; fileName: string }[] = [
+  { scope: "public", mountPath: "api", fileName: "swagger.json" },
+  { scope: "internal", mountPath: "api/internal", fileName: "swagger.internal.json" }
+];
+
+export type SwaggerModuleAPI = Pick<typeof SwaggerModule, "setup" | "createDocument">;
 
 export class SwaggerSetup {
   static serveSwagger(app: INestApplication): void {
@@ -22,70 +30,67 @@ export class SwaggerSetup {
     private readonly app: INestApplication,
     private readonly patchSwagger: typeof patchNestJsSwagger = patchNestJsSwagger,
     private readonly documentBuilder: typeof DocumentBuilder = DocumentBuilder,
-    private readonly swaggerModule: typeof SwaggerModule = SwaggerModule,
+    private readonly swaggerModule: SwaggerModuleAPI = SwaggerModule,
     private readonly fsModule: typeof fs = fs,
     private readonly pathModule: typeof path = path
   ) {}
 
   serveSwagger() {
-    const documentFactory = this.createSwaggerDocument();
+    const customSwaggerUiPath = this.pathModule.resolve(__dirname, "../dist/swagger-ui-dist");
 
-    this.swaggerModule.setup("api", this.app, documentFactory, {
-      customSwaggerUiPath: this.pathModule.resolve(__dirname, "../dist/swagger-ui-dist")
-    });
+    for (const { scope, mountPath } of SCOPES) {
+      const documentFactory = this.createSwaggerDocument(scope);
+      this.swaggerModule.setup(mountPath, this.app, documentFactory, { customSwaggerUiPath });
+    }
   }
 
   generateSwagger() {
     const logger = new Logger({ context: "SWAGGER" });
-
     const swaggerDir = this.pathModule.resolve(__dirname, "../swagger");
 
     if (!this.fsModule.existsSync(swaggerDir)) {
       this.fsModule.mkdirSync(swaggerDir);
     }
 
-    const file = this.pathModule.join(swaggerDir, "swagger.json");
-
-    const document = this.createSwaggerDocument()();
-    this.fsModule.writeFileSync(file, JSON.stringify(document, null, 2));
-
-    logger.info(`"${file}" created successfully. Exiting`);
+    for (const { scope, fileName } of SCOPES) {
+      const file = this.pathModule.join(swaggerDir, fileName);
+      const document = this.createSwaggerDocument(scope)();
+      this.fsModule.writeFileSync(file, JSON.stringify(document, null, 2));
+      logger.info(`"${file}" created successfully.`);
+    }
 
     process.exit(0);
   }
 
-  private createSwaggerDocument() {
+  private createSwaggerDocument(scope: SwaggerScope) {
     this.patchSwagger();
 
-    const config = new this.documentBuilder()
-      .setTitle("NotificationsAPI")
-      .setDescription("Notifications API")
-      .setVersion("1.0")
-      .addTag("NotificationChannel")
-      .addTag("Alert")
-      .addTag("DeploymentAlert")
-      .addApiKey(
-        {
-          type: "apiKey",
-          name: "x-user-id",
-          in: "header"
-        },
-        "x-user-id"
+    const builder = new this.documentBuilder()
+      .setTitle(scope === "public" ? "NotificationsAPI" : "NotificationsAPI (Internal)")
+      .setDescription(
+        scope === "public"
+          ? "Notifications API"
+          : "Internal-only endpoints for server-to-server use within the private network. Not exposed to the public internet."
       )
-      .addApiKey(
-        {
-          type: "apiKey",
-          name: "x-owner-address",
-          in: "header"
-        },
-        "x-owner-address"
-      )
-      .addSecurityRequirements({ "x-user-id": [], "x-owner-address": [] })
-      .build();
+      .setVersion("1.0");
 
-    return () =>
-      this.swaggerModule.createDocument(this.app, config, {
+    if (scope === "public") {
+      builder
+        .addTag("NotificationChannel")
+        .addTag("Alert")
+        .addTag("DeploymentAlert")
+        .addApiKey({ type: "apiKey", name: "x-user-id", in: "header" }, "x-user-id")
+        .addApiKey({ type: "apiKey", name: "x-owner-address", in: "header" }, "x-owner-address")
+        .addSecurityRequirements({ "x-user-id": [], "x-owner-address": [] });
+    }
+
+    const config = builder.build();
+
+    return () => {
+      const document = this.swaggerModule.createDocument(this.app, config, {
         operationIdFactory: (_, methodKey) => methodKey
       });
+      return filterDocumentByScope(document, scope);
+    };
   }
 }
