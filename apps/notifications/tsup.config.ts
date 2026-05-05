@@ -2,6 +2,7 @@ import { applyDefaults, copyDrizzlePlugin } from "@akashnetwork/dev-config/tsup-
 import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig, type Options } from "tsup";
 
 import packageJson from "./package.json";
@@ -30,7 +31,10 @@ export default defineConfig(async overrideOptions =>
   applyDefaults({
     packageJson,
     prependEffectsToEntries: ["reflect-metadata", "@akashnetwork/env-loader"],
-    entry: ["./src/main.ts"],
+    entry: {
+      main: "./src/main.ts",
+      instrumentation: fileURLToPath(import.meta.resolve("@akashnetwork/instrumentation/register"))
+    },
     target: tsconfig.compilerOptions.target,
     tsconfig: "tsconfig.build.json",
     dts: false,
