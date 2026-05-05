@@ -73,15 +73,23 @@ function MaintenanceBanner({ onClose }: { onClose: () => void }) {
   );
 }
 
-function GenericBanner({ onClose }: { onClose: () => void }) {
-  const { message, links } = useGenericBannerDetails();
+export const DEPENDENCIES = { useGenericBannerDetails };
+
+export function GenericBanner({ onClose, dependencies = DEPENDENCIES }: { onClose: () => void; dependencies?: typeof DEPENDENCIES }) {
+  const { message, links } = dependencies.useGenericBannerDetails();
 
   return (
     <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center gap-2 bg-primary px-3 py-2 text-primary-foreground md:gap-4">
       <span className="text-xs font-semibold md:text-sm">
         {message}
         {links?.map(link => (
-          <a key={link.href} href={link.href} target="_blank" rel="noopener noreferrer" className="ml-1 underline hover:text-primary-foreground/80">
+          <a
+            key={link.href}
+            href={link.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-3 text-primary-foreground underline hover:text-primary-foreground/80"
+          >
             {link.label}
           </a>
         ))}
