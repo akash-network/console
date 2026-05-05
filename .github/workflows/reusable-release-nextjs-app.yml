@@ -69,7 +69,7 @@ jobs:
   deploy:
     needs: [release, build-beta, build-prod]
     if: needs.release.outputs.git_tag != '' && inputs.deploy_workflow != ''
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
     permissions:
       actions: write
     steps:

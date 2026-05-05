@@ -98,7 +98,7 @@ concurrency:
 
 jobs:
   deployment-prerequisites:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
     outputs:
       environment: ${{ steps.determine-environment.outputs.environment }}
       require_approval: ${{ steps.approval-status.outputs.require_approval }}
@@ -151,7 +151,7 @@ jobs:
     permissions:
       contents: read
       deployments: write
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
     needs: deployment-prerequisites
     if: >-
       needs.deployment-prerequisites.outputs.require_approval != 'true' || inputs.approve == 'true' || inputs.approve == true

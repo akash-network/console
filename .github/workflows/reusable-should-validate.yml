@@ -28,7 +28,7 @@ concurrency:
 
 jobs:
   should-validate:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
     outputs:
       enabled: ${{ github.event_name == 'push' || steps.has_changes.outputs.value == 'true' }}
       has_changes: ${{ (github.event_name == 'pull_request' || github.event_name == 'pull_request_target' || github.event_name == 'merge_group') && steps.has_changes.outputs.value }}
