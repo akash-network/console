@@ -81,7 +81,13 @@ function GenericBanner({ onClose }: { onClose: () => void }) {
       <span className="text-xs font-semibold md:text-sm">
         {message}
         {links?.map(link => (
-          <a key={link.href} href={link.href} target="_blank" rel="noopener noreferrer" className="ml-1 underline hover:text-primary-foreground/80">
+          <a
+            key={link.href}
+            href={link.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-1 text-primary-foreground underline hover:text-primary-foreground/80"
+          >
             {link.label}
           </a>
         ))}
