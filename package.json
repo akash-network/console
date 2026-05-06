@@ -23,6 +23,7 @@
     "prepare": "husky || true",
     "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\"",
     "safe-install": "script/safe-deps-install.sh",
+    "sdk:gen": "npm run sdk:gen:swagger -w apps/api && npm run generate -w packages/console-api-types",
     "stats:dev": "turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\"",
     "stats:dev:no-db": "cross-env SKIP_DC_DB=true turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\"",
     "update-apps-local-deps": "turbo update-apps-local-deps --filter=\"./packages/*\""

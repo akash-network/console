@@ -1,4 +1,4 @@
-import type { components } from "@akashnetwork/react-query-sdk/notifications";
+import type { components } from "@akashnetwork/console-api-types/notifications";
 import { faker } from "@faker-js/faker";
 
 export function buildDeploymentAlert(

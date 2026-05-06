@@ -6,7 +6,7 @@ import { Unprotected } from "@src/interfaces/rest/interceptors/auth/auth.interce
 import { AccountPurgeService } from "@src/interfaces/rest/services/account-purge/account-purge.service";
 
 @ApiTags("Internal/Account")
-@Controller({ path: "internal/users" })
+@Controller({ path: "internal/v1/users" })
 @Unprotected()
 export class InternalAccountController {
   constructor(

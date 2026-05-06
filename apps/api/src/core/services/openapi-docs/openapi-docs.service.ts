@@ -1,5 +1,6 @@
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import axios from "axios";
+import { readFile } from "node:fs/promises";
 import type { ComponentsObject, OpenAPIObject, PathsObject, ReferenceObject } from "openapi3-ts/oas30";
 import { inject, singleton } from "tsyringe";
 
@@ -14,7 +15,7 @@ const logger = createOtelLogger({ context: "OpenApiDocsService" });
 @singleton()
 export class OpenApiDocsService {
   readonly #serverOrigin: string;
-  #externalSpecLoadPromise: Promise<OpenAPIObject | null> | null = null;
+  #externalSpecLoadPromises: Partial<Record<"file" | "http", Promise<OpenAPIObject | null>>> = {};
 
   constructor(
     @inject(CORE_CONFIG) coreConfig: CoreConfig,
@@ -23,9 +24,10 @@ export class OpenApiDocsService {
     this.#serverOrigin = coreConfig.SERVER_ORIGIN;
   }
 
-  async generateDocs(handlers: OpenApiHonoHandler[], options: { scope: string }) {
+  async generateDocs(handlers: OpenApiHonoHandler[], options: { scope: string; source?: "file" | "http" }): Promise<OpenAPIObject> {
+    const source = options.source ?? "http";
     const version = "v1";
-    const docs = {
+    const docs: OpenAPIObject & { components: NonNullable<OpenAPIObject["components"]> } = {
       openapi: "3.0.0",
       servers: [{ url: this.#serverOrigin }],
       info: {
@@ -73,7 +75,7 @@ export class OpenApiDocsService {
     }
 
     if (options.scope === "full") {
-      const externalDocs = await this.#loadExternalNotificationsSpec();
+      const externalDocs = await this.#loadExternalNotificationsSpec(source);
       if (externalDocs?.paths) {
         const { filteredPaths, usedSchemaRefs } = this.#filterPrivateRoutes(externalDocs.paths);
         Object.assign(docs.paths, filteredPaths);
@@ -101,41 +103,48 @@ export class OpenApiDocsService {
     return docs;
   }
 
-  async #loadExternalNotificationsSpec(): Promise<OpenAPIObject | null> {
-    if (!this.notificationsConfig) {
+  async #loadExternalNotificationsSpec(source: "file" | "http"): Promise<OpenAPIObject | null> {
+    if (!this.notificationsConfig) return null;
+
+    const cached = this.#externalSpecLoadPromises[source];
+    if (cached) return cached;
+
+    const promise = source === "file" ? this.#loadNotificationsSpecFromFile() : this.#loadNotificationsSpecFromHttp();
+    this.#externalSpecLoadPromises[source] = promise;
+    return promise;
+  }
+
+  async #loadNotificationsSpecFromFile(): Promise<OpenAPIObject | null> {
+    const filePath = this.notificationsConfig?.NOTIFICATIONS_SWAGGER_PATH;
+    if (!filePath) return null;
+    try {
+      const raw = await readFile(filePath, "utf8");
+      return JSON.parse(raw) as OpenAPIObject;
+    } catch (error) {
+      logger.warn({ event: "EXTERNAL_OPENAPI_FILE_READ_ERROR", error, path: filePath });
       return null;
     }
+  }
 
-    if (this.#externalSpecLoadPromise) {
-      return this.#externalSpecLoadPromise;
+  async #loadNotificationsSpecFromHttp(): Promise<OpenAPIObject | null> {
+    const externalOpenApiUrl = `${this.notificationsConfig!.NOTIFICATIONS_API_BASE_URL}/api-json`;
+    try {
+      const response = await axios.get(externalOpenApiUrl, { timeout: 5000 });
+      return response.data;
+    } catch (error) {
+      logger.warn({ event: "EXTERNAL_OPENAPI_FETCH_ERROR", error, url: externalOpenApiUrl });
+      return null;
     }
-
-    const externalOpenApiUrl = `${this.notificationsConfig.NOTIFICATIONS_API_BASE_URL}/api-json`;
-
-    this.#externalSpecLoadPromise = (async () => {
-      try {
-        const response = await axios.get(externalOpenApiUrl, { timeout: 5000 });
-        return response.data;
-      } catch (error) {
-        logger.warn({ event: "EXTERNAL_OPENAPI_FETCH_ERROR", error, url: externalOpenApiUrl });
-        return null;
-      }
-    })();
-
-    return this.#externalSpecLoadPromise;
   }
 
   /**
-   * Filters out private/internal routes and their schemas from external OpenAPI spec.
-   * Excludes routes with the "Jobs" tag or paths matching /v1/jobs/*
+   * Filters out internal routes and their schemas from the external OpenAPI spec.
+   * Internal endpoints live under /internal/ and ship in apps/notifications/swagger.internal.json;
+   * the public swagger.json should already exclude them, but we belt-and-suspender here.
    */
   #filterPrivateRoutes(paths: PathsObject): { filteredPaths: PathsObject; usedSchemaRefs: Set<string> } {
-    const excludedPathPrefixes = ["/v1/jobs"];
-    const excludedTags = ["Jobs"];
-
     const filteredPaths: PathsObject = {};
     const usedSchemaRefs = new Set<string>();
-    const httpMethods = new Set(["get", "post", "put", "patch", "delete", "head", "options", "trace"]);
 
     const extractSchemaRefs = (obj: unknown): void => {
       if (!obj || typeof obj !== "object") {
@@ -157,35 +166,11 @@ export class OpenApiDocsService {
     };
 
     for (const [path, pathItem] of Object.entries(paths)) {
-      if (excludedPathPrefixes.some(prefix => path.startsWith(prefix))) {
+      if (path.startsWith("/internal/")) {
         continue;
       }
-
-      const filteredPathItem: PathsObject[string] = {} as PathsObject[string];
-      let hasOperations = false;
-
-      for (const [key, value] of Object.entries(pathItem)) {
-        const lowerKey = key.toLowerCase();
-
-        if (!httpMethods.has(lowerKey)) {
-          (filteredPathItem as Record<string, unknown>)[key] = value;
-          extractSchemaRefs(value);
-          continue;
-        }
-
-        const operation = value as { tags?: string[] };
-        if (operation?.tags && operation.tags.some(tag => excludedTags.includes(tag))) {
-          continue;
-        }
-
-        (filteredPathItem as Record<string, unknown>)[key] = value;
-        extractSchemaRefs(value);
-        hasOperations = true;
-      }
-
-      if (hasOperations) {
-        filteredPaths[path] = filteredPathItem;
-      }
+      filteredPaths[path] = pathItem;
+      extractSchemaRefs(pathItem);
     }
 
     return { filteredPaths, usedSchemaRefs };

@@ -108,14 +108,13 @@
       "project": ["src/**/*.ts", "scripts/**/*.ts"]
     },
     "packages/network-store": {},
-    "packages/react-query-proxy": {},
-    "packages/react-query-sdk": {
-      "ignoreDependencies": [
-        "@openapi-qraft/tanstack-query-react-types",
-        "@tanstack/query-core",
-        "@tanstack/react-query"
-      ]
+    "packages/openapi-sdk": {
+      "entry": [".eslintrc.js", "src/**/*.ts"]
     },
+    "packages/console-api-types": {
+      "entry": [".eslintrc.js", "src/**/*.ts", "scripts/**/*.ts"]
+    },
+    "packages/react-query-proxy": {},
     "packages/ui": {
       "ignoreDependencies": ["next"]
     }

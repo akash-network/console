@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.0",
   "paths": {
-    "/internal/users/{userId}/purge": {
+    "/internal/v1/users/{userId}/purge": {
       "post": {
         "operationId": "purge",
         "parameters": [
@@ -23,6 +23,30 @@
           "Internal/Account"
         ]
       }
+    },
+    "/internal/v1/jobs/notification": {
+      "post": {
+        "operationId": "createNotification",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationJobDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Creates a notification job"
+          }
+        },
+        "tags": [
+          "Jobs"
+        ]
+      }
     }
   },
   "info": {
@@ -34,6 +58,41 @@
   "tags": [],
   "servers": [],
   "components": {
-    "schemas": {}
+    "schemas": {
+      "NotificationJobDto": {
+        "type": "object",
+        "properties": {
+          "notificationId": {
+            "type": "string"
+          },
+          "notificationChannelId": {
+            "type": "string"
+          },
+          "startAfter": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payload": {
+            "type": "object",
+            "properties": {
+              "summary": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "summary",
+              "description"
+            ]
+          }
+        },
+        "required": [
+          "notificationId",
+          "payload"
+        ]
+      }
+    }
   }
 }

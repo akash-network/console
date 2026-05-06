@@ -22,8 +22,7 @@ class NotificationJobDto extends createZodDto(
 ) {}
 
 @Controller({
-  version: "1",
-  path: "jobs"
+  path: "internal/v1/jobs"
 })
 export class JobsController {
   constructor(

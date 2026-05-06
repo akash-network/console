@@ -2,7 +2,7 @@
 
 import type { FC, ReactNode } from "react";
 import React, { useCallback, useMemo } from "react";
-import type { components } from "@akashnetwork/react-query-sdk/notifications";
+import type { components } from "@akashnetwork/console-api-types/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 import { merge } from "lodash";
 
@@ -46,17 +46,13 @@ export type Props = {
 };
 
 export const DeploymentAlertsContainer: FC<Props> = ({ children, deployment }) => {
-  const { notificationsApi } = useServices();
+  const { api } = useServices();
   const queryClient = useQueryClient();
   const notificator = useNotificator();
 
-  const { data, isLoading, isFetched, isError } = notificationsApi.v1.getDeploymentAlerts.useQuery({
-    path: {
-      dseq: deployment.dseq
-    }
-  });
+  const { data, isLoading, isFetched, isError } = api.v1.getDeploymentAlerts.useQuery({ dseq: deployment.dseq });
 
-  const mutation = notificationsApi.v1.upsertDeploymentAlert.useMutation();
+  const mutation = api.v1.upsertDeploymentAlert.useMutation();
 
   const prepareInput = useCallback((input: ContainerInput) => {
     if ("deploymentBalance" in input.alerts && input.alerts.deploymentBalance.threshold) {
@@ -93,12 +89,8 @@ export const DeploymentAlertsContainer: FC<Props> = ({ children, deployment }) =
     async input => {
       try {
         const result = await mutation.mutateAsync({
-          path: {
-            dseq: deployment.dseq
-          },
-          body: {
-            data: prepareInput(input)
-          }
+          dseq: deployment.dseq,
+          data: prepareInput(input)
         });
 
         return toOutput(result);
@@ -114,11 +106,7 @@ export const DeploymentAlertsContainer: FC<Props> = ({ children, deployment }) =
     async () => {
       notificator.success("Alert configured!", { dataTestId: "alert-config-success-notification" });
       await queryClient.invalidateQueries({
-        queryKey: notificationsApi.v1.getDeploymentAlerts.getQueryKey({
-          path: {
-            dseq: deployment.dseq
-          }
-        })
+        queryKey: api.v1.getDeploymentAlerts.getKey({ dseq: deployment.dseq })
       });
     },
     [deployment.dseq]

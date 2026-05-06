@@ -1,6 +1,6 @@
 import type { FC } from "react";
 import React from "react";
-import type { components } from "@akashnetwork/react-query-sdk/notifications";
+import type { components } from "@akashnetwork/console-api-types/notifications";
 import {
   Button,
   buttonVariants,

@@ -1,41 +1,39 @@
 import React from "react";
-import type { components } from "@akashnetwork/react-query-sdk/notifications";
-import { createReactQueryApiClient } from "@akashnetwork/react-query-sdk/notifications/create-react-query-client";
+import { createProxy } from "@akashnetwork/react-query-proxy";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import { faker } from "@faker-js/faker";
-import type { RequestFn, RequestFnResponse } from "@openapi-qraft/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ChildrenProps } from "@src/components/alerts/NotificationChannelCreateContainer/NotificationChannelCreateContainer";
 import { NotificationChannelCreateContainer } from "@src/components/alerts/NotificationChannelCreateContainer/NotificationChannelCreateContainer";
 import { queryClient } from "@src/queries";
+import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
 
 import { render, screen } from "@testing-library/react";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
+import { jsonResponse } from "@tests/unit/jsonResponse";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe("NotificationChannelCreateContainer", () => {
   it("triggers a notification channel creation with the correct values", async () => {
-    const { requestFn, input, child } = await setup();
+    const { mockFetch, input, child } = await setup();
 
     child.create(input);
 
     await vi.waitFor(() => {
-      expect(requestFn).toHaveBeenCalledWith(
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/v1/notification-channels"),
         expect.objectContaining({
-          method: "post",
-          url: "/v1/notification-channels"
-        }),
-        expect.objectContaining({
-          body: {
+          method: "POST",
+          body: JSON.stringify({
             data: {
+              name: input.name,
+              type: "email",
               config: {
                 addresses: input.emails
-              },
-              name: input.name,
-              type: "email"
+              }
             }
-          }
+          })
         })
       );
       expect(screen.getByTestId("notification-channel-create-success-notification")).toBeInTheDocument();
@@ -43,30 +41,14 @@ describe("NotificationChannelCreateContainer", () => {
   });
 
   it("triggers a notification channel creation and shows error message on error", async () => {
-    const { requestFn, input, child } = await setup();
+    const { mockFetch, input, child } = await setup();
+
+    mockFetch.mockRejectedValue(new Error());
 
     child.create(input);
 
-    requestFn.mockRejectedValue(new Error());
-
     await vi.waitFor(() => {
-      expect(requestFn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "post",
-          url: "/v1/notification-channels"
-        }),
-        expect.objectContaining({
-          body: {
-            data: {
-              config: {
-                addresses: input.emails
-              },
-              name: input.name,
-              type: "email"
-            }
-          }
-        })
-      );
+      expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining("/v1/notification-channels"), expect.objectContaining({ method: "POST" }));
       expect(screen.getByTestId("notification-channel-create-error-notification")).toBeInTheDocument();
     });
   });
@@ -76,27 +58,20 @@ describe("NotificationChannelCreateContainer", () => {
       name: faker.lorem.word(),
       emails: [faker.internet.email()]
     };
-    const requestFn = vi.fn(
-      () =>
-        Promise.resolve({
-          data: {
-            config: {
-              addresses: input.emails
-            },
-            name: input.name,
-            type: "email",
-            userId: faker.string.uuid()
-          }
-        }) as Promise<RequestFnResponse<components["schemas"]["NotificationChannelOutput"]["data"], unknown>>
-    );
+    const mockResponse = {
+      data: {
+        config: {
+          addresses: input.emails
+        },
+        name: input.name,
+        type: "email",
+        userId: faker.string.uuid()
+      }
+    };
+    const mockFetch = vi.fn(() => Promise.resolve(jsonResponse(mockResponse)));
     const services = {
       queryClient: () => queryClient,
-      notificationsApi: () =>
-        createReactQueryApiClient({
-          requestFn: requestFn as RequestFn<any, Error>,
-          baseUrl: "",
-          queryClient
-        })
+      api: () => createProxy(createApiSdk({ baseUrl: "", fetch: mockFetch }))
     };
     const childCapturer = createContainerTestingChildCapturer<ChildrenProps>();
 
@@ -108,6 +83,6 @@ describe("NotificationChannelCreateContainer", () => {
       </CustomSnackbarProvider>
     );
 
-    return { requestFn, input, child: await childCapturer.awaitChild() };
+    return { mockFetch, input, child: await childCapturer.awaitChild() };
   }
 });

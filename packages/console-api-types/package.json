@@ -1,0 +1,27 @@
+{
+  "name": "@akashnetwork/console-api-types",
+  "version": "1.0.0",
+  "description": "Generated types and operations table for the akash console API.",
+  "license": "Apache-2.0",
+  "author": "Akash Network",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./src/index.ts",
+    "./notifications": "./src/notifications/index.ts",
+    "./notifications/internal": "./src/notifications/internal/index.ts"
+  },
+  "main": "src/index.ts",
+  "scripts": {
+    "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
+    "generate": "npm run generate:console && npm run generate:notifications && npm run generate:notifications-internal",
+    "generate:console": "openapi-typescript ../../apps/api/swagger/openapi.json -o src/schema.d.ts && node --experimental-strip-types scripts/gen-operations.ts ../../apps/api/swagger/openapi.json src/operations.gen.ts",
+    "generate:notifications": "openapi-typescript ../../apps/notifications/swagger/swagger.json -o src/notifications/schema.d.ts && node --experimental-strip-types scripts/gen-operations.ts ../../apps/notifications/swagger/swagger.json src/notifications/operations.gen.ts",
+    "generate:notifications-internal": "openapi-typescript ../../apps/notifications/swagger/swagger.internal.json -o src/notifications/internal/schema.d.ts && node --experimental-strip-types scripts/gen-operations.ts ../../apps/notifications/swagger/swagger.internal.json src/notifications/internal/operations.gen.ts",
+    "lint": "eslint .",
+    "validate:types": "tsc -p tsconfig.build.json --noEmit && echo"
+  },
+  "devDependencies": {
+    "@akashnetwork/dev-config": "*",
+    "openapi-typescript": "^7.13.0"
+  }
+}

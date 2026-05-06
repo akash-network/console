@@ -20,7 +20,7 @@ describe("Account Purge (internal)", () => {
   it("removes the user's notification channels and alerts", async () => {
     const { app, userId } = await setup({ withSeed: true });
 
-    const purgeRes = await request(app.getHttpServer()).post(`/internal/users/${userId}/purge`);
+    const purgeRes = await request(app.getHttpServer()).post(`/internal/v1/users/${userId}/purge`);
     expect(purgeRes.status).toBe(204);
 
     const channelsRes = await request(app.getHttpServer()).get("/v1/notification-channels").set("x-user-id", userId);
@@ -35,8 +35,8 @@ describe("Account Purge (internal)", () => {
   it("is idempotent — second call for the same user is a no-op", async () => {
     const { app, userId } = await setup({ withSeed: false });
 
-    const first = await request(app.getHttpServer()).post(`/internal/users/${userId}/purge`);
-    const second = await request(app.getHttpServer()).post(`/internal/users/${userId}/purge`);
+    const first = await request(app.getHttpServer()).post(`/internal/v1/users/${userId}/purge`);
+    const second = await request(app.getHttpServer()).post(`/internal/v1/users/${userId}/purge`);
 
     expect(first.status).toBe(204);
     expect(second.status).toBe(204);
