@@ -1,6 +1,28 @@
 import { describe, expect, it } from "vitest";
 
-import { percIncrease } from "./mathHelpers";
+import { nFormatter, percIncrease } from "./mathHelpers";
+
+describe(nFormatter.name, () => {
+  it("formats positive values below 1k without a suffix", () => {
+    expect(nFormatter(0, 2)).toBe("0");
+    expect(nFormatter(42, 2)).toBe("42");
+  });
+
+  it("formats positive values with the matching suffix", () => {
+    expect(nFormatter(1500, 2)).toBe("1.5k");
+    expect(nFormatter(2_500_000, 2)).toBe("2.5M");
+  });
+
+  it("formats negative values with the matching suffix", () => {
+    expect(nFormatter(-1500, 2)).toBe("-1.5k");
+    expect(nFormatter(-2_500_000, 2)).toBe("-2.5M");
+    expect(nFormatter(-200_000, 2)).toBe("-200k");
+  });
+
+  it("formats small negative values without a suffix", () => {
+    expect(nFormatter(-42, 2)).toBe("-42");
+  });
+});
 
 describe(percIncrease.name, () => {
   it("returns standard percentage change for non-zero values", () => {
