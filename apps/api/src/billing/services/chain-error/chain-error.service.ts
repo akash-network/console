@@ -141,10 +141,10 @@ export class ChainErrorService {
     denom: string;
   } | null {
     const usdcDenoms = Object.values(this.billingConfigService.get("USDC_IBC_DENOMS"))
-      .map(denom => denom.replace(/\//g, "\\/"))
+      .map(denom => RegExp.escape(denom))
       .join("|");
 
-    const pattern = new RegExp(`(\\d+)(uakt|${usdcDenoms}) is smaller than (\\d+)\\2`);
+    const pattern = new RegExp(`(\\d+)(uakt|uact|${usdcDenoms}) is smaller than (\\d+)\\2`);
 
     const match = message.match(pattern);
 
