@@ -159,7 +159,7 @@ gunzip -c /path/to/console-akash-sandbox.sql.gz | psql --host "localhost" --port
 
 ## 贡献
 
-如果你想为 Akash Console 的开发做出贡献，请参阅 [CONTRIBUTING.md](./CONTRIBUTING.md) 文件中列出的指南。
+如果你想为 Akash Console 的开发做出贡献，请参阅 [CONTRIBUTING.zh-CN.md](./CONTRIBUTING.zh-CN.md) 文件中列出的指南。
 
 ## 许可证
 

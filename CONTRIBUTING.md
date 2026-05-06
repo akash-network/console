@@ -1,4 +1,7 @@
 ## Contribution Guidelines for Akash Network Console Repository
+
+[English](CONTRIBUTING.md) | [简体中文](CONTRIBUTING.zh-CN.md)
+
 ### Overview
 
 Thank you for considering contributing to the Akash Network Console repository. These guidelines ensure that all contributions are valuable, feasible, and maintain our project's quality standards.
