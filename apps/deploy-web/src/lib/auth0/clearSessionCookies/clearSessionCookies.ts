@@ -10,6 +10,8 @@ export function clearSessionCookies(req: NextApiRequest, res: NextApiResponse): 
     .map(key => `${key}=; ${EXPIRED_COOKIE_OPTIONS}`);
 
   if (expiredCookies.length > 0) {
-    res.setHeader("Set-Cookie", expiredCookies);
+    const existing = res.getHeader("Set-Cookie");
+    const existingCookies = Array.isArray(existing) ? existing.map(String) : existing ? [String(existing)] : [];
+    res.setHeader("Set-Cookie", [...existingCookies, ...expiredCookies]);
   }
 }

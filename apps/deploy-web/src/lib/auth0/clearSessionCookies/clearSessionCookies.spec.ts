@@ -40,9 +40,39 @@ describe("clearSessionCookies", () => {
     expect(res.setHeader).not.toHaveBeenCalled();
   });
 
-  function setup(input: { cookies: Record<string, string> }) {
+  it("preserves existing Set-Cookie headers when clearing session cookies", () => {
+    const existing = ["other=value; Path=/"];
+    const { req, res } = setup({
+      cookies: { appSession: "abc" },
+      existingSetCookie: existing
+    });
+
+    clearSessionCookies(req, res);
+
+    expect(res.setHeader).toHaveBeenCalledWith("Set-Cookie", [
+      "other=value; Path=/",
+      "appSession=; Path=/; HttpOnly; SameSite=Lax; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
+    ]);
+  });
+
+  it("preserves an existing Set-Cookie header set as a single string", () => {
+    const { req, res } = setup({
+      cookies: { appSession: "abc" },
+      existingSetCookie: "other=value; Path=/"
+    });
+
+    clearSessionCookies(req, res);
+
+    expect(res.setHeader).toHaveBeenCalledWith("Set-Cookie", [
+      "other=value; Path=/",
+      "appSession=; Path=/; HttpOnly; SameSite=Lax; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
+    ]);
+  });
+
+  function setup(input: { cookies: Record<string, string>; existingSetCookie?: string | string[] }) {
     const req = mock<NextApiRequest>({ cookies: input.cookies });
     const res = mock<NextApiResponse>();
+    res.getHeader.mockReturnValue(input.existingSetCookie);
     return { req, res };
   }
 });

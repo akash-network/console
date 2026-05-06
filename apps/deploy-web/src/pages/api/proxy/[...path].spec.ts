@@ -35,7 +35,7 @@ describe("proxy [...path] handler", () => {
     expect(getForwardedHeaders(proxyRequest).authorization).toBeUndefined();
   });
 
-  it("forwards cf-connecting-ip and request-id headers", async () => {
+  it("forwards cf-connecting-ip header", async () => {
     const { proxyRequest } = await setup({ session: null });
 
     expect(getForwardedHeaders(proxyRequest)["cf-connecting-ip"]).toBe("127.0.0.1");
