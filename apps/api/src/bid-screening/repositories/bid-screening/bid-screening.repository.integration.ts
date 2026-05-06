@@ -46,10 +46,11 @@ describe(BidScreeningRepository.name, () => {
       await ProviderSnapshotStorage.create({ snapshotId: provider.snapshotId, class: "beta3", allocatable: 100000000000, allocated: 0 });
 
       const results = await repository.getOnlineProvidersWithSnapshots();
+      const matchedProvider = results.find(p => p.owner === provider.owner);
 
-      expect(results[0].lastSuccessfulSnapshot.nodes).toHaveLength(1);
-      expect(results[0].lastSuccessfulSnapshot.storage).toHaveLength(1);
-      expect(results[0].lastSuccessfulSnapshot.storage[0].class).toBe("beta3");
+      expect(matchedProvider?.lastSuccessfulSnapshot.nodes).toHaveLength(1);
+      expect(matchedProvider?.lastSuccessfulSnapshot.storage).toHaveLength(1);
+      expect(matchedProvider?.lastSuccessfulSnapshot.storage[0].class).toBe("beta3");
     });
 
     it("returns empty array when owner list is empty", async () => {

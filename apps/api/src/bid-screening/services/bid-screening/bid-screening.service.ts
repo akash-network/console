@@ -69,23 +69,8 @@ export class BidScreeningService {
         const storageClass = vol.attributes.find(a => a.key === "class")?.value;
         const isRam = storageClass === "ram";
 
-        if (isPersistent && (!storageClass || storageClass === "ram")) {
+        if (isPersistent && (!storageClass || isRam)) {
           throw new BadRequest(`Persistent storage volume "${vol.name}" must specify a valid storage class (not "${storageClass || "empty"}")`);
-        }
-
-        if (isPersistent && isRam) {
-          throw new BadRequest(`Persistent storage volume "${vol.name}" cannot use RAM storage class`);
-        }
-      }
-
-      if (resource.gpu.units.val !== "0") {
-        const gpuAttrs = resource.gpu.attributes.filter(a => a.value === "true");
-        for (const attr of gpuAttrs) {
-          const parts = attr.key.split("/");
-          const hasVendor = parts.includes("vendor") && parts.indexOf("vendor") + 1 < parts.length;
-          if (!hasVendor) {
-            throw new BadRequest(`GPU attribute "${attr.key}" must include a vendor (e.g., vendor/nvidia/model/a100)`);
-          }
         }
       }
     }

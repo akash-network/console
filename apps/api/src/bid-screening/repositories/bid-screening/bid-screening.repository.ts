@@ -45,7 +45,7 @@ export class BidScreeningRepository {
       ]
     });
 
-    return providers as unknown as ProviderWithSnapshot[];
+    return providers;
   }
 
   async getAuditedProviderAddresses(auditorAddresses: string[]): Promise<Set<string>> {

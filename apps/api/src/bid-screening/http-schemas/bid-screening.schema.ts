@@ -1,7 +1,9 @@
 import { z } from "@hono/zod-openapi";
 
+const UIntStringSchema = z.string().regex(/^\d+$/, "Must be an unsigned integer string");
+
 const ResourceValueSchema = z.object({
-  val: z.string().openapi({ description: "String-encoded integer value", example: "1000" })
+  val: UIntStringSchema.openapi({ description: "String-encoded integer value", example: "1000" })
 });
 
 const AttributeSchema = z.object({
@@ -35,7 +37,7 @@ const ResourceSchema = z.object({
 
 const PriceSchema = z.object({
   denom: z.string(),
-  amount: z.string()
+  amount: UIntStringSchema
 });
 
 const ResourceUnitSchema = z.object({

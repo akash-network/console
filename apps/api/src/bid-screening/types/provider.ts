@@ -1,8 +1,8 @@
 export interface ProviderWithSnapshot {
   owner: string;
   hostUri: string;
-  ipRegion: string | null;
-  uptime7d: number | null;
+  ipRegion?: string | null;
+  uptime7d?: number | null;
   lastSuccessfulSnapshot: {
     nodes: {
       name: string;
