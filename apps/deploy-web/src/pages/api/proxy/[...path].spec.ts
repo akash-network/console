@@ -1,5 +1,5 @@
 import type { LoggerService } from "@akashnetwork/logging";
-import type { NextApiRequest, NextApiResponse } from "next";
+import type { NextApiResponse } from "next";
 import type { Socket } from "node:net";
 import type { Mock } from "vitest";
 import { describe, expect, it, vi } from "vitest";
@@ -54,16 +54,17 @@ describe("proxy [...path] handler", () => {
       getBaseApiUrlFor: vi.fn().mockReturnValue("http://api.test")
     });
 
-    const req = {
+    const req = mock<NextApiRequestWithServices>({
       url: "/api/proxy/v1/tx",
       method: "POST",
-      headers: {} as NextApiRequest["headers"],
       cookies: {},
-      socket: { remoteAddress: "127.0.0.1" } as Socket
-    } as unknown as NextApiRequest;
+      socket: mock<Socket>({ remoteAddress: "127.0.0.1" })
+    });
+    // assigned post-construction so unknown header lookups return undefined; vitest-mock-extended deep-mocks override values
+    req.headers = {};
     const res = mock<NextApiResponse>();
 
-    (req as NextApiRequestWithServices)[REQ_SERVICES_KEY] = {
+    req[REQ_SERVICES_KEY] = {
       ...services,
       getSession,
       proxyRequest,
