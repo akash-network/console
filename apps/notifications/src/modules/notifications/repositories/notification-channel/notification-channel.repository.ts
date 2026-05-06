@@ -175,6 +175,15 @@ export class NotificationChannelRepository {
     return notificationChannel && this.toOutput(notificationChannel);
   }
 
+  async deleteAllByUserId(userId: string, tx: NodePgDatabase<typeof schema> = this.db): Promise<number> {
+    const deleted = await tx
+      .delete(schema.NotificationChannel)
+      .where(eq(schema.NotificationChannel.userId, userId))
+      .returning({ id: schema.NotificationChannel.id });
+
+    return deleted.length;
+  }
+
   private toInput<T extends Partial<InternalNotificationChannelInput>>(alert: T): T {
     if (alert.config) {
       return {
