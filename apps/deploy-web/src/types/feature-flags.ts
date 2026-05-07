@@ -7,4 +7,5 @@ export type FeatureFlag =
   | "ui_sdl_log_collector_enabled"
   | "maintenance_banner"
   | "auto_credit_reload"
-  | "console_embedded_login";
+  | "console_embedded_login"
+  | "self_custody";
