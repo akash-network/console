@@ -73,7 +73,25 @@ describe(ManagedWalletPopup.name, () => {
     expect(switchWalletType).toHaveBeenCalledTimes(1);
   });
 
-  function setup(input?: { walletBalance?: WalletBalance | null; isManaged?: boolean; isTrialing?: boolean; isWalletConnected?: boolean }) {
+  it("hides Switch to Wallet Payments button when self_custody flag is OFF", () => {
+    setup({ isSelfCustodyEnabled: false });
+
+    expect(screen.queryByRole("button", { name: /Switch to Wallet Payments/ })).not.toBeInTheDocument();
+  });
+
+  it("renders Switch to Wallet Payments button when self_custody flag is ON", () => {
+    setup({ isSelfCustodyEnabled: true });
+
+    expect(screen.getByRole("button", { name: /Switch to Wallet Payments/ })).toBeInTheDocument();
+  });
+
+  function setup(input?: {
+    walletBalance?: WalletBalance | null;
+    isManaged?: boolean;
+    isTrialing?: boolean;
+    isWalletConnected?: boolean;
+    isSelfCustodyEnabled?: boolean;
+  }) {
     const switchWalletType = vi.fn();
     const showManagedEscrowFaqModal = vi.fn();
 
@@ -90,6 +108,7 @@ describe(ManagedWalletPopup.name, () => {
           billing: ({ openPayment }: { openPayment?: boolean } = {}) => (openPayment ? "/billing?openPayment=true" : "/billing")
         }
       }),
+      useIsSelfCustodyEnabled: () => input?.isSelfCustodyEnabled ?? true,
       FormattedNumber: ({ value }: { value: number }) => <span>{value}</span>,
       LinkTo: ({ children, className, onClick }: { children: React.ReactNode; className?: string; onClick?: () => void }) => (
         <a className={className} onClick={onClick}>

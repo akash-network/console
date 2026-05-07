@@ -17,7 +17,7 @@ import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useSelectedChain } from "@src/hooks/useSelectedChain/useSelectedChain";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
-import { useManager } from "@src/lib/cosmos-kit-jotai";
+import { CURRENT_WALLET_KEY, useManager } from "@src/lib/cosmos-kit-jotai";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import networkStore from "@src/store/networkStore";
 import walletStore from "@src/store/walletStore";
@@ -27,6 +27,7 @@ import { useServices } from "../ServicesProvider";
 import { useSettings } from "../SettingsProvider";
 import { settingsIdAtom } from "../SettingsProvider/settingsStore";
 import { deriveWalletIsLoading } from "./deriveWalletIsLoading";
+import { useEnforceSelfCustodyFlag } from "./useEnforceSelfCustodyFlag";
 
 const CONSOLE_MEMO = "akash console";
 
@@ -123,6 +124,13 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     isCustodialConnecting: userWallet.isWalletConnecting
   });
 
+  useEnforceSelfCustodyFlag({
+    isWalletConnected: userWallet.isWalletConnected,
+    selectedWalletType,
+    setSelectedWalletType,
+    disconnect: userWallet.disconnect
+  });
+
   useWhen(walletAddress, loadWallet);
 
   useWhen(isWalletConnected && selectedWalletType, () => {
@@ -169,6 +177,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       userWallet.disconnect();
     }
 
+    if (selectedWalletType === "custodial" && typeof window !== "undefined") {
+      window.localStorage.removeItem(CURRENT_WALLET_KEY);
+    }
+
     if (selectedWalletType === "managed" && !userWallet.isWalletConnected) {
       userWallet.connect();
     }
@@ -192,6 +204,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   function logout() {
     userWallet.disconnect();
+
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(CURRENT_WALLET_KEY);
+    }
 
     analyticsService.track("disconnect_wallet", {
       category: "wallet",
