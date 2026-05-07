@@ -41,6 +41,19 @@ services:
       - path: ../../.env.local
         required: false
 
+  provider-inventory:
+    restart: always
+    environment:
+      PORT: 3000
+    env_file:
+      - .env.sandbox.docker-compose-dev
+      - path: ../../.env.local
+        required: false
+    ports:
+      - '3092:3000'
+    deploy:
+      replicas: 1
+
   provider-proxy:
     restart: always
     environment:

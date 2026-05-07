@@ -109,6 +109,28 @@ services:
       - /app/packages/releaser/node_modules
       - /app/packages/ui/node_modules
 
+  provider-inventory:
+    build:
+      target: development
+    volumes:
+      - ../../apps/provider-inventory:/app/apps/provider-inventory
+      - ../../packages:/app/packages
+      - /app/node_modules
+      - /app/apps/provider-inventory/node_modules
+      - /app/packages/database/node_modules
+      - /app/packages/dev-config/node_modules
+      - /app/packages/docker/node_modules
+      - /app/packages/env-loader/node_modules
+      - /app/packages/http-sdk/node_modules
+      - /app/packages/instrumentation/node_modules
+      - /app/packages/logging/node_modules
+      - /app/packages/net/node_modules
+      - /app/packages/network-store/node_modules
+      - /app/packages/react-query-proxy/node_modules
+      - /app/packages/react-query-sdk/node_modules
+      - /app/packages/releaser/node_modules
+      - /app/packages/ui/node_modules
+
   provider-proxy:
     build:
       target: development

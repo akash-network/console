@@ -70,6 +70,11 @@
     "apps/provider-proxy": {
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },
+    "apps/provider-inventory": {
+      "project": ["src/**/*.ts", "test/**/*.ts"],
+      "drizzle": false,
+      "ignoreDependencies": ["@akashnetwork/env-loader"]
+    },
     "apps/tx-signer": {
       "project": ["src/**/*.ts", "test/**/*.ts"],
       "ignoreDependencies": ["@akashnetwork/env-loader"]

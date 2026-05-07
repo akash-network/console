@@ -1,0 +1,6 @@
+/build
+/dist
+/node_modules
+/coverage
+.DS_store
+junit.xml
