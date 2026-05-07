@@ -5,7 +5,9 @@ import { mock } from "vitest-mock-extended";
 import { z } from "zod";
 
 import type { Session } from "@src/lib/auth0";
+import { AccessTokenError, AccessTokenErrorCode } from "@src/lib/auth0";
 import { services } from "@src/services/app-di-container/server-di-container.service";
+import type { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
 import type { NextApiRequestWithServices } from "./defineApiHandler";
 import { defineApiHandler, REQ_SERVICES_KEY } from "./defineApiHandler";
 
@@ -107,6 +109,95 @@ describe("defineApiHandler", () => {
         body: { name: "test", age: 10 }
       })
     );
+  });
+
+  it("clears appSession cookies and passes session=null to handler when getSession throws an invalid session error", async () => {
+    const handler = vi.fn().mockResolvedValue(undefined);
+    const logger = mock<LoggerService>();
+    const req = createRequest({
+      url: "/api/proxy/v1/tx",
+      cookies: { appSession: "stale", "appSession.0": "stale-0", other: "keep" }
+    });
+    const res = mock<NextApiResponse>();
+
+    await setup({
+      handler,
+      context: {
+        req,
+        res,
+        services: {
+          logger,
+          getSession: vi.fn(async () => {
+            throw new AccessTokenError(AccessTokenErrorCode.FAILED_REFRESH_GRANT, "refresh failed");
+          })
+        }
+      }
+    });
+
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "Set-Cookie",
+      expect.arrayContaining([
+        expect.stringMatching(/^appSession=;.*Expires=Thu, 01 Jan 1970/),
+        expect.stringMatching(/^appSession\.0=;.*Expires=Thu, 01 Jan 1970/)
+      ])
+    );
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "API_SESSION_INVALID" }));
+    expect(handler).toHaveBeenCalledWith(expect.objectContaining({ session: null }));
+  });
+
+  it("clears appSession cookies when access token is expired", async () => {
+    const handler = vi.fn().mockResolvedValue(undefined);
+    const req = createRequest({
+      url: "/api/proxy/v1/tx",
+      cookies: { appSession: "stale" }
+    });
+    const res = mock<NextApiResponse>();
+
+    await setup({
+      handler,
+      context: {
+        req,
+        res,
+        services: {
+          logger: mock<LoggerService>(),
+          getSession: vi.fn(async () => {
+            throw new AccessTokenError(AccessTokenErrorCode.EXPIRED_ACCESS_TOKEN, "expired");
+          })
+        }
+      }
+    });
+
+    expect(res.setHeader).toHaveBeenCalledWith("Set-Cookie", expect.arrayContaining([expect.stringMatching(/^appSession=;/)]));
+    expect(handler).toHaveBeenCalledWith(expect.objectContaining({ session: null }));
+  });
+
+  it("reports unexpected getSession errors and passes session=null to handler", async () => {
+    const handler = vi.fn().mockResolvedValue(undefined);
+    const errorHandler = mock<ErrorHandlerService>();
+    const error = new Error("decryption boom");
+    const req = createRequest({ cookies: {} });
+    const res = mock<NextApiResponse>();
+
+    await setup({
+      handler,
+      context: {
+        req,
+        res,
+        services: {
+          errorHandler,
+          getSession: vi.fn(async () => {
+            throw error;
+          })
+        }
+      }
+    });
+
+    expect(errorHandler.reportError).toHaveBeenCalledWith({
+      error,
+      tags: { category: "auth0", event: "API_GET_SESSION_ERROR" }
+    });
+    expect(res.setHeader).not.toHaveBeenCalledWith("Set-Cookie", expect.anything());
+    expect(handler).toHaveBeenCalledWith(expect.objectContaining({ session: null }));
   });
 
   it("returns 400 error and logs warning when schema validation fails", async () => {

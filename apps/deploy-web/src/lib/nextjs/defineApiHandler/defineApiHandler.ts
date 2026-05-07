@@ -3,6 +3,8 @@ import type { NextApiHandler, NextApiRequest, NextApiResponse } from "next";
 import type { z } from "zod";
 
 import type { Session } from "@src/lib/auth0";
+import { clearSessionCookies } from "@src/lib/auth0/clearSessionCookies/clearSessionCookies";
+import { isInvalidSessionError } from "@src/lib/auth0/isInvalidSessionError/isInvalidSessionError";
 import { services } from "@src/services/app-di-container/server-di-container.service";
 import { createRequestExecutionContext, requestExecutionContext } from "../requestExecutionContext";
 
@@ -20,7 +22,17 @@ export function defineApiHandler<TResponse, TSchema extends z.ZodSchema<any> | u
       }
 
       const requestServices = (req as NextApiRequestWithServices)[REQ_SERVICES_KEY] || services;
-      const session = await requestServices.getSession(req, res);
+      let session: Session | null = null;
+      try {
+        session = (await requestServices.getSession(req, res)) ?? null;
+      } catch (error) {
+        if (isInvalidSessionError(error)) {
+          requestServices.logger.warn({ event: "API_SESSION_INVALID", url: req.url, error });
+          clearSessionCookies(req, res);
+        } else {
+          requestServices.errorHandler.reportError({ error, tags: { category: "auth0", event: "API_GET_SESSION_ERROR" } });
+        }
+      }
 
       requestServices.userTracker.track(session?.user);
       const context: ApiHandlerContext<TResponse, TSchema> = {

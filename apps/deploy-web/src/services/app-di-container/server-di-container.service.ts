@@ -4,6 +4,7 @@ import * as unleashModule from "@unleash/nextjs";
 
 import { serverEnvConfig } from "@src/config/server-env.config";
 import { getSession } from "@src/lib/auth0";
+import { proxyRequest } from "@src/lib/nextjs/proxyRequest/proxyRequest";
 import { ApiUrlService } from "../api-url/api-url.service";
 import { clientIpForwardingInterceptor } from "../client-ip-forwarding/client-ip-forwarding.interceptor";
 import { createChildContainer } from "../container/createContainer";
@@ -23,6 +24,7 @@ const rootContainer = createAppRootContainer({
 
 export const services = createChildContainer(rootContainer, {
   getSession: () => getSession,
+  proxyRequest: () => proxyRequest,
   featureFlagService: () => new FeatureFlagService(unleashModule, serverEnvConfig),
   notificationsApi: () =>
     createAPIClient({
