@@ -128,4 +128,15 @@ describe(collectFullErrorStack.name, () => {
     const result = collectFullErrorStack("Log: \rl�dqz\u0015M�J�\t���\\�ͺ� does not allow");
     expect(result).toBe("Log: \\rl\\uFFFD+dqz\\u0015M\\uFFFD+J\\uFFFD+\\t\\uFFFD+\\\\uFFFD+ͺ\\uFFFD+ does not allow");
   });
+
+  it("collects data from error like cause", () => {
+    const errorLike = { message: "inner cause", body: "error body", status: 500 };
+    const causeError = new Error("cause error", { cause: errorLike });
+    const result = collectFullErrorStack(causeError);
+
+    expect(result).toContain("cause error");
+    expect(result).toContain("inner cause");
+    expect(result).toContain("Status: 500");
+    expect(result).toContain("Body: error body");
+  });
 });
