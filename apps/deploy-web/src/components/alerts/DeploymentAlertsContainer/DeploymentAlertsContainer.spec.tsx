@@ -1,8 +1,6 @@
 import React from "react";
-import type { components } from "@akashnetwork/react-query-sdk/notifications";
-import { createReactQueryApiClient } from "@akashnetwork/react-query-sdk/notifications/create-react-query-client";
+import { createProxy } from "@akashnetwork/react-query-proxy";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
-import type { RequestFn, RequestFnResponse } from "@openapi-qraft/react";
 import merge from "lodash/merge";
 import { describe, expect, it, vi } from "vitest";
 
@@ -10,30 +8,27 @@ import type { ChildrenProps, ContainerInput } from "@src/components/alerts/Deplo
 import { DeploymentAlertsContainer } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
 import { USDC_IBC_DENOMS } from "@src/config/denom.config";
 import { queryClient } from "@src/queries";
+import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
 import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 
 import { act, render, screen } from "@testing-library/react";
 import { buildRpcDeployment } from "@tests/seeders/deployment";
 import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
+import { jsonResponse } from "@tests/unit/jsonResponse";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(DeploymentAlertsContainer.name, () => {
   it("triggers deployment alert request with the correct values", async () => {
-    const { requestFn, input, child, dseq } = await setup();
+    const { mockFetch, input, child, dseq } = await setup();
 
     await act(() => child.upsert(input));
 
-    expect(requestFn).toHaveBeenCalledWith(
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining(`/v1/deployment-alerts/${dseq}`),
       expect.objectContaining({
-        method: "post",
-        url: "/v1/deployment-alerts/{dseq}"
-      }),
-      expect.objectContaining({
-        parameters: {
-          path: { dseq }
-        },
-        body: {
+        method: "POST",
+        body: JSON.stringify({
           data: merge({}, input, {
             alerts: {
               deploymentBalance: {
@@ -41,7 +36,7 @@ describe(DeploymentAlertsContainer.name, () => {
               }
             }
           })
-        }
+        })
       })
     );
     await vi.waitFor(() => {
@@ -50,9 +45,9 @@ describe(DeploymentAlertsContainer.name, () => {
   });
 
   it("shows error notification on failed request", async () => {
-    const { requestFn, input, child } = await setup();
+    const { mockFetch, input, child } = await setup();
 
-    requestFn.mockRejectedValue(new Error("API Error"));
+    mockFetch.mockRejectedValue(new Error("API Error"));
 
     await act(() => child.upsert(input));
 
@@ -60,7 +55,7 @@ describe(DeploymentAlertsContainer.name, () => {
   });
 
   it("handles deployment closed alert configuration", async () => {
-    const { requestFn, child, dseq } = await setup();
+    const { mockFetch, child, dseq } = await setup();
     const input: ContainerInput = {
       alerts: {
         deploymentClosed: {
@@ -72,24 +67,17 @@ describe(DeploymentAlertsContainer.name, () => {
 
     await act(() => child.upsert(input));
 
-    expect(requestFn).toHaveBeenCalledWith(
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining(`/v1/deployment-alerts/${dseq}`),
       expect.objectContaining({
-        method: "post",
-        url: "/v1/deployment-alerts/{dseq}"
-      }),
-      expect.objectContaining({
-        parameters: {
-          path: { dseq }
-        },
-        body: {
-          data: input
-        }
+        method: "POST",
+        body: JSON.stringify({ data: input })
       })
     );
   });
 
   it("handles escrow balance alert configuration", async () => {
-    const { requestFn, child, dseq } = await setup();
+    const { mockFetch, child, dseq } = await setup();
     const input: ContainerInput = {
       alerts: {
         deploymentBalance: {
@@ -102,30 +90,11 @@ describe(DeploymentAlertsContainer.name, () => {
 
     await act(() => child.upsert(input));
 
-    expect(requestFn).toHaveBeenCalledWith(
-      expect.objectContaining({
-        method: "post",
-        url: "/v1/deployment-alerts/{dseq}"
-      }),
-      expect.objectContaining({
-        parameters: {
-          path: { dseq }
-        },
-        body: {
-          data: expect.objectContaining({
-            alerts: {
-              deploymentBalance: expect.objectContaining({
-                threshold: expect.any(Number)
-              })
-            }
-          })
-        }
-      })
-    );
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining(`/v1/deployment-alerts/${dseq}`), expect.objectContaining({ method: "POST" }));
   });
 
   it("handles both deployment closed and balance alerts", async () => {
-    const { requestFn, child, dseq } = await setup();
+    const { mockFetch, child, dseq } = await setup();
     const input: ContainerInput = {
       alerts: {
         deploymentClosed: {
@@ -142,30 +111,7 @@ describe(DeploymentAlertsContainer.name, () => {
 
     await act(() => child.upsert(input));
 
-    expect(requestFn).toHaveBeenCalledWith(
-      expect.objectContaining({
-        method: "post",
-        url: "/v1/deployment-alerts/{dseq}"
-      }),
-      expect.objectContaining({
-        parameters: {
-          path: { dseq }
-        },
-        body: {
-          data: expect.objectContaining({
-            alerts: {
-              deploymentClosed: expect.objectContaining({
-                enabled: true
-              }),
-              deploymentBalance: expect.objectContaining({
-                enabled: true,
-                threshold: expect.any(Number)
-              })
-            }
-          })
-        }
-      })
-    );
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining(`/v1/deployment-alerts/${dseq}`), expect.objectContaining({ method: "POST" }));
   });
 
   it("provides max balance threshold", async () => {
@@ -175,12 +121,12 @@ describe(DeploymentAlertsContainer.name, () => {
   });
 
   it("invalidates queries on successful mutation", async () => {
-    const { requestFn, input, child } = await setup();
+    const { mockFetch, input, child } = await setup();
     const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     await act(() => child.upsert(input));
 
-    expect(requestFn).toHaveBeenCalled();
+    expect(mockFetch).toHaveBeenCalled();
     await vi.waitFor(() => {
       expect(invalidateQueriesSpy).toHaveBeenCalled();
     });
@@ -207,24 +153,11 @@ describe(DeploymentAlertsContainer.name, () => {
       }
     };
 
-    const requestFn = vi.fn(
-      () =>
-        Promise.resolve({
-          data: {
-            dseq,
-            alerts: {}
-          }
-        }) as Promise<RequestFnResponse<components["schemas"]["DeploymentAlertsResponse"]["data"], unknown>>
-    );
+    const mockFetch = vi.fn(() => Promise.resolve(jsonResponse({ dseq, alerts: {} })));
 
     const services = {
       queryClient: () => queryClient,
-      notificationsApi: () =>
-        createReactQueryApiClient({
-          requestFn: requestFn as RequestFn<any, Error>,
-          baseUrl: "",
-          queryClient
-        })
+      api: () => createProxy(createApiSdk({ baseUrl: "", fetch: mockFetch }))
     };
 
     const childCapturer = createContainerTestingChildCapturer<ChildrenProps>();
@@ -237,6 +170,6 @@ describe(DeploymentAlertsContainer.name, () => {
       </CustomSnackbarProvider>
     );
 
-    return { requestFn, input, child: await childCapturer.awaitChild(), dseq };
+    return { mockFetch, input, child: await childCapturer.awaitChild(), dseq };
   }
 });

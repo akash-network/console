@@ -50,6 +50,7 @@ export default defineConfig({
         "src/background-jobs-app.ts",
         "src/bootstrap-entry.ts",
         "src/console.ts",
+        "src/swagger-gen-app.ts",
         "src/core/providers/postgres.provider.ts",
         "test/**/*"
       ],

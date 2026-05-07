@@ -42,6 +42,9 @@ async function bootstrap(rawAppConfig: RawAppConfig): Promise<void> {
     case "background-jobs":
       appModule = await bootstrapEntry(() => import("./background-jobs-app.ts"));
       break;
+    case "swagger-gen":
+      appModule = await bootstrapEntry(() => import("./swagger-gen-app.ts"));
+      break;
     default:
       throw new Error(`Received invalid interface: ${INTERFACE}. Valid values: ${SUPPORTED_INTERFACES.join(", ")}`);
   }

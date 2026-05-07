@@ -1,5 +1,5 @@
 import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
-import type { components } from "@akashnetwork/react-query-sdk/notifications";
+import type { components } from "@akashnetwork/console-api-types/notifications";
 import { faker } from "@faker-js/faker";
 
 type Alert = components["schemas"]["AlertOutputResponse"]["data"] & { deploymentName: string };
@@ -19,6 +19,8 @@ export function buildAlert(overrides?: Partial<Alert>): Alert {
 }
 
 function buildChainMessageAlert(overrides?: Partial<ChainMessageAlert>): ChainMessageAlert {
+  const createdAt = faker.date.past();
+  const updatedAt = faker.date.between({ from: createdAt, to: new Date() });
   return {
     id: faker.string.uuid(),
     name: faker.lorem.words(2),
@@ -34,8 +36,8 @@ function buildChainMessageAlert(overrides?: Partial<ChainMessageAlert>): ChainMe
     enabled: faker.datatype.boolean(),
     notificationChannelId: faker.string.uuid(),
     userId: faker.string.uuid(),
-    createdAt: faker.date.past(),
-    updatedAt: faker.date.recent(),
+    createdAt: createdAt.toISOString(),
+    updatedAt: updatedAt.toISOString(),
     params: {
       dseq: faker.number.int({ min: 1000, max: 999999 }).toString(),
       type: faker.helpers.arrayElement([MsgCreateDeployment.$type, MsgCloseDeployment.$type])
@@ -46,6 +48,8 @@ function buildChainMessageAlert(overrides?: Partial<ChainMessageAlert>): ChainMe
 }
 
 function buildDeploymentBalanceAlert(overrides?: Partial<DeploymentBalanceAlert>): DeploymentBalanceAlert {
+  const createdAt = faker.date.past();
+  const updatedAt = faker.date.between({ from: createdAt, to: new Date() });
   return {
     id: faker.string.uuid(),
     name: faker.lorem.words(2),
@@ -61,8 +65,8 @@ function buildDeploymentBalanceAlert(overrides?: Partial<DeploymentBalanceAlert>
     enabled: faker.datatype.boolean(),
     notificationChannelId: faker.string.uuid(),
     userId: faker.string.uuid(),
-    createdAt: faker.date.past(),
-    updatedAt: faker.date.recent(),
+    createdAt: createdAt.toISOString(),
+    updatedAt: updatedAt.toISOString(),
     params: {
       dseq: faker.number.int({ min: 1000, max: 999999 }).toString(),
       owner: faker.string.uuid()

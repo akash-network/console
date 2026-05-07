@@ -1057,30 +1057,6 @@
           "DeploymentAlert"
         ]
       }
-    },
-    "/v1/jobs/notification": {
-      "post": {
-        "operationId": "createNotification",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NotificationJobDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": "Creates a notification job"
-          }
-        },
-        "tags": [
-          "Jobs"
-        ]
-      }
     }
   },
   "info": {
@@ -5601,40 +5577,6 @@
         },
         "required": [
           "data"
-        ]
-      },
-      "NotificationJobDto": {
-        "type": "object",
-        "properties": {
-          "notificationId": {
-            "type": "string"
-          },
-          "notificationChannelId": {
-            "type": "string"
-          },
-          "startAfter": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "payload": {
-            "type": "object",
-            "properties": {
-              "summary": {
-                "type": "string"
-              },
-              "description": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "summary",
-              "description"
-            ]
-          }
-        },
-        "required": [
-          "notificationId",
-          "payload"
         ]
       }
     }

@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, HttpCode, Post } from "@nestjs/common";
-import { ApiNoContentResponse } from "@nestjs/swagger";
+import { ApiExcludeController, ApiNoContentResponse } from "@nestjs/swagger";
 import { createZodDto } from "nestjs-zod";
 import { Err, Ok, Result } from "ts-results";
 import { z } from "zod";
@@ -22,8 +22,7 @@ class NotificationJobDto extends createZodDto(
 ) {}
 
 @Controller({
-  version: "1",
-  path: "jobs"
+  path: "internal/v1/jobs"
 })
 export class JobsController {
   constructor(
@@ -65,5 +64,25 @@ export class JobsController {
       publishOptions
     );
     return Ok(undefined);
+  }
+}
+
+/**
+ * Backward-compatibility shim for the legacy /v1/jobs/notification path,
+ * which apps/api still calls until it picks up the /internal/v1/* migration.
+ *
+ * Revert this controller (and its registration in rest.module.ts) once
+ * apps/api is deployed against the new path. Hidden from swagger.json with
+ * @ApiExcludeController so the public spec stays clean.
+ */
+@ApiExcludeController()
+@Controller({ path: "v1/jobs" })
+export class JobsBackwardCompatController {
+  constructor(private readonly jobsController: JobsController) {}
+
+  @Post("notification")
+  @HttpCode(204)
+  async createNotification(@Body() job: NotificationJobDto) {
+    return this.jobsController.createNotification(job);
   }
 }

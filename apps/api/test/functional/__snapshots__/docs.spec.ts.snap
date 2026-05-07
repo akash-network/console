@@ -2139,6 +2139,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/api-keys": {
       "get": {
+        "operationId": "getApiKeys",
         "responses": {
           "200": {
             "content": {
@@ -5504,7 +5505,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "dseq",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/Deployment DSEQ",
+              "description": "Deployment sequence number",
+              "pattern": "^d+$",
+              "type": "string",
             },
           },
         ],

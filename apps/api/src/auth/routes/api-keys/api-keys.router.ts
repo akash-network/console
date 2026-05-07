@@ -20,6 +20,7 @@ const listRoute = createRoute({
   method: "get",
   path: "/v1/api-keys",
   summary: "List all API keys",
+  operationId: "getApiKeys",
   tags: ["API Keys"],
   security: SECURITY_BEARER_OR_API_KEY,
   responses: {

@@ -1,16 +1,17 @@
 import React from "react";
-import { createReactQueryApiClient } from "@akashnetwork/react-query-sdk/notifications/create-react-query-client";
+import { createProxy } from "@akashnetwork/react-query-proxy";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
-import type { RequestFn, RequestFnResponse } from "@openapi-qraft/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { NotificationChannelsListContainer } from "@src/components/alerts/NotificationChannelsListContainer/NotificationChannelsListContainer";
 import type { NotificationChannelsListViewProps } from "@src/components/alerts/NotificationChannelsListView/NotificationChannelsListView";
 import { queryClient } from "@src/queries";
+import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
 
 import { act, render, screen } from "@testing-library/react";
 import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
+import { jsonResponse } from "@tests/unit/jsonResponse";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe("NotificationChannelsListContainer", () => {
@@ -20,48 +21,38 @@ describe("NotificationChannelsListContainer", () => {
   });
 
   it("calls delete endpoint and shows success notification when removing a notification channel succeeds", async () => {
-    const { mockData, requestFn, child } = await setup();
+    const { mockData, mockFetch, child } = await setup();
     await act(() => child.onRemove(mockData.data[0].id));
 
     await vi.waitFor(() => {
-      expect(requestFn).toHaveBeenCalledWith(
-        expect.objectContaining({ method: "delete", url: "/v1/notification-channels/{id}" }),
-        expect.objectContaining({ baseUrl: "", body: undefined, parameters: { path: { id: mockData.data[0].id } } })
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining(`/v1/notification-channels/${mockData.data[0].id}`),
+        expect.objectContaining({ method: "DELETE" })
       );
       expect(screen.getByTestId("notification-channel-remove-success-notification")).toBeInTheDocument();
     });
   });
 
   it("calls delete endpoint and shows error notification when removing a notification channel fails", async () => {
-    const { mockData, requestFn, child } = await setup();
-    requestFn.mockRejectedValue(new Error());
+    const { mockData, mockFetch, child } = await setup();
+    mockFetch.mockRejectedValue(new Error());
     await act(() => child.onRemove(mockData.data[0].id));
 
     await vi.waitFor(() => {
-      expect(requestFn).toHaveBeenCalledWith(
-        expect.objectContaining({ method: "delete", url: "/v1/notification-channels/{id}" }),
-        expect.objectContaining({ baseUrl: "", body: undefined, parameters: { path: { id: mockData.data[0].id } } })
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining(`/v1/notification-channels/${mockData.data[0].id}`),
+        expect.objectContaining({ method: "DELETE" })
       );
       expect(screen.getByTestId("notification-channel-remove-error-notification")).toBeInTheDocument();
     });
   });
 
   it("handles pagination correctly", async () => {
-    const { requestFn, child } = await setup();
+    const { mockFetch, child } = await setup();
     await act(() => child.onPaginationChange({ page: child.pagination.page + 1, limit: child.pagination.limit }));
 
     await vi.waitFor(() => {
-      expect(requestFn).toHaveBeenCalledWith(
-        expect.objectContaining({ method: "get", url: "/v1/notification-channels" }),
-        expect.objectContaining({
-          parameters: {
-            query: {
-              page: 2,
-              limit: 10
-            }
-          }
-        })
-      );
+      expect(mockFetch).toHaveBeenCalledWith(expect.stringMatching(/\/v1\/notification-channels\?.*page=2/), expect.objectContaining({ method: "GET" }));
     });
   });
 
@@ -75,20 +66,10 @@ describe("NotificationChannelsListContainer", () => {
         totalPages: 2
       }
     };
-    const requestFn = vi.fn(
-      () =>
-        Promise.resolve({
-          data: mockData
-        }) as Promise<RequestFnResponse<typeof mockData, unknown>>
-    );
+    const mockFetch = vi.fn(() => Promise.resolve(jsonResponse(mockData)));
     const services = {
       queryClient: () => queryClient,
-      notificationsApi: () =>
-        createReactQueryApiClient({
-          requestFn: requestFn as RequestFn<any, Error>,
-          baseUrl: "",
-          queryClient
-        })
+      api: () => createProxy(createApiSdk({ baseUrl: "", fetch: mockFetch }))
     };
     const childCapturer = createContainerTestingChildCapturer<NotificationChannelsListViewProps>();
 
@@ -102,6 +83,6 @@ describe("NotificationChannelsListContainer", () => {
 
     const child = await childCapturer.awaitChild(({ data }) => !!data.length);
 
-    return { mockData, requestFn, child };
+    return { mockData, mockFetch, child };
   }
 });

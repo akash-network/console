@@ -17,6 +17,7 @@ export default defineConfig(async overrideOptions =>
       server: "./src/server.ts",
       "rest-app": "./src/rest-app.ts",
       "background-jobs-app": "./src/background-jobs-app.ts",
+      "swagger-gen-app": "./src/swagger-gen-app.ts",
       console: "./src/console.ts",
       instrumentation: fileURLToPath(import.meta.resolve("@akashnetwork/instrumentation/register"))
     },

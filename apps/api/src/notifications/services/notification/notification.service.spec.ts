@@ -1,8 +1,9 @@
+import { ApiError } from "@akashnetwork/openapi-sdk";
 import { type DeepMockProxy, mock, mockDeep, type MockProxy } from "vitest-mock-extended";
 
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
-import type { NotificationsApiClient } from "../../providers/notifications-api.provider";
+import type { NotificationsApiClient, NotificationsInternalApiClient } from "../../providers/notifications-api.provider";
 import { type CreateNotificationInput, NotificationService } from "./notification.service";
 
 describe(NotificationService.name, () => {
@@ -20,13 +21,8 @@ describe(NotificationService.name, () => {
 
       await Promise.all([service.createDefaultChannel(user), jest.runAllTimersAsync()]);
 
-      expect(api.v1.createDefaultChannel).toHaveBeenCalledWith({
-        parameters: {
-          header: {
-            "x-user-id": user.id
-          }
-        },
-        body: {
+      expect(api.v1.createDefaultChannel).toHaveBeenCalledWith(
+        {
           data: {
             name: "Default",
             type: "email",
@@ -34,45 +30,29 @@ describe(NotificationService.name, () => {
               addresses: [user.email!]
             }
           }
-        }
-      });
+        },
+        { headers: { "x-user-id": user.id } }
+      );
     });
 
     it("retries if notification service returns an error", async () => {
       jest.useFakeTimers();
       const { service, api } = setup();
 
-      jest.useFakeTimers();
       const user = { id: "user-1", email: "user@example.com" };
-      api.v1.createDefaultChannel.mockRejectedValueOnce({ error: { statusCode: 400 } });
+      api.v1.createDefaultChannel.mockRejectedValueOnce(new ApiError(500, { message: "boom" }, "POST /v1/notification-channels/default → 500"));
       api.v1.createDefaultChannel.mockResolvedValueOnce({} as never);
 
       await Promise.all([service.createDefaultChannel(user), jest.runAllTimersAsync()]);
 
       expect(api.v1.createDefaultChannel).toHaveBeenCalledTimes(2);
-      expect(api.v1.createDefaultChannel).toHaveBeenCalledWith({
-        parameters: {
-          header: {
-            "x-user-id": user.id
-          }
-        },
-        body: {
-          data: {
-            name: "Default",
-            type: "email",
-            config: {
-              addresses: [user.email!]
-            }
-          }
-        }
-      });
     });
   });
 
   describe("createNotification", () => {
-    it("sends notification", async () => {
+    it("sends notification via the internal client", async () => {
       jest.useFakeTimers();
-      const { service, api } = setup();
+      const { service, apiInternal } = setup();
 
       const input: CreateNotificationInput = {
         user: { id: "user-1", email: "user@example.com" },
@@ -80,27 +60,23 @@ describe(NotificationService.name, () => {
         payload: { summary: "s", description: "d" }
       };
 
-      api.v1.createNotification.mockResolvedValueOnce({} as never);
+      apiInternal.v1.createNotification.mockResolvedValueOnce(undefined as never);
 
       await Promise.all([service.createNotification(input), jest.runAllTimersAsync()]);
 
-      expect(api.v1.createNotification).toHaveBeenCalledTimes(1);
-      const call = api.v1.createNotification.mock.calls[0]![0] as {
-        parameters?: { header?: Record<string, unknown> };
-        body: unknown;
-      };
-      expect(call.parameters?.header?.["x-user-id"]).toBe(input.user.id);
-      expect(call.body).toEqual({
-        notificationId: input.notificationId,
-        payload: input.payload
-      });
-
-      expect(api.v1.createDefaultChannel).not.toHaveBeenCalled();
+      expect(apiInternal.v1.createNotification).toHaveBeenCalledTimes(1);
+      expect(apiInternal.v1.createNotification).toHaveBeenCalledWith(
+        {
+          notificationId: input.notificationId,
+          payload: input.payload
+        },
+        { headers: { "x-user-id": input.user.id } }
+      );
     });
 
     it("creates default channel and retries when channel not found and user has email", async () => {
       jest.useFakeTimers();
-      const { service, api } = setup();
+      const { service, api, apiInternal } = setup();
 
       const input: CreateNotificationInput = {
         user: { id: "user-1", email: "user@example.com" },
@@ -108,28 +84,45 @@ describe(NotificationService.name, () => {
         payload: { summary: "s", description: "d" }
       };
 
-      api.v1.createNotification
-        .mockResolvedValueOnce({ error: { code: "NOTIFICATION_CHANNEL_NOT_FOUND" }, response: new Response() })
-        .mockResolvedValueOnce({} as never);
-
+      const channelMissing = new ApiError(400, { code: "NOTIFICATION_CHANNEL_NOT_FOUND" }, "POST /internal/v1/jobs/notification → 400");
+      apiInternal.v1.createNotification.mockRejectedValueOnce(channelMissing).mockResolvedValueOnce(undefined as never);
       api.v1.createDefaultChannel.mockResolvedValueOnce({} as never);
 
       await Promise.all([service.createNotification(input), jest.runAllTimersAsync()]);
 
       expect(api.v1.createDefaultChannel).toHaveBeenCalledTimes(1);
-      expect(api.v1.createNotification).toHaveBeenCalledTimes(2);
+      expect(apiInternal.v1.createNotification).toHaveBeenCalledTimes(2);
 
-      const defaultChannelCall = api.v1.createDefaultChannel.mock.calls[0]![0] as {
-        parameters?: { header?: Record<string, unknown> };
-        body: { data: { config: { addresses: string[] } } };
-      };
-      expect(defaultChannelCall.parameters?.header?.["x-user-id"]).toBe(input.user.id);
-      expect(defaultChannelCall.body.data.config.addresses).toEqual([input.user.email!]);
+      expect(api.v1.createDefaultChannel).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ config: { addresses: [input.user.email!] } }) }),
+        { headers: { "x-user-id": input.user.id } }
+      );
     });
 
-    it("does not create default channel when user has no email and logs an error", async () => {
+    it("creates the default channel only once across retries when NOTIFICATION_CHANNEL_NOT_FOUND keeps coming back", async () => {
       jest.useFakeTimers();
-      const { service, api } = setup();
+      const { service, api, apiInternal } = setup();
+
+      const input: CreateNotificationInput = {
+        user: { id: "user-1", email: "user@example.com" },
+        notificationId: "notif-1",
+        payload: { summary: "s", description: "d" }
+      };
+
+      const channelMissing = new ApiError(400, { code: "NOTIFICATION_CHANNEL_NOT_FOUND" }, "POST /internal/v1/jobs/notification → 400");
+      apiInternal.v1.createNotification.mockRejectedValue(channelMissing);
+      api.v1.createDefaultChannel.mockResolvedValue({} as never);
+
+      const [result] = await Promise.allSettled([service.createNotification(input), jest.runAllTimersAsync()]);
+
+      expect(result.status).toBe("rejected");
+      expect(apiInternal.v1.createNotification).toHaveBeenCalledTimes(5);
+      expect(api.v1.createDefaultChannel).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not create default channel when user has no email and rejects after exhausting retries", async () => {
+      jest.useFakeTimers();
+      const { service, api, apiInternal } = setup();
 
       const input: CreateNotificationInput = {
         user: { id: "user-1", email: null },
@@ -137,20 +130,20 @@ describe(NotificationService.name, () => {
         payload: { summary: "s", description: "d" }
       };
 
-      const error = { code: "NOTIFICATION_CHANNEL_NOT_FOUND" };
-      api.v1.createNotification.mockResolvedValue({ error, response: new Response() });
+      const channelMissing = new ApiError(400, { code: "NOTIFICATION_CHANNEL_NOT_FOUND" }, "POST /internal/v1/jobs/notification → 400");
+      apiInternal.v1.createNotification.mockRejectedValue(channelMissing);
 
       const [result] = await Promise.allSettled([service.createNotification(input), jest.runAllTimersAsync()]);
 
       expect(result.status).toBe("rejected");
-      expect((result as PromiseRejectedResult).reason.cause).toBe(error);
+      expect((result as PromiseRejectedResult).reason.cause).toBe(channelMissing);
       expect(api.v1.createDefaultChannel).not.toHaveBeenCalled();
-      expect(api.v1.createNotification).toHaveBeenCalledTimes(5);
+      expect(apiInternal.v1.createNotification).toHaveBeenCalledTimes(5);
     });
 
-    it("fails after 10 attempts if notification service is not available and logs an error", async () => {
+    it("fails after retries if notification service is not available", async () => {
       jest.useFakeTimers();
-      const { service, api } = setup();
+      const { service, apiInternal } = setup();
 
       const input: CreateNotificationInput = {
         user: { id: "user-1", email: null },
@@ -159,13 +152,13 @@ describe(NotificationService.name, () => {
       };
 
       const error = new Error("fetch failed");
-      api.v1.createNotification.mockRejectedValue(error);
+      apiInternal.v1.createNotification.mockRejectedValue(error);
 
       const [result] = await Promise.allSettled([service.createNotification(input), jest.runAllTimersAsync()]);
 
       expect(result.status).toBe("rejected");
       expect((result as PromiseRejectedResult).reason.cause).toBe(error);
-      expect(api.v1.createNotification).toHaveBeenCalledTimes(5);
+      expect(apiInternal.v1.createNotification).toHaveBeenCalledTimes(5);
     });
   });
 
@@ -174,9 +167,7 @@ describe(NotificationService.name, () => {
       const { service, api, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
-      api.v1.getNotificationChannels
-        .mockResolvedValueOnce({ data: { data: [] } } as never)
-        .mockResolvedValueOnce({ data: { data: [{ id: "channel-1" }] } } as never);
+      api.v1.getNotificationChannels.mockResolvedValueOnce({ data: [] } as never).mockResolvedValueOnce({ data: [{ id: "channel-1" }] } as never);
       api.v1.createDefaultChannel.mockResolvedValue({} as never);
       api.v1.upsertDeploymentAlert.mockResolvedValue({} as never);
 
@@ -184,27 +175,45 @@ describe(NotificationService.name, () => {
 
       expect(api.v1.getNotificationChannels).toHaveBeenCalledTimes(2);
       expect(api.v1.createDefaultChannel).toHaveBeenCalled();
-      expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith({
-        parameters: {
-          path: { dseq: "123" },
-          header: { "x-owner-address": "akash1abc", "x-user-id": "user-1" }
-        },
-        body: {
+      expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith(
+        {
+          dseq: "123",
           data: {
             alerts: {
               deploymentBalance: { notificationChannelId: "channel-1", enabled: true, threshold: 300000 },
               deploymentClosed: { notificationChannelId: "channel-1", enabled: true }
             }
           }
-        }
-      });
+        },
+        { headers: { "x-owner-address": "akash1abc", "x-user-id": "user-1" } }
+      );
+    });
+
+    it("tolerates createDefaultChannel rejection and re-fetches a channel created by a concurrent request", async () => {
+      jest.useFakeTimers();
+      const { service, api, userRepository, logger } = setup();
+
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
+      api.v1.getNotificationChannels.mockResolvedValueOnce({ data: [] } as never).mockResolvedValueOnce({ data: [{ id: "channel-x" }] } as never);
+      api.v1.createDefaultChannel.mockRejectedValue(new ApiError(409, { code: "ALREADY_EXISTS" }, "POST /v1/notification-channels/default → 409"));
+      api.v1.upsertDeploymentAlert.mockResolvedValue({} as never);
+
+      await Promise.all([
+        service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: 1000000 }),
+        jest.runAllTimersAsync()
+      ]);
+
+      expect(api.v1.getNotificationChannels).toHaveBeenCalledTimes(2);
+      expect(api.v1.upsertDeploymentAlert).toHaveBeenCalled();
+      expect(logger.debug).toHaveBeenCalledWith(expect.objectContaining({ event: "AUTO_ENABLE_ALERT_CHANNEL_CREATE_FAILED" }));
+      jest.useRealTimers();
     });
 
     it("uses existing channel without creating default channel", async () => {
       const { service, api, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
-      api.v1.getNotificationChannels.mockResolvedValue({ data: { data: [{ id: "channel-1" }] } } as never);
+      api.v1.getNotificationChannels.mockResolvedValue({ data: [{ id: "channel-1" }] } as never);
       api.v1.upsertDeploymentAlert.mockResolvedValue({} as never);
 
       await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: 1000000 });
@@ -242,7 +251,7 @@ describe(NotificationService.name, () => {
       const { service, api, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
-      api.v1.getNotificationChannels.mockResolvedValue({ data: { data: [] } } as never);
+      api.v1.getNotificationChannels.mockResolvedValue({ data: [] } as never);
       api.v1.createDefaultChannel.mockResolvedValue({} as never);
 
       await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: 1000000 });
@@ -255,7 +264,7 @@ describe(NotificationService.name, () => {
       const { service, api, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
-      api.v1.getNotificationChannels.mockResolvedValue({ data: { data: [{ id: "channel-1" }] } } as never);
+      api.v1.getNotificationChannels.mockResolvedValue({ data: [{ id: "channel-1" }] } as never);
 
       await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: 0 });
 
@@ -267,7 +276,7 @@ describe(NotificationService.name, () => {
       const { service, api, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
-      api.v1.getNotificationChannels.mockResolvedValue({ data: { data: [{ id: "channel-1" }] } } as never);
+      api.v1.getNotificationChannels.mockResolvedValue({ data: [{ id: "channel-1" }] } as never);
 
       await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: NaN });
 
@@ -275,12 +284,18 @@ describe(NotificationService.name, () => {
     });
   });
 
-  function setup(overrides?: { api?: DeepMockProxy<NotificationsApiClient>; userRepository?: MockProxy<UserRepository>; logger?: MockProxy<LoggerService> }) {
+  function setup(overrides?: {
+    api?: DeepMockProxy<NotificationsApiClient>;
+    apiInternal?: DeepMockProxy<NotificationsInternalApiClient>;
+    userRepository?: MockProxy<UserRepository>;
+    logger?: MockProxy<LoggerService>;
+  }) {
     const api = overrides?.api ?? mockDeep<NotificationsApiClient>();
+    const apiInternal = overrides?.apiInternal ?? mockDeep<NotificationsInternalApiClient>();
     const userRepository = overrides?.userRepository ?? mock<UserRepository>();
     const logger = overrides?.logger ?? mock<LoggerService>();
-    const service = new NotificationService(api, userRepository, logger);
+    const service = new NotificationService(api, apiInternal, userRepository, logger);
 
-    return { service, api, userRepository, logger };
+    return { service, api, apiInternal, userRepository, logger };
   }
 });

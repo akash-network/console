@@ -1,4 +1,5 @@
-import type { components } from "@akashnetwork/react-query-sdk/notifications";
+import type { components } from "@akashnetwork/console-api-types/notifications";
+import { isApiError } from "@akashnetwork/openapi-sdk";
 import type { GetServerSidePropsResult } from "next/types";
 import { z } from "zod";
 
@@ -26,24 +27,27 @@ export const getServerSideProps = defineServerSideProps({
   if: async ctx => (await isAuthenticated(ctx)) && (await isFeatureEnabled("alerts", ctx)),
   handler: async (context): Promise<GetServerSidePropsResult<Props>> => {
     const session = (await context.services.getSession(context.req, context.res))!;
-    const notificationChannel = await context.services.notificationsApi.v1.getNotificationChannel({
-      parameters: {
-        path: {
-          id: context.params.id
-        },
-        header: {
-          Authorization: `Bearer ${session.accessToken}`
-        }
-      }
-    });
 
-    if (!notificationChannel.data?.data) {
+    let notificationChannel;
+    try {
+      notificationChannel = await context.services.api.v1.getNotificationChannel(
+        { id: context.params.id },
+        { headers: { Authorization: `Bearer ${session.accessToken}` } }
+      );
+    } catch (error) {
+      if (isApiError(error) && error.status === 404) {
+        return NOT_FOUND;
+      }
+      throw error;
+    }
+
+    if (!notificationChannel?.data) {
       return NOT_FOUND;
     }
 
     return {
       props: {
-        notificationChannel: notificationChannel.data?.data
+        notificationChannel: notificationChannel.data
       }
     };
   }

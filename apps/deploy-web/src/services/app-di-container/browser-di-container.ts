@@ -1,7 +1,7 @@
-import { createReactQueryApiClient } from "@akashnetwork/react-query-sdk/notifications/create-react-query-client";
-import { requestFn } from "@openapi-qraft/react";
+import { createProxy } from "@akashnetwork/react-query-proxy";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
+import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
 import { ApiUrlService } from "@src/services/api-url/api-url.service";
 import * as walletUtils from "@src/utils/walletUtils";
 import { AuthService } from "../auth/auth/auth.service";
@@ -23,12 +23,7 @@ const rootContainer = createAppRootContainer({
 });
 
 export const services = createChildContainer(rootContainer, {
-  notificationsApi: () =>
-    createReactQueryApiClient({
-      requestFn,
-      baseUrl: "/api/proxy",
-      queryClient: services.queryClient
-    }),
+  api: () => createProxy(createApiSdk({ baseUrl: "/api/proxy" })),
   githubService: () =>
     new GitHubService(services.internalApiHttpClient, services.createAxios, {
       githubAppInstallationUrl: services.publicConfig.NEXT_PUBLIC_GITHUB_APP_INSTALLATION_URL,
