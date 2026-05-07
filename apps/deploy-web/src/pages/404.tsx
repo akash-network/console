@@ -1,13 +1,15 @@
 import React from "react";
-import { buttonVariants } from "@akashnetwork/ui/components";
+import { buttonVariants, Card, CardContent } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { ArrowLeft } from "iconoir-react";
+import { ArrowLeft, OpenInWindow } from "iconoir-react";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 
 import { Title } from "@src/components/shared/Title";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../components/layout/Layout";
+
+export const CONSOLE_AIR_REPO_URL = "https://github.com/akash-network/console-air";
 
 const FourOhFour: React.FunctionComponent = () => {
   return (
@@ -24,6 +26,24 @@ const FourOhFour: React.FunctionComponent = () => {
             Go to homepage
           </Link>
         </div>
+
+        <Card className="mx-auto mt-10 max-w-xl text-left">
+          <CardContent className="space-y-2 p-6">
+            <p className="text-sm font-bold text-secondary-foreground">Looking for self-custody crypto features?</p>
+            <p className="text-sm text-muted-foreground">
+              Self-custody (Keplr/Leap connection, mint/burn, certificates, on-chain authorizations, and the liquidity modal) has moved to Console Air.
+            </p>
+            <Link
+              href={CONSOLE_AIR_REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(buttonVariants({ variant: "outline" }), "inline-flex items-center")}
+            >
+              <OpenInWindow className="mr-2" />
+              Open the Console Air repo
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );

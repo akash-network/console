@@ -19,6 +19,10 @@ import { NoWalletSection } from "@src/components/get-started/NoWalletSection";
 import { WithKeplrSection } from "@src/components/get-started/WithKeplrSection";
 import Layout from "@src/components/layout/Layout";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
+import { Guard } from "@src/hoc/guard/guard.hoc";
+import { useIsSelfCustodyAccessible } from "@src/hoc/guard/useIsSelfCustodyAccessible";
+import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
+import { isSelfCustodyEnabled } from "@src/lib/nextjs/pageGuards/selfCustody";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 
 enum GetWalletSection {
@@ -93,4 +97,9 @@ const GetStartedWallet: React.FunctionComponent = () => {
   );
 };
 
-export default GetStartedWallet;
+export default Guard(GetStartedWallet, useIsSelfCustodyAccessible);
+
+export const getServerSideProps = defineServerSideProps({
+  route: "/get-started/wallet",
+  if: ctx => isSelfCustodyEnabled(ctx)
+});

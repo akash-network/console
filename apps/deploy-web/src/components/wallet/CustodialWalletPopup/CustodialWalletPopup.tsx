@@ -10,6 +10,7 @@ import { useRouter } from "next/router";
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
+import { useIsSelfCustodyEnabled } from "@src/hooks/useIsSelfCustodyEnabled";
 import type { WalletBalance } from "@src/hooks/useWalletBalance";
 import walletStore from "@src/store/walletStore";
 import { udenomToDenom } from "@src/utils/mathHelpers";
@@ -36,14 +37,18 @@ export const DEPENDENCIES = {
   PriceValue,
   useWallet,
   useRouter,
-  useCustomUser
+  useCustomUser,
+  useIsSelfCustodyEnabled
 };
 
 export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ walletBalance, dependencies: d = DEPENDENCIES }) => {
+  const isSelfCustodyEnabled = d.useIsSelfCustodyEnabled();
   const { address, logout } = d.useWallet();
   const router = d.useRouter();
   const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
   const { user } = d.useCustomUser();
+
+  if (!isSelfCustodyEnabled) return null;
 
   return (
     <div className="w-[300px] p-2">
