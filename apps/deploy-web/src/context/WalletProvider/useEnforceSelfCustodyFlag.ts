@@ -5,7 +5,8 @@ import { CURRENT_WALLET_KEY } from "@src/lib/cosmos-kit-jotai";
 import type { SelectedWalletType } from "@src/store/walletStore";
 
 export const DEPENDENCIES = {
-  useIsSelfCustodyEnabled
+  useIsSelfCustodyEnabled,
+  localStorage: typeof window !== "undefined" ? window.localStorage : null
 };
 
 export type UseEnforceSelfCustodyFlagInput = {
@@ -17,6 +18,7 @@ export type UseEnforceSelfCustodyFlagInput = {
 
 export function useEnforceSelfCustodyFlag(input: UseEnforceSelfCustodyFlagInput, dependencies: typeof DEPENDENCIES = DEPENDENCIES): void {
   const isSelfCustodyEnabled = dependencies.useIsSelfCustodyEnabled();
+  const { localStorage } = dependencies;
   const { isWalletConnected, selectedWalletType, setSelectedWalletType, disconnect } = input;
 
   useEffect(() => {
@@ -27,12 +29,10 @@ export function useEnforceSelfCustodyFlag(input: UseEnforceSelfCustodyFlagInput,
       disconnect();
     }
 
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(CURRENT_WALLET_KEY);
-    }
+    localStorage?.removeItem(CURRENT_WALLET_KEY);
 
     if (selectedWalletType !== "managed") {
       setSelectedWalletType("managed");
     }
-  }, [isSelfCustodyEnabled, isWalletConnected, selectedWalletType, disconnect, setSelectedWalletType]);
+  }, [isSelfCustodyEnabled, isWalletConnected, selectedWalletType, disconnect, setSelectedWalletType, localStorage]);
 }

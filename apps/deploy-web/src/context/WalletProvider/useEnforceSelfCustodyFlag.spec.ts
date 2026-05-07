@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { CURRENT_WALLET_KEY } from "@src/lib/cosmos-kit-jotai";
 import type { SelectedWalletType } from "@src/store/walletStore";
@@ -8,61 +9,60 @@ import { renderHook } from "@testing-library/react";
 
 describe(useEnforceSelfCustodyFlag.name, () => {
   it("disconnects, clears CURRENT_WALLET_KEY, and switches to managed when flag is OFF and a custodial wallet is connected", () => {
-    window.localStorage.setItem(CURRENT_WALLET_KEY, "keplr-extension");
-    const { disconnect, setSelectedWalletType } = setup({
+    const { disconnect, setSelectedWalletType, localStorage } = setup({
       isSelfCustodyEnabled: false,
       isWalletConnected: true,
       selectedWalletType: "custodial"
     });
 
     expect(disconnect).toHaveBeenCalledOnce();
-    expect(window.localStorage.getItem(CURRENT_WALLET_KEY)).toBeNull();
+    expect(localStorage.removeItem).toHaveBeenCalledWith(CURRENT_WALLET_KEY);
     expect(setSelectedWalletType).toHaveBeenCalledWith("managed");
   });
 
   it("clears stored wallet name and switches type when flag is OFF and selectedWalletType is still custodial without an active connection", () => {
-    window.localStorage.setItem(CURRENT_WALLET_KEY, "leap-extension");
-    const { disconnect, setSelectedWalletType } = setup({
+    const { disconnect, setSelectedWalletType, localStorage } = setup({
       isSelfCustodyEnabled: false,
       isWalletConnected: false,
       selectedWalletType: "custodial"
     });
 
     expect(disconnect).not.toHaveBeenCalled();
-    expect(window.localStorage.getItem(CURRENT_WALLET_KEY)).toBeNull();
+    expect(localStorage.removeItem).toHaveBeenCalledWith(CURRENT_WALLET_KEY);
     expect(setSelectedWalletType).toHaveBeenCalledWith("managed");
   });
 
   it("does nothing when flag is OFF and the user is already on managed without a custodial connection", () => {
-    window.localStorage.removeItem(CURRENT_WALLET_KEY);
-    const { disconnect, setSelectedWalletType } = setup({
+    const { disconnect, setSelectedWalletType, localStorage } = setup({
       isSelfCustodyEnabled: false,
       isWalletConnected: false,
       selectedWalletType: "managed"
     });
 
     expect(disconnect).not.toHaveBeenCalled();
+    expect(localStorage.removeItem).not.toHaveBeenCalled();
     expect(setSelectedWalletType).not.toHaveBeenCalled();
   });
 
   it("does nothing when flag is ON regardless of wallet state", () => {
-    window.localStorage.setItem(CURRENT_WALLET_KEY, "keplr-extension");
-    const { disconnect, setSelectedWalletType } = setup({
+    const { disconnect, setSelectedWalletType, localStorage } = setup({
       isSelfCustodyEnabled: true,
       isWalletConnected: true,
       selectedWalletType: "custodial"
     });
 
     expect(disconnect).not.toHaveBeenCalled();
-    expect(window.localStorage.getItem(CURRENT_WALLET_KEY)).toBe("keplr-extension");
+    expect(localStorage.removeItem).not.toHaveBeenCalled();
     expect(setSelectedWalletType).not.toHaveBeenCalled();
   });
 
   function setup(input: { isSelfCustodyEnabled: boolean; isWalletConnected: boolean; selectedWalletType: SelectedWalletType }) {
     const disconnect = vi.fn();
     const setSelectedWalletType = vi.fn();
+    const localStorage = mock<Storage>();
     const dependencies: typeof DEPENDENCIES = {
-      useIsSelfCustodyEnabled: () => input.isSelfCustodyEnabled
+      useIsSelfCustodyEnabled: () => input.isSelfCustodyEnabled,
+      localStorage
     };
 
     const hookInput: UseEnforceSelfCustodyFlagInput = {
@@ -74,6 +74,6 @@ describe(useEnforceSelfCustodyFlag.name, () => {
 
     renderHook(() => useEnforceSelfCustodyFlag(hookInput, dependencies));
 
-    return { disconnect, setSelectedWalletType };
+    return { disconnect, setSelectedWalletType, localStorage };
   }
 });
