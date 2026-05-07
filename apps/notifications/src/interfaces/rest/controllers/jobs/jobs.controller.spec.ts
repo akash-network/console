@@ -8,7 +8,7 @@ import { BrokerService } from "@src/infrastructure/broker/services/broker/broker
 import { NotificationChannelRepository } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
 import { AuthService } from "../../services/auth/auth.service";
 import { notificationChannelOutputSchema } from "../notification-channel/notification-channel.controller";
-import { JobsBackwardCompatController, JobsController } from "./jobs.controller";
+import { JobsController } from "./jobs.controller";
 
 import { MockProvider } from "@test/mocks/provider.mock";
 
@@ -174,28 +174,4 @@ describe(JobsController.name, () => {
 
     return module;
   }
-});
-
-describe(JobsBackwardCompatController.name, () => {
-  it("delegates createNotification to the JobsController", async () => {
-    const module = await Test.createTestingModule({
-      controllers: [JobsBackwardCompatController],
-      providers: [
-        {
-          provide: JobsController,
-          useValue: { createNotification: vi.fn(async () => "delegated") }
-        }
-      ]
-    }).compile();
-
-    const job = {
-      notificationId: "notifyAboutStartTrial",
-      payload: { description: "test", summary: "test" }
-    };
-
-    const result = await module.get(JobsBackwardCompatController).createNotification(job);
-
-    expect(module.get(JobsController).createNotification).toHaveBeenCalledWith(job);
-    expect(result).toBe("delegated");
-  });
 });

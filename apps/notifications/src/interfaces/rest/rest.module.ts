@@ -11,7 +11,7 @@ import { InternalAccountController } from "@src/interfaces/rest/controllers/inte
 import { AlertModule } from "@src/modules/alert/alert.module";
 import { NotificationsModule } from "@src/modules/notifications/notifications.module";
 import { AlertController } from "./controllers/alert/alert.controller";
-import { JobsBackwardCompatController, JobsController } from "./controllers/jobs/jobs.controller";
+import { JobsController } from "./controllers/jobs/jobs.controller";
 import { NotificationChannelController } from "./controllers/notification-channel/notification-channel.controller";
 import { AuthInterceptor } from "./interceptors/auth/auth.interceptor";
 import { LocalHttpLoggerMiddleware } from "./interceptors/http-logger/http-logger.middleware";
@@ -26,18 +26,9 @@ import { AuthService } from "./services/auth/auth.service";
     { provide: APP_INTERCEPTOR, useClass: HttpResultInterceptor },
     { provide: APP_INTERCEPTOR, useClass: AuthInterceptor },
     AccountPurgeService,
-    AuthService,
-    JobsController
+    AuthService
   ],
-  controllers: [
-    AlertController,
-    NotificationChannelController,
-    DeploymentAlertController,
-    HealthzController,
-    JobsController,
-    JobsBackwardCompatController,
-    InternalAccountController
-  ]
+  controllers: [AlertController, NotificationChannelController, DeploymentAlertController, HealthzController, JobsController, InternalAccountController]
 })
 export default class RestModule {
   configure(consumer: MiddlewareConsumer) {
