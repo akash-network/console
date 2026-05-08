@@ -44,7 +44,7 @@ export class ProviderInventoryWriterService {
       signedAttributes: attributes.signedAttributes,
       auditedBy: attributes.auditedBy,
       isOnline: true as const,
-      isOnlineSince: rawSql`now()`,
+      isOnlineSince: rawSql`coalesce(${providerInventory.isOnlineSince}, now())`,
       updatedAt: rawSql`now()`
     };
 

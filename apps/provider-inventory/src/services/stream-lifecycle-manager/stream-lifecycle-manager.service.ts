@@ -28,6 +28,16 @@ export class StreamLifecycleManagerService {
   }
 
   reconcile(providers: ChainProvider[]): void {
+    const currentOwners = new Set(providers.map(p => p.owner));
+
+    for (const [owner, controller] of this.#activeStreams) {
+      if (!currentOwners.has(owner)) {
+        controller.abort();
+        this.#activeStreams.delete(owner);
+        this.#logger.info({ event: "STREAM_STOPPED_PROVIDER_GONE", owner });
+      }
+    }
+
     for (const provider of providers) {
       if (this.#activeStreams.has(provider.owner)) continue;
       this.#startStream(provider);
@@ -48,10 +58,14 @@ export class StreamLifecycleManagerService {
       for await (const message of stream) {
         if (signal.aborted) break;
         const row = projectRow(message);
-        await this.#writer.upsertProvider(provider.owner, provider, row, attributes);
+        try {
+          await this.#writer.upsertProvider(provider.owner, provider, row, attributes);
+        } catch (error) {
+          this.#logger.error({ event: "STREAM_PROVIDER_WRITE_ERROR", owner: provider.owner, error });
+        }
       }
     } catch (error) {
-      if (!signal.aborted) {
+      if (error instanceof Error && error.name !== "AbortError") {
         this.#logger.error({ event: "STREAM_ERROR", owner: provider.owner, error });
       }
     } finally {

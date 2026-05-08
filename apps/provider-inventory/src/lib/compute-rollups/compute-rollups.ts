@@ -60,5 +60,6 @@ export function computeRollups(inventory: Inventory): InventoryRollups {
 }
 
 function clamp(value: number): bigint {
-  return value < 0 ? 0n : BigInt(value);
+  if (!Number.isFinite(value) || value <= 0) return 0n;
+  return BigInt(value);
 }
