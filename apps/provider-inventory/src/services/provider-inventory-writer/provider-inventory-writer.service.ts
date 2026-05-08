@@ -25,9 +25,7 @@ export class ProviderInventoryWriterService {
     this.#logger.info({ event: "ONLINE_SINCE_RESET" });
   }
 
-  async upsertProvider(owner: string, provider: ChainProvider, row: ProjectedRow): Promise<void> {
-    const auditedBy = [...new Set(provider.signedAttributes.map(a => a.auditor))].sort();
-
+  async upsertInventory(provider: ChainProvider, row: ProjectedRow): Promise<void> {
     const set = {
       hostUri: provider.hostUri,
       createdHeight: provider.createdHeight,
@@ -42,9 +40,6 @@ export class ProviderInventoryWriterService {
       maxNodeFreeGpu: row.maxNodeFreeGpu,
       gpuModels: row.gpuModels,
       storageClasses: row.storageClasses,
-      selfAttributes: provider.selfAttributes,
-      signedAttributes: provider.signedAttributes,
-      auditedBy,
       isOnline: true as const,
       isOnlineSince: rawSql`coalesce(${providerInventory.isOnlineSince}, now())`,
       updatedAt: rawSql`now()`
@@ -52,9 +47,29 @@ export class ProviderInventoryWriterService {
 
     await this.#db
       .insert(providerInventory)
-      .values({ owner, ...set })
+      .values({ owner: provider.owner, ...set })
       .onConflictDoUpdate({ target: providerInventory.owner, set });
 
-    this.#logger.debug({ event: "PROVIDER_UPSERTED", owner });
+    this.#logger.debug({ event: "PROVIDER_INVENTORY_UPSERTED", owner: provider.owner });
+  }
+
+  async upsertAttributes(provider: ChainProvider): Promise<void> {
+    const auditedBy = [...new Set(provider.signedAttributes.map(a => a.auditor))].sort();
+
+    const set = {
+      hostUri: provider.hostUri,
+      createdHeight: provider.createdHeight,
+      selfAttributes: provider.selfAttributes,
+      signedAttributes: provider.signedAttributes,
+      auditedBy,
+      updatedAt: rawSql`now()`
+    };
+
+    await this.#db
+      .insert(providerInventory)
+      .values({ owner: provider.owner, ...set })
+      .onConflictDoUpdate({ target: providerInventory.owner, set });
+
+    this.#logger.debug({ event: "PROVIDER_ATTRIBUTES_UPSERTED", owner: provider.owner });
   }
 }

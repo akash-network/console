@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 import type { EnvConfig } from "@src/providers/app-config.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import type { ChainProviderPollerService } from "@src/services/chain-provider-poller/chain-provider-poller.service";
+import type { ProviderInventoryWriterService } from "@src/services/provider-inventory-writer/provider-inventory-writer.service";
 import type { StreamLifecycleManagerService } from "@src/services/stream-lifecycle-manager/stream-lifecycle-manager.service";
 import { DiscoverySchedulerService } from "./discovery-scheduler.service";
 
@@ -69,12 +70,13 @@ describe(DiscoverySchedulerService.name, () => {
     expect(poller.poll).toHaveBeenCalledTimes(2);
   });
 
-  it("passes polled providers to the lifecycle manager", async () => {
+  it("writes attributes and reconciles streams on each tick", async () => {
     const fakeProviders = [{ owner: "akash1abc", hostUri: "https://provider.example.com:8443", createdHeight: 100n, selfAttributes: [], signedAttributes: [] }];
-    const { lifecycle } = setup({ providers: fakeProviders });
+    const { writer, lifecycle } = setup({ providers: fakeProviders });
 
     await vi.advanceTimersByTimeAsync(0);
 
+    expect(writer.upsertAttributes).toHaveBeenCalledWith(fakeProviders[0]);
     expect(lifecycle.reconcile).toHaveBeenCalledWith(fakeProviders);
   });
 
@@ -116,6 +118,7 @@ describe(DiscoverySchedulerService.name, () => {
     pollDelay?: (config: EnvConfig) => number;
   }) {
     const poller = mock<ChainProviderPollerService>();
+    const writer = mock<ProviderInventoryWriterService>();
     const lifecycle = mock<StreamLifecycleManagerService>();
     const loggerFactory: LoggerFactory = () => mock<ReturnType<LoggerFactory>>();
     const config: EnvConfig = {
@@ -142,9 +145,9 @@ describe(DiscoverySchedulerService.name, () => {
       poller.poll.mockResolvedValue(input?.providers ?? []);
     }
 
-    const scheduler = new DiscoverySchedulerService(poller, lifecycle, config, loggerFactory);
+    const scheduler = new DiscoverySchedulerService(poller, writer, lifecycle, config, loggerFactory);
     scheduler.start();
 
-    return { scheduler, poller, lifecycle, config };
+    return { scheduler, poller, writer, lifecycle, config };
   }
 });

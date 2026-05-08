@@ -6,12 +6,14 @@ import { APP_CONFIG } from "@src/providers/app-config.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
 import { ChainProviderPollerService } from "@src/services/chain-provider-poller/chain-provider-poller.service";
+import { ProviderInventoryWriterService } from "@src/services/provider-inventory-writer/provider-inventory-writer.service";
 import { StreamLifecycleManagerService } from "@src/services/stream-lifecycle-manager/stream-lifecycle-manager.service";
 
 @singleton()
 export class DiscoverySchedulerService {
   #logger: LoggerService;
   #poller: ChainProviderPollerService;
+  #writer: ProviderInventoryWriterService;
   #lifecycle: StreamLifecycleManagerService;
   #config: EnvConfig;
   #timer: ReturnType<typeof setTimeout> | null = null;
@@ -19,11 +21,13 @@ export class DiscoverySchedulerService {
 
   constructor(
     @inject(ChainProviderPollerService) poller: ChainProviderPollerService,
+    @inject(ProviderInventoryWriterService) writer: ProviderInventoryWriterService,
     @inject(StreamLifecycleManagerService) lifecycle: StreamLifecycleManagerService,
     @inject(APP_CONFIG) config: EnvConfig,
     @inject(LOGGER_FACTORY) loggerFactory: LoggerFactory
   ) {
     this.#poller = poller;
+    this.#writer = writer;
     this.#lifecycle = lifecycle;
     this.#config = config;
     this.#logger = loggerFactory({ context: "DiscoveryScheduler" });
@@ -53,6 +57,7 @@ export class DiscoverySchedulerService {
     try {
       this.#logger.info({ event: "DISCOVERY_TICK_START" });
       const providers = await this.#poller.poll();
+      await Promise.all(providers.map(p => this.#writer.upsertAttributes(p)));
       this.#lifecycle.reconcile(providers);
       this.#logger.info({ event: "DISCOVERY_TICK_COMPLETE", providerCount: providers.length });
     } catch (error) {

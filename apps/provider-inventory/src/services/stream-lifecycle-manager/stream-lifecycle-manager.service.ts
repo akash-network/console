@@ -57,7 +57,7 @@ export class StreamLifecycleManagerService {
         if (signal.aborted) break;
         const row = projectRow(message);
         try {
-          await this.#writer.upsertProvider(provider.owner, provider, row);
+          await this.#writer.upsertInventory(provider, row);
         } catch (error) {
           this.#logger.error({ event: "STREAM_PROVIDER_WRITE_ERROR", owner: provider.owner, error });
         }
