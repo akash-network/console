@@ -2,7 +2,6 @@ import type { LoggerService } from "@akashnetwork/logging";
 import { inject, singleton } from "tsyringe";
 
 import { projectRow } from "@src/lib/project-row/project-row";
-import { reduceAttributes } from "@src/lib/reduce-attributes/reduce-attributes";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
 import type { ProviderStreamFactory } from "@src/providers/provider-stream.provider";
@@ -52,14 +51,13 @@ export class StreamLifecycleManagerService {
 
   async #runStream(provider: ChainProvider, signal: AbortSignal): Promise<void> {
     try {
-      const attributes = reduceAttributes(provider.selfAttributes, provider.signedAttributes);
       const stream = this.#streamFactory.openStatusStream(provider.hostUri, signal);
 
       for await (const message of stream) {
         if (signal.aborted) break;
         const row = projectRow(message);
         try {
-          await this.#writer.upsertProvider(provider.owner, provider, row, attributes);
+          await this.#writer.upsertProvider(provider.owner, provider, row);
         } catch (error) {
           this.#logger.error({ event: "STREAM_PROVIDER_WRITE_ERROR", owner: provider.owner, error });
         }

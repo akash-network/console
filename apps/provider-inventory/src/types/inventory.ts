@@ -44,9 +44,3 @@ export interface InventoryRollups {
 export interface ProjectedRow extends InventoryRollups {
   inventory: Inventory;
 }
-
-export interface ReducedAttributes {
-  selfAttributes: Array<{ key: string; value: string }>;
-  signedAttributes: Array<{ key: string; value: string; auditor: string }>;
-  auditedBy: string[];
-}
