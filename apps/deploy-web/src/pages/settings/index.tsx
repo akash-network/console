@@ -1,7 +1,12 @@
 import { SettingsContainer } from "@src/components/settings/SettingsContainer";
+import { Guard } from "@src/hoc/guard/guard.hoc";
+import { useIsSelfCustodyAccessible } from "@src/hoc/guard/useIsSelfCustodyAccessible";
+import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
+import { isSelfCustodyEnabled } from "@src/lib/nextjs/pageGuards/selfCustody";
 
-const SettingsPage: React.FunctionComponent = () => {
-  return <SettingsContainer />;
-};
+export default Guard(SettingsContainer, useIsSelfCustodyAccessible);
 
-export default SettingsPage;
+export const getServerSideProps = defineServerSideProps({
+  route: "/settings",
+  if: ctx => isSelfCustodyEnabled(ctx)
+});

@@ -9,9 +9,14 @@ import { Modal } from "@mui/material";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useIsSelfCustodyEnabled } from "@src/hooks/useIsSelfCustodyEnabled";
 import { useSelectedChain } from "@src/hooks/useSelectedChain/useSelectedChain";
 
 export type NonUndefined<T> = T extends undefined ? never : T;
+
+export const DEPENDENCIES = {
+  useIsSelfCustodyEnabled
+};
 
 const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
   const { analyticsService } = useServices();
@@ -106,9 +111,10 @@ const getTabsConfig = (txnLifecycleHooks: any) => {
   // } satisfies Elements.TabsConfig;
 };
 
-type Props = { address: string; aktBalance: number; refreshBalances: () => void };
+type Props = { address: string; aktBalance: number; refreshBalances: () => void; dependencies?: typeof DEPENDENCIES };
 
-const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
+const LiquidityModal: React.FC<Props> = ({ refreshBalances, dependencies: d = DEPENDENCIES }) => {
+  const isSelfCustodyEnabled = d.useIsSelfCustodyEnabled();
   const { analyticsService } = useServices();
   const [isOpen, setIsOpen] = useState(false);
   const [isElementsReady, setIsElementsReady] = useState(false);
@@ -196,6 +202,8 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
       window.removeEventListener("@leapwallet/elements:load", cb);
     };
   }, []);
+
+  if (!isSelfCustodyEnabled) return null;
 
   return (
     <>
