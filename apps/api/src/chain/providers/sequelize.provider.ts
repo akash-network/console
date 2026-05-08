@@ -33,6 +33,7 @@ container.register(CHAIN_DB, {
     const sequelize = new Sequelize(dbUri, {
       dialectModule: pg,
       dialectOptions: {
+        application_name: `console-api-${config.get("NETWORK")}`,
         connectionTimeoutMillis: config.get("SEQUELIZE_CONNECTION_TIMEOUT"),
         keepAlive: config.get("SEQUELIZE_KEEP_ALIVE")
       },
