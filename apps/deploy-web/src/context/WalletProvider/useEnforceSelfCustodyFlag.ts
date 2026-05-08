@@ -6,7 +6,9 @@ import type { SelectedWalletType } from "@src/store/walletStore";
 
 export const DEPENDENCIES = {
   useIsSelfCustodyEnabled,
-  localStorage: typeof window !== "undefined" ? window.localStorage : null
+  get localStorage(): Storage | null {
+    return typeof window !== "undefined" ? window.localStorage : null;
+  }
 };
 
 export type UseEnforceSelfCustodyFlagInput = {
