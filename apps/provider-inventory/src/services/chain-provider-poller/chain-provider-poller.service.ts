@@ -1,24 +1,35 @@
-import { createOtelLogger } from "@akashnetwork/logging/otel";
+import type { LoggerService } from "@akashnetwork/logging";
 import { inject, singleton } from "tsyringe";
 
 import type { ChainQueryClient } from "@src/providers/chain-query.provider";
 import { CHAIN_QUERY_CLIENT } from "@src/providers/chain-query.provider";
+import type { LoggerFactory } from "@src/providers/logger-factory.provider";
+import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
 import type { ChainProvider } from "@src/types/chain-provider";
 
 @singleton()
 export class ChainProviderPollerService {
-  private readonly logger = createOtelLogger({ context: "ChainProviderPoller" });
+  #logger: LoggerService;
+  #chainClient: ChainQueryClient;
 
-  constructor(@inject(CHAIN_QUERY_CLIENT) private readonly chainClient: ChainQueryClient) {}
+  constructor(@inject(CHAIN_QUERY_CLIENT) chainClient: ChainQueryClient, @inject(LOGGER_FACTORY) loggerFactory: LoggerFactory) {
+    this.#chainClient = chainClient;
+    this.#logger = loggerFactory({ context: "ChainProviderPoller" });
+  }
 
   async poll(): Promise<ChainProvider[]> {
-    this.logger.info({ event: "CHAIN_POLL_START" });
+    this.#logger.info({ event: "CHAIN_POLL_START" });
 
-    const [providers, auditRecords] = await Promise.all([this.chainClient.getProviders(), this.chainClient.getAllProvidersAttributes()]);
+    const [providers, auditRecords] = await Promise.all([this.#chainClient.getProviders(), this.#chainClient.getAllProvidersAttributes()]);
 
     const signedByOwner = new Map<string, Array<{ key: string; value: string; auditor: string }>>();
     for (const record of auditRecords) {
-      signedByOwner.set(record.owner, record.attributes);
+      const existing = signedByOwner.get(record.owner);
+      if (existing) {
+        existing.push(...record.attributes);
+      } else {
+        signedByOwner.set(record.owner, [...record.attributes]);
+      }
     }
 
     const result: ChainProvider[] = providers.map(p => ({
@@ -29,7 +40,7 @@ export class ChainProviderPollerService {
       signedAttributes: signedByOwner.get(p.owner) ?? []
     }));
 
-    this.logger.info({ event: "CHAIN_POLL_COMPLETE", providerCount: result.length });
+    this.#logger.info({ event: "CHAIN_POLL_COMPLETE", providerCount: result.length });
     return result;
   }
 }

@@ -1,78 +1,58 @@
-import { createOtelLogger } from "@akashnetwork/logging/otel";
+import type { LoggerService } from "@akashnetwork/logging";
 import { sql as rawSql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/postgres-js";
-import type postgres from "postgres";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { inject, singleton } from "tsyringe";
 
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
-import { PG_CLIENT } from "@src/providers/postgres.provider";
+import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
+import type { LoggerFactory } from "@src/providers/logger-factory.provider";
+import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
 import type { ChainProvider } from "@src/types/chain-provider";
 import type { ProjectedRow, ReducedAttributes } from "@src/types/inventory";
 
 @singleton()
 export class ProviderInventoryWriterService {
-  private readonly logger = createOtelLogger({ context: "ProviderInventoryWriter" });
-  private readonly db;
+  #logger: LoggerService;
+  #db: PostgresJsDatabase;
 
-  constructor(@inject(PG_CLIENT) sql: postgres.Sql) {
-    this.db = drizzle(sql);
+  constructor(@inject(DRIZZLE_DB) db: PostgresJsDatabase, @inject(LOGGER_FACTORY) loggerFactory: LoggerFactory) {
+    this.#db = db;
+    this.#logger = loggerFactory({ context: "ProviderInventoryWriter" });
   }
 
   async resetOnlineSince(): Promise<void> {
-    await this.db.update(providerInventory).set({ isOnlineSince: null });
-    this.logger.info({ event: "ONLINE_SINCE_RESET" });
+    await this.#db.update(providerInventory).set({ isOnlineSince: null });
+    this.#logger.info({ event: "ONLINE_SINCE_RESET" });
   }
 
   async upsertProvider(owner: string, provider: ChainProvider, row: ProjectedRow, attributes: ReducedAttributes): Promise<void> {
-    await this.db
-      .insert(providerInventory)
-      .values({
-        owner,
-        hostUri: provider.hostUri,
-        createdHeight: provider.createdHeight,
-        inventory: row.inventory,
-        totalAvailableCpu: row.totalAvailableCpu,
-        totalAvailableMemory: row.totalAvailableMemory,
-        totalAvailableGpu: row.totalAvailableGpu,
-        totalAvailableEph: row.totalAvailableEph,
-        totalAvailablePersistent: row.totalAvailablePersistent,
-        maxNodeFreeCpu: row.maxNodeFreeCpu,
-        maxNodeFreeMemory: row.maxNodeFreeMemory,
-        maxNodeFreeGpu: row.maxNodeFreeGpu,
-        gpuModels: row.gpuModels,
-        storageClasses: row.storageClasses,
-        selfAttributes: attributes.selfAttributes,
-        signedAttributes: attributes.signedAttributes,
-        auditedBy: attributes.auditedBy,
-        isOnline: true,
-        isOnlineSince: rawSql`now()`,
-        updatedAt: rawSql`now()`
-      })
-      .onConflictDoUpdate({
-        target: providerInventory.owner,
-        set: {
-          hostUri: provider.hostUri,
-          createdHeight: provider.createdHeight,
-          inventory: row.inventory,
-          totalAvailableCpu: row.totalAvailableCpu,
-          totalAvailableMemory: row.totalAvailableMemory,
-          totalAvailableGpu: row.totalAvailableGpu,
-          totalAvailableEph: row.totalAvailableEph,
-          totalAvailablePersistent: row.totalAvailablePersistent,
-          maxNodeFreeCpu: row.maxNodeFreeCpu,
-          maxNodeFreeMemory: row.maxNodeFreeMemory,
-          maxNodeFreeGpu: row.maxNodeFreeGpu,
-          gpuModels: row.gpuModels,
-          storageClasses: row.storageClasses,
-          selfAttributes: attributes.selfAttributes,
-          signedAttributes: attributes.signedAttributes,
-          auditedBy: attributes.auditedBy,
-          isOnline: true,
-          isOnlineSince: rawSql`now()`,
-          updatedAt: rawSql`now()`
-        }
-      });
+    const set = {
+      hostUri: provider.hostUri,
+      createdHeight: provider.createdHeight,
+      inventory: row.inventory,
+      totalAvailableCpu: row.totalAvailableCpu,
+      totalAvailableMemory: row.totalAvailableMemory,
+      totalAvailableGpu: row.totalAvailableGpu,
+      totalAvailableEph: row.totalAvailableEph,
+      totalAvailablePersistent: row.totalAvailablePersistent,
+      maxNodeFreeCpu: row.maxNodeFreeCpu,
+      maxNodeFreeMemory: row.maxNodeFreeMemory,
+      maxNodeFreeGpu: row.maxNodeFreeGpu,
+      gpuModels: row.gpuModels,
+      storageClasses: row.storageClasses,
+      selfAttributes: attributes.selfAttributes,
+      signedAttributes: attributes.signedAttributes,
+      auditedBy: attributes.auditedBy,
+      isOnline: true as const,
+      isOnlineSince: rawSql`now()`,
+      updatedAt: rawSql`now()`
+    };
 
-    this.logger.debug({ event: "PROVIDER_UPSERTED", owner });
+    await this.#db
+      .insert(providerInventory)
+      .values({ owner, ...set })
+      .onConflictDoUpdate({ target: providerInventory.owner, set });
+
+    this.#logger.debug({ event: "PROVIDER_UPSERTED", owner });
   }
 }

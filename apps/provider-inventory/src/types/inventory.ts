@@ -14,8 +14,8 @@ export interface InventoryNode {
   cpu: { available: number };
   memory: { available: number };
   gpu: InventoryNodeGpu[];
-  eph_storage: { available: number };
-  persistent_storage: InventoryNodeStorage[];
+  ephStorage: { available: number };
+  persistentStorage: InventoryNodeStorage[];
 }
 
 export interface InventoryClusterStorage {

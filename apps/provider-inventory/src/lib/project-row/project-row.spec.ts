@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { StreamStatusMessage } from "@src/types/stream-status";
 import { projectRow } from "./project-row";
 
 describe(projectRow.name, () => {
   it("projects an empty cluster", () => {
-    const result = setup({ nodes: [], storage: [] });
+    const result = projectRow({ nodes: [], storage: [] });
 
     expect(result.inventory).toEqual({ nodes: [], storage: [] });
     expect(result.totalAvailableCpu).toBe(0n);
@@ -16,7 +15,7 @@ describe(projectRow.name, () => {
   });
 
   it("normalizes a single node into inventory JSONB and computes rollups", () => {
-    const result = setup({
+    const result = projectRow({
       nodes: [
         {
           name: "node-1",
@@ -36,8 +35,8 @@ describe(projectRow.name, () => {
       cpu: { available: 8000 },
       memory: { available: 32_000_000_000 },
       gpu: [{ vendor: "nvidia", model: "rtx4090", available: 1 }],
-      eph_storage: { available: 500_000_000_000 },
-      persistent_storage: [{ class: "beta2", available: 1_000_000_000_000 }]
+      ephStorage: { available: 500_000_000_000 },
+      persistentStorage: [{ class: "beta2", available: 1_000_000_000_000 }]
     });
     expect(result.inventory.storage).toEqual([{ class: "beta2", available: 2_000_000_000_000 }]);
 
@@ -48,7 +47,7 @@ describe(projectRow.name, () => {
   });
 
   it("projects a multi-node cluster with correct max-per-node tracking", () => {
-    const result = setup({
+    const result = projectRow({
       nodes: [
         {
           name: "small",
@@ -78,8 +77,4 @@ describe(projectRow.name, () => {
     expect(result.totalAvailableGpu).toBe(8n);
     expect(result.maxNodeFreeGpu).toBe(8n);
   });
-
-  function setup(message: StreamStatusMessage) {
-    return projectRow(message);
-  }
 });

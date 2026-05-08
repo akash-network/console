@@ -8,8 +8,8 @@ export function reduceAttributes(selfAttributes: SelfAttribute[], signedAttribut
   }
 
   return {
-    selfAttributes: selfAttributes.map(a => ({ key: a.key, value: a.value })),
-    signedAttributes: signedAttributes.map(a => ({ key: a.key, value: a.value, auditor: a.auditor })),
+    selfAttributes,
+    signedAttributes,
     auditedBy: [...auditedBySet].sort()
   };
 }

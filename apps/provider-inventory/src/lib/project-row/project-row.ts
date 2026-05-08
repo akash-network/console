@@ -13,8 +13,8 @@ export function projectRow(message: StreamStatusMessage): ProjectedRow {
         model: g.model,
         available: g.available
       })),
-      eph_storage: { available: node.ephStorageAvailable },
-      persistent_storage: node.persistentStorage.map(ps => ({
+      ephStorage: { available: node.ephStorageAvailable },
+      persistentStorage: node.persistentStorage.map(ps => ({
         class: ps.class,
         available: ps.available
       }))

@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { Inventory } from "@src/types/inventory";
 import { computeRollups } from "./compute-rollups";
 
 describe(computeRollups.name, () => {
   it("returns all zeros for an empty cluster", () => {
-    const result = setup({ nodes: [], storage: [] });
+    const result = computeRollups({ nodes: [], storage: [] });
 
     expect(result).toEqual({
       totalAvailableCpu: 0n,
@@ -22,15 +21,15 @@ describe(computeRollups.name, () => {
   });
 
   it("computes rollups for a single node", () => {
-    const result = setup({
+    const result = computeRollups({
       nodes: [
         {
           name: "node-1",
           cpu: { available: 4000 },
           memory: { available: 8_000_000_000 },
           gpu: [{ vendor: "nvidia", model: "a100", available: 2 }],
-          eph_storage: { available: 100_000_000_000 },
-          persistent_storage: [{ class: "beta2", available: 500_000_000_000 }]
+          ephStorage: { available: 100_000_000_000 },
+          persistentStorage: [{ class: "beta2", available: 500_000_000_000 }]
         }
       ],
       storage: []
@@ -49,23 +48,23 @@ describe(computeRollups.name, () => {
   });
 
   it("sums totals across multiple nodes and tracks max-per-node", () => {
-    const result = setup({
+    const result = computeRollups({
       nodes: [
         {
           name: "node-1",
           cpu: { available: 2000 },
           memory: { available: 4_000_000_000 },
           gpu: [{ vendor: "nvidia", model: "a100", available: 1 }],
-          eph_storage: { available: 50_000_000_000 },
-          persistent_storage: []
+          ephStorage: { available: 50_000_000_000 },
+          persistentStorage: []
         },
         {
           name: "node-2",
           cpu: { available: 8000 },
           memory: { available: 16_000_000_000 },
           gpu: [{ vendor: "nvidia", model: "a100", available: 4 }],
-          eph_storage: { available: 200_000_000_000 },
-          persistent_storage: [{ class: "beta2", available: 1_000_000_000_000 }]
+          ephStorage: { available: 200_000_000_000 },
+          persistentStorage: [{ class: "beta2", available: 1_000_000_000_000 }]
         }
       ],
       storage: []
@@ -82,7 +81,7 @@ describe(computeRollups.name, () => {
   });
 
   it("deduplicates GPU models across nodes", () => {
-    const result = setup({
+    const result = computeRollups({
       nodes: [
         {
           name: "node-1",
@@ -92,16 +91,16 @@ describe(computeRollups.name, () => {
             { vendor: "nvidia", model: "a100", available: 1 },
             { vendor: "amd", model: "mi300x", available: 1 }
           ],
-          eph_storage: { available: 0 },
-          persistent_storage: []
+          ephStorage: { available: 0 },
+          persistentStorage: []
         },
         {
           name: "node-2",
           cpu: { available: 1000 },
           memory: { available: 1000 },
           gpu: [{ vendor: "nvidia", model: "a100", available: 2 }],
-          eph_storage: { available: 0 },
-          persistent_storage: []
+          ephStorage: { available: 0 },
+          persistentStorage: []
         }
       ],
       storage: []
@@ -111,15 +110,15 @@ describe(computeRollups.name, () => {
   });
 
   it("handles ephemeral-only storage", () => {
-    const result = setup({
+    const result = computeRollups({
       nodes: [
         {
           name: "node-1",
           cpu: { available: 1000 },
           memory: { available: 1000 },
           gpu: [],
-          eph_storage: { available: 500_000_000_000 },
-          persistent_storage: []
+          ephStorage: { available: 500_000_000_000 },
+          persistentStorage: []
         }
       ],
       storage: []
@@ -131,15 +130,15 @@ describe(computeRollups.name, () => {
   });
 
   it("handles persistent-only storage with multiple classes", () => {
-    const result = setup({
+    const result = computeRollups({
       nodes: [
         {
           name: "node-1",
           cpu: { available: 1000 },
           memory: { available: 1000 },
           gpu: [],
-          eph_storage: { available: 0 },
-          persistent_storage: [
+          ephStorage: { available: 0 },
+          persistentStorage: [
             { class: "beta2", available: 100_000_000_000 },
             { class: "beta3", available: 200_000_000_000 }
           ]
@@ -153,15 +152,15 @@ describe(computeRollups.name, () => {
   });
 
   it("collects storage classes from both nodes and cluster-level storage", () => {
-    const result = setup({
+    const result = computeRollups({
       nodes: [
         {
           name: "node-1",
           cpu: { available: 0 },
           memory: { available: 0 },
           gpu: [],
-          eph_storage: { available: 0 },
-          persistent_storage: [{ class: "beta2", available: 100 }]
+          ephStorage: { available: 0 },
+          persistentStorage: [{ class: "beta2", available: 100 }]
         }
       ],
       storage: [{ class: "beta3", available: 500 }]
@@ -171,15 +170,15 @@ describe(computeRollups.name, () => {
   });
 
   it("handles nodes with no GPUs", () => {
-    const result = setup({
+    const result = computeRollups({
       nodes: [
         {
           name: "node-1",
           cpu: { available: 4000 },
           memory: { available: 8_000_000_000 },
           gpu: [],
-          eph_storage: { available: 100_000_000_000 },
-          persistent_storage: []
+          ephStorage: { available: 100_000_000_000 },
+          persistentStorage: []
         }
       ],
       storage: []
@@ -191,15 +190,15 @@ describe(computeRollups.name, () => {
   });
 
   it("clamps negative values to zero (overcommit)", () => {
-    const result = setup({
+    const result = computeRollups({
       nodes: [
         {
           name: "overcommitted",
           cpu: { available: -500 },
           memory: { available: -1_000_000 },
           gpu: [{ vendor: "nvidia", model: "a100", available: -1 }],
-          eph_storage: { available: -100 },
-          persistent_storage: [{ class: "beta2", available: -200 }]
+          ephStorage: { available: -100 },
+          persistentStorage: [{ class: "beta2", available: -200 }]
         }
       ],
       storage: []
@@ -216,15 +215,15 @@ describe(computeRollups.name, () => {
   });
 
   it("handles all-zero capacity", () => {
-    const result = setup({
+    const result = computeRollups({
       nodes: [
         {
           name: "idle",
           cpu: { available: 0 },
           memory: { available: 0 },
           gpu: [],
-          eph_storage: { available: 0 },
-          persistent_storage: []
+          ephStorage: { available: 0 },
+          persistentStorage: []
         }
       ],
       storage: []
@@ -237,7 +236,7 @@ describe(computeRollups.name, () => {
   });
 
   it("sums GPU count per node for max-node-free-gpu", () => {
-    const result = setup({
+    const result = computeRollups({
       nodes: [
         {
           name: "node-1",
@@ -247,16 +246,16 @@ describe(computeRollups.name, () => {
             { vendor: "nvidia", model: "a100", available: 2 },
             { vendor: "nvidia", model: "h100", available: 3 }
           ],
-          eph_storage: { available: 0 },
-          persistent_storage: []
+          ephStorage: { available: 0 },
+          persistentStorage: []
         },
         {
           name: "node-2",
           cpu: { available: 0 },
           memory: { available: 0 },
           gpu: [{ vendor: "nvidia", model: "a100", available: 4 }],
-          eph_storage: { available: 0 },
-          persistent_storage: []
+          ephStorage: { available: 0 },
+          persistentStorage: []
         }
       ],
       storage: []
@@ -266,8 +265,4 @@ describe(computeRollups.name, () => {
     expect(result.totalAvailableGpu).toBe(9n);
     expect(result.gpuModels).toEqual(["nvidia/a100", "nvidia/h100"]);
   });
-
-  function setup(inventory: Inventory) {
-    return computeRollups(inventory);
-  }
 });

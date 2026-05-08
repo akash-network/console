@@ -15,7 +15,7 @@ export function computeRollups(inventory: Inventory): InventoryRollups {
   for (const node of inventory.nodes) {
     const nodeCpu = clampBigInt(node.cpu.available);
     const nodeMemory = clampBigInt(node.memory.available);
-    const nodeEph = clampBigInt(node.eph_storage.available);
+    const nodeEph = clampBigInt(node.ephStorage.available);
 
     totalAvailableCpu += nodeCpu;
     totalAvailableMemory += nodeMemory;
@@ -35,7 +35,7 @@ export function computeRollups(inventory: Inventory): InventoryRollups {
     }
     if (nodeGpuTotal > maxNodeFreeGpu) maxNodeFreeGpu = nodeGpuTotal;
 
-    for (const ps of node.persistent_storage) {
+    for (const ps of node.persistentStorage) {
       totalAvailablePersistent += clampBigInt(ps.available);
       if (ps.class) storageClassSet.add(ps.class);
     }
