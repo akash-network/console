@@ -13,9 +13,9 @@ export function computeRollups(inventory: Inventory): InventoryRollups {
   const storageClassSet = new Set<string>();
 
   for (const node of inventory.nodes) {
-    const nodeCpu = clampBigInt(node.cpu.available);
-    const nodeMemory = clampBigInt(node.memory.available);
-    const nodeEph = clampBigInt(node.ephStorage.available);
+    const nodeCpu = clamp(node.cpu.available);
+    const nodeMemory = clamp(node.memory.available);
+    const nodeEph = clamp(node.ephStorage.available);
 
     totalAvailableCpu += nodeCpu;
     totalAvailableMemory += nodeMemory;
@@ -26,7 +26,7 @@ export function computeRollups(inventory: Inventory): InventoryRollups {
 
     let nodeGpuTotal = 0n;
     for (const gpu of node.gpu) {
-      const gpuCount = clampBigInt(gpu.available);
+      const gpuCount = clamp(gpu.available);
       nodeGpuTotal += gpuCount;
       totalAvailableGpu += gpuCount;
       if (gpu.vendor && gpu.model) {
@@ -36,7 +36,7 @@ export function computeRollups(inventory: Inventory): InventoryRollups {
     if (nodeGpuTotal > maxNodeFreeGpu) maxNodeFreeGpu = nodeGpuTotal;
 
     for (const ps of node.persistentStorage) {
-      totalAvailablePersistent += clampBigInt(ps.available);
+      totalAvailablePersistent += clamp(ps.available);
       if (ps.class) storageClassSet.add(ps.class);
     }
   }
@@ -59,6 +59,6 @@ export function computeRollups(inventory: Inventory): InventoryRollups {
   };
 }
 
-function clampBigInt(value: number): bigint {
-  return BigInt(Math.max(0, value));
+function clamp(value: bigint): bigint {
+  return value < 0n ? 0n : value;
 }

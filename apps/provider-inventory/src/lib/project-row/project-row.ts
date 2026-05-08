@@ -6,22 +6,22 @@ export function projectRow(message: StreamStatusMessage): ProjectedRow {
   const inventory: Inventory = {
     nodes: message.nodes.map(node => ({
       name: node.name,
-      cpu: { available: node.cpuAvailable },
-      memory: { available: node.memoryAvailable },
+      cpu: { available: BigInt(node.cpuAvailable) },
+      memory: { available: BigInt(node.memoryAvailable) },
       gpu: node.gpus.map(g => ({
         vendor: g.vendor,
         model: g.model,
-        available: g.available
+        available: BigInt(g.available)
       })),
-      ephStorage: { available: node.ephStorageAvailable },
+      ephStorage: { available: BigInt(node.ephStorageAvailable) },
       persistentStorage: node.persistentStorage.map(ps => ({
         class: ps.class,
-        available: ps.available
+        available: BigInt(ps.available)
       }))
     })),
     storage: message.storage.map(s => ({
       class: s.class,
-      available: s.available
+      available: BigInt(s.available)
     }))
   };
 
