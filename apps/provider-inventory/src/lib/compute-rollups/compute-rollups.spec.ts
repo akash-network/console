@@ -25,11 +25,11 @@ describe(computeRollups.name, () => {
       nodes: [
         {
           name: "node-1",
-          cpu: { available: 4000n },
-          memory: { available: 8_000_000_000n },
-          gpu: [{ vendor: "nvidia", model: "a100", available: 2n }],
-          ephStorage: { available: 100_000_000_000n },
-          persistentStorage: [{ class: "beta2", available: 500_000_000_000n }]
+          cpu: { available: 4000 },
+          memory: { available: 8_000_000_000 },
+          gpu: [{ vendor: "nvidia", model: "a100", available: 2 }],
+          ephStorage: { available: 100_000_000_000 },
+          persistentStorage: [{ class: "beta2", available: 500_000_000_000 }]
         }
       ],
       storage: []
@@ -52,19 +52,19 @@ describe(computeRollups.name, () => {
       nodes: [
         {
           name: "node-1",
-          cpu: { available: 2000n },
-          memory: { available: 4_000_000_000n },
-          gpu: [{ vendor: "nvidia", model: "a100", available: 1n }],
-          ephStorage: { available: 50_000_000_000n },
+          cpu: { available: 2000 },
+          memory: { available: 4_000_000_000 },
+          gpu: [{ vendor: "nvidia", model: "a100", available: 1 }],
+          ephStorage: { available: 50_000_000_000 },
           persistentStorage: []
         },
         {
           name: "node-2",
-          cpu: { available: 8000n },
-          memory: { available: 16_000_000_000n },
-          gpu: [{ vendor: "nvidia", model: "a100", available: 4n }],
-          ephStorage: { available: 200_000_000_000n },
-          persistentStorage: [{ class: "beta2", available: 1_000_000_000_000n }]
+          cpu: { available: 8000 },
+          memory: { available: 16_000_000_000 },
+          gpu: [{ vendor: "nvidia", model: "a100", available: 4 }],
+          ephStorage: { available: 200_000_000_000 },
+          persistentStorage: [{ class: "beta2", available: 1_000_000_000_000 }]
         }
       ],
       storage: []
@@ -85,21 +85,21 @@ describe(computeRollups.name, () => {
       nodes: [
         {
           name: "node-1",
-          cpu: { available: 1000n },
-          memory: { available: 1000n },
+          cpu: { available: 1000 },
+          memory: { available: 1000 },
           gpu: [
-            { vendor: "nvidia", model: "a100", available: 1n },
-            { vendor: "amd", model: "mi300x", available: 1n }
+            { vendor: "nvidia", model: "a100", available: 1 },
+            { vendor: "amd", model: "mi300x", available: 1 }
           ],
-          ephStorage: { available: 0n },
+          ephStorage: { available: 0 },
           persistentStorage: []
         },
         {
           name: "node-2",
-          cpu: { available: 1000n },
-          memory: { available: 1000n },
-          gpu: [{ vendor: "nvidia", model: "a100", available: 2n }],
-          ephStorage: { available: 0n },
+          cpu: { available: 1000 },
+          memory: { available: 1000 },
+          gpu: [{ vendor: "nvidia", model: "a100", available: 2 }],
+          ephStorage: { available: 0 },
           persistentStorage: []
         }
       ],
@@ -114,10 +114,10 @@ describe(computeRollups.name, () => {
       nodes: [
         {
           name: "node-1",
-          cpu: { available: 1000n },
-          memory: { available: 1000n },
+          cpu: { available: 1000 },
+          memory: { available: 1000 },
           gpu: [],
-          ephStorage: { available: 500_000_000_000n },
+          ephStorage: { available: 500_000_000_000 },
           persistentStorage: []
         }
       ],
@@ -134,13 +134,13 @@ describe(computeRollups.name, () => {
       nodes: [
         {
           name: "node-1",
-          cpu: { available: 1000n },
-          memory: { available: 1000n },
+          cpu: { available: 1000 },
+          memory: { available: 1000 },
           gpu: [],
-          ephStorage: { available: 0n },
+          ephStorage: { available: 0 },
           persistentStorage: [
-            { class: "beta2", available: 100_000_000_000n },
-            { class: "beta3", available: 200_000_000_000n }
+            { class: "beta2", available: 100_000_000_000 },
+            { class: "beta3", available: 200_000_000_000 }
           ]
         }
       ],
@@ -156,14 +156,14 @@ describe(computeRollups.name, () => {
       nodes: [
         {
           name: "node-1",
-          cpu: { available: 0n },
-          memory: { available: 0n },
+          cpu: { available: 0 },
+          memory: { available: 0 },
           gpu: [],
-          ephStorage: { available: 0n },
-          persistentStorage: [{ class: "beta2", available: 100n }]
+          ephStorage: { available: 0 },
+          persistentStorage: [{ class: "beta2", available: 100 }]
         }
       ],
-      storage: [{ class: "beta3", available: 500n }]
+      storage: [{ class: "beta3", available: 500 }]
     });
 
     expect(result.storageClasses).toEqual(["beta2", "beta3"]);
@@ -174,10 +174,10 @@ describe(computeRollups.name, () => {
       nodes: [
         {
           name: "node-1",
-          cpu: { available: 4000n },
-          memory: { available: 8_000_000_000n },
+          cpu: { available: 4000 },
+          memory: { available: 8_000_000_000 },
           gpu: [],
-          ephStorage: { available: 100_000_000_000n },
+          ephStorage: { available: 100_000_000_000 },
           persistentStorage: []
         }
       ],
@@ -194,11 +194,11 @@ describe(computeRollups.name, () => {
       nodes: [
         {
           name: "overcommitted",
-          cpu: { available: -500n },
-          memory: { available: -1_000_000n },
-          gpu: [{ vendor: "nvidia", model: "a100", available: -1n }],
-          ephStorage: { available: -100n },
-          persistentStorage: [{ class: "beta2", available: -200n }]
+          cpu: { available: -500 },
+          memory: { available: -1_000_000 },
+          gpu: [{ vendor: "nvidia", model: "a100", available: -1 }],
+          ephStorage: { available: -100 },
+          persistentStorage: [{ class: "beta2", available: -200 }]
         }
       ],
       storage: []
@@ -219,10 +219,10 @@ describe(computeRollups.name, () => {
       nodes: [
         {
           name: "idle",
-          cpu: { available: 0n },
-          memory: { available: 0n },
+          cpu: { available: 0 },
+          memory: { available: 0 },
           gpu: [],
-          ephStorage: { available: 0n },
+          ephStorage: { available: 0 },
           persistentStorage: []
         }
       ],
@@ -240,21 +240,21 @@ describe(computeRollups.name, () => {
       nodes: [
         {
           name: "node-1",
-          cpu: { available: 0n },
-          memory: { available: 0n },
+          cpu: { available: 0 },
+          memory: { available: 0 },
           gpu: [
-            { vendor: "nvidia", model: "a100", available: 2n },
-            { vendor: "nvidia", model: "h100", available: 3n }
+            { vendor: "nvidia", model: "a100", available: 2 },
+            { vendor: "nvidia", model: "h100", available: 3 }
           ],
-          ephStorage: { available: 0n },
+          ephStorage: { available: 0 },
           persistentStorage: []
         },
         {
           name: "node-2",
-          cpu: { available: 0n },
-          memory: { available: 0n },
-          gpu: [{ vendor: "nvidia", model: "a100", available: 4n }],
-          ephStorage: { available: 0n },
+          cpu: { available: 0 },
+          memory: { available: 0 },
+          gpu: [{ vendor: "nvidia", model: "a100", available: 4 }],
+          ephStorage: { available: 0 },
           persistentStorage: []
         }
       ],

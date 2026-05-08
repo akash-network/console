@@ -1,26 +1,26 @@
 export interface InventoryNodeGpu {
   vendor: string;
   model: string;
-  available: bigint;
+  available: number;
 }
 
 export interface InventoryNodeStorage {
   class: string;
-  available: bigint;
+  available: number;
 }
 
 export interface InventoryNode {
   name: string;
-  cpu: { available: bigint };
-  memory: { available: bigint };
+  cpu: { available: number };
+  memory: { available: number };
   gpu: InventoryNodeGpu[];
-  ephStorage: { available: bigint };
+  ephStorage: { available: number };
   persistentStorage: InventoryNodeStorage[];
 }
 
 export interface InventoryClusterStorage {
   class: string;
-  available: bigint;
+  available: number;
 }
 
 export interface Inventory {

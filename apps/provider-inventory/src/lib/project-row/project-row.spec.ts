@@ -32,13 +32,13 @@ describe(projectRow.name, () => {
     expect(result.inventory.nodes).toHaveLength(1);
     expect(result.inventory.nodes[0]).toEqual({
       name: "node-1",
-      cpu: { available: 8000n },
-      memory: { available: 32_000_000_000n },
-      gpu: [{ vendor: "nvidia", model: "rtx4090", available: 1n }],
-      ephStorage: { available: 500_000_000_000n },
-      persistentStorage: [{ class: "beta2", available: 1_000_000_000_000n }]
+      cpu: { available: 8000 },
+      memory: { available: 32_000_000_000 },
+      gpu: [{ vendor: "nvidia", model: "rtx4090", available: 1 }],
+      ephStorage: { available: 500_000_000_000 },
+      persistentStorage: [{ class: "beta2", available: 1_000_000_000_000 }]
     });
-    expect(result.inventory.storage).toEqual([{ class: "beta2", available: 2_000_000_000_000n }]);
+    expect(result.inventory.storage).toEqual([{ class: "beta2", available: 2_000_000_000_000 }]);
 
     expect(result.totalAvailableCpu).toBe(8000n);
     expect(result.totalAvailableGpu).toBe(1n);

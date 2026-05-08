@@ -59,6 +59,6 @@ export function computeRollups(inventory: Inventory): InventoryRollups {
   };
 }
 
-function clamp(value: bigint): bigint {
-  return value < 0n ? 0n : value;
+function clamp(value: number): bigint {
+  return value < 0 ? 0n : BigInt(value);
 }
