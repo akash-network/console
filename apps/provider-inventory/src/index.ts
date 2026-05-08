@@ -14,13 +14,19 @@ import { HonoErrorHandlerService } from "@src/services/hono-error-handler/hono-e
 import { startServer } from "@src/services/start-server/start-server";
 import type { AppEnv } from "@src/types/app-context";
 
-export const app = new Hono<AppEnv>();
-app.use("*", otel({ captureRequestHeaders: ["baggage"] }));
-app.use(container.resolve(HttpLoggerInterceptor).intercept());
-app.route("/", healthzRouter);
-app.onError(container.resolve(HonoErrorHandlerService).handle);
+export function createApp(): Hono<AppEnv> {
+  const app = new Hono<AppEnv>();
+  app.use("*", otel({ captureRequestHeaders: ["baggage"] }));
+  app.use(container.resolve(HttpLoggerInterceptor).intercept());
+  app.route("/", healthzRouter);
+  app.onError(container.resolve(HonoErrorHandlerService).handle);
+
+  return app;
+}
 
 export async function bootstrap(): Promise<void> {
+  const app = createApp();
+
   await startServer(app, createOtelLogger({ context: "APP" }), process, {
     port: container.resolve(APP_CONFIG).PORT
   });

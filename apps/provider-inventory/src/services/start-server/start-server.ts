@@ -2,15 +2,21 @@ import type { LoggerService } from "@akashnetwork/logging";
 import type { ServerType } from "@hono/node-server";
 import { serve } from "@hono/node-server";
 import type EventEmitter from "events";
-import type { Env, Hono } from "hono";
+import type { Hono } from "hono";
 import { once } from "lodash";
 import type { DependencyContainer } from "tsyringe";
 import { container as rootContainer } from "tsyringe";
 
-import { shutdownServer } from "@src/services/shutdown-server/shutdown-server";
+import { shutdownServer } from "../shutdown-server/shutdown-server";
+import { APP_INITIALIZER, ON_APP_START } from "./app-initializer";
 
-export async function startServer<E extends Env>(
-  app: Hono<E>,
+/**
+ * Runs registered in container `APP_INITIALIZER`s
+ * Starts hono server
+ * Registers shutdown process signals
+ */
+export async function startServer(
+  app: Hono<any>,
   logger: LoggerService,
   processEvents: EventEmitter,
   options: {
@@ -38,10 +44,18 @@ export async function startServer<E extends Env>(
   });
   try {
     await options.beforeStart?.();
+    await Promise.all(container.resolveAll(APP_INITIALIZER).map(initializer => initializer[ON_APP_START]()));
 
     logger.info({ event: "SERVER_STARTING", url: `http://localhost:${options.port}`, NODE_OPTIONS: process.env.NODE_OPTIONS });
     server = serve({
-      fetch: app.fetch,
+      fetch: async (request, env) => {
+        try {
+          return await app.fetch(request, env);
+        } catch (error) {
+          logger.error({ event: "OUTSIDE_OF_APP_ERROR", error });
+          throw error;
+        }
+      },
       port: options.port
     });
 
@@ -53,5 +67,6 @@ export async function startServer<E extends Env>(
   } catch (error) {
     logger.error({ event: "SERVER_START_ERROR", error });
     await shutdown("SERVER_START_ERROR");
+    throw error;
   }
 }
