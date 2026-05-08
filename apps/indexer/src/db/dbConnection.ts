@@ -12,6 +12,9 @@ if (!activeChain.connectionString) {
 
 export const sequelize = new Sequelize(activeChain.connectionString, {
   dialectModule: pg,
+  dialectOptions: {
+    application_name: `akash-indexer-${activeChain.code}`
+  },
   logging: false,
   transactionType: DbTransaction.TYPES.IMMEDIATE,
   define: {
