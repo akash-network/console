@@ -10,7 +10,9 @@ import { container } from "tsyringe";
 
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 import { healthzRouter } from "@src/routes";
+import { DiscoverySchedulerService } from "@src/services/discovery-scheduler/discovery-scheduler.service";
 import { HonoErrorHandlerService } from "@src/services/hono-error-handler/hono-error-handler.service";
+import { ProviderInventoryWriterService } from "@src/services/provider-inventory-writer/provider-inventory-writer.service";
 import { startServer } from "@src/services/start-server/start-server";
 import type { AppEnv } from "@src/types/app-context";
 
@@ -28,6 +30,10 @@ export async function bootstrap(): Promise<void> {
   const app = createApp();
 
   await startServer(app, createOtelLogger({ context: "APP" }), process, {
-    port: container.resolve(APP_CONFIG).PORT
+    port: container.resolve(APP_CONFIG).PORT,
+    beforeStart: async () => {
+      await container.resolve(ProviderInventoryWriterService).resetOnlineSince();
+      container.resolve(DiscoverySchedulerService).start();
+    }
   });
 }
