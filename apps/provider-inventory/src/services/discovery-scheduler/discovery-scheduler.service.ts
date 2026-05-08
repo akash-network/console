@@ -11,11 +11,11 @@ import { StreamLifecycleManagerService } from "@src/services/stream-lifecycle-ma
 
 @singleton()
 export class DiscoverySchedulerService {
-  #logger: LoggerService;
-  #poller: ChainProviderPollerService;
-  #writer: ProviderInventoryWriterService;
-  #lifecycle: StreamLifecycleManagerService;
-  #config: EnvConfig;
+  readonly #logger: LoggerService;
+  readonly #poller: ChainProviderPollerService;
+  readonly #writer: ProviderInventoryWriterService;
+  readonly #lifecycle: StreamLifecycleManagerService;
+  readonly #config: EnvConfig;
   #timer: ReturnType<typeof setTimeout> | null = null;
   #running = false;
 

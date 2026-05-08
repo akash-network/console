@@ -12,8 +12,8 @@ import type { ProjectedRow } from "@src/types/inventory";
 
 @singleton()
 export class ProviderInventoryWriterService {
-  #logger: LoggerService;
-  #db: PostgresJsDatabase;
+  readonly #logger: LoggerService;
+  readonly #db: PostgresJsDatabase;
 
   constructor(@inject(DRIZZLE_DB) db: PostgresJsDatabase, @inject(LOGGER_FACTORY) loggerFactory: LoggerFactory) {
     this.#db = db;

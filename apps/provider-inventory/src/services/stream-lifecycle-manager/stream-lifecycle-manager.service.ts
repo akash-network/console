@@ -11,10 +11,10 @@ import type { ChainProvider } from "@src/types/chain-provider";
 
 @singleton()
 export class StreamLifecycleManagerService {
-  #logger: LoggerService;
-  #streamFactory: ProviderStreamFactory;
-  #writer: ProviderInventoryWriterService;
-  #activeStreams = new Map<string, AbortController>();
+  readonly #logger: LoggerService;
+  readonly #streamFactory: ProviderStreamFactory;
+  readonly #writer: ProviderInventoryWriterService;
+  readonly #activeStreams = new Map<string, AbortController>();
 
   constructor(
     @inject(PROVIDER_STREAM_FACTORY) streamFactory: ProviderStreamFactory,

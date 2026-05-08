@@ -9,8 +9,8 @@ import type { ChainProvider } from "@src/types/chain-provider";
 
 @singleton()
 export class ChainProviderPollerService {
-  #logger: LoggerService;
-  #chainClient: ChainQueryClient;
+  readonly #logger: LoggerService;
+  readonly #chainClient: ChainQueryClient;
 
   constructor(@inject(CHAIN_QUERY_CLIENT) chainClient: ChainQueryClient, @inject(LOGGER_FACTORY) loggerFactory: LoggerFactory) {
     this.#chainClient = chainClient;
