@@ -67,7 +67,9 @@ export class StreamLifecycleManagerService {
         this.#logger.error({ event: "STREAM_ERROR", owner: provider.owner, error });
       }
     } finally {
-      this.#activeStreams.delete(provider.owner);
+      if (this.#activeStreams.get(provider.owner)?.signal === signal) {
+        this.#activeStreams.delete(provider.owner);
+      }
     }
   }
 
