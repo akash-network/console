@@ -3,6 +3,7 @@ import postgres from "postgres";
 import type { InjectionToken } from "tsyringe";
 import { container, instancePerContainerCachingFactory } from "tsyringe";
 
+import { parseJsonb, serializeJsonb } from "@src/lib/jsonb-bigint/jsonb-bigint";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 
 const logger = createOtelLogger({ context: "POSTGRES" });
@@ -14,7 +15,16 @@ container.register(APP_PG_CLIENT, {
     const config = c.resolve(APP_CONFIG);
     return postgres(config.PROVIDER_INVENTORY_POSTGRES_URL, {
       max: 10,
-      onnotice: logger.info.bind(logger)
+      onnotice: logger.info.bind(logger),
+      types: {
+        bigint: postgres.BigInt,
+        json: {
+          to: 114, // OID 114 = json
+          from: [114, 3802], // 114 = json, 3802 = jsonb
+          serialize: serializeJsonb,
+          parse: parseJsonb
+        }
+      }
     });
   })
 });
