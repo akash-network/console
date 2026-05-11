@@ -6,7 +6,7 @@
 
   # Akash Console
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+[English](README.md) | [simplified chinese](README.zh-CN.md)
 
 **Akash Console** is a powerful application that allows you to deploy any [Docker container](https://www.docker.com/) on the [Akash Network](https://akash.network) with just a few clicks. 🚀
 

@@ -6,9 +6,9 @@
 
   # Akash Console
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+[English](README.md) | [simplified chinese](README.zh-CN.md)
 
-**Akash Console** 是一个功能强大的应用，只需点击几下，即可在 [Akash Network](https://akash.network) 上部署任意 [Docker 容器](https://www.docker.com/)。🚀
+**Akash Console** 是一个功能非常强大的应用，只需点击几下，即可在 [Akash Network](https://akash.network) 上部署任意 [Docker 容器](https://www.docker.com/)。🚀
 
 如需深入了解代码，请参阅 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/akash-network/console)
 
@@ -88,7 +88,7 @@ npm run dc:up:dev # Run the services in development mode
 npm run dc:down # Stop the services referencing any possible service
 ```
 
-注意：你可以将任何 `docker compose` 相关参数传递给上述命令。例如，仅以开发模式启动 `deploy-web` 服务：
+注意：您可以将任何 `docker compose` 相关参数传递给上述命令。例如，仅以开发模式启动 `deploy-web` 服务：
 
 ```shell
 npm run dc:up:dev -- deploy-web
@@ -107,7 +107,7 @@ npm run api:dev # run api in dev mode with dependencies
 npm run indexer:dev # run indexer in dev mode with dependencies
 ```
 
-请注意，上述命令仍依赖 docker 来运行 postgres database。如果你需要在不使用 db 的情况下运行它们，可以使用以下命令：
+请注意，上述命令仍依赖 docker 来运行 postgres database。如果您需要在不使用 db 的情况下运行它们，可以使用以下命令：
 
 ```shell
 npm run console:dev:no-db # run console ui in dev mode with dependencies but without postgres in docker
@@ -128,7 +128,7 @@ npm run stats:dev:no-db # run stats ui in dev mode with dependencies but without
 ### 恢复步骤
 
 1. 创建 PostgreSQL 数据库。
-2. 使用 `psql` 恢复数据库。请确保你的系统已安装 PostgreSQL 工具。
+2. 使用 `psql` 恢复数据库。请确保您的系统已安装 PostgreSQL 工具。
 
 对于 .sql.gz 文件：
 
@@ -136,7 +136,7 @@ npm run stats:dev:no-db # run stats ui in dev mode with dependencies but without
 gunzip -c /path/to/console-akash-sandbox.sql.gz | psql --host "localhost" --port "5432" --username "postgres" --dbname "console-akash"
 ```
 
-恢复数据库后，你可以继续按照具体项目的 README 说明进行后续设置并运行应用。
+恢复数据库后，您可以继续按照具体项目的 README 说明进行后续设置并运行应用。
 
 ## 服务
 
@@ -159,7 +159,7 @@ gunzip -c /path/to/console-akash-sandbox.sql.gz | psql --host "localhost" --port
 
 ## 贡献
 
-如果你想为 Akash Console 的开发做出贡献，请参阅 [CONTRIBUTING.zh-CN.md](./CONTRIBUTING.zh-CN.md) 文件中列出的指南。
+如果您想为 Akash Console 的开发做出贡献，请参阅 [CONTRIBUTING.zh-CN.md](./CONTRIBUTING.zh-CN.md) 文件中列出的指南。
 
 ## 许可证
 
