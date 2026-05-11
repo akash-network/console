@@ -1,5 +1,7 @@
 # 🔐 Auth
 
+[English](auth.md) | [simplified chinese](auth.zh-CN.md)
+
 Akash Network apps implement the OAuth2 spec for login flow.  
 For local development, it is possible to use [mock-oauth2-server](https://github.com/navikt/mock-oauth2-server).
 

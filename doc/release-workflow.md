@@ -1,5 +1,7 @@
 # Release Workflow Documentation
 
+[English](release-workflow.md) | [simplified chinese](release-workflow.zh-CN.md)
+
 ## Overview
 
 This release workflow uses **GitHub Actions**, a custom **releaser package** (`packages/releaser`), and **Docker** to automate versioning, changelog generation, image builds, and deployments. The workflow adheres to **Semantic Versioning (SemVer)** driven entirely by **Conventional Commits**.

@@ -1,5 +1,7 @@
 # Environment Variables & Configuration
 
+[English](apps-configuration.md) | [simplified chinese](apps-configuration.zh-CN.md)
+
 ## Overview
 
 Both the **Next.js frontend** and **Node.js backend** applications use environment variables to manage configuration. This guide provides a unified approach to managing these variables, along with **Zod**-based validation for ensuring correctness across both apps.
@@ -117,4 +119,3 @@ By following this approach, we ensure a secure, scalable, and consistent configu
 ### Disclaimer
 
 If you find any inconsistencies in the codebase compared to this documentation, please raise an issue or create a pull request to update the codebase accordingly. This documentation serves as the source of truth for managing environment variables and configurations across the applications.
-

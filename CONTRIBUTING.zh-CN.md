@@ -4,11 +4,11 @@
 
 ### 概述
 
-感谢你考虑为 Akash Network Console 仓库做出贡献。这些指南旨在确保所有贡献都有价值、可行，并维护项目的质量标准。
+感谢您考虑为 Akash Network Console 仓库做出贡献。这些指南旨在确保所有贡献都有价值、可行，并维护项目的质量标准。
 
 ### I. 贡献前
 
-1. **创建 Issue**：在进行更改前，请创建一个 issue 来讨论你提议的功能或 bug fix。
+1. **创建 Issue**：在进行更改前，请创建一个 issue 来讨论您提议的功能或 bug fix。
 2. **清晰描述**：提供对更改的清晰描述，包括 issue labels 中指定的任何必需信息。
 
 ### II. Pull Requests
@@ -42,16 +42,16 @@ feat(wallet): add a new function to compute wallet balance
 
 ### V. 代码质量和可读性
 
-- **应用代码可读性最佳实践**：确保你的代码遵循已建立的代码标准、文档和格式化最佳实践。
+- **应用代码可读性最佳实践**：确保您的代码遵循已建立的代码标准、文档和格式化最佳实践。
 - **包含 Unit Tests（适用时）**：可验证的 unit tests 有助于维护代码质量，并防止引入其他 bug。
-- **Linting**：运行 `npm run lint:fix`，确保你的代码已正确格式化。
+- **Linting**：运行 `npm run lint:fix`，确保您的代码已正确格式化。
 
 ### 大型功能
 
 对于大型功能或重大更改：
 
 1. Fork 主仓库。
-2. 以小规模、增量式 pull requests 的方式在你的 fork 中实现功能。
+2. 以小规模、增量式 pull requests 的方式在您的 fork 中实现功能。
 3. 这使我们能够逐步审查更改，并在整个开发过程中提供指导。
 4. 功能完成并在 fork 上经过审查流程后，我们就可以将其合并到主仓库。
 
@@ -59,12 +59,12 @@ feat(wallet): add a new function to compute wallet balance
 
 ### 贡献流程概览
 
-如果你已准备好贡献，请遵循我们的指南：
+如果您已准备好贡献，请遵循我们的指南：
 
-- 创建 issue，描述你想处理的 bug 或功能
+- 创建 issue，描述您想处理的 bug 或功能
 - issue 创建并经过审查后，按照上述指南进行更改
-- 对你的贡献满意后，按照我们的指南提交 pull request
-- Core Developer Team 成员会相应地协助并审查你包含的更改。
+- 对您的贡献满意后，按照我们的指南提交 pull request
+- Core Developer Team 成员会相应地协助并审查您包含的更改。
 
 请注意，此流程允许多位开发者有效协作，并为一个长期存在的实体，即本项目，维护高质量代码。
 
@@ -85,4 +85,4 @@ feat(wallet): add a new function to compute wallet balance
 
 更多详情请参阅 [`.claude/README.md`](./.claude/README.md)。
 
-*你对遵循这些规范的承诺将带来改变。*
+*您对遵循这些规范的承诺将带来改变。*

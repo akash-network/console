@@ -24,13 +24,13 @@
 ## 目录
 
 - [快速开始](#快速开始)
-- [应用配置](./doc/apps-configuration.md)
-- [身份认证](./doc/auth.md)
+- [应用配置](./doc/apps-configuration.zh-CN.md)
+- [身份认证](./doc/auth.zh-CN.md)
 - [服务](#服务)
 - [运行应用](#运行应用)
 - [手动数据库恢复](#手动数据库恢复)
-- [数据库结构](./doc/database-structure.md)
-- [发布工作流](./doc/release-workflow.md)
+- [数据库结构](./doc/database-structure.zh-CN.md)
+- [发布工作流](./doc/release-workflow.zh-CN.md)
 - [贡献](#贡献)
 - [许可证](#许可证)
 

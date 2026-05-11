@@ -1,5 +1,7 @@
 # Console Monorepo
 
+[English](BUILD.md) | [simplified chinese](BUILD.zh-CN.md)
+
 ## Projects
 
 - [Deploy](/apps/deploy-web/README.md) - NextJS frontend for Console

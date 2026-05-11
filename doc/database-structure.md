@@ -1,5 +1,7 @@
 ## Database Structure
 
+[English](database-structure.md) | [simplified chinese](database-structure.zh-CN.md)
+
 Our project uses a dual ORM approach for database management:
 
 1. **Sequelize-TypeScript**: 
