@@ -95,7 +95,7 @@
     "@swc/core@1.11.10",
     "@swc/core@1.15.10",
     "@swc/core@1.15.11",
-    "@sentry/cli@2.39.1",
+    "@sentry/cli@2.58.5",
     "unrs-resolver@1.3.3",
     "sharp@0.34.5"
   ]
