@@ -3,6 +3,7 @@ import type { RetryPolicy } from "cockatiel";
 import { ExponentialBackoff, handleAll, retry } from "cockatiel";
 import { inject, singleton } from "tsyringe";
 
+import type { StreamHandle } from "@src/lib/discovery-reconciler/discovery-reconciler";
 import { projectRow } from "@src/lib/project-row/project-row";
 import { projectedRowsEqual } from "@src/lib/projected-row-equals/projected-row-equals";
 import type { EnvConfig } from "@src/providers/app-config.provider";
@@ -11,25 +12,29 @@ import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
 import type { ProviderStreamFactory } from "@src/providers/provider-stream.provider";
 import { PROVIDER_STREAM_FACTORY } from "@src/providers/provider-stream.provider";
-import { ProviderInventoryWriterService } from "@src/services/provider-inventory-writer/provider-inventory-writer.service";
+import { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
 import type { ChainProvider } from "@src/types/chain-provider";
 import type { ProjectedRow } from "@src/types/inventory";
-
-const RETRY_EXPONENT = 2;
 
 @singleton()
 export class StreamLifecycleManagerService {
   readonly #logger: LoggerService;
   readonly #streamFactory: ProviderStreamFactory;
-  readonly #writer: ProviderInventoryWriterService;
+  readonly #writer: ProviderInventoryRepository;
   readonly #config: EnvConfig;
-  readonly #activeStreams = new Map<string, AbortController>();
+  readonly #activeStreams = new Map<
+    string,
+    {
+      controller: AbortController;
+      hostUri: string;
+    }
+  >();
   readonly #lastInventoryPerProvider = new Map<string, ProjectedRow>();
   readonly #retryStreamPolicy: RetryPolicy;
 
   constructor(
     @inject(PROVIDER_STREAM_FACTORY) streamFactory: ProviderStreamFactory,
-    @inject(ProviderInventoryWriterService) writer: ProviderInventoryWriterService,
+    @inject(ProviderInventoryRepository) writer: ProviderInventoryRepository,
     @inject(LOGGER_FACTORY) loggerFactory: LoggerFactory,
     @inject(APP_CONFIG) config: EnvConfig
   ) {
@@ -41,45 +46,55 @@ export class StreamLifecycleManagerService {
       maxAttempts: Number.POSITIVE_INFINITY,
       backoff: new ExponentialBackoff({
         initialDelay: this.#config.STREAM_RECONNECT_INITIAL_DELAY_MS,
-        maxDelay: this.#config.STREAM_RECONNECT_MAX_DELAY_MS,
-        exponent: RETRY_EXPONENT
+        maxDelay: this.#config.STREAM_RECONNECT_MAX_DELAY_MS
       })
     });
   }
 
-  reconcile(providers: ChainProvider[]): void {
-    const currentOwners = new Set(providers.map(p => p.owner));
-
-    for (const [owner, controller] of this.#activeStreams) {
-      if (!currentOwners.has(owner)) {
-        controller.abort();
-        this.#activeStreams.delete(owner);
-        this.#lastInventoryPerProvider.delete(owner);
-        void this.#tryMarkOffline(owner);
-        this.#logger.info({ event: "STREAM_STOPPED_PROVIDER_GONE", owner });
-      }
+  getRegistry(): ReadonlyMap<string, StreamHandle> {
+    const view = new Map<string, StreamHandle>();
+    for (const [owner, stream] of this.#activeStreams) {
+      view.set(owner, { hostUri: stream.hostUri });
     }
+    return view;
+  }
 
-    for (const provider of providers) {
-      if (this.#activeStreams.has(provider.owner)) continue;
-      this.#startStream(provider);
+  start(provider: ChainProvider): void {
+    const controller = new AbortController();
+    this.#activeStreams.set(provider.owner, { controller, hostUri: provider.hostUri });
+    void this.#runStream(provider, controller.signal);
+  }
+
+  restart(provider: ChainProvider): void {
+    this.#abortIfActive(provider.owner, "STREAM_STOPPED_HOSTURI_CHANGE");
+    this.start(provider);
+  }
+
+  async stopAndDelete(owner: string): Promise<void> {
+    this.#abortIfActive(owner, "STREAM_STOPPED_PROVIDER_GONE");
+    try {
+      await this.#writer.deleteByOwner(owner);
+    } catch (error) {
+      this.#logger.error({ event: "STREAM_PROVIDER_DELETE_ERROR", owner, error });
     }
   }
 
-  #startStream(provider: ChainProvider): void {
-    const controller = new AbortController();
-    this.#activeStreams.set(provider.owner, controller);
-    void this.#runStream(provider, controller.signal);
+  #abortIfActive(owner: string, event: string): void {
+    const existing = this.#activeStreams.get(owner);
+    if (!existing) return;
+    existing.controller.abort();
+    this.#activeStreams.delete(owner);
+    this.#logger.info({ event, owner });
   }
 
   async #runStream(provider: ChainProvider, signal: AbortSignal): Promise<void> {
     try {
-      await this.#retryStreamPolicy.execute((ctx) => {
+      await this.#retryStreamPolicy.execute(ctx => {
         if (ctx.attempt > 0) {
           this.#logger.warn({
             event: "STREAM_RECONNECTING",
             owner: provider.owner,
-            attempt: ctx.attempt,
+            attempt: ctx.attempt
           });
         }
         return this.#runAttempt(provider, signal);
@@ -90,7 +105,7 @@ export class StreamLifecycleManagerService {
       }
     } finally {
       this.#lastInventoryPerProvider.delete(provider.owner);
-      if (this.#activeStreams.get(provider.owner)?.signal === signal) {
+      if (this.#activeStreams.get(provider.owner)?.controller.signal === signal) {
         this.#activeStreams.delete(provider.owner);
       }
     }
@@ -126,7 +141,7 @@ export class StreamLifecycleManagerService {
       await this.#tryMarkOffline(provider.owner);
 
       if (firstMessageReceived) {
-        throw new Error("stream ended after delivering messages")
+        throw new Error("stream ended after delivering messages");
       }
       throw new Error("first message not received within timeout");
     } catch (error) {
@@ -149,7 +164,7 @@ export class StreamLifecycleManagerService {
     }
 
     try {
-      await this.#writer.upsertInventory(provider, row);
+      await this.#writer.updateInventory(provider, row);
       this.#lastInventoryPerProvider.set(provider.owner, row);
     } catch (error) {
       this.#logger.error({ event: "STREAM_PROVIDER_WRITE_ERROR", owner: provider.owner, error });
@@ -165,8 +180,8 @@ export class StreamLifecycleManagerService {
   }
 
   shutdown(): void {
-    for (const [owner, controller] of this.#activeStreams) {
-      controller.abort();
+    for (const [owner, stream] of this.#activeStreams) {
+      stream.controller.abort();
       this.#logger.info({ event: "STREAM_CLOSED", owner });
     }
     this.#activeStreams.clear();
