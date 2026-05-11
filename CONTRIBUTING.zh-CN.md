@@ -66,7 +66,7 @@ feat(wallet): add a new function to compute wallet balance
 - 对您的贡献满意后，按照我们的指南提交 pull request
 - Core Developer Team 成员会相应地协助并审查您包含的更改。
 
-请注意，此流程允许多位开发者有效协作，并为一个长期存在的实体，即本项目，维护高质量代码。
+请注意，此流程允许多位开发者有效协作，并为这个长期存在的项目维护高质量代码。
 
 ### AI Coding Guidelines
 

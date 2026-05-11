@@ -8,7 +8,7 @@
 
 [English](README.md) | [Simplified Chinese](README.zh-CN.md)
 
-**Akash Console** 是一个功能非常强大的应用，只需点击几下，即可在 [Akash Network](https://akash.network) 上部署任意 [Docker 容器](https://www.docker.com/)。🚀
+**Akash Console** 是一个功能强大的应用，只需点击几下，即可在 [Akash Network](https://akash.network) 上部署任意 [Docker 容器](https://www.docker.com/)。🚀
 
 如需深入了解代码，请参阅 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/akash-network/console)
 
