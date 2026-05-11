@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { mock } from "vitest-mock-extended";
+import type { LoggerService } from "@akashnetwork/logging";
+import { setTimeout as delay } from "node:timers/promises";
+import { describe, expect, it, vi } from "vitest";
+import { mock, type MockProxy } from "vitest-mock-extended";
 
+import type { EnvConfig } from "@src/providers/app-config.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import type { ProviderStreamFactory } from "@src/providers/provider-stream.provider";
 import type { ProviderInventoryWriterService } from "@src/services/provider-inventory-writer/provider-inventory-writer.service";
@@ -11,31 +14,23 @@ import { StreamLifecycleManagerService } from "./stream-lifecycle-manager.servic
 describe(StreamLifecycleManagerService.name, () => {
   describe("reconcile", () => {
     it("opens a stream for a new provider", async () => {
-      const message = createMessage();
-      const { streamFactory } = setup({
-        streams: { "https://p1:8443": [message] }
-      });
+      const { streamFactory } = setup({ streams: { "https://p1:8443": "hang" } });
 
       expect(streamFactory.openStatusStream).toHaveBeenCalledWith("https://p1:8443", expect.any(AbortSignal));
     });
 
-    it("calls upsertInventory for each stream message", async () => {
+    it("calls upsertInventory for each unique stream message", async () => {
       const messages = [createMessage({ cpu: 1000 }), createMessage({ cpu: 2000 })];
-      const { writer, providers } = setup({
-        streams: { "https://p1:8443": messages }
-      });
+      const { writer, providers } = setup({ streams: { "https://p1:8443": msgsThenHang(messages) } });
 
-      await flush();
+      await vi.waitFor(() => expect(writer.upsertInventory).toHaveBeenCalledTimes(2));
 
-      expect(writer.upsertInventory).toHaveBeenCalledTimes(2);
       expect(writer.upsertInventory).toHaveBeenCalledWith(providers[0], expect.objectContaining({ totalAvailableCpu: 1000n }));
       expect(writer.upsertInventory).toHaveBeenCalledWith(providers[0], expect.objectContaining({ totalAvailableCpu: 2000n }));
     });
 
     it("skips providers that already have an active stream", async () => {
-      const { manager, streamFactory, providers } = setup({
-        streams: { "https://p1:8443": [createMessage()] }
-      });
+      const { manager, streamFactory, providers } = setup({ streams: { "https://p1:8443": "hang" } });
 
       manager.reconcile(providers);
 
@@ -43,30 +38,26 @@ describe(StreamLifecycleManagerService.name, () => {
     });
 
     it("stops streams for providers absent from the new list", async () => {
-      const signals: AbortSignal[] = [];
-      const { manager, streamFactory } = setup({
-        streams: { "https://p1:8443": "hang" }
-      });
-      signals.push(captureSignal(streamFactory));
+      const { manager, streamFactory } = setup({ streams: { "https://p1:8443": "hang" } });
+      const signal = captureSignal(streamFactory);
 
       manager.reconcile([]);
 
-      expect(signals[0].aborted).toBe(true);
+      expect(signal.aborted).toBe(true);
     });
 
     it("opens streams for new providers while stopping removed ones", async () => {
-      const signals: AbortSignal[] = [];
       const providerA = createProvider({ owner: "a", hostUri: "https://a:8443" });
       const providerB = createProvider({ owner: "b", hostUri: "https://b:8443" });
       const { manager, streamFactory } = setup({
         providers: [providerA],
-        streams: { "https://a:8443": "hang", "https://b:8443": [createMessage()] }
+        streams: { "https://a:8443": "hang", "https://b:8443": "hang" }
       });
-      signals.push(captureSignal(streamFactory));
+      const signal = captureSignal(streamFactory);
 
       manager.reconcile([providerB]);
 
-      expect(signals[0].aborted).toBe(true);
+      expect(signal.aborted).toBe(true);
       expect(streamFactory.openStatusStream).toHaveBeenCalledWith("https://b:8443", expect.any(AbortSignal));
     });
   });
@@ -74,23 +65,25 @@ describe(StreamLifecycleManagerService.name, () => {
   describe("diff cache", () => {
     it("performs a single write when two consecutive identical messages arrive", async () => {
       const message = createMessage({ cpu: 1000 });
-      const { writer } = setup({
-        streams: { "https://p1:8443": [message, structuredClone(message)] }
+      const { writer, logger } = setup({
+        streams: { "https://p1:8443": msgsThenHang([message, structuredClone(message)]) }
       });
 
-      await flush();
+      await vi.waitFor(() =>
+        expect(logger.debug).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_MESSAGE_SKIPPED_IDENTICAL" }))
+      );
 
       expect(writer.upsertInventory).toHaveBeenCalledTimes(1);
     });
 
     it("writes again when any meaningful field differs", async () => {
       const { writer } = setup({
-        streams: { "https://p1:8443": [createMessage({ cpu: 1000 }), createMessage({ cpu: 1001 })] }
+        streams: {
+          "https://p1:8443": msgsThenHang([createMessage({ cpu: 1000 }), createMessage({ cpu: 1001 })])
+        }
       });
 
-      await flush();
-
-      expect(writer.upsertInventory).toHaveBeenCalledTimes(2);
+      await vi.waitFor(() => expect(writer.upsertInventory).toHaveBeenCalledTimes(2));
     });
 
     it("considers messages with reordered nodes/gpus/storage equal", async () => {
@@ -136,11 +129,13 @@ describe(StreamLifecycleManagerService.name, () => {
         storage: [...first.storage].reverse()
       };
 
-      const { writer } = setup({
-        streams: { "https://p1:8443": [first, reordered] }
+      const { writer, logger } = setup({
+        streams: { "https://p1:8443": msgsThenHang([first, reordered]) }
       });
 
-      await flush();
+      await vi.waitFor(() =>
+        expect(logger.debug).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_MESSAGE_SKIPPED_IDENTICAL" }))
+      );
 
       expect(writer.upsertInventory).toHaveBeenCalledTimes(1);
     });
@@ -148,41 +143,20 @@ describe(StreamLifecycleManagerService.name, () => {
     it("writes the first message even when it would later be cacheable", async () => {
       const message = createMessage();
       const { writer } = setup({
-        streams: { "https://p1:8443": [message] }
+        streams: { "https://p1:8443": msgsThenHang([message]) }
       });
 
-      await flush();
-
-      expect(writer.upsertInventory).toHaveBeenCalledTimes(1);
+      await vi.waitFor(() => expect(writer.upsertInventory).toHaveBeenCalledTimes(1));
     });
 
     it("does not cache a row when the write fails — next identical message retries", async () => {
       const message = createMessage();
       const { writer } = setup({
-        streams: { "https://p1:8443": [message, structuredClone(message)] }
+        streams: { "https://p1:8443": msgsThenHang([message, structuredClone(message)]) }
       });
       writer.upsertInventory.mockRejectedValueOnce(new Error("DB down"));
 
-      await flush();
-
-      expect(writer.upsertInventory).toHaveBeenCalledTimes(2);
-    });
-
-    it("tracks skipped no-op messages via getStats", async () => {
-      const message = createMessage();
-      const { manager } = setup({
-        streams: { "https://p1:8443": [message, structuredClone(message), structuredClone(message)] }
-      });
-
-      await flush();
-
-      expect(manager.getStats().noopMessagesSkipped).toBe(2);
-    });
-
-    it("reports zero skipped messages when none have arrived", () => {
-      const { manager } = setup({ streams: { "https://p1:8443": "hang" } });
-
-      expect(manager.getStats().noopMessagesSkipped).toBe(0);
+      await vi.waitFor(() => expect(writer.upsertInventory).toHaveBeenCalledTimes(2));
     });
 
     it("isolates caches across providers", async () => {
@@ -190,15 +164,18 @@ describe(StreamLifecycleManagerService.name, () => {
       const providerB = createProvider({ owner: "b", hostUri: "https://b:8443" });
       const messageA = createMessage({ cpu: 1000 });
       const messageB = createMessage({ cpu: 1000 });
-      const { writer } = setup({
+      const { writer, logger } = setup({
         providers: [providerA, providerB],
         streams: {
-          "https://a:8443": [messageA, structuredClone(messageA)],
-          "https://b:8443": [messageB]
+          "https://a:8443": msgsThenHang([messageA, structuredClone(messageA)]),
+          "https://b:8443": msgsThenHang([messageB])
         }
       });
 
-      await flush();
+      await vi.waitFor(() => expect(writer.upsertInventory).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() =>
+        expect(logger.debug).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_MESSAGE_SKIPPED_IDENTICAL", owner: "a" }))
+      );
 
       expect(writer.upsertInventory).toHaveBeenCalledWith(providerA, expect.objectContaining({ totalAvailableCpu: 1000n }));
       expect(writer.upsertInventory).toHaveBeenCalledWith(providerB, expect.objectContaining({ totalAvailableCpu: 1000n }));
@@ -209,37 +186,27 @@ describe(StreamLifecycleManagerService.name, () => {
   describe("error handling", () => {
     it("logs and continues when upsertInventory throws", async () => {
       const messages = [createMessage({ cpu: 1000 }), createMessage({ cpu: 2000 })];
-      const { writer, logger } = setup({
-        streams: { "https://p1:8443": messages }
-      });
+      const { writer, logger } = setup({ streams: { "https://p1:8443": msgsThenHang(messages) } });
       writer.upsertInventory.mockRejectedValueOnce(new Error("DB down"));
 
-      await flush();
+      await vi.waitFor(() => expect(writer.upsertInventory).toHaveBeenCalledTimes(2));
 
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_PROVIDER_WRITE_ERROR", owner: "akash1owner" }));
-      expect(writer.upsertInventory).toHaveBeenCalledTimes(2);
     });
 
-    it("logs stream-level errors", async () => {
-      const { logger } = setup({
-        streams: { "https://p1:8443": new Error("connection lost") }
+    it("logs each failed attempt as STREAM_ATTEMPT_FAILED", async () => {
+      let attempt = 0;
+      const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.openStatusStream.mockImplementation(() => {
+        attempt++;
+        if (attempt === 1) return throwingStream(new Error("connection lost"));
+        return msgsThenHang([createMessage()]);
       });
+      const { logger } = setup({ streamFactory });
 
-      await flush();
-
-      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_ERROR", owner: "akash1owner" }));
-    });
-
-    it("does not log AbortError", async () => {
-      const abortError = new Error("aborted");
-      abortError.name = "AbortError";
-      const { logger } = setup({
-        streams: { "https://p1:8443": abortError }
-      });
-
-      await flush();
-
-      expect(logger.error).not.toHaveBeenCalled();
+      await vi.waitFor(() =>
+        expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_ATTEMPT_FAILED", owner: "akash1owner" }))
+      );
     });
   });
 
@@ -251,10 +218,6 @@ describe(StreamLifecycleManagerService.name, () => {
       });
       const provider = createProvider();
       const streamFactory = mock<ProviderStreamFactory>();
-      const writer = mock<ProviderInventoryWriterService>();
-      const logger = mock<ReturnType<LoggerFactory>>();
-      const loggerFactory: LoggerFactory = () => logger;
-
       let callCount = 0;
       streamFactory.openStatusStream.mockImplementation(() => {
         callCount++;
@@ -267,9 +230,7 @@ describe(StreamLifecycleManagerService.name, () => {
         }
         return hangingStream();
       });
-
-      const manager = new StreamLifecycleManagerService(streamFactory, writer, loggerFactory);
-      manager.reconcile([provider]);
+      const { manager } = setup({ streamFactory, providers: [provider] });
 
       manager.reconcile([]);
       manager.reconcile([provider]);
@@ -277,7 +238,7 @@ describe(StreamLifecycleManagerService.name, () => {
       expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(2);
 
       resolveOldStream();
-      await flush();
+      await delay(20);
 
       manager.reconcile([provider]);
       expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(2);
@@ -286,25 +247,23 @@ describe(StreamLifecycleManagerService.name, () => {
 
   describe("shutdown", () => {
     it("aborts all active streams", () => {
-      const signals: AbortSignal[] = [];
       const providerA = createProvider({ owner: "a", hostUri: "https://a:8443" });
       const providerB = createProvider({ owner: "b", hostUri: "https://b:8443" });
       const { manager, streamFactory } = setup({
         providers: [providerA, providerB],
         streams: { "https://a:8443": "hang", "https://b:8443": "hang" }
       });
-      signals.push(captureSignal(streamFactory, 0), captureSignal(streamFactory, 1));
+      const signalA = captureSignal(streamFactory, 0);
+      const signalB = captureSignal(streamFactory, 1);
 
       manager.shutdown();
 
-      expect(signals[0].aborted).toBe(true);
-      expect(signals[1].aborted).toBe(true);
+      expect(signalA.aborted).toBe(true);
+      expect(signalB.aborted).toBe(true);
     });
 
     it("allows new streams after shutdown and re-reconcile", async () => {
-      const { manager, streamFactory } = setup({
-        streams: { "https://p1:8443": "hang" }
-      });
+      const { manager, streamFactory } = setup({ streams: { "https://p1:8443": "hang" } });
 
       manager.shutdown();
       streamFactory.openStatusStream.mockReturnValue(hangingStream());
@@ -313,25 +272,48 @@ describe(StreamLifecycleManagerService.name, () => {
 
       expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(2);
     });
+
+    it("clears diff cache on shutdown", async () => {
+      const stable = createMessage({ cpu: 1000 });
+      const { manager, streamFactory, writer } = setup({ streams: { "https://p1:8443": msgsThenHang([stable]) } });
+
+      await vi.waitFor(() => expect(writer.upsertInventory).toHaveBeenCalledTimes(1));
+
+      manager.shutdown();
+      streamFactory.openStatusStream.mockReturnValue(msgsThenHang([stable]));
+      manager.reconcile([createProvider()]);
+
+      await vi.waitFor(() => expect(writer.upsertInventory).toHaveBeenCalledTimes(2));
+    });
   });
 
-  function setup(input?: { providers?: ChainProvider[]; streams?: Record<string, StreamStatusMessage[] | Error | "hang"> }) {
-    const streamFactory = mock<ProviderStreamFactory>();
+  function setup(input?: {
+    providers?: ChainProvider[];
+    streams?: Record<string, AsyncIterable<StreamStatusMessage> | "hang">;
+    streamFactory?: MockProxy<ProviderStreamFactory>;
+  }) {
+    const streamFactory = input?.streamFactory ?? mock<ProviderStreamFactory>();
     const writer = mock<ProviderInventoryWriterService>();
-    const logger = mock<ReturnType<LoggerFactory>>();
+    const logger = mock<LoggerService>();
     const loggerFactory: LoggerFactory = () => logger;
     const providers = input?.providers ?? [createProvider()];
-
-    const streams = input?.streams ?? {};
-    streamFactory.openStatusStream.mockImplementation((hostUri: string) => {
-      const value = streams[hostUri];
-      if (value === "hang") return hangingStream();
-      if (value instanceof Error) return throwingStream(value);
-      if (Array.isArray(value)) return arrayStream(value);
-      return arrayStream([]);
+    const config = mock<EnvConfig>({
+      STREAM_RECONNECT_INITIAL_DELAY_MS: 10,
+      STREAM_RECONNECT_MAX_DELAY_MS: 50,
+      STREAM_FIRST_MESSAGE_TIMEOUT_MS: 80
     });
 
-    const manager = new StreamLifecycleManagerService(streamFactory, writer, loggerFactory);
+    if (!input?.streamFactory) {
+      const streams = input?.streams ?? {};
+      streamFactory.openStatusStream.mockImplementation((hostUri: string, signal: AbortSignal) => {
+        const value = streams[hostUri];
+        if (value === "hang") return hangingStream(signal);
+        if (value) return value;
+        return hangingStream(signal);
+      });
+    }
+
+    const manager = new StreamLifecycleManagerService(streamFactory, writer, loggerFactory, config);
     manager.reconcile(providers);
 
     return { manager, streamFactory, writer, logger, providers };
@@ -365,21 +347,27 @@ function createMessage(overrides?: { cpu?: number }): StreamStatusMessage {
   };
 }
 
-async function* arrayStream(messages: StreamStatusMessage[]) {
-  for (const msg of messages) {
-    yield msg;
-  }
+async function* msgsThenHang(messages: StreamStatusMessage[]): AsyncGenerator<StreamStatusMessage> {
+  for (const msg of messages) yield msg;
+  await new Promise<never>(() => undefined);
 }
 
 async function* throwingStream(error: Error): AsyncGenerator<StreamStatusMessage> {
-  yield* []; // satisfy require-yield
+  yield* [];
   throw error;
 }
 
-function hangingStream(): AsyncIterable<StreamStatusMessage> {
+function hangingStream(signal?: AbortSignal): AsyncIterable<StreamStatusMessage> {
   return {
     [Symbol.asyncIterator]() {
-      return { next: () => new Promise<IteratorResult<StreamStatusMessage>>(() => {}) };
+      return {
+        next: () =>
+          new Promise<IteratorResult<StreamStatusMessage>>((_, reject) => {
+            if (!signal) return;
+            if (signal.aborted) reject(new DOMException("aborted", "AbortError"));
+            signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });
+          })
+      };
     }
   };
 }
@@ -387,9 +375,4 @@ function hangingStream(): AsyncIterable<StreamStatusMessage> {
 function captureSignal(streamFactory: { openStatusStream: { mock: { calls: Array<[string, AbortSignal]> } } }, callIndex?: number): AbortSignal {
   const idx = callIndex ?? streamFactory.openStatusStream.mock.calls.length - 1;
   return streamFactory.openStatusStream.mock.calls[idx][1];
-}
-
-async function flush() {
-  // setTimeout(0) fires after all pending microtasks (Promise callbacks, async generator yields) have drained
-  await new Promise(resolve => setTimeout(resolve, 0));
 }

@@ -29,6 +29,7 @@
     "@hono/node-server": "^1.19.0",
     "@hono/otel": "~0.4.0",
     "@hono/zod-openapi": "^0.18.4",
+    "cockatiel": "^3.2.1",
     "drizzle-orm": "^0.31.2",
     "hono": "4.6.12",
     "http-errors": "^2.0.0",
