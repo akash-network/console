@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { SELF_CUSTODY_FLAG } from "@src/hooks/useIsSelfCustodyEnabled";
 import type { FeatureFlagService } from "@src/services/feature-flag/feature-flag.service";
+import type { FeatureFlag } from "@src/types/feature-flags";
 import type { AppTypedContext } from "../defineServerSideProps/defineServerSideProps";
 import { isSelfCustodyEnabled, isSelfCustodyRoute, SELF_CUSTODY_ROUTES } from "./selfCustody";
 
@@ -11,7 +11,7 @@ describe(isSelfCustodyEnabled.name, () => {
     const context = setup({ enabled: true });
 
     expect(await isSelfCustodyEnabled(context)).toBe(true);
-    expect(context.services.featureFlagService.isEnabledForCtx).toHaveBeenCalledWith(SELF_CUSTODY_FLAG, context, expect.anything());
+    expect(context.services.featureFlagService.isEnabledForCtx).toHaveBeenCalledWith("self_custody" satisfies FeatureFlag, context, expect.anything());
   });
 
   it("returns false when the self_custody flag is disabled in context", async () => {
