@@ -25,9 +25,9 @@ import {
 } from "@akashnetwork/database/dbSchemas/akash";
 import type { Transaction, TransactionEvent } from "@akashnetwork/database/dbSchemas/base";
 import type { DecodedTxRaw } from "@cosmjs/proto-signing";
+import { randomUUID } from "node:crypto";
 import type { Transaction as DbTransaction, WhereOptions } from "sequelize";
 import { Op } from "sequelize";
-import * as uuid from "uuid";
 
 import { accountSettle } from "@src/shared/utils/akashPaymentSettle";
 import { getAmountFromCoin } from "@src/shared/utils/coin";
@@ -303,7 +303,7 @@ export class AkashStatsIndexer extends Indexer {
   private async handleCreateDeployment(decodedMessage: v1beta1.MsgCreateDeployment, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
     const created = await Deployment.create(
       {
-        id: uuid.v4(),
+        id: randomUUID(),
         owner: decodedMessage.id.owner,
         dseq: decodedMessage.id.dseq.toString(),
         deposit: parseInt(decodedMessage.deposit.amount),
@@ -321,7 +321,7 @@ export class AkashStatsIndexer extends Indexer {
     for (const group of decodedMessage.groups) {
       const createdGroup = await DeploymentGroup.create(
         {
-          id: uuid.v4(),
+          id: randomUUID(),
           deploymentId: created.id,
           owner: created.owner,
           dseq: created.dseq,
@@ -351,7 +351,7 @@ export class AkashStatsIndexer extends Indexer {
   private async handleCreateDeploymentV2(decodedMessage: v1beta2.MsgCreateDeployment, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
     const created = await Deployment.create(
       {
-        id: uuid.v4(),
+        id: randomUUID(),
         owner: decodedMessage.id.owner,
         dseq: decodedMessage.id.dseq.toString(),
         deposit: parseInt(decodedMessage.deposit.amount),
@@ -369,7 +369,7 @@ export class AkashStatsIndexer extends Indexer {
     for (const group of decodedMessage.groups) {
       const createdGroup = await DeploymentGroup.create(
         {
-          id: uuid.v4(),
+          id: randomUUID(),
           deploymentId: created.id,
           owner: created.owner,
           dseq: created.dseq,
@@ -409,7 +409,7 @@ export class AkashStatsIndexer extends Indexer {
 
     const created = await Deployment.create(
       {
-        id: uuid.v4(),
+        id: randomUUID(),
         owner: decodedMessage.id.owner,
         dseq: decodedMessage.id.dseq.toString(),
         deposit: parseInt(decodedMessage.deposit.amount),
@@ -427,7 +427,7 @@ export class AkashStatsIndexer extends Indexer {
     for (const group of decodedMessage.groups) {
       const createdGroup = await DeploymentGroup.create(
         {
-          id: uuid.v4(),
+          id: randomUUID(),
           deploymentId: created.id,
           owner: created.owner,
           dseq: created.dseq,
@@ -471,7 +471,7 @@ export class AkashStatsIndexer extends Indexer {
 
     const created = await Deployment.create(
       {
-        id: uuid.v4(),
+        id: randomUUID(),
         owner: decodedMessage.id.owner,
         dseq: decodedMessage.id.dseq.toString(),
         deposit: parseInt(decodedMessage.deposit.amount.amount),
@@ -489,7 +489,7 @@ export class AkashStatsIndexer extends Indexer {
     for (const group of decodedMessage.groups) {
       const createdGroup = await DeploymentGroup.create(
         {
-          id: uuid.v4(),
+          id: randomUUID(),
           deploymentId: created.id,
           owner: created.owner,
           dseq: created.dseq,
@@ -615,7 +615,7 @@ export class AkashStatsIndexer extends Indexer {
 
     await Lease.create(
       {
-        id: uuid.v4(),
+        id: randomUUID(),
         deploymentId: deployment.id,
         deploymentGroupId: deploymentGroup.id,
         owner: decodedMessage.bidId.owner,
@@ -702,7 +702,7 @@ export class AkashStatsIndexer extends Indexer {
 
     await Lease.create(
       {
-        id: uuid.v4(),
+        id: randomUUID(),
         deploymentId: deployment.id,
         deploymentGroupId: deploymentGroup.id,
         owner: decodedMessage.bidId.owner,

@@ -2,7 +2,7 @@ import type { Registry } from "@cosmjs/proto-signing";
 import { SigningStargateClient } from "@cosmjs/stargate";
 import { HttpClient } from "@cosmjs/tendermint-rpc";
 import { Comet38Client } from "@cosmjs/tendermint-rpc";
-import * as uuid from "uuid";
+import { randomUUID } from "node:crypto";
 
 import type { Wallet } from "@src/billing/lib/wallet/wallet";
 
@@ -41,7 +41,7 @@ export const createSigningStargateClientFactory =
     const client = new ProvidedHttpClient({
       url: endpoint,
       headers: {
-        "X-Proxy-Key": uuid.v4()
+        "X-Proxy-Key": randomUUID()
       }
     });
     const cometClient = ProvidedComet38Client.create(client);

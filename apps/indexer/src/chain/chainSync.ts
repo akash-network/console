@@ -7,8 +7,8 @@ import { decodeTxRaw } from "@cosmjs/proto-signing";
 import { asyncify, eachLimit } from "async";
 import { differenceInSeconds, isEqual } from "date-fns";
 import { sha256 } from "js-sha256";
+import { randomUUID } from "node:crypto";
 import { Op } from "sequelize";
-import * as uuid from "uuid";
 
 import { sequelize } from "@src/db/dbConnection";
 import { BME_BLOCK_EVENT_TYPE_VALUES, BME_EVENT_TYPES } from "@src/indexers/bmeIndexer";
@@ -211,7 +211,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
     for (let txIndex = 0; txIndex < txs.length; ++txIndex) {
       const tx = txs[txIndex];
       const hash = sha256(Buffer.from(tx, "base64")).toUpperCase();
-      const txId = uuid.v4();
+      const txId = randomUUID();
 
       const decodedTx = decodeTxRaw(fromBase64(tx));
       const msgs = decodedTx.body.messages;
@@ -224,7 +224,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
         const msg = msgs[msgIndex];
 
         msgsToAdd.push({
-          id: uuid.v4(),
+          id: randomUUID(),
           txId: txId,
           type: msg.typeUrl,
           typeCategory: msg.typeUrl.split(".")[0].substring(1),
@@ -254,7 +254,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
       // Skip events and attributes for MsgMultiSend-only transactions to prevent memory issues
       if (!hasOnlyMultiSend) {
         for (const [index, event] of blockResults.txs_results[txIndex].events.entries()) {
-          const eventId = uuid.v4();
+          const eventId = randomUUID();
           txsEventsToAdd.push({
             id: eventId,
             height: i,
@@ -288,7 +288,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
             data[decodeIfBase64(attr.key)] = attr.value ? decodeIfBase64(attr.value) : null;
           }
           bmeRawEventsToAdd.push({
-            id: uuid.v4(),
+            id: randomUUID(),
             height: i,
             index: bmeEventIndex++,
             type: event.type,
@@ -306,7 +306,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
             const amountMatch = attrs.amount.match(/^(\d+)uakt$/);
             if (amountMatch) {
               bmeRawEventsToAdd.push({
-                id: uuid.v4(),
+                id: randomUUID(),
                 height: i,
                 index: bmeEventIndex++,
                 type: BME_EVENT_TYPES.VAULT_FUNDED_TRANSFER,
@@ -338,7 +338,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
             const match = attrs.amount?.match(/^(\d+)uact$/);
             if (match) {
               bmeRawEventsToAdd.push({
-                id: uuid.v4(),
+                id: randomUUID(),
                 height: i,
                 index: bmeEventIndex++,
                 type: BME_EVENT_TYPES.MIGRATION_MINTED,
@@ -373,7 +373,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
           date: blockDate
         },
         defaults: {
-          id: uuid.v4(),
+          id: randomUUID(),
           date: blockDate,
           firstBlockHeight: i,
           lastBlockHeightYet: i
