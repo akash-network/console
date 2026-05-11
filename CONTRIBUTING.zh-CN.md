@@ -1,6 +1,6 @@
 ## Akash Network Console 仓库贡献指南
 
-[English](CONTRIBUTING.md) | [simplified chinese](CONTRIBUTING.zh-CN.md)
+[English](CONTRIBUTING.md) | [Simplified Chinese](CONTRIBUTING.zh-CN.md)
 
 ### 概述
 

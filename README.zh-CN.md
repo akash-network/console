@@ -6,7 +6,7 @@
 
   # Akash Console
 
-[English](README.md) | [simplified chinese](README.zh-CN.md)
+[English](README.md) | [Simplified Chinese](README.zh-CN.md)
 
 **Akash Console** 是一个功能非常强大的应用，只需点击几下，即可在 [Akash Network](https://akash.network) 上部署任意 [Docker 容器](https://www.docker.com/)。🚀
 

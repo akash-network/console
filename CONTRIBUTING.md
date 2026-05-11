@@ -1,6 +1,6 @@
 ## Contribution Guidelines for Akash Network Console Repository
 
-[English](CONTRIBUTING.md) | [simplified chinese](CONTRIBUTING.zh-CN.md)
+[English](CONTRIBUTING.md) | [Simplified Chinese](CONTRIBUTING.zh-CN.md)
 
 ### Overview
 

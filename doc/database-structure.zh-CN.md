@@ -1,6 +1,6 @@
 ## Database Structure
 
-[English](database-structure.md) | [simplified chinese](database-structure.zh-CN.md)
+[English](database-structure.md) | [Simplified Chinese](database-structure.zh-CN.md)
 
 我们的项目使用双 ORM 方式进行数据库管理：
 

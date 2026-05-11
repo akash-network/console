@@ -1,6 +1,6 @@
 # Environment Variables & Configuration
 
-[English](apps-configuration.md) | [simplified chinese](apps-configuration.zh-CN.md)
+[English](apps-configuration.md) | [Simplified Chinese](apps-configuration.zh-CN.md)
 
 ## Overview
 

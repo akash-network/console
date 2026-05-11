@@ -1,6 +1,6 @@
 ## Database Structure
 
-[English](database-structure.md) | [simplified chinese](database-structure.zh-CN.md)
+[English](database-structure.md) | [Simplified Chinese](database-structure.zh-CN.md)
 
 Our project uses a dual ORM approach for database management:
 

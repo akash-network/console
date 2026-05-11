@@ -1,6 +1,6 @@
 # Release Workflow Documentation
 
-[English](release-workflow.md) | [simplified chinese](release-workflow.zh-CN.md)
+[English](release-workflow.md) | [Simplified Chinese](release-workflow.zh-CN.md)
 
 ## 概述
 

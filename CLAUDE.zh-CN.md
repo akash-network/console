@@ -1,6 +1,6 @@
 # 贡献指南
 
-[English](CLAUDE.md) | [simplified chinese](CLAUDE.zh-CN.md)
+[English](CLAUDE.md) | [Simplified Chinese](CLAUDE.zh-CN.md)
 
 本文件汇总了所有已落地的 RFC（Request for Comments）贡献指南。
 

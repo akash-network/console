@@ -1,6 +1,6 @@
 # Console Monorepo
 
-[English](BUILD.md) | [simplified chinese](BUILD.zh-CN.md)
+[English](BUILD.md) | [Simplified Chinese](BUILD.zh-CN.md)
 
 ## 项目
 

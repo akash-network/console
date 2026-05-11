@@ -1,6 +1,6 @@
 # Contribution Guidelines
 
-[English](CLAUDE.md) | [simplified chinese](CLAUDE.zh-CN.md)
+[English](CLAUDE.md) | [Simplified Chinese](CLAUDE.zh-CN.md)
 
 This file aggregates all RFC (Request for Comments) contribution guidelines that have landed.
 
