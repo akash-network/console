@@ -71,6 +71,141 @@ describe(StreamLifecycleManagerService.name, () => {
     });
   });
 
+  describe("diff cache", () => {
+    it("performs a single write when two consecutive identical messages arrive", async () => {
+      const message = createMessage({ cpu: 1000 });
+      const { writer } = setup({
+        streams: { "https://p1:8443": [message, structuredClone(message)] }
+      });
+
+      await flush();
+
+      expect(writer.upsertInventory).toHaveBeenCalledTimes(1);
+    });
+
+    it("writes again when any meaningful field differs", async () => {
+      const { writer } = setup({
+        streams: { "https://p1:8443": [createMessage({ cpu: 1000 }), createMessage({ cpu: 1001 })] }
+      });
+
+      await flush();
+
+      expect(writer.upsertInventory).toHaveBeenCalledTimes(2);
+    });
+
+    it("considers messages with reordered nodes/gpus/storage equal", async () => {
+      const first: StreamStatusMessage = {
+        nodes: [
+          {
+            name: "node-1",
+            cpuAvailable: 4000,
+            memoryAvailable: 8_000_000_000,
+            gpus: [
+              { vendor: "nvidia", model: "a100", available: 1 },
+              { vendor: "amd", model: "mi300x", available: 2 }
+            ],
+            ephStorageAvailable: 100_000_000_000,
+            persistentStorage: [
+              { class: "beta2", available: 100 },
+              { class: "beta3", available: 200 }
+            ]
+          },
+          {
+            name: "node-2",
+            cpuAvailable: 2000,
+            memoryAvailable: 4_000_000_000,
+            gpus: [],
+            ephStorageAvailable: 50_000_000_000,
+            persistentStorage: []
+          }
+        ],
+        storage: [
+          { class: "beta2", available: 500 },
+          { class: "beta3", available: 600 }
+        ]
+      };
+      const reordered: StreamStatusMessage = {
+        nodes: [
+          first.nodes[1],
+          {
+            ...first.nodes[0],
+            gpus: [...first.nodes[0].gpus].reverse(),
+            persistentStorage: [...first.nodes[0].persistentStorage].reverse()
+          }
+        ],
+        storage: [...first.storage].reverse()
+      };
+
+      const { writer } = setup({
+        streams: { "https://p1:8443": [first, reordered] }
+      });
+
+      await flush();
+
+      expect(writer.upsertInventory).toHaveBeenCalledTimes(1);
+    });
+
+    it("writes the first message even when it would later be cacheable", async () => {
+      const message = createMessage();
+      const { writer } = setup({
+        streams: { "https://p1:8443": [message] }
+      });
+
+      await flush();
+
+      expect(writer.upsertInventory).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not cache a row when the write fails — next identical message retries", async () => {
+      const message = createMessage();
+      const { writer } = setup({
+        streams: { "https://p1:8443": [message, structuredClone(message)] }
+      });
+      writer.upsertInventory.mockRejectedValueOnce(new Error("DB down"));
+
+      await flush();
+
+      expect(writer.upsertInventory).toHaveBeenCalledTimes(2);
+    });
+
+    it("tracks skipped no-op messages via getStats", async () => {
+      const message = createMessage();
+      const { manager } = setup({
+        streams: { "https://p1:8443": [message, structuredClone(message), structuredClone(message)] }
+      });
+
+      await flush();
+
+      expect(manager.getStats().noopMessagesSkipped).toBe(2);
+    });
+
+    it("reports zero skipped messages when none have arrived", () => {
+      const { manager } = setup({ streams: { "https://p1:8443": "hang" } });
+
+      expect(manager.getStats().noopMessagesSkipped).toBe(0);
+    });
+
+    it("isolates caches across providers", async () => {
+      const providerA = createProvider({ owner: "a", hostUri: "https://a:8443" });
+      const providerB = createProvider({ owner: "b", hostUri: "https://b:8443" });
+      const messageA = createMessage({ cpu: 1000 });
+      const messageB = createMessage({ cpu: 1000 });
+      const { writer } = setup({
+        providers: [providerA, providerB],
+        streams: {
+          "https://a:8443": [messageA, structuredClone(messageA)],
+          "https://b:8443": [messageB]
+        }
+      });
+
+      await flush();
+
+      expect(writer.upsertInventory).toHaveBeenCalledWith(providerA, expect.objectContaining({ totalAvailableCpu: 1000n }));
+      expect(writer.upsertInventory).toHaveBeenCalledWith(providerB, expect.objectContaining({ totalAvailableCpu: 1000n }));
+      expect(writer.upsertInventory).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe("error handling", () => {
     it("logs and continues when upsertInventory throws", async () => {
       const messages = [createMessage({ cpu: 1000 }), createMessage({ cpu: 2000 })];
