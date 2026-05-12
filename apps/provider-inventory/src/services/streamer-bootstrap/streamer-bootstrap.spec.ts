@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
 import type { DiscoverySchedulerService } from "@src/services/discovery-scheduler/discovery-scheduler.service";
-import type { ProviderInventoryWriterService } from "@src/services/provider-inventory-writer/provider-inventory-writer.service";
 import { runStreamerBootstrap } from "./streamer-bootstrap";
 
-describe("runStreamerBootstrap", () => {
+describe(runStreamerBootstrap.name, () => {
   it("calls writer.resetOnlineSince before scheduler.start", async () => {
     const { writer, scheduler } = setup();
 
@@ -41,7 +41,7 @@ describe("runStreamerBootstrap", () => {
   });
 
   function setup() {
-    const writer = mock<ProviderInventoryWriterService>();
+    const writer = mock<ProviderInventoryRepository>();
     const scheduler = mock<DiscoverySchedulerService>();
     writer.resetOnlineSince.mockResolvedValue(undefined);
     return { writer, scheduler };

@@ -6,84 +6,113 @@ import { mock, type MockProxy } from "vitest-mock-extended";
 import type { EnvConfig } from "@src/providers/app-config.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import type { ProviderStreamFactory } from "@src/providers/provider-stream.provider";
-import type { ProviderInventoryWriterService } from "@src/services/provider-inventory-writer/provider-inventory-writer.service";
+import type { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
 import type { ChainProvider } from "@src/types/chain-provider";
 import type { StreamStatusMessage } from "@src/types/stream-status";
 import { StreamLifecycleManagerService } from "./stream-lifecycle-manager.service";
 
 describe(StreamLifecycleManagerService.name, () => {
-  describe("reconcile", () => {
-    it("opens a stream for a new provider", async () => {
-      const { streamFactory } = setup({ streams: { "https://p1:8443": "hang" } });
-
-      expect(streamFactory.openStatusStream).toHaveBeenCalledWith("https://p1:8443", expect.any(AbortSignal));
-    });
-
-    it("calls upsertInventory for each unique stream message", async () => {
-      const messages = [createMessage({ cpu: 1000 }), createMessage({ cpu: 2000 })];
-      const { writer, providers } = setup({ streams: { "https://p1:8443": msgsThenHang(messages) } });
-
-      await vi.waitFor(() => expect(writer.upsertInventory).toHaveBeenCalledTimes(2));
-
-      expect(writer.upsertInventory).toHaveBeenCalledWith(providers[0], expect.objectContaining({ totalAvailableCpu: 1000n }));
-      expect(writer.upsertInventory).toHaveBeenCalledWith(providers[0], expect.objectContaining({ totalAvailableCpu: 2000n }));
-    });
-
-    it("skips providers that already have an active stream", async () => {
-      const { manager, streamFactory, providers } = setup({ streams: { "https://p1:8443": "hang" } });
-
-      manager.reconcile(providers);
-
-      expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(1);
-    });
-
-    it("stops streams for providers absent from the new list", async () => {
+  describe("start", () => {
+    it("opens a stream for the provider", () => {
+      const provider = createProvider();
       const { manager, streamFactory } = setup({ streams: { "https://p1:8443": "hang" } });
-      const signal = captureSignal(streamFactory);
 
-      manager.reconcile([]);
+      manager.start(provider);
 
-      expect(signal.aborted).toBe(true);
+      expect(streamFactory.openStatusStream).toHaveBeenCalledWith(provider.hostUri, expect.any(AbortSignal));
     });
 
-    it("opens streams for new providers while stopping removed ones", async () => {
-      const providerA = createProvider({ owner: "a", hostUri: "https://a:8443" });
-      const providerB = createProvider({ owner: "b", hostUri: "https://b:8443" });
-      const { manager, streamFactory } = setup({
-        providers: [providerA],
-        streams: { "https://a:8443": "hang", "https://b:8443": "hang" }
-      });
+    it("calls updateInventory for each unique stream message", async () => {
+      const provider = createProvider();
+      const messages = [createMessage({ cpu: 1000 }), createMessage({ cpu: 2000 })];
+      const { manager, writer } = setup({ streams: { "https://p1:8443": msgsThenHang(messages) } });
+
+      manager.start(provider);
+
+      await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(2));
+      expect(writer.updateInventory).toHaveBeenCalledWith(provider, expect.objectContaining({ totalAvailableCpu: 1000n }));
+      expect(writer.updateInventory).toHaveBeenCalledWith(provider, expect.objectContaining({ totalAvailableCpu: 2000n }));
+    });
+  });
+
+  describe("stopAndDelete", () => {
+    it("aborts the stream and deletes the row for a vanished provider", async () => {
+      const provider = createProvider();
+      const { manager, streamFactory, writer } = setup({ streams: { "https://p1:8443": "hang" } });
+      manager.start(provider);
       const signal = captureSignal(streamFactory);
 
-      manager.reconcile([providerB]);
+      await manager.stopAndDelete(provider.owner);
 
       expect(signal.aborted).toBe(true);
-      expect(streamFactory.openStatusStream).toHaveBeenCalledWith("https://b:8443", expect.any(AbortSignal));
+      expect(writer.deleteByOwner).toHaveBeenCalledWith(provider.owner);
+    });
+
+    it("still deletes the row even when no stream is active for that owner", async () => {
+      const { manager, writer } = setup();
+
+      await manager.stopAndDelete("ghost");
+
+      expect(writer.deleteByOwner).toHaveBeenCalledWith("ghost");
+    });
+  });
+
+  describe("restart", () => {
+    it("aborts the existing stream and opens a new one on the new hostUri", () => {
+      const old = createProvider({ owner: "a", hostUri: "https://old:8443" });
+      const updated = createProvider({ owner: "a", hostUri: "https://new:8443" });
+      const { manager, streamFactory, writer } = setup({
+        streams: { "https://old:8443": "hang", "https://new:8443": "hang" }
+      });
+      manager.start(old);
+      const oldSignal = captureSignal(streamFactory, 0);
+
+      manager.restart(updated);
+
+      expect(oldSignal.aborted).toBe(true);
+      expect(streamFactory.openStatusStream).toHaveBeenLastCalledWith("https://new:8443", expect.any(AbortSignal));
+      expect(writer.deleteByOwner).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getRegistry", () => {
+    it("exposes a snapshot of active streams keyed by owner with hostUri", () => {
+      const a = createProvider({ owner: "a", hostUri: "https://a:8443" });
+      const b = createProvider({ owner: "b", hostUri: "https://b:8443" });
+      const { manager } = setup({ streams: { "https://a:8443": "hang", "https://b:8443": "hang" } });
+
+      manager.start(a);
+      manager.start(b);
+
+      const registry = manager.getRegistry();
+      expect(registry.size).toBe(2);
+      expect(registry.get("a")).toEqual({ hostUri: "https://a:8443" });
+      expect(registry.get("b")).toEqual({ hostUri: "https://b:8443" });
     });
   });
 
   describe("diff cache", () => {
     it("performs a single write when two consecutive identical messages arrive", async () => {
       const message = createMessage({ cpu: 1000 });
-      const { writer, logger } = setup({
+      const { manager, writer, logger } = setup({
         streams: { "https://p1:8443": msgsThenHang([message, structuredClone(message)]) }
       });
+      manager.start(createProvider());
 
-      await vi.waitFor(() =>
-        expect(logger.debug).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_MESSAGE_SKIPPED_IDENTICAL" }))
-      );
+      await vi.waitFor(() => expect(logger.debug).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_MESSAGE_SKIPPED_IDENTICAL" })));
 
-      expect(writer.upsertInventory).toHaveBeenCalledTimes(1);
+      expect(writer.updateInventory).toHaveBeenCalledTimes(1);
     });
 
     it("writes again when any meaningful field differs", async () => {
-      const { writer } = setup({
+      const { manager, writer } = setup({
         streams: {
           "https://p1:8443": msgsThenHang([createMessage({ cpu: 1000 }), createMessage({ cpu: 1001 })])
         }
       });
+      manager.start(createProvider());
 
-      await vi.waitFor(() => expect(writer.upsertInventory).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(2));
     });
 
     it("considers messages with reordered nodes/gpus/storage equal", async () => {
@@ -129,34 +158,35 @@ describe(StreamLifecycleManagerService.name, () => {
         storage: [...first.storage].reverse()
       };
 
-      const { writer, logger } = setup({
+      const { manager, writer, logger } = setup({
         streams: { "https://p1:8443": msgsThenHang([first, reordered]) }
       });
+      manager.start(createProvider());
 
-      await vi.waitFor(() =>
-        expect(logger.debug).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_MESSAGE_SKIPPED_IDENTICAL" }))
-      );
+      await vi.waitFor(() => expect(logger.debug).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_MESSAGE_SKIPPED_IDENTICAL" })));
 
-      expect(writer.upsertInventory).toHaveBeenCalledTimes(1);
+      expect(writer.updateInventory).toHaveBeenCalledTimes(1);
     });
 
     it("writes the first message even when it would later be cacheable", async () => {
       const message = createMessage();
-      const { writer } = setup({
+      const { manager, writer } = setup({
         streams: { "https://p1:8443": msgsThenHang([message]) }
       });
+      manager.start(createProvider());
 
-      await vi.waitFor(() => expect(writer.upsertInventory).toHaveBeenCalledTimes(1));
+      await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(1));
     });
 
     it("does not cache a row when the write fails — next identical message retries", async () => {
       const message = createMessage();
-      const { writer } = setup({
+      const { manager, writer } = setup({
         streams: { "https://p1:8443": msgsThenHang([message, structuredClone(message)]) }
       });
-      writer.upsertInventory.mockRejectedValueOnce(new Error("DB down"));
+      writer.updateInventory.mockRejectedValueOnce(new Error("DB down"));
+      manager.start(createProvider());
 
-      await vi.waitFor(() => expect(writer.upsertInventory).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(2));
     });
 
     it("isolates caches across providers", async () => {
@@ -164,32 +194,32 @@ describe(StreamLifecycleManagerService.name, () => {
       const providerB = createProvider({ owner: "b", hostUri: "https://b:8443" });
       const messageA = createMessage({ cpu: 1000 });
       const messageB = createMessage({ cpu: 1000 });
-      const { writer, logger } = setup({
-        providers: [providerA, providerB],
+      const { manager, writer, logger } = setup({
         streams: {
           "https://a:8443": msgsThenHang([messageA, structuredClone(messageA)]),
           "https://b:8443": msgsThenHang([messageB])
         }
       });
+      manager.start(providerA);
+      manager.start(providerB);
 
-      await vi.waitFor(() => expect(writer.upsertInventory).toHaveBeenCalledTimes(2));
-      await vi.waitFor(() =>
-        expect(logger.debug).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_MESSAGE_SKIPPED_IDENTICAL", owner: "a" }))
-      );
+      await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(logger.debug).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_MESSAGE_SKIPPED_IDENTICAL", owner: "a" })));
 
-      expect(writer.upsertInventory).toHaveBeenCalledWith(providerA, expect.objectContaining({ totalAvailableCpu: 1000n }));
-      expect(writer.upsertInventory).toHaveBeenCalledWith(providerB, expect.objectContaining({ totalAvailableCpu: 1000n }));
-      expect(writer.upsertInventory).toHaveBeenCalledTimes(2);
+      expect(writer.updateInventory).toHaveBeenCalledWith(providerA, expect.objectContaining({ totalAvailableCpu: 1000n }));
+      expect(writer.updateInventory).toHaveBeenCalledWith(providerB, expect.objectContaining({ totalAvailableCpu: 1000n }));
+      expect(writer.updateInventory).toHaveBeenCalledTimes(2);
     });
   });
 
   describe("error handling", () => {
-    it("logs and continues when upsertInventory throws", async () => {
+    it("logs and continues when updateInventory throws", async () => {
       const messages = [createMessage({ cpu: 1000 }), createMessage({ cpu: 2000 })];
-      const { writer, logger } = setup({ streams: { "https://p1:8443": msgsThenHang(messages) } });
-      writer.upsertInventory.mockRejectedValueOnce(new Error("DB down"));
+      const { manager, writer, logger } = setup({ streams: { "https://p1:8443": msgsThenHang(messages) } });
+      writer.updateInventory.mockRejectedValueOnce(new Error("DB down"));
+      manager.start(createProvider());
 
-      await vi.waitFor(() => expect(writer.upsertInventory).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(2));
 
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_PROVIDER_WRITE_ERROR", owner: "akash1owner" }));
     });
@@ -202,16 +232,15 @@ describe(StreamLifecycleManagerService.name, () => {
         if (attempt === 1) return throwingStream(new Error("connection lost"));
         return msgsThenHang([createMessage()]);
       });
-      const { logger } = setup({ streamFactory });
+      const { manager, logger } = setup({ streamFactory });
+      manager.start(createProvider());
 
-      await vi.waitFor(() =>
-        expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_ATTEMPT_FAILED", owner: "akash1owner" }))
-      );
+      await vi.waitFor(() => expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_ATTEMPT_FAILED", owner: "akash1owner" })));
     });
   });
 
   describe("stale finalizer", () => {
-    it("does not remove a replacement stream when the old one finishes", async () => {
+    it("does not evict a replacement stream's registry entry when the old stream finishes", async () => {
       let resolveOldStream!: () => void;
       const oldStreamPromise = new Promise<IteratorResult<StreamStatusMessage>>(r => {
         resolveOldStream = () => r({ done: true, value: undefined });
@@ -230,18 +259,19 @@ describe(StreamLifecycleManagerService.name, () => {
         }
         return hangingStream();
       });
-      const { manager } = setup({ streamFactory, providers: [provider] });
+      const { manager } = setup({ streamFactory });
 
-      manager.reconcile([]);
-      manager.reconcile([provider]);
+      manager.start(provider);
+      await manager.stopAndDelete(provider.owner);
+      manager.start(provider);
 
       expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(2);
+      expect(manager.getRegistry().get(provider.owner)).toEqual({ hostUri: provider.hostUri });
 
       resolveOldStream();
       await delay(20);
 
-      manager.reconcile([provider]);
-      expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(2);
+      expect(manager.getRegistry().get(provider.owner)).toEqual({ hostUri: provider.hostUri });
     });
   });
 
@@ -249,10 +279,9 @@ describe(StreamLifecycleManagerService.name, () => {
     it("aborts all active streams", () => {
       const providerA = createProvider({ owner: "a", hostUri: "https://a:8443" });
       const providerB = createProvider({ owner: "b", hostUri: "https://b:8443" });
-      const { manager, streamFactory } = setup({
-        providers: [providerA, providerB],
-        streams: { "https://a:8443": "hang", "https://b:8443": "hang" }
-      });
+      const { manager, streamFactory } = setup({ streams: { "https://a:8443": "hang", "https://b:8443": "hang" } });
+      manager.start(providerA);
+      manager.start(providerB);
       const signalA = captureSignal(streamFactory, 0);
       const signalB = captureSignal(streamFactory, 1);
 
@@ -262,41 +291,38 @@ describe(StreamLifecycleManagerService.name, () => {
       expect(signalB.aborted).toBe(true);
     });
 
-    it("allows new streams after shutdown and re-reconcile", async () => {
-      const { manager, streamFactory } = setup({ streams: { "https://p1:8443": "hang" } });
+    it("clears the registry on shutdown", () => {
+      const { manager } = setup({ streams: { "https://p1:8443": "hang" } });
+      manager.start(createProvider());
 
       manager.shutdown();
-      streamFactory.openStatusStream.mockReturnValue(hangingStream());
 
-      manager.reconcile([createProvider()]);
-
-      expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(2);
+      expect(manager.getRegistry().size).toBe(0);
     });
 
     it("clears diff cache on shutdown", async () => {
       const stable = createMessage({ cpu: 1000 });
       const { manager, streamFactory, writer } = setup({ streams: { "https://p1:8443": msgsThenHang([stable]) } });
+      manager.start(createProvider());
 
-      await vi.waitFor(() => expect(writer.upsertInventory).toHaveBeenCalledTimes(1));
+      await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(1));
 
       manager.shutdown();
       streamFactory.openStatusStream.mockReturnValue(msgsThenHang([stable]));
-      manager.reconcile([createProvider()]);
+      manager.start(createProvider());
 
-      await vi.waitFor(() => expect(writer.upsertInventory).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(2));
     });
   });
 
-  function setup(input?: {
-    providers?: ChainProvider[];
-    streams?: Record<string, AsyncIterable<StreamStatusMessage> | "hang">;
-    streamFactory?: MockProxy<ProviderStreamFactory>;
-  }) {
+  function setup(input?: { streams?: Record<string, AsyncIterable<StreamStatusMessage> | "hang">; streamFactory?: MockProxy<ProviderStreamFactory> }) {
     const streamFactory = input?.streamFactory ?? mock<ProviderStreamFactory>();
-    const writer = mock<ProviderInventoryWriterService>();
+    const writer = mock<ProviderInventoryRepository>();
+    writer.deleteByOwner.mockResolvedValue();
+    writer.markOffline.mockResolvedValue();
+    writer.updateInventory.mockResolvedValue();
     const logger = mock<LoggerService>();
     const loggerFactory: LoggerFactory = () => logger;
-    const providers = input?.providers ?? [createProvider()];
     const config = mock<EnvConfig>({
       STREAM_RECONNECT_INITIAL_DELAY_MS: 10,
       STREAM_RECONNECT_MAX_DELAY_MS: 50,
@@ -314,9 +340,8 @@ describe(StreamLifecycleManagerService.name, () => {
     }
 
     const manager = new StreamLifecycleManagerService(streamFactory, writer, loggerFactory, config);
-    manager.reconcile(providers);
 
-    return { manager, streamFactory, writer, logger, providers };
+    return { manager, streamFactory, writer, logger };
   }
 });
 

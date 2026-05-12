@@ -14,7 +14,7 @@ container.register(APP_PG_CLIENT, {
   useFactory: instancePerContainerCachingFactory(c => {
     const config = c.resolve(APP_CONFIG);
     return postgres(config.PROVIDER_INVENTORY_POSTGRES_URL, {
-      max: 10,
+      max: 50,
       onnotice: logger.info.bind(logger),
       types: {
         bigint: postgres.BigInt,
