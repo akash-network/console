@@ -95,14 +95,14 @@ describe(projectedRowsEqual.name, () => {
     });
 
     it("returns false when a node's gpu available count differs", () => {
-      const a = buildRow({ nodes: [buildNode({ gpu: [{ vendor: "nvidia", model: "a100", available: 1 }] })] });
-      const b = buildRow({ nodes: [buildNode({ gpu: [{ vendor: "nvidia", model: "a100", available: 2 }] })] });
+      const a = buildRow({ nodes: [buildNode({ gpu: [{ vendor: "nvidia", model: "a100", available: 1, memorySize: "", interface: "", modelId: "" }] })] });
+      const b = buildRow({ nodes: [buildNode({ gpu: [{ vendor: "nvidia", model: "a100", available: 2, memorySize: "", interface: "", modelId: "" }] })] });
       expect(projectedRowsEqual(a, b)).toBe(false);
     });
 
     it("returns false when a node's gpu vendor/model differs", () => {
-      const a = buildRow({ nodes: [buildNode({ gpu: [{ vendor: "nvidia", model: "a100", available: 1 }] })] });
-      const b = buildRow({ nodes: [buildNode({ gpu: [{ vendor: "amd", model: "mi300x", available: 1 }] })] });
+      const a = buildRow({ nodes: [buildNode({ gpu: [{ vendor: "nvidia", model: "a100", available: 1, memorySize: "", interface: "", modelId: "" }] })] });
+      const b = buildRow({ nodes: [buildNode({ gpu: [{ vendor: "amd", model: "mi300x", available: 1, memorySize: "", interface: "", modelId: "" }] })] });
       expect(projectedRowsEqual(a, b)).toBe(false);
     });
 
@@ -143,8 +143,8 @@ describe(projectedRowsEqual.name, () => {
         nodes: [
           buildNode({
             gpu: [
-              { vendor: "nvidia", model: "a100", available: 1 },
-              { vendor: "amd", model: "mi300x", available: 2 }
+              { vendor: "nvidia", model: "a100", available: 1, memorySize: "", interface: "", modelId: "" },
+              { vendor: "amd", model: "mi300x", available: 2, memorySize: "", interface: "", modelId: "" }
             ]
           })
         ]
@@ -153,8 +153,8 @@ describe(projectedRowsEqual.name, () => {
         nodes: [
           buildNode({
             gpu: [
-              { vendor: "amd", model: "mi300x", available: 2 },
-              { vendor: "nvidia", model: "a100", available: 1 }
+              { vendor: "amd", model: "mi300x", available: 2, memorySize: "", interface: "", modelId: "" },
+              { vendor: "nvidia", model: "a100", available: 1, memorySize: "", interface: "", modelId: "" }
             ]
           })
         ]
@@ -222,8 +222,8 @@ describe(projectedRowsEqual.name, () => {
           buildNode({
             name: "node-1",
             gpu: [
-              { vendor: "nvidia", model: "a100", available: 1 },
-              { vendor: "amd", model: "mi300x", available: 1 }
+              { vendor: "nvidia", model: "a100", available: 1, memorySize: "", interface: "", modelId: "" },
+              { vendor: "amd", model: "mi300x", available: 1, memorySize: "", interface: "", modelId: "" }
             ],
             persistentStorage: [
               { class: "beta2", available: 100 },
@@ -245,8 +245,8 @@ describe(projectedRowsEqual.name, () => {
           buildNode({
             name: "node-1",
             gpu: [
-              { vendor: "amd", model: "mi300x", available: 1 },
-              { vendor: "nvidia", model: "a100", available: 1 }
+              { vendor: "amd", model: "mi300x", available: 1, memorySize: "", interface: "", modelId: "" },
+              { vendor: "nvidia", model: "a100", available: 1, memorySize: "", interface: "", modelId: "" }
             ],
             persistentStorage: [
               { class: "beta3", available: 200 },

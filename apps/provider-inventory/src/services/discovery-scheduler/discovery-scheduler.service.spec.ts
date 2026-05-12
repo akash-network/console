@@ -149,7 +149,12 @@ describe(DiscoverySchedulerService.name, () => {
       LOG_LEVEL: "info",
       STD_OUT_LOG_FORMAT: "json",
       PORT: 3092,
-      DISCOVERY_INTERVAL_MS: 600_000
+      DISCOVERY_INTERVAL_MS: 600_000,
+      STREAM_RECONNECT_INITIAL_DELAY_MS: 1_000,
+      STREAM_RECONNECT_MAX_DELAY_MS: 300_000,
+      STREAM_FIRST_MESSAGE_TIMEOUT_MS: 10_000,
+      AUDITOR_ADDRESS: "akash1auditor",
+      REST_API_NODE_URL: "https://rest.example.com"
     };
 
     if (input?.pollError) {

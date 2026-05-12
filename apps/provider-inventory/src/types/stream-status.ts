@@ -2,6 +2,9 @@ export interface StreamStatusNodeGpu {
   vendor: string;
   model: string;
   available: number;
+  memorySize: string;
+  interface: string;
+  modelId: string;
 }
 
 export interface StreamStatusNodeStorage {

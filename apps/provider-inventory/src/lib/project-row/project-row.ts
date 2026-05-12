@@ -11,7 +11,10 @@ export function projectRow(message: StreamStatusMessage): ProjectedRow {
       gpu: node.gpus.map(g => ({
         vendor: g.vendor,
         model: g.model,
-        available: g.available
+        available: g.available,
+        memorySize: g.memorySize,
+        interface: g.interface,
+        modelId: g.modelId
       })),
       ephStorage: { available: node.ephStorageAvailable },
       persistentStorage: node.persistentStorage.map(ps => ({

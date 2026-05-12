@@ -21,7 +21,7 @@ describe(projectRow.name, () => {
           name: "node-1",
           cpuAvailable: 8000,
           memoryAvailable: 32_000_000_000,
-          gpus: [{ vendor: "nvidia", model: "rtx4090", available: 1 }],
+          gpus: [{ vendor: "nvidia", model: "rtx4090", available: 1, memorySize: "24Gi", interface: "PCIe", modelId: "2684" }],
           ephStorageAvailable: 500_000_000_000,
           persistentStorage: [{ class: "beta2", available: 1_000_000_000_000 }]
         }
@@ -34,7 +34,7 @@ describe(projectRow.name, () => {
       name: "node-1",
       cpu: { available: 8000 },
       memory: { available: 32_000_000_000 },
-      gpu: [{ vendor: "nvidia", model: "rtx4090", available: 1 }],
+      gpu: [{ vendor: "nvidia", model: "rtx4090", available: 1, memorySize: "24Gi", interface: "PCIe", modelId: "2684" }],
       ephStorage: { available: 500_000_000_000 },
       persistentStorage: [{ class: "beta2", available: 1_000_000_000_000 }]
     });
@@ -61,7 +61,7 @@ describe(projectRow.name, () => {
           name: "large",
           cpuAvailable: 16000,
           memoryAvailable: 64_000_000_000,
-          gpus: [{ vendor: "nvidia", model: "a100", available: 8 }],
+          gpus: [{ vendor: "nvidia", model: "a100", available: 8, memorySize: "80Gi", interface: "PCIe", modelId: "20b5" }],
           ephStorageAvailable: 1_000_000_000_000,
           persistentStorage: [{ class: "beta3", available: 2_000_000_000_000 }]
         }

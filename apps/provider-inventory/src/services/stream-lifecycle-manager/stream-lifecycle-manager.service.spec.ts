@@ -123,8 +123,8 @@ describe(StreamLifecycleManagerService.name, () => {
             cpuAvailable: 4000,
             memoryAvailable: 8_000_000_000,
             gpus: [
-              { vendor: "nvidia", model: "a100", available: 1 },
-              { vendor: "amd", model: "mi300x", available: 2 }
+              { vendor: "nvidia", model: "a100", available: 1, memorySize: "", interface: "", modelId: "" },
+              { vendor: "amd", model: "mi300x", available: 2, memorySize: "", interface: "", modelId: "" }
             ],
             ephStorageAvailable: 100_000_000_000,
             persistentStorage: [
