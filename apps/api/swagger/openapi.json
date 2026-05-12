@@ -1947,7 +1947,6 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "default": "2026-05-06",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -2073,7 +2072,6 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "default": "2026-05-06",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -8376,7 +8374,7 @@
     "/v1/api-keys": {
       "get": {
         "summary": "List all API keys",
-        "operationId": "getApiKeys",
+        "operationId": "listApiKeys",
         "tags": [
           "API Keys"
         ],
@@ -16876,7 +16874,7 @@
         ]
       },
       "get": {
-        "operationId": "getAlerts",
+        "operationId": "listAlerts",
         "parameters": [
           {
             "name": "limit",
@@ -17058,7 +17056,7 @@
         ]
       },
       "patch": {
-        "operationId": "patchAlert",
+        "operationId": "updateAlert",
         "parameters": [
           {
             "name": "id",
@@ -17300,7 +17298,7 @@
         ]
       },
       "get": {
-        "operationId": "getNotificationChannels",
+        "operationId": "listNotificationChannels",
         "parameters": [
           {
             "name": "limit",
@@ -17388,7 +17386,7 @@
     },
     "/v1/notification-channels/default": {
       "post": {
-        "operationId": "createDefaultChannel",
+        "operationId": "createDefaultNotificationChannel",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -17498,7 +17496,7 @@
         ]
       },
       "patch": {
-        "operationId": "patchNotificationChannel",
+        "operationId": "updateNotificationChannel",
         "parameters": [
           {
             "name": "id",
@@ -17777,7 +17775,7 @@
         ]
       },
       "get": {
-        "operationId": "getDeploymentAlerts",
+        "operationId": "listDeploymentAlerts",
         "parameters": [
           {
             "name": "dseq",

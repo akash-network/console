@@ -50,7 +50,7 @@ export const DeploymentAlertsContainer: FC<Props> = ({ children, deployment }) =
   const queryClient = useQueryClient();
   const notificator = useNotificator();
 
-  const { data, isLoading, isFetched, isError } = api.v1.getDeploymentAlerts.useQuery({ dseq: deployment.dseq });
+  const { data, isLoading, isFetched, isError } = api.v1.listDeploymentAlerts.useQuery({ dseq: deployment.dseq });
 
   const mutation = api.v1.upsertDeploymentAlert.useMutation();
 
@@ -106,7 +106,7 @@ export const DeploymentAlertsContainer: FC<Props> = ({ children, deployment }) =
     async () => {
       notificator.success("Alert configured!", { dataTestId: "alert-config-success-notification" });
       await queryClient.invalidateQueries({
-        queryKey: api.v1.getDeploymentAlerts.getKey({ dseq: deployment.dseq })
+        queryKey: api.v1.listDeploymentAlerts.getKey({ dseq: deployment.dseq })
       });
     },
     [deployment.dseq]

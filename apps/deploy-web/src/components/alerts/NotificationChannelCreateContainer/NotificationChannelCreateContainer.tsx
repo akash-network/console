@@ -43,7 +43,7 @@ export const NotificationChannelCreateContainer: FC<{ children: (props: Children
 
   useWhen(mutation.isSuccess, async () => {
     notificator.success("Notification channel created!", { dataTestId: "notification-channel-create-success-notification" });
-    await queryClient.invalidateQueries({ queryKey: api.v1.getNotificationChannels.getKey() });
+    await queryClient.invalidateQueries({ queryKey: api.v1.listNotificationChannels.getKey() });
     onCreate?.();
   });
 
