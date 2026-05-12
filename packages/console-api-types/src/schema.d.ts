@@ -7011,54 +7011,7 @@ export interface paths {
       cookie?: never;
     };
     /** Get a list of gpu models with their availability and pricing. */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description List of gpu models with their availability and pricing. */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              availability: {
-                total: number;
-                available: number;
-              };
-              models: {
-                vendor: string;
-                model: string;
-                ram: string;
-                interface: string;
-                availability: {
-                  total: number;
-                  available: number;
-                };
-                providerAvailability: {
-                  total: number;
-                  available: number;
-                };
-                price: {
-                  /** @example USD */
-                  currency: string;
-                  min: number;
-                  max: number;
-                  avg: number;
-                  weightedAverage: number;
-                  med: number;
-                } | null;
-              }[];
-            };
-          };
-        };
-      };
-    };
+    get: operations["listGpuPrices"];
     put?: never;
     post?: never;
     delete?: never;
@@ -8688,6 +8641,54 @@ export interface operations {
               /** Format: date-time */
               lastUsedAt: string | null;
               keyFormat: string;
+            }[];
+          };
+        };
+      };
+    };
+  };
+  listGpuPrices: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description List of gpu models with their availability and pricing. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            availability: {
+              total: number;
+              available: number;
+            };
+            models: {
+              vendor: string;
+              model: string;
+              ram: string;
+              interface: string;
+              availability: {
+                total: number;
+                available: number;
+              };
+              providerAvailability: {
+                total: number;
+                available: number;
+              };
+              price: {
+                /** @example USD */
+                currency: string;
+                min: number;
+                max: number;
+                avg: number;
+                weightedAverage: number;
+                med: number;
+              } | null;
             }[];
           };
         };

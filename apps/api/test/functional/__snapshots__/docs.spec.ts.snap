@@ -8155,6 +8155,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/gpu-prices": {
       "get": {
+        "operationId": "listGpuPrices",
         "responses": {
           "200": {
             "content": {

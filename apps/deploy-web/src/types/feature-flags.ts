@@ -8,4 +8,5 @@ export type FeatureFlag =
   | "maintenance_banner"
   | "auto_credit_reload"
   | "console_embedded_login"
-  | "self_custody";
+  | "self_custody"
+  | "console_auth_redesign";
