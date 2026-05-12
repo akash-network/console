@@ -6,7 +6,10 @@ export const envSchema = z.object({
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   STD_OUT_LOG_FORMAT: z.enum(["json", "pretty"]).default("json"),
   PORT: z.number({ coerce: true }).default(3092),
-  DISCOVERY_INTERVAL_MS: z.number({ coerce: true }).default(10 * 60 * 1000) // 10 minutes
+  DISCOVERY_INTERVAL_MS: z.number({ coerce: true }).default(10 * 60 * 1000), // 10 minutes
+  STREAM_RECONNECT_INITIAL_DELAY_MS: z.number({ coerce: true }).default(1_000),
+  STREAM_RECONNECT_MAX_DELAY_MS: z.number({ coerce: true }).default(5 * 60 * 1000), // 5 minutes
+  STREAM_FIRST_MESSAGE_TIMEOUT_MS: z.number({ coerce: true }).default(10_000)
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

@@ -14,6 +14,7 @@ import { DiscoverySchedulerService } from "@src/services/discovery-scheduler/dis
 import { HonoErrorHandlerService } from "@src/services/hono-error-handler/hono-error-handler.service";
 import { ProviderInventoryWriterService } from "@src/services/provider-inventory-writer/provider-inventory-writer.service";
 import { startServer } from "@src/services/start-server/start-server";
+import { runStreamerBootstrap } from "@src/services/streamer-bootstrap/streamer-bootstrap";
 import type { AppEnv } from "@src/types/app-context";
 
 export function createApp(): Hono<AppEnv> {
@@ -31,9 +32,6 @@ export async function bootstrap(): Promise<void> {
 
   await startServer(app, createOtelLogger({ context: "APP" }), process, {
     port: container.resolve(APP_CONFIG).PORT,
-    beforeStart: async () => {
-      await container.resolve(ProviderInventoryWriterService).resetOnlineSince();
-      container.resolve(DiscoverySchedulerService).start();
-    }
+    beforeStart: () => runStreamerBootstrap(container.resolve(ProviderInventoryWriterService), container.resolve(DiscoverySchedulerService))
   });
 }

@@ -1,5 +1,5 @@
 import type { LoggerService } from "@akashnetwork/logging";
-import { sql as rawSql } from "drizzle-orm";
+import { eq, sql as rawSql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { inject, singleton } from "tsyringe";
 
@@ -23,6 +23,14 @@ export class ProviderInventoryWriterService {
   async resetOnlineSince(): Promise<void> {
     await this.#db.update(providerInventory).set({ isOnlineSince: null });
     this.#logger.info({ event: "ONLINE_SINCE_RESET" });
+  }
+
+  async markOffline(owner: string): Promise<void> {
+    await this.#db
+      .update(providerInventory)
+      .set({ isOnline: false, isOnlineSince: null, updatedAt: rawSql`now()` })
+      .where(eq(providerInventory.owner, owner));
+    this.#logger.info({ event: "PROVIDER_MARKED_OFFLINE", owner });
   }
 
   async upsertInventory(provider: ChainProvider, row: ProjectedRow): Promise<void> {
