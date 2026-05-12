@@ -12,6 +12,7 @@ const healthzRoute = createRoute({
   path: "/healthz",
   summary: "Health check",
   tags: ["Healthz"],
+  security: [],
   request: {},
   responses: {
     200: {
