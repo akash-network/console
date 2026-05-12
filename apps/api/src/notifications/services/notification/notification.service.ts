@@ -44,7 +44,7 @@ export class NotificationService {
   async createDefaultChannel(user: UserInput): Promise<void> {
     await backOff(async () => {
       try {
-        await this.notificationsApi.v1.createDefaultChannel(
+        await this.notificationsApi.v1.createDefaultNotificationChannel(
           { data: { name: "Default", type: "email", config: { addresses: [user.email!] } } },
           { headers: { "x-user-id": user.id } }
         );
@@ -97,7 +97,7 @@ export class NotificationService {
 
   private async getNotificationChannels(userId: string) {
     return backOff(
-      () => this.notificationsApi.v1.getNotificationChannels({ page: 1, limit: 1 }, { headers: { "x-user-id": userId } }),
+      () => this.notificationsApi.v1.listNotificationChannels({ page: 1, limit: 1 }, { headers: { "x-user-id": userId } }),
       DEFAULT_BACKOFF_OPTIONS
     );
   }

@@ -33,7 +33,7 @@ describe(DeploymentAlertController.name, () => {
 
     service.get.mockResolvedValue(output.data);
 
-    const result = await controller.getDeploymentAlerts(dseq);
+    const result = await controller.listDeploymentAlerts(dseq);
 
     expect(service.get).toHaveBeenCalledWith(dseq, authService.ability);
     expect(result).toEqual(Ok(output));

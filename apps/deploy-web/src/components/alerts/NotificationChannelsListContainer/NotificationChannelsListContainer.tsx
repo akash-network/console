@@ -40,7 +40,7 @@ export const NotificationChannelsListContainer: FC<NotificationChannelsListConta
   const [limit, setLimit] = useState(10);
   const [removingIds, setRemovingIds] = React.useState<Set<NotificationChannel["id"]>>(new Set());
   const { api } = useServices();
-  const { data, isError, isLoading, isFetched, refetch } = api.v1.getNotificationChannels.useQuery({ page, limit });
+  const { data, isError, isLoading, isFetched, refetch } = api.v1.listNotificationChannels.useQuery({ page, limit });
   const mutation = api.v1.deleteNotificationChannel.useMutation();
   const notificator = useNotificator();
 

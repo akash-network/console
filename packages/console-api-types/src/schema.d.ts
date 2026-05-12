@@ -4019,7 +4019,7 @@ export interface paths {
       cookie?: never;
     };
     /** List all API keys */
-    get: operations["getApiKeys"];
+    get: operations["listApiKeys"];
     put?: never;
     /** Create new API key */
     post: {
@@ -7776,7 +7776,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get: operations["getAlerts"];
+    get: operations["listAlerts"];
     put?: never;
     post: operations["createAlert"];
     delete?: never;
@@ -7798,7 +7798,7 @@ export interface paths {
     delete: operations["deleteAlert"];
     options?: never;
     head?: never;
-    patch: operations["patchAlert"];
+    patch: operations["updateAlert"];
     trace?: never;
   };
   "/v1/notification-channels": {
@@ -7808,7 +7808,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get: operations["getNotificationChannels"];
+    get: operations["listNotificationChannels"];
     put?: never;
     post: operations["createNotificationChannel"];
     delete?: never;
@@ -7826,7 +7826,7 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    post: operations["createDefaultChannel"];
+    post: operations["createDefaultNotificationChannel"];
     delete?: never;
     options?: never;
     head?: never;
@@ -7846,7 +7846,7 @@ export interface paths {
     delete: operations["deleteNotificationChannel"];
     options?: never;
     head?: never;
-    patch: operations["patchNotificationChannel"];
+    patch: operations["updateNotificationChannel"];
     trace?: never;
   };
   "/v1/deployment-alerts/{dseq}": {
@@ -7856,7 +7856,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get: operations["getDeploymentAlerts"];
+    get: operations["listDeploymentAlerts"];
     put?: never;
     post: operations["upsertDeploymentAlert"];
     delete?: never;
@@ -8659,7 +8659,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  getApiKeys: {
+  listApiKeys: {
     parameters: {
       query?: never;
       header?: never;
@@ -8694,7 +8694,7 @@ export interface operations {
       };
     };
   };
-  getAlerts: {
+  listAlerts: {
     parameters: {
       query?: {
         /** @description Number of items per page */
@@ -8943,7 +8943,7 @@ export interface operations {
       };
     };
   };
-  patchAlert: {
+  updateAlert: {
     parameters: {
       query?: never;
       header?: {
@@ -9007,7 +9007,7 @@ export interface operations {
       };
     };
   };
-  getNotificationChannels: {
+  listNotificationChannels: {
     parameters: {
       query?: {
         /** @description Number of items per page */
@@ -9132,7 +9132,7 @@ export interface operations {
       };
     };
   };
-  createDefaultChannel: {
+  createDefaultNotificationChannel: {
     parameters: {
       query?: never;
       header?: never;
@@ -9292,7 +9292,7 @@ export interface operations {
       };
     };
   };
-  patchNotificationChannel: {
+  updateNotificationChannel: {
     parameters: {
       query?: never;
       header?: {
@@ -9365,7 +9365,7 @@ export interface operations {
       };
     };
   };
-  getDeploymentAlerts: {
+  listDeploymentAlerts: {
     parameters: {
       query?: never;
       header?: {

@@ -35,7 +35,7 @@ describe(AlertController.name, () => {
     });
   });
 
-  describe("patchAlert", () => {
+  describe("updateAlert", () => {
     it("should call alertRepository.updateById() and return the updated alert", async () => {
       const { controller, alertRepository } = await setup();
 
@@ -45,7 +45,7 @@ describe(AlertController.name, () => {
 
       alertRepository.updateById.mockResolvedValue(output);
 
-      const result = await controller.patchAlert(id, { data: input });
+      const result = await controller.updateAlert(id, { data: input });
 
       expect(alertRepository.updateById).toHaveBeenCalledWith(id, input);
       expect(result).toEqual(Ok({ data: output }));
@@ -59,7 +59,7 @@ describe(AlertController.name, () => {
 
       alertRepository.updateById.mockResolvedValue(undefined);
 
-      await expect(controller.patchAlert(id, { data: input })).resolves.toMatchObject({
+      await expect(controller.updateAlert(id, { data: input })).resolves.toMatchObject({
         err: true,
         val: expect.objectContaining({ message: "Alert not found" })
       });

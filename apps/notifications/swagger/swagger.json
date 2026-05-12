@@ -81,7 +81,7 @@
         ]
       },
       "get": {
-        "operationId": "getAlerts",
+        "operationId": "listAlerts",
         "parameters": [
           {
             "name": "limit",
@@ -263,7 +263,7 @@
         ]
       },
       "patch": {
-        "operationId": "patchAlert",
+        "operationId": "updateAlert",
         "parameters": [
           {
             "name": "id",
@@ -505,7 +505,7 @@
         ]
       },
       "get": {
-        "operationId": "getNotificationChannels",
+        "operationId": "listNotificationChannels",
         "parameters": [
           {
             "name": "limit",
@@ -593,7 +593,7 @@
     },
     "/v1/notification-channels/default": {
       "post": {
-        "operationId": "createDefaultChannel",
+        "operationId": "createDefaultNotificationChannel",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -703,7 +703,7 @@
         ]
       },
       "patch": {
-        "operationId": "patchNotificationChannel",
+        "operationId": "updateNotificationChannel",
         "parameters": [
           {
             "name": "id",
@@ -982,7 +982,7 @@
         ]
       },
       "get": {
-        "operationId": "getDeploymentAlerts",
+        "operationId": "listDeploymentAlerts",
         "parameters": [
           {
             "name": "dseq",

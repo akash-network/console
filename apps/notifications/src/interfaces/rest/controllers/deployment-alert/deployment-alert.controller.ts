@@ -98,7 +98,7 @@ export class DeploymentAlertController {
   @ValidateHttp({
     200: { schema: DeploymentAlertsResponse, description: "Returns alerts for the specified deployment" }
   })
-  async getDeploymentAlerts(@Param("dseq") dseq: string): Promise<Result<DeploymentAlertsResponse, unknown>> {
+  async listDeploymentAlerts(@Param("dseq") dseq: string): Promise<Result<DeploymentAlertsResponse, unknown>> {
     return Ok({
       data: await this.deploymentAlertService.get(dseq, this.authService.ability)
     });
