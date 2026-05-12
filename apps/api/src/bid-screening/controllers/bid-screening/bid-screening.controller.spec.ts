@@ -1,55 +1,79 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { BidScreeningConfig } from "@src/bid-screening/config/env.config";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { BidScreeningRequest } from "../../http-schemas/bid-screening.schema";
-import type { BidScreeningService } from "../../services/bid-screening/bid-screening.service";
 import { BidScreeningController } from "./bid-screening.controller";
 
 describe(BidScreeningController.name, () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe("screenProviders", () => {
-    it("returns providers wrapped in response object", async () => {
-      const { controller, service } = setup();
-      service.findMatchingProviders.mockResolvedValue([
-        { owner: "akash1abc", hostUri: "https://provider.example.com:8443", region: "us-east", uptime7d: 0.998, isAudited: false }
-      ]);
+    it("proxies the request to PROVIDER_INVENTORY_URL and returns its response", async () => {
+      const providers = [{ owner: "akash1abc", hostUri: "https://provider.example.com:8443", region: "us-east", uptime7d: 0.998, isAudited: false }];
+      const fetchSpy = mockFetchJson({ providers });
+      const { controller } = setup({ providerInventoryApiUrl: "http://provider-inventory:3092" });
 
-      const result = await controller.screenProviders(makeRequest());
+      const request = makeRequest();
+      const result = await controller.screenProviders(request);
 
-      expect(result).toEqual({
-        providers: [{ owner: "akash1abc", hostUri: "https://provider.example.com:8443", region: "us-east", uptime7d: 0.998, isAudited: false }]
-      });
+      expect(result).toEqual({ providers });
+      const [url, init] = fetchSpy.mock.calls[0];
+      expect((url as URL).toString()).toBe("http://provider-inventory:3092/v1/bid-screening");
+      expect(init).toMatchObject({ method: "POST", headers: { "Content-Type": "application/json" } });
+      expect(JSON.parse(init?.body as string)).toEqual(request);
     });
 
-    it("returns empty providers array when no matches", async () => {
-      const { controller, service } = setup();
-      service.findMatchingProviders.mockResolvedValue([]);
+    it("short-circuits to an empty list when the feature flag is disabled", async () => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      const { controller } = setup({ flagEnabled: false });
 
       const result = await controller.screenProviders(makeRequest());
 
       expect(result).toEqual({ providers: [] });
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
 
-    it("passes request to service", async () => {
-      const { controller, service } = setup();
-      service.findMatchingProviders.mockResolvedValue([]);
-      const request = makeRequest();
+    it("throws when the proxy responds with a non-OK status", async () => {
+      mockFetchError({ status: 502, statusText: "Bad Gateway" });
+      const { controller } = setup({});
 
-      await controller.screenProviders(request);
-
-      expect(service.findMatchingProviders).toHaveBeenCalledWith(request);
+      await expect(controller.screenProviders(makeRequest())).rejects.toThrow(/Provider inventory bid-screening failed/);
     });
   });
 
-  function setup() {
-    const service = mock<BidScreeningService>();
+  function setup(input: { flagEnabled?: boolean; providerInventoryApiUrl?: string }) {
     const featureFlagsService = mock<FeatureFlagsService>({
-      isEnabled: () => true
+      isEnabled: () => input.flagEnabled ?? true
     });
-    const controller = new BidScreeningController(service, featureFlagsService);
-    return { controller, service, featureFlagsService };
+    const config = mock<BidScreeningConfig>({
+      PROVIDER_INVENTORY_API_URL: input.providerInventoryApiUrl ?? "http://provider-inventory:3000"
+    });
+    const controller = new BidScreeningController(featureFlagsService, config);
+    return { controller, featureFlagsService, config };
   }
 });
+
+function mockFetchJson(body: unknown) {
+  return vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    })
+  );
+}
+
+function mockFetchError(input: { status: number; statusText: string }) {
+  return vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    new Response("", {
+      status: input.status,
+      statusText: input.statusText
+    })
+  );
+}
 
 function makeRequest(): BidScreeningRequest {
   return {

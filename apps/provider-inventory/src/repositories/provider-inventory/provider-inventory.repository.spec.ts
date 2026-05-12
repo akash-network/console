@@ -4,7 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import type { ChainProvider } from "@src/types/chain-provider";
-import type { ProjectedRow } from "@src/types/inventory";
+import type { Inventory, ProjectedRow } from "@src/types/inventory";
 import { ProviderInventoryRepository } from "./provider-inventory.repository";
 
 describe(ProviderInventoryRepository.name, () => {
@@ -59,22 +59,184 @@ describe(ProviderInventoryRepository.name, () => {
     });
   });
 
-  function setup() {
+  describe("getOnlineProvidersWithSnapshots", () => {
+    it("maps node available capacity into allocatable with allocated=0", async () => {
+      const { writer } = setup({
+        selectRows: [
+          {
+            owner: "akash1abc",
+            hostUri: "https://h:8443",
+            ipRegion: "us-east",
+            uptime7d: 0.998,
+            inventory: createInventory({
+              nodes: [
+                {
+                  name: "node1",
+                  cpu: { available: 8000 },
+                  memory: { available: 17179869184 },
+                  gpu: [],
+                  ephStorage: { available: 107374182400 },
+                  persistentStorage: []
+                }
+              ]
+            })
+          }
+        ]
+      });
+
+      const result = await writer.getOnlineProvidersWithSnapshots();
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({ owner: "akash1abc", hostUri: "https://h:8443", ipRegion: "us-east", uptime7d: 0.998 });
+      const node = result[0].lastSuccessfulSnapshot.nodes[0];
+      expect(node).toMatchObject({
+        name: "node1",
+        cpuAllocatable: 8000,
+        cpuAllocated: 0,
+        memoryAllocatable: 17179869184,
+        memoryAllocated: 0,
+        ephemeralStorageAllocatable: 107374182400,
+        ephemeralStorageAllocated: 0,
+        gpuAllocatable: 0,
+        gpuAllocated: 0,
+        capabilitiesStorageHDD: false,
+        capabilitiesStorageSSD: false,
+        capabilitiesStorageNVME: false
+      });
+    });
+
+    it("derives storage class capabilities from persistentStorage entries", async () => {
+      const { writer } = setup({
+        selectRows: [
+          {
+            owner: "akash1abc",
+            hostUri: "https://h:8443",
+            ipRegion: null,
+            uptime7d: null,
+            inventory: createInventory({
+              nodes: [
+                {
+                  name: "node1",
+                  cpu: { available: 0 },
+                  memory: { available: 0 },
+                  gpu: [],
+                  ephStorage: { available: 0 },
+                  persistentStorage: [
+                    { class: "beta2", available: 0 },
+                    { class: "beta3", available: 0 }
+                  ]
+                }
+              ]
+            })
+          }
+        ]
+      });
+
+      const result = await writer.getOnlineProvidersWithSnapshots();
+
+      const node = result[0].lastSuccessfulSnapshot.nodes[0];
+      expect(node.capabilitiesStorageHDD).toBe(false);
+      expect(node.capabilitiesStorageSSD).toBe(true);
+      expect(node.capabilitiesStorageNVME).toBe(true);
+    });
+
+    it("aggregates per-gpu available into a single gpuAllocatable", async () => {
+      const { writer } = setup({
+        selectRows: [
+          {
+            owner: "akash1abc",
+            hostUri: "https://h:8443",
+            ipRegion: null,
+            uptime7d: null,
+            inventory: createInventory({
+              nodes: [
+                {
+                  name: "node1",
+                  cpu: { available: 0 },
+                  memory: { available: 0 },
+                  gpu: [
+                    { vendor: "nvidia", model: "a100", available: 2 },
+                    { vendor: "nvidia", model: "h100", available: 1 }
+                  ],
+                  ephStorage: { available: 0 },
+                  persistentStorage: []
+                }
+              ]
+            })
+          }
+        ]
+      });
+
+      const result = await writer.getOnlineProvidersWithSnapshots();
+
+      expect(result[0].lastSuccessfulSnapshot.nodes[0].gpuAllocatable).toBe(3);
+      expect(result[0].lastSuccessfulSnapshot.nodes[0].gpus).toHaveLength(2);
+    });
+
+    it("maps cluster storage pools with allocated=0", async () => {
+      const { writer } = setup({
+        selectRows: [
+          {
+            owner: "akash1abc",
+            hostUri: "https://h:8443",
+            ipRegion: null,
+            uptime7d: null,
+            inventory: createInventory({ storage: [{ class: "beta2", available: 536870912000 }] })
+          }
+        ]
+      });
+
+      const result = await writer.getOnlineProvidersWithSnapshots();
+
+      expect(result[0].lastSuccessfulSnapshot.storage).toEqual([{ class: "beta2", allocatable: 536870912000, allocated: 0 }]);
+    });
+
+    it("returns empty array when no rows match", async () => {
+      const { writer } = setup({ selectRows: [] });
+      expect(await writer.getOnlineProvidersWithSnapshots()).toEqual([]);
+    });
+  });
+
+  describe("getAuditedProviderAddresses", () => {
+    it("returns empty set when no auditors are given without hitting the DB", async () => {
+      const { writer, db } = setup();
+
+      const result = await writer.getAuditedProviderAddresses([]);
+
+      expect(result).toEqual(new Set());
+      expect(db.select).not.toHaveBeenCalled();
+    });
+
+    it("returns the set of owners whose auditedBy overlaps the requested auditors", async () => {
+      const { writer } = setup({ selectRows: [{ owner: "akash1abc" }, { owner: "akash1def" }] });
+
+      const result = await writer.getAuditedProviderAddresses(["auditor-a"]);
+
+      expect(result).toEqual(new Set(["akash1abc", "akash1def"]));
+    });
+  });
+
+  function setup(input?: { selectRows?: unknown[] }) {
     const deleteWhere = vi.fn().mockResolvedValue(undefined);
     const insertOnConflict = vi.fn().mockResolvedValue(undefined);
     const insertValues = vi.fn().mockReturnValue({ onConflictDoUpdate: insertOnConflict });
     const updateWhere = vi.fn().mockResolvedValue(undefined);
     const updateSet = vi.fn().mockReturnValue({ where: updateWhere });
+    const selectWhere = vi.fn().mockResolvedValue(input?.selectRows ?? []);
+    const selectFrom = vi.fn().mockReturnValue({ where: selectWhere });
 
     const db = {
       delete: vi.fn().mockReturnValue({ where: deleteWhere }),
       insert: vi.fn().mockReturnValue({ values: insertValues }),
       update: vi.fn().mockReturnValue({ set: updateSet }),
+      select: vi.fn().mockReturnValue({ from: selectFrom }),
       _deleteWhere: deleteWhere,
       _insertValues: insertValues,
       _onConflictDoUpdate: insertOnConflict,
       _updateSet: updateSet,
-      _updateWhere: updateWhere
+      _updateWhere: updateWhere,
+      _selectFrom: selectFrom,
+      _selectWhere: selectWhere
     };
 
     const logger = mock<ReturnType<LoggerFactory>>();
@@ -109,5 +271,12 @@ function createProjectedRow(overrides?: { cpu?: bigint }): ProjectedRow {
     maxNodeFreeGpu: 0n,
     gpuModels: [],
     storageClasses: []
+  };
+}
+
+function createInventory(overrides?: Partial<Inventory>): Inventory {
+  return {
+    nodes: overrides?.nodes ?? [],
+    storage: overrides?.storage ?? []
   };
 }
