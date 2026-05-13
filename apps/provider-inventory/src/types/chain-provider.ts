@@ -12,7 +12,6 @@ export interface SignedAttribute {
 export interface ChainProvider {
   owner: string;
   hostUri: string;
-  createdHeight: bigint;
   selfAttributes: SelfAttribute[];
   signedAttributes: SignedAttribute[];
 }

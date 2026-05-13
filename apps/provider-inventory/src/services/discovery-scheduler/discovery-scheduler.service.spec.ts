@@ -66,7 +66,7 @@ describe(DiscoverySchedulerService.name, () => {
     expect(poller.poll).toHaveBeenCalledTimes(2);
   });
 
-  it("dispatches each reconciler command to the right handler", async () => {
+  it("upserts attributes and starts a stream for a brand-new provider", async () => {
     const fresh = createProvider({ owner: "fresh", hostUri: "https://fresh:8443" });
     const { writer, lifecycle } = setup({ providers: [fresh] });
 
@@ -74,19 +74,7 @@ describe(DiscoverySchedulerService.name, () => {
 
     expect(lifecycle.getRegistry).toHaveBeenCalled();
     expect(writer.upsertAttributes).toHaveBeenCalledWith(fresh);
-    expect(lifecycle.start).toHaveBeenCalledWith(fresh);
-  });
-
-  it("dispatches refreshAttributes in createdHeight DESC order so winners commit before losers", async () => {
-    const a = createProvider({ owner: "a", createdHeight: 100n });
-    const b = createProvider({ owner: "b", createdHeight: 200n });
-    const c = createProvider({ owner: "c", createdHeight: 50n });
-    const { writer } = setup({ providers: [a, b, c] });
-
-    await vi.advanceTimersByTimeAsync(0);
-
-    const orderedOwners = writer.upsertAttributes.mock.calls.map(([p]) => p.owner);
-    expect(orderedOwners).toEqual(["b", "a", "c"]);
+    expect(lifecycle.start).toHaveBeenCalledWith(fresh, expect.any(AbortSignal));
   });
 
   it("continues after a poll error and re-arms the next tick", async () => {
@@ -157,17 +145,25 @@ describe(DiscoverySchedulerService.name, () => {
     };
 
     if (input?.pollError) {
-      poller.poll.mockRejectedValue(input.pollError);
+      const error = input.pollError;
+      // eslint-disable-next-line require-yield
+      poller.poll.mockImplementation(async function* () {
+        throw error;
+      });
     } else if (input?.pollDelay) {
       const delay = input.pollDelay(config);
-      poller.poll.mockImplementation(
-        () =>
-          new Promise(resolve => {
-            setTimeout(() => resolve(input?.providers ?? []), delay);
-          })
-      );
+      const providers = input?.providers ?? [];
+      poller.poll.mockImplementation(async function* () {
+        await new Promise<void>(resolve => {
+          setTimeout(resolve, delay);
+        });
+        yield providers;
+      });
     } else {
-      poller.poll.mockResolvedValue(input?.providers ?? []);
+      const providers = input?.providers ?? [];
+      poller.poll.mockImplementation(async function* () {
+        yield providers;
+      });
     }
 
     const scheduler = new DiscoverySchedulerService(poller, writer, lifecycle, config, loggerFactory);
@@ -181,7 +177,6 @@ function createProvider(overrides?: Partial<ChainProvider>): ChainProvider {
   return {
     owner: "akash1abc",
     hostUri: "https://provider.example.com:8443",
-    createdHeight: 100n,
     selfAttributes: [],
     signedAttributes: [],
     ...overrides

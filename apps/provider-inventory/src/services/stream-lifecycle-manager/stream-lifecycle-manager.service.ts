@@ -3,7 +3,6 @@ import type { RetryPolicy } from "cockatiel";
 import { ExponentialBackoff, handleAll, retry } from "cockatiel";
 import { inject, singleton } from "tsyringe";
 
-import type { StreamHandle } from "@src/lib/discovery-reconciler/discovery-reconciler";
 import { projectRow } from "@src/lib/project-row/project-row";
 import { projectedRowsEqual } from "@src/lib/projected-row-equals/projected-row-equals";
 import type { EnvConfig } from "@src/providers/app-config.provider";
@@ -51,23 +50,20 @@ export class StreamLifecycleManagerService {
     });
   }
 
-  getRegistry(): ReadonlyMap<string, StreamHandle> {
-    const view = new Map<string, StreamHandle>();
-    for (const [owner, stream] of this.#activeStreams) {
-      view.set(owner, { hostUri: stream.hostUri });
-    }
-    return view;
+  getRegistry(): ReadonlyMap<string, { hostUri: string }> {
+    return this.#activeStreams;
   }
 
-  start(provider: ChainProvider): void {
+  start(provider: ChainProvider, signal?: AbortSignal): void {
     const controller = new AbortController();
     this.#activeStreams.set(provider.owner, { controller, hostUri: provider.hostUri });
+    signal?.addEventListener("abort", () => controller.abort(), { once: true });
     void this.#runStream(provider, controller.signal);
   }
 
-  restart(provider: ChainProvider): void {
+  restart(provider: ChainProvider, signal?: AbortSignal): void {
     this.#abortIfActive(provider.owner, "STREAM_STOPPED_HOSTURI_CHANGE");
-    this.start(provider);
+    this.start(provider, signal);
   }
 
   async stopAndDelete(owner: string): Promise<void> {
@@ -90,6 +86,7 @@ export class StreamLifecycleManagerService {
   async #runStream(provider: ChainProvider, signal: AbortSignal): Promise<void> {
     try {
       await this.#retryStreamPolicy.execute(ctx => {
+        if (signal.aborted) return;
         if (ctx.attempt > 0) {
           this.#logger.warn({
             event: "STREAM_RECONNECTING",

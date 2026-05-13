@@ -1,8 +1,6 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import { inject, singleton } from "tsyringe";
 
-import type { DiscoveryCommand } from "@src/lib/discovery-reconciler/discovery-reconciler";
-import { reconcileDiscovery } from "@src/lib/discovery-reconciler/discovery-reconciler";
 import { chunkify } from "@src/lib/generators/chunkify";
 import type { EnvConfig } from "@src/providers/app-config.provider";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
@@ -20,8 +18,7 @@ export class DiscoverySchedulerService {
   readonly #writer: ProviderInventoryRepository;
   readonly #lifecycle: StreamLifecycleManagerService;
   readonly #config: EnvConfig;
-  #timer: ReturnType<typeof setTimeout> | null = null;
-  #running = false;
+  #abortController: AbortController | null = null;
 
   constructor(
     @inject(ChainProviderPollerService) poller: ChainProviderPollerService,
@@ -38,16 +35,15 @@ export class DiscoverySchedulerService {
   }
 
   start(): void {
-    if (this.#running) return;
-    this.#running = true;
-    void this.#tick();
+    if (this.#abortController) return;
+    this.#abortController = new AbortController();
+    void this.#runDiscoveryLoop(this.#abortController.signal);
   }
 
   stop(): void {
-    this.#running = false;
-    if (this.#timer) {
-      clearTimeout(this.#timer);
-      this.#timer = null;
+    if (this.#abortController) {
+      this.#abortController.abort();
+      this.#abortController = null;
     }
   }
 
@@ -55,46 +51,66 @@ export class DiscoverySchedulerService {
     this.stop();
   }
 
-  async discoverProviders(): Promise<void> {
+  async discoverProviders(signal?: AbortSignal): Promise<void> {
     try {
       this.#logger.info({ event: "DISCOVERY_TICK_START" });
-      const providers = await this.#poller.poll();
+      const watchedProviders = this.#lifecycle.getRegistry();
+      const providersToStop = new Set(watchedProviders.keys());
+      this.#logger.info({ event: "DISCOVERY_CURRENT_REGISTRY", providerCount: watchedProviders.size });
 
-      const chunkedCommands = chunkify(reconcileDiscovery(this.#lifecycle.getRegistry(), providers), 50);
-      for (const commands of chunkedCommands) {
-        await Promise.allSettled(commands.map(c => this.#dispatch(c)));
+      let startedProvidersCount = 0;
+      let restartedProvidersCount = 0;
+      for await (const providers of this.#poller.poll({ signal })) {
+        for (const batch of chunkify(providers, 50)) {
+          if (signal?.aborted) break;
+
+          await Promise.allSettled(
+            batch.map(async provider => {
+              if (signal?.aborted) return;
+
+              const observedProvider = watchedProviders.get(provider.owner);
+              await this.#refreshAttributes(provider);
+              if (!observedProvider) {
+                this.#lifecycle.start(provider, signal);
+                startedProvidersCount++;
+              } else if (observedProvider.hostUri !== provider.hostUri) {
+                this.#lifecycle.restart(provider, signal);
+                restartedProvidersCount++;
+              }
+
+              providersToStop.delete(provider.owner);
+            })
+          );
+        }
       }
 
-      this.#logger.info({ event: "DISCOVERY_TICK_COMPLETE", providerCount: providers.length });
+      for (const owners of chunkify(providersToStop, 50)) {
+        await Promise.allSettled(owners.map(o => this.#lifecycle.stopAndDelete(o)));
+      }
+
+      this.#logger.info({
+        event: "DISCOVERY_TICK_COMPLETE",
+        stoppedCount: providersToStop.size,
+        startedCount: startedProvidersCount,
+        restartedCount: restartedProvidersCount
+      });
     } catch (error) {
       this.#logger.error({ event: "DISCOVERY_TICK_ERROR", error });
     }
   }
 
-  async #tick(): Promise<void> {
-    if (!this.#running) return;
-    await this.discoverProviders();
-    if (this.#running) {
-      this.#timer = setTimeout(() => void this.#tick(), this.#config.DISCOVERY_INTERVAL_MS);
-    }
-  }
-
-  async #dispatch(command: DiscoveryCommand): Promise<void> {
-    switch (command.kind) {
-      case "stop":
-        await this.#lifecycle.stopAndDelete(command.owner);
-        return;
-      case "refreshAttributes":
-        await this.#refreshAttributes(command.provider);
-        return;
-      case "start":
-        await this.#refreshAttributes(command.provider);
-        this.#lifecycle.start(command.provider);
-        return;
-      case "restart":
-        await this.#refreshAttributes(command.provider);
-        this.#lifecycle.restart(command.provider);
-        return;
+  async #runDiscoveryLoop(signal: AbortSignal): Promise<void> {
+    while (!signal.aborted) {
+      await this.discoverProviders(signal);
+      if (signal.aborted) break;
+      await new Promise<void>(resolve => {
+        const clearDelay = () => clearTimeout(timerId);
+        const timerId = setTimeout(() => {
+          signal.removeEventListener("abort", clearDelay);
+          resolve();
+        }, this.#config.DISCOVERY_INTERVAL_MS);
+        signal.addEventListener("abort", clearDelay, { once: true });
+      });
     }
   }
 

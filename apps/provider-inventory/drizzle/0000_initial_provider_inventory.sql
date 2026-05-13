@@ -1,7 +1,6 @@
 CREATE TABLE provider_inventory (
   owner             TEXT PRIMARY KEY,
   host_uri          TEXT NOT NULL,
-  created_height    BIGINT NOT NULL,
   ip_region         TEXT,
   uptime_7d         DOUBLE PRECISION,
   is_online         BOOLEAN NOT NULL DEFAULT false,

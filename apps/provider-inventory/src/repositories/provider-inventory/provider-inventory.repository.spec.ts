@@ -24,10 +24,10 @@ describe(ProviderInventoryRepository.name, () => {
     it("upserts the row with the provider's attributes", async () => {
       const { writer, db } = setup();
 
-      await writer.upsertAttributes(createProvider({ owner: "a", hostUri: "https://h:8443", createdHeight: 100n }));
+      await writer.upsertAttributes(createProvider({ owner: "a", hostUri: "https://h:8443" }));
 
       expect(db.insert).toHaveBeenCalledTimes(1);
-      expect(db._insertValues).toHaveBeenCalledWith(expect.objectContaining({ owner: "a", hostUri: "https://h:8443", createdHeight: 100n }));
+      expect(db._insertValues).toHaveBeenCalledWith(expect.objectContaining({ owner: "a", hostUri: "https://h:8443" }));
     });
 
     it("computes auditedBy as a sorted, deduped list of auditors", async () => {
@@ -227,7 +227,6 @@ function createProvider(overrides?: Partial<ChainProvider>): ChainProvider {
   return {
     owner: "akash1owner",
     hostUri: "https://p:8443",
-    createdHeight: 100n,
     selfAttributes: [],
     signedAttributes: [],
     ...overrides

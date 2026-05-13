@@ -87,8 +87,8 @@ describe(StreamLifecycleManagerService.name, () => {
 
       const registry = manager.getRegistry();
       expect(registry.size).toBe(2);
-      expect(registry.get("a")).toEqual({ hostUri: "https://a:8443" });
-      expect(registry.get("b")).toEqual({ hostUri: "https://b:8443" });
+      expect(registry.get("a")).toEqual(expect.objectContaining({ hostUri: "https://a:8443" }));
+      expect(registry.get("b")).toEqual(expect.objectContaining({ hostUri: "https://b:8443" }));
     });
   });
 
@@ -226,12 +226,12 @@ describe(StreamLifecycleManagerService.name, () => {
       manager.start(provider);
 
       expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(2);
-      expect(manager.getRegistry().get(provider.owner)).toEqual({ hostUri: provider.hostUri });
+      expect(manager.getRegistry().get(provider.owner)).toEqual(expect.objectContaining({ hostUri: provider.hostUri }));
 
       resolveOldStream();
       await delay(20);
 
-      expect(manager.getRegistry().get(provider.owner)).toEqual({ hostUri: provider.hostUri });
+      expect(manager.getRegistry().get(provider.owner)).toEqual(expect.objectContaining({ hostUri: provider.hostUri }));
     });
   });
 
@@ -258,6 +258,22 @@ describe(StreamLifecycleManagerService.name, () => {
       manager.shutdown();
 
       expect(manager.getRegistry().size).toBe(0);
+    });
+
+    it("does not log STREAM_RECONNECTING after shutdown when a scheduled retry timer fires", async () => {
+      const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
+      const { manager, logger } = setup({ streamFactory });
+      const countReconnects = () => logger.warn.mock.calls.filter(([arg]) => (arg as { event?: string })?.event === "STREAM_RECONNECTING").length;
+
+      manager.start(createProvider());
+      await vi.waitFor(() => expect(countReconnects()).toBeGreaterThan(0));
+
+      const before = countReconnects();
+      manager.shutdown();
+      await delay(100);
+
+      expect(countReconnects()).toBe(before);
     });
 
     it("clears diff cache on shutdown", async () => {
@@ -308,7 +324,6 @@ function createProvider(overrides?: Partial<ChainProvider>): ChainProvider {
   return {
     owner: "akash1owner",
     hostUri: "https://p1:8443",
-    createdHeight: 100n,
     selfAttributes: [],
     signedAttributes: [],
     ...overrides
