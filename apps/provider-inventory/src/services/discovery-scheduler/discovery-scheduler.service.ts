@@ -104,7 +104,10 @@ export class DiscoverySchedulerService {
       await this.discoverProviders(signal);
       if (signal.aborted) break;
       await new Promise<void>(resolve => {
-        const clearDelay = () => clearTimeout(timerId);
+        const clearDelay = () => {
+          clearTimeout(timerId);
+          resolve();
+        };
         const timerId = setTimeout(() => {
           signal.removeEventListener("abort", clearDelay);
           resolve();
