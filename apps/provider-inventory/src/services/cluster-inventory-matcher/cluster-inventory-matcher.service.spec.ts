@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ProviderWithSnapshot } from "@src/bid-screening/types/provider";
+import type { ProviderWithSnapshot } from "@src/types/provider";
 import type { GpuInfo, RequestedResourceUnit } from "../../types/inventory.types";
 import { ClusterInventoryMatcherService } from "./cluster-inventory-matcher.service";
 

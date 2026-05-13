@@ -1,21 +1,27 @@
 import { BadRequest } from "http-errors";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
-import { LoggerService } from "@src/core/providers/logging.provider";
-import { AUDITOR } from "@src/deployment/config/provider.config";
-import { GroupSpecJSON, mapGroupSpecToResourceUnits } from "../../lib/groupspec-mapper/groupspec-mapper";
-import { BidScreeningRepository } from "../../repositories/bid-screening/bid-screening.repository";
+import { LoggerService } from "@src/providers/logging.provider";
+import { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
+import type { GroupSpecJSON } from "../../lib/groupspec-mapper/groupspec-mapper";
+import { mapGroupSpecToResourceUnits } from "../../lib/groupspec-mapper/groupspec-mapper";
 import type { BidScreeningResult } from "../../types/inventory.types";
 import type { ProviderWithSnapshot } from "../../types/provider";
 import { ClusterInventoryMatcherService } from "../cluster-inventory-matcher/cluster-inventory-matcher.service";
 
+const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
+
 @singleton()
 export class BidScreeningService {
-  readonly #repository: BidScreeningRepository;
+  readonly #repository: ProviderInventoryRepository;
   readonly #matcher: ClusterInventoryMatcherService;
   readonly #logger: LoggerService;
 
-  constructor(repository: BidScreeningRepository, matcher: ClusterInventoryMatcherService, logger: LoggerService) {
+  constructor(
+    @inject(ProviderInventoryRepository) repository: ProviderInventoryRepository,
+    @inject(ClusterInventoryMatcherService) matcher: ClusterInventoryMatcherService,
+    @inject(LoggerService) logger: LoggerService
+  ) {
     this.#repository = repository;
     this.#matcher = matcher;
     this.#logger = logger;

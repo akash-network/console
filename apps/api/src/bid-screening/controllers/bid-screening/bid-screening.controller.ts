@@ -1,19 +1,20 @@
-import { singleton } from "tsyringe";
+import { HTTPException } from "hono/http-exception";
+import type { StatusCode } from "hono/utils/http-status";
+import { inject, singleton } from "tsyringe";
 
-import type { GroupSpecJSON } from "@src/bid-screening/lib/groupspec-mapper/groupspec-mapper";
+import { BID_SCREENING_CONFIG, type BidScreeningConfig } from "@src/bid-screening/providers/config.provider";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { BidScreeningRequest, BidScreeningResponse } from "../../http-schemas/bid-screening.schema";
-import { BidScreeningService } from "../../services/bid-screening/bid-screening.service";
 
 @singleton()
 export class BidScreeningController {
-  readonly #bidScreeningService: BidScreeningService;
   readonly #featureFlagsService: FeatureFlagsService;
+  readonly #bidScreeningConfig: BidScreeningConfig;
 
-  constructor(bidScreeningService: BidScreeningService, featureFlagsService: FeatureFlagsService) {
-    this.#bidScreeningService = bidScreeningService;
+  constructor(featureFlagsService: FeatureFlagsService, @inject(BID_SCREENING_CONFIG) config: BidScreeningConfig) {
     this.#featureFlagsService = featureFlagsService;
+    this.#bidScreeningConfig = config;
   }
 
   async screenProviders(request: BidScreeningRequest): Promise<BidScreeningResponse> {
@@ -21,7 +22,30 @@ export class BidScreeningController {
       return { providers: [] };
     }
 
-    const results = await this.#bidScreeningService.findMatchingProviders(request as GroupSpecJSON);
-    return { providers: results };
+    const baseUrl = this.#bidScreeningConfig.PROVIDER_INVENTORY_API_URL;
+    const url = new URL("/v1/bid-screening", baseUrl);
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request)
+      });
+    } catch (error) {
+      throw new HTTPException(503, {
+        cause: error,
+        message: "Failed to screen providers."
+      });
+    }
+
+    if (!response.ok) {
+      throw new HTTPException(response.status as StatusCode, {
+        res: response,
+        message: `Provider inventory bid-screening failed.`
+      });
+    }
+
+    return (await response.json()) as BidScreeningResponse;
   }
 }

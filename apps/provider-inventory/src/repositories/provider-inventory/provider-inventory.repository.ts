@@ -1,5 +1,5 @@
 import type { LoggerService } from "@akashnetwork/logging";
-import { eq, sql as rawSql } from "drizzle-orm";
+import { and, arrayOverlaps, eq, sql as rawSql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { inject, singleton } from "tsyringe";
 
@@ -8,7 +8,12 @@ import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
 import type { ChainProvider } from "@src/types/chain-provider";
-import type { ProjectedRow } from "@src/types/inventory";
+import type { Inventory, ProjectedRow } from "@src/types/inventory";
+import type { ProviderWithSnapshot } from "@src/types/provider";
+
+const STORAGE_CLASS_HDD = "beta1";
+const STORAGE_CLASS_SSD = "beta2";
+const STORAGE_CLASS_NVME = "beta3";
 
 @singleton()
 export class ProviderInventoryRepository {
@@ -80,4 +85,74 @@ export class ProviderInventoryRepository {
 
     this.#logger.debug({ event: "PROVIDER_ATTRIBUTES_UPSERTED", owner: provider.owner });
   }
+
+  async getOnlineProvidersWithSnapshots(): Promise<ProviderWithSnapshot[]> {
+    const rows = await this.#db
+      .select({
+        owner: providerInventory.owner,
+        hostUri: providerInventory.hostUri,
+        ipRegion: providerInventory.ipRegion,
+        uptime7d: providerInventory.uptime7d,
+        inventory: providerInventory.inventory
+      })
+      .from(providerInventory)
+      .where(and(eq(providerInventory.isOnline, true)));
+
+    return rows.map(row => ({
+      owner: row.owner,
+      hostUri: row.hostUri,
+      ipRegion: row.ipRegion,
+      uptime7d: row.uptime7d,
+      lastSuccessfulSnapshot: inventoryToSnapshot(row.inventory as Inventory)
+    }));
+  }
+
+  async getAuditedProviderAddresses(auditorAddresses: string[]): Promise<Set<string>> {
+    if (auditorAddresses.length === 0) {
+      return new Set();
+    }
+
+    const rows = await this.#db
+      .select({ owner: providerInventory.owner })
+      .from(providerInventory)
+      .where(arrayOverlaps(providerInventory.auditedBy, auditorAddresses));
+
+    return new Set(rows.map(r => r.owner));
+  }
+}
+
+function inventoryToSnapshot(inventory: Inventory): ProviderWithSnapshot["lastSuccessfulSnapshot"] {
+  return {
+    nodes: inventory.nodes.map(node => {
+      const classes = new Set(node.persistentStorage.map(p => p.class));
+      const gpuTotal = node.gpu.reduce((acc, g) => acc + g.available, 0);
+      return {
+        name: node.name,
+        cpuAllocatable: node.cpu.available,
+        cpuAllocated: 0,
+        memoryAllocatable: node.memory.available,
+        memoryAllocated: 0,
+        ephemeralStorageAllocatable: node.ephStorage.available,
+        ephemeralStorageAllocated: 0,
+        gpuAllocatable: gpuTotal,
+        gpuAllocated: 0,
+        capabilitiesStorageHDD: classes.has(STORAGE_CLASS_HDD),
+        capabilitiesStorageSSD: classes.has(STORAGE_CLASS_SSD),
+        capabilitiesStorageNVME: classes.has(STORAGE_CLASS_NVME),
+        gpus: node.gpu.map(g => ({
+          vendor: g.vendor,
+          name: g.model,
+          modelId: "",
+          interface: "",
+          memorySize: ""
+        })),
+        cpus: []
+      };
+    }),
+    storage: inventory.storage.map(s => ({
+      class: s.class,
+      allocatable: s.available,
+      allocated: 0
+    }))
+  };
 }
