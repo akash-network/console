@@ -13,11 +13,6 @@ export interface CpuInfo {
   model: string;
 }
 
-export interface ResourcePairState {
-  allocatable: bigint;
-  allocated: bigint;
-}
-
 export interface NodeState {
   name: string;
   cpu: ResourcePair;

@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { GroupSpecJSON } from "@src/lib/groupspec-mapper/groupspec-mapper";
+import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
 import type { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
-import type { ProviderWithSnapshot } from "../../types/provider";
+import type { ProviderWithClusterState } from "../../types/provider";
 import type { ClusterInventoryMatcherService } from "../cluster-inventory-matcher/cluster-inventory-matcher.service";
 import { BidScreeningService } from "./bid-screening.service";
 
@@ -12,7 +13,7 @@ describe(BidScreeningService.name, () => {
   describe("findMatchingProviders", () => {
     it("returns passing providers with metadata", async () => {
       const { service, repository, matcher } = setup();
-      repository.getOnlineProvidersWithSnapshots.mockResolvedValue([makeProvider("akash1abc")]);
+      repository.getOnlineProviders.mockResolvedValue([makeProvider("akash1abc")]);
       repository.getAuditedProviderAddresses.mockResolvedValue(new Set());
       matcher.match.mockReturnValue({ matched: true });
 
@@ -31,7 +32,7 @@ describe(BidScreeningService.name, () => {
 
     it("filters out providers that fail matching", async () => {
       const { service, repository, matcher } = setup();
-      repository.getOnlineProvidersWithSnapshots.mockResolvedValue([makeProvider("akash1abc"), makeProvider("akash1def")]);
+      repository.getOnlineProviders.mockResolvedValue([makeProvider("akash1abc"), makeProvider("akash1def")]);
       repository.getAuditedProviderAddresses.mockResolvedValue(new Set());
       matcher.match.mockReturnValueOnce({ matched: true }).mockReturnValueOnce({ matched: false, error: "INSUFFICIENT_CAPACITY" });
 
@@ -41,9 +42,21 @@ describe(BidScreeningService.name, () => {
       expect(results[0].owner).toBe("akash1abc");
     });
 
+    it("passes the provider's ClusterState directly to the matcher", async () => {
+      const { service, repository, matcher } = setup();
+      const provider = makeProvider("akash1abc");
+      repository.getOnlineProviders.mockResolvedValue([provider]);
+      repository.getAuditedProviderAddresses.mockResolvedValue(new Set());
+      matcher.match.mockReturnValue({ matched: true });
+
+      await service.findMatchingProviders(makeRequest());
+
+      expect(matcher.match).toHaveBeenCalledWith(provider.cluster, expect.any(Array));
+    });
+
     it("returns empty array when no providers are online", async () => {
       const { service, repository } = setup();
-      repository.getOnlineProvidersWithSnapshots.mockResolvedValue([]);
+      repository.getOnlineProviders.mockResolvedValue([]);
       repository.getAuditedProviderAddresses.mockResolvedValue(new Set());
 
       const results = await service.findMatchingProviders(makeRequest());
@@ -53,7 +66,7 @@ describe(BidScreeningService.name, () => {
 
     it("returns empty array when all providers fail matching", async () => {
       const { service, repository, matcher } = setup();
-      repository.getOnlineProvidersWithSnapshots.mockResolvedValue([makeProvider("akash1abc")]);
+      repository.getOnlineProviders.mockResolvedValue([makeProvider("akash1abc")]);
       repository.getAuditedProviderAddresses.mockResolvedValue(new Set());
       matcher.match.mockReturnValue({ matched: false, error: "INSUFFICIENT_CAPACITY" });
 
@@ -66,19 +79,19 @@ describe(BidScreeningService.name, () => {
   describe("filtering", () => {
     it("loads providers and audited owners in parallel after pre-filter", async () => {
       const { service, repository, matcher } = setup();
-      repository.getOnlineProvidersWithSnapshots.mockResolvedValue([makeProvider("akash1abc")]);
+      repository.getOnlineProviders.mockResolvedValue([makeProvider("akash1abc")]);
       repository.getAuditedProviderAddresses.mockResolvedValue(new Set());
       matcher.match.mockReturnValue({ matched: true });
 
       await service.findMatchingProviders(makeRequest());
 
-      expect(repository.getOnlineProvidersWithSnapshots).toHaveBeenCalledTimes(1);
+      expect(repository.getOnlineProviders).toHaveBeenCalledTimes(1);
       expect(repository.getAuditedProviderAddresses).toHaveBeenCalledTimes(1);
     });
 
     it("enriches isAudited=true for providers with matching auditor signatures", async () => {
       const { service, repository, matcher } = setup();
-      repository.getOnlineProvidersWithSnapshots.mockResolvedValue([makeProvider("akash1abc"), makeProvider("akash1def")]);
+      repository.getOnlineProviders.mockResolvedValue([makeProvider("akash1abc"), makeProvider("akash1def")]);
       repository.getAuditedProviderAddresses.mockResolvedValue(new Set(["akash1abc"]));
       matcher.match.mockReturnValue({ matched: true });
 
@@ -99,32 +112,25 @@ describe(BidScreeningService.name, () => {
   }
 });
 
-function makeProvider(owner: string, hostUri = "https://provider.example.com:8443"): ProviderWithSnapshot {
+function makeProvider(owner: string, hostUri = "https://provider.example.com:8443"): ProviderWithClusterState {
   return {
     owner,
     hostUri,
     ipRegion: "us-east",
     uptime7d: 0.998,
-    lastSuccessfulSnapshot: {
+    cluster: {
       nodes: [
         {
           name: "node1",
-          cpuAllocatable: 8000,
-          cpuAllocated: 0,
-          memoryAllocatable: 17179869184,
-          memoryAllocated: 0,
-          ephemeralStorageAllocatable: 107374182400,
-          ephemeralStorageAllocated: 0,
-          gpuAllocatable: 0,
-          gpuAllocated: 0,
-          capabilitiesStorageHDD: false,
-          capabilitiesStorageSSD: true,
-          capabilitiesStorageNVME: false,
-          gpus: [],
+          cpu: new ResourcePair(8000n, 0n),
+          memory: new ResourcePair(17179869184n, 0n),
+          ephemeralStorage: new ResourcePair(107374182400n, 0n),
+          gpu: { quantity: new ResourcePair(0n, 0n), info: [] },
+          storageClasses: ["beta2"],
           cpus: []
         }
       ],
-      storage: []
+      storage: Object.create(null)
     }
   };
 }
