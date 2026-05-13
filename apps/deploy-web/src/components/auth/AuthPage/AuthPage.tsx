@@ -3,20 +3,22 @@
 import { useCallback, useRef, useState } from "react";
 import { Button, Separator, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { useMutation } from "@tanstack/react-query";
-import { DollarSignIcon, RocketIcon, ZapIcon } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/router";
 import { NextSeo } from "next-seo";
 
+import { H100PriceStatus } from "@src/components/gpu/H100PriceStatus/H100PriceStatus";
 import { AkashConsoleLogo } from "@src/components/icons/AkashConsoleLogo";
 import { RemoteApiError } from "@src/components/shared/RemoteApiError/RemoteApiError";
 import type { TurnstileRef } from "@src/components/turnstile/Turnstile";
 import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet as useWalletOriginal } from "@src/context/WalletProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useReturnTo } from "@src/hooks/useReturnTo";
 import { useUser } from "@src/hooks/useUser";
 import { AuthLayout } from "../AuthLayout/AuthLayout";
+import { AuthLayoutV2 } from "../AuthLayoutV2/AuthLayoutV2";
 import { ForgotPasswordForm } from "../ForgotPasswordForm/ForgotPasswordForm";
 import type { SignInFormValues } from "../SignInForm/SignInForm";
 import { SignInForm } from "../SignInForm/SignInForm";
@@ -26,6 +28,7 @@ import { SocialAuth } from "../SocialAuth/SocialAuth";
 
 export const DEPENDENCIES = {
   AuthLayout,
+  AuthLayoutV2,
   NextSeo,
   SocialAuth,
   SignInForm,
@@ -37,17 +40,16 @@ export const DEPENDENCIES = {
   TabsContent,
   TabsTrigger,
   TabsList,
-  DollarSignIcon,
-  RocketIcon,
-  ZapIcon,
   AkashConsoleLogo,
+  H100PriceStatus,
   Button,
   Separator,
   useUser,
   useSearchParams,
   useRouter,
   useReturnTo,
-  useWallet: useWalletOriginal
+  useWallet: useWalletOriginal,
+  useFlag
 };
 
 interface Props {
@@ -55,6 +57,7 @@ interface Props {
 }
 
 export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
+  const isRedesignEnabled = d.useFlag("console_auth_redesign");
   const { authService, publicConfig, analyticsService } = useServices();
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
@@ -117,141 +120,112 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
     forgotPassword.reset();
   }, [signInOrSignUp, forgotPassword]);
 
-  return (
-    <d.AuthLayout
-      sidebar={
-        <div className="hidden max-w-[576px] flex-col gap-6 px-4 lg:flex">
-          <AkashConsoleLogo size={{ width: 291, height: 32 }} />
-          <p>The fastest way to deploy an application on Akash.Network</p>
-          <div className="flex gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md border border-[#E5E5E5] bg-white" style={{ color: "hsl(var(--background))" }}>
-              <d.ZapIcon />
-            </div>
-            <div className="flex-1">
-              <h5 className="font-semibold">Generous Free Trial</h5>
-              <p className="mt-1">$100 of cloud compute credits so you can test real workloads.</p>
-            </div>
-          </div>
-          <div className="flex gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md border border-[#E5E5E5] bg-white" style={{ color: "hsl(var(--background))" }}>
-              <d.RocketIcon />
-            </div>
-            <div className="flex-1">
-              <h5 className="font-semibold">Optimized for AI/ML</h5>
-              <p className="mt-1">Container native with a library of templates for leading open source AI models and applications.</p>
-            </div>
-          </div>
-          <div className="flex gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md border border-[#E5E5E5] bg-white" style={{ color: "hsl(var(--background))" }}>
-              <d.DollarSignIcon />
-            </div>
-            <div className="flex-1">
-              <h5 className="font-semibold">Cost Savings</h5>
-              <p className="mt-1">The most competitive prices for GPUs on-demand, anywhere on the internet.</p>
-            </div>
-          </div>
-        </div>
-      }
-    >
-      <>
-        <d.NextSeo title="Log in or Sign up" />
-        <div className="w-full max-w-[576px] rounded-[var(--radius)] bg-[hsl(var(--background))] px-3 py-4 sm:px-6 lg:rounded-none">
-          <div>
-            <d.AkashConsoleLogo className="mb-4 lg:hidden" size={{ width: 291, height: 32 }} />
-            <h1 className="text-xl font-bold leading-tight text-neutral-950 lg:text-4xl lg:leading-10 dark:text-[var(--foreground)]">
-              {(activeView === "forgot-password" && "Reset your password") || (
-                <div className="flex items-center">
-                  <span>Log in or sign up</span>
-                  <span className="lg:hidden"> to get started</span>
-                </div>
-              )}
-            </h1>
-            <p className="mt-2 text-sm leading-5 text-neutral-500 dark:text-neutral-400">
-              {activeView === "forgot-password"
-                ? "Enter your email address and we'll send you instructions to reset your password."
-                : "Create your Akash account or log in to an existing one."}
-            </p>
-          </div>
-
-          <div className="relative mt-4 w-full">
-            {(activeView === "forgot-password" && (
-              <>
-                <d.RemoteApiError className="mb-5" error={forgotPassword.error} />
-                <d.ForgotPasswordForm
-                  defaultEmail={email}
-                  status={forgotPassword.status}
-                  onSubmit={forgotPassword.mutate}
-                  onGoBack={() => setActiveView("login")}
-                />
-              </>
-            )) || (
-              <d.Tabs value={activeView} onValueChange={setActiveView} className="w-full">
-                <div className="mb-5 w-full">
-                  <d.TabsList className="m-0 flex h-auto max-w-[1304px] flex-1 items-center justify-start rounded-none border-0 border-l-0 border-r-0 border-t-0 bg-transparent p-0">
-                    <d.TabsTrigger
-                      value="login"
-                      className="flex-1 cursor-pointer rounded-none border-0 border-b-2 border-l-0 border-r-0 border-t-0 border-b-transparent bg-transparent py-1.5 shadow-none transition-colors data-[state=active]:border-b-neutral-900 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:data-[state=active]:border-b-neutral-100"
-                    >
-                      <div className="flex items-center justify-center gap-2 px-2.5 py-2">
-                        <span
-                          className={`text-sm font-normal leading-5 transition-colors ${activeView === "login" ? "text-neutral-950 dark:text-[var(--text-light)]" : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"}`}
-                        >
-                          Log in
-                        </span>
-                      </div>
-                    </d.TabsTrigger>
-                    <d.TabsTrigger
-                      value="signup"
-                      className="flex-1 cursor-pointer rounded-none border-0 border-b-2 border-l-0 border-r-0 border-t-0 border-b-transparent bg-transparent py-1.5 shadow-none transition-colors data-[state=active]:border-b-neutral-900 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:data-[state=active]:border-b-neutral-100"
-                    >
-                      <div className="flex items-center justify-center gap-2 px-2.5 py-2">
-                        <span
-                          className={`text-sm font-normal leading-5 transition-colors ${activeView === "signup" ? "text-neutral-950 dark:text-[var(--text-light)]" : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"}`}
-                        >
-                          Sign up
-                        </span>
-                      </div>
-                    </d.TabsTrigger>
-                  </d.TabsList>
-                </div>
-
-                <d.SocialAuth onSocialLogin={redirectToSocialLogin} />
-
-                <div className="relative flex items-center justify-center self-stretch py-2.5">
-                  <d.Separator className="absolute inset-0 top-1/2" />
-                  <div className="current relative top-[-1px] z-10 px-2" style={{ backgroundColor: "hsl(var(--background))" }}>
-                    <span className="relative top-1/2 text-xs font-normal text-neutral-500 dark:text-neutral-400">Or continue with</span>
-                  </div>
-                </div>
-
-                <d.RemoteApiError className="mb-5" error={signInOrSignUp.error} />
-
-                <d.TabsContent value="login" className="mt-0">
-                  <d.SignInForm
-                    isLoading={signInOrSignUp.isPending}
-                    defaultEmail={email}
-                    onEmailChange={setEmail}
-                    onSubmit={value => signInOrSignUp.mutate({ type: "signin", value })}
-                    onForgotPasswordClick={() => setActiveView("forgot-password")}
-                  />
-                </d.TabsContent>
-
-                <d.TabsContent value="signup" className="mt-0">
-                  <d.SignUpForm isLoading={signInOrSignUp.isPending} onSubmit={value => signInOrSignUp.mutate({ type: "signup", value })} />
-                </d.TabsContent>
-              </d.Tabs>
+  const formContent = (
+    <>
+      <d.NextSeo title="Log in or Sign up" />
+      <div
+        className={`w-full max-w-[576px] rounded-[var(--radius)] bg-[hsl(var(--background))] px-3 py-4 sm:px-6 lg:rounded-none ${isRedesignEnabled ? "lg:bg-transparent" : ""}`}
+      >
+        <div>
+          <d.AkashConsoleLogo className="mb-4 lg:hidden" size={{ width: 291, height: 32 }} />
+          <h1 className="text-xl font-bold leading-tight text-neutral-950 lg:text-4xl lg:leading-10 dark:text-[var(--foreground)]">
+            {(activeView === "forgot-password" && "Reset your password") || (
+              <div className="flex items-center">
+                <span>Log in or sign up</span>
+                <span className="lg:hidden"> to get started</span>
+              </div>
             )}
-            <d.Turnstile
-              turnstileRef={turnstileRef}
-              enabled={publicConfig.NEXT_PUBLIC_TURNSTILE_ENABLED}
-              siteKey={publicConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-              onDismissed={resetMutations}
-            />
-          </div>
+          </h1>
+          <p className="mt-2 text-sm leading-5 text-neutral-500 dark:text-neutral-400">
+            {activeView === "forgot-password"
+              ? "Enter your email address and we'll send you instructions to reset your password."
+              : "Create your Akash account or log in to an existing one."}
+          </p>
         </div>
-      </>
-    </d.AuthLayout>
+
+        <div className="relative mt-4 w-full">
+          {(activeView === "forgot-password" && (
+            <>
+              <d.RemoteApiError className="mb-5" error={forgotPassword.error} />
+              <d.ForgotPasswordForm
+                defaultEmail={email}
+                status={forgotPassword.status}
+                onSubmit={forgotPassword.mutate}
+                onGoBack={() => setActiveView("login")}
+              />
+            </>
+          )) || (
+            <d.Tabs value={activeView} onValueChange={setActiveView} className="w-full">
+              <div className="mb-5 w-full">
+                <d.TabsList className="m-0 flex h-auto max-w-[1304px] flex-1 items-center justify-start rounded-none border-0 border-l-0 border-r-0 border-t-0 bg-transparent p-0">
+                  <d.TabsTrigger
+                    value="login"
+                    className="flex-1 cursor-pointer rounded-none border-0 border-b-2 border-l-0 border-r-0 border-t-0 border-b-transparent bg-transparent py-1.5 shadow-none transition-colors data-[state=active]:border-b-neutral-900 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:data-[state=active]:border-b-neutral-100"
+                  >
+                    <div className="flex items-center justify-center gap-2 px-2.5 py-2">
+                      <span
+                        className={`text-sm font-normal leading-5 transition-colors ${activeView === "login" ? "text-neutral-950 dark:text-[var(--text-light)]" : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"}`}
+                      >
+                        Log in
+                      </span>
+                    </div>
+                  </d.TabsTrigger>
+                  <d.TabsTrigger
+                    value="signup"
+                    className="flex-1 cursor-pointer rounded-none border-0 border-b-2 border-l-0 border-r-0 border-t-0 border-b-transparent bg-transparent py-1.5 shadow-none transition-colors data-[state=active]:border-b-neutral-900 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:data-[state=active]:border-b-neutral-100"
+                  >
+                    <div className="flex items-center justify-center gap-2 px-2.5 py-2">
+                      <span
+                        className={`text-sm font-normal leading-5 transition-colors ${activeView === "signup" ? "text-neutral-950 dark:text-[var(--text-light)]" : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"}`}
+                      >
+                        Sign up
+                      </span>
+                    </div>
+                  </d.TabsTrigger>
+                </d.TabsList>
+              </div>
+
+              <d.SocialAuth onSocialLogin={redirectToSocialLogin} />
+
+              <div className="relative flex items-center justify-center self-stretch py-2.5">
+                <d.Separator className="absolute inset-0 top-1/2" />
+                <div className="current relative top-[-1px] z-10 px-2" style={{ backgroundColor: "hsl(var(--background))" }}>
+                  <span className="relative top-1/2 text-xs font-normal text-neutral-500 dark:text-neutral-400">Or continue with</span>
+                </div>
+              </div>
+
+              <d.RemoteApiError className="mb-5" error={signInOrSignUp.error} />
+
+              <d.TabsContent value="login" className="mt-0">
+                <d.SignInForm
+                  isLoading={signInOrSignUp.isPending}
+                  defaultEmail={email}
+                  onEmailChange={setEmail}
+                  onSubmit={value => signInOrSignUp.mutate({ type: "signin", value })}
+                  onForgotPasswordClick={() => setActiveView("forgot-password")}
+                />
+              </d.TabsContent>
+
+              <d.TabsContent value="signup" className="mt-0">
+                <d.SignUpForm isLoading={signInOrSignUp.isPending} onSubmit={value => signInOrSignUp.mutate({ type: "signup", value })} />
+              </d.TabsContent>
+            </d.Tabs>
+          )}
+          <d.Turnstile
+            turnstileRef={turnstileRef}
+            enabled={publicConfig.NEXT_PUBLIC_TURNSTILE_ENABLED}
+            siteKey={publicConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+            onDismissed={resetMutations}
+          />
+        </div>
+      </div>
+    </>
   );
+
+  if (isRedesignEnabled) {
+    return <d.AuthLayoutV2 topRightContent={<d.H100PriceStatus />}>{formContent}</d.AuthLayoutV2>;
+  }
+  return <d.AuthLayout>{formContent}</d.AuthLayout>;
 }
 
 type Tagged<TType, TValue> = { type: TType; value: TValue };

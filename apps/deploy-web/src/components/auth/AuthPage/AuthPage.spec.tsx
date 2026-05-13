@@ -1,4 +1,4 @@
-import { type RefObject, useState } from "react";
+import { type ComponentProps, type RefObject, useState } from "react";
 import type { Tabs } from "@akashnetwork/ui/components";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import type { NextRouter } from "next/router";
@@ -8,6 +8,8 @@ import { mock } from "vitest-mock-extended";
 import type { TurnstileRef } from "@src/components/turnstile/Turnstile";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { AuthService } from "@src/services/auth/auth/auth.service";
+import type { AuthLayout } from "../AuthLayout/AuthLayout";
+import type { AuthLayoutV2 } from "../AuthLayoutV2/AuthLayoutV2";
 import type { SignInForm, SignInFormValues } from "../SignInForm/SignInForm";
 import type { SignUpForm, SignUpFormValues } from "../SignUpForm/SignUpForm";
 import { AuthPage, DEPENDENCIES } from "./AuthPage";
@@ -91,6 +93,34 @@ describe(AuthPage.name, () => {
     await vi.waitFor(() => {
       expect(screen.queryByText(/unexpected error/i)).not.toBeInTheDocument();
     });
+  });
+
+  it("renders AuthLayout when console_auth_redesign flag is off", () => {
+    const AuthLayoutMock = vi.fn<typeof AuthLayout>(({ children }) => <div data-testid="v1">{children}</div>);
+    const AuthLayoutV2Mock = vi.fn<typeof AuthLayoutV2>(({ children }: ComponentProps<typeof AuthLayoutV2>) => <div data-testid="v2">{children}</div>);
+    setup({
+      isRedesignEnabled: false,
+      dependencies: {
+        AuthLayout: AuthLayoutMock,
+        AuthLayoutV2: AuthLayoutV2Mock
+      }
+    });
+    expect(screen.getByTestId("v1")).toBeInTheDocument();
+    expect(screen.queryByTestId("v2")).not.toBeInTheDocument();
+  });
+
+  it("renders AuthLayoutV2 when console_auth_redesign flag is on", () => {
+    const AuthLayoutMock = vi.fn<typeof AuthLayout>(({ children }) => <div data-testid="v1">{children}</div>);
+    const AuthLayoutV2Mock = vi.fn<typeof AuthLayoutV2>(({ children }: ComponentProps<typeof AuthLayoutV2>) => <div data-testid="v2">{children}</div>);
+    setup({
+      isRedesignEnabled: true,
+      dependencies: {
+        AuthLayout: AuthLayoutMock,
+        AuthLayoutV2: AuthLayoutV2Mock
+      }
+    });
+    expect(screen.getByTestId("v2")).toBeInTheDocument();
+    expect(screen.queryByTestId("v1")).not.toBeInTheDocument();
   });
 
   describe("when SignIn tab is open", () => {
@@ -265,6 +295,7 @@ describe(AuthPage.name, () => {
       returnTo?: string;
       from?: string;
     };
+    isRedesignEnabled?: boolean;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const authService = mock<AuthService>();
@@ -334,6 +365,8 @@ describe(AuthPage.name, () => {
     });
     const analyticsService = mock<AnalyticsService>();
 
+    const useFlag: typeof DEPENDENCIES.useFlag = () => input.isRedesignEnabled ?? false;
+
     render(
       <TestContainerProvider services={{ authService: () => authService, analyticsService: () => analyticsService }}>
         <AuthPage
@@ -344,6 +377,7 @@ describe(AuthPage.name, () => {
             useRouter: () => router,
             useReturnTo: input.dependencies?.useReturnTo || useReturnTo,
             useWallet: input.dependencies?.useWallet || useWallet,
+            useFlag: input.dependencies?.useFlag || useFlag,
             Turnstile,
             ...input.dependencies
           }}

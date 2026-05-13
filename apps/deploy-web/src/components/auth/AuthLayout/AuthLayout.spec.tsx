@@ -21,7 +21,7 @@ describe(AuthLayout.name, () => {
     return render(
       <NextThemeProvider defaultTheme={input?.theme ?? "light"}>
         <CustomThemeProvider>
-          <AuthLayout sidebar={<div>Sidebar</div>}>
+          <AuthLayout>
             <div>Children</div>
           </AuthLayout>
         </CustomThemeProvider>

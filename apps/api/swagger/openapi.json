@@ -1947,6 +1947,7 @@
             "schema": {
               "type": "string",
               "format": "date",
+              "default": "2026-05-12",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -2072,6 +2073,7 @@
             "schema": {
               "type": "string",
               "format": "date",
+              "default": "2026-05-12",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -15349,6 +15351,7 @@
     "/v1/gpu-prices": {
       "get": {
         "summary": "Get a list of gpu models with their availability and pricing.",
+        "operationId": "listGpuPrices",
         "tags": [
           "Gpu"
         ],

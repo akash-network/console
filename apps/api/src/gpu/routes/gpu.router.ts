@@ -160,6 +160,7 @@ const getGpuPricesRoute = createRoute({
   method: "get",
   path: "/v1/gpu-prices",
   summary: "Get a list of gpu models with their availability and pricing.",
+  operationId: "listGpuPrices",
   tags: ["Gpu"],
   security: SECURITY_NONE,
   cache: { maxAge: 120, staleWhileRevalidate: 300 },
