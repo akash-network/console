@@ -9,7 +9,8 @@ export const envSchema = z.object({
   DISCOVERY_INTERVAL_MS: z.number({ coerce: true }).default(10 * 60 * 1000), // 10 minutes
   STREAM_RECONNECT_INITIAL_DELAY_MS: z.number({ coerce: true }).default(1_000),
   STREAM_RECONNECT_MAX_DELAY_MS: z.number({ coerce: true }).default(5 * 60 * 1000), // 5 minutes
-  STREAM_FIRST_MESSAGE_TIMEOUT_MS: z.number({ coerce: true }).default(10_000)
+  STREAM_FIRST_MESSAGE_TIMEOUT_MS: z.number({ coerce: true }).default(10_000),
+  REST_API_NODE_URL: z.string().url()
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

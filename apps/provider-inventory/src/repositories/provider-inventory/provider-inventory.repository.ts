@@ -69,7 +69,6 @@ export class ProviderInventoryRepository {
     const auditedBy = [...new Set(provider.signedAttributes.map(a => a.auditor))].sort();
     const set = {
       hostUri: provider.hostUri,
-      createdHeight: provider.createdHeight,
       selfAttributes: provider.selfAttributes,
       signedAttributes: provider.signedAttributes,
       auditedBy,

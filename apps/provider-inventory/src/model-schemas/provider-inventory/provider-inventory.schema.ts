@@ -8,7 +8,6 @@ export const providerInventory = pgTable(
   {
     owner: text("owner").primaryKey(),
     hostUri: text("host_uri").notNull(),
-    createdHeight: bigint("created_height", { mode: "bigint" }).notNull(),
     ipRegion: text("ip_region"),
     uptime7d: doublePrecision("uptime_7d"),
     isOnline: boolean("is_online").notNull().default(false),

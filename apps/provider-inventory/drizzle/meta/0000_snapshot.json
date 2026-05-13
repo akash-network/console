@@ -20,12 +20,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "created_height": {
-          "name": "created_height",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
         "ip_region": {
           "name": "ip_region",
           "type": "text",
