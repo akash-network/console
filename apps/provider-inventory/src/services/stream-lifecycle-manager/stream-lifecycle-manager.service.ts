@@ -10,11 +10,11 @@ import type { EnvConfig } from "@src/providers/app-config.provider";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
-import type { ProviderStreamFactory } from "@src/providers/provider-stream.provider";
-import { PROVIDER_STREAM_FACTORY } from "@src/providers/provider-stream.provider";
 import { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
 import type { ChainProvider } from "@src/types/chain-provider";
 import type { ProjectedRow } from "@src/types/inventory";
+import type { ClusterState } from "@src/types/inventory.types";
+import { ProviderStreamFactory } from "../provider-stream-factory/provider-stream-factory.sevice";
 
 @singleton()
 export class StreamLifecycleManagerService {
@@ -33,7 +33,7 @@ export class StreamLifecycleManagerService {
   readonly #retryStreamPolicy: RetryPolicy;
 
   constructor(
-    @inject(PROVIDER_STREAM_FACTORY) streamFactory: ProviderStreamFactory,
+    streamFactory: ProviderStreamFactory,
     @inject(ProviderInventoryRepository) writer: ProviderInventoryRepository,
     @inject(LOGGER_FACTORY) loggerFactory: LoggerFactory,
     @inject(APP_CONFIG) config: EnvConfig
@@ -125,7 +125,7 @@ export class StreamLifecycleManagerService {
     }, this.#config.STREAM_FIRST_MESSAGE_TIMEOUT_MS);
 
     try {
-      const stream = this.#streamFactory.openStatusStream(provider.hostUri, composite);
+      const stream = this.#streamFactory.openStatusStream(provider, composite);
 
       for await (const message of stream) {
         if (outerSignal.aborted) return;
@@ -154,7 +154,7 @@ export class StreamLifecycleManagerService {
     }
   }
 
-  async #applyMessage(provider: ChainProvider, message: Parameters<typeof projectRow>[0]): Promise<void> {
+  async #applyMessage(provider: ChainProvider, message: ClusterState): Promise<void> {
     const row = projectRow(message);
     const cached = this.#lastInventoryPerProvider.get(provider.owner);
 

@@ -1,57 +1,57 @@
 import { describe, expect, it } from "vitest";
 
-import type { ProviderWithSnapshot } from "@src/types/provider";
-import type { GpuInfo, RequestedResourceUnit } from "../../types/inventory.types";
+import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
+import type { ClusterState, CpuInfo, GpuInfo, NodeState, RequestedResourceUnit } from "../../types/inventory.types";
 import { ClusterInventoryMatcherService } from "./cluster-inventory-matcher.service";
 
 describe(ClusterInventoryMatcherService.name, () => {
   describe("basic resource matching (US1)", () => {
     it("matches when single node has sufficient resources", () => {
-      const { service, provider, resourceUnits } = setup({});
-      const result = service.match(provider, resourceUnits);
+      const { service, cluster, resourceUnits } = setup({});
+      const result = service.match(cluster, resourceUnits);
       expect(result.matched).toBe(true);
     });
 
     it("fails when single node has insufficient CPU", () => {
-      const { service, provider, resourceUnits } = setup({ requestedCpu: 20000n });
-      const result = service.match(provider, resourceUnits);
+      const { service, cluster, resourceUnits } = setup({ requestedCpu: 20000n });
+      const result = service.match(cluster, resourceUnits);
       expect(result.matched).toBe(false);
       expect(result.error).toBe("INSUFFICIENT_CAPACITY");
     });
 
     it("fails when single node has insufficient memory", () => {
-      const { service, provider, resourceUnits } = setup({ requestedMemory: 999999999999n });
-      const result = service.match(provider, resourceUnits);
+      const { service, cluster, resourceUnits } = setup({ requestedMemory: 999999999999n });
+      const result = service.match(cluster, resourceUnits);
       expect(result.matched).toBe(false);
     });
 
     it("spreads replicas across multiple nodes when single node is insufficient", () => {
       const { service } = setup({});
-      const provider = makeProvider([
-        { cpu: 4000, memory: 8589934592, ephemeral: 10737418240 },
-        { cpu: 4000, memory: 8589934592, ephemeral: 10737418240 }
+      const cluster = makeCluster([
+        { cpu: 4000n, memory: 8589934592n, ephemeral: 10737418240n },
+        { cpu: 4000n, memory: 8589934592n, ephemeral: 10737418240n }
       ]);
       const units = makeResourceUnits({ cpu: 3000n, memory: 4294967296n, ephemeral: 5368709120n, count: 2 });
 
-      const result = service.match(provider, units);
+      const result = service.match(cluster, units);
       expect(result.matched).toBe(true);
     });
 
     it("places all replicas on one node when possible", () => {
       const { service } = setup({});
-      const provider = makeProvider([{ cpu: 16000, memory: 34359738368, ephemeral: 107374182400 }]);
+      const cluster = makeCluster([{ cpu: 16000n, memory: 34359738368n, ephemeral: 107374182400n }]);
       const units = makeResourceUnits({ cpu: 1000n, memory: 1073741824n, ephemeral: 5368709120n, count: 4 });
 
-      const result = service.match(provider, units);
+      const result = service.match(cluster, units);
       expect(result.matched).toBe(true);
     });
 
-    it("fails when provider has zero nodes", () => {
+    it("fails when cluster has zero nodes", () => {
       const { service } = setup({});
-      const provider = makeProvider([]);
+      const cluster = makeCluster([]);
       const units = makeResourceUnits({ cpu: 1000n, memory: 1073741824n, ephemeral: 5368709120n, count: 1 });
 
-      const result = service.match(provider, units);
+      const result = service.match(cluster, units);
       expect(result.matched).toBe(false);
     });
   });
@@ -59,15 +59,15 @@ describe(ClusterInventoryMatcherService.name, () => {
   describe("storage matching (US3)", () => {
     it("deducts ephemeral storage from node", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([{ cpu: 8000, memory: 17179869184, ephemeral: 10737418240 }]);
+      const cluster = makeCluster([{ cpu: 8000n, memory: 17179869184n, ephemeral: 10737418240n }]);
       const units = makeResourceUnits({ cpu: 1000n, memory: 1073741824n, ephemeral: 5368709120n, count: 1 });
 
-      expect(service.match(provider, units).matched).toBe(true);
+      expect(service.match(cluster, units).matched).toBe(true);
     });
 
     it("deducts RAM-backed storage from node memory", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([{ cpu: 8000, memory: 17179869184, ephemeral: 107374182400 }]);
+      const cluster = makeCluster([{ cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n }]);
       const units = makeResourceUnits({
         cpu: 1000n,
         memory: 8589934592n,
@@ -85,12 +85,12 @@ describe(ClusterInventoryMatcherService.name, () => {
         ]
       });
 
-      expect(service.match(provider, units).matched).toBe(true);
+      expect(service.match(cluster, units).matched).toBe(true);
     });
 
     it("fails RAM-backed storage when combined with memory exceeds node capacity", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([{ cpu: 8000, memory: 10737418240, ephemeral: 107374182400 }]);
+      const cluster = makeCluster([{ cpu: 8000n, memory: 10737418240n, ephemeral: 107374182400n }]);
       const units = makeResourceUnits({
         cpu: 1000n,
         memory: 8589934592n,
@@ -108,14 +108,14 @@ describe(ClusterInventoryMatcherService.name, () => {
         ]
       });
 
-      expect(service.match(provider, units).matched).toBe(false);
+      expect(service.match(cluster, units).matched).toBe(false);
     });
 
     it("deducts persistent storage from cluster pool", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider(
-        [{ cpu: 8000, memory: 17179869184, ephemeral: 107374182400, storageClasses: ["beta2"] }],
-        [{ class: "beta2", allocatable: 536870912000, allocated: 0 }]
+      const cluster = makeCluster(
+        [{ cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n, storageClasses: ["beta2"] }],
+        [{ class: "beta2", allocatable: 536870912000n, allocated: 0n }]
       );
       const units = makeResourceUnits({
         cpu: 1000n,
@@ -134,14 +134,14 @@ describe(ClusterInventoryMatcherService.name, () => {
         ]
       });
 
-      expect(service.match(provider, units).matched).toBe(true);
+      expect(service.match(cluster, units).matched).toBe(true);
     });
 
     it("fails when node lacks storage class capability", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider(
-        [{ cpu: 8000, memory: 17179869184, ephemeral: 107374182400, storageClasses: ["beta1"] }],
-        [{ class: "beta2", allocatable: 536870912000, allocated: 0 }]
+      const cluster = makeCluster(
+        [{ cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n, storageClasses: ["beta1"] }],
+        [{ class: "beta2", allocatable: 536870912000n, allocated: 0n }]
       );
       const units = makeResourceUnits({
         cpu: 1000n,
@@ -160,14 +160,14 @@ describe(ClusterInventoryMatcherService.name, () => {
         ]
       });
 
-      expect(service.match(provider, units).matched).toBe(false);
+      expect(service.match(cluster, units).matched).toBe(false);
     });
 
     it("fails when cluster pool is exhausted", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider(
-        [{ cpu: 8000, memory: 17179869184, ephemeral: 107374182400, storageClasses: ["beta2"] }],
-        [{ class: "beta2", allocatable: 1073741824, allocated: 0 }]
+      const cluster = makeCluster(
+        [{ cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n, storageClasses: ["beta2"] }],
+        [{ class: "beta2", allocatable: 1073741824n, allocated: 0n }]
       );
       const units = makeResourceUnits({
         cpu: 1000n,
@@ -186,19 +186,19 @@ describe(ClusterInventoryMatcherService.name, () => {
         ]
       });
 
-      expect(service.match(provider, units).matched).toBe(false);
+      expect(service.match(cluster, units).matched).toBe(false);
     });
   });
 
   describe("GPU matching (US2)", () => {
     it("matches exact GPU vendor and model", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([
+      const cluster = makeCluster([
         {
-          cpu: 8000,
-          memory: 17179869184,
-          ephemeral: 107374182400,
-          gpuCount: 1,
+          cpu: 8000n,
+          memory: 17179869184n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
           gpuInfo: [{ vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" }]
         }
       ]);
@@ -211,17 +211,17 @@ describe(ClusterInventoryMatcherService.name, () => {
         gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }]
       });
 
-      expect(service.match(provider, units).matched).toBe(true);
+      expect(service.match(cluster, units).matched).toBe(true);
     });
 
     it("matches wildcard model against any GPU model", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([
+      const cluster = makeCluster([
         {
-          cpu: 8000,
-          memory: 17179869184,
-          ephemeral: 107374182400,
-          gpuCount: 1,
+          cpu: 8000n,
+          memory: 17179869184n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
           gpuInfo: [{ vendor: "nvidia", name: "rtx4090", modelId: "2684", interface: "PCIe", memorySize: "24Gi" }]
         }
       ]);
@@ -234,17 +234,17 @@ describe(ClusterInventoryMatcherService.name, () => {
         gpuAttributes: [{ key: "vendor/nvidia", value: "true" }]
       });
 
-      expect(service.match(provider, units).matched).toBe(true);
+      expect(service.match(cluster, units).matched).toBe(true);
     });
 
     it("filters by RAM size", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([
+      const cluster = makeCluster([
         {
-          cpu: 8000,
-          memory: 17179869184,
-          ephemeral: 107374182400,
-          gpuCount: 1,
+          cpu: 8000n,
+          memory: 17179869184n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
           gpuInfo: [{ vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "40Gi" }]
         }
       ]);
@@ -257,17 +257,17 @@ describe(ClusterInventoryMatcherService.name, () => {
         gpuAttributes: [{ key: "vendor/nvidia/model/a100/ram/80Gi", value: "true" }]
       });
 
-      expect(service.match(provider, units).matched).toBe(false);
+      expect(service.match(cluster, units).matched).toBe(false);
     });
 
     it("filters by interface with sxm normalization", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([
+      const cluster = makeCluster([
         {
-          cpu: 8000,
-          memory: 17179869184,
-          ephemeral: 107374182400,
-          gpuCount: 1,
+          cpu: 8000n,
+          memory: 17179869184n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
           gpuInfo: [{ vendor: "nvidia", name: "a100", modelId: "2235", interface: "SXM4", memorySize: "80Gi" }]
         }
       ]);
@@ -280,17 +280,17 @@ describe(ClusterInventoryMatcherService.name, () => {
         gpuAttributes: [{ key: "vendor/nvidia/model/a100/interface/sxm2", value: "true" }]
       });
 
-      expect(service.match(provider, units).matched).toBe(true);
+      expect(service.match(cluster, units).matched).toBe(true);
     });
 
     it("fails when no GPU matches on node", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([
+      const cluster = makeCluster([
         {
-          cpu: 8000,
-          memory: 17179869184,
-          ephemeral: 107374182400,
-          gpuCount: 1,
+          cpu: 8000n,
+          memory: 17179869184n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
           gpuInfo: [{ vendor: "amd", name: "mi300x", modelId: "740f", interface: "PCIe", memorySize: "192Gi" }]
         }
       ]);
@@ -303,25 +303,25 @@ describe(ClusterInventoryMatcherService.name, () => {
         gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }]
       });
 
-      expect(service.match(provider, units).matched).toBe(false);
+      expect(service.match(cluster, units).matched).toBe(false);
     });
 
     it("passes when zero GPUs are requested", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([{ cpu: 8000, memory: 17179869184, ephemeral: 107374182400 }]);
+      const cluster = makeCluster([{ cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n }]);
       const units = makeResourceUnits({ cpu: 1000n, memory: 1073741824n, ephemeral: 5368709120n, count: 1, gpuUnits: 0n });
 
-      expect(service.match(provider, units).matched).toBe(true);
+      expect(service.match(cluster, units).matched).toBe(true);
     });
 
     it("fails when requesting 2 A100s but node has 1 A100 + 1 V100", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([
+      const cluster = makeCluster([
         {
-          cpu: 16000,
-          memory: 34359738368,
-          ephemeral: 107374182400,
-          gpuCount: 2,
+          cpu: 16000n,
+          memory: 34359738368n,
+          ephemeral: 107374182400n,
+          gpuCount: 2n,
           gpuInfo: [
             { vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" },
             { vendor: "nvidia", name: "v100", modelId: "1db4", interface: "PCIe", memorySize: "32Gi" }
@@ -337,17 +337,17 @@ describe(ClusterInventoryMatcherService.name, () => {
         gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }]
       });
 
-      expect(service.match(provider, units).matched).toBe(false);
+      expect(service.match(cluster, units).matched).toBe(false);
     });
 
     it("pins to first GPU type when no GPU specs provided", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([
+      const cluster = makeCluster([
         {
-          cpu: 8000,
-          memory: 17179869184,
-          ephemeral: 107374182400,
-          gpuCount: 1,
+          cpu: 8000n,
+          memory: 17179869184n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
           gpuInfo: [{ vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" }]
         }
       ]);
@@ -360,17 +360,17 @@ describe(ClusterInventoryMatcherService.name, () => {
         gpuAttributes: []
       });
 
-      expect(service.match(provider, units).matched).toBe(true);
+      expect(service.match(cluster, units).matched).toBe(true);
     });
 
     it("fails GPU request when node has no GPU info", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([
+      const cluster = makeCluster([
         {
-          cpu: 8000,
-          memory: 17179869184,
-          ephemeral: 107374182400,
-          gpuCount: 1,
+          cpu: 8000n,
+          memory: 17179869184n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
           gpuInfo: []
         }
       ]);
@@ -383,17 +383,17 @@ describe(ClusterInventoryMatcherService.name, () => {
         gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }]
       });
 
-      expect(service.match(provider, units).matched).toBe(false);
+      expect(service.match(cluster, units).matched).toBe(false);
     });
 
     it("rejects wildcard request for 2 GPUs when node has mixed RAM variants of the same model", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([
+      const cluster = makeCluster([
         {
-          cpu: 16000,
-          memory: 34359738368,
-          ephemeral: 107374182400,
-          gpuCount: 2,
+          cpu: 16000n,
+          memory: 34359738368n,
+          ephemeral: 107374182400n,
+          gpuCount: 2n,
           gpuInfo: [
             { vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "40Gi" },
             { vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" }
@@ -409,17 +409,17 @@ describe(ClusterInventoryMatcherService.name, () => {
         gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }]
       });
 
-      expect(service.match(provider, units).matched).toBe(false);
+      expect(service.match(cluster, units).matched).toBe(false);
     });
 
     it("rejects wildcard request for 2 GPUs when node has mixed interfaces of the same model", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([
+      const cluster = makeCluster([
         {
-          cpu: 16000,
-          memory: 34359738368,
-          ephemeral: 107374182400,
-          gpuCount: 2,
+          cpu: 16000n,
+          memory: 34359738368n,
+          ephemeral: 107374182400n,
+          gpuCount: 2n,
           gpuInfo: [
             { vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" },
             { vendor: "nvidia", name: "a100", modelId: "2235", interface: "SXM4", memorySize: "80Gi" }
@@ -435,17 +435,17 @@ describe(ClusterInventoryMatcherService.name, () => {
         gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }]
       });
 
-      expect(service.match(provider, units).matched).toBe(false);
+      expect(service.match(cluster, units).matched).toBe(false);
     });
 
     it("matches wildcard request for 2 GPUs when node has identical SKUs", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([
+      const cluster = makeCluster([
         {
-          cpu: 16000,
-          memory: 34359738368,
-          ephemeral: 107374182400,
-          gpuCount: 2,
+          cpu: 16000n,
+          memory: 34359738368n,
+          ephemeral: 107374182400n,
+          gpuCount: 2n,
           gpuInfo: [
             { vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" },
             { vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" }
@@ -461,16 +461,16 @@ describe(ClusterInventoryMatcherService.name, () => {
         gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }]
       });
 
-      expect(service.match(provider, units).matched).toBe(true);
+      expect(service.match(cluster, units).matched).toBe(true);
     });
   });
 
   describe("multi-group matching (US5)", () => {
     it("matches two groups spread across nodes", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([
-        { cpu: 8000, memory: 17179869184, ephemeral: 107374182400 },
-        { cpu: 8000, memory: 17179869184, ephemeral: 107374182400 }
+      const cluster = makeCluster([
+        { cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n },
+        { cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n }
       ]);
       const cpuGroup: RequestedResourceUnit = {
         id: 1,
@@ -493,24 +493,24 @@ describe(ClusterInventoryMatcherService.name, () => {
         count: 1
       };
 
-      const result = service.match(provider, [cpuGroup, gpuGroup]);
+      const result = service.match(cluster, [cpuGroup, gpuGroup]);
       expect(result.matched).toBe(false);
     });
 
     it("places mixed CPU+GPU groups on appropriate nodes", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([
+      const cluster = makeCluster([
         {
-          cpu: 16000,
-          memory: 34359738368,
-          ephemeral: 107374182400,
-          gpuCount: 2,
+          cpu: 16000n,
+          memory: 34359738368n,
+          ephemeral: 107374182400n,
+          gpuCount: 2n,
           gpuInfo: [
             { vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" },
             { vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" }
           ]
         },
-        { cpu: 16000, memory: 34359738368, ephemeral: 107374182400 }
+        { cpu: 16000n, memory: 34359738368n, ephemeral: 107374182400n }
       ]);
 
       const cpuGroup: RequestedResourceUnit = {
@@ -524,13 +524,13 @@ describe(ClusterInventoryMatcherService.name, () => {
         count: 4
       };
 
-      const result = service.match(provider, [cpuGroup]);
+      const result = service.match(cluster, [cpuGroup]);
       expect(result.matched).toBe(true);
     });
 
-    it("fails entire provider when one group has insufficient capacity", () => {
+    it("fails entire cluster when one group has insufficient capacity", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([{ cpu: 4000, memory: 8589934592, ephemeral: 107374182400 }]);
+      const cluster = makeCluster([{ cpu: 4000n, memory: 8589934592n, ephemeral: 107374182400n }]);
 
       const smallGroup: RequestedResourceUnit = {
         id: 1,
@@ -553,13 +553,13 @@ describe(ClusterInventoryMatcherService.name, () => {
         count: 1
       };
 
-      const result = service.match(provider, [smallGroup, largeGroup]);
+      const result = service.match(cluster, [smallGroup, largeGroup]);
       expect(result.matched).toBe(false);
     });
 
     it("handles all groups placed successfully on a large node", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([{ cpu: 32000, memory: 68719476736, ephemeral: 536870912000 }]);
+      const cluster = makeCluster([{ cpu: 32000n, memory: 68719476736n, ephemeral: 536870912000n }]);
 
       const group1: RequestedResourceUnit = {
         id: 1,
@@ -582,7 +582,7 @@ describe(ClusterInventoryMatcherService.name, () => {
         count: 3
       };
 
-      const result = service.match(provider, [group1, group2]);
+      const result = service.match(cluster, [group1, group2]);
       expect(result.matched).toBe(true);
     });
   });
@@ -590,22 +590,22 @@ describe(ClusterInventoryMatcherService.name, () => {
   describe("replica GPU consistency invariant (US5)", () => {
     it("passes when all replicas with wildcard model land on nodes with the same GPU model", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([
+      const cluster = makeCluster([
         {
-          cpu: 16000,
-          memory: 34359738368,
-          ephemeral: 107374182400,
-          gpuCount: 2,
+          cpu: 16000n,
+          memory: 34359738368n,
+          ephemeral: 107374182400n,
+          gpuCount: 2n,
           gpuInfo: [
             { vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" },
             { vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" }
           ]
         },
         {
-          cpu: 16000,
-          memory: 34359738368,
-          ephemeral: 107374182400,
-          gpuCount: 1,
+          cpu: 16000n,
+          memory: 34359738368n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
           gpuInfo: [{ vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" }]
         }
       ]);
@@ -618,27 +618,27 @@ describe(ClusterInventoryMatcherService.name, () => {
         gpuAttributes: [{ key: "vendor/nvidia", value: "true" }]
       });
 
-      expect(service.match(provider, units).matched).toBe(true);
+      expect(service.match(cluster, units).matched).toBe(true);
     });
 
     it("fails when a later replica would resolve to a different GPU model than the first (wildcard)", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([
+      const cluster = makeCluster([
         {
-          cpu: 16000,
-          memory: 34359738368,
-          ephemeral: 107374182400,
-          gpuCount: 2,
+          cpu: 16000n,
+          memory: 34359738368n,
+          ephemeral: 107374182400n,
+          gpuCount: 2n,
           gpuInfo: [
             { vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" },
             { vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" }
           ]
         },
         {
-          cpu: 16000,
-          memory: 34359738368,
-          ephemeral: 107374182400,
-          gpuCount: 1,
+          cpu: 16000n,
+          memory: 34359738368n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
           gpuInfo: [{ vendor: "nvidia", name: "v100", modelId: "1db4", interface: "PCIe", memorySize: "32Gi" }]
         }
       ]);
@@ -651,24 +651,24 @@ describe(ClusterInventoryMatcherService.name, () => {
         gpuAttributes: [{ key: "vendor/nvidia", value: "true" }]
       });
 
-      expect(service.match(provider, units).matched).toBe(false);
+      expect(service.match(cluster, units).matched).toBe(false);
     });
 
     it("fails when a later replica on another node has a different RAM size than the first (wildcard)", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([
+      const cluster = makeCluster([
         {
-          cpu: 16000,
-          memory: 34359738368,
-          ephemeral: 107374182400,
-          gpuCount: 1,
+          cpu: 16000n,
+          memory: 34359738368n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
           gpuInfo: [{ vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" }]
         },
         {
-          cpu: 16000,
-          memory: 34359738368,
-          ephemeral: 107374182400,
-          gpuCount: 1,
+          cpu: 16000n,
+          memory: 34359738368n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
           gpuInfo: [{ vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "40Gi" }]
         }
       ]);
@@ -681,71 +681,71 @@ describe(ClusterInventoryMatcherService.name, () => {
         gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }]
       });
 
-      expect(service.match(provider, units).matched).toBe(false);
+      expect(service.match(cluster, units).matched).toBe(false);
     });
   });
 
   describe("nodes with existing allocations", () => {
     it("matches when remaining capacity after allocation is sufficient", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([{ cpu: 8000, cpuAllocated: 3000, memory: 17179869184, memoryAllocated: 4294967296, ephemeral: 107374182400 }]);
+      const cluster = makeCluster([{ cpu: 8000n, cpuAllocated: 3000n, memory: 17179869184n, memoryAllocated: 4294967296n, ephemeral: 107374182400n }]);
       const units = makeResourceUnits({ cpu: 4000n, memory: 8589934592n, ephemeral: 5368709120n, count: 1 });
 
-      expect(service.match(provider, units).matched).toBe(true);
+      expect(service.match(cluster, units).matched).toBe(true);
     });
 
     it("fails when CPU remaining after allocation is insufficient", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([{ cpu: 8000, cpuAllocated: 5000, memory: 17179869184, ephemeral: 107374182400 }]);
+      const cluster = makeCluster([{ cpu: 8000n, cpuAllocated: 5000n, memory: 17179869184n, ephemeral: 107374182400n }]);
       const units = makeResourceUnits({ cpu: 4000n, memory: 1073741824n, ephemeral: 5368709120n, count: 1 });
 
-      expect(service.match(provider, units).matched).toBe(false);
+      expect(service.match(cluster, units).matched).toBe(false);
     });
 
     it("fails when memory remaining after allocation is insufficient", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([{ cpu: 8000, memory: 17179869184, memoryAllocated: 14000000000, ephemeral: 107374182400 }]);
+      const cluster = makeCluster([{ cpu: 8000n, memory: 17179869184n, memoryAllocated: 14000000000n, ephemeral: 107374182400n }]);
       const units = makeResourceUnits({ cpu: 1000n, memory: 8589934592n, ephemeral: 5368709120n, count: 1 });
 
-      expect(service.match(provider, units).matched).toBe(false);
+      expect(service.match(cluster, units).matched).toBe(false);
     });
 
     it("fails when ephemeral storage remaining after allocation is insufficient", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([{ cpu: 8000, memory: 17179869184, ephemeral: 107374182400, ephemeralAllocated: 105000000000 }]);
+      const cluster = makeCluster([{ cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n, ephemeralAllocated: 105000000000n }]);
       const units = makeResourceUnits({ cpu: 1000n, memory: 1073741824n, ephemeral: 5368709120n, count: 1 });
 
-      expect(service.match(provider, units).matched).toBe(false);
+      expect(service.match(cluster, units).matched).toBe(false);
     });
 
     it("matches at exact remaining boundary", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([{ cpu: 8000, cpuAllocated: 4000, memory: 17179869184, ephemeral: 107374182400 }]);
+      const cluster = makeCluster([{ cpu: 8000n, cpuAllocated: 4000n, memory: 17179869184n, ephemeral: 107374182400n }]);
       const units = makeResourceUnits({ cpu: 4000n, memory: 1073741824n, ephemeral: 5368709120n, count: 1 });
 
-      expect(service.match(provider, units).matched).toBe(true);
+      expect(service.match(cluster, units).matched).toBe(true);
     });
 
     it("spreads replicas across nodes with varying allocations", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([
-        { cpu: 8000, cpuAllocated: 4000, memory: 17179869184, ephemeral: 107374182400 },
-        { cpu: 8000, cpuAllocated: 4000, memory: 17179869184, ephemeral: 107374182400 }
+      const cluster = makeCluster([
+        { cpu: 8000n, cpuAllocated: 4000n, memory: 17179869184n, ephemeral: 107374182400n },
+        { cpu: 8000n, cpuAllocated: 4000n, memory: 17179869184n, ephemeral: 107374182400n }
       ]);
       const units = makeResourceUnits({ cpu: 3000n, memory: 1073741824n, ephemeral: 5368709120n, count: 2 });
 
-      expect(service.match(provider, units).matched).toBe(true);
+      expect(service.match(cluster, units).matched).toBe(true);
     });
 
     it("accounts for GPU allocation on nodes", () => {
       const service = new ClusterInventoryMatcherService();
-      const provider = makeProvider([
+      const cluster = makeCluster([
         {
-          cpu: 16000,
-          memory: 34359738368,
-          ephemeral: 107374182400,
-          gpuCount: 2,
-          gpuAllocated: 1,
+          cpu: 16000n,
+          memory: 34359738368n,
+          ephemeral: 107374182400n,
+          gpuCount: 2n,
+          gpuAllocated: 1n,
           gpuInfo: [
             { vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" },
             { vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" }
@@ -761,57 +761,52 @@ describe(ClusterInventoryMatcherService.name, () => {
         gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }]
       });
 
-      expect(service.match(provider, units).matched).toBe(false);
+      expect(service.match(cluster, units).matched).toBe(false);
     });
   });
 
   describe("boundary-value precision (4-node topology)", () => {
-    // Mirrors Go multipleReplicasGenNodes:
-    //   node0: avail CPU 68780  (119800 - 51020), no GPU
-    //   node1: avail CPU 68800  (119800 - 51000), 2x nvidia a100
-    //   node2: avail CPU 119525 (119800 - 275),   no GPU
-    //   node3: avail CPU 119495 (119800 - 305),   no GPU
     const MEM_16GI = 17179869184n;
     const STORAGE_8GI = 8589934592n;
 
-    function makeFourNodeProvider() {
-      return makeProvider([
+    function makeFourNodeCluster() {
+      return makeCluster([
         {
-          cpu: 119800,
-          cpuAllocated: 51020,
-          memory: 457317732352,
-          memoryAllocated: 17495527424,
-          ephemeral: 7760751097705,
-          ephemeralAllocated: 8589934592
+          cpu: 119800n,
+          cpuAllocated: 51020n,
+          memory: 457317732352n,
+          memoryAllocated: 17495527424n,
+          ephemeral: 7760751097705n,
+          ephemeralAllocated: 8589934592n
         },
         {
-          cpu: 119800,
-          cpuAllocated: 51000,
-          memory: 457317732352,
-          memoryAllocated: 17495527424,
-          ephemeral: 7760751097705,
-          ephemeralAllocated: 8589934592,
-          gpuCount: 2,
+          cpu: 119800n,
+          cpuAllocated: 51000n,
+          memory: 457317732352n,
+          memoryAllocated: 17495527424n,
+          ephemeral: 7760751097705n,
+          ephemeralAllocated: 8589934592n,
+          gpuCount: 2n,
           gpuInfo: [
             { vendor: "nvidia", name: "a100", modelId: "20b5", interface: "PCIe", memorySize: "80Gi" },
             { vendor: "nvidia", name: "a100", modelId: "20b5", interface: "PCIe", memorySize: "80Gi" }
           ]
         },
         {
-          cpu: 119800,
-          cpuAllocated: 275,
-          memory: 457317732352,
-          memoryAllocated: 17495527424,
-          ephemeral: 7760751097705,
-          ephemeralAllocated: 0
+          cpu: 119800n,
+          cpuAllocated: 275n,
+          memory: 457317732352n,
+          memoryAllocated: 17495527424n,
+          ephemeral: 7760751097705n,
+          ephemeralAllocated: 0n
         },
         {
-          cpu: 119800,
-          cpuAllocated: 305,
-          memory: 457317732352,
-          memoryAllocated: 17495527424,
-          ephemeral: 7760751097705,
-          ephemeralAllocated: 0
+          cpu: 119800n,
+          cpuAllocated: 305n,
+          memory: 457317732352n,
+          memoryAllocated: 17495527424n,
+          ephemeral: 7760751097705n,
+          ephemeralAllocated: 0n
         }
       ]);
     }
@@ -829,32 +824,32 @@ describe(ClusterInventoryMatcherService.name, () => {
 
     it("places 100000 CPU x 2 replicas on the two largest nodes", () => {
       const service = new ClusterInventoryMatcherService();
-      expect(service.match(makeFourNodeProvider(), makeFourNodeUnits(100000n, 0n, 2)).matched).toBe(true);
+      expect(service.match(makeFourNodeCluster(), makeFourNodeUnits(100000n, 0n, 2)).matched).toBe(true);
     });
 
     it("places 68780 CPU x 4 replicas across all four nodes", () => {
       const service = new ClusterInventoryMatcherService();
-      expect(service.match(makeFourNodeProvider(), makeFourNodeUnits(68780n, 0n, 4)).matched).toBe(true);
+      expect(service.match(makeFourNodeCluster(), makeFourNodeUnits(68780n, 0n, 4)).matched).toBe(true);
     });
 
     it("places 68800 CPU x 3 replicas skipping node 0", () => {
       const service = new ClusterInventoryMatcherService();
-      expect(service.match(makeFourNodeProvider(), makeFourNodeUnits(68800n, 0n, 3)).matched).toBe(true);
+      expect(service.match(makeFourNodeCluster(), makeFourNodeUnits(68800n, 0n, 3)).matched).toBe(true);
     });
 
     it("places 119495 CPU x 2 replicas on nodes 2 and 3", () => {
       const service = new ClusterInventoryMatcherService();
-      expect(service.match(makeFourNodeProvider(), makeFourNodeUnits(119495n, 0n, 2)).matched).toBe(true);
+      expect(service.match(makeFourNodeCluster(), makeFourNodeUnits(119495n, 0n, 2)).matched).toBe(true);
     });
 
     it("places 68780 CPU x 1 replica on node 0 at exact boundary", () => {
       const service = new ClusterInventoryMatcherService();
-      expect(service.match(makeFourNodeProvider(), makeFourNodeUnits(68780n, 0n, 1)).matched).toBe(true);
+      expect(service.match(makeFourNodeCluster(), makeFourNodeUnits(68780n, 0n, 1)).matched).toBe(true);
     });
 
     it("places 68780 CPU + 1 GPU x 1 replica on GPU node", () => {
       const service = new ClusterInventoryMatcherService();
-      expect(service.match(makeFourNodeProvider(), makeFourNodeUnits(68780n, 1n, 1)).matched).toBe(true);
+      expect(service.match(makeFourNodeCluster(), makeFourNodeUnits(68780n, 1n, 1)).matched).toBe(true);
     });
 
     it("places multi-group reservation (CPU-only + GPU) across nodes", () => {
@@ -898,26 +893,26 @@ describe(ClusterInventoryMatcherService.name, () => {
         count: 1
       };
 
-      expect(service.match(makeFourNodeProvider(), [cpuGroup, gpuGroup]).matched).toBe(true);
+      expect(service.match(makeFourNodeCluster(), [cpuGroup, gpuGroup]).matched).toBe(true);
     });
 
     it("rejects 70000 CPU x 4 replicas (only 2 nodes large enough)", () => {
       const service = new ClusterInventoryMatcherService();
-      const result = service.match(makeFourNodeProvider(), makeFourNodeUnits(70000n, 0n, 4));
+      const result = service.match(makeFourNodeCluster(), makeFourNodeUnits(70000n, 0n, 4));
       expect(result.matched).toBe(false);
       expect(result.error).toBe("INSUFFICIENT_CAPACITY");
     });
 
     it("rejects 100000 CPU x 3 replicas (only 2 nodes large enough)", () => {
       const service = new ClusterInventoryMatcherService();
-      const result = service.match(makeFourNodeProvider(), makeFourNodeUnits(100000n, 0n, 3));
+      const result = service.match(makeFourNodeCluster(), makeFourNodeUnits(100000n, 0n, 3));
       expect(result.matched).toBe(false);
       expect(result.error).toBe("INSUFFICIENT_CAPACITY");
     });
 
     it("rejects 119525 CPU x 2 replicas (only 1 node large enough)", () => {
       const service = new ClusterInventoryMatcherService();
-      const result = service.match(makeFourNodeProvider(), makeFourNodeUnits(119525n, 0n, 2));
+      const result = service.match(makeFourNodeCluster(), makeFourNodeUnits(119525n, 0n, 2));
       expect(result.matched).toBe(false);
       expect(result.error).toBe("INSUFFICIENT_CAPACITY");
     });
@@ -925,64 +920,52 @@ describe(ClusterInventoryMatcherService.name, () => {
 
   function setup(input: { requestedCpu?: bigint; requestedMemory?: bigint }) {
     const service = new ClusterInventoryMatcherService();
-    const provider = makeProvider([{ cpu: 8000, memory: 17179869184, ephemeral: 107374182400 }]);
+    const cluster = makeCluster([{ cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n }]);
     const resourceUnits = makeResourceUnits({
       cpu: input.requestedCpu ?? 1000n,
       memory: input.requestedMemory ?? 1073741824n,
       ephemeral: 5368709120n,
       count: 1
     });
-    return { service, provider, resourceUnits };
+    return { service, cluster, resourceUnits };
   }
 });
 
-function makeProvider(
+function makeCluster(
   nodes: {
-    cpu: number;
-    memory: number;
-    ephemeral: number;
-    cpuAllocated?: number;
-    memoryAllocated?: number;
-    ephemeralAllocated?: number;
-    gpuCount?: number;
-    gpuAllocated?: number;
+    cpu: bigint;
+    memory: bigint;
+    ephemeral: bigint;
+    cpuAllocated?: bigint;
+    memoryAllocated?: bigint;
+    ephemeralAllocated?: bigint;
+    gpuCount?: bigint;
+    gpuAllocated?: bigint;
     gpuInfo?: GpuInfo[];
     storageClasses?: string[];
-    cpus?: { vendor: string; model: string; vcores: number }[];
+    cpus?: CpuInfo[];
   }[],
-  storage?: { class: string; allocatable: number; allocated: number }[]
-): ProviderWithSnapshot {
-  return {
-    owner: "akash1test",
-    hostUri: "https://test.example.com:8443",
-    ipRegion: null,
-    uptime7d: null,
-    lastSuccessfulSnapshot: {
-      nodes: nodes.map((n, i) => ({
-        name: `node${i}`,
-        cpuAllocatable: n.cpu,
-        cpuAllocated: n.cpuAllocated ?? 0,
-        memoryAllocatable: n.memory,
-        memoryAllocated: n.memoryAllocated ?? 0,
-        ephemeralStorageAllocatable: n.ephemeral,
-        ephemeralStorageAllocated: n.ephemeralAllocated ?? 0,
-        gpuAllocatable: n.gpuCount ?? 0,
-        gpuAllocated: n.gpuAllocated ?? 0,
-        capabilitiesStorageHDD: n.storageClasses?.includes("beta1") ?? false,
-        capabilitiesStorageSSD: n.storageClasses?.includes("beta2") ?? false,
-        capabilitiesStorageNVME: n.storageClasses?.includes("beta3") ?? false,
-        gpus: (n.gpuInfo ?? []).map(g => ({
-          vendor: g.vendor,
-          name: g.name,
-          modelId: g.modelId,
-          interface: g.interface,
-          memorySize: g.memorySize
-        })),
-        cpus: n.cpus ?? []
-      })),
-      storage: storage ?? []
-    }
-  };
+  storage?: { class: string; allocatable: bigint; allocated: bigint }[]
+): ClusterState {
+  const storageMap: ClusterState["storage"] = Object.create(null);
+  for (const pool of storage ?? []) {
+    storageMap[pool.class] = { class: pool.class, quantity: new ResourcePair(pool.allocatable, pool.allocated) };
+  }
+
+  const stateNodes: NodeState[] = nodes.map((n, i) => ({
+    name: `node${i}`,
+    cpu: new ResourcePair(n.cpu, n.cpuAllocated ?? 0n),
+    memory: new ResourcePair(n.memory, n.memoryAllocated ?? 0n),
+    ephemeralStorage: new ResourcePair(n.ephemeral, n.ephemeralAllocated ?? 0n),
+    gpu: {
+      quantity: new ResourcePair(n.gpuCount ?? 0n, n.gpuAllocated ?? 0n),
+      info: n.gpuInfo ?? []
+    },
+    storageClasses: n.storageClasses ?? [],
+    cpus: n.cpus ?? []
+  }));
+
+  return { nodes: stateNodes, storage: storageMap };
 }
 
 function makeResourceUnits(input: {

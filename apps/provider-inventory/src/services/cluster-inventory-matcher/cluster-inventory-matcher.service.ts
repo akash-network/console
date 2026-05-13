@@ -1,7 +1,5 @@
 import { singleton } from "tsyringe";
 
-import { mapSnapshotToInventory } from "@src/lib/inventory-mapper/inventory-mapper";
-import type { ProviderWithSnapshot } from "@src/types/provider";
 import { matchesGPU, type ParsedGPUAttributes, parseGPUAttributes } from "../../lib/gpu-attribute-parser/gpu-attribute-parser";
 import { parseStorageAttributes } from "../../lib/storage-attribute-parser/storage-attribute-parser";
 import type { ClusterState, MatchResult, NodeState, RequestedResourceUnit, ResourceAttribute } from "../../types/inventory.types";
@@ -19,9 +17,8 @@ const GROUP_MISMATCH = Object.freeze({ matched: false, error: "GROUP_RESOURCE_MI
 
 @singleton()
 export class ClusterInventoryMatcherService {
-  match(provider: ProviderWithSnapshot, resourceUnits: RequestedResourceUnit[]): MatchResult {
-    const inventory = mapSnapshotToInventory(provider);
-    return this.#adjust(inventory, resourceUnits);
+  match(cluster: ClusterState, resourceUnits: RequestedResourceUnit[]): MatchResult {
+    return this.#adjust(cloneCluster(cluster), resourceUnits);
   }
 
   #adjust(cluster: ClusterState, resourceUnits: RequestedResourceUnit[]): MatchResult {
@@ -188,6 +185,16 @@ export class ClusterInventoryMatcherService {
       resolved: pinnedSpec!
     };
   }
+}
+
+function cloneCluster(cluster: ClusterState): ClusterState {
+  return {
+    nodes: cluster.nodes.map(copyNode),
+    storage: Object.values(cluster.storage).reduce<ClusterState["storage"]>((acc, pool) => {
+      acc[pool.class] = { class: pool.class, quantity: pool.quantity.clone() };
+      return acc;
+    }, Object.create(null))
+  };
 }
 
 function copyNode(node: NodeState): NodeState {

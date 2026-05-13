@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { Inventory, InventoryClusterStorage, InventoryNode, InventoryRollups, ProjectedRow } from "@src/types/inventory";
+import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
+import type { InventoryRollups, ProjectedRow } from "@src/types/inventory";
+import type { ClusterState, GpuInfo, NodeState } from "@src/types/inventory.types";
 import { projectedRowsEqual } from "./projected-row-equals";
 
 describe(projectedRowsEqual.name, () => {
@@ -29,7 +31,7 @@ describe(projectedRowsEqual.name, () => {
         gpuModels: ["nvidia/a100"],
         storageClasses: ["beta2", "beta3"],
         nodes: [buildNode({ name: "node-1" }), buildNode({ name: "node-2" })],
-        storage: [{ class: "beta2", available: 100 }]
+        storage: storageMap([{ class: "beta2", allocatable: 100n }])
       });
       const b = buildRow({
         totalAvailableCpu: 12_000n,
@@ -43,7 +45,7 @@ describe(projectedRowsEqual.name, () => {
         gpuModels: ["nvidia/a100"],
         storageClasses: ["beta2", "beta3"],
         nodes: [buildNode({ name: "node-1" }), buildNode({ name: "node-2" })],
-        storage: [{ class: "beta2", available: 100 }]
+        storage: storageMap([{ class: "beta2", allocatable: 100n }])
       });
 
       expect(projectedRowsEqual(a, b)).toBe(true);
@@ -51,7 +53,7 @@ describe(projectedRowsEqual.name, () => {
   });
 
   describe("single-field differs per rollup column", () => {
-    it.each([
+    it.each<[string, Partial<InventoryRollups>]>([
       ["totalAvailableCpu", { totalAvailableCpu: 999n }],
       ["totalAvailableMemory", { totalAvailableMemory: 999n }],
       ["totalAvailableGpu", { totalAvailableGpu: 999n }],
@@ -62,29 +64,35 @@ describe(projectedRowsEqual.name, () => {
       ["maxNodeFreeGpu", { maxNodeFreeGpu: 999n }],
       ["gpuModels", { gpuModels: ["nvidia/h100"] }],
       ["storageClasses", { storageClasses: ["beta3"] }]
-    ] as const)("returns false when %s differs", (_field, override) => {
+    ])("returns false when %s differs", (_field, override) => {
       const a = buildRow();
       const b = buildRow(override);
       expect(projectedRowsEqual(a, b)).toBe(false);
     });
   });
 
-  describe("JSONB-nested differs", () => {
-    it("returns false when a node's cpu.available differs", () => {
-      const a = buildRow({ nodes: [buildNode({ cpu: { available: 1000 } })] });
-      const b = buildRow({ nodes: [buildNode({ cpu: { available: 2000 } })] });
+  describe("ClusterState-nested differs", () => {
+    it("returns false when a node's cpu allocatable differs", () => {
+      const a = buildRow({ nodes: [buildNode({ cpu: new ResourcePair(1000n, 0n) })] });
+      const b = buildRow({ nodes: [buildNode({ cpu: new ResourcePair(2000n, 0n) })] });
       expect(projectedRowsEqual(a, b)).toBe(false);
     });
 
-    it("returns false when a node's memory.available differs", () => {
-      const a = buildRow({ nodes: [buildNode({ memory: { available: 1000 } })] });
-      const b = buildRow({ nodes: [buildNode({ memory: { available: 2000 } })] });
+    it("returns false when a node's cpu allocated differs", () => {
+      const a = buildRow({ nodes: [buildNode({ cpu: new ResourcePair(1000n, 0n) })] });
+      const b = buildRow({ nodes: [buildNode({ cpu: new ResourcePair(1000n, 500n) })] });
       expect(projectedRowsEqual(a, b)).toBe(false);
     });
 
-    it("returns false when a node's ephStorage.available differs", () => {
-      const a = buildRow({ nodes: [buildNode({ ephStorage: { available: 1000 } })] });
-      const b = buildRow({ nodes: [buildNode({ ephStorage: { available: 2000 } })] });
+    it("returns false when a node's memory differs", () => {
+      const a = buildRow({ nodes: [buildNode({ memory: new ResourcePair(1000n, 0n) })] });
+      const b = buildRow({ nodes: [buildNode({ memory: new ResourcePair(2000n, 0n) })] });
+      expect(projectedRowsEqual(a, b)).toBe(false);
+    });
+
+    it("returns false when a node's ephemeralStorage differs", () => {
+      const a = buildRow({ nodes: [buildNode({ ephemeralStorage: new ResourcePair(1000n, 0n) })] });
+      const b = buildRow({ nodes: [buildNode({ ephemeralStorage: new ResourcePair(2000n, 0n) })] });
       expect(projectedRowsEqual(a, b)).toBe(false);
     });
 
@@ -94,33 +102,33 @@ describe(projectedRowsEqual.name, () => {
       expect(projectedRowsEqual(a, b)).toBe(false);
     });
 
-    it("returns false when a node's gpu available count differs", () => {
-      const a = buildRow({ nodes: [buildNode({ gpu: [{ vendor: "nvidia", model: "a100", available: 1 }] })] });
-      const b = buildRow({ nodes: [buildNode({ gpu: [{ vendor: "nvidia", model: "a100", available: 2 }] })] });
+    it("returns false when a node's gpu quantity differs", () => {
+      const a = buildRow({ nodes: [buildNode({ gpu: { quantity: new ResourcePair(1n, 0n), info: [gpu("nvidia", "a100")] } })] });
+      const b = buildRow({ nodes: [buildNode({ gpu: { quantity: new ResourcePair(2n, 0n), info: [gpu("nvidia", "a100")] } })] });
       expect(projectedRowsEqual(a, b)).toBe(false);
     });
 
-    it("returns false when a node's gpu vendor/model differs", () => {
-      const a = buildRow({ nodes: [buildNode({ gpu: [{ vendor: "nvidia", model: "a100", available: 1 }] })] });
-      const b = buildRow({ nodes: [buildNode({ gpu: [{ vendor: "amd", model: "mi300x", available: 1 }] })] });
+    it("returns false when a node's gpu info differs", () => {
+      const a = buildRow({ nodes: [buildNode({ gpu: { quantity: new ResourcePair(1n, 0n), info: [gpu("nvidia", "a100")] } })] });
+      const b = buildRow({ nodes: [buildNode({ gpu: { quantity: new ResourcePair(1n, 0n), info: [gpu("amd", "mi300x")] } })] });
       expect(projectedRowsEqual(a, b)).toBe(false);
     });
 
-    it("returns false when a node's persistentStorage class differs", () => {
-      const a = buildRow({ nodes: [buildNode({ persistentStorage: [{ class: "beta2", available: 100 }] })] });
-      const b = buildRow({ nodes: [buildNode({ persistentStorage: [{ class: "beta3", available: 100 }] })] });
+    it("returns false when a node's storageClasses differ", () => {
+      const a = buildRow({ nodes: [buildNode({ storageClasses: ["beta2"] })] });
+      const b = buildRow({ nodes: [buildNode({ storageClasses: ["beta3"] })] });
       expect(projectedRowsEqual(a, b)).toBe(false);
     });
 
-    it("returns false when a node's persistentStorage available differs", () => {
-      const a = buildRow({ nodes: [buildNode({ persistentStorage: [{ class: "beta2", available: 100 }] })] });
-      const b = buildRow({ nodes: [buildNode({ persistentStorage: [{ class: "beta2", available: 200 }] })] });
+    it("returns false when cluster-level storage class differs", () => {
+      const a = buildRow({ storage: storageMap([{ class: "beta2", allocatable: 100n }]) });
+      const b = buildRow({ storage: storageMap([{ class: "beta3", allocatable: 100n }]) });
       expect(projectedRowsEqual(a, b)).toBe(false);
     });
 
-    it("returns false when cluster-level storage available differs", () => {
-      const a = buildRow({ storage: [{ class: "beta2", available: 100 }] });
-      const b = buildRow({ storage: [{ class: "beta2", available: 200 }] });
+    it("returns false when cluster-level storage quantity differs", () => {
+      const a = buildRow({ storage: storageMap([{ class: "beta2", allocatable: 100n }]) });
+      const b = buildRow({ storage: storageMap([{ class: "beta2", allocatable: 200n }]) });
       expect(projectedRowsEqual(a, b)).toBe(false);
     });
 
@@ -138,66 +146,12 @@ describe(projectedRowsEqual.name, () => {
       expect(projectedRowsEqual(a, b)).toBe(true);
     });
 
-    it("ignores order of gpus within a node", () => {
+    it("ignores order of gpu info within a node", () => {
       const a = buildRow({
-        nodes: [
-          buildNode({
-            gpu: [
-              { vendor: "nvidia", model: "a100", available: 1 },
-              { vendor: "amd", model: "mi300x", available: 2 }
-            ]
-          })
-        ]
+        nodes: [buildNode({ gpu: { quantity: new ResourcePair(3n, 0n), info: [gpu("nvidia", "a100"), gpu("amd", "mi300x")] } })]
       });
       const b = buildRow({
-        nodes: [
-          buildNode({
-            gpu: [
-              { vendor: "amd", model: "mi300x", available: 2 },
-              { vendor: "nvidia", model: "a100", available: 1 }
-            ]
-          })
-        ]
-      });
-      expect(projectedRowsEqual(a, b)).toBe(true);
-    });
-
-    it("ignores order of persistentStorage within a node", () => {
-      const a = buildRow({
-        nodes: [
-          buildNode({
-            persistentStorage: [
-              { class: "beta2", available: 100 },
-              { class: "beta3", available: 200 }
-            ]
-          })
-        ]
-      });
-      const b = buildRow({
-        nodes: [
-          buildNode({
-            persistentStorage: [
-              { class: "beta3", available: 200 },
-              { class: "beta2", available: 100 }
-            ]
-          })
-        ]
-      });
-      expect(projectedRowsEqual(a, b)).toBe(true);
-    });
-
-    it("ignores order of cluster-level storage", () => {
-      const a = buildRow({
-        storage: [
-          { class: "beta2", available: 100 },
-          { class: "beta3", available: 200 }
-        ]
-      });
-      const b = buildRow({
-        storage: [
-          { class: "beta3", available: 200 },
-          { class: "beta2", available: 100 }
-        ]
+        nodes: [buildNode({ gpu: { quantity: new ResourcePair(3n, 0n), info: [gpu("amd", "mi300x"), gpu("nvidia", "a100")] } })]
       });
       expect(projectedRowsEqual(a, b)).toBe(true);
     });
@@ -213,62 +167,26 @@ describe(projectedRowsEqual.name, () => {
       const b = buildRow({ storageClasses: ["beta3", "beta2"] });
       expect(projectedRowsEqual(a, b)).toBe(true);
     });
-
-    it("ignores order across all reorderable arrays simultaneously", () => {
-      const a = buildRow({
-        gpuModels: ["amd/mi300x", "nvidia/a100"],
-        storageClasses: ["beta2", "beta3"],
-        nodes: [
-          buildNode({
-            name: "node-1",
-            gpu: [
-              { vendor: "nvidia", model: "a100", available: 1 },
-              { vendor: "amd", model: "mi300x", available: 1 }
-            ],
-            persistentStorage: [
-              { class: "beta2", available: 100 },
-              { class: "beta3", available: 200 }
-            ]
-          }),
-          buildNode({ name: "node-2" })
-        ],
-        storage: [
-          { class: "beta2", available: 100 },
-          { class: "beta3", available: 200 }
-        ]
-      });
-      const b = buildRow({
-        gpuModels: ["nvidia/a100", "amd/mi300x"],
-        storageClasses: ["beta3", "beta2"],
-        nodes: [
-          buildNode({ name: "node-2" }),
-          buildNode({
-            name: "node-1",
-            gpu: [
-              { vendor: "amd", model: "mi300x", available: 1 },
-              { vendor: "nvidia", model: "a100", available: 1 }
-            ],
-            persistentStorage: [
-              { class: "beta3", available: 200 },
-              { class: "beta2", available: 100 }
-            ]
-          })
-        ],
-        storage: [
-          { class: "beta3", available: 200 },
-          { class: "beta2", available: 100 }
-        ]
-      });
-      expect(projectedRowsEqual(a, b)).toBe(true);
-    });
   });
 });
 
-function buildRow(overrides: Partial<InventoryRollups> & { nodes?: InventoryNode[]; storage?: InventoryClusterStorage[] } = {}): ProjectedRow {
+function gpu(vendor: string, name: string): GpuInfo {
+  return { vendor, name, modelId: "", interface: "", memorySize: "" };
+}
+
+function storageMap(pools: { class: string; allocatable: bigint; allocated?: bigint }[]): ClusterState["storage"] {
+  const result: ClusterState["storage"] = Object.create(null);
+  for (const pool of pools) {
+    result[pool.class] = { class: pool.class, quantity: new ResourcePair(pool.allocatable, pool.allocated ?? 0n) };
+  }
+  return result;
+}
+
+function buildRow(overrides: Partial<InventoryRollups> & { nodes?: NodeState[]; storage?: ClusterState["storage"] } = {}): ProjectedRow {
   const { nodes, storage, ...rollupOverrides } = overrides;
-  const inventory: Inventory = {
+  const cluster: ClusterState = {
     nodes: nodes ?? [],
-    storage: storage ?? []
+    storage: storage ?? Object.create(null)
   };
   return {
     totalAvailableCpu: 0n,
@@ -282,18 +200,19 @@ function buildRow(overrides: Partial<InventoryRollups> & { nodes?: InventoryNode
     gpuModels: [],
     storageClasses: [],
     ...rollupOverrides,
-    inventory
+    cluster
   };
 }
 
-function buildNode(overrides?: Partial<InventoryNode>): InventoryNode {
+function buildNode(overrides?: Partial<NodeState>): NodeState {
   return {
     name: "node-1",
-    cpu: { available: 0 },
-    memory: { available: 0 },
-    gpu: [],
-    ephStorage: { available: 0 },
-    persistentStorage: [],
+    cpu: new ResourcePair(0n, 0n),
+    memory: new ResourcePair(0n, 0n),
+    ephemeralStorage: new ResourcePair(0n, 0n),
+    gpu: { quantity: new ResourcePair(0n, 0n), info: [] },
+    storageClasses: [],
+    cpus: [],
     ...overrides
   };
 }

@@ -3,12 +3,13 @@ import { setTimeout as delay } from "node:timers/promises";
 import { describe, expect, it, vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
 
+import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
 import type { EnvConfig } from "@src/providers/app-config.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
-import type { ProviderStreamFactory } from "@src/providers/provider-stream.provider";
 import type { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
 import type { ChainProvider } from "@src/types/chain-provider";
-import type { StreamStatusMessage } from "@src/types/stream-status";
+import type { ClusterState, NodeState } from "@src/types/inventory.types";
+import type { ProviderStreamFactory } from "../provider-stream-factory/provider-stream-factory.sevice";
 import { StreamLifecycleManagerService } from "./stream-lifecycle-manager.service";
 
 describe(StreamLifecycleManagerService.name, () => {
@@ -19,12 +20,12 @@ describe(StreamLifecycleManagerService.name, () => {
 
       manager.start(provider);
 
-      expect(streamFactory.openStatusStream).toHaveBeenCalledWith(provider.hostUri, expect.any(AbortSignal));
+      expect(streamFactory.openStatusStream).toHaveBeenCalledWith(provider, expect.any(AbortSignal));
     });
 
     it("calls updateInventory for each unique stream message", async () => {
       const provider = createProvider();
-      const messages = [createMessage({ cpu: 1000 }), createMessage({ cpu: 2000 })];
+      const messages = [createMessage({ cpu: 1000n }), createMessage({ cpu: 2000n })];
       const { manager, writer } = setup({ streams: { "https://p1:8443": msgsThenHang(messages) } });
 
       manager.start(provider);
@@ -70,7 +71,7 @@ describe(StreamLifecycleManagerService.name, () => {
       manager.restart(updated);
 
       expect(oldSignal.aborted).toBe(true);
-      expect(streamFactory.openStatusStream).toHaveBeenLastCalledWith("https://new:8443", expect.any(AbortSignal));
+      expect(streamFactory.openStatusStream).toHaveBeenLastCalledWith(updated, expect.any(AbortSignal));
       expect(writer.deleteByOwner).not.toHaveBeenCalled();
     });
   });
@@ -93,9 +94,8 @@ describe(StreamLifecycleManagerService.name, () => {
 
   describe("diff cache", () => {
     it("performs a single write when two consecutive identical messages arrive", async () => {
-      const message = createMessage({ cpu: 1000 });
       const { manager, writer, logger } = setup({
-        streams: { "https://p1:8443": msgsThenHang([message, structuredClone(message)]) }
+        streams: { "https://p1:8443": msgsThenHang([createMessage({ cpu: 1000n }), createMessage({ cpu: 1000n })]) }
       });
       manager.start(createProvider());
 
@@ -107,7 +107,7 @@ describe(StreamLifecycleManagerService.name, () => {
     it("writes again when any meaningful field differs", async () => {
       const { manager, writer } = setup({
         streams: {
-          "https://p1:8443": msgsThenHang([createMessage({ cpu: 1000 }), createMessage({ cpu: 1001 })])
+          "https://p1:8443": msgsThenHang([createMessage({ cpu: 1000n }), createMessage({ cpu: 1001n })])
         }
       });
       manager.start(createProvider());
@@ -115,48 +115,11 @@ describe(StreamLifecycleManagerService.name, () => {
       await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(2));
     });
 
-    it("considers messages with reordered nodes/gpus/storage equal", async () => {
-      const first: StreamStatusMessage = {
-        nodes: [
-          {
-            name: "node-1",
-            cpuAvailable: 4000,
-            memoryAvailable: 8_000_000_000,
-            gpus: [
-              { vendor: "nvidia", model: "a100", available: 1 },
-              { vendor: "amd", model: "mi300x", available: 2 }
-            ],
-            ephStorageAvailable: 100_000_000_000,
-            persistentStorage: [
-              { class: "beta2", available: 100 },
-              { class: "beta3", available: 200 }
-            ]
-          },
-          {
-            name: "node-2",
-            cpuAvailable: 2000,
-            memoryAvailable: 4_000_000_000,
-            gpus: [],
-            ephStorageAvailable: 50_000_000_000,
-            persistentStorage: []
-          }
-        ],
-        storage: [
-          { class: "beta2", available: 500 },
-          { class: "beta3", available: 600 }
-        ]
-      };
-      const reordered: StreamStatusMessage = {
-        nodes: [
-          first.nodes[1],
-          {
-            ...first.nodes[0],
-            gpus: [...first.nodes[0].gpus].reverse(),
-            persistentStorage: [...first.nodes[0].persistentStorage].reverse()
-          }
-        ],
-        storage: [...first.storage].reverse()
-      };
+    it("considers messages with reordered nodes equal", async () => {
+      const nodeA = buildNode({ name: "node-a", cpu: new ResourcePair(4000n, 0n) });
+      const nodeB = buildNode({ name: "node-b", cpu: new ResourcePair(2000n, 0n) });
+      const first: ClusterState = { nodes: [nodeA, nodeB], storage: Object.create(null) };
+      const reordered: ClusterState = { nodes: [nodeB, nodeA], storage: Object.create(null) };
 
       const { manager, writer, logger } = setup({
         streams: { "https://p1:8443": msgsThenHang([first, reordered]) }
@@ -179,9 +142,8 @@ describe(StreamLifecycleManagerService.name, () => {
     });
 
     it("does not cache a row when the write fails — next identical message retries", async () => {
-      const message = createMessage();
       const { manager, writer } = setup({
-        streams: { "https://p1:8443": msgsThenHang([message, structuredClone(message)]) }
+        streams: { "https://p1:8443": msgsThenHang([createMessage(), createMessage()]) }
       });
       writer.updateInventory.mockRejectedValueOnce(new Error("DB down"));
       manager.start(createProvider());
@@ -192,12 +154,10 @@ describe(StreamLifecycleManagerService.name, () => {
     it("isolates caches across providers", async () => {
       const providerA = createProvider({ owner: "a", hostUri: "https://a:8443" });
       const providerB = createProvider({ owner: "b", hostUri: "https://b:8443" });
-      const messageA = createMessage({ cpu: 1000 });
-      const messageB = createMessage({ cpu: 1000 });
       const { manager, writer, logger } = setup({
         streams: {
-          "https://a:8443": msgsThenHang([messageA, structuredClone(messageA)]),
-          "https://b:8443": msgsThenHang([messageB])
+          "https://a:8443": msgsThenHang([createMessage({ cpu: 1000n }), createMessage({ cpu: 1000n })]),
+          "https://b:8443": msgsThenHang([createMessage({ cpu: 1000n })])
         }
       });
       manager.start(providerA);
@@ -214,7 +174,7 @@ describe(StreamLifecycleManagerService.name, () => {
 
   describe("error handling", () => {
     it("logs and continues when updateInventory throws", async () => {
-      const messages = [createMessage({ cpu: 1000 }), createMessage({ cpu: 2000 })];
+      const messages = [createMessage({ cpu: 1000n }), createMessage({ cpu: 2000n })];
       const { manager, writer, logger } = setup({ streams: { "https://p1:8443": msgsThenHang(messages) } });
       writer.updateInventory.mockRejectedValueOnce(new Error("DB down"));
       manager.start(createProvider());
@@ -242,7 +202,7 @@ describe(StreamLifecycleManagerService.name, () => {
   describe("stale finalizer", () => {
     it("does not evict a replacement stream's registry entry when the old stream finishes", async () => {
       let resolveOldStream!: () => void;
-      const oldStreamPromise = new Promise<IteratorResult<StreamStatusMessage>>(r => {
+      const oldStreamPromise = new Promise<IteratorResult<ClusterState>>(r => {
         resolveOldStream = () => r({ done: true, value: undefined });
       });
       const provider = createProvider();
@@ -301,21 +261,20 @@ describe(StreamLifecycleManagerService.name, () => {
     });
 
     it("clears diff cache on shutdown", async () => {
-      const stable = createMessage({ cpu: 1000 });
-      const { manager, streamFactory, writer } = setup({ streams: { "https://p1:8443": msgsThenHang([stable]) } });
+      const { manager, streamFactory, writer } = setup({ streams: { "https://p1:8443": msgsThenHang([createMessage({ cpu: 1000n })]) } });
       manager.start(createProvider());
 
       await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(1));
 
       manager.shutdown();
-      streamFactory.openStatusStream.mockReturnValue(msgsThenHang([stable]));
+      streamFactory.openStatusStream.mockReturnValue(msgsThenHang([createMessage({ cpu: 1000n })]));
       manager.start(createProvider());
 
       await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(2));
     });
   });
 
-  function setup(input?: { streams?: Record<string, AsyncIterable<StreamStatusMessage> | "hang">; streamFactory?: MockProxy<ProviderStreamFactory> }) {
+  function setup(input?: { streams?: Record<string, AsyncIterable<ClusterState> | "hang">; streamFactory?: MockProxy<ProviderStreamFactory> }) {
     const streamFactory = input?.streamFactory ?? mock<ProviderStreamFactory>();
     const writer = mock<ProviderInventoryRepository>();
     writer.deleteByOwner.mockResolvedValue();
@@ -331,8 +290,8 @@ describe(StreamLifecycleManagerService.name, () => {
 
     if (!input?.streamFactory) {
       const streams = input?.streams ?? {};
-      streamFactory.openStatusStream.mockImplementation((hostUri: string, signal: AbortSignal) => {
-        const value = streams[hostUri];
+      streamFactory.openStatusStream.mockImplementation((provider: ChainProvider, signal: AbortSignal) => {
+        const value = streams[provider.hostUri];
         if (value === "hang") return hangingStream(signal);
         if (value) return value;
         return hangingStream(signal);
@@ -356,38 +315,49 @@ function createProvider(overrides?: Partial<ChainProvider>): ChainProvider {
   };
 }
 
-function createMessage(overrides?: { cpu?: number }): StreamStatusMessage {
+function createMessage(overrides?: { cpu?: bigint }): ClusterState {
   return {
     nodes: [
-      {
+      buildNode({
         name: "node-1",
-        cpuAvailable: overrides?.cpu ?? 4000,
-        memoryAvailable: 8_000_000_000,
-        gpus: [],
-        ephStorageAvailable: 100_000_000_000,
-        persistentStorage: []
-      }
+        cpu: new ResourcePair(overrides?.cpu ?? 4000n, 0n),
+        memory: new ResourcePair(8_000_000_000n, 0n),
+        ephemeralStorage: new ResourcePair(100_000_000_000n, 0n)
+      })
     ],
-    storage: []
+    storage: Object.create(null)
   };
 }
 
-async function* msgsThenHang(messages: StreamStatusMessage[]): AsyncGenerator<StreamStatusMessage> {
+function buildNode(overrides?: Partial<NodeState>): NodeState {
+  return {
+    name: "node-1",
+    cpu: new ResourcePair(0n, 0n),
+    memory: new ResourcePair(0n, 0n),
+    ephemeralStorage: new ResourcePair(0n, 0n),
+    gpu: { quantity: new ResourcePair(0n, 0n), info: [] },
+    storageClasses: [],
+    cpus: [],
+    ...overrides
+  };
+}
+
+async function* msgsThenHang(messages: ClusterState[]): AsyncGenerator<ClusterState> {
   for (const msg of messages) yield msg;
   await new Promise<never>(() => undefined);
 }
 
-async function* throwingStream(error: Error): AsyncGenerator<StreamStatusMessage> {
+async function* throwingStream(error: Error): AsyncGenerator<ClusterState> {
   yield* [];
   throw error;
 }
 
-function hangingStream(signal?: AbortSignal): AsyncIterable<StreamStatusMessage> {
+function hangingStream(signal?: AbortSignal): AsyncIterable<ClusterState> {
   return {
     [Symbol.asyncIterator]() {
       return {
         next: () =>
-          new Promise<IteratorResult<StreamStatusMessage>>((_, reject) => {
+          new Promise<IteratorResult<ClusterState>>((_, reject) => {
             if (!signal) return;
             if (signal.aborted) reject(new DOMException("aborted", "AbortError"));
             signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });
@@ -397,7 +367,7 @@ function hangingStream(signal?: AbortSignal): AsyncIterable<StreamStatusMessage>
   };
 }
 
-function captureSignal(streamFactory: { openStatusStream: { mock: { calls: Array<[string, AbortSignal]> } } }, callIndex?: number): AbortSignal {
+function captureSignal(streamFactory: { openStatusStream: { mock: { calls: Array<[ChainProvider, AbortSignal]> } } }, callIndex?: number): AbortSignal {
   const idx = callIndex ?? streamFactory.openStatusStream.mock.calls.length - 1;
   return streamFactory.openStatusStream.mock.calls[idx][1];
 }

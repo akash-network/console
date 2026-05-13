@@ -6,7 +6,7 @@ import { ProviderInventoryRepository } from "@src/repositories/provider-inventor
 import type { GroupSpecJSON } from "../../lib/groupspec-mapper/groupspec-mapper";
 import { mapGroupSpecToResourceUnits } from "../../lib/groupspec-mapper/groupspec-mapper";
 import type { BidScreeningResult } from "../../types/inventory.types";
-import type { ProviderWithSnapshot } from "../../types/provider";
+import type { ProviderWithClusterState } from "../../types/provider";
 import { ClusterInventoryMatcherService } from "../cluster-inventory-matcher/cluster-inventory-matcher.service";
 
 const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
@@ -36,15 +36,12 @@ export class BidScreeningService {
 
     this.#logger.info({ event: "BID_SCREENING_START", resourceGroupCount: resourceUnits.length });
 
-    const [providers, auditedOwners] = await Promise.all([
-      this.#repository.getOnlineProvidersWithSnapshots(),
-      this.#repository.getAuditedProviderAddresses([AUDITOR])
-    ]);
+    const [providers, auditedOwners] = await Promise.all([this.#repository.getOnlineProviders(), this.#repository.getAuditedProviderAddresses([AUDITOR])]);
 
     const results: BidScreeningResult[] = [];
 
     for (const provider of providers) {
-      const matchResult = this.#matcher.match(provider, resourceUnits);
+      const matchResult = this.#matcher.match(provider.cluster, resourceUnits);
 
       if (matchResult.matched) {
         results.push(this.#toResult(provider, auditedOwners.has(provider.owner)));
@@ -82,7 +79,7 @@ export class BidScreeningService {
     }
   }
 
-  #toResult(provider: ProviderWithSnapshot, isAudited: boolean): BidScreeningResult {
+  #toResult(provider: ProviderWithClusterState, isAudited: boolean): BidScreeningResult {
     return {
       owner: provider.owner,
       hostUri: provider.hostUri,

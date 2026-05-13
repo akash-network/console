@@ -1,4 +1,6 @@
-import type { Inventory, InventoryNode, InventoryNodeGpu, InventoryNodeStorage, ProjectedRow } from "@src/types/inventory";
+import type { ResourcePair } from "@src/lib/resource-pair/resource-pair";
+import type { ProjectedRow } from "@src/types/inventory";
+import type { ClusterState, CpuInfo, GpuInfo, NodeState } from "@src/types/inventory.types";
 
 export function projectedRowsEqual(a: ProjectedRow, b: ProjectedRow): boolean {
   if (a === b) return true;
@@ -19,19 +21,19 @@ export function projectedRowsEqual(a: ProjectedRow, b: ProjectedRow): boolean {
   if (!stringArrayEqual(a.gpuModels, b.gpuModels)) return false;
   if (!stringArrayEqual(a.storageClasses, b.storageClasses)) return false;
 
-  return inventoryEqual(a.inventory, b.inventory);
+  return clusterEqual(a.cluster, b.cluster);
 }
 
-function inventoryEqual(a: Inventory, b: Inventory): boolean {
+function clusterEqual(a: ClusterState, b: ClusterState): boolean {
   if (a === b) return true;
-  return storageEqual(a.storage, b.storage) && nodesEqual(a.nodes, b.nodes);
+  return clusterStorageEqual(a.storage, b.storage) && nodesEqual(a.nodes, b.nodes);
 }
 
-function nodesEqual(a: readonly InventoryNode[], b: readonly InventoryNode[]): boolean {
+function nodesEqual(a: readonly NodeState[], b: readonly NodeState[]): boolean {
   if (a === b) return true;
   if (a.length !== b.length) return false;
 
-  const byName = new Map<string, InventoryNode>();
+  const byName = new Map<string, NodeState>();
   for (let i = 0; i < a.length; i++) {
     byName.set(a[i].name, a[i]);
   }
@@ -42,35 +44,59 @@ function nodesEqual(a: readonly InventoryNode[], b: readonly InventoryNode[]): b
   return true;
 }
 
-function nodeEqual(a: InventoryNode, b: InventoryNode): boolean {
+function nodeEqual(a: NodeState, b: NodeState): boolean {
   if (a === b) return true;
   return (
-    a.cpu.available === b.cpu.available &&
-    a.memory.available === b.memory.available &&
-    a.ephStorage.available === b.ephStorage.available &&
-    gpuListEqual(a.gpu, b.gpu) &&
-    storageEqual(a.persistentStorage, b.persistentStorage)
+    pairEqual(a.cpu, b.cpu) &&
+    pairEqual(a.memory, b.memory) &&
+    pairEqual(a.ephemeralStorage, b.ephemeralStorage) &&
+    pairEqual(a.gpu.quantity, b.gpu.quantity) &&
+    gpuInfoEqual(a.gpu.info, b.gpu.info) &&
+    stringArrayEqual(a.storageClasses, b.storageClasses) &&
+    cpuInfoEqual(a.cpus, b.cpus)
   );
 }
 
-function gpuListEqual(a: readonly InventoryNodeGpu[], b: readonly InventoryNodeGpu[]): boolean {
+function pairEqual(a: ResourcePair, b: ResourcePair): boolean {
+  return a.allocatable === b.allocatable && a.allocated === b.allocated;
+}
+
+function gpuInfoEqual(a: readonly GpuInfo[], b: readonly GpuInfo[]): boolean {
   if (a === b) return true;
   if (a.length !== b.length) return false;
 
   for (let i = 0; i < a.length; i++) {
-    const match = b.find(g => g.vendor === a[i].vendor && g.model === a[i].model);
-    if (!match || match.available !== a[i].available) return false;
+    const match = b.find(
+      g => g.vendor === a[i].vendor && g.name === a[i].name && g.modelId === a[i].modelId && g.interface === a[i].interface && g.memorySize === a[i].memorySize
+    );
+    if (!match) return false;
   }
   return true;
 }
 
-function storageEqual(a: readonly InventoryNodeStorage[], b: readonly InventoryNodeStorage[]): boolean {
+function cpuInfoEqual(a: readonly CpuInfo[], b: readonly CpuInfo[]): boolean {
   if (a === b) return true;
   if (a.length !== b.length) return false;
 
   for (let i = 0; i < a.length; i++) {
-    const match = b.find(s => s.class === a[i].class);
-    if (!match || match.available !== a[i].available) return false;
+    const match = b.find(c => c.vendor === a[i].vendor && c.model === a[i].model);
+    if (!match) return false;
+  }
+  return true;
+}
+
+function clusterStorageEqual(a: ClusterState["storage"], b: ClusterState["storage"]): boolean {
+  if (a === b) return true;
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+
+  for (const key of aKeys) {
+    const poolA = a[key];
+    const poolB = b[key];
+    if (!poolB) return false;
+    if (poolA.class !== poolB.class) return false;
+    if (!pairEqual(poolA.quantity, poolB.quantity)) return false;
   }
   return true;
 }

@@ -3,17 +3,15 @@ import { and, arrayOverlaps, eq, sql as rawSql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { inject, singleton } from "tsyringe";
 
+import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
 import type { ChainProvider } from "@src/types/chain-provider";
-import type { Inventory, ProjectedRow } from "@src/types/inventory";
-import type { ProviderWithSnapshot } from "@src/types/provider";
-
-const STORAGE_CLASS_HDD = "beta1";
-const STORAGE_CLASS_SSD = "beta2";
-const STORAGE_CLASS_NVME = "beta3";
+import type { ProjectedRow } from "@src/types/inventory";
+import type { ClusterState, NodeState } from "@src/types/inventory.types";
+import type { ProviderWithClusterState } from "@src/types/provider";
 
 @singleton()
 export class ProviderInventoryRepository {
@@ -47,7 +45,7 @@ export class ProviderInventoryRepository {
     await this.#db
       .update(providerInventory)
       .set({
-        inventory: row.inventory,
+        inventory: row.cluster,
         totalAvailableCpu: row.totalAvailableCpu,
         totalAvailableMemory: row.totalAvailableMemory,
         totalAvailableGpu: row.totalAvailableGpu,
@@ -86,7 +84,7 @@ export class ProviderInventoryRepository {
     this.#logger.debug({ event: "PROVIDER_ATTRIBUTES_UPSERTED", owner: provider.owner });
   }
 
-  async getOnlineProvidersWithSnapshots(): Promise<ProviderWithSnapshot[]> {
+  async getOnlineProviders(): Promise<ProviderWithClusterState[]> {
     const rows = await this.#db
       .select({
         owner: providerInventory.owner,
@@ -103,7 +101,7 @@ export class ProviderInventoryRepository {
       hostUri: row.hostUri,
       ipRegion: row.ipRegion,
       uptime7d: row.uptime7d,
-      lastSuccessfulSnapshot: inventoryToSnapshot(row.inventory as Inventory)
+      cluster: hydrateClusterState(row.inventory)
     }));
   }
 
@@ -121,38 +119,43 @@ export class ProviderInventoryRepository {
   }
 }
 
-function inventoryToSnapshot(inventory: Inventory): ProviderWithSnapshot["lastSuccessfulSnapshot"] {
+type RawPair = { allocatable: number | bigint; allocated: number | bigint };
+type RawNode = Omit<NodeState, "cpu" | "memory" | "ephemeralStorage" | "gpu"> & {
+  cpu: RawPair;
+  memory: RawPair;
+  ephemeralStorage: RawPair;
+  gpu: { quantity: RawPair; info: NodeState["gpu"]["info"] };
+};
+type RawCluster = {
+  nodes?: RawNode[];
+  storage?: Record<string, { class: string; quantity: RawPair }>;
+};
+
+export function hydrateClusterState(raw: unknown): ClusterState {
+  const cluster = (raw ?? {}) as RawCluster;
+  const nodes = (cluster.nodes ?? []).map(hydrateNode);
+  const storage: ClusterState["storage"] = Object.create(null);
+  for (const [key, pool] of Object.entries(cluster.storage ?? {})) {
+    storage[key] = { class: pool.class, quantity: hydratePair(pool.quantity) };
+  }
+  return { nodes, storage };
+}
+
+function hydrateNode(node: RawNode): NodeState {
   return {
-    nodes: inventory.nodes.map(node => {
-      const classes = new Set(node.persistentStorage.map(p => p.class));
-      const gpuTotal = node.gpu.reduce((acc, g) => acc + g.available, 0);
-      return {
-        name: node.name,
-        cpuAllocatable: node.cpu.available,
-        cpuAllocated: 0,
-        memoryAllocatable: node.memory.available,
-        memoryAllocated: 0,
-        ephemeralStorageAllocatable: node.ephStorage.available,
-        ephemeralStorageAllocated: 0,
-        gpuAllocatable: gpuTotal,
-        gpuAllocated: 0,
-        capabilitiesStorageHDD: classes.has(STORAGE_CLASS_HDD),
-        capabilitiesStorageSSD: classes.has(STORAGE_CLASS_SSD),
-        capabilitiesStorageNVME: classes.has(STORAGE_CLASS_NVME),
-        gpus: node.gpu.map(g => ({
-          vendor: g.vendor,
-          name: g.model,
-          modelId: "",
-          interface: "",
-          memorySize: ""
-        })),
-        cpus: []
-      };
-    }),
-    storage: inventory.storage.map(s => ({
-      class: s.class,
-      allocatable: s.available,
-      allocated: 0
-    }))
+    name: node.name,
+    cpu: hydratePair(node.cpu),
+    memory: hydratePair(node.memory),
+    ephemeralStorage: hydratePair(node.ephemeralStorage),
+    gpu: { quantity: hydratePair(node.gpu.quantity), info: node.gpu.info ?? [] },
+    storageClasses: node.storageClasses ?? [],
+    cpus: node.cpus ?? []
   };
+}
+
+function hydratePair(pair: RawPair): ResourcePair {
+  const allocatable = typeof pair.allocatable === "bigint" ? pair.allocatable : BigInt(pair.allocatable || 0);
+  const allocated = typeof pair.allocated === "bigint" ? pair.allocated : BigInt(pair.allocated || 0);
+
+  return new ResourcePair(allocatable, allocated);
 }

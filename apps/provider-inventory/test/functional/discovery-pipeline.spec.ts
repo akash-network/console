@@ -2,17 +2,17 @@ import { container, Lifecycle } from "tsyringe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
 import type { ChainQueryClient } from "@src/providers/chain-query.provider";
 import { CHAIN_QUERY_CLIENT } from "@src/providers/chain-query.provider";
 import { PG_CLIENT } from "@src/providers/postgres.provider";
-import type { ProviderStreamFactory } from "@src/providers/provider-stream.provider";
-import { PROVIDER_STREAM_FACTORY } from "@src/providers/provider-stream.provider";
 import { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
 import { ChainProviderPollerService } from "@src/services/chain-provider-poller/chain-provider-poller.service";
 import { DiscoverySchedulerService } from "@src/services/discovery-scheduler/discovery-scheduler.service";
+import { ProviderStreamFactory } from "@src/services/provider-stream-factory/provider-stream-factory.sevice";
 import { StreamLifecycleManagerService } from "@src/services/stream-lifecycle-manager/stream-lifecycle-manager.service";
 import type { ChainProvider } from "@src/types/chain-provider";
-import type { StreamStatusMessage } from "@src/types/stream-status";
+import type { ClusterState, NodeState } from "@src/types/inventory.types";
 import { testDb } from "../setup-functional-tests";
 
 describe("DiscoveryScheduler pipeline (functional)", () => {
@@ -66,16 +66,14 @@ describe("DiscoveryScheduler pipeline (functional)", () => {
     queueStreamMessages("https://a:8443", [
       {
         nodes: [
-          {
+          buildNode({
             name: "n1",
-            cpuAvailable: 4000,
-            memoryAvailable: 8_000_000_000,
-            gpus: [],
-            ephStorageAvailable: 100_000_000_000,
-            persistentStorage: []
-          }
+            cpu: new ResourcePair(4000n, 0n),
+            memory: new ResourcePair(8_000_000_000n, 0n),
+            ephemeralStorage: new ResourcePair(100_000_000_000n, 0n)
+          })
         ],
-        storage: []
+        storage: Object.create(null)
       }
     ]);
 
@@ -106,7 +104,7 @@ describe("DiscoveryScheduler pipeline (functional)", () => {
 
     const openedHosts: string[] = [];
     const abortedHosts: string[] = [];
-    const queuedMessages = new Map<string, StreamStatusMessage[]>();
+    const queuedMessages = new Map<string, ClusterState[]>();
     let pollError: Error | null = null;
     let providers: ChainProvider[] = input.providers ?? [];
 
@@ -125,16 +123,16 @@ describe("DiscoveryScheduler pipeline (functional)", () => {
     chainClient.getAllProvidersAttributes.mockImplementation(() => Promise.resolve(providers.map(p => ({ owner: p.owner, attributes: p.signedAttributes }))));
 
     const streamFactory = mock<ProviderStreamFactory>();
-    streamFactory.openStatusStream.mockImplementation((hostUri: string, signal: AbortSignal) => {
-      openedHosts.push(hostUri);
-      signal.addEventListener("abort", () => abortedHosts.push(hostUri), { once: true });
-      const messages = queuedMessages.get(hostUri) ?? [];
-      queuedMessages.delete(hostUri);
+    streamFactory.openStatusStream.mockImplementation((provider: ChainProvider, signal: AbortSignal) => {
+      openedHosts.push(provider.hostUri);
+      signal.addEventListener("abort", () => abortedHosts.push(provider.hostUri), { once: true });
+      const messages = queuedMessages.get(provider.hostUri) ?? [];
+      queuedMessages.delete(provider.hostUri);
       return makeStream(messages, signal);
     });
 
     testContainer.register(CHAIN_QUERY_CLIENT, { useValue: chainClient });
-    testContainer.register(PROVIDER_STREAM_FACTORY, { useValue: streamFactory });
+    testContainer.register(ProviderStreamFactory, { useValue: streamFactory });
     testContainer.register(ProviderInventoryRepository, { useClass: ProviderInventoryRepository }, { lifecycle: Lifecycle.ContainerScoped });
     testContainer.register(ChainProviderPollerService, { useClass: ChainProviderPollerService }, { lifecycle: Lifecycle.ContainerScoped });
     testContainer.register(StreamLifecycleManagerService, { useClass: StreamLifecycleManagerService }, { lifecycle: Lifecycle.ContainerScoped });
@@ -155,7 +153,7 @@ describe("DiscoveryScheduler pipeline (functional)", () => {
         const [row] = await pg`SELECT * FROM provider_inventory WHERE owner = ${owner}`;
         return row;
       },
-      queueStreamMessages(hostUri: string, messages: StreamStatusMessage[]) {
+      queueStreamMessages(hostUri: string, messages: ClusterState[]) {
         queuedMessages.set(hostUri, messages);
       },
       setPollError(error: Error | null) {
@@ -177,17 +175,30 @@ function createProvider(overrides: Partial<ChainProvider> & Pick<ChainProvider, 
   };
 }
 
-function makeStream(messages: StreamStatusMessage[], signal: AbortSignal): AsyncIterable<StreamStatusMessage> {
+function buildNode(overrides?: Partial<NodeState>): NodeState {
+  return {
+    name: "node-1",
+    cpu: new ResourcePair(0n, 0n),
+    memory: new ResourcePair(0n, 0n),
+    ephemeralStorage: new ResourcePair(0n, 0n),
+    gpu: { quantity: new ResourcePair(0n, 0n), info: [] },
+    storageClasses: [],
+    cpus: [],
+    ...overrides
+  };
+}
+
+function makeStream(messages: ClusterState[], signal: AbortSignal): AsyncIterable<ClusterState> {
   return {
     [Symbol.asyncIterator]() {
       let index = 0;
       return {
-        async next(): Promise<IteratorResult<StreamStatusMessage>> {
+        async next(): Promise<IteratorResult<ClusterState>> {
           if (signal.aborted) return { done: true, value: undefined };
           if (index < messages.length) {
             return { done: false, value: messages[index++] };
           }
-          return new Promise<IteratorResult<StreamStatusMessage>>(resolve => {
+          return new Promise<IteratorResult<ClusterState>>(resolve => {
             const onAbort = () => resolve({ done: true, value: undefined });
             signal.addEventListener("abort", onAbort, { once: true });
           });
