@@ -29,6 +29,33 @@ describe(AuthService.name, () => {
     });
   });
 
+  describe("startEmailCode", () => {
+    it("posts to /api/auth/email-code-start with the captcha token", async () => {
+      const { service, httpClient } = setup();
+
+      await service.startEmailCode({ email: "user@example.com", captchaToken: "tok" });
+
+      expect(httpClient.post).toHaveBeenCalledWith("/api/auth/email-code-start", {
+        email: "user@example.com",
+        captchaToken: "tok"
+      });
+    });
+  });
+
+  describe("verifyEmailCode", () => {
+    it("posts to /api/auth/email-code-verify with the code and captcha token", async () => {
+      const { service, httpClient } = setup();
+
+      await service.verifyEmailCode({ email: "user@example.com", code: "123456", captchaToken: "tok" });
+
+      expect(httpClient.post).toHaveBeenCalledWith("/api/auth/email-code-verify", {
+        email: "user@example.com",
+        code: "123456",
+        captchaToken: "tok"
+      });
+    });
+  });
+
   describe("logout", () => {
     it("clears localStorage items and redirects to logout URL", () => {
       const { service, location, localStorage } = setup();
