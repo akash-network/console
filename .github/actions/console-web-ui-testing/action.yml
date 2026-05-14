@@ -8,9 +8,6 @@ inputs:
   url:
     description: Base URL to Console Web
     required: true
-  test-wallet-mnemonic:
-    description: Test wallet mnemonic
-    required: true
   slack-webhook-url:
     description: Slack webhook URL
     required: false
@@ -61,7 +58,6 @@ runs:
     - name: Run e2e tests
       id: e2e-tests
       env:
-        TEST_WALLET_MNEMONIC: ${{ inputs.test-wallet-mnemonic }}
         BASE_URL: ${{ inputs.url }}
         E2E_TESTING_CLIENT_TOKEN: ${{ inputs.testing-client-token }}
         AUTH0_M2M_DOMAIN: ${{ inputs.auth0-m2m-domain }}
@@ -75,13 +71,6 @@ runs:
         CI: "true"
       shell: bash
       run: npm run test:e2e --workspace=apps/deploy-web
-    - name: Tests cleanup
-      if: ${{ !cancelled() }}
-      shell: bash
-      env:
-        TEST_WALLET_MNEMONIC: ${{ inputs.test-wallet-mnemonic }}
-      run: |
-        npx --yes tsx@4.20.6 apps/deploy-web/script/closeDeployments.ts
     - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       id: playwright-report
       if: ${{ !cancelled() }}

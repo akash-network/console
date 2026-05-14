@@ -18,7 +18,7 @@ test.describe("Managed wallet alerts", () => {
     const alertsPage = new AlertsPage(page);
     const alertsForm = new DeploymentAlertsForm(page);
     const billingPage = new BillingPage(page);
-    const deployPage = new DeployPage(context, page, { walletType: "api" });
+    const deployPage = new DeployPage(context, page);
 
     await test.step("login", async () => {
       await homePage.goto();
