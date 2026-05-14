@@ -73,7 +73,7 @@ export class AuthInterceptor implements HonoInterceptor {
 
             return await this.#nextWithUserContext(currentUser, next);
           } catch (error) {
-            this.logger.error(error);
+            this.logger.warn({ event: "API_KEY_VALIDATION_FAILED", message: error instanceof Error ? error.message : "Unknown error" });
             throw new Unauthorized("Invalid API key");
           }
         }
