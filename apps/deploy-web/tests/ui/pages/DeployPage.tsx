@@ -17,6 +17,20 @@ export class DeployPage {
     await this.page.getByLabel(name).or(this.page.getByRole("link", { name })).first().click();
   }
 
+  async fillImageName(name: string) {
+    await this.page.getByLabel(/docker image/i).fill(name);
+  }
+
+  async generateSSHKeys() {
+    const downloadPromise = this.page.waitForEvent("download");
+    await this.page.getByRole("button", { name: /generate new key/i }).click();
+
+    return {
+      download: await downloadPromise,
+      input: this.page.getByLabel(/ssh public key/i)
+    };
+  }
+
   async openDepositDialog() {
     await this.page.getByRole("button", { name: /create deployment/i }).click();
     const dialog = this.page.getByRole("dialog");
