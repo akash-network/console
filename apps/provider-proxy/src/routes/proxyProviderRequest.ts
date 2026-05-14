@@ -35,13 +35,28 @@ export const proxyRoute = createRoute({
       content: {
         "text/plain": {
           schema: z.string()
+        },
+        "application/json": {
+          schema: z.object({
+            error: z.object({
+              code: z.string(),
+              issues: z.array(
+                z.object({
+                  path: z.array(z.string()),
+                  params: z.object({
+                    reason: z.string()
+                  })
+                })
+              )
+            })
+          })
         }
       },
-      description: "Returned if it's not possible to establish secure connection with proxied host"
+      description: "Returned if it's not possible to establish secure connection with proxied host, or if the target URL resolves to a forbidden address"
     },
     495: {
       // https://http.dev/495
-      content: {
+
         "text/plain": {
           schema: z.string()
         }
