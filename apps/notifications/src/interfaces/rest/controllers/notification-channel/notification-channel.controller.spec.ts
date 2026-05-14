@@ -38,7 +38,7 @@ describe(NotificationChannelController.name, () => {
     });
   });
 
-  describe("patchNotificationChannel", () => {
+  describe("updateNotificationChannel", () => {
     it("should call notificationChannelRepository.updateById() and return the updated notification channel", async () => {
       const { controller, notificationChannelRepository } = await setup();
       const id = faker.string.uuid();
@@ -47,7 +47,7 @@ describe(NotificationChannelController.name, () => {
 
       notificationChannelRepository.updateById.mockResolvedValue(output);
 
-      const result = await controller.patchNotificationChannel(id, { data: input });
+      const result = await controller.updateNotificationChannel(id, { data: input });
 
       expect(notificationChannelRepository.updateById).toHaveBeenCalledWith(id, input);
       expect(result).toEqual(Ok({ data: output }));
@@ -60,7 +60,7 @@ describe(NotificationChannelController.name, () => {
 
       notificationChannelRepository.updateById.mockResolvedValue(undefined);
 
-      await expect(controller.patchNotificationChannel(id, { data: input })).resolves.toMatchObject({
+      await expect(controller.updateNotificationChannel(id, { data: input })).resolves.toMatchObject({
         err: true,
         val: expect.objectContaining({
           message: "Notification channel not found"
@@ -146,12 +146,12 @@ describe(NotificationChannelController.name, () => {
     });
   });
 
-  describe("createDefaultChannel", () => {
+  describe("createDefaultNotificationChannel", () => {
     it("should call notificationChannelRepository.createDefaultChannel()", async () => {
       const { controller, notificationChannelRepository, userId } = await setup();
       const input = generateMock(notificationChannelCreateInputSchema);
 
-      await controller.createDefaultChannel({ data: input });
+      await controller.createDefaultNotificationChannel({ data: input });
 
       expect(notificationChannelRepository.createDefaultChannel).toHaveBeenCalledWith({
         ...input,

@@ -1,5 +1,5 @@
 {
-  "exclude": ["node_modules", "dist", "test", "src/**/*.spec.ts"],
+  "exclude": ["node_modules", "dist"],
   "extends": "./tsconfig.build.json",
   "include": ["src/**/*"],
   "compilerOptions": {

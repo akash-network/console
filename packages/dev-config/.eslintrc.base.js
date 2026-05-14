@@ -34,7 +34,16 @@ module.exports = {
     "import-x/no-cycle": ["error", { ignoreExternal: true }],
     "import-x/no-self-import": ["error"],
     "import-x/no-useless-path-segments": ["error"],
-    "akash/no-mnemonic": ["error"]
+    "akash/no-mnemonic": ["error"],
+    "akash/operation-id-format": [
+      "error",
+      {
+        additionalVerbs: {
+          post: { collection: ["deposit"] },
+          delete: { single: ["close"] }
+        }
+      }
+    ]
   },
   overrides: [
     {

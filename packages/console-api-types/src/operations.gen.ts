@@ -3,11 +3,34 @@
 
 export const operations = {
   v1: {
-    getApiKeys: { path: "/v1/api-keys", method: "get", operationId: "getApiKeys", pathParams: [], queryParams: [], hasBody: false },
+    getDeployment: { path: "/v1/deployments/{dseq}", method: "get", operationId: "getDeployment", pathParams: ["dseq"], queryParams: [], hasBody: false },
+    closeDeployment: {
+      path: "/v1/deployments/{dseq}",
+      method: "delete",
+      operationId: "closeDeployment",
+      pathParams: ["dseq"],
+      queryParams: [],
+      hasBody: false
+    },
+    updateDeployment: { path: "/v1/deployments/{dseq}", method: "put", operationId: "updateDeployment", pathParams: ["dseq"], queryParams: [], hasBody: true },
+    createDeployment: { path: "/v1/deployments", method: "post", operationId: "createDeployment", pathParams: [], queryParams: [], hasBody: true },
+    listDeployments: { path: "/v1/deployments", method: "get", operationId: "listDeployments", pathParams: [], queryParams: ["skip", "limit"], hasBody: false },
+    depositDeployment: { path: "/v1/deposit-deployment", method: "post", operationId: "depositDeployment", pathParams: [], queryParams: [], hasBody: true },
+    createLease: { path: "/v1/leases", method: "post", operationId: "createLease", pathParams: [], queryParams: [], hasBody: true },
+    listApiKeys: { path: "/v1/api-keys", method: "get", operationId: "listApiKeys", pathParams: [], queryParams: [], hasBody: false },
+    listBids: { path: "/v1/bids", method: "get", operationId: "listBids", pathParams: [], queryParams: ["dseq"], hasBody: false },
+    listGpuPrices: { path: "/v1/gpu-prices", method: "get", operationId: "listGpuPrices", pathParams: [], queryParams: [], hasBody: false },
     createAlert: { path: "/v1/alerts", method: "post", operationId: "createAlert", pathParams: [], queryParams: [], hasBody: true },
-    getAlerts: { path: "/v1/alerts", method: "get", operationId: "getAlerts", pathParams: [], queryParams: ["limit", "page", "type", "dseq"], hasBody: false },
+    listAlerts: {
+      path: "/v1/alerts",
+      method: "get",
+      operationId: "listAlerts",
+      pathParams: [],
+      queryParams: ["limit", "page", "type", "dseq"],
+      hasBody: false
+    },
     getAlert: { path: "/v1/alerts/{id}", method: "get", operationId: "getAlert", pathParams: ["id"], queryParams: [], hasBody: false },
-    patchAlert: { path: "/v1/alerts/{id}", method: "patch", operationId: "patchAlert", pathParams: ["id"], queryParams: [], hasBody: true },
+    updateAlert: { path: "/v1/alerts/{id}", method: "patch", operationId: "updateAlert", pathParams: ["id"], queryParams: [], hasBody: true },
     deleteAlert: { path: "/v1/alerts/{id}", method: "delete", operationId: "deleteAlert", pathParams: ["id"], queryParams: [], hasBody: false },
     createNotificationChannel: {
       path: "/v1/notification-channels",
@@ -17,18 +40,18 @@ export const operations = {
       queryParams: [],
       hasBody: true
     },
-    getNotificationChannels: {
+    listNotificationChannels: {
       path: "/v1/notification-channels",
       method: "get",
-      operationId: "getNotificationChannels",
+      operationId: "listNotificationChannels",
       pathParams: [],
       queryParams: ["limit", "page"],
       hasBody: false
     },
-    createDefaultChannel: {
+    createDefaultNotificationChannel: {
       path: "/v1/notification-channels/default",
       method: "post",
-      operationId: "createDefaultChannel",
+      operationId: "createDefaultNotificationChannel",
       pathParams: [],
       queryParams: [],
       hasBody: true
@@ -41,10 +64,10 @@ export const operations = {
       queryParams: [],
       hasBody: false
     },
-    patchNotificationChannel: {
+    updateNotificationChannel: {
       path: "/v1/notification-channels/{id}",
       method: "patch",
-      operationId: "patchNotificationChannel",
+      operationId: "updateNotificationChannel",
       pathParams: ["id"],
       queryParams: [],
       hasBody: true
@@ -65,10 +88,10 @@ export const operations = {
       queryParams: [],
       hasBody: true
     },
-    getDeploymentAlerts: {
+    listDeploymentAlerts: {
       path: "/v1/deployment-alerts/{dseq}",
       method: "get",
-      operationId: "getDeploymentAlerts",
+      operationId: "listDeploymentAlerts",
       pathParams: ["dseq"],
       queryParams: [],
       hasBody: false

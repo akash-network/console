@@ -1,5 +1,4 @@
-import "reflect-metadata";
-import "@src/providers";
+import "./providers";
 import "./model-schemas";
 
 import { HttpLoggerInterceptor } from "@akashnetwork/logging/hono";
@@ -9,7 +8,7 @@ import { Hono } from "hono";
 import { container } from "tsyringe";
 
 import { APP_CONFIG } from "@src/providers/app-config.provider";
-import { healthzRouter } from "@src/routes";
+import { bidScreeningRouter, healthzRouter } from "@src/routes";
 import { HonoErrorHandlerService } from "@src/services/hono-error-handler/hono-error-handler.service";
 import { startServer } from "@src/services/start-server/start-server";
 import type { AppEnv } from "@src/types/app-context";
@@ -19,6 +18,7 @@ export function createApp(): Hono<AppEnv> {
   app.use("*", otel({ captureRequestHeaders: ["baggage"] }));
   app.use(container.resolve(HttpLoggerInterceptor).intercept());
   app.route("/", healthzRouter);
+  app.route("/", bidScreeningRouter);
   app.onError(container.resolve(HonoErrorHandlerService).handle);
 
   return app;

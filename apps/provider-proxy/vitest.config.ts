@@ -31,6 +31,9 @@ export default defineConfig({
       {
         extends: true,
         test: {
+          env: {
+            ALLOW_PROXY_TO_LOCAL_NETWORK: "true"
+          },
           name: "functional",
           include: ["test/functional/**/*.spec.ts"],
           testTimeout: 60_000,

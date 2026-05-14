@@ -28,7 +28,7 @@ type NotificationChannelEditContainerProps = {
 
 export const NotificationChannelEditContainer: FC<NotificationChannelEditContainerProps> = ({ id, children, onEditSuccess }) => {
   const { api } = useServices();
-  const mutation = api.v1.patchNotificationChannel.useMutation();
+  const mutation = api.v1.updateNotificationChannel.useMutation();
   const notificator = useNotificator();
 
   const edit: ChildrenProps["onEdit"] = useCallback(

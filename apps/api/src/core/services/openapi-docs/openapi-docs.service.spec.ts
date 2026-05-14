@@ -18,7 +18,7 @@ describe("OpenApiDocsService", () => {
       paths: {
         "/v1/alerts": {
           get: {
-            operationId: "getAlerts",
+            operationId: "listAlerts",
             tags: ["v1"],
             responses: { "200": { description: "ok" } }
           }

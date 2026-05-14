@@ -1,18 +1,19 @@
 import { sql } from "drizzle-orm";
-import { bigint, boolean, doublePrecision, index, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { bigint, boolean, doublePrecision, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+
+import { jsonbBigint } from "@src/lib/jsonb-bigint/jsonb-bigint.column";
 
 export const providerInventory = pgTable(
   "provider_inventory",
   {
     owner: text("owner").primaryKey(),
     hostUri: text("host_uri").notNull(),
-    createdHeight: bigint("created_height", { mode: "bigint" }).notNull(),
     ipRegion: text("ip_region"),
     uptime7d: doublePrecision("uptime_7d"),
     isOnline: boolean("is_online").notNull().default(false),
     isOnlineSince: timestamp("is_online_since", { withTimezone: true }),
 
-    inventory: jsonb("inventory").notNull().default({}),
+    inventory: jsonbBigint("inventory").notNull().default({}),
 
     totalAvailableCpu: bigint("total_available_cpu", { mode: "bigint" }).notNull().default(BigInt(0)),
     totalAvailableMemory: bigint("total_available_memory", { mode: "bigint" }).notNull().default(BigInt(0)),
@@ -26,8 +27,8 @@ export const providerInventory = pgTable(
     gpuModels: text("gpu_models").array().notNull().default([]),
     storageClasses: text("storage_classes").array().notNull().default([]),
 
-    selfAttributes: jsonb("self_attributes").notNull().default([]),
-    signedAttributes: jsonb("signed_attributes").notNull().default([]),
+    selfAttributes: jsonbBigint("self_attributes").notNull().default([]),
+    signedAttributes: jsonbBigint("signed_attributes").notNull().default([]),
     auditedBy: text("audited_by").array().notNull().default([]),
 
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()

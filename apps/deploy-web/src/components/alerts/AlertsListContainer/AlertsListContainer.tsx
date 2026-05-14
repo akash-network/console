@@ -38,11 +38,11 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const { api } = useServices();
   const queryClient = useQueryClient();
-  const { data, isError, isLoading, refetch } = api.v1.getAlerts.useQuery({ page, limit });
+  const { data, isError, isLoading, refetch } = api.v1.listAlerts.useQuery({ page, limit });
   const { getDeploymentName } = useLocalNotes();
   const notificator = useNotificator();
   const deleteMutation = api.v1.deleteAlert.useMutation();
-  const patchMutation = api.v1.patchAlert.useMutation();
+  const patchMutation = api.v1.updateAlert.useMutation();
   const { address } = useWallet();
 
   const remove = useCallback(
