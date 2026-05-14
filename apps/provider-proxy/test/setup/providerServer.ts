@@ -6,14 +6,12 @@ import WebSocket from "ws";
 
 import { shutdownServer } from "../../src/utils/shutdownServer";
 import type { CertPair } from "../seeders/createX509CertPair";
-import { createX509CertPair } from "../seeders/createX509CertPair";
-import { generateBech32 } from "./chainApiServer";
 
 let runningServer: https.Server | undefined;
 
 export function startProviderServer(options: ProviderServerOptions): Promise<ProviderServerResult> {
   return new Promise<ProviderServerResult>(resolve => {
-    const certPair = options.certPair || createX509CertPair({ commonName: generateBech32() });
+    const certPair = options.certPair;
     const httpServerOptions: ServerOptions = {
       key: certPair.key,
       cert: certPair.cert.toJSON()
@@ -77,7 +75,7 @@ export function stopProviderServer(): Promise<void> {
 type RequestHandlers = Record<string, (req: IncomingMessage, res: ServerResponse) => (() => void) | undefined | void>;
 export interface ProviderServerOptions {
   requireClientCertificate?: boolean;
-  certPair?: CertPair;
+  certPair: CertPair;
   handlers?: RequestHandlers;
   websocketServer?: {
     enable: boolean;
