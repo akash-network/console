@@ -299,6 +299,7 @@ const fallbackListRoute = createRoute({
   summary: "List deployments (database fallback)",
   tags: ["Deployments"],
   security: SECURITY_NONE,
+  cache: { maxAge: 10, staleWhileRevalidate: 30 },
   request: {
     query: FallbackDeploymentListQuerySchema
   },
@@ -336,6 +337,7 @@ const fallbackInfoRoute = createRoute({
   summary: "Get deployment info (database fallback)",
   tags: ["Deployments"],
   security: SECURITY_NONE,
+  cache: { maxAge: 10, staleWhileRevalidate: 30 },
   request: {
     query: FallbackDeploymentInfoQuerySchema
   },
