@@ -3,7 +3,22 @@
 
 export const operations = {
   v1: {
+    getDeployment: { path: "/v1/deployments/{dseq}", method: "get", operationId: "getDeployment", pathParams: ["dseq"], queryParams: [], hasBody: false },
+    closeDeployment: {
+      path: "/v1/deployments/{dseq}",
+      method: "delete",
+      operationId: "closeDeployment",
+      pathParams: ["dseq"],
+      queryParams: [],
+      hasBody: false
+    },
+    updateDeployment: { path: "/v1/deployments/{dseq}", method: "put", operationId: "updateDeployment", pathParams: ["dseq"], queryParams: [], hasBody: true },
+    createDeployment: { path: "/v1/deployments", method: "post", operationId: "createDeployment", pathParams: [], queryParams: [], hasBody: true },
+    listDeployments: { path: "/v1/deployments", method: "get", operationId: "listDeployments", pathParams: [], queryParams: ["skip", "limit"], hasBody: false },
+    depositDeployment: { path: "/v1/deposit-deployment", method: "post", operationId: "depositDeployment", pathParams: [], queryParams: [], hasBody: true },
+    createLease: { path: "/v1/leases", method: "post", operationId: "createLease", pathParams: [], queryParams: [], hasBody: true },
     listApiKeys: { path: "/v1/api-keys", method: "get", operationId: "listApiKeys", pathParams: [], queryParams: [], hasBody: false },
+    listBids: { path: "/v1/bids", method: "get", operationId: "listBids", pathParams: [], queryParams: ["dseq"], hasBody: false },
     listGpuPrices: { path: "/v1/gpu-prices", method: "get", operationId: "listGpuPrices", pathParams: [], queryParams: [], hasBody: false },
     createAlert: { path: "/v1/alerts", method: "post", operationId: "createAlert", pathParams: [], queryParams: [], hasBody: true },
     listAlerts: {

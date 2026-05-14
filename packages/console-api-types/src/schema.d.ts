@@ -2585,268 +2585,12 @@ export interface paths {
       cookie?: never;
     };
     /** Get a deployment */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          /** @description Deployment sequence number */
-          dseq: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Returns deployment info */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              data: {
-                deployment: {
-                  id: {
-                    owner: string;
-                    dseq: string;
-                  };
-                  state: string;
-                  hash: string;
-                  created_at: string;
-                };
-                leases: {
-                  id: {
-                    owner: string;
-                    dseq: string;
-                    gseq: number;
-                    oseq: number;
-                    provider: string;
-                    bseq: number;
-                  };
-                  state: string;
-                  price: {
-                    denom: string;
-                    amount: string;
-                  };
-                  created_at: string;
-                  closed_on: string;
-                  reason?: string;
-                  status: {
-                    forwarded_ports: {
-                      [key: string]: {
-                        port: number;
-                        externalPort: number;
-                        host?: string;
-                        available?: number;
-                      }[];
-                    };
-                    ips: {
-                      [key: string]: {
-                        IP: string;
-                        Port: number;
-                        ExternalPort: number;
-                        Protocol: string;
-                      }[];
-                    };
-                    services: {
-                      [key: string]: {
-                        name: string;
-                        available: number;
-                        total: number;
-                        uris: string[];
-                        observed_generation: number;
-                        replicas: number;
-                        updated_replicas: number;
-                        ready_replicas: number;
-                        available_replicas: number;
-                      };
-                    };
-                  } | null;
-                }[];
-                escrow_account: {
-                  id: {
-                    scope: string;
-                    xid: string;
-                  };
-                  state: {
-                    owner: string;
-                    state: string;
-                    transferred: {
-                      denom: string;
-                      amount: string;
-                    }[];
-                    settled_at: string;
-                    funds: {
-                      denom: string;
-                      amount: string;
-                    }[];
-                    deposits: {
-                      owner: string;
-                      height: string;
-                      source: string;
-                      balance: {
-                        denom: string;
-                        amount: string;
-                      };
-                    }[];
-                  };
-                };
-              };
-            };
-          };
-        };
-      };
-    };
+    get: operations["getDeployment"];
     /** Update a deployment */
-    put: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          /** @description Deployment sequence number */
-          dseq: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": {
-            data: {
-              sdl: string;
-            };
-          };
-        };
-      };
-      responses: {
-        /** @description Deployment updated successfully */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              data: {
-                deployment: {
-                  id: {
-                    owner: string;
-                    dseq: string;
-                  };
-                  state: string;
-                  hash: string;
-                  created_at: string;
-                };
-                leases: {
-                  id: {
-                    owner: string;
-                    dseq: string;
-                    gseq: number;
-                    oseq: number;
-                    provider: string;
-                    bseq: number;
-                  };
-                  state: string;
-                  price: {
-                    denom: string;
-                    amount: string;
-                  };
-                  created_at: string;
-                  closed_on: string;
-                  reason?: string;
-                  status: {
-                    forwarded_ports: {
-                      [key: string]: {
-                        port: number;
-                        externalPort: number;
-                        host?: string;
-                        available?: number;
-                      }[];
-                    };
-                    ips: {
-                      [key: string]: {
-                        IP: string;
-                        Port: number;
-                        ExternalPort: number;
-                        Protocol: string;
-                      }[];
-                    };
-                    services: {
-                      [key: string]: {
-                        name: string;
-                        available: number;
-                        total: number;
-                        uris: string[];
-                        observed_generation: number;
-                        replicas: number;
-                        updated_replicas: number;
-                        ready_replicas: number;
-                        available_replicas: number;
-                      };
-                    };
-                  } | null;
-                }[];
-                escrow_account: {
-                  id: {
-                    scope: string;
-                    xid: string;
-                  };
-                  state: {
-                    owner: string;
-                    state: string;
-                    transferred: {
-                      denom: string;
-                      amount: string;
-                    }[];
-                    settled_at: string;
-                    funds: {
-                      denom: string;
-                      amount: string;
-                    }[];
-                    deposits: {
-                      owner: string;
-                      height: string;
-                      source: string;
-                      balance: {
-                        denom: string;
-                        amount: string;
-                      };
-                    }[];
-                  };
-                };
-              };
-            };
-          };
-        };
-      };
-    };
+    put: operations["updateDeployment"];
     post?: never;
     /** Close a deployment */
-    delete: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          /** @description Deployment sequence number */
-          dseq: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Deployment closed successfully */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              data: {
-                success: boolean;
-              };
-            };
-          };
-        };
-      };
-    };
+    delete: operations["closeDeployment"];
     options?: never;
     head?: never;
     patch?: never;
@@ -2860,137 +2604,10 @@ export interface paths {
       cookie?: never;
     };
     /** List deployments with pagination and filtering */
-    get: {
-      parameters: {
-        query?: {
-          skip?: number | null;
-          limit?: number;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Returns paginated list of deployments */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              data: {
-                deployments: {
-                  deployment: {
-                    id: {
-                      owner: string;
-                      dseq: string;
-                    };
-                    state: string;
-                    hash: string;
-                    created_at: string;
-                  };
-                  leases: {
-                    id: {
-                      owner: string;
-                      dseq: string;
-                      gseq: number;
-                      oseq: number;
-                      provider: string;
-                      bseq: number;
-                    };
-                    state: string;
-                    price: {
-                      denom: string;
-                      amount: string;
-                    };
-                    created_at: string;
-                    closed_on: string;
-                    reason?: string;
-                  }[];
-                  escrow_account: {
-                    id: {
-                      scope: string;
-                      xid: string;
-                    };
-                    state: {
-                      owner: string;
-                      state: string;
-                      transferred: {
-                        denom: string;
-                        amount: string;
-                      }[];
-                      settled_at: string;
-                      funds: {
-                        denom: string;
-                        amount: string;
-                      }[];
-                      deposits: {
-                        owner: string;
-                        height: string;
-                        source: string;
-                        balance: {
-                          denom: string;
-                          amount: string;
-                        };
-                      }[];
-                    };
-                  };
-                }[];
-                pagination: {
-                  total: number;
-                  skip: number;
-                  limit: number;
-                  hasMore: boolean;
-                };
-              };
-            };
-          };
-        };
-      };
-    };
+    get: operations["listDeployments"];
     put?: never;
     /** Create new deployment */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": {
-            data: {
-              sdl: string;
-              /** @description Amount to deposit in dollars (e.g. 5.5) */
-              deposit: number;
-            };
-          };
-        };
-      };
-      responses: {
-        /** @description Create deployment successfully */
-        201: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              data: {
-                dseq: string;
-                manifest: string;
-                signTx: {
-                  code: number;
-                  transactionHash: string;
-                  rawLog: string;
-                };
-              };
-            };
-          };
-        };
-      };
-    };
+    post: operations["createDeployment"];
     delete?: never;
     options?: never;
     head?: never;
@@ -3007,126 +2624,7 @@ export interface paths {
     get?: never;
     put?: never;
     /** Deposit into a deployment */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": {
-            data: {
-              /** @description Deployment sequence number */
-              dseq: string;
-              /** @description Amount to deposit in dollars (e.g. 5.5) */
-              deposit: number;
-            };
-          };
-        };
-      };
-      responses: {
-        /** @description Deposit successful */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              data: {
-                deployment: {
-                  id: {
-                    owner: string;
-                    dseq: string;
-                  };
-                  state: string;
-                  hash: string;
-                  created_at: string;
-                };
-                leases: {
-                  id: {
-                    owner: string;
-                    dseq: string;
-                    gseq: number;
-                    oseq: number;
-                    provider: string;
-                    bseq: number;
-                  };
-                  state: string;
-                  price: {
-                    denom: string;
-                    amount: string;
-                  };
-                  created_at: string;
-                  closed_on: string;
-                  reason?: string;
-                  status: {
-                    forwarded_ports: {
-                      [key: string]: {
-                        port: number;
-                        externalPort: number;
-                        host?: string;
-                        available?: number;
-                      }[];
-                    };
-                    ips: {
-                      [key: string]: {
-                        IP: string;
-                        Port: number;
-                        ExternalPort: number;
-                        Protocol: string;
-                      }[];
-                    };
-                    services: {
-                      [key: string]: {
-                        name: string;
-                        available: number;
-                        total: number;
-                        uris: string[];
-                        observed_generation: number;
-                        replicas: number;
-                        updated_replicas: number;
-                        ready_replicas: number;
-                        available_replicas: number;
-                      };
-                    };
-                  } | null;
-                }[];
-                escrow_account: {
-                  id: {
-                    scope: string;
-                    xid: string;
-                  };
-                  state: {
-                    owner: string;
-                    state: string;
-                    transferred: {
-                      denom: string;
-                      amount: string;
-                    }[];
-                    settled_at: string;
-                    funds: {
-                      denom: string;
-                      amount: string;
-                    }[];
-                    deposits: {
-                      owner: string;
-                      height: string;
-                      source: string;
-                      balance: {
-                        denom: string;
-                        amount: string;
-                      };
-                    }[];
-                  };
-                };
-              };
-            };
-          };
-        };
-      };
-    };
+    post: operations["depositDeployment"];
     delete?: never;
     options?: never;
     head?: never;
@@ -3782,127 +3280,7 @@ export interface paths {
     get?: never;
     put?: never;
     /** Create leases and send manifest */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": {
-            manifest: string;
-            leases: {
-              dseq: string;
-              gseq: number;
-              oseq: number;
-              provider: string;
-            }[];
-          };
-        };
-      };
-      responses: {
-        /** @description Leases created and manifest sent */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              data: {
-                deployment: {
-                  id: {
-                    owner: string;
-                    dseq: string;
-                  };
-                  state: string;
-                  hash: string;
-                  created_at: string;
-                };
-                leases: {
-                  id: {
-                    owner: string;
-                    dseq: string;
-                    gseq: number;
-                    oseq: number;
-                    provider: string;
-                    bseq: number;
-                  };
-                  state: string;
-                  price: {
-                    denom: string;
-                    amount: string;
-                  };
-                  created_at: string;
-                  closed_on: string;
-                  reason?: string;
-                  status: {
-                    forwarded_ports: {
-                      [key: string]: {
-                        port: number;
-                        externalPort: number;
-                        host?: string;
-                        available?: number;
-                      }[];
-                    };
-                    ips: {
-                      [key: string]: {
-                        IP: string;
-                        Port: number;
-                        ExternalPort: number;
-                        Protocol: string;
-                      }[];
-                    };
-                    services: {
-                      [key: string]: {
-                        name: string;
-                        available: number;
-                        total: number;
-                        uris: string[];
-                        observed_generation: number;
-                        replicas: number;
-                        updated_replicas: number;
-                        ready_replicas: number;
-                        available_replicas: number;
-                      };
-                    };
-                  } | null;
-                }[];
-                escrow_account: {
-                  id: {
-                    scope: string;
-                    xid: string;
-                  };
-                  state: {
-                    owner: string;
-                    state: string;
-                    transferred: {
-                      denom: string;
-                      amount: string;
-                    }[];
-                    settled_at: string;
-                    funds: {
-                      denom: string;
-                      amount: string;
-                    }[];
-                    deposits: {
-                      owner: string;
-                      height: string;
-                      source: string;
-                      balance: {
-                        denom: string;
-                        amount: string;
-                      };
-                    }[];
-                  };
-                };
-              };
-            };
-          };
-        };
-      };
-    };
+    post: operations["createLease"];
     delete?: never;
     options?: never;
     head?: never;
@@ -4233,121 +3611,7 @@ export interface paths {
       cookie?: never;
     };
     /** List bids */
-    get: {
-      parameters: {
-        query: {
-          dseq: string;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description List of bids */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              data: {
-                bid: {
-                  id: {
-                    owner: string;
-                    dseq: string;
-                    gseq: number;
-                    oseq: number;
-                    provider: string;
-                    bseq: number;
-                  };
-                  state: string;
-                  price: {
-                    denom: string;
-                    amount: string;
-                  };
-                  created_at: string;
-                  resources_offer: {
-                    resources: {
-                      cpu: {
-                        units: {
-                          val: string;
-                        };
-                        attributes: {
-                          key: string;
-                          value: string;
-                        }[];
-                      };
-                      gpu: {
-                        units: {
-                          val: string;
-                        };
-                        attributes: {
-                          key: string;
-                          value: string;
-                        }[];
-                      };
-                      memory: {
-                        quantity: {
-                          val: string;
-                        };
-                        attributes: {
-                          key: string;
-                          value: string;
-                        }[];
-                      };
-                      storage: {
-                        name: string;
-                        quantity: {
-                          val: string;
-                        };
-                        attributes: {
-                          key: string;
-                          value: string;
-                        }[];
-                      }[];
-                      endpoints: {
-                        kind: string;
-                        sequence_number: number;
-                      }[];
-                    };
-                    count: number;
-                  }[];
-                };
-                escrow_account: {
-                  id: {
-                    scope: string;
-                    xid: string;
-                  };
-                  state: {
-                    owner: string;
-                    state: string;
-                    transferred: {
-                      denom: string;
-                      amount: string;
-                    }[];
-                    settled_at: string;
-                    funds: {
-                      denom: string;
-                      amount: string;
-                    }[];
-                    deposits: {
-                      owner: string;
-                      height: string;
-                      source: string;
-                      balance: {
-                        denom: string;
-                        amount: string;
-                      };
-                    }[];
-                  };
-                };
-              }[];
-            };
-          };
-        };
-      };
-    };
+    get: operations["listBids"];
     put?: never;
     post?: never;
     delete?: never;
@@ -8612,6 +7876,635 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  getDeployment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Deployment sequence number */
+        dseq: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns deployment info */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              deployment: {
+                id: {
+                  owner: string;
+                  dseq: string;
+                };
+                state: string;
+                hash: string;
+                created_at: string;
+              };
+              leases: {
+                id: {
+                  owner: string;
+                  dseq: string;
+                  gseq: number;
+                  oseq: number;
+                  provider: string;
+                  bseq: number;
+                };
+                state: string;
+                price: {
+                  denom: string;
+                  amount: string;
+                };
+                created_at: string;
+                closed_on: string;
+                reason?: string;
+                status: {
+                  forwarded_ports: {
+                    [key: string]: {
+                      port: number;
+                      externalPort: number;
+                      host?: string;
+                      available?: number;
+                    }[];
+                  };
+                  ips: {
+                    [key: string]: {
+                      IP: string;
+                      Port: number;
+                      ExternalPort: number;
+                      Protocol: string;
+                    }[];
+                  };
+                  services: {
+                    [key: string]: {
+                      name: string;
+                      available: number;
+                      total: number;
+                      uris: string[];
+                      observed_generation: number;
+                      replicas: number;
+                      updated_replicas: number;
+                      ready_replicas: number;
+                      available_replicas: number;
+                    };
+                  };
+                } | null;
+              }[];
+              escrow_account: {
+                id: {
+                  scope: string;
+                  xid: string;
+                };
+                state: {
+                  owner: string;
+                  state: string;
+                  transferred: {
+                    denom: string;
+                    amount: string;
+                  }[];
+                  settled_at: string;
+                  funds: {
+                    denom: string;
+                    amount: string;
+                  }[];
+                  deposits: {
+                    owner: string;
+                    height: string;
+                    source: string;
+                    balance: {
+                      denom: string;
+                      amount: string;
+                    };
+                  }[];
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+  updateDeployment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Deployment sequence number */
+        dseq: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": {
+          data: {
+            sdl: string;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description Deployment updated successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              deployment: {
+                id: {
+                  owner: string;
+                  dseq: string;
+                };
+                state: string;
+                hash: string;
+                created_at: string;
+              };
+              leases: {
+                id: {
+                  owner: string;
+                  dseq: string;
+                  gseq: number;
+                  oseq: number;
+                  provider: string;
+                  bseq: number;
+                };
+                state: string;
+                price: {
+                  denom: string;
+                  amount: string;
+                };
+                created_at: string;
+                closed_on: string;
+                reason?: string;
+                status: {
+                  forwarded_ports: {
+                    [key: string]: {
+                      port: number;
+                      externalPort: number;
+                      host?: string;
+                      available?: number;
+                    }[];
+                  };
+                  ips: {
+                    [key: string]: {
+                      IP: string;
+                      Port: number;
+                      ExternalPort: number;
+                      Protocol: string;
+                    }[];
+                  };
+                  services: {
+                    [key: string]: {
+                      name: string;
+                      available: number;
+                      total: number;
+                      uris: string[];
+                      observed_generation: number;
+                      replicas: number;
+                      updated_replicas: number;
+                      ready_replicas: number;
+                      available_replicas: number;
+                    };
+                  };
+                } | null;
+              }[];
+              escrow_account: {
+                id: {
+                  scope: string;
+                  xid: string;
+                };
+                state: {
+                  owner: string;
+                  state: string;
+                  transferred: {
+                    denom: string;
+                    amount: string;
+                  }[];
+                  settled_at: string;
+                  funds: {
+                    denom: string;
+                    amount: string;
+                  }[];
+                  deposits: {
+                    owner: string;
+                    height: string;
+                    source: string;
+                    balance: {
+                      denom: string;
+                      amount: string;
+                    };
+                  }[];
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+  closeDeployment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Deployment sequence number */
+        dseq: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Deployment closed successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              success: boolean;
+            };
+          };
+        };
+      };
+    };
+  };
+  listDeployments: {
+    parameters: {
+      query?: {
+        skip?: number | null;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns paginated list of deployments */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              deployments: {
+                deployment: {
+                  id: {
+                    owner: string;
+                    dseq: string;
+                  };
+                  state: string;
+                  hash: string;
+                  created_at: string;
+                };
+                leases: {
+                  id: {
+                    owner: string;
+                    dseq: string;
+                    gseq: number;
+                    oseq: number;
+                    provider: string;
+                    bseq: number;
+                  };
+                  state: string;
+                  price: {
+                    denom: string;
+                    amount: string;
+                  };
+                  created_at: string;
+                  closed_on: string;
+                  reason?: string;
+                }[];
+                escrow_account: {
+                  id: {
+                    scope: string;
+                    xid: string;
+                  };
+                  state: {
+                    owner: string;
+                    state: string;
+                    transferred: {
+                      denom: string;
+                      amount: string;
+                    }[];
+                    settled_at: string;
+                    funds: {
+                      denom: string;
+                      amount: string;
+                    }[];
+                    deposits: {
+                      owner: string;
+                      height: string;
+                      source: string;
+                      balance: {
+                        denom: string;
+                        amount: string;
+                      };
+                    }[];
+                  };
+                };
+              }[];
+              pagination: {
+                total: number;
+                skip: number;
+                limit: number;
+                hasMore: boolean;
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+  createDeployment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": {
+          data: {
+            sdl: string;
+            /** @description Amount to deposit in dollars (e.g. 5.5) */
+            deposit: number;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description Create deployment successfully */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              dseq: string;
+              manifest: string;
+              signTx: {
+                code: number;
+                transactionHash: string;
+                rawLog: string;
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+  depositDeployment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": {
+          data: {
+            /** @description Deployment sequence number */
+            dseq: string;
+            /** @description Amount to deposit in dollars (e.g. 5.5) */
+            deposit: number;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description Deposit successful */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              deployment: {
+                id: {
+                  owner: string;
+                  dseq: string;
+                };
+                state: string;
+                hash: string;
+                created_at: string;
+              };
+              leases: {
+                id: {
+                  owner: string;
+                  dseq: string;
+                  gseq: number;
+                  oseq: number;
+                  provider: string;
+                  bseq: number;
+                };
+                state: string;
+                price: {
+                  denom: string;
+                  amount: string;
+                };
+                created_at: string;
+                closed_on: string;
+                reason?: string;
+                status: {
+                  forwarded_ports: {
+                    [key: string]: {
+                      port: number;
+                      externalPort: number;
+                      host?: string;
+                      available?: number;
+                    }[];
+                  };
+                  ips: {
+                    [key: string]: {
+                      IP: string;
+                      Port: number;
+                      ExternalPort: number;
+                      Protocol: string;
+                    }[];
+                  };
+                  services: {
+                    [key: string]: {
+                      name: string;
+                      available: number;
+                      total: number;
+                      uris: string[];
+                      observed_generation: number;
+                      replicas: number;
+                      updated_replicas: number;
+                      ready_replicas: number;
+                      available_replicas: number;
+                    };
+                  };
+                } | null;
+              }[];
+              escrow_account: {
+                id: {
+                  scope: string;
+                  xid: string;
+                };
+                state: {
+                  owner: string;
+                  state: string;
+                  transferred: {
+                    denom: string;
+                    amount: string;
+                  }[];
+                  settled_at: string;
+                  funds: {
+                    denom: string;
+                    amount: string;
+                  }[];
+                  deposits: {
+                    owner: string;
+                    height: string;
+                    source: string;
+                    balance: {
+                      denom: string;
+                      amount: string;
+                    };
+                  }[];
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+  createLease: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": {
+          manifest: string;
+          leases: {
+            dseq: string;
+            gseq: number;
+            oseq: number;
+            provider: string;
+          }[];
+        };
+      };
+    };
+    responses: {
+      /** @description Leases created and manifest sent */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              deployment: {
+                id: {
+                  owner: string;
+                  dseq: string;
+                };
+                state: string;
+                hash: string;
+                created_at: string;
+              };
+              leases: {
+                id: {
+                  owner: string;
+                  dseq: string;
+                  gseq: number;
+                  oseq: number;
+                  provider: string;
+                  bseq: number;
+                };
+                state: string;
+                price: {
+                  denom: string;
+                  amount: string;
+                };
+                created_at: string;
+                closed_on: string;
+                reason?: string;
+                status: {
+                  forwarded_ports: {
+                    [key: string]: {
+                      port: number;
+                      externalPort: number;
+                      host?: string;
+                      available?: number;
+                    }[];
+                  };
+                  ips: {
+                    [key: string]: {
+                      IP: string;
+                      Port: number;
+                      ExternalPort: number;
+                      Protocol: string;
+                    }[];
+                  };
+                  services: {
+                    [key: string]: {
+                      name: string;
+                      available: number;
+                      total: number;
+                      uris: string[];
+                      observed_generation: number;
+                      replicas: number;
+                      updated_replicas: number;
+                      ready_replicas: number;
+                      available_replicas: number;
+                    };
+                  };
+                } | null;
+              }[];
+              escrow_account: {
+                id: {
+                  scope: string;
+                  xid: string;
+                };
+                state: {
+                  owner: string;
+                  state: string;
+                  transferred: {
+                    denom: string;
+                    amount: string;
+                  }[];
+                  settled_at: string;
+                  funds: {
+                    denom: string;
+                    amount: string;
+                  }[];
+                  deposits: {
+                    owner: string;
+                    height: string;
+                    source: string;
+                    balance: {
+                      denom: string;
+                      amount: string;
+                    };
+                  }[];
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+  };
   listApiKeys: {
     parameters: {
       query?: never;
@@ -8641,6 +8534,121 @@ export interface operations {
               /** Format: date-time */
               lastUsedAt: string | null;
               keyFormat: string;
+            }[];
+          };
+        };
+      };
+    };
+  };
+  listBids: {
+    parameters: {
+      query: {
+        dseq: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description List of bids */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              bid: {
+                id: {
+                  owner: string;
+                  dseq: string;
+                  gseq: number;
+                  oseq: number;
+                  provider: string;
+                  bseq: number;
+                };
+                state: string;
+                price: {
+                  denom: string;
+                  amount: string;
+                };
+                created_at: string;
+                resources_offer: {
+                  resources: {
+                    cpu: {
+                      units: {
+                        val: string;
+                      };
+                      attributes: {
+                        key: string;
+                        value: string;
+                      }[];
+                    };
+                    gpu: {
+                      units: {
+                        val: string;
+                      };
+                      attributes: {
+                        key: string;
+                        value: string;
+                      }[];
+                    };
+                    memory: {
+                      quantity: {
+                        val: string;
+                      };
+                      attributes: {
+                        key: string;
+                        value: string;
+                      }[];
+                    };
+                    storage: {
+                      name: string;
+                      quantity: {
+                        val: string;
+                      };
+                      attributes: {
+                        key: string;
+                        value: string;
+                      }[];
+                    }[];
+                    endpoints: {
+                      kind: string;
+                      sequence_number: number;
+                    }[];
+                  };
+                  count: number;
+                }[];
+              };
+              escrow_account: {
+                id: {
+                  scope: string;
+                  xid: string;
+                };
+                state: {
+                  owner: string;
+                  state: string;
+                  transferred: {
+                    denom: string;
+                    amount: string;
+                  }[];
+                  settled_at: string;
+                  funds: {
+                    denom: string;
+                    amount: string;
+                  }[];
+                  deposits: {
+                    owner: string;
+                    height: string;
+                    source: string;
+                    balance: {
+                      denom: string;
+                      amount: string;
+                    };
+                  }[];
+                };
+              };
             }[];
           };
         };

@@ -14,6 +14,7 @@ const createLeaseRoute = createRoute({
   method: "post",
   path: "/v1/leases",
   summary: "Create leases and send manifest",
+  operationId: "createLease",
   tags: ["Leases"],
   security: SECURITY_BEARER_OR_API_KEY,
   request: {

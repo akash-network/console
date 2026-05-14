@@ -1,5 +1,15 @@
 const CAMEL_CASE_IDENTIFIER = /^[a-z][a-zA-Z]*$/;
-const DISABLE_HINT = "For action-style endpoints, add // eslint-disable-next-line akash/operation-id-format above the operationId line.";
+const DISABLE_HINT =
+  "Extend additionalVerbs in the rule config (packages/dev-config/.eslintrc.base.js) when you need a new domain verb, or add // eslint-disable-next-line akash/operation-id-format for a one-off.";
+
+const methodVerbsSchema = {
+  type: "object",
+  properties: {
+    collection: { type: "array", items: { type: "string" } },
+    single: { type: "array", items: { type: "string" } }
+  },
+  additionalProperties: false
+};
 
 module.exports = {
   meta: {
@@ -8,9 +18,28 @@ module.exports = {
       description:
         "Enforce createRoute operationId follows <verb><Resource> convention and matches the route's HTTP method and path (collection vs single-resource)."
     },
-    schema: []
+    schema: [
+      {
+        type: "object",
+        properties: {
+          additionalVerbs: {
+            type: "object",
+            properties: {
+              get: methodVerbsSchema,
+              post: methodVerbsSchema,
+              put: methodVerbsSchema,
+              patch: methodVerbsSchema,
+              delete: methodVerbsSchema
+            },
+            additionalProperties: false
+          }
+        },
+        additionalProperties: false
+      }
+    ]
   },
   create(context) {
+    const additionalVerbs = context.options[0]?.additionalVerbs ?? {};
     return {
       CallExpression(node) {
         if (!isCreateRouteCall(node)) return;
@@ -39,7 +68,7 @@ module.exports = {
         if (!method || !path) return;
 
         const isSingleResource = isSingleResourcePath(path);
-        const expectedVerbs = getExpectedVerbs(method, isSingleResource);
+        const expectedVerbs = getExpectedVerbs(method, isSingleResource, additionalVerbs);
         if (!expectedVerbs) return;
 
         const actualVerb = extractLeadingVerb(operationId);
@@ -113,16 +142,20 @@ const EXPECTED_VERBS_BY_METHOD = {
 
 /**
  * Returns the verbs allowed to start an operationId for a given HTTP method
- * and route shape. Returns null for unknown methods, signalling the rule to
+ * and route shape, merging built-in CRUD verbs with `additionalVerbs` from the
+ * rule's options. Returns null for unknown methods, signalling the rule to
  * skip semantic validation for that call.
  * @param {string} method - Lowercase HTTP method (e.g. "get", "post").
  * @param {boolean} isSingleResource - True if the route path ends with "{id}".
+ * @param {Record<string, { collection?: string[], single?: string[] }>} additionalVerbs
  * @returns {string[] | null}
  */
-function getExpectedVerbs(method, isSingleResource) {
+function getExpectedVerbs(method, isSingleResource, additionalVerbs) {
   const expectations = EXPECTED_VERBS_BY_METHOD[method];
   if (!expectations) return null;
-  return isSingleResource ? expectations.single : expectations.collection;
+  const shape = isSingleResource ? "single" : "collection";
+  const extra = additionalVerbs[method]?.[shape] ?? [];
+  return [...expectations[shape], ...extra];
 }
 
 const LEADING_LOWERCASE_WORD = /^[a-z]+/;

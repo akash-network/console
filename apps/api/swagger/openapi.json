@@ -1947,7 +1947,7 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "default": "2026-05-12",
+              "default": "2026-05-14",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -2073,7 +2073,7 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "default": "2026-05-12",
+              "default": "2026-05-14",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -3791,6 +3791,7 @@
     "/v1/deployments/{dseq}": {
       "get": {
         "summary": "Get a deployment",
+        "operationId": "getDeployment",
         "tags": [
           "Deployments"
         ],
@@ -4192,6 +4193,7 @@
       },
       "delete": {
         "summary": "Close a deployment",
+        "operationId": "closeDeployment",
         "tags": [
           "Deployments"
         ],
@@ -4247,6 +4249,7 @@
       },
       "put": {
         "summary": "Update a deployment",
+        "operationId": "updateDeployment",
         "tags": [
           "Deployments"
         ],
@@ -4675,6 +4678,7 @@
     "/v1/deployments": {
       "post": {
         "summary": "Create new deployment",
+        "operationId": "createDeployment",
         "tags": [
           "Deployments"
         ],
@@ -4772,6 +4776,7 @@
       },
       "get": {
         "summary": "List deployments with pagination and filtering",
+        "operationId": "listDeployments",
         "tags": [
           "Deployments"
         ],
@@ -5102,6 +5107,7 @@
     "/v1/deposit-deployment": {
       "post": {
         "summary": "Deposit into a deployment",
+        "operationId": "depositDeployment",
         "tags": [
           "Deployments"
         ],
@@ -7605,6 +7611,7 @@
     "/v1/leases": {
       "post": {
         "summary": "Create leases and send manifest",
+        "operationId": "createLease",
         "tags": [
           "Leases"
         ],
@@ -8837,6 +8844,7 @@
     "/v1/bids": {
       "get": {
         "summary": "List bids",
+        "operationId": "listBids",
         "tags": [
           "Bids"
         ],

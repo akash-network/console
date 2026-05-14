@@ -3126,6 +3126,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/bids": {
       "get": {
+        "operationId": "listBids",
         "parameters": [
           {
             "in": "query",
@@ -6163,6 +6164,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/deployments": {
       "get": {
+        "operationId": "listDeployments",
         "parameters": [
           {
             "in": "query",
@@ -6491,6 +6493,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
       "post": {
+        "operationId": "createDeployment",
         "requestBody": {
           "content": {
             "application/json": {
@@ -6590,6 +6593,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/deployments/{dseq}": {
       "delete": {
+        "operationId": "closeDeployment",
         "parameters": [
           {
             "description": "Deployment sequence number",
@@ -6645,6 +6649,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
       "get": {
+        "operationId": "getDeployment",
         "parameters": [
           {
             "description": "Deployment sequence number",
@@ -7046,6 +7051,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
       "put": {
+        "operationId": "updateDeployment",
         "parameters": [
           {
             "description": "Deployment sequence number",
@@ -7474,6 +7480,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/deposit-deployment": {
       "post": {
+        "operationId": "depositDeployment",
         "requestBody": {
           "content": {
             "application/json": {
@@ -8388,6 +8395,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/leases": {
       "post": {
+        "operationId": "createLease",
         "requestBody": {
           "content": {
             "application/json": {
