@@ -7,8 +7,6 @@ import { UserRepository } from "@src/user/repositories";
 import type { NotificationsApiClient, NotificationsInternalApiClient, NotificationsInternalOperationDefs } from "../../providers/notifications-api.provider";
 import { NOTIFICATIONS_API_CLIENT, NOTIFICATIONS_INTERNAL_API_CLIENT } from "../../providers/notifications-api.provider";
 
-const DEPLOYMENT_BALANCE_ALERT_THRESHOLD_RATIO = 0.3;
-
 const DEFAULT_BACKOFF_OPTIONS: BackoffOptions = {
   maxDelay: 5_000,
   startingDelay: 500,
@@ -67,15 +65,11 @@ export class NotificationService {
       return;
     }
 
-    const threshold = this.calculateAlertThreshold(input.escrowBalance);
-    if (!threshold) return;
-
-    await this.upsertDeploymentBalanceAlert({
+    await this.upsertDeploymentClosedAlert({
       userId: input.userId,
       walletAddress: input.walletAddress,
       dseq: input.dseq,
-      channelId,
-      threshold
+      channelId
     });
   }
 
@@ -102,14 +96,7 @@ export class NotificationService {
     );
   }
 
-  private calculateAlertThreshold(escrowBalance: number): number | undefined {
-    if (!Number.isFinite(escrowBalance) || escrowBalance <= 0) return undefined;
-    const threshold = Math.ceil(DEPLOYMENT_BALANCE_ALERT_THRESHOLD_RATIO * escrowBalance);
-    if (!Number.isFinite(threshold) || threshold <= 0) return undefined;
-    return threshold;
-  }
-
-  private async upsertDeploymentBalanceAlert(input: { userId: string; walletAddress: string; dseq: string; channelId: string; threshold: number }) {
+  private async upsertDeploymentClosedAlert(input: { userId: string; walletAddress: string; dseq: string; channelId: string }) {
     await backOff(
       () =>
         this.notificationsApi.v1.upsertDeploymentAlert(
@@ -117,7 +104,6 @@ export class NotificationService {
             dseq: input.dseq,
             data: {
               alerts: {
-                deploymentBalance: { notificationChannelId: input.channelId, enabled: true, threshold: input.threshold },
                 deploymentClosed: { notificationChannelId: input.channelId, enabled: true }
               }
             }
@@ -138,7 +124,6 @@ export interface AutoEnableDeploymentAlertInput {
   userId: string;
   walletAddress: string;
   dseq: string;
-  escrowBalance: number;
 }
 
 export type CreateNotificationInput = NotificationsInternalOperationDefs["createNotification"]["requestBody"]["content"]["application/json"] & {
