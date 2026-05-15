@@ -2,13 +2,6 @@ import type { BrowserContext } from "@playwright/test";
 
 import type { EmailVerificationStrategy } from "./email-verification.strategy";
 
-/**
- * Match a 6-digit number that appears within ~200 chars after the word "code"
- * (case-insensitive). Anchoring on the keyword avoids matching unrelated 6-digit
- * substrings (timestamps, order IDs) if the inbox ever receives non-OTP mail.
- */
-const CODE_NEAR_KEYWORD = /\bcode\b[\s\S]{0,200}?\b(\d{6})\b/i;
-
 export class MailsacCodeVerificationStrategy implements EmailVerificationStrategy {
   private readonly baseUrl = "https://mailsac.com/api";
 
@@ -46,12 +39,14 @@ export class MailsacCodeVerificationStrategy implements EmailVerificationStrateg
         const messages = await this.fetchMessages(email);
         lastMessageCount = messages.length;
 
-        for (const message of messages) {
-          lastSubject = message.subject;
-          const body = await this.fetchMessageBody(email, message._id);
+        const verificationMessage = messages.find(m => m.subject?.toLowerCase().includes("verif") || m.subject?.toLowerCase().includes("code"));
+
+        if (verificationMessage) {
+          lastSubject = verificationMessage.subject;
+          const body = await this.fetchMessageBody(email, verificationMessage._id);
           lastBodyPreview = body.slice(0, 200);
-          const match = body.match(CODE_NEAR_KEYWORD);
-          if (match?.[1]) return match[1];
+          const match = body.match(/\b(\d{6})\b/);
+          if (match) return match[1];
           codeNotFoundInBody = true;
         }
       } catch (error) {
