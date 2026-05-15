@@ -10,7 +10,7 @@ const emailVerificationStrategy = createEmailVerificationStrategy(auth0Managemen
 
 export const test = baseTest.extend<{ auth0: Auth0ManagementService; emailVerification: EmailVerificationStrategy }>({
   page: async ({ page }, use) => {
-    await page.route("**/api/auth/password-signup", (route, request) => {
+    await page.route(/\/api\/auth\/(password-signup|email-code-start|email-code-verify)$/, (route, request) => {
       route.continue({
         headers: { ...request.headers(), "x-testing-client-token": testEnvConfig.E2E_TESTING_CLIENT_TOKEN }
       });

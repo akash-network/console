@@ -306,6 +306,182 @@ describe(SessionService.name, () => {
     });
   });
 
+  describe("startEmailCode", () => {
+    it("returns ok on 200 from Auth0", async () => {
+      const { service, externalHttpClient, config } = setup();
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 200,
+        data: { _id: "abc", email: "user@example.com" },
+        headers: {}
+      });
+
+      const result = await service.startEmailCode({ email: "user@example.com" });
+
+      expect(result.ok).toBe(true);
+      expect(externalHttpClient.post).toHaveBeenCalledWith(
+        `${new URL(config.ISSUER_BASE_URL).origin}/passwordless/start`,
+        expect.objectContaining({
+          client_id: config.CLIENT_ID,
+          client_secret: config.CLIENT_SECRET,
+          connection: "email",
+          email: "user@example.com",
+          send: "code"
+        }),
+        expect.objectContaining({ validateStatus: expect.any(Function) })
+      );
+    });
+
+    it("maps bad.email 400 to invalid_email", async () => {
+      const { service, externalHttpClient } = setup();
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 400,
+        data: { error: "bad.email", error_description: "Invalid email" },
+        headers: {}
+      });
+
+      const result = await service.startEmailCode({ email: "x" });
+
+      expect(result.ok).toBe(false);
+      const error = expectErr(result);
+      expect(error).toMatchObject({ code: "invalid_email" });
+    });
+
+    it("maps 429 to rate_limited with retryAfter from x-ratelimit-reset", async () => {
+      const { service, externalHttpClient } = setup();
+      const nowSec = 1_700_000_000;
+      vi.spyOn(Date, "now").mockReturnValue(nowSec * 1000);
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 429,
+        data: {},
+        headers: { "x-ratelimit-reset": String(nowSec + 42) }
+      });
+
+      const result = await service.startEmailCode({ email: "user@example.com" });
+
+      expect(result.ok).toBe(false);
+      const error = expectErr(result);
+      expect(error).toMatchObject({ code: "rate_limited", retryAfter: 42 });
+    });
+
+    it("maps other 4xx/5xx to unknown", async () => {
+      const { service, externalHttpClient } = setup();
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 500,
+        data: {},
+        headers: {}
+      });
+
+      const result = await service.startEmailCode({ email: "user@example.com" });
+
+      expect(result.ok).toBe(false);
+      const error = expectErr(result);
+      expect(error).toMatchObject({ code: "unknown" });
+    });
+  });
+
+  describe("verifyEmailCode", () => {
+    it("returns ok with session on 200 from Auth0", async () => {
+      const tokenPayload = {
+        sub: "auth0|email|abc",
+        email: "user@example.com",
+        email_verified: true,
+        nickname: "user"
+      };
+      const idToken = createIdToken(tokenPayload);
+      const { service, externalHttpClient, config } = setup();
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 200,
+        data: {
+          id_token: idToken,
+          access_token: "at",
+          expires_in: 3600,
+          scope: "openid profile email",
+          refresh_token: "rt"
+        },
+        headers: {}
+      });
+
+      const result = await service.verifyEmailCode({ email: "user@example.com", code: "123456" });
+
+      expect(result.ok).toBe(true);
+      expect(externalHttpClient.post).toHaveBeenCalledWith(
+        `${new URL(config.ISSUER_BASE_URL).origin}/oauth/token`,
+        expect.objectContaining({
+          grant_type: "http://auth0.com/oauth/grant-type/passwordless/otp",
+          realm: "email",
+          username: "user@example.com",
+          otp: "123456"
+        }),
+        expect.objectContaining({ validateStatus: expect.any(Function) })
+      );
+      const session = expectOk(result);
+      expect(session.accessToken).toBe("at");
+      expect(session.user.email).toBe("user@example.com");
+    });
+
+    it("maps invalid_grant + 'Wrong otp' to invalid_code", async () => {
+      const { service, externalHttpClient } = setup();
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 400,
+        data: { error: "invalid_grant", error_description: "Wrong email or verification code." },
+        headers: {}
+      });
+
+      const result = await service.verifyEmailCode({ email: "user@example.com", code: "000000" });
+
+      expect(result.ok).toBe(false);
+      const error = expectErr(result);
+      expect(error).toMatchObject({ code: "invalid_code" });
+    });
+
+    it("maps invalid_grant + 'expired' description to expired_code", async () => {
+      const { service, externalHttpClient } = setup();
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 400,
+        data: { error: "invalid_grant", error_description: "The verification code has expired." },
+        headers: {}
+      });
+
+      const result = await service.verifyEmailCode({ email: "user@example.com", code: "123456" });
+
+      expect(result.ok).toBe(false);
+      const error = expectErr(result);
+      expect(error).toMatchObject({ code: "expired_code" });
+    });
+
+    it("maps 429 to rate_limited with retryAfter", async () => {
+      const { service, externalHttpClient } = setup();
+      const nowSec = 1_700_000_000;
+      vi.spyOn(Date, "now").mockReturnValue(nowSec * 1000);
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 429,
+        data: {},
+        headers: { "x-ratelimit-reset": String(nowSec + 30) }
+      });
+
+      const result = await service.verifyEmailCode({ email: "user@example.com", code: "123456" });
+
+      expect(result.ok).toBe(false);
+      const error = expectErr(result);
+      expect(error).toMatchObject({ code: "rate_limited", retryAfter: 30 });
+    });
+
+    it("maps other failures to unknown", async () => {
+      const { service, externalHttpClient } = setup();
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 500,
+        data: {},
+        headers: {}
+      });
+
+      const result = await service.verifyEmailCode({ email: "user@example.com", code: "123456" });
+
+      expect(result.ok).toBe(false);
+      const error = expectErr(result);
+      expect(error).toMatchObject({ code: "unknown" });
+    });
+  });
+
   describe("getLocalUserDetails", () => {
     it("returns user settings from console api", async () => {
       const claims = {
