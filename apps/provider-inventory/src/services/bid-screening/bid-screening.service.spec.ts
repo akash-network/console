@@ -4,17 +4,15 @@ import { mock } from "vitest-mock-extended";
 
 import type { GroupSpecJSON } from "@src/lib/groupspec-mapper/groupspec-mapper";
 import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
-import type { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
-import type { ProviderWithClusterState } from "../../types/provider";
+import type { BidScreeningCandidate, BidScreeningRepository } from "@src/repositories/bid-screening/bid-screening.repository";
 import type { ClusterInventoryMatcherService } from "../cluster-inventory-matcher/cluster-inventory-matcher.service";
 import { BidScreeningService } from "./bid-screening.service";
 
 describe(BidScreeningService.name, () => {
   describe("findMatchingProviders", () => {
-    it("returns passing providers with metadata", async () => {
+    it("returns passing candidates with metadata", async () => {
       const { service, repository, matcher } = setup();
-      repository.getOnlineProviders.mockResolvedValue([makeProvider("akash1abc")]);
-      repository.getAuditedProviderAddresses.mockResolvedValue(new Set());
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc")]);
       matcher.match.mockReturnValue({ matched: true });
 
       const results = await service.findMatchingProviders(makeRequest());
@@ -30,10 +28,9 @@ describe(BidScreeningService.name, () => {
       ]);
     });
 
-    it("filters out providers that fail matching", async () => {
+    it("filters out candidates that fail matching", async () => {
       const { service, repository, matcher } = setup();
-      repository.getOnlineProviders.mockResolvedValue([makeProvider("akash1abc"), makeProvider("akash1def")]);
-      repository.getAuditedProviderAddresses.mockResolvedValue(new Set());
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc"), makeCandidate("akash1def")]);
       matcher.match.mockReturnValueOnce({ matched: true }).mockReturnValueOnce({ matched: false, error: "INSUFFICIENT_CAPACITY" });
 
       const results = await service.findMatchingProviders(makeRequest());
@@ -42,69 +39,62 @@ describe(BidScreeningService.name, () => {
       expect(results[0].owner).toBe("akash1abc");
     });
 
-    it("passes the provider's ClusterState directly to the matcher", async () => {
+    it("passes the candidate's ClusterState directly to the matcher", async () => {
       const { service, repository, matcher } = setup();
-      const provider = makeProvider("akash1abc");
-      repository.getOnlineProviders.mockResolvedValue([provider]);
-      repository.getAuditedProviderAddresses.mockResolvedValue(new Set());
+      const candidate = makeCandidate("akash1abc");
+      repository.findCandidates.mockResolvedValue([candidate]);
       matcher.match.mockReturnValue({ matched: true });
 
       await service.findMatchingProviders(makeRequest());
 
-      expect(matcher.match).toHaveBeenCalledWith(provider.cluster, expect.any(Array));
+      expect(matcher.match).toHaveBeenCalledWith(candidate.cluster, expect.any(Array));
     });
 
-    it("returns empty array when no providers are online", async () => {
+    it("returns empty array when no candidates are returned", async () => {
       const { service, repository } = setup();
-      repository.getOnlineProviders.mockResolvedValue([]);
-      repository.getAuditedProviderAddresses.mockResolvedValue(new Set());
+      repository.findCandidates.mockResolvedValue([]);
 
       const results = await service.findMatchingProviders(makeRequest());
 
       expect(results).toEqual([]);
     });
 
-    it("returns empty array when all providers fail matching", async () => {
+    it("returns empty array when all candidates fail matching", async () => {
       const { service, repository, matcher } = setup();
-      repository.getOnlineProviders.mockResolvedValue([makeProvider("akash1abc")]);
-      repository.getAuditedProviderAddresses.mockResolvedValue(new Set());
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc")]);
       matcher.match.mockReturnValue({ matched: false, error: "INSUFFICIENT_CAPACITY" });
 
       const results = await service.findMatchingProviders(makeRequest());
 
       expect(results).toEqual([]);
     });
-  });
 
-  describe("filtering", () => {
-    it("loads providers and audited owners in parallel after pre-filter", async () => {
+    it("calls findCandidates exactly once with parsed resource units and requirements", async () => {
       const { service, repository, matcher } = setup();
-      repository.getOnlineProviders.mockResolvedValue([makeProvider("akash1abc")]);
-      repository.getAuditedProviderAddresses.mockResolvedValue(new Set());
+      repository.findCandidates.mockResolvedValue([]);
       matcher.match.mockReturnValue({ matched: true });
+      const request = makeRequest({ signedBy: { allOf: ["aud-a"], anyOf: [] } });
 
-      await service.findMatchingProviders(makeRequest());
+      await service.findMatchingProviders(request);
 
-      expect(repository.getOnlineProviders).toHaveBeenCalledTimes(1);
-      expect(repository.getAuditedProviderAddresses).toHaveBeenCalledTimes(1);
+      expect(repository.findCandidates).toHaveBeenCalledTimes(1);
+      expect(repository.findCandidates).toHaveBeenCalledWith(expect.any(Array), request.requirements);
     });
 
-    it("enriches isAudited=true for providers with matching auditor signatures", async () => {
+    it("threads candidate.isAudited through to the result", async () => {
       const { service, repository, matcher } = setup();
-      repository.getOnlineProviders.mockResolvedValue([makeProvider("akash1abc"), makeProvider("akash1def")]);
-      repository.getAuditedProviderAddresses.mockResolvedValue(new Set(["akash1abc"]));
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc", { isAudited: true }), makeCandidate("akash1def", { isAudited: false })]);
       matcher.match.mockReturnValue({ matched: true });
 
       const results = await service.findMatchingProviders(makeRequest());
 
-      expect(results).toHaveLength(2);
       expect(results.find(r => r.owner === "akash1abc")?.isAudited).toBe(true);
       expect(results.find(r => r.owner === "akash1def")?.isAudited).toBe(false);
     });
   });
 
   function setup() {
-    const repository = mock<ProviderInventoryRepository>();
+    const repository = mock<BidScreeningRepository>();
     const matcher = mock<ClusterInventoryMatcherService>();
     const logger = mock<LoggerService>();
     const service = new BidScreeningService(repository, matcher, logger);
@@ -112,12 +102,13 @@ describe(BidScreeningService.name, () => {
   }
 });
 
-function makeProvider(owner: string, hostUri = "https://provider.example.com:8443"): ProviderWithClusterState {
+function makeCandidate(owner: string, overrides?: { isAudited?: boolean }): BidScreeningCandidate {
   return {
     owner,
-    hostUri,
+    hostUri: "https://provider.example.com:8443",
     ipRegion: "us-east",
     uptime7d: 0.998,
+    isAudited: overrides?.isAudited ?? false,
     cluster: {
       nodes: [
         {
