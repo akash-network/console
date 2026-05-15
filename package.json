@@ -64,6 +64,7 @@
   "dependencies": {
     "@interchain-ui/react": "^1.23.31",
     "drizzle-orm": "^0.31.2",
+    "next": "^15.5.18",
     "nock": "^14.0.4",
     "pg": "^8.11.6"
   },
@@ -89,6 +90,9 @@
   "volta": {
     "node": "24.14.1",
     "npm": "11.11.0"
+  },
+  "overrides": {
+    "next": "$next"
   },
   "trustedDependencies": [
     "esbuild@0.27.2",

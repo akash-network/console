@@ -5,7 +5,7 @@ const currentHeaders = vi.hoisted(() => {
 });
 
 vi.mock("next/headers", () => ({
-  headers: () => ({
+  headers: async () => ({
     get: (name: string) => currentHeaders.ref[name] ?? null
   })
 }));
@@ -28,10 +28,11 @@ describe(serverFetch.name, () => {
 
   it("aborts after 10 seconds when API does not respond", async () => {
     const { fetchPromise, advanceTimers } = setupHanging({ url: "https://api.example.com/v1/slow" });
+    const expectation = expect(fetchPromise).rejects.toThrow("The operation was aborted.");
 
-    advanceTimers(10_000);
+    await advanceTimers(10_000);
 
-    await expect(fetchPromise).rejects.toThrow("The operation was aborted.");
+    await expectation;
   });
 
   it("clears timeout after successful fetch", async () => {
@@ -83,7 +84,7 @@ describe(serverFetch.name, () => {
       vi.useRealTimers();
     });
 
-    return { fetchPromise, mockFetch, advanceTimers: (ms: number) => vi.advanceTimersByTime(ms) };
+    return { fetchPromise, mockFetch, advanceTimers: (ms: number) => vi.advanceTimersByTimeAsync(ms) };
   }
 
   function setup(input: { url: string; signal?: AbortSignal; headers?: Record<string, string> }) {

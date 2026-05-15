@@ -33,6 +33,7 @@ export default function MyDocument(props: DocumentHeadTagsProps) {
 }
 
 MyDocument.getInitialProps = async (ctx: DocumentContext) => {
-  const finalProps = await documentGetInitialProps(ctx);
+  // @mui/material-nextjs@5.x bundles Next 14 types; cast to its DocumentContext to bridge to Next 15's structurally-equivalent type.
+  const finalProps = await documentGetInitialProps(ctx as Parameters<typeof documentGetInitialProps>[0]);
   return finalProps;
 };

@@ -14,7 +14,7 @@ module.exports = {
     },
     "import-x/external-module-folders": ["node_modules", "dist", "build", "public", "Leap"]
   },
-  ignorePatterns: ["node_modules", "dist", "build", "public", "Leap"],
+  ignorePatterns: ["node_modules", "dist", "build", "public", "Leap", "**/next-env.d.ts", "**/env-config.schema.js"],
   rules: {
     "@typescript-eslint/no-unused-vars": ["error", { ignoreRestSiblings: true, argsIgnorePattern: "^_" }],
     "simple-import-sort/imports": [
