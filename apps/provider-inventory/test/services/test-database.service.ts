@@ -12,7 +12,7 @@ export class TestDatabaseService {
     if (!process.env.POSTGRES_BASE_URL) {
       throw new Error("POSTGRES_BASE_URL is not set");
     }
-    const fileName = path.basename(testPath, ".spec.ts");
+    const fileName = path.basename(testPath).replace(/\.(spec|integration)\.ts$/, "");
     const prefix = randomUUID().replace(/-/g, "");
     this.#postgresUri = process.env.POSTGRES_BASE_URL;
     this.#dbName = `pi_test_${prefix}_${fileName}`.replace(/\W+/g, "_");
