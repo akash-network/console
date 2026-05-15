@@ -37,21 +37,6 @@ export class AuthService {
     });
   }
 
-  async startEmailCode(input: { email: string; captchaToken: string }): Promise<void> {
-    await this.internalApiHttpClient.post<void>("/api/auth/email-code-start", {
-      email: input.email,
-      captchaToken: input.captchaToken
-    });
-  }
-
-  async verifyEmailCode(input: { email: string; code: string; captchaToken: string }): Promise<void> {
-    await this.internalApiHttpClient.post<void>("/api/auth/email-code-verify", {
-      email: input.email,
-      code: input.code,
-      captchaToken: input.captchaToken
-    });
-  }
-
   async sendPasswordResetEmail(input: { email: string; captchaToken: string }): Promise<void> {
     await this.internalApiHttpClient.post<void>("/api/auth/send-password-reset-email", {
       email: input.email,
