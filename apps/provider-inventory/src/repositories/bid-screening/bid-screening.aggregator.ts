@@ -94,5 +94,5 @@ export function aggregateCriteria(resourceUnits: RequestedResourceUnit[], requir
 // The SDL attribute key regex (enforced upstream in BidScreeningService) admits only
 // [a-zA-Z][\w\/\.\-]*[\w\*]?, so the only regex special that can appear in the prefix is `.`.
 function escapeRegex(input: string): string {
-  return input.replace(/\./g, "\\.");
+  return input.replace(/[\\.^$*+?()[\]{}|]/g, "\\$&");
 }

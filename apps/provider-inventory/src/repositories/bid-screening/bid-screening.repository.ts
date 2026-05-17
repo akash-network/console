@@ -73,7 +73,7 @@ export class BidScreeningRepository {
 
     for (const glob of criteria.globAttributes) {
       conditions.push(
-        sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${providerInventory.selfAttributes}) AS sa WHERE sa->>'key' ~ ${glob.keyPattern} AND sa->>'value' = ${glob.value})`
+        sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${providerInventory.selfAttributes}) AS sa WHERE sa->>'key' ~* ${glob.keyPattern} AND sa->>'value' = ${glob.value})`
       );
     }
 
