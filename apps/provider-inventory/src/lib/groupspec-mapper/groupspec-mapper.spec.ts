@@ -49,27 +49,23 @@ describe(mapGroupSpecToResourceUnits.name, () => {
     expect(units[1].resources.gpu.units).toBe(1n);
   });
 
-  it("throws for invalid resource value string", () => {
-    expect(() => setup({ invalidVal: true })).toThrow();
-  });
-
   it("handles empty storage array", () => {
     const { units } = setup({ emptyStorage: true });
     expect(units[0].resources.storage).toEqual([]);
   });
 
-  function setup(input: { count?: number; multiGroup?: boolean; invalidVal?: boolean; emptyStorage?: boolean }) {
+  function setup(input: { count?: number; multiGroup?: boolean; emptyStorage?: boolean }) {
     const baseResource = {
       id: 1,
-      cpu: { units: { val: input.invalidVal ? "notanumber" : "1000" }, attributes: [] },
-      memory: { quantity: { val: "1073741824" }, attributes: [] },
-      gpu: { units: { val: "0" }, attributes: [] },
+      cpu: { units: { val: 1000n }, attributes: [] },
+      memory: { quantity: { val: 1073741824n }, attributes: [] },
+      gpu: { units: { val: 0n }, attributes: [] },
       storage: input.emptyStorage
         ? []
         : [
             {
               name: "default",
-              quantity: { val: "5368709120" },
+              quantity: { val: 5368709120n },
               attributes: [
                 { key: "persistent", value: "false" },
                 { key: "class", value: "ephemeral" }
@@ -86,7 +82,7 @@ describe(mapGroupSpecToResourceUnits.name, () => {
         resource: {
           ...baseResource,
           id: 2,
-          gpu: { units: { val: "1" }, attributes: [{ key: "vendor/nvidia/model/a100", value: "true" }] }
+          gpu: { units: { val: 1n }, attributes: [{ key: "vendor/nvidia/model/a100", value: "true" }] }
         },
         count: 1,
         price: { denom: "uakt", amount: "5000" }

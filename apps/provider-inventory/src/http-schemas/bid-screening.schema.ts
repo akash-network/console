@@ -13,7 +13,7 @@ const ResourceValueSchema = z.object({
       return NaN;
     })
     .refine(
-      val => !Number.isFinite(val) && typeof val === "bigint" && val >= 0n,
+      (val): val is bigint => !Number.isFinite(val) && typeof val === "bigint" && val >= 0n,
       "Must be a non-negative integer or its protobuf base64-encoded representation"
     )
 });
@@ -99,8 +99,6 @@ export type BidScreeningRequest = z.infer<typeof BidScreeningRequestSchema>;
 const ProviderResultSchema = z.object({
   owner: z.string().openapi({ description: "Provider address", example: "akash1q7spv2cw06yszgfp4f9ed59lkka6ytn8g4tkjf" }),
   hostUri: z.string().openapi({ description: "Provider HTTPS endpoint", example: "https://provider.europlots.com:8443" }),
-  region: z.string().nullable().openapi({ description: "Geo-resolved region from IP" }),
-  uptime7d: z.number().nullable().openapi({ description: "7-day uptime as decimal (0.0-1.0)", example: 0.998 }),
   isAudited: z.boolean().openapi({ description: "True if signed by a known auditor" })
 });
 

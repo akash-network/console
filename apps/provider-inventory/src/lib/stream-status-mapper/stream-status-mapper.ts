@@ -17,33 +17,33 @@ interface Quantity {
 const BINARY_POW2: Record<string, number> = { Ki: 10, Mi: 20, Gi: 30, Ti: 40, Pi: 50, Ei: 60 };
 const DECIMAL_POW10: Record<string, number> = { n: -9, u: -6, m: -3, "": 0, k: 3, M: 6, G: 9, T: 12, P: 15, E: 18 };
 
-export function parseQuantity(q: Quantity | undefined): bigint {
+export function parseQuantity(q: Quantity | undefined, multiplier: bigint = 1n): bigint {
   const raw = q?.string?.trim();
   if (!raw) return 0n;
 
   const binary = /^(-?\d+(?:\.\d+)?)([KMGTPE]i)$/.exec(raw);
-  if (binary) return scaleByPow2(binary[1], BINARY_POW2[binary[2]]);
+  if (binary) return scaleByPow2(binary[1], BINARY_POW2[binary[2]], multiplier);
 
   const exponent = /^(-?\d+(?:\.\d+)?)[eE](-?\d+)$/.exec(raw);
-  if (exponent) return scaleByPow10(exponent[1], Number(exponent[2]));
+  if (exponent) return scaleByPow10(exponent[1], Number(exponent[2]), multiplier);
 
   const decimal = /^(-?\d+(?:\.\d+)?)([numkMGTPE]?)$/.exec(raw);
-  if (decimal) return scaleByPow10(decimal[1], DECIMAL_POW10[decimal[2]]);
+  if (decimal) return scaleByPow10(decimal[1], DECIMAL_POW10[decimal[2]], multiplier);
 
   return 0n;
 }
 
-function scaleByPow2(mantissaStr: string, pow2: number): bigint {
+function scaleByPow2(mantissaStr: string, pow2: number, multiplier: bigint): bigint {
   const { negative, digits, fracLen } = parseMantissa(mantissaStr);
-  const scaled = digits * (1n << BigInt(pow2));
+  const scaled = digits * 2n ** BigInt(pow2) * multiplier;
   const truncated = fracLen === 0 ? scaled : scaled / 10n ** BigInt(fracLen);
   return negative ? -truncated : truncated;
 }
 
-function scaleByPow10(mantissaStr: string, pow10: number): bigint {
+function scaleByPow10(mantissaStr: string, pow10: number, multiplier: bigint): bigint {
   const { negative, digits, fracLen } = parseMantissa(mantissaStr);
   const netExp = pow10 - fracLen;
-  const scaled = netExp >= 0 ? digits * 10n ** BigInt(netExp) : digits / 10n ** BigInt(-netExp);
+  const scaled = netExp >= 0 ? digits * 10n ** BigInt(netExp) * multiplier : (digits * multiplier) / 10n ** BigInt(-netExp);
   return negative ? -scaled : scaled;
 }
 
@@ -66,8 +66,8 @@ function parseMantissa(s: string): { negative: boolean; digits: bigint; fracLen:
   return { negative, digits: BigInt((intPart || "0") + fracPart || "0"), fracLen: fracPart.length };
 }
 
-function pairFromSdk(pair: SdkResourcePair | undefined, multiplier = 1n): ResourcePair {
-  return new ResourcePair(parseQuantity(pair?.allocatable) * multiplier, parseQuantity(pair?.allocated) * multiplier);
+function pairFromSdk(pair: SdkResourcePair | undefined, multiplier: bigint = 1n): ResourcePair {
+  return new ResourcePair(parseQuantity(pair?.allocatable, multiplier), parseQuantity(pair?.allocated, multiplier));
 }
 
 function mapGpuInfo(info: GPUInfo): GpuInfo {

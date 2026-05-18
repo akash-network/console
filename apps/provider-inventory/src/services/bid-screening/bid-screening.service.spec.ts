@@ -140,10 +140,10 @@ function makeRequest(
       {
         resource: {
           id: 1,
-          cpu: { units: { val: "1000" }, attributes: [] },
-          memory: { quantity: { val: "1073741824" }, attributes: [] },
-          gpu: { units: { val: "0" }, attributes: [] },
-          storage: [{ name: "default", quantity: { val: "5368709120" }, attributes: [{ key: "persistent", value: "false" }] }],
+          cpu: { units: { val: 1000n }, attributes: [] },
+          memory: { quantity: { val: 1073741824n }, attributes: [] },
+          gpu: { units: { val: 0n }, attributes: [] },
+          storage: [{ name: "default", quantity: { val: 5368709120n }, attributes: [{ key: "persistent", value: "false" }] }],
           endpoints: []
         },
         count: 1,
