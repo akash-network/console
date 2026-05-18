@@ -6,16 +6,37 @@ const ResourceValueSchema = z.object({
   val: UIntStringSchema.openapi({ description: "String-encoded integer value", example: "1000" })
 });
 
+// Mirrors AttributeNameRegexpStringWildcard in akash-network/chain-sdk
+// (go/node/types/v1beta3/attribute.go) — only trailing `*` is a permitted glob metachar.
+const SDL_ATTRIBUTE_KEY_REGEX = /^([a-zA-Z][\w/.-]{1,126}[\w*]?)$/;
 const AttributeSchema = z.object({
-  key: z.string().openapi({ description: "Attribute key", example: "persistent" }),
+  key: z
+    .string()
+    .min(1)
+    .max(128)
+    .regex(SDL_ATTRIBUTE_KEY_REGEX, "Invalid attribute key format")
+    .openapi({ description: "Attribute key", example: "persistent" }),
   value: z.string().openapi({ description: "Attribute value", example: "false" })
 });
 
-const StorageResourceSchema = z.object({
-  name: z.string().openapi({ description: "Storage volume name", example: "default" }),
-  quantity: ResourceValueSchema,
-  attributes: z.array(AttributeSchema)
-});
+const StorageResourceSchema = z
+  .object({
+    name: z.string().openapi({ description: "Storage volume name", example: "default" }),
+    quantity: ResourceValueSchema,
+    attributes: z.array(AttributeSchema)
+  })
+  .superRefine((vol, ctx) => {
+    const isPersistent = vol.attributes.some(a => a.key === "persistent" && a.value === "true");
+    if (!isPersistent) return;
+    const storageClass = vol.attributes.find(a => a.key === "class")?.value;
+    if (!storageClass || storageClass === "ram") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Persistent storage volume "${vol.name}" must specify a valid storage class (not "${storageClass || "empty"}")`,
+        path: ["attributes"]
+      });
+    }
+  });
 
 const ResourceSchema = z.object({
   id: z.number().int().openapi({ description: "Resource unit ID", example: 1 }),

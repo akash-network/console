@@ -2759,6 +2759,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "key": {
                               "description": "Attribute key",
                               "example": "persistent",
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
                               "type": "string",
                             },
                             "value": {
@@ -2834,6 +2837,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                       "key": {
                                         "description": "Attribute key",
                                         "example": "persistent",
+                                        "maxLength": 128,
+                                        "minLength": 1,
+                                        "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
                                         "type": "string",
                                       },
                                       "value": {
@@ -2885,6 +2891,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                       "key": {
                                         "description": "Attribute key",
                                         "example": "persistent",
+                                        "maxLength": 128,
+                                        "minLength": 1,
+                                        "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
                                         "type": "string",
                                       },
                                       "value": {
@@ -2935,6 +2944,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                       "key": {
                                         "description": "Attribute key",
                                         "example": "persistent",
+                                        "maxLength": 128,
+                                        "minLength": 1,
+                                        "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
                                         "type": "string",
                                       },
                                       "value": {
@@ -2981,6 +2993,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                         "key": {
                                           "description": "Attribute key",
                                           "example": "persistent",
+                                          "maxLength": 128,
+                                          "minLength": 1,
+                                          "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
                                           "type": "string",
                                         },
                                         "value": {
