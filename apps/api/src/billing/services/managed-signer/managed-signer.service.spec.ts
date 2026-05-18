@@ -18,6 +18,7 @@ import type { ChainErrorService } from "@src/billing/services/chain-error/chain-
 import type { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import type { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
+import type { LoggerService } from "@src/core";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
@@ -453,6 +454,34 @@ describe(ManagedSignerService.name, () => {
 
       expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
     });
+
+    it("throws 400 with message index and typeUrl when a message fails to decode", async () => {
+      const decodeError = new Error("illegal tag: field no 0 wire type 7");
+      const badMessage = {
+        typeUrl: "/akash.deployment.v1beta4.MsgCreateDeployment",
+        value: Buffer.from("not a real proto").toString("base64")
+      };
+
+      const { service, logger } = setup({
+        decode: jest.fn().mockImplementation(() => {
+          throw decodeError;
+        })
+      });
+
+      await expect(service.executeDerivedEncodedTxByUserId("user-123", [badMessage])).rejects.toMatchObject({
+        status: 400,
+        message: expect.stringContaining("/akash.deployment.v1beta4.MsgCreateDeployment")
+      });
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "TX_MESSAGE_DECODE_FAILED",
+          index: 0,
+          typeUrl: "/akash.deployment.v1beta4.MsgCreateDeployment",
+          error: decodeError
+        })
+      );
+    });
   });
 
   describe("executeFundingTx", () => {
@@ -569,6 +598,10 @@ describe(ManagedSignerService.name, () => {
       }),
       managedUserWalletService: mock<ManagedUserWalletService>({
         refillWalletFees: jest.fn()
+      }),
+      logger: mock<LoggerService>({
+        setContext: jest.fn(),
+        error: jest.fn()
       })
     };
 
@@ -589,7 +622,8 @@ describe(ManagedSignerService.name, () => {
       mocks.domainEvents,
       mocks.leaseHttpService,
       mocks.walletReloadJobService,
-      mocks.managedUserWalletService
+      mocks.managedUserWalletService,
+      mocks.logger
     );
 
     return { service, registry: registryMock, ...mocks };

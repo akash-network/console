@@ -6,6 +6,7 @@ import { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { IndexedTx } from "@cosmjs/stargate";
 import { context, trace } from "@opentelemetry/api";
 import assert from "http-assert";
+import { BadRequest } from "http-errors";
 import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
@@ -17,6 +18,7 @@ import { type UserWalletOutput, UserWalletRepository } from "@src/billing/reposi
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
+import { LoggerService } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { Trace, withSpan } from "@src/core/services/tracing/tracing.service";
 import { UserRepository } from "@src/user/repositories";
@@ -44,8 +46,11 @@ export class ManagedSignerService {
     private readonly domainEvents: DomainEventsService,
     private readonly leaseHttpService: LeaseHttpService,
     private readonly walletReloadJobService: WalletReloadJobService,
-    private readonly managedUserWalletService: ManagedUserWalletService
-  ) {}
+    private readonly managedUserWalletService: ManagedUserWalletService,
+    private readonly logger: LoggerService
+  ) {
+    this.logger.setContext(ManagedSignerService.name);
+  }
 
   @Trace()
   async executeDerivedTx(walletIndex: number, messages: readonly EncodeObject[]) {
@@ -198,14 +203,26 @@ export class ManagedSignerService {
   }
 
   private decodeMessages(messages: StringifiedEncodeObject[]): EncodeObject[] {
-    return messages.map(message => {
+    return messages.map((message, index) => {
       const value = new Uint8Array(Buffer.from(message.value, "base64"));
-      const decoded = this.registry.decode({ value, typeUrl: message.typeUrl });
 
-      return {
-        typeUrl: message.typeUrl,
-        value: decoded
-      };
+      try {
+        return {
+          typeUrl: message.typeUrl,
+          value: this.registry.decode({ value, typeUrl: message.typeUrl })
+        };
+      } catch (error) {
+        this.logger.error({
+          event: "TX_MESSAGE_DECODE_FAILED",
+          index,
+          typeUrl: message.typeUrl,
+          valueLength: value.length,
+          bytePrefix: Buffer.from(value.subarray(0, 8)).toString("hex"),
+          error
+        });
+
+        throw new BadRequest(`Failed to decode message at index ${index} (typeUrl: ${message.typeUrl})`);
+      }
     });
   }
 }
