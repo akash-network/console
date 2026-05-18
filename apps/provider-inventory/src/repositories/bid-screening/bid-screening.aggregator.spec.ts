@@ -54,20 +54,64 @@ describe(aggregateCriteria.name, () => {
       expect(c.totalEphemeralStorage).toBe(1000n);
     });
 
-    it("skips ram-class storage from totalMemory (issue 4 territory)", () => {
+    it("rolls ram-class volumes into totalMemory and leaves storage totals untouched", () => {
+      const c = aggregateCriteria(
+        [
+          makeUnit({
+            memory: 100n,
+            count: 3,
+            storage: [{ name: "shm", quantity: 50n, attributes: [{ key: "class", value: "ram" }] }]
+          })
+        ],
+        makeRequirements()
+      );
+      expect(c.totalMemory).toBe((100n + 50n) * 3n);
+      expect(c.totalEphemeralStorage).toBe(0n);
+      expect(c.totalPersistentStorage).toBe(0n);
+    });
+
+    it("sums multiple ram-class volumes on a single unit into totalMemory", () => {
       const c = aggregateCriteria(
         [
           makeUnit({
             memory: 100n,
             count: 1,
-            storage: [{ name: "shm", quantity: 99_999n, attributes: [{ key: "class", value: "ram" }] }]
+            storage: [
+              { name: "shm1", quantity: 25n, attributes: [{ key: "class", value: "ram" }] },
+              { name: "shm2", quantity: 75n, attributes: [{ key: "class", value: "ram" }] }
+            ]
           })
         ],
         makeRequirements()
       );
-      expect(c.totalMemory).toBe(100n);
-      expect(c.totalEphemeralStorage).toBe(0n);
-      expect(c.totalPersistentStorage).toBe(0n);
+      expect(c.totalMemory).toBe(200n);
+    });
+
+    it("partitions ram, ephemeral, and persistent volumes on the same unit without double-counting", () => {
+      const c = aggregateCriteria(
+        [
+          makeUnit({
+            memory: 100n,
+            count: 2,
+            storage: [
+              { name: "shm", quantity: 50n, attributes: [{ key: "class", value: "ram" }] },
+              { name: "scratch", quantity: 500n, attributes: [] },
+              {
+                name: "data",
+                quantity: 1000n,
+                attributes: [
+                  { key: "persistent", value: "true" },
+                  { key: "class", value: "beta2" }
+                ]
+              }
+            ]
+          })
+        ],
+        makeRequirements()
+      );
+      expect(c.totalMemory).toBe((100n + 50n) * 2n);
+      expect(c.totalEphemeralStorage).toBe(500n * 2n);
+      expect(c.totalPersistentStorage).toBe(1000n * 2n);
     });
   });
 
@@ -86,6 +130,21 @@ describe(aggregateCriteria.name, () => {
     it("picks max of unit.memory across units", () => {
       const c = aggregateCriteria([makeUnit({ memory: 1n, count: 100 }), makeUnit({ memory: 50n, count: 1 })], makeRequirements());
       expect(c.maxPerReplicaMemory).toBe(50n);
+    });
+
+    it("includes ram-class volume sizes when picking maxPerReplicaMemory", () => {
+      const c = aggregateCriteria(
+        [
+          makeUnit({ memory: 100n, count: 1 }),
+          makeUnit({
+            memory: 30n,
+            count: 1,
+            storage: [{ name: "shm", quantity: 200n, attributes: [{ key: "class", value: "ram" }] }]
+          })
+        ],
+        makeRequirements()
+      );
+      expect(c.maxPerReplicaMemory).toBe(230n);
     });
 
     it("picks max of unit.gpu across units", () => {
