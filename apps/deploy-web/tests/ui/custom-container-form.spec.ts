@@ -7,7 +7,7 @@ import { Sidebar } from "./pages/Sidebar";
 test("custom container form shows connect wallet prompt", async ({ page, context }) => {
   const homePage = new HomePage(page);
   const sidebar = new Sidebar(page);
-  const deployPage = new DeployPage(context, page, { walletType: "extension" });
+  const deployPage = new DeployPage(context, page);
 
   await homePage.goto();
   await sidebar.openDeploy();
