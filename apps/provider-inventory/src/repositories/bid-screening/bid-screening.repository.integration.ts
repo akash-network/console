@@ -8,7 +8,7 @@ import type { GroupSpecJSON } from "@src/lib/groupspec-mapper/groupspec-mapper";
 import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
-import type { RequestedResourceUnit, ResourceAttribute } from "@src/types/inventory.types";
+import type { RequestedResourceUnit, RequestedStorage, ResourceAttribute } from "@src/types/inventory.types";
 import { AUDITOR, BidScreeningRepository } from "./bid-screening.repository";
 
 describe(BidScreeningRepository.name, () => {
@@ -216,6 +216,83 @@ describe(BidScreeningRepository.name, () => {
     });
   });
 
+  describe("storage_classes filter", () => {
+    it("requires the provider to declare the unit's persistent class via @>", async () => {
+      await seed({
+        owner: "akash1beta2",
+        storageClasses: ["beta2"],
+        totalAvailablePersistent: 10_000n
+      });
+      await seed({
+        owner: "akash1beta3",
+        storageClasses: ["beta3"],
+        totalAvailablePersistent: 10_000n
+      });
+
+      const rows = await repository.findCandidates([unit({ storage: [persistentVolume("data", 1_000n, "beta2")] })], requirements());
+
+      expect(owners(rows)).toEqual(["akash1beta2"]);
+    });
+
+    it("requires the provider to declare every persistent class on the unit (containment, not overlap)", async () => {
+      await seed({
+        owner: "akash1beta2Only",
+        storageClasses: ["beta2"],
+        totalAvailablePersistent: 10_000n
+      });
+      await seed({
+        owner: "akash1beta3Only",
+        storageClasses: ["beta3"],
+        totalAvailablePersistent: 10_000n
+      });
+      await seed({
+        owner: "akash1both",
+        storageClasses: ["beta2", "beta3"],
+        totalAvailablePersistent: 10_000n
+      });
+
+      const rows = await repository.findCandidates(
+        [
+          unit({
+            storage: [persistentVolume("data", 1_000n, "beta2"), persistentVolume("logs", 500n, "beta3")]
+          })
+        ],
+        requirements()
+      );
+
+      expect(owners(rows)).toEqual(["akash1both"]);
+    });
+
+    it("omits the clause entirely for units without persistent storage, so providers with no storage classes stay in the result", async () => {
+      await seed({ owner: "akash1noStorage", storageClasses: [] });
+      await seed({ owner: "akash1withStorage", storageClasses: ["beta2"] });
+
+      const rows = await repository.findCandidates([unit({ storage: [{ name: "scratch", quantity: 500n, attributes: [] }] })], requirements());
+
+      expect(owners(rows)).toEqual(["akash1noStorage", "akash1withStorage"]);
+    });
+
+    it("emits a clause only for units with persistent volumes in a mixed deployment", async () => {
+      await seed({
+        owner: "akash1beta2",
+        storageClasses: ["beta2"],
+        totalAvailablePersistent: 10_000n
+      });
+      await seed({
+        owner: "akash1noStorage",
+        storageClasses: [],
+        totalAvailablePersistent: 0n
+      });
+
+      const rows = await repository.findCandidates(
+        [unit({ storage: [persistentVolume("data", 1_000n, "beta2")] }), unit({ storage: [{ name: "scratch", quantity: 500n, attributes: [] }] })],
+        requirements()
+      );
+
+      expect(owners(rows)).toEqual(["akash1beta2"]);
+    });
+  });
+
   describe("online filter", () => {
     it("excludes rows where is_online is false", async () => {
       await seed({ owner: "akash1up" });
@@ -282,6 +359,7 @@ describe(BidScreeningRepository.name, () => {
     selfAttributes?: { key: string; value: string }[];
     auditedBy?: string[];
     gpuModels?: string[];
+    storageClasses?: string[];
     inventory?: unknown;
   }
 
@@ -302,12 +380,20 @@ describe(BidScreeningRepository.name, () => {
       selfAttributes: input.selfAttributes ?? [],
       auditedBy: input.auditedBy ?? [],
       gpuModels: input.gpuModels ?? [],
+      storageClasses: input.storageClasses ?? [],
       inventory: input.inventory ?? { nodes: [], storage: {} }
     });
   }
 });
 
-function unit(input: { cpu?: bigint; memory?: bigint; gpu?: bigint; count?: number; gpuAttributes?: ResourceAttribute[] }): RequestedResourceUnit {
+function unit(input: {
+  cpu?: bigint;
+  memory?: bigint;
+  gpu?: bigint;
+  count?: number;
+  gpuAttributes?: ResourceAttribute[];
+  storage?: RequestedStorage[];
+}): RequestedResourceUnit {
   return {
     id: 1,
     count: input.count ?? 1,
@@ -315,8 +401,19 @@ function unit(input: { cpu?: bigint; memory?: bigint; gpu?: bigint; count?: numb
       cpu: { units: input.cpu ?? 0n, attributes: [] },
       memory: { quantity: input.memory ?? 0n, attributes: [] },
       gpu: { units: input.gpu ?? 0n, attributes: input.gpuAttributes ?? [] },
-      storage: []
+      storage: input.storage ?? []
     }
+  };
+}
+
+function persistentVolume(name: string, quantity: bigint, storageClass: string): RequestedStorage {
+  return {
+    name,
+    quantity,
+    attributes: [
+      { key: "persistent", value: "true" },
+      { key: "class", value: storageClass }
+    ]
   };
 }
 

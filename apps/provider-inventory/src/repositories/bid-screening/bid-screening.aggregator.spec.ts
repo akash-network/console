@@ -183,6 +183,123 @@ describe(aggregateCriteria.name, () => {
       const c = aggregateCriteria([makeUnit({ gpu: 0n })], makeRequirements());
       expect(c.units[0].gpuTokens).toEqual([]);
     });
+
+    it("emits the single declared class for a unit with one persistent volume", () => {
+      const c = aggregateCriteria(
+        [
+          makeUnit({
+            storage: [
+              {
+                name: "data",
+                quantity: 1000n,
+                attributes: [
+                  { key: "persistent", value: "true" },
+                  { key: "class", value: "beta2" }
+                ]
+              }
+            ]
+          })
+        ],
+        makeRequirements()
+      );
+      expect(c.units[0].persistentClasses).toEqual(["beta2"]);
+    });
+
+    it("emits every distinct class declared across a unit's persistent volumes", () => {
+      const c = aggregateCriteria(
+        [
+          makeUnit({
+            storage: [
+              {
+                name: "data",
+                quantity: 1000n,
+                attributes: [
+                  { key: "persistent", value: "true" },
+                  { key: "class", value: "beta2" }
+                ]
+              },
+              {
+                name: "logs",
+                quantity: 500n,
+                attributes: [
+                  { key: "persistent", value: "true" },
+                  { key: "class", value: "beta3" }
+                ]
+              }
+            ]
+          })
+        ],
+        makeRequirements()
+      );
+      expect(c.units[0].persistentClasses).toEqual(["beta2", "beta3"]);
+    });
+
+    it("dedupes repeated classes across persistent volumes within a unit", () => {
+      const c = aggregateCriteria(
+        [
+          makeUnit({
+            storage: [
+              {
+                name: "data",
+                quantity: 1000n,
+                attributes: [
+                  { key: "persistent", value: "true" },
+                  { key: "class", value: "beta2" }
+                ]
+              },
+              {
+                name: "extra",
+                quantity: 250n,
+                attributes: [
+                  { key: "persistent", value: "true" },
+                  { key: "class", value: "beta2" }
+                ]
+              }
+            ]
+          })
+        ],
+        makeRequirements()
+      );
+      expect(c.units[0].persistentClasses).toEqual(["beta2"]);
+    });
+
+    it("ignores ephemeral and ram volumes when collecting persistentClasses", () => {
+      const c = aggregateCriteria(
+        [
+          makeUnit({
+            storage: [
+              { name: "scratch", quantity: 500n, attributes: [] },
+              { name: "shm", quantity: 100n, attributes: [{ key: "class", value: "ram" }] }
+            ]
+          })
+        ],
+        makeRequirements()
+      );
+      expect(c.units[0].persistentClasses).toEqual([]);
+    });
+
+    it("emits per-unit persistentClasses independently across units in a mixed deployment", () => {
+      const c = aggregateCriteria(
+        [
+          makeUnit({
+            storage: [
+              {
+                name: "data",
+                quantity: 1000n,
+                attributes: [
+                  { key: "persistent", value: "true" },
+                  { key: "class", value: "beta2" }
+                ]
+              }
+            ]
+          }),
+          makeUnit({ storage: [{ name: "scratch", quantity: 500n, attributes: [] }] })
+        ],
+        makeRequirements()
+      );
+      expect(c.units[0].persistentClasses).toEqual(["beta2"]);
+      expect(c.units[1].persistentClasses).toEqual([]);
+    });
   });
 });
 
