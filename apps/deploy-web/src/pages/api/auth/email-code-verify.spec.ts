@@ -64,7 +64,7 @@ describe("POST /api/auth/email-code-verify", () => {
   it("strips the cause from the error response", async () => {
     const { res } = await callHandler({
       body: { email: "user@example.com", code: "000000", captchaToken: "tok" },
-      verifyResult: Err({ code: "expired_code", message: "Expired", cause: { internal: "secret" } })
+      verifyResult: Err({ code: "invalid_code", message: "Wrong code", cause: { internal: "secret" } })
     });
 
     expect(res.json).toHaveBeenCalledWith(expect.not.objectContaining({ cause: expect.anything() }));

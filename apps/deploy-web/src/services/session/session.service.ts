@@ -221,7 +221,6 @@ export class SessionService {
     Result<
       Session,
       | { code: "invalid_code"; message: string; cause: unknown }
-      | { code: "expired_code"; message: string; cause: unknown }
       | { code: "rate_limited"; message: string; retryAfter: number; cause: unknown }
       | { code: "unknown"; message: string; cause: unknown }
     >
@@ -253,14 +252,6 @@ export class SessionService {
     }
 
     if (tokenResponse.status >= 400) {
-      const description = String(tokenResponse.data?.error_description || "").toLowerCase();
-      if (tokenResponse.data?.error === "invalid_grant" && description.includes("expired")) {
-        return Err({
-          code: "expired_code",
-          message: tokenResponse.data.error_description,
-          cause: extractResponseDetails(tokenResponse)
-        });
-      }
       if (tokenResponse.data?.error === "invalid_grant") {
         return Err({
           code: "invalid_code",

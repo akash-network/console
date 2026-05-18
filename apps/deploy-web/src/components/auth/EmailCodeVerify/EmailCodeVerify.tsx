@@ -74,9 +74,9 @@ export function EmailCodeVerify({ dependencies: d = DEPENDENCIES, ...props }: Pr
     [resendCooldownSec]
   );
 
-  const isResendDisabled = resendCooldownSec > 0 || resendMutation.isPending;
-  const resendLabel = resendCooldownSec > 0 ? `Resend in ${resendCooldownSec}s` : "Resend code";
   const isAnyMutationPending = verifyMutation.isPending || resendMutation.isPending;
+  const isResendDisabled = resendCooldownSec > 0 || isAnyMutationPending;
+  const resendLabel = resendCooldownSec > 0 ? `Resend in ${resendCooldownSec}s` : "Resend code";
   const activeError = isAnyMutationPending ? null : verifyMutation.error ?? resendMutation.error;
 
   return (

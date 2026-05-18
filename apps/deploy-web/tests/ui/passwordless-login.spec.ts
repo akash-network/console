@@ -1,3 +1,5 @@
+import { ManagementApiError } from "auth0";
+
 import { test } from "./fixture/onboarding-test";
 import { testEnvConfig } from "./fixture/test-env.config";
 import { AuthPagePasswordless } from "./pages/AuthPagePasswordless";
@@ -8,8 +10,14 @@ test.describe("Passwordless login", () => {
   const otp = new MailsacCodeVerificationStrategy(testEnvConfig.MAILSAC_API_KEY);
 
   test.afterEach(async ({ auth0 }) => {
-    if (testUserId) {
-      await auth0.deleteUser(testUserId).catch(() => {});
+    if (!testUserId) return;
+    try {
+      await auth0.deleteUser(testUserId);
+    } catch (error) {
+      if (!(error instanceof ManagementApiError) || error.statusCode !== 404) {
+        throw error;
+      }
+    } finally {
       testUserId = undefined;
     }
   });

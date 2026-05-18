@@ -66,7 +66,7 @@ export class MailsacCodeVerificationStrategy implements EmailVerificationStrateg
       `email: ${email}`,
       `timeout: ${timeoutSec}s`,
       `messages found: ${lastMessageCount}`,
-      lastSubject ? `last matching subject: "${lastSubject}"` : "no matching subject found",
+      lastSubject ? `last subject seen: "${lastSubject}"` : "no messages seen",
       codeNotFoundInBody ? `6-digit code not found in body: "${lastBodyPreview}"` : null
     ]
       .filter(Boolean)
