@@ -190,7 +190,8 @@ describe("useGrantsQuery", () => {
 
       await vi.waitFor(() => {
         expect(chainApiHttpClient.get).toHaveBeenCalledWith(
-          expect.stringContaining("/cosmos/feegrant/v1beta1/allowances/test-address?pagination.limit=1000&pagination.count_total=true")
+          expect.stringContaining("/cosmos/feegrant/v1beta1/allowances/test-address"),
+          expect.objectContaining({ params: expect.objectContaining({ "pagination.limit": 1000, "pagination.count_total": "true" }) })
         );
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);

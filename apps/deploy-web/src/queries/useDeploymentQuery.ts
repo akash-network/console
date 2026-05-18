@@ -1,10 +1,11 @@
+import { getAllItems } from "@akashnetwork/http-sdk";
 import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import type { AxiosInstance } from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
 import type { DeploymentDto, RpcDeployment } from "@src/types/deployment";
-import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
+import { ApiUrlService } from "@src/utils/apiUtils";
 import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 import { QueryKeys } from "./queryKeys";
 
@@ -12,7 +13,12 @@ import { QueryKeys } from "./queryKeys";
 async function getDeploymentList(chainApiHttpClient: AxiosInstance, address: string) {
   if (!address) return [];
 
-  const deployments = await loadWithPagination<RpcDeployment[]>(ApiUrlService.deploymentList("", address), "deployments", 1000, chainApiHttpClient);
+  const deployments = await getAllItems<RpcDeployment>(async params => {
+    const response = await chainApiHttpClient.get(ApiUrlService.deploymentList("", address), {
+      params: { "pagination.limit": 1000, ...params }
+    });
+    return { items: response.data.deployments, pagination: response.data.pagination };
+  });
 
   return deployments.map(d => deploymentToDto(d));
 }

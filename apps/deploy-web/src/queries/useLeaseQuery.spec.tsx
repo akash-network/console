@@ -153,7 +153,7 @@ describe("useLeaseQuery", () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining(`filters.dseq=${mockDeployment.dseq}`));
+      expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining(`filters.dseq=${mockDeployment.dseq}`), expect.anything());
       expect(result.current.data).toEqual([leaseToDto(mockLeases[0], mockDeployment)]);
     });
 
@@ -228,7 +228,7 @@ describe("useLeaseQuery", () => {
       await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
-      expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("filters.owner=test-address"));
+      expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("filters.owner=test-address"), expect.anything());
       expect(result.current.data).toEqual([leaseToDto(mockLeases[0], undefined as any)]);
     });
 

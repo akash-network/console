@@ -1,4 +1,4 @@
-import { isHttpError } from "@akashnetwork/http-sdk";
+import { getAllItems, isHttpError } from "@akashnetwork/http-sdk";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosInstance } from "axios";
@@ -8,7 +8,7 @@ import { useProviderCredentials } from "@src/hooks/useProviderCredentials/usePro
 import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
 import type { DeploymentDto, LeaseDto, RpcLease } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
-import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
+import { ApiUrlService } from "@src/utils/apiUtils";
 import { leaseToDto } from "@src/utils/deploymentDetailUtils";
 import { QueryKeys } from "./queryKeys";
 
@@ -18,10 +18,14 @@ async function getDeploymentLeases(chainApiHttpClient: AxiosInstance, address: s
     return null;
   }
 
-  const response = await loadWithPagination<RpcLease[]>(ApiUrlService.leaseList("", address, deployment?.dseq), "leases", 1000, chainApiHttpClient);
-  const leases = response.map(l => leaseToDto(l, deployment));
+  const leases = await getAllItems<RpcLease>(async params => {
+    const response = await chainApiHttpClient.get(ApiUrlService.leaseList("", address, deployment?.dseq), {
+      params: { "pagination.limit": 1000, ...params }
+    });
+    return { items: response.data.leases, pagination: response.data.pagination };
+  });
 
-  return leases;
+  return leases.map(l => leaseToDto(l, deployment));
 }
 
 export function useDeploymentLeaseList(
@@ -53,10 +57,14 @@ async function getAllLeases(chainApiHttpClient: AxiosInstance, address: string, 
     return null;
   }
 
-  const response = await loadWithPagination<RpcLease[]>(ApiUrlService.leaseList("", address, deployment?.dseq), "leases", 1000, chainApiHttpClient);
-  const leases = response.map(l => leaseToDto(l, deployment));
+  const leases = await getAllItems<RpcLease>(async params => {
+    const response = await chainApiHttpClient.get(ApiUrlService.leaseList("", address, deployment?.dseq), {
+      params: { "pagination.limit": 1000, ...params }
+    });
+    return { items: response.data.leases, pagination: response.data.pagination };
+  });
 
-  return leases;
+  return leases.map(l => leaseToDto(l, deployment));
 }
 
 export function useAllLeases(address: string, options = {}) {

@@ -1,5 +1,3 @@
-import type { AxiosInstance } from "axios";
-
 import { services } from "@src/services/app-di-container/browser-di-container";
 import networkStore from "@src/store/networkStore";
 import { appendSearchParams } from "./urlUtils";
@@ -132,43 +130,4 @@ export class ApiUrlService {
   static get baseApiUrl() {
     return services.apiUrlService.getBaseApiUrlFor(networkStore.selectedNetworkId);
   }
-}
-
-/**
- * @deprecated use getAllItems utility from @akashnetwork/http-sdk
- * TODO: implement proper pagination on clients
- * Issue: https://github.com/akash-network/console/milestone/7
- */
-export async function loadWithPagination<T>(baseUrl: string, dataKey: string, limit: number, httpClient: AxiosInstance) {
-  let items: T[] = [];
-  let nextKey: string | null = null;
-  // let callCount = 1;
-  // let totalCount = null;
-
-  do {
-    const _hasQueryParam = hasQueryParam(baseUrl);
-    let queryUrl = `${baseUrl}${_hasQueryParam ? "&" : "?"}pagination.limit=${limit}&pagination.count_total=true`;
-    if (nextKey) {
-      queryUrl += "&pagination.key=" + encodeURIComponent(nextKey);
-    }
-    // console.log(`Querying ${dataKey} [${callCount}] from : ${queryUrl}`);
-    const response = await httpClient.get(queryUrl);
-    const data = response.data;
-
-    // if (!nextKey) {
-    //   totalCount = data.pagination.total;
-    // }
-
-    items = items.concat(data[dataKey]);
-    nextKey = data.pagination.next_key;
-    // callCount++;
-
-    // console.log(`Got ${items.length} of ${totalCount}`);
-  } while (nextKey);
-
-  return items.filter(item => item) as T;
-}
-
-function hasQueryParam(url: string) {
-  return /[?&]/gm.test(url);
 }
