@@ -5,37 +5,20 @@ description: "Write tests for the akash-network/console monorepo following estab
 
 # Console Test Writing Guide
 
-This skill encodes the testing conventions and patterns for the akash-network/console monorepo.
-
-Before writing any test, read the source file you're testing thoroughly. Understand what it does, what dependencies it has, and what level of testing is appropriate.
+Testing conventions and patterns for the akash-network/console monorepo.
 
 ## Deciding What Type of Test to Write
 
-Choose the lowest-effective test level. Writing E2E tests for logic that can be unit tested wastes everyone's time and creates brittle, slow suites.
+Choose the lowest-effective test level:
 
-**Unit tests** (99% of cases):
-- Components, hooks, pure logic services, utilities
-- All dependencies mocked via DI (never module-level mocking)
-- Run at PR level, must be fast
+| Level | When to use in this repo | Mocking strategy |
+|-------|-------------------------|-----------------|
+| **Unit** (default) | Components, hooks, services, utilities | All deps mocked via DI (`mock<T>()`) — never `vi.mock()` |
+| **Integration** | Services with heavy DB logic or Repository patterns | Real DB fixtures; mock only 3rd-party calls |
+| **Functional** | Black-box HTTP endpoint verification | `nock` for external calls only; never mock internal services |
+| **E2E** | Post-deployment verification (beta/prod) | No mocks; happy path only; Playwright with semantic locators |
 
-**Integration tests** (service + database):
-- Services that rely heavily on database logic or Repository patterns
-- Use real database fixtures, not mocks
-- Mock only 3rd-party service calls if needed
-- Good for verifying queries, transactions, and data integrity
-
-**Functional / API tests** (black-box HTTP):
-- Test the service as a black box through its HTTP endpoints
-- External network calls MUST be mocked with `nock` (v14+ supports native `fetch` in addition to `http`/`https`)
-- Do NOT mock internal application services — they're implementation details at this level
-- Should only fail when functional requirements change, not from refactoring
-- Don't write functional tests for simple routes — test the service layer directly instead
-
-**E2E tests** (post-deployment verification):
-- Only for verifying deployed services in target environments (beta/prod)
-- No mocks at all
-- Happy path only
-- Use Playwright with semantic locators
+Functional tests should only fail when functional requirements change, not from refactoring. Don't write functional tests for simple routes — test the service layer directly.
 
 ## Universal Rules (All Test Types)
 
@@ -196,13 +179,9 @@ it("creates a deployment grant", async () => {
 });
 ```
 
-### Comments Answer WHY, Not WHAT
+### Test Error Paths the Code Handles
 
-Remove obvious comments. If a comment just restates the method name or assertion, delete it.
-
-### Test Error Handling Thoughtfully
-
-When testing error paths, focus on errors the code explicitly handles — but don't skip error coverage just because the happy path works. If a service catches and transforms errors, test those paths. If important error scenarios aren't handled in production code, that may be a gap worth flagging rather than ignoring.
+If a service catches and transforms errors, test those paths. Don't skip error coverage just because the happy path works — and flag unhandled error scenarios rather than ignoring them.
 
 ## Frontend Tests (deploy-web)
 
@@ -266,3 +245,13 @@ Key points:
 - API functional: `test/functional/**/*.spec.ts`
 - API e2e: `test/e2e/**/*.spec.ts`
 - Seeders: `test/seeders/` in each app
+
+## After Writing Tests
+
+Verify before committing:
+
+1. **Run the test suite** in the affected app: `npm test` (or `npm run test:unit` / `npm run test:functional` depending on scope)
+2. **Check for type errors**: `npx tsc --noEmit` in the app directory
+3. **Run the linter**: `npm run lint -- --quiet`
+4. **Review test output** — ensure no skipped tests, no unexpected console warnings, and all assertions are meaningful (not just `expect(true).toBe(true)`)
+5. **Verify coverage** — the new test should cover the behavior described in the issue or PR, not just hit lines
