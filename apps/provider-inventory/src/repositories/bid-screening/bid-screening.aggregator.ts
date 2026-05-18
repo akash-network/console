@@ -1,7 +1,7 @@
 import { parseGPUAttributes } from "@src/lib/gpu-attribute-parser/gpu-attribute-parser";
 import type { GroupSpecJSON } from "@src/lib/groupspec-mapper/groupspec-mapper";
 import { parseStorageAttributes } from "@src/lib/storage-attribute-parser/storage-attribute-parser";
-import type { RequestedResourceUnit, ResourceAttribute } from "@src/types/inventory.types";
+import type { RequestedResourceUnit, RequestedStorage, ResourceAttribute } from "@src/types/inventory.types";
 
 interface UnitFilters {
   gpuTokens: string[];
@@ -58,7 +58,10 @@ export function aggregateCriteria(resourceUnits: RequestedResourceUnit[], requir
       // ram volumes intentionally skipped — issue 4 will add them to totalMemory
     }
 
-    units.push({ gpuTokens: gpuTokensForUnit(unit.resources.gpu), persistentClasses: [] });
+    units.push({
+      gpuTokens: collectGpuTokens(unit.resources.gpu),
+      persistentClasses: collectPersistentStorageTokens(unit.resources.storage)
+    });
   }
 
   const attributes: BidScreeningCriteria["attributes"] = [];
@@ -98,12 +101,23 @@ function escapeRegex(input: string): string {
   return input.replace(/[\\.^$*+?()[\]{}|]/g, "\\$&");
 }
 
-function gpuTokensForUnit(gpu: { units: bigint; attributes: ResourceAttribute[] }): string[] {
+function collectGpuTokens(gpu: { units: bigint; attributes: ResourceAttribute[] }): string[] {
   if (gpu.units === 0n) return [];
   const tokens: string[] = [];
   for (const parsed of parseGPUAttributes(gpu.attributes)) {
     const token = parsed.model === "*" ? parsed.vendor : `${parsed.vendor}/${parsed.model}`;
     if (!tokens.includes(token)) tokens.push(token);
+  }
+  return tokens;
+}
+
+function collectPersistentStorageTokens(storage: RequestedStorage[]): string[] {
+  const tokens: string[] = [];
+  for (const vol of storage) {
+    const parsed = parseStorageAttributes(vol.attributes);
+    if (parsed.classification === "persistent" && parsed.class && !tokens.includes(parsed.class)) {
+      tokens.push(parsed.class);
+    }
   }
   return tokens;
 }

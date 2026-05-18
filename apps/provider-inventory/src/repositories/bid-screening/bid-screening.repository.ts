@@ -71,6 +71,10 @@ export class BidScreeningRepository {
       if (unit.gpuTokens.length > 0) {
         conditions.push(arrayOverlaps(providerInventory.gpuModels, unit.gpuTokens));
       }
+
+      if (unit.persistentClasses.length > 0) {
+        conditions.push(arrayContains(providerInventory.storageClasses, unit.persistentClasses));
+      }
     }
 
     if (criteria.attributes.length > 0) {
