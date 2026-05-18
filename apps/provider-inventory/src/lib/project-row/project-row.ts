@@ -32,6 +32,10 @@ export function projectRow(cluster: ClusterState): ProjectedRow {
       if (gpu.vendor && gpu.name) {
         gpuModelSet.add(`${gpu.vendor}/${gpu.name}`);
       }
+
+      if (gpu.vendor) {
+        gpuModelSet.add(gpu.vendor);
+      }
     }
 
     for (const cls of node.storageClasses) {

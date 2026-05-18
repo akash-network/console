@@ -165,7 +165,7 @@ export class ClusterInventoryMatcherService {
         if (!attr) continue;
 
         pinnedSpec = {
-          vendor: info.vendor.toLowerCase(),
+          vendor: info.vendor,
           model: info.name,
           ram: info.memorySize || null,
           interface: info.interface || null
