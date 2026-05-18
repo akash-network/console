@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { GroupSpecJSON } from "@src/lib/groupspec-mapper/groupspec-mapper";
-import type { RequestedResourceUnit, RequestedStorage } from "@src/types/inventory.types";
+import type { RequestedResourceUnit, RequestedStorage, ResourceAttribute } from "@src/types/inventory.types";
 import { aggregateCriteria } from "./bid-screening.aggregator";
 
 describe(aggregateCriteria.name, () => {
@@ -145,24 +145,62 @@ describe(aggregateCriteria.name, () => {
   });
 
   describe("units dimension", () => {
-    it("emits an empty per-unit filter slot for each unit in this slice (issues 2/3 populate it)", () => {
+    it("emits a per-unit filter slot for each unit in this slice", () => {
       const c = aggregateCriteria([makeUnit({}), makeUnit({})], makeRequirements());
       expect(c.units).toEqual([
         { gpuTokens: [], persistentClasses: [] },
         { gpuTokens: [], persistentClasses: [] }
       ]);
     });
+
+    it("emits a vendor-only token when the GPU attribute has no model (wildcard)", () => {
+      const c = aggregateCriteria([makeUnit({ gpu: 1n, gpuAttributes: [{ key: "vendor/nvidia", value: "true" }] })], makeRequirements());
+      expect(c.units[0].gpuTokens).toEqual(["nvidia"]);
+    });
+
+    it("emits a vendor/model token when the GPU attribute specifies a model", () => {
+      const c = aggregateCriteria([makeUnit({ gpu: 1n, gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }] })], makeRequirements());
+      expect(c.units[0].gpuTokens).toEqual(["nvidia/a100"]);
+    });
+
+    it("emits every OR-alternative token when a unit has multiple GPU attributes", () => {
+      const c = aggregateCriteria(
+        [
+          makeUnit({
+            gpu: 1n,
+            gpuAttributes: [
+              { key: "vendor/nvidia/model/a100", value: "true" },
+              { key: "vendor/amd/model/mi300x", value: "true" }
+            ]
+          })
+        ],
+        makeRequirements()
+      );
+      expect(c.units[0].gpuTokens).toEqual(["nvidia/a100", "amd/mi300x"]);
+    });
+
+    it("emits an empty gpuTokens array for units that do not request a GPU", () => {
+      const c = aggregateCriteria([makeUnit({ gpu: 0n })], makeRequirements());
+      expect(c.units[0].gpuTokens).toEqual([]);
+    });
   });
 });
 
-function makeUnit(input: { cpu?: bigint; memory?: bigint; gpu?: bigint; count?: number; storage?: RequestedStorage[] }): RequestedResourceUnit {
+function makeUnit(input: {
+  cpu?: bigint;
+  memory?: bigint;
+  gpu?: bigint;
+  count?: number;
+  storage?: RequestedStorage[];
+  gpuAttributes?: ResourceAttribute[];
+}): RequestedResourceUnit {
   return {
     id: 1,
     count: input.count ?? 1,
     resources: {
       cpu: { units: input.cpu ?? 0n, attributes: [] },
       memory: { quantity: input.memory ?? 0n, attributes: [] },
-      gpu: { units: input.gpu ?? 0n, attributes: [] },
+      gpu: { units: input.gpu ?? 0n, attributes: input.gpuAttributes ?? [] },
       storage: input.storage ?? []
     }
   };

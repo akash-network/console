@@ -67,6 +67,12 @@ export class BidScreeningRepository {
       gte(providerInventory.maxNodeFreeGpu, criteria.maxPerReplicaGpu)
     ];
 
+    for (const unit of criteria.units) {
+      if (unit.gpuTokens.length > 0) {
+        conditions.push(arrayOverlaps(providerInventory.gpuModels, unit.gpuTokens));
+      }
+    }
+
     if (criteria.attributes.length > 0) {
       conditions.push(sql`${providerInventory.selfAttributes} @> ${sql.param(criteria.attributes)}::jsonb`);
     }
