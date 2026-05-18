@@ -10,6 +10,7 @@ function parseResourceValue(val: string): bigint {
   return parsed;
 }
 
+const EMPTY_ARRAY = Object.freeze([]);
 export function mapGroupSpecToResourceUnits(request: GroupSpecJSON): RequestedResourceUnit[] {
   return request.resources.map(unit => {
     const resource = unit.resource;
@@ -17,7 +18,7 @@ export function mapGroupSpecToResourceUnits(request: GroupSpecJSON): RequestedRe
     const storage: RequestedStorage[] = resource.storage.map(vol => ({
       name: vol.name,
       quantity: parseResourceValue(vol.quantity.val),
-      attributes: vol.attributes
+      attributes: vol.attributes ?? EMPTY_ARRAY
     }));
 
     return {
@@ -25,15 +26,15 @@ export function mapGroupSpecToResourceUnits(request: GroupSpecJSON): RequestedRe
       resources: {
         cpu: {
           units: parseResourceValue(resource.cpu.units.val),
-          attributes: resource.cpu.attributes
+          attributes: resource.cpu.attributes ?? EMPTY_ARRAY
         },
         gpu: {
           units: parseResourceValue(resource.gpu.units.val),
-          attributes: resource.gpu.attributes
+          attributes: resource.gpu.attributes ?? EMPTY_ARRAY
         },
         memory: {
           quantity: parseResourceValue(resource.memory.quantity.val),
-          attributes: resource.memory.attributes
+          attributes: resource.memory.attributes ?? EMPTY_ARRAY
         },
         storage
       },

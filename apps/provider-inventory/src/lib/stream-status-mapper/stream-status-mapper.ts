@@ -66,8 +66,8 @@ function parseMantissa(s: string): { negative: boolean; digits: bigint; fracLen:
   return { negative, digits: BigInt((intPart || "0") + fracPart || "0"), fracLen: fracPart.length };
 }
 
-function pairFromSdk(pair: SdkResourcePair | undefined): ResourcePair {
-  return new ResourcePair(parseQuantity(pair?.allocatable), parseQuantity(pair?.allocated));
+function pairFromSdk(pair: SdkResourcePair | undefined, multiplier = 1n): ResourcePair {
+  return new ResourcePair(parseQuantity(pair?.allocatable) * multiplier, parseQuantity(pair?.allocated) * multiplier);
 }
 
 function mapGpuInfo(info: GPUInfo): GpuInfo {
@@ -88,7 +88,7 @@ function mapNode(node: SdkNode): NodeState {
   const resources = node.resources;
   return {
     name: node.name,
-    cpu: pairFromSdk(resources?.cpu?.quantity),
+    cpu: pairFromSdk(resources?.cpu?.quantity, 1000n),
     memory: pairFromSdk(resources?.memory?.quantity),
     ephemeralStorage: pairFromSdk(resources?.ephemeralStorage),
     gpu: {

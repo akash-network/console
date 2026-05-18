@@ -21,8 +21,6 @@ describe(BidScreeningService.name, () => {
         {
           owner: "akash1abc",
           hostUri: "https://provider.example.com:8443",
-          region: "us-east",
-          uptime7d: 0.998,
           isAudited: false
         }
       ]);

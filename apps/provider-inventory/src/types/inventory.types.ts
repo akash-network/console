@@ -60,8 +60,6 @@ export interface MatchResult {
 export interface BidScreeningResult {
   owner: string;
   hostUri: string;
-  region: string | null;
-  uptime7d: number | null;
   isAudited: boolean;
 }
 

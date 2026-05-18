@@ -26,7 +26,7 @@ export class BidScreeningService {
     this.#logger.info({ event: "BID_SCREENING_START", resourceGroupCount: resourceUnits.length });
 
     const candidates = await this.#repository.findCandidates(resourceUnits, request.requirements);
-    this.#logger.debug({ event: "BID_SCREENING_CANDIDATES_FETCHED", count: candidates.length });
+    this.#logger.info({ event: "BID_SCREENING_CANDIDATES_FETCHED", count: candidates.length });
 
     const results: BidScreeningResult[] = [];
 
@@ -52,8 +52,6 @@ export class BidScreeningService {
     return {
       owner: candidate.owner,
       hostUri: candidate.hostUri,
-      region: candidate.ipRegion ?? null,
-      uptime7d: candidate.uptime7d ?? null,
       isAudited: candidate.isAudited
     };
   }
