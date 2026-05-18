@@ -38,6 +38,37 @@ describe(BidScreeningRepository.name, () => {
 
       expect(owners(rows)).toEqual(["akash1roomy"]);
     });
+
+    it("excludes providers whose memory headroom covers the bare unit but not the combined memory + ram-class volume demand", async () => {
+      // Workload requests 100 bytes of memory + a 200-byte ram-class volume → 300 bytes per replica.
+      const replicaMemory = 100n;
+      const ramVolume = 200n;
+      const effectivePerReplica = replicaMemory + ramVolume;
+
+      await seed({
+        owner: "akash1tightOnMemory",
+        totalAvailableMemory: effectivePerReplica - 1n,
+        maxNodeFreeMemory: effectivePerReplica - 1n
+      });
+      await seed({
+        owner: "akash1fits",
+        totalAvailableMemory: effectivePerReplica,
+        maxNodeFreeMemory: effectivePerReplica
+      });
+
+      const rows = await repository.findCandidates(
+        [
+          unit({
+            memory: replicaMemory,
+            count: 1,
+            storage: [{ name: "shm", quantity: ramVolume, attributes: [{ key: "class", value: "ram" }] }]
+          })
+        ],
+        requirements()
+      );
+
+      expect(owners(rows)).toEqual(["akash1fits"]);
+    });
   });
 
   describe("signedBy", () => {
