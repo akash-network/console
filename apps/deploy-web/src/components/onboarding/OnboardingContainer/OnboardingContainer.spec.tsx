@@ -381,11 +381,15 @@ describe("OnboardingContainer", () => {
       getManifestVersion: vi.fn(),
       appendTrialAttribute: vi.fn(),
       appendAuditorRequirement: vi.fn(sdl => sdl),
+      applyTrialGpuPolicy: vi.fn((sdl: string) => sdl),
+      replaceSdlDenom: vi.fn((sdl: string) => sdl),
       ENDPOINT_NAME_VALIDATION_REGEX: /^[a-z]+[-_\da-z]+$/,
       TRIAL_ATTRIBUTE: "console/trials" as const,
       TRIAL_REGISTERED_ATTRIBUTE: "console/trials-registered" as const,
       AUDITOR: "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63" as const,
-      MANAGED_WALLET_ALLOWED_AUDITORS: ["akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63" as const]
+      MANAGED_WALLET_ALLOWED_AUDITORS: ["akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63" as const],
+      TRIAL_BLOCKED_GPU_MODELS: [] as string[],
+      TRIAL_DEFAULT_NVIDIA_MODELS: [] as string[]
     };
 
     const mockValidateDeploymentData = vi.fn();
@@ -433,6 +437,7 @@ describe("OnboardingContainer", () => {
       deploymentData: mockDeploymentData,
       validateDeploymentData: mockValidateDeploymentData,
       appendAuditorRequirement: mockAppendAuditorRequirement,
+      applyTrialGpuPolicy: vi.fn((sdl: string) => sdl),
       replaceSdlDenom: vi.fn((sdl: string, denom: string) => sdl.replace(/uakt/g, denom)),
       helloWorldTemplate: mockHelloWorldTemplate,
       TransactionMessageData: mockTransactionMessageData as unknown as typeof TransactionMessageData,

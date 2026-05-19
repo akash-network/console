@@ -1,7 +1,7 @@
 import yaml from "js-yaml";
 import { describe, expect, it } from "vitest";
 
-import { replaceSdlDenom } from "./v1beta3";
+import { applyTrialGpuPolicy, replaceSdlDenom, TRIAL_DEFAULT_NVIDIA_MODELS } from "./v1beta3";
 
 describe(replaceSdlDenom.name, () => {
   it("replaces denom in a single placement pricing entry", () => {
@@ -101,5 +101,73 @@ describe(replaceSdlDenom.name, () => {
     });
 
     return { sdl };
+  }
+});
+
+describe(applyTrialGpuPolicy.name, () => {
+  const SDL_NO_GPU = buildSdl({});
+
+  it("returns the SDL unchanged when no GPU section is present", () => {
+    expect(applyTrialGpuPolicy(SDL_NO_GPU)).toBe(SDL_NO_GPU);
+  });
+
+  it("injects the default nvidia models when vendor.nvidia has no models", () => {
+    const sdl = buildSdl({ nvidia: [] });
+
+    const result = applyTrialGpuPolicy(sdl);
+
+    expect(getNvidiaModels(result)).toEqual(TRIAL_DEFAULT_NVIDIA_MODELS);
+  });
+
+  it("strips blocked models from the requested list", () => {
+    const sdl = buildSdl({ nvidia: [{ model: "h100" }, { model: "a100" }, { model: "rtxa6000" }] });
+
+    const result = applyTrialGpuPolicy(sdl);
+
+    expect(getNvidiaModels(result)).toEqual(["rtxa6000"]);
+  });
+
+  it("falls back to default models when every requested model is blocked", () => {
+    const sdl = buildSdl({ nvidia: [{ model: "h100" }, { model: "h200" }] });
+
+    const result = applyTrialGpuPolicy(sdl);
+
+    expect(getNvidiaModels(result)).toEqual(TRIAL_DEFAULT_NVIDIA_MODELS);
+  });
+
+  it("returns the SDL unchanged when every requested model is already allowed", () => {
+    const sdl = buildSdl({ nvidia: [{ model: "rtxa6000" }] });
+
+    expect(applyTrialGpuPolicy(sdl)).toBe(sdl);
+  });
+
+  function buildSdl(input: { nvidia?: Array<{ model?: string; ram?: string }> }): string {
+    const gpu = input.nvidia ? { units: 1, attributes: { vendor: { nvidia: input.nvidia } } } : undefined;
+    return yaml.dump({
+      version: "2.0",
+      services: { app: { image: "nginx" } },
+      profiles: {
+        compute: {
+          app: {
+            resources: {
+              cpu: { units: 0.5 },
+              memory: { size: "512Mi" },
+              storage: { size: "512Mi" },
+              ...(gpu ? { gpu } : {})
+            }
+          }
+        },
+        placement: { dcloud: { pricing: { app: { denom: "uact", amount: 1000 } } } }
+      },
+      deployment: { app: { dcloud: { profile: "app", count: 1 } } }
+    });
+  }
+
+  function getNvidiaModels(yamlStr: string): string[] {
+    const sdl = yaml.load(yamlStr) as {
+      profiles: { compute: Record<string, { resources: { gpu?: { attributes?: { vendor?: { nvidia?: Array<{ model?: string }> } } } } }> };
+    };
+    const profile = Object.values(sdl.profiles.compute)[0];
+    return (profile.resources.gpu?.attributes?.vendor?.nvidia ?? []).map(entry => entry.model ?? "");
   }
 });
