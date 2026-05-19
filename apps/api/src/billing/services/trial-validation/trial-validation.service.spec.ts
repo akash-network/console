@@ -111,7 +111,7 @@ describe(TrialValidationService.name, () => {
         service.validateLeaseGpuModels([createLeaseMessage({ dseq: "111", gseq: 1, oseq: 1, bseq: 1, provider: "akash1prov" })], wallet)
       ).rejects.toMatchObject({
         status: 402,
-        message: expect.stringContaining("nvidia/h100")
+        message: expect.stringContaining("Nvidia H100")
       });
     });
 
@@ -165,7 +165,7 @@ describe(TrialValidationService.name, () => {
 
       await expect(service.validateDeploymentGpuModels([createDeploymentMessageWithGpu("nvidia", "h100")], wallet)).rejects.toMatchObject({
         status: 402,
-        message: expect.stringContaining("nvidia/h100")
+        message: expect.stringContaining("Nvidia H100")
       });
     });
 

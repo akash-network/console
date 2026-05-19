@@ -1,7 +1,7 @@
 import type { SDLInput } from "@akashnetwork/chain-sdk";
 import type { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 
-import { extractRequestedGpusFromGroupSpecs, extractRequestedGpusFromSdl, findBlockedGpus, toBlockedGpuSet } from "./blocked-gpu";
+import { extractRequestedGpusFromGroupSpecs, extractRequestedGpusFromSdl, findBlockedGpus, formatGpuLabel, toBlockedGpuSet } from "./blocked-gpu";
 
 describe("blocked-gpu helpers", () => {
   describe("extractRequestedGpusFromSdl", () => {
@@ -82,6 +82,20 @@ describe("blocked-gpu helpers", () => {
         ]
       ]);
       expect(extractRequestedGpusFromGroupSpecs(groups)).toEqual([]);
+    });
+  });
+
+  describe("formatGpuLabel", () => {
+    it("capitalizes vendor and uppercases model", () => {
+      expect(formatGpuLabel({ vendor: "nvidia", model: "h100" })).toBe("Nvidia H100");
+    });
+
+    it("uppercases multi-character models", () => {
+      expect(formatGpuLabel({ vendor: "nvidia", model: "pro6000se" })).toBe("Nvidia PRO6000SE");
+    });
+
+    it("handles numeric-only models", () => {
+      expect(formatGpuLabel({ vendor: "nvidia", model: "4090" })).toBe("Nvidia 4090");
     });
   });
 

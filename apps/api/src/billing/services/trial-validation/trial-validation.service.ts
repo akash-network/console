@@ -14,6 +14,7 @@ import {
   extractRequestedGpusFromBid,
   extractRequestedGpusFromGroupSpecs,
   findBlockedGpus,
+  formatGpuLabel,
   toBlockedGpuSet
 } from "@src/deployment/utils/blocked-gpu/blocked-gpu";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
@@ -104,7 +105,7 @@ export class TrialValidationService {
       const blocked = findBlockedGpus(extractRequestedGpusFromGroupSpecs(groups), blockedSet);
       if (blocked.length === 0) continue;
 
-      const blockedList = blocked.map(({ vendor, model }) => `${vendor}/${model}`).join(", ");
+      const blockedList = blocked.map(formatGpuLabel).join(", ");
       assert(false, 402, `${blockedList} not available on free trial: Add credits to your account to deploy`);
     }
   }
@@ -144,7 +145,7 @@ export class TrialValidationService {
       const blocked = findBlockedGpus(extractRequestedGpusFromBid(bid), blockedSet);
       if (blocked.length === 0) continue;
 
-      const blockedList = blocked.map(({ vendor, model }) => `${vendor}/${model}`).join(", ");
+      const blockedList = blocked.map(formatGpuLabel).join(", ");
       assert(false, 402, `${blockedList} not available on free trial: Add credits to your account to deploy`);
     }
   }

@@ -334,7 +334,7 @@ describe(SdlService.name, () => {
 
       expect(result).toMatchObject({
         ok: false,
-        value: [expect.objectContaining({ message: expect.stringContaining("nvidia/h100") })]
+        value: [expect.objectContaining({ message: expect.stringContaining("Nvidia H100") })]
       });
     });
 

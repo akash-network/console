@@ -4,7 +4,7 @@ import { YAMLException } from "js-yaml";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
-import { extractRequestedGpusFromSdl, findBlockedGpus, toBlockedGpuSet } from "@src/deployment/utils/blocked-gpu/blocked-gpu";
+import { extractRequestedGpusFromSdl, findBlockedGpus, formatGpuLabel, toBlockedGpuSet } from "@src/deployment/utils/blocked-gpu/blocked-gpu";
 
 @singleton()
 export class SdlService {
@@ -48,7 +48,7 @@ export class SdlService {
     if (options.isTrialing && blockedGpuModels && blockedGpuModels.length > 0) {
       const blockedRequested = findBlockedGpus(extractRequestedGpusFromSdl(potentiallyInvalidSDL), toBlockedGpuSet(blockedGpuModels));
       if (blockedRequested.length > 0) {
-        const blockedList = blockedRequested.map(({ vendor, model }) => `${vendor}/${model}`).join(", ");
+        const blockedList = blockedRequested.map(formatGpuLabel).join(", ");
         return {
           ok: false,
           value: [

@@ -64,6 +64,11 @@ export function findBlockedGpus(requested: RequestedGpu[], blockedSet: ReadonlyS
   return requested.filter(({ vendor, model }) => blockedSet.has(`${vendor}/${model}`));
 }
 
+export function formatGpuLabel({ vendor, model }: RequestedGpu): string {
+  const formattedVendor = vendor ? vendor.charAt(0).toUpperCase() + vendor.slice(1).toLowerCase() : vendor;
+  return `${formattedVendor} ${model.toUpperCase()}`;
+}
+
 function extractGpusFromAttributes(attributes: GpuAttribute[]): RequestedGpu[] {
   const results: RequestedGpu[] = [];
   for (const attr of attributes) {

@@ -1,7 +1,8 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { isHttpError, type TxOutput } from "@akashnetwork/http-sdk";
-import { Snackbar } from "@akashnetwork/ui/components";
+import { buttonVariants, Snackbar } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { OpenNewWindow } from "iconoir-react";
 import { useAtom } from "jotai";
@@ -12,6 +13,7 @@ import { useSnackbar } from "notistack";
 
 import type { LoadingState } from "@src/components/layout/TransactionModal";
 import { TransactionModal } from "@src/components/layout/TransactionModal";
+import { AddFundsLink } from "@src/components/user/AddFundsLink";
 import { useAllowance } from "@src/hooks/useAllowance";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useSelectedChain } from "@src/hooks/useSelectedChain/useSelectedChain";
@@ -22,6 +24,7 @@ import { useBalances } from "@src/queries/useBalancesQuery";
 import networkStore from "@src/store/networkStore";
 import walletStore from "@src/store/walletStore";
 import type { AppError } from "@src/types";
+import { UrlService } from "@src/utils/urlUtils";
 import { getStorageWallets, updateStorageManagedWallet, updateStorageWallets } from "@src/utils/walletUtils";
 import { useServices } from "../ServicesProvider";
 import { useSettings } from "../SettingsProvider";
@@ -298,8 +301,11 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       if (isHttpError(err) && err.response?.status !== 500) {
         const [title, message] = err.response?.data?.message?.split(": ") ?? [];
-        const variant = err.response?.status === 402 ? "warning" : "error";
-        showTransactionSnackbar(title || message || "Error", message, "", variant);
+        if (err.response?.status === 402) {
+          showAddCreditsSnackbar(title || message || "Add credits to continue", message);
+        } else {
+          showTransactionSnackbar(title || message || "Error", message, "", "error");
+        }
       } else {
         const transactionHash = err.txHash;
         let errorMsg = "An error has occurred";
@@ -369,6 +375,13 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
   };
 
+  const showAddCreditsSnackbar = (snackTitle: string, snackMessage: string) => {
+    enqueueSnackbar(<Snackbar title={snackTitle} subTitle={<AddCreditsSnackbarContent message={snackMessage} />} iconVariant="warning" />, {
+      variant: "warning",
+      autoHideDuration: 10000
+    });
+  };
+
   return (
     <WalletProviderContext.Provider
       value={{
@@ -409,6 +422,20 @@ export function useIsManagedWalletUser() {
 }
 
 const SUPPORT_EMAIL = "support@akash.network";
+
+const AddCreditsSnackbarContent: React.FC<{ message?: string }> = ({ message }) => {
+  return (
+    <>
+      {message && <div>{message}</div>}
+      <AddFundsLink
+        className={cn("mt-2 inline-flex h-7 items-center px-3 text-xs", buttonVariants({ variant: "default" }))}
+        href={UrlService.billing({ openPayment: true })}
+      >
+        Add Funds
+      </AddFundsLink>
+    </>
+  );
+};
 
 const TransactionSnackbarContent: React.FC<{ snackMessage: string; transactionHash: string; isError?: boolean }> = ({
   snackMessage,
