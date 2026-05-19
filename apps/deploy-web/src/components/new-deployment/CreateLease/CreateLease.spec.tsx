@@ -7,8 +7,9 @@ import { mock } from "vitest-mock-extended";
 import type { AppDIContainer } from "@src/context/ServicesProvider";
 import type { ContextType as CertificateContextType, LocalCert } from "@src/hooks/useCertificate/useCertificate";
 import { mapToBidDto } from "@src/queries/useBidQuery";
+import type { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import type { LocalDeploymentData } from "@src/services/deployment-storage/deployment-storage.service";
-import type { RpcBid } from "@src/types/deployment";
+import type { DeploymentDto, RpcBid } from "@src/types/deployment";
 import type { ApiProviderDetail } from "@src/types/provider";
 import { updateStorageWallets } from "@src/utils/walletUtils";
 import { CreateLease, DEPENDENCIES as CREATE_LEASE_DEPENDENCIES } from "./CreateLease";
@@ -335,6 +336,91 @@ describe(CreateLease.name, () => {
       });
     });
 
+    it("tracks create_lease with deployment resource amounts", async () => {
+      const analyticsService = mock<AppDIContainer["analyticsService"]>();
+      const dseq = "456";
+      await setupLeaseCreation({
+        dseq,
+        deploymentDetail: { cpuAmount: 2, gpuAmount: 0, memoryAmount: 2_147_483_648, storageAmount: 10_737_418_240 },
+        analyticsService
+      });
+
+      await vi.waitFor(() => {
+        expect(screen.getByRole<HTMLButtonElement>("button", { name: /Accept Bid/i })).not.toBeDisabled();
+      });
+
+      await userEvent.click(screen.getByRole<HTMLButtonElement>("button", { name: /Accept Bid/i }));
+
+      await vi.waitFor(() => {
+        expect(analyticsService.track).toHaveBeenCalledWith("create_lease", {
+          category: "deployments",
+          label: "Create lease",
+          dseq,
+          cpuAmount: 2,
+          gpuAmount: 0,
+          memoryAmount: 2_147_483_648,
+          storageAmount: 10_737_418_240
+        });
+        expect(analyticsService.track).not.toHaveBeenCalledWith("create_gpu_deployment", expect.anything());
+      });
+    });
+
+    it("tracks create_gpu_deployment alongside create_lease when GPU is allocated", async () => {
+      const analyticsService = mock<AppDIContainer["analyticsService"]>();
+      const dseq = "789";
+      await setupLeaseCreation({
+        dseq,
+        deploymentDetail: { cpuAmount: 4, gpuAmount: 2, memoryAmount: 17_179_869_184, storageAmount: 53_687_091_200 },
+        analyticsService
+      });
+
+      await vi.waitFor(() => {
+        expect(screen.getByRole<HTMLButtonElement>("button", { name: /Accept Bid/i })).not.toBeDisabled();
+      });
+
+      await userEvent.click(screen.getByRole<HTMLButtonElement>("button", { name: /Accept Bid/i }));
+
+      const expectedProps = {
+        category: "deployments",
+        label: "Create lease",
+        dseq,
+        cpuAmount: 4,
+        gpuAmount: 2,
+        memoryAmount: 17_179_869_184,
+        storageAmount: 53_687_091_200
+      };
+
+      await vi.waitFor(() => {
+        expect(analyticsService.track).toHaveBeenCalledWith("create_lease", expectedProps);
+        expect(analyticsService.track).toHaveBeenCalledWith("create_gpu_deployment", expectedProps);
+      });
+    });
+
+    it("falls back to zero resource amounts on create_lease when deployment detail is unavailable", async () => {
+      const analyticsService = mock<AppDIContainer["analyticsService"]>();
+      const dseq = "321";
+      await setupLeaseCreation({ dseq, deploymentDetail: null, analyticsService });
+
+      await vi.waitFor(() => {
+        expect(screen.getByRole<HTMLButtonElement>("button", { name: /Accept Bid/i })).not.toBeDisabled();
+      });
+
+      await userEvent.click(screen.getByRole<HTMLButtonElement>("button", { name: /Accept Bid/i }));
+
+      await vi.waitFor(() => {
+        expect(analyticsService.track).toHaveBeenCalledWith("create_lease", {
+          category: "deployments",
+          label: "Create lease",
+          dseq,
+          cpuAmount: 0,
+          gpuAmount: 0,
+          memoryAmount: 0,
+          storageAmount: 0
+        });
+        expect(analyticsService.track).not.toHaveBeenCalledWith("create_gpu_deployment", expect.anything());
+      });
+    });
+
     async function setupLeaseCreation(input?: {
       bids?: RpcBid[];
       signAndBroadcastTx?: () => Promise<void>;
@@ -344,6 +430,8 @@ describe(CreateLease.name, () => {
       selectedProvider?: ApiProviderDetail;
       genNewCertificateIfLocalIsInvalid?: () => Promise<CertificatePem | null>;
       updateSelectedCertificate?: (cert: CertificatePem) => Promise<LocalCert>;
+      deploymentDetail?: Partial<DeploymentDto> | null;
+      analyticsService?: AppDIContainer["analyticsService"];
     }) {
       const providers = [input?.selectedProvider ?? buildProvider(), buildProvider(), buildProvider()];
       const bids = input?.bids ?? [
@@ -415,6 +503,8 @@ describe(CreateLease.name, () => {
     getBlock?: () => Promise<BlockDetail>;
     isBlockchainDown?: boolean;
     storedDeployment?: LocalDeploymentData;
+    deploymentDetail?: Partial<DeploymentDto> | null;
+    analyticsService?: AppDIContainer["analyticsService"];
   }) {
     const favoriteProviders: string[] = [];
     const useLocalNotes = (() => ({
@@ -432,7 +522,7 @@ describe(CreateLease.name, () => {
             mock<AppDIContainer["providerProxy"]>({
               sendManifest: input?.sendManifest ?? (() => Promise.resolve({}))
             }),
-          analyticsService: () => mock<AppDIContainer["analyticsService"]>(),
+          analyticsService: () => input?.analyticsService ?? mock<AppDIContainer["analyticsService"]>(),
           errorHandler: () => mock<AppDIContainer["errorHandler"]>(),
           chainApiHttpClient: () =>
             mock<AppDIContainer["chainApiHttpClient"]>({
@@ -515,6 +605,11 @@ describe(CreateLease.name, () => {
                     } as LocalCert))
               }) as unknown as CertificateContextType,
             useLocalNotes,
+            useDeploymentDetail: (() =>
+              mock<ReturnType<typeof useDeploymentDetail>>({
+                data: input?.deploymentDetail ? (input.deploymentDetail as DeploymentDto) : null,
+                refetch: vi.fn()
+              })) as unknown as (typeof CREATE_LEASE_DEPENDENCIES)["useDeploymentDetail"],
             useRouter: () => mock(),
             useManagedDeploymentConfirm: () => ({
               closeDeploymentConfirm: () => Promise.resolve(true)
