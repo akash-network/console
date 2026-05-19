@@ -7,9 +7,9 @@ import { mock } from "vitest-mock-extended";
 import { Session } from "@src/lib/auth0";
 import type { NextApiRequestWithServices } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import { REQ_SERVICES_KEY } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
+import handler from "@src/pages/api/auth/email-code-verify";
 import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
 import type { SessionService } from "@src/services/session/session.service";
-import handler from "./email-code-verify";
 
 describe("POST /api/auth/email-code-verify", () => {
   it("returns 204 after register-user + setSession on success", async () => {

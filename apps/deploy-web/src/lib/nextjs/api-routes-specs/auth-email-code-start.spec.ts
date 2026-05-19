@@ -6,9 +6,9 @@ import { mock } from "vitest-mock-extended";
 
 import type { NextApiRequestWithServices } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import { REQ_SERVICES_KEY } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
+import handler from "@src/pages/api/auth/email-code-start";
 import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
 import type { SessionService } from "@src/services/session/session.service";
-import handler from "./email-code-start";
 
 describe("POST /api/auth/email-code-start", () => {
   it("returns 204 on successful start", async () => {

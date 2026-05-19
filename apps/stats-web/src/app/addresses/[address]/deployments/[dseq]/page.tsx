@@ -24,9 +24,14 @@ const DeploymentDetailPageSchema = z.object({
     network: networkId
   })
 });
-type DeploymentDetailPageProps = z.infer<typeof DeploymentDetailPageSchema>;
+type ParsedDeploymentDetailProps = z.infer<typeof DeploymentDetailPageSchema>;
+type DeploymentDetailPageProps = {
+  params: Promise<ParsedDeploymentDetailProps["params"]>;
+  searchParams: Promise<ParsedDeploymentDetailProps["searchParams"]>;
+};
 
-export async function generateMetadata({ params: { address, dseq } }: DeploymentDetailPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: DeploymentDetailPageProps): Promise<Metadata> {
+  const { address, dseq } = await params;
   const url = `https://stats.akash.network${UrlService.deployment(address, dseq)}`;
 
   return {
@@ -55,10 +60,11 @@ async function fetchDeploymentData(address: string, dseq: string, network: Netwo
 }
 
 export default async function DeploymentDetailPage(props: DeploymentDetailPageProps) {
+  const [params, searchParams] = await Promise.all([props.params, props.searchParams]);
   const {
     params: { address, dseq },
     searchParams: { network }
-  } = DeploymentDetailPageSchema.parse(props);
+  } = DeploymentDetailPageSchema.parse({ params, searchParams });
   const deployment = await fetchDeploymentData(address, dseq, network);
 
   if (!deployment) {

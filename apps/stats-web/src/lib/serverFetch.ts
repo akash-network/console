@@ -8,8 +8,8 @@ import { errorHandler } from "@/services/di";
  *
  * @returns Record of headers to forward (cf-connecting-ip and/or x-forwarded-for)
  */
-export function getIpForwardingHeaders(): Headers {
-  const requestHeaders = headers();
+export async function getIpForwardingHeaders(): Promise<Headers> {
+  const requestHeaders = await headers();
   const headersToForward = new Headers();
 
   const cfConnectingIp = requestHeaders.get("cf-connecting-ip");
@@ -51,7 +51,7 @@ export function getTraceparentHeaders(): Headers {
  * @returns Promise<Response>
  */
 export async function serverFetch(url: string, init?: RequestInit): Promise<Response> {
-  const ipHeaders = getIpForwardingHeaders();
+  const ipHeaders = await getIpForwardingHeaders();
   const traceHeaders = getTraceparentHeaders();
   const mergedHeaders = new Headers(init?.headers);
 

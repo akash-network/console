@@ -5,7 +5,8 @@ import { AddressDeployments } from "./AddressDeployments";
 
 import { UrlService } from "@/lib/urlUtils";
 
-export async function generateMetadata({ params: { address } }: IProps): Promise<Metadata> {
+export async function generateMetadata({ params }: IProps): Promise<Metadata> {
+  const { address } = await params;
   const url = `https://stats.akash.network${UrlService.addressDeployments(address)}`;
 
   return {
@@ -20,11 +21,12 @@ export async function generateMetadata({ params: { address } }: IProps): Promise
 }
 
 interface IProps {
-  params: { address: string };
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: Promise<{ address: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default async function AddressDeploymentsPage({ params: { address } }: IProps) {
+export default async function AddressDeploymentsPage({ params }: IProps) {
+  const { address } = await params;
   return (
     <AddressLayout page="deployments" address={address}>
       <div className="mt-4">

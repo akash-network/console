@@ -12,5 +12,14 @@ module.exports = {
         ]
       }
     ]
-  }
+  },
+  overrides: [
+    {
+      files: ["tests/ui/**/*.ts", "tests/ui/**/*.tsx"],
+      rules: {
+        // Playwright fixtures destructure a `use` callback that the react-hooks rule misreads as the React `use` hook.
+        "react-hooks/rules-of-hooks": "off"
+      }
+    }
+  ]
 };
