@@ -100,7 +100,7 @@ describe(TrialValidationService.name, () => {
       ).resolves.toBeUndefined();
     });
 
-    it("rejects lease with 403 when bid GPU is in the blocked-set", async () => {
+    it("rejects lease with 402 when bid GPU is in the blocked-set", async () => {
       const wallet = createUserWallet({ isTrialing: true });
       const { service } = setupGpu({
         blockedGpuModels: ["nvidia/h100"],
@@ -110,7 +110,7 @@ describe(TrialValidationService.name, () => {
       await expect(
         service.validateLeaseGpuModels([createLeaseMessage({ dseq: "111", gseq: 1, oseq: 1, bseq: 1, provider: "akash1prov" })], wallet)
       ).rejects.toMatchObject({
-        status: 403,
+        status: 402,
         message: expect.stringContaining("nvidia/h100")
       });
     });
@@ -159,12 +159,12 @@ describe(TrialValidationService.name, () => {
       await expect(service.validateDeploymentGpuModels([createDeploymentMessageWithGpu("nvidia", "rtx-4090")], wallet)).resolves.toBeUndefined();
     });
 
-    it("rejects deployment with 403 when requested GPU is in the blocked-set", async () => {
+    it("rejects deployment with 402 when requested GPU is in the blocked-set", async () => {
       const wallet = createUserWallet({ isTrialing: true });
       const { service } = setupGpu({ blockedGpuModels: ["nvidia/h100"] });
 
       await expect(service.validateDeploymentGpuModels([createDeploymentMessageWithGpu("nvidia", "h100")], wallet)).rejects.toMatchObject({
-        status: 403,
+        status: 402,
         message: expect.stringContaining("nvidia/h100")
       });
     });

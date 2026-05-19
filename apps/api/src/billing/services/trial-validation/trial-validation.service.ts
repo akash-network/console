@@ -105,7 +105,7 @@ export class TrialValidationService {
       if (blocked.length === 0) continue;
 
       const blockedList = blocked.map(({ vendor, model }) => `${vendor}/${model}`).join(", ");
-      assert(false, 403, `GPU not available on free trial: Add credits to your account to use ${blockedList}`);
+      assert(false, 402, `${blockedList} not available on free trial: Add credits to your account to deploy`);
     }
   }
 
@@ -145,7 +145,7 @@ export class TrialValidationService {
       if (blocked.length === 0) continue;
 
       const blockedList = blocked.map(({ vendor, model }) => `${vendor}/${model}`).join(", ");
-      assert(false, 403, `GPU not available on free trial: Add credits to your account to use ${blockedList}`);
+      assert(false, 402, `${blockedList} not available on free trial: Add credits to your account to deploy`);
     }
   }
 

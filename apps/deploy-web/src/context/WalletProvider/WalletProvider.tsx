@@ -298,7 +298,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       if (isHttpError(err) && err.response?.status !== 500) {
         const [title, message] = err.response?.data?.message?.split(": ") ?? [];
-        showTransactionSnackbar(title || message || "Error", message, "", "error");
+        const variant = err.response?.status === 402 ? "warning" : "error";
+        showTransactionSnackbar(title || message || "Error", message, "", variant);
       } else {
         const transactionHash = err.txHash;
         let errorMsg = "An error has occurred";
