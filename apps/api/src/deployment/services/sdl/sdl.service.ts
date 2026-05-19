@@ -14,7 +14,7 @@ export class SdlService {
     this.#config = config;
   }
 
-  generateManifest(rawSDL: string): GenerateManifestResult {
+  generateManifest(rawSDL: string, options: { isTrialing?: boolean } = {}): GenerateManifestResult {
     let potentiallyInvalidSDL: SDLInput;
 
     try {
@@ -45,7 +45,7 @@ export class SdlService {
     }
 
     const blockedGpuModels = this.#config.MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS;
-    if (blockedGpuModels && blockedGpuModels.length > 0) {
+    if (options.isTrialing && blockedGpuModels && blockedGpuModels.length > 0) {
       const blockedRequested = findBlockedGpus(extractRequestedGpusFromSdl(potentiallyInvalidSDL), toBlockedGpuSet(blockedGpuModels));
       if (blockedRequested.length > 0) {
         const blockedList = blockedRequested.map(({ vendor, model }) => `${vendor}/${model}`).join(", ");

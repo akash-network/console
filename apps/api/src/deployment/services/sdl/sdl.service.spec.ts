@@ -329,8 +329,8 @@ describe(SdlService.name, () => {
       });
     });
 
-    it("rejects SDL that requests a blocked GPU model", () => {
-      const { result } = setup({ sdl: SDL_WITH_GPU("nvidia", "h100"), blockedGpuModels: ["nvidia/h100"] });
+    it("rejects SDL that requests a blocked GPU model for trialing wallets", () => {
+      const { result } = setup({ sdl: SDL_WITH_GPU("nvidia", "h100"), blockedGpuModels: ["nvidia/h100"], isTrialing: true });
 
       expect(result).toMatchObject({
         ok: false,
@@ -338,20 +338,26 @@ describe(SdlService.name, () => {
       });
     });
 
+    it("does not enforce blocked GPU models for non-trialing wallets", () => {
+      const { result } = setup({ sdl: SDL_WITH_GPU("nvidia", "h100"), blockedGpuModels: ["nvidia/h100"], isTrialing: false });
+
+      expect(result.ok).toBe(true);
+    });
+
     it("allows SDL that requests a non-blocked GPU model", () => {
-      const { result } = setup({ sdl: SDL_WITH_GPU("nvidia", "rtx-4090"), blockedGpuModels: ["nvidia/h100"] });
+      const { result } = setup({ sdl: SDL_WITH_GPU("nvidia", "rtx-4090"), blockedGpuModels: ["nvidia/h100"], isTrialing: true });
 
       expect(result.ok).toBe(true);
     });
 
     it("does not enforce GPU block when the configured set is empty", () => {
-      const { result } = setup({ sdl: SDL_WITH_GPU("nvidia", "h100"), blockedGpuModels: [] });
+      const { result } = setup({ sdl: SDL_WITH_GPU("nvidia", "h100"), blockedGpuModels: [], isTrialing: true });
 
       expect(result.ok).toBe(true);
     });
   });
 
-  function setup(input?: { sdl?: string; allowedAuditors?: string[]; deploymentGrantDenom?: string; blockedGpuModels?: string[] }) {
+  function setup(input?: { sdl?: string; allowedAuditors?: string[]; deploymentGrantDenom?: string; blockedGpuModels?: string[]; isTrialing?: boolean }) {
     const config = {
       DEPLOYMENT_GRANT_DENOM: input?.deploymentGrantDenom ?? "uakt",
       MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: input?.allowedAuditors ?? [],
@@ -359,7 +365,7 @@ describe(SdlService.name, () => {
     } as BillingConfig;
 
     const service = new SdlService(config);
-    const result = service.generateManifest(input?.sdl ?? VALID_SDL);
+    const result = service.generateManifest(input?.sdl ?? VALID_SDL, { isTrialing: input?.isTrialing });
 
     return { service, result };
   }

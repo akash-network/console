@@ -123,6 +123,18 @@ describe(TrialValidationService.name, () => {
 
       expect(bidHttpService.list).not.toHaveBeenCalled();
     });
+
+    it("rejects with 403 when the referenced bid cannot be resolved", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupGpu({ blockedGpuModels: ["nvidia/h100"] });
+
+      await expect(
+        service.validateLeaseGpuModels([createLeaseMessage({ dseq: "111", gseq: 1, oseq: 1, bseq: 1, provider: "akash1prov" })], wallet)
+      ).rejects.toMatchObject({
+        status: 403,
+        message: expect.stringContaining("Referenced lease bid not found")
+      });
+    });
   });
 
   function createDeploymentMessage(): EncodeObject {

@@ -108,7 +108,11 @@ export class TrialValidationService {
       const bid = bids.find(
         b => b.bid.id.gseq === bidId.gseq && b.bid.id.oseq === bidId.oseq && b.bid.id.provider === bidId.provider && b.bid.id.bseq === bidId.bseq
       );
-      if (!bid) continue;
+      assert(
+        bid,
+        403,
+        `Referenced lease bid not found: dseq=${bidId.dseq}, gseq=${bidId.gseq}, oseq=${bidId.oseq}, provider=${bidId.provider}, bseq=${bidId.bseq}`
+      );
 
       const blocked = findBlockedGpus(extractRequestedGpusFromBid(bid), blockedSet);
       if (blocked.length === 0) continue;
