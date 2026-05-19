@@ -4,7 +4,7 @@ export const helloWorldManifest = `
 
   services:
     web:
-      image: baktun/hello-akash-world:1.0.0
+      image: ghcr.io/akash-network/hello-akash-world:2.1.0
       expose:
         - port: 3000
           as: 80
