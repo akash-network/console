@@ -131,7 +131,7 @@ describe(DiscoverySchedulerService.name, () => {
 
     const logger = mock<ReturnType<LoggerFactory>>();
     const loggerFactory: LoggerFactory = () => logger;
-    const config: EnvConfig = {
+    const config = {
       PROVIDER_INVENTORY_POSTGRES_URL: "postgres://localhost/test",
       DRIZZLE_MIGRATIONS_FOLDER: "./drizzle",
       LOG_LEVEL: "info",
@@ -142,7 +142,7 @@ describe(DiscoverySchedulerService.name, () => {
       STREAM_RECONNECT_MAX_DELAY_MS: 300_000,
       STREAM_FIRST_MESSAGE_TIMEOUT_MS: 10_000,
       REST_API_NODE_URL: "http://localhost:1317"
-    };
+    } as EnvConfig;
 
     if (input?.pollError) {
       const error = input.pollError;
