@@ -1,7 +1,7 @@
 import { context, propagation, trace } from "@opentelemetry/api";
 
-import type { LoggerOptions } from "../../services/logger/logger.service";
 import { LoggerService } from "../../services/logger/logger.service";
+import type { CreateLogger } from "../../types";
 
 /**
  * Collects OpenTelemetry span context for logging
@@ -27,6 +27,6 @@ export function collectOtel() {
  * @param options - Optional logger configuration options
  * @returns LoggerService instance configured with OTEL mixin
  */
-export function createOtelLogger(options?: LoggerOptions): LoggerService {
+export const createOtelLogger: CreateLogger = options => {
   return new LoggerService({ ...options, mixin: collectOtel });
-}
+};

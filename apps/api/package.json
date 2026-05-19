@@ -100,7 +100,7 @@
     "semver": "^7.3.8",
     "sequelize": "^6.21.3",
     "sequelize-typescript": "^2.1.5",
-    "sql-formatter": "^15.3.2",
+    "sql-formatter": "~15.7.4",
     "stripe": "^19.3.0",
     "tar": "^6.2.1",
     "ts-results": "^3.3.0",

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { LoggerService } from "../../services/logger/logger.service";
+import type { LoggerService } from "../logger/logger.service";
 import { HttpLoggerInterceptor } from "./http-logger.service";
 
 describe(HttpLoggerInterceptor.name, () => {

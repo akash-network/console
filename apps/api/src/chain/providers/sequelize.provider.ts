@@ -1,6 +1,7 @@
 /* v8 ignore start */
 import { chainModels } from "@akashnetwork/database/dbSchemas";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
+import { PostgresLoggerService } from "@akashnetwork/logging/sql";
 import pg from "pg";
 import { Transaction as DbTransaction } from "sequelize";
 import { Sequelize } from "sequelize-typescript";
@@ -11,20 +12,24 @@ import { ChainConfigService } from "@src/chain/services/chain-config/chain-confi
 import { DisposableRegistry } from "@src/core/lib/disposable-registry/disposable-registry";
 import type { AppInitializer } from "@src/core/providers/app-initializer";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
-import { LoggerService } from "@src/core/providers/logging.provider";
+import type { LoggerService } from "@src/core/providers/logging.provider";
+import { LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
-import { PostgresLoggerService } from "@src/core/services/postgres-logger/postgres-logger.service";
 
 const SEQUELIZE_LOGGER = Symbol("SEQUELIZE_LOGGER") as InjectionToken<PostgresLoggerService>;
 container.register(SEQUELIZE_LOGGER, {
   useFactory: instancePerContainerCachingFactory(c => {
-    return new PostgresLoggerService({ orm: "sequelize", useFormat: c.resolve(CoreConfigService).get("SQL_LOG_FORMAT") === "pretty" });
+    return new PostgresLoggerService(c.resolve(LOGGER_FACTORY), {
+      orm: "sequelize",
+      useFormat: c.resolve(CoreConfigService).get("SQL_LOG_FORMAT") === "pretty"
+    });
   })
 });
 
 export const CHAIN_DB = Symbol("CHAIN_DB") as InjectionToken<Sequelize>;
 
 pg.defaults.parseInt8 = true;
+const EMPTY_ARRAY = Object.freeze([]);
 container.register(CHAIN_DB, {
   useFactory: instancePerContainerCachingFactory(c => {
     const logger = c.resolve(SEQUELIZE_LOGGER);
@@ -37,7 +42,7 @@ container.register(CHAIN_DB, {
         connectionTimeoutMillis: config.get("SEQUELIZE_CONNECTION_TIMEOUT"),
         keepAlive: config.get("SEQUELIZE_KEEP_ALIVE")
       },
-      logging: msg => logger.write(msg),
+      logging: msg => logger.logQuery(msg.replace(/^Executing \(default\):/, ""), EMPTY_ARRAY as never[]),
       logQueryParameters: true,
       transactionType: DbTransaction.TYPES.IMMEDIATE,
       define: { timestamps: false, freezeTableName: true },
@@ -59,7 +64,7 @@ container.register(APP_INITIALIZER, {
   useFactory: instancePerContainerCachingFactory(c => {
     return {
       async [ON_APP_START]() {
-        await connectUsingSequelize(c.resolve(LoggerService));
+        await connectUsingSequelize(c.resolve(LOGGER_FACTORY)({ context: "DB_INIT" }));
       }
     } satisfies AppInitializer;
   })

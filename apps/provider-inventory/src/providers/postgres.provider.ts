@@ -1,12 +1,12 @@
-import { createOtelLogger } from "@akashnetwork/logging/otel";
 import postgres from "postgres";
 import type { InjectionToken } from "tsyringe";
 import { container, instancePerContainerCachingFactory } from "tsyringe";
 
 import { parseJsonb, serializeJsonb } from "@src/lib/jsonb-bigint/jsonb-bigint";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
+import { LOGGER_FACTORY } from "./logger-factory.provider";
 
-const logger = createOtelLogger({ context: "POSTGRES" });
+const logger = container.resolve(LOGGER_FACTORY)({ context: "POSTGRES" });
 
 const APP_PG_CLIENT = Symbol("APP_PG_CLIENT") as InjectionToken<postgres.Sql>;
 
