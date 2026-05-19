@@ -1,5 +1,6 @@
 import { GroupSpec, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
+import { BidHttpService } from "@akashnetwork/http-sdk";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
@@ -9,6 +10,7 @@ import { BillingConfigService } from "@src/billing/services/billing-config/billi
 import { Trace } from "@src/core/services/tracing/tracing.service";
 import { AUDITOR, TRIAL_ATTRIBUTE, TRIAL_REGISTERED_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
+import { extractRequestedGpusFromBid, findBlockedGpus, toBlockedGpuSet } from "@src/deployment/utils/blocked-gpu/blocked-gpu";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import type { UserOutput } from "@src/user/repositories";
 
@@ -19,7 +21,8 @@ export class TrialValidationService {
   constructor(
     private readonly deploymentReaderService: DeploymentReaderService,
     private readonly config: BillingConfigService,
-    private readonly providerRepository: ProviderRepository
+    private readonly providerRepository: ProviderRepository,
+    private readonly bidHttpService: BidHttpService
   ) {}
 
   async validateTrialLimit(decoded: EncodeObject, userWallet: UserWalletOutput) {
@@ -61,16 +64,10 @@ export class TrialValidationService {
       return;
     }
 
-    const leaseMessages = messages
-      .filter(message => message.typeUrl === `/${MsgCreateLease.$type}`)
-      .map(message => (message.value as MsgCreateLease).bidId?.provider)
-      .filter((provider): provider is string => !!provider);
+    const bidIds = this.getLeaseBidIds(messages);
+    if (bidIds.length === 0) return;
 
-    if (leaseMessages.length === 0) {
-      return;
-    }
-
-    const uniqueProviderAddresses = Array.from(new Set(leaseMessages));
+    const uniqueProviderAddresses = Array.from(new Set(bidIds.map(id => id.provider)));
     const providers = await this.providerRepository.getProvidersByAddressesWithAttributes(uniqueProviderAddresses);
     const providerMap = new Map(providers.map(provider => [provider.owner, provider]));
 
@@ -83,6 +80,49 @@ export class TrialValidationService {
 
       assert(isAuditedByAllowedAuditor, 403, `Provider not authorized.`);
     }
+  }
+
+  @Trace()
+  async validateLeaseGpuModels(messages: EncodeObject[], userWallet: UserWalletOutput) {
+    if (!userWallet.isTrialing) return;
+
+    const blockedGpuModels = this.config.get("MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS");
+    if (blockedGpuModels.length === 0) return;
+
+    const leaseBidIds = this.getLeaseBidIds(messages);
+    if (leaseBidIds.length === 0) return;
+
+    const uniqueDseqs = Array.from(new Set(leaseBidIds.map(id => id.dseq.toString())));
+    const owner = userWallet.address!;
+    const blockedSet = toBlockedGpuSet(blockedGpuModels);
+
+    const bidsByDseq = new Map<string, Awaited<ReturnType<BidHttpService["list"]>>>();
+    await Promise.all(
+      uniqueDseqs.map(async dseq => {
+        bidsByDseq.set(dseq, await this.bidHttpService.list(owner, dseq));
+      })
+    );
+
+    for (const bidId of leaseBidIds) {
+      const bids = bidsByDseq.get(bidId.dseq.toString()) ?? [];
+      const bid = bids.find(
+        b => b.bid.id.gseq === bidId.gseq && b.bid.id.oseq === bidId.oseq && b.bid.id.provider === bidId.provider && b.bid.id.bseq === bidId.bseq
+      );
+      if (!bid) continue;
+
+      const blocked = findBlockedGpus(extractRequestedGpusFromBid(bid), blockedSet);
+      if (blocked.length === 0) continue;
+
+      const blockedList = blocked.map(({ vendor, model }) => `${vendor}/${model}`).join(", ");
+      assert(false, 403, `GPU model not available on free trial: ${blockedList}`);
+    }
+  }
+
+  private getLeaseBidIds(messages: EncodeObject[]): NonNullable<MsgCreateLease["bidId"]>[] {
+    return messages
+      .filter(message => message.typeUrl === `/${MsgCreateLease.$type}`)
+      .map(message => (message.value as MsgCreateLease).bidId)
+      .filter((id): id is NonNullable<MsgCreateLease["bidId"]> => !!id);
   }
 
   private validateAttribute(groups: GroupSpec[], key: string) {

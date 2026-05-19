@@ -1,5 +1,6 @@
 import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
+import type { BidHttpService } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { mock } from "vitest-mock-extended";
 
@@ -8,6 +9,8 @@ import type { DeploymentReaderService } from "@src/deployment/services/deploymen
 import type { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import { TrialValidationService } from "./trial-validation.service";
 
+import { mockConfigService } from "@test/mocks/config-service.mock";
+import { createBid } from "@test/seeders/bid.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(TrialValidationService.name, () => {
@@ -66,6 +69,62 @@ describe(TrialValidationService.name, () => {
     });
   });
 
+  describe("validateLeaseGpuModels", () => {
+    it("skips validation when wallet is not trialing", async () => {
+      const wallet = createUserWallet({ isTrialing: false });
+      const { service, bidHttpService } = setupGpu({ blockedGpuModels: ["nvidia/h100"] });
+
+      await service.validateLeaseGpuModels([createLeaseMessage()], wallet);
+
+      expect(bidHttpService.list).not.toHaveBeenCalled();
+    });
+
+    it("skips validation when blocked-set is empty", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service, bidHttpService } = setupGpu({ blockedGpuModels: [] });
+
+      await service.validateLeaseGpuModels([createLeaseMessage()], wallet);
+
+      expect(bidHttpService.list).not.toHaveBeenCalled();
+    });
+
+    it("allows lease when bid GPU is not in the blocked-set", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupGpu({
+        blockedGpuModels: ["nvidia/h100"],
+        bid: createBidWithGpu("nvidia", "rtx-4090", { dseq: "111", gseq: 1, oseq: 1, bseq: 1, provider: "akash1prov" })
+      });
+
+      await expect(
+        service.validateLeaseGpuModels([createLeaseMessage({ dseq: "111", gseq: 1, oseq: 1, bseq: 1, provider: "akash1prov" })], wallet)
+      ).resolves.toBeUndefined();
+    });
+
+    it("rejects lease with 403 when bid GPU is in the blocked-set", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupGpu({
+        blockedGpuModels: ["nvidia/h100"],
+        bid: createBidWithGpu("nvidia", "h100", { dseq: "111", gseq: 1, oseq: 1, bseq: 1, provider: "akash1prov" })
+      });
+
+      await expect(
+        service.validateLeaseGpuModels([createLeaseMessage({ dseq: "111", gseq: 1, oseq: 1, bseq: 1, provider: "akash1prov" })], wallet)
+      ).rejects.toMatchObject({
+        status: 403,
+        message: expect.stringContaining("nvidia/h100")
+      });
+    });
+
+    it("passes when there are no MsgCreateLease messages", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service, bidHttpService } = setupGpu({ blockedGpuModels: ["nvidia/h100"] });
+
+      await service.validateLeaseGpuModels([createDeploymentMessage()], wallet);
+
+      expect(bidHttpService.list).not.toHaveBeenCalled();
+    });
+  });
+
   function createDeploymentMessage(): EncodeObject {
     return {
       typeUrl: `/${MsgCreateDeployment.$type}`,
@@ -73,12 +132,54 @@ describe(TrialValidationService.name, () => {
     };
   }
 
+  function createLeaseMessage(bidId?: { dseq?: string; gseq?: number; oseq?: number; bseq?: number; provider?: string; owner?: string }): EncodeObject {
+    return {
+      typeUrl: `/${MsgCreateLease.$type}`,
+      value: MsgCreateLease.fromPartial({
+        bidId: {
+          owner: bidId?.owner ?? "akash1owner",
+          dseq: bidId?.dseq ?? "111",
+          gseq: bidId?.gseq ?? 1,
+          oseq: bidId?.oseq ?? 1,
+          bseq: bidId?.bseq ?? 1,
+          provider: bidId?.provider ?? "akash1prov"
+        }
+      })
+    };
+  }
+
+  function createBidWithGpu(
+    vendor: string,
+    model: string,
+    ids: { dseq: string; gseq: number; oseq: number; bseq: number; provider: string }
+  ): ReturnType<typeof createBid> {
+    const bid = createBid({ dseq: ids.dseq, gseq: ids.gseq, oseq: ids.oseq, bseq: ids.bseq, provider: ids.provider });
+    bid.bid.resources_offer[0].resources.gpu = {
+      units: { val: "1" },
+      attributes: [{ key: `vendor/${vendor}/model/${model}`, value: "true" }]
+    };
+    return bid;
+  }
+
   function setup(input: { count: number }) {
     const deploymentReaderService = mock<DeploymentReaderService>();
     deploymentReaderService.listWithResources.mockResolvedValue({ count: input.count, results: [] });
     const config = mock<BillingConfigService>();
     const providerRepository = mock<ProviderRepository>();
-    const service = new TrialValidationService(deploymentReaderService, config, providerRepository);
-    return { service, deploymentReaderService, config, providerRepository };
+    const bidHttpService = mock<BidHttpService>();
+    const service = new TrialValidationService(deploymentReaderService, config, providerRepository, bidHttpService);
+    return { service, deploymentReaderService, config, providerRepository, bidHttpService };
+  }
+
+  function setupGpu(input: { blockedGpuModels: string[]; bid?: ReturnType<typeof createBid> }) {
+    const deploymentReaderService = mock<DeploymentReaderService>();
+    const config = mockConfigService<BillingConfigService>({
+      MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: input.blockedGpuModels
+    });
+    const providerRepository = mock<ProviderRepository>();
+    const bidHttpService = mock<BidHttpService>();
+    bidHttpService.list.mockResolvedValue(input.bid ? [input.bid] : []);
+    const service = new TrialValidationService(deploymentReaderService, config, providerRepository, bidHttpService);
+    return { service, deploymentReaderService, config, providerRepository, bidHttpService };
   }
 });

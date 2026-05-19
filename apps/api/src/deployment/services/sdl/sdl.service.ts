@@ -4,6 +4,7 @@ import { YAMLException } from "js-yaml";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { extractRequestedGpusFromSdl, findBlockedGpus, toBlockedGpuSet } from "@src/deployment/utils/blocked-gpu/blocked-gpu";
 
 @singleton()
 export class SdlService {
@@ -41,6 +42,26 @@ export class SdlService {
     const allowedAuditors = this.#config.MANAGED_WALLET_LEASE_ALLOWED_AUDITORS;
     if (allowedAuditors && allowedAuditors.length > 0) {
       this.#appendAuditorRequirement(sdlPlacement, allowedAuditors);
+    }
+
+    const blockedGpuModels = this.#config.MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS;
+    if (blockedGpuModels && blockedGpuModels.length > 0) {
+      const blockedRequested = findBlockedGpus(extractRequestedGpusFromSdl(potentiallyInvalidSDL), toBlockedGpuSet(blockedGpuModels));
+      if (blockedRequested.length > 0) {
+        const blockedList = blockedRequested.map(({ vendor, model }) => `${vendor}/${model}`).join(", ");
+        return {
+          ok: false,
+          value: [
+            {
+              schemaPath: "",
+              instancePath: "/profiles/compute",
+              keyword: "gpu",
+              params: { blocked: blockedRequested },
+              message: `GPU model not available on free trial: ${blockedList}`
+            }
+          ]
+        };
+      }
     }
 
     const result = generateManifest(potentiallyInvalidSDL);

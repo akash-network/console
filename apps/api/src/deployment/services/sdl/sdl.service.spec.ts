@@ -163,6 +163,45 @@ deployment:
       count: 1
 `;
 
+const SDL_WITH_GPU = (vendor: string, model: string) => `
+version: "2.0"
+services:
+  web:
+    image: nginx
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          size: 1Gi
+        gpu:
+          units: 1
+          attributes:
+            vendor:
+              ${vendor}:
+                - model: ${model}
+  placement:
+    westcoast:
+      pricing:
+        web:
+          denom: uakt
+          amount: 1000
+deployment:
+  web:
+    westcoast:
+      profile: web
+      count: 1
+`;
+
 const SDL_WITH_VARS = `
 version: "2.0"
 services:
@@ -289,12 +328,34 @@ describe(SdlService.name, () => {
         value: [expect.objectContaining({ message: expect.stringContaining("bad indentation") })]
       });
     });
+
+    it("rejects SDL that requests a blocked GPU model", () => {
+      const { result } = setup({ sdl: SDL_WITH_GPU("nvidia", "h100"), blockedGpuModels: ["nvidia/h100"] });
+
+      expect(result).toMatchObject({
+        ok: false,
+        value: [expect.objectContaining({ message: expect.stringContaining("nvidia/h100") })]
+      });
+    });
+
+    it("allows SDL that requests a non-blocked GPU model", () => {
+      const { result } = setup({ sdl: SDL_WITH_GPU("nvidia", "rtx-4090"), blockedGpuModels: ["nvidia/h100"] });
+
+      expect(result.ok).toBe(true);
+    });
+
+    it("does not enforce GPU block when the configured set is empty", () => {
+      const { result } = setup({ sdl: SDL_WITH_GPU("nvidia", "h100"), blockedGpuModels: [] });
+
+      expect(result.ok).toBe(true);
+    });
   });
 
-  function setup(input?: { sdl?: string; allowedAuditors?: string[]; deploymentGrantDenom?: string }) {
+  function setup(input?: { sdl?: string; allowedAuditors?: string[]; deploymentGrantDenom?: string; blockedGpuModels?: string[] }) {
     const config = {
       DEPLOYMENT_GRANT_DENOM: input?.deploymentGrantDenom ?? "uakt",
-      MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: input?.allowedAuditors ?? []
+      MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: input?.allowedAuditors ?? [],
+      MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: input?.blockedGpuModels ?? []
     } as BillingConfig;
 
     const service = new SdlService(config);

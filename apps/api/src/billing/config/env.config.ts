@@ -36,6 +36,17 @@ export const envSchema = z.object({
     .string()
     .default(AUDITOR)
     .transform(val => (val ? val.split(",").map(addr => addr.trim()) : [])),
+  MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: z
+    .string()
+    .default("nvidia/h100,nvidia/h200,nvidia/b200")
+    .transform(val =>
+      val
+        ? val
+            .split(",")
+            .map(entry => entry.trim().toLowerCase())
+            .filter(Boolean)
+        : []
+    ),
   MASTER_WALLET_TARGET_ACT_BALANCE: z.number({ coerce: true }).default(10_000_000_000),
   TX_SIGNER_BASE_URL: z.string()
 });
