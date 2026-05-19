@@ -13,7 +13,6 @@ import { useSnackbar } from "notistack";
 
 import type { LoadingState } from "@src/components/layout/TransactionModal";
 import { TransactionModal } from "@src/components/layout/TransactionModal";
-import { AddFundsLink } from "@src/components/user/AddFundsLink";
 import { useAllowance } from "@src/hooks/useAllowance";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useSelectedChain } from "@src/hooks/useSelectedChain/useSelectedChain";
@@ -424,15 +423,17 @@ export function useIsManagedWalletUser() {
 const SUPPORT_EMAIL = "support@akash.network";
 
 const AddCreditsSnackbarContent: React.FC<{ message?: string }> = ({ message }) => {
+  const { analyticsService } = useServices();
   return (
     <>
       {message && <div>{message}</div>}
-      <AddFundsLink
-        className={cn("mt-2 inline-flex h-7 items-center px-3 text-xs", buttonVariants({ variant: "default" }))}
+      <Link
         href={UrlService.billing({ openPayment: true })}
+        className={cn("mt-2 inline-flex h-7 items-center px-3 text-xs", buttonVariants({ variant: "default" }))}
+        onClick={() => analyticsService.track("add_funds_btn_clk")}
       >
         Add Funds
-      </AddFundsLink>
+      </Link>
     </>
   );
 };
