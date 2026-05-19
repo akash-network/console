@@ -13,11 +13,12 @@ import type { SnapshotsUrlParam } from "@/types";
 import { Snapshots } from "@/types";
 
 interface IGraphProps {
-  params: { snapshot: string };
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: Promise<{ snapshot: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export async function generateMetadata({ params: { snapshot: snapshotUrlParam } }: IGraphProps): Promise<Metadata> {
+export async function generateMetadata({ params }: IGraphProps): Promise<Metadata> {
+  const { snapshot: snapshotUrlParam } = await params;
   const snapshot = urlParamToSnapshot(snapshotUrlParam as SnapshotsUrlParam);
   const title = getTitle(snapshot as Snapshots);
 
@@ -26,7 +27,8 @@ export async function generateMetadata({ params: { snapshot: snapshotUrlParam } 
   };
 }
 
-export default function GraphPage({ params: { snapshot: snapshotUrlParam } }: IGraphProps) {
+export default async function GraphPage({ params }: IGraphProps) {
+  const { snapshot: snapshotUrlParam } = await params;
   const snapshot = urlParamToSnapshot(snapshotUrlParam as SnapshotsUrlParam);
   const title = getTitle(snapshot as Snapshots);
 

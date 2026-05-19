@@ -8,9 +8,9 @@ import { mock } from "vitest-mock-extended";
 import type { Session } from "@src/lib/auth0";
 import type { NextApiRequestWithServices } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import { REQ_SERVICES_KEY } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
+import handler from "@src/pages/api/proxy/[...path]";
 import type { ApiUrlService } from "@src/services/api-url/api-url.service";
 import { services } from "@src/services/app-di-container/server-di-container.service";
-import handler from "./[...path]";
 
 describe("proxy [...path] handler", () => {
   it("forwards Bearer token when session has accessToken", async () => {
@@ -60,7 +60,6 @@ describe("proxy [...path] handler", () => {
       cookies: {},
       socket: mock<Socket>({ remoteAddress: "127.0.0.1" })
     });
-    // assigned post-construction so unknown header lookups return undefined; vitest-mock-extended deep-mocks override values
     req.headers = {};
     const res = mock<NextApiResponse>();
 

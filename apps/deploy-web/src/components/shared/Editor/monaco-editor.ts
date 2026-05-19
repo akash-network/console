@@ -119,8 +119,8 @@ import "monaco-editor/esm/vs/editor/contrib/inPlaceReplace/browser/inPlaceReplac
 // 15) Standalone strings + icons + platform helpers (standalone UX polish)
 // ============================================================================
 import "monaco-editor/esm/vs/editor/common/standaloneStrings.js"; // Localized strings for standalone editor UI
-import "monaco-editor/esm/vs//base/browser/ui/codicons/codicon/codicon.css"; // Codicon base icon font CSS (as requested with vs/editor prefix)
-import "monaco-editor/esm/vs//base/browser/ui/codicons/codicon/codicon-modifiers.css"; // Codicon modifiers CSS
+import "monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.css"; // Codicon base icon font CSS
+import "monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon-modifiers.css"; // Codicon modifiers CSS
 import "monaco-editor/esm/vs/editor/standalone/browser/iPadShowKeyboard/iPadShowKeyboard.js"; // iPad/iOS Safari keyboard focus workaround
 // import 'monaco-editor/esm/vs/editor/standalone/browser/inspectTokens/inspectTokens.js'; // “Inspect Tokens” dev tool (token inspection UI)
 // import 'monaco-editor/esm/vs/editor/standalone/browser/quickAccess/standaloneHelpQuickAccess.js'; // Quick access: help

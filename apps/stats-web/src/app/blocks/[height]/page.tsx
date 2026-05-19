@@ -25,9 +25,14 @@ const BlockDetailPageSchema = z.object({
     network: networkId
   })
 });
-type BlockDetailPageProps = z.infer<typeof BlockDetailPageSchema>;
+type ParsedBlockDetailProps = z.infer<typeof BlockDetailPageSchema>;
+type BlockDetailPageProps = {
+  params: Promise<ParsedBlockDetailProps["params"]>;
+  searchParams: Promise<ParsedBlockDetailProps["searchParams"]>;
+};
 
-export async function generateMetadata({ params: { height } }: BlockDetailPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: BlockDetailPageProps): Promise<Metadata> {
+  const { height } = await params;
   return {
     title: `Block #${height}`
   };
@@ -49,10 +54,11 @@ async function fetchBlockData(height: string, network: Network["id"]): Promise<B
 }
 
 export default async function BlockDetailPage(props: BlockDetailPageProps) {
+  const [params, searchParams] = await Promise.all([props.params, props.searchParams]);
   const {
     params: { height },
     searchParams: { network }
-  } = BlockDetailPageSchema.parse(props);
+  } = BlockDetailPageSchema.parse({ params, searchParams });
   const block = await fetchBlockData(height, network);
 
   if (!block) {

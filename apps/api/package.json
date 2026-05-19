@@ -130,7 +130,7 @@
     "@vitest/coverage-v8": "^4.1.5",
     "drizzle-kit": "^0.22.7",
     "eslint": "^8.57.0",
-    "eslint-config-next": "^14.2.3",
+    "eslint-config-next": "^15.5.18",
     "eslint-plugin-simple-import-sort": "^12.1.0",
     "nock": "^14.0.11",
     "openapi3-ts": "^4.5.0",

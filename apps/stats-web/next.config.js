@@ -27,9 +27,6 @@ const nextConfig = {
     ignoreDuringBuilds: true
   },
   transpilePackages: ["geist", "@akashnetwork/ui"],
-  experimental: {
-    instrumentationHook: true
-  },
   /**
    *
    * @param {import('webpack').Configuration} config
