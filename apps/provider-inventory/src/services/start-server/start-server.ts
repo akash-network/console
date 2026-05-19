@@ -44,7 +44,9 @@ export async function startServer(
   });
   try {
     await options.beforeStart?.();
-    await Promise.all(container.resolveAll(APP_INITIALIZER).map(initializer => initializer[ON_APP_START]()));
+    if (container.isRegistered(APP_INITIALIZER, true)) {
+      await Promise.all(container.resolveAll(APP_INITIALIZER).map(initializer => initializer[ON_APP_START]()));
+    }
 
     logger.info({ event: "SERVER_STARTING", url: `http://localhost:${options.port}`, NODE_OPTIONS: process.env.NODE_OPTIONS });
     server = serve({

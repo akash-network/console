@@ -167,6 +167,7 @@ describe("startServer", () => {
     const logger = mock<LoggerService>();
     const processEvents = new EventEmitter();
     const container = mock<DependencyContainer>({
+      isRegistered: vi.fn().mockReturnValue(true),
       resolveAll: vi.fn().mockReturnValue(input?.initializers ?? [])
     });
 
