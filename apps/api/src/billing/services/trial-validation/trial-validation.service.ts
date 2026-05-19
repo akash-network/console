@@ -10,7 +10,12 @@ import { BillingConfigService } from "@src/billing/services/billing-config/billi
 import { Trace } from "@src/core/services/tracing/tracing.service";
 import { AUDITOR, TRIAL_ATTRIBUTE, TRIAL_REGISTERED_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
-import { extractRequestedGpusFromBid, findBlockedGpus, toBlockedGpuSet } from "@src/deployment/utils/blocked-gpu/blocked-gpu";
+import {
+  extractRequestedGpusFromBid,
+  extractRequestedGpusFromGroupSpecs,
+  findBlockedGpus,
+  toBlockedGpuSet
+} from "@src/deployment/utils/blocked-gpu/blocked-gpu";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import type { UserOutput } from "@src/user/repositories";
 
@@ -79,6 +84,28 @@ export class TrialValidationService {
       const isAuditedByAllowedAuditor = providerAuditors.some(auditor => allowedAuditors.includes(auditor));
 
       assert(isAuditedByAllowedAuditor, 403, `Provider not authorized.`);
+    }
+  }
+
+  @Trace()
+  async validateDeploymentGpuModels(messages: EncodeObject[], userWallet: UserWalletOutput) {
+    if (!userWallet.isTrialing) return;
+
+    const blockedGpuModels = this.config.get("MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS");
+    if (blockedGpuModels.length === 0) return;
+
+    const deploymentMessages = messages.filter(message => message.typeUrl === `/${MsgCreateDeployment.$type}`);
+    if (deploymentMessages.length === 0) return;
+
+    const blockedSet = toBlockedGpuSet(blockedGpuModels);
+
+    for (const message of deploymentMessages) {
+      const groups = (message.value as MsgCreateDeployment).groups;
+      const blocked = findBlockedGpus(extractRequestedGpusFromGroupSpecs(groups), blockedSet);
+      if (blocked.length === 0) continue;
+
+      const blockedList = blocked.map(({ vendor, model }) => `${vendor}/${model}`).join(", ");
+      assert(false, 403, `GPU model not available on free trial: ${blockedList}`);
     }
   }
 

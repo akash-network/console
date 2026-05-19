@@ -109,6 +109,7 @@ export class ManagedSignerService {
     await this.#validateBalances(userWallet, messages);
     await Promise.all([
       this.anonymousValidateService.validateLeaseProvidersAuditors(messages, userWallet),
+      this.anonymousValidateService.validateDeploymentGpuModels(messages, userWallet),
       this.anonymousValidateService.validateLeaseGpuModels(messages, userWallet)
     ]);
 

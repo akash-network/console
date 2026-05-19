@@ -1,6 +1,7 @@
 import type { SDLInput } from "@akashnetwork/chain-sdk";
+import type { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 
-import { extractRequestedGpusFromSdl, findBlockedGpus, toBlockedGpuSet } from "./blocked-gpu";
+import { extractRequestedGpusFromGroupSpecs, extractRequestedGpusFromSdl, findBlockedGpus, toBlockedGpuSet } from "./blocked-gpu";
 
 describe("blocked-gpu helpers", () => {
   describe("extractRequestedGpusFromSdl", () => {
@@ -47,6 +48,40 @@ describe("blocked-gpu helpers", () => {
       const sdl = buildSdl({ gpu: { web: [{ vendor: "nvidia", models: [{}, { model: "h100" }] as unknown as { model: string }[] }] } });
 
       expect(extractRequestedGpusFromSdl(sdl)).toEqual([{ vendor: "nvidia", model: "h100" }]);
+    });
+  });
+
+  describe("extractRequestedGpusFromGroupSpecs", () => {
+    it("returns empty when groups is missing or empty", () => {
+      expect(extractRequestedGpusFromGroupSpecs(null)).toEqual([]);
+      expect(extractRequestedGpusFromGroupSpecs([])).toEqual([]);
+    });
+
+    it("parses vendor/model from on-chain attribute keys", () => {
+      const groups = buildGroupSpecs([
+        [{ key: "vendor/nvidia/model/h100", value: "true" }],
+        [{ key: "vendor/nvidia/model/a100/ram/80Gi/interface/sxm", value: "true" }]
+      ]);
+
+      expect(extractRequestedGpusFromGroupSpecs(groups)).toEqual([
+        { vendor: "nvidia", model: "h100" },
+        { vendor: "nvidia", model: "a100" }
+      ]);
+    });
+
+    it("ignores attributes where value !== 'true'", () => {
+      const groups = buildGroupSpecs([[{ key: "vendor/nvidia/model/h100", value: "false" }]]);
+      expect(extractRequestedGpusFromGroupSpecs(groups)).toEqual([]);
+    });
+
+    it("ignores keys missing vendor or model", () => {
+      const groups = buildGroupSpecs([
+        [
+          { key: "model/h100", value: "true" },
+          { key: "vendor/nvidia", value: "true" }
+        ]
+      ]);
+      expect(extractRequestedGpusFromGroupSpecs(groups)).toEqual([]);
     });
   });
 
@@ -108,4 +143,25 @@ function buildSdl(input: { gpu?: Record<string, GpuEntry[]> }): SDLInput {
     deployment: {},
     services: {}
   } as SDLInput;
+}
+
+function buildGroupSpecs(resourceAttrs: { key: string; value: string }[][]): GroupSpec[] {
+  return [
+    {
+      name: "test",
+      requirements: undefined,
+      resources: resourceAttrs.map(attrs => ({
+        resource: {
+          id: 1,
+          cpu: undefined,
+          memory: undefined,
+          storage: [],
+          gpu: { units: { val: "1" }, attributes: attrs },
+          endpoints: []
+        },
+        count: 1,
+        price: undefined
+      }))
+    } as unknown as GroupSpec
+  ];
 }

@@ -137,10 +137,75 @@ describe(TrialValidationService.name, () => {
     });
   });
 
+  describe("validateDeploymentGpuModels", () => {
+    it("skips validation when wallet is not trialing", async () => {
+      const wallet = createUserWallet({ isTrialing: false });
+      const { service } = setupGpu({ blockedGpuModels: ["nvidia/h100"] });
+
+      await expect(service.validateDeploymentGpuModels([createDeploymentMessageWithGpu("nvidia", "h100")], wallet)).resolves.toBeUndefined();
+    });
+
+    it("skips validation when blocked-set is empty", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupGpu({ blockedGpuModels: [] });
+
+      await expect(service.validateDeploymentGpuModels([createDeploymentMessageWithGpu("nvidia", "h100")], wallet)).resolves.toBeUndefined();
+    });
+
+    it("allows deployment when requested GPU is not in the blocked-set", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupGpu({ blockedGpuModels: ["nvidia/h100"] });
+
+      await expect(service.validateDeploymentGpuModels([createDeploymentMessageWithGpu("nvidia", "rtx-4090")], wallet)).resolves.toBeUndefined();
+    });
+
+    it("rejects deployment with 403 when requested GPU is in the blocked-set", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupGpu({ blockedGpuModels: ["nvidia/h100"] });
+
+      await expect(service.validateDeploymentGpuModels([createDeploymentMessageWithGpu("nvidia", "h100")], wallet)).rejects.toMatchObject({
+        status: 403,
+        message: expect.stringContaining("nvidia/h100")
+      });
+    });
+
+    it("passes when there are no MsgCreateDeployment messages", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupGpu({ blockedGpuModels: ["nvidia/h100"] });
+
+      await expect(service.validateDeploymentGpuModels([createLeaseMessage()], wallet)).resolves.toBeUndefined();
+    });
+  });
+
   function createDeploymentMessage(): EncodeObject {
     return {
       typeUrl: `/${MsgCreateDeployment.$type}`,
       value: MsgCreateDeployment.fromPartial({})
+    };
+  }
+
+  function createDeploymentMessageWithGpu(vendor: string, model: string): EncodeObject {
+    return {
+      typeUrl: `/${MsgCreateDeployment.$type}`,
+      value: MsgCreateDeployment.fromPartial({
+        groups: [
+          {
+            name: "test",
+            resources: [
+              {
+                resource: {
+                  id: 1,
+                  gpu: {
+                    units: { val: new Uint8Array([1]) },
+                    attributes: [{ key: `vendor/${vendor}/model/${model}`, value: "true" }]
+                  }
+                },
+                count: 1
+              }
+            ]
+          }
+        ]
+      })
     };
   }
 

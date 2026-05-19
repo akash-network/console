@@ -1,4 +1,5 @@
 import type { SDLInput } from "@akashnetwork/chain-sdk";
+import type { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import type { Bid } from "@akashnetwork/http-sdk";
 
 export interface RequestedGpu {
@@ -24,6 +25,20 @@ export function extractRequestedGpusFromSdl(sdl: SDLInput | null | undefined): R
         if (!entry?.model) continue;
         results.push({ vendor: vendor.toLowerCase(), model: String(entry.model).toLowerCase() });
       }
+    }
+  }
+
+  return results;
+}
+
+export function extractRequestedGpusFromGroupSpecs(groups: GroupSpec[] | null | undefined): RequestedGpu[] {
+  if (!groups?.length) return [];
+
+  const results: RequestedGpu[] = [];
+
+  for (const group of groups) {
+    for (const resourceUnit of group.resources ?? []) {
+      results.push(...extractGpusFromAttributes(resourceUnit.resource?.gpu?.attributes ?? []));
     }
   }
 
