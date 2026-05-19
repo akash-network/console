@@ -57,7 +57,7 @@ export class SdlService {
               instancePath: "/profiles/compute",
               keyword: "gpu",
               params: { blocked: blockedRequested },
-              message: `${blockedList} not available on free trial: Add funds to unlock`
+              message: `${blockedList} not available on free trial: Add funds to unlock GPU access`
             }
           ]
         };

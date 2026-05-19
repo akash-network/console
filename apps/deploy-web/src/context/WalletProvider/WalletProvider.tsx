@@ -375,10 +375,13 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const showAddCreditsSnackbar = (snackTitle: string, snackMessage: string) => {
-    enqueueSnackbar(<Snackbar title={snackTitle} subTitle={<AddCreditsSnackbarContent message={snackMessage} />} iconVariant="warning" />, {
-      variant: "warning",
-      autoHideDuration: 10000
-    });
+    const key = enqueueSnackbar(
+      <Snackbar title={snackTitle} subTitle={<AddCreditsSnackbarContent message={snackMessage} onAction={() => closeSnackbar(key)} />} iconVariant="warning" />,
+      {
+        variant: "warning",
+        autoHideDuration: 10000
+      }
+    );
   };
 
   return (
@@ -422,7 +425,7 @@ export function useIsManagedWalletUser() {
 
 const SUPPORT_EMAIL = "support@akash.network";
 
-const AddCreditsSnackbarContent: React.FC<{ message?: string }> = ({ message }) => {
+const AddCreditsSnackbarContent: React.FC<{ message?: string; onAction?: () => void }> = ({ message, onAction }) => {
   const { analyticsService } = useServices();
   return (
     <>
@@ -430,7 +433,10 @@ const AddCreditsSnackbarContent: React.FC<{ message?: string }> = ({ message }) 
       <Link
         href={UrlService.billing({ openPayment: true })}
         className={cn("mt-2 inline-flex h-7 items-center px-3 text-xs", buttonVariants({ variant: "default" }))}
-        onClick={() => analyticsService.track("add_funds_btn_clk")}
+        onClick={() => {
+          analyticsService.track("add_funds_btn_clk");
+          onAction?.();
+        }}
       >
         Add Funds
       </Link>

@@ -106,7 +106,7 @@ export class TrialValidationService {
       if (blocked.length === 0) continue;
 
       const blockedList = blocked.map(formatGpuLabel).join(", ");
-      assert(false, 402, `${blockedList} not available on free trial: Add funds to unlock`);
+      assert(false, 402, `${blockedList} not available on free trial: Add funds to unlock GPU access`);
     }
   }
 
@@ -146,7 +146,7 @@ export class TrialValidationService {
       if (blocked.length === 0) continue;
 
       const blockedList = blocked.map(formatGpuLabel).join(", ");
-      assert(false, 402, `${blockedList} not available on free trial: Add funds to unlock`);
+      assert(false, 402, `${blockedList} not available on free trial: Add funds to unlock GPU access`);
     }
   }
 
