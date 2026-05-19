@@ -7,7 +7,6 @@ export const testEnvSchema = z.object({
     .string()
     .default("http://localhost:3000")
     .transform(url => url.replace(/\/+$/, "")),
-  TEST_WALLET_MNEMONIC: z.string(),
   NETWORK_ID: z.enum(["mainnet", "sandbox", "testnet"]).default("sandbox"),
   USER_DATA_DIR: z.string().default(path.join(tmpdir(), "akash-console-web-ui-tests", crypto.randomUUID())),
   E2E_TESTING_CLIENT_TOKEN: z.string({
@@ -24,7 +23,7 @@ export const testEnvSchema = z.object({
 
 export const testEnvConfig = testEnvSchema.parse({
   BASE_URL: process.env.BASE_URL,
-  TEST_WALLET_MNEMONIC: process.env.TEST_WALLET_MNEMONIC,
+  NETWORK_ID: process.env.NETWORK_ID,
   USER_DATA_DIR: process.env.USER_DATA_DIR,
   E2E_TESTING_CLIENT_TOKEN: process.env.E2E_TESTING_CLIENT_TOKEN,
   AUTH0_M2M_DOMAIN: process.env.AUTH0_M2M_DOMAIN,
