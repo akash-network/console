@@ -162,6 +162,127 @@ export class SessionService {
     return response.data.data;
   }
 
+  async startEmailCode(input: {
+    email: string;
+  }): Promise<
+    Result<
+      void,
+      | { code: "invalid_email"; message: string; cause: unknown }
+      | { code: "rate_limited"; message: string; retryAfter: number; cause: unknown }
+      | { code: "unknown"; message: string; cause: unknown }
+    >
+  > {
+    const oauthIssuerUrl = new URL(this.#config.ISSUER_BASE_URL);
+
+    const response = await this.#externalHttpClient.post(
+      `${oauthIssuerUrl.origin}/passwordless/start`,
+      {
+        client_id: this.#config.CLIENT_ID,
+        client_secret: this.#config.CLIENT_SECRET,
+        connection: "email",
+        email: input.email,
+        send: "code"
+      },
+      { validateStatus: notServerError }
+    );
+
+    if (response.status >= 200 && response.status < 300) {
+      return Ok(undefined);
+    }
+
+    if (response.status === 429) {
+      return Err({
+        code: "rate_limited",
+        message: "Too many attempts. Please try again later.",
+        retryAfter: retryAfterFromHeaders(response.headers),
+        cause: extractResponseDetails(response)
+      });
+    }
+
+    if (response.status === 400 && response.data?.error === "bad.email") {
+      return Err({
+        code: "invalid_email",
+        message: response.data.error_description || "Invalid email.",
+        cause: extractResponseDetails(response)
+      });
+    }
+
+    return Err({
+      code: "unknown",
+      message: response.data?.error_description || "Unable to send code.",
+      cause: extractResponseDetails(response)
+    });
+  }
+
+  async verifyEmailCode(input: {
+    email: string;
+    code: string;
+  }): Promise<
+    Result<
+      Session,
+      | { code: "invalid_code"; message: string; cause: unknown }
+      | { code: "rate_limited"; message: string; retryAfter: number; cause: unknown }
+      | { code: "unknown"; message: string; cause: unknown }
+    >
+  > {
+    const oauthIssuerUrl = new URL(this.#config.ISSUER_BASE_URL);
+
+    const tokenResponse = await this.#externalHttpClient.post(
+      `${oauthIssuerUrl.origin}/oauth/token`,
+      {
+        grant_type: "http://auth0.com/oauth/grant-type/passwordless/otp",
+        client_id: this.#config.CLIENT_ID,
+        client_secret: this.#config.CLIENT_SECRET,
+        realm: "email",
+        username: input.email,
+        otp: input.code,
+        scope: "openid profile email offline_access",
+        audience: this.#config.AUDIENCE || undefined
+      },
+      { validateStatus: notServerError }
+    );
+
+    if (tokenResponse.status === 429) {
+      return Err({
+        code: "rate_limited",
+        message: "Too many attempts. Please try again later.",
+        retryAfter: retryAfterFromHeaders(tokenResponse.headers),
+        cause: extractResponseDetails(tokenResponse)
+      });
+    }
+
+    if (tokenResponse.status >= 400) {
+      if (tokenResponse.data?.error === "invalid_grant") {
+        return Err({
+          code: "invalid_code",
+          message: tokenResponse.data.error_description,
+          cause: extractResponseDetails(tokenResponse)
+        });
+      }
+      return Err({
+        code: "unknown",
+        message: tokenResponse.data?.error_description || "Verification failed.",
+        cause: extractResponseDetails(tokenResponse)
+      });
+    }
+
+    const { id_token, access_token, scope, expires_in, expires_at, refresh_token, ...remainder } = tokenResponse.data;
+    const claims = getClaimsFromToken(id_token);
+    const session = Object.assign(
+      new Session(claims),
+      {
+        accessToken: access_token,
+        accessTokenScope: scope,
+        accessTokenExpiresAt: Math.floor(Date.now() / 1000) + Number(expires_in),
+        refreshToken: refresh_token,
+        idToken: id_token
+      },
+      remainder
+    );
+
+    return Ok(session);
+  }
+
   async sendPasswordResetEmail(input: {
     email: string;
   }): Promise<Result<void, { code: "too_many_requests"; message: string; retryAfter: number } | { code: "unknown"; message: string; cause: unknown }>> {
@@ -183,7 +304,7 @@ export class SessionService {
       return Err({
         message: "Too many requests. Please try again later.",
         code: "too_many_requests",
-        retryAfter: parseInt(auth0Response.headers["x-ratelimit-reset"] || "0", 10)
+        retryAfter: retryAfterFromHeaders(auth0Response.headers)
       });
     }
 
@@ -204,6 +325,13 @@ export interface OauthConfig {
 
 function notServerError(status: number) {
   return status >= 200 && status < 500;
+}
+
+/** Auth0's `x-ratelimit-reset` is a Unix epoch timestamp; consumers want "seconds until retry". */
+function retryAfterFromHeaders(headers: AxiosResponse["headers"]): number {
+  const resetAt = parseInt(headers["x-ratelimit-reset"] || "0", 10);
+  if (!Number.isFinite(resetAt) || resetAt <= 0) return 0;
+  return Math.max(0, resetAt - Math.floor(Date.now() / 1000));
 }
 
 const IDENTITY_CLAIM_FILTER = new Set(["aud", "iss", "iat", "exp", "nbf", "nonce", "azp", "auth_time", "s_hash", "at_hash", "c_hash"]);

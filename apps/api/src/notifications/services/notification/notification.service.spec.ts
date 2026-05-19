@@ -163,7 +163,7 @@ describe(NotificationService.name, () => {
   });
 
   describe("autoEnableDeploymentAlert", () => {
-    it("creates default channel when no channels exist, then upserts alert", async () => {
+    it("creates default channel when no channels exist, then upserts only the deployment-closed alert", async () => {
       const { service, api, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
@@ -171,7 +171,7 @@ describe(NotificationService.name, () => {
       api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
       api.v1.upsertDeploymentAlert.mockResolvedValue({} as never);
 
-      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: 1000000 });
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
 
       expect(api.v1.listNotificationChannels).toHaveBeenCalledTimes(2);
       expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalled();
@@ -180,7 +180,6 @@ describe(NotificationService.name, () => {
           dseq: "123",
           data: {
             alerts: {
-              deploymentBalance: { notificationChannelId: "channel-1", enabled: true, threshold: 300000 },
               deploymentClosed: { notificationChannelId: "channel-1", enabled: true }
             }
           }
@@ -198,10 +197,7 @@ describe(NotificationService.name, () => {
       api.v1.createDefaultNotificationChannel.mockRejectedValue(new ApiError(409, { code: "ALREADY_EXISTS" }, "POST /v1/notification-channels/default → 409"));
       api.v1.upsertDeploymentAlert.mockResolvedValue({} as never);
 
-      await Promise.all([
-        service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: 1000000 }),
-        jest.runAllTimersAsync()
-      ]);
+      await Promise.all([service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" }), jest.runAllTimersAsync()]);
 
       expect(api.v1.listNotificationChannels).toHaveBeenCalledTimes(2);
       expect(api.v1.upsertDeploymentAlert).toHaveBeenCalled();
@@ -216,7 +212,7 @@ describe(NotificationService.name, () => {
       api.v1.listNotificationChannels.mockResolvedValue({ data: [{ id: "channel-1" }] } as never);
       api.v1.upsertDeploymentAlert.mockResolvedValue({} as never);
 
-      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: 1000000 });
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
 
       expect(api.v1.listNotificationChannels).toHaveBeenCalledTimes(1);
       expect(api.v1.createDefaultNotificationChannel).not.toHaveBeenCalled();
@@ -228,7 +224,7 @@ describe(NotificationService.name, () => {
 
       userRepository.findById.mockResolvedValue({ id: "user-1", email: null } as UserOutput);
 
-      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: 1000000 });
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
 
       expect(api.v1.listNotificationChannels).not.toHaveBeenCalled();
       expect(api.v1.createDefaultNotificationChannel).not.toHaveBeenCalled();
@@ -240,7 +236,7 @@ describe(NotificationService.name, () => {
 
       userRepository.findById.mockResolvedValue(undefined);
 
-      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: 1000000 });
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
 
       expect(api.v1.listNotificationChannels).not.toHaveBeenCalled();
       expect(api.v1.createDefaultNotificationChannel).not.toHaveBeenCalled();
@@ -254,32 +250,9 @@ describe(NotificationService.name, () => {
       api.v1.listNotificationChannels.mockResolvedValue({ data: [] } as never);
       api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
 
-      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: 1000000 });
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
 
       expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalled();
-      expect(api.v1.upsertDeploymentAlert).not.toHaveBeenCalled();
-    });
-
-    it("skips when threshold would be 0", async () => {
-      const { service, api, userRepository } = setup();
-
-      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
-      api.v1.listNotificationChannels.mockResolvedValue({ data: [{ id: "channel-1" }] } as never);
-
-      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: 0 });
-
-      expect(api.v1.createDefaultNotificationChannel).not.toHaveBeenCalled();
-      expect(api.v1.upsertDeploymentAlert).not.toHaveBeenCalled();
-    });
-
-    it("skips when escrow balance is NaN", async () => {
-      const { service, api, userRepository } = setup();
-
-      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
-      api.v1.listNotificationChannels.mockResolvedValue({ data: [{ id: "channel-1" }] } as never);
-
-      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: NaN });
-
       expect(api.v1.upsertDeploymentAlert).not.toHaveBeenCalled();
     });
   });

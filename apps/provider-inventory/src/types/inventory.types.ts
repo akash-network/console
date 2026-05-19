@@ -60,15 +60,7 @@ export interface MatchResult {
 export interface BidScreeningResult {
   owner: string;
   hostUri: string;
-  region: string | null;
-  uptime7d: number | null;
   isAudited: boolean;
 }
 
-export type ToJSON<T> = T extends Uint8Array
-  ? string
-  : T extends object
-    ? { -readonly [K in keyof T]: ToJSON<Exclude<T[K], undefined>> }
-    : T extends bigint
-      ? string
-      : T;
+export type ToJSON<T> = T extends Uint8Array ? bigint : T extends object ? { -readonly [K in keyof T]: ToJSON<Exclude<T[K], undefined>> } : T;

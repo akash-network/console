@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { setSession } from "@src/lib/auth0/setSession/setSession";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import { verifyCaptcha } from "@src/middleware/verify-captcha/verify-captcha";
 
@@ -48,7 +47,7 @@ export default defineApiHandler({
     });
 
     if (result.ok) {
-      await setSession(req, res, result.val);
+      await services.setSession(req, res, result.val);
       res.status(204).end();
       return;
     }

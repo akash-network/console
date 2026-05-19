@@ -125,4 +125,34 @@ describe(parseQuantity.name, () => {
       expect(parseQuantity({ string: unsafe.toString() })).toBe(unsafe);
     });
   });
+
+  describe("with multiplier (pre-truncation scaling)", () => {
+    it("scales 500m to 500 with multiplier 1000n", () => {
+      expect(parseQuantity({ string: "500m" }, 1000n)).toBe(500n);
+    });
+
+    it("scales 1500m to 1500 with multiplier 1000n", () => {
+      expect(parseQuantity({ string: "1500m" }, 1000n)).toBe(1500n);
+    });
+
+    it("scales integer cores to millicores with multiplier 1000n", () => {
+      expect(parseQuantity({ string: "2" }, 1000n)).toBe(2000n);
+    });
+
+    it("scales fractional cores to millicores with multiplier 1000n", () => {
+      expect(parseQuantity({ string: "0.5" }, 1000n)).toBe(500n);
+    });
+
+    it("scales binary fractional values before truncation", () => {
+      expect(parseQuantity({ string: "1.5Ki" }, 1000n)).toBe(1536000n);
+    });
+
+    it("scales negative millicore values", () => {
+      expect(parseQuantity({ string: "-500m" }, 1000n)).toBe(-500n);
+    });
+
+    it("scales decimal-exponent millicore equivalents", () => {
+      expect(parseQuantity({ string: "5e-3" }, 1000n)).toBe(5n);
+    });
+  });
 });

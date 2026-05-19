@@ -2759,6 +2759,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "key": {
                               "description": "Attribute key",
                               "example": "persistent",
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
                               "type": "string",
                             },
                             "value": {
@@ -2834,6 +2837,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                       "key": {
                                         "description": "Attribute key",
                                         "example": "persistent",
+                                        "maxLength": 128,
+                                        "minLength": 1,
+                                        "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
                                         "type": "string",
                                       },
                                       "value": {
@@ -2853,9 +2859,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "units": {
                                   "properties": {
                                     "val": {
-                                      "description": "String-encoded integer value",
-                                      "example": "1000",
-                                      "pattern": "^\\d+$",
+                                      "maxLength": 80,
                                       "type": "string",
                                     },
                                   },
@@ -2867,7 +2871,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               },
                               "required": [
                                 "units",
-                                "attributes",
                               ],
                               "type": "object",
                             },
@@ -2885,6 +2888,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                       "key": {
                                         "description": "Attribute key",
                                         "example": "persistent",
+                                        "maxLength": 128,
+                                        "minLength": 1,
+                                        "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
                                         "type": "string",
                                       },
                                       "value": {
@@ -2904,9 +2910,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "units": {
                                   "properties": {
                                     "val": {
-                                      "description": "String-encoded integer value",
-                                      "example": "1000",
-                                      "pattern": "^\\d+$",
+                                      "maxLength": 80,
                                       "type": "string",
                                     },
                                   },
@@ -2918,7 +2922,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               },
                               "required": [
                                 "units",
-                                "attributes",
                               ],
                               "type": "object",
                             },
@@ -2935,6 +2938,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                       "key": {
                                         "description": "Attribute key",
                                         "example": "persistent",
+                                        "maxLength": 128,
+                                        "minLength": 1,
+                                        "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
                                         "type": "string",
                                       },
                                       "value": {
@@ -2954,9 +2960,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "quantity": {
                                   "properties": {
                                     "val": {
-                                      "description": "String-encoded integer value",
-                                      "example": "1000",
-                                      "pattern": "^\\d+$",
+                                      "maxLength": 80,
                                       "type": "string",
                                     },
                                   },
@@ -2968,7 +2972,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               },
                               "required": [
                                 "quantity",
-                                "attributes",
                               ],
                               "type": "object",
                             },
@@ -2981,6 +2984,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                         "key": {
                                           "description": "Attribute key",
                                           "example": "persistent",
+                                          "maxLength": 128,
+                                          "minLength": 1,
+                                          "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
                                           "type": "string",
                                         },
                                         "value": {
@@ -3005,9 +3011,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   "quantity": {
                                     "properties": {
                                       "val": {
-                                        "description": "String-encoded integer value",
-                                        "example": "1000",
-                                        "pattern": "^\\d+$",
+                                        "maxLength": 80,
                                         "type": "string",
                                       },
                                     },
@@ -3020,7 +3024,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "required": [
                                   "name",
                                   "quantity",
-                                  "attributes",
                                 ],
                                 "type": "object",
                               },

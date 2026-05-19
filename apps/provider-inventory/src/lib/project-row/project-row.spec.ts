@@ -58,7 +58,7 @@ describe(projectRow.name, () => {
     expect(result.maxNodeFreeCpu).toBe(4000n);
     expect(result.maxNodeFreeMemory).toBe(8_000_000_000n);
     expect(result.maxNodeFreeGpu).toBe(2n);
-    expect(result.gpuModels).toEqual(["nvidia/a100"]);
+    expect(result.gpuModels).toEqual(["nvidia", "nvidia/a100"]);
     expect(result.storageClasses).toEqual(["beta2"]);
   });
 
@@ -101,7 +101,7 @@ describe(projectRow.name, () => {
       })
     );
 
-    expect(result.gpuModels).toEqual(["amd/mi300x", "nvidia/a100"]);
+    expect(result.gpuModels).toEqual(["amd", "amd/mi300x", "nvidia", "nvidia/a100"]);
   });
 
   it("handles ephemeral-only storage", () => {
@@ -170,7 +170,7 @@ describe(projectRow.name, () => {
 
     expect(result.maxNodeFreeGpu).toBe(5n);
     expect(result.totalAvailableGpu).toBe(9n);
-    expect(result.gpuModels).toEqual(["nvidia/a100", "nvidia/h100"]);
+    expect(result.gpuModels).toEqual(["nvidia", "nvidia/a100", "nvidia/h100"]);
   });
 });
 

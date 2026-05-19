@@ -15,7 +15,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
-      exclude: ["src/**/*.spec.ts", "src/**/*.d.ts", "src/server.ts", "src/**/index.ts"],
+      exclude: ["src/**/*.spec.ts", "src/**/*.integration.ts", "src/**/*.d.ts", "src/server.ts", "src/**/index.ts"],
       reportsDirectory: "./coverage"
     },
     reporters: ["default", "junit"],
@@ -32,11 +32,21 @@ export default defineConfig({
       {
         extends: true,
         test: {
+          name: "integration",
+          include: ["src/**/*.integration.ts"],
+          setupFiles: ["./test/setup-integration-env.ts", "./test/setup-integration-tests.ts"],
+          testTimeout: 10_000,
+          hookTimeout: 10_000
+        }
+      },
+      {
+        extends: true,
+        test: {
           name: "functional",
           include: ["test/functional/**/*.spec.ts"],
           setupFiles: ["./test/setup-functional-env.ts", "./test/setup-functional-tests.ts"],
-          testTimeout: 60_000,
-          hookTimeout: 30_000
+          testTimeout: 20_000,
+          hookTimeout: 10_000
         }
       }
     ]

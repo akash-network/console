@@ -63,7 +63,7 @@ export function AuthLayoutV2({ children, topRightContent, dependencies: d = DEPE
         </footer>
       </div>
 
-      <div className="relative z-10 flex w-full flex-1 items-center justify-center overflow-y-auto px-3 py-4 lg:p-0 dark:bg-[#0a0a0a]">{children}</div>
+      <div className="relative z-10 flex w-full flex-1 items-center justify-center overflow-y-auto bg-white px-3 py-4 lg:p-0 dark:bg-[#0a0a0a]">{children}</div>
     </div>
   );
 }
