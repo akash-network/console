@@ -31,8 +31,6 @@ export class BidScreeningRepository {
       .select({
         owner: providerInventory.owner,
         hostUri: providerInventory.hostUri,
-        ipRegion: providerInventory.ipRegion,
-        uptime7d: providerInventory.uptime7d,
         inventory: providerInventory.inventory,
         isAudited: sql<boolean>`${providerInventory.auditedBy} @> ARRAY[${AUDITOR}]::text[]`.as("isAudited")
       })
@@ -42,8 +40,6 @@ export class BidScreeningRepository {
     return rows.map(row => ({
       owner: row.owner,
       hostUri: row.hostUri,
-      ipRegion: row.ipRegion,
-      uptime7d: row.uptime7d,
       cluster: hydrateClusterState(row.inventory),
       isAudited: row.isAudited
     }));

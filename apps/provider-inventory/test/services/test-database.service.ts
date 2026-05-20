@@ -9,12 +9,12 @@ export class TestDatabaseService {
   readonly #dbName: string;
 
   constructor(testPath: string) {
-    if (!process.env.POSTGRES_BASE_URL) {
-      throw new Error("POSTGRES_BASE_URL is not set");
+    if (!process.env.PROVIDER_INVENTORY_POSTGRES_URL) {
+      throw new Error("PROVIDER_INVENTORY_POSTGRES_URL is not set");
     }
     const fileName = path.basename(testPath).replace(/\.(spec|integration)\.ts$/, "");
     const prefix = randomUUID().replace(/-/g, "");
-    this.#postgresUri = process.env.POSTGRES_BASE_URL;
+    this.#postgresUri = process.env.PROVIDER_INVENTORY_POSTGRES_URL;
     this.#dbName = `pi_test_${prefix}_${fileName}`.replace(/\W+/g, "_");
     process.env.PROVIDER_INVENTORY_POSTGRES_URL = `${this.#postgresUri}/${this.#dbName}`;
   }
