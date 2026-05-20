@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { bigint, boolean, doublePrecision, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { bigint, boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 import { jsonbBigint } from "@src/lib/jsonb-bigint/jsonb-bigint.column";
 
@@ -8,8 +8,6 @@ export const providerInventory = pgTable(
   {
     owner: text("owner").primaryKey(),
     hostUri: text("host_uri").notNull(),
-    ipRegion: text("ip_region"),
-    uptime7d: doublePrecision("uptime_7d"),
     isOnline: boolean("is_online").notNull().default(false),
     isOnlineSince: timestamp("is_online_since", { withTimezone: true }),
 

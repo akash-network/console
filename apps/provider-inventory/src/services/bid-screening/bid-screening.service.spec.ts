@@ -104,8 +104,6 @@ function makeCandidate(owner: string, overrides?: { isAudited?: boolean }): BidS
   return {
     owner,
     hostUri: "https://provider.example.com:8443",
-    ipRegion: "us-east",
-    uptime7d: 0.998,
     isAudited: overrides?.isAudited ?? false,
     cluster: {
       nodes: [
