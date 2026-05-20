@@ -78,11 +78,11 @@ export class OpenApiDocsService {
       if (options.scope === "full") {
         const externalDocs = await this.#loadExternalNotificationsSpec(source);
         if (externalDocs?.paths) {
-          const { filteredPaths, usedSchemaRefs } = this.#filterPrivateRoutes(externalDocs.paths);
+          const filteredPaths = this.#filterPrivateRoutes(externalDocs.paths);
           Object.assign(docs.paths, filteredPaths);
 
           if (externalDocs?.components?.schemas) {
-            const filteredSchemas = this.#filterSchemasByReferences(externalDocs.components.schemas, usedSchemaRefs);
+            const filteredSchemas = this.#filterSchemasByReferences(externalDocs.components.schemas, filteredPaths);
 
             docs.components.schemas = {
               ...docs.components.schemas,
@@ -175,87 +175,58 @@ export class OpenApiDocsService {
    * Internal endpoints live under /internal/ and ship in apps/notifications/swagger.internal.json;
    * the public swagger.json should already exclude them, but we belt-and-suspender here.
    */
-  #filterPrivateRoutes(paths: PathsObject): { filteredPaths: PathsObject; usedSchemaRefs: Set<string> } {
+  #filterPrivateRoutes(paths: PathsObject): PathsObject {
     const filteredPaths: PathsObject = {};
-    const usedSchemaRefs = new Set<string>();
-
-    const extractSchemaRefs = (obj: unknown): void => {
-      if (!obj || typeof obj !== "object") {
-        return;
-      }
-
-      if (Array.isArray(obj)) {
-        obj.forEach(item => extractSchemaRefs(item));
-        return;
-      }
-
-      const objWithRef = obj as ReferenceObject | { $ref?: string };
-      if (objWithRef.$ref && typeof objWithRef.$ref === "string" && objWithRef.$ref.startsWith("#/components/schemas/")) {
-        const schemaName = objWithRef.$ref.replace("#/components/schemas/", "");
-        usedSchemaRefs.add(schemaName);
-      }
-
-      Object.values(obj).forEach(value => extractSchemaRefs(value));
-    };
 
     for (const [path, pathItem] of Object.entries(paths)) {
       if (path.startsWith("/internal/")) {
         continue;
       }
       filteredPaths[path] = pathItem;
-      extractSchemaRefs(pathItem);
     }
 
-    return { filteredPaths, usedSchemaRefs };
+    return filteredPaths;
   }
 
   /**
-   * Filters schemas to only include those referenced by the provided schema references set.
-   * Also extracts nested schema references (if SchemaA references SchemaB, includes SchemaB).
+   * Filters schemas to only those transitively referenced from `seed`. The seed can be any object
+   * containing `$ref: "#/components/schemas/..."` entries (e.g. a paths object). Walks each
+   * referenced schema's body to pull in nested refs (if SchemaA references SchemaB, includes
+   * SchemaB).
    *
    * @param schemas - All available schemas from external OpenAPI spec
-   * @param usedSchemaRefs - Set of schema names that are referenced by filtered routes
+   * @param seed - Object to scan for the initial set of `$ref`s (typically the filtered paths)
    * @returns Filtered schemas object containing only referenced schemas
    */
-  #filterSchemasByReferences(schemas: ComponentsObject["schemas"], usedSchemaRefs: Set<string>): ComponentsObject["schemas"] {
+  #filterSchemasByReferences(schemas: ComponentsObject["schemas"], seed: unknown): ComponentsObject["schemas"] {
     if (!schemas) {
       return {};
     }
 
-    const visitedSchemas = new Set<string>();
-    const extractNestedSchemaRefs = (obj: unknown): void => {
+    const usedSchemaRefs = new Set<string>();
+    const walk = (obj: unknown): void => {
       if (!obj || typeof obj !== "object") {
         return;
       }
 
       if (Array.isArray(obj)) {
-        obj.forEach(item => extractNestedSchemaRefs(item));
+        obj.forEach(walk);
         return;
       }
 
       const objWithRef = obj as ReferenceObject | { $ref?: string };
       if (objWithRef.$ref && typeof objWithRef.$ref === "string" && objWithRef.$ref.startsWith("#/components/schemas/")) {
         const schemaName = objWithRef.$ref.replace("#/components/schemas/", "");
-        if (!visitedSchemas.has(schemaName) && schemas[schemaName]) {
-          visitedSchemas.add(schemaName);
+        if (!usedSchemaRefs.has(schemaName) && schemas[schemaName]) {
           usedSchemaRefs.add(schemaName);
-          extractNestedSchemaRefs(schemas[schemaName]);
+          walk(schemas[schemaName]);
         }
       }
 
-      Object.values(obj).forEach(value => extractNestedSchemaRefs(value));
+      Object.values(obj).forEach(walk);
     };
 
-    const initialRefs = Array.from(usedSchemaRefs);
-    for (const schemaName of initialRefs) {
-      if (!visitedSchemas.has(schemaName)) {
-        visitedSchemas.add(schemaName);
-        const schema = schemas?.[schemaName];
-        if (schema) {
-          extractNestedSchemaRefs(schema);
-        }
-      }
-    }
+    walk(seed);
 
     const filteredSchemas: ComponentsObject["schemas"] = {};
     for (const [schemaName, schema] of Object.entries(schemas)) {
