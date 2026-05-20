@@ -107,7 +107,7 @@
     },
     "packages/logging": {
       "project": ["src/**/*.ts"],
-      "ignoreDependencies": ["@opentelemetry/api", "hono"]
+      "ignoreDependencies": ["@opentelemetry/api", "hono", "sql-formatter"]
     },
     "packages/net": {
       "project": ["src/**/*.ts", "scripts/**/*.ts"]

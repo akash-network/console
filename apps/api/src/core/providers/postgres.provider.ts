@@ -1,5 +1,4 @@
-import { createOtelLogger } from "@akashnetwork/logging/otel";
-import { DefaultLogger } from "drizzle-orm/logger";
+import { PostgresLoggerService } from "@akashnetwork/logging/sql";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
@@ -11,13 +10,13 @@ import * as billingSchemas from "@src/billing/model-schemas";
 import { DisposableRegistry } from "@src/core/lib/disposable-registry/disposable-registry";
 import type { AppInitializer } from "@src/core/providers/app-initializer";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
-import { PostgresLoggerService } from "@src/core/services/postgres-logger/postgres-logger.service";
 import * as deploymentSchemas from "@src/deployment/model-schemas";
 import * as userSchemas from "@src/user/model-schemas";
 import type { CoreConfig } from "./config.provider";
 import { CORE_CONFIG } from "./config.provider";
+import { LOGGER_FACTORY } from "./logging.provider";
 
-const logger = createOtelLogger({ context: "POSTGRES" });
+const logger = container.resolve(LOGGER_FACTORY)({ context: "POSTGRES" });
 
 const APP_PG_CLIENT = Symbol("appPgClient") as InjectionToken<postgres.Sql>;
 container.register(APP_PG_CLIENT, {
@@ -51,7 +50,7 @@ container.register(APP_INITIALIZER, {
 
 const schema = { ...userSchemas, ...billingSchemas, ...deploymentSchemas, ...authSchemas };
 const getDrizzleOptions = (config: Pick<CoreConfig, "SQL_LOG_FORMAT">) => ({
-  logger: new DefaultLogger({ writer: new PostgresLoggerService({ useFormat: config.SQL_LOG_FORMAT === "pretty" }) }),
+  logger: new PostgresLoggerService(container.resolve(LOGGER_FACTORY), { useFormat: config.SQL_LOG_FORMAT === "pretty" }),
   schema
 });
 
@@ -74,7 +73,7 @@ const getPgDatabase = (c: DependencyContainer) => {
 export type DbHealthcheck = {
   ping(): Promise<void>;
 };
-export const DB_HEALTHCHECK: InjectionToken<DbHealthcheck> = "DB_HEALTHCHECK";
+export const DB_HEALTHCHECK: InjectionToken<DbHealthcheck> = Symbol("DB_HEALTHCHECK");
 container.register(DB_HEALTHCHECK, {
   useFactory: instancePerContainerCachingFactory(
     c =>
@@ -86,7 +85,7 @@ container.register(DB_HEALTHCHECK, {
   )
 });
 
-export const POSTGRES_DB: InjectionToken<ApiPgDatabase> = "POSTGRES_DB";
+export const POSTGRES_DB: InjectionToken<ApiPgDatabase> = Symbol("POSTGRES_DB");
 container.register(POSTGRES_DB, {
   useFactory: instancePerContainerCachingFactory(getPgDatabase)
 });

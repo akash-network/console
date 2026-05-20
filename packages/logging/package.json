@@ -10,7 +10,8 @@
   "author": "Akash Network",
   "exports": {
     ".": "./src/index.ts",
-    "./hono": "./src/hono/index.ts",
+    "./hono": "./src/hono.ts",
+    "./sql": "./src/sql.ts",
     "./otel": "./src/otel.ts",
     "./package.json": "./package.json"
   },
@@ -37,7 +38,8 @@
   "peerDependencies": {
     "@opentelemetry/api": "^1.9.0",
     "hono": "4.6.12",
-    "pino-pretty": "^11.3.0"
+    "pino-pretty": "^11.3.0",
+    "sql-formatter": "^15.0.0"
   },
   "peerDependenciesMeta": {
     "@opentelemetry/api": {
@@ -47,6 +49,9 @@
       "optional": true
     },
     "pino-pretty": {
+      "optional": true
+    },
+    "sql-formatter": {
       "optional": true
     }
   }
