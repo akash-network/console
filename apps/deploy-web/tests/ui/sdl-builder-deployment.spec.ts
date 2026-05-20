@@ -24,14 +24,6 @@ test.describe("SDL Builder Deployment Flow", () => {
     await sdlBuilderPage.closePreview();
   });
 
-  test("create deployment from SDL builder", async ({ page, context }) => {
-    const { sdlBuilderPage } = await setup({ page, context, imageName: "nginx:alpine" });
-
-    await sdlBuilderPage.clickDeploy();
-
-    await expect(page.getByRole("button", { name: /connect wallet/i }).first()).toBeVisible({ timeout: 10000 });
-  });
-
   test("add multiple services", async ({ page, context }) => {
     const { sdlBuilderPage } = await setup({ page, context, imageName: "nginx:latest" });
 

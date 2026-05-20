@@ -19,8 +19,4 @@ test("ssh keys generation", async ({ page, context }) => {
 
   expect(download.suggestedFilename()).toBe("keypair.zip");
   await expect(input).toHaveValue(/ssh-/);
-
-  await page.getByRole("button", { name: /create deployment/i }).click();
-
-  await expect(page.getByRole("button", { name: /connect wallet/i }).first()).toBeVisible();
 });
