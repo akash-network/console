@@ -38,6 +38,7 @@
     "lodash": "^4.17.21",
     "postgres": "^3.4.4",
     "reflect-metadata": "^0.2.2",
+    "sql-formatter": "~15.7.4",
     "tsyringe": "^4.10.0",
     "zod": "3.*"
   },
