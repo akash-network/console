@@ -1,9 +1,9 @@
-import type { LoggerService } from "@akashnetwork/logging";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { GroupSpecJSON } from "@src/lib/groupspec-mapper/groupspec-mapper";
 import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
+import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import type { BidScreeningCandidate, BidScreeningRepository } from "@src/repositories/bid-screening/bid-screening.repository";
 import type { ClusterInventoryMatcherService } from "../cluster-inventory-matcher/cluster-inventory-matcher.service";
 import { BidScreeningService } from "./bid-screening.service";
@@ -94,8 +94,9 @@ describe(BidScreeningService.name, () => {
   function setup() {
     const repository = mock<BidScreeningRepository>();
     const matcher = mock<ClusterInventoryMatcherService>();
-    const logger = mock<LoggerService>();
-    const service = new BidScreeningService(repository, matcher, logger);
+    const logger = mock<ReturnType<LoggerFactory>>();
+    const loggerFactory: LoggerFactory = () => logger;
+    const service = new BidScreeningService(repository, matcher, loggerFactory);
     return { service, repository, matcher, logger };
   }
 });

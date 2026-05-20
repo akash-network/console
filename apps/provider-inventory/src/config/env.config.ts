@@ -9,6 +9,7 @@ export const envSchema = z.object({
   DRIZZLE_MIGRATIONS_FOLDER: z.string().default("./drizzle"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   STD_OUT_LOG_FORMAT: z.enum(["json", "pretty"]).default("json"),
+  SQL_LOG_FORMAT: z.enum(["raw", "pretty"]).default("raw"),
   PORT: z.number({ coerce: true }).default(3092),
   DISCOVERY_INTERVAL_MS: z.number({ coerce: true }).default(10 * 60 * 1000), // 10 minutes
   STREAM_RECONNECT_INITIAL_DELAY_MS: z.number({ coerce: true }).default(1_000),
