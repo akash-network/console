@@ -1,16 +1,23 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { OpenApiDocsService } from "./openapi-docs.service";
 
-vi.mock("axios", () => ({
-  default: { get: vi.fn() }
-}));
-
 describe("OpenApiDocsService", () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    fetchMock.mockReset();
+  });
+
   it("loads the notifications spec from disk when source = file", async () => {
     const notificationsSpec = {
       openapi: "3.0.0",
@@ -56,22 +63,19 @@ describe("OpenApiDocsService", () => {
   });
 
   it("defaults to source = http when no source is specified", async () => {
-    const axiosModule = await import("axios");
-    const axiosGet = vi.mocked(axiosModule.default.get);
-    vi.clearAllMocks();
-    axiosGet.mockResolvedValueOnce({
-      data: {
+    fetchMock.mockResolvedValueOnce({
+      json: async () => ({
         openapi: "3.0.0",
         info: { title: "Notif", version: "1.0.0" },
         paths: {},
         components: { schemas: {} }
-      }
+      })
     });
 
     const { service } = setup({ notificationsSwaggerPath: "/should-not-be-read" });
     await service.generateDocs([], { scope: "full" });
 
-    expect(axiosGet).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it("returns docs without external paths when NOTIFICATIONS_SWAGGER_PATH is missing", async () => {
@@ -82,15 +86,12 @@ describe("OpenApiDocsService", () => {
   });
 
   it("returns docs without external paths when the HTTP fetch fails", async () => {
-    const axiosModule = await import("axios");
-    const axiosGet = vi.mocked(axiosModule.default.get);
-    vi.clearAllMocks();
-    axiosGet.mockRejectedValueOnce(new Error("network down"));
+    fetchMock.mockRejectedValueOnce(new Error("network down"));
 
     const { service } = setup({});
     const docs = await service.generateDocs([], { scope: "full", source: "http" });
 
-    expect(axiosGet).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledOnce();
     expect(docs.paths).toEqual({});
   });
 
@@ -113,11 +114,8 @@ describe("OpenApiDocsService", () => {
     );
 
     try {
-      const axiosModule = await import("axios");
-      const axiosGet = vi.mocked(axiosModule.default.get);
-      vi.clearAllMocks();
-      axiosGet.mockResolvedValueOnce({
-        data: {
+      fetchMock.mockResolvedValueOnce({
+        json: async () => ({
           openapi: "3.0.0",
           info: { title: "Notif", version: "1.0.0" },
           paths: {
@@ -126,7 +124,7 @@ describe("OpenApiDocsService", () => {
             }
           },
           components: { schemas: {} }
-        }
+        })
       });
 
       const { service } = setup({ notificationsSwaggerPath: tmpFile });
@@ -136,7 +134,7 @@ describe("OpenApiDocsService", () => {
 
       const httpDocs = await service.generateDocs([], { scope: "full", source: "http" });
       expect(httpDocs.paths["/v1/from-http"]).toBeDefined();
-      expect(axiosGet).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     } finally {
       await fs.rm(tmpDir, { recursive: true, force: true });
     }

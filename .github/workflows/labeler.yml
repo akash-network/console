@@ -63,9 +63,11 @@ jobs:
             ]);
             const totalChangedLines = files.reduce((total, file) => {
               const path = file.filename ?? "";
-              if (excludedLockfiles.has(path) || (path.includes("/drizzle/meta/") && path.endsWith('.json'))) {
-                return total;
-              }
+              const isIgnoredFile = excludedLockfiles.has(path) ||
+                (path.includes("/drizzle/meta/") && path.endsWith('.json')) || path.endsWith('.md') ||
+                path.endsWith(".gen.ts") ||
+                path.includes("/generated/");
+              if (isIgnoredFile) return total;
               return total + (file.additions ?? 0) + (file.deletions ?? 0);
             }, 0);
 
