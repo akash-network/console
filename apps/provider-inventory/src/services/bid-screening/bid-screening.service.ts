@@ -1,6 +1,8 @@
-import { singleton } from "tsyringe";
+import type { LoggerService } from "@akashnetwork/logging";
+import { inject, singleton } from "tsyringe";
 
-import { LoggerService } from "@src/providers/logging.provider";
+import type { LoggerFactory } from "@src/providers/logger-factory.provider";
+import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
 import { type BidScreeningCandidate, BidScreeningRepository } from "@src/repositories/bid-screening/bid-screening.repository";
 import type { GroupSpecJSON } from "../../lib/groupspec-mapper/groupspec-mapper";
 import { mapGroupSpecToResourceUnits } from "../../lib/groupspec-mapper/groupspec-mapper";
@@ -13,10 +15,10 @@ export class BidScreeningService {
   readonly #matcher: ClusterInventoryMatcherService;
   readonly #logger: LoggerService;
 
-  constructor(repository: BidScreeningRepository, matcher: ClusterInventoryMatcherService, logger: LoggerService) {
+  constructor(repository: BidScreeningRepository, matcher: ClusterInventoryMatcherService, @inject(LOGGER_FACTORY) loggerFactory: LoggerFactory) {
     this.#repository = repository;
     this.#matcher = matcher;
-    this.#logger = logger;
+    this.#logger = loggerFactory({ context: "BidScreening" });
   }
 
   async findMatchingProviders(request: GroupSpecJSON): Promise<BidScreeningResult[]> {
