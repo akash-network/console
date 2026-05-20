@@ -37,26 +37,27 @@ export function aggregateCriteria(resourceUnits: RequestedResourceUnit[], requir
   for (const unit of resourceUnits) {
     const count = BigInt(unit.count);
     const cpu = unit.resources.cpu.units;
-    const memory = unit.resources.memory.quantity;
     const gpu = unit.resources.gpu.units;
 
-    totalCpu += cpu * count;
-    totalMemory += memory * count;
-    totalGpu += gpu * count;
-
-    if (cpu > maxPerReplicaCpu) maxPerReplicaCpu = cpu;
-    if (memory > maxPerReplicaMemory) maxPerReplicaMemory = memory;
-    if (gpu > maxPerReplicaGpu) maxPerReplicaGpu = gpu;
-
+    let effectiveMemory = unit.resources.memory.quantity;
     for (const vol of unit.resources.storage) {
       const parsed = parseStorageAttributes(vol.attributes);
       if (parsed.classification === "persistent") {
         totalPersistentStorage += vol.quantity * count;
       } else if (parsed.classification === "ephemeral") {
         totalEphemeralStorage += vol.quantity * count;
+      } else if (parsed.classification === "ram") {
+        effectiveMemory += vol.quantity;
       }
-      // ram volumes intentionally skipped — issue 4 will add them to totalMemory
     }
+
+    totalCpu += cpu * count;
+    totalMemory += effectiveMemory * count;
+    totalGpu += gpu * count;
+
+    if (cpu > maxPerReplicaCpu) maxPerReplicaCpu = cpu;
+    if (effectiveMemory > maxPerReplicaMemory) maxPerReplicaMemory = effectiveMemory;
+    if (gpu > maxPerReplicaGpu) maxPerReplicaGpu = gpu;
 
     units.push({
       gpuTokens: collectGpuTokens(unit.resources.gpu),
