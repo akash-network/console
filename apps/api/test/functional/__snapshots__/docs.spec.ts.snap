@@ -13226,48 +13226,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
-    "/v1/stripe-webhook": {
-      "post": {
-        "requestBody": {
-          "content": {
-            "text/plain": {
-              "schema": {
-                "type": "string",
-              },
-            },
-          },
-        },
-        "responses": {
-          "200": {
-            "content": {},
-            "description": "Webhook processed successfully",
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                    },
-                  },
-                  "required": [
-                    "error",
-                  ],
-                  "type": "object",
-                },
-              },
-            },
-            "description": "Stripe signature is required",
-          },
-        },
-        "security": [],
-        "summary": "Stripe Webhook Handler",
-        "tags": [
-          "Payment",
-        ],
-      },
-    },
     "/v1/stripe/coupons/apply": {
       "post": {
         "requestBody": {

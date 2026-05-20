@@ -608,48 +608,6 @@
         }
       }
     },
-    "/v1/stripe-webhook": {
-      "post": {
-        "summary": "Stripe Webhook Handler",
-        "tags": [
-          "Payment"
-        ],
-        "security": [],
-        "requestBody": {
-          "content": {
-            "text/plain": {
-              "schema": {
-                "type": "string"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Webhook processed successfully",
-            "content": {}
-          },
-          "400": {
-            "description": "Stripe signature is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/stripe/prices": {
       "get": {
         "summary": "Get available Stripe pricing options",
@@ -1947,7 +1905,7 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "default": "2026-05-14",
+              "default": "2026-05-20",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -2073,7 +2031,7 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "default": "2026-05-14",
+              "default": "2026-05-20",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -16466,6 +16424,9 @@
                           "properties": {
                             "key": {
                               "type": "string",
+                              "minLength": 1,
+                              "maxLength": 128,
+                              "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
                               "description": "Attribute key",
                               "example": "persistent"
                             },
@@ -16506,9 +16467,7 @@
                                   "properties": {
                                     "val": {
                                       "type": "string",
-                                      "pattern": "^\\d+$",
-                                      "description": "String-encoded integer value",
-                                      "example": "1000"
+                                      "maxLength": 80
                                     }
                                   },
                                   "required": [
@@ -16522,6 +16481,9 @@
                                     "properties": {
                                       "key": {
                                         "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 128,
+                                        "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
                                         "description": "Attribute key",
                                         "example": "persistent"
                                       },
@@ -16539,8 +16501,7 @@
                                 }
                               },
                               "required": [
-                                "units",
-                                "attributes"
+                                "units"
                               ]
                             },
                             "memory": {
@@ -16551,9 +16512,7 @@
                                   "properties": {
                                     "val": {
                                       "type": "string",
-                                      "pattern": "^\\d+$",
-                                      "description": "String-encoded integer value",
-                                      "example": "1000"
+                                      "maxLength": 80
                                     }
                                   },
                                   "required": [
@@ -16567,6 +16526,9 @@
                                     "properties": {
                                       "key": {
                                         "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 128,
+                                        "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
                                         "description": "Attribute key",
                                         "example": "persistent"
                                       },
@@ -16584,8 +16546,7 @@
                                 }
                               },
                               "required": [
-                                "quantity",
-                                "attributes"
+                                "quantity"
                               ]
                             },
                             "gpu": {
@@ -16596,9 +16557,7 @@
                                   "properties": {
                                     "val": {
                                       "type": "string",
-                                      "pattern": "^\\d+$",
-                                      "description": "String-encoded integer value",
-                                      "example": "1000"
+                                      "maxLength": 80
                                     }
                                   },
                                   "required": [
@@ -16612,6 +16571,9 @@
                                     "properties": {
                                       "key": {
                                         "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 128,
+                                        "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
                                         "description": "Attribute key",
                                         "example": "persistent"
                                       },
@@ -16629,8 +16591,7 @@
                                 }
                               },
                               "required": [
-                                "units",
-                                "attributes"
+                                "units"
                               ]
                             },
                             "storage": {
@@ -16648,9 +16609,7 @@
                                     "properties": {
                                       "val": {
                                         "type": "string",
-                                        "pattern": "^\\d+$",
-                                        "description": "String-encoded integer value",
-                                        "example": "1000"
+                                        "maxLength": 80
                                       }
                                     },
                                     "required": [
@@ -16664,6 +16623,9 @@
                                       "properties": {
                                         "key": {
                                           "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 128,
+                                          "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
                                           "description": "Attribute key",
                                           "example": "persistent"
                                         },
@@ -16682,8 +16644,7 @@
                                 },
                                 "required": [
                                   "name",
-                                  "quantity",
-                                  "attributes"
+                                  "quantity"
                                 ]
                               }
                             },
