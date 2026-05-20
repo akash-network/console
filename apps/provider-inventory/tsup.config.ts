@@ -13,13 +13,15 @@ export default defineConfig(async overrideOptions =>
     prependEffectsToEntries: ["reflect-metadata", "@akashnetwork/env-loader"],
     entry: {
       server: "./src/server.ts",
+      "rest-app": "./src/rest-app.ts",
+      "providers-sync-app": "./src/providers-sync-app.ts",
       instrumentation: fileURLToPath(import.meta.resolve("@akashnetwork/instrumentation/register"))
     },
     target: tsconfig.compilerOptions.target,
     tsconfig: "tsconfig.build.json",
     external: ["pino-pretty"],
     dts: false,
-    onSuccess: overrideOptions.watch && !isProduction ? "npm run prod" : undefined,
+    onSuccess: overrideOptions.watch && !isProduction ? "NODE_OPTIONS='--allow-worker' npm run prod" : undefined,
     ...overrideOptions
   })
 );
