@@ -1,4 +1,5 @@
-import { applyDefaults } from "@akashnetwork/dev-config/tsup-plugins.ts";
+import { applyDefaults, copyDrizzlePlugin } from "@akashnetwork/dev-config/tsup-plugins.ts";
+import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "tsup";
 
@@ -21,6 +22,7 @@ export default defineConfig(async overrideOptions =>
     tsconfig: "tsconfig.build.json",
     external: ["pino-pretty"],
     dts: false,
+    plugins: [...(isProduction ? [copyDrizzlePlugin] : [])],
     onSuccess: overrideOptions.watch && !isProduction ? "NODE_OPTIONS='--allow-worker' npm run prod" : undefined,
     ...overrideOptions
   })

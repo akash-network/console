@@ -8,7 +8,7 @@ describe(HealthzController.name, () => {
   it("returns 200 with ok status when DB ping succeeds", async () => {
     const { controller } = setup();
 
-    const result = await controller.getStatus();
+    const result = await controller.getLivenessStatus();
 
     expect(result).toEqual({ response: { data: { status: "ok" } }, status: 200 });
   });
@@ -18,7 +18,7 @@ describe(HealthzController.name, () => {
       dbPingError: new Error("connection refused")
     });
 
-    const result = await controller.getStatus();
+    const result = await controller.getLivenessStatus();
 
     expect(result).toEqual({ response: { data: { status: "error" } }, status: 503 });
   });
