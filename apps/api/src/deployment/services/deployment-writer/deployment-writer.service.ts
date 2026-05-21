@@ -34,7 +34,7 @@ export class DeploymentWriterService {
 
   public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
-    const manifest = this.#parseManifest(input.sdl);
+    const manifest = this.#parseManifest(input.sdl, { isTrialing: !!wallet.isTrialing });
 
     const [dseq, manifestVersion] = await Promise.all([this.blockHttpService.getCurrentHeight(), this.sdlService.generateManifestVersion(manifest.groups)]);
 
@@ -86,7 +86,7 @@ export class DeploymentWriterService {
 
   public async updateByUserIdAndDseq(userId: string, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<GetDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
-    const manifest = this.#parseManifest(input.sdl);
+    const manifest = this.#parseManifest(input.sdl, { isTrialing: !!wallet.isTrialing });
 
     const [deployment, manifestVersion] = await Promise.all([
       this.deploymentReaderService.findByWalletAndDseq(wallet, dseq),
@@ -100,8 +100,8 @@ export class DeploymentWriterService {
     return await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
   }
 
-  #parseManifest(sdl: string) {
-    const manifestResult = this.sdlService.generateManifest(sdl);
+  #parseManifest(sdl: string, options: { isTrialing?: boolean } = {}) {
+    const manifestResult = this.sdlService.generateManifest(sdl, options);
     assert(manifestResult.ok, 400, `Invalid SDL: ${manifestResult.ok === false ? manifestResult.value.map(e => e.message).join(", ") : ""}`);
     return manifestResult.value;
   }

@@ -1,7 +1,8 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { isHttpError, type TxOutput } from "@akashnetwork/http-sdk";
-import { Snackbar } from "@akashnetwork/ui/components";
+import { buttonVariants, Snackbar } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { OpenNewWindow } from "iconoir-react";
 import { useAtom } from "jotai";
@@ -22,6 +23,7 @@ import { useBalances } from "@src/queries/useBalancesQuery";
 import networkStore from "@src/store/networkStore";
 import walletStore from "@src/store/walletStore";
 import type { AppError } from "@src/types";
+import { UrlService } from "@src/utils/urlUtils";
 import { getStorageWallets, updateStorageManagedWallet, updateStorageWallets } from "@src/utils/walletUtils";
 import { useServices } from "../ServicesProvider";
 import { useSettings } from "../SettingsProvider";
@@ -298,7 +300,11 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       if (isHttpError(err) && err.response?.status !== 500) {
         const [title, message] = err.response?.data?.message?.split(": ") ?? [];
-        showTransactionSnackbar(title || message || "Error", message, "", "error");
+        if (err.response?.status === 402) {
+          showAddCreditsSnackbar(title || message || "Add credits to continue", message);
+        } else {
+          showTransactionSnackbar(title || message || "Error", message, "", "error");
+        }
       } else {
         const transactionHash = err.txHash;
         let errorMsg = "An error has occurred";
@@ -368,6 +374,16 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
   };
 
+  const showAddCreditsSnackbar = (snackTitle: string, snackMessage: string) => {
+    const key = enqueueSnackbar(
+      <Snackbar title={snackTitle} subTitle={<AddCreditsSnackbarContent message={snackMessage} onAction={() => closeSnackbar(key)} />} iconVariant="warning" />,
+      {
+        variant: "warning",
+        autoHideDuration: 10000
+      }
+    );
+  };
+
   return (
     <WalletProviderContext.Provider
       value={{
@@ -408,6 +424,25 @@ export function useIsManagedWalletUser() {
 }
 
 const SUPPORT_EMAIL = "support@akash.network";
+
+const AddCreditsSnackbarContent: React.FC<{ message?: string; onAction?: () => void }> = ({ message, onAction }) => {
+  const { analyticsService } = useServices();
+  return (
+    <>
+      {message && <div>{message}</div>}
+      <Link
+        href={UrlService.billing({ openPayment: true })}
+        className={cn("mt-2 inline-flex h-7 items-center px-3 text-xs", buttonVariants({ variant: "default" }))}
+        onClick={() => {
+          analyticsService.track("add_funds_btn_clk");
+          onAction?.();
+        }}
+      >
+        Add Funds
+      </Link>
+    </>
+  );
+};
 
 const TransactionSnackbarContent: React.FC<{ snackMessage: string; transactionHash: string; isError?: boolean }> = ({
   snackMessage,

@@ -107,7 +107,11 @@ export class ManagedSignerService {
     rawLog: string;
   }> {
     await this.#validateBalances(userWallet, messages);
-    await this.anonymousValidateService.validateLeaseProvidersAuditors(messages, userWallet);
+    await Promise.all([
+      this.anonymousValidateService.validateLeaseProvidersAuditors(messages, userWallet),
+      this.anonymousValidateService.validateDeploymentGpuModels(messages, userWallet),
+      this.anonymousValidateService.validateLeaseGpuModels(messages, userWallet)
+    ]);
 
     const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
     const hasCreateTrialLeaseMessage = userWallet.isTrialing && !!createLeaseMessage;
