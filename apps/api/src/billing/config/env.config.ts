@@ -38,7 +38,7 @@ export const envSchema = z.object({
     .transform(val => (val ? val.split(",").map(addr => addr.trim()) : [])),
   MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: z
     .string()
-    .default("nvidia/h100,nvidia/h200,nvidia/b200,nvidia/pro6000se,nvidia/a100,nvidia/rtxa6000,nvidia/5090,nvidia/4090")
+    .default("nvidia/b300,nvidia/b200,nvidia/h200,nvidia/h100,nvidia/pro6000se,nvidia/pro6000we,nvidia/a100,nvidia/rtx5090,nvidia/rtx4090,nvidia/rtx3090")
     .transform(val =>
       val
         ? val
