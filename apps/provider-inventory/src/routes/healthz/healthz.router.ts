@@ -7,9 +7,9 @@ import { OpenApiHonoHandler } from "@src/services/open-api-hono-handler/open-api
 
 export const healthzRouter = new OpenApiHonoHandler();
 
-const healthzRoute = createRoute({
+const healthzLivenessRoute = createRoute({
   method: "get",
-  path: "/healthz",
+  path: "/private/v1/healthz/liveness",
   summary: "Health check",
   tags: ["Healthz"],
   security: [],
@@ -34,7 +34,39 @@ const healthzRoute = createRoute({
   }
 });
 
-healthzRouter.openapi(healthzRoute, async c => {
-  const { response, status } = await container.resolve(HealthzController).getStatus();
+healthzRouter.openapi(healthzLivenessRoute, async c => {
+  const { response, status } = await container.resolve(HealthzController).getLivenessStatus();
+  return c.json(response, status);
+});
+
+const healthzReadinessRoute = createRoute({
+  method: "get",
+  path: "/private/v1/healthz/readiness",
+  summary: "Health check",
+  tags: ["Healthz"],
+  security: [],
+  request: {},
+  responses: {
+    200: {
+      description: "Service is healthy",
+      content: {
+        "application/json": {
+          schema: HealthzResponseSchema
+        }
+      }
+    },
+    503: {
+      description: "Service is unhealthy",
+      content: {
+        "application/json": {
+          schema: HealthzResponseSchema
+        }
+      }
+    }
+  }
+});
+
+healthzRouter.openapi(healthzReadinessRoute, async c => {
+  const { response, status } = await container.resolve(HealthzController).getReadinessStatus();
   return c.json(response, status);
 });

@@ -8,7 +8,15 @@ import { DB_HEALTHCHECK } from "@src/providers/postgres.provider";
 export class HealthzController {
   constructor(@inject(DB_HEALTHCHECK) private readonly dbHealthcheck: DbHealthcheck) {}
 
-  async getStatus(): Promise<{ response: HealthzResponse; status: 200 | 503 }> {
+  async getReadinessStatus(): Promise<{ response: HealthzResponse; status: 200 | 503 }> {
+    return this.#getStatus();
+  }
+
+  async getLivenessStatus(): Promise<{ response: HealthzResponse; status: 200 | 503 }> {
+    return this.#getStatus();
+  }
+
+  async #getStatus(): Promise<{ response: HealthzResponse; status: 200 | 503 }> {
     try {
       await this.dbHealthcheck.ping();
       return { response: { data: { status: "ok" } }, status: 200 };
