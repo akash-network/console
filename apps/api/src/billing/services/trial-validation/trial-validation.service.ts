@@ -9,14 +9,8 @@ import type { UserWalletOutput } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { Trace } from "@src/core/services/tracing/tracing.service";
 import { AUDITOR, TRIAL_ATTRIBUTE, TRIAL_REGISTERED_ATTRIBUTE } from "@src/deployment/config/provider.config";
+import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
-import {
-  extractRequestedGpusFromBid,
-  extractRequestedGpusFromGroupSpecs,
-  findBlockedGpus,
-  formatGpuLabel,
-  toBlockedGpuSet
-} from "@src/deployment/utils/blocked-gpu/blocked-gpu";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import type { UserOutput } from "@src/user/repositories";
 
@@ -28,7 +22,8 @@ export class TrialValidationService {
     private readonly deploymentReaderService: DeploymentReaderService,
     private readonly config: BillingConfigService,
     private readonly providerRepository: ProviderRepository,
-    private readonly bidHttpService: BidHttpService
+    private readonly bidHttpService: BidHttpService,
+    private readonly blockedGpuService: BlockedGpuService
   ) {}
 
   async validateTrialLimit(decoded: EncodeObject, userWallet: UserWalletOutput) {
@@ -92,37 +87,28 @@ export class TrialValidationService {
   async validateDeploymentGpuModels(messages: EncodeObject[], userWallet: UserWalletOutput) {
     if (!userWallet.isTrialing) return;
 
-    const blockedGpuModels = this.config.get("MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS");
-    if (blockedGpuModels.length === 0) return;
-
     const deploymentMessages = messages.filter(message => message.typeUrl === `/${MsgCreateDeployment.$type}`);
     if (deploymentMessages.length === 0) return;
 
-    const blockedSet = toBlockedGpuSet(blockedGpuModels);
-
     for (const message of deploymentMessages) {
       const groups = (message.value as MsgCreateDeployment).groups;
-      const blocked = findBlockedGpus(extractRequestedGpusFromGroupSpecs(groups), blockedSet);
+      const blocked = this.blockedGpuService.findInGroupSpecs(groups);
       if (blocked.length === 0) continue;
 
-      const blockedList = blocked.map(formatGpuLabel).join(", ");
-      assert(false, 402, `${blockedList} not available on free trial: Add funds to unlock GPU access`);
+      assert(false, 402, `${this.blockedGpuService.formatList(blocked)} not available on free trial: Add funds to unlock GPU access`);
     }
   }
 
   @Trace()
   async validateLeaseGpuModels(messages: EncodeObject[], userWallet: UserWalletOutput) {
     if (!userWallet.isTrialing) return;
-
-    const blockedGpuModels = this.config.get("MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS");
-    if (blockedGpuModels.length === 0) return;
+    if (!this.blockedGpuService.hasBlockedModels()) return;
 
     const leaseBidIds = this.getLeaseBidIds(messages);
     if (leaseBidIds.length === 0) return;
 
     const uniqueDseqs = Array.from(new Set(leaseBidIds.map(id => id.dseq.toString())));
     const owner = userWallet.address!;
-    const blockedSet = toBlockedGpuSet(blockedGpuModels);
 
     const bidsByDseq = new Map<string, Awaited<ReturnType<BidHttpService["list"]>>>();
     await Promise.all(
@@ -142,11 +128,10 @@ export class TrialValidationService {
         `Referenced lease bid not found: dseq=${bidId.dseq}, gseq=${bidId.gseq}, oseq=${bidId.oseq}, provider=${bidId.provider}, bseq=${bidId.bseq}`
       );
 
-      const blocked = findBlockedGpus(extractRequestedGpusFromBid(bid), blockedSet);
+      const blocked = this.blockedGpuService.findInBid(bid);
       if (blocked.length === 0) continue;
 
-      const blockedList = blocked.map(formatGpuLabel).join(", ");
-      assert(false, 402, `${blockedList} not available on free trial: Add funds to unlock GPU access`);
+      assert(false, 402, `${this.blockedGpuService.formatList(blocked)} not available on free trial: Add funds to unlock GPU access`);
     }
   }
 

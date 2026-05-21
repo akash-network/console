@@ -5,7 +5,7 @@ import { singleton } from "tsyringe";
 import { AuthService } from "@src/auth/services/auth.service";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { extractRequestedGpusFromBid, findBlockedGpus, toBlockedGpuSet } from "@src/deployment/utils/blocked-gpu/blocked-gpu";
+import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 
 @singleton()
@@ -15,7 +15,8 @@ export class BidService {
     private readonly authService: AuthService,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly billingConfig: BillingConfigService,
-    private readonly providerRepository: ProviderRepository
+    private readonly providerRepository: ProviderRepository,
+    private readonly blockedGpuService: BlockedGpuService
   ) {}
 
   async list(dseq: string): Promise<Bid[]> {
@@ -32,14 +33,10 @@ export class BidService {
   }
 
   private filterBidsByBlockedGpuModels(bids: Bid[]): Bid[] {
-    const blockedGpuModels = this.billingConfig.get("MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS");
-
-    if (blockedGpuModels.length === 0 || bids.length === 0) {
+    if (bids.length === 0 || !this.blockedGpuService.hasBlockedModels()) {
       return bids;
     }
-
-    const blockedSet = toBlockedGpuSet(blockedGpuModels);
-    return bids.filter(bid => findBlockedGpus(extractRequestedGpusFromBid(bid), blockedSet).length === 0);
+    return bids.filter(bid => this.blockedGpuService.findInBid(bid).length === 0);
   }
 
   private async filterBidsByAuditedProviders(bids: Bid[]): Promise<Bid[]> {

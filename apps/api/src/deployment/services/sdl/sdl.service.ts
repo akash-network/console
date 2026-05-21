@@ -4,13 +4,16 @@ import { YAMLException } from "js-yaml";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
-import { extractRequestedGpusFromSdl, findBlockedGpus, formatGpuLabel, toBlockedGpuSet } from "@src/deployment/utils/blocked-gpu/blocked-gpu";
+import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 
 @singleton()
 export class SdlService {
   readonly #config: BillingConfig;
 
-  constructor(@InjectBillingConfig() config: BillingConfig) {
+  constructor(
+    @InjectBillingConfig() config: BillingConfig,
+    private readonly blockedGpuService: BlockedGpuService
+  ) {
     this.#config = config;
   }
 
@@ -44,11 +47,9 @@ export class SdlService {
       this.#appendAuditorRequirement(sdlPlacement, allowedAuditors);
     }
 
-    const blockedGpuModels = this.#config.MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS;
-    if (options.isTrialing && blockedGpuModels && blockedGpuModels.length > 0) {
-      const blockedRequested = findBlockedGpus(extractRequestedGpusFromSdl(potentiallyInvalidSDL), toBlockedGpuSet(blockedGpuModels));
+    if (options.isTrialing) {
+      const blockedRequested = this.blockedGpuService.findInSdl(potentiallyInvalidSDL);
       if (blockedRequested.length > 0) {
-        const blockedList = blockedRequested.map(formatGpuLabel).join(", ");
         return {
           ok: false,
           value: [
@@ -57,7 +58,7 @@ export class SdlService {
               instancePath: "/profiles/compute",
               keyword: "gpu",
               params: { blocked: blockedRequested },
-              message: `${blockedList} not available on free trial: Add funds to unlock GPU access`
+              message: `${this.blockedGpuService.formatList(blockedRequested)} not available on free trial: Add funds to unlock GPU access`
             }
           ]
         };

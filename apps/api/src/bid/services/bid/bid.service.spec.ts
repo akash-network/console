@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import type { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import { BidService } from "./bid.service";
 
@@ -188,12 +189,15 @@ describe(BidService.name, () => {
     const authService = mock<AuthService>();
     const userWalletRepository = mock<UserWalletRepository>();
     const billingConfig = mockConfigService<BillingConfigService>({
-      MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: config.allowedAuditors || [],
+      MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: config.allowedAuditors || []
+    });
+    const blockedGpuConfig = mockConfigService<BillingConfigService>({
       MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: config.blockedGpuModels || []
     });
+    const blockedGpuService = new BlockedGpuService(blockedGpuConfig);
     const providerRepository = mock<ProviderRepository>();
 
-    const service = new BidService(bidHttpService, authService, userWalletRepository, billingConfig, providerRepository);
+    const service = new BidService(bidHttpService, authService, userWalletRepository, billingConfig, providerRepository, blockedGpuService);
 
     return {
       service,
@@ -201,7 +205,8 @@ describe(BidService.name, () => {
       authService,
       userWalletRepository,
       billingConfig,
-      providerRepository
+      providerRepository,
+      blockedGpuService
     };
   }
 

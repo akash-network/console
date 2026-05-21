@@ -5,6 +5,7 @@ import type { EncodeObject } from "@cosmjs/proto-signing";
 import { mock } from "vitest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import type { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import type { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import { TrialValidationService } from "./trial-validation.service";
@@ -244,19 +245,22 @@ describe(TrialValidationService.name, () => {
     const config = mock<BillingConfigService>();
     const providerRepository = mock<ProviderRepository>();
     const bidHttpService = mock<BidHttpService>();
-    const service = new TrialValidationService(deploymentReaderService, config, providerRepository, bidHttpService);
-    return { service, deploymentReaderService, config, providerRepository, bidHttpService };
+    const blockedGpuService = mock<BlockedGpuService>();
+    const service = new TrialValidationService(deploymentReaderService, config, providerRepository, bidHttpService, blockedGpuService);
+    return { service, deploymentReaderService, config, providerRepository, bidHttpService, blockedGpuService };
   }
 
   function setupGpu(input: { blockedGpuModels: string[]; bid?: ReturnType<typeof createBid> }) {
     const deploymentReaderService = mock<DeploymentReaderService>();
-    const config = mockConfigService<BillingConfigService>({
-      MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: input.blockedGpuModels
-    });
+    const config = mock<BillingConfigService>();
     const providerRepository = mock<ProviderRepository>();
     const bidHttpService = mock<BidHttpService>();
     bidHttpService.list.mockResolvedValue(input.bid ? [input.bid] : []);
-    const service = new TrialValidationService(deploymentReaderService, config, providerRepository, bidHttpService);
-    return { service, deploymentReaderService, config, providerRepository, bidHttpService };
+    const blockedGpuConfig = mockConfigService<BillingConfigService>({
+      MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: input.blockedGpuModels
+    });
+    const blockedGpuService = new BlockedGpuService(blockedGpuConfig);
+    const service = new TrialValidationService(deploymentReaderService, config, providerRepository, bidHttpService, blockedGpuService);
+    return { service, deploymentReaderService, config, providerRepository, bidHttpService, blockedGpuService };
   }
 });

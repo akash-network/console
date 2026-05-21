@@ -1,5 +1,9 @@
 import type { BillingConfig } from "@src/billing/providers";
+import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import { SdlService } from "./sdl.service";
+
+import { mockConfigService } from "@test/mocks/config-service.mock";
 
 const VALID_SDL = `
 version: "2.0"
@@ -360,11 +364,14 @@ describe(SdlService.name, () => {
   function setup(input?: { sdl?: string; allowedAuditors?: string[]; deploymentGrantDenom?: string; blockedGpuModels?: string[]; isTrialing?: boolean }) {
     const config = {
       DEPLOYMENT_GRANT_DENOM: input?.deploymentGrantDenom ?? "uakt",
-      MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: input?.allowedAuditors ?? [],
-      MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: input?.blockedGpuModels ?? []
+      MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: input?.allowedAuditors ?? []
     } as BillingConfig;
 
-    const service = new SdlService(config);
+    const blockedGpuConfig = mockConfigService<BillingConfigService>({
+      MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: input?.blockedGpuModels ?? []
+    });
+    const blockedGpuService = new BlockedGpuService(blockedGpuConfig);
+    const service = new SdlService(config, blockedGpuService);
     const result = service.generateManifest(input?.sdl ?? VALID_SDL, { isTrialing: input?.isTrialing });
 
     return { service, result };
