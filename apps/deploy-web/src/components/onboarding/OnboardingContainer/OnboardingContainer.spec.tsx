@@ -387,9 +387,7 @@ describe("OnboardingContainer", () => {
       TRIAL_ATTRIBUTE: "console/trials" as const,
       TRIAL_REGISTERED_ATTRIBUTE: "console/trials-registered" as const,
       AUDITOR: "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63" as const,
-      MANAGED_WALLET_ALLOWED_AUDITORS: ["akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63" as const],
-      TRIAL_BLOCKED_GPU_MODELS: [] as string[],
-      TRIAL_DEFAULT_NVIDIA_MODELS: [] as string[]
+      MANAGED_WALLET_ALLOWED_AUDITORS: ["akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63" as const]
     };
 
     const mockValidateDeploymentData = vi.fn();

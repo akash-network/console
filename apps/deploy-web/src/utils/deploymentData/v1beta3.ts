@@ -15,11 +15,6 @@ export const TRIAL_REGISTERED_ATTRIBUTE = "console/trials-registered";
 export const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
 export const MANAGED_WALLET_ALLOWED_AUDITORS = [AUDITOR];
 
-// Keep in sync with apps/api MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS env default.
-export const TRIAL_BLOCKED_GPU_MODELS = ["h100", "h200", "b200", "pro6000se", "a100", "5090", "4090"];
-// Fallback nvidia models used when a trial SDL doesn't specify any model (e.g. ComfyUI template).
-export const TRIAL_DEFAULT_NVIDIA_MODELS = ["rtxa6000"];
-
 export function getManifest(yamlJson: any): AkashManifest {
   return Manifest(yamlJson);
 }
@@ -108,12 +103,16 @@ export function appendAuditorRequirement(yamlStr: string) {
 ${result}`;
 }
 
-export function applyTrialGpuPolicy(yamlStr: string): string {
+export function applyTrialGpuPolicy(
+  yamlStr: string,
+  blockedModels: readonly string[] = browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS
+): string {
   const sdlData = yaml.load(yamlStr) as SDLInput;
   const computeProfiles = sdlData?.profiles?.compute;
   if (!computeProfiles || typeof computeProfiles !== "object") return yamlStr;
 
-  const blockedSet = new Set(TRIAL_BLOCKED_GPU_MODELS.map(m => m.toLowerCase()));
+  const blockedSet = new Set(blockedModels);
+  if (blockedSet.size === 0) return yamlStr;
   let mutated = false;
 
   for (const profile of Object.values(computeProfiles)) {
@@ -122,13 +121,13 @@ export function applyTrialGpuPolicy(yamlStr: string): string {
     if (!vendorMap) continue;
 
     for (const vendor of Object.keys(vendorMap)) {
-      if (vendor.toLowerCase() !== "nvidia") continue;
-
       const models = Array.isArray(vendorMap[vendor]) ? vendorMap[vendor]! : [];
-      const allowed = models.filter(entry => entry?.model && !blockedSet.has(entry.model.toLowerCase()));
+      const allowed = models.filter(entry => entry?.model && !blockedSet.has(`${vendor.toLowerCase()}/${entry.model.toLowerCase()}`));
 
       if (allowed.length === 0) {
-        vendorMap[vendor] = TRIAL_DEFAULT_NVIDIA_MODELS.map(model => ({ model }));
+        if (vendorMap[vendor] === null) continue;
+        // Empty value = any model from this vendor (caught at CreateLease if blocked).
+        vendorMap[vendor] = null;
         mutated = true;
       } else if (allowed.length !== models.length) {
         vendorMap[vendor] = allowed;
