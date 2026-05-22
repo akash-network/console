@@ -146,6 +146,22 @@ export class JobQueueService implements Disposable {
     });
   }
 
+  /**
+   * Fetch a job's current state and output by id, scoped to a queue (job name).
+   *
+   * Returns `null` when no job with that id is found on the given queue. Otherwise returns the
+   * pg-boss `state` (one of `created | retry | active | completed | cancelled | failed`) and the
+   * job's `output` payload (may be an empty object when no output has been written).
+   *
+   * @param queueName - Queue / job name the job was enqueued under.
+   * @param id - pg-boss job id returned by `enqueue`.
+   */
+  async getJobState(queueName: string, id: string): Promise<{ state: PgBossJobState; output: unknown } | null> {
+    const job = await this.pgBoss.getJobById(queueName, id);
+    if (!job) return null;
+    return { state: job.state, output: job.output };
+  }
+
   async complete(name: string, id: string): Promise<void> {
     try {
       await this.pgBoss.complete(name, id);
@@ -217,7 +233,8 @@ export class JobQueueService implements Disposable {
                 githubUsername: null,
                 userId: "system:bg-job-user",
                 username: "___bg_job_user___",
-                trial: false
+                trial: false,
+                stage: "onboarding"
               });
               this.executionContextService.set("ABILITY", createMongoAbility<MongoAbility>());
               this.logger.info({
@@ -325,6 +342,10 @@ export interface JobHandler<T extends Job> {
   policy?: PgBossQueue["policy"];
   handle(payload: JobPayload<T>, job?: JobMeta): Promise<void>;
 }
+
+export type PgBossJobState = "created" | "retry" | "active" | "completed" | "cancelled" | "failed";
+
+export const PG_BOSS_TERMINAL_JOB_STATES: ReadonlyArray<PgBossJobState> = ["completed", "failed", "cancelled"];
 
 export type EnqueueOptions = PgBossSendOptions;
 export interface ProcessOptions extends Omit<PgBossWorkOptions, "batchSize"> {

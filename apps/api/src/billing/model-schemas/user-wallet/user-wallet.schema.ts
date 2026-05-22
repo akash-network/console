@@ -1,6 +1,9 @@
-import { boolean, numeric, pgTable, serial, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, numeric, pgEnum, pgTable, serial, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { Users } from "@src/user/model-schemas"; // eslint-disable-line import-x/no-cycle
+
+export const userWalletStatusEnum = pgEnum("user_wallet_status", ["pending", "ready", "failed"]);
+export type UserWalletStatus = (typeof userWalletStatusEnum.enumValues)[number];
 
 export const UserWallets = pgTable("user_wallets", {
   id: serial("id").primaryKey(),
@@ -12,6 +15,7 @@ export const UserWallets = pgTable("user_wallets", {
   deploymentAllowance: allowance("deployment_allowance"),
   feeAllowance: allowance("fee_allowance"),
   isTrialing: boolean("trial").default(true),
+  status: userWalletStatusEnum("status").notNull().default("ready"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });

@@ -64,6 +64,24 @@ export class ManagedUserWalletService {
     return { address, limits };
   }
 
+  async createAndAuthorizeOnboardingGrant(
+    signer: ManagedSignerService,
+    { addressIndex, deploymentAllowance, feeAllowance }: { addressIndex: number; deploymentAllowance: number; feeAllowance: number }
+  ) {
+    const address = await this.txManagerService.getDerivedWalletAddress(addressIndex);
+
+    const limits = {
+      deployment: deploymentAllowance,
+      fees: feeAllowance
+    };
+    await this.authorizeSpending(signer, {
+      address,
+      limits
+    });
+
+    return { address, limits };
+  }
+
   async createWallet({ addressIndex }: { addressIndex: number }) {
     const address = await this.txManagerService.getDerivedWalletAddress(addressIndex);
     this.logger.debug({ event: "WALLET_CREATED", address });

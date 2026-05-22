@@ -1,10 +1,13 @@
 import { relations, sql } from "drizzle-orm";
-import { boolean, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, pgEnum, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { UserWallets } from "@src/billing/model-schemas/user-wallet/user-wallet.schema"; // eslint-disable-line import-x/no-cycle
 import { Templates } from "@src/user/model-schemas/template/template.schema"; // eslint-disable-line import-x/no-cycle
 
 export const userAgentMaxLength = 500;
+
+export const accountStageEnum = pgEnum("account_stage", ["onboarding", "trial", "trial_legacy", "regular"]);
+export type AccountStage = (typeof accountStageEnum.enumValues)[number];
 
 export const Users = pgTable("userSetting", {
   id: uuid("id")
@@ -25,7 +28,8 @@ export const Users = pgTable("userSetting", {
   lastIp: varchar("last_ip", { length: 255 }),
   lastUserAgent: varchar("last_user_agent", { length: userAgentMaxLength }),
   lastFingerprint: varchar("last_fingerprint", { length: 255 }),
-  createdAt: timestamp("created_at").defaultNow()
+  createdAt: timestamp("created_at").defaultNow(),
+  stage: accountStageEnum("stage").notNull().default("onboarding")
 });
 
 export const UsersRelations = relations(Users, ({ one, many }) => ({

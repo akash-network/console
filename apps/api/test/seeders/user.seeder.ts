@@ -19,7 +19,8 @@ export function createUser({
   lastUserAgent = faker.internet.userAgent(),
   lastFingerprint = faker.word.noun(),
   createdAt = faker.date.recent(),
-  trial = false
+  trial = false,
+  stage = "onboarding" as const
 }: Partial<UserOutput> = {}): UserOutput {
   return {
     id,
@@ -38,6 +39,7 @@ export function createUser({
     lastUserAgent,
     lastFingerprint,
     createdAt,
-    trial
+    trial,
+    stage
   };
 }

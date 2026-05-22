@@ -4,9 +4,13 @@ import { singleton } from "tsyringe";
 
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
+import { OnboardingStarted } from "@src/billing/events/onboarding-started";
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { UserInput, type UserOutput, UserRepository } from "../../repositories/user/user.repository";
 
@@ -18,7 +22,9 @@ export class UserService {
     private readonly logger: LoggerService,
     private readonly notificationService: NotificationService,
     private readonly auth0: Auth0Service,
-    private readonly emailVerificationCodeService: EmailVerificationCodeService
+    private readonly emailVerificationCodeService: EmailVerificationCodeService,
+    private readonly domainEvents: DomainEventsService,
+    private readonly featureFlagsService: FeatureFlagsService
   ) {}
 
   async registerUser(data: RegisterUserInput): Promise<{
@@ -44,7 +50,7 @@ export class UserService {
       lastFingerprint: data.fingerprint
     };
 
-    const user = await this.upsertUser({
+    const { user, wasInserted } = await this.upsertUser({
       ...userDetails,
       username: data.wantedUsername
     });
@@ -67,6 +73,10 @@ export class UserService {
       });
     }
 
+    if (wasInserted && this.featureFlagsService.isEnabled(FeatureFlags.CONSOLE_ONBOARDING_REDESIGN)) {
+      await this.domainEvents.publish(new OnboardingStarted({ userId: user.id }));
+    }
+
     const { id, userId, username, email, emailVerified, stripeCustomerId, bio, subscribedToNewsletter, youtubeUsername, twitterUsername, githubUsername } =
       user;
 
@@ -85,7 +95,7 @@ export class UserService {
     } as Awaited<ReturnType<this["registerUser"]>>;
   }
 
-  private async upsertUser(userDetails: UpdateUserInput, attempt = 0): Promise<UserOutput> {
+  private async upsertUser(userDetails: UpdateUserInput, attempt = 0): Promise<{ user: UserOutput; wasInserted: boolean }> {
     try {
       return await this.userRepository.upsertOnExternalIdConflict(userDetails);
     } catch (error) {

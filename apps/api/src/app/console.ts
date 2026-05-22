@@ -110,7 +110,8 @@ async function executeCliHandler(name: string, handler: () => Promise<unknown>, 
           githubUsername: null,
           userId: "system:cli-user",
           username: "___cli_user___",
-          trial: false
+          trial: false,
+          stage: "onboarding"
         });
         executionContextService.set("ABILITY", createMongoAbility<MongoAbility>());
         return await handler();

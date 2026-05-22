@@ -1,5 +1,6 @@
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import assert from "http-assert";
+import createHttpError from "http-errors";
 import { Lifecycle, scoped } from "tsyringe";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
@@ -123,6 +124,23 @@ export class WalletController {
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async signTx({ data: { userId, messages } }: SignTxRequestInput): Promise<SignTxResponseOutput> {
+    if (this.featureFlagsService.isEnabled(FeatureFlags.CONSOLE_ONBOARDING_REDESIGN)) {
+      const wallet = await this.userWalletRepository.findOneByUserId(userId);
+
+      if (wallet?.status === "pending") {
+        throw createHttpError(503, "Wallet is still initializing", {
+          errorCode: "wallet_pending",
+          headers: { "Retry-After": "2" }
+        });
+      }
+
+      if (wallet?.status === "failed") {
+        throw createHttpError(500, "Wallet initialization failed", {
+          errorCode: "wallet_init_failed"
+        });
+      }
+    }
+
     return {
       data: (await this.signerService.executeDerivedEncodedTxByUserId(userId, messages as EncodeObject[])) as SignTxResponseOutput["data"]
     };

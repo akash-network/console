@@ -8,6 +8,12 @@ import { ZodError } from "zod";
 
 import type { AppContext } from "../../types/app-context";
 
+type HttpErrorWithProps = {
+  errorCode?: string;
+  errorType?: string;
+  headers?: Record<string, string>;
+};
+
 @singleton()
 export class HonoErrorHandlerService {
   private readonly logger = createOtelLogger({ context: "ErrorHandler" });
@@ -37,8 +43,10 @@ export class HonoErrorHandlerService {
 
     if (isHttpError(error)) {
       const { name } = error.constructor;
-      const errorCode = error.data?.errorCode || this.getErrorCode(error);
-      const errorType = error.data?.errorType || this.getErrorType(error);
+      const errorWithProps = error as HttpErrorWithProps;
+      const errorCode = errorWithProps.errorCode || error.data?.errorCode || this.getErrorCode(error);
+      const errorType = errorWithProps.errorType || error.data?.errorType || this.getErrorType(error);
+      const extraHeaders = errorWithProps.headers;
 
       return this.unsafeJson(
         c,
@@ -49,7 +57,7 @@ export class HonoErrorHandlerService {
           type: errorType,
           data: error.data
         },
-        { status: error.status }
+        { status: error.status, headers: extraHeaders }
       );
     }
 

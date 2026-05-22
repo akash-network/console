@@ -130,6 +130,7 @@ export class StripeWebhookService {
       : undefined;
 
     const paymentAmount = paymentIntent.amount_received ?? paymentIntent.amount;
+    const endTrial = transaction.type !== "coupon_claim";
 
     await this.topUpWalletFromTransaction({
       customerId,
@@ -138,7 +139,8 @@ export class StripeWebhookService {
       paymentMethodType: paymentIntent.payment_method_types?.[0],
       paymentAmount,
       stripePaymentIntentId: paymentIntent.id,
-      eventDescription: `payment_intent ${paymentIntent.id}`
+      eventDescription: `payment_intent ${paymentIntent.id}`,
+      endTrial
     });
   }
 

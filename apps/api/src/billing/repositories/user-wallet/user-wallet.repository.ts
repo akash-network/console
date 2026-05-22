@@ -2,6 +2,7 @@ import subDays from "date-fns/subDays";
 import { and, count, eq, gt, inArray, lte, or } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
+import type { UserWalletStatus } from "@src/billing/model-schemas/user-wallet/user-wallet.schema";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
@@ -70,10 +71,11 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return { wallet: wallet!, isNew: false };
   }
 
-  async create(input: Pick<DbCreateUserWalletInput, "userId" | "address">) {
+  async create(input: Pick<DbCreateUserWalletInput, "userId" | "address" | "status">) {
     const value = {
       userId: input.userId,
-      address: input.address
+      address: input.address,
+      ...(input.status !== undefined && { status: input.status })
     };
 
     this.ability?.throwUnlessCanExecute(value);
@@ -121,6 +123,11 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
   async findByUserId(userId: UserWalletOutput["userId"] | UserWalletOutput["userId"][]) {
     const where = Array.isArray(userId) ? inArray(this.table.userId, userId as string[]) : eq(this.table.userId, userId as string);
     return this.toOutputList(await this.cursor.query.UserWallets.findMany({ where: this.whereAccessibleBy(where) }));
+  }
+
+  @Trace()
+  async updateStatus(id: UserWalletOutput["id"], status: UserWalletStatus): Promise<void> {
+    await this.cursor.update(this.table).set({ status }).where(eq(this.table.id, id));
   }
 
   async payingUserCount() {

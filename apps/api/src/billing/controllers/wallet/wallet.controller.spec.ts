@@ -12,12 +12,15 @@ import { BillingConfigService } from "@src/billing/services/billing-config/billi
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
 import { WalletController } from "./wallet.controller";
 
 import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { createUser } from "@test/seeders/user.seeder";
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe("WalletController", () => {
   it("forbids starting a trial for a user with not verified email", async () => {
@@ -271,6 +274,72 @@ describe("WalletController", () => {
     expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).not.toHaveBeenCalled();
   });
 
+  describe("signTx — wallet readiness gate (console_onboarding_redesign FF)", () => {
+    it("returns 503 with Retry-After header when wallet status is 'pending' and FF is on", async () => {
+      const user = createUser();
+      const container = setup({
+        user,
+        userWallet: createUserWallet({ userId: user.id, status: "pending" }),
+        featureFlagEnabled: flag => flag === FeatureFlags.CONSOLE_ONBOARDING_REDESIGN
+      });
+      const walletController = container.resolve(WalletController);
+
+      await expect(
+        walletController.signTx({ data: { userId: user.id, messages: [{ typeUrl: "/akash.cert.v1.MsgCreateCertificate", value: "" }] } })
+      ).rejects.toMatchObject({
+        status: 503,
+        headers: { "Retry-After": "2" }
+      });
+      expect(container.resolve(ManagedSignerService).executeDerivedEncodedTxByUserId).not.toHaveBeenCalled();
+    });
+
+    it("returns 500 with wallet_init_failed code when wallet status is 'failed' and FF is on", async () => {
+      const user = createUser();
+      const container = setup({
+        user,
+        userWallet: createUserWallet({ userId: user.id, status: "failed" }),
+        featureFlagEnabled: true
+      });
+      const walletController = container.resolve(WalletController);
+
+      await expect(
+        walletController.signTx({ data: { userId: user.id, messages: [{ typeUrl: "/akash.cert.v1.MsgCreateCertificate", value: "" }] } })
+      ).rejects.toMatchObject({
+        status: 500,
+        errorCode: "wallet_init_failed"
+      });
+      expect(container.resolve(ManagedSignerService).executeDerivedEncodedTxByUserId).not.toHaveBeenCalled();
+    });
+
+    it("proceeds with signing when wallet status is 'ready' and FF is on", async () => {
+      const user = createUser();
+      const container = setup({
+        user,
+        userWallet: createUserWallet({ userId: user.id, status: "ready" }),
+        featureFlagEnabled: true
+      });
+      const walletController = container.resolve(WalletController);
+
+      await walletController.signTx({ data: { userId: user.id, messages: [{ typeUrl: "/akash.cert.v1.MsgCreateCertificate", value: "" }] } });
+
+      expect(container.resolve(ManagedSignerService).executeDerivedEncodedTxByUserId).toHaveBeenCalledWith(user.id, expect.any(Array));
+    });
+
+    it("does not check wallet status when FF is off", async () => {
+      const user = createUser();
+      const container = setup({
+        user,
+        featureFlagEnabled: false
+      });
+      const walletController = container.resolve(WalletController);
+
+      await walletController.signTx({ data: { userId: user.id, messages: [{ typeUrl: "/akash.cert.v1.MsgCreateCertificate", value: "" }] } });
+
+      expect(container.resolve(UserWalletRepository).findOneByUserId).not.toHaveBeenCalled();
+      expect(container.resolve(ManagedSignerService).executeDerivedEncodedTxByUserId).toHaveBeenCalledWith(user.id, expect.any(Array));
+    });
+  });
+
   function setup(input?: {
     user?: UserOutput;
     hasPaymentMethods?: boolean;
@@ -280,12 +349,19 @@ describe("WalletController", () => {
     validationFails?: boolean;
     stripeError?: boolean;
     wallets?: UserWalletPublicOutput[];
+    userWallet?: ReturnType<typeof createUserWallet>;
+    featureFlagEnabled?: boolean | ((flag: string) => boolean);
   }) {
     rootContainer.register(AuthService, {
       useValue: mock<AuthService>({
+        isAuthenticated: true,
         ability: createMongoAbility<MongoAbility>([
           {
             action: "create",
+            subject: "UserWallet"
+          },
+          {
+            action: "sign",
             subject: "UserWallet"
           }
         ]),
@@ -350,8 +426,22 @@ describe("WalletController", () => {
     rootContainer.register(BalancesService, {
       useValue: mock<BalancesService>()
     });
+    const userWalletRepository = mock<UserWalletRepository>({
+      findOneByUserId: jest.fn().mockResolvedValue(input?.userWallet)
+    });
     rootContainer.register(UserWalletRepository, {
-      useValue: mock<UserWalletRepository>()
+      useValue: userWalletRepository
+    });
+
+    const featureFlagImpl =
+      typeof input?.featureFlagEnabled === "function"
+        ? input.featureFlagEnabled
+        : () => (input?.featureFlagEnabled === undefined ? true : Boolean(input.featureFlagEnabled));
+    const featureFlagsService = mock<FeatureFlagsService>({
+      isEnabled: jest.fn().mockImplementation(featureFlagImpl)
+    });
+    rootContainer.register(FeatureFlagsService, {
+      useValue: featureFlagsService
     });
 
     return rootContainer;

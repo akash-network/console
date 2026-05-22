@@ -56,7 +56,7 @@ describe(StripeWebhookService.name, () => {
         receiptUrl: "https://receipt.url",
         stripePaymentIntentId: paymentIntentId
       });
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, { endTrial: undefined });
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, { endTrial: true });
     });
 
     it("returns early when customer ID is missing", async () => {
@@ -147,7 +147,7 @@ describe(StripeWebhookService.name, () => {
       await service.tryToTopUpWalletFromPaymentIntent(event);
 
       expect(stripeTransactionRepository.findById).toHaveBeenCalledWith(internalTransaction.id);
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, { endTrial: undefined });
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, { endTrial: true });
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(
         "tx-123",
         expect.objectContaining({
@@ -155,6 +155,32 @@ describe(StripeWebhookService.name, () => {
           stripePaymentIntentId: "pi_123"
         })
       );
+    });
+
+    it("does not end trial when transaction is a coupon claim", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const mockUser = createTestUser();
+      const paymentIntentId = "pi_123";
+      const amount = 10000;
+      const internalTransaction = createMockTransaction({ status: "created", type: "coupon_claim" });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+
+      const event = createPaymentIntentSucceededEvent({
+        id: paymentIntentId,
+        customer: mockUser.stripeCustomerId,
+        amount,
+        amount_received: amount,
+        metadata: {
+          internal_transaction_id: internalTransaction.id
+        }
+      });
+
+      await service.tryToTopUpWalletFromPaymentIntent(event);
+
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, { endTrial: false });
     });
   });
 

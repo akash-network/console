@@ -11,6 +11,7 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import { AccountStageService } from "@src/user/services/account-stage/account-stage.service";
 
 @singleton()
 export class RefillService {
@@ -23,7 +24,8 @@ export class RefillService {
     private readonly managedSignerService: ManagedSignerService,
     private readonly balancesService: BalancesService,
     private readonly walletInitializerService: WalletInitializerService,
-    private readonly analyticsService: AnalyticsService
+    private readonly analyticsService: AnalyticsService,
+    private readonly accountStageService: AccountStageService
   ) {}
 
   async refillAllFees() {
@@ -78,6 +80,10 @@ export class RefillService {
     await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: options.endTrial ?? true });
     this.analyticsService.track(userId, "balance_top_up");
     this.logger.debug({ event: "WALLET_TOP_UP", userWallet, limits });
+
+    if (options.endTrial ?? true) {
+      await this.accountStageService.endTrial(userId);
+    }
   }
 
   /**

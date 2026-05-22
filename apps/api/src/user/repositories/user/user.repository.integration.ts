@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { UserOutput } from "./user.repository";
 import { UserRepository } from "./user.repository";
 
 describe(UserRepository.name, () => {
@@ -93,7 +94,7 @@ describe(UserRepository.name, () => {
       }
     };
 
-    async function createTestUser(overrides: { lastActiveAt?: Date | null; lastIp?: string } = {}) {
+    async function createTestUser(overrides: { lastActiveAt?: Date | null; lastIp?: string; stage?: UserOutput["stage"] } = {}) {
       const user = await userRepository.create({
         id: faker.string.uuid(),
         userId: faker.string.uuid(),
@@ -109,4 +110,36 @@ describe(UserRepository.name, () => {
 
     return { userRepository, createTestUser };
   }
+
+  describe("advanceStage", () => {
+    it("advances from onboarding to trial", async () => {
+      const { userRepository, createTestUser } = setup();
+      const user = await createTestUser();
+
+      await userRepository.advanceStage(user.id, { from: "onboarding", to: "trial" });
+
+      const updated = await userRepository.findById(user.id);
+      expect(updated?.stage).toBe("trial");
+    });
+
+    it("is a no-op when current stage is not in from", async () => {
+      const { userRepository, createTestUser } = setup();
+      const user = await createTestUser({ stage: "regular" });
+
+      await userRepository.advanceStage(user.id, { from: "onboarding", to: "trial" });
+
+      const updated = await userRepository.findById(user.id);
+      expect(updated?.stage).toBe("regular");
+    });
+
+    it("accepts an array of from stages", async () => {
+      const { userRepository, createTestUser } = setup();
+      const user = await createTestUser({ stage: "trial_legacy" });
+
+      await userRepository.advanceStage(user.id, { from: ["trial", "trial_legacy"], to: "regular" });
+
+      const updated = await userRepository.findById(user.id);
+      expect(updated?.stage).toBe("regular");
+    });
+  });
 });

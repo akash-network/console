@@ -1,4 +1,4 @@
-import { and, eq, isNull, lt, ne, or, SQL, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, inArray, isNull, lt, ne, or, SQL, sql } from "drizzle-orm";
 import { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
@@ -7,7 +7,7 @@ import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
 import { Trace } from "@src/core/services/tracing/tracing.service";
-import { userAgentMaxLength } from "@src/user/model-schemas/user/user.schema";
+import { AccountStage, userAgentMaxLength } from "@src/user/model-schemas/user/user.schema";
 
 export type UserOutput = ApiPgTables["Users"]["$inferSelect"] & {
   trial?: boolean;
@@ -71,7 +71,7 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
       );
   }
 
-  async upsertOnExternalIdConflict(data: UserInput): Promise<UserOutput> {
+  async upsertOnExternalIdConflict(data: UserInput): Promise<{ user: UserOutput; wasInserted: boolean }> {
     const { username, ...withoutUsername } = data;
     const [item] = await this.cursor
       .insert(this.table)
@@ -80,8 +80,12 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
         target: [this.table.userId],
         set: withoutUsername
       })
-      .returning();
-    return this.toOutput(item);
+      .returning({
+        ...getTableColumns(this.table),
+        wasInserted: sql<boolean>`(xmax = 0)`.as("was_inserted")
+      });
+    const { wasInserted, ...user } = item;
+    return { user: this.toOutput(user), wasInserted };
   }
 
   async findTrialUsersByFingerprint(fingerprint: string, excludeUserId: string): Promise<{ id: string }[]> {
@@ -90,6 +94,15 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
       .from(this.table)
       .innerJoin(UserWallets, and(eq(UserWallets.userId, this.table.id), eq(UserWallets.isTrialing, true)))
       .where(and(eq(this.table.lastFingerprint, fingerprint), ne(this.table.id, excludeUserId)));
+  }
+
+  @Trace()
+  async advanceStage(userId: UserOutput["id"], options: { from: AccountStage | AccountStage[]; to: AccountStage }): Promise<void> {
+    const fromStages = Array.isArray(options.from) ? options.from : [options.from];
+    await this.cursor
+      .update(this.table)
+      .set({ stage: options.to })
+      .where(and(eq(this.table.id, userId), inArray(this.table.stage, fromStages)));
   }
 
   private async findUserWithWallet(whereClause: SQL<unknown>) {

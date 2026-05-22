@@ -10,6 +10,7 @@ export function createUserWallet({
   deploymentAllowance = faker.number.float({ min: 0, max: 1000000 }),
   feeAllowance = faker.number.float({ min: 0, max: 1000000 }),
   isTrialing = faker.helpers.arrayElement([true, false]),
+  status = "ready" as const,
   createdAt = faker.date.past(),
   updatedAt = faker.date.past()
 }: Partial<UserWalletOutput> = {}): UserWalletOutput {
@@ -20,6 +21,7 @@ export function createUserWallet({
     deploymentAllowance,
     feeAllowance,
     isTrialing,
+    status,
     creditAmount: deploymentAllowance,
     createdAt,
     updatedAt

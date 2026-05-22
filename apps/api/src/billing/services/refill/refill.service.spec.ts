@@ -7,6 +7,7 @@ import type { BalancesService } from "@src/billing/services/balances/balances.se
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import type { AccountStageService } from "@src/user/services/account-stage/account-stage.service";
 
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
@@ -72,6 +73,45 @@ describe(RefillService.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up");
     });
 
+    it("calls AccountStageService.endTrial when endTrial is true", async () => {
+      const { service, accountStageService, userWalletRepository, managedUserWalletService, balancesService } = setup();
+      const existingWallet = createUserWallet({ userId });
+      userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
+      managedUserWalletService.authorizeSpending.mockResolvedValue();
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
+      balancesService.refreshUserWalletLimits.mockResolvedValue();
+
+      await service.topUpWallet(10, "user-1", { endTrial: true });
+
+      expect(accountStageService.endTrial).toHaveBeenCalledWith("user-1");
+    });
+
+    it("does not call endTrial when endTrial is explicitly false", async () => {
+      const { service, accountStageService, userWalletRepository, managedUserWalletService, balancesService } = setup();
+      const existingWallet = createUserWallet({ userId });
+      userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
+      managedUserWalletService.authorizeSpending.mockResolvedValue();
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
+      balancesService.refreshUserWalletLimits.mockResolvedValue();
+
+      await service.topUpWallet(10, "user-1", { endTrial: false });
+
+      expect(accountStageService.endTrial).not.toHaveBeenCalled();
+    });
+
+    it("calls endTrial when endTrial is omitted (defaults to true)", async () => {
+      const { service, accountStageService, userWalletRepository, managedUserWalletService, balancesService } = setup();
+      const existingWallet = createUserWallet({ userId });
+      userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
+      managedUserWalletService.authorizeSpending.mockResolvedValue();
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
+      balancesService.refreshUserWalletLimits.mockResolvedValue();
+
+      await service.topUpWallet(10, "user-1");
+
+      expect(accountStageService.endTrial).toHaveBeenCalledWith("user-1");
+    });
+
     function setup() {
       const billingConfig = mock<BillingConfig>();
       const userWalletRepository = mock<UserWalletRepository>();
@@ -80,6 +120,7 @@ describe(RefillService.name, () => {
       const balancesService = mock<BalancesService>();
       const walletInitializerService = mock<WalletInitializerService>();
       const analyticsService = mock<AnalyticsService>();
+      const accountStageService = mock<AccountStageService>();
 
       billingConfig.FEE_ALLOWANCE_REFILL_AMOUNT = 1000;
 
@@ -90,7 +131,8 @@ describe(RefillService.name, () => {
         managedSignerService,
         balancesService,
         walletInitializerService,
-        analyticsService
+        analyticsService,
+        accountStageService
       );
 
       return {
@@ -101,7 +143,8 @@ describe(RefillService.name, () => {
         managedSignerService,
         balancesService,
         walletInitializerService,
-        analyticsService
+        analyticsService,
+        accountStageService
       };
     }
   });
@@ -183,6 +226,7 @@ describe(RefillService.name, () => {
       const balancesService = mock<BalancesService>();
       const walletInitializerService = mock<WalletInitializerService>();
       const analyticsService = mock<AnalyticsService>();
+      const accountStageService = mock<AccountStageService>();
 
       billingConfig.FEE_ALLOWANCE_REFILL_AMOUNT = 1000;
 
@@ -193,7 +237,8 @@ describe(RefillService.name, () => {
         managedSignerService,
         balancesService,
         walletInitializerService,
-        analyticsService
+        analyticsService,
+        accountStageService
       );
 
       return {
@@ -204,7 +249,8 @@ describe(RefillService.name, () => {
         managedSignerService,
         balancesService,
         walletInitializerService,
-        analyticsService
+        analyticsService,
+        accountStageService
       };
     }
   });

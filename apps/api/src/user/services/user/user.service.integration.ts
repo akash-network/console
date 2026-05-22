@@ -8,6 +8,8 @@ import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import type { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import type { RegisterUserInput } from "./user.service";
@@ -348,7 +350,9 @@ describe(UserService.name, () => {
       auth0Service,
       mock<EmailVerificationCodeService>({
         sendCode: vi.fn().mockResolvedValue({ codeSentAt: new Date().toISOString() })
-      })
+      }),
+      mock<DomainEventsService>(),
+      mock<FeatureFlagsService>()
     );
 
     return { service, analyticsService, logger, auth0Service, userRepository };

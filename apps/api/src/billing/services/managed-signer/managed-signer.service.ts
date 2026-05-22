@@ -22,6 +22,7 @@ import { LoggerService } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { Trace, withSpan } from "@src/core/services/tracing/tracing.service";
 import { UserRepository } from "@src/user/repositories";
+import { AccountStageService } from "@src/user/services/account-stage/account-stage.service";
 import { BalancesService } from "../balances/balances.service";
 import { BillingConfigService } from "../billing-config/billing-config.service";
 import { ChainErrorService } from "../chain-error/chain-error.service";
@@ -47,6 +48,7 @@ export class ManagedSignerService {
     private readonly leaseHttpService: LeaseHttpService,
     private readonly walletReloadJobService: WalletReloadJobService,
     private readonly managedUserWalletService: ManagedUserWalletService,
+    private readonly accountStageService: AccountStageService,
     private readonly logger: LoggerService
   ) {
     this.logger.setContext(ManagedSignerService.name);
@@ -138,6 +140,10 @@ export class ManagedSignerService {
           dseq: createLeaseMessage.value.bidId!.dseq.toString()
         })
       );
+      const user = await this.userRepository.findByUserId(userWallet.userId);
+      if (user) {
+        await this.accountStageService.activateTrial(user);
+      }
     }
 
     await this.balancesService.refreshUserWalletLimits(userWallet);
