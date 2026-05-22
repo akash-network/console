@@ -2,6 +2,13 @@
 
 import * as amplitude from "@amplitude/analytics-browser";
 import { sessionReplayPlugin } from "@amplitude/plugin-session-replay-browser";
+
+declare global {
+  interface Window {
+    dataLayer?: Record<string, unknown>[];
+  }
+}
+
 export type AnalyticsUser = {
   id?: string;
   anonymous?: boolean;
