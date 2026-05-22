@@ -21,9 +21,9 @@ export class DiscoverySchedulerService {
   #abortController: AbortController | null = null;
 
   constructor(
-    @inject(ChainProviderPollerService) poller: ChainProviderPollerService,
-    @inject(ProviderInventoryRepository) writer: ProviderInventoryRepository,
-    @inject(StreamLifecycleManagerService) lifecycle: StreamLifecycleManagerService,
+    poller: ChainProviderPollerService,
+    writer: ProviderInventoryRepository,
+    lifecycle: StreamLifecycleManagerService,
     @inject(APP_CONFIG) config: EnvConfig,
     @inject(LOGGER_FACTORY) loggerFactory: LoggerFactory
   ) {

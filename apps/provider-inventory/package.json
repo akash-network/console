@@ -46,6 +46,7 @@
     "@akashnetwork/dev-config": "*",
     "@akashnetwork/docker": "*",
     "@akashnetwork/releaser": "*",
+    "@swc/core": "^1.15.10",
     "@types/http-errors": "^2.0.4",
     "@types/lodash": "^4.17.0",
     "@types/node": "^24.0.0",
