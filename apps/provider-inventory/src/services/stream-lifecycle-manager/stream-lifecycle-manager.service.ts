@@ -33,7 +33,7 @@ export class StreamLifecycleManagerService {
 
   constructor(
     streamFactory: ProviderStreamFactory,
-    @inject(ProviderInventoryRepository) writer: ProviderInventoryRepository,
+    writer: ProviderInventoryRepository,
     @inject(LOGGER_FACTORY) loggerFactory: LoggerFactory,
     @inject(APP_CONFIG) config: EnvConfig
   ) {
