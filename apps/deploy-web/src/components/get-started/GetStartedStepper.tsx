@@ -169,7 +169,7 @@ export const GetStartedStepper: React.FunctionComponent<{ dependencies?: typeof 
                 </span>
               ) : (
                 <span>
-                  You have <strong>{aktBalance}</strong> AKT and <strong>{usdcBalance}</strong> USDC
+                  You have <strong>{aktBalance}</strong> AKT and <strong>{actBalance}</strong> ACT
                 </span>
               )}
             </div>

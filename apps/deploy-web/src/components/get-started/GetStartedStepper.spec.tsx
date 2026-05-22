@@ -6,17 +6,15 @@ import { render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(GetStartedStepper.name, () => {
-  it("displays AKT and USDC balance for custodial wallet", () => {
+  it("displays AKT and ACT balance for custodial wallet", () => {
     setup({
       isWalletConnected: true,
       isManagedWallet: false,
       balanceUAKT: 10_000_000,
-      balanceUUSDC: 5_000_000
+      balanceUACT: 7_000_000
     });
 
-    expect(screen.queryByText("10")).toBeInTheDocument();
-    expect(screen.queryByText(/AKT and/)).toBeInTheDocument();
-    expect(screen.queryByText(/USDC/)).toBeInTheDocument();
+    expect(screen.queryByText((_, el) => el?.tagName === "SPAN" && /You have 10 AKT and 7 ACT/.test(el.textContent ?? ""))).toBeInTheDocument();
   });
 
   it("displays USD balance for managed wallet", () => {
