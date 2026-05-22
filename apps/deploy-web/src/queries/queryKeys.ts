@@ -39,6 +39,7 @@ export class QueryKeys {
   static getProviderDetailKey = (owner: string) => ["PROVIDERS", owner];
   static getDataNodeProvidersKey = () => ["DATA_NODE_PROVIDERS"];
   static getProviderStatusKey = (providerUri: string) => ["PROVIDER_STATUS", providerUri];
+  static getFirstReachableProviderKey = (providerUris: string[]) => ["FIRST_REACHABLE_PROVIDER", providerUris];
   static getNetworkCapacity = () => ["NETWORK_CAPACITY"];
   static getProviderActiveLeasesGraph = (providerAddress: string) => ["PROVIDER_ACTIVE_LEASES_GRAPH", providerAddress];
   static getAuditorsKey = () => ["AUDITORS"];
