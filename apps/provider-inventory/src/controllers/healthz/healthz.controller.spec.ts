@@ -32,7 +32,7 @@ describe(HealthzController.name, () => {
       dbHealthcheck.ping.mockResolvedValue(undefined);
     }
 
-    const controller = new HealthzController(dbHealthcheck);
+    const controller = new HealthzController(dbHealthcheck, () => mock());
 
     return { controller, dbHealthcheck };
   }
