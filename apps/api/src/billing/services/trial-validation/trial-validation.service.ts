@@ -10,32 +10,19 @@ import { BillingConfigService } from "@src/billing/services/billing-config/billi
 import { Trace } from "@src/core/services/tracing/tracing.service";
 import { AUDITOR, TRIAL_ATTRIBUTE, TRIAL_REGISTERED_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
-import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import type { UserOutput } from "@src/user/repositories";
 
-const TRIAL_DEPLOYMENT_LIMIT = 5;
+const STANDARD_TOP_UP_MIN_AMOUNT_USD = 20;
 
 @singleton()
 export class TrialValidationService {
   constructor(
-    private readonly deploymentReaderService: DeploymentReaderService,
     private readonly config: BillingConfigService,
     private readonly providerRepository: ProviderRepository,
     private readonly bidHttpService: BidHttpService,
     private readonly blockedGpuService: BlockedGpuService
   ) {}
-
-  async validateTrialLimit(decoded: EncodeObject, userWallet: UserWalletOutput) {
-    if (userWallet.isTrialing && decoded.typeUrl === `/${MsgCreateDeployment.$type}`) {
-      const deployments = await this.deploymentReaderService.listWithResources({
-        address: userWallet.address!,
-        status: "active",
-        limit: 1
-      });
-      assert(deployments.count < TRIAL_DEPLOYMENT_LIMIT, 402, "Trial limit reached. Add funds to your account to deploy more.");
-    }
-  }
 
   async validateLeaseProviders(decoded: EncodeObject, userWallet: UserWalletOutput, user: UserOutput) {
     if (decoded.typeUrl === `/${MsgCreateDeployment.$type}`) {
@@ -81,6 +68,16 @@ export class TrialValidationService {
 
       assert(isAuditedByAllowedAuditor, 403, `Provider not authorized.`);
     }
+  }
+
+  getTopUpMinAmountUsd(userWallet: Pick<UserWalletOutput, "isTrialing">): number {
+    return userWallet.isTrialing ? this.config.get("MANAGED_WALLET_TRIAL_MIN_TOP_UP_AMOUNT") : STANDARD_TOP_UP_MIN_AMOUNT_USD;
+  }
+
+  validateTopUpAmount(userWallet: Pick<UserWalletOutput, "isTrialing"> | undefined, amountUsd: number) {
+    if (!userWallet?.isTrialing) return;
+    const min = this.getTopUpMinAmountUsd(userWallet);
+    assert(amountUsd >= min, 402, `First top-up must be at least $${min} while on the free trial.`);
   }
 
   @Trace()

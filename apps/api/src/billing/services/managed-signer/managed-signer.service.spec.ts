@@ -121,7 +121,6 @@ describe(ManagedSignerService.name, () => {
       await service.executeDerivedDecodedTxByUserId("user-123", messages);
 
       expect(anonymousValidateService.validateLeaseProviders).not.toHaveBeenCalled();
-      expect(anonymousValidateService.validateTrialLimit).not.toHaveBeenCalled();
     });
 
     it("executes transaction successfully and returns result", async () => {
@@ -542,7 +541,6 @@ describe(ManagedSignerService.name, () => {
     currentUser?: UserOutput;
     enabledFeatures?: FeatureFlagValue[];
     validateLeaseProviders?: TrialValidationService["validateLeaseProviders"];
-    validateTrialLimit?: TrialValidationService["validateTrialLimit"];
     validateLeaseProvidersAuditors?: TrialValidationService["validateLeaseProvidersAuditors"];
     signAndBroadcastWithDerivedWallet?: TxManagerService["signAndBroadcastWithDerivedWallet"];
     signAndBroadcastWithFundingWallet?: TxManagerService["signAndBroadcastWithFundingWallet"];

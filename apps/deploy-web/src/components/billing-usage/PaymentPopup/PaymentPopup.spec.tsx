@@ -50,7 +50,7 @@ const MockFormField = ({ control, name, render }: any) => {
   return render({ field });
 };
 
-const MockFormInput = ({ label, type, placeholder, onChange, value, ...rest }: any) => {
+const MockFormInput = ({ label, type, placeholder, onChange, value, description, ...rest }: any) => {
   const inputId = `input-${rest.name}`;
   // Remove onChange from rest to avoid conflicts
   const { onChange: _omit, ...otherProps } = rest;
@@ -58,6 +58,7 @@ const MockFormInput = ({ label, type, placeholder, onChange, value, ...rest }: a
     <div>
       <label htmlFor={inputId}>{label}</label>
       <input id={inputId} data-testid={inputId} type={type} placeholder={placeholder} value={value} {...otherProps} onChange={onChange} />
+      {description && <p data-testid={`${inputId}-description`}>{description}</p>}
     </div>
   );
 };
@@ -217,6 +218,16 @@ describe(PaymentPopup.name, () => {
       });
 
       expect(paymentForm.getValues("amount")).toBe(25);
+    });
+
+    it("renders the wallet-provided minimum in the input description", () => {
+      setup({ open: true, topUpMinAmountUsd: 100 });
+      expect(screen.getByText("Minimum amount is $100")).toBeInTheDocument();
+    });
+
+    it("falls back to the established $20 minimum description when wallet reports it", () => {
+      setup({ open: true, topUpMinAmountUsd: 20 });
+      expect(screen.getByText("Minimum amount is $20")).toBeInTheDocument();
     });
   });
 
@@ -867,6 +878,7 @@ function setup(
     stripeErrorResponse?: any;
     mockUse3DSecure?: Mock;
     paymentMethods?: any[];
+    topUpMinAmountUsd?: number;
   } = {}
 ) {
   const mockOnClose = input.onClose || vi.fn();
@@ -1029,7 +1041,8 @@ function setup(
     })),
     handleCouponError: mockHandleCouponError,
     handleStripeError: mockHandleStripeError,
-    useServices: vi.fn(() => ({ errorHandler: mockErrorHandler, urlService: { paymentMethods: () => "/payment-methods" } }))
+    useServices: vi.fn(() => ({ errorHandler: mockErrorHandler, urlService: { paymentMethods: () => "/payment-methods" } })),
+    useWallet: vi.fn(() => ({ topUpMinAmountUsd: input.topUpMinAmountUsd ?? 20 }))
   };
 
   const props: React.ComponentProps<typeof PaymentPopup> = {

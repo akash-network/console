@@ -15,6 +15,7 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
+import { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import { GetWalletOptions, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
@@ -34,7 +35,8 @@ export class WalletController {
     private readonly stripeErrorService: StripeErrorService,
     private readonly featureFlagsService: FeatureFlagsService,
     private readonly userRepository: UserRepository,
-    private readonly billingConfigService: BillingConfigService
+    private readonly billingConfigService: BillingConfigService,
+    private readonly trialValidationService: TrialValidationService
   ) {}
 
   @Protected([{ action: "create", subject: "UserWallet" }])
@@ -75,6 +77,7 @@ export class WalletController {
             denom: this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM"),
             creditAmount: 0,
             isTrialing: false,
+            topUpMinAmountUsd: this.trialValidationService.getTopUpMinAmountUsd({ isTrialing: false }),
             createdAt: null,
             requires3DS: true,
             clientSecret: validationResult.clientSecret || null,
@@ -92,9 +95,10 @@ export class WalletController {
     }
 
     const denom = this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM");
+    const wallet = await this.walletInitializer.initializeAndGrantTrialLimits(userId);
 
     return {
-      data: { ...(await this.walletInitializer.initializeAndGrantTrialLimits(userId)), denom }
+      data: { ...wallet, denom, topUpMinAmountUsd: this.trialValidationService.getTopUpMinAmountUsd(wallet) }
     };
   }
 
@@ -104,7 +108,7 @@ export class WalletController {
     const wallets = await this.walletReaderService.getWallets(query as GetWalletOptions);
 
     return {
-      data: wallets.map(wallet => ({ ...wallet, denom }))
+      data: wallets.map(wallet => ({ ...wallet, denom, topUpMinAmountUsd: this.trialValidationService.getTopUpMinAmountUsd(wallet) }))
     };
   }
 

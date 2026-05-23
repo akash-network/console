@@ -66,6 +66,7 @@ export type ContextType = {
   isTrialing: boolean;
   isOnboarding: boolean;
   creditAmount?: number;
+  topUpMinAmountUsd: number;
   switchWalletType: () => void;
   hasManagedWallet: boolean;
   managedWalletError?: AppError;
@@ -399,6 +400,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isTrialing: isManaged && !!managedWallet?.isTrialing,
         isOnboarding: !!user?.userId && isManaged && !!managedWallet?.isTrialing,
         creditAmount: isManaged ? managedWallet?.creditAmount : 0,
+        topUpMinAmountUsd: managedWallet?.topUpMinAmountUsd ?? 20,
         hasManagedWallet: !!managedWallet,
         managedWalletError,
         switchWalletType,
