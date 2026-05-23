@@ -9,6 +9,7 @@ export interface ApiWalletOutput {
   denom: string;
   creditAmount: number;
   isTrialing: boolean;
+  topUpMinAmountUsd: number;
   createdAt: Date;
 }
 

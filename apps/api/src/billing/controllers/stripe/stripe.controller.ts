@@ -22,13 +22,15 @@ import type { StripeTransactionOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
+import { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 @singleton()
 export class StripeController {
   constructor(
     private readonly stripe: StripeService,
     private readonly authService: AuthService,
     private readonly stripeErrorService: StripeErrorService,
-    private readonly userWalletRepository: UserWalletRepository
+    private readonly userWalletRepository: UserWalletRepository,
+    private readonly trialValidationService: TrialValidationService
   ) {}
 
   @Protected([{ action: "read", subject: "StripePayment" }])
@@ -84,6 +86,9 @@ export class StripeController {
     const currentUser = this.authService.getCurrentPayingUser({ strict: false });
 
     assert(currentUser, 500, "Payment account not properly configured. Please contact support.");
+
+    const userWallet = await this.userWalletRepository.findOneByUserId(currentUser.id);
+    this.trialValidationService.validateTopUpAmount(userWallet, params.amount);
 
     try {
       assert(await this.stripe.hasPaymentMethod(params.paymentMethodId, currentUser), 403, "Payment method does not belong to the user");

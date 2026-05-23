@@ -8,6 +8,7 @@ import type { UserWalletOutput, UserWalletRepository } from "@src/billing/reposi
 import type { PayingUser } from "@src/billing/services/paying-user/paying-user";
 import type { StripeService } from "@src/billing/services/stripe/stripe.service";
 import type { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
+import type { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import { StripeController } from "./stripe.controller";
 
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
@@ -73,6 +74,70 @@ describe(StripeController.name, () => {
           transactionStatus: "succeeded"
         }
       });
+    });
+
+    it("invokes trial-min validation before contacting Stripe", async () => {
+      const { controller, stripe, userWalletRepository, trialValidationService, user } = setup();
+      const wallet = mock<UserWalletOutput>({ isTrialing: true });
+      userWalletRepository.findOneByUserId.mockResolvedValue(wallet);
+      stripe.hasPaymentMethod.mockResolvedValue(true);
+      stripe.createPaymentIntent.mockResolvedValue({
+        success: true,
+        paymentIntentId: faker.string.uuid(),
+        transactionId: faker.string.uuid(),
+        transactionStatus: "pending"
+      });
+
+      await controller.confirmPayment({
+        userId: user.id,
+        paymentMethodId: faker.string.uuid(),
+        amount: 100,
+        currency: "usd"
+      });
+
+      expect(trialValidationService.validateTopUpAmount).toHaveBeenCalledWith(wallet, 100);
+    });
+
+    it("propagates the trial-min rejection without ever calling Stripe", async () => {
+      const { controller, stripe, userWalletRepository, trialValidationService, user } = setup();
+      const wallet = mock<UserWalletOutput>({ isTrialing: true });
+      userWalletRepository.findOneByUserId.mockResolvedValue(wallet);
+      const trialError = Object.assign(new Error("First top-up must be at least $100 while on the free trial."), { status: 402 });
+      trialValidationService.validateTopUpAmount.mockImplementation(() => {
+        throw trialError;
+      });
+
+      await expect(
+        controller.confirmPayment({
+          userId: user.id,
+          paymentMethodId: faker.string.uuid(),
+          amount: 50,
+          currency: "usd"
+        })
+      ).rejects.toBe(trialError);
+      expect(stripe.hasPaymentMethod).not.toHaveBeenCalled();
+      expect(stripe.createPaymentIntent).not.toHaveBeenCalled();
+    });
+
+    it("forwards an undefined wallet to trial-min validation when no wallet exists", async () => {
+      const { controller, userWalletRepository, trialValidationService, stripe, user } = setup();
+      userWalletRepository.findOneByUserId.mockResolvedValue(undefined);
+      stripe.hasPaymentMethod.mockResolvedValue(true);
+      stripe.createPaymentIntent.mockResolvedValue({
+        success: true,
+        paymentIntentId: faker.string.uuid(),
+        transactionId: faker.string.uuid(),
+        transactionStatus: "pending"
+      });
+
+      await controller.confirmPayment({
+        userId: user.id,
+        paymentMethodId: faker.string.uuid(),
+        amount: 50,
+        currency: "usd"
+      });
+
+      expect(trialValidationService.validateTopUpAmount).toHaveBeenCalledWith(undefined, 50);
     });
 
     it("returns 3DS data with transactionId and transactionStatus", async () => {
@@ -225,7 +290,8 @@ describe(StripeController.name, () => {
     authService.getCurrentPayingUser.mockReturnValue(payingUser);
     const stripeErrorService = mock<StripeErrorService>();
     const userWalletRepository = mock<UserWalletRepository>();
-    const controller = new StripeController(stripe, authService, stripeErrorService, userWalletRepository);
+    const trialValidationService = mock<TrialValidationService>();
+    const controller = new StripeController(stripe, authService, stripeErrorService, userWalletRepository, trialValidationService);
     container.register(AuthService, { useValue: authService });
 
     return {
@@ -234,6 +300,7 @@ describe(StripeController.name, () => {
       authService,
       stripeErrorService,
       userWalletRepository,
+      trialValidationService,
       user
     };
   }

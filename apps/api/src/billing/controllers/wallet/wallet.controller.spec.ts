@@ -11,6 +11,7 @@ import { BalancesService } from "@src/billing/services/balances/balances.service
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
+import { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
@@ -166,6 +167,7 @@ describe("WalletController", () => {
         denom: "uakt",
         creditAmount: 0,
         isTrialing: false,
+        topUpMinAmountUsd: 20,
         createdAt: null,
         requires3DS: true,
         clientSecret: "test_client_secret",
@@ -229,7 +231,7 @@ describe("WalletController", () => {
       const result = await walletController.getWallets({ userId });
 
       expect(result).toEqual({
-        data: wallets.map(wallet => ({ ...wallet, denom: "uakt" }))
+        data: wallets.map(wallet => ({ ...wallet, denom: "uakt", topUpMinAmountUsd: wallet.isTrialing ? 100 : 20 }))
       });
       expect(container.resolve(WalletReaderService).getWallets).toHaveBeenCalledWith({ userId });
     });
@@ -352,6 +354,11 @@ describe("WalletController", () => {
     });
     rootContainer.register(UserWalletRepository, {
       useValue: mock<UserWalletRepository>()
+    });
+    rootContainer.register(TrialValidationService, {
+      useValue: mock<TrialValidationService>({
+        getTopUpMinAmountUsd: jest.fn(wallet => (wallet?.isTrialing ? 100 : 20))
+      })
     });
 
     return rootContainer;
