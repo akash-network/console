@@ -13122,6 +13122,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "requires3DS": {
                           "type": "boolean",
                         },
+                        "topUpMinAmountUsd": {
+                          "description": "Minimum USD amount accepted by the next paid top-up for this wallet.",
+                          "type": "number",
+                        },
                         "userId": {
                           "nullable": true,
                           "type": "string",
@@ -13134,6 +13138,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "address",
                         "denom",
                         "isTrialing",
+                        "topUpMinAmountUsd",
                         "createdAt",
                       ],
                       "type": "object",
@@ -13192,6 +13197,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "requires3DS": {
                           "type": "boolean",
                         },
+                        "topUpMinAmountUsd": {
+                          "description": "Minimum USD amount accepted by the next paid top-up for this wallet.",
+                          "type": "number",
+                        },
                         "userId": {
                           "nullable": true,
                           "type": "string",
@@ -13204,6 +13213,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "address",
                         "denom",
                         "isTrialing",
+                        "topUpMinAmountUsd",
                         "createdAt",
                       ],
                       "type": "object",
@@ -16324,6 +16334,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "requires3DS": {
                             "type": "boolean",
                           },
+                          "topUpMinAmountUsd": {
+                            "description": "Minimum USD amount accepted by the next paid top-up for this wallet.",
+                            "type": "number",
+                          },
                           "userId": {
                             "nullable": true,
                             "type": "string",
@@ -16336,6 +16350,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "address",
                           "denom",
                           "isTrialing",
+                          "topUpMinAmountUsd",
                           "createdAt",
                         ],
                         "type": "object",

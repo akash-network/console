@@ -206,10 +206,17 @@ describe(TrialValidationService.name, () => {
       expect(() => service.validateTopUpAmount(undefined, 1)).not.toThrow();
     });
 
-    it("resolves for non-trial users regardless of amount", () => {
+    it("resolves for non-trial users paying at or above the standard minimum", () => {
       const { service } = setupTopUp({ trialMin: 100 });
       const wallet = createUserWallet({ isTrialing: false });
-      expect(() => service.validateTopUpAmount(wallet, 1)).not.toThrow();
+      expect(() => service.validateTopUpAmount(wallet, 20)).not.toThrow();
+      expect(() => service.validateTopUpAmount(wallet, 1000)).not.toThrow();
+    });
+
+    it("throws 402 for non-trial users paying below the standard minimum", () => {
+      const { service } = setupTopUp({ trialMin: 100 });
+      const wallet = createUserWallet({ isTrialing: false });
+      expect(() => service.validateTopUpAmount(wallet, 5)).toThrow(expect.objectContaining({ status: 402, message: "Top-up must be at least $20." }));
     });
 
     it("resolves for trial users paying at or above the trial minimum", () => {

@@ -75,9 +75,13 @@ export class TrialValidationService {
   }
 
   validateTopUpAmount(userWallet: Pick<UserWalletOutput, "isTrialing"> | undefined, amountUsd: number) {
-    if (!userWallet?.isTrialing) return;
+    if (!userWallet) return;
     const min = this.getTopUpMinAmountUsd(userWallet);
-    assert(amountUsd >= min, 402, `First top-up must be at least $${min} while on the free trial.`);
+    assert(
+      amountUsd >= min,
+      402,
+      userWallet.isTrialing ? `First top-up must be at least $${min} while on the free trial.` : `Top-up must be at least $${min}.`
+    );
   }
 
   @Trace()
