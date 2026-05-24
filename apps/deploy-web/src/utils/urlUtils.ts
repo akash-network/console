@@ -79,7 +79,6 @@ export class UrlService {
   static logout = () => "/api/auth/logout";
   static onboarding = ({ returnTo }: ReturnableOptions = {}) => getSafeReturnableUrl("/signup", returnTo);
   static template = (id: string) => `/template/${id}`;
-  static mintBurn = () => "/mint-burn";
 
   // Deploy
   static deploymentList = () => `/deployments`;
