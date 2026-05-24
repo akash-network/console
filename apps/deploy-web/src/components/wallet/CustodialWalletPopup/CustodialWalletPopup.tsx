@@ -2,10 +2,9 @@ import React from "react";
 import { FormattedNumber } from "react-intl";
 import { Address, Button, buttonVariants, Card, CardContent, Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Bank, LogOut } from "iconoir-react";
+import { LogOut } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
-import { useRouter } from "next/router";
 
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { useWallet } from "@src/context/WalletProvider";
@@ -29,14 +28,12 @@ export const DEPENDENCIES = {
   CardContent,
   Separator,
   Button,
-  Bank,
   LogOut,
   Link,
   FormattedNumber,
   ConnectManagedWalletButton,
   PriceValue,
   useWallet,
-  useRouter,
   useCustomUser,
   useIsSelfCustodyEnabled
 };
@@ -44,7 +41,6 @@ export const DEPENDENCIES = {
 export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ walletBalance, dependencies: d = DEPENDENCIES }) => {
   const isSelfCustodyEnabled = d.useIsSelfCustodyEnabled();
   const { address, logout } = d.useWallet();
-  const router = d.useRouter();
   const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
   const { user } = d.useCustomUser();
 
@@ -92,11 +88,6 @@ export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ wall
       <div className="text-xs text-muted-foreground">Wallet Actions</div>
 
       <div className="flex flex-col items-center justify-end space-y-2 pt-2">
-        <d.Button onClick={() => router.push(UrlService.mintBurn())} variant="outline" className="w-full space-x-2">
-          <d.Bank />
-          <span>Mint ACT</span>
-        </d.Button>
-
         <d.Button onClick={logout} variant="outline" className="w-full space-x-2">
           <d.LogOut />
           <span>Disconnect Wallet</span>

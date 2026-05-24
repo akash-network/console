@@ -186,7 +186,7 @@ describe(DeploymentDepositModal.name, () => {
     const dependencies = {
       useServices: () => ({
         analyticsService: { track: vi.fn() },
-        urlService: { mintBurn: () => "/mint-burn", billing: () => "/billing" }
+        urlService: { billing: () => "/billing" }
       }),
       useWallet: () => ({ isManaged: input.isManaged ?? false }),
       useWalletBalance: () => ({

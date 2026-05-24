@@ -39,7 +39,7 @@ describe(isSelfCustodyRoute.name, () => {
 
   it("ignores trailing slashes, query strings, and hash fragments", () => {
     expect(isSelfCustodyRoute("/settings/")).toBe(true);
-    expect(isSelfCustodyRoute("/mint-burn?ref=foo")).toBe(true);
+    expect(isSelfCustodyRoute("/settings/authorizations?ref=foo")).toBe(true);
     expect(isSelfCustodyRoute("/get-started/wallet#section")).toBe(true);
   });
 
