@@ -119,6 +119,11 @@ export class ManagedSignerService {
 
     const tx = await this.executeDerivedTx(userWallet.id, messages);
 
+    if (tx.code !== 0) {
+      this.logger.error({ event: "TX_LANDED_WITH_NON_ZERO_CODE", txHash: tx.hash, code: tx.code, rawLog: tx.rawLog });
+      throw await this.chainErrorService.toAppError(new Error(tx.rawLog || `tx ${tx.hash} failed on-chain with code ${tx.code}`), messages);
+    }
+
     if (hasCreateTrialLeaseMessage) {
       await this.domainEvents.publish(
         new TrialDeploymentLeaseCreated({

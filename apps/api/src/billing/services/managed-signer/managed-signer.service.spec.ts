@@ -231,6 +231,36 @@ describe(ManagedSignerService.name, () => {
       });
     });
 
+    it("throws and skips side-effects when the broadcast tx lands on-chain with a non-zero code", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: true });
+      const user = createUser({ userId: "user-123" });
+      const deploymentMessage: EncodeObject = {
+        typeUrl: MsgCreateLease.$type,
+        value: MsgCreateLease.fromPartial({
+          bidId: { dseq: 123, owner: "akash1test", gseq: 1, oseq: 1, provider: "akash1test" }
+        })
+      };
+
+      const { service, domainEvents, balancesService, walletReloadJobService, chainErrorService } = setup({
+        findOneByUserId: jest.fn().mockResolvedValue(wallet),
+        findById: jest.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
+          code: 17,
+          hash: "tx-hash",
+          rawLog: "deployment exists"
+        }),
+        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined),
+        transformChainError: jest.fn().mockResolvedValue(new Error("Deployment with provided dseq and owner already exists"))
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage])).rejects.toThrow("Deployment with provided dseq");
+
+      expect(chainErrorService.toAppError).toHaveBeenCalledWith(expect.objectContaining({ message: "deployment exists" }), [deploymentMessage]);
+      expect(domainEvents.publish).not.toHaveBeenCalled();
+      expect(balancesService.refreshUserWalletLimits).not.toHaveBeenCalled();
+      expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
+    });
+
     it("handles chain errors properly", async () => {
       const wallet = createUserWallet({
         userId: "user-123",
