@@ -412,10 +412,6 @@ describe("OnboardingContainer", () => {
       getDepositDeploymentMsg: vi.fn(),
       getCloseDeploymentMsg: vi.fn(),
       getSendTokensMsg: vi.fn(),
-      getGrantMsg: vi.fn(),
-      getRevokeDepositMsg: vi.fn(),
-      getGrantBasicAllowanceMsg: vi.fn(),
-      getRevokeAllowanceMsg: vi.fn(),
       getUpdateProviderMsg: vi.fn()
     };
 

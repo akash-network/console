@@ -13,7 +13,6 @@ import { useSnackbar } from "notistack";
 
 import type { LoadingState } from "@src/components/layout/TransactionModal";
 import { TransactionModal } from "@src/components/layout/TransactionModal";
-import { useAllowance } from "@src/hooks/useAllowance";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useSelectedChain } from "@src/hooks/useSelectedChain/useSelectedChain";
 import { useUser } from "@src/hooks/useUser";
@@ -116,9 +115,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return { isManaged: false, denom: undefined };
   }, [walletAddress, managedWallet]);
   const { isManaged } = managedMarker;
-  const {
-    fee: { default: feeGranter }
-  } = useAllowance(walletAddress as string, isManaged);
   const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore();
   const isLoading = deriveWalletIsLoading({
     hasAuthenticatedUserId: !!user?.userId,
@@ -266,14 +262,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         };
         setLoadingState("waitingForApproval");
         const estimatedFees = await userWallet.estimateFee(msgs, undefined, CONSOLE_MEMO);
-        const txRaw = await userWallet.sign(
-          msgs,
-          {
-            ...estimatedFees,
-            granter: feeGranter
-          },
-          CONSOLE_MEMO
-        );
+        const txRaw = await userWallet.sign(msgs, estimatedFees, CONSOLE_MEMO);
 
         setLoadingState("broadcasting");
         enqueueTxSnackbar();
