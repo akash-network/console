@@ -38,14 +38,14 @@ describe(isSelfCustodyRoute.name, () => {
   });
 
   it("ignores trailing slashes, query strings, and hash fragments", () => {
-    expect(isSelfCustodyRoute("/settings/")).toBe(true);
-    expect(isSelfCustodyRoute("/settings?ref=foo")).toBe(true);
+    expect(isSelfCustodyRoute("/get-started/wallet/")).toBe(true);
+    expect(isSelfCustodyRoute("/get-started/wallet?ref=foo")).toBe(true);
     expect(isSelfCustodyRoute("/get-started/wallet#section")).toBe(true);
   });
 
   it("returns false for routes that are not gated by the self-custody flag", () => {
     expect(isSelfCustodyRoute("/")).toBe(false);
     expect(isSelfCustodyRoute("/deployments")).toBe(false);
-    expect(isSelfCustodyRoute("/settings/billing")).toBe(false);
+    expect(isSelfCustodyRoute("/settings")).toBe(false);
   });
 });

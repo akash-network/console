@@ -24,7 +24,6 @@ import {
   Page,
   Rocket,
   Server,
-  Settings,
   SidebarCollapse,
   SidebarExpand,
   StatsUpSquare,
@@ -45,7 +44,6 @@ import type { ISidebarGroupMenu, ISidebarRoute } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
 import { MobileSidebarUser } from "./MobileSidebarUser";
 import { ModeToggle } from "./ModeToggle";
-import { NodeStatusBar } from "./NodeStatusBar";
 import { SidebarGroupMenu } from "./SidebarGroupMenu";
 
 type Props = {
@@ -232,16 +230,6 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
             target: "_blank",
             isNew: true
           },
-          ...(wallet.isWalletConnected && !wallet.isManaged
-            ? [
-                {
-                  title: "App Settings",
-                  icon: props => <Settings {...props} />,
-                  url: UrlService.settings(),
-                  activeRoutes: [UrlService.settings()]
-                } as ISidebarRoute
-              ]
-            : []),
           {
             title: "More Info",
             icon: props => <MoreHorizCircle {...props} />,
@@ -249,13 +237,6 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
               {
                 hasDivider: false,
                 routes: [
-                  ...(wallet.isWalletConnected && !wallet.isManaged
-                    ? [
-                        {
-                          customComponent: <NodeStatusBar />
-                        } as ISidebarRoute
-                      ]
-                    : []),
                   {
                     title: "Privacy Policy",
                     url: UrlService.privacyPolicy()
