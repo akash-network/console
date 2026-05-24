@@ -1,5 +1,7 @@
 import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
+import type { Pubkey } from "@cosmjs/amino";
+import { encodeSecp256k1Pubkey } from "@cosmjs/amino";
 import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
@@ -28,16 +30,40 @@ interface SignAndBroadcastBatchOptions {
   options?: SignAndBroadcastOptions;
 }
 
+interface AccountState {
+  accountNumber: number;
+  sequence: number;
+  pubkey: Pubkey;
+  lastSyncedAt: number;
+}
+
+interface SimulateQueryClient {
+  tx: {
+    simulate: (
+      messages: readonly ReturnType<Registry["encodeAsAny"]>[],
+      memo: string | undefined,
+      signer: Pubkey,
+      sequence: number
+    ) => Promise<{ gasInfo?: { gasUsed: bigint | number | string } }>;
+  };
+}
+
+const SEQUENCE_MISMATCH_PATTERN = /account sequence mismatch, expected (\d+)/;
+
 export class BatchSigningClientService {
   private readonly MEMO = "akash console";
 
   private readonly FEES_DENOM = "uakt";
+
+  private readonly ACCOUNT_STATE_TTL_MS = 30_000;
 
   private client: SigningStargateClient;
 
   private readonly semaphore = new Sema(1);
 
   private activeBatches = 0;
+
+  private accountState: AccountState | null = null;
 
   private signAndBroadcastLoader = new DataLoader(
     async (batchedInputs: readonly SignAndBroadcastBatchOptions[]) => {
@@ -114,6 +140,16 @@ export class BatchSigningClientService {
       throw error;
     }
 
+    if (tx.code !== 0) {
+      this.logger.error({
+        event: "TX_LANDED_WITH_NON_ZERO_CODE",
+        txHash,
+        code: tx.code,
+        rawLog: tx.rawLog
+      });
+      throw new Error(`tx ${txHash} failed on-chain (code ${tx.code}): ${tx.rawLog ?? "unknown error"}`);
+    }
+
     this.logger.debug({
       event: "SIGN_AND_BROADCAST_SUCCESS",
       txHash,
@@ -127,10 +163,35 @@ export class BatchSigningClientService {
     await this.semaphore.acquire();
     this.activeBatches++;
     try {
-      return await this.executeAndBroadcastBatch(inputs);
+      const results = await this.executeAndBroadcastBatch(inputs);
+      this.applySequenceMismatchRecovery(results);
+      return results;
     } finally {
       this.semaphore.release();
       this.activeBatches--;
+    }
+  }
+
+  private applySequenceMismatchRecovery(results: readonly Result<string, unknown>[]): void {
+    for (const result of results) {
+      if (result.ok) continue;
+      const message = result.val instanceof Error ? result.val.message : String(result.val ?? "");
+      if (!message.includes("account sequence mismatch")) continue;
+
+      const match = SEQUENCE_MISMATCH_PATTERN.exec(message);
+      if (match && this.accountState) {
+        const expected = Number(match[1]);
+        this.logger.warn({
+          event: "SEQUENCE_MISMATCH_RECOVERED_FROM_ERROR",
+          previousSequence: this.accountState.sequence,
+          expectedSequence: expected
+        });
+        this.accountState = { ...this.accountState, sequence: expected, lastSyncedAt: Date.now() };
+      } else {
+        this.logger.warn({ event: "SEQUENCE_MISMATCH_CACHE_INVALIDATED", message });
+        this.accountState = null;
+      }
+      return;
     }
   }
 
@@ -142,23 +203,18 @@ export class BatchSigningClientService {
   }
 
   private async signBatch(inputs: readonly SignAndBroadcastBatchOptions[]): Promise<Result<TxRaw, unknown>[]> {
-    const [address, chainId] = await Promise.all([this.getAddress(), this.getChainId()]);
-    const accountInfo = await this.client.getAccount(address);
-
-    if (!accountInfo) {
-      throw new Error("Failed to get account info");
-    }
+    const [address, chainId, accountState] = await Promise.all([this.getAddress(), this.getChainId(), this.getOrFetchAccountState()]);
 
     const results: Result<TxRaw, unknown>[] = [];
-    let currentSequence = accountInfo.sequence;
+    let currentSequence = accountState.sequence;
 
     for (const input of inputs) {
       try {
         const { messages, options } = input;
-        const fee = await this.estimateFee(messages, this.FEES_DENOM, options?.fee?.granter);
+        const fee = await this.estimateFee(messages, accountState.pubkey, currentSequence, this.FEES_DENOM, options?.fee?.granter);
 
-        const signedTx = await this.client.sign(accountInfo.address, messages, fee, this.MEMO, {
-          accountNumber: accountInfo.accountNumber,
+        const signedTx = await this.client.sign(address, messages, fee, this.MEMO, {
+          accountNumber: accountState.accountNumber,
           sequence: currentSequence,
           chainId
         });
@@ -170,7 +226,41 @@ export class BatchSigningClientService {
       }
     }
 
+    this.accountState = { ...accountState, sequence: currentSequence, lastSyncedAt: Date.now() };
+
     return results;
+  }
+
+  private async getOrFetchAccountState(): Promise<AccountState> {
+    if (this.accountState && Date.now() - this.accountState.lastSyncedAt < this.ACCOUNT_STATE_TTL_MS) {
+      return this.accountState;
+    }
+
+    const address = await this.getAddress();
+    const [accountInfo, signerAccounts] = await Promise.all([this.client.getAccount(address), this.wallet.getAccounts()]);
+
+    if (!accountInfo) {
+      throw new Error("Failed to get account info");
+    }
+
+    const signerAccount = signerAccounts.find(account => account.address === address);
+    if (!signerAccount) {
+      throw new Error("Failed to retrieve account from signer");
+    }
+    const pubkey = encodeSecp256k1Pubkey(signerAccount.pubkey);
+
+    const cachedSequence = this.accountState?.sequence;
+    const chainSequence = accountInfo.sequence;
+    const sequence = cachedSequence !== undefined && cachedSequence > chainSequence ? cachedSequence : chainSequence;
+
+    this.accountState = {
+      accountNumber: accountInfo.accountNumber,
+      sequence,
+      pubkey,
+      lastSyncedAt: Date.now()
+    };
+
+    return this.accountState;
   }
 
   private async broadcastBatch(signResults: Result<TxRaw, unknown>[]): Promise<Result<string, unknown>[]> {
@@ -218,9 +308,17 @@ export class BatchSigningClientService {
     });
   }
 
-  private async estimateFee(messages: readonly EncodeObject[], denom: string, granter?: string) {
-    const gasEstimation = await this.client.simulate(await this.getAddress(), messages, this.MEMO);
-    const estimatedGas = Math.ceil(gasEstimation * this.config.get("GAS_SAFETY_MULTIPLIER"));
+  private async estimateFee(messages: readonly EncodeObject[], pubkey: Pubkey, sequence: number, denom: string, granter?: string) {
+    const anyMsgs = messages.map(m => this.registry.encodeAsAny(m));
+    const queryClient = (this.client as unknown as { forceGetQueryClient(): SimulateQueryClient }).forceGetQueryClient();
+    const { gasInfo } = await queryClient.tx.simulate(anyMsgs, this.MEMO, pubkey, sequence);
+
+    if (!gasInfo) {
+      throw new Error("Failed to simulate transaction: no gas info returned");
+    }
+
+    const gasUsed = Number(gasInfo.gasUsed);
+    const estimatedGas = Math.ceil(gasUsed * this.config.get("GAS_SAFETY_MULTIPLIER"));
 
     const fee = calculateFee(estimatedGas, GasPrice.fromString(`${this.config.get("AVERAGE_GAS_PRICE")}${denom}`));
 

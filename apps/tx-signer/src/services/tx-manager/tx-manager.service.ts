@@ -56,7 +56,10 @@ container.register(WALLET_RESOURCES, {
 type CachedClient = {
   address: string;
   client: BatchSigningClientService;
+  lastUsedAt: number;
 };
+
+const DERIVED_CLIENT_IDLE_TTL_MS = 5 * 60 * 1000;
 
 @singleton()
 export class TxManagerService {
@@ -88,15 +91,11 @@ export class TxManagerService {
   }
 
   async signAndBroadcastWithDerivedWallet(derivationIndex: number, messages: readonly EncodeObject[], options?: SignAndBroadcastOptions) {
-    const { client } = await this.#getClient(derivationIndex);
-
+    const cached = await this.#getClient(derivationIndex);
     try {
-      return await client.signAndBroadcast(messages, options);
+      return await cached.client.signAndBroadcast(messages, options);
     } finally {
-      if (!client.hasPendingTransactions && this.#clientsByDerivationIndex.has(derivationIndex)) {
-        this.logger.debug({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", derivationIndex });
-        this.#clientsByDerivationIndex.delete(derivationIndex);
-      }
+      cached.lastUsedAt = Date.now();
     }
   }
 
@@ -105,18 +104,34 @@ export class TxManagerService {
   }
 
   async #getClient(derivationIndex: number): Promise<CachedClient> {
-    if (!this.#clientsByDerivationIndex.has(derivationIndex)) {
-      const wallet = this.getDerivedWallet(derivationIndex);
-      const address = await wallet.getFirstAddress();
+    this.#evictIdleClients();
 
-      this.logger.debug({ event: "DERIVED_SIGNING_CLIENT_CREATE", derivationIndex });
-      this.#clientsByDerivationIndex.set(derivationIndex, {
-        address,
-        client: this.batchSigningClientServiceFactory(wallet)
-      });
+    const existing = this.#clientsByDerivationIndex.get(derivationIndex);
+    if (existing) {
+      return existing;
     }
 
-    return this.#clientsByDerivationIndex.get(derivationIndex)!;
+    const wallet = this.getDerivedWallet(derivationIndex);
+    const address = await wallet.getFirstAddress();
+
+    this.logger.debug({ event: "DERIVED_SIGNING_CLIENT_CREATE", derivationIndex });
+    const cached: CachedClient = {
+      address,
+      client: this.batchSigningClientServiceFactory(wallet),
+      lastUsedAt: Date.now()
+    };
+    this.#clientsByDerivationIndex.set(derivationIndex, cached);
+    return cached;
+  }
+
+  #evictIdleClients() {
+    const now = Date.now();
+    for (const [index, cached] of this.#clientsByDerivationIndex) {
+      if (cached.client.hasPendingTransactions) continue;
+      if (now - cached.lastUsedAt < DERIVED_CLIENT_IDLE_TTL_MS) continue;
+      this.logger.debug({ event: "DERIVED_SIGNING_CLIENT_EVICT_IDLE", derivationIndex: index });
+      this.#clientsByDerivationIndex.delete(index);
+    }
   }
 
   getDerivedWallet(index: number) {

@@ -82,78 +82,67 @@ describe(TxManagerService.name, () => {
       expect(result).toEqual(txResult);
     });
 
-    it("cleans up client when no pending transactions", async () => {
+    it("reuses cached derived wallet client across consecutive calls", async () => {
       const derivationIndex = 1;
       const address = createAkashAddress();
-      const messages: EncodeObject[] = [
-        {
-          typeUrl: "/test.MsgTest",
-          value: {}
-        }
-      ];
-      const txResult = mock<IndexedTx>({
-        code: 0,
-        hash: "tx-hash",
-        rawLog: "success"
-      });
+      const messages: EncodeObject[] = [{ typeUrl: "/test.MsgTest", value: {} }];
+      const txResult = mock<IndexedTx>({ code: 0, hash: "tx-hash", rawLog: "success" });
 
-      const { service, logger } = setup({
+      const { service, batchSigningClientServiceFactory } = setup({
         derivedWalletAddress: address,
         derivedSignAndBroadcast: vi.fn().mockResolvedValue(txResult),
         hasPendingTransactions: false
       });
 
       await service.signAndBroadcastWithDerivedWallet(derivationIndex, messages);
-
-      expect(logger.debug).toHaveBeenCalledWith({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", derivationIndex });
-    });
-
-    it("keeps client when has pending transactions", async () => {
-      const derivationIndex = 1;
-      const address = createAkashAddress();
-      const messages: EncodeObject[] = [
-        {
-          typeUrl: "/test.MsgTest",
-          value: {}
-        }
-      ];
-      const txResult = mock<IndexedTx>({
-        code: 0,
-        hash: "tx-hash",
-        rawLog: "success"
-      });
-
-      const { service, logger } = setup({
-        derivedWalletAddress: address,
-        derivedSignAndBroadcast: vi.fn().mockResolvedValue(txResult),
-        hasPendingTransactions: true
-      });
-
+      await service.signAndBroadcastWithDerivedWallet(derivationIndex, messages);
       await service.signAndBroadcastWithDerivedWallet(derivationIndex, messages);
 
-      expect(logger.debug).not.toHaveBeenCalledWith({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", derivationIndex });
+      expect(batchSigningClientServiceFactory).toHaveBeenCalledTimes(1);
     });
 
-    it("cleans up client even when transaction fails", async () => {
+    it("evicts idle clients after the TTL elapses and rebuilds them on next use", async () => {
+      vi.useFakeTimers();
+      try {
+        const derivationIndex = 1;
+        const address = createAkashAddress();
+        const messages: EncodeObject[] = [{ typeUrl: "/test.MsgTest", value: {} }];
+        const txResult = mock<IndexedTx>({ code: 0, hash: "tx-hash", rawLog: "success" });
+
+        const { service, batchSigningClientServiceFactory } = setup({
+          derivedWalletAddress: address,
+          derivedSignAndBroadcast: vi.fn().mockResolvedValue(txResult),
+          hasPendingTransactions: false
+        });
+
+        await service.signAndBroadcastWithDerivedWallet(derivationIndex, messages);
+        expect(batchSigningClientServiceFactory).toHaveBeenCalledTimes(1);
+
+        vi.advanceTimersByTime(6 * 60 * 1000);
+
+        await service.signAndBroadcastWithDerivedWallet(derivationIndex, messages);
+        expect(batchSigningClientServiceFactory).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("keeps the cached client when transaction throws so the local sequence state survives the retry", async () => {
       const derivationIndex = 1;
       const address = createAkashAddress();
-      const messages: EncodeObject[] = [
-        {
-          typeUrl: "/test.MsgTest",
-          value: {}
-        }
-      ];
+      const messages: EncodeObject[] = [{ typeUrl: "/test.MsgTest", value: {} }];
       const error = new Error("Transaction failed");
 
-      const { service, logger } = setup({
+      const { service, batchSigningClientServiceFactory } = setup({
         derivedWalletAddress: address,
         derivedSignAndBroadcast: vi.fn().mockRejectedValue(error),
         hasPendingTransactions: false
       });
 
       await expect(service.signAndBroadcastWithDerivedWallet(derivationIndex, messages)).rejects.toThrow("Transaction failed");
+      await expect(service.signAndBroadcastWithDerivedWallet(derivationIndex, messages)).rejects.toThrow("Transaction failed");
 
-      expect(logger.debug).toHaveBeenCalledWith({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", derivationIndex });
+      expect(batchSigningClientServiceFactory).toHaveBeenCalledTimes(1);
     });
   });
 
