@@ -25,7 +25,6 @@ export const DEPENDENCIES = {
  */
 const WALLETS_PROVIDERS: WalletsRegistry = [
   { names: ["keplr-extension", "keplr-mobile"], loader: () => import("@cosmos-kit/keplr") },
-  { names: ["leap-extension", "leap-mobile", "leap-metamask-cosmos-snap"], loader: () => import("@cosmos-kit/leap") },
   { names: ["cosmostation-extension"], loader: () => import("@cosmos-kit/cosmostation-extension") },
   { names: ["cosmos-extension-metamask"], loader: () => import("@cosmos-kit/cosmos-extension-metamask") }
 ];

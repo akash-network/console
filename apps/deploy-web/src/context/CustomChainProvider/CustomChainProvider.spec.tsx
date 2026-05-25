@@ -24,7 +24,6 @@ describe(CustomChainProvider.name, () => {
     const call = vi.mocked(dependencies.ChainStoreProvider).mock.calls[0][0];
     expect(call.walletsRegistry).toEqual([
       { names: ["keplr-extension", "keplr-mobile"], loader: expect.any(Function) },
-      { names: ["leap-extension", "leap-mobile", "leap-metamask-cosmos-snap"], loader: expect.any(Function) },
       { names: ["cosmostation-extension"], loader: expect.any(Function) },
       { names: ["cosmos-extension-metamask"], loader: expect.any(Function) }
     ]);
