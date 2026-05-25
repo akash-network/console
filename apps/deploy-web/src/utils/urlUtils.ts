@@ -96,7 +96,6 @@ export class UrlService {
   static newNotificationChannel = () => "/alerts/notification-channels/new";
   static notificationChannelDetails = (id: string) => `/alerts/notification-channels/${id}`;
   static settings = () => "/settings";
-  static settingsAuthorizations = () => "/settings/authorizations";
 
   static newDeployment = (params: NewDeploymentParams = {}) => {
     const {
