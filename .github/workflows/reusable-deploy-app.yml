@@ -1,0 +1,289 @@
+name: Deploy App
+run-name: "Deploy ${{ inputs.app }}@${{ inputs.image_tag }}"
+
+# Unified deploy workflow. Per-app variation lives entirely in APP_CONFIGS below;
+# every *-release.yml becomes a thin wrapper that calls this with `app: <name>`.
+#
+# APP_CONFIGS keys (all optional, defaults shown):
+#   chains:       ["NA"]   # chains to deploy/test. "NA" = chain-independent (no -<chain> suffix)
+#   skip_staging: false    # skip beta deploys entirely (indexer)
+#   auto_approve: false    # gate prod with the working-hours / associated-PR check
+#   test_envs:    []       # envs to e2e-test, as "<env>/<chain>" or just "<env>" for NA.
+#                          # e.g. [beta/sandbox, prod/sandbox] or [beta] for chain-independent apps
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: "Application name (e.g., console-api, tx-signer)"
+        required: true
+        type: string
+      image_tag:
+        description: "Image tag to deploy (e.g., latest, 1.0.0, v1.0.0, <app>/v1.0.0)"
+        required: true
+        type: string
+      cancel-if-stale:
+        description: "Cancel this deployment if a newer version is already queued, running, or recently deployed"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.app }}
+  cancel-in-progress: false # don't cancel deployments because this may keep them in dirty state
+
+permissions:
+  contents: read
+
+env:
+  APP_CONFIGS: | # yaml
+    console-api:
+      chains: [mainnet, sandbox]
+      test_envs: [beta/sandbox]
+    console-web:
+      auto_approve: true
+      test_envs: [beta]
+    stats-web: {}
+    indexer:
+      chains: [mainnet, sandbox]
+      skip_staging: true
+    notifications:
+      auto_approve: true
+    provider-proxy:
+      chains: [mainnet, sandbox]
+      test_envs: [beta/mainnet, beta/sandbox, prod/sandbox]
+    tx-signer:
+      chains: [mainnet, sandbox]
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      image_tag: ${{ steps.extract.outputs.image_tag }}
+      skip: ${{ steps.stale-guard.outputs.skip }}
+      chains: ${{ steps.cfg.outputs.chains }}
+      skip_staging: ${{ steps.cfg.outputs.skip_staging }}
+      auto_approve: ${{ steps.cfg.outputs.auto_approve }}
+      beta_tests: ${{ steps.cfg.outputs.beta_tests }}
+      prod_tests: ${{ steps.cfg.outputs.prod_tests }}
+    steps:
+      - id: cfg
+        env:
+          APP: ${{ inputs.app }}
+        run: | # shell
+          cfg=$(yq -e '.[strenv(APP)]' <<< "$APP_CONFIGS") || {
+            echo "❌ Unknown app: $APP" >&2
+            exit 1
+          }
+          test_envs=$(yq -o=json -I=0 '.test_envs // []' <<< "$cfg")
+          {
+            echo "chains=$(yq -o=json -I=0 '.chains // ["NA"]' <<< "$cfg")"
+            echo "skip_staging=$(yq '.skip_staging // false' <<< "$cfg")"
+            echo "auto_approve=$(yq '.auto_approve // false' <<< "$cfg")"
+            echo "beta_tests=$(yq -o=json -I=0 '[.[] | split("/") | select(.[0] == "beta") | (.[1] // "NA")]' <<< "$test_envs")"
+            echo "prod_tests=$(yq -o=json -I=0 '[.[] | split("/") | select(.[0] == "prod") | (.[1] // "NA")]' <<< "$test_envs")"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Extract and Validate Image Tag
+        id: extract
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ inputs.image_tag }}
+          APP: ${{ inputs.app }}
+        run: | # shell
+          if [[ "$TAG_NAME" == "latest" ]]; then
+            TAG_NAME=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+              --jq ".[] | select(.tag_name | startswith(\"$APP/\")) | .tag_name" \
+              | head -n 1)
+            if [[ -z "$TAG_NAME" || "$TAG_NAME" == "null" ]]; then
+              echo "❌ No release found for app=$APP."
+              exit 1
+            fi
+          fi
+
+          package_name="${TAG_NAME%%/*}"
+          version="${TAG_NAME#*/}"
+
+          if [[ "$TAG_NAME" = v* ]] || [[ "$TAG_NAME" = [0-9]* ]] || [[ "$package_name" = "$APP" ]]; then
+            echo "✅ Deployment tag is valid."
+          else
+            echo "❌ This deployment workflow (app=$APP) can be started from $APP/v* tags or from specific version (e.g., v1.2.3, 1.2.3)."
+            echo "You started it from: $TAG_NAME"
+            exit 1
+          fi
+
+          # Remove 'v' prefix if present
+          version="${version#v}"
+
+          # Remove beta suffix if present
+          version="${version%-beta}"
+
+          echo "image_tag=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Concurrency guard against old versions
+        id: stale-guard
+        if: ${{ steps.extract.outputs.image_tag != '' && inputs.cancel-if-stale }}
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          VERSION: ${{ steps.extract.outputs.image_tag }}
+          APP: ${{ inputs.app }}
+        with:
+          script: | # js
+            const version = process.env.VERSION;
+            const app = process.env.APP;
+
+            const { data: currentRun } = await github.rest.actions.getWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId
+            });
+
+            const parseVersion = v => v.split('.').map(n => parseInt(n, 10) || 0);
+            const isNewer = (a, b) => {
+              const pa = parseVersion(a), pb = parseVersion(b);
+              for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+                const diff = (pa[i] || 0) - (pb[i] || 0);
+                if (diff !== 0) return diff > 0;
+              }
+              return false;
+            };
+
+            for (const status of ['queued', 'in_progress', 'completed']) {
+              const { data } = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: currentRun.workflow_id,
+                status,
+                per_page: 20
+              });
+
+              for (const run of data.workflow_runs) {
+                if (run.id === context.runId) continue;
+                if (status === 'completed' && run.conclusion !== 'success') continue;
+
+                // run-name format: "Deploy <app>@<image_tag>"
+                const titleMatch = run.display_title?.match(/^Deploy (\S+)@(.+)$/);
+                if (!titleMatch) continue;
+                const [, otherApp, otherImageTag] = titleMatch;
+                if (otherApp !== app) continue;
+
+                const parts = otherImageTag.split('/', 2);
+                const otherRawVersion = parts.length === 2 ? parts[1] : parts[0];
+                if (!otherRawVersion) continue;
+
+                const otherVersion = otherRawVersion?.replace(/^v/, '').replace(/-beta$/, '');
+
+                if (isNewer(otherVersion, version)) {
+                  core.warning(`Skipping ${app}@${version}: found newer ${otherVersion} (status: ${status})`);
+                  core.setOutput('skip', 'true');
+                  return;
+                }
+              }
+            }
+
+  deploy-beta:
+    needs: [setup]
+    if: ${{ needs.setup.outputs.skip_staging != 'true' && needs.setup.outputs.skip != 'true' }}
+    name: Deploy to beta
+    concurrency:
+      group: deploy-${{ inputs.app }}-staging-${{ matrix.chain }}
+      cancel-in-progress: false
+    strategy:
+      matrix:
+        chain: ${{ fromJson(needs.setup.outputs.chains) }}
+      fail-fast: false
+    permissions:
+      contents: read
+      pull-requests: read
+      deployments: write
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: ${{ inputs.app }}
+      appVersion: ${{ needs.setup.outputs.image_tag }}
+      environment: staging
+      chain: ${{ matrix.chain }}
+
+  test-beta:
+    needs: [setup, deploy-beta]
+    if: ${{ needs.setup.outputs.beta_tests != '[]' }}
+    name: Test beta
+    strategy:
+      matrix:
+        chain: ${{ fromJson(needs.setup.outputs.beta_tests) }}
+      fail-fast: false
+    uses: ./.github/workflows/reusable-deploy-test.yml
+    secrets: inherit
+    with:
+      app: ${{ inputs.app }}
+      chain: ${{ matrix.chain }}
+      environment: staging
+      appVersion: ${{ needs.setup.outputs.image_tag }}
+
+  auto-approve-decision:
+    needs: [setup, test-beta]
+    if: ${{ needs.setup.outputs.auto_approve == 'true' && !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      approve: ${{ steps.check.outputs.in-window }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: .github/actions
+          persist-credentials: false
+      - uses: ./.github/actions/associated-pr
+        id: pr
+        continue-on-error: true
+        with:
+          ref: ${{ inputs.app }}/v${{ needs.setup.outputs.image_tag }}
+      - uses: ./.github/actions/working-hours-check
+        id: check
+        with:
+          actor: ${{ steps.pr.outputs.author }}
+          working-hours-config: ${{ vars.WORKING_HOURS_BY_ACTOR }}
+
+  deploy-prod:
+    needs: [setup, deploy-beta, test-beta, auto-approve-decision]
+    if: ${{ needs.setup.outputs.skip != 'true' && !failure() && !cancelled() }}
+    name: Deploy to prod
+    concurrency:
+      group: deploy-${{ inputs.app }}-prod-${{ matrix.chain }}
+      cancel-in-progress: false
+    strategy:
+      matrix:
+        chain: ${{ fromJson(needs.setup.outputs.chains) }}
+      fail-fast: false
+    permissions:
+      contents: read
+      pull-requests: read
+      deployments: write
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: ${{ inputs.app }}
+      appVersion: ${{ needs.setup.outputs.image_tag }}
+      environment: prod
+      chain: ${{ matrix.chain }}
+      approve: ${{ needs.auto-approve-decision.outputs.approve == 'true' }}
+
+  test-prod:
+    needs: [setup, deploy-prod]
+    if: ${{ needs.setup.outputs.prod_tests != '[]' }}
+    name: Test prod
+    strategy:
+      matrix:
+        chain: ${{ fromJson(needs.setup.outputs.prod_tests) }}
+      fail-fast: false
+    uses: ./.github/workflows/reusable-deploy-test.yml
+    secrets: inherit
+    with:
+      app: ${{ inputs.app }}
+      chain: ${{ matrix.chain }}
+      environment: prod
+      appVersion: ${{ needs.setup.outputs.image_tag }}

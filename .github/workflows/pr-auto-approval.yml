@@ -1,4 +1,4 @@
-name: Auto Approval
+name: PR Auto Approval
 
 on:
   workflow_run:
