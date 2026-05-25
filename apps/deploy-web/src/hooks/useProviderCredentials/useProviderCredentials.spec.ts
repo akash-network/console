@@ -1,202 +1,121 @@
-import { describe, expect, it, type Mock, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { SettingsContextType } from "@src/context/SettingsProvider";
-import type { ContextType as CertificateContextType } from "@src/hooks/useCertificate/useCertificate";
+import type { useWallet } from "@src/context/WalletProvider";
 import type { UseProviderJwtResult } from "../useProviderJwt/useProviderJwt";
 import { DEPENDENCIES, useProviderCredentials } from "./useProviderCredentials";
 
 import { setupQuery } from "@tests/unit/query-client";
 
 describe(useProviderCredentials.name, () => {
-  it("returns JWT credentials when blockchain is unavailable", () => {
-    const accessToken = "jwt-token-123";
-    const isTokenExpired = false;
-
+  it("returns usable JWT credentials when token is fresh", () => {
     const { result } = setup({
-      settings: { isBlockchainDown: true },
-      providerJwt: { accessToken, isTokenExpired }
+      wallet: { isWalletConnected: true },
+      providerJwt: { accessToken: "fresh-token", isTokenExpired: false }
     });
 
     expect(result.current.details).toEqual({
       type: "jwt",
-      value: accessToken,
-      isExpired: isTokenExpired,
+      value: "fresh-token",
+      isExpired: false,
       usable: true
     });
-    expect(typeof result.current.generate).toBe("function");
   });
 
-  it("returns mTLS credentials when blockchain is up", () => {
-    const localCert = {
-      certPem: "cert-content",
-      keyPem: "key-content",
-      address: "akash123"
-    };
-    const isLocalCertExpired = false;
-    const isLocalCertMatching = true;
-
+  it("marks credentials unusable when token is missing", () => {
     const { result } = setup({
-      settings: { isBlockchainDown: false },
-      certificate: { localCert, isLocalCertExpired, isLocalCertMatching }
-    });
-
-    expect(result.current.details).toEqual({
-      type: "mtls",
-      value: {
-        cert: localCert.certPem,
-        key: localCert.keyPem
-      },
-      isExpired: isLocalCertExpired,
-      usable: true
-    });
-    expect(typeof result.current.generate).toBe("function");
-  });
-
-  it("returns unusable JWT credentials when token is expired", () => {
-    const accessToken = "jwt-token-123";
-    const isTokenExpired = true;
-
-    const { result } = setup({
-      settings: { isBlockchainDown: true },
-      providerJwt: { accessToken, isTokenExpired }
+      wallet: { isWalletConnected: true },
+      providerJwt: { accessToken: null, isTokenExpired: false, generateToken: vi.fn().mockResolvedValue("new-token") }
     });
 
     expect(result.current.details.usable).toBe(false);
   });
 
-  it("returns unusable JWT credentials when token is missing", () => {
+  it("marks credentials unusable when token is expired", () => {
     const { result } = setup({
-      settings: { isBlockchainDown: true },
-      providerJwt: { accessToken: null, isTokenExpired: false }
+      wallet: { isWalletConnected: true },
+      providerJwt: { accessToken: "stale-token", isTokenExpired: true, generateToken: vi.fn().mockResolvedValue("new-token") }
     });
 
     expect(result.current.details.usable).toBe(false);
   });
 
-  it("returns unusable mTLS credentials when cert is expired", () => {
-    const localCert = {
-      certPem: "cert-content",
-      keyPem: "key-content",
-      address: "akash123"
-    };
-    const isLocalCertExpired = true;
-    const isLocalCertMatching = true;
+  it("auto-generates token when wallet is connected and token is missing", async () => {
+    const generateToken = vi.fn().mockResolvedValue("new-token");
 
-    const { result } = setup({
-      settings: { isBlockchainDown: false },
-      certificate: { localCert, isLocalCertExpired, isLocalCertMatching }
+    setup({
+      wallet: { isWalletConnected: true },
+      providerJwt: { accessToken: null, isTokenExpired: false, generateToken }
     });
 
-    expect(result.current.details.usable).toBe(false);
+    await vi.waitFor(() => expect(generateToken).toHaveBeenCalledTimes(1));
   });
 
-  it("returns unusable mTLS credentials when cert is missing", () => {
-    const { result } = setup({
-      settings: { isBlockchainDown: false },
-      certificate: { localCert: null, isLocalCertExpired: false, isLocalCertMatching: true }
+  it("does not auto-generate when wallet is disconnected", async () => {
+    const generateToken = vi.fn().mockResolvedValue("new-token");
+
+    setup({
+      wallet: { isWalletConnected: false },
+      providerJwt: { accessToken: null, isTokenExpired: false, generateToken }
     });
 
-    expect(result.current.details.usable).toBe(false);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(generateToken).not.toHaveBeenCalled();
   });
 
-  it("returns unusable mTLS credentials when cert key is missing", () => {
-    const localCert = {
-      certPem: "cert-content",
-      keyPem: "",
-      address: "akash123"
-    };
-    const isLocalCertExpired = false;
-    const isLocalCertMatching = true;
-
+  it("ensureToken returns existing token when fresh", async () => {
+    const generateToken = vi.fn().mockResolvedValue("new-token");
     const { result } = setup({
-      settings: { isBlockchainDown: false },
-      certificate: { localCert, isLocalCertExpired, isLocalCertMatching }
+      wallet: { isWalletConnected: true },
+      providerJwt: { accessToken: "fresh-token", isTokenExpired: false, generateToken }
     });
 
-    expect(result.current.details.usable).toBe(false);
+    const token = await result.current.ensureToken();
+
+    expect(token).toBe("fresh-token");
+    expect(generateToken).not.toHaveBeenCalled();
   });
 
-  it("returns unusable mTLS credentials when cert is not matching", () => {
-    const localCert = {
-      certPem: "cert-content",
-      keyPem: "key-content",
-      address: "akash123"
-    };
-    const isLocalCertExpired = false;
-    const isLocalCertMatching = false;
-
+  it("ensureToken generates a new token when current one is expired", async () => {
+    const generateToken = vi.fn().mockResolvedValue("fresh-token");
     const { result } = setup({
-      settings: { isBlockchainDown: false },
-      certificate: { localCert, isLocalCertExpired, isLocalCertMatching }
+      wallet: { isWalletConnected: true },
+      providerJwt: { accessToken: "stale-token", isTokenExpired: true, generateToken }
     });
 
-    expect(result.current.details.usable).toBe(false);
+    const token = await result.current.ensureToken();
+
+    expect(token).toBe("fresh-token");
+    expect(generateToken).toHaveBeenCalledTimes(1);
   });
 
-  it("returns null mTLS value when cert is missing", () => {
+  it("ensureToken deduplicates concurrent generation requests", async () => {
+    const generateToken = vi.fn().mockResolvedValue("fresh-token");
     const { result } = setup({
-      settings: { isBlockchainDown: false },
-      certificate: { localCert: null, isLocalCertExpired: false, isLocalCertMatching: true }
+      wallet: { isWalletConnected: true },
+      providerJwt: { accessToken: null, isTokenExpired: false, generateToken }
     });
 
-    expect(result.current.details.type).toBe("mtls");
-    expect(result.current.details.value).toBeNull();
-  });
-
-  it("calls generateToken when blockchain is unavailable", async () => {
-    const generateToken = vi.fn().mockResolvedValue(undefined);
-
-    const { result } = setup({
-      settings: { isBlockchainDown: true },
-      providerJwt: { generateToken }
-    });
-
-    await result.current.generate();
+    await Promise.all([result.current.ensureToken(), result.current.ensureToken(), result.current.ensureToken()]);
 
     expect(generateToken).toHaveBeenCalledTimes(1);
   });
 
-  it("calls createCertificate when blockchain is up", async () => {
-    const createCertificate = vi.fn().mockResolvedValue(undefined);
-
-    const { result } = setup({
-      settings: { isBlockchainDown: false },
-      certificate: { createCertificate }
-    });
-
-    await result.current.generate();
-
-    expect(createCertificate).toHaveBeenCalledTimes(1);
-  });
-
-  function setup(input?: {
-    settings?: Partial<SettingsContextType["settings"]>;
-    certificate?: Partial<CertificateContextType>;
-    providerJwt?: { accessToken?: string | null; isTokenExpired?: boolean; generateToken?: Mock };
-  }) {
+  function setup(input?: { wallet?: Partial<ReturnType<typeof useWallet>>; providerJwt?: Partial<UseProviderJwtResult> }) {
     return setupQuery(() =>
       useProviderCredentials({
         dependencies: {
           ...DEPENDENCIES,
-          useSettings: () =>
-            mock<SettingsContextType>({
-              settings: {
-                isBlockchainDown: false,
-                ...input?.settings
-              }
-            }),
-          useCertificate: () =>
-            mock<CertificateContextType>({
-              isLocalCertExpired: false,
-              isLocalCertMatching: true,
-              localCert: null,
-              ...input?.certificate
+          useWallet: () =>
+            mock<ReturnType<typeof useWallet>>({
+              isWalletConnected: true,
+              ...input?.wallet
             }),
           useProviderJwt: () =>
             mock<UseProviderJwtResult>({
               accessToken: null,
               isTokenExpired: false,
+              generateToken: vi.fn().mockResolvedValue("generated-token"),
               ...input?.providerJwt
             })
         }

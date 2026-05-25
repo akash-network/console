@@ -278,8 +278,6 @@ describe("OnboardingContainer", () => {
     const authService = mock<AuthService>();
     const mockConnectManagedWallet = vi.fn();
     const mockSignAndBroadcastTx = vi.fn().mockResolvedValue({ transactionHash: "mock-hash" });
-    const mockGenNewCertificateIfLocalIsInvalid = vi.fn().mockResolvedValue(null);
-    const mockUpdateSelectedCertificate = vi.fn().mockResolvedValue(undefined);
 
     const mockUrlService = {
       ...UrlService,
@@ -338,10 +336,6 @@ describe("OnboardingContainer", () => {
       connectManagedWallet: mockConnectManagedWallet,
       address: "akash1test",
       signAndBroadcastTx: mockSignAndBroadcastTx
-    });
-    const mockUseCertificate = vi.fn().mockReturnValue({
-      genNewCertificateIfLocalIsInvalid: mockGenNewCertificateIfLocalIsInvalid,
-      updateSelectedCertificate: mockUpdateSelectedCertificate
     });
     const mockUseSnackbar = vi.fn().mockReturnValue({
       enqueueSnackbar: vi.fn()
@@ -404,8 +398,6 @@ describe("OnboardingContainer", () => {
     };
     const mockTransactionMessageData = {
       prototype: {},
-      getRevokeCertificateMsg: vi.fn(),
-      getCreateCertificateMsg: vi.fn(),
       getCreateLeaseMsg: vi.fn(),
       getCreateDeploymentMsg: vi.fn(),
       getUpdateDeploymentMsg: vi.fn(),
@@ -423,7 +415,6 @@ describe("OnboardingContainer", () => {
       useServices: mockUseServices,
       useRouter: mockUseRouter,
       useWallet: mockUseWallet,
-      useCertificate: mockUseCertificate,
       useSnackbar: mockUseSnackbar,
       useNotificator: mockUseNotificator,
       useReturnTo: mockUseReturnTo,
@@ -460,8 +451,6 @@ describe("OnboardingContainer", () => {
       mockNavigateWithReturnTo,
       mockLocalStorage,
       mockSignAndBroadcastTx,
-      mockGenNewCertificateIfLocalIsInvalid,
-      mockUpdateSelectedCertificate,
       mockChainApiHttpClient,
       mockDeploymentLocalStorage,
       mockNewDeploymentData,

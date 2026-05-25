@@ -7,7 +7,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { SuccessAnimation } from "@src/components/shared";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useCertificate } from "@src/hooks/useCertificate/useCertificate";
 import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
 import { useNotificator } from "@src/hooks/useNotificator";
 import { useReturnTo } from "@src/hooks/useReturnTo";
@@ -51,7 +50,6 @@ const DEPENDENCIES = {
   useServices,
   useRouter,
   useWallet,
-  useCertificate,
   useNotificator,
   useReturnTo,
   localStorage: typeof window !== "undefined" ? window.localStorage : null,
@@ -90,7 +88,6 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   } = d.useServices();
   const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore();
   const wallet = d.useWallet();
-  const { genNewCertificateIfLocalIsInvalid, updateSelectedCertificate } = d.useCertificate();
   const notificator = d.useNotificator();
   const { navigateBack } = d.useReturnTo({ defaultReturnTo: "/" });
 
@@ -291,20 +288,10 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         }
 
         const messages: EncodeObject[] = [];
-        const newCert = await genNewCertificateIfLocalIsInvalid();
-
-        if (newCert) {
-          messages.push(d.TransactionMessageData.getCreateCertificateMsg(wallet.address, newCert.cert, newCert.publicKey));
-        }
-
         messages.push(d.TransactionMessageData.getCreateDeploymentMsg(dd));
         const response = await wallet.signAndBroadcastTx(messages);
 
         if (response) {
-          if (newCert) {
-            await updateSelectedCertificate(newCert);
-          }
-
           deploymentLocalStorage.update(wallet.address, dd.deploymentId.dseq, {
             manifest: sdl,
             manifestVersion: dd.hash,
@@ -333,8 +320,6 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       templateService,
       chainApiHttpClient,
       minDeposit,
-      genNewCertificateIfLocalIsInvalid,
-      updateSelectedCertificate,
       deploymentLocalStorage,
       analyticsService,
       notificator,

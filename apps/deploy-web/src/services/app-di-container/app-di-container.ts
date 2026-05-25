@@ -1,4 +1,4 @@
-import { certificateManager, type NetworkId } from "@akashnetwork/chain-sdk/web";
+import type { NetworkId } from "@akashnetwork/chain-sdk/web";
 import type { HttpClientOptions } from "@akashnetwork/http-sdk";
 import {
   ApiKeyHttpService,
@@ -133,7 +133,6 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       () =>
       (options?: HttpClientOptions): AxiosInstance =>
         createHttpClient(options),
-    certificateManager: () => certificateManager,
     analyticsService: () =>
       new AnalyticsService({
         amplitude: {

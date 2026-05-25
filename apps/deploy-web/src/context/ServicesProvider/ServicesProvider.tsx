@@ -1,6 +1,6 @@
 import React, { useContext, useMemo } from "react";
 import type { NetworkId } from "@akashnetwork/chain-sdk";
-import { AuthzHttpService, BmeHttpService, CertificatesService } from "@akashnetwork/http-sdk";
+import { AuthzHttpService, BmeHttpService } from "@akashnetwork/http-sdk";
 
 import { UACT_DENOM, UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
 import { services as rootContainer } from "@src/services/app-di-container/browser-di-container";
@@ -45,7 +45,6 @@ function createAppContainer<T extends Factories>(settingsState: SettingsContextT
         uact: UACT_DENOM,
         usdc: USDC_IBC_DENOMS[rootContainer.networkStore.selectedNetworkId as NetworkId]
       }),
-    certificatesService: () => new CertificatesService(di.chainApiHttpClient),
     chainApiHttpClient: () => {
       let inflightPingRequest: Promise<{ isBlockchainDown: boolean }> | undefined;
       // keep track of the blockchain down status to make it instant

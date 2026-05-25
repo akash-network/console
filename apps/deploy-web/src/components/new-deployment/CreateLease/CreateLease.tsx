@@ -22,7 +22,6 @@ import { cn } from "@akashnetwork/ui/utils";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { isAxiosError } from "axios";
 import { ArrowRight, BadgeCheck, Bin, HandCard, InfoCircle, MoreHoriz, Xmark } from "iconoir-react";
 import yaml from "js-yaml";
 import { useRouter } from "next/navigation";
@@ -34,9 +33,8 @@ import { AddFundsLink } from "@src/components/user/AddFundsLink";
 import { useServices } from "@src/context/ServicesProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import type { LocalCert } from "@src/hooks/useCertificate/useCertificate";
-import { useCertificate } from "@src/hooks/useCertificate/useCertificate";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
+import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useWhen } from "@src/hooks/useWhen";
 import { useBidList } from "@src/queries/useBidQuery";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
@@ -88,7 +86,7 @@ export const DEPENDENCIES = {
   AddFundsLink,
   useServices,
   useWallet,
-  useCertificate,
+  useProviderCredentials,
   useLocalNotes,
   useProviderList,
   useBidList,
@@ -120,7 +118,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
   const [filteredBids, setFilteredBids] = useState<Array<string>>([]);
   const [search, setSearch] = useState("");
   const { address, signAndBroadcastTx, isManaged, isTrialing } = d.useWallet();
-  const { localCert, setLocalCert, genNewCertificateIfLocalIsInvalid, updateSelectedCertificate } = d.useCertificate();
+  const providerCredentials = d.useProviderCredentials();
   const router = d.useRouter();
   const [numberOfRequests, setNumberOfRequests] = useState(0);
   const { data: providers } = d.useProviderList();
@@ -181,92 +179,73 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
     }
   });
 
-  const sendManifest = useCallback(
-    async (cert: LocalCert) => {
-      setIsSendingManifest(true);
-      const bidKeys = Object.keys(selectedBids);
+  const sendManifest = useCallback(async () => {
+    setIsSendingManifest(true);
+    const bidKeys = Object.keys(selectedBids);
 
-      const localDeploymentData = deploymentLocalStorage.get(address, dseq);
+    const localDeploymentData = deploymentLocalStorage.get(address, dseq);
 
-      analyticsService.track("send_manifest", {
-        category: "deployments",
-        label: "Send manifest after creating lease",
-        dseq
+    analyticsService.track("send_manifest", {
+      category: "deployments",
+      label: "Send manifest after creating lease",
+      dseq
+    });
+
+    if (!localDeploymentData || !localDeploymentData.manifest) {
+      return;
+    }
+
+    const sendManifestNotification =
+      !isManaged &&
+      enqueueSnackbar(<Snackbar title="Deploying! 🚀" subTitle="Please wait a few seconds..." showLoading />, {
+        variant: "info",
+        autoHideDuration: null
       });
 
-      if (!localDeploymentData || !localDeploymentData.manifest) {
-        return;
+    try {
+      const token = await providerCredentials.ensureToken();
+      const yamlJson = yaml.load(localDeploymentData.manifest);
+      const mani = deploymentData.getManifest(yamlJson);
+      const options: SendManifestToProviderOptions = {
+        dseq,
+        credentials: { type: "jwt", value: token }
+      };
+
+      for (let i = 0; i < bidKeys.length; i++) {
+        const currentBid = selectedBids[bidKeys[i]];
+        const provider = providers?.find(x => x.owner === currentBid.provider);
+
+        if (!provider) {
+          throw new Error("Cannot find bid provider");
+        }
+        await providerProxy.sendManifest(provider, mani, options);
       }
 
-      const sendManifestNotification =
-        !isManaged &&
-        enqueueSnackbar(<Snackbar title="Deploying! 🚀" subTitle="Please wait a few seconds..." showLoading />, {
-          variant: "info",
-          autoHideDuration: null
+      // Ad tracking script
+      publicConfig.NEXT_PUBLIC_TRACKING_ENABLED &&
+        publicConfig.NEXT_PUBLIC_GROWTH_CHANNEL_TRACKING_ENABLED &&
+        addScriptToHead({
+          src: "https://pxl.growth-channel.net/s/76250b26-c260-4776-874b-471ed290230d",
+          async: true,
+          defer: true,
+          id: "growth-channel-script-lease"
         });
 
-      try {
-        const yamlJson = yaml.load(localDeploymentData.manifest);
-        const mani = deploymentData.getManifest(yamlJson);
-        const options: SendManifestToProviderOptions = {
-          dseq,
-          credentials: {
-            type: "mtls",
-            value: {
-              cert: cert.certPem,
-              key: cert.keyPem
-            }
-          }
-        };
-
-        for (let i = 0; i < bidKeys.length; i++) {
-          const currentBid = selectedBids[bidKeys[i]];
-          const provider = providers?.find(x => x.owner === currentBid.provider);
-
-          if (!provider) {
-            throw new Error("Cannot find bid provider");
-          }
-          await providerProxy.sendManifest(provider, mani, options);
-        }
-
-        // Ad tracking script
-        publicConfig.NEXT_PUBLIC_TRACKING_ENABLED &&
-          publicConfig.NEXT_PUBLIC_GROWTH_CHANNEL_TRACKING_ENABLED &&
-          addScriptToHead({
-            src: "https://pxl.growth-channel.net/s/76250b26-c260-4776-874b-471ed290230d",
-            async: true,
-            defer: true,
-            id: "growth-channel-script-lease"
-          });
-
-        router.replace(UrlService.deploymentDetails(dseq, "EVENTS", "events"));
-      } catch (error) {
-        if (isAxiosError(error) && error.response?.status === 401) {
-          setLocalCert(null);
-        }
-        enqueueSnackbar(
-          <ManifestErrorSnackbar
-            err={error}
-            messages={{
-              "certPem.expired": 'Your certificate has expired while deploying. Please click "Re-send Manifest" again and we will generate a new one.'
-            }}
-          />,
-          { variant: "error", autoHideDuration: null }
-        );
-        errorHandler.reportError({
-          error,
-          tags: { category: "deployments.create-lease" }
-        });
-      } finally {
-        if (sendManifestNotification) {
-          closeSnackbar(sendManifestNotification);
-        }
-
-        setIsSendingManifest(false);
+      router.replace(UrlService.deploymentDetails(dseq, "EVENTS", "events"));
+    } catch (error) {
+      enqueueSnackbar(<ManifestErrorSnackbar err={error} />, { variant: "error", autoHideDuration: null });
+      errorHandler.reportError({
+        error,
+        tags: { category: "deployments.create-lease" }
+      });
+    } finally {
+      if (sendManifestNotification) {
+        closeSnackbar(sendManifestNotification);
       }
-    },
-    [selectedBids, dseq, providers, isManaged, enqueueSnackbar, closeSnackbar, router, address, deploymentLocalStorage]
-  );
+
+      setIsSendingManifest(false);
+    }
+  }, [selectedBids, dseq, providers, isManaged, enqueueSnackbar, closeSnackbar, router, address, deploymentLocalStorage, providerCredentials]);
 
   // Filter bids
   useEffect(() => {
@@ -308,18 +287,11 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
 
     try {
       const messages: EncodeObject[] = hasActiveBid ? [] : Object.values(selectedBids).map(bid => TransactionMessageData.getCreateLeaseMsg(bid));
-      const newCert = await genNewCertificateIfLocalIsInvalid();
-
-      if (newCert) {
-        messages.push(TransactionMessageData.getCreateCertificateMsg(address, newCert.cert, newCert.publicKey));
-      }
 
       if (messages.length > 0) {
         const response = await signAndBroadcastTx([...messages]);
         if (!response) return;
       }
-
-      const newLocalCert = newCert ? await updateSelectedCertificate(newCert) : localCert;
 
       const leaseEventProps = {
         category: "deployments" as const,
@@ -337,12 +309,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
         analyticsService.track("create_gpu_deployment", leaseEventProps);
       }
 
-      if (newLocalCert) {
-        await sendManifest(newLocalCert);
-      } else {
-        const message = `Looks like your certificate has been expired. Please click "Re-send Manifest" and we will generate a new one.`;
-        enqueueSnackbar(<Snackbar title="Error" subTitle={message} iconVariant="error" />, { variant: "error", autoHideDuration: null });
-      }
+      await sendManifest();
     } finally {
       setIsCreatingLeases(false);
     }

@@ -42,8 +42,10 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
     return jwtTokenManager.decodeToken(accessToken);
   }, [accessToken, jwtTokenManager]);
 
-  const generateToken = useCallback(async () => {
-    if (!isWalletConnected) return;
+  const generateToken = useCallback(async (): Promise<string> => {
+    if (!isWalletConnected) {
+      throw new Error("Cannot generate JWT: wallet is not connected");
+    }
 
     const leasesAccess: JwtTokenPayload["leases"] = {
       access: "scoped",
@@ -72,6 +74,7 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
 
     storedWalletsService.updateWallet(address, w => ({ ...w, token }));
     setAccessToken(token);
+    return token;
   }, [isWalletConnected, isManaged, selectedChain, jwtTokenManager, address, consoleApiHttpClient]);
 
   return useMemo(
@@ -89,5 +92,5 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
 export interface UseProviderJwtResult {
   isTokenExpired: boolean;
   accessToken: string | null;
-  generateToken: () => Promise<void>;
+  generateToken: () => Promise<string>;
 }

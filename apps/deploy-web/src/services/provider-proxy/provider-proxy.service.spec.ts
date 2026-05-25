@@ -78,7 +78,7 @@ describe(ProviderProxyService.name, () => {
           ]
         }
       ];
-      const credentials: ProviderCredentials = { type: "mtls", value: { cert: "certPem", key: "keyPem" } };
+      const credentials: ProviderCredentials = { type: "jwt", value: "jwt-token" };
       const promise = service.sendManifest(provider, manifest, { dseq, credentials });
 
       const [result] = await Promise.all([promise, vi.runAllTimersAsync()]);
@@ -90,9 +90,8 @@ describe(ProviderProxyService.name, () => {
           url: `${provider.hostUri}/deployment/${dseq}/manifest`,
           providerAddress: provider.owner,
           auth: {
-            type: "mtls",
-            certPem: credentials.value?.cert,
-            keyPem: credentials.value?.key
+            type: "jwt",
+            token: credentials.value
           },
           body: manifestToSortedJSON(manifest)
         },
@@ -109,7 +108,7 @@ describe(ProviderProxyService.name, () => {
         type: "logs" as const,
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "123",
         gseq: 1,
         oseq: 1
@@ -161,7 +160,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "456",
         gseq: 2,
         oseq: 3,
@@ -228,7 +227,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "111",
         gseq: 1,
         oseq: 1,
@@ -270,7 +269,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "222",
         gseq: 1,
         oseq: 1,
@@ -296,7 +295,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "111",
         gseq: 1,
         oseq: 1,
@@ -324,7 +323,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "123",
         gseq: 1,
         oseq: 1,
@@ -367,7 +366,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "456",
         gseq: 2,
         oseq: 3,
@@ -439,7 +438,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "999",
         gseq: 1,
         oseq: 1,
@@ -465,7 +464,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "111",
         gseq: 1,
         oseq: 1,
@@ -498,7 +497,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "222",
         gseq: 1,
         oseq: 1,
@@ -539,7 +538,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "123",
         gseq: 1,
         oseq: 1,
@@ -629,7 +628,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "789",
         gseq: 1,
         oseq: 1,
@@ -683,7 +682,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "999",
         gseq: 1,
         oseq: 1,
@@ -706,7 +705,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "111",
         gseq: 1,
         oseq: 1,
@@ -733,7 +732,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "111",
         gseq: 1,
         oseq: 1,
@@ -760,7 +759,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.example.com",
         providerAddress: "akash1test",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "100",
         gseq: 2,
         oseq: 3,
@@ -782,7 +781,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "456",
         gseq: 1,
         oseq: 1,
@@ -804,7 +803,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "789",
         gseq: 1,
         oseq: 1,
@@ -827,7 +826,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "333",
         gseq: 1,
         oseq: 1,
@@ -843,30 +842,6 @@ describe(ProviderProxyService.name, () => {
       expect(sentMessage.url).toContain("cmd0=ls");
       expect(sentMessage.url).toContain("cmd1=-la");
       expect(sentMessage.url).toContain("cmd2=%2Fapp");
-    });
-
-    it("includes credentials in sent messages", async () => {
-      const { service, websocket } = setup();
-      const input = {
-        providerBaseUrl: "https://provider.akash.network",
-        providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "test-cert", key: "test-key" } },
-        dseq: "444",
-        gseq: 1,
-        oseq: 1,
-        service: "web"
-      };
-
-      const session = service.connectToShell(input);
-      session.send(new Uint8Array([1, 2, 3]));
-      await dispatchWsEvent(websocket, new Event("open"));
-
-      const sentMessage = JSON.parse((websocket.send as Mock).mock.calls[0][0]);
-      expect(sentMessage.auth).toEqual({
-        type: "mtls",
-        certPem: "test-cert",
-        keyPem: "test-key"
-      });
     });
 
     it("includes JWT credentials in sent messages", async () => {
@@ -897,7 +872,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "666",
         gseq: 1,
         oseq: 1,
@@ -918,7 +893,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "777",
         gseq: 1,
         oseq: 1,
@@ -939,7 +914,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "888",
         gseq: 1,
         oseq: 1,
@@ -961,7 +936,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "1000",
         gseq: 1,
         oseq: 1,
@@ -989,7 +964,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "1111",
         gseq: 1,
         oseq: 1,
@@ -1030,7 +1005,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
+        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
         dseq: "1111",
         gseq: 1,
         oseq: 1,

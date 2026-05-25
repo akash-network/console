@@ -15,15 +15,11 @@ function generateErrorText(err: unknown, customMessages?: Record<string, string>
     return err && err instanceof Error ? err.message : String(err);
   }
 
-  if (err.response?.status === 401) {
-    return `You don't have local certificate. Please create a new one.`;
-  }
-
   if (err.response?.status === 400 && err.response.data?.error?.issues) {
     const errors = new Set<string>();
     err.response.data.error.issues.forEach((issue: Record<string, any>) => {
       const key = `${issue.path.join(".")}.${issue.params?.reason}`;
-      const error = customMessages?.[key] ?? ERRORS_MAPPING[key];
+      const error = customMessages?.[key];
       if (error) {
         errors.add(error);
       } else {
@@ -41,11 +37,6 @@ function generateErrorText(err: unknown, customMessages?: Record<string, string>
 }
 
 const DEFAULT_ERROR_MESSAGE = "Something went wrong. Please try refreshing the page and try again.";
-const ERRORS_MAPPING: Record<string, string> = {
-  "certPem.expired": "Your certificate has expired. Please create a new one.",
-  "certPem.missingCertPair": "Please provide both public and private key of your certificate.",
-  "certPem.invalid": "Provider rejected your certificate. Please try to create a new one. If the problem persists, please contact support."
-};
 
 function getProviderResponseError(data: unknown): string | undefined {
   if (!data) return;

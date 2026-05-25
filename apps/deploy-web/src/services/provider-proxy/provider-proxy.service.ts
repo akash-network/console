@@ -331,40 +331,17 @@ export interface SendManifestToProviderOptions {
   credentials?: ProviderCredentials | null;
 }
 
-export type ProviderCredentials =
-  | {
-      type: "mtls";
-      value:
-        | {
-            cert: string;
-            key: string;
-          }
-        | null
-        | undefined;
-    }
-  | {
-      type: "jwt";
-      value: string | undefined | null;
-    };
+export type ProviderCredentials = {
+  type: "jwt";
+  value: string | undefined | null;
+};
 
-export type ProviderApiCredentials =
-  | {
-      type: "mtls";
-      certPem: string;
-      keyPem: string;
-    }
-  | {
-      type: "jwt";
-      token: string;
-    };
+export type ProviderApiCredentials = {
+  type: "jwt";
+  token: string;
+};
 export function providerCredentialsToApiCredentials(credentials: ProviderCredentials | null | undefined): ProviderApiCredentials | undefined {
   if (!credentials?.value) return;
-  if (credentials.type === "mtls")
-    return {
-      type: credentials.type,
-      certPem: credentials.value.cert,
-      keyPem: credentials.value.key
-    };
   return {
     type: credentials.type,
     token: credentials.value

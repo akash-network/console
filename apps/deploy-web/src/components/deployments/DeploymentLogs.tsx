@@ -23,7 +23,6 @@ import { formatK8sEvent, formatLogMessage } from "@src/services/provider-proxy/l
 import type { K8sEventMessage, LogEntryMessage, ProviderProxyMessage } from "@src/services/provider-proxy/provider-proxy.service";
 import type { LeaseDto } from "@src/types/deployment";
 import { forEachGeneratedItem } from "@src/utils/array";
-import { CreateCredentialsButton } from "./CreateCredentialsButton/CreateCredentialsButton";
 import { LeaseSelect } from "./LeaseSelect";
 
 export type LOGS_MODE = "logs" | "events";
@@ -216,7 +215,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
 
   return (
     <div>
-      {providerCredentials.details.usable ? (
+      {providerCredentials.details.usable && (
         <>
           {selectedLease && (
             <>
@@ -307,8 +306,6 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
             </>
           )}
         </>
-      ) : (
-        <CreateCredentialsButton containerClassName="py-4" />
       )}
     </div>
   );

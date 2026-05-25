@@ -39,11 +39,6 @@ export type AnalyticsEvent =
   | "disconnect_wallet"
   | "successful_tx"
   | "failed_tx"
-  | "revoke_certificate"
-  | "revoke_all_certificates"
-  | "create_certificate"
-  | "regenerate_certificate"
-  | "export_certificate"
   | "deployment_deposit"
   | "close_deployment"
   | "use_depositor"
@@ -112,17 +107,7 @@ export type AnalyticsEvent =
   | "log_collector_disabled"
   | "log_collector_deployed";
 
-export type AnalyticsCategory =
-  | "user"
-  | "billing"
-  | "deployments"
-  | "wallet"
-  | "sdl_builder"
-  | "transactions"
-  | "certificates"
-  | "profile"
-  | "settings"
-  | "onboarding";
+export type AnalyticsCategory = "user" | "billing" | "deployments" | "wallet" | "sdl_builder" | "transactions" | "profile" | "settings" | "onboarding";
 
 export type EventProperties = {
   category?: AnalyticsCategory;
@@ -130,8 +115,7 @@ export type EventProperties = {
 };
 
 const GA_EVENTS = {
-  successful_tx: "successful_transaction",
-  revoke_all_certificates: "revoke_all_certificate"
+  successful_tx: "successful_transaction"
 };
 
 const AMPLITUDE_USER_PROPERTIES_MAP = {

@@ -320,11 +320,6 @@ describe(ManifestEdit.name, () => {
         denom: input?.walletDenom,
         signAndBroadcastTx: vi.fn().mockResolvedValue({})
       })) as unknown as Dependencies["useWallet"],
-      useCertificate: () =>
-        mock({
-          updateSelectedCertificate: vi.fn(),
-          genNewCertificateIfLocalIsInvalid: vi.fn().mockResolvedValue(null)
-        }),
       useSdlBuilder: (() => ({
         hasComponent: (name: string) => hasComponents.has(name),
         toggleCmp: vi.fn()

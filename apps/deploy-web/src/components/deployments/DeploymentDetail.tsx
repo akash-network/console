@@ -17,7 +17,6 @@ import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { useNavigationGuard } from "@src/hooks/useNavigationGuard/useNavigationGuard";
-import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
@@ -28,7 +27,6 @@ import { RouteStep } from "@src/types/route-steps.type";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
-import { CreateCredentialsButton } from "./CreateCredentialsButton/CreateCredentialsButton";
 import { DeploymentDetailTopBar } from "./DeploymentDetailTopBar/DeploymentDetailTopBar";
 import { ManifestUpdate } from "./ManifestUpdate/ManifestUpdate";
 import { DeploymentLeaseShell } from "./DeploymentLeaseShell";
@@ -91,7 +89,6 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
 
   const isDeploymentNotFound = deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found") && !isLoadingDeployment;
   const hasLeases = leases && leases.length > 0;
-  const providerCredentials = useProviderCredentials();
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = useProviderList();
   useEffect(() => {
     if (deployment) {
@@ -282,8 +279,6 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
             )}
             {activeTab === "LEASES" && (
               <div className="py-6">
-                {leases && !providerCredentials.details.usable && <CreateCredentialsButton containerClassName="mb-4" afterCreate={loadDeploymentDetail} />}
-
                 {leases &&
                   leases.map((lease, i) => (
                     <LeaseRow

@@ -11,8 +11,6 @@ const errorHandler = new ErrorHandlerService(logger);
 
 interface BaseLocalWallet {
   address: string;
-  cert?: string;
-  certKey?: string;
   token?: string;
   selected: boolean;
 }
@@ -70,7 +68,7 @@ export function getStorageManagedWallet(userId?: string, networkId?: NetworkId):
 }
 
 export function updateStorageManagedWallet(
-  wallet: Pick<ManagedLocalWallet, "address" | "cert" | "certKey" | "userId" | "creditAmount" | "isTrialing"> & { selected?: boolean }
+  wallet: Pick<ManagedLocalWallet, "address" | "userId" | "creditAmount" | "isTrialing"> & { selected?: boolean }
 ): ManagedLocalWallet {
   const networkId = browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID;
   const prev = getStorageManagedWallet(wallet.userId, networkId);

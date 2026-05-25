@@ -254,8 +254,7 @@ describe("walletUtils", () => {
         selected: true,
         creditAmount: 100,
         isTrialing: false,
-        cert: "cert1",
-        certKey: "key1"
+        token: "token-cert1"
       });
 
       const wallet2 = buildManagedLocalWallet({
@@ -352,8 +351,7 @@ describe("walletUtils", () => {
         userId: USER_ID_1,
         creditAmount: 100,
         isTrialing: false,
-        cert: "cert1",
-        certKey: "key1"
+        token: "token-cert1"
       });
 
       updateStorageManagedWallet(initial);
@@ -361,14 +359,13 @@ describe("walletUtils", () => {
       const updated = {
         ...initial,
         creditAmount: 200,
-        cert: "cert2"
+        token: "token-cert2"
       };
 
       const result = updateStorageManagedWallet(updated);
 
       expect(result.creditAmount).toBe(200);
-      expect(result.cert).toBe("cert2");
-      expect(result.certKey).toBe("key1");
+      expect(result.token).toBe("token-cert2");
 
       cleanup();
     });
@@ -381,8 +378,7 @@ describe("walletUtils", () => {
         userId: USER_ID_1,
         creditAmount: 100,
         isTrialing: false,
-        cert: "cert1",
-        certKey: "key1"
+        token: "token-cert1"
       });
 
       const user2Wallet = buildManagedLocalWallet({
@@ -390,8 +386,7 @@ describe("walletUtils", () => {
         userId: USER_ID_2,
         creditAmount: 200,
         isTrialing: true,
-        cert: "cert2",
-        certKey: "key2"
+        token: "token-cert2"
       });
 
       updateStorageManagedWallet(user1Wallet);
@@ -459,8 +454,7 @@ describe("walletUtils", () => {
         creditAmount: 100,
         isTrialing: false,
         selected: true,
-        cert: "cert1",
-        certKey: "key1"
+        token: "token-cert1"
       });
 
       updateStorageManagedWallet(wallet);
@@ -470,8 +464,7 @@ describe("walletUtils", () => {
         userId: USER_ID_1,
         creditAmount: 200,
         isTrialing: false,
-        cert: "cert2",
-        certKey: "key2"
+        token: "token-cert2"
       });
       delete (updated as Partial<typeof updated>).selected;
 
@@ -578,13 +571,12 @@ describe("walletUtils", () => {
 
       storage.set(`${NETWORK_ID}/wallets`, JSON.stringify(wallets));
 
-      updateWallet(WALLET_ADDRESS_1, (w: LocalWallet) => ({ ...w, cert: "new-cert", certKey: "new-key" }));
+      updateWallet(WALLET_ADDRESS_1, (w: LocalWallet) => ({ ...w, token: "new-token" }));
 
       const updated = getStorageWallets();
       const wallet1 = updated.find((w: LocalWallet) => w.address === WALLET_ADDRESS_1);
 
-      expect(wallet1?.cert).toBe("new-cert");
-      expect(wallet1?.certKey).toBe("new-key");
+      expect(wallet1?.token).toBe("new-token");
 
       cleanup();
     });
@@ -602,10 +594,10 @@ describe("walletUtils", () => {
 
       storage.set(`${NETWORK_ID}/managed-wallets`, JSON.stringify({ [USER_ID_1]: managedWallet }));
 
-      updateWallet(WALLET_ADDRESS_1, (w: LocalWallet) => ({ ...w, cert: "new-cert" }), NETWORK_ID);
+      updateWallet(WALLET_ADDRESS_1, (w: LocalWallet) => ({ ...w, token: "new-token" }), NETWORK_ID);
 
       const updated = getStorageManagedWallet(USER_ID_1, NETWORK_ID);
-      expect(updated?.cert).toBe("new-cert");
+      expect(updated?.token).toBe("new-token");
       expect(updated?.userId).toBe(USER_ID_1);
 
       cleanup();
@@ -618,11 +610,11 @@ describe("walletUtils", () => {
 
       storage.set(`${NETWORK_ID}/wallets`, JSON.stringify([wallet]));
 
-      updateWallet("non-existent-address", (w: LocalWallet) => ({ ...w, cert: "new-cert" }));
+      updateWallet("non-existent-address", (w: LocalWallet) => ({ ...w, token: "new-token" }));
 
       const stored = getStorageWallets();
       expect(stored).toHaveLength(1);
-      expect(stored[0].cert).toBeDefined();
+      expect(stored[0].token).toBeUndefined();
 
       cleanup();
     });
@@ -913,8 +905,7 @@ describe("walletUtils", () => {
         selected: true,
         creditAmount: 100,
         isTrialing: false,
-        cert: "cert1",
-        certKey: "key1"
+        token: "token-cert1"
       });
 
       updateStorageManagedWallet(managedWallet);
@@ -924,8 +915,7 @@ describe("walletUtils", () => {
 
       const afterDisconnect = getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID);
       expect(afterDisconnect).toEqual(beforeDisconnect);
-      expect(afterDisconnect?.cert).toBe("cert1");
-      expect(afterDisconnect?.certKey).toBe("key1");
+      expect(afterDisconnect?.token).toBe("token-cert1");
 
       cleanup();
     });
@@ -939,8 +929,7 @@ describe("walletUtils", () => {
         selected: true,
         creditAmount: 100,
         isTrialing: false,
-        cert: "important-cert",
-        certKey: "important-key"
+        token: "token-important-cert"
       });
 
       updateStorageManagedWallet(managedWallet);
@@ -948,7 +937,7 @@ describe("walletUtils", () => {
       for (let i = 0; i < 10; i++) {
         const retrieved = getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID);
         expect(retrieved).toBeDefined();
-        expect(retrieved?.cert).toBe("important-cert");
+        expect(retrieved?.token).toBe("token-important-cert");
       }
 
       cleanup();
@@ -962,8 +951,7 @@ describe("walletUtils", () => {
         userId: USER_ID_1,
         creditAmount: 100,
         isTrialing: false,
-        cert: "user1-cert",
-        certKey: "user1-key"
+        token: "token-user1-cert"
       });
 
       const user2Wallet = buildManagedLocalWallet({
@@ -971,8 +959,7 @@ describe("walletUtils", () => {
         userId: USER_ID_2,
         creditAmount: 200,
         isTrialing: true,
-        cert: "user2-cert",
-        certKey: "user2-key"
+        token: "token-user2-cert"
       });
 
       updateStorageManagedWallet(user1Wallet);
@@ -981,8 +968,8 @@ describe("walletUtils", () => {
       const user1Retrieved = getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID);
       const user2Retrieved = getStorageManagedWallet(USER_ID_2, MANAGED_NETWORK_ID);
 
-      expect(user1Retrieved?.cert).toBe("user1-cert");
-      expect(user2Retrieved?.cert).toBe("user2-cert");
+      expect(user1Retrieved?.token).toBe("token-user1-cert");
+      expect(user2Retrieved?.token).toBe("token-user2-cert");
 
       cleanup();
     });
@@ -997,8 +984,7 @@ describe("walletUtils", () => {
         userId: USER_ID_1,
         creditAmount: 100,
         isTrialing: false,
-        cert: "userA-cert",
-        certKey: "userA-key"
+        token: "token-userA-cert"
       });
 
       const userBWallet = buildManagedLocalWallet({
@@ -1006,8 +992,7 @@ describe("walletUtils", () => {
         userId: USER_ID_2,
         creditAmount: 200,
         isTrialing: true,
-        cert: "userB-cert",
-        certKey: "userB-key"
+        token: "token-userB-cert"
       });
 
       updateStorageManagedWallet(userAWallet);
@@ -1018,8 +1003,8 @@ describe("walletUtils", () => {
 
       expect(storedA?.userId).toBe(USER_ID_1);
       expect(storedB?.userId).toBe(USER_ID_2);
-      expect(storedA?.cert).toBe("userA-cert");
-      expect(storedB?.cert).toBe("userB-cert");
+      expect(storedA?.token).toBe("token-userA-cert");
+      expect(storedB?.token).toBe("token-userB-cert");
 
       cleanup();
     });
@@ -1032,8 +1017,7 @@ describe("walletUtils", () => {
         userId: USER_ID_1,
         creditAmount: 100,
         isTrialing: false,
-        cert: "userA-cert",
-        certKey: "userA-key"
+        token: "token-userA-cert"
       });
 
       updateStorageManagedWallet(userAWallet);
@@ -1043,8 +1027,7 @@ describe("walletUtils", () => {
         userId: USER_ID_2,
         creditAmount: 200,
         isTrialing: true,
-        cert: "userB-cert",
-        certKey: "userB-key",
+        token: "token-userB-cert",
         selected: true
       });
 
@@ -1052,7 +1035,7 @@ describe("walletUtils", () => {
 
       const userAAfterBLogin = getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID);
       expect(userAAfterBLogin).toBeDefined();
-      expect(userAAfterBLogin?.cert).toBe("userA-cert");
+      expect(userAAfterBLogin?.token).toBe("token-userA-cert");
       expect(userAAfterBLogin?.userId).toBe(USER_ID_1);
 
       cleanup();
@@ -1066,8 +1049,7 @@ describe("walletUtils", () => {
         userId: USER_ID_1,
         creditAmount: 100,
         isTrialing: false,
-        cert: "userA-cert",
-        certKey: "userA-key",
+        token: "token-userA-cert",
         selected: true
       });
 
@@ -1076,8 +1058,7 @@ describe("walletUtils", () => {
         userId: USER_ID_2,
         creditAmount: 200,
         isTrialing: true,
-        cert: "userB-cert",
-        certKey: "userB-key",
+        token: "token-userB-cert",
         selected: false
       });
 
@@ -1093,8 +1074,8 @@ describe("walletUtils", () => {
       const userAStored = getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID);
       const userBStored = getStorageManagedWallet(USER_ID_2, MANAGED_NETWORK_ID);
 
-      expect(userAStored?.cert).toBe("userA-cert");
-      expect(userBStored?.cert).toBe("userB-cert");
+      expect(userAStored?.token).toBe("token-userA-cert");
+      expect(userBStored?.token).toBe("token-userB-cert");
 
       cleanup();
     });

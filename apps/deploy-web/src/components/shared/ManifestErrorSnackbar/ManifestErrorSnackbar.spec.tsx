@@ -6,13 +6,6 @@ import { ManifestErrorSnackbar } from "./ManifestErrorSnackbar";
 import { render, screen } from "@testing-library/react";
 
 describe(ManifestErrorSnackbar.name, () => {
-  it("renders 401 error message when certificate is missing", () => {
-    const err = createAxiosError(401);
-    setup({ err });
-
-    expect(screen.queryByText(/You don't have local certificate/)).toBeInTheDocument();
-  });
-
   it("renders message from provider for 400 error with message", () => {
     const err = createAxiosError(400, { message: "Bad Request" });
     setup({ err });
@@ -41,39 +34,6 @@ describe(ManifestErrorSnackbar.name, () => {
     expect(screen.queryByText(/{"foo":"bar"}/)).toBeInTheDocument();
   });
 
-  it("renders expired certificate error for 400 with expired cert issue", () => {
-    const err = createAxiosError(400, {
-      error: {
-        issues: [{ path: ["certPem"], params: { reason: "expired" } }]
-      }
-    });
-    setup({ err });
-
-    expect(screen.queryByText(/Your certificate has expired/)).toBeInTheDocument();
-  });
-
-  it("renders missing cert pair error for 400 with missingCertPair issue", () => {
-    const err = createAxiosError(400, {
-      error: {
-        issues: [{ path: ["certPem"], params: { reason: "missingCertPair" } }]
-      }
-    });
-    setup({ err });
-
-    expect(screen.queryByText(/Please provide both public and private key/)).toBeInTheDocument();
-  });
-
-  it("renders invalid certificate error for 400 with invalid cert issue", () => {
-    const err = createAxiosError(400, {
-      error: {
-        issues: [{ path: ["certPem"], params: { reason: "invalid" } }]
-      }
-    });
-    setup({ err });
-
-    expect(screen.queryByText(/Provider rejected your certificate/)).toBeInTheDocument();
-  });
-
   it("renders custom error message when provided in messages prop", () => {
     const err = createAxiosError(400, {
       error: {
@@ -98,33 +58,38 @@ describe(ManifestErrorSnackbar.name, () => {
   });
 
   it("renders unique errors only for multiple identical issues", () => {
+    const messages = { "custom.path.dup": "Duplicate issue" };
     const err = createAxiosError(400, {
       error: {
         issues: [
-          { path: ["certPem"], params: { reason: "expired" } },
-          { path: ["certPem"], params: { reason: "expired" } }
+          { path: ["custom", "path"], params: { reason: "dup" } },
+          { path: ["custom", "path"], params: { reason: "dup" } }
         ]
       }
     });
-    const { container } = setup({ err });
+    const { container } = setup({ err, messages });
 
-    const matches = container.textContent?.match(/Your certificate has expired/g);
+    const matches = container.textContent?.match(/Duplicate issue/g);
     expect(matches).toHaveLength(1);
   });
 
   it("renders multiple different errors for 400 with multiple issues", () => {
+    const messages = {
+      "custom.path.first": "First issue",
+      "custom.path.second": "Second issue"
+    };
     const err = createAxiosError(400, {
       error: {
         issues: [
-          { path: ["certPem"], params: { reason: "expired" } },
-          { path: ["certPem"], params: { reason: "invalid" } }
+          { path: ["custom", "path"], params: { reason: "first" } },
+          { path: ["custom", "path"], params: { reason: "second" } }
         ]
       }
     });
-    setup({ err });
+    setup({ err, messages });
 
-    expect(screen.queryByText(/Your certificate has expired/)).toBeInTheDocument();
-    expect(screen.queryByText(/Provider rejected your certificate/)).toBeInTheDocument();
+    expect(screen.queryByText(/First issue/)).toBeInTheDocument();
+    expect(screen.queryByText(/Second issue/)).toBeInTheDocument();
   });
 
   it("renders string response data for 422 error", () => {
