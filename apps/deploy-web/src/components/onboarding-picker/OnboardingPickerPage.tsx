@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Snackbar } from "@akashnetwork/ui/components";
+import { Alert, AlertDescription, Button, Snackbar } from "@akashnetwork/ui/components";
 import { ArrowRight } from "iconoir-react";
 import Head from "next/head";
 import { useRouter } from "next/navigation";
@@ -10,11 +10,13 @@ import { useSnackbar } from "notistack";
 import { DeploymentTemplatePickerCard } from "@src/components/deployments/DeploymentTemplatePickerCard/DeploymentTemplatePickerCard";
 import { PhasedDeploymentContainer } from "@src/components/deployments/PhasedDeploymentContainer/PhasedDeploymentContainer";
 import { AkashConsoleLogo } from "@src/components/icons/AkashConsoleLogo";
+import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
 import { UrlService } from "@src/utils/urlUtils";
 
 export const DEPENDENCIES = {
   useRouter,
   useSnackbar,
+  useEnsureTrialStarted,
   DeploymentTemplatePickerCard,
   PhasedDeploymentContainer
 };
@@ -37,6 +39,7 @@ export function OnboardingPickerPage({ templates, dependencies: d = DEPENDENCIES
   const { enqueueSnackbar } = d.useSnackbar();
   const router = d.useRouter();
   const [deploying, setDeploying] = useState<DeployingState | null>(null);
+  const { isWalletReady, error: trialError } = d.useEnsureTrialStarted();
 
   return (
     <>
@@ -55,6 +58,8 @@ export function OnboardingPickerPage({ templates, dependencies: d = DEPENDENCIES
           <d.PhasedDeploymentContainer
             templateName={deploying.templateName}
             sdl={deploying.sdl}
+            isWalletReady={isWalletReady}
+            trialError={trialError}
             onSuccess={dseq => {
               enqueueSnackbar(<Snackbar title="Deployment prepared!" subTitle="We're redirecting you to the deployment details..." iconVariant="success" />, {
                 variant: "success"
@@ -74,6 +79,14 @@ export function OnboardingPickerPage({ templates, dependencies: d = DEPENDENCIES
                   deployments. Pick a template to get a live URL in about 30 seconds.
                 </p>
               </div>
+
+              {trialError && (
+                <Alert variant="destructive">
+                  <AlertDescription>
+                    We couldn&apos;t set up your trial. Please refresh the page to try again, or contact support if the issue persists.
+                  </AlertDescription>
+                </Alert>
+              )}
 
               <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-3">
                 <d.DeploymentTemplatePickerCard

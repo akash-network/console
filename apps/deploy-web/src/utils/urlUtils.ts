@@ -77,6 +77,7 @@ export class UrlService {
     getSafeReturnableUrl(`/login${appendSearchParams({ tab: "signup" })}`, returnTo, extraReturnToParams);
   static logout = () => "/api/auth/logout";
   static onboarding = ({ returnTo }: ReturnableOptions = {}) => getSafeReturnableUrl("/signup", returnTo);
+  static onboardingPicker = () => "/onboarding";
   static template = (id: string) => `/template/${id}`;
 
   // Deploy

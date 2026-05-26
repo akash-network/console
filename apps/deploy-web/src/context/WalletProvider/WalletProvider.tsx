@@ -164,12 +164,27 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setSettingsId(walletAddress || null);
   }, [walletAddress]);
 
+  /**
+   * Force every visitor onto the managed-wallet network on first load, regardless of `selectedWalletType`.
+   *
+   * Why unconditional: in the onboarding redesign, every authenticated user gets a managed trial wallet,
+   * and the entire console experience targets that network. Previously this effect only fired when
+   * `selectedWalletType === "managed"`, which meant the switch happened *after* `useManagedWallet`
+   * auto-flipped the wallet type — i.e. mid-deploy if the trial creation completed during a deploy —
+   * tearing down in-flight requests. Firing on first load instead means the (one-time) reload happens
+   * before any user action.
+   *
+   * Why `reload()` not `href = home`: a hard nav to `/` was sending the user back to home after a
+   * successful deploy if the wallet-type flip happened post-success. Reloading in place keeps the URL.
+   *
+   * The localStorage-backed atom makes this a single reload per browser — subsequent loads see the
+   * managed network already selected and skip the effect entirely.
+   */
   useEffect(() => {
-    if (selectedWalletType === "managed" && selectedNetworkId !== appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID) {
-      setSelectedNetworkId(appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID);
-      windowLocation.href = urlService.home();
-    }
-  }, [selectedWalletType, selectedNetworkId, appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID, setSelectedNetworkId, windowLocation, urlService]);
+    if (selectedNetworkId === appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID) return;
+    setSelectedNetworkId(appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID);
+    windowLocation.reload();
+  }, [selectedNetworkId, appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID, setSelectedNetworkId, windowLocation]);
 
   function switchWalletType() {
     if (selectedWalletType === "custodial" && !managedWallet) {

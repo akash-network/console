@@ -13,13 +13,8 @@ import { BalancesService } from "@src/billing/services/balances/balances.service
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
-import { StripeService } from "@src/billing/services/stripe/stripe.service";
-import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
 import { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import { GetWalletOptions, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
-import { UserRepository } from "@src/user/repositories";
 
 @scoped(Lifecycle.ResolutionScoped)
 export class WalletController {
@@ -31,74 +26,16 @@ export class WalletController {
     private readonly balancesService: BalancesService,
     private readonly authService: AuthService,
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly stripeService: StripeService,
-    private readonly stripeErrorService: StripeErrorService,
-    private readonly featureFlagsService: FeatureFlagsService,
-    private readonly userRepository: UserRepository,
     private readonly billingConfigService: BillingConfigService,
     private readonly trialValidationService: TrialValidationService
   ) {}
 
   @Protected([{ action: "create", subject: "UserWallet" }])
   async create({ data: { userId } }: StartTrialRequestInput): Promise<WalletOutputResponse> {
-    const { currentUser } = this.authService;
-
-    assert(currentUser.emailVerified, 400, "Email not verified");
-    assert(currentUser.stripeCustomerId, 400, "Stripe customer ID not found");
-
-    const paymentMethods = await this.stripeService.getPaymentMethods(currentUser.id, currentUser.stripeCustomerId, this.authService.ability);
-    assert(paymentMethods.length > 0, 400, "You must have a payment method to start a trial.");
-
-    if (this.stripeService.isProduction) {
-      const hasDuplicateTrialAccount = await this.stripeService.hasDuplicateTrialAccount(paymentMethods, currentUser.id);
-      assert(!hasDuplicateTrialAccount, 400, "This payment method is already associated with another trial account. Please use a different payment method.");
-
-      if (this.featureFlagsService.isEnabled(FeatureFlags.TRIAL_FINGERPRINT_CHECK) && currentUser.lastFingerprint) {
-        const usersWithSameFingerprint = await this.userRepository.findTrialUsersByFingerprint(currentUser.lastFingerprint, currentUser.id);
-        assert(usersWithSameFingerprint.length === 0, 400, "Unable to start trial. Please contact support for assistance.");
-      }
-    }
-
-    const latestPaymentMethod = paymentMethods[0];
-    try {
-      const validationResult = await this.stripeService.validatePaymentMethodForTrial({
-        customer: currentUser.stripeCustomerId,
-        payment_method: latestPaymentMethod.id,
-        userId: currentUser.id
-      });
-
-      // If the card requires 3D Secure authentication, return the necessary information
-      if (validationResult.requires3DS) {
-        return {
-          data: {
-            id: null,
-            userId: currentUser.id,
-            address: null,
-            denom: this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM"),
-            creditAmount: 0,
-            isTrialing: false,
-            topUpMinAmountUsd: this.trialValidationService.getTopUpMinAmountUsd({ isTrialing: false }),
-            createdAt: null,
-            requires3DS: true,
-            clientSecret: validationResult.clientSecret || null,
-            paymentIntentId: validationResult.paymentIntentId || null,
-            paymentMethodId: validationResult.paymentMethodId || null
-          }
-        };
-      }
-    } catch (error: unknown) {
-      if (this.stripeErrorService.isKnownError(error, "payment")) {
-        throw this.stripeErrorService.toAppError(error, "payment");
-      }
-
-      throw error;
-    }
-
     const denom = this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM");
-    const wallet = await this.walletInitializer.initializeAndGrantTrialLimits(userId);
-
+    const result = await this.walletInitializer.startTrial(userId);
     return {
-      data: { ...wallet, denom, topUpMinAmountUsd: this.trialValidationService.getTopUpMinAmountUsd(wallet) }
+      data: { ...result, denom, topUpMinAmountUsd: this.trialValidationService.getTopUpMinAmountUsd(result) }
     };
   }
 
