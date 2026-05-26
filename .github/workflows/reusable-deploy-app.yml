@@ -1,19 +1,6 @@
 name: Deploy App
 run-name: "Deploy ${{ inputs.app }}@${{ inputs.image_tag }}"
 
-# Unified deploy workflow. Per-app variation lives entirely in APP_CONFIGS below;
-# every *-release.yml becomes a thin wrapper that calls this with `app: <name>`.
-#
-# APP_CONFIGS shape — keyed by app, then by env (`prod` and/or `staging`):
-#   <app>:
-#     prod:                    # omit to skip prod (not typical)
-#       chains: [...]          # default ["NA"] (chain-independent, no -<chain> suffix)
-#       test:   [...] | true   # chains to e2e-test, or `true` = all chains in this env. default: none
-#       auto_approve: false    # gate prod with the working-hours / associated-PR check
-#     staging:                 # omit to skip staging entirely (e.g. indexer)
-#       chains: [...]          # default ["NA"]
-#       test:   [...] | true   # default: none
-
 on:
   workflow_dispatch:
     inputs:
@@ -39,6 +26,17 @@ permissions:
   contents: read
 
 env:
+  # Unified deploy workflow. Per-app variation lives entirely in APP_CONFIGS below;
+  #
+  # APP_CONFIGS shape — keyed by app, then by env (`prod` and/or `staging`):
+  #   <app>:
+  #     prod:                    # omit to skip prod (not typical)
+  #       chains: [...]          # default ["NA"] (chain-independent, no -<chain> suffix)
+  #       test:   [...] | true   # chains to e2e-test, or `true` = all chains in this env. default: none
+  #       auto_approve: false    # gate prod with the working-hours / associated-PR check
+  #     staging:                 # omit to skip staging entirely (e.g. indexer)
+  #       chains: [...]          # default ["NA"]
+  #       test:   [...] | true   # default: none
   APP_CONFIGS: | # yaml
     console-api:
       prod:
@@ -174,7 +172,7 @@ jobs:
 
       - name: Concurrency guard against old versions
         id: stale-guard
-        if: ${{ steps.extract.outputs.image_tag != '' && inputs.cancel-if-stale == 'true' }}
+        if: ${{ steps.extract.outputs.image_tag != '' && (inputs.cancel-if-stale == true || inputs.cancel-if-stale == 'true') }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           VERSION: ${{ steps.extract.outputs.image_tag }}

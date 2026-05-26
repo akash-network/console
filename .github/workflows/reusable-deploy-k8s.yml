@@ -217,6 +217,8 @@ jobs:
       - name: Deploy with Helm
         env:
           DEPLOYMENT_ENV: ${{ inputs.environment == 'prod' && 'production' || 'staging' }}
+          APP_NAMESPACE: ${{ inputs.environment }}
+          APP_VERSION: ${{ inputs.appVersion }}
         run: | # shell
           echo "$KUBECONFIG" > kubeconfig
 
@@ -243,9 +245,9 @@ jobs:
 
           helm repo add akash https://akash-network.github.io/helm-charts
 
-          echo "executing: helm upgrade $release_name $chart_name --install --atomic -n ${{ inputs.environment }} --set appVersion=${{ inputs.appVersion }} --set deploymentEnv=$DEPLOYMENT_ENV --debug --kubeconfig kubeconfig $values_file_arg $extra_values_arg"
+          echo "executing: helm upgrade $release_name $chart_name --install --atomic -n $APP_NAMESPACE --set appVersion=$APP_VERSION --set deploymentEnv=$DEPLOYMENT_ENV --debug --kubeconfig kubeconfig $values_file_arg $extra_values_arg"
           # shellcheck disable=SC2086
-          helm upgrade "$release_name" "$chart_name" --install --atomic -n "${{ inputs.environment }}" --set "appVersion=${{ inputs.appVersion }}" --set "deploymentEnv=$DEPLOYMENT_ENV" --debug --kubeconfig kubeconfig $values_file_arg $extra_values_arg
+          helm upgrade "$release_name" "$chart_name" --install --atomic -n "$APP_NAMESPACE" --set "appVersion=$APP_VERSION" --set "deploymentEnv=$DEPLOYMENT_ENV" --debug --kubeconfig kubeconfig $values_file_arg $extra_values_arg
 
       - name: Force rollout (restart pods even if spec unchanged)
         if: success() && inputs.force-rollout
