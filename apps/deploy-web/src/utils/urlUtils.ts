@@ -46,7 +46,6 @@ const getSafeReturnableUrl = (destination: string, currentLocation?: string, ext
 export class UrlService {
   static home = () => "/";
   static getStarted = () => "/get-started";
-  static getStartedWallet = (section?: string) => `/get-started/wallet${appendSearchParams({ section })}`;
 
   static sdlBuilder = (id?: string) => `/sdl-builder${appendSearchParams({ id })}`;
   static plainLinux = () => `/deploy-linux`;

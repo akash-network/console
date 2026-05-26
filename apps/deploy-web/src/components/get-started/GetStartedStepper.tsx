@@ -116,11 +116,6 @@ export const GetStartedStepper: React.FunctionComponent<{ dependencies?: typeof 
           <Button className="mt-4" variant="default" onClick={handleNext}>
             Next
           </Button>
-          {!isManagedWallet && (
-            <Link className={cn(buttonVariants({ variant: "text" }))} href={UrlService.getStartedWallet()}>
-              Learn how
-            </Link>
-          )}
 
           {isWalletConnected && isTrialing && (
             <div className="my-4 flex items-center space-x-2">
