@@ -91,10 +91,13 @@ runs:
     - name: Summarize Test Results
       if: ${{ !cancelled() }}
       shell: bash
-      run: |
+      env:
+        STEPS_E2E_TESTS_OUTCOME: ${{ steps.e2e-tests.outcome }}
+        STEPS_PLAYWRIGHT_REPORT_OUTPUTS_ARTIFACT_URL: ${{ steps.playwright-report.outputs.artifact-url }}
+      run: | # shell
         echo "### 📝 E2E Test Summary" >> $GITHUB_STEP_SUMMARY
         prefix=":white_check_mark: Passed"
-        if [ "${{ steps.e2e-tests.outcome }}" == "failure" ]; then
+        if [ "${STEPS_E2E_TESTS_OUTCOME}" == "failure" ]; then
           prefix=":x: Failed"
         fi
-        echo "${prefix}, [download tests report](${{ steps.playwright-report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
+        echo "${prefix}, [download tests report](${STEPS_PLAYWRIGHT_REPORT_OUTPUTS_ARTIFACT_URL})" >> $GITHUB_STEP_SUMMARY
