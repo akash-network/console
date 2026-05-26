@@ -7,14 +7,12 @@ import { NavArrowDown, Wallet } from "iconoir-react";
 import { useWallet } from "@src/context/WalletProvider";
 import { getSplitText } from "@src/hooks/useShortText";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
-import { CustodialWalletPopup } from "../wallet/CustodialWalletPopup/CustodialWalletPopup";
 import { ManagedWalletPopup } from "../wallet/ManagedWalletPopup/ManagedWalletPopup";
 import { WalletConnectionButtons } from "../wallet/WalletConnectionButtons";
 
 export const DEPENDENCIES = {
   useWallet,
   useWalletBalance,
-  CustodialWalletPopup,
   ManagedWalletPopup,
   WalletConnectionButtons,
   FormattedNumber
@@ -77,15 +75,14 @@ export function WalletStatus({ dependencies: d = DEPENDENCIES }: Props = {}) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <div>
-                    {!isManaged && <d.CustodialWalletPopup walletBalance={walletBalance} />}
-                    {isManaged && <d.ManagedWalletPopup walletBalance={walletBalance} />}
+                    <d.ManagedWalletPopup walletBalance={walletBalance} />
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
         ) : (
-          <d.WalletConnectionButtons className="w-full justify-center" connectWalletButtonClassName="w-full md:w-auto" />
+          <d.WalletConnectionButtons className="w-full justify-center" />
         )
       ) : (
         <div className="flex items-center space-x-2 rounded-md border bg-accent px-4 py-2">
