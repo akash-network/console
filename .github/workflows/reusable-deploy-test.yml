@@ -1,0 +1,88 @@
+name: Deployment Test
+
+# Called by reusable-deploy-app.yml to run e2e/UI tests against a deployed environment.
+# Per-app branching lives here — callers just pass app/chains/environment/appVersion.
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: "Application name (e.g., console-api, provider-proxy, console-web)"
+        required: true
+        type: string
+      chain:
+        description: "Chain to test (e.g. 'mainnet', 'sandbox', or 'NA' for chain-independent apps)"
+        required: true
+        type: string
+      environment:
+        description: "Deployment environment (staging | prod)"
+        required: true
+        type: string
+      appVersion:
+        description: "Deployed version under test"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  test:
+    name: Test ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    env:
+      BASE_URL: ${{ inputs.environment == 'staging' && vars.CONSOLE_WEB_BETA_URL || vars.CONSOLE_WEB_URL }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - if: ${{ inputs.app == 'console-api' }}
+        uses: ./.github/actions/run-e2e-tests
+        env:
+          TEST_API_BASE_URL: ${{ env.BASE_URL }}/api-${{ inputs.chain }}
+          CONSOLE_API_E2E_API_KEY: >-
+            ${{
+              inputs.environment == 'staging' &&
+              inputs.chain == 'sandbox' &&
+              secrets.CONSOLE_API_E2E_BETA_SANDBOX_API_KEY
+              || secrets.CONSOLE_API_E2E_API_KEY }}
+        with:
+          app: api
+          app-version: ${{ inputs.appVersion }}
+          app-url: ${{ env.BASE_URL }}/api-${{ inputs.chain }}
+          environment: ${{ inputs.environment }}
+          chain: ${{ inputs.chain }}
+          slack-webhook-url: ${{ secrets.FAILED_E2E_TESTS_SLACK_WEBHOOK_URL }}
+          gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
+
+      - if: ${{ inputs.app == 'provider-proxy' }}
+        uses: ./.github/actions/run-e2e-tests
+        env:
+          SERVICE_BASE_URL: ${{ env.BASE_URL }}/provider-proxy-${{ inputs.chain }}
+          CONSOLE_API_BASE_URL: ${{ env.BASE_URL }}/api-${{ inputs.chain }}
+        with:
+          app: provider-proxy
+          app-version: ${{ inputs.appVersion }}
+          app-url: ${{ env.BASE_URL }}/provider-proxy-${{ inputs.chain }}
+          environment: ${{ inputs.environment }}
+          chain: ${{ inputs.chain }}
+          slack-webhook-url: ${{ secrets.FAILED_E2E_TESTS_SLACK_WEBHOOK_URL }}
+          gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
+
+      - if: ${{ inputs.app == 'console-web' }}
+        uses: ./.github/actions/console-web-ui-testing
+        with:
+          ref: console-web/v${{ inputs.appVersion }}
+          url: ${{ env.BASE_URL }}
+          slack-webhook-url: ${{ secrets.FAILED_E2E_TESTS_SLACK_WEBHOOK_URL }}
+          gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
+          testing-client-token: ${{ secrets.CONSOLE_WEB_E2E_TESTING_CLIENT_TOKEN_BETA }}
+          auth0-m2m-domain: ${{ secrets.AUTH0_M2M_DOMAIN }}
+          auth0-m2m-client-id: ${{ secrets.AUTH0_M2M_CLIENT_ID }}
+          auth0-m2m-client-secret: ${{ secrets.AUTH0_M2M_CLIENT_SECRET }}
+          mailsac-api-key: ${{ secrets.MAILSAC_API_KEY }}
+          email-verification-strategy: ${{ vars.EMAIL_VERIFICATION_STRATEGY || 'mailsac-code' }}
+          test-user-email: ${{ secrets.CONSOLE_WEB_E2E_TEST_USER_EMAIL }}
+          test-user-password: ${{ secrets.CONSOLE_WEB_E2E_TEST_USER_PASSWORD }}
