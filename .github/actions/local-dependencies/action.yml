@@ -16,10 +16,12 @@ runs:
     - name: Find dependencies on in-repo packages
       id: deps
       shell: bash
-      run: |
+      env:
+        INPUTS_PATH: ${{ inputs.path }}
+      run: | # shell
         node --input-type=module -e '
           import { findLocalPackageDependencies } from "./packages/releaser/find-local-package-dependencies.js";
-          const localDependencies = findLocalPackageDependencies("./${{ inputs.path }}")
+          const localDependencies = findLocalPackageDependencies(`./${process.env.INPUTS_PATH}`)
             .map(path => `${path}/**`);
           console.log(JSON.stringify(localDependencies));
         ' | xargs -I "{}" -0 echo "deps_json={}" >> $GITHUB_OUTPUT

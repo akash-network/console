@@ -7,7 +7,16 @@ on:
       app:
         description: "Application name (e.g., console-api, tx-signer)"
         required: true
-        type: string
+        type: choice
+        options:
+          - console-web
+          - console-api
+          - tx-signer
+          - indexer
+          - notifications
+          - provider-proxy
+          - provider-inventory
+          - stats-web
       image_tag:
         description: "Image tag to deploy (e.g., latest, 1.0.0, v1.0.0, <app>/v1.0.0)"
         required: true
@@ -26,7 +35,7 @@ permissions:
   contents: read
 
 env:
-  # Unified deploy workflow. Per-app variation lives entirely in APP_CONFIGS below;
+  # Unified deploy workflow. Per-app variation lives entirely in APP_CONFIGS below.
   #
   # APP_CONFIGS shape — keyed by app, then by env (`prod` and/or `staging`):
   #   <app>:
@@ -257,6 +266,9 @@ jobs:
   test-beta:
     needs: [setup, deploy-beta]
     if: ${{ needs.setup.outputs.beta_tests != '[]' }}
+    permissions:
+      contents: read
+      pull-requests: read
     name: Test beta
     strategy:
       matrix:
@@ -322,6 +334,9 @@ jobs:
   test-prod:
     needs: [setup, deploy-prod]
     if: ${{ needs.setup.outputs.prod_tests != '[]' }}
+    permissions:
+      contents: read
+      pull-requests: read
     name: Test prod
     strategy:
       matrix:

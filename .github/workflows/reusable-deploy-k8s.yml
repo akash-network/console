@@ -22,6 +22,7 @@ on:
           - indexer
           - notifications
           - provider-proxy
+          - provider-inventory
           - provider-console
           - provider-console-api
           - provider-console-security
