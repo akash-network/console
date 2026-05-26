@@ -199,6 +199,49 @@ describe(StreamLifecycleManagerService.name, () => {
     });
   });
 
+  describe("markOffline dedup", () => {
+    it("marks offline only once across consecutive failed attempts", async () => {
+      const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
+      const { manager, writer, logger } = setup({ streamFactory });
+      const countFailures = () => logger.warn.mock.calls.filter(([arg]) => (arg as { event?: string })?.event === "STREAM_ATTEMPT_FAILED").length;
+
+      manager.start(createProvider());
+
+      await vi.waitFor(() => expect(countFailures()).toBeGreaterThanOrEqual(3));
+
+      expect(writer.markOffline).toHaveBeenCalledTimes(1);
+      expect(writer.markOffline).toHaveBeenCalledWith("akash1owner");
+    });
+
+    it("marks offline again after a provider recovers and then drops", async () => {
+      let attempt = 0;
+      const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.openStatusStream.mockImplementation(() => {
+        attempt++;
+        if (attempt === 1) return throwingStream(new Error("initial failure"));
+        if (attempt === 2) return msgsThenThrow([createMessage()], new Error("dropped"));
+        return throwingStream(new Error("still down"));
+      });
+      const { manager, writer } = setup({ streamFactory });
+
+      manager.start(createProvider());
+
+      await vi.waitFor(() => expect(writer.markOffline).toHaveBeenCalledTimes(2));
+    });
+
+    it("does not mark offline when the very first attempt is delivering messages", async () => {
+      const { manager, writer } = setup({
+        streams: { "https://p1:8443": msgsThenHang([createMessage()]) }
+      });
+
+      manager.start(createProvider());
+
+      await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(1));
+      expect(writer.markOffline).not.toHaveBeenCalled();
+    });
+  });
+
   describe("stale finalizer", () => {
     it("does not evict a replacement stream's registry entry when the old stream finishes", async () => {
       let resolveOldStream!: () => void;
@@ -364,6 +407,11 @@ async function* msgsThenHang(messages: ClusterState[]): AsyncGenerator<ClusterSt
 
 async function* throwingStream(error: Error): AsyncGenerator<ClusterState> {
   yield* [];
+  throw error;
+}
+
+async function* msgsThenThrow(messages: ClusterState[], error: Error): AsyncGenerator<ClusterState> {
+  for (const msg of messages) yield msg;
   throw error;
 }
 

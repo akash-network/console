@@ -11,7 +11,11 @@ export class ProviderStreamFactory {
     const url = new URL(provider.hostUri);
     url.port = "8444";
     const sdk = createProviderSDK({
-      baseUrl: url.toString()
+      baseUrl: url.toString(),
+      transportOptions: {
+        pingIdleConnection: true,
+        idleConnectionTimeoutMs: 5 * 60 * 1000 // 5 minutes
+      }
     });
 
     const stream = await sdk.akash.provider.v1.streamStatus({}, { signal });
