@@ -24,7 +24,6 @@ const BecomeProvider: React.FC = () => {
   const [, resetProviderProcess] = useAtom(providerProcessStore.resetProviderProcess);
   const { address } = useWallet();
   const previousAddressRef = useRef<string | undefined>(undefined);
-  const certManagerSecretsRehydratedRef = useRef(false);
 
   const providerSteps = useMemo(
     () => [
@@ -53,12 +52,12 @@ const BecomeProvider: React.FC = () => {
     previousAddressRef.current = address;
   }, [address, resetProviderProcess]);
 
-  // After rehydration, cert-manager credentials live only in memory; if the
-  // user reloaded past the cert-manager step, the persisted `certManager: true`
-  // flag lies. Flip it back so the wizard routes the user to re-enter creds.
+  // Cert-manager credentials live only in memory; if the user reloaded past
+  // the cert-manager step, the persisted `certManager: true` flag lies. Flip
+  // it back so the wizard routes the user to re-enter creds. The effect is
+  // self-stabilizing: once the flag is false the condition short-circuits, so
+  // it never re-flips.
   useEffect(() => {
-    if (certManagerSecretsRehydratedRef.current) return;
-    certManagerSecretsRehydratedRef.current = true;
     if (providerProcess.process.certManager && !hasRequiredCertManagerSecrets(providerProcess.certManager, certManagerSecrets)) {
       setProviderProcess(prev => ({
         ...prev,
