@@ -207,7 +207,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
 
       try {
         const yamlJson = yaml.load(localDeploymentData.manifest);
-        const mani = deploymentData.getManifest(yamlJson, true);
+        const mani = deploymentData.getManifest(yamlJson);
         const options: SendManifestToProviderOptions = {
           dseq,
           credentials: {
@@ -321,11 +321,21 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
 
       const newLocalCert = newCert ? await updateSelectedCertificate(newCert) : localCert;
 
-      analyticsService.track("create_lease", {
-        category: "deployments",
+      const leaseEventProps = {
+        category: "deployments" as const,
         label: "Create lease",
-        dseq
-      });
+        dseq,
+        gpuAmount: deploymentDetail?.gpuAmount ?? 0,
+        cpuAmount: deploymentDetail?.cpuAmount ?? 0,
+        memoryAmount: deploymentDetail?.memoryAmount ?? 0,
+        storageAmount: deploymentDetail?.storageAmount ?? 0
+      };
+
+      analyticsService.track("create_lease", leaseEventProps);
+
+      if (leaseEventProps.gpuAmount > 0) {
+        analyticsService.track("create_gpu_deployment", leaseEventProps);
+      }
 
       if (newLocalCert) {
         await sendManifest(newLocalCert);

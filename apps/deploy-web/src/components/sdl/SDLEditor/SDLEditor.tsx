@@ -9,7 +9,6 @@ import type { Document } from "yaml";
 
 import type { IStandaloneCodeEditor } from "@src/components/shared/Editor/Editor";
 import { Editor } from "@src/components/shared/Editor/Editor";
-import { useServices } from "@src/context/ServicesProvider";
 import { getMonacoErrorMarkers } from "./getMonacoErrorMarkers";
 
 export type Props = Omit<ComponentProps<typeof Editor>, "language" | "onValidate" | "dependencies"> & {
@@ -26,8 +25,6 @@ const MARKER_OWNER = "akash-sdl";
 let editorId = 0;
 
 export const SDLEditor = forwardRef<SdlEditorRefType, Props>(({ onChange, onValidate, dependencies: d = DEPENDENCIES, ...props }, ref) => {
-  const { networkStore } = useServices();
-  const networkId = networkStore.useSelectedNetworkId();
   const stateRef = useRef<EditorState>({
     editor: null,
     monaco: null,
@@ -61,14 +58,14 @@ export const SDLEditor = forwardRef<SdlEditorRefType, Props>(({ onChange, onVali
         // if there are errors, yaml is invalid and builtin monaco editor yaml service will show errors
         return false;
       }
-      const errors = validateSDL(doc.toJSON() as SDLInput, networkId);
+      const errors = validateSDL(doc.toJSON() as SDLInput);
       const markers = errors ? getMonacoErrorMarkers(errors, doc, value) : [];
       const isValid = markers.length === 0;
       onValidate?.({ isValid });
       monaco?.editor.setModelMarkers(model, MARKER_OWNER, markers);
       return isValid;
     },
-    [networkId, onValidate]
+    [onValidate]
   );
 
   const scheduleValidation = useCallback(

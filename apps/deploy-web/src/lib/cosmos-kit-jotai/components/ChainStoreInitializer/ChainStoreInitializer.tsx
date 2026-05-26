@@ -12,12 +12,18 @@ import { useChain } from "../../hooks/useChain/useChain";
 
 type Props = {
   chainName: string;
+  dependencies?: typeof DEPENDENCIES;
 };
 
-export function ChainStoreInitializer({ chainName }: Props) {
+export const DEPENDENCIES = {
+  useChain,
+  useChainStore
+};
+
+export function ChainStoreInitializer({ chainName, dependencies = DEPENDENCIES }: Props) {
   const { enqueueSnackbar } = useSnackbar();
-  const { message, isWalletError } = useChain(chainName);
-  const chainStore = useChainStore();
+  const { message, isWalletError } = dependencies.useChain(chainName);
+  const chainStore = dependencies.useChainStore();
   const lastShownErrorRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {

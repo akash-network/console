@@ -1,7 +1,7 @@
 import yaml from "js-yaml";
 import { describe, expect, it } from "vitest";
 
-import { replaceSdlDenom } from "./v1beta3";
+import { applyTrialGpuPolicy, replaceSdlDenom } from "./v1beta3";
 
 describe(replaceSdlDenom.name, () => {
   it("replaces denom in a single placement pricing entry", () => {
@@ -101,5 +101,89 @@ describe(replaceSdlDenom.name, () => {
     });
 
     return { sdl };
+  }
+});
+
+describe(applyTrialGpuPolicy.name, () => {
+  const BLOCKED = ["nvidia/h100", "nvidia/h200", "nvidia/rtxa6000"];
+
+  it("returns the SDL unchanged when no GPU section is present", () => {
+    const sdl = buildSdl({});
+
+    expect(applyTrialGpuPolicy(sdl, BLOCKED)).toBe(sdl);
+  });
+
+  it("returns the SDL unchanged when blocked list is empty", () => {
+    const sdl = buildSdl({ nvidia: [{ model: "h100" }] });
+
+    expect(applyTrialGpuPolicy(sdl, [])).toBe(sdl);
+  });
+
+  it("clears vendor.nvidia to any-model when its model list is empty", () => {
+    const sdl = buildSdl({ nvidia: [] });
+
+    const result = applyTrialGpuPolicy(sdl, BLOCKED);
+
+    expect(getNvidiaValue(result)).toBeNull();
+  });
+
+  it("strips blocked models from the requested list", () => {
+    const sdl = buildSdl({ nvidia: [{ model: "h100" }, { model: "a100" }, { model: "rtxa4000" }] });
+
+    const result = applyTrialGpuPolicy(sdl, BLOCKED);
+
+    expect(getNvidiaValue(result)).toEqual([{ model: "a100" }, { model: "rtxa4000" }]);
+  });
+
+  it("strips rtxa6000 when present in the blocked list", () => {
+    const sdl = buildSdl({ nvidia: [{ model: "rtxa6000" }, { model: "rtxa4000" }] });
+
+    const result = applyTrialGpuPolicy(sdl, BLOCKED);
+
+    expect(getNvidiaValue(result)).toEqual([{ model: "rtxa4000" }]);
+  });
+
+  it("clears vendor.nvidia to any-model when every requested model is blocked", () => {
+    const sdl = buildSdl({ nvidia: [{ model: "h100" }, { model: "h200" }] });
+
+    const result = applyTrialGpuPolicy(sdl, BLOCKED);
+
+    expect(getNvidiaValue(result)).toBeNull();
+  });
+
+  it("returns the SDL unchanged when every requested model is already allowed", () => {
+    const sdl = buildSdl({ nvidia: [{ model: "rtxa4000" }] });
+
+    expect(applyTrialGpuPolicy(sdl, BLOCKED)).toBe(sdl);
+  });
+
+  function buildSdl(input: { nvidia?: Array<{ model?: string; ram?: string }> }): string {
+    const gpu = input.nvidia ? { units: 1, attributes: { vendor: { nvidia: input.nvidia } } } : undefined;
+    return yaml.dump({
+      version: "2.0",
+      services: { app: { image: "nginx" } },
+      profiles: {
+        compute: {
+          app: {
+            resources: {
+              cpu: { units: 0.5 },
+              memory: { size: "512Mi" },
+              storage: { size: "512Mi" },
+              ...(gpu ? { gpu } : {})
+            }
+          }
+        },
+        placement: { dcloud: { pricing: { app: { denom: "uact", amount: 1000 } } } }
+      },
+      deployment: { app: { dcloud: { profile: "app", count: 1 } } }
+    });
+  }
+
+  function getNvidiaValue(yamlStr: string): Array<{ model?: string }> | null | undefined {
+    const sdl = yaml.load(yamlStr) as {
+      profiles: { compute: Record<string, { resources: { gpu?: { attributes?: { vendor?: { nvidia?: Array<{ model?: string }> | null } } } } }> };
+    };
+    const profile = Object.values(sdl.profiles.compute)[0];
+    return profile.resources.gpu?.attributes?.vendor?.nvidia;
   }
 });

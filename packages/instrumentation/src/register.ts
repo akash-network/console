@@ -26,3 +26,4 @@ const shutdown = async () => {
 
 process.once("SIGINT", shutdown);
 process.once("SIGTERM", shutdown);
+process.once("beforeExit", shutdown);

@@ -7,20 +7,12 @@ import { cors } from "hono/cors";
 import assert from "http-assert";
 import { container } from "tsyringe";
 
-import { verifyEmailRouter } from "./auth/routes/verify-email/verify-email.router";
 import { AuthInterceptor } from "./auth/services/auth.interceptor";
-import { bidsRouter } from "./bid/routes/bids/bids.router";
-import { certificateRouter } from "./certificate/routes/certificate.router";
-import { blockchainStatusRouter } from "./chain/routes/blockchain-status/blockchain-status.router";
 import { HonoErrorHandlerService } from "./core/services/hono-error-handler/hono-error-handler.service";
-import type { OpenApiHonoHandler } from "./core/services/open-api-hono-handler/open-api-hono-handler";
 import { OpenApiDocsService } from "./core/services/openapi-docs/openapi-docs.service";
 import { RequestContextInterceptor } from "./core/services/request-context-interceptor/request-context.interceptor";
 import { startServer } from "./core/services/start-server/start-server";
 import type { AppEnv } from "./core/types/app-context";
-import { deploymentSettingRouter } from "./deployment/routes/deployment-setting/deployment-setting.router";
-import { deploymentsRouter } from "./deployment/routes/deployments/deployments.router";
-import { leasesRouter } from "./deployment/routes/leases/leases.router";
 import { healthzRouter } from "./healthz/routes/healthz.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
 import { notificationsApiProxy } from "./notifications/routes/proxy/proxy.route";
@@ -29,55 +21,11 @@ import { dashboardRouter } from "./routers/dashboardRouter";
 import { deploymentRouter } from "./routers/deploymentApiRouter";
 import { internalRouter } from "./routers/internalRouter";
 import { legacyRouter } from "./routers/legacyRouter";
+import { openApiHonoHandlers } from "./routers/open-api-handlers";
 import { web3IndexRouter } from "./routers/web3indexRouter";
 import { bytesToHumanReadableSize } from "./utils/files";
-import { addressRouter } from "./address";
-import { apiKeysRouter, sendVerificationCodeRouter, sendVerificationEmailRouter, signupRouter, verifyEmailCodeRouter } from "./auth";
-import {
-  getBalancesRouter,
-  getWalletListRouter,
-  signAndBroadcastTxRouter,
-  startTrialRouter,
-  stripeCouponsRouter,
-  stripeCustomersRouter,
-  stripePaymentMethodsRouter,
-  stripePricesRouter,
-  stripeTransactionsRouter,
-  stripeWebhook,
-  usageRouter,
-  walletSettingRouter
-} from "./billing";
-import { blockPredictionRouter, blocksRouter } from "./block";
 import { connectUsingSequelize } from "./chain";
 import { CORE_CONFIG, migratePG } from "./core";
-import {
-  bmeDashboardDataRouter,
-  bmeStatusHistoryRouter,
-  dashboardDataRouter,
-  graphDataRouter,
-  leasesDurationRouter,
-  marketDataRouter,
-  networkCapacityRouter
-} from "./dashboard";
-import { gpuRouter } from "./gpu";
-import { pricingRouter } from "./pricing";
-import { proposalsRouter } from "./proposal";
-import {
-  auditorsRouter,
-  providerAttributesSchemaRouter,
-  providerDashboardRouter,
-  providerDeploymentsRouter,
-  providerEarningsRouter,
-  providerGraphDataRouter,
-  providerJwtTokenRouter,
-  providerRegionsRouter,
-  providersRouter,
-  providerVersionsRouter
-} from "./provider";
-import { templatesRouter } from "./template";
-import { transactionsRouter } from "./transaction";
-import { getCurrentUserRouter, registerUserRouter, userSettingsRouter, userTemplatesRouter } from "./user";
-import { validatorsRouter } from "./validator";
 
 const appHono = new Hono<AppEnv>();
 appHono.use("*", otel());
@@ -106,62 +54,6 @@ appHono.route("/dashboard", dashboardRouter);
 appHono.route("/internal", internalRouter);
 appHono.route("/deployments", deploymentRouter);
 
-const openApiHonoHandlers: OpenApiHonoHandler[] = [
-  startTrialRouter,
-  getWalletListRouter,
-  walletSettingRouter,
-  signAndBroadcastTxRouter,
-  stripeWebhook,
-  stripePricesRouter,
-  stripeCouponsRouter,
-  stripeCustomersRouter,
-  stripePaymentMethodsRouter,
-  stripeTransactionsRouter,
-  usageRouter,
-  registerUserRouter,
-  getCurrentUserRouter,
-  userSettingsRouter,
-  userTemplatesRouter,
-  sendVerificationEmailRouter,
-  sendVerificationCodeRouter,
-  signupRouter,
-  verifyEmailCodeRouter,
-  verifyEmailRouter,
-  deploymentSettingRouter,
-  deploymentsRouter,
-  leasesRouter,
-  apiKeysRouter,
-  bidsRouter,
-  certificateRouter,
-  getBalancesRouter,
-  providersRouter,
-  auditorsRouter,
-  providerAttributesSchemaRouter,
-  providerRegionsRouter,
-  providerDashboardRouter,
-  providerEarningsRouter,
-  providerVersionsRouter,
-  providerGraphDataRouter,
-  providerDeploymentsRouter,
-  providerJwtTokenRouter,
-  graphDataRouter,
-  bmeDashboardDataRouter,
-  bmeStatusHistoryRouter,
-  dashboardDataRouter,
-  networkCapacityRouter,
-  blocksRouter,
-  blockPredictionRouter,
-  transactionsRouter,
-  marketDataRouter,
-  validatorsRouter,
-  pricingRouter,
-  gpuRouter,
-  proposalsRouter,
-  templatesRouter,
-  leasesDurationRouter,
-  addressRouter,
-  blockchainStatusRouter
-];
 for (const handler of openApiHonoHandlers) {
   appHono.route("/", handler);
 }
@@ -186,7 +78,7 @@ appHono.get("/status", c => {
 appHono.get("/v1/doc", async c => {
   const scope = c.req.query("scope") || "full";
   assert(["full", "console"].includes(scope), 403, '"scope" query is invalid. Valid options: "full", "console"');
-  return c.json(await container.resolve(OpenApiDocsService).generateDocs(openApiHonoHandlers, { scope }));
+  return c.json(await container.resolve(OpenApiDocsService).generateDocs(openApiHonoHandlers, { scope, source: "http" }));
 });
 appHono.get("/v1/swagger", swaggerUI({ url: "/v1/doc" }));
 

@@ -34,6 +34,7 @@ jobs:
     runs-on: [self-hosted, akash]
     outputs:
       run_scan: ${{ steps.decide.outputs.run_scan }}
+      event: ${{ env.PARENT_WORKFLOW_EVENT }}
       check_run_id: ${{ steps.create_check.outputs.check_run_id }}
       skip_reason: ${{ steps.decide.outputs.skip_reason }}
     steps:
@@ -42,6 +43,7 @@ jobs:
         with:
           sparse-checkout: .github
       - name: Get associated PR
+        if: ${{ env.PARENT_WORKFLOW_EVENT == 'pull_request' }}
         id: associated_pr
         uses: ./.github/actions/associated-pr
         with:
@@ -57,9 +59,9 @@ jobs:
             exit 0
           fi
 
-          if [ "${PARENT_WORKFLOW_EVENT}" != "pull_request" ]; then
+          if [[ "${PARENT_WORKFLOW_EVENT}" != "pull_request" && "${PARENT_WORKFLOW_EVENT}" != "push" ]]; then
             echo "run_scan=false" >> "$GITHUB_OUTPUT"
-            echo "skip_reason=Upstream CI was not triggered by pull_request (event=${PARENT_WORKFLOW_EVENT})" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=Upstream CI was not triggered by pull_request or push (event=${PARENT_WORKFLOW_EVENT})" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -90,7 +92,7 @@ jobs:
 
   setup-static-analyses:
     needs: [create-check-run]
-    if: ${{ needs.create-check-run.outputs.run_scan == 'true' }}
+    if: ${{ needs.create-check-run.outputs.run_scan == 'true' && needs.create-check-run.outputs.event == 'pull_request' }}
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.matrix.outputs.value }}
@@ -153,7 +155,7 @@ jobs:
 
   apps-deps-scan:
     needs: [create-check-run]
-    if: needs.create-check-run.outputs.run_scan == 'true'
+    if: ${{ needs.create-check-run.outputs.run_scan == 'true' && needs.create-check-run.outputs.event == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -219,27 +221,28 @@ jobs:
         with:
           ref: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
       - name: Get associated PR
+        if: ${{ env.PARENT_WORKFLOW_EVENT == 'pull_request' }}
         id: associated_pr
         uses: ./.github/actions/associated-pr
         with:
           ref: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
       - name: Initialize CodeQL
-        if: ${{ !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-codeql-security') }}
+        if: ${{ steps.associated_pr.outcome == 'skipped' || !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-codeql-security') }}
         uses: github/codeql-action/init@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
         with:
           languages: ${{ matrix.language }}
           build-mode: none
       - name: Perform CodeQL Analysis
-        if: ${{ !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-codeql-security') }}
+        if: ${{ steps.associated_pr.outcome == 'skipped' || !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-codeql-security') }}
         uses: github/codeql-action/analyze@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
         with:
           category: "/language:${{matrix.language}}"
           # Override GITHUB_SHA/REF (default branch under workflow_run) so the
-          # "CodeQL" check lands on the PR head. Ignored for fork PRs.
+          # "CodeQL" check lands on the PR head or main. Ignored for fork PRs.
           sha: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
-          ref: refs/pull/${{ steps.associated_pr.outputs.number }}/head
+          ref: ${{ env.PARENT_WORKFLOW_EVENT == 'pull_request' && format('refs/pull/{0}/head', steps.associated_pr.outputs.number) || 'refs/heads/main' }}
       - name: Wait for CodeQL status
-        if: ${{ matrix.wait-for-check && !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-codeql-security') }}
+        if: ${{ matrix.wait-for-check && steps.associated_pr.outputs.labels && !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-codeql-security') }}
         uses: ./.github/actions/poll-check-status
         with:
           name: "CodeQL"

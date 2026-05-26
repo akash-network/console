@@ -1,11 +1,12 @@
-import { createHash } from "crypto";
-import type { IncomingMessage, OutgoingHttpHeaders } from "http";
-import type { RequestOptions } from "https";
-import https from "https";
 import { LRUCache } from "lru-cache";
-import { TLSSocket } from "tls";
-import type z from "zod";
+import { createHash } from "node:crypto";
+import type { IncomingMessage, OutgoingHttpHeaders } from "node:http";
+import type { RequestOptions } from "node:https";
+import https from "node:https";
+import { TLSSocket } from "node:tls";
+import type { z } from "zod";
 
+import type { NetworkLookup } from "../utils/createForbidPrivateNetworkLookup/createForbidPrivateNetworkLookup";
 import type { providerRequestSchema } from "../utils/schema";
 import { propagateTracingContext } from "../utils/telemetry";
 import type { CertificateValidator, CertValidationResultError } from "./CertificateValidator/CertificateValidator";
@@ -14,11 +15,16 @@ export class ProviderProxy {
   /**
    * Cache agents in order to control TLS session resumption
    */
-  private readonly agentsCache = new LRUCache<string, https.Agent>({
+  readonly #agentsCache = new LRUCache<string, https.Agent>({
     max: 1_000_000
   });
+  readonly #certificateValidator: CertificateValidator;
+  readonly #networkLookup?: NetworkLookup;
 
-  constructor(private readonly certificateValidator: CertificateValidator) {}
+  constructor(certificateValidator: CertificateValidator, networkLookup?: NetworkLookup) {
+    this.#certificateValidator = certificateValidator;
+    this.#networkLookup = networkLookup;
+  }
 
   connect(url: string, options: ProxyConnectOptions): Promise<ProxyConnectionResult> {
     return new Promise<ProxyConnectionResult>((resolve, reject) => {
@@ -59,11 +65,11 @@ export class ProviderProxy {
 
             if (didHandshake && options.providerAddress) {
               res.pause();
-              const validationResult = await this.certificateValidator.validate(serverCert, options.providerAddress);
+              const validationResult = await this.#certificateValidator.validate(serverCert, options.providerAddress);
 
               if (validationResult.ok === false) {
                 // remove agent from cache to destroy TLS session to force TLS handshake on the next call
-                this.agentsCache.delete(agentCacheKey);
+                this.#agentsCache.delete(agentCacheKey);
                 resolve({ ok: false, code: "invalidCertificate", reason: validationResult.code });
                 req.off("error", reject);
                 res.destroy();
@@ -127,7 +133,8 @@ export class ProviderProxy {
     };
     const agentOptions: https.AgentOptions = {
       timeout: options.timeout,
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
+      lookup: this.#networkLookup
     };
 
     if (options.auth?.type === "mtls") {
@@ -149,13 +156,13 @@ export class ProviderProxy {
   }
 
   private getHttpsAgent(key: string, options: https.AgentOptions): https.Agent {
-    if (!this.agentsCache.has(key)) {
+    if (!this.#agentsCache.has(key)) {
       const agent = new https.Agent(options);
-      this.agentsCache.set(key, agent);
+      this.#agentsCache.set(key, agent);
       return agent;
     }
 
-    return this.agentsCache.get(key)!;
+    return this.#agentsCache.get(key)!;
   }
 }
 

@@ -1,21 +1,23 @@
-import type { GenerateManifestResult, Manifest, NetworkId, SDLInput } from "@akashnetwork/chain-sdk";
+import type { GenerateManifestResult, Manifest, SDLInput } from "@akashnetwork/chain-sdk";
 import { generateManifest, generateManifestVersion, yaml } from "@akashnetwork/chain-sdk";
 import { YAMLException } from "js-yaml";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 
 @singleton()
 export class SdlService {
-  readonly #networkId: NetworkId;
   readonly #config: BillingConfig;
 
-  constructor(@InjectBillingConfig() config: BillingConfig) {
-    this.#networkId = config.NETWORK as NetworkId;
+  constructor(
+    @InjectBillingConfig() config: BillingConfig,
+    private readonly blockedGpuService: BlockedGpuService
+  ) {
     this.#config = config;
   }
 
-  generateManifest(rawSDL: string): GenerateManifestResult {
+  generateManifest(rawSDL: string, options: { isTrialing?: boolean } = {}): GenerateManifestResult {
     let potentiallyInvalidSDL: SDLInput;
 
     try {
@@ -45,7 +47,25 @@ export class SdlService {
       this.#appendAuditorRequirement(sdlPlacement, allowedAuditors);
     }
 
-    const result = generateManifest(potentiallyInvalidSDL, this.#networkId);
+    if (options.isTrialing) {
+      const blockedRequested = this.blockedGpuService.findInSdl(potentiallyInvalidSDL);
+      if (blockedRequested.length > 0) {
+        return {
+          ok: false,
+          value: [
+            {
+              schemaPath: "",
+              instancePath: "/profiles/compute",
+              keyword: "gpu",
+              params: { blocked: blockedRequested },
+              message: `${this.blockedGpuService.formatList(blockedRequested)} not available on free trial: Add funds to unlock GPU access`
+            }
+          ]
+        };
+      }
+    }
+
+    const result = generateManifest(potentiallyInvalidSDL);
     if (!result.ok) return result;
 
     return result;

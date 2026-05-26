@@ -1,4 +1,4 @@
-import type { Manifest as AkashManifest, NetworkId, SDLInput } from "@akashnetwork/chain-sdk/web";
+import type { Manifest as AkashManifest, SDLInput } from "@akashnetwork/chain-sdk/web";
 import { generateManifest, generateManifestVersion, manifestToSortedJSON, yaml } from "@akashnetwork/chain-sdk/web";
 
 export class CustomValidationError extends Error {
@@ -46,39 +46,37 @@ export function parseSizeStr(str: string) {
   }
 }
 
-type NetworkType = "beta2" | "beta3";
-
 export function parseSdlInput(yamlJson: string | SDLInput): SDLInput {
   return typeof yamlJson === "string" ? yaml.raw<SDLInput>(yamlJson) : yamlJson;
 }
 
-export function buildManifest(sdlInput: SDLInput, networkId: NetworkId) {
-  const result = generateManifest(sdlInput, networkId);
+export function buildManifest(sdlInput: SDLInput) {
+  const result = generateManifest(sdlInput);
   if (!result.ok) {
     throw new Error(result.value.map(e => e.message).join(", "));
   }
   return result.value;
 }
 
-export function DeploymentGroups(yamlJson: string | SDLInput, _networkType: NetworkType, networkId: NetworkId) {
+export function DeploymentGroups(yamlJson: string | SDLInput) {
   const sdlInput = parseSdlInput(yamlJson);
-  return buildManifest(sdlInput, networkId).groupSpecs;
+  return buildManifest(sdlInput).groupSpecs;
 }
 
-export function Manifest(yamlJson: string | SDLInput, _networkType: NetworkType, networkId: NetworkId, _asString = false): AkashManifest {
+export function Manifest(yamlJson: string | SDLInput): AkashManifest {
   const sdlInput = parseSdlInput(yamlJson);
-  const { groups } = buildManifest(sdlInput, networkId);
+  const { groups } = buildManifest(sdlInput);
   return groups;
 }
 
-export async function ManifestVersion(yamlJson: string | SDLInput, _networkType: NetworkType, networkId: NetworkId) {
+export async function ManifestVersion(yamlJson: string | SDLInput) {
   const sdlInput = parseSdlInput(yamlJson);
-  const { groups } = buildManifest(sdlInput, networkId);
+  const { groups } = buildManifest(sdlInput);
   return generateManifestVersion(groups);
 }
 
-export function ManifestYaml(sdlConfig: string, _networkType: NetworkType, networkId: NetworkId) {
+export function ManifestYaml(sdlConfig: string) {
   const sdlInput = parseSdlInput(sdlConfig);
-  const { groups } = buildManifest(sdlInput, networkId);
+  const { groups } = buildManifest(sdlInput);
   return manifestToSortedJSON(groups);
 }

@@ -1,4 +1,7 @@
-export function collectFullErrorStack(error: string | Error | AggregateError | ErrorWithResponse | ErrorWithData | undefined | null, indent = 0): string {
+export function collectFullErrorStack(
+  error: string | Error | AggregateError | ErrorWithResponse | ErrorWithData | ErrorLike | undefined | null,
+  indent = 0
+): string {
   if (!error) return "";
   if (typeof error === "string") return sanitizeString(error);
 
@@ -31,6 +34,20 @@ export function collectFullErrorStack(error: string | Error | AggregateError | E
       `\nStatus: ${currentError.response.status}`,
       `\nError: ${sanitizeString(currentError.response.data?.message) || "Not specified"} (code: ${currentError.response.data?.code || "Not specified"})`,
       `\nBody: ${body.length > 200 ? `${body.slice(0, 200)}...` : body}`
+    );
+  }
+
+  if (isErrorLike(currentError)) {
+    let body = typeof currentError.body === "string" ? sanitizeString(currentError.body) : "No body";
+    if (typeof currentError.body === "object") {
+      body = JSON.stringify(currentError.body);
+      if (body.length > 200) body = `${body.slice(0, 200)}...`;
+    }
+    stack.push(
+      "\nResponse:" +
+        `\nStatus: ${currentError.status ?? "Not specified"}` +
+        (currentError.message ? `\nError: ${sanitizeString(currentError.message)}` : "") +
+        `\nBody: ${body}`
     );
   }
 
@@ -78,4 +95,18 @@ function scrubControls(str: string): string {
       // eslint-disable-next-line no-control-regex
       .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ch => `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`)
   );
+}
+
+/**
+ * Can be found in Error.cause of @cosmjs/tendermint-rpc's HttpClient errors, but also in other places, so we check for it generically.
+ */
+type ErrorLike = {
+  message?: string;
+  stack?: string;
+  body?: unknown;
+  status?: number;
+  cause?: unknown;
+};
+function isErrorLike(obj: unknown): obj is ErrorLike {
+  return typeof obj === "object" && obj !== null && !(obj instanceof Error) && ("status" in obj || "body" in obj);
 }

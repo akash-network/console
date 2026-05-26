@@ -3,7 +3,7 @@
 import type { FC, ReactNode } from "react";
 import React from "react";
 import { useCallback } from "react";
-import type { components } from "@akashnetwork/react-query-sdk/notifications";
+import type { components } from "@akashnetwork/console-api-types/notifications";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
@@ -27,17 +27,14 @@ type NotificationChannelEditContainerProps = {
 };
 
 export const NotificationChannelEditContainer: FC<NotificationChannelEditContainerProps> = ({ id, children, onEditSuccess }) => {
-  const { notificationsApi } = useServices();
-  const mutation = notificationsApi.v1.patchNotificationChannel.useMutation({
-    path: {
-      id
-    }
-  });
+  const { api } = useServices();
+  const mutation = api.v1.updateNotificationChannel.useMutation();
   const notificator = useNotificator();
 
   const edit: ChildrenProps["onEdit"] = useCallback(
     ({ emails, name }) => {
       mutation.mutate({
+        id,
         data: {
           name,
           config: {

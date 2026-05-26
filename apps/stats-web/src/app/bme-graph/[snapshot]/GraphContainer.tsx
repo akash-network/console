@@ -10,7 +10,7 @@ import { DiffNumber } from "@/components/DiffNumber";
 import { DiffPercentageChip } from "@/components/DiffPercentageChip";
 import { TimeRange } from "@/components/graph/TimeRange";
 import { SELECTED_RANGE_VALUES } from "@/config/date.config";
-import { useCompletedSnapshots } from "@/hooks/useCompletedSnapshots";
+import { useSplitSnapshots } from "@/hooks/useSplitSnapshots";
 import { percIncrease, udenomToDenom } from "@/lib/mathHelpers";
 import { NOT_FOUND, type SNAPSHOT_NOT_FOUND } from "@/lib/snapshotsUrlHelpers";
 import { useGraphSnapshot } from "@/queries";
@@ -29,7 +29,7 @@ export default function GraphContainer({ snapshot }: IGraphProps) {
   const [selectedRange, setSelectedRange] = useState(SELECTED_RANGE_VALUES["7D"]);
   const { data: snapshotData, status } = useGraphSnapshot(snapshot);
   const snapshotMetadata = useMemo(() => snapshotData && getBmeSnapshotMetadata(snapshot as BmeSnapshots), [snapshotData, snapshot]);
-  const completedSnapshots = useCompletedSnapshots(snapshotData?.snapshots);
+  const { completed: completedSnapshots, inProgress: inProgressSnapshot } = useSplitSnapshots(snapshotData);
   const rangedData = useMemo(
     () => completedSnapshots && completedSnapshots.slice(Math.max(completedSnapshots.length - selectedRange, 0), completedSnapshots.length),
     [completedSnapshots, selectedRange]
@@ -95,7 +95,7 @@ export default function GraphContainer({ snapshot }: IGraphProps) {
             <TimeRange selectedRange={selectedRange} onRangeChange={setSelectedRange} />
           </div>
 
-          <Graph rangedData={rangedData} completedSnapshots={completedSnapshots} snapshotMetadata={snapshotMetadata} />
+          <Graph rangedData={rangedData} completedSnapshots={completedSnapshots} inProgressSnapshot={inProgressSnapshot} snapshotMetadata={snapshotMetadata} />
           {snapshotData && (
             <div className="mt-8 text-right">
               <Button variant="outline" color="secondary" onClick={onDownloadCSVClick}>

@@ -42,22 +42,22 @@ describe(MasterWalletMintService.name, () => {
       expect(txManagerService.signAndBroadcastWithFundingWallet).not.toHaveBeenCalled();
     });
 
-    it("should mint with 2% price slippage margin on AKT to burn", async () => {
+    it("should mint with 5% price slippage margin on AKT to burn", async () => {
       const { service, masterAddress, chainSdk, rpcMessageService } = setup({
         targetActBalance: 10_000_000_000,
         balances: { uact: 5_000_000_000, uakt: 99_999_999_999 },
         aktPrice: 0.5
       });
-      mockBalancesOnce(chainSdk, { uact: 10_100_000_000, uakt: 89_799_999_999 });
+      mockBalancesOnce(chainSdk, { uact: 10_100_000_000, uakt: 89_499_999_999 });
 
       const result = await service.mintIfNeeded();
 
       expect(result).toEqual(Ok.EMPTY);
       // deficit = 10_000_000_000 - 5_000_000_000 = 5_000_000_000 uact
-      // aktToBurn = ceil(5_000_000_000 / 0.5 * 1.02) = 10_200_000_000
+      // aktToBurn = ceil(5_000_000_000 / 0.5 * 1.05) = 10_500_000_000
       expect(rpcMessageService.getMintACTMsg).toHaveBeenCalledWith({
         owner: masterAddress,
-        amount: 10_200_000_000
+        amount: 10_500_000_000
       });
     });
 
@@ -168,9 +168,9 @@ describe(MasterWalletMintService.name, () => {
       const result = await service.mintIfNeeded();
 
       expect(result).toEqual(Ok.EMPTY);
-      // available = 5_200_000_000 - 100_000_000 reserve = 5_100_000_000 (< 10_200_000_000 requested)
-      // expected ACT = floor(5_100_000_000 * 0.5 / 1.02) = 2_500_000_000
-      // expectedActBalance = 5_000_000_000 + 2_500_000_000 = 7_500_000_000
+      // available = 5_200_000_000 - 100_000_000 reserve = 5_100_000_000 (< 10_500_000_000 requested)
+      // expected ACT = floor(5_100_000_000 * 0.5 / 1.05) = 2_428_571_428
+      // expectedActBalance = 5_000_000_000 + 2_428_571_428 = 7_428_571_428
       expect(rpcMessageService.getMintACTMsg).toHaveBeenCalledWith({
         owner: masterAddress,
         amount: 5_100_000_000
@@ -189,10 +189,10 @@ describe(MasterWalletMintService.name, () => {
 
       expect(result).toEqual(Ok.EMPTY);
       // deficit = 1_000_000 uact, BME minMintUact = 10_000_000
-      // aktToBurn = ceil(10_000_000 / 0.5 * 1.02) = 20_400_000
+      // aktToBurn = ceil(10_000_000 / 0.5 * 1.05) = 21_000_000
       expect(rpcMessageService.getMintACTMsg).toHaveBeenCalledWith({
         owner: masterAddress,
-        amount: 20_400_000
+        amount: 21_000_000
       });
     });
 
@@ -208,10 +208,10 @@ describe(MasterWalletMintService.name, () => {
       const result = await service.mintIfNeeded();
 
       expect(result).toEqual(Ok.EMPTY);
-      // fallback minMintUact = 10_000_000; aktToBurn = ceil(10_000_000 / 0.5 * 1.02) = 20_400_000
+      // fallback minMintUact = 10_000_000; aktToBurn = ceil(10_000_000 / 0.5 * 1.05) = 21_000_000
       expect(rpcMessageService.getMintACTMsg).toHaveBeenCalledWith({
         owner: masterAddress,
-        amount: 20_400_000
+        amount: 21_000_000
       });
     });
 

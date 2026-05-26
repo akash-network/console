@@ -86,14 +86,23 @@ type RecursiveHooksProxy<T> = {
   [K in keyof T]: T[K] extends (...args: any[]) => any ? HooksProxy<T[K]> : RecursiveHooksProxy<T[K]>;
 };
 
+/**
+ * Mutation TVariables for an SDK function. When the function's first parameter is
+ * optional or absent, allow `mutate()` with no args by widening to `void`; otherwise
+ * preserve the typed input so consumers still get type-checked variables.
+ */
+type OptionalMutationVariables<T extends (...args: any[]) => any> = Parameters<T> extends [] ? void : Exclude<Parameters<T>[0], undefined> | void;
+
 type HooksProxy<T extends (...args: any[]) => any> = undefined extends Parameters<T>[0]
   ? {
-      getKey: (input?: undefined) => PropertyKey[];
+      getKey: (input?: NonNullable<Parameters<T>[0]>) => PropertyKey[];
       useQuery: (
-        input?: undefined,
+        input?: NonNullable<Parameters<T>[0]>,
         options?: Omit<UseQueryOptions<Awaited<ReturnType<T>>, Error, any, QueryKey>, "queryFn" | "queryKey"> & { queryKey?: QueryKey }
       ) => UseQueryResult<Awaited<ReturnType<T>>>;
-      useMutation: (options?: Omit<UseMutationOptions<Awaited<ReturnType<T>>, Error, unknown, any>, "mutationFn">) => UseMutationResult<Awaited<ReturnType<T>>>;
+      useMutation: (
+        options?: Omit<UseMutationOptions<Awaited<ReturnType<T>>, Error, OptionalMutationVariables<T>, any>, "mutationFn">
+      ) => UseMutationResult<Awaited<ReturnType<T>>, Error, OptionalMutationVariables<T>, any>;
     }
   : {
       getKey: (input: Parameters<T>[0]) => PropertyKey[];

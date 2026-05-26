@@ -218,7 +218,7 @@ export const GetDeploymentByOwnerDseqParamsSchema = z.object({
     description: "Owner's Address",
     example: openApiExampleAddress
   }),
-  dseq: DseqSchema.openapi("Deployment DSEQ")
+  dseq: DseqSchema.openapi({ description: "Deployment sequence number" })
 });
 
 export const GetDeploymentByOwnerDseqResponseSchema = z.object({

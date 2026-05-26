@@ -20,11 +20,6 @@ export class QueryKeys {
   static getTemplateKey = (id: string) => ["SDL_TEMPLATES", id];
   static getUserTemplatesKey = (username: string) => ["USER_TEMPLATES", username];
   static getUserFavoriteTemplatesKey = (userId: string) => ["USER_FAVORITES_TEMPLATES", userId];
-  static getGranterGrants = (address: string, page: number, offset: number) => ["GRANTER_GRANTS", address, page, offset];
-  static getGranteeGrants = (address: string) => ["GRANTEE_GRANTS", address];
-  static getAllowancesIssued = (address: string, page: number, offset: number) => ["ALLOWANCES_ISSUED", address, page, offset];
-  static getAllowancesGranted = (address: string) => ["ALLOWANCES_GRANTED", address];
-
   // Deploy
   static getDeploymentListKey = (address: string) => ["DEPLOYMENT_LIST", address];
   static getDeploymentDetailKey = (address: string, dseq?: string) => ["DEPLOYMENT_DETAIL", address, dseq].filter(Boolean);
@@ -39,6 +34,7 @@ export class QueryKeys {
   static getProviderDetailKey = (owner: string) => ["PROVIDERS", owner];
   static getDataNodeProvidersKey = () => ["DATA_NODE_PROVIDERS"];
   static getProviderStatusKey = (providerUri: string) => ["PROVIDER_STATUS", providerUri];
+  static getFirstReachableProviderKey = (providerUris: string[]) => ["FIRST_REACHABLE_PROVIDER", providerUris];
   static getNetworkCapacity = () => ["NETWORK_CAPACITY"];
   static getProviderActiveLeasesGraph = (providerAddress: string) => ["PROVIDER_ACTIVE_LEASES_GRAPH", providerAddress];
   static getAuditorsKey = () => ["AUDITORS"];
@@ -67,9 +63,6 @@ export class QueryKeys {
   static getBranchesKey = (repo?: string, accessToken?: string | null) => ["BRANCHES", repo, accessToken];
   static getPackageJsonKey = (repo?: string, branch?: string, subFolder?: string) => ["PACKAGE_JSON", repo, branch, subFolder];
   static getSrcFoldersKey = (repo?: string, branch?: string) => ["SRC_FOLDERS", repo, branch];
-
-  static getDeploymentGrantsKey = (granter: string, grantee: string) => ["DEPLOYMENT_GRANT", granter, grantee];
-  static getFeeAllowancesKey = (granter: string, grantee: string) => ["FEE_ALLOWANCE", granter, grantee];
 
   static getFeatureFlagsKey = (networkId: string) => ["FEATURE_FLAGS", networkId];
 

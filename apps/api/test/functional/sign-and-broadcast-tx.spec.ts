@@ -132,7 +132,7 @@ describe("Tx Sign", () => {
   const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
   async function createMessageForDeployment(userId: string, address: string) {
     const { cert, publicKey } = await certificateManager.generatePEM(address);
-    const manifest = generateManifest(yaml.template(yml), "sandbox");
+    const manifest = generateManifest(yaml.template(yml));
     if (!manifest.ok) throw new Error("Failed to generate manifest");
     const currentHeight = await container.resolve(BlockHttpService).getCurrentHeight();
 

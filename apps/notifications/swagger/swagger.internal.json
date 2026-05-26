@@ -1,0 +1,98 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/internal/v1/users/{userId}/purge": {
+      "post": {
+        "operationId": "purge",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Internal/Account"
+        ]
+      }
+    },
+    "/internal/v1/jobs/notification": {
+      "post": {
+        "operationId": "createNotification",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationJobDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Creates a notification job"
+          }
+        },
+        "tags": [
+          "Jobs"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "NotificationsAPI (Internal)",
+    "description": "Internal-only endpoints for server-to-server use within the private network. Not exposed to the public internet.",
+    "version": "1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "schemas": {
+      "NotificationJobDto": {
+        "type": "object",
+        "properties": {
+          "notificationId": {
+            "type": "string"
+          },
+          "notificationChannelId": {
+            "type": "string"
+          },
+          "startAfter": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payload": {
+            "type": "object",
+            "properties": {
+              "summary": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "summary",
+              "description"
+            ]
+          }
+        },
+        "required": [
+          "notificationId",
+          "payload"
+        ]
+      }
+    }
+  }
+}

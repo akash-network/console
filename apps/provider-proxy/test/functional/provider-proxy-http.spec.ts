@@ -770,4 +770,72 @@ describe("Provider HTTP proxy", () => {
       })
     );
   });
+
+  describe("rejects forbidden target URLs before connecting", () => {
+    const FORBIDDEN_URLS = [
+      ["a hostname ending in .local", "https://provider.local/200.txt"],
+      ["a hostname ending in .svc.cluster.local", "https://tx-signer.console.svc.cluster.local/healthz"],
+      ["an http:// scheme", "http://provider.example.com/200.txt"],
+      ["an IPv4 literal", "https://10.0.0.1:8443/200.txt"],
+      ["an IPv6 literal", "https://[fe80::1]:8443/200.txt"]
+    ] as const;
+
+    it.each(FORBIDDEN_URLS)("returns 400 when target URL has %s", async (_label, url) => {
+      const providerAddress = generateBech32();
+      const validCertPair = await createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
+      const chainServer = await startChainApiServer([validCertPair.cert]);
+      await startServer({ REST_API_NODE_URL: chainServer.url });
+
+      const response = await request("/", {
+        method: "POST",
+        body: JSON.stringify({
+          method: "GET",
+          url,
+          providerAddress
+        })
+      });
+
+      expect(response.status).toBe(400);
+      const body = await response.json();
+      expect(body).toEqual(
+        expect.objectContaining({
+          error: expect.objectContaining({
+            issues: expect.arrayContaining([expect.objectContaining({ path: expect.arrayContaining(["url"]) })])
+          })
+        })
+      );
+    });
+
+    it("returns 400 when the hostname resolves to a private network address", async () => {
+      const providerAddress = generateBech32();
+      const validCertPair = await createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
+      const chainServer = await startChainApiServer([validCertPair.cert]);
+      const { providerUrl } = await startProviderServer({ certPair: validCertPair });
+      await startServer({ REST_API_NODE_URL: chainServer.url, ALLOW_PROXY_TO_LOCAL_NETWORK: "false" });
+
+      const response = await request("/", {
+        method: "POST",
+        body: JSON.stringify({
+          method: "GET",
+          url: `${providerUrl}/200.txt`,
+          providerAddress
+        })
+      });
+
+      expect(response.status).toBe(400);
+      const body = await response.json();
+      expect(body).toEqual(
+        expect.objectContaining({
+          error: expect.objectContaining({
+            issues: expect.arrayContaining([
+              expect.objectContaining({
+                path: ["url"],
+                params: { reason: "invalid" }
+              })
+            ])
+          })
+        })
+      );
+    });
+  });
 });

@@ -26,9 +26,14 @@ const AddressDetailPageSchema = z.object({
     network: networkId
   })
 });
-type AddressDetailPageProps = z.infer<typeof AddressDetailPageSchema>;
+type ParsedAddressDetailProps = z.infer<typeof AddressDetailPageSchema>;
+type AddressDetailPageProps = {
+  params: Promise<ParsedAddressDetailProps["params"]>;
+  searchParams: Promise<ParsedAddressDetailProps["searchParams"]>;
+};
 
-export async function generateMetadata({ params: { address } }: AddressDetailPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: AddressDetailPageProps): Promise<Metadata> {
+  const { address } = await params;
   const url = `https://stats.akash.network${UrlService.address(address)}`;
 
   return {
@@ -59,10 +64,11 @@ async function fetchAddressData(address: string, network: Network["id"]): Promis
 }
 
 export default async function AddressDetailPage(props: AddressDetailPageProps) {
+  const [params, searchParams] = await Promise.all([props.params, props.searchParams]);
   const {
     params: { address },
     searchParams: { network }
-  } = AddressDetailPageSchema.parse(props);
+  } = AddressDetailPageSchema.parse({ params, searchParams });
   const addressDetail = await fetchAddressData(address, network);
 
   if (!addressDetail) {

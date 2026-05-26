@@ -1,6 +1,6 @@
 import assert from "assert";
 import { Disposable, inject, registry, singleton } from "tsyringe";
-import { Unleash, UnleashConfig } from "unleash-client";
+import { InMemStorageProvider, Unleash, UnleashConfig } from "unleash-client";
 
 import { APP_INITIALIZER, AppInitializer, ON_APP_START } from "@src/core/providers/app-initializer";
 import type { AppContext } from "@src/core/types/app-context";
@@ -72,7 +72,8 @@ export class FeatureFlagsService implements Disposable, AppInitializer {
     const client = this.createClient({
       url,
       appName: this.configService.get("UNLEASH_APP_NAME"),
-      customHeaders: { Authorization: token }
+      customHeaders: { Authorization: token },
+      storageProvider: new InMemStorageProvider()
     });
 
     await new Promise((resolve, reject) => {

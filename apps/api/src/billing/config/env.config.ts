@@ -19,7 +19,7 @@ export const envSchema = z.object({
   TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: z.number({ coerce: true }),
   TRIAL_FEES_ALLOWANCE_AMOUNT: z.number({ coerce: true }),
   TRIAL_DEPLOYMENT_CLEANUP_HOURS: z.number({ coerce: true }).default(24),
-  DEPLOYMENT_GRANT_DENOM: z.string(),
+  DEPLOYMENT_GRANT_DENOM: z.enum(["uakt", "uact"]),
   GAS_SAFETY_MULTIPLIER: z.number({ coerce: true }).default(1.8),
   AVERAGE_GAS_PRICE: z.number({ coerce: true }).default(0.025),
   FEE_ALLOWANCE_REFILL_THRESHOLD: z.number({ coerce: true }),
@@ -36,6 +36,21 @@ export const envSchema = z.object({
     .string()
     .default(AUDITOR)
     .transform(val => (val ? val.split(",").map(addr => addr.trim()) : [])),
+  MANAGED_WALLET_TRIAL_MIN_TOP_UP_AMOUNT: z.number({ coerce: true }).min(20).default(100),
+  MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: z
+    .string()
+    .default("nvidia/b300,nvidia/b200,nvidia/h200,nvidia/h100,nvidia/pro6000se,nvidia/pro6000we,nvidia/a100,nvidia/rtx5090,nvidia/rtx4090,nvidia/rtx3090")
+    .transform(val =>
+      val
+        ? val
+            .split(",")
+            .map(entry => entry.trim().toLowerCase())
+            .filter(Boolean)
+        : []
+    )
+    .refine(entries => entries.every(entry => /^[a-z0-9._-]+\/[a-z0-9._-]+$/.test(entry)), {
+      message: "MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS entries must be in 'vendor/model' format"
+    }),
   MASTER_WALLET_TARGET_ACT_BALANCE: z.number({ coerce: true }).default(10_000_000_000),
   TX_SIGNER_BASE_URL: z.string()
 });

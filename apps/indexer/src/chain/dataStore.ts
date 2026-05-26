@@ -48,7 +48,7 @@ export async function getCachedBlockByHeight(height: number) {
   try {
     const content = await blocksDb.get(blockHeightToKey(height));
     return JSON.parse(content) as BlockType;
-  } catch (err) {
+  } catch (err: any) {
     if (err.code !== LevelNotFoundCode) throw err;
 
     return null;
@@ -59,7 +59,7 @@ export async function getCachedBlockResultsByHeight(height: number) {
   try {
     const content = await blockResultsDb.get(blockHeightToKey(height));
     return JSON.parse(content) as BlockResultType;
-  } catch (err) {
+  } catch (err: any) {
     if (err.code !== LevelNotFoundCode) throw err;
 
     return null;

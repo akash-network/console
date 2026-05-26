@@ -7,6 +7,7 @@ const WalletOutputSchema = z.object({
   address: z.string().nullable().openapi({}),
   denom: z.string().openapi({}),
   isTrialing: z.boolean(),
+  topUpMinAmountUsd: z.number().openapi({ description: "Minimum USD amount accepted by the next paid top-up for this wallet." }),
   createdAt: z.coerce.date().nullable().openapi({})
 });
 

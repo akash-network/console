@@ -2139,6 +2139,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/api-keys": {
       "get": {
+        "operationId": "listApiKeys",
         "responses": {
           "200": {
             "content": {
@@ -2736,8 +2737,399 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/bid-screening": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "name": {
+                    "description": "Group name",
+                    "example": "westcoast",
+                    "type": "string",
+                  },
+                  "requirements": {
+                    "default": {},
+                    "properties": {
+                      "attributes": {
+                        "default": [],
+                        "items": {
+                          "properties": {
+                            "key": {
+                              "description": "Attribute key",
+                              "example": "persistent",
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
+                              "type": "string",
+                            },
+                            "value": {
+                              "description": "Attribute value",
+                              "example": "false",
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "key",
+                            "value",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                      "signedBy": {
+                        "default": {},
+                        "properties": {
+                          "allOf": {
+                            "default": [],
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                          "anyOf": {
+                            "default": [],
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                        },
+                        "type": "object",
+                      },
+                    },
+                    "type": "object",
+                  },
+                  "resources": {
+                    "description": "Resource units with replica counts",
+                    "items": {
+                      "properties": {
+                        "count": {
+                          "description": "Replica count",
+                          "example": 1,
+                          "minimum": 1,
+                          "type": "integer",
+                        },
+                        "price": {
+                          "properties": {
+                            "amount": {
+                              "pattern": "^\\d+$",
+                              "type": "string",
+                            },
+                            "denom": {
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "denom",
+                            "amount",
+                          ],
+                          "type": "object",
+                        },
+                        "resource": {
+                          "properties": {
+                            "cpu": {
+                              "properties": {
+                                "attributes": {
+                                  "items": {
+                                    "properties": {
+                                      "key": {
+                                        "description": "Attribute key",
+                                        "example": "persistent",
+                                        "maxLength": 128,
+                                        "minLength": 1,
+                                        "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
+                                        "type": "string",
+                                      },
+                                      "value": {
+                                        "description": "Attribute value",
+                                        "example": "false",
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "key",
+                                      "value",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "units": {
+                                  "properties": {
+                                    "val": {
+                                      "maxLength": 80,
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "val",
+                                  ],
+                                  "type": "object",
+                                },
+                              },
+                              "required": [
+                                "units",
+                              ],
+                              "type": "object",
+                            },
+                            "endpoints": {
+                              "items": {
+                                "nullable": true,
+                              },
+                              "type": "array",
+                            },
+                            "gpu": {
+                              "properties": {
+                                "attributes": {
+                                  "items": {
+                                    "properties": {
+                                      "key": {
+                                        "description": "Attribute key",
+                                        "example": "persistent",
+                                        "maxLength": 128,
+                                        "minLength": 1,
+                                        "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
+                                        "type": "string",
+                                      },
+                                      "value": {
+                                        "description": "Attribute value",
+                                        "example": "false",
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "key",
+                                      "value",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "units": {
+                                  "properties": {
+                                    "val": {
+                                      "maxLength": 80,
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "val",
+                                  ],
+                                  "type": "object",
+                                },
+                              },
+                              "required": [
+                                "units",
+                              ],
+                              "type": "object",
+                            },
+                            "id": {
+                              "description": "Resource unit ID",
+                              "example": 1,
+                              "type": "integer",
+                            },
+                            "memory": {
+                              "properties": {
+                                "attributes": {
+                                  "items": {
+                                    "properties": {
+                                      "key": {
+                                        "description": "Attribute key",
+                                        "example": "persistent",
+                                        "maxLength": 128,
+                                        "minLength": 1,
+                                        "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
+                                        "type": "string",
+                                      },
+                                      "value": {
+                                        "description": "Attribute value",
+                                        "example": "false",
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "key",
+                                      "value",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "quantity": {
+                                  "properties": {
+                                    "val": {
+                                      "maxLength": 80,
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "val",
+                                  ],
+                                  "type": "object",
+                                },
+                              },
+                              "required": [
+                                "quantity",
+                              ],
+                              "type": "object",
+                            },
+                            "storage": {
+                              "items": {
+                                "properties": {
+                                  "attributes": {
+                                    "items": {
+                                      "properties": {
+                                        "key": {
+                                          "description": "Attribute key",
+                                          "example": "persistent",
+                                          "maxLength": 128,
+                                          "minLength": 1,
+                                          "pattern": "^([a-zA-Z][\\w/.-]{1,126}[\\w*]?)$",
+                                          "type": "string",
+                                        },
+                                        "value": {
+                                          "description": "Attribute value",
+                                          "example": "false",
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "key",
+                                        "value",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                  "name": {
+                                    "description": "Storage volume name",
+                                    "example": "default",
+                                    "type": "string",
+                                  },
+                                  "quantity": {
+                                    "properties": {
+                                      "val": {
+                                        "maxLength": 80,
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "val",
+                                    ],
+                                    "type": "object",
+                                  },
+                                },
+                                "required": [
+                                  "name",
+                                  "quantity",
+                                ],
+                                "type": "object",
+                              },
+                              "type": "array",
+                            },
+                          },
+                          "required": [
+                            "id",
+                            "cpu",
+                            "memory",
+                            "gpu",
+                            "storage",
+                          ],
+                          "type": "object",
+                        },
+                      },
+                      "required": [
+                        "resource",
+                        "count",
+                        "price",
+                      ],
+                      "type": "object",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                },
+                "required": [
+                  "name",
+                  "resources",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "providers": {
+                      "items": {
+                        "properties": {
+                          "hostUri": {
+                            "description": "Provider HTTPS endpoint",
+                            "example": "https://provider.europlots.com:8443",
+                            "type": "string",
+                          },
+                          "isAudited": {
+                            "description": "True if signed by a known auditor",
+                            "type": "boolean",
+                          },
+                          "owner": {
+                            "description": "Provider address",
+                            "example": "akash1q7spv2cw06yszgfp4f9ed59lkka6ytn8g4tkjf",
+                            "type": "string",
+                          },
+                          "region": {
+                            "description": "Geo-resolved region from IP",
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "uptime7d": {
+                            "description": "7-day uptime as decimal (0.0-1.0)",
+                            "example": 0.998,
+                            "nullable": true,
+                            "type": "number",
+                          },
+                        },
+                        "required": [
+                          "owner",
+                          "hostUri",
+                          "region",
+                          "uptime7d",
+                          "isAudited",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "providers",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns matching providers",
+          },
+          "400": {
+            "description": "Invalid request body",
+          },
+        },
+        "security": [],
+        "summary": "Screen providers by deployment resource requirements",
+        "tags": [
+          "Bid Screening",
+        ],
+      },
+    },
     "/v1/bids": {
       "get": {
+        "operationId": "listBids",
         "parameters": [
           {
             "in": "query",
@@ -5117,7 +5509,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "dseq",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/Deployment DSEQ",
+              "description": "Deployment sequence number",
+              "pattern": "^d+$",
+              "type": "string",
             },
           },
         ],
@@ -5773,6 +6167,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/deployments": {
       "get": {
+        "operationId": "listDeployments",
         "parameters": [
           {
             "in": "query",
@@ -6101,6 +6496,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
       "post": {
+        "operationId": "createDeployment",
         "requestBody": {
           "content": {
             "application/json": {
@@ -6200,6 +6596,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/deployments/{dseq}": {
       "delete": {
+        "operationId": "closeDeployment",
         "parameters": [
           {
             "description": "Deployment sequence number",
@@ -6255,6 +6652,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
       "get": {
+        "operationId": "getDeployment",
         "parameters": [
           {
             "description": "Deployment sequence number",
@@ -6656,6 +7054,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
       "put": {
+        "operationId": "updateDeployment",
         "parameters": [
           {
             "description": "Deployment sequence number",
@@ -7084,6 +7483,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/deposit-deployment": {
       "post": {
+        "operationId": "depositDeployment",
         "requestBody": {
           "content": {
             "application/json": {
@@ -7765,6 +8165,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/gpu-prices": {
       "get": {
+        "operationId": "listGpuPrices",
         "responses": {
           "200": {
             "content": {
@@ -7997,6 +8398,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/leases": {
       "post": {
+        "operationId": "createLease",
         "requestBody": {
           "content": {
             "application/json": {
@@ -12720,6 +13122,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "requires3DS": {
                           "type": "boolean",
                         },
+                        "topUpMinAmountUsd": {
+                          "description": "Minimum USD amount accepted by the next paid top-up for this wallet.",
+                          "type": "number",
+                        },
                         "userId": {
                           "nullable": true,
                           "type": "string",
@@ -12732,6 +13138,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "address",
                         "denom",
                         "isTrialing",
+                        "topUpMinAmountUsd",
                         "createdAt",
                       ],
                       "type": "object",
@@ -12790,6 +13197,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "requires3DS": {
                           "type": "boolean",
                         },
+                        "topUpMinAmountUsd": {
+                          "description": "Minimum USD amount accepted by the next paid top-up for this wallet.",
+                          "type": "number",
+                        },
                         "userId": {
                           "nullable": true,
                           "type": "string",
@@ -12802,6 +13213,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "address",
                         "denom",
                         "isTrialing",
+                        "topUpMinAmountUsd",
                         "createdAt",
                       ],
                       "type": "object",
@@ -12821,48 +13233,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         "summary": "Start a trial period for a user",
         "tags": [
           "Wallet",
-        ],
-      },
-    },
-    "/v1/stripe-webhook": {
-      "post": {
-        "requestBody": {
-          "content": {
-            "text/plain": {
-              "schema": {
-                "type": "string",
-              },
-            },
-          },
-        },
-        "responses": {
-          "200": {
-            "content": {},
-            "description": "Webhook processed successfully",
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                    },
-                  },
-                  "required": [
-                    "error",
-                  ],
-                  "type": "object",
-                },
-              },
-            },
-            "description": "Stripe signature is required",
-          },
-        },
-        "security": [],
-        "summary": "Stripe Webhook Handler",
-        "tags": [
-          "Payment",
         ],
       },
     },
@@ -15964,6 +16334,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "requires3DS": {
                             "type": "boolean",
                           },
+                          "topUpMinAmountUsd": {
+                            "description": "Minimum USD amount accepted by the next paid top-up for this wallet.",
+                            "type": "number",
+                          },
                           "userId": {
                             "nullable": true,
                             "type": "string",
@@ -15976,6 +16350,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "address",
                           "denom",
                           "isTrialing",
+                          "topUpMinAmountUsd",
                           "createdAt",
                         ],
                         "type": "object",

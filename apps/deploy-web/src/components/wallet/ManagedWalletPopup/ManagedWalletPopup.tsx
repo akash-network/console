@@ -6,6 +6,7 @@ import { CoinsSwap, HandCard } from "iconoir-react";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useIsSelfCustodyEnabled } from "@src/hooks/useIsSelfCustodyEnabled";
 import { useManagedEscrowFaqModal } from "@src/hooks/useManagedEscrowFaqModal";
 import type { WalletBalance } from "@src/hooks/useWalletBalance";
 import { LinkTo } from "../../shared/LinkTo";
@@ -28,13 +29,15 @@ export const DEPENDENCIES = {
   FormattedNumber,
   useWallet,
   useManagedEscrowFaqModal,
-  useServices
+  useServices,
+  useIsSelfCustodyEnabled
 };
 
 export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBalance, dependencies: d = DEPENDENCIES }) => {
   const { isManaged, isTrialing, switchWalletType } = d.useWallet();
   const { showManagedEscrowFaqModal } = d.useManagedEscrowFaqModal();
   const { urlService } = d.useServices();
+  const isSelfCustodyEnabled = d.useIsSelfCustodyEnabled();
 
   return (
     <div className="w-[300px] p-2">
@@ -97,11 +100,15 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
           <HandCard className="text-xs" />
           <span className="whitespace-nowrap">Add Funds</span>
         </d.AddFundsLink>
-        <d.Separator className="my-2 bg-secondary/90 dark:bg-white/10" />
-        <d.Button onClick={switchWalletType} variant="outline" className="w-full space-x-2">
-          <d.CoinsSwap />
-          <span>Switch to Wallet Payments</span>
-        </d.Button>
+        {isSelfCustodyEnabled && (
+          <>
+            <d.Separator className="my-2 bg-secondary/90 dark:bg-white/10" />
+            <d.Button onClick={switchWalletType} variant="outline" className="w-full space-x-2">
+              <d.CoinsSwap />
+              <span>Switch to Wallet Payments</span>
+            </d.Button>
+          </>
+        )}
       </div>
     </div>
   );

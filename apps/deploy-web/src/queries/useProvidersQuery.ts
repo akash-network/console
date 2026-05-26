@@ -57,6 +57,35 @@ export function useProviderStatus(
   });
 }
 
+/** Per-provider `/status` probe timeout. Keeps the loop from stalling on a single unresponsive provider so we move on to the next candidate quickly. */
+const PROVIDER_STATUS_PROBE_TIMEOUT_MS = 5000;
+
+export function useFirstReachableProvider(
+  providers: ApiProviderList[] | undefined | null,
+  options: Omit<UseQueryOptions<ApiProviderList | null>, "queryKey" | "queryFn"> = {}
+): UseQueryResult<ApiProviderList | null> {
+  const { providerProxy } = useServices();
+  const providerList = providers ?? [];
+  return useQuery({
+    queryKey: QueryKeys.getFirstReachableProviderKey(providerList.map(provider => provider.hostUri || "")),
+    queryFn: async () => {
+      for (const provider of providerList) {
+        try {
+          await providerProxy.request<ProviderStatus>("/status", {
+            providerIdentity: { owner: provider.owner, hostUri: provider.hostUri },
+            timeout: PROVIDER_STATUS_PROBE_TIMEOUT_MS
+          });
+          return provider;
+        } catch {
+          continue;
+        }
+      }
+      return null;
+    },
+    ...options
+  });
+}
+
 export function useNetworkCapacity(options = {}) {
   const { publicConsoleApiHttpClient } = useServices();
   return useQuery({

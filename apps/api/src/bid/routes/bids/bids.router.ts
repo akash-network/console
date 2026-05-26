@@ -12,6 +12,7 @@ const listRoute = createRoute({
   method: "get",
   path: "/v1/bids",
   summary: "List bids",
+  operationId: "listBids",
   tags: ["Bids"],
   security: SECURITY_BEARER_OR_API_KEY,
   request: {

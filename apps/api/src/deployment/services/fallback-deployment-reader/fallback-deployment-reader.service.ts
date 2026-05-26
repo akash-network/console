@@ -2,12 +2,14 @@ import { Deployment, DeploymentGroup, DeploymentGroupResource } from "@akashnetw
 import { inject, singleton } from "tsyringe";
 
 import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
+import { cacheResponse, Memoize } from "@src/caching/helpers";
 import type { CoreConfig } from "@src/core/providers/config.provider";
 import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DatabaseDeploymentListParams } from "@src/deployment/repositories/deployment/deployment.repository";
 import { RestAkashDeploymentInfoResponse } from "@src/types/rest/akashDeploymentInfoResponse";
 import { RestAkashDeploymentListResponse } from "@src/types/rest/akashDeploymentListResponse";
+import { averageBlockTime } from "@src/utils/constants";
 
 export const UNKNOWN_DB_PLACEHOLDER = "unknown_value";
 
@@ -23,6 +25,10 @@ export class FallbackDeploymentReaderService {
   }
 
   async findAll(params: DatabaseDeploymentListParams): Promise<RestAkashDeploymentListResponse> {
+    return cacheResponse(averageBlockTime, `FallbackDeploymentReaderService#findAll#${JSON.stringify(params)}`, () => this.findAllUncached(params));
+  }
+
+  private async findAllUncached(params: DatabaseDeploymentListParams): Promise<RestAkashDeploymentListResponse> {
     const { skip = 0, limit = 100, key, countTotal = true } = params;
 
     const { count: total, rows: deployments } = await this.deploymentRepository.findDeploymentsWithPagination(params);
@@ -94,6 +100,7 @@ export class FallbackDeploymentReaderService {
     };
   }
 
+  @Memoize({ ttlInSeconds: averageBlockTime })
   async findByOwnerAndDseq(owner: string, dseq: string): Promise<RestAkashDeploymentInfoResponse | null> {
     const deployment = await this.deploymentRepository.findByIdWithGroups(owner, dseq);
 

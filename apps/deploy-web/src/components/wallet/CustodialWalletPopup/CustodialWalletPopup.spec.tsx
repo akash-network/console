@@ -37,14 +37,6 @@ describe(CustodialWalletPopup.name, () => {
     expect(screen.getByText(/Wallet Balance is unknown/)).toBeInTheDocument();
   });
 
-  it("navigates to mint-burn page when Mint ACT is clicked", () => {
-    const { push } = setup();
-
-    fireEvent.click(screen.getByRole("button", { name: /Mint ACT/ }));
-
-    expect(push).toHaveBeenCalledWith("/mint-burn");
-  });
-
   it("calls logout when Disconnect Wallet is clicked", () => {
     const { logout } = setup();
 
@@ -71,9 +63,21 @@ describe(CustodialWalletPopup.name, () => {
     expect(screen.getByTestId("connect-managed-wallet")).toBeInTheDocument();
   });
 
-  function setup(input?: { address?: string; walletBalance?: WalletBalance | null; isSignedInWithTrial?: boolean; user?: Record<string, unknown> | null }) {
+  it("renders nothing when self_custody flag is disabled", () => {
+    setup({ address: "akash1abc123", isSelfCustodyEnabled: false });
+
+    expect(screen.queryByLabelText("wallet address")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("connect-managed-wallet")).not.toBeInTheDocument();
+  });
+
+  function setup(input?: {
+    address?: string;
+    walletBalance?: WalletBalance | null;
+    isSignedInWithTrial?: boolean;
+    user?: Record<string, unknown> | null;
+    isSelfCustodyEnabled?: boolean;
+  }) {
     const logout = vi.fn();
-    const push = vi.fn();
     const store = createStore();
 
     store.set(walletStore.isSignedInWithTrial, input?.isSignedInWithTrial ?? false);
@@ -81,8 +85,8 @@ describe(CustodialWalletPopup.name, () => {
     const dependencies = {
       ...DEPENDENCIES,
       useWallet: () => ({ address: input?.address ?? "akash1default", logout }),
-      useRouter: () => ({ push }),
       useCustomUser: () => ({ user: input?.user !== undefined ? input.user : { id: "user-1" } }),
+      useIsSelfCustodyEnabled: () => input?.isSelfCustodyEnabled ?? true,
       Address: (props: React.HTMLAttributes<HTMLSpanElement> & { address: string }) => <span aria-label={props["aria-label"]}>{props.address}</span>,
       FormattedNumber: ({ value }: { value: number }) => <span>{value}</span>,
       Link: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
@@ -105,6 +109,6 @@ describe(CustodialWalletPopup.name, () => {
       </Provider>
     );
 
-    return { logout, push };
+    return { logout };
   }
 });

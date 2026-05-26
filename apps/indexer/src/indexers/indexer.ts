@@ -6,10 +6,10 @@ import type { IGenesis } from "@src/chain/genesisTypes";
 import * as benchmark from "@src/shared/utils/benchmark";
 
 export abstract class Indexer {
-  name: string;
-  msgHandlers: { [key: string]: (decodedMessage: any, height: number, blockGroupTransaction: DbTransaction, msg: Message) => Promise<void> };
-  runForEveryBlocks: boolean;
-  processFailedTxs: boolean;
+  name = "unknown";
+  msgHandlers: Record<string, (decodedMessage: any, height: number, blockGroupTransaction: DbTransaction, msg: Message) => Promise<void>> = {};
+  runForEveryBlocks = false;
+  processFailedTxs = false;
 
   hasHandlerForType(type: string): boolean {
     return Object.keys(this.msgHandlers).includes(type);

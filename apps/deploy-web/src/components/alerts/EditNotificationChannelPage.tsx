@@ -1,5 +1,5 @@
 import React, { useCallback } from "react";
-import type { components } from "@akashnetwork/react-query-sdk/notifications";
+import type { components } from "@akashnetwork/console-api-types/notifications";
 import { NavArrowLeft } from "iconoir-react";
 import Link from "next/link";
 import { NextSeo } from "next-seo";

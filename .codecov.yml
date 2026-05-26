@@ -37,6 +37,16 @@ coverage:
         flags:
           - provider-proxy
 
+ignore:
+  - "**/*.spec.ts"
+  - "**/*.spec.tsx"
+  - "**/next-env.d.ts"
+  - "**/pages/_app.tsx"
+  - "**/pages/_document.tsx"
+  - "**/pages/_error.tsx"
+  - "**/Editor/monaco-*.ts"
+  - "**/Editor/*.worker.ts"
+
 flags:
   api:
     carryforward: true

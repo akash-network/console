@@ -1,3 +1,4 @@
+import type { LoggerService } from "@akashnetwork/logging";
 import type { AnyAbility } from "@casl/ability";
 import { ConstantBackoff, handleWhenResult, retry, TaskCancelledError, timeout, TimeoutStrategy, wrap } from "cockatiel";
 import crypto from "crypto";
@@ -8,15 +9,15 @@ import keyBy from "lodash/keyBy";
 import orderBy from "lodash/orderBy";
 import { Readable } from "stream";
 import Stripe from "stripe";
-import { setTimeout as wait } from "timers/promises";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { PaymentIntentResult, PaymentMethodValidationResult, Transaction } from "@src/billing/http-schemas/stripe.schema";
 import { PaymentMethodRepository, StripeTransactionInput, StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { LoggerService, WithTransaction } from "@src/core";
-import { TransactionCsvRow } from "@src/types/transactions";
-import { UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
+import { type CreateLogger, LOGGER_FACTORY, WithTransaction } from "@src/core";
+import { TimerService } from "@src/core/services/timer/timer.service";
+import type { TransactionCsvRow } from "@src/types/transactions";
+import { type UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
 import type { PayingUser } from "../paying-user/paying-user";
 
 interface StripePrices {
@@ -35,20 +36,22 @@ export class StripeService extends Stripe {
    * Statuses that should be applied later via Stripe webhooks.
    */
   readonly #DEFERRED_STATUSES = new Set<Stripe.PaymentIntent.Status>(["succeeded"]);
+  private readonly loggerService: LoggerService;
 
   constructor(
     private readonly billingConfig: BillingConfigService,
     private readonly userRepository: UserRepository,
     private readonly paymentMethodRepository: PaymentMethodRepository,
     private readonly stripeTransactionRepository: StripeTransactionRepository,
-    private readonly loggerService: LoggerService
+    private readonly timerService: TimerService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    loggerService.setContext(StripeService.name);
     const secretKey = billingConfig.get("STRIPE_SECRET_KEY");
     super(secretKey, {
       apiVersion: "2025-10-29.clover",
       httpClient: Stripe.createFetchHttpClient() // need to use fetch API, so we can intercept it in tests with nock
     });
+    this.loggerService = createLogger({ context: StripeService.name });
   }
 
   async createSetupIntent(customerId: string, { isFreeTrial }: { isFreeTrial: boolean }) {
@@ -485,7 +488,7 @@ export class StripeService extends Stripe {
   );
 
   async resolveTransaction(transactionId: string): Promise<StripeTransactionOutput> {
-    await wait(4_000);
+    await this.timerService.delay(4_000);
 
     let lastTransaction: StripeTransactionOutput | undefined;
 

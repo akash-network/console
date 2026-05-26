@@ -77,7 +77,7 @@ export class AlertController {
     type: Number,
     description: "Number of items per page"
   })
-  async getAlerts(@Query() { page, limit, ...query }: AlertListQuery): Promise<Result<AlertListOutputResponse, NotFoundException>> {
+  async listAlerts(@Query() { page, limit, ...query }: AlertListQuery): Promise<Result<AlertListOutputResponse, NotFoundException>> {
     return Ok(await this.alertRepository.accessibleBy(this.authService.ability, "read").paginate({ page, limit, query }));
   }
 
@@ -85,7 +85,7 @@ export class AlertController {
   @ValidateHttp({
     200: { schema: AlertOutputResponse, description: "Returns the updated alert" }
   })
-  async patchAlert(@Param("id") id: string, @Body() { data }: AlertPatchInput): Promise<Result<AlertOutputResponse, NotFoundException | BadRequestException>> {
+  async updateAlert(@Param("id") id: string, @Body() { data }: AlertPatchInput): Promise<Result<AlertOutputResponse, NotFoundException | BadRequestException>> {
     const alert = await this.alertRepository.accessibleBy(this.authService.ability, "update").updateById(id, data);
     return this.toResponse(alert);
   }

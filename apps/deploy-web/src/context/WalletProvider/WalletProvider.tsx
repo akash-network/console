@@ -1,7 +1,8 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { isHttpError, type TxOutput } from "@akashnetwork/http-sdk";
-import { Snackbar } from "@akashnetwork/ui/components";
+import { buttonVariants, Snackbar } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { OpenNewWindow } from "iconoir-react";
 import { useAtom } from "jotai";
@@ -12,20 +13,22 @@ import { useSnackbar } from "notistack";
 
 import type { LoadingState } from "@src/components/layout/TransactionModal";
 import { TransactionModal } from "@src/components/layout/TransactionModal";
-import { useAllowance } from "@src/hooks/useAllowance";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useSelectedChain } from "@src/hooks/useSelectedChain/useSelectedChain";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
-import { useManager } from "@src/lib/cosmos-kit-jotai";
+import { CURRENT_WALLET_KEY, useManager } from "@src/lib/cosmos-kit-jotai";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import networkStore from "@src/store/networkStore";
 import walletStore from "@src/store/walletStore";
 import type { AppError } from "@src/types";
+import { UrlService } from "@src/utils/urlUtils";
 import { getStorageWallets, updateStorageManagedWallet, updateStorageWallets } from "@src/utils/walletUtils";
 import { useServices } from "../ServicesProvider";
 import { useSettings } from "../SettingsProvider";
 import { settingsIdAtom } from "../SettingsProvider/settingsStore";
+import { deriveWalletIsLoading } from "./deriveWalletIsLoading";
+import { useEnforceSelfCustodyFlag } from "./useEnforceSelfCustodyFlag";
 
 const CONSOLE_MEMO = "akash console";
 
@@ -62,6 +65,7 @@ export type ContextType = {
   isTrialing: boolean;
   isOnboarding: boolean;
   creditAmount?: number;
+  topUpMinAmountUsd: number;
   switchWalletType: () => void;
   hasManagedWallet: boolean;
   managedWalletError?: AppError;
@@ -111,11 +115,20 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return { isManaged: false, denom: undefined };
   }, [walletAddress, managedWallet]);
   const { isManaged } = managedMarker;
-  const {
-    fee: { default: feeGranter }
-  } = useAllowance(walletAddress as string, isManaged);
   const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore();
-  const isLoading = (selectedWalletType === "managed" && isManagedWalletLoading) || (selectedWalletType === "custodial" && userWallet.isWalletConnecting);
+  const isLoading = deriveWalletIsLoading({
+    hasAuthenticatedUserId: !!user?.userId,
+    selectedWalletType,
+    isManagedWalletLoading,
+    isCustodialConnecting: userWallet.isWalletConnecting
+  });
+
+  useEnforceSelfCustodyFlag({
+    isWalletConnected: userWallet.isWalletConnected,
+    selectedWalletType,
+    setSelectedWalletType,
+    disconnect: userWallet.disconnect
+  });
 
   useWhen(walletAddress, loadWallet);
 
@@ -163,6 +176,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       userWallet.disconnect();
     }
 
+    if (selectedWalletType === "custodial" && typeof window !== "undefined") {
+      window.localStorage.removeItem(CURRENT_WALLET_KEY);
+    }
+
     if (selectedWalletType === "managed" && !userWallet.isWalletConnected) {
       userWallet.connect();
     }
@@ -186,6 +203,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   function logout() {
     userWallet.disconnect();
+
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(CURRENT_WALLET_KEY);
+    }
 
     analyticsService.track("disconnect_wallet", {
       category: "wallet",
@@ -241,14 +262,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         };
         setLoadingState("waitingForApproval");
         const estimatedFees = await userWallet.estimateFee(msgs, undefined, CONSOLE_MEMO);
-        const txRaw = await userWallet.sign(
-          msgs,
-          {
-            ...estimatedFees,
-            granter: feeGranter
-          },
-          CONSOLE_MEMO
-        );
+        const txRaw = await userWallet.sign(msgs, estimatedFees, CONSOLE_MEMO);
 
         setLoadingState("broadcasting");
         enqueueTxSnackbar();
@@ -276,7 +290,11 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       if (isHttpError(err) && err.response?.status !== 500) {
         const [title, message] = err.response?.data?.message?.split(": ") ?? [];
-        showTransactionSnackbar(title || message || "Error", message, "", "error");
+        if (err.response?.status === 402) {
+          showAddCreditsSnackbar(title || message || "Add credits to continue", message);
+        } else {
+          showTransactionSnackbar(title || message || "Error", message, "", "error");
+        }
       } else {
         const transactionHash = err.txHash;
         let errorMsg = "An error has occurred";
@@ -346,6 +364,16 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
   };
 
+  const showAddCreditsSnackbar = (snackTitle: string, snackMessage: string) => {
+    const key = enqueueSnackbar(
+      <Snackbar title={snackTitle} subTitle={<AddCreditsSnackbarContent message={snackMessage} onAction={() => closeSnackbar(key)} />} iconVariant="warning" />,
+      {
+        variant: "warning",
+        autoHideDuration: 10000
+      }
+    );
+  };
+
   return (
     <WalletProviderContext.Provider
       value={{
@@ -361,6 +389,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isTrialing: isManaged && !!managedWallet?.isTrialing,
         isOnboarding: !!user?.userId && isManaged && !!managedWallet?.isTrialing,
         creditAmount: isManaged ? managedWallet?.creditAmount : 0,
+        topUpMinAmountUsd: managedWallet?.topUpMinAmountUsd ?? 20,
         hasManagedWallet: !!managedWallet,
         managedWalletError,
         switchWalletType,
@@ -386,6 +415,25 @@ export function useIsManagedWalletUser() {
 }
 
 const SUPPORT_EMAIL = "support@akash.network";
+
+const AddCreditsSnackbarContent: React.FC<{ message?: string; onAction?: () => void }> = ({ message, onAction }) => {
+  const { analyticsService } = useServices();
+  return (
+    <>
+      {message && <div>{message}</div>}
+      <Link
+        href={UrlService.billing({ openPayment: true })}
+        className={cn("mt-2 inline-flex h-7 items-center px-3 text-xs", buttonVariants({ variant: "default" }))}
+        onClick={() => {
+          analyticsService.track("add_funds_btn_clk");
+          onAction?.();
+        }}
+      >
+        Add Funds
+      </Link>
+    </>
+  );
+};
 
 const TransactionSnackbarContent: React.FC<{ snackMessage: string; transactionHash: string; isError?: boolean }> = ({
   snackMessage,

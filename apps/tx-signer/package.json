@@ -22,17 +22,17 @@
   },
   "dependencies": {
     "@akashnetwork/akash-api": "1.4.3",
-    "@akashnetwork/chain-sdk": "^1.0.0-alpha.30",
+    "@akashnetwork/chain-sdk": "1.0.0-alpha.31",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/http-sdk": "*",
     "@akashnetwork/instrumentation": "*",
     "@akashnetwork/logging": "*",
-    "@cosmjs/amino": "~0.36.1",
-    "@cosmjs/crypto": "~0.36.1",
-    "@cosmjs/encoding": "~0.36.1",
-    "@cosmjs/proto-signing": "~0.36.1",
-    "@cosmjs/stargate": "~0.36.1",
-    "@cosmjs/tendermint-rpc": "~0.36.1",
+    "@cosmjs/amino": "~0.38.0",
+    "@cosmjs/crypto": "~0.38.0",
+    "@cosmjs/encoding": "~0.38.0",
+    "@cosmjs/proto-signing": "~0.38.0",
+    "@cosmjs/stargate": "~0.38.0",
+    "@cosmjs/tendermint-rpc": "~0.38.0",
     "@hono/node-server": "1.13.7",
     "@hono/otel": "~0.4.0",
     "@hono/zod-openapi": "0.18.4",
@@ -46,7 +46,6 @@
     "reflect-metadata": "^0.2.2",
     "ts-results": "^3.3.0",
     "tsyringe": "^4.10.0",
-    "uuid": "^9.0.1",
     "zod": "3.*"
   },
   "devDependencies": {
@@ -56,16 +55,15 @@
     "@faker-js/faker": "^8.4.1",
     "@types/lodash": "^4.17.0",
     "@types/node": "^22.13.11",
-    "@types/uuid": "^8.3.1",
     "@typescript-eslint/eslint-plugin": "^7.12.0",
-    "@vitest/coverage-v8": "^4.0.0",
+    "@vitest/coverage-v8": "^4.1.5",
     "eslint": "^8.57.0",
-    "eslint-config-next": "^14.2.3",
+    "eslint-config-next": "^15.5.18",
     "eslint-plugin-simple-import-sort": "^12.1.0",
     "prettier": "^3.3.0",
     "tsup": "^8.5.1",
     "typescript": "~5.8.2",
-    "vitest": "^4.0.0",
-    "vitest-mock-extended": "^3.1.0"
+    "vitest": "^4.1.5",
+    "vitest-mock-extended": "^4.0.0"
   }
 }

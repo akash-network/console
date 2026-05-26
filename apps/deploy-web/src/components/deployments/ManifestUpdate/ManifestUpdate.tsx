@@ -134,7 +134,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
       const doc = yaml.load(editedManifest);
 
       const dd = await d.deploymentData.NewDeploymentData(chainApiHttpClient, editedManifest, deployment.dseq, address); // TODO Flags
-      const mani = d.deploymentData.getManifest(doc, true);
+      const mani = d.deploymentData.getManifest(doc);
 
       // If it's actual update, send a transaction, else just send the manifest
       if (Buffer.from(dd.hash).toString("base64") !== deployment.hash) {

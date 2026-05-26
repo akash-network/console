@@ -1,4 +1,4 @@
-import type { NetworkId, SDLInput } from "@akashnetwork/chain-sdk";
+import type { SDLInput } from "@akashnetwork/chain-sdk";
 import { generateManifest, generateManifestVersion, yaml as sdlYaml } from "@akashnetwork/chain-sdk";
 import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
@@ -134,8 +134,7 @@ export class GpuBidsCreatorService {
 
   private async createDeployment(client: SigningStargateClient, sdlStr: string, owner: string, dseq: string) {
     const sdlInput = sdlYaml.template<SDLInput>(sdlStr);
-    const networkId = this.config.get("NETWORK") as NetworkId;
-    const manifest = generateManifest(sdlInput, networkId);
+    const manifest = generateManifest(sdlInput);
     assert(manifest.ok, 400, `Invalid SDL: ${manifest.ok === false ? manifest.value.map(e => e.message).join(", ") : ""}`);
 
     const manifestVersion = await generateManifestVersion(manifest.value.groups);

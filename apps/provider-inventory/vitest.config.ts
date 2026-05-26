@@ -1,0 +1,54 @@
+import path from "path";
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      "@src": path.resolve(__dirname, "./src"),
+      "@test": path.resolve(__dirname, "./test")
+    }
+  },
+  test: {
+    environment: "node",
+    globals: false,
+    testTimeout: 10_000,
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.ts"],
+      exclude: ["src/**/*.spec.ts", "src/**/*.integration.ts", "src/**/*.d.ts", "src/server.ts", "src/**/index.ts"],
+      reportsDirectory: "./coverage"
+    },
+    reporters: ["default", "junit"],
+    outputFile: { junit: "junit.xml" },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          include: ["src/**/*.spec.ts"],
+          setupFiles: ["./test/setup-unit-env.ts", "./test/setup-unit-tests.ts"]
+        }
+      },
+      {
+        extends: true,
+        test: {
+          name: "integration",
+          include: ["src/**/*.integration.ts"],
+          setupFiles: ["./test/setup-integration-env.ts", "./test/setup-integration-tests.ts"],
+          testTimeout: 10_000,
+          hookTimeout: 10_000
+        }
+      },
+      {
+        extends: true,
+        test: {
+          name: "functional",
+          include: ["test/functional/**/*.spec.ts"],
+          setupFiles: ["./test/setup-functional-env.ts", "./test/setup-functional-tests.ts"],
+          testTimeout: 20_000,
+          hookTimeout: 10_000
+        }
+      }
+    ]
+  }
+});

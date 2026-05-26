@@ -81,7 +81,7 @@
         ]
       },
       "get": {
-        "operationId": "getAlerts",
+        "operationId": "listAlerts",
         "parameters": [
           {
             "name": "limit",
@@ -263,7 +263,7 @@
         ]
       },
       "patch": {
-        "operationId": "patchAlert",
+        "operationId": "updateAlert",
         "parameters": [
           {
             "name": "id",
@@ -505,7 +505,7 @@
         ]
       },
       "get": {
-        "operationId": "getNotificationChannels",
+        "operationId": "listNotificationChannels",
         "parameters": [
           {
             "name": "limit",
@@ -593,7 +593,7 @@
     },
     "/v1/notification-channels/default": {
       "post": {
-        "operationId": "createDefaultChannel",
+        "operationId": "createDefaultNotificationChannel",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -703,7 +703,7 @@
         ]
       },
       "patch": {
-        "operationId": "patchNotificationChannel",
+        "operationId": "updateNotificationChannel",
         "parameters": [
           {
             "name": "id",
@@ -982,7 +982,7 @@
         ]
       },
       "get": {
-        "operationId": "getDeploymentAlerts",
+        "operationId": "listDeploymentAlerts",
         "parameters": [
           {
             "name": "dseq",
@@ -1055,30 +1055,6 @@
         },
         "tags": [
           "DeploymentAlert"
-        ]
-      }
-    },
-    "/v1/jobs/notification": {
-      "post": {
-        "operationId": "createNotification",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NotificationJobDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": "Creates a notification job"
-          }
-        },
-        "tags": [
-          "Jobs"
         ]
       }
     }
@@ -5601,40 +5577,6 @@
         },
         "required": [
           "data"
-        ]
-      },
-      "NotificationJobDto": {
-        "type": "object",
-        "properties": {
-          "notificationId": {
-            "type": "string"
-          },
-          "notificationChannelId": {
-            "type": "string"
-          },
-          "startAfter": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "payload": {
-            "type": "object",
-            "properties": {
-              "summary": {
-                "type": "string"
-              },
-              "description": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "summary",
-              "description"
-            ]
-          }
-        },
-        "required": [
-          "notificationId",
-          "payload"
         ]
       }
     }

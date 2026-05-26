@@ -17,6 +17,7 @@ export default defineConfig(async overrideOptions =>
       server: "./src/server.ts",
       "rest-app": "./src/rest-app.ts",
       "background-jobs-app": "./src/background-jobs-app.ts",
+      "swagger-gen-app": "./src/swagger-gen-app.ts",
       console: "./src/console.ts",
       instrumentation: fileURLToPath(import.meta.resolve("@akashnetwork/instrumentation/register"))
     },
@@ -25,7 +26,7 @@ export default defineConfig(async overrideOptions =>
     external: ["pino-pretty"],
     dts: false,
     plugins: [...(isProduction ? [copyDrizzlePlugin] : [])],
-    onSuccess: overrideOptions.watch && !isProduction ? "node --enable-source-maps dist/server.js" : undefined,
+    onSuccess: overrideOptions.watch && !isProduction ? "NODE_OPTIONS='--allow-worker' npm run prod" : undefined,
     ...overrideOptions
   })
 );

@@ -80,15 +80,15 @@ export const viewport: Viewport = {
  * next-themes doesn't support SSR
  * https://github.com/pacocoursey/next-themes/issues/169
  */
-function getTheme() {
-  const cookieStore = cookies();
+async function getTheme() {
+  const cookieStore = await cookies();
   const themeCookie = cookieStore.get("theme");
   const theme = themeCookie ? themeCookie.value : "system";
   return theme;
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const theme = getTheme() as string;
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const theme = (await getTheme()) as string;
 
   return (
     <html lang="en" className={theme} style={{ colorScheme: theme }} suppressHydrationWarning>

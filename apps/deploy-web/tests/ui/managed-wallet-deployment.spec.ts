@@ -14,7 +14,7 @@ test.describe("Managed wallet deployment", () => {
     const authPage = new AuthPage(page);
     const billingPage = new BillingPage(page);
     const sidebar = new Sidebar(page);
-    const deployPage = new DeployPage(context, page, { walletType: "api" });
+    const deployPage = new DeployPage(context, page);
 
     await test.step("login", async () => {
       await homePage.goto();

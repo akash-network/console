@@ -23,15 +23,27 @@ export interface ExtendedRouteConfig<R extends RouteConfig> {
 
 const NO_CACHE = cacheControlMiddleware({ maxAge: 0 });
 
+/**
+ * OpenAPI vendor extension used to mark a route as hidden from generated
+ * documentation. Operations carrying this extension are stripped by
+ * `OpenApiDocsService.generateDocs` before the spec is returned.
+ */
+export const HIDDEN_ROUTES = new Set<string>();
+
 export function createRoute<
   R extends Omit<RouteConfig, "security"> & {
     security: Required<RouteConfig>["security"];
     cache?: CacheConfig;
     bodyLimit?: Parameters<typeof bodyLimit>[0];
     additionalContentTypes?: string[];
+    /**
+     * Hide this route from the generated OpenAPI document and Swagger UI.
+     * The route is still mounted and reachable — only documentation is suppressed.
+     */
+    hiddenInOpenApiDocs?: boolean;
   }
 >(routeConfig: R) {
-  const { cache, bodyLimit: bodyLimitOptions, additionalContentTypes, ...openApiConfig } = routeConfig;
+  const { cache, bodyLimit: bodyLimitOptions, additionalContentTypes, hiddenInOpenApiDocs, ...openApiConfig } = routeConfig;
   let middlewares: MiddlewareHandler[] = [];
 
   if (routeConfig.method !== "get" && routeConfig.method !== "head") {
@@ -69,5 +81,9 @@ export function createRoute<
     openApiConfig.middleware = middlewares;
   }
 
-  return createOpenApiRoute(openApiConfig as Omit<R, "cache">);
+  if (hiddenInOpenApiDocs) {
+    HIDDEN_ROUTES.add(openApiConfig.operationId ?? `${openApiConfig.method?.toUpperCase() || "UNKNOWN"} ${openApiConfig.path}`);
+  }
+
+  return createOpenApiRoute(openApiConfig as Omit<R, "cache" | "hiddenInOpenApiDocs">);
 }

@@ -3,7 +3,7 @@
 import type { FC, ReactNode } from "react";
 import React from "react";
 import { useCallback } from "react";
-import type { components } from "@akashnetwork/react-query-sdk/notifications";
+import type { components } from "@akashnetwork/console-api-types/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -21,21 +21,19 @@ export type ChildrenProps = {
 };
 
 export const NotificationChannelCreateContainer: FC<{ children: (props: ChildrenProps) => ReactNode; onCreate?: () => void }> = ({ children, onCreate }) => {
-  const { notificationsApi } = useServices();
-  const mutation = notificationsApi.v1.createNotificationChannel.useMutation();
+  const { api } = useServices();
+  const mutation = api.v1.createNotificationChannel.useMutation();
   const notificator = useNotificator();
   const queryClient = useQueryClient();
 
   const create = useCallback(
     ({ emails, name }: ContainerCreateInput) => {
       mutation.mutate({
-        body: {
-          data: {
-            name,
-            type: "email",
-            config: {
-              addresses: emails
-            }
+        data: {
+          name,
+          type: "email",
+          config: {
+            addresses: emails
           }
         }
       });
@@ -45,7 +43,7 @@ export const NotificationChannelCreateContainer: FC<{ children: (props: Children
 
   useWhen(mutation.isSuccess, async () => {
     notificator.success("Notification channel created!", { dataTestId: "notification-channel-create-success-notification" });
-    await queryClient.invalidateQueries({ queryKey: notificationsApi.v1.getNotificationChannels.getQueryKey() });
+    await queryClient.invalidateQueries({ queryKey: api.v1.listNotificationChannels.getKey() });
     onCreate?.();
   });
 

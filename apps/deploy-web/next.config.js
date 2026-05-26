@@ -40,7 +40,10 @@ const nextConfig = {
     styledComponents: true
   },
   images: {
-    domains: ["raw.githubusercontent.com", "avatars.githubusercontent.com"]
+    remotePatterns: [
+      { protocol: "https", hostname: "raw.githubusercontent.com" },
+      { protocol: "https", hostname: "avatars.githubusercontent.com" }
+    ]
   },
   output: "standalone",
   typescript: {
@@ -50,9 +53,6 @@ const nextConfig = {
     ignoreDuringBuilds: true
   },
   transpilePackages,
-  experimental: {
-    instrumentationHook: true
-  },
   i18n: {
     locales: ["en-US"],
     defaultLocale: "en-US"

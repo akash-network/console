@@ -4,7 +4,7 @@ import type { FC, ReactNode } from "react";
 import { useMemo } from "react";
 import React from "react";
 import { useCallback, useState } from "react";
-import type { components } from "@akashnetwork/react-query-sdk/notifications";
+import type { components } from "@akashnetwork/console-api-types/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
@@ -36,18 +36,13 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
-  const { notificationsApi } = useServices();
+  const { api } = useServices();
   const queryClient = useQueryClient();
-  const { data, isError, isLoading, refetch } = notificationsApi.v1.getAlerts.useQuery({
-    query: {
-      page,
-      limit
-    }
-  });
+  const { data, isError, isLoading, refetch } = api.v1.listAlerts.useQuery({ page, limit });
   const { getDeploymentName } = useLocalNotes();
   const notificator = useNotificator();
-  const deleteMutation = notificationsApi.v1.deleteAlert.useMutation();
-  const patchMutation = notificationsApi.v1.patchAlert.useMutation();
+  const deleteMutation = api.v1.deleteAlert.useMutation();
+  const patchMutation = api.v1.updateAlert.useMutation();
   const { address } = useWallet();
 
   const remove = useCallback(
@@ -55,11 +50,7 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
       try {
         setLoadingIds(prev => new Set(prev).add(id));
 
-        await deleteMutation.mutateAsync({
-          path: {
-            id
-          }
-        });
+        await deleteMutation.mutateAsync({ id });
 
         notificator.success("Alert removed", { dataTestId: "alert-remove-success-notification" });
 
@@ -87,14 +78,7 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
     async (id: string, enabled: boolean, dseq?: string) => {
       try {
         setLoadingIds(prev => new Set(prev).add(id));
-        await patchMutation.mutateAsync({
-          path: { id },
-          body: {
-            data: {
-              enabled
-            }
-          }
-        });
+        await patchMutation.mutateAsync({ id, data: { enabled } });
         notificator.success(`Alert ${enabled ? "enabled" : "disabled"}`);
         refetch();
 

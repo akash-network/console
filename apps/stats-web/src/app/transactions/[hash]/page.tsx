@@ -25,9 +25,14 @@ const TransactionDetailPageSchema = z.object({
     network: networkId
   })
 });
-type TransactionDetailPageProps = z.infer<typeof TransactionDetailPageSchema>;
+type ParsedTransactionDetailProps = z.infer<typeof TransactionDetailPageSchema>;
+type TransactionDetailPageProps = {
+  params: Promise<ParsedTransactionDetailProps["params"]>;
+  searchParams: Promise<ParsedTransactionDetailProps["searchParams"]>;
+};
 
-export async function generateMetadata({ params: { hash } }: TransactionDetailPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: TransactionDetailPageProps): Promise<Metadata> {
+  const { hash } = await params;
   const splitTxHash = getSplitText(hash, 6, 6);
   return {
     title: `Tx ${splitTxHash}`
@@ -49,10 +54,11 @@ async function fetchTransactionData(hash: string, network: Network["id"]): Promi
 }
 
 export default async function TransactionDetailPage(props: TransactionDetailPageProps) {
+  const [params, searchParams] = await Promise.all([props.params, props.searchParams]);
   const {
     params: { hash },
     searchParams: { network }
-  } = TransactionDetailPageSchema.parse(props);
+  } = TransactionDetailPageSchema.parse({ params, searchParams });
   const transaction = await fetchTransactionData(hash, network);
   return (
     <PageContainer>

@@ -118,7 +118,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
     async function sendManifest() {
       setIsSendingManifest(true);
       try {
-        const manifest = deploymentData.getManifest(parsedManifest, true);
+        const manifest = deploymentData.getManifest(parsedManifest);
 
         await providerProxy.sendManifest(provider, manifest, { dseq, credentials: providerCredentials.details });
 

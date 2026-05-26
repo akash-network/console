@@ -1,8 +1,8 @@
 import { JwtTokenManager, JwtTokenPayload } from "@akashnetwork/chain-sdk";
 import { minutesToSeconds } from "date-fns";
+import { randomUUID } from "node:crypto";
 import { Err, Ok, Result } from "ts-results";
 import { inject, singleton } from "tsyringe";
-import * as uuid from "uuid";
 
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { Memoize } from "@src/caching/helpers";
@@ -40,7 +40,7 @@ export class ProviderJwtTokenService {
       nbf: now,
       iat: now,
       iss: address,
-      jti: uuid.v4(),
+      jti: randomUUID(),
       leases
     };
 

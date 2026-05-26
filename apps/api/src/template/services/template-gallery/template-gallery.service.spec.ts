@@ -216,6 +216,38 @@ describe(TemplateGalleryService.name, () => {
       expect(resultTemplates.find((t: Template) => t.id === "t3").tags).toBeUndefined();
     });
 
+    it("orders recommended templates by their position in recommendedIds", async () => {
+      const { service, templateFetcher, fsMock } = setup({
+        getTagsConfig: () => ({
+          recommendedIds: new Set(["t3", "t1", "t2"]),
+          popularIds: new Set(),
+          categoryPriority: { AI: 0 }
+        })
+      });
+      const template1 = { id: "t1", name: "Alpha" } as Template;
+      const template2 = { id: "t2", name: "Bravo" } as Template;
+      const template3 = { id: "t3", name: "Charlie" } as Template;
+      const templates = [createCategory({ title: "AI", templates: [template1, template2, template3] })];
+      const categoriesSchema = z.array(
+        z.object({
+          title: z.string(),
+          templates: z.array(z.object({ id: z.string(), name: z.string(), tags: z.array(z.string()).optional() }))
+        })
+      );
+
+      templateFetcher.fetchAwesomeAkashTemplates.mockResolvedValue(templates);
+      fsMock.mkdir.mockResolvedValue(undefined);
+      fsMock.writeFile.mockResolvedValue(undefined);
+
+      await service.buildTemplateGalleryCache(categoriesSchema);
+
+      const summaryCall = fsMock.writeFile.mock.calls.find(call => String(call[0]).includes("templates-list.json"));
+      const summaryData = JSON.parse(String(summaryCall![1]));
+      const resultTemplates = summaryData.data[0].templates;
+
+      expect(resultTemplates.map((t: Template) => t.id)).toEqual(["t3", "t1", "t2"]);
+    });
+
     it("writes individual template files", async () => {
       const { service, templateFetcher, fsMock } = setup();
       const template1 = { id: "t1", name: "Template 1" } as Template;

@@ -7,10 +7,6 @@ on:
         description: "The app to release (directory name in ./apps/*)"
         required: true
         type: string
-      deploy_workflow:
-        description: "Deployment workflow filename (e.g., console-web-release.yml)"
-        required: false
-        type: string
       sha:
         description: "The commit SHA to release (defaults to GITHUB_SHA)"
         required: false
@@ -68,23 +64,19 @@ jobs:
 
   deploy:
     needs: [release, build-beta, build-prod]
-    if: needs.release.outputs.git_tag != '' && inputs.deploy_workflow != ''
+    if: needs.release.outputs.git_tag != ''
     runs-on: ubuntu-latest
     permissions:
       actions: write
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          sparse-checkout: .github
       - name: Trigger deployment
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ ! -f ".github/workflows/${{ inputs.deploy_workflow }}" ]; then
-            echo "Deployment workflow .github/workflows/${{ inputs.deploy_workflow }} not found! Deployment trigger skipped."
-            exit 0
-          fi
-          gh workflow run ${{ inputs.deploy_workflow }} \
-            --repo ${{ github.repository }} \
-            -f image_tag=${{ needs.release.outputs.git_tag }} \
+          GIT_TAG: ${{ needs.release.outputs.git_tag }}
+          APP: ${{ inputs.app }}
+        run: | # shell
+          gh workflow run reusable-deploy-app.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            -f app="$APP" \
+            -f image_tag="$GIT_TAG" \
             -f cancel-if-stale=true

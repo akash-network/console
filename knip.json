@@ -70,6 +70,11 @@
     "apps/provider-proxy": {
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },
+    "apps/provider-inventory": {
+      "project": ["src/**/*.ts", "test/**/*.ts"],
+      "drizzle": false,
+      "ignoreDependencies": ["@akashnetwork/env-loader"]
+    },
     "apps/tx-signer": {
       "project": ["src/**/*.ts", "test/**/*.ts"],
       "ignoreDependencies": ["@akashnetwork/env-loader"]
@@ -102,20 +107,19 @@
     },
     "packages/logging": {
       "project": ["src/**/*.ts"],
-      "ignoreDependencies": ["@opentelemetry/api", "hono"]
+      "ignoreDependencies": ["@opentelemetry/api", "hono", "sql-formatter"]
     },
     "packages/net": {
       "project": ["src/**/*.ts", "scripts/**/*.ts"]
     },
     "packages/network-store": {},
-    "packages/react-query-proxy": {},
-    "packages/react-query-sdk": {
-      "ignoreDependencies": [
-        "@openapi-qraft/tanstack-query-react-types",
-        "@tanstack/query-core",
-        "@tanstack/react-query"
-      ]
+    "packages/openapi-sdk": {
+      "entry": [".eslintrc.js", "src/**/*.ts"]
     },
+    "packages/console-api-types": {
+      "entry": [".eslintrc.js", "src/**/*.ts", "scripts/**/*.ts"]
+    },
+    "packages/react-query-proxy": {},
     "packages/ui": {
       "ignoreDependencies": ["next"]
     }

@@ -1,12 +1,10 @@
 import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
-import { isRetriableError } from "@akashnetwork/http-sdk";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
-import type { SigningStargateClient } from "@cosmjs/stargate";
+import type { IndexedTx, SigningStargateClient } from "@cosmjs/stargate";
 import { calculateFee, GasPrice } from "@cosmjs/stargate";
-import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
 import { Sema } from "async-sema";
 import { ExponentialBackoff, handleWhenResult, retry } from "cockatiel";
 import DataLoader from "dataloader";
@@ -54,7 +52,7 @@ export class BatchSigningClientService {
   );
 
   private readonly txRecoveryExecutor = retry(
-    handleWhenResult(res => !res).orWhen(err => this.isRetriableNetworkError(err)),
+    handleWhenResult(res => !res),
     {
       maxAttempts: 5,
       backoff: new ExponentialBackoff({ maxDelay: 10_000, initialDelay: 1_000 })
@@ -213,33 +211,11 @@ export class BatchSigningClientService {
     return results;
   }
 
-  private isRetriableNetworkError(error: unknown): boolean {
-    if (!(error instanceof Error)) return false;
-
-    if ("code" in error) {
-      return isRetriableError(error as Error & { code: unknown });
-    }
-
-    if ("cause" in error && error.cause instanceof Error && "code" in error.cause) {
-      return isRetriableError(error.cause as Error & { code: unknown });
-    }
-
-    return false;
-  }
-
   private async tryRecoverTransaction(hash: string): Promise<IndexedTx | null> {
-    try {
-      return await this.txRecoveryExecutor.execute(context => {
-        this.logger.debug({ event: "TX_RECOVERY_ATTEMPT", txHash: hash, attempt: context.attempt });
-        return this.client.getTx(hash);
-      });
-    } catch (error) {
-      if (this.isRetriableNetworkError(error)) {
-        this.logger.warn({ event: "TX_RECOVERY_FAILED", txHash: hash, error });
-        return null;
-      }
-      throw error;
-    }
+    return await this.txRecoveryExecutor.execute(context => {
+      this.logger.debug({ event: "TX_RECOVERY_ATTEMPT", txHash: hash, attempt: context.attempt });
+      return this.client.getTx(hash);
+    });
   }
 
   private async estimateFee(messages: readonly EncodeObject[], denom: string, granter?: string) {

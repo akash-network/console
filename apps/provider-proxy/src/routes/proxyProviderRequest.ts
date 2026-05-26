@@ -134,6 +134,33 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
       );
     }
 
+    if ((Error as any).isError(proxyResult.error) && (proxyResult.error as NodeJS.ErrnoException).code === "EFORBIDDEN") {
+      ctx.get("container").appLogger?.warn({
+        event: "PROXY_REQUEST_ERROR",
+        code: (proxyResult.error as NodeJS.ErrnoException).code,
+        url,
+        method,
+        providerAddress,
+        error: proxyResult.error
+      });
+      return ctx.json(
+        {
+          error: {
+            code: "custom",
+            issues: [
+              {
+                path: ["url"],
+                params: {
+                  reason: "invalid"
+                }
+              }
+            ]
+          }
+        },
+        400
+      );
+    }
+
     return ctx.text(`Provider ${new URL(url).origin} is temporarily unavailable`, 503);
   }
 

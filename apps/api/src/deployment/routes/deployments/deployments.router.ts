@@ -38,6 +38,7 @@ const getRoute = createRoute({
   method: "get",
   path: "/v1/deployments/{dseq}",
   summary: "Get a deployment",
+  operationId: "getDeployment",
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,
   request: {
@@ -64,6 +65,7 @@ const postRoute = createRoute({
   method: "post",
   path: "/v1/deployments",
   summary: "Create new deployment",
+  operationId: "createDeployment",
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,
   request: {
@@ -96,6 +98,7 @@ const deleteRoute = createRoute({
   method: "delete",
   path: "/v1/deployments/{dseq}",
   summary: "Close a deployment",
+  operationId: "closeDeployment",
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,
   request: {
@@ -122,6 +125,7 @@ const depositRoute = createRoute({
   method: "post",
   path: "/v1/deposit-deployment",
   summary: "Deposit into a deployment",
+  operationId: "depositDeployment",
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,
   request: {
@@ -154,6 +158,7 @@ const updateRoute = createRoute({
   method: "put",
   path: "/v1/deployments/{dseq}",
   summary: "Update a deployment",
+  operationId: "updateDeployment",
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,
   request: {
@@ -188,6 +193,7 @@ const listRoute = createRoute({
   method: "get",
   path: "/v1/deployments",
   summary: "List deployments with pagination and filtering",
+  operationId: "listDeployments",
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,
   request: {
@@ -293,6 +299,7 @@ const fallbackListRoute = createRoute({
   summary: "List deployments (database fallback)",
   tags: ["Deployments"],
   security: SECURITY_NONE,
+  cache: { maxAge: 10, staleWhileRevalidate: 30 },
   request: {
     query: FallbackDeploymentListQuerySchema
   },
@@ -330,6 +337,7 @@ const fallbackInfoRoute = createRoute({
   summary: "Get deployment info (database fallback)",
   tags: ["Deployments"],
   security: SECURITY_NONE,
+  cache: { maxAge: 10, staleWhileRevalidate: 30 },
   request: {
     query: FallbackDeploymentInfoQuerySchema
   },

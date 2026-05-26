@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { FormattedNumber } from "react-intl";
 import {
@@ -33,6 +33,7 @@ import { getPaymentMethodDisplay } from "@src/components/shared/PaymentMethodCar
 import { ThreeDSecurePopup } from "@src/components/shared/PaymentMethodForm/ThreeDSecurePopup";
 import { usePaymentPolling } from "@src/context/PaymentPollingProvider";
 import { useServices } from "@src/context/ServicesProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { use3DSecure } from "@src/hooks/use3DSecure";
 import { useUser } from "@src/hooks/useUser";
 import { usePaymentMethodsQuery, usePaymentMutations } from "@src/queries";
@@ -73,19 +74,19 @@ export const DEPENDENCIES = {
   handleCouponError,
   handleStripeError,
   useServices,
+  useWallet,
   ThreeDSecurePopup
 };
 
-const MINIMUM_PAYMENT_AMOUNT = 20;
-
-const paymentFormSchema = z.object({
-  amount: z.coerce
-    .number({
-      invalid_type_error: "Amount must be a number"
-    })
-    .positive("Amount must be greater than $0")
-    .min(MINIMUM_PAYMENT_AMOUNT, `Minimum amount is $${MINIMUM_PAYMENT_AMOUNT}`)
-});
+const buildPaymentFormSchema = (minimumAmount: number) =>
+  z.object({
+    amount: z.coerce
+      .number({
+        invalid_type_error: "Amount must be a number"
+      })
+      .positive("Amount must be greater than $0")
+      .min(minimumAmount, `Minimum amount is $${minimumAmount}`)
+  });
 
 const couponFormSchema = z.object({
   coupon: z.string().min(1, "Coupon code is required")
@@ -114,6 +115,7 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
   const [errorAction, setErrorAction] = useState<string>();
   const submittedAmountRef = useRef<string>("");
   const { user } = d.useUser();
+  const { topUpMinAmountUsd } = d.useWallet();
   const { data: paymentMethods, isLoading: isLoadingPaymentMethods } = d.usePaymentMethodsQuery();
   const {
     confirmPayment: { isPending: isConfirmingPayment, mutateAsync: confirmPayment },
@@ -121,7 +123,9 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
   } = d.usePaymentMutations();
   const { pollForPayment, isPolling } = d.usePaymentPolling();
 
-  const paymentForm = d.useForm<z.infer<typeof paymentFormSchema>>({
+  const paymentFormSchema = useMemo(() => buildPaymentFormSchema(topUpMinAmountUsd), [topUpMinAmountUsd]);
+
+  const paymentForm = d.useForm<z.infer<ReturnType<typeof buildPaymentFormSchema>>>({
     defaultValues: {
       amount: 0
     },
@@ -153,7 +157,7 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
     }
   };
 
-  const onPayment = async ({ amount }: z.infer<typeof paymentFormSchema>) => {
+  const onPayment = async ({ amount }: z.infer<ReturnType<typeof buildPaymentFormSchema>>) => {
     if (!user?.id) {
       errorHandler.reportError({
         message: "Payment attempted without a user id",
@@ -307,10 +311,11 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
                       <d.FormInput
                         {...field}
                         type="number"
-                        min="0"
+                        min={topUpMinAmountUsd}
                         step="0.01"
                         placeholder="0.00"
                         label="Amount (USD)"
+                        description={`Minimum amount is $${topUpMinAmountUsd}`}
                         autoFocus
                         onChange={e => {
                           field.onChange(e);

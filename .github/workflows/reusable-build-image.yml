@@ -77,8 +77,15 @@ jobs:
         env:
           SENTRY_AUTH_TOKEN_CONSOLE_WEB: ${{ secrets.SENTRY_AUTH_TOKEN_CONSOLE_WEB }}
           SENTRY_AUTH_TOKEN_STATS_WEB: ${{ secrets.SENTRY_AUTH_TOKEN_STATS_WEB }}
-        run: |
+        run: | # shell
           tag="${{ inputs.tag }}"
+          app="${tag%/*}"
+          DEFAULT_REGISTRY_PREFIX="ghcr.io/akash-network/"
+
+          if echo "$app" | grep -qvE '^(provider-proxy|provider-console|notifications|indexer)$'; then
+            # if not an old app add prefix console- to the registry
+            DEFAULT_REGISTRY_PREFIX="${DEFAULT_REGISTRY_PREFIX}console-"
+          fi
 
           if [[ "$tag" == console-api/* ]]; then
             echo "registry=${{ vars.API_REGISTRY }}" >> "$GITHUB_ENV"
@@ -89,25 +96,13 @@ jobs:
             echo "app=deploy-web" >> "$GITHUB_ENV"
             echo "force_build=-f" >> "$GITHUB_ENV"
             echo "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN_CONSOLE_WEB}" >> "$GITHUB_ENV"
-          elif [[ "$tag" == provider-proxy/* ]]; then
-            echo "registry=${{ vars.PROVIDER_PROXY_REGISTRY }}" >> "$GITHUB_ENV"
-            echo "app=provider-proxy" >> "$GITHUB_ENV"
-          elif [[ "$tag" == provider-console/* ]]; then
-            echo "registry=${{ vars.PROVIDER_CONSOLE_REGISTRY }}" >> "$GITHUB_ENV"
-            echo "app=provider-console" >> "$GITHUB_ENV"
           elif [[ "$tag" == stats-web/* ]]; then
             echo "registry=${{ vars.STATS_WEB_REGISTRY }}" >> "$GITHUB_ENV"
             echo "app=stats-web" >> "$GITHUB_ENV"
             echo "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN_STATS_WEB}" >> "$GITHUB_ENV"
-          elif [[ "$tag" == notifications/* ]]; then
-            echo "registry=${{ vars.NOTIFICATIONS_REGISTRY }}" >> "$GITHUB_ENV"
-            echo "app=notifications" >> "$GITHUB_ENV"
-          elif [[ "$tag" == indexer/* ]]; then
-            echo "registry=${{ vars.INDEXER_REGISTRY }}" >> "$GITHUB_ENV"
-            echo "app=indexer" >> "$GITHUB_ENV"
-          elif [[ "$tag" == tx-signer/* ]]; then
-            echo "registry=${{ vars.TX_SIGNER_REGISTRY }}" >> "$GITHUB_ENV"
-            echo "app=tx-signer" >> "$GITHUB_ENV"
+          elif [ -d "apps/$app" ]; then
+            echo "registry=${DEFAULT_REGISTRY_PREFIX}${app}" >> "$GITHUB_ENV"
+            echo "app=$app" >> "$GITHUB_ENV"
           else
             echo "Error: Unknown tag format = $tag"
             exit 1

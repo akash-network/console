@@ -31,7 +31,7 @@ export default defineConfig({
           environment: "jsdom",
           isolate: false,
           include: ["src/**/*.spec.{tsx,ts}"],
-          exclude: ["**/node_modules/**", "src/lib/nextjs/**", "src/lib/auth0/**"],
+          exclude: ["**/node_modules/**", "src/lib/nextjs/**", "src/lib/auth0/**", "src/pages/api/**"],
           setupFiles: ["tests/unit/setup.ts"]
         },
         resolve: {
@@ -50,7 +50,7 @@ export default defineConfig({
         test: {
           name: "unit-node",
           environment: "node",
-          include: ["src/lib/{nextjs,auth0}/**/*.spec.{tsx,ts}"],
+          include: ["src/lib/{nextjs,auth0}/**/*.spec.{tsx,ts}", "src/pages/api/**/*.spec.{tsx,ts}"],
           setupFiles: ["src/lib/nextjs/setup-node-tests.ts"]
         },
         resolve: {

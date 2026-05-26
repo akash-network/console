@@ -11,6 +11,11 @@ services:
       db:
         condition: service_healthy
 
+  provider-inventory:
+    depends_on:
+      db:
+        condition: service_healthy
+
   indexer:
     depends_on:
       db:

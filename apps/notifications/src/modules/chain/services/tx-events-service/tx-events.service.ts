@@ -1,5 +1,5 @@
+import type { comet38 } from "@cosmjs/tendermint-rpc";
 import { Comet38Client } from "@cosmjs/tendermint-rpc";
-import { BlockResultsResponse, Event } from "@cosmjs/tendermint-rpc/build/comet38";
 import { Injectable } from "@nestjs/common";
 import { ExponentialBackoff, handleAll, retry } from "cockatiel";
 
@@ -217,3 +217,6 @@ export class TxEventsService {
     });
   }
 }
+
+type BlockResultsResponse = comet38.BlockResultsResponse;
+type Event = comet38.Event;

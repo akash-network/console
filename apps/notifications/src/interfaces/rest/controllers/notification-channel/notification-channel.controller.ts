@@ -80,7 +80,7 @@ export class NotificationChannelController {
   @Post("default")
   @HttpCode(204)
   @ApiNoContentResponse({ description: "Creates the default notification channel only if it doesn't exist." })
-  async createDefaultChannel(@Body() { data }: NotificationChannelCreateDefaultInput): Promise<Result<void, unknown>> {
+  async createDefaultNotificationChannel(@Body() { data }: NotificationChannelCreateDefaultInput): Promise<Result<void, unknown>> {
     await this.notificationChannelRepository.accessibleBy(this.authService.ability, "create").createDefaultChannel({
       ...data,
       userId: this.authService.userId
@@ -126,7 +126,7 @@ export class NotificationChannelController {
     type: Number,
     description: "Number of items per page"
   })
-  async getNotificationChannels(@Query() query: NotificationChannelListQuery): Promise<Result<NotificationChannelListOutput, unknown>> {
+  async listNotificationChannels(@Query() query: NotificationChannelListQuery): Promise<Result<NotificationChannelListOutput, unknown>> {
     return Ok(await this.notificationChannelRepository.accessibleBy(this.authService.ability, "read").paginate(query));
   }
 
@@ -135,7 +135,7 @@ export class NotificationChannelController {
     200: { schema: NotificationChannelOutput, description: "Returns the updated notification channel" },
     404: { schema: NotFoundErrorResponse, description: "Returns 404 if the notification channel is not found" }
   })
-  async patchNotificationChannel(
+  async updateNotificationChannel(
     @Param("id") id: string,
     @Body() { data }: NotificationChannelPatchInput
   ): Promise<Result<NotificationChannelOutputResponse, NotFoundException>> {

@@ -18,7 +18,7 @@ test.describe("Managed wallet alerts", () => {
     const alertsPage = new AlertsPage(page);
     const alertsForm = new DeploymentAlertsForm(page);
     const billingPage = new BillingPage(page);
-    const deployPage = new DeployPage(context, page, { walletType: "api" });
+    const deployPage = new DeployPage(context, page);
 
     await test.step("login", async () => {
       await homePage.goto();
@@ -54,8 +54,8 @@ test.describe("Managed wallet alerts", () => {
       await expect(page.getByText("Configure Alerts")).toBeVisible({ timeout: 10_000 });
     });
 
-    await test.step("verify escrow balance alert is enabled by default", async () => {
-      await expect(alertsForm.getEscrowEnabledToggle()).toBeChecked();
+    await test.step("verify escrow balance alert is NOT enabled by default", async () => {
+      await expect(alertsForm.getEscrowEnabledToggle()).not.toBeChecked();
       await expect(alertsForm.getEscrowThresholdInput()).toBeVisible();
       await expect(alertsForm.getEscrowChannelSelect()).toBeVisible();
     });
@@ -65,7 +65,10 @@ test.describe("Managed wallet alerts", () => {
       await expect(alertsForm.getCloseChannelSelect()).toBeVisible();
     });
 
-    await test.step("update escrow threshold and save", async () => {
+    await test.step("enable escrow balance alert, update threshold, and save", async () => {
+      await alertsForm.getEscrowEnabledToggle().click();
+      await expect(alertsForm.getEscrowEnabledToggle()).toBeChecked();
+
       const originalValue = await alertsForm.getEscrowThresholdInput().inputValue();
       const newThreshold = Math.max(0.01, parseFloat(originalValue) * 0.5).toFixed(3);
 

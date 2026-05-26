@@ -5,7 +5,7 @@ import type { AppConfigInput } from "../../src/config/env.config";
 let server: AppServer | undefined;
 
 export async function startServer(untrustedConfig: AppConfigInput): Promise<string> {
-  server = await startAppServer({ ...untrustedConfig, PORT: 0 });
+  server = await startAppServer({ ...process.env, ...untrustedConfig, PORT: 0 });
   return server.host;
 }
 

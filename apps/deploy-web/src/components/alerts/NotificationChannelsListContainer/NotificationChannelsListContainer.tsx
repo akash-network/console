@@ -4,7 +4,8 @@ import type { FC, ReactNode } from "react";
 import { useEffect } from "react";
 import React from "react";
 import { useCallback, useState } from "react";
-import type { components } from "@akashnetwork/react-query-sdk/notifications";
+import type { components } from "@akashnetwork/console-api-types/notifications";
+import { extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
@@ -38,14 +39,9 @@ export const NotificationChannelsListContainer: FC<NotificationChannelsListConta
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [removingIds, setRemovingIds] = React.useState<Set<NotificationChannel["id"]>>(new Set());
-  const { notificationsApi } = useServices();
-  const { data, isError, isLoading, isFetched, refetch } = notificationsApi.v1.getNotificationChannels.useQuery({
-    query: {
-      page,
-      limit
-    }
-  });
-  const mutation = notificationsApi.v1.deleteNotificationChannel.useMutation();
+  const { api } = useServices();
+  const { data, isError, isLoading, isFetched, refetch } = api.v1.listNotificationChannels.useQuery({ page, limit });
+  const mutation = api.v1.deleteNotificationChannel.useMutation();
   const notificator = useNotificator();
 
   const remove = useCallback(
@@ -53,11 +49,7 @@ export const NotificationChannelsListContainer: FC<NotificationChannelsListConta
       try {
         setRemovingIds(prev => new Set(prev).add(id));
 
-        await mutation.mutateAsync({
-          path: {
-            id
-          }
-        });
+        await mutation.mutateAsync({ id });
 
         notificator.success("Notification channel removed", { dataTestId: "notification-channel-remove-success-notification" });
 
@@ -67,10 +59,8 @@ export const NotificationChannelsListContainer: FC<NotificationChannelsListConta
           refetch();
         }
       } catch (error) {
-        const message =
-          error && typeof error === "object" && "message" in error && typeof error?.message === "string" && ERROR_MESSAGES[error.message]
-            ? ERROR_MESSAGES[error.message]
-            : "Failed to remove notification channel";
+        const backendMessage = extractApiErrorMessage(error);
+        const message = (backendMessage && ERROR_MESSAGES[backendMessage]) || "Failed to remove notification channel";
         notificator.error(message, {
           dataTestId: "notification-channel-remove-error-notification"
         });

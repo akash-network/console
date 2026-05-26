@@ -23,7 +23,7 @@ let timeoutId: NodeJS.Timeout | null = null;
 const isRecommended = (t: TemplateOutputSummaryWithCategory) => t.tags?.includes("recommended") ?? false;
 const isPopular = (t: TemplateOutputSummaryWithCategory) => t.tags?.includes("popular") ?? false;
 
-const FEATURED_TEMPLATE_IDS = ["akash-network-awesome-akash-openclaw"];
+const FEATURED_TEMPLATE_IDS = ["akash-network-awesome-akash-Razer-AIKit"];
 
 export const DEPENDENCIES = {
   useRouter,

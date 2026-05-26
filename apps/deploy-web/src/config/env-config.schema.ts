@@ -38,7 +38,21 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_UNLEASH_ENABLE_ALL: coercedBoolean().optional().default("false"),
   NEXT_PUBLIC_GTM_ID: z.string().optional(),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
-  NEXT_PUBLIC_BASE_TEMPLATES_URL: z.string().url()
+  NEXT_PUBLIC_BASE_TEMPLATES_URL: z.string().url(),
+  NEXT_PUBLIC_MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: z
+    .string()
+    .default("nvidia/b300,nvidia/b200,nvidia/h200,nvidia/h100,nvidia/pro6000se,nvidia/pro6000we,nvidia/a100,nvidia/rtx5090,nvidia/rtx4090,nvidia/rtx3090")
+    .transform(val =>
+      val
+        ? val
+            .split(",")
+            .map(entry => entry.trim().toLowerCase())
+            .filter(Boolean)
+        : []
+    )
+    .refine(entries => entries.every(entry => /^[a-z0-9._-]+\/[a-z0-9._-]+$/.test(entry)), {
+      message: "NEXT_PUBLIC_MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS entries must be in 'vendor/model' format"
+    })
 });
 
 export const serverEnvSchema = browserEnvSchema.extend({

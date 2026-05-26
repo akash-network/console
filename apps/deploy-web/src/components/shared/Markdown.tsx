@@ -26,7 +26,7 @@ const Markdown: React.FunctionComponent<MarkdownProps> = ({ children, hasHtml })
   return (
     <ReactMarkdown
       className={cn(
-        "markdownContainerRoot prose max-w-full dark:prose-invert prose-code:before:hidden prose-code:after:hidden",
+        "markdownContainerRoot prose max-w-full dark:prose-invert prose-code:before:hidden prose-code:after:hidden prose-img:inline",
         resolvedTheme === "dark" ? "markdownContainer-dark" : "markdownContainer"
       )}
       linkTarget="_blank"

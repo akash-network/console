@@ -5,8 +5,10 @@ import { once } from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import type { Session } from "@src/lib/auth0";
-import { AccessTokenError, AccessTokenErrorCode, CallbackHandlerError, IdentityProviderError, MissingStateCookieError } from "@src/lib/auth0";
+import { CallbackHandlerError, IdentityProviderError, MissingStateCookieError } from "@src/lib/auth0";
 import { handleAuth, handleCallback, handleLogin, handleLogout } from "@src/lib/auth0";
+import { clearSessionCookies } from "@src/lib/auth0/clearSessionCookies/clearSessionCookies";
+import { isInvalidSessionError } from "@src/lib/auth0/isInvalidSessionError/isInvalidSessionError";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
 import { rewriteLocalRedirect } from "@src/services/auth/auth/rewrite-local-redirect";
@@ -70,14 +72,8 @@ const authHandler = once((services: AppServices) =>
     },
     logout: services.privateConfig.AUTH0_LOCAL_ENABLED
       ? async function (req: NextApiRequest, res: NextApiResponse) {
-          const cookies = req.cookies;
-          const expiredCookies = Object.keys(cookies)
-            .filter(key => key.startsWith("appSession"))
-            .map(key => `${key}=; Path=/; HttpOnly; SameSite=Lax; Expires=Thu, 01 Jan 1970 00:00:00 GMT`);
-
-          res.setHeader("Set-Cookie", expiredCookies);
+          clearSessionCookies(req, res);
           res.writeHead(302, { Location: "/" });
-
           res.end();
         }
       : handleLogout,
@@ -123,16 +119,6 @@ const authHandler = once((services: AppServices) =>
   })
 );
 
-function isInvalidSessionError(error: unknown): boolean {
-  if (!(error instanceof AccessTokenError)) {
-    return false;
-  }
-
-  const invalidSessionCodes: string[] = [AccessTokenErrorCode.EXPIRED_ACCESS_TOKEN, AccessTokenErrorCode.FAILED_REFRESH_GRANT];
-
-  return invalidSessionCodes.includes(error.code);
-}
-
 function isGeneralAxiosError(error: unknown): error is AxiosError {
   return isAxiosError(error) && !!error?.status && error.status >= 400 && error.status < 500;
 }
@@ -146,15 +132,7 @@ function isAccessDeniedError(error: unknown): boolean {
 }
 
 function clearSessionAndRedirectToLogin(req: NextApiRequest, res: NextApiResponse): void {
-  // Clear invalid session cookies before redirecting
-  const cookies = req.cookies;
-  const expiredCookies = Object.keys(cookies)
-    .filter(key => key.startsWith("appSession"))
-    .map(key => `${key}=; Path=/; HttpOnly; SameSite=Lax; Expires=Thu, 01 Jan 1970 00:00:00 GMT`);
-
-  if (expiredCookies.length > 0) {
-    res.setHeader("Set-Cookie", expiredCookies);
-  }
+  clearSessionCookies(req, res);
 
   const returnTo = encodeURIComponent(req.url || "/");
   const loginUrl = `/api/auth/login?returnTo=${returnTo}`;

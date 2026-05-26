@@ -179,6 +179,12 @@ export class AlertRepository {
     });
   }
 
+  async deleteAllByUserId(userId: string, tx: NodePgDatabase<typeof schema> = this.db): Promise<number> {
+    const deleted = await tx.delete(schema.Alert).where(eq(schema.Alert.userId, userId)).returning({ id: schema.Alert.id });
+
+    return deleted.length;
+  }
+
   async countActiveByNotificationChannelId(notificationChannelId: string): Promise<number> {
     const result = await this.db
       .select({ count: count(schema.Alert.id) })

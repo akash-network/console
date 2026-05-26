@@ -3,8 +3,7 @@ import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { Registry } from "@cosmjs/proto-signing";
-import type { Account, DeliverTxResponse, SigningStargateClient } from "@cosmjs/stargate";
-import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
+import type { Account, DeliverTxResponse, IndexedTx,SigningStargateClient } from "@cosmjs/stargate";
 import { faker } from "@faker-js/faker";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -81,57 +80,7 @@ describe(BatchSigningClientService.name, () => {
     expect(client.broadcastTxSync).toHaveBeenCalledTimes(allTestData.length - 1);
   });
 
-  it("should recover transaction when getTx fails with network error but tx exists on chain", async () => {
-    const testData = createTransactionTestData();
-
-    const { service, client } = setup([testData]);
-
-    client.getTx.mockReset();
-    const networkError1 = Object.assign(new Error("fetch failed"), { code: "ECONNRESET" });
-    const networkError2 = Object.assign(new Error("fetch failed"), { code: "ECONNRESET" });
-    client.getTx.mockRejectedValueOnce(networkError1).mockRejectedValueOnce(networkError2).mockResolvedValueOnce(testData.tx);
-
-    const result = await service.signAndBroadcast(testData.messages);
-
-    expect(result).toEqual(testData.tx);
-    expect(client.getTx).toHaveBeenCalledTimes(3);
-  });
-
-  it("should recover transaction when getTx fails with socket error", async () => {
-    const testData = createTransactionTestData();
-
-    const { service, client } = setup([testData]);
-
-    client.getTx.mockReset();
-    const socketError1 = Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" });
-    const socketError2 = Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" });
-    client.getTx.mockRejectedValueOnce(socketError1).mockRejectedValueOnce(socketError2).mockResolvedValueOnce(testData.tx);
-
-    const result = await service.signAndBroadcast(testData.messages);
-
-    expect(result).toEqual(testData.tx);
-    expect(client.getTx).toHaveBeenCalledTimes(3);
-  });
-
-  it("should recover transaction when getTx fails with cosmjs fetch failed error with cause", async () => {
-    const testData = createTransactionTestData();
-
-    const { service, client } = setup([testData]);
-
-    client.getTx.mockReset();
-    const causeError1 = Object.assign(new Error("connect ECONNRESET"), { code: "ECONNRESET" });
-    const fetchFailedError1 = Object.assign(new Error("fetch failed"), { cause: causeError1 });
-    const causeError2 = Object.assign(new Error("connect ECONNRESET"), { code: "ECONNRESET" });
-    const fetchFailedError2 = Object.assign(new Error("fetch failed"), { cause: causeError2 });
-    client.getTx.mockRejectedValueOnce(fetchFailedError1).mockRejectedValueOnce(fetchFailedError2).mockResolvedValueOnce(testData.tx);
-
-    const result = await service.signAndBroadcast(testData.messages);
-
-    expect(result).toEqual(testData.tx);
-    expect(client.getTx).toHaveBeenCalledTimes(3);
-  });
-
-  it("should not attempt recovery for non-network errors", async () => {
+  it("should propagate errors from getTx without retrying", async () => {
     const testData = createTransactionTestData();
 
     const { service, client } = setup([testData]);

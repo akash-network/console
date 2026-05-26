@@ -7,6 +7,7 @@ import { CertificateValidator, createCertificateValidatorInstrumentation } from 
 import { ProviderProxy } from "./services/ProviderProxy";
 import { ProviderService } from "./services/ProviderService/ProviderService";
 import { WebsocketStats } from "./services/WebsocketStats";
+import { createForbidPrivateNetworkLookup } from "./utils/createForbidPrivateNetworkLookup/createForbidPrivateNetworkLookup";
 
 export function createContainer(untrustedConfig: Record<string, unknown>) {
   const appConfig = appConfigSchema.parse(untrustedConfig);
@@ -30,7 +31,7 @@ export function createContainer(untrustedConfig: Record<string, unknown>) {
     providerService,
     isLoggingDisabled ? undefined : createCertificateValidatorInstrumentation(createOtelLogger({ name: "cert-validator" }))
   );
-  const providerProxy = new ProviderProxy(certificateValidator);
+  const providerProxy = new ProviderProxy(certificateValidator, appConfig.ALLOW_PROXY_TO_LOCAL_NETWORK ? undefined : createForbidPrivateNetworkLookup());
   const wsLogger = isLoggingDisabled ? undefined : createOtelLogger({ name: "ws" });
   const httpLogger = isLoggingDisabled ? undefined : createOtelLogger({ name: "http" });
   const httpLoggerInterceptor = new HttpLoggerInterceptor(httpLogger);

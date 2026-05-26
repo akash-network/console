@@ -12,9 +12,9 @@ module.exports = {
         project: ["./tsconfig.json"]
       }
     },
-    "import-x/external-module-folders": ["node_modules", "dist", "build", "public", "Leap"]
+    "import-x/external-module-folders": ["node_modules", "dist", "build", "public"]
   },
-  ignorePatterns: ["node_modules", "dist", "build", "public", "Leap"],
+  ignorePatterns: ["node_modules", "dist", "build", "public", "**/next-env.d.ts", "**/env-config.schema.js"],
   rules: {
     "@typescript-eslint/no-unused-vars": ["error", { ignoreRestSiblings: true, argsIgnorePattern: "^_" }],
     "simple-import-sort/imports": [
@@ -34,7 +34,16 @@ module.exports = {
     "import-x/no-cycle": ["error", { ignoreExternal: true }],
     "import-x/no-self-import": ["error"],
     "import-x/no-useless-path-segments": ["error"],
-    "akash/no-mnemonic": ["error"]
+    "akash/no-mnemonic": ["error"],
+    "akash/operation-id-format": [
+      "error",
+      {
+        additionalVerbs: {
+          post: { collection: ["deposit"] },
+          delete: { single: ["close"] }
+        }
+      }
+    ]
   },
   overrides: [
     {

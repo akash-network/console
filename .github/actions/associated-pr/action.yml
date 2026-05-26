@@ -100,6 +100,43 @@ runs:
           core.setOutput('changes', '[]');
           core.setOutput('labels', '[]');
 
+          // listPullRequestsAssociatedWithCommit does not index head commits
+          // from fork PRs (even though they're reachable via refs/pull/N/head),
+          // so for forks we fall back to the search API. We detect fork up
+          // front from the event payload to avoid wasting retry budget on the
+          // primary API which will never return a result for a fork commit.
+          const headRepoFullName = context.payload.workflow_run?.head_repository?.full_name
+            || context.payload.pull_request?.head?.repo?.full_name;
+          const baseRepoFullName = `${context.repo.owner}/${context.repo.repo}`;
+          const isFork = headRepoFullName && headRepoFullName !== baseRepoFullName;
+
+          const findPrViaAssociations = async () => {
+            const { data } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              commit_sha: commitSha,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            return data && data.length > 0 ? data[0] : null;
+          };
+
+          const findPrViaSearch = async () => {
+            const { data } = await github.rest.search.issuesAndPullRequests({
+              q: `${commitSha} repo:${baseRepoFullName} type:pr`
+            });
+            if (!data.items || data.items.length === 0) return null;
+            const { data: full } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: data.items[0].number,
+            });
+            return full;
+          };
+
+          const findPr = isFork ? findPrViaSearch : findPrViaAssociations;
+          if (isFork) {
+            core.info(`Commit is from fork (${headRepoFullName}), using search API to find PR`);
+          }
+
           let pr;
           const maxRetries = 5;
           const baseDelay = 2000;
@@ -108,7 +145,7 @@ runs:
           // the webhook payload is frozen at event-fire time and does not reflect
           // label/metadata changes made afterwards.
           // Retry logic also handles timing issues where the commit-PR association
-          // isn't immediately available after merge.
+          // (or search index) isn't immediately available after push or merge.
           for (let attempt = 0; attempt < maxRetries; attempt++) {
             if (attempt > 0) {
               // Exponential backoff: 2s, 4s, 8s, 16s, 32s
@@ -117,14 +154,8 @@ runs:
               await new Promise(resolve => setTimeout(resolve, delay));
             }
 
-            const response = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-              commit_sha: commitSha,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            });
-
-            if (response.data && response.data.length > 0) {
-              pr = response.data[0];
+            pr = await findPr();
+            if (pr) {
               core.info(`Found PR #${pr.number} on attempt ${attempt + 1}`);
               break;
             }

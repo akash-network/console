@@ -1,5 +1,9 @@
 import type { BillingConfig } from "@src/billing/providers";
+import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import { SdlService } from "./sdl.service";
+
+import { mockConfigService } from "@test/mocks/config-service.mock";
 
 const VALID_SDL = `
 version: "2.0"
@@ -163,6 +167,45 @@ deployment:
       count: 1
 `;
 
+const SDL_WITH_GPU = (vendor: string, model: string) => `
+version: "2.0"
+services:
+  web:
+    image: nginx
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          size: 1Gi
+        gpu:
+          units: 1
+          attributes:
+            vendor:
+              ${vendor}:
+                - model: ${model}
+  placement:
+    westcoast:
+      pricing:
+        web:
+          denom: uakt
+          amount: 1000
+deployment:
+  web:
+    westcoast:
+      profile: web
+      count: 1
+`;
+
 const SDL_WITH_VARS = `
 version: "2.0"
 services:
@@ -289,17 +332,47 @@ describe(SdlService.name, () => {
         value: [expect.objectContaining({ message: expect.stringContaining("bad indentation") })]
       });
     });
+
+    it("rejects SDL that requests a blocked GPU model for trialing wallets", () => {
+      const { result } = setup({ sdl: SDL_WITH_GPU("nvidia", "h100"), blockedGpuModels: ["nvidia/h100"], isTrialing: true });
+
+      expect(result).toMatchObject({
+        ok: false,
+        value: [expect.objectContaining({ message: expect.stringContaining("Nvidia H100") })]
+      });
+    });
+
+    it("does not enforce blocked GPU models for non-trialing wallets", () => {
+      const { result } = setup({ sdl: SDL_WITH_GPU("nvidia", "h100"), blockedGpuModels: ["nvidia/h100"], isTrialing: false });
+
+      expect(result.ok).toBe(true);
+    });
+
+    it("allows SDL that requests a non-blocked GPU model", () => {
+      const { result } = setup({ sdl: SDL_WITH_GPU("nvidia", "rtx-4090"), blockedGpuModels: ["nvidia/h100"], isTrialing: true });
+
+      expect(result.ok).toBe(true);
+    });
+
+    it("does not enforce GPU block when the configured set is empty", () => {
+      const { result } = setup({ sdl: SDL_WITH_GPU("nvidia", "h100"), blockedGpuModels: [], isTrialing: true });
+
+      expect(result.ok).toBe(true);
+    });
   });
 
-  function setup(input?: { sdl?: string; allowedAuditors?: string[]; deploymentGrantDenom?: string }) {
+  function setup(input?: { sdl?: string; allowedAuditors?: string[]; deploymentGrantDenom?: string; blockedGpuModels?: string[]; isTrialing?: boolean }) {
     const config = {
-      NETWORK: "sandbox",
       DEPLOYMENT_GRANT_DENOM: input?.deploymentGrantDenom ?? "uakt",
       MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: input?.allowedAuditors ?? []
     } as BillingConfig;
 
-    const service = new SdlService(config);
-    const result = service.generateManifest(input?.sdl ?? VALID_SDL);
+    const blockedGpuConfig = mockConfigService<BillingConfigService>({
+      MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: input?.blockedGpuModels ?? []
+    });
+    const blockedGpuService = new BlockedGpuService(blockedGpuConfig);
+    const service = new SdlService(config, blockedGpuService);
+    const result = service.generateManifest(input?.sdl ?? VALID_SDL, { isTrialing: input?.isTrialing });
 
     return { service, result };
   }

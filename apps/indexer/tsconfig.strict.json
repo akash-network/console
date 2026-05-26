@@ -13,5 +13,13 @@
     "src/db/dbConnection.ts",
     "src/db/keybaseProvider.ts",
     "src/db/priceHistoryProvider.ts",
+    "src/chain/genesisTypes.ts",
+    "src/chain/nodeInfo.ts",
+    "src/chain/dataStore.ts",
+    "src/chain/genesisImporter.ts",
+    "src/chain/nodeAccessor.ts",
+    "src/indexers/bmeIndexer.types.ts",
+    "src/indexers/bmeIndexer.ts",
+    "src/indexers/indexer.ts"
   ]
 }

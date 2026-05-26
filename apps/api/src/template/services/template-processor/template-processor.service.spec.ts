@@ -78,13 +78,26 @@ describe(TemplateProcessorService.name, () => {
       expect(result).toBeNull();
     });
 
-    it("removes images from markdown", () => {
+    it("removes standalone images from markdown", () => {
       const { service } = setup();
       const readme = "![Alt text](image.png)\nThis is the content.";
 
       const result = service.getTemplateSummary(readme);
 
       expect(result).toBe("This is the content.");
+    });
+
+    it("removes linked images (badge pattern) without leaving stray [ characters", () => {
+      const { service } = setup();
+      const readme =
+        "[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)\n" +
+        "[![Build](https://img.shields.io/github/actions/workflow/status/foo/bar/ci.yml)](https://github.com/foo/bar)\n" +
+        "[![Stars](https://img.shields.io/github/stars/foo/bar.svg)](https://github.com/foo/bar/stargazers)\n\n" +
+        "An open-source AI development toolkit.";
+
+      const result = service.getTemplateSummary(readme);
+
+      expect(result).toBe("An open-source AI development toolkit.");
     });
 
     it("removes first header from markdown", () => {

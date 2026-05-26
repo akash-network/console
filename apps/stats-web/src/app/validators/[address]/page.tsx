@@ -20,9 +20,14 @@ const ValidatorDetailPageSchema = z.object({
     network: networkId
   })
 });
-type ValidatorDetailPageProps = z.infer<typeof ValidatorDetailPageSchema>;
+type ParsedValidatorDetailProps = z.infer<typeof ValidatorDetailPageSchema>;
+type ValidatorDetailPageProps = {
+  params: Promise<ParsedValidatorDetailProps["params"]>;
+  searchParams: Promise<ParsedValidatorDetailProps["searchParams"]>;
+};
 
-export async function generateMetadata({ params: { address }, searchParams: { network } }: ValidatorDetailPageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: ValidatorDetailPageProps): Promise<Metadata> {
+  const [{ address }, { network }] = await Promise.all([params, searchParams]);
   const url = `https://stats.akash.network${UrlService.validator(address)}`;
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
   const response = await serverFetch(`${apiUrl}/v1/validators/${address}`);
@@ -52,10 +57,11 @@ async function fetchValidatorData(address: string, network: Network["id"]): Prom
 }
 
 export default async function ValidatorDetailPage(props: ValidatorDetailPageProps) {
+  const [params, searchParams] = await Promise.all([props.params, props.searchParams]);
   const {
     params: { address },
     searchParams: { network }
-  } = ValidatorDetailPageSchema.parse(props);
+  } = ValidatorDetailPageSchema.parse({ params, searchParams });
   const validator = await fetchValidatorData(address, network);
 
   return (

@@ -7,6 +7,7 @@ import { mock } from "vitest-mock-extended";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { AuthService } from "@src/services/auth/auth/auth.service";
 import type { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
+import { RouteStep } from "@src/types/route-steps.type";
 import type { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import { OnboardingContainer, OnboardingStepIndex } from "./OnboardingContainer";
@@ -101,14 +102,18 @@ describe("OnboardingContainer", () => {
   });
 
   it("should redirect to deployment and connect managed wallet when onboarding is completed", async () => {
-    const { child, mockRouter, mockConnectManagedWallet } = setup();
+    const { child, mockRouter, mockUrlService, mockConnectManagedWallet } = setup();
 
     const { onComplete } = child.mock.calls[0][0];
     await act(async () => {
       await onComplete("hello-akash");
     });
 
-    expect(mockRouter.push).toHaveBeenCalled();
+    expect(mockUrlService.newDeployment).toHaveBeenCalledWith({
+      step: RouteStep.createLeases,
+      dseq: "123"
+    });
+    expect(mockRouter.replace).toHaveBeenCalledWith("/deployments/new");
     expect(mockConnectManagedWallet).toHaveBeenCalled();
   });
 
@@ -376,6 +381,8 @@ describe("OnboardingContainer", () => {
       getManifestVersion: vi.fn(),
       appendTrialAttribute: vi.fn(),
       appendAuditorRequirement: vi.fn(sdl => sdl),
+      applyTrialGpuPolicy: vi.fn((sdl: string) => sdl),
+      replaceSdlDenom: vi.fn((sdl: string) => sdl),
       ENDPOINT_NAME_VALIDATION_REGEX: /^[a-z]+[-_\da-z]+$/,
       TRIAL_ATTRIBUTE: "console/trials" as const,
       TRIAL_REGISTERED_ATTRIBUTE: "console/trials-registered" as const,
@@ -405,10 +412,6 @@ describe("OnboardingContainer", () => {
       getDepositDeploymentMsg: vi.fn(),
       getCloseDeploymentMsg: vi.fn(),
       getSendTokensMsg: vi.fn(),
-      getGrantMsg: vi.fn(),
-      getRevokeDepositMsg: vi.fn(),
-      getGrantBasicAllowanceMsg: vi.fn(),
-      getRevokeAllowanceMsg: vi.fn(),
       getUpdateProviderMsg: vi.fn()
     };
 
@@ -428,6 +431,7 @@ describe("OnboardingContainer", () => {
       deploymentData: mockDeploymentData,
       validateDeploymentData: mockValidateDeploymentData,
       appendAuditorRequirement: mockAppendAuditorRequirement,
+      applyTrialGpuPolicy: vi.fn((sdl: string) => sdl),
       replaceSdlDenom: vi.fn((sdl: string, denom: string) => sdl.replace(/uakt/g, denom)),
       helloWorldTemplate: mockHelloWorldTemplate,
       TransactionMessageData: mockTransactionMessageData as unknown as typeof TransactionMessageData,
