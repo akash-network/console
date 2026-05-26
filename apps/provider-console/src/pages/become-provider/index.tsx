@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAtom } from "jotai";
 
+import { CertManagerStep } from "@src/components/become-provider/CertManagerStep";
 import { PortsAndDNS } from "@src/components/become-provider/PortsAndDNS";
 import { ProviderAttributes } from "@src/components/become-provider/ProviderAttributes";
 import { ProviderConfig } from "@src/components/become-provider/ProviderConfig";
@@ -13,11 +14,13 @@ import { Layout } from "@src/components/layout/Layout";
 import { withAuth } from "@src/components/shared/withAuth";
 import { useWallet } from "@src/context/WalletProvider";
 import providerProcessStore from "@src/store/providerProcessStore";
+import { hasRequiredCertManagerSecrets } from "@src/types/certManager";
 import { migrateProviderStorage } from "@src/utils/migrateProviderStorage";
 
 const BecomeProvider: React.FC = () => {
   const [activeStep, setActiveStep] = useState<number>(0);
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
+  const [certManagerSecrets] = useAtom(providerProcessStore.certManagerSecretsAtom);
   const [, resetProviderProcess] = useAtom(providerProcessStore.resetProviderProcess);
   const { address } = useWallet();
   const previousAddressRef = useRef<string | undefined>(undefined);
@@ -29,7 +32,8 @@ const BecomeProvider: React.FC = () => {
       { key: "providerAttribute", component: ProviderAttributes, label: "Provider Attributes", visualStep: 2 },
       { key: "providerPricing", component: ProviderPricing, label: "Pricing", visualStep: 3 },
       { key: "portsAndDNS", component: PortsAndDNS, label: "Ports & DNS", visualStep: 3 },
-      { key: "walletImport", component: WalletImport, label: "Wallet Import", visualStep: 4 }
+      { key: "certManager", component: CertManagerStep, label: "TLS / Cert Manager", visualStep: 4 },
+      { key: "walletImport", component: WalletImport, label: "Wallet Import", visualStep: 5 }
     ],
     []
   );
@@ -47,6 +51,20 @@ const BecomeProvider: React.FC = () => {
     }
     previousAddressRef.current = address;
   }, [address, resetProviderProcess]);
+
+  // Cert-manager credentials live only in memory; if the user reloaded past
+  // the cert-manager step, the persisted `certManager: true` flag lies. Flip
+  // it back so the wizard routes the user to re-enter creds. The effect is
+  // self-stabilizing: once the flag is false the condition short-circuits, so
+  // it never re-flips.
+  useEffect(() => {
+    if (providerProcess.process.certManager && !hasRequiredCertManagerSecrets(providerProcess.certManager, certManagerSecrets)) {
+      setProviderProcess(prev => ({
+        ...prev,
+        process: { ...prev.process, certManager: false }
+      }));
+    }
+  }, [providerProcess.process.certManager, providerProcess.certManager, certManagerSecrets, setProviderProcess]);
 
   useEffect(() => {
     const currentStepIndex = providerSteps.findIndex(step => !providerProcess.process[step.key]);
@@ -72,9 +90,16 @@ const BecomeProvider: React.FC = () => {
     return providerSteps[activeStep].component;
   }, [activeStep, providerSteps]);
 
+  const visualActiveStep = useMemo(() => {
+    if (activeStep >= providerSteps.length) {
+      return providerSteps[providerSteps.length - 1].visualStep + 1;
+    }
+    return providerSteps[activeStep].visualStep;
+  }, [activeStep, providerSteps]);
+
   return (
     <Layout>
-      <CustomizedSteppers activeStep={activeStep} />
+      <CustomizedSteppers activeStep={visualActiveStep} />
       <CurrentStepComponent onComplete={handleStepComplete} />
     </Layout>
   );

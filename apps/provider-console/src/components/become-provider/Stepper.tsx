@@ -12,7 +12,8 @@ const steps: Step[] = [
   { id: 1, name: "2. Provider Config" },
   { id: 2, name: "3. Provider Attributes" },
   { id: 3, name: "4. Provider Pricing" },
-  { id: 4, name: "5. Import Wallet" }
+  { id: 4, name: "5. TLS / Cert Manager" },
+  { id: 5, name: "6. Import Wallet" }
 ];
 
 const StepContent: React.FC<{ step: Step; activeStep: number }> = ({ step, activeStep }) => {

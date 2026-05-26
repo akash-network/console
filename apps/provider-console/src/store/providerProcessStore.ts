@@ -1,6 +1,8 @@
 import { atom, type WritableAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 
+import type { CertManagerFormState, CertManagerSecretsState } from "@src/types/certManager";
+import { EMPTY_CERT_MANAGER_SECRETS, EMPTY_CERT_MANAGER_STATE } from "@src/types/certManager";
 import type { MachineInformation } from "@src/types/machineAccess";
 import { createWalletScopedStorage } from "@src/utils/walletScopedStorage";
 
@@ -10,6 +12,7 @@ interface ProviderSteps {
   providerAttribute: boolean;
   providerPricing: boolean;
   portsAndDNS: boolean;
+  certManager: boolean;
   walletImport: boolean;
 }
 
@@ -41,6 +44,7 @@ interface ProviderProcess {
   config: ProviderConfig;
   pricing: ProviderPricing;
   attributes: ProviderAttribute[];
+  certManager: CertManagerFormState;
   actionId: string | null;
 }
 
@@ -61,6 +65,7 @@ const providerProcessAtom: WritableAtom<ProviderProcess, [ProviderProcess | ((pr
         providerAttribute: false,
         providerPricing: false,
         portsAndDNS: false,
+        certManager: false,
         walletImport: false
       },
       pricing: {
@@ -73,12 +78,19 @@ const providerProcessAtom: WritableAtom<ProviderProcess, [ProviderProcess | ((pr
         endpointBidPrice: 0.5
       },
       attributes: [],
+      certManager: EMPTY_CERT_MANAGER_STATE,
       actionId: null
     },
     createWalletScopedStorage<ProviderProcess>("providerProcess")
   ) as WritableAtom<ProviderProcess, [ProviderProcess | ((prev: ProviderProcess) => ProviderProcess)], void>;
 
+// Holds cert-manager credentials (Cloudflare API token, GCP service account JSON).
+// Intentionally a plain in-memory atom — never persisted, so secrets do not
+// outlive the JS context. Cleared on wallet change via resetProviderProcess.
+const certManagerSecretsAtom = atom<CertManagerSecretsState>(EMPTY_CERT_MANAGER_SECRETS);
+
 const resetProviderProcess = atom(null, (get, set) => {
+  set(certManagerSecretsAtom, EMPTY_CERT_MANAGER_SECRETS);
   set(providerProcessAtom, {
     machines: [],
     storeInformation: false,
@@ -93,6 +105,7 @@ const resetProviderProcess = atom(null, (get, set) => {
       providerAttribute: false,
       providerPricing: false,
       portsAndDNS: false,
+      certManager: false,
       walletImport: false
     },
     pricing: {
@@ -105,12 +118,14 @@ const resetProviderProcess = atom(null, (get, set) => {
       endpointBidPrice: 0.5
     },
     attributes: [],
+    certManager: EMPTY_CERT_MANAGER_STATE,
     actionId: null
   });
 });
 
 const providerProcessStore = {
   providerProcessAtom,
+  certManagerSecretsAtom,
   resetProviderProcess
 };
 

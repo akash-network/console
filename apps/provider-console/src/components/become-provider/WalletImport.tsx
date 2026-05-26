@@ -23,7 +23,9 @@ import { z } from "zod";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import providerProcessStore from "@src/store/providerProcessStore";
+import { buildCertManagerPayload, EMPTY_CERT_MANAGER_SECRETS, EMPTY_CERT_MANAGER_STATE } from "@src/types/certManager";
 import type { ControlMachineWithAddress } from "@src/types/controlMachine";
+import { parseApiError } from "@src/utils/apiErrors";
 import { processKeyfile } from "@src/utils/nodeVerification";
 import restClient from "@src/utils/restClient";
 import { ResetProviderForm } from "./ResetProviderProcess";
@@ -79,6 +81,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
   const router = useRouter();
 
   const [providerProcess] = useAtom(providerProcessStore.providerProcessAtom);
+  const [certManagerSecrets] = useAtom(providerProcessStore.certManagerSecretsAtom);
   const [, resetProviderProcess] = useAtom(providerProcessStore.resetProviderProcess);
   const { setControlMachine } = useControlMachine();
   const { address } = useWallet();
@@ -125,7 +128,8 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
       attributes: providerProcess.attributes,
       pricing: providerProcess.pricing,
       config: providerProcess.config
-    }
+    },
+    cert_manager: buildCertManagerPayload(providerProcess.certManager ?? EMPTY_CERT_MANAGER_STATE, certManagerSecrets ?? EMPTY_CERT_MANAGER_SECRETS)
   });
 
   const submitForm = async (data: SeedFormValues | null = null) => {
@@ -174,22 +178,8 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
       }
     } catch (error) {
       console.error("Error during wallet verification:", error);
-
-      // Check if the error has the specific WAL_007 error code or any other API error
-      if (error && typeof error === "object" && "response" in error) {
-        const axiosError = error as { response?: { data?: { detail?: { status?: string; error?: { message?: string; error_code?: string } } } } };
-        const errorDetail = axiosError.response?.data?.detail?.error;
-
-        if (errorDetail?.error_code === "WAL_007" && errorDetail?.message) {
-          setError(errorDetail.message);
-        } else if (errorDetail?.message) {
-          setError(errorDetail.message);
-        } else {
-          setError("An error occurred while processing your request. Please try again.");
-        }
-      } else {
-        setError("An error occurred while processing your request. Please try again.");
-      }
+      const parsed = parseApiError(error);
+      setError(parsed.rootError || parsed.message);
     } finally {
       setIsLoading(false);
       onComplete();

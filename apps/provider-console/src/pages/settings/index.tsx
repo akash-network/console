@@ -7,6 +7,7 @@ import { useRouter } from "next/router";
 import { z } from "zod";
 
 import { Layout } from "@src/components/layout/Layout";
+import { MigrateGatewayApiDialog } from "@src/components/settings/MigrateGatewayApiDialog";
 import { ControlMachineError } from "@src/components/shared/ControlMachineError";
 import { Title } from "@src/components/shared/Title";
 import { withAuth } from "@src/components/shared/withAuth";
@@ -61,6 +62,7 @@ const SettingsPage: React.FC = () => {
   const [isUninstallModalOpen, setIsUninstallModalOpen] = useState(false);
   const [isUninstalling, setIsUninstalling] = useState(false);
   const [uninstallError, setUninstallError] = useState<string | null>(null);
+  const [isMigrateDialogOpen, setIsMigrateDialogOpen] = useState(false);
 
   const { providerDetails } = useProvider();
   const { activeControlMachine } = useControlMachine();
@@ -471,7 +473,25 @@ const SettingsPage: React.FC = () => {
                 </div>
               </div>
 
-              {upgradeStatus.provider.needsUpgrade ? (
+              {upgradeStatus.provider.appVersion.current.replace(/^v/, "") === "0.11.2" &&
+              upgradeStatus.provider.appVersion.desired.replace(/^v/, "").startsWith("0.12.") ? (
+                <>
+                  <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                    <div className="flex items-start">
+                      <WarningTriangle className="mr-2 mt-0.5 h-5 w-5 text-amber-500" />
+                      <div>
+                        <p className="font-medium text-amber-800">
+                          {upgradeStatus.provider.appVersion.desired.replace(/^v/, "")} introduces Gateway API and cert-manager. A one-time in-place migration
+                          is required — it runs 14 sequential steps and the wildcard certificate may take up to ~10 minutes to issue.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <Button onClick={() => setIsMigrateDialogOpen(true)} className="mt-2" disabled={isDisabled}>
+                    Migrate to Gateway API
+                  </Button>
+                </>
+              ) : upgradeStatus.provider.needsUpgrade ? (
                 <>
                   <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                     <div className="flex items-start">
@@ -644,6 +664,12 @@ const SettingsPage: React.FC = () => {
           )}
         </div>
       </Popup>
+
+      <MigrateGatewayApiDialog
+        open={isMigrateDialogOpen}
+        onClose={() => setIsMigrateDialogOpen(false)}
+        defaultDomain={stripProviderPrefixAndPort(providerDetails?.hostUri ?? "") || ""}
+      />
     </Layout>
   );
 };

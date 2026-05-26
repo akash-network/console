@@ -1,7 +1,8 @@
 import { type ToasterToast, useToast } from "@akashnetwork/ui/hooks";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 
+import type { CertManagerPayload } from "@src/types/certManager";
 import type { ControlMachineWithAddress } from "@src/types/controlMachine";
 import type { DeploymentDetail, ProviderDeployments } from "@src/types/deployment";
 import type { ActionList, ActionStatus, PersistentStorageResponse, ProviderDashoard, ProviderDetails, ProviderOnChainStatus } from "@src/types/provider";
@@ -10,6 +11,17 @@ import consoleClient from "@src/utils/consoleClient";
 import { findTotalAmountSpentOnLeases, totalDeploymentCost, totalDeploymentTimeLeft } from "@src/utils/deploymentUtils";
 import restClient from "@src/utils/restClient";
 import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
+
+export interface MigrateGatewayApiRequest {
+  control_machine: ReturnType<typeof sanitizeMachineAccess>;
+  cert_manager: CertManagerPayload;
+  domain: string;
+}
+
+export interface MigrateGatewayApiResponse {
+  message: string;
+  action_id: string;
+}
 
 type ToastParameters = Omit<ToasterToast, "id">;
 
@@ -240,6 +252,15 @@ export const usePersistentStorage = (activeControlMachine: ControlMachineWithAdd
     },
     enabled: !!activeControlMachine,
     retry: 3
+  });
+};
+
+export const useMigrateProviderToGatewayApi = () => {
+  return useMutation<MigrateGatewayApiResponse, AxiosError, MigrateGatewayApiRequest>({
+    mutationFn: async body => {
+      const response: MigrateGatewayApiResponse = await restClient.post("/provider/migrate-gateway-api", body);
+      return response;
+    }
   });
 };
 
