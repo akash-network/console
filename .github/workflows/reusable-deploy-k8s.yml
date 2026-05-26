@@ -215,16 +215,20 @@ jobs:
           version: "latest"
 
       - name: Deploy with Helm
-        run: |
+        env:
+          DEPLOYMENT_ENV: ${{ inputs.environment == 'prod' && 'production' || 'staging' }}
+        run: | # shell
           echo "$KUBECONFIG" > kubeconfig
 
           release_name="${{ inputs.app }}"
 
           values_file_path=".helm/${{ inputs.app }}-${{ inputs.environment }}"
 
+          extra_values_arg=""
           if [ -n "${{ inputs.chain }}" ] && [ "${{ inputs.chain }}" != "NA" ]; then
             release_name="${release_name}-${{ inputs.chain }}"
             values_file_path="${values_file_path}-${{ inputs.chain }}"
+            extra_values_arg="--set chain=${{ inputs.chain }}"
           fi
 
           echo "release_name=$release_name" >> "$GITHUB_ENV"
@@ -239,9 +243,9 @@ jobs:
 
           helm repo add akash https://akash-network.github.io/helm-charts
 
-          echo "executing: helm upgrade $release_name $chart_name --install --atomic -n ${{ inputs.environment }} --set appVersion=${{ inputs.appVersion }} --debug --kubeconfig kubeconfig $values_file_arg"
+          echo "executing: helm upgrade $release_name $chart_name --install --atomic -n ${{ inputs.environment }} --set appVersion=${{ inputs.appVersion }} --set deploymentEnv=$DEPLOYMENT_ENV --debug --kubeconfig kubeconfig $values_file_arg $extra_values_arg"
           # shellcheck disable=SC2086
-          helm upgrade "$release_name" "$chart_name" --install --atomic -n "${{ inputs.environment }}" --set "appVersion=${{ inputs.appVersion }}" --debug --kubeconfig kubeconfig $values_file_arg
+          helm upgrade "$release_name" "$chart_name" --install --atomic -n "${{ inputs.environment }}" --set "appVersion=${{ inputs.appVersion }}" --set "deploymentEnv=$DEPLOYMENT_ENV" --debug --kubeconfig kubeconfig $values_file_arg $extra_values_arg
 
       - name: Force rollout (restart pods even if spec unchanged)
         if: success() && inputs.force-rollout

@@ -4,15 +4,18 @@ run-name: "Deploy ${{ inputs.app }}@${{ inputs.image_tag }}"
 # Unified deploy workflow. Per-app variation lives entirely in APP_CONFIGS below;
 # every *-release.yml becomes a thin wrapper that calls this with `app: <name>`.
 #
-# APP_CONFIGS keys (all optional, defaults shown):
-#   chains:       ["NA"]   # chains to deploy/test. "NA" = chain-independent (no -<chain> suffix)
-#   skip_staging: false    # skip beta deploys entirely (indexer)
-#   auto_approve: false    # gate prod with the working-hours / associated-PR check
-#   test_envs:    []       # envs to e2e-test, as "<env>/<chain>" or just "<env>" for NA.
-#                          # e.g. [beta/sandbox, prod/sandbox] or [beta] for chain-independent apps
+# APP_CONFIGS shape — keyed by app, then by env (`prod` and/or `staging`):
+#   <app>:
+#     prod:                    # omit to skip prod (not typical)
+#       chains: [...]          # default ["NA"] (chain-independent, no -<chain> suffix)
+#       test:   [...] | true   # chains to e2e-test, or `true` = all chains in this env. default: none
+#       auto_approve: false    # gate prod with the working-hours / associated-PR check
+#     staging:                 # omit to skip staging entirely (e.g. indexer)
+#       chains: [...]          # default ["NA"]
+#       test:   [...] | true   # default: none
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       app:
         description: "Application name (e.g., console-api, tx-signer)"
@@ -38,22 +41,43 @@ permissions:
 env:
   APP_CONFIGS: | # yaml
     console-api:
-      chains: [mainnet, sandbox]
-      test_envs: [beta/sandbox]
+      prod:
+        chains: [mainnet, sandbox]
+      staging:
+        chains: [mainnet, sandbox]
+        test: [sandbox]
     console-web:
-      auto_approve: true
-      test_envs: [beta]
-    stats-web: {}
+      prod:
+        auto_approve: true
+      staging:
+        test: true
+    stats-web:
+      prod: {}
+      staging: {}
     indexer:
-      chains: [mainnet, sandbox]
-      skip_staging: true
+      prod:
+        chains: [mainnet, sandbox]
     notifications:
-      auto_approve: true
+      prod:
+        auto_approve: true
+      staging: {}
     provider-proxy:
-      chains: [mainnet, sandbox]
-      test_envs: [beta/mainnet, beta/sandbox, prod/sandbox]
+      prod:
+        chains: [mainnet, sandbox]
+        test: [mainnet, sandbox]
+      staging:
+        chains: [mainnet, sandbox]
+        test: [mainnet, sandbox]
     tx-signer:
-      chains: [mainnet, sandbox]
+      prod:
+        chains: [mainnet, sandbox]
+      staging:
+        chains: [mainnet, sandbox]
+    provider-inventory:
+      prod:
+        chains: [mainnet]
+      staging:
+        chains: [sandbox]
 
 jobs:
   setup:
@@ -64,7 +88,8 @@ jobs:
     outputs:
       image_tag: ${{ steps.extract.outputs.image_tag }}
       skip: ${{ steps.stale-guard.outputs.skip }}
-      chains: ${{ steps.cfg.outputs.chains }}
+      beta_chains: ${{ steps.cfg.outputs.beta_chains }}
+      prod_chains: ${{ steps.cfg.outputs.prod_chains }}
       skip_staging: ${{ steps.cfg.outputs.skip_staging }}
       auto_approve: ${{ steps.cfg.outputs.auto_approve }}
       beta_tests: ${{ steps.cfg.outputs.beta_tests }}
@@ -78,13 +103,37 @@ jobs:
             echo "❌ Unknown app: $APP" >&2
             exit 1
           }
-          test_envs=$(yq -o=json -I=0 '.test_envs // []' <<< "$cfg")
+
+          # Resolve chains for an env, defaulting to ["NA"] when the env exists but omits `chains`.
+          # Resolve tests: list of chains, or `true` = mirror the env's chains, or absent/false = none.
+          resolve() {
+            local env="$1"
+            local env_cfg
+            env_cfg=$(yq ".$env // null" <<< "$cfg")
+            if [[ "$env_cfg" == "null" ]]; then
+              echo "[]|[]"
+              return
+            fi
+            local chains test
+            chains=$(yq -o=json -I=0 '.chains // ["NA"]' <<< "$env_cfg")
+            test=$(yq -o=json -I=0 '.test // false' <<< "$env_cfg")
+            case "$test" in
+              false) test="[]" ;;
+              true)  test="$chains" ;;
+            esac
+            echo "$chains|$test"
+          }
+
+          IFS='|' read -r prod_chains prod_tests < <(resolve prod)
+          IFS='|' read -r beta_chains beta_tests < <(resolve staging)
+
           {
-            echo "chains=$(yq -o=json -I=0 '.chains // ["NA"]' <<< "$cfg")"
-            echo "skip_staging=$(yq '.skip_staging // false' <<< "$cfg")"
-            echo "auto_approve=$(yq '.auto_approve // false' <<< "$cfg")"
-            echo "beta_tests=$(yq -o=json -I=0 '[.[] | split("/") | select(.[0] == "beta") | (.[1] // "NA")]' <<< "$test_envs")"
-            echo "prod_tests=$(yq -o=json -I=0 '[.[] | split("/") | select(.[0] == "prod") | (.[1] // "NA")]' <<< "$test_envs")"
+            echo "prod_chains=$prod_chains"
+            echo "beta_chains=$beta_chains"
+            echo "prod_tests=$prod_tests"
+            echo "beta_tests=$beta_tests"
+            echo "skip_staging=$([[ "$beta_chains" == "[]" ]] && echo true || echo false)"
+            echo "auto_approve=$(yq '.prod.auto_approve // false' <<< "$cfg")"
           } >> "$GITHUB_OUTPUT"
 
       - name: Extract and Validate Image Tag
@@ -125,7 +174,7 @@ jobs:
 
       - name: Concurrency guard against old versions
         id: stale-guard
-        if: ${{ steps.extract.outputs.image_tag != '' && inputs.cancel-if-stale }}
+        if: ${{ steps.extract.outputs.image_tag != '' && inputs.cancel-if-stale == 'true' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           VERSION: ${{ steps.extract.outputs.image_tag }}
@@ -193,7 +242,7 @@ jobs:
       cancel-in-progress: false
     strategy:
       matrix:
-        chain: ${{ fromJson(needs.setup.outputs.chains) }}
+        chain: ${{ fromJson(needs.setup.outputs.beta_chains) }}
       fail-fast: false
     permissions:
       contents: read
@@ -257,7 +306,7 @@ jobs:
       cancel-in-progress: false
     strategy:
       matrix:
-        chain: ${{ fromJson(needs.setup.outputs.chains) }}
+        chain: ${{ fromJson(needs.setup.outputs.prod_chains) }}
       fail-fast: false
     permissions:
       contents: read
