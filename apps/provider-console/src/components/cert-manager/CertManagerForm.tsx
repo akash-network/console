@@ -47,6 +47,11 @@ interface CertManagerFormValues {
   clouddns: { project: string; service_account_json: string };
 }
 
+const decodeBase64 = (value: string): string => {
+  if (typeof atob === "function") return atob(value);
+  return Buffer.from(value, "base64").toString("utf-8");
+};
+
 const isValidServiceAccountJson = (value: string): boolean => {
   const trimmed = value.trim();
   if (!trimmed) return false;
@@ -58,7 +63,13 @@ const isValidServiceAccountJson = (value: string): boolean => {
       return false;
     }
   }
-  return /^[A-Za-z0-9+/=\s]+$/.test(trimmed);
+  if (!/^[A-Za-z0-9+/=\s]+$/.test(trimmed)) return false;
+  try {
+    JSON.parse(decodeBase64(trimmed.replace(/\s+/g, "")));
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 const buildSchema = (acmeEmailMode: "required" | "optional") => {

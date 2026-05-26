@@ -23,7 +23,7 @@ import { z } from "zod";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import providerProcessStore from "@src/store/providerProcessStore";
-import { buildCertManagerPayload, EMPTY_CERT_MANAGER_STATE } from "@src/types/certManager";
+import { buildCertManagerPayload, EMPTY_CERT_MANAGER_SECRETS, EMPTY_CERT_MANAGER_STATE } from "@src/types/certManager";
 import type { ControlMachineWithAddress } from "@src/types/controlMachine";
 import { parseApiError } from "@src/utils/apiErrors";
 import { processKeyfile } from "@src/utils/nodeVerification";
@@ -81,6 +81,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
   const router = useRouter();
 
   const [providerProcess] = useAtom(providerProcessStore.providerProcessAtom);
+  const [certManagerSecrets] = useAtom(providerProcessStore.certManagerSecretsAtom);
   const [, resetProviderProcess] = useAtom(providerProcessStore.resetProviderProcess);
   const { setControlMachine } = useControlMachine();
   const { address } = useWallet();
@@ -128,7 +129,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
       pricing: providerProcess.pricing,
       config: providerProcess.config
     },
-    cert_manager: buildCertManagerPayload(providerProcess.certManager ?? EMPTY_CERT_MANAGER_STATE)
+    cert_manager: buildCertManagerPayload(providerProcess.certManager ?? EMPTY_CERT_MANAGER_STATE, certManagerSecrets ?? EMPTY_CERT_MANAGER_SECRETS)
   });
 
   const submitForm = async (data: SeedFormValues | null = null) => {

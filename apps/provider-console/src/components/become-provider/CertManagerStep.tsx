@@ -6,7 +6,7 @@ import { useAtom } from "jotai";
 import { CertManagerForm } from "@src/components/cert-manager/CertManagerForm";
 import providerProcessStore from "@src/store/providerProcessStore";
 import type { CertManagerPayload } from "@src/types/certManager";
-import { EMPTY_CERT_MANAGER_STATE } from "@src/types/certManager";
+import { EMPTY_CERT_MANAGER_SECRETS, EMPTY_CERT_MANAGER_STATE } from "@src/types/certManager";
 import { ResetProviderForm } from "./ResetProviderProcess";
 
 interface CertManagerStepProps {
@@ -15,18 +15,22 @@ interface CertManagerStepProps {
 
 export const CertManagerStep: React.FC<CertManagerStepProps> = ({ onComplete }) => {
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
+  const [, setCertManagerSecrets] = useAtom(providerProcessStore.certManagerSecretsAtom);
   const existing = providerProcess?.certManager ?? EMPTY_CERT_MANAGER_STATE;
   const providerEmail = providerProcess?.config?.email ?? "";
   const providerDomain = providerProcess?.config?.domain ?? "";
 
   const handleSubmit = (payload: CertManagerPayload) => {
+    setCertManagerSecrets({
+      cloudflare: payload.dns_provider === "cloudflare" ? payload.cloudflare : EMPTY_CERT_MANAGER_SECRETS.cloudflare,
+      clouddns: payload.dns_provider === "clouddns" ? { service_account_json: payload.clouddns.service_account_json } : EMPTY_CERT_MANAGER_SECRETS.clouddns
+    });
     setProviderProcess(prev => ({
       ...prev,
       certManager: {
         acme_email: payload.acme_email ?? "",
         dns_provider: payload.dns_provider,
-        cloudflare: payload.dns_provider === "cloudflare" ? payload.cloudflare : EMPTY_CERT_MANAGER_STATE.cloudflare,
-        clouddns: payload.dns_provider === "clouddns" ? payload.clouddns : EMPTY_CERT_MANAGER_STATE.clouddns
+        clouddns: payload.dns_provider === "clouddns" ? { project: payload.clouddns.project } : EMPTY_CERT_MANAGER_STATE.clouddns
       },
       process: {
         ...prev.process,

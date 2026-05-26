@@ -473,7 +473,8 @@ const SettingsPage: React.FC = () => {
                 </div>
               </div>
 
-              {upgradeStatus.provider.appVersion.current === "0.11.2" && upgradeStatus.provider.appVersion.desired.replace(/^v/, "").startsWith("0.12.") ? (
+              {upgradeStatus.provider.appVersion.current.replace(/^v/, "") === "0.11.2" &&
+              upgradeStatus.provider.appVersion.desired.replace(/^v/, "").startsWith("0.12.") ? (
                 <>
                   <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                     <div className="flex items-start">

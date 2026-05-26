@@ -1,8 +1,8 @@
 import { atom, type WritableAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 
-import type { CertManagerFormState } from "@src/types/certManager";
-import { EMPTY_CERT_MANAGER_STATE } from "@src/types/certManager";
+import type { CertManagerFormState, CertManagerSecretsState } from "@src/types/certManager";
+import { EMPTY_CERT_MANAGER_SECRETS, EMPTY_CERT_MANAGER_STATE } from "@src/types/certManager";
 import type { MachineInformation } from "@src/types/machineAccess";
 import { createWalletScopedStorage } from "@src/utils/walletScopedStorage";
 
@@ -84,7 +84,13 @@ const providerProcessAtom: WritableAtom<ProviderProcess, [ProviderProcess | ((pr
     createWalletScopedStorage<ProviderProcess>("providerProcess")
   ) as WritableAtom<ProviderProcess, [ProviderProcess | ((prev: ProviderProcess) => ProviderProcess)], void>;
 
+// Holds cert-manager credentials (Cloudflare API token, GCP service account JSON).
+// Intentionally a plain in-memory atom — never persisted, so secrets do not
+// outlive the JS context. Cleared on wallet change via resetProviderProcess.
+const certManagerSecretsAtom = atom<CertManagerSecretsState>(EMPTY_CERT_MANAGER_SECRETS);
+
 const resetProviderProcess = atom(null, (get, set) => {
+  set(certManagerSecretsAtom, EMPTY_CERT_MANAGER_SECRETS);
   set(providerProcessAtom, {
     machines: [],
     storeInformation: false,
@@ -119,6 +125,7 @@ const resetProviderProcess = atom(null, (get, set) => {
 
 const providerProcessStore = {
   providerProcessAtom,
+  certManagerSecretsAtom,
   resetProviderProcess
 };
 

@@ -3,7 +3,7 @@ import "@testing-library/jest-dom";
 import React from "react";
 import { atom, createStore, Provider } from "jotai";
 
-import { EMPTY_CERT_MANAGER_STATE } from "@src/types/certManager";
+import { EMPTY_CERT_MANAGER_SECRETS, EMPTY_CERT_MANAGER_STATE } from "@src/types/certManager";
 
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -29,22 +29,23 @@ const defaultInitial: ProviderProcessShape = {
 
 jest.mock("@src/store/providerProcessStore", () => {
   const { atom: jotaiAtom } = jest.requireActual("jotai");
-  const initial = {
+  const providerProcessAtom = jotaiAtom({
     config: { domain: "provider.example.com", organization: "Acme", email: "" },
     process: { certManager: false },
     certManager: {
       acme_email: "",
-      use_staging: false,
       dns_provider: "",
-      cloudflare: { api_token: "" },
-      clouddns: { project: "", service_account_json: "" }
+      clouddns: { project: "" }
     }
-  };
-  const providerProcessAtom = jotaiAtom(initial);
+  });
+  const certManagerSecretsAtom = jotaiAtom({
+    cloudflare: { api_token: "" },
+    clouddns: { service_account_json: "" }
+  });
   const resetProviderProcess = jotaiAtom(null, () => undefined);
   return {
     __esModule: true,
-    default: { providerProcessAtom, resetProviderProcess }
+    default: { providerProcessAtom, certManagerSecretsAtom, resetProviderProcess }
   };
 });
 
@@ -57,7 +58,7 @@ import providerProcessStore from "@src/store/providerProcessStore";
 import { CertManagerStep } from "./CertManagerStep";
 
 describe("CertManagerStep", () => {
-  it("persists Cloudflare values to the atom and pre-fills acme_email from provider config", async () => {
+  it("persists Cloudflare values to the secrets atom and pre-fills acme_email from provider config", async () => {
     const user = userEvent.setup();
     const onComplete = jest.fn();
     const { store } = setup({
@@ -73,14 +74,17 @@ describe("CertManagerStep", () => {
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
 
-    const state = store.get(providerProcessStore.providerProcessAtom);
-    expect(state.process.certManager).toBe(true);
-    expect(state.certManager.dns_provider).toBe("cloudflare");
-    expect(state.certManager.cloudflare.api_token).toBe("cf-token-1");
-    expect(state.certManager.acme_email).toBe("ops@example.com");
+    const persisted = store.get(providerProcessStore.providerProcessAtom);
+    const secrets = store.get(providerProcessStore.certManagerSecretsAtom);
+    expect(persisted.process.certManager).toBe(true);
+    expect(persisted.certManager.dns_provider).toBe("cloudflare");
+    expect(persisted.certManager.acme_email).toBe("ops@example.com");
+    // Secrets must live only in the in-memory atom, not in the persisted slice.
+    expect(persisted.certManager).not.toHaveProperty("cloudflare");
+    expect(secrets.cloudflare.api_token).toBe("cf-token-1");
   });
 
-  it("persists CloudDNS submissions and clears the unused Cloudflare slice", async () => {
+  it("splits CloudDNS submission so project persists but the service account JSON does not", async () => {
     const user = userEvent.setup();
     const onComplete = jest.fn();
     const { store } = setup({ onComplete });
@@ -94,16 +98,19 @@ describe("CertManagerStep", () => {
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
 
-    const state = store.get(providerProcessStore.providerProcessAtom);
-    expect(state.certManager.dns_provider).toBe("clouddns");
-    expect(state.certManager.clouddns).toEqual({ project: "my-gcp-project", service_account_json: json });
-    expect(state.certManager.cloudflare).toEqual({ api_token: "" });
+    const persisted = store.get(providerProcessStore.providerProcessAtom);
+    const secrets = store.get(providerProcessStore.certManagerSecretsAtom);
+    expect(persisted.certManager.dns_provider).toBe("clouddns");
+    expect(persisted.certManager.clouddns).toEqual({ project: "my-gcp-project" });
+    expect(secrets.clouddns.service_account_json).toBe(json);
+    expect(secrets.cloudflare).toEqual(EMPTY_CERT_MANAGER_SECRETS.cloudflare);
   });
 
   function setup(input: { onComplete?: () => void; initial?: ProviderProcessShape }) {
     const store = createStore();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     store.set(providerProcessStore.providerProcessAtom, (input.initial ?? defaultInitial) as any);
+    store.set(providerProcessStore.certManagerSecretsAtom, EMPTY_CERT_MANAGER_SECRETS);
     render(
       <Provider store={store}>
         <CertManagerStep onComplete={input.onComplete ?? jest.fn()} />

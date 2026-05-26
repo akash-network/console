@@ -92,6 +92,41 @@ describe("CertManagerForm", () => {
     expect(screen.getByText("Must be valid JSON or base64-encoded JSON")).toBeInTheDocument();
   });
 
+  it("rejects base64-shaped input that does not decode to JSON", async () => {
+    const user = userEvent.setup();
+    const onSubmit = jest.fn();
+    setup({ onSubmit });
+
+    await user.click(screen.getByLabelText("Google CloudDNS"));
+    await user.type(screen.getByLabelText("GCP project ID"), "demo");
+    await user.click(screen.getByLabelText("Service account JSON"));
+    // "hello world" base64-encoded — decodes successfully but is not JSON.
+    await user.paste("aGVsbG8gd29ybGQ=");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText("Must be valid JSON or base64-encoded JSON")).toBeInTheDocument();
+  });
+
+  it("accepts a base64-encoded JSON service account key", async () => {
+    const user = userEvent.setup();
+    const onSubmit = jest.fn();
+    setup({ onSubmit });
+
+    const base64 = Buffer.from(VALID_GCP_JSON, "utf-8").toString("base64");
+    await user.click(screen.getByLabelText("Google CloudDNS"));
+    await user.type(screen.getByLabelText("GCP project ID"), "demo");
+    await user.click(screen.getByLabelText("Service account JSON"));
+    await user.paste(base64);
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({
+      dns_provider: "clouddns",
+      clouddns: { project: "demo", service_account_json: base64 }
+    });
+  });
+
   it("requires acme_email when acmeEmailMode is 'required'", async () => {
     const user = userEvent.setup();
     const onSubmit = jest.fn();

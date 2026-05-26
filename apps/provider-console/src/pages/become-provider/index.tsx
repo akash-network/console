@@ -14,14 +14,17 @@ import { Layout } from "@src/components/layout/Layout";
 import { withAuth } from "@src/components/shared/withAuth";
 import { useWallet } from "@src/context/WalletProvider";
 import providerProcessStore from "@src/store/providerProcessStore";
+import { hasRequiredCertManagerSecrets } from "@src/types/certManager";
 import { migrateProviderStorage } from "@src/utils/migrateProviderStorage";
 
 const BecomeProvider: React.FC = () => {
   const [activeStep, setActiveStep] = useState<number>(0);
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
+  const [certManagerSecrets] = useAtom(providerProcessStore.certManagerSecretsAtom);
   const [, resetProviderProcess] = useAtom(providerProcessStore.resetProviderProcess);
   const { address } = useWallet();
   const previousAddressRef = useRef<string | undefined>(undefined);
+  const certManagerSecretsRehydratedRef = useRef(false);
 
   const providerSteps = useMemo(
     () => [
@@ -49,6 +52,20 @@ const BecomeProvider: React.FC = () => {
     }
     previousAddressRef.current = address;
   }, [address, resetProviderProcess]);
+
+  // After rehydration, cert-manager credentials live only in memory; if the
+  // user reloaded past the cert-manager step, the persisted `certManager: true`
+  // flag lies. Flip it back so the wizard routes the user to re-enter creds.
+  useEffect(() => {
+    if (certManagerSecretsRehydratedRef.current) return;
+    certManagerSecretsRehydratedRef.current = true;
+    if (providerProcess.process.certManager && !hasRequiredCertManagerSecrets(providerProcess.certManager, certManagerSecrets)) {
+      setProviderProcess(prev => ({
+        ...prev,
+        process: { ...prev.process, certManager: false }
+      }));
+    }
+  }, [providerProcess.process.certManager, providerProcess.certManager, certManagerSecrets, setProviderProcess]);
 
   useEffect(() => {
     const currentStepIndex = providerSteps.findIndex(step => !providerProcess.process[step.key]);
