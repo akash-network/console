@@ -1,4 +1,3 @@
-import type { CertificatesService } from "@akashnetwork/http-sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { describe, expect, it, vi } from "vitest";
@@ -273,11 +272,11 @@ describe("useLeaseQuery", () => {
       });
     });
 
-    it("returns null when local cert is not provided", async () => {
+    it("returns null when JWT is not usable", async () => {
       const { result } = setupLeaseStatus({
         lease: mockLease,
         providerCredentials: {
-          type: "mtls",
+          type: "jwt",
           value: null,
           isExpired: false,
           usable: false
@@ -319,7 +318,7 @@ describe("useLeaseQuery", () => {
       });
     });
 
-    it("fetches lease status when certificate is provided", async () => {
+    it("fetches lease status when a JWT is available", async () => {
       const provider = buildProvider();
       const providerProxy = mock<ProviderProxyService>({
         request: vi.fn().mockResolvedValue({ data: mockLeaseStatus })
@@ -328,11 +327,8 @@ describe("useLeaseQuery", () => {
         provider,
         lease: mockLease,
         providerCredentials: {
-          type: "mtls",
-          value: {
-            cert: "certPem",
-            key: "keyPem"
-          },
+          type: "jwt",
+          value: "jwt-token",
           isExpired: false,
           usable: true
         },
@@ -365,21 +361,17 @@ describe("useLeaseQuery", () => {
         ...USE_LEASE_STATUS_DEPENDENCIES,
         useProviderCredentials: () => ({
           details: input?.providerCredentials ?? {
-            type: "mtls",
-            value: {
-              cert: "certPem",
-              key: "keyPem"
-            },
+            type: "jwt",
+            value: "jwt-token",
             isExpired: false,
             usable: true
           },
-          generate: vi.fn(async () => {})
+          ensureToken: vi.fn().mockResolvedValue("jwt-token")
         })
       };
       return setupQuery(() => useLeaseStatus({ provider: input?.provider || buildProvider(), lease: input?.lease, dependencies }), {
         services: {
           providerProxy: () => mock<ProviderProxyService>(),
-          certificatesService: () => mock<CertificatesService>(),
           ...input?.services
         }
       });

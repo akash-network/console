@@ -18,7 +18,6 @@ import { LOG_COLLECTOR_IMAGE } from "@src/config/log-collector.config";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useCertificate } from "@src/hooks/useCertificate/useCertificate";
 import { useImportSimpleSdl } from "@src/hooks/useImportSimpleSdl";
 import { useWhen } from "@src/hooks/useWhen";
 import { useDepositParams } from "@src/queries/useSaveSettings";
@@ -74,7 +73,6 @@ export const DEPENDENCIES = {
   useServices,
   useSettings,
   useWallet,
-  useCertificate,
   useSdlBuilder,
   useImportSimpleSdl,
   useDepositParams,
@@ -116,7 +114,6 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const { settings } = d.useSettings();
   const { address, signAndBroadcastTx, isManaged, isTrialing } = d.useWallet();
   const router = d.useRouter();
-  const { updateSelectedCertificate, genNewCertificateIfLocalIsInvalid } = d.useCertificate();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const muiTheme = d.useMuiTheme();
   const smallScreen = d.useMediaQuery(muiTheme.breakpoints.down("md"));
@@ -260,26 +257,14 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
         }
       }
 
-      const [dd, newCert] = await Promise.all([createAndValidateDeploymentData(sdl, null, deposit), genNewCertificateIfLocalIsInvalid()]);
+      const dd = await createAndValidateDeploymentData(sdl, null, deposit);
 
       if (!dd) return;
 
-      const messages: EncodeObject[] = [];
-
-      // Create a cert if the user doesn't have one
-      if (newCert) {
-        messages.push(TransactionMessageData.getCreateCertificateMsg(address, newCert.cert, newCert.publicKey));
-      }
-
-      messages.push(TransactionMessageData.getCreateDeploymentMsg(dd));
+      const messages: EncodeObject[] = [TransactionMessageData.getCreateDeploymentMsg(dd)];
       const response = await signAndBroadcastTx(messages);
 
       if (response) {
-        // Set the new cert in storage
-        if (newCert) {
-          await updateSelectedCertificate(newCert);
-        }
-
         setDeploySdl(null);
 
         deploymentLocalStorage.update(address, dd.deploymentId.dseq, {

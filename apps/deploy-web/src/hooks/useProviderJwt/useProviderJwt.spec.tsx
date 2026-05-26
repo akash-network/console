@@ -123,7 +123,7 @@ describe(useProviderJwt.name, () => {
     expect(atob(signature)).toBe("signature");
   });
 
-  it("does not generate token when wallet is not connected", async () => {
+  it("throws when generating a token while wallet is not connected", async () => {
     const consoleApiHttpClient = mock<HttpClient>({
       post: vi.fn()
     } as unknown as HttpClient);
@@ -137,8 +137,7 @@ describe(useProviderJwt.name, () => {
       }
     });
 
-    await result.current.generateToken();
-
+    await expect(result.current.generateToken()).rejects.toThrow(/wallet is not connected/i);
     expect(consoleApiHttpClient.post).not.toHaveBeenCalled();
   });
 

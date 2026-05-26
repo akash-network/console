@@ -1,11 +1,9 @@
-import { MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
-import type { CertificatePem } from "@akashnetwork/chain-sdk/web";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AppDIContainer } from "@src/context/ServicesProvider";
-import type { ContextType as CertificateContextType, LocalCert } from "@src/hooks/useCertificate/useCertificate";
+import type { UseProviderCredentialsResult } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { mapToBidDto } from "@src/queries/useBidQuery";
 import type { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import type { LocalDeploymentData } from "@src/services/deployment-storage/deployment-storage.service";
@@ -27,24 +25,7 @@ import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 describe(CreateLease.name, () => {
   it("displays bids and a button to create a lease", async () => {
     const BidGroup = vi.fn(ComponentMock);
-    const bids = [
-      buildRpcBid({
-        bid: {
-          id: {
-            gseq: 1
-          },
-          state: "open"
-        }
-      }),
-      buildRpcBid({
-        bid: {
-          id: {
-            gseq: 1
-          },
-          state: "open"
-        }
-      })
-    ];
+    const bids = [buildRpcBid({ bid: { id: { gseq: 1 }, state: "open" } }), buildRpcBid({ bid: { id: { gseq: 1 }, state: "open" } })];
     const { getByRole } = setup({
       BidGroup,
       bids
@@ -64,24 +45,7 @@ describe(CreateLease.name, () => {
 
   it("groups bids by gseq", async () => {
     const BidGroup = vi.fn(ComponentMock);
-    const bids = [
-      buildRpcBid({
-        bid: {
-          id: {
-            gseq: 1
-          },
-          state: "open"
-        }
-      }),
-      buildRpcBid({
-        bid: {
-          id: {
-            gseq: 2
-          },
-          state: "open"
-        }
-      })
-    ];
+    const bids = [buildRpcBid({ bid: { id: { gseq: 1 }, state: "open" } }), buildRpcBid({ bid: { id: { gseq: 2 }, state: "open" } })];
     const { getByRole } = setup({
       BidGroup,
       bids
@@ -107,24 +71,7 @@ describe(CreateLease.name, () => {
   });
 
   it("displays 'Close Deployment' button if all bids are closed", async () => {
-    const bids = [
-      buildRpcBid({
-        bid: {
-          id: {
-            gseq: 1
-          },
-          state: "closed"
-        }
-      }),
-      buildRpcBid({
-        bid: {
-          id: {
-            gseq: 1
-          },
-          state: "closed"
-        }
-      })
-    ];
+    const bids = [buildRpcBid({ bid: { id: { gseq: 1 }, state: "closed" } }), buildRpcBid({ bid: { id: { gseq: 1 }, state: "closed" } })];
     const { getByRole, queryByRole } = setup({
       bids
     });
@@ -152,24 +99,7 @@ describe(CreateLease.name, () => {
 
   it("disables Accept Bid button when blockchain is unavailable", async () => {
     const BidGroup = vi.fn(ComponentMock);
-    const bids = [
-      buildRpcBid({
-        bid: {
-          id: {
-            gseq: 1
-          },
-          state: "open"
-        }
-      }),
-      buildRpcBid({
-        bid: {
-          id: {
-            gseq: 1
-          },
-          state: "open"
-        }
-      })
-    ];
+    const bids = [buildRpcBid({ bid: { id: { gseq: 1 }, state: "open" } }), buildRpcBid({ bid: { id: { gseq: 1 }, state: "open" } })];
     setup({
       BidGroup,
       bids,
@@ -182,17 +112,13 @@ describe(CreateLease.name, () => {
   });
 
   describe("lease creation", () => {
-    it("creates lease on chain and submits manifest to provider", async () => {
+    it("creates lease on chain and submits manifest to provider with a JWT", async () => {
       const signAndBroadcastTx = vi.fn().mockResolvedValue({ code: 0 });
       const sendManifest = vi.fn();
-      const localCert: CertificateContextType["localCert"] = {
-        certPem: "certPem",
-        keyPem: "keyPem",
-        address: "akash123"
-      };
+      const ensureToken = vi.fn().mockResolvedValue("jwt-token");
       const dseq = "123";
       const selectedProvider = buildProvider();
-      await setupLeaseCreation({ signAndBroadcastTx, sendManifest, localCert, dseq, selectedProvider });
+      await setupLeaseCreation({ signAndBroadcastTx, sendManifest, ensureToken, dseq, selectedProvider });
 
       await vi.waitFor(() => {
         expect(screen.getByRole<HTMLButtonElement>("button", { name: /Accept Bid/i })).not.toBeDisabled();
@@ -205,92 +131,23 @@ describe(CreateLease.name, () => {
             typeUrl: `/${MsgCreateLease.$type}`
           })
         ]);
+        expect(ensureToken).toHaveBeenCalled();
         expect(sendManifest).toHaveBeenCalledWith(selectedProvider, expect.any(Array), {
           dseq,
           credentials: {
-            type: "mtls",
-            value: {
-              cert: localCert.certPem,
-              key: localCert.keyPem
-            }
+            type: "jwt",
+            value: "jwt-token"
           }
         });
       });
     });
 
-    it("creates new certificate on lease creation if there is no local certificate or it is expired", async () => {
+    it("sends manifest with refreshed JWT when 'Re-send Manifest' is clicked", async () => {
       const signAndBroadcastTx = vi.fn().mockResolvedValue({ code: 0 });
       const sendManifest = vi.fn();
+      const ensureToken = vi.fn().mockResolvedValue("refreshed-token");
       const dseq = "123";
       const selectedProvider = buildProvider();
-      const newPemCert: CertificatePem = {
-        cert: "certPem",
-        publicKey: "publicKey",
-        privateKey: "privateKey"
-      };
-      const genNewCertificateIfLocalIsInvalid = vi.fn().mockResolvedValue(newPemCert);
-      const localCert = {
-        certPem: newPemCert.cert,
-        keyPem: newPemCert.privateKey,
-        address: "akash123"
-      };
-      const updateSelectedCertificate = vi.fn().mockResolvedValue(localCert);
-      await setupLeaseCreation({
-        genNewCertificateIfLocalIsInvalid,
-        updateSelectedCertificate,
-        signAndBroadcastTx,
-        sendManifest,
-        localCert: null,
-        dseq,
-        selectedProvider
-      });
-
-      await vi.waitFor(() => {
-        expect(screen.getByRole<HTMLButtonElement>("button", { name: /Accept Bid/i })).not.toBeDisabled();
-      });
-
-      await userEvent.click(screen.getByRole<HTMLButtonElement>("button", { name: /Accept Bid/i }));
-      await vi.waitFor(() => {
-        expect(signAndBroadcastTx).toHaveBeenCalledWith(
-          expect.arrayContaining([
-            expect.objectContaining({
-              typeUrl: `/${MsgCreateCertificate.$type}`
-            }),
-            expect.objectContaining({
-              typeUrl: `/${MsgCreateLease.$type}`
-            })
-          ])
-        );
-        expect(sendManifest).toHaveBeenCalledWith(selectedProvider, expect.any(Array), {
-          dseq,
-          credentials: {
-            type: "mtls",
-            value: {
-              cert: localCert.certPem,
-              key: localCert.keyPem
-            }
-          }
-        });
-      });
-    });
-
-    it("creates certificate when 'Re-send Manifest' is clicked and certificate is expired", async () => {
-      const signAndBroadcastTx = vi.fn().mockResolvedValue({ code: 0 });
-      const sendManifest = vi.fn();
-      const dseq = "123";
-      const selectedProvider = buildProvider();
-      const newPemCert: CertificatePem = {
-        cert: "certPem",
-        publicKey: "publicKey",
-        privateKey: "privateKey"
-      };
-      const genNewCertificateIfLocalIsInvalid = vi.fn().mockResolvedValue(newPemCert);
-      const localCert = {
-        certPem: newPemCert.cert,
-        keyPem: newPemCert.privateKey,
-        address: "akash123"
-      };
-      const updateSelectedCertificate = vi.fn().mockResolvedValue(localCert);
       const bids = [
         buildRpcBid({
           bid: {
@@ -304,8 +161,7 @@ describe(CreateLease.name, () => {
       ];
       await setupLeaseCreation({
         bids,
-        genNewCertificateIfLocalIsInvalid,
-        updateSelectedCertificate,
+        ensureToken,
         signAndBroadcastTx,
         sendManifest,
         dseq,
@@ -318,19 +174,12 @@ describe(CreateLease.name, () => {
 
       await userEvent.click(screen.getByRole<HTMLButtonElement>("button", { name: /Re-send Manifest/i }));
       await vi.waitFor(() => {
-        expect(signAndBroadcastTx).toHaveBeenCalledWith([
-          expect.objectContaining({
-            typeUrl: `/${MsgCreateCertificate.$type}`
-          })
-        ]);
+        expect(ensureToken).toHaveBeenCalled();
         expect(sendManifest).toHaveBeenCalledWith(selectedProvider, expect.any(Array), {
           dseq,
           credentials: {
-            type: "mtls",
-            value: {
-              cert: localCert.certPem,
-              key: localCert.keyPem
-            }
+            type: "jwt",
+            value: "refreshed-token"
           }
         });
       });
@@ -425,44 +274,25 @@ describe(CreateLease.name, () => {
       bids?: RpcBid[];
       signAndBroadcastTx?: () => Promise<void>;
       sendManifest?: () => Promise<any>;
-      localCert?: CertificateContextType["localCert"];
+      ensureToken?: () => Promise<string>;
       dseq?: string;
       selectedProvider?: ApiProviderDetail;
-      genNewCertificateIfLocalIsInvalid?: () => Promise<CertificatePem | null>;
-      updateSelectedCertificate?: (cert: CertificatePem) => Promise<LocalCert>;
       deploymentDetail?: Partial<DeploymentDto> | null;
       analyticsService?: AppDIContainer["analyticsService"];
     }) {
       const providers = [input?.selectedProvider ?? buildProvider(), buildProvider(), buildProvider()];
       const bids = input?.bids ?? [
-        buildRpcBid({
-          bid: {
-            id: {
-              gseq: 1,
-              provider: providers[0].owner
-            },
-            state: "open"
-          }
-        }),
-        buildRpcBid({
-          bid: {
-            id: {
-              gseq: 1,
-              provider: providers[1].owner
-            },
-            state: "open"
-          }
-        })
+        buildRpcBid({ bid: { id: { gseq: 1, provider: providers[0].owner }, state: "open" } }),
+        buildRpcBid({ bid: { id: { gseq: 1, provider: providers[1].owner }, state: "open" } })
       ];
       const BidGroup = vi.fn(ComponentMock);
-      const walletAddress = input?.localCert?.address ?? "akash123";
+      const walletAddress = "akash123";
 
       setup({
         ...input,
         bids,
         BidGroup,
         walletAddress,
-        localCert: input?.localCert,
         providers,
         storedDeployment: {
           manifest: helloWorldManifest,
@@ -494,11 +324,9 @@ describe(CreateLease.name, () => {
     bids?: RpcBid[];
     walletAddress?: string;
     signAndBroadcastTx?: () => Promise<void>;
-    localCert?: CertificateContextType["localCert"];
     sendManifest?: () => Promise<any>;
+    ensureToken?: () => Promise<string>;
     providers?: ApiProviderDetail[];
-    genNewCertificateIfLocalIsInvalid?: () => Promise<CertificatePem | null>;
-    updateSelectedCertificate?: (cert: CertificatePem) => Promise<LocalCert>;
     isTrialWallet?: boolean;
     getBlock?: () => Promise<BlockDetail>;
     isBlockchainDown?: boolean;
@@ -591,19 +419,16 @@ describe(CreateLease.name, () => {
               isTrialing: input?.isTrialWallet ?? false,
               signAndBroadcastTx: input?.signAndBroadcastTx ?? (() => Promise.resolve({}))
             })) as unknown as (typeof CREATE_LEASE_DEPENDENCIES)["useWallet"],
-            useCertificate: () =>
-              mock<CertificateContextType>({
-                localCert: input?.localCert ?? null,
-                genNewCertificateIfLocalIsInvalid: input?.genNewCertificateIfLocalIsInvalid ?? (() => Promise.resolve(null)),
-                updateSelectedCertificate:
-                  input?.updateSelectedCertificate ??
-                  (cert =>
-                    Promise.resolve({
-                      certPem: cert.cert,
-                      keyPem: cert.privateKey,
-                      address: input?.walletAddress ?? "akash123"
-                    } as LocalCert))
-              }) as unknown as CertificateContextType,
+            useProviderCredentials: () =>
+              mock<UseProviderCredentialsResult>({
+                details: {
+                  type: "jwt",
+                  value: "jwt-token",
+                  isExpired: false,
+                  usable: true
+                },
+                ensureToken: input?.ensureToken ?? (() => Promise.resolve("jwt-token"))
+              }),
             useLocalNotes,
             useDeploymentDetail: (() =>
               mock<ReturnType<typeof useDeploymentDetail>>({

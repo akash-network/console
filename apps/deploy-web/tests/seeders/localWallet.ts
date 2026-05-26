@@ -14,8 +14,6 @@ export const buildManagedLocalWallet = (overrides: Partial<ManagedLocalWallet> =
   isManaged: true,
   creditAmount: faker.number.int({ min: 0, max: 1000 }),
   isTrialing: faker.datatype.boolean(),
-  cert: faker.string.alphanumeric(64),
-  certKey: faker.string.alphanumeric(64),
   ...overrides
 });
 
@@ -24,7 +22,5 @@ export const buildCustodialLocalWallet = (overrides: Partial<CustodialLocalWalle
   address: genWalletAddress(),
   selected: faker.datatype.boolean(),
   isManaged: false,
-  cert: faker.string.alphanumeric(64),
-  certKey: faker.string.alphanumeric(64),
   ...overrides
 });

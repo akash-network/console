@@ -15,7 +15,6 @@ import type { ReceivedShellMessage } from "@src/services/provider-proxy/provider
 import type { LeaseDto } from "@src/types/deployment";
 import { LeaseShellCode } from "@src/types/shell";
 import { forEachGeneratedItem } from "@src/utils/array";
-import { CreateCredentialsButton } from "./CreateCredentialsButton/CreateCredentialsButton";
 import { LeaseSelect } from "./LeaseSelect";
 import { ServiceSelect } from "./ServiceSelect";
 import { ShellDownloadModal } from "./ShellDownloadModal";
@@ -231,7 +230,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
         <ShellDownloadModal onCloseClick={onCloseDownloadClick} selectedLease={selectedLease} providerInfo={providerInfo} selectedService={selectedService} />
       )}
 
-      {providerCredentials.details.usable ? (
+      {providerCredentials.details.usable && (
         <>
           {selectedLease && (
             <>
@@ -286,8 +285,6 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
             </>
           )}
         </>
-      ) : (
-        <CreateCredentialsButton containerClassName="py-4" />
       )}
     </div>
   );

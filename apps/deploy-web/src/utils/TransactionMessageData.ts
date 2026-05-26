@@ -1,5 +1,4 @@
-import { MsgAccountDeposit, Scope, Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import { MsgCreateCertificate, MsgMintACT, MsgRevokeCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { MsgAccountDeposit, MsgMintACT, Scope, Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgUpdateProvider } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
@@ -8,29 +7,6 @@ import { MsgSend } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import type { BidDto, NewDeploymentData } from "@src/types/deployment";
 
 export class TransactionMessageData {
-  static getRevokeCertificateMsg(address: string, serial: string) {
-    return {
-      typeUrl: `/${MsgRevokeCertificate.$type}`,
-      value: MsgRevokeCertificate.fromPartial({
-        id: {
-          owner: address,
-          serial
-        }
-      })
-    };
-  }
-
-  static getCreateCertificateMsg(address: string, crtpem: string, pubpem: string) {
-    return {
-      typeUrl: `/${MsgCreateCertificate.$type}`,
-      value: MsgCreateCertificate.fromPartial({
-        owner: address,
-        cert: Buffer.from(crtpem),
-        pubkey: Buffer.from(pubpem)
-      })
-    };
-  }
-
   static getCreateLeaseMsg(bid: BidDto) {
     return {
       typeUrl: `/${MsgCreateLease.$type}`,

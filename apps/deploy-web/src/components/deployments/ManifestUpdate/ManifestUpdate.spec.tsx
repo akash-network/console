@@ -107,18 +107,19 @@ describe(ManifestUpdate.name, () => {
     expect(updateButton?.[0].disabled).toBe(true);
   });
 
-  it("shows CreateCredentialsButton when credentials are not usable", () => {
-    const CreateCredentialsButtonMock = vi.fn(ComponentMock);
+  it("disables update button when credentials are not usable", () => {
+    const ButtonMock = vi.fn(ComponentMock);
     setup({
       providerCredentials: {
         details: { usable: false, isExpired: true, type: "jwt" as const, value: null }
       },
       dependencies: {
-        CreateCredentialsButton: CreateCredentialsButtonMock
+        Button: ButtonMock
       }
     });
 
-    expect(CreateCredentialsButtonMock).toHaveBeenCalled();
+    const updateButton = ButtonMock.mock.calls.find(call => call[0].children === "Update Deployment");
+    expect(updateButton?.[0].disabled).toBe(true);
   });
 
   it("renders SDLEditor when not remote deploy", () => {
@@ -309,7 +310,7 @@ describe(ManifestUpdate.name, () => {
     onManifestChange?: (value: string) => void;
     providers?: Array<Partial<{ owner: string; hostUri: string }>>;
     wallet?: Partial<{ address: string; signAndBroadcastTx: ReturnType<typeof vi.fn>; isManaged: boolean }>;
-    providerCredentials?: Partial<{ details: { usable: boolean; isExpired: boolean; type: "jwt" | "mtls"; value: string | null } }>;
+    providerCredentials?: Partial<{ details: { usable: boolean; isExpired: boolean; type: "jwt"; value: string | null } }>;
     deploymentLocalStorage?: Partial<{ get: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> }>;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
@@ -352,7 +353,7 @@ describe(ManifestUpdate.name, () => {
         type: "jwt" as const,
         value: "test-token"
       },
-      generate: vi.fn()
+      ensureToken: vi.fn().mockResolvedValue("test-token")
     });
 
     const useSnackbar: typeof DEPENDENCIES.useSnackbar = () => ({

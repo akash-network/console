@@ -1,13 +1,11 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { useSettings } from "@src/context/SettingsProvider";
-import { useCertificate } from "@src/hooks/useCertificate/useCertificate";
+import { useWallet } from "@src/context/WalletProvider";
 import type { ProviderCredentials } from "@src/services/provider-proxy/provider-proxy.service";
 import { useProviderJwt } from "../useProviderJwt/useProviderJwt";
 
 export const DEPENDENCIES = {
-  useSettings,
-  useCertificate,
+  useWallet,
   useProviderJwt
 };
 
@@ -16,7 +14,7 @@ export type UseProviderCredentialsResult = {
     isExpired: boolean;
     usable: boolean;
   };
-  generate: () => Promise<void>;
+  ensureToken: () => Promise<string>;
 };
 
 export type UseProviderCredentialsDependencies = {
@@ -24,43 +22,47 @@ export type UseProviderCredentialsDependencies = {
 };
 
 export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UseProviderCredentialsDependencies = {}): UseProviderCredentialsResult {
-  const { settings } = d.useSettings();
-  const { createCertificate, isLocalCertExpired, isLocalCertMatching, localCert } = d.useCertificate();
+  const { isWalletConnected } = d.useWallet();
   const { accessToken, generateToken, isTokenExpired } = d.useProviderJwt();
 
-  const generate = useCallback(() => {
-    return settings.isBlockchainDown ? generateToken() : createCertificate();
-  }, [settings.isBlockchainDown, createCertificate, generateToken]);
-  const isUsable = settings.isBlockchainDown
-    ? !!accessToken && !isTokenExpired
-    : !!localCert?.certPem && !!localCert?.keyPem && !isLocalCertExpired && isLocalCertMatching;
-  const credentials = useMemo(() => {
-    return settings.isBlockchainDown
-      ? ({
-          type: "jwt",
-          value: accessToken,
-          isExpired: isTokenExpired,
-          usable: isUsable
-        } as const)
-      : ({
-          type: "mtls",
-          value:
-            localCert?.certPem && localCert?.keyPem
-              ? {
-                  cert: localCert.certPem,
-                  key: localCert.keyPem
-                }
-              : null,
-          isExpired: isLocalCertExpired,
-          usable: isUsable
-        } as const);
-  }, [settings.isBlockchainDown, isUsable]);
+  const isUsable = !!accessToken && !isTokenExpired;
+
+  const inFlightRef = useRef<Promise<string> | null>(null);
+
+  const ensureToken = useCallback(async (): Promise<string> => {
+    if (accessToken && !isTokenExpired) return accessToken;
+    if (inFlightRef.current) return inFlightRef.current;
+
+    const promise = generateToken().finally(() => {
+      inFlightRef.current = null;
+    });
+    inFlightRef.current = promise;
+    return promise;
+  }, [accessToken, isTokenExpired, generateToken]);
+
+  useEffect(() => {
+    if (!isWalletConnected || isUsable || inFlightRef.current) return;
+    ensureToken().catch(() => {
+      // Auto-refresh failures are surfaced by downstream provider calls
+    });
+  }, [isWalletConnected, isUsable, ensureToken]);
+
+  const credentials = useMemo(
+    () =>
+      ({
+        type: "jwt",
+        value: accessToken,
+        isExpired: isTokenExpired,
+        usable: isUsable
+      }) as const,
+    [accessToken, isTokenExpired, isUsable]
+  );
 
   return useMemo(
     () => ({
       details: credentials,
-      generate
+      ensureToken
     }),
-    [credentials, generate]
+    [credentials, ensureToken]
   );
 }
