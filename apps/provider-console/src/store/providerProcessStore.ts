@@ -1,6 +1,8 @@
 import { atom, type WritableAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 
+import type { CertManagerFormState } from "@src/types/certManager";
+import { EMPTY_CERT_MANAGER_STATE } from "@src/types/certManager";
 import type { MachineInformation } from "@src/types/machineAccess";
 import { createWalletScopedStorage } from "@src/utils/walletScopedStorage";
 
@@ -10,6 +12,7 @@ interface ProviderSteps {
   providerAttribute: boolean;
   providerPricing: boolean;
   portsAndDNS: boolean;
+  certManager: boolean;
   walletImport: boolean;
 }
 
@@ -41,6 +44,7 @@ interface ProviderProcess {
   config: ProviderConfig;
   pricing: ProviderPricing;
   attributes: ProviderAttribute[];
+  certManager: CertManagerFormState;
   actionId: string | null;
 }
 
@@ -61,6 +65,7 @@ const providerProcessAtom: WritableAtom<ProviderProcess, [ProviderProcess | ((pr
         providerAttribute: false,
         providerPricing: false,
         portsAndDNS: false,
+        certManager: false,
         walletImport: false
       },
       pricing: {
@@ -73,6 +78,7 @@ const providerProcessAtom: WritableAtom<ProviderProcess, [ProviderProcess | ((pr
         endpointBidPrice: 0.5
       },
       attributes: [],
+      certManager: EMPTY_CERT_MANAGER_STATE,
       actionId: null
     },
     createWalletScopedStorage<ProviderProcess>("providerProcess")
@@ -93,6 +99,7 @@ const resetProviderProcess = atom(null, (get, set) => {
       providerAttribute: false,
       providerPricing: false,
       portsAndDNS: false,
+      certManager: false,
       walletImport: false
     },
     pricing: {
@@ -105,6 +112,7 @@ const resetProviderProcess = atom(null, (get, set) => {
       endpointBidPrice: 0.5
     },
     attributes: [],
+    certManager: EMPTY_CERT_MANAGER_STATE,
     actionId: null
   });
 });

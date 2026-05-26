@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAtom } from "jotai";
 
+import { CertManagerStep } from "@src/components/become-provider/CertManagerStep";
 import { PortsAndDNS } from "@src/components/become-provider/PortsAndDNS";
 import { ProviderAttributes } from "@src/components/become-provider/ProviderAttributes";
 import { ProviderConfig } from "@src/components/become-provider/ProviderConfig";
@@ -29,7 +30,8 @@ const BecomeProvider: React.FC = () => {
       { key: "providerAttribute", component: ProviderAttributes, label: "Provider Attributes", visualStep: 2 },
       { key: "providerPricing", component: ProviderPricing, label: "Pricing", visualStep: 3 },
       { key: "portsAndDNS", component: PortsAndDNS, label: "Ports & DNS", visualStep: 3 },
-      { key: "walletImport", component: WalletImport, label: "Wallet Import", visualStep: 4 }
+      { key: "certManager", component: CertManagerStep, label: "TLS / Cert Manager", visualStep: 4 },
+      { key: "walletImport", component: WalletImport, label: "Wallet Import", visualStep: 5 }
     ],
     []
   );
@@ -72,9 +74,16 @@ const BecomeProvider: React.FC = () => {
     return providerSteps[activeStep].component;
   }, [activeStep, providerSteps]);
 
+  const visualActiveStep = useMemo(() => {
+    if (activeStep >= providerSteps.length) {
+      return providerSteps[providerSteps.length - 1].visualStep + 1;
+    }
+    return providerSteps[activeStep].visualStep;
+  }, [activeStep, providerSteps]);
+
   return (
     <Layout>
-      <CustomizedSteppers activeStep={activeStep} />
+      <CustomizedSteppers activeStep={visualActiveStep} />
       <CurrentStepComponent onComplete={handleStepComplete} />
     </Layout>
   );
