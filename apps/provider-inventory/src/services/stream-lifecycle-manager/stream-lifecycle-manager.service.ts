@@ -118,7 +118,9 @@ export class StreamLifecycleManagerService {
     const attemptController = new AbortController();
     const forwardAbort = () => attemptController.abort();
     outerSignal.addEventListener("abort", forwardAbort, { once: true });
-
+    if (outerSignal.aborted) {
+      forwardAbort();
+    }
     let firstMessageReceived = false;
     const firstMessageTimeoutId = setTimeout(() => {
       attemptController.abort();
