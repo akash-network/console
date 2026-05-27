@@ -1,4 +1,5 @@
 import { Registry } from "@cosmjs/proto-signing";
+import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
@@ -7,17 +8,134 @@ import { AuthService } from "@src/auth/services/auth.service";
 import { TrialStarted } from "@src/billing/events/trial-started";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-token/provider-jwt-token.service";
+import type { UserOutput } from "@src/user/repositories";
+import { UserRepository } from "@src/user/repositories";
 import { UserWalletRepository } from "../../repositories/user-wallet/user-wallet.repository";
 import { ManagedSignerService } from "../managed-signer/managed-signer.service";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
+import { StripeService } from "../stripe/stripe.service";
+import { StripeErrorService } from "../stripe-error/stripe-error.service";
 import { WalletInitializerService } from "./wallet-initializer.service";
 
 import { createChainWallet } from "@test/seeders/chain-wallet.seeder";
+import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(WalletInitializerService.name, () => {
+  describe("startTrial", () => {
+    it("throws 400 when email is not verified", async () => {
+      const user = createUser({ emailVerified: false });
+      const di = setup({ user });
+
+      await expect(di.resolve(WalletInitializerService).startTrial(user.id)).rejects.toThrow(/email not verified/i);
+    });
+
+    it("throws 400 when stripeCustomerId is missing", async () => {
+      const user = createUser({ emailVerified: true, stripeCustomerId: null as unknown as string });
+      const di = setup({ user });
+
+      await expect(di.resolve(WalletInitializerService).startTrial(user.id)).rejects.toThrow(/stripe customer id not found/i);
+    });
+
+    it("throws 400 on duplicate fingerprint in production", async () => {
+      const user = createUser({ emailVerified: true, stripeCustomerId: faker.string.uuid(), lastFingerprint: "fp" });
+      const di = setup({ user, isProduction: true, hasDuplicateFingerprint: true });
+
+      await expect(di.resolve(WalletInitializerService).startTrial(user.id)).rejects.toThrow(/Unable to start trial/i);
+    });
+
+    describe("when console_onboarding_redesign is OFF", () => {
+      it("throws 400 when the user has no payment method", async () => {
+        const user = createUser({ emailVerified: true, stripeCustomerId: faker.string.uuid() });
+        const di = setup({ user, hasPaymentMethods: false });
+
+        await expect(di.resolve(WalletInitializerService).startTrial(user.id)).rejects.toThrow(/payment method/i);
+      });
+
+      it("throws 400 on duplicate trial account in production", async () => {
+        const user = createUser({ emailVerified: true, stripeCustomerId: faker.string.uuid() });
+        const di = setup({ user, hasPaymentMethods: true, hasDuplicateTrialAccount: true, isProduction: true });
+
+        await expect(di.resolve(WalletInitializerService).startTrial(user.id)).rejects.toThrow(/already associated with another trial account/i);
+      });
+
+      it("returns a 3DS-required payload when Stripe says so", async () => {
+        const user = createUser({ emailVerified: true, stripeCustomerId: faker.string.uuid() });
+        const di = setup({ user, hasPaymentMethods: true, requires3DS: true });
+
+        const result = await di.resolve(WalletInitializerService).startTrial(user.id);
+        expect(result).toMatchObject({ requires3DS: true, clientSecret: "cs", paymentIntentId: "pi", paymentMethodId: "pm" });
+      });
+
+      it("calls initializeAndGrantTrialLimits on the happy path", async () => {
+        const user = createUser({ emailVerified: true, stripeCustomerId: faker.string.uuid() });
+        const newWallet = createUserWallet({ userId: user.id });
+        const di = setup({
+          user,
+          hasPaymentMethods: true,
+          getOrCreateWallet: jest.fn().mockResolvedValue({ wallet: newWallet, isNew: true }),
+          updateWalletById: jest.fn().mockResolvedValue(newWallet)
+        });
+        const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
+        managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(createChainWallet());
+
+        await di.resolve(WalletInitializerService).startTrial(user.id);
+
+        expect(managedUserWalletService.createAndAuthorizeTrialSpending).toHaveBeenCalled();
+        expect(di.resolve(StripeService).validatePaymentMethodForTrial).toHaveBeenCalled();
+      });
+    });
+
+    describe("when console_onboarding_redesign is ON", () => {
+      it("skips payment-method validation and goes straight to wallet init", async () => {
+        const user = createUser({ emailVerified: true, stripeCustomerId: faker.string.uuid() });
+        const newWallet = createUserWallet({ userId: user.id });
+        const di = setup({
+          user,
+          consoleOnboardingRedesign: true,
+          hasPaymentMethods: false,
+          getOrCreateWallet: jest.fn().mockResolvedValue({ wallet: newWallet, isNew: true }),
+          updateWalletById: jest.fn().mockResolvedValue(newWallet)
+        });
+        const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
+        managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(createChainWallet());
+
+        await di.resolve(WalletInitializerService).startTrial(user.id);
+
+        expect(di.resolve(StripeService).getPaymentMethods).not.toHaveBeenCalled();
+        expect(di.resolve(StripeService).validatePaymentMethodForTrial).not.toHaveBeenCalled();
+        expect(managedUserWalletService.createAndAuthorizeTrialSpending).toHaveBeenCalled();
+      });
+
+      it("still enforces the fingerprint anti-abuse check", async () => {
+        const user = createUser({ emailVerified: true, stripeCustomerId: faker.string.uuid(), lastFingerprint: "fp" });
+        const di = setup({ user, consoleOnboardingRedesign: true, isProduction: true, hasDuplicateFingerprint: true });
+
+        await expect(di.resolve(WalletInitializerService).startTrial(user.id)).rejects.toThrow(/Unable to start trial/i);
+      });
+
+      it("does not require a stripeCustomerId", async () => {
+        const user = createUser({ emailVerified: true, stripeCustomerId: null as unknown as string });
+        const newWallet = createUserWallet({ userId: user.id });
+        const di = setup({
+          user,
+          consoleOnboardingRedesign: true,
+          getOrCreateWallet: jest.fn().mockResolvedValue({ wallet: newWallet, isNew: true }),
+          updateWalletById: jest.fn().mockResolvedValue(newWallet)
+        });
+        const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
+        managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(createChainWallet());
+
+        await expect(di.resolve(WalletInitializerService).startTrial(user.id)).resolves.toBeDefined();
+        expect(managedUserWalletService.createAndAuthorizeTrialSpending).toHaveBeenCalled();
+      });
+    });
+  });
+
   describe("initializeAndGrantTrialLimits", () => {
     it("creates a new wallet and authorizes trial spending when no wallet exists", async () => {
       const userId = "test-user-id";
@@ -109,6 +227,13 @@ describe(WalletInitializerService.name, () => {
     updateWalletById?: UserWalletRepository["updateById"];
     deleteWalletById?: UserWalletRepository["deleteById"];
     userId?: string;
+    user?: UserOutput;
+    isProduction?: boolean;
+    hasPaymentMethods?: boolean;
+    hasDuplicateTrialAccount?: boolean;
+    hasDuplicateFingerprint?: boolean;
+    requires3DS?: boolean;
+    consoleOnboardingRedesign?: boolean;
   }) {
     const di = container.createChildContainer();
     di.registerInstance(TYPE_REGISTRY, new Registry());
@@ -132,7 +257,7 @@ describe(WalletInitializerService.name, () => {
       AuthService,
       mock<AuthService>({
         ability: {},
-        currentUser: createUser({ id: input?.userId })
+        currentUser: input?.user ?? createUser({ id: input?.userId })
       })
     );
     di.registerInstance(DomainEventsService, mock<DomainEventsService>());
@@ -143,6 +268,41 @@ describe(WalletInitializerService.name, () => {
       })
     );
     di.registerInstance(ManagedSignerService, mock<ManagedSignerService>());
+
+    di.registerInstance(
+      FeatureFlagsService,
+      mock<FeatureFlagsService>({
+        isEnabled: jest.fn(flag => {
+          if (flag === FeatureFlags.CONSOLE_ONBOARDING_REDESIGN) return input?.consoleOnboardingRedesign ?? false;
+          return true;
+        })
+      })
+    );
+    di.registerInstance(
+      StripeService,
+      mock<StripeService>({
+        isProduction: input?.isProduction ?? false,
+        getPaymentMethods: jest.fn(async () => {
+          if (!input?.hasPaymentMethods) return [];
+          return [{ ...generatePaymentMethod(), validated: true, isDefault: false }];
+        }),
+        hasDuplicateTrialAccount: jest.fn().mockResolvedValue(input?.hasDuplicateTrialAccount ?? false),
+        validatePaymentMethodForTrial: jest
+          .fn()
+          .mockResolvedValue(
+            input?.requires3DS
+              ? { success: false, requires3DS: true, clientSecret: "cs", paymentIntentId: "pi", paymentMethodId: "pm" }
+              : { success: true, requires3DS: false }
+          )
+      })
+    );
+    di.registerInstance(StripeErrorService, mock<StripeErrorService>({ isKnownError: jest.fn().mockReturnValue(false) }));
+    di.registerInstance(
+      UserRepository,
+      mock<UserRepository>({
+        findTrialUsersByFingerprint: jest.fn().mockResolvedValue(input?.hasDuplicateFingerprint ? [{ id: faker.string.uuid() }] : [])
+      })
+    );
 
     container.clearInstances();
 

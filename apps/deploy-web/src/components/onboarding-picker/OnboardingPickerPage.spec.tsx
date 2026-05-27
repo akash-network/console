@@ -1,5 +1,9 @@
+import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import type { EnqueueSnackbar, ProviderContext } from "notistack";
 import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
+import type { EnsureTrialStartedResult } from "@src/hooks/useEnsureTrialStarted";
 import { DEPENDENCIES, OnboardingPickerPage } from "./OnboardingPickerPage";
 
 import { act, render, screen } from "@testing-library/react";
@@ -57,6 +61,19 @@ describe(OnboardingPickerPage.name, () => {
     expect(await screen.findByRole("heading", { name: "Let's deploy your first app" })).toBeInTheDocument();
   });
 
+  it("renders an error alert when trial start fails terminally", () => {
+    const useEnsureTrialStarted: () => EnsureTrialStartedResult = () => ({ isWalletReady: false, isLoading: false, error: new Error("boom") });
+    setup({ dependencies: { useEnsureTrialStarted } });
+
+    expect(screen.getByText(/We couldn't set up your trial/i)).toBeInTheDocument();
+  });
+
+  it("does not render the error alert when trial start has not failed", () => {
+    setup();
+
+    expect(screen.queryByText(/We couldn't set up your trial/i)).not.toBeInTheDocument();
+  });
+
   it("enqueues a success snackbar and redirects to the deployment details on success", () => {
     const enqueueSnackbar = vi.fn();
     const replace = vi.fn();
@@ -80,22 +97,21 @@ describe(OnboardingPickerPage.name, () => {
   function setup(
     input: {
       templates?: OnboardingPickerPageProps["templates"];
-      enqueueSnackbar?: ReturnType<typeof vi.fn>;
-      replace?: ReturnType<typeof vi.fn>;
+      enqueueSnackbar?: EnqueueSnackbar;
+      replace?: () => void;
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
-    const enqueueSnackbar = input.enqueueSnackbar ?? vi.fn();
-    const replace = input.replace ?? vi.fn();
+    const enqueueSnackbar: EnqueueSnackbar = input.enqueueSnackbar ?? vi.fn<EnqueueSnackbar>();
+    const replace: () => void = input.replace ?? vi.fn();
+    const useRouter: () => AppRouterInstance = vi.fn(() => mock<AppRouterInstance>({ replace }));
+    const useSnackbar: () => ProviderContext = vi.fn(() => mock<ProviderContext>({ enqueueSnackbar }));
+    const useEnsureTrialStarted: () => EnsureTrialStartedResult = vi.fn(() => ({ isWalletReady: true, isLoading: false, error: null }));
 
     return render(
       <OnboardingPickerPage
         templates={input.templates ?? { helloWorld: "hello-sdl", imageGen: "image-sdl", llmChatbot: "llm-sdl" }}
-        dependencies={MockComponents(DEPENDENCIES, {
-          useSnackbar: vi.fn(() => ({ enqueueSnackbar })) as unknown as typeof DEPENDENCIES.useSnackbar,
-          useRouter: vi.fn(() => ({ replace })) as unknown as typeof DEPENDENCIES.useRouter,
-          ...input.dependencies
-        })}
+        dependencies={MockComponents(DEPENDENCIES, { useSnackbar, useRouter, useEnsureTrialStarted, ...input.dependencies })}
       />
     );
   }

@@ -90,6 +90,30 @@ describe(OnboardingRedirectEffect.name, () => {
     expect(mockRouter.replace).toHaveBeenCalledWith("/signup?return-to=%2Fdeployments%3Fpage%3D2");
   });
 
+  it("redirects to /onboarding when the selected flow is redesign and the FF is enabled", () => {
+    const { mockRouter } = setup({
+      user: { userId: "user-1" },
+      wallet: { hasManagedWallet: false, isWalletConnected: false },
+      pathname: "/deployments",
+      selectedOnboardingFlow: "redesign",
+      isOnboardingRedesignEnabled: true
+    });
+
+    expect(mockRouter.replace).toHaveBeenCalledWith("/onboarding");
+  });
+
+  it("falls back to the legacy /signup redirect when the redesign FF is disabled even if the atom is redesign", () => {
+    const { mockRouter } = setup({
+      user: { userId: "user-1" },
+      wallet: { hasManagedWallet: false, isWalletConnected: false },
+      pathname: "/deployments",
+      selectedOnboardingFlow: "redesign",
+      isOnboardingRedesignEnabled: false
+    });
+
+    expect(mockRouter.replace).toHaveBeenCalledWith("/signup?return-to=%2Fdeployments");
+  });
+
   function setup(input: {
     user?: { userId?: string };
     wallet?: { hasManagedWallet?: boolean; isWalletConnected?: boolean };
@@ -97,6 +121,8 @@ describe(OnboardingRedirectEffect.name, () => {
     asPath?: string;
     isUserLoading?: boolean;
     isWalletLoading?: boolean;
+    selectedOnboardingFlow?: "legacy" | "redesign" | null;
+    isOnboardingRedesignEnabled?: boolean;
   }) {
     const mockRouter = {
       pathname: input.pathname || "/",
@@ -115,13 +141,16 @@ describe(OnboardingRedirectEffect.name, () => {
         isWalletLoading: input.isWalletLoading || false
       }),
       useRouter: vi.fn().mockReturnValue(mockRouter),
+      useSelectedOnboardingFlow: vi.fn().mockReturnValue(input.selectedOnboardingFlow ?? null),
+      useFlag: vi.fn().mockReturnValue(input.isOnboardingRedesignEnabled ?? false),
       UrlService: {
         onboarding: vi.fn(({ returnTo }: { returnTo?: string } = {}) => {
           if (returnTo) {
             return `/signup?return-to=${encodeURIComponent(returnTo)}`;
           }
           return "/signup";
-        })
+        }),
+        onboardingPicker: vi.fn(() => "/onboarding")
       }
     } as unknown as ComponentProps<typeof OnboardingRedirectEffect>["dependencies"];
 

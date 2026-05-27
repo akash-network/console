@@ -222,6 +222,8 @@ describe(PhasedDeploymentContainer.name, () => {
       templateName?: string;
       sdl?: string;
       deposit?: number;
+      isWalletReady?: boolean;
+      trialError?: unknown;
       onSuccess?: (dseq: string) => void;
       onCancel?: () => void;
       providers?: ApiProviderList[];
@@ -243,6 +245,8 @@ describe(PhasedDeploymentContainer.name, () => {
         templateName={input.templateName ?? "test-template"}
         sdl={input.sdl ?? "sdl-content"}
         deposit={input.deposit}
+        isWalletReady={input.isWalletReady ?? true}
+        trialError={input.trialError}
         onSuccess={input.onSuccess}
         onCancel={input.onCancel}
         dependencies={{

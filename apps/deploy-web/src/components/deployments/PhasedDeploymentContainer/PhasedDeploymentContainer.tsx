@@ -39,6 +39,8 @@ type PhasedDeploymentContainerProps = {
   templateName: string;
   sdl: string;
   deposit?: number;
+  isWalletReady: boolean;
+  trialError?: unknown;
   onSuccess?: (dseq: string) => void;
   onCancel?: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -48,6 +50,8 @@ export function PhasedDeploymentContainer({
   templateName,
   sdl,
   deposit = DEFAULT_DEPOSIT_USD,
+  isWalletReady,
+  trialError,
   onSuccess,
   onCancel,
   dependencies: d = DEPENDENCIES
@@ -57,6 +61,8 @@ export function PhasedDeploymentContainer({
   const { state, progressPercent, phases, matchedProviderAddress, startOver } = d.usePhasedDeploymentFlow({
     sdl,
     deposit,
+    isWalletReady,
+    trialError,
     onSuccess: dseq => onSuccess?.(dseq)
   });
 

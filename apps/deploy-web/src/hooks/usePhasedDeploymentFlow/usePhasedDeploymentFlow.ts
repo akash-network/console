@@ -13,6 +13,15 @@ type Options = {
   sdl: string;
   deposit: number;
   onSuccess: (dseq: string) => void;
+  /**
+   * Whether the trial wallet is initialized server-side and ready to broadcast deployments.
+   * While `false`, the flow stays in `creating` and silently waits — the user keeps seeing
+   * "Creating deployment" while the trial spins up behind the scenes. Required so callers
+   * can't accidentally stall the flow by omitting the readiness signal.
+   */
+  isWalletReady: boolean;
+  /** If the trial-start mutation has terminally errored, the deploy step fails with this error instead of waiting forever. */
+  trialError?: unknown;
 };
 
 type DeploymentPhase = {
@@ -63,7 +72,7 @@ const PHASE_LABELS: Record<DeploymentPhaseId, { active: string; completed: strin
   preparing: { active: "Preparing deployment", completed: "Deployment prepared" }
 };
 
-export function usePhasedDeploymentFlow({ sdl, deposit, onSuccess }: Options): Result {
+export function usePhasedDeploymentFlow({ sdl, deposit, onSuccess, isWalletReady, trialError }: Options): Result {
   const { api } = useServices();
   const [phase, setPhase] = useState<InternalPhase>("creating");
   const [dseq, setDseq] = useState<string | null>(null);
@@ -80,6 +89,15 @@ export function usePhasedDeploymentFlow({ sdl, deposit, onSuccess }: Options): R
   useEffect(
     function broadcastCreateDeployment() {
       if (phase !== "creating") return;
+
+      if (trialError) {
+        setErrorMessage(extractApiErrorMessage(trialError) ?? undefined);
+        setPhase("error");
+        return;
+      }
+
+      if (!isWalletReady) return;
+
       let cancelled = false;
 
       function onCreateDeploymentSuccess(result: { data: { dseq: string; manifest: string } }) {
@@ -102,7 +120,7 @@ export function usePhasedDeploymentFlow({ sdl, deposit, onSuccess }: Options): R
       };
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [phase, retryToken, sdl, deposit]
+    [phase, retryToken, sdl, deposit, isWalletReady, trialError]
   );
 
   const bidsQuery = api.v1.listBids.useQuery(

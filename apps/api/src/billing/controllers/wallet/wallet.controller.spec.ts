@@ -10,195 +10,64 @@ import { ManagedSignerService, WalletInitializerService } from "@src/billing/ser
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
-import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { UserOutput } from "@src/user/repositories";
-import { UserRepository } from "@src/user/repositories";
 import { WalletController } from "./wallet.controller";
 
-import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 
 describe("WalletController", () => {
-  it("forbids starting a trial for a user with not verified email", async () => {
-    const user = createUser({
-      emailVerified: false
-    });
-    const container = setup({
-      user
-    });
-    const walletController = container.resolve(WalletController);
-    await expect(() =>
-      walletController.create({
-        data: {
-          userId: user.id
-        }
-      })
-    ).rejects.toThrow(/email not verified/i);
-    expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).not.toHaveBeenCalled();
-  });
+  describe("create", () => {
+    it("delegates to walletInitializer.startTrial and wraps the result with denom", async () => {
+      const user = createUser();
+      const wallet: UserWalletPublicOutput = {
+        id: faker.number.int(),
+        userId: user.id,
+        address: faker.string.alphanumeric(44),
+        creditAmount: 100,
+        isTrialing: true,
+        createdAt: new Date()
+      };
+      const container = setup({ user, startTrialResult: wallet });
+      const walletController = container.resolve(WalletController);
 
-  it("forbids starting a trial for a user without configured payments methods", async () => {
-    const user = createUser({
-      emailVerified: true,
-      stripeCustomerId: faker.string.uuid()
-    });
-    const container = setup({
-      user,
-      hasPaymentMethods: false
-    });
-    const walletController = container.resolve(WalletController);
-    await expect(() =>
-      walletController.create({
-        data: {
-          userId: user.id
-        }
-      })
-    ).rejects.toThrow(/You must have a payment method to start a trial/i);
-    expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).not.toHaveBeenCalled();
-  });
+      const result = await walletController.create({ data: { userId: user.id } });
 
-  it("forbids starting a trial for a user with duplicate trial account", async () => {
-    const user = createUser({
-      emailVerified: true,
-      stripeCustomerId: faker.string.uuid()
-    });
-    const container = setup({
-      user,
-      hasDuplicateTrialAccount: true,
-      hasPaymentMethods: true
-    });
-    const walletController = container.resolve(WalletController);
-    await expect(() =>
-      walletController.create({
-        data: {
-          userId: user.id
-        }
-      })
-    ).rejects.toThrow(/associated with another trial account/i);
-    expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).not.toHaveBeenCalled();
-  });
-
-  it("forbids starting a trial for a user with duplicate fingerprint", async () => {
-    const user = createUser({
-      emailVerified: true,
-      stripeCustomerId: faker.string.uuid(),
-      lastFingerprint: "duplicate-fingerprint"
-    });
-    const container = setup({
-      user,
-      hasDuplicateFingerprint: true,
-      hasPaymentMethods: true
-    });
-    const walletController = container.resolve(WalletController);
-    await expect(() =>
-      walletController.create({
-        data: {
-          userId: user.id
-        }
-      })
-    ).rejects.toThrow(/Unable to start trial/i);
-    expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).not.toHaveBeenCalled();
-  });
-
-  it("allows starting a trial when user has no fingerprint", async () => {
-    const user = createUser({
-      emailVerified: true,
-      stripeCustomerId: faker.string.uuid(),
-      lastFingerprint: null
-    });
-    const container = setup({
-      user,
-      hasPaymentMethods: true,
-      hasDuplicateTrialAccount: false
-    });
-    const walletController = container.resolve(WalletController);
-    await walletController.create({
-      data: {
-        userId: user.id
-      }
-    });
-    expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).toHaveBeenCalledWith(user.id);
-  });
-
-  it("creates a wallet for a user with all valid requirements", async () => {
-    const user = createUser({
-      emailVerified: true,
-      stripeCustomerId: faker.string.uuid()
-    });
-    const container = setup({
-      user,
-      hasPaymentMethods: true,
-      hasDuplicateTrialAccount: false
-    });
-    const walletController = container.resolve(WalletController);
-    await walletController.create({
-      data: {
-        userId: user.id
-      }
-    });
-    expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).toHaveBeenCalledWith(user.id);
-  });
-
-  it("handles 3DS required scenario in controller", async () => {
-    const user = createUser({
-      emailVerified: true,
-      stripeCustomerId: faker.string.uuid()
-    });
-    const container = setup({
-      user,
-      hasPaymentMethods: true,
-      hasDuplicateTrialAccount: false,
-      requires3DS: true
-    });
-    const walletController = container.resolve(WalletController);
-    const result = await walletController.create({
-      data: {
-        userId: user.id
-      }
+      expect(container.resolve(WalletInitializerService).startTrial).toHaveBeenCalledWith(user.id);
+      expect(result).toEqual({ data: { ...wallet, denom: "uakt", topUpMinAmountUsd: 100 } });
     });
 
-    expect(result).toEqual({
-      data: {
+    it("passes a 3DS-required result through with denom attached", async () => {
+      const user = createUser();
+      const threeDsResult = {
         id: null,
         userId: user.id,
         address: null,
-        denom: "uakt",
         creditAmount: 0,
         isTrialing: false,
-        topUpMinAmountUsd: 20,
         createdAt: null,
         requires3DS: true,
-        clientSecret: "test_client_secret",
-        paymentIntentId: "test_payment_intent_id",
-        paymentMethodId: "test_payment_method_id"
-      }
-    });
-    expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).not.toHaveBeenCalled();
-  });
+        clientSecret: "cs",
+        paymentIntentId: "pi",
+        paymentMethodId: "pm"
+      } as const;
+      const container = setup({ user, startTrialResult: threeDsResult });
+      const walletController = container.resolve(WalletController);
 
-  it("handles validation failure in controller", async () => {
-    const user = createUser({
-      emailVerified: true,
-      stripeCustomerId: faker.string.uuid()
-    });
-    const container = setup({
-      user,
-      hasPaymentMethods: true,
-      hasDuplicateTrialAccount: false,
-      validationFails: true
-    });
-    const walletController = container.resolve(WalletController);
+      const result = await walletController.create({ data: { userId: user.id } });
 
-    await expect(() =>
-      walletController.create({
-        data: {
-          userId: user.id
-        }
-      })
-    ).rejects.toThrow("Card validation failed");
-    expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).not.toHaveBeenCalled();
+      expect(result).toEqual({ data: { ...threeDsResult, denom: "uakt", topUpMinAmountUsd: 20 } });
+    });
+
+    it("propagates errors thrown by walletInitializer.startTrial", async () => {
+      const user = createUser();
+      const error = new Error("Email not verified");
+      const container = setup({ user, startTrialError: error });
+      const walletController = container.resolve(WalletController);
+
+      await expect(() => walletController.create({ data: { userId: user.id } })).rejects.toThrow("Email not verified");
+    });
   });
 
   describe("getWallets", () => {
@@ -206,7 +75,7 @@ describe("WalletController", () => {
       const userId = faker.string.uuid();
       const wallets = [
         {
-          id: faker.string.uuid(),
+          id: faker.number.int(),
           userId,
           address: faker.string.alphanumeric(44),
           creditAmount: 100,
@@ -214,7 +83,7 @@ describe("WalletController", () => {
           createdAt: new Date()
         },
         {
-          id: faker.string.uuid(),
+          id: faker.number.int(),
           userId,
           address: faker.string.alphanumeric(44),
           creditAmount: 200,
@@ -222,26 +91,18 @@ describe("WalletController", () => {
           createdAt: new Date()
         }
       ];
-      const container = setup({
-        user: createUser(),
-        wallets
-      });
+      const container = setup({ user: createUser(), wallets });
       const walletController = container.resolve(WalletController);
 
       const result = await walletController.getWallets({ userId });
 
-      expect(result).toEqual({
-        data: wallets.map(wallet => ({ ...wallet, denom: "uakt", topUpMinAmountUsd: wallet.isTrialing ? 100 : 20 }))
-      });
+      expect(result).toEqual({ data: wallets.map(wallet => ({ ...wallet, denom: "uakt", topUpMinAmountUsd: wallet.isTrialing ? 100 : 20 })) });
       expect(container.resolve(WalletReaderService).getWallets).toHaveBeenCalledWith({ userId });
     });
 
     it("returns empty list when no wallets found", async () => {
       const userId = faker.string.uuid();
-      const container = setup({
-        user: createUser(),
-        wallets: []
-      });
+      const container = setup({ user: createUser(), wallets: [] });
       const walletController = container.resolve(WalletController);
 
       const result = await walletController.getWallets({ userId });
@@ -250,111 +111,38 @@ describe("WalletController", () => {
     });
   });
 
-  it("handles stripe error in controller", async () => {
-    const user = createUser({
-      emailVerified: true,
-      stripeCustomerId: faker.string.uuid()
-    });
-    const container = setup({
-      user,
-      hasPaymentMethods: true,
-      hasDuplicateTrialAccount: false,
-      stripeError: true
-    });
-    const walletController = container.resolve(WalletController);
-
-    await expect(() =>
-      walletController.create({
-        data: {
-          userId: user.id
-        }
-      })
-    ).rejects.toThrow("Stripe error occurred");
-    expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).not.toHaveBeenCalled();
-  });
-
   function setup(input?: {
     user?: UserOutput;
-    hasPaymentMethods?: boolean;
-    hasDuplicateTrialAccount?: boolean;
-    hasDuplicateFingerprint?: boolean;
-    requires3DS?: boolean;
-    validationFails?: boolean;
-    stripeError?: boolean;
     wallets?: UserWalletPublicOutput[];
+    startTrialResult?: Awaited<ReturnType<WalletInitializerService["startTrial"]>>;
+    startTrialError?: Error;
   }) {
+    const startTrial = jest.fn();
+    if (input?.startTrialError) {
+      startTrial.mockRejectedValue(input.startTrialError);
+    } else if (input?.startTrialResult) {
+      startTrial.mockResolvedValue(input.startTrialResult);
+    }
+
     rootContainer.register(AuthService, {
       useValue: mock<AuthService>({
-        ability: createMongoAbility<MongoAbility>([
-          {
-            action: "create",
-            subject: "UserWallet"
-          }
-        ]),
-        currentUser: input?.user || createUser()
+        ability: createMongoAbility<MongoAbility>([{ action: "create", subject: "UserWallet" }]),
+        currentUser: input?.user ?? createUser()
       })
     });
     rootContainer.register(WalletInitializerService, {
-      useValue: mock<WalletInitializerService>()
-    });
-    rootContainer.register(StripeService, {
-      useValue: mock<StripeService>({
-        isProduction: true,
-        getPaymentMethods: jest.fn(async () => {
-          if (!input?.hasPaymentMethods) return [];
-          return [{ ...generatePaymentMethod(), validated: true, isDefault: false }];
-        }),
-        hasDuplicateTrialAccount: jest.fn().mockResolvedValue(input?.hasDuplicateTrialAccount ?? false),
-        validatePaymentMethodForTrial: jest.fn().mockImplementation(() => {
-          if (input?.validationFails) {
-            throw new Error("Card validation failed");
-          }
-          if (input?.stripeError) {
-            throw new Error("Stripe error occurred");
-          }
-          if (input?.requires3DS) {
-            return Promise.resolve({
-              success: false,
-              requires3DS: true,
-              clientSecret: "test_client_secret",
-              paymentIntentId: "test_payment_intent_id",
-              paymentMethodId: "test_payment_method_id"
-            });
-          }
-          return Promise.resolve({
-            success: true,
-            requires3DS: false
-          });
-        })
-      })
-    });
-    rootContainer.register(UserRepository, {
-      useValue: mock<UserRepository>({
-        findTrialUsersByFingerprint: jest.fn().mockResolvedValue(input?.hasDuplicateFingerprint ? [{ id: faker.string.uuid() }] : [])
-      })
+      useValue: mock<WalletInitializerService>({ startTrial })
     });
     rootContainer.register(BillingConfigService, {
-      useValue: mock<BillingConfigService>({
-        get: jest.fn().mockReturnValue("uakt")
-      })
+      useValue: mock<BillingConfigService>({ get: jest.fn().mockReturnValue("uakt") })
     });
-    rootContainer.register(ManagedSignerService, {
-      useValue: mock<ManagedSignerService>()
-    });
-    rootContainer.register(RefillService, {
-      useValue: mock<RefillService>()
-    });
+    rootContainer.register(ManagedSignerService, { useValue: mock<ManagedSignerService>() });
+    rootContainer.register(RefillService, { useValue: mock<RefillService>() });
     rootContainer.register(WalletReaderService, {
-      useValue: mock<WalletReaderService>({
-        getWallets: jest.fn().mockResolvedValue(input?.wallets ?? [])
-      })
+      useValue: mock<WalletReaderService>({ getWallets: jest.fn().mockResolvedValue(input?.wallets ?? []) })
     });
-    rootContainer.register(BalancesService, {
-      useValue: mock<BalancesService>()
-    });
-    rootContainer.register(UserWalletRepository, {
-      useValue: mock<UserWalletRepository>()
-    });
+    rootContainer.register(BalancesService, { useValue: mock<BalancesService>() });
+    rootContainer.register(UserWalletRepository, { useValue: mock<UserWalletRepository>() });
     rootContainer.register(TrialValidationService, {
       useValue: mock<TrialValidationService>({
         getTopUpMinAmountUsd: jest.fn(wallet => (wallet?.isTrialing ? 100 : 20))

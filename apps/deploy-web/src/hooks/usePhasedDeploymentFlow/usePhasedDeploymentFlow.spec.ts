@@ -120,6 +120,27 @@ describe(usePhasedDeploymentFlow.name, () => {
     expect(result.current.startOver).toBe(result.current.retry);
   });
 
+  it("stays in creating without broadcasting while the trial wallet is not yet ready", async () => {
+    const { result, createDeployment } = setup({ isWalletReady: false });
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    expect(result.current.state.kind).toBe("creating");
+    expect(createDeployment).not.toHaveBeenCalled();
+  });
+
+  it("fails the deploy when the trial-start mutation has terminally errored", async () => {
+    const { result, createDeployment } = setup({
+      isWalletReady: false,
+      trialError: new ApiError(400, { message: "Email not verified" }, "POST /v1/wallets/start-trial → 400")
+    });
+
+    await vi.waitFor(() => expect(result.current.state.kind).toBe("error"));
+
+    expect(result.current.state).toEqual({ kind: "error", message: "Email not verified" });
+    expect(createDeployment).not.toHaveBeenCalled();
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -132,6 +153,8 @@ describe(usePhasedDeploymentFlow.name, () => {
     createLease?: ReturnType<typeof vi.fn>;
     listBids?: ReturnType<typeof vi.fn>;
     providerProxyRequest?: ReturnType<typeof vi.fn>;
+    isWalletReady?: boolean;
+    trialError?: unknown;
   }) {
     vi.spyOn(globalThis, "requestAnimationFrame").mockReturnValue(1);
     vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => undefined);
@@ -164,6 +187,8 @@ describe(usePhasedDeploymentFlow.name, () => {
         usePhasedDeploymentFlow({
           sdl: input?.sdl ?? "sdl-content",
           deposit: input?.deposit ?? 5000000,
+          isWalletReady: input?.isWalletReady ?? true,
+          trialError: input?.trialError,
           onSuccess: input?.onSuccess ?? vi.fn()
         }),
       {
