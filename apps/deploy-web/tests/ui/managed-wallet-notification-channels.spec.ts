@@ -1,27 +1,18 @@
-import { expect, test } from "./fixture/authenticated-test";
+import { expect, test } from "./fixture/base-test";
 import { AlertsPage } from "./pages/AlertsPage";
-import { AuthPage } from "./pages/AuthPage";
-import { HomePage } from "./pages/HomePage";
 import { NotificationChannelsPage } from "./pages/NotificationChannelsPage";
 import { Sidebar } from "./pages/Sidebar";
 
 test.describe("Managed wallet notification channels", () => {
+  test.use({ userType: "existing" });
+
   const channelName = `e2e-channel-${Date.now()}`;
   const channelEmail = `e2e-channel-${Date.now()}@test.example.com`;
 
-  test("creates and deletes a notification channel", async ({ page, login }) => {
-    const homePage = new HomePage(page);
-    const authPage = new AuthPage(page);
+  test("creates and deletes a notification channel", async ({ page }) => {
     const sidebar = new Sidebar(page);
     const alertsPage = new AlertsPage(page);
     const notificationChannelsPage = new NotificationChannelsPage(page);
-
-    await test.step("login", async () => {
-      await homePage.goto();
-      await homePage.openSignIn();
-      await authPage.waitForPage();
-      await login();
-    });
 
     await test.step("navigate to notification channels tab", async () => {
       await sidebar.openAlerts();

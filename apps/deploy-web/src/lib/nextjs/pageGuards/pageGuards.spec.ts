@@ -7,7 +7,7 @@ import type { Session } from "@src/lib/auth0";
 import type { FeatureFlagService } from "@src/services/feature-flag/feature-flag.service";
 import { UrlService } from "@src/utils/urlUtils";
 import type { AppTypedContext } from "../defineServerSideProps/defineServerSideProps";
-import { isAuthenticated, isFeatureEnabled, redirectIfAccessTokenExpired } from "./pageGuards";
+import { isAuthenticated, isFeatureEnabled, redirectIfAccessTokenExpired, requireAuth } from "./pageGuards";
 
 describe("pageGuards", () => {
   describe("isAuthenticated", () => {
@@ -94,9 +94,42 @@ describe("pageGuards", () => {
       });
     });
   });
+
+  describe("requireAuth", () => {
+    it("returns undefined when the user has a valid session", async () => {
+      const context = setup({
+        session: {
+          user: {
+            id: faker.string.uuid()
+          },
+          accessTokenExpiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30
+        }
+      });
+
+      const result = await requireAuth(context);
+
+      expect(result).toBeUndefined();
+    });
+
+    it("returns a /login redirect with returnTo when unauthenticated", async () => {
+      const context = setup({
+        session: undefined,
+        resolvedUrl: "/billing?x=1"
+      });
+
+      const result = await requireAuth(context);
+
+      expect(result).toEqual({
+        redirect: {
+          destination: "/login?tab=login&returnTo=%2Fbilling%3Fx%3D1",
+          permanent: false
+        }
+      });
+    });
+  });
 });
 
-function setup(input?: { enabledFeatures?: string[]; session?: Partial<Session> }) {
+function setup(input?: { enabledFeatures?: string[]; session?: Partial<Session>; resolvedUrl?: string }) {
   return mock<AppTypedContext>({
     getCurrentSession: vi.fn().mockImplementation(async () => {
       if (!input?.session) return null;
@@ -112,6 +145,6 @@ function setup(input?: { enabledFeatures?: string[]; session?: Partial<Session> 
       logger: mock<LoggerService>(),
       urlService: UrlService
     },
-    resolvedUrl: faker.internet.url()
+    resolvedUrl: input?.resolvedUrl ?? faker.internet.url()
   });
 }

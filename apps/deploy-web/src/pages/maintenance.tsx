@@ -3,6 +3,7 @@ import { Tools } from "iconoir-react";
 import { NextSeo } from "next-seo";
 
 import { Title } from "@src/components/shared/Title";
+import { definePublicPage } from "@src/lib/pages/definePublicPage";
 
 const Maintenance: React.FunctionComponent = () => {
   return (
@@ -26,4 +27,4 @@ const Maintenance: React.FunctionComponent = () => {
   );
 };
 
-export default Maintenance;
+export default definePublicPage(Maintenance);

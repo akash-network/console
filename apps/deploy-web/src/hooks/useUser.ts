@@ -18,12 +18,3 @@ export const useUser = (): {
     checkSession
   };
 };
-
-export const useIsRegisteredUser = () => {
-  const { isLoading, user } = useUser();
-
-  return {
-    isLoading,
-    canVisit: !!user?.userId
-  };
-};

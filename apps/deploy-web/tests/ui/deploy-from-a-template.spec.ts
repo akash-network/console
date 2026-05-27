@@ -1,6 +1,8 @@
 import { expect, test } from "./fixture/base-test";
 import { DeployPage } from "./pages/DeployPage";
 
+test.use({ userType: "existing" });
+
 test("user can choose a template on deployment page", async ({ page, context }) => {
   test.setTimeout(3 * 60 * 1000);
 

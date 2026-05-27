@@ -1,7 +1,7 @@
 import { generateTestPassword } from "./actions/auth";
-import { expect, test } from "./fixture/onboarding-test";
+import { expect, test } from "./fixture/base-test";
+import { testEnvConfig } from "./fixture/test-env.config";
 import { AuthPage } from "./pages/AuthPage";
-import { HomePage } from "./pages/HomePage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 
 test.describe("Managed wallet onboarding", () => {
@@ -19,16 +19,11 @@ test.describe("Managed wallet onboarding", () => {
 
     const email = emailVerification.generateEmail();
     const password = generateTestPassword();
-    const homePage = new HomePage(page);
     const authPage = new AuthPage(page);
     const onboardingPage = new OnboardingPage(page);
 
-    await test.step("start trial from home page", async () => {
-      await homePage.goto();
-      await homePage.startTrial();
-    });
-
     await test.step("begin free trial onboarding", async () => {
+      await page.goto(`${testEnvConfig.BASE_URL}/signup`);
       await onboardingPage.startFreeTrial();
     });
 

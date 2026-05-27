@@ -4,6 +4,7 @@ import { NextSeo } from "next-seo";
 
 import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
+import { definePublicPage } from "@src/lib/pages/definePublicPage";
 
 const FaqEntries = [
   {
@@ -112,7 +113,7 @@ const FaqEntries = [
 
 export type FaqAnchorType = (typeof FaqEntries)[number]["anchor"];
 
-export default function FaqPage() {
+function FaqPage() {
   return (
     <Layout>
       <NextSeo title={`Frequently Asked Questions`} />
@@ -141,3 +142,5 @@ export default function FaqPage() {
     </Layout>
   );
 }
+
+export default definePublicPage(FaqPage);

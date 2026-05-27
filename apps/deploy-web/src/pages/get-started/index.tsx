@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@akashnetwork/ui/compo
 import { GetStartedStepper } from "@src/components/get-started/GetStartedStepper";
 import Layout from "@src/components/layout/Layout";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
+import { definePublicPage } from "@src/lib/pages/definePublicPage";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 
 const GetStarted: React.FunctionComponent = () => {
@@ -28,4 +29,4 @@ const GetStarted: React.FunctionComponent = () => {
   );
 };
 
-export default GetStarted;
+export default definePublicPage(GetStarted);

@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 import type { z } from "zod";
 import { z as zod, ZodError } from "zod";
 
+import type { Session } from "@src/lib/auth0";
 import { services } from "@src/services/app-di-container/server-di-container.service";
 import { requestExecutionContext } from "../requestExecutionContext";
 import type { AppTypedContext } from "./defineServerSideProps";
@@ -312,14 +313,58 @@ describe(defineServerSideProps, () => {
     ).rejects.toThrow("Custom error");
   });
 
+  it("redirects unauthenticated visitors to /login on gated pages by default", async () => {
+    const urlService = mock<typeof services.urlService>();
+    urlService.newLogin.mockImplementation(({ returnTo }: { returnTo?: string } = {}) => `/login?tab=login&returnTo=${encodeURIComponent(returnTo || "/")}`);
+    const result = await setup({
+      route: "/billing",
+      public: false,
+      context: { resolvedUrl: "/billing", services: { getSession: vi.fn(async () => null), urlService } }
+    });
+
+    expect(result).toEqual({
+      redirect: { destination: "/login?tab=login&returnTo=%2Fbilling", permanent: false }
+    });
+  });
+
+  it("does not gate pages marked public", async () => {
+    const mockHandler = vi.fn().mockResolvedValue({ props: { ok: true } });
+
+    const result = await setup({
+      route: "/login",
+      public: true,
+      handler: mockHandler,
+      context: { services: { getSession: vi.fn(async () => null) } }
+    });
+
+    expect(mockHandler).toHaveBeenCalled();
+    expect(result).toEqual({ props: { ok: true } });
+  });
+
+  it("runs the handler for authenticated visitors on gated pages", async () => {
+    const mockHandler = vi.fn().mockResolvedValue({ props: { ok: true } });
+    const authedSession = mock<Session>({ user: { id: "u1" }, accessTokenExpiresAt: Math.floor(Date.now() / 1000) + 3600 });
+
+    const result = await setup({
+      route: "/billing",
+      public: false,
+      handler: mockHandler,
+      context: { services: { getSession: vi.fn(async () => authedSession) } }
+    });
+
+    expect(mockHandler).toHaveBeenCalled();
+    expect(result).toEqual({ props: { ok: true } });
+  });
+
   function setup(input: {
     route: string;
+    public?: boolean;
     schema?: z.ZodSchema<any>;
     if?: (context: any) => boolean | Promise<boolean> | GetServerSidePropsResult<any> | Promise<GetServerSidePropsResult<any>>;
     handler?: (context: any) => Promise<any> | any;
     context?: Partial<Omit<AppTypedContext, "services"> & { services?: Partial<AppTypedContext["services"]> }>;
   }) {
-    const context: AppTypedContext = {
+    const context = {
       req: createRequest(),
       res: mock<GetServerSidePropsContext["res"]>(),
       query: {},
@@ -328,7 +373,6 @@ describe(defineServerSideProps, () => {
       locale: "en",
       locales: ["en"],
       defaultLocale: "en",
-      session: null,
       ...input.context,
       services: {
         ...services,
@@ -340,6 +384,7 @@ describe(defineServerSideProps, () => {
 
     return defineServerSideProps({
       route: input.route,
+      public: input.public ?? true,
       schema: input.schema,
       if: input.if,
       handler: input.handler

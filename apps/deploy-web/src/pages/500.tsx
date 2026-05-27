@@ -7,6 +7,7 @@ import { NextSeo } from "next-seo";
 
 import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
+import { definePublicPage } from "@src/lib/pages/definePublicPage";
 import { UrlService } from "@src/utils/urlUtils";
 
 const FiveHundred: React.FunctionComponent = () => {
@@ -28,4 +29,4 @@ const FiveHundred: React.FunctionComponent = () => {
   );
 };
 
-export default FiveHundred;
+export default definePublicPage(FiveHundred);
