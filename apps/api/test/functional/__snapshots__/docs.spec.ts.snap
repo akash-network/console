@@ -11750,6 +11750,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "akashVersion": {
                         "type": "string",
                       },
+                      "aliasOwners": {
+                        "items": {
+                          "type": "string",
+                        },
+                        "type": "array",
+                      },
                       "attributes": {
                         "items": {
                           "properties": {
@@ -12013,6 +12019,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "isOnline",
                       "lastOnlineDate",
                       "isAudited",
+                      "aliasOwners",
                       "gpuModels",
                       "attributes",
                       "host",
