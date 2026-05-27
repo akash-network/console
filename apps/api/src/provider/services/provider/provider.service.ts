@@ -9,6 +9,7 @@ import { singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
+import { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import type { Auditor } from "@src/provider/http-schemas/auditor.schema";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import { ProviderAuth, ProviderIdentity, ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
@@ -32,7 +33,8 @@ export class ProviderService {
     private readonly providerRepository: ProviderRepository,
     private readonly providerAttributesSchemaService: ProviderAttributesSchemaService,
     private readonly auditorsService: AuditorService,
-    private readonly jwtTokenService: ProviderJwtTokenService
+    private readonly jwtTokenService: ProviderJwtTokenService,
+    private readonly leaseRepository: LeaseRepository
   ) {}
 
   async sendManifest(options: { provider: string; dseq: string; manifest: string; auth: ProviderAuth }) {
@@ -148,16 +150,20 @@ export class ProviderService {
       offset += BATCH_SIZE;
     } while (batch.length === BATCH_SIZE);
 
+    const activeLeaseCountByOwner = await this.leaseRepository.getActiveLeaseCountByProviders(
+      providersWithAttributesAndAuditors.map(provider => provider.owner)
+    );
+
     const providerByHostUri = new Map<string, Provider>();
+    const ownersByHostUri = new Map<string, string[]>();
     await forEachInChunks(providersWithAttributesAndAuditors, provider => {
       const existing = providerByHostUri.get(provider.hostUri);
-      if (
-        !existing ||
-        (!existing.isOnline && provider.isOnline) ||
-        (existing.isOnline === provider.isOnline && provider.createdHeight > existing.createdHeight)
-      ) {
+      if (!existing || this.isBetterProviderRepresentative(provider, existing, activeLeaseCountByOwner)) {
         providerByHostUri.set(provider.hostUri, provider);
       }
+      const owners = ownersByHostUri.get(provider.hostUri) ?? [];
+      owners.push(provider.owner);
+      ownersByHostUri.set(provider.hostUri, owners);
     });
     const distinctProviders = Array.from(providerByHostUri.values());
 
@@ -174,7 +180,8 @@ export class ProviderService {
 
     await forEachInChunks(distinctProviders, provider => {
       const lastSuccessfulSnapshot = providerByOwner.get(provider.owner)?.lastSuccessfulSnapshot;
-      finalProviders.push(mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot));
+      const aliasOwners = (ownersByHostUri.get(provider.hostUri) ?? []).filter(owner => owner !== provider.owner);
+      finalProviders.push(mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot, aliasOwners));
     });
 
     return finalProviders;
@@ -189,6 +196,20 @@ export class ProviderService {
     ]);
 
     return this.mapProviderResults(providersWithAttributesAndAuditors, providerWithNodes, auditors, providerAttributeSchema);
+  }
+
+  private isBetterProviderRepresentative(candidate: Provider, current: Provider, activeLeaseCountByOwner: Map<string, number>): boolean {
+    if (candidate.isOnline !== current.isOnline) {
+      return !!candidate.isOnline;
+    }
+
+    const candidateLeases = activeLeaseCountByOwner.get(candidate.owner) ?? 0;
+    const currentLeases = activeLeaseCountByOwner.get(current.owner) ?? 0;
+    if (candidateLeases !== currentLeases) {
+      return candidateLeases > currentLeases;
+    }
+
+    return candidate.createdHeight > current.createdHeight;
   }
 
   private mapProviderResults(

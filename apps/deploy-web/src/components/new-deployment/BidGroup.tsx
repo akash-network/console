@@ -8,6 +8,7 @@ import networkStore from "@src/store/networkStore";
 import type { BidDto, DeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { deploymentGroupResourceSum, getStorageAmount } from "@src/utils/deploymentDetailUtils";
+import { findProviderForBidProvider } from "@src/utils/providerUtils";
 import { FormPaper } from "../sdl/FormPaper";
 import { LabelValueOld } from "../shared/LabelValueOld";
 import { SpecDetail } from "../shared/SpecDetail";
@@ -121,8 +122,8 @@ export const BidGroup: React.FunctionComponent<Props> = ({
 
         <TableBody>
           {fBids.map(bid => {
-            const provider = providers && providers.find(x => x.owner === bid.provider);
-            const showBid = provider?.isValidVersion && (!isSendingManifest || selectedBid?.id === bid.id);
+            const provider = findProviderForBidProvider(providers, bid.provider);
+            const showBid = provider?.isOnline && provider.isValidVersion && (!isSendingManifest || selectedBid?.id === bid.id);
             return (showBid && provider) || selectedNetworkId !== MAINNET_ID ? (
               <BidRow
                 key={bid.id}

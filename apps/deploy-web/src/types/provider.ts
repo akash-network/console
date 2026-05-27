@@ -189,6 +189,7 @@ export interface ApiProviderList {
   isOnline: boolean;
   lastOnlineDate: string;
   isAudited: boolean;
+  aliasOwners: string[];
   gpuModels: { vendor: string; model: string; ram: string; interface: string }[];
   stats: {
     cpu: StatsItem;

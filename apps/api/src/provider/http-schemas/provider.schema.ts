@@ -45,6 +45,7 @@ export const ProviderListResponseSchema = z.array(
     isOnline: z.boolean(),
     lastOnlineDate: z.string().nullable(),
     isAudited: z.boolean(),
+    aliasOwners: z.array(z.string()),
     gpuModels: z.array(
       z.object({
         vendor: z.string(),

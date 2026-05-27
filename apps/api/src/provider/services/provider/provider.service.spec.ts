@@ -9,6 +9,7 @@ import { mock } from "vitest-mock-extended";
 
 import { cacheEngine } from "@src/caching/helpers";
 import { AUDITOR } from "@src/deployment/config/provider.config";
+import type { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { createLeaseStatus } from "../../../../test/seeders/lease-status.seeder";
 import { createProviderSeed, createProviderWithAttributeSignatures } from "../../../../test/seeders/provider.seeder";
 import { createUserWallet } from "../../../../test/seeders/user-wallet.seeder";
@@ -397,8 +398,37 @@ describe(ProviderService.name, () => {
       expect(result[0].owner).toBe(onlineProvider.owner);
     });
 
-    it("should prefer newest provider when multiple online providers share the same hostUri", async () => {
-      const { service, providerRepository, auditorsService, providerAttributesSchemaService } = setup();
+    it("prefers provider with active leases over newer provider when multiple online providers share the same hostUri", async () => {
+      const { service, providerRepository, leaseRepository, auditorsService, providerAttributesSchemaService } = setup();
+
+      const sharedHostUri = "https://provider.example.com:8443";
+      const olderOnlineWithLeases = {
+        ...createProviderWithAttributeSignatures(AUDITOR),
+        hostUri: sharedHostUri,
+        isOnline: true,
+        createdHeight: 100
+      } as unknown as Provider;
+      const newerOnlineNoLeases = {
+        ...createProviderWithAttributeSignatures(AUDITOR),
+        hostUri: sharedHostUri,
+        isOnline: true,
+        createdHeight: 200
+      } as unknown as Provider;
+
+      providerRepository.getWithAttributesAndAuditors.mockResolvedValue([olderOnlineWithLeases, newerOnlineNoLeases]);
+      providerRepository.getProviderWithNodes.mockResolvedValue([]);
+      leaseRepository.getActiveLeaseCountByProviders.mockResolvedValue(new Map([[olderOnlineWithLeases.owner, 5]]));
+      auditorsService.getAuditors.mockResolvedValue([]);
+      providerAttributesSchemaService.getProviderAttributesSchema.mockResolvedValue(providerAttributeSchemaStub);
+
+      const result = await service.getProviderList();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].owner).toBe(olderOnlineWithLeases.owner);
+    });
+
+    it("falls back to newest provider when lease counts are tied", async () => {
+      const { service, providerRepository, leaseRepository, auditorsService, providerAttributesSchemaService } = setup();
 
       const sharedHostUri = "https://provider.example.com:8443";
       const olderOnline = {
@@ -416,6 +446,7 @@ describe(ProviderService.name, () => {
 
       providerRepository.getWithAttributesAndAuditors.mockResolvedValue([olderOnline, newerOnline]);
       providerRepository.getProviderWithNodes.mockResolvedValue([]);
+      leaseRepository.getActiveLeaseCountByProviders.mockResolvedValue(new Map());
       auditorsService.getAuditors.mockResolvedValue([]);
       providerAttributesSchemaService.getProviderAttributesSchema.mockResolvedValue(providerAttributeSchemaStub);
 
@@ -423,6 +454,43 @@ describe(ProviderService.name, () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].owner).toBe(newerOnline.owner);
+    });
+
+    it("populates aliasOwners with sibling wallets that share the canonical row's hostUri", async () => {
+      const { service, providerRepository, leaseRepository, auditorsService, providerAttributesSchemaService } = setup();
+
+      const sharedHostUri = "https://provider.example.com:8443";
+      const canonical = {
+        ...createProviderWithAttributeSignatures(AUDITOR),
+        hostUri: sharedHostUri,
+        isOnline: true,
+        createdHeight: 100
+      } as unknown as Provider;
+      const sibling = {
+        ...createProviderWithAttributeSignatures(AUDITOR),
+        hostUri: sharedHostUri,
+        isOnline: true,
+        createdHeight: 200
+      } as unknown as Provider;
+      const standalone = {
+        ...createProviderWithAttributeSignatures(AUDITOR),
+        isOnline: true,
+        createdHeight: 50
+      } as unknown as Provider;
+
+      providerRepository.getWithAttributesAndAuditors.mockResolvedValue([canonical, sibling, standalone]);
+      providerRepository.getProviderWithNodes.mockResolvedValue([]);
+      leaseRepository.getActiveLeaseCountByProviders.mockResolvedValue(new Map([[canonical.owner, 1]]));
+      auditorsService.getAuditors.mockResolvedValue([]);
+      providerAttributesSchemaService.getProviderAttributesSchema.mockResolvedValue(providerAttributeSchemaStub);
+
+      const result = await service.getProviderList();
+
+      const sharedRow = result.find(p => p.hostUri === sharedHostUri);
+      const standaloneRow = result.find(p => p.owner === standalone.owner);
+      expect(sharedRow?.owner).toBe(canonical.owner);
+      expect(sharedRow?.aliasOwners).toEqual([sibling.owner]);
+      expect(standaloneRow?.aliasOwners).toEqual([]);
     });
 
     it("should deduplicate providers with the same hostUri", async () => {
@@ -516,8 +584,17 @@ describe(ProviderService.name, () => {
     const jwtTokenService = mock<ProviderJwtTokenService>({
       generateJwtToken: jest.fn().mockResolvedValue(Ok("mock-jwt-token"))
     });
+    const leaseRepository = mock<LeaseRepository>();
+    leaseRepository.getActiveLeaseCountByProviders.mockResolvedValue(new Map());
 
-    const service = new ProviderService(providerProxyService, providerRepository, providerAttributesSchemaService, auditorsService, jwtTokenService);
+    const service = new ProviderService(
+      providerProxyService,
+      providerRepository,
+      providerAttributesSchemaService,
+      auditorsService,
+      jwtTokenService,
+      leaseRepository
+    );
 
     return {
       service,
@@ -525,7 +602,8 @@ describe(ProviderService.name, () => {
       providerAttributesSchemaService,
       auditorsService,
       jwtTokenService,
-      providerProxyService
+      providerProxyService,
+      leaseRepository
     };
   }
 });

@@ -9,7 +9,8 @@ export const mapProviderToList = (
   provider: Provider,
   providerAttributeSchema: ProviderAttributesSchema,
   auditors: Array<Auditor>,
-  lastSuccessfulSnapshot?: ProviderSnapshot
+  lastSuccessfulSnapshot?: ProviderSnapshot,
+  aliasOwners: string[] = []
 ): ProviderList => {
   const isValidSdkVersion = provider.cosmosSdkVersion ? semver.gte(provider.cosmosSdkVersion, "v0.45.9") : false;
   const name = provider.isOnline ? new URL(provider.hostUri).hostname : null;
@@ -73,6 +74,7 @@ export const mapProviderToList = (
     isOnline: !!provider.isOnline,
     lastOnlineDate: lastSuccessfulSnapshot?.checkDate || null,
     isAudited: provider.providerAttributeSignatures.some(a => auditorSet.has(a.auditor)),
+    aliasOwners,
     attributes: provider.providerAttributes.map(attr => ({
       key: attr.key,
       value: attr.value,

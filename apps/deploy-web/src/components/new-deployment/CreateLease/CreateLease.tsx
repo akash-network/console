@@ -44,6 +44,7 @@ import type { BidDto } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
 import { addScriptToHead } from "@src/utils/domUtils";
+import { findProviderForBidProvider } from "@src/utils/providerUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import { CustomDropdownLinkItem } from "../../shared/CustomDropdownLinkItem";
@@ -213,7 +214,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
 
       for (let i = 0; i < bidKeys.length; i++) {
         const currentBid = selectedBids[bidKeys[i]];
-        const provider = providers?.find(x => x.owner === currentBid.provider);
+        const provider = findProviderForBidProvider(providers, currentBid.provider);
 
         if (!provider) {
           throw new Error("Cannot find bid provider");
@@ -254,7 +255,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
 
       if (search) {
         filteredBids = filteredBids.filter(bid => {
-          const provider = providers?.find(p => p.owner === bid.provider);
+          const provider = findProviderForBidProvider(providers, bid.provider);
           return provider?.attributes.some(att => att.value?.toLowerCase().includes(search.toLowerCase())) || provider?.hostUri.includes(search);
         });
       }
@@ -264,7 +265,10 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
       }
 
       if (isFilteringAudited) {
-        filteredBids = filteredBids.filter(bid => !!providers.filter(x => x.isAudited).find(p => p.owner === bid.provider));
+        filteredBids = filteredBids.filter(bid => {
+          const provider = findProviderForBidProvider(providers, bid.provider);
+          return !!provider?.isAudited;
+        });
       }
 
       setFilteredBids(filteredBids.map(bid => bid.id));

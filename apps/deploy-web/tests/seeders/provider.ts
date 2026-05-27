@@ -66,6 +66,7 @@ export function buildProvider(overrides?: Partial<ApiProviderDetail>): ApiProvid
     isOnline: faker.datatype.boolean(),
     lastOnlineDate: faker.date.recent().toISOString(),
     isAudited: faker.datatype.boolean(),
+    aliasOwners: [],
     attributes: [
       { key: "region", value: "us-east", auditedBy: [faker.string.alphanumeric(42)] },
       { key: "host", value: faker.internet.domainWord(), auditedBy: [faker.string.alphanumeric(42)] },

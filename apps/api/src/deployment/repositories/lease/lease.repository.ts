@@ -96,6 +96,26 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
    * @param params - Query parameters for filtering and pagination
    * @returns Object with total count and array of lease rows
    */
+  async getActiveLeaseCountByProviders(providerAddresses: string[]): Promise<Map<string, number>> {
+    if (!providerAddresses.length) return new Map();
+
+    const rows = (await Lease.findAll({
+      attributes: ["providerAddress", [fn("COUNT", col("id")), "leaseCount"]],
+      where: {
+        providerAddress: { [Op.in]: providerAddresses },
+        closedHeight: null
+      },
+      group: ["providerAddress"],
+      raw: true
+    })) as unknown as Array<{ providerAddress: string; leaseCount: string | number }>;
+
+    const result = new Map<string, number>();
+    for (const row of rows) {
+      result.set(row.providerAddress, Number(row.leaseCount));
+    }
+    return result;
+  }
+
   async findLeasesWithPagination(params: DatabaseLeaseListParams): Promise<{ count: number; rows: Lease[] }> {
     const { skip = 0, limit = 100, owner, dseq, gseq, oseq, provider, state, reverse = false } = params;
 

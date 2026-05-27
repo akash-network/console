@@ -1,7 +1,7 @@
 import networkStore from "@src/store/networkStore";
 import type { ISnapshotMetadata } from "@src/types";
 import { ProviderSnapshots } from "@src/types";
-import type { ProviderStatus, ProviderStatusDto, ProviderVersion } from "@src/types/provider";
+import type { ApiProviderList, ProviderStatus, ProviderStatusDto, ProviderVersion } from "@src/types/provider";
 import { bytesToShrink } from "./unitUtils";
 
 export type LocalProviderData = {
@@ -75,4 +75,9 @@ export const getSnapshotMetadata = (snapshot?: ProviderSnapshots): { unitFn: (nu
 export const getProviderNameFromUri = (uri: string) => {
   const name = new URL(uri).hostname;
   return name;
+};
+
+export const findProviderForBidProvider = (providers: ApiProviderList[] | undefined, bidProvider: string): ApiProviderList | undefined => {
+  if (!providers) return undefined;
+  return providers.find(provider => provider.owner === bidProvider || provider.aliasOwners?.includes(bidProvider));
 };

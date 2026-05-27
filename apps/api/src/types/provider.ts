@@ -23,6 +23,7 @@ export interface ProviderList {
   isOnline: boolean;
   lastOnlineDate: Date | null;
   isAudited: boolean;
+  aliasOwners: string[];
   gpuModels: Array<{
     vendor: string;
     model: string;
