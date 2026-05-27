@@ -9,6 +9,10 @@ import type { ApiProviderList } from "@src/types/provider";
 import { toBase64 } from "@src/utils/encoding";
 import { wait } from "@src/utils/timer";
 import { formatK8sEvent, formatLogMessage } from "./logFormatters";
+import { type ReceivedShellMessage, RotatingShellSession } from "./RotatingShellSession";
+import { isTokenExpiredMessage, mergeSignals, RotationTracker } from "./ws-rotation";
+
+export type { ReceivedShellMessage } from "./RotatingShellSession";
 
 // @see https://www.rfc-editor.org/rfc/rfc6455.html#page-46
 export const WS_ERRORS = {
@@ -331,151 +335,9 @@ export class ProviderProxyService {
   }
 }
 
-class RotationTracker {
-  private static readonly WINDOW_MS = 60_000;
-  private static readonly MAX_PER_WINDOW = 3;
-  private readonly timestamps: number[] = [];
-
-  constructor(
-    private readonly logger: LoggerService,
-    private readonly url: string
-  ) {}
-
-  allowRotation(): boolean {
-    const now = Date.now();
-    while (this.timestamps.length > 0 && this.timestamps[0] < now - RotationTracker.WINDOW_MS) {
-      this.timestamps.shift();
-    }
-    this.timestamps.push(now);
-    if (this.timestamps.length > RotationTracker.MAX_PER_WINDOW) {
-      this.logger.error({ event: "WS_ROTATION_LIMIT_EXCEEDED", url: this.url });
-      return false;
-    }
-    return true;
-  }
-}
-
-export class RotatingShellSession {
-  private static readonly OUTBOUND_QUEUE_CAP = 256;
-  private currentSession?: WebsocketSession<Uint8Array, ReceivedShellMessage>;
-  private currentSessionAbort?: AbortController;
-  private outboundQueue: Uint8Array[] = [];
-  private readonly tracker: RotationTracker;
-  private isDisconnected = false;
-  private sessionReady: Promise<void>;
-
-  constructor(
-    private readonly options: {
-      ensureToken: () => Promise<string>;
-      createSession: (token: string, signal: AbortSignal) => WebsocketSession<Uint8Array, ReceivedShellMessage>;
-      logger: LoggerService;
-      url: string;
-      signal?: AbortSignal;
-    }
-  ) {
-    this.tracker = new RotationTracker(options.logger, options.url);
-    this.sessionReady = this.openNextSession();
-    this.sessionReady.catch(() => {});
-  }
-
-  private async openNextSession(): Promise<void> {
-    const token = await this.options.ensureToken();
-    if (this.isDisconnected || this.options.signal?.aborted) return;
-    const sessionAbort = new AbortController();
-    const session = this.options.createSession(token, mergeSignals(this.options.signal, sessionAbort.signal));
-    this.currentSession = session;
-    this.currentSessionAbort = sessionAbort;
-    while (this.outboundQueue.length > 0) {
-      session.send(this.outboundQueue.shift()!);
-    }
-  }
-
-  send(message: Uint8Array): void {
-    if (this.isDisconnected) return;
-    if (this.currentSession) {
-      this.currentSession.send(message);
-      return;
-    }
-    if (this.outboundQueue.length >= RotatingShellSession.OUTBOUND_QUEUE_CAP) {
-      this.options.logger.warn({ event: "SHELL_OUTBOUND_QUEUE_OVERFLOW", url: this.options.url, dropped: 1 });
-      this.outboundQueue.shift();
-    }
-    this.outboundQueue.push(message);
-  }
-
-  async disconnect(): Promise<void> {
-    this.isDisconnected = true;
-    this.outboundQueue = [];
-    this.currentSessionAbort?.abort();
-    if (this.currentSession) {
-      await this.currentSession.disconnect();
-      this.currentSession = undefined;
-    }
-  }
-
-  async *receive(): AsyncGenerator<ReceivedShellMessage> {
-    while (!this.isDisconnected && !this.options.signal?.aborted) {
-      try {
-        await this.sessionReady;
-      } catch {
-        yield { closed: true } as ReceivedShellMessage;
-        return;
-      }
-      const session = this.currentSession;
-      const sessionAbort = this.currentSessionAbort;
-      if (!session) return;
-
-      let rotate = false;
-      try {
-        for await (const message of session.receive()) {
-          if (isTokenExpiredMessage(message)) {
-            rotate = true;
-            break;
-          }
-          yield message;
-        }
-      } finally {
-        sessionAbort?.abort();
-        await session.disconnect();
-        if (this.currentSession === session) {
-          this.currentSession = undefined;
-          this.currentSessionAbort = undefined;
-        }
-      }
-
-      if (!rotate) return;
-      if (!this.tracker.allowRotation()) {
-        yield { closed: true } as ReceivedShellMessage;
-        return;
-      }
-      this.sessionReady = this.openNextSession();
-      this.sessionReady.catch(() => {});
-    }
-  }
-}
-
-function isTokenExpiredMessage(message: unknown): boolean {
-  return typeof message === "object" && message !== null && (message as { error?: string }).error === "tokenExpired";
-}
-
-function mergeSignals(...signals: Array<AbortSignal | undefined>): AbortSignal {
-  const defined = signals.filter((s): s is AbortSignal => !!s);
-  if (defined.length === 0) return new AbortController().signal;
-  if (defined.length === 1) return defined[0];
-  return AbortSignal.any(defined);
-}
-
 function providerLeaseUrl(input: { providerBaseUrl: string; dseq: string; gseq: number; oseq: number; type: "logs" | "events" | "shell" }): string {
   const type = input.type === "events" ? "kubeevents" : input.type;
   return `${input.providerBaseUrl}/lease/${input.dseq}/${input.gseq}/${input.oseq}/${type}`;
-}
-
-export interface ReceivedShellMessage {
-  message?: {
-    data: number[];
-  };
-  error?: string;
-  closed?: boolean;
 }
 
 export interface ProviderProxyPayload {
