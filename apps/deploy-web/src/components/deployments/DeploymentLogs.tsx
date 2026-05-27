@@ -1,23 +1,11 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-  Button,
-  Checkbox,
-  CheckboxWithLabel,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-  Skeleton,
-  Spinner
-} from "@akashnetwork/ui/components";
+import { Button, Checkbox, CheckboxWithLabel, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import type { Monaco } from "@monaco-editor/react";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { Download, MoreHoriz, WarningCircle } from "iconoir-react";
+import { Download, MoreHoriz } from "iconoir-react";
 import type { editor } from "monaco-editor";
 
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
@@ -36,6 +24,7 @@ import type { K8sEventMessage, LogEntryMessage, ProviderProxyMessage } from "@sr
 import type { LeaseDto } from "@src/types/deployment";
 import { forEachGeneratedItem } from "@src/utils/array";
 import { LeaseSelect } from "./LeaseSelect";
+import { useProviderAuthGate } from "./ProviderAuthGate";
 
 export type LOGS_MODE = "logs" | "events";
 
@@ -57,10 +46,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   const [selectedLease, setSelectedLease] = useState<LeaseDto | null>(null);
   const { data: providers } = useProviderList();
   const providerCredentials = useProviderCredentials();
-  const [hasLogsAccess, setHasLogsAccess] = useState(false);
-  useEffect(() => {
-    if (providerCredentials.details.usable) setHasLogsAccess(true);
-  }, [providerCredentials.details.usable]);
+  const { hasAccess: hasLogsAccess, fallback: authFallback } = useProviderAuthGate(providerCredentials);
   const { downloadLogs } = useProviderApiActions();
   const monacoEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
@@ -231,20 +217,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
 
   return (
     <div>
-      {!hasLogsAccess && !providerCredentials.details.error && (
-        <div className="mt-4 space-y-2">
-          <Skeleton className="h-[56px] w-full" />
-          <Skeleton className="h-[400px] w-full" />
-        </div>
-      )}
-
-      {!hasLogsAccess && providerCredentials.details.error && (
-        <Alert variant="warning" className="mt-4 p-4">
-          <WarningCircle className="h-4 w-4" />
-          <AlertTitle className="mb-1 text-sm">Could not authorize with the provider</AlertTitle>
-          <AlertDescription className="text-xs text-muted-foreground">Please retry once the network has recovered.</AlertDescription>
-        </Alert>
-      )}
+      {authFallback}
 
       {hasLogsAccess && (
         <>

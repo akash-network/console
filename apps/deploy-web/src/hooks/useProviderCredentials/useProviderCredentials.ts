@@ -81,9 +81,7 @@ export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UsePr
 
   useEffect(() => {
     if (!isWalletConnected || !isHydrated || isUsable || error || inFlightTracker.current) return;
-    ensureToken().catch(() => {
-      // Error already surfaced via notificator + details.error inside ensureToken
-    });
+    ensureToken().catch(() => {});
   }, [isWalletConnected, isHydrated, isUsable, error, ensureToken]);
 
   const credentials = useMemo(

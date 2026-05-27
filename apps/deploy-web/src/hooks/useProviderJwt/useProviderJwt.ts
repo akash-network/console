@@ -25,7 +25,6 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
-    setIsHydrated(false);
     const token = storedWalletsService.getStorageWallets(selectedNetworkId).find(w => w.address === address)?.token;
     setAccessToken(token || null);
     setIsHydrated(true);

@@ -409,7 +409,7 @@ describe("Provider proxy ws", () => {
       version: "v1",
       leases: { access: "full" }
     };
-    const encoded = Buffer.from(JSON.stringify(expiredPayload)).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const encoded = Buffer.from(JSON.stringify(expiredPayload)).toString("base64url");
     return `${header}.${encoded}.${signature}`;
   }
 

@@ -131,13 +131,9 @@ describe(CreateLease.name, () => {
             typeUrl: `/${MsgCreateLease.$type}`
           })
         ]);
-        expect(ensureToken).toHaveBeenCalled();
         expect(sendManifest).toHaveBeenCalledWith(selectedProvider, expect.any(Array), {
           dseq,
-          credentials: {
-            type: "jwt",
-            value: "jwt-token"
-          }
+          ensureToken
         });
       });
     });
@@ -174,13 +170,9 @@ describe(CreateLease.name, () => {
 
       await userEvent.click(screen.getByRole<HTMLButtonElement>("button", { name: /Re-send Manifest/i }));
       await vi.waitFor(() => {
-        expect(ensureToken).toHaveBeenCalled();
         expect(sendManifest).toHaveBeenCalledWith(selectedProvider, expect.any(Array), {
           dseq,
-          credentials: {
-            type: "jwt",
-            value: "refreshed-token"
-          }
+          ensureToken
         });
       });
     });

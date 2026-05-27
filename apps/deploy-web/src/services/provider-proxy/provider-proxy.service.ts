@@ -48,13 +48,13 @@ export class ProviderProxyService {
     await wait(ProviderProxyService.BEFORE_SEND_MANIFEST_DELAY);
 
     const serializedManifest = manifestToSortedJSON(manifest);
+    const credentials: ProviderCredentials = { type: "jwt", value: await options.ensureToken() };
     let response: AxiosResponse | undefined;
 
     for (let i = 1; i <= 3 && !response; i++) {
       this.logger.info({ event: "ATTEMPT_SEND_MANIFEST", attempt: i, providerAddress: providerInfo.owner, dseq: options.dseq });
       try {
         if (!response) {
-          const credentials = options.ensureToken ? ({ type: "jwt", value: await options.ensureToken() } satisfies ProviderCredentials) : options.credentials;
           response = await this.request(`/deployment/${options.dseq}/manifest`, {
             method: "PUT",
             credentials,
@@ -275,10 +275,8 @@ export class ProviderProxyService {
           yield message;
         }
       } finally {
-        if (rotate) {
-          rotationAbort.abort();
-          await session.disconnect();
-        }
+        rotationAbort.abort();
+        await session.disconnect();
       }
 
       if (!rotate || !tracker.allowRotation()) return;
@@ -358,6 +356,7 @@ class RotationTracker {
 }
 
 export class RotatingShellSession {
+  private static readonly OUTBOUND_QUEUE_CAP = 256;
   private currentSession?: WebsocketSession<Uint8Array, ReceivedShellMessage>;
   private currentSessionAbort?: AbortController;
   private outboundQueue: Uint8Array[] = [];
@@ -376,6 +375,7 @@ export class RotatingShellSession {
   ) {
     this.tracker = new RotationTracker(options.logger, options.url);
     this.sessionReady = this.openNextSession();
+    this.sessionReady.catch(() => {});
   }
 
   private async openNextSession(): Promise<void> {
@@ -395,6 +395,10 @@ export class RotatingShellSession {
     if (this.currentSession) {
       this.currentSession.send(message);
       return;
+    }
+    if (this.outboundQueue.length >= RotatingShellSession.OUTBOUND_QUEUE_CAP) {
+      this.options.logger.warn({ event: "SHELL_OUTBOUND_QUEUE_OVERFLOW", url: this.options.url, dropped: 1 });
+      this.outboundQueue.shift();
     }
     this.outboundQueue.push(message);
   }
@@ -431,10 +435,8 @@ export class RotatingShellSession {
           yield message;
         }
       } finally {
-        if (rotate) {
-          sessionAbort?.abort();
-          await session.disconnect();
-        }
+        sessionAbort?.abort();
+        await session.disconnect();
         if (this.currentSession === session) {
           this.currentSession = undefined;
           this.currentSessionAbort = undefined;
@@ -447,6 +449,7 @@ export class RotatingShellSession {
         return;
       }
       this.sessionReady = this.openNextSession();
+      this.sessionReady.catch(() => {});
     }
   }
 }
@@ -490,8 +493,7 @@ export interface ProviderIdentity {
 
 export interface SendManifestToProviderOptions {
   dseq: string;
-  credentials?: ProviderCredentials | null;
-  ensureToken?: () => Promise<string>;
+  ensureToken: () => Promise<string>;
 }
 
 export type ProviderCredentials = {

@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, AlertDescription, AlertTitle, Button, Skeleton, Spinner } from "@akashnetwork/ui/components";
+import { Alert, AlertDescription, AlertTitle, Button, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { WarningCircle } from "iconoir-react";
 
@@ -16,6 +16,7 @@ import type { LeaseDto } from "@src/types/deployment";
 import { LeaseShellCode } from "@src/types/shell";
 import { forEachGeneratedItem } from "@src/utils/array";
 import { LeaseSelect } from "./LeaseSelect";
+import { useProviderAuthGate } from "./ProviderAuthGate";
 import { ServiceSelect } from "./ServiceSelect";
 import { ShellDownloadModal } from "./ShellDownloadModal";
 
@@ -37,10 +38,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   const [isChangingSocket, setIsChangingSocket] = useState(false);
   const { data: providers } = useProviderList();
   const providerCredentials = useProviderCredentials();
-  const [hasShellAccess, setHasShellAccess] = useState(false);
-  useEffect(() => {
-    if (providerCredentials.details.usable) setHasShellAccess(true);
-  }, [providerCredentials.details.usable]);
+  const { hasAccess: hasShellAccess, fallback: authFallback } = useProviderAuthGate(providerCredentials);
   const providerInfo = providers?.find(p => p.owner === selectedLease?.provider);
   const {
     data: leaseStatus,
@@ -94,6 +92,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
       conn,
       abortController
     };
+    // ensureToken is intentionally omitted: it changes on every JWT rotation, which would tear down the live shell session
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [providerInfo, hasShellAccess, selectedLease, selectedService]);
 
@@ -235,20 +234,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
         <ShellDownloadModal onCloseClick={onCloseDownloadClick} selectedLease={selectedLease} providerInfo={providerInfo} selectedService={selectedService} />
       )}
 
-      {!hasShellAccess && !providerCredentials.details.error && (
-        <div className="mt-4 space-y-2">
-          <Skeleton className="h-[56px] w-full" />
-          <Skeleton className="h-[400px] w-full" />
-        </div>
-      )}
-
-      {!hasShellAccess && providerCredentials.details.error && (
-        <Alert variant="warning" className="mt-4 p-4">
-          <WarningCircle className="h-4 w-4" />
-          <AlertTitle className="mb-1 text-sm">Could not authorize with the provider</AlertTitle>
-          <AlertDescription className="text-xs text-muted-foreground">Please retry once the network has recovered.</AlertDescription>
-        </Alert>
-      )}
+      {authFallback}
 
       {hasShellAccess && (
         <>

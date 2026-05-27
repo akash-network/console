@@ -19,7 +19,7 @@ describe(ProviderProxyService.name, () => {
   describe("sendManifest", () => {
     it("does nothing if provider is undefined", () => {
       const { service, httpClient } = setup();
-      service.sendManifest(undefined, [] as Manifest, { dseq: "1" });
+      service.sendManifest(undefined, [] as Manifest, { dseq: "1", ensureToken: () => Promise.resolve("noop") });
       expect(httpClient.post).not.toHaveBeenCalled();
     });
 
@@ -79,7 +79,7 @@ describe(ProviderProxyService.name, () => {
         }
       ];
       const credentials: ProviderCredentials = { type: "jwt", value: "jwt-token" };
-      const promise = service.sendManifest(provider, manifest, { dseq, credentials });
+      const promise = service.sendManifest(provider, manifest, { dseq, ensureToken: () => Promise.resolve(credentials.value as string) });
 
       const [result] = await Promise.all([promise, vi.runAllTimersAsync()]);
 
