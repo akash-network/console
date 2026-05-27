@@ -1,4 +1,9 @@
 export function* chunkify<T>(iter: Iterable<T>, size: number): Generator<readonly T[]> {
+  if (Array.isArray(iter) && size >= iter.length) {
+    yield iter;
+    return;
+  }
+
   const buf: T[] = new Array(size);
   let i = 0;
   for (const x of iter) {

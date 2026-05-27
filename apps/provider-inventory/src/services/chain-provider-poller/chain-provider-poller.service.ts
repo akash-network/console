@@ -17,20 +17,21 @@ export class ChainProviderPollerService {
     this.#logger = loggerFactory({ context: "ChainProviderPoller" });
   }
 
-  async *poll(input: { signal?: AbortSignal } = {}): AsyncGenerator<ChainProvider[]> {
-    const MAX_PROVIDERS_PER_BATCH = 500;
+  async *poll(input: { signal?: AbortSignal; batchSize?: number } = {}): AsyncGenerator<ChainProvider[]> {
+    const MAX_PROVIDERS_PER_BATCH = input.batchSize ?? 500;
     this.#logger.info({ event: "CHAIN_POLL_START" });
 
     const auditRecords = await this.#chainSDK.akash.audit.v1.getAllProvidersAttributes({}, { signal: input.signal });
 
-    const signedByOwner = new Map<string, Array<{ key: string; value: string; auditor: string }>>();
+    const signedByOwner = new Map<string, { attributes: Array<{ key: string; value: string; auditor: string }>; auditors: Set<string> }>();
     for (const record of auditRecords.providers) {
       const existing = signedByOwner.get(record.owner);
       const attributes = record.attributes.map(a => ({ key: a.key, value: a.value, auditor: record.auditor }));
       if (existing) {
-        existing.push(...attributes);
+        existing.attributes.push(...attributes);
+        existing.auditors.add(record.auditor);
       } else {
-        signedByOwner.set(record.owner, attributes);
+        signedByOwner.set(record.owner, { attributes, auditors: new Set([record.auditor]) });
       }
     }
 
@@ -47,13 +48,23 @@ export class ChainProviderPollerService {
       );
       providerCount += response.providers.length;
 
-      if (response.providers.length > 0) {
-        yield response.providers.map(p => ({
-          owner: p.owner,
-          hostUri: p.hostUri,
-          selfAttributes: p.attributes,
-          signedAttributes: signedByOwner.get(p.owner) ?? []
-        }));
+      const validProviders: ChainProvider[] = [];
+      for (const provider of response.providers) {
+        if (isValidUrl(provider.hostUri)) {
+          validProviders.push({
+            owner: provider.owner,
+            hostUri: provider.hostUri,
+            selfAttributes: provider.attributes,
+            signedAttributes: signedByOwner.get(provider.owner)?.attributes ?? [],
+            auditedBy: signedByOwner.get(provider.owner)?.auditors ? Array.from(signedByOwner.get(provider.owner)!.auditors) : []
+          });
+        } else {
+          this.#logger.warn({ event: "DISCOVERY_SKIP_PROVIDER", owner: provider.owner, hostUri: provider.hostUri, reason: "Invalid host URI" });
+        }
+      }
+
+      if (validProviders.length > 0) {
+        yield validProviders;
       }
 
       nextKey = response.pagination?.nextKey;
@@ -61,4 +72,15 @@ export class ChainProviderPollerService {
 
     this.#logger.info({ event: "CHAIN_PROVIDERS_POLL_COMPLETE", providerCount });
   }
+}
+
+function isValidUrl(rawUrl: string): boolean {
+  if (!rawUrl || !URL.canParse(rawUrl)) return false;
+
+  const url = new URL(rawUrl);
+  const isHTTP = url.protocol === "http:" || url.protocol === "https:";
+  if (!isHTTP) return false;
+  if (url.hostname[0] === "$" && /^\$[\w_-]+$/.test(url.hostname)) return false; // check against unexpanded env vars
+
+  return true;
 }

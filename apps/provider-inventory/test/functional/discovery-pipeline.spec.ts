@@ -36,7 +36,9 @@ describe("DiscoveryScheduler pipeline", () => {
   it("closes the old stream and opens a new one when the provider's hostUri changes", async () => {
     const before = createProvider({ owner: "a", hostUri: "https://old:8443" });
     const after = createProvider({ owner: "a", hostUri: "https://new:8443" });
-    const { scheduler, abortedHosts, openedHosts, lifecycle, setProviders } = setup({ providers: [before] });
+    const { scheduler, abortedHosts, openedHosts, lifecycle, setProviders, queueStreamMessages } = setup({ providers: [before] });
+    queueStreamMessages("https://old:8443", [emptyClusterState()]);
+    queueStreamMessages("https://new:8443", [emptyClusterState()]);
 
     await scheduler.discoverProviders();
     setProviders([after]);
@@ -170,6 +172,10 @@ function createProvider(overrides: Partial<ChainProvider> & Pick<ChainProvider, 
     signedAttributes: [],
     ...overrides
   };
+}
+
+function emptyClusterState(): ClusterState {
+  return { nodes: [], storage: Object.create(null) };
 }
 
 function buildNode(overrides?: Partial<NodeState>): NodeState {
