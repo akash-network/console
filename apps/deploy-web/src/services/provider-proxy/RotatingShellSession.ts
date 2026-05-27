@@ -35,6 +35,7 @@ export class RotatingShellSession {
   }
 
   private async openNextSession(): Promise<void> {
+    if (this.isDisconnected || this.options.signal?.aborted) return;
     const token = await this.options.ensureToken();
     if (this.isDisconnected || this.options.signal?.aborted) return;
     const sessionAbort = new AbortController();
