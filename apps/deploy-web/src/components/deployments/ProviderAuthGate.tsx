@@ -1,18 +1,5 @@
-import { useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle, Skeleton } from "@akashnetwork/ui/components";
 import { WarningCircle } from "iconoir-react";
-
-import type { UseProviderCredentialsResult } from "@src/hooks/useProviderCredentials/useProviderCredentials";
-
-export function useProviderAccess(providerCredentials: UseProviderCredentialsResult): boolean {
-  const [hasAccess, setHasAccess] = useState(false);
-
-  useEffect(() => {
-    if (providerCredentials.details.usable) setHasAccess(true);
-  }, [providerCredentials.details.usable]);
-
-  return hasAccess;
-}
 
 export function ProviderAuthFallback({ hasAccess, error }: { hasAccess: boolean; error: Error | null }) {
   if (error) return <ProviderAuthErrorAlert />;

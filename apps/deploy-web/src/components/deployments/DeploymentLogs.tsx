@@ -14,6 +14,7 @@ import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkele
 import { SelectCheckbox } from "@src/components/shared/SelectCheckbox";
 import { ViewPanel } from "@src/components/shared/ViewPanel";
 import { useServices } from "@src/context/ServicesProvider";
+import { useProviderAccess } from "@src/hooks/useProviderAccess/useProviderAccess";
 import { useProviderApiActions } from "@src/hooks/useProviderApiActions";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useThrottledCallback } from "@src/hooks/useThrottle";
@@ -24,7 +25,7 @@ import type { K8sEventMessage, LogEntryMessage, ProviderProxyMessage } from "@sr
 import type { LeaseDto } from "@src/types/deployment";
 import { forEachGeneratedItem } from "@src/utils/array";
 import { LeaseSelect } from "./LeaseSelect";
-import { ProviderAuthFallback, useProviderAccess } from "./ProviderAuthGate";
+import { ProviderAuthFallback } from "./ProviderAuthGate";
 
 export type LOGS_MODE = "logs" | "events";
 

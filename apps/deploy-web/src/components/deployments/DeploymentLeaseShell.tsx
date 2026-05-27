@@ -6,6 +6,7 @@ import { WarningCircle } from "iconoir-react";
 
 import { ViewPanel } from "@src/components/shared/ViewPanel";
 import { useServices } from "@src/context/ServicesProvider";
+import { useProviderAccess } from "@src/hooks/useProviderAccess/useProviderAccess";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { XTerm } from "@src/lib/XTerm";
 import type { XTermRefType } from "@src/lib/XTerm/XTerm";
@@ -16,7 +17,7 @@ import type { LeaseDto } from "@src/types/deployment";
 import { LeaseShellCode } from "@src/types/shell";
 import { forEachGeneratedItem } from "@src/utils/array";
 import { LeaseSelect } from "./LeaseSelect";
-import { ProviderAuthFallback, useProviderAccess } from "./ProviderAuthGate";
+import { ProviderAuthFallback } from "./ProviderAuthGate";
 import { ServiceSelect } from "./ServiceSelect";
 import { ShellDownloadModal } from "./ShellDownloadModal";
 
