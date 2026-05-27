@@ -43,26 +43,13 @@ describe(WalletStatus.name, () => {
     expect(screen.getByText("Trial")).toBeInTheDocument();
   });
 
-  it("opens the dropdown with CustodialWalletPopup on click for a custodial wallet", async () => {
-    const CustodialWalletPopup = vi.fn(ComponentMock);
+  it("opens the dropdown with ManagedWalletPopup on click", async () => {
     const ManagedWalletPopup = vi.fn(ComponentMock);
-    setup({ isManaged: false, dependencies: { CustodialWalletPopup, ManagedWalletPopup } });
-
-    await userEvent.click(screen.getByLabelText("Connected wallet name and balance"));
-
-    expect(CustodialWalletPopup).toHaveBeenCalled();
-    expect(ManagedWalletPopup).not.toHaveBeenCalled();
-  });
-
-  it("opens the dropdown with ManagedWalletPopup on click for a managed wallet", async () => {
-    const CustodialWalletPopup = vi.fn(ComponentMock);
-    const ManagedWalletPopup = vi.fn(ComponentMock);
-    setup({ isManaged: true, dependencies: { CustodialWalletPopup, ManagedWalletPopup } });
+    setup({ isManaged: true, dependencies: { ManagedWalletPopup } });
 
     await userEvent.click(screen.getByLabelText("Connected wallet name and balance"));
 
     expect(ManagedWalletPopup).toHaveBeenCalled();
-    expect(CustodialWalletPopup).not.toHaveBeenCalled();
   });
 
   function setup(input: {
@@ -93,7 +80,6 @@ describe(WalletStatus.name, () => {
           isLoading: input.isBalanceLoading ?? false,
           refetch: vi.fn()
         }) as unknown as ReturnType<typeof DEPENDENCIES.useWalletBalance>,
-      CustodialWalletPopup: vi.fn(ComponentMock) as unknown as typeof DEPENDENCIES.CustodialWalletPopup,
       ManagedWalletPopup: vi.fn(ComponentMock) as unknown as typeof DEPENDENCIES.ManagedWalletPopup,
       WalletConnectionButtons: vi.fn(ComponentMock) as unknown as typeof DEPENDENCIES.WalletConnectionButtons,
       FormattedNumber: ({ value }: { value: number }) => <span>${value}</span>,

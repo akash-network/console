@@ -7,35 +7,28 @@ import { useAtom } from "jotai";
 import Link from "next/link";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import { useIsSelfCustodyEnabled } from "@src/hooks/useIsSelfCustodyEnabled";
 import walletStore from "@src/store/walletStore";
 import { UrlService } from "@src/utils/urlUtils";
 import { ConnectManagedWalletButton } from "./ConnectManagedWalletButton";
-import { ConnectWalletButton } from "./ConnectWalletButton";
 
 interface WalletConnectionButtonsProps {
   className?: string;
   connectManagedWalletButtonClassName?: string;
-  connectWalletButtonClassName?: string;
   dependencies?: typeof DEPENDENCIES;
 }
 
 export const DEPENDENCIES = {
-  useIsSelfCustodyEnabled,
   useCustomUser,
-  ConnectManagedWalletButton,
-  ConnectWalletButton
+  ConnectManagedWalletButton
 };
 
 export const WalletConnectionButtons: React.FC<WalletConnectionButtonsProps> = ({
   className,
   connectManagedWalletButtonClassName,
-  connectWalletButtonClassName,
   dependencies: d = DEPENDENCIES
 }) => {
   const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
   const { user } = d.useCustomUser();
-  const isSelfCustodyEnabled = d.useIsSelfCustodyEnabled();
 
   return (
     <div className={cn("flex items-center gap-4", className)}>
@@ -46,7 +39,6 @@ export const WalletConnectionButtons: React.FC<WalletConnectionButtonsProps> = (
           Sign in
         </Link>
       )}
-      {isSelfCustodyEnabled && <d.ConnectWalletButton className={connectWalletButtonClassName} />}
     </div>
   );
 };
