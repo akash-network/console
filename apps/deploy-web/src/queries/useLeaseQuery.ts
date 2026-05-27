@@ -85,9 +85,10 @@ export function useLeaseStatus(
     queryFn: async () => {
       if (lease?.state !== "active" || !providerCredentials.details.usable) return null;
 
+      const token = await providerCredentials.ensureToken();
       const response = await fetchProviderUrl<LeaseStatusDto>(`/lease/${lease.dseq}/${lease.gseq}/${lease.oseq}/status`, {
         method: "GET",
-        credentials: providerCredentials.details
+        credentials: { type: "jwt", value: token }
       }).catch(error => {
         if (isHttpError(error) && error.response?.status === 404) {
           return { data: null };

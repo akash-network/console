@@ -54,9 +54,10 @@ export class ProviderProxyService {
       this.logger.info({ event: "ATTEMPT_SEND_MANIFEST", attempt: i, providerAddress: providerInfo.owner, dseq: options.dseq });
       try {
         if (!response) {
+          const credentials = options.ensureToken ? ({ type: "jwt", value: await options.ensureToken() } satisfies ProviderCredentials) : options.credentials;
           response = await this.request(`/deployment/${options.dseq}/manifest`, {
             method: "PUT",
-            credentials: options.credentials,
+            credentials,
             body: serializedManifest,
             timeout: 60_000,
             providerIdentity: providerInfo
@@ -89,7 +90,7 @@ export class ProviderProxyService {
   async downloadLogs(input: {
     providerBaseUrl: string;
     providerAddress: string;
-    providerCredentials: ProviderCredentials;
+    ensureToken: () => Promise<string>;
     dseq: string;
     gseq: number;
     oseq: number;
@@ -139,7 +140,7 @@ export class ProviderProxyService {
   async downloadFileFromShell(input: {
     providerBaseUrl: string;
     providerAddress: string;
-    providerCredentials: ProviderCredentials;
+    ensureToken: () => Promise<string>;
     dseq: string;
     gseq: number;
     oseq: number;
@@ -220,7 +221,7 @@ export class ProviderProxyService {
   async *getLogsStream<T extends "logs" | "events">(input: {
     providerBaseUrl: string;
     providerAddress: string;
-    providerCredentials: ProviderCredentials;
+    ensureToken: () => Promise<string>;
     dseq: string;
     gseq: number;
     oseq: number;
@@ -232,38 +233,62 @@ export class ProviderProxyService {
   }): AsyncGenerator<T extends "logs" ? ProviderProxyMessage<LogEntryMessage> : ProviderProxyMessage<K8sEventMessage>> {
     const tail = input.tail ? `&tail=${input.tail}` : "";
     const url = `${providerLeaseUrl(input)}?follow=${input.follow ? "true" : "false"}${tail}${input.services ? `&service=${input.services.join(",")}` : ""}`;
+    const tracker = new RotationTracker(this.logger, url);
 
-    const session = new WebsocketSession<undefined, T extends "logs" ? ProviderProxyMessage<LogEntryMessage> : ProviderProxyMessage<K8sEventMessage>>({
-      websocketFactory: this.createWebSocket,
-      shouldRetry: error => !error.cause || !isInvalidProviderCertificate(error.cause as CloseEvent),
-      signal: input.signal,
-      transformSentMessage: () =>
-        JSON.stringify({
-          type: "websocket",
-          url,
-          auth: providerCredentialsToApiCredentials(input.providerCredentials),
-          providerAddress: input.providerAddress
-        }),
-      transformReceivedMessage: rawMessage => {
-        const message = JSON.parse(rawMessage as string);
-        if (!message.message) return message;
+    type LogStreamMessage = T extends "logs" ? ProviderProxyMessage<LogEntryMessage> : ProviderProxyMessage<K8sEventMessage>;
 
-        return {
-          ...message,
-          message: JSON.parse(message.message)
-        };
+    while (!input.signal?.aborted) {
+      const token = await input.ensureToken();
+      if (input.signal?.aborted) return;
+      const rotationAbort = new AbortController();
+      const session = new WebsocketSession<undefined, LogStreamMessage>({
+        websocketFactory: this.createWebSocket,
+        shouldRetry: error => !error.cause || !isInvalidProviderCertificate(error.cause as CloseEvent),
+        signal: mergeSignals(input.signal, rotationAbort.signal),
+        transformSentMessage: () =>
+          JSON.stringify({
+            type: "websocket",
+            url,
+            auth: { type: "jwt", token } satisfies ProviderApiCredentials,
+            providerAddress: input.providerAddress
+          }),
+        transformReceivedMessage: rawMessage => {
+          const message = JSON.parse(rawMessage as string);
+          if (!message.message) return message;
+
+          return {
+            ...message,
+            message: JSON.parse(message.message)
+          };
+        }
+      });
+
+      session.send(undefined);
+
+      let rotate = false;
+      try {
+        for await (const message of session.receive()) {
+          if (isTokenExpiredMessage(message)) {
+            rotate = true;
+            break;
+          }
+          yield message;
+        }
+      } finally {
+        if (rotate) {
+          rotationAbort.abort();
+          await session.disconnect();
+        }
       }
-    });
 
-    session.send(undefined);
-
-    return yield* session.receive();
+      if (!rotate || !tracker.allowRotation()) return;
+    }
   }
 
   connectToShell(input: {
     providerBaseUrl: string;
     providerAddress: string;
-    providerCredentials: ProviderCredentials;
+    ensureToken: () => Promise<string>;
     dseq: string;
     gseq: number;
     oseq: number;
@@ -272,32 +297,169 @@ export class ProviderProxyService {
     useTTY?: boolean;
     command?: string[];
     signal?: AbortSignal;
-  }): WebsocketSession<Uint8Array, ReceivedShellMessage> {
+  }): RotatingShellSession {
     const argv = input.command ?? ["sh", "-c", "command -v bash >/dev/null 2>&1 && exec bash || exec sh"];
     const command = argv.map((c, i) => `cmd${i}=${encodeURIComponent(c)}`).join("&");
     const url = `${providerLeaseUrl({ ...input, type: "shell" })}?stdin=${input.useStdIn ? "1" : "0"}&tty=${input.useTTY ? "1" : "0"}&podIndex=0&${command}&service=${encodeURIComponent(input.service)}`;
+    const createWebSocket = this.createWebSocket;
 
-    return new WebsocketSession<Uint8Array, ReceivedShellMessage>({
-      websocketFactory: this.createWebSocket,
-      shouldRetry: error => !error.cause || !isInvalidProviderCertificate(error.cause as CloseEvent),
+    return new RotatingShellSession({
+      ensureToken: input.ensureToken,
       signal: input.signal,
-      transformSentMessage: message => {
-        const remoteMessage: Record<string, unknown> = {
-          type: "websocket",
-          url,
-          auth: providerCredentialsToApiCredentials(input.providerCredentials),
-          providerAddress: input.providerAddress,
-          isBase64: true
-        };
+      logger: this.logger,
+      url,
+      createSession: (token, sessionSignal) =>
+        new WebsocketSession<Uint8Array, ReceivedShellMessage>({
+          websocketFactory: createWebSocket,
+          shouldRetry: error => !error.cause || !isInvalidProviderCertificate(error.cause as CloseEvent),
+          signal: sessionSignal,
+          transformSentMessage: message => {
+            const remoteMessage: Record<string, unknown> = {
+              type: "websocket",
+              url,
+              auth: { type: "jwt", token } satisfies ProviderApiCredentials,
+              providerAddress: input.providerAddress,
+              isBase64: true
+            };
 
-        if (message.length > 0) {
-          remoteMessage.data = toBase64(message);
-        }
+            if (message.length > 0) {
+              remoteMessage.data = toBase64(message);
+            }
 
-        return JSON.stringify(remoteMessage);
-      }
+            return JSON.stringify(remoteMessage);
+          }
+        })
     });
   }
+}
+
+class RotationTracker {
+  private static readonly WINDOW_MS = 60_000;
+  private static readonly MAX_PER_WINDOW = 3;
+  private readonly timestamps: number[] = [];
+
+  constructor(
+    private readonly logger: LoggerService,
+    private readonly url: string
+  ) {}
+
+  allowRotation(): boolean {
+    const now = Date.now();
+    while (this.timestamps.length > 0 && this.timestamps[0] < now - RotationTracker.WINDOW_MS) {
+      this.timestamps.shift();
+    }
+    this.timestamps.push(now);
+    if (this.timestamps.length > RotationTracker.MAX_PER_WINDOW) {
+      this.logger.error({ event: "WS_ROTATION_LIMIT_EXCEEDED", url: this.url });
+      return false;
+    }
+    return true;
+  }
+}
+
+export class RotatingShellSession {
+  private currentSession?: WebsocketSession<Uint8Array, ReceivedShellMessage>;
+  private currentSessionAbort?: AbortController;
+  private outboundQueue: Uint8Array[] = [];
+  private readonly tracker: RotationTracker;
+  private isDisconnected = false;
+  private sessionReady: Promise<void>;
+
+  constructor(
+    private readonly options: {
+      ensureToken: () => Promise<string>;
+      createSession: (token: string, signal: AbortSignal) => WebsocketSession<Uint8Array, ReceivedShellMessage>;
+      logger: LoggerService;
+      url: string;
+      signal?: AbortSignal;
+    }
+  ) {
+    this.tracker = new RotationTracker(options.logger, options.url);
+    this.sessionReady = this.openNextSession();
+  }
+
+  private async openNextSession(): Promise<void> {
+    const token = await this.options.ensureToken();
+    if (this.isDisconnected || this.options.signal?.aborted) return;
+    const sessionAbort = new AbortController();
+    const session = this.options.createSession(token, mergeSignals(this.options.signal, sessionAbort.signal));
+    this.currentSession = session;
+    this.currentSessionAbort = sessionAbort;
+    while (this.outboundQueue.length > 0) {
+      session.send(this.outboundQueue.shift()!);
+    }
+  }
+
+  send(message: Uint8Array): void {
+    if (this.isDisconnected) return;
+    if (this.currentSession) {
+      this.currentSession.send(message);
+      return;
+    }
+    this.outboundQueue.push(message);
+  }
+
+  async disconnect(): Promise<void> {
+    this.isDisconnected = true;
+    this.outboundQueue = [];
+    this.currentSessionAbort?.abort();
+    if (this.currentSession) {
+      await this.currentSession.disconnect();
+      this.currentSession = undefined;
+    }
+  }
+
+  async *receive(): AsyncGenerator<ReceivedShellMessage> {
+    while (!this.isDisconnected && !this.options.signal?.aborted) {
+      try {
+        await this.sessionReady;
+      } catch {
+        yield { closed: true } as ReceivedShellMessage;
+        return;
+      }
+      const session = this.currentSession;
+      const sessionAbort = this.currentSessionAbort;
+      if (!session) return;
+
+      let rotate = false;
+      try {
+        for await (const message of session.receive()) {
+          if (isTokenExpiredMessage(message)) {
+            rotate = true;
+            break;
+          }
+          yield message;
+        }
+      } finally {
+        if (rotate) {
+          sessionAbort?.abort();
+          await session.disconnect();
+        }
+        if (this.currentSession === session) {
+          this.currentSession = undefined;
+          this.currentSessionAbort = undefined;
+        }
+      }
+
+      if (!rotate) return;
+      if (!this.tracker.allowRotation()) {
+        yield { closed: true } as ReceivedShellMessage;
+        return;
+      }
+      this.sessionReady = this.openNextSession();
+    }
+  }
+}
+
+function isTokenExpiredMessage(message: unknown): boolean {
+  return typeof message === "object" && message !== null && (message as { error?: string }).error === "tokenExpired";
+}
+
+function mergeSignals(...signals: Array<AbortSignal | undefined>): AbortSignal {
+  const defined = signals.filter((s): s is AbortSignal => !!s);
+  if (defined.length === 0) return new AbortController().signal;
+  if (defined.length === 1) return defined[0];
+  return AbortSignal.any(defined);
 }
 
 function providerLeaseUrl(input: { providerBaseUrl: string; dseq: string; gseq: number; oseq: number; type: "logs" | "events" | "shell" }): string {
@@ -329,6 +491,7 @@ export interface ProviderIdentity {
 export interface SendManifestToProviderOptions {
   dseq: string;
   credentials?: ProviderCredentials | null;
+  ensureToken?: () => Promise<string>;
 }
 
 export type ProviderCredentials = {

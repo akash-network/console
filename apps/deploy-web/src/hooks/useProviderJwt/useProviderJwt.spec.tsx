@@ -8,7 +8,7 @@ import type { ContextType as WalletContext } from "@src/context/WalletProvider";
 import type { ChainContext as CustodialWallet } from "@src/lib/cosmos-kit-jotai";
 import type * as storedWalletsService from "@src/utils/walletUtils";
 import type { useSelectedChain } from "../useSelectedChain/useSelectedChain";
-import { DEPENDENCIES, useProviderJwt } from "./useProviderJwt";
+import { DEPENDENCIES, REFRESH_SKEW_SECONDS, useProviderJwt } from "./useProviderJwt";
 
 import { act } from "@testing-library/react";
 import type { RenderAppHookOptions } from "@tests/unit/query-client";
@@ -76,7 +76,7 @@ describe(useProviderJwt.name, () => {
         ttl: 1800, // 30 * 60
         leases: {
           access: "scoped",
-          scope: ["status", "shell", "events", "logs"]
+          scope: ["status", "shell", "events", "logs", "send-manifest", "get-manifest"]
         }
       }
     });
@@ -159,6 +159,34 @@ describe(useProviderJwt.name, () => {
     });
 
     expect(result.current.isTokenExpired).toBe(false);
+  });
+
+  it("treats token within refresh skew window as expired", () => {
+    const nearExpiry = Math.floor(Date.now() / 1000) + REFRESH_SKEW_SECONDS - 5;
+
+    const { result } = setup({
+      initialToken: genFakeToken({ exp: nearExpiry })
+    });
+
+    expect(result.current.isTokenExpired).toBe(true);
+  });
+
+  it("treats token outside refresh skew window as valid", () => {
+    const beyondSkew = Math.floor(Date.now() / 1000) + REFRESH_SKEW_SECONDS + 60;
+
+    const { result } = setup({
+      initialToken: genFakeToken({ exp: beyondSkew })
+    });
+
+    expect(result.current.isTokenExpired).toBe(false);
+  });
+
+  it("marks isHydrated true after the storage read completes", () => {
+    const { result } = setup({
+      initialToken: genFakeToken()
+    });
+
+    expect(result.current.isHydrated).toBe(true);
   });
 
   function setup(input?: {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { JwtTokenManager, type JwtTokenPayload } from "@akashnetwork/chain-sdk/web";
 import { atom, useAtom } from "jotai";
 
@@ -7,6 +7,8 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useSelectedChain } from "../useSelectedChain/useSelectedChain";
 
 const JWT_TOKEN_ATOM = atom<string | null>(null);
+
+export const REFRESH_SKEW_SECONDS = 60;
 
 export const DEPENDENCIES = {
   useSelectedChain,
@@ -20,10 +22,13 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
   const selectedChain = d.useSelectedChain();
   const selectedNetworkId = networkStore.useSelectedNetworkId();
   const [accessToken, setAccessToken] = useAtom(JWT_TOKEN_ATOM);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
+    setIsHydrated(false);
     const token = storedWalletsService.getStorageWallets(selectedNetworkId).find(w => w.address === address)?.token;
     setAccessToken(token || null);
+    setIsHydrated(true);
   }, [storedWalletsService, selectedNetworkId, address]);
 
   const jwtTokenManager = useMemo(
@@ -49,7 +54,7 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
 
     const leasesAccess: JwtTokenPayload["leases"] = {
       access: "scoped",
-      scope: ["status", "shell", "events", "logs"]
+      scope: ["status", "shell", "events", "logs", "send-manifest", "get-manifest"]
     };
     const tokenLifetimeInSeconds = 30 * 60;
     let token: string;
@@ -80,12 +85,13 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
   return useMemo(
     () => ({
       get isTokenExpired() {
-        return !!parsedToken && parsedToken.exp <= Math.floor(Date.now() / 1000);
+        return !!parsedToken && parsedToken.exp - REFRESH_SKEW_SECONDS <= Math.floor(Date.now() / 1000);
       },
       accessToken,
-      generateToken
+      generateToken,
+      isHydrated
     }),
-    [accessToken, generateToken]
+    [accessToken, generateToken, isHydrated]
   );
 }
 
@@ -93,4 +99,5 @@ export interface UseProviderJwtResult {
   isTokenExpired: boolean;
   accessToken: string | null;
   generateToken: () => Promise<string>;
+  isHydrated: boolean;
 }

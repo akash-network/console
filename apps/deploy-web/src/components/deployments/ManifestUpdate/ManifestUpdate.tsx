@@ -117,7 +117,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     try {
       return await providerProxy.sendManifest(providerInfo, manifest, {
         dseq: deployment.dseq,
-        credentials: providerCredentials.details
+        ensureToken: providerCredentials.ensureToken
       });
     } catch (err) {
       enqueueSnackbar(<d.ManifestErrorSnackbar err={err} />, { variant: "error", autoHideDuration: null });

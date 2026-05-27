@@ -120,7 +120,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
       try {
         const manifest = deploymentData.getManifest(parsedManifest);
 
-        await providerProxy.sendManifest(provider, manifest, { dseq, credentials: providerCredentials.details });
+        await providerProxy.sendManifest(provider, manifest, { dseq, ensureToken: providerCredentials.ensureToken });
 
         enqueueSnackbar(<Snackbar title="Manifest sent!" iconVariant="success" />, { variant: "success", autoHideDuration: 10_000 });
 

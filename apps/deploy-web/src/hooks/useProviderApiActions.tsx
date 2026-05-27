@@ -61,7 +61,7 @@ export const useProviderApiActions = (): ProviderApiActions => {
         const result = await providerProxy.downloadLogs({
           providerBaseUrl: provider.hostUri,
           providerAddress: provider.owner,
-          providerCredentials: providerCredentials.details,
+          ensureToken: providerCredentials.ensureToken,
           dseq,
           gseq,
           oseq,
@@ -90,7 +90,7 @@ export const useProviderApiActions = (): ProviderApiActions => {
         const result = await providerProxy.downloadFileFromShell({
           providerBaseUrl: provider.hostUri,
           providerAddress: provider.owner,
-          providerCredentials: providerCredentials.details,
+          ensureToken: providerCredentials.ensureToken,
           dseq,
           gseq,
           oseq,

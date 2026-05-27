@@ -1,11 +1,23 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Checkbox, CheckboxWithLabel, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner } from "@akashnetwork/ui/components";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Checkbox,
+  CheckboxWithLabel,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  Skeleton,
+  Spinner
+} from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import type { Monaco } from "@monaco-editor/react";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { Download, MoreHoriz } from "iconoir-react";
+import { Download, MoreHoriz, WarningCircle } from "iconoir-react";
 import type { editor } from "monaco-editor";
 
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
@@ -45,6 +57,10 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   const [selectedLease, setSelectedLease] = useState<LeaseDto | null>(null);
   const { data: providers } = useProviderList();
   const providerCredentials = useProviderCredentials();
+  const [hasLogsAccess, setHasLogsAccess] = useState(false);
+  useEffect(() => {
+    if (providerCredentials.details.usable) setHasLogsAccess(true);
+  }, [providerCredentials.details.usable]);
   const { downloadLogs } = useProviderApiActions();
   const monacoEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
@@ -113,7 +129,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   }, [selectedLease, providerInfo, getLeaseStatus]);
 
   useEffect(() => {
-    if (!providerInfo || !providerCredentials.details.usable || !selectedLease || !services?.length || !selectedServices?.length) return;
+    if (!providerInfo || !hasLogsAccess || !selectedLease || !services?.length || !selectedServices?.length) return;
 
     logs.current = [];
 
@@ -123,7 +139,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
       providerProxy.getLogsStream({
         providerBaseUrl: providerInfo.hostUri,
         providerAddress: providerInfo.owner,
-        providerCredentials: providerCredentials.details,
+        ensureToken: providerCredentials.ensureToken,
         dseq: selectedLease.dseq,
         gseq: selectedLease.gseq,
         oseq: selectedLease.oseq,
@@ -150,7 +166,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
       setIsLoadingLogs(false);
       setIsConnectionEstablished(false);
     };
-  }, [providerCredentials.details, selectedLogsMode, selectedLease, selectedServices, services?.length, providerInfo?.owner, providerInfo?.hostUri]);
+  }, [hasLogsAccess, selectedLogsMode, selectedLease, selectedServices, services?.length, providerInfo?.owner, providerInfo?.hostUri]);
 
   function onLogReceived(proxyMessage: ProviderProxyMessage<LogEntryMessage> | ProviderProxyMessage<K8sEventMessage>) {
     if (proxyMessage.closed) return;
@@ -215,7 +231,22 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
 
   return (
     <div>
-      {providerCredentials.details.usable && (
+      {!hasLogsAccess && !providerCredentials.details.error && (
+        <div className="mt-4 space-y-2">
+          <Skeleton className="h-[56px] w-full" />
+          <Skeleton className="h-[400px] w-full" />
+        </div>
+      )}
+
+      {!hasLogsAccess && providerCredentials.details.error && (
+        <Alert variant="warning" className="mt-4 p-4">
+          <WarningCircle className="h-4 w-4" />
+          <AlertTitle className="mb-1 text-sm">Could not authorize with the provider</AlertTitle>
+          <AlertDescription className="text-xs text-muted-foreground">Please retry once the network has recovered.</AlertDescription>
+        </Alert>
+      )}
+
+      {hasLogsAccess && (
         <>
           {selectedLease && (
             <>
