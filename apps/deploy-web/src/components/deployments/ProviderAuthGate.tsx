@@ -14,24 +14,30 @@ export function useProviderAuthGate(providerCredentials: ReturnType<typeof usePr
     if (providerCredentials.details.usable) setHasAccess(true);
   }, [providerCredentials.details.usable]);
 
-  if (hasAccess) {
-    return { hasAccess: true, fallback: null };
+  const { error } = providerCredentials.details;
+
+  if (error) {
+    return { hasAccess, fallback: <ProviderAuthErrorAlert /> };
   }
 
-  return { hasAccess: false, fallback: <ProviderAuthFallback error={providerCredentials.details.error} /> };
+  if (!hasAccess) {
+    return { hasAccess: false, fallback: <ProviderAuthSkeleton /> };
+  }
+
+  return { hasAccess: true, fallback: null };
 }
 
-function ProviderAuthFallback({ error }: { error: Error | null }) {
-  if (error) {
-    return (
-      <Alert variant="warning" className="mt-4 p-4">
-        <WarningCircle className="h-4 w-4" />
-        <AlertTitle className="mb-1 text-sm">Could not authorize with the provider</AlertTitle>
-        <AlertDescription className="text-xs text-muted-foreground">Please retry once the network has recovered.</AlertDescription>
-      </Alert>
-    );
-  }
+function ProviderAuthErrorAlert() {
+  return (
+    <Alert variant="warning" className="mt-4 p-4">
+      <WarningCircle className="h-4 w-4" />
+      <AlertTitle className="mb-1 text-sm">Could not authorize with the provider</AlertTitle>
+      <AlertDescription className="text-xs text-muted-foreground">Please retry once the network has recovered.</AlertDescription>
+    </Alert>
+  );
+}
 
+function ProviderAuthSkeleton() {
   return (
     <div className="mt-4 space-y-2">
       <Skeleton className="h-[56px] w-full" />

@@ -791,7 +791,7 @@ describe(ProviderProxyService.name, () => {
       await dispatchWsEvent(secondSocket, new Event("close"));
     });
 
-    it("stops rotating after exceeding the rotation cap and logs WS_ROTATION_LIMIT_EXCEEDED", async () => {
+    it("stops rotating after exceeding the rotation cap, yields a closed message, and logs WS_ROTATION_LIMIT_EXCEEDED", async () => {
       const { service, createWebSocket, logger } = setupWithSocketSequence(4);
       const ensureToken = vi.fn().mockResolvedValue("any-token");
 
@@ -821,10 +821,34 @@ describe(ProviderProxyService.name, () => {
         await dispatchWsEvent(socket, new MessageEvent("message", { data: JSON.stringify({ type: "websocket", error: "tokenExpired" }) }));
       }
 
-      await consumePromise;
+      const messages = await consumePromise;
 
       expect(createWebSocket).toHaveBeenCalledTimes(4);
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "WS_ROTATION_LIMIT_EXCEEDED" }));
+      expect(messages.at(-1)).toEqual({ closed: true });
+    });
+
+    it("yields a closed message when ensureToken rejects", async () => {
+      const { service } = setup();
+      const ensureToken = vi.fn().mockRejectedValue(new Error("token unavailable"));
+
+      const stream = service.getLogsStream({
+        providerBaseUrl: "https://provider.akash.network",
+        providerAddress: "akash1provider",
+        ensureToken,
+        dseq: "333",
+        gseq: 1,
+        oseq: 1,
+        type: "logs" as const,
+        follow: true
+      });
+
+      const messages = [];
+      for await (const message of stream) {
+        messages.push(message);
+      }
+
+      expect(messages).toEqual([{ closed: true }]);
     });
   });
 

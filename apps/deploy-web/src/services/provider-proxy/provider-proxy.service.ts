@@ -242,7 +242,13 @@ export class ProviderProxyService {
     type LogStreamMessage = T extends "logs" ? ProviderProxyMessage<LogEntryMessage> : ProviderProxyMessage<K8sEventMessage>;
 
     while (!input.signal?.aborted) {
-      const token = await input.ensureToken();
+      let token: string;
+      try {
+        token = await input.ensureToken();
+      } catch {
+        yield { closed: true } as LogStreamMessage;
+        return;
+      }
       if (input.signal?.aborted) return;
       const rotationAbort = new AbortController();
       const session = new WebsocketSession<undefined, LogStreamMessage>({
@@ -283,7 +289,11 @@ export class ProviderProxyService {
         await session.disconnect();
       }
 
-      if (!rotate || !tracker.allowRotation()) return;
+      if (!rotate) return;
+      if (!tracker.allowRotation()) {
+        yield { closed: true } as LogStreamMessage;
+        return;
+      }
     }
   }
 
