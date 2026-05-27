@@ -41,6 +41,11 @@ describe(RequireAuth.name, () => {
     expect(mockRouter.replace).not.toHaveBeenCalled();
   });
 
+  it("does not redirect when already on the login route", () => {
+    const { mockRouter } = setup({ asPath: "/login?tab=login&returnTo=%2Fdeployments" });
+    expect(mockRouter.replace).not.toHaveBeenCalled();
+  });
+
   it("does not redirect when isPublic is true", () => {
     const { mockRouter } = setup({ isPublic: true });
     expect(mockRouter.replace).not.toHaveBeenCalled();

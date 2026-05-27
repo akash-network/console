@@ -2,14 +2,14 @@ import { useEffect } from "react";
 
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 
+export const DEPENDENCIES = {
+  useManagedWallet
+};
+
 export type EnsureTrialStartedResult = {
   isWalletReady: boolean;
   isLoading: boolean;
   error: ReturnType<typeof useManagedWallet>["createError"];
-};
-
-export const DEPENDENCIES = {
-  useManagedWallet
 };
 
 /**

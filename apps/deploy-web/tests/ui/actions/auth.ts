@@ -18,14 +18,19 @@ export function generateTestPassword(): string {
  * Logs in the preconfigured TEST_USER via the given auth type, leaving the page authenticated.
  */
 export async function loginExistingUser(page: Page, authType: AuthType): Promise<void> {
-  if (!testEnvConfig.TEST_USER_EMAIL || !testEnvConfig.TEST_USER_PASSWORD) {
-    throw new Error('TEST_USER_EMAIL and TEST_USER_PASSWORD env vars are required for userType: "existing" tests');
+  const email = testEnvConfig.TEST_USER_EMAIL;
+  if (!email) {
+    throw new Error('TEST_USER_EMAIL env var is required for userType: "existing" tests');
   }
 
   if (authType === "passwordless") {
-    await signInPasswordless(page, testEnvConfig.TEST_USER_EMAIL);
+    await signInPasswordless(page, email);
   } else {
-    await signInWithPassword(page, { email: testEnvConfig.TEST_USER_EMAIL, password: testEnvConfig.TEST_USER_PASSWORD });
+    const password = testEnvConfig.TEST_USER_PASSWORD;
+    if (!password) {
+      throw new Error('TEST_USER_PASSWORD env var is required for authType: "email-password"');
+    }
+    await signInWithPassword(page, { email, password });
   }
 
   await page.waitForURL(url => !url.pathname.includes("/login"), { timeout: 15_000 });

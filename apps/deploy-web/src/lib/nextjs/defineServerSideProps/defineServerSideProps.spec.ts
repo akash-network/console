@@ -23,7 +23,7 @@ describe(defineServerSideProps, () => {
     const mockHandler = vi.fn().mockResolvedValue({ props: { data: "test" } });
     const customServices = {
       userTracker: mock<typeof services.userTracker>(),
-      getSession: vi.fn(async () => null)
+      getSession: vi.fn(async () => mock<Session>({ user: { id: "u1" }, accessTokenExpiresAt: Math.floor(Date.now() / 1000) + 3600 }))
     };
 
     const result = await setup({
@@ -242,7 +242,8 @@ describe(defineServerSideProps, () => {
       handler: () => Promise.reject(validationError),
       context: {
         services: mock<typeof services>({
-          logger
+          logger,
+          getSession: vi.fn(async () => createAuthenticatedSession())
         })
       }
     });
@@ -270,7 +271,8 @@ describe(defineServerSideProps, () => {
       handler: () => Promise.reject(notFoundError),
       context: {
         services: mock<typeof services>({
-          logger
+          logger,
+          getSession: vi.fn(async () => createAuthenticatedSession())
         })
       }
     });
@@ -318,7 +320,6 @@ describe(defineServerSideProps, () => {
     urlService.newLogin.mockImplementation(({ returnTo }: { returnTo?: string } = {}) => `/login?tab=login&returnTo=${encodeURIComponent(returnTo || "/")}`);
     const result = await setup({
       route: "/billing",
-      public: false,
       context: { resolvedUrl: "/billing", services: { getSession: vi.fn(async () => null), urlService } }
     });
 
@@ -347,7 +348,6 @@ describe(defineServerSideProps, () => {
 
     const result = await setup({
       route: "/billing",
-      public: false,
       handler: mockHandler,
       context: { services: { getSession: vi.fn(async () => authedSession) } }
     });
@@ -377,18 +377,22 @@ describe(defineServerSideProps, () => {
       services: {
         ...services,
         userTracker: mock<typeof services.userTracker>(),
-        getSession: vi.fn(async () => null),
+        getSession: vi.fn(async () => createAuthenticatedSession()),
         ...input.context?.services
       }
     };
 
     return defineServerSideProps({
       route: input.route,
-      public: input.public ?? true,
+      public: input.public ?? false,
       schema: input.schema,
       if: input.if,
       handler: input.handler
     })(context);
+  }
+
+  function createAuthenticatedSession() {
+    return mock<Session>({ user: { id: "u1" }, accessTokenExpiresAt: Math.floor(Date.now() / 1000) + 3600 });
   }
 
   function createRequest({ headers, ...input }: Partial<GetServerSidePropsContext["req"]> = {}) {
