@@ -24,7 +24,7 @@ import type { K8sEventMessage, LogEntryMessage, ProviderProxyMessage } from "@sr
 import type { LeaseDto } from "@src/types/deployment";
 import { forEachGeneratedItem } from "@src/utils/array";
 import { LeaseSelect } from "./LeaseSelect";
-import { useProviderAuthGate } from "./ProviderAuthGate";
+import { ProviderAuthFallback, useProviderAccess } from "./ProviderAuthGate";
 
 export type LOGS_MODE = "logs" | "events";
 
@@ -46,7 +46,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   const [selectedLease, setSelectedLease] = useState<LeaseDto | null>(null);
   const { data: providers } = useProviderList();
   const providerCredentials = useProviderCredentials();
-  const { hasAccess: hasLogsAccess, fallback: authFallback } = useProviderAuthGate(providerCredentials);
+  const hasLogsAccess = useProviderAccess(providerCredentials);
   const { downloadLogs } = useProviderApiActions();
   const monacoEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
@@ -217,7 +217,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
 
   return (
     <div>
-      {authFallback}
+      <ProviderAuthFallback hasAccess={hasLogsAccess} error={providerCredentials.details.error} />
 
       {hasLogsAccess && (
         <>

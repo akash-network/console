@@ -16,7 +16,7 @@ import type { LeaseDto } from "@src/types/deployment";
 import { LeaseShellCode } from "@src/types/shell";
 import { forEachGeneratedItem } from "@src/utils/array";
 import { LeaseSelect } from "./LeaseSelect";
-import { useProviderAuthGate } from "./ProviderAuthGate";
+import { ProviderAuthFallback, useProviderAccess } from "./ProviderAuthGate";
 import { ServiceSelect } from "./ServiceSelect";
 import { ShellDownloadModal } from "./ShellDownloadModal";
 
@@ -38,7 +38,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   const [isChangingSocket, setIsChangingSocket] = useState(false);
   const { data: providers } = useProviderList();
   const providerCredentials = useProviderCredentials();
-  const { hasAccess: hasShellAccess, fallback: authFallback } = useProviderAuthGate(providerCredentials);
+  const hasShellAccess = useProviderAccess(providerCredentials);
   const providerInfo = providers?.find(p => p.owner === selectedLease?.provider);
   const {
     data: leaseStatus,
@@ -234,7 +234,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
         <ShellDownloadModal onCloseClick={onCloseDownloadClick} selectedLease={selectedLease} providerInfo={providerInfo} selectedService={selectedService} />
       )}
 
-      {authFallback}
+      <ProviderAuthFallback hasAccess={hasShellAccess} error={providerCredentials.details.error} />
 
       {hasShellAccess && (
         <>
