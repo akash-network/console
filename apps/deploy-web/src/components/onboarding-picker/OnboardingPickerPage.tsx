@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useState } from "react";
 import { Alert, AlertDescription, Button, Snackbar } from "@akashnetwork/ui/components";
 import { ArrowRight } from "iconoir-react";
@@ -7,18 +8,22 @@ import Head from "next/head";
 import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
 
+import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
 import { DeploymentTemplatePickerCard } from "@src/components/deployments/DeploymentTemplatePickerCard/DeploymentTemplatePickerCard";
 import { PhasedDeploymentContainer } from "@src/components/deployments/PhasedDeploymentContainer/PhasedDeploymentContainer";
 import { AkashConsoleLogo } from "@src/components/icons/AkashConsoleLogo";
+import { useWallet } from "@src/context/WalletProvider";
 import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
 import { UrlService } from "@src/utils/urlUtils";
 
 export const DEPENDENCIES = {
   useRouter,
   useSnackbar,
+  useWallet,
   useEnsureTrialStarted,
   DeploymentTemplatePickerCard,
-  PhasedDeploymentContainer
+  PhasedDeploymentContainer,
+  AddCreditsSheet
 };
 
 type DeployingState = {
@@ -38,8 +43,12 @@ type OnboardingPickerPageProps = {
 export function OnboardingPickerPage({ templates, dependencies: d = DEPENDENCIES }: OnboardingPickerPageProps) {
   const { enqueueSnackbar } = d.useSnackbar();
   const router = d.useRouter();
+  const { isTrialing } = d.useWallet();
+  const [isAddCreditsSheetOpen, setIsAddCreditsSheetOpen] = useState(false);
   const [deploying, setDeploying] = useState<DeployingState | null>(null);
   const { isWalletReady, error: trialError } = d.useEnsureTrialStarted();
+  const isLlmGated = isTrialing || !isWalletReady;
+  const isLlmAvailable = !isLlmGated;
 
   return (
     <>
@@ -90,6 +99,7 @@ export function OnboardingPickerPage({ templates, dependencies: d = DEPENDENCIES
 
               <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-3">
                 <d.DeploymentTemplatePickerCard
+                  recommended
                   chip="Next.js"
                   title="Hello world"
                   description="Spin up a modern Next.js app running in a Docker container in seconds."
@@ -99,7 +109,6 @@ export function OnboardingPickerPage({ templates, dependencies: d = DEPENDENCIES
                   ctaVariant="primary"
                   heroImageSrc="/images/onboarding/hello-world.png"
                   heroImageAlt="Hello world template"
-                  recommended
                   onDeploy={() => setDeploying({ templateName: "Hello world", sdl: templates.helloWorld })}
                 />
 
@@ -122,12 +131,12 @@ export function OnboardingPickerPage({ templates, dependencies: d = DEPENDENCIES
                   description="Your own private AI chat. Secure, persistent, and fully under your control."
                   priceBold="~$1.50/hr"
                   priceRest=" · 1x RTX 4090 · 16 GB"
-                  ctaLabel="Unlock full trial to deploy"
+                  ctaLabel={isLlmGated ? "Unlock full trial to deploy" : "Deploy now"}
+                  ctaIcon={isLlmGated ? "lock" : "arrow"}
                   ctaVariant="outline"
-                  ctaIcon="lock"
                   heroImageSrc="/images/onboarding/llm-chatbot.png"
                   heroImageAlt="LLM chatbot template"
-                  disabled
+                  onDeploy={() => (isLlmAvailable ? setDeploying({ templateName: "LLM Chatbot", sdl: templates.llmChatbot }) : setIsAddCreditsSheetOpen(true))}
                 />
               </div>
 
@@ -145,6 +154,13 @@ export function OnboardingPickerPage({ templates, dependencies: d = DEPENDENCIES
             </div>
           </div>
         )}
+
+        <d.AddCreditsSheet
+          open={isAddCreditsSheetOpen}
+          onOpenChange={setIsAddCreditsSheetOpen}
+          isWalletReady={isWalletReady}
+          onDone={() => setIsAddCreditsSheetOpen(false)}
+        />
       </div>
     </>
   );

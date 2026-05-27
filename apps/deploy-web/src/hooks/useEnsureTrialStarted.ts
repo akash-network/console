@@ -10,6 +10,7 @@ export type EnsureTrialStartedResult = {
   isWalletReady: boolean;
   isLoading: boolean;
   error: ReturnType<typeof useManagedWallet>["createError"];
+  refreshWallet: ReturnType<typeof useManagedWallet>["refetch"];
 };
 
 /**
@@ -22,8 +23,8 @@ export type EnsureTrialStartedResult = {
  *
  * Use only on pages that are part of the onboarding redesign — the call is unguarded.
  */
-export const useEnsureTrialStarted = (dependencies: typeof DEPENDENCIES = DEPENDENCIES): EnsureTrialStartedResult => {
-  const { wallet, create, isLoading, createError } = dependencies.useManagedWallet();
+export const useEnsureTrialStarted = (d: typeof DEPENDENCIES = DEPENDENCIES): EnsureTrialStartedResult => {
+  const { wallet, create, isLoading, createError, refetch } = d.useManagedWallet();
   const isWalletReady = !!wallet?.address;
 
   useEffect(() => {
@@ -33,5 +34,5 @@ export const useEnsureTrialStarted = (dependencies: typeof DEPENDENCIES = DEPEND
     create();
   }, [isWalletReady, isLoading, createError, create]);
 
-  return { isWalletReady, isLoading, error: createError };
+  return { isWalletReady, isLoading, error: createError, refreshWallet: refetch };
 };
