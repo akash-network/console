@@ -1,5 +1,4 @@
 import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
-import { NetInstrumentation } from "@opentelemetry/instrumentation-net";
 import { PgInstrumentation } from "@opentelemetry/instrumentation-pg";
 import { PinoInstrumentation } from "@opentelemetry/instrumentation-pino";
 import { RuntimeNodeInstrumentation } from "@opentelemetry/instrumentation-runtime-node";
@@ -18,7 +17,6 @@ export const sdk = new NodeSDK({
     new PinoInstrumentation({
       disableLogSending: true
     }),
-    new NetInstrumentation(),
     new UndiciInstrumentation()
   ],
   resourceDetectors: [containerDetector, processDetector, envDetector, hostDetector]
