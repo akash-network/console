@@ -318,6 +318,43 @@ describe(CreateLease.name, () => {
     }
   });
 
+  describe("bid filtering", () => {
+    it("keeps only audited providers' bids when the Audited filter is enabled, resolving sibling wallets via aliasOwners", async () => {
+      const auditedProvider = buildProvider({ owner: "akash1audited", aliasOwners: ["akash1auditedsibling"], isAudited: true });
+      const unauditedProvider = buildProvider({ owner: "akash1plain", aliasOwners: [], isAudited: false });
+      // The bid is submitted from a sibling wallet that shares the canonical row's hostUri (the bug this PR fixes).
+      const auditedBid = buildRpcBid({ bid: { id: { gseq: 1, provider: "akash1auditedsibling" }, state: "open" } });
+      const unauditedBid = buildRpcBid({ bid: { id: { gseq: 1, provider: "akash1plain" }, state: "open" } });
+      const BidGroup = vi.fn(ComponentMock);
+
+      setup({ BidGroup, bids: [auditedBid, unauditedBid], providers: [auditedProvider, unauditedProvider] });
+
+      await vi.waitFor(() => expect(BidGroup).toHaveBeenCalled());
+      await userEvent.click(screen.getByRole("checkbox", { name: /Audited/i }));
+
+      await vi.waitFor(() => {
+        expect(BidGroup).toHaveBeenLastCalledWith(expect.objectContaining({ filteredBids: [mapToBidDto(auditedBid).id] }), {});
+      });
+    });
+
+    it("filters bids by search term against the resolved provider's hostUri", async () => {
+      const matchingProvider = buildProvider({ owner: "akash1match", hostUri: "https://needlehost.example.com:8443", attributes: [] });
+      const otherProvider = buildProvider({ owner: "akash1other", hostUri: "https://otherhost.example.com:8443", attributes: [] });
+      const matchingBid = buildRpcBid({ bid: { id: { gseq: 1, provider: "akash1match" }, state: "open" } });
+      const otherBid = buildRpcBid({ bid: { id: { gseq: 1, provider: "akash1other" }, state: "open" } });
+      const BidGroup = vi.fn(ComponentMock);
+
+      setup({ BidGroup, bids: [matchingBid, otherBid], providers: [matchingProvider, otherProvider] });
+
+      await vi.waitFor(() => expect(BidGroup).toHaveBeenCalled());
+      await userEvent.type(screen.getByLabelText("Search provider"), "needlehost");
+
+      await vi.waitFor(() => {
+        expect(BidGroup).toHaveBeenLastCalledWith(expect.objectContaining({ filteredBids: [mapToBidDto(matchingBid).id] }), {});
+      });
+    });
+  });
+
   function setup(input?: {
     dseq?: string;
     BidGroup?: (typeof CREATE_LEASE_DEPENDENCIES)["BidGroup"];
