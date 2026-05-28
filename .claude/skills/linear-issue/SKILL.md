@@ -418,7 +418,7 @@ If multiple new issues are being added, ask once per issue, processing them in t
 
 If any inserts cause renumbering, present a diff before touching Linear:
 
-```
+```text
 Renumber plan:
   L-23. Console sandbox rollout — tenant preview + QA   →  L-24. ...
   L-22. Console testnet rollout — verification surface  →  L-23. ...
