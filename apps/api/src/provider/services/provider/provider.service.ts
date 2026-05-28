@@ -155,14 +155,14 @@ export class ProviderService {
     );
 
     const providerByHostUri = new Map<string, Provider>();
-    const ownersByHostUri = new Map<string, string[]>();
+    const ownersByHostUri = new Map<string, Set<string>>();
     await forEachInChunks(providersWithAttributesAndAuditors, provider => {
       const existing = providerByHostUri.get(provider.hostUri);
       if (!existing || this.isBetterProviderRepresentative(provider, existing, activeLeaseCountByOwner)) {
         providerByHostUri.set(provider.hostUri, provider);
       }
-      const owners = ownersByHostUri.get(provider.hostUri) ?? [];
-      owners.push(provider.owner);
+      const owners = ownersByHostUri.get(provider.hostUri) ?? new Set<string>();
+      owners.add(provider.owner);
       ownersByHostUri.set(provider.hostUri, owners);
     });
     const distinctProviders = Array.from(providerByHostUri.values());
@@ -180,7 +180,7 @@ export class ProviderService {
 
     await forEachInChunks(distinctProviders, provider => {
       const lastSuccessfulSnapshot = providerByOwner.get(provider.owner)?.lastSuccessfulSnapshot;
-      const aliasOwners = (ownersByHostUri.get(provider.hostUri) ?? []).filter(owner => owner !== provider.owner);
+      const aliasOwners = Array.from(ownersByHostUri.get(provider.hostUri) ?? []).filter(owner => owner !== provider.owner);
       finalProviders.push(mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot, aliasOwners));
     });
 
