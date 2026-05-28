@@ -20,30 +20,23 @@ describe(ProviderInventoryRepository.name, () => {
     });
   });
 
-  describe("upsertAttributes", () => {
-    it("upserts the row with the provider's attributes", async () => {
+  describe("bulkUpsertProviders", () => {
+    it("upserts a row for each provider with its attributes", async () => {
       const { writer, db } = setup();
 
-      await writer.upsertAttributes(createProvider({ owner: "a", hostUri: "https://h:8443" }));
+      await writer.bulkUpsertProviders([createProvider({ owner: "a", hostUri: "https://h:8443" })]);
 
       expect(db.insert).toHaveBeenCalledTimes(1);
-      expect(db._insertValues).toHaveBeenCalledWith(expect.objectContaining({ owner: "a", hostUri: "https://h:8443" }));
+      expect(db._insertValues).toHaveBeenCalledWith([expect.objectContaining({ owner: "a", hostUri: "https://h:8443" })]);
     });
 
-    it("computes auditedBy as a sorted, deduped list of auditors", async () => {
-      const provider = createProvider({
-        owner: "a",
-        signedAttributes: [
-          { key: "k1", value: "v1", auditor: "auditor-z" },
-          { key: "k2", value: "v2", auditor: "auditor-a" },
-          { key: "k3", value: "v3", auditor: "auditor-a" }
-        ]
-      });
+    it("sorts the provider's auditedBy list before writing", async () => {
+      const provider = createProvider({ owner: "a", auditedBy: ["auditor-z", "auditor-a"] });
       const { writer, db } = setup();
 
-      await writer.upsertAttributes(provider);
+      await writer.bulkUpsertProviders([provider]);
 
-      expect(db._insertValues).toHaveBeenCalledWith(expect.objectContaining({ auditedBy: ["auditor-a", "auditor-z"] }));
+      expect(db._insertValues).toHaveBeenCalledWith([expect.objectContaining({ auditedBy: ["auditor-a", "auditor-z"] })]);
     });
   });
 
@@ -106,6 +99,7 @@ function createProvider(overrides?: Partial<ChainProvider>): ChainProvider {
     hostUri: "https://p:8443",
     selfAttributes: [],
     signedAttributes: [],
+    auditedBy: [],
     ...overrides
   };
 }

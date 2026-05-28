@@ -14,13 +14,13 @@ import { StreamLifecycleManagerService } from "./stream-lifecycle-manager.servic
 
 describe(StreamLifecycleManagerService.name, () => {
   describe("start", () => {
-    it("opens a stream for the provider", () => {
+    it("opens a stream for the provider", async () => {
       const provider = createProvider();
       const { manager, streamFactory } = setup({ streams: { "https://p1:8443": "hang" } });
 
       manager.start(provider);
 
-      expect(streamFactory.openStatusStream).toHaveBeenCalledWith(provider, expect.any(AbortSignal));
+      await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalledWith(provider, expect.any(AbortSignal)));
     });
 
     it("calls updateInventory for each unique stream message", async () => {
@@ -41,35 +41,38 @@ describe(StreamLifecycleManagerService.name, () => {
       const provider = createProvider();
       const { manager, streamFactory, writer } = setup({ streams: { "https://p1:8443": "hang" } });
       manager.start(provider);
+      await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(1));
       const signal = captureSignal(streamFactory);
 
-      await manager.stopAndDelete(provider.owner);
+      await manager.stopAndDelete([provider.owner]);
 
       expect(signal.aborted).toBe(true);
-      expect(writer.deleteByOwner).toHaveBeenCalledWith(provider.owner);
+      expect(writer.deleteByOwner).toHaveBeenCalledWith([provider.owner]);
     });
 
     it("still deletes the row even when no stream is active for that owner", async () => {
       const { manager, writer } = setup();
 
-      await manager.stopAndDelete("ghost");
+      await manager.stopAndDelete(["ghost"]);
 
-      expect(writer.deleteByOwner).toHaveBeenCalledWith("ghost");
+      expect(writer.deleteByOwner).toHaveBeenCalledWith(["ghost"]);
     });
   });
 
   describe("restart", () => {
-    it("aborts the existing stream and opens a new one on the new hostUri", () => {
+    it("aborts the existing stream and opens a new one on the new hostUri", async () => {
       const old = createProvider({ owner: "a", hostUri: "https://old:8443" });
       const updated = createProvider({ owner: "a", hostUri: "https://new:8443" });
       const { manager, streamFactory, writer } = setup({
         streams: { "https://old:8443": "hang", "https://new:8443": "hang" }
       });
       manager.start(old);
+      await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(1));
       const oldSignal = captureSignal(streamFactory, 0);
 
       manager.restart(updated);
 
+      await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(2));
       expect(oldSignal.aborted).toBe(true);
       expect(streamFactory.openStatusStream).toHaveBeenLastCalledWith(updated, expect.any(AbortSignal));
       expect(writer.deleteByOwner).not.toHaveBeenCalled();
@@ -187,6 +190,7 @@ describe(StreamLifecycleManagerService.name, () => {
     it("logs each failed attempt as STREAM_ATTEMPT_FAILED", async () => {
       let attempt = 0;
       const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.disposeProvider.mockResolvedValue();
       streamFactory.openStatusStream.mockImplementation(() => {
         attempt++;
         if (attempt === 1) return throwingStream(new Error("connection lost"));
@@ -195,28 +199,32 @@ describe(StreamLifecycleManagerService.name, () => {
       const { manager, logger } = setup({ streamFactory });
       manager.start(createProvider());
 
-      await vi.waitFor(() => expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_ATTEMPT_FAILED", owner: "akash1owner" })));
+      await vi.waitFor(() => expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_ATTEMPT_FAILED", owner: "akash1owner" })), {
+        timeout: 5000
+      });
     });
   });
 
   describe("markOffline dedup", () => {
     it("marks offline only once across consecutive failed attempts", async () => {
       const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.disposeProvider.mockResolvedValue();
       streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
       const { manager, writer, logger } = setup({ streamFactory });
       const countFailures = () => logger.warn.mock.calls.filter(([arg]) => (arg as { event?: string })?.event === "STREAM_ATTEMPT_FAILED").length;
 
       manager.start(createProvider());
 
-      await vi.waitFor(() => expect(countFailures()).toBeGreaterThanOrEqual(3));
+      await vi.waitFor(() => expect(countFailures()).toBeGreaterThanOrEqual(3), { timeout: 5000 });
 
-      expect(writer.markOffline).toHaveBeenCalledTimes(1);
-      expect(writer.markOffline).toHaveBeenCalledWith("akash1owner");
+      await vi.waitFor(() => expect(writer.bulkMarkOffline).toHaveBeenCalledTimes(1), { timeout: 5000 });
+      expect(writer.bulkMarkOffline).toHaveBeenCalledWith(["akash1owner"]);
     });
 
     it("marks offline again after a provider recovers and then drops", async () => {
       let attempt = 0;
       const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.disposeProvider.mockResolvedValue();
       streamFactory.openStatusStream.mockImplementation(() => {
         attempt++;
         if (attempt === 1) return throwingStream(new Error("initial failure"));
@@ -227,7 +235,7 @@ describe(StreamLifecycleManagerService.name, () => {
 
       manager.start(createProvider());
 
-      await vi.waitFor(() => expect(writer.markOffline).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(writer.bulkMarkOffline).toHaveBeenCalledTimes(2), { timeout: 5000 });
     });
 
     it("does not mark offline when the very first attempt is delivering messages", async () => {
@@ -238,7 +246,7 @@ describe(StreamLifecycleManagerService.name, () => {
       manager.start(createProvider());
 
       await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(1));
-      expect(writer.markOffline).not.toHaveBeenCalled();
+      expect(writer.bulkMarkOffline).not.toHaveBeenCalled();
     });
   });
 
@@ -250,6 +258,7 @@ describe(StreamLifecycleManagerService.name, () => {
       });
       const provider = createProvider();
       const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.disposeProvider.mockResolvedValue();
       let callCount = 0;
       streamFactory.openStatusStream.mockImplementation(() => {
         callCount++;
@@ -265,10 +274,11 @@ describe(StreamLifecycleManagerService.name, () => {
       const { manager } = setup({ streamFactory });
 
       manager.start(provider);
-      await manager.stopAndDelete(provider.owner);
+      await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(1));
+      await manager.stopAndDelete([provider.owner]);
       manager.start(provider);
+      await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(2));
 
-      expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(2);
       expect(manager.getRegistry().get(provider.owner)).toEqual(expect.objectContaining({ hostUri: provider.hostUri }));
 
       resolveOldStream();
@@ -279,12 +289,13 @@ describe(StreamLifecycleManagerService.name, () => {
   });
 
   describe("shutdown", () => {
-    it("aborts all active streams", () => {
+    it("aborts all active streams", async () => {
       const providerA = createProvider({ owner: "a", hostUri: "https://a:8443" });
       const providerB = createProvider({ owner: "b", hostUri: "https://b:8443" });
       const { manager, streamFactory } = setup({ streams: { "https://a:8443": "hang", "https://b:8443": "hang" } });
       manager.start(providerA);
       manager.start(providerB);
+      await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(2));
       const signalA = captureSignal(streamFactory, 0);
       const signalB = captureSignal(streamFactory, 1);
 
@@ -305,12 +316,13 @@ describe(StreamLifecycleManagerService.name, () => {
 
     it("does not log STREAM_RECONNECTING after shutdown when a scheduled retry timer fires", async () => {
       const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.disposeProvider.mockResolvedValue();
       streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
       const { manager, logger } = setup({ streamFactory });
       const countReconnects = () => logger.warn.mock.calls.filter(([arg]) => (arg as { event?: string })?.event === "STREAM_RECONNECTING").length;
 
       manager.start(createProvider());
-      await vi.waitFor(() => expect(countReconnects()).toBeGreaterThan(0));
+      await vi.waitFor(() => expect(countReconnects()).toBeGreaterThan(0), { timeout: 5000 });
 
       const before = countReconnects();
       manager.shutdown();
@@ -335,13 +347,15 @@ describe(StreamLifecycleManagerService.name, () => {
 
   function setup(input?: { streams?: Record<string, AsyncIterable<ClusterState> | "hang">; streamFactory?: MockProxy<ProviderStreamFactory> }) {
     const streamFactory = input?.streamFactory ?? mock<ProviderStreamFactory>();
+    streamFactory.disposeProvider.mockResolvedValue();
     const writer = mock<ProviderInventoryRepository>();
     writer.deleteByOwner.mockResolvedValue();
-    writer.markOffline.mockResolvedValue();
+    writer.bulkMarkOffline.mockResolvedValue();
     writer.updateInventory.mockResolvedValue();
     const logger = mock<LoggerService>();
     const loggerFactory: LoggerFactory = () => logger;
     const config = mock<EnvConfig>({
+      MAX_CONCURRENT_STREAM_CONNECTIONS: 100,
       STREAM_RECONNECT_INITIAL_DELAY_MS: 10,
       STREAM_RECONNECT_MAX_DELAY_MS: 50,
       STREAM_FIRST_MESSAGE_TIMEOUT_MS: 80
@@ -369,6 +383,7 @@ function createProvider(overrides?: Partial<ChainProvider>): ChainProvider {
     hostUri: "https://p1:8443",
     selfAttributes: [],
     signedAttributes: [],
+    auditedBy: [],
     ...overrides
   };
 }

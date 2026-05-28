@@ -73,7 +73,7 @@ describe(DiscoverySchedulerService.name, () => {
     await vi.advanceTimersByTimeAsync(0);
 
     expect(lifecycle.getRegistry).toHaveBeenCalled();
-    expect(writer.upsertAttributes).toHaveBeenCalledWith(fresh);
+    expect(writer.bulkUpsertProviders).toHaveBeenCalledWith([fresh]);
     expect(lifecycle.start).toHaveBeenCalledWith(fresh, expect.any(AbortSignal));
   });
 
@@ -88,15 +88,15 @@ describe(DiscoverySchedulerService.name, () => {
     expect(poller.poll).toHaveBeenCalledTimes(2);
   });
 
-  it("logs and continues when upsertAttributes throws", async () => {
+  it("logs and does not start new providers when bulkUpsertProviders throws", async () => {
     const provider = createProvider();
     const { writer, lifecycle, logger } = setup({ providers: [provider] });
-    writer.upsertAttributes.mockRejectedValueOnce(new Error("DB down"));
+    writer.bulkUpsertProviders.mockRejectedValueOnce(new Error("DB down"));
 
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "REFRESH_ATTRIBUTES_ERROR", owner: provider.owner }));
-    expect(lifecycle.start).toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "UPSERT_PROVIDERS_ERROR", owners: [provider.owner] }));
+    expect(lifecycle.start).not.toHaveBeenCalled();
   });
 
   it("stops scheduling after stop is called", async () => {
@@ -127,7 +127,8 @@ describe(DiscoverySchedulerService.name, () => {
     const lifecycle = mock<StreamLifecycleManagerService>();
     lifecycle.getRegistry.mockReturnValue(new Map());
     lifecycle.stopAndDelete.mockResolvedValue();
-    writer.upsertAttributes.mockResolvedValue();
+    lifecycle.waitForPendingConnections.mockResolvedValue();
+    writer.bulkUpsertProviders.mockResolvedValue();
 
     const logger = mock<ReturnType<LoggerFactory>>();
     const loggerFactory: LoggerFactory = () => logger;
@@ -179,6 +180,7 @@ function createProvider(overrides?: Partial<ChainProvider>): ChainProvider {
     hostUri: "https://provider.example.com:8443",
     selfAttributes: [],
     signedAttributes: [],
+    auditedBy: [],
     ...overrides
   };
 }

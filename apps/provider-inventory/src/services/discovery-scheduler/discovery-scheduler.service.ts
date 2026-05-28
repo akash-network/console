@@ -56,43 +56,54 @@ export class DiscoverySchedulerService {
       this.#logger.info({ event: "DISCOVERY_TICK_START" });
       const watchedProviders = this.#lifecycle.getRegistry();
       const providersToStop = new Set(watchedProviders.keys());
+
       this.#logger.info({ event: "DISCOVERY_CURRENT_REGISTRY", providerCount: watchedProviders.size });
 
+      const startedAt = Date.now();
       let startedProvidersCount = 0;
       let restartedProvidersCount = 0;
-      for await (const providers of this.#poller.poll({ signal })) {
-        for (const batch of chunkify(providers, 50)) {
-          if (signal?.aborted) break;
+      for await (const providers of this.#poller.poll({ signal, batchSize: 500 })) {
+        if (signal?.aborted) break;
 
-          await Promise.allSettled(
-            batch.map(async provider => {
-              if (signal?.aborted) return;
+        // important to upsert before starting new stream,
+        // otherwise stream will have nothing to update in the db
+        const isUpsertedBatch = await this.#upsertProviders(providers);
+        for (const provider of providers) {
+          const observedProvider = watchedProviders.get(provider.owner);
+          if (!observedProvider) {
+            if (isUpsertedBatch) {
+              this.#lifecycle.start(provider, signal);
+              startedProvidersCount++;
+            }
+          } else if (observedProvider.hostUri !== provider.hostUri) {
+            this.#lifecycle.restart(provider, signal);
+            restartedProvidersCount++;
+          }
 
-              const observedProvider = watchedProviders.get(provider.owner);
-              await this.#refreshAttributes(provider);
-              if (!observedProvider) {
-                this.#lifecycle.start(provider, signal);
-                startedProvidersCount++;
-              } else if (observedProvider.hostUri !== provider.hostUri) {
-                this.#lifecycle.restart(provider, signal);
-                restartedProvidersCount++;
-              }
-
-              providersToStop.delete(provider.owner);
-            })
-          );
+          providersToStop.delete(provider.owner);
         }
       }
 
-      for (const owners of chunkify(providersToStop, 50)) {
-        await Promise.allSettled(owners.map(o => this.#lifecycle.stopAndDelete(o)));
+      for (const chunk of chunkify(providersToStop, 100)) {
+        await this.#lifecycle.stopAndDelete(chunk as string[]);
       }
 
       this.#logger.info({
         event: "DISCOVERY_TICK_COMPLETE",
         stoppedCount: providersToStop.size,
         startedCount: startedProvidersCount,
-        restartedCount: restartedProvidersCount
+        restartedCount: restartedProvidersCount,
+        completedInMs: Date.now() - startedAt
+      });
+
+      await this.#lifecycle.waitForPendingConnections();
+
+      this.#logger.info({
+        event: "DISCOVERY_PROVIDERS_INVENTORY_CONNECTED",
+        stoppedCount: providersToStop.size,
+        startedCount: startedProvidersCount,
+        restartedCount: restartedProvidersCount,
+        completedInMs: Date.now() - startedAt
       });
     } catch (error) {
       this.#logger.error({ event: "DISCOVERY_TICK_ERROR", error });
@@ -117,11 +128,15 @@ export class DiscoverySchedulerService {
     }
   }
 
-  async #refreshAttributes(provider: ChainProvider): Promise<void> {
+  async #upsertProviders(providers: ChainProvider[]): Promise<boolean> {
+    const owners = providers.map(p => p.owner);
     try {
-      await this.#writer.upsertAttributes(provider);
+      await this.#writer.bulkUpsertProviders(providers);
+      this.#logger.debug({ event: "UPSERT_PROVIDERS_UPSERTED", owners });
+      return true;
     } catch (error) {
-      this.#logger.error({ event: "REFRESH_ATTRIBUTES_ERROR", owner: provider.owner, error });
+      this.#logger.error({ event: "UPSERT_PROVIDERS_ERROR", owners, error });
+      return false;
     }
   }
 }
