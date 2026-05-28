@@ -8,7 +8,6 @@ import { OpenNewWindow } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { SnackbarKey } from "notistack";
 import { useSnackbar } from "notistack";
 
 import type { LoadingState } from "@src/components/layout/TransactionModal";
@@ -23,24 +22,11 @@ import networkStore from "@src/store/networkStore";
 import walletStore from "@src/store/walletStore";
 import type { AppError } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
-import { getStorageWallets, updateStorageManagedWallet, updateStorageWallets } from "@src/utils/walletUtils";
+import { getStorageWallets, updateStorageWallets } from "@src/utils/walletUtils";
 import { useServices } from "../ServicesProvider";
 import { useSettings } from "../SettingsProvider";
 import { settingsIdAtom } from "../SettingsProvider/settingsStore";
 import { deriveWalletIsLoading } from "./deriveWalletIsLoading";
-import { useEnforceSelfCustodyFlag } from "./useEnforceSelfCustodyFlag";
-
-const CONSOLE_MEMO = "akash console";
-
-const ERROR_MESSAGES = {
-  5: "Insufficient funds",
-  9: "Unknown address",
-  11: "Out of gas",
-  12: "Memo too large",
-  13: "Insufficient fee",
-  19: "Tx already in mempool",
-  25: "Invalid gas adjustment"
-};
 
 type ManagedWalletMarker =
   | {
@@ -123,13 +109,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     isCustodialConnecting: userWallet.isWalletConnecting
   });
 
-  useEnforceSelfCustodyFlag({
-    isWalletConnected: userWallet.isWalletConnected,
-    selectedWalletType,
-    setSelectedWalletType,
-    disconnect: userWallet.disconnect
-  });
-
   useWhen(walletAddress, loadWallet);
 
   useWhen(isWalletConnected && selectedWalletType, () => {
@@ -187,26 +166,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [selectedNetworkId, appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID, setSelectedNetworkId, windowLocation]);
 
   function switchWalletType() {
-    if (selectedWalletType === "custodial" && !managedWallet) {
-      userWallet.disconnect();
-    }
-
-    if (selectedWalletType === "custodial" && typeof window !== "undefined") {
-      window.localStorage.removeItem(CURRENT_WALLET_KEY);
-    }
-
-    if (selectedWalletType === "managed" && !userWallet.isWalletConnected) {
-      userWallet.connect();
-    }
-
-    if (selectedWalletType === "managed" && managedWallet) {
-      updateStorageManagedWallet({
-        ...managedWallet,
-        selected: false
-      });
-    }
-
-    setSelectedWalletType(prev => (prev === "custodial" ? "managed" : "custodial"));
+    // No-op: deploy-web is managed-wallet-only after CON-258. Kept on the
+    // contract so existing consumers compile; the field itself is removed in L-2.
   }
 
   function connectManagedWallet() {
@@ -256,42 +217,23 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }
 
   async function signAndBroadcastTx(msgs: EncodeObject[]): Promise<boolean> {
-    let pendingSnackbarKey: SnackbarKey | null = null;
     let txResult: TxOutput;
 
+    if (!user?.id) {
+      throw new Error("Cannot broadcast transaction: user is not authenticated");
+    }
+
     try {
-      if (!!user?.id && isManaged) {
-        const mainMessage = msgs.find(msg => msg.typeUrl in MESSAGE_STATES);
+      const mainMessage = msgs.find(msg => msg.typeUrl in MESSAGE_STATES);
 
-        if (mainMessage) {
-          setLoadingState(MESSAGE_STATES[mainMessage.typeUrl]);
-        }
-
-        txResult = await txHttpService.signAndBroadcastTx({ userId: user.id, messages: msgs });
-      } else {
-        const enqueueTxSnackbar = () => {
-          pendingSnackbarKey = enqueueSnackbar(<Snackbar title="Broadcasting transaction..." subTitle="Please wait a few seconds" showLoading />, {
-            variant: "info",
-            autoHideDuration: null
-          });
-        };
-        setLoadingState("waitingForApproval");
-        const estimatedFees = await userWallet.estimateFee(msgs, undefined, CONSOLE_MEMO);
-        const txRaw = await userWallet.sign(msgs, estimatedFees, CONSOLE_MEMO);
-
-        setLoadingState("broadcasting");
-        enqueueTxSnackbar();
-        txResult = await userWallet.broadcast(txRaw);
-
-        setLoadingState(undefined);
+      if (mainMessage) {
+        setLoadingState(MESSAGE_STATES[mainMessage.typeUrl]);
       }
+
+      txResult = await txHttpService.signAndBroadcastTx({ userId: user.id, messages: msgs });
 
       if (txResult.code !== 0) {
         throw new Error(txResult.rawLog);
-      }
-
-      if (!managedWallet) {
-        showTransactionSnackbar("Transaction success!", "", txResult.transactionHash, "success");
       }
 
       analyticsService.track("successful_tx", {
@@ -311,51 +253,22 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           showTransactionSnackbar(title || message || "Error", message, "", "error");
         }
       } else {
-        const transactionHash = err.txHash;
         let errorMsg = "An error has occurred";
-
         if (err.message?.includes("was submitted but was not yet found on the chain")) {
           errorMsg = "Transaction timeout";
-        } else if (err.message) {
-          try {
-            const reg = /Broadcasting transaction failed with code (.+?) \(codespace: (.+?)\)/i;
-            const match = err.message.match(reg);
-            const log = err.message.substring(err.message.indexOf("Log"), err.message.length);
-
-            if (match) {
-              const code = parseInt(match[1]);
-              const codeSpace = match[2];
-
-              if (codeSpace === "sdk" && code in ERROR_MESSAGES) {
-                errorMsg = ERROR_MESSAGES[code as keyof typeof ERROR_MESSAGES];
-              }
-            }
-
-            if (log) {
-              errorMsg += `. ${log}`;
-            }
-          } catch (err) {
-            console.error(err);
-          }
         }
 
-        if (!errorMsg.includes("Request rejected")) {
-          analyticsService.track("failed_tx", {
-            category: "transactions",
-            label: "Failed transaction"
-          });
-        }
+        analyticsService.track("failed_tx", {
+          category: "transactions",
+          label: "Failed transaction"
+        });
 
-        showTransactionSnackbar("Transaction has failed...", errorMsg, transactionHash, "error");
+        showTransactionSnackbar("Transaction has failed...", errorMsg, "", "error");
       }
 
       return false;
     } finally {
       refetchBalances();
-      if (pendingSnackbarKey) {
-        closeSnackbar(pendingSnackbarKey);
-      }
-
       setLoadingState(undefined);
     }
   }
