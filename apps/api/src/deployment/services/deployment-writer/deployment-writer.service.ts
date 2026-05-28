@@ -1,5 +1,4 @@
 import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
-import { BlockHttpService, DeploymentHttpService } from "@akashnetwork/http-sdk";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
@@ -8,7 +7,6 @@ import { BillingConfigService } from "@src/billing/services/billing-config/billi
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import { WalletInitialized, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
-import { LoggerService } from "@src/core";
 import {
   CreateDeploymentRequest,
   CreateDeploymentResponse,
@@ -20,35 +18,24 @@ import { ProviderService } from "@src/provider/services/provider/provider.servic
 import { denomToUdenom } from "@src/utils/math";
 import { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 
-const MAX_DSEQ_COLLISION_BUMPS = 5;
-
 @singleton()
 export class DeploymentWriterService {
   constructor(
-    private readonly blockHttpService: BlockHttpService,
-    private readonly deploymentHttpService: DeploymentHttpService,
     private readonly signerService: ManagedSignerService,
     private readonly rpcMessageService: RpcMessageService,
     private readonly sdlService: SdlService,
     private readonly billingConfig: BillingConfigService,
     private readonly providerService: ProviderService,
     private readonly deploymentReaderService: DeploymentReaderService,
-    private readonly walletReaderService: WalletReaderService,
-    private readonly logger: LoggerService
-  ) {
-    this.logger.setContext(DeploymentWriterService.name);
-  }
+    private readonly walletReaderService: WalletReaderService
+  ) {}
 
   public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
     const manifest = this.#parseManifest(input.sdl, { isTrialing: !!wallet.isTrialing });
 
-    const [baseHeight, manifestVersion] = await Promise.all([
-      this.blockHttpService.getCurrentHeight(),
-      this.sdlService.generateManifestVersion(manifest.groups)
-    ]);
-
-    const dseq = await this.#findAvailableDseq(wallet.address, baseHeight);
+    const dseq = Date.now();
+    const manifestVersion = await this.sdlService.generateManifestVersion(manifest.groups);
 
     const message = this.rpcMessageService.getCreateDeploymentMsg({
       owner: wallet.address,
@@ -65,33 +52,6 @@ export class DeploymentWriterService {
       manifest: manifestToSortedJSON(manifest.groups),
       signTx: result
     };
-  }
-
-  async #findAvailableDseq(owner: string, baseHeight: number): Promise<number> {
-    for (let offset = 0; offset <= MAX_DSEQ_COLLISION_BUMPS; offset++) {
-      const candidate = baseHeight + offset;
-      if (!(await this.#deploymentExists(owner, candidate))) {
-        if (offset > 0) {
-          this.logger.warn({ event: "DSEQ_COLLISION_BUMPED", owner, baseHeight, finalDseq: candidate, offset });
-        }
-        return candidate;
-      }
-    }
-    this.logger.error({ event: "DSEQ_COLLISION_EXHAUSTED", owner, baseHeight });
-    assert(false, 409, "Could not allocate a free dseq for deployment, please retry");
-  }
-
-  async #deploymentExists(owner: string, dseq: number): Promise<boolean> {
-    try {
-      const response = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq.toString());
-      if (response && "code" in response) {
-        return !response.message?.toLowerCase().includes("not found");
-      }
-      return !!response;
-    } catch (error) {
-      this.logger.warn({ event: "DSEQ_EXISTENCE_CHECK_FAILED", owner, dseq, error });
-      return false;
-    }
   }
 
   public async closeByUserIdAndDseq(userId: string, dseq: string): Promise<void> {

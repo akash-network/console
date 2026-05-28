@@ -1,11 +1,10 @@
-import type { BlockHttpService, DeploymentHttpService } from "@akashnetwork/http-sdk";
+import { vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import type { WalletInitialized, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
-import type { LoggerService } from "@src/core";
 import type { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -59,12 +58,15 @@ describe(DeploymentWriterService.name, () => {
     }
   };
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe("create", () => {
-    it("creates a deployment and returns dseq, manifest, and signTx", async () => {
-      const { service, blockHttpService, signerService, rpcMessageService, deploymentHttpService } = setup();
-      const dseq = 200;
-      blockHttpService.getCurrentHeight.mockResolvedValue(dseq);
-      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue({ code: 5, message: "deployment not found" } as any);
+    it("creates a deployment with a millisecond-timestamp dseq", async () => {
+      const { service, signerService, rpcMessageService } = setup();
+      const dseq = 1748400000000;
+      vi.spyOn(Date, "now").mockReturnValue(dseq);
       const txResult = { code: 0, transactionHash: "tx-hash" };
       signerService.executeDerivedDecodedTxByUserId.mockResolvedValue(txResult);
       const createMsg = { typeUrl: "/create", value: {} };
@@ -72,7 +74,7 @@ describe(DeploymentWriterService.name, () => {
 
       const result = await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
 
-      expect(result.dseq).toBe("200");
+      expect(result.dseq).toBe("1748400000000");
       expect(result.signTx).toBe(txResult);
       expect(rpcMessageService.getCreateDeploymentMsg).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -84,33 +86,6 @@ describe(DeploymentWriterService.name, () => {
         })
       );
       expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledWith("user-1", [createMsg]);
-    });
-
-    it("bumps the dseq when the current block height collides with an existing deployment on-chain", async () => {
-      const { service, blockHttpService, signerService, rpcMessageService, deploymentHttpService } = setup();
-      const baseHeight = 200;
-      blockHttpService.getCurrentHeight.mockResolvedValue(baseHeight);
-      deploymentHttpService.findByOwnerAndDseq
-        .mockResolvedValueOnce(deploymentData as any)
-        .mockResolvedValueOnce({ code: 5, message: "deployment not found" } as any);
-      signerService.executeDerivedDecodedTxByUserId.mockResolvedValue({ code: 0, hash: "tx-hash", transactionHash: "tx-hash", rawLog: "" });
-      const createMsg = { typeUrl: "/create", value: {} };
-      rpcMessageService.getCreateDeploymentMsg.mockReturnValue(createMsg);
-
-      const result = await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
-
-      expect(result.dseq).toBe("201");
-      expect(rpcMessageService.getCreateDeploymentMsg).toHaveBeenCalledWith(expect.objectContaining({ dseq: baseHeight + 1 }));
-      expect(deploymentHttpService.findByOwnerAndDseq).toHaveBeenCalledWith(wallet.address, "200");
-      expect(deploymentHttpService.findByOwnerAndDseq).toHaveBeenCalledWith(wallet.address, "201");
-    });
-
-    it("throws 409 when no free dseq can be found within the collision budget", async () => {
-      const { service, blockHttpService, deploymentHttpService } = setup();
-      blockHttpService.getCurrentHeight.mockResolvedValue(200);
-      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue(deploymentData as any);
-
-      await expect(service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 })).rejects.toMatchObject({ status: 409 });
     });
 
     it("throws 400 when SDL is invalid", async () => {
@@ -223,8 +198,6 @@ describe(DeploymentWriterService.name, () => {
   });
 
   function setup() {
-    const blockHttpService = mock<BlockHttpService>();
-    const deploymentHttpService = mock<DeploymentHttpService>();
     const signerService = mock<ManagedSignerService>();
     const rpcMessageService = mock<RpcMessageService>();
     const sdlService = mock<SdlService>();
@@ -234,39 +207,31 @@ describe(DeploymentWriterService.name, () => {
     const providerService = mock<ProviderService>();
     const deploymentReaderService = mock<DeploymentReaderService>();
     const walletReaderService = mock<WalletReaderService>();
-    const logger = mock<LoggerService>();
 
     walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
     sdlService.generateManifest.mockReturnValue({ ok: true, value: manifestValue } as any);
     sdlService.generateManifestVersion.mockResolvedValue(new Uint8Array([4, 5, 6]));
     deploymentReaderService.findByWalletAndDseq.mockResolvedValue(deploymentData);
-    deploymentHttpService.findByOwnerAndDseq.mockResolvedValue({ code: 5, message: "deployment not found" } as any);
 
     const service = new DeploymentWriterService(
-      blockHttpService,
-      deploymentHttpService,
       signerService,
       rpcMessageService,
       sdlService,
       billingConfig,
       providerService,
       deploymentReaderService,
-      walletReaderService,
-      logger
+      walletReaderService
     );
 
     return {
       service,
-      blockHttpService,
-      deploymentHttpService,
       signerService,
       rpcMessageService,
       sdlService,
       billingConfig,
       providerService,
       deploymentReaderService,
-      walletReaderService,
-      logger
+      walletReaderService
     };
   }
 });
