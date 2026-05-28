@@ -22,8 +22,8 @@ export type SignAndBroadcastInput = {
   analyticsService: Pick<AnalyticsService, "track">;
   setLoadingState: (state: LoadingState | undefined) => void;
   refetchBalances: () => void;
-  showAddCreditsSnackbar: (title: string, message: string) => void;
-  showTransactionErrorSnackbar: (title: string, message: string) => void;
+  showAddCreditsSnackbar: (title: string, message?: string) => void;
+  showTransactionErrorSnackbar: (title: string, message?: string) => void;
 };
 
 export async function signAndBroadcast({

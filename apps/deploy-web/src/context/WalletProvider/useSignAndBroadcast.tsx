@@ -29,14 +29,14 @@ export function useSignAndBroadcast({ refetchBalances }: UseSignAndBroadcastInpu
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const [loadingState, setLoadingState] = useState<LoadingState | undefined>(undefined);
 
-  const showTransactionErrorSnackbar = (snackTitle: string, snackMessage: string) => {
+  const showTransactionErrorSnackbar = (snackTitle: string, snackMessage?: string) => {
     enqueueSnackbar(<Snackbar title={snackTitle} subTitle={<TransactionErrorSnackbarContent message={snackMessage} />} iconVariant="error" />, {
       variant: "error",
       autoHideDuration: 10000
     });
   };
 
-  const showAddCreditsSnackbar = (snackTitle: string, snackMessage: string) => {
+  const showAddCreditsSnackbar = (snackTitle: string, snackMessage?: string) => {
     const key = enqueueSnackbar(
       <Snackbar title={snackTitle} subTitle={<AddCreditsSnackbarContent message={snackMessage} onAction={() => closeSnackbar(key)} />} iconVariant="warning" />,
       {
@@ -80,15 +80,18 @@ const AddCreditsSnackbarContent: React.FC<{ message?: string; onAction?: () => v
   );
 };
 
-const TransactionErrorSnackbarContent: React.FC<{ message: string }> = ({ message }) => (
-  <>
-    {message}
-    {message && <br />}
-    <div className="mt-2 text-xs">
-      Need help?{" "}
-      <a href={`mailto:${SUPPORT_EMAIL}?subject=Transaction Error&body=${encodeURIComponent(message)}`} className="underline">
-        Contact {SUPPORT_EMAIL}
-      </a>
-    </div>
-  </>
-);
+const TransactionErrorSnackbarContent: React.FC<{ message?: string }> = ({ message }) => {
+  const safeMessage = message?.trim() || "An error has occurred";
+  return (
+    <>
+      {safeMessage}
+      <br />
+      <div className="mt-2 text-xs">
+        Need help?{" "}
+        <a href={`mailto:${SUPPORT_EMAIL}?subject=Transaction Error&body=${encodeURIComponent(safeMessage)}`} className="underline">
+          Contact {SUPPORT_EMAIL}
+        </a>
+      </div>
+    </>
+  );
+};
