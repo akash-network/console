@@ -1,6 +1,5 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
-import { isHttpError, type TxOutput } from "@akashnetwork/http-sdk";
 import { buttonVariants, Snackbar } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import type { EncodeObject } from "@cosmjs/proto-signing";
@@ -27,6 +26,7 @@ import { useServices } from "../ServicesProvider";
 import { useSettings } from "../SettingsProvider";
 import { settingsIdAtom } from "../SettingsProvider/settingsStore";
 import { deriveWalletIsLoading } from "./deriveWalletIsLoading";
+import { signAndBroadcast } from "./signAndBroadcast";
 
 type ManagedWalletMarker =
   | {
@@ -61,14 +61,6 @@ export type ContextType = {
  * @private for testing only
  */
 export const WalletProviderContext = React.createContext<ContextType>({} as ContextType);
-
-const MESSAGE_STATES: Record<string, LoadingState> = {
-  "/akash.deployment.v1beta4.MsgCloseDeployment": "closingDeployment",
-  "/akash.deployment.v1beta4.MsgCreateDeployment": "searchingProviders",
-  "/akash.market.v1beta5.MsgCreateLease": "creatingDeployment",
-  "/akash.deployment.v1beta4.MsgUpdateDeployment": "updatingDeployment",
-  "/akash.escrow.v1.MsgAccountDeposit": "depositingDeployment"
-};
 
 /**
  * WalletProvider is a client only component
@@ -217,60 +209,16 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }
 
   async function signAndBroadcastTx(msgs: EncodeObject[]): Promise<boolean> {
-    let txResult: TxOutput;
-
-    if (!user?.id) {
-      throw new Error("Cannot broadcast transaction: user is not authenticated");
-    }
-
-    try {
-      const mainMessage = msgs.find(msg => msg.typeUrl in MESSAGE_STATES);
-
-      if (mainMessage) {
-        setLoadingState(MESSAGE_STATES[mainMessage.typeUrl]);
-      }
-
-      txResult = await txHttpService.signAndBroadcastTx({ userId: user.id, messages: msgs });
-
-      if (txResult.code !== 0) {
-        throw new Error(txResult.rawLog);
-      }
-
-      analyticsService.track("successful_tx", {
-        category: "transactions",
-        label: "Successful transaction"
-      });
-
-      return true;
-    } catch (err: any) {
-      console.error(err);
-
-      if (isHttpError(err) && err.response?.status !== 500) {
-        const [title, message] = err.response?.data?.message?.split(": ") ?? [];
-        if (err.response?.status === 402) {
-          showAddCreditsSnackbar(title || message || "Add credits to continue", message);
-        } else {
-          showTransactionSnackbar(title || message || "Error", message, "", "error");
-        }
-      } else {
-        let errorMsg = "An error has occurred";
-        if (err.message?.includes("was submitted but was not yet found on the chain")) {
-          errorMsg = "Transaction timeout";
-        }
-
-        analyticsService.track("failed_tx", {
-          category: "transactions",
-          label: "Failed transaction"
-        });
-
-        showTransactionSnackbar("Transaction has failed...", errorMsg, "", "error");
-      }
-
-      return false;
-    } finally {
-      refetchBalances();
-      setLoadingState(undefined);
-    }
+    return signAndBroadcast({
+      userId: user?.id,
+      msgs,
+      txHttpService,
+      analyticsService,
+      setLoadingState,
+      refetchBalances,
+      showAddCreditsSnackbar,
+      showTransactionSnackbar
+    });
   }
 
   const showTransactionSnackbar = (
