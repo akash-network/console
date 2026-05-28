@@ -8,6 +8,7 @@ import { NextSeo } from "next-seo";
 
 import { Title } from "@src/components/shared/Title";
 import { isSelfCustodyRoute } from "@src/lib/nextjs/pageGuards/selfCustody";
+import { definePublicPage } from "@src/lib/pages/definePublicPage";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../components/layout/Layout";
 
@@ -56,4 +57,4 @@ const FourOhFour: React.FunctionComponent = () => {
   );
 };
 
-export default FourOhFour;
+export default definePublicPage(FourOhFour);

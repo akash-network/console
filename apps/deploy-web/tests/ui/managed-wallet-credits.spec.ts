@@ -1,22 +1,15 @@
-import { expect, test } from "./fixture/authenticated-test";
-import { AuthPage } from "./pages/AuthPage";
+import { expect, test } from "./fixture/base-test";
 import { BillingPage } from "./pages/BillingPage";
 import { HomePage } from "./pages/HomePage";
 
 test.describe("Managed wallet credits", () => {
-  test("purchases credits via Add Funds", async ({ page, login }) => {
+  test.use({ userType: "existing" });
+
+  test("purchases credits via Add Funds", async ({ page }) => {
     test.setTimeout(2 * 60 * 1000);
 
     const homePage = new HomePage(page);
-    const authPage = new AuthPage(page);
     const billingPage = new BillingPage(page);
-
-    await test.step("login", async () => {
-      await homePage.goto();
-      await homePage.openSignIn();
-      await authPage.waitForPage();
-      await login();
-    });
 
     await test.step("navigate to billing via Add Funds", async () => {
       await homePage.getAddFundsLink().click();

@@ -3,6 +3,7 @@ import { Discord, Github, X as TwitterX, Youtube } from "iconoir-react";
 
 import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
+import { definePublicPage } from "@src/lib/pages/definePublicPage";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import { CustomNextSeo } from "../components/shared/CustomNextSeo";
 
@@ -62,4 +63,4 @@ const ContactPage: React.FunctionComponent = () => {
   );
 };
 
-export default ContactPage;
+export default definePublicPage(ContactPage);

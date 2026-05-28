@@ -1,27 +1,18 @@
 import { createManagedDeployment } from "./actions/deploy";
-import { expect, test } from "./fixture/authenticated-test";
-import { AuthPage } from "./pages/AuthPage";
+import { expect, test } from "./fixture/base-test";
 import { BillingPage } from "./pages/BillingPage";
 import { DeployPage } from "./pages/DeployPage";
-import { HomePage } from "./pages/HomePage";
 import { Sidebar } from "./pages/Sidebar";
 
 test.describe("Managed wallet deployment", () => {
-  test("creates and closes a hello-world deployment", async ({ context, page, login }) => {
+  test.use({ userType: "existing" });
+
+  test("creates and closes a hello-world deployment", async ({ context, page }) => {
     test.setTimeout(3 * 60 * 1000);
 
-    const homePage = new HomePage(page);
-    const authPage = new AuthPage(page);
     const billingPage = new BillingPage(page);
     const sidebar = new Sidebar(page);
     const deployPage = new DeployPage(context, page);
-
-    await test.step("login", async () => {
-      await homePage.goto();
-      await homePage.openSignIn();
-      await authPage.waitForPage();
-      await login();
-    });
 
     await test.step("create deployment", async () => {
       await createManagedDeployment(

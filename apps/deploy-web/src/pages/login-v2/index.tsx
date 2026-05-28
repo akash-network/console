@@ -6,9 +6,10 @@ import { AuthPagePasswordlessClient } from "@src/components/auth/AuthPagePasswor
 import { useFlag } from "@src/hooks/useFlag";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import { isAuthenticated, isFeatureEnabled } from "@src/lib/nextjs/pageGuards/pageGuards";
+import { definePublicPage } from "@src/lib/pages/definePublicPage";
 import onboardingStore from "@src/store/onboardingStore";
 
-export default function LoginV2Page() {
+function LoginV2Page() {
   const isOnboardingRedesignEnabled = useFlag("console_onboarding_redesign");
   const setSelectedOnboardingFlow = useSetAtom(onboardingStore.selectedOnboardingFlow);
 
@@ -23,8 +24,11 @@ export default function LoginV2Page() {
   return <AuthPagePasswordlessClient />;
 }
 
+export default definePublicPage(LoginV2Page);
+
 export const getServerSideProps = defineServerSideProps({
   route: "/login-v2",
+  public: true,
   schema: z.object({
     query: z.object({
       returnTo: z.union([z.string(), z.array(z.string())]).optional()

@@ -4,6 +4,8 @@ import { expect, test } from "./fixture/base-test";
 import { BuildTemplatePage } from "./pages/BuildTemplatePage";
 
 test.describe("SDL Builder Deployment Flow", () => {
+  test.use({ userType: "existing" });
+
   test("navigate to SDL builder page", async ({ page, context }) => {
     const { sdlBuilderPage } = await setup({ page, context });
 

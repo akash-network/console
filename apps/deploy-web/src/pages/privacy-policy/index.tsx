@@ -3,6 +3,7 @@ import React from "react";
 import Layout from "@src/components/layout/Layout";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { Title } from "@src/components/shared/Title";
+import { definePublicPage } from "@src/lib/pages/definePublicPage";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 
 export function PrivacyPolicy() {
@@ -182,4 +183,4 @@ export function PrivacyPolicy() {
   );
 }
 
-export default PrivacyPolicy;
+export default definePublicPage(PrivacyPolicy);

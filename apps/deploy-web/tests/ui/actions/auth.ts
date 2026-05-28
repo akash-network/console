@@ -1,29 +1,96 @@
 import type { Page } from "@playwright/test";
 
-export async function signUpViaUI(page: Page, input: { email: string; password: string }) {
-  const signUpTab = page.getByRole("tab", { name: /sign up/i });
+import { testEnvConfig } from "../fixture/test-env.config";
+import { AuthPage } from "../pages/AuthPage";
+import { AuthPagePasswordless } from "../pages/AuthPagePasswordless";
+import type { Auth0ManagementService } from "../services/auth0-management.service";
+import type { EmailVerificationStrategy } from "../services/email-verification";
+import { MailsacCodeVerificationStrategy } from "../services/email-verification/mailsac-code.strategy";
 
-  if (await signUpTab.isVisible()) {
-    await signUpTab.click();
-  }
-
-  await page.getByLabel("Email").fill(input.email);
-  await page.getByLabel("Password").fill(input.password);
-  await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: /sign up/i }).click();
-}
-
-export async function signInViaUI(page: Page, input: { email: string; password: string }) {
-  const logInTab = page.getByRole("tab", { name: /log in/i });
-  if (await logInTab.isVisible()) {
-    await logInTab.click();
-  }
-
-  await page.getByLabel("Email").fill(input.email);
-  await page.getByLabel("Password").fill(input.password);
-  await page.getByRole("button", { name: /log in/i }).click();
-}
+/** Which credential mechanism a flow authenticates with. */
+export type AuthType = "passwordless" | "email-password";
 
 export function generateTestPassword(): string {
   return `E2e!${crypto.randomUUID()}`;
+}
+
+/**
+ * Logs in the preconfigured TEST_USER via the given auth type, leaving the page authenticated.
+ */
+export async function loginExistingUser(page: Page, authType: AuthType): Promise<void> {
+  const email = testEnvConfig.TEST_USER_EMAIL;
+  if (!email) {
+    throw new Error('TEST_USER_EMAIL env var is required for userType: "existing" tests');
+  }
+
+  if (authType === "passwordless") {
+    await signInPasswordless(page, email);
+  } else {
+    const password = testEnvConfig.TEST_USER_PASSWORD;
+    if (!password) {
+      throw new Error('TEST_USER_PASSWORD env var is required for authType: "email-password"');
+    }
+    await signInWithPassword(page, { email, password });
+  }
+
+  await page.waitForURL(url => !url.pathname.includes("/login"), { timeout: 15_000 });
+  await page.getByLabel("Connected wallet name and balance").waitFor({ timeout: 30_000 });
+}
+
+/**
+ * Registers a brand-new user via the given auth type, leaving the page on an authenticated
+ * session. Returns the created identity so callers can clean it up.
+ */
+export async function registerNewUser(
+  page: Page,
+  deps: { auth0: Auth0ManagementService; emailVerification: EmailVerificationStrategy; authType: AuthType }
+): Promise<{ email: string; userId: string }> {
+  const email = deps.authType === "passwordless" ? await registerPasswordless(page) : await registerWithEmailPassword(page, deps);
+
+  const auth0User = await deps.auth0.getUserByEmail(email);
+  if (!auth0User) throw new Error(`Auth0 user was not created for ${email}`);
+
+  return { email, userId: auth0User.user_id };
+}
+
+async function registerPasswordless(page: Page): Promise<string> {
+  const otp = new MailsacCodeVerificationStrategy(testEnvConfig.MAILSAC_API_KEY);
+  const email = otp.generateEmail();
+  await signInPasswordless(page, email);
+  return email;
+}
+
+async function registerWithEmailPassword(page: Page, deps: { auth0: Auth0ManagementService; emailVerification: EmailVerificationStrategy }): Promise<string> {
+  const email = deps.emailVerification.generateEmail();
+  const auth = new AuthPage(page);
+
+  await page.goto(`${testEnvConfig.BASE_URL}/login?tab=signup`);
+  await auth.signUp({ email, password: generateTestPassword() });
+
+  const created = await deps.auth0.getUserByEmail(email);
+  if (!created) throw new Error(`Auth0 user was not created for ${email}`);
+
+  await deps.emailVerification.verify({ context: page.context(), email, userId: created.user_id });
+  await page.waitForURL(url => !url.pathname.includes("/login"), { timeout: 30_000 });
+
+  return email;
+}
+
+/** Drives the email + password login form for the given credentials. */
+async function signInWithPassword(page: Page, credentials: { email: string; password: string }): Promise<void> {
+  const auth = new AuthPage(page);
+  await auth.goto();
+  await auth.signIn(credentials);
+}
+
+/** Drives the passwordless (email OTP via Mailsac) flow for the given email. */
+async function signInPasswordless(page: Page, email: string): Promise<void> {
+  const otp = new MailsacCodeVerificationStrategy(testEnvConfig.MAILSAC_API_KEY);
+  const auth = new AuthPagePasswordless(page);
+
+  await auth.goto();
+  await auth.startWithEmail(email);
+  await auth.waitForVerifyScreen();
+  await otp.verify({ context: page.context(), email, userId: "" });
+  await auth.waitForRedirectAwayFromLogin();
 }

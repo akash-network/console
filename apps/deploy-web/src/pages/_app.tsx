@@ -18,6 +18,7 @@ import type { NextSeoProps } from "next-seo/lib/types";
 import { ThemeProvider } from "next-themes";
 import NProgress from "nprogress";
 
+import { RequireAuth } from "@src/components/auth/RequireAuth/RequireAuth";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
 import { OnboardingRedirectEffect } from "@src/components/onboarding/OnboardingRedirectEffect/OnboardingRedirectEffect";
@@ -30,6 +31,7 @@ import { ServicesProvider } from "@src/context/ServicesProvider";
 import { RootContainerProvider, useRootContainer } from "@src/context/ServicesProvider/RootContainerProvider";
 import { SettingsProvider } from "@src/context/SettingsProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
+import type { PageWithAuth } from "@src/lib/pages/definePublicPage";
 import { store } from "@src/store/global-store";
 
 interface Props extends AppProps {
@@ -47,21 +49,24 @@ Router.events.on("routeChangeError", () => NProgress.done());
 
 const App: React.FunctionComponent<Props> = props => {
   const { Component, pageProps } = props;
+  const isPublic = (Component as PageWithAuth).auth === "public";
 
   return (
     <AppRoot {...props}>
       <>
         <UserProviders>
-          <FlagProvider>
-            <WalletProvider>
-              <PaymentPollingProvider>
-                <NavigationGuardProvider>
-                  <OnboardingRedirectEffect />
-                  <Component {...pageProps} />
-                </NavigationGuardProvider>
-              </PaymentPollingProvider>
-            </WalletProvider>
-          </FlagProvider>
+          <RequireAuth isPublic={isPublic}>
+            <FlagProvider>
+              <WalletProvider>
+                <PaymentPollingProvider>
+                  <NavigationGuardProvider>
+                    <OnboardingRedirectEffect />
+                    <Component {...pageProps} />
+                  </NavigationGuardProvider>
+                </PaymentPollingProvider>
+              </WalletProvider>
+            </FlagProvider>
+          </RequireAuth>
         </UserProviders>
       </>
     </AppRoot>
