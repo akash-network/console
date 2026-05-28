@@ -23,7 +23,7 @@ export type SignAndBroadcastInput = {
   setLoadingState: (state: LoadingState | undefined) => void;
   refetchBalances: () => void;
   showAddCreditsSnackbar: (title: string, message: string) => void;
-  showTransactionSnackbar: (title: string, message: string, transactionHash: string, variant: "success" | "error" | "warning") => void;
+  showTransactionErrorSnackbar: (title: string, message: string) => void;
 };
 
 export async function signAndBroadcast({
@@ -34,7 +34,7 @@ export async function signAndBroadcast({
   setLoadingState,
   refetchBalances,
   showAddCreditsSnackbar,
-  showTransactionSnackbar
+  showTransactionErrorSnackbar
 }: SignAndBroadcastInput): Promise<boolean> {
   let txResult: TxOutput;
 
@@ -69,7 +69,7 @@ export async function signAndBroadcast({
       if (err.response?.status === 402) {
         showAddCreditsSnackbar(title || message || "Add credits to continue", message);
       } else {
-        showTransactionSnackbar(title || message || "Error", message, "", "error");
+        showTransactionErrorSnackbar(title || message || "Error", message);
       }
     } else {
       let errorMsg = err.message || "An error has occurred";
@@ -82,7 +82,7 @@ export async function signAndBroadcast({
         label: "Failed transaction"
       });
 
-      showTransactionSnackbar("Transaction has failed...", errorMsg, "", "error");
+      showTransactionErrorSnackbar("Transaction has failed...", errorMsg);
     }
 
     return false;

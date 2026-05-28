@@ -8,7 +8,7 @@ import { MESSAGE_STATES, signAndBroadcast, type SignAndBroadcastInput } from "./
 
 describe("signAndBroadcast", () => {
   it("calls txHttpService with userId and messages and returns true on success", async () => {
-    const { input, txHttpService, analyticsService, showTransactionSnackbar } = setup({
+    const { input, txHttpService, analyticsService, showTransactionErrorSnackbar } = setup({
       txResult: { code: 0, transactionHash: "tx-hash", rawLog: "" }
     });
 
@@ -20,7 +20,7 @@ describe("signAndBroadcast", () => {
       messages: input.msgs
     });
     expect(analyticsService.track).toHaveBeenCalledWith("successful_tx", expect.objectContaining({ category: "transactions" }));
-    expect(showTransactionSnackbar).not.toHaveBeenCalled();
+    expect(showTransactionErrorSnackbar).not.toHaveBeenCalled();
   });
 
   it("sets loading state from MESSAGE_STATES when a known message type is present", async () => {
@@ -47,19 +47,19 @@ describe("signAndBroadcast", () => {
   });
 
   it("returns false and surfaces the chain rawLog as the error message when txResult.code is non-zero", async () => {
-    const { input, showTransactionSnackbar, analyticsService } = setup({
+    const { input, showTransactionErrorSnackbar, analyticsService } = setup({
       txResult: { code: 5, transactionHash: "", rawLog: "0uakt < 1000uakt: insufficient funds" }
     });
 
     const result = await signAndBroadcast(input);
 
     expect(result).toBe(false);
-    expect(showTransactionSnackbar).toHaveBeenCalledWith("Transaction has failed...", "0uakt < 1000uakt: insufficient funds", "", "error");
+    expect(showTransactionErrorSnackbar).toHaveBeenCalledWith("Transaction has failed...", "0uakt < 1000uakt: insufficient funds");
     expect(analyticsService.track).toHaveBeenCalledWith("failed_tx", expect.objectContaining({ category: "transactions" }));
   });
 
   it("returns false and shows add-credits snackbar when txHttpService responds with HTTP 402", async () => {
-    const { input, showAddCreditsSnackbar, showTransactionSnackbar } = setup({
+    const { input, showAddCreditsSnackbar, showTransactionErrorSnackbar } = setup({
       txError: buildHttpError(402, "Out of credits: please top up your account")
     });
 
@@ -67,52 +67,52 @@ describe("signAndBroadcast", () => {
 
     expect(result).toBe(false);
     expect(showAddCreditsSnackbar).toHaveBeenCalledWith("Out of credits", "please top up your account");
-    expect(showTransactionSnackbar).not.toHaveBeenCalled();
+    expect(showTransactionErrorSnackbar).not.toHaveBeenCalled();
   });
 
   it("returns false and shows generic error snackbar on HTTP 400-class error", async () => {
-    const { input, showTransactionSnackbar, showAddCreditsSnackbar } = setup({
+    const { input, showTransactionErrorSnackbar, showAddCreditsSnackbar } = setup({
       txError: buildHttpError(400, "Validation failed: bad message")
     });
 
     const result = await signAndBroadcast(input);
 
     expect(result).toBe(false);
-    expect(showTransactionSnackbar).toHaveBeenCalledWith("Validation failed", "bad message", "", "error");
+    expect(showTransactionErrorSnackbar).toHaveBeenCalledWith("Validation failed", "bad message");
     expect(showAddCreditsSnackbar).not.toHaveBeenCalled();
   });
 
   it("returns false and surfaces err.message on HTTP 5xx (treated like network error)", async () => {
-    const { input, showTransactionSnackbar, analyticsService } = setup({
+    const { input, showTransactionErrorSnackbar, analyticsService } = setup({
       txError: buildHttpError(500, "Internal server error")
     });
 
     const result = await signAndBroadcast(input);
 
     expect(result).toBe(false);
-    expect(showTransactionSnackbar).toHaveBeenCalledWith("Transaction has failed...", "Internal server error", "", "error");
+    expect(showTransactionErrorSnackbar).toHaveBeenCalledWith("Transaction has failed...", "Internal server error");
     expect(analyticsService.track).toHaveBeenCalledWith("failed_tx", expect.objectContaining({ category: "transactions" }));
   });
 
   it("returns false and surfaces 'Transaction timeout' message when chain timeout error is thrown", async () => {
-    const { input, showTransactionSnackbar } = setup({
+    const { input, showTransactionErrorSnackbar } = setup({
       txError: new Error("Tx was submitted but was not yet found on the chain after 30s")
     });
 
     const result = await signAndBroadcast(input);
 
     expect(result).toBe(false);
-    expect(showTransactionSnackbar).toHaveBeenCalledWith("Transaction has failed...", "Transaction timeout", "", "error");
+    expect(showTransactionErrorSnackbar).toHaveBeenCalledWith("Transaction has failed...", "Transaction timeout");
   });
 
   it("returns false when userId is missing without calling txHttpService", async () => {
-    const { input, txHttpService, showTransactionSnackbar } = setup({ userId: undefined });
+    const { input, txHttpService, showTransactionErrorSnackbar } = setup({ userId: undefined });
 
     const result = await signAndBroadcast(input);
 
     expect(result).toBe(false);
     expect(txHttpService.signAndBroadcastTx).not.toHaveBeenCalled();
-    expect(showTransactionSnackbar).toHaveBeenCalledWith("Transaction has failed...", "Cannot broadcast transaction: user is not authenticated", "", "error");
+    expect(showTransactionErrorSnackbar).toHaveBeenCalledWith("Transaction has failed...", "Cannot broadcast transaction: user is not authenticated");
   });
 
   it("always refetches balances and resets loading state in finally", async () => {
@@ -150,7 +150,7 @@ describe("signAndBroadcast", () => {
     const setLoadingState = vi.fn();
     const refetchBalances = vi.fn();
     const showAddCreditsSnackbar = vi.fn();
-    const showTransactionSnackbar = vi.fn();
+    const showTransactionErrorSnackbar = vi.fn();
 
     return {
       input: {
@@ -161,14 +161,14 @@ describe("signAndBroadcast", () => {
         setLoadingState,
         refetchBalances,
         showAddCreditsSnackbar,
-        showTransactionSnackbar
+        showTransactionErrorSnackbar
       } satisfies SignAndBroadcastInput,
       txHttpService,
       analyticsService,
       setLoadingState,
       refetchBalances,
       showAddCreditsSnackbar,
-      showTransactionSnackbar
+      showTransactionErrorSnackbar
     };
   }
 });
