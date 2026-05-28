@@ -65,12 +65,16 @@ export class DiscoverySchedulerService {
       for await (const providers of this.#poller.poll({ signal, batchSize: 500 })) {
         if (signal?.aborted) break;
 
-        await this.#refreshAttributes(providers);
+        // important to upsert before starting new stream,
+        // otherwise stream will have nothing to update in the db
+        const isUpsertedBatch = await this.#upsertProviders(providers);
         for (const provider of providers) {
           const observedProvider = watchedProviders.get(provider.owner);
           if (!observedProvider) {
-            this.#lifecycle.start(provider, signal);
-            startedProvidersCount++;
+            if (isUpsertedBatch) {
+              this.#lifecycle.start(provider, signal);
+              startedProvidersCount++;
+            }
           } else if (observedProvider.hostUri !== provider.hostUri) {
             this.#lifecycle.restart(provider, signal);
             restartedProvidersCount++;
@@ -124,13 +128,15 @@ export class DiscoverySchedulerService {
     }
   }
 
-  async #refreshAttributes(providers: ChainProvider[]): Promise<void> {
+  async #upsertProviders(providers: ChainProvider[]): Promise<boolean> {
     const owners = providers.map(p => p.owner);
     try {
       await this.#writer.bulkUpsertProviders(providers);
-      this.#logger.debug({ event: "PROVIDER_ATTRIBUTES_UPSERTED", owners });
+      this.#logger.debug({ event: "UPSERT_PROVIDERS_UPSERTED", owners });
+      return true;
     } catch (error) {
-      this.#logger.error({ event: "REFRESH_ATTRIBUTES_ERROR", owners, error });
+      this.#logger.error({ event: "UPSERT_PROVIDERS_ERROR", owners, error });
+      return false;
     }
   }
 }

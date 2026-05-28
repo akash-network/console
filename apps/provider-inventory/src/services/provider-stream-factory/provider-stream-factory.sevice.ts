@@ -57,4 +57,10 @@ export class ProviderStreamFactory {
       this.#logger.debug({ event: "PROVIDER_SDK_DISPOSED", hostUri });
     }
   }
+
+  async dispose(): Promise<void> {
+    await Promise.all(Array.from(this.#sdks.values(), sdk => sdk[Symbol.asyncDispose]()));
+    this.#sdks.clear();
+    this.#logger.debug({ event: "PROVIDER_STREAM_FACTORY_DISPOSED" });
+  }
 }

@@ -67,6 +67,8 @@ export class ProviderInventoryRepository {
   }
 
   async bulkUpsertProviders(providers: ChainProvider[]): Promise<void> {
+    if (providers.length === 0) return;
+
     const NOW_SQL = rawSql`now()`;
     const rows = providers.map(provider => {
       return {

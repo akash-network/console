@@ -88,15 +88,15 @@ describe(DiscoverySchedulerService.name, () => {
     expect(poller.poll).toHaveBeenCalledTimes(2);
   });
 
-  it("logs and continues when bulkUpsertProviders throws", async () => {
+  it("logs and does not start new providers when bulkUpsertProviders throws", async () => {
     const provider = createProvider();
     const { writer, lifecycle, logger } = setup({ providers: [provider] });
     writer.bulkUpsertProviders.mockRejectedValueOnce(new Error("DB down"));
 
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "REFRESH_ATTRIBUTES_ERROR", owners: [provider.owner] }));
-    expect(lifecycle.start).toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "UPSERT_PROVIDERS_ERROR", owners: [provider.owner] }));
+    expect(lifecycle.start).not.toHaveBeenCalled();
   });
 
   it("stops scheduling after stop is called", async () => {

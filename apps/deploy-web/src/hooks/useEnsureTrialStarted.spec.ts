@@ -1,64 +1,45 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { DEPENDENCIES } from "@src/hooks/useEnsureTrialStarted";
 import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
-import { useManagedWallet } from "@src/hooks/useManagedWallet";
+import type { useManagedWallet } from "@src/hooks/useManagedWallet";
 
 import { renderHook } from "@testing-library/react";
 
-vi.mock("@src/hooks/useManagedWallet");
-
 describe("useEnsureTrialStarted", () => {
   it("fires create()", () => {
-    const create = vi.fn();
-    setup({ wallet: undefined, isLoading: false, create });
-
-    renderHook(() => useEnsureTrialStarted());
+    const { create } = setup({ wallet: undefined, isLoading: false });
 
     expect(create).toHaveBeenCalledTimes(1);
   });
 
   it("does not fire when the wallet is already initialized", () => {
-    const create = vi.fn();
-    setup({ wallet: { address: "akash1..." }, isLoading: false, create });
-
-    renderHook(() => useEnsureTrialStarted());
+    const { create } = setup({ wallet: { address: "akash1..." }, isLoading: false });
 
     expect(create).not.toHaveBeenCalled();
   });
 
   it("fires when a wallet row exists but is not yet initialized (no address)", () => {
-    const create = vi.fn();
-    setup({ wallet: { address: null } as never, isLoading: false, create });
-
-    renderHook(() => useEnsureTrialStarted());
+    const { create } = setup({ wallet: { address: null } as never, isLoading: false });
 
     expect(create).toHaveBeenCalledTimes(1);
   });
 
   it("does not fire while another mutation is in flight", () => {
-    const create = vi.fn();
-    setup({ wallet: undefined, isLoading: true, create });
-
-    renderHook(() => useEnsureTrialStarted());
+    const { create } = setup({ wallet: undefined, isLoading: true });
 
     expect(create).not.toHaveBeenCalled();
   });
 
   it("does not fire after a terminal createError", () => {
-    const create = vi.fn();
-    setup({ wallet: undefined, isLoading: false, create, createError: new Error("boom") });
-
-    renderHook(() => useEnsureTrialStarted());
+    const { create } = setup({ wallet: undefined, isLoading: false, createError: new Error("boom") });
 
     expect(create).not.toHaveBeenCalled();
   });
 
   it("does not fire twice across re-renders", () => {
-    const create = vi.fn();
-    setup({ wallet: undefined, isLoading: false, create });
-
-    const { rerender } = renderHook(() => useEnsureTrialStarted());
+    const { create, rerender } = setup({ wallet: undefined, isLoading: false });
     rerender();
     rerender();
 
@@ -66,23 +47,26 @@ describe("useEnsureTrialStarted", () => {
   });
 
   it("exposes isWalletReady, isLoading and error", () => {
-    setup({ wallet: { address: "akash1..." }, isLoading: true, create: vi.fn(), createError: new Error("boom") });
-
-    const { result } = renderHook(() => useEnsureTrialStarted());
+    const { result } = setup({ wallet: { address: "akash1..." }, isLoading: true, createError: new Error("boom") });
 
     expect(result.current.isWalletReady).toBe(true);
     expect(result.current.isLoading).toBe(true);
     expect(result.current.error).toBeTruthy();
   });
 
-  function setup(input: { wallet: { address: string } | undefined; isLoading: boolean; create: () => void; createError?: unknown }) {
-    vi.mocked(useManagedWallet).mockReturnValue(
+  function setup(input: { wallet: { address: string } | undefined; isLoading: boolean; createError?: unknown }) {
+    const create = vi.fn();
+    const useManagedWalletSpy = vi.fn<typeof DEPENDENCIES.useManagedWallet>(() =>
       mock<ReturnType<typeof useManagedWallet>>({
         wallet: input.wallet as ReturnType<typeof useManagedWallet>["wallet"],
         isLoading: input.isLoading,
-        create: input.create,
+        create,
         createError: input.createError as ReturnType<typeof useManagedWallet>["createError"]
       })
     );
+
+    const { result, rerender } = renderHook(() => useEnsureTrialStarted({ useManagedWallet: useManagedWalletSpy }));
+
+    return { result, rerender, create };
   }
 });
