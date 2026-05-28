@@ -1,64 +1,62 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { DEPENDENCIES } from "@src/hooks/useEnsureTrialStarted";
 import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
-import { useManagedWallet } from "@src/hooks/useManagedWallet";
 
 import { renderHook } from "@testing-library/react";
 
-vi.mock("@src/hooks/useManagedWallet");
-
-describe("useEnsureTrialStarted", () => {
+describe(useEnsureTrialStarted.name, () => {
   it("fires create()", () => {
     const create = vi.fn();
-    setup({ wallet: undefined, isLoading: false, create });
+    const { dependencies } = setup({ wallet: undefined, isLoading: false, create });
 
-    renderHook(() => useEnsureTrialStarted());
+    renderHook(() => useEnsureTrialStarted(dependencies));
 
     expect(create).toHaveBeenCalledTimes(1);
   });
 
   it("does not fire when the wallet is already initialized", () => {
     const create = vi.fn();
-    setup({ wallet: { address: "akash1..." }, isLoading: false, create });
+    const { dependencies } = setup({ wallet: { address: "akash1..." }, isLoading: false, create });
 
-    renderHook(() => useEnsureTrialStarted());
+    renderHook(() => useEnsureTrialStarted(dependencies));
 
     expect(create).not.toHaveBeenCalled();
   });
 
   it("fires when a wallet row exists but is not yet initialized (no address)", () => {
     const create = vi.fn();
-    setup({ wallet: { address: null } as never, isLoading: false, create });
+    const { dependencies } = setup({ wallet: { address: null } as never, isLoading: false, create });
 
-    renderHook(() => useEnsureTrialStarted());
+    renderHook(() => useEnsureTrialStarted(dependencies));
 
     expect(create).toHaveBeenCalledTimes(1);
   });
 
   it("does not fire while another mutation is in flight", () => {
     const create = vi.fn();
-    setup({ wallet: undefined, isLoading: true, create });
+    const { dependencies } = setup({ wallet: undefined, isLoading: true, create });
 
-    renderHook(() => useEnsureTrialStarted());
+    renderHook(() => useEnsureTrialStarted(dependencies));
 
     expect(create).not.toHaveBeenCalled();
   });
 
   it("does not fire after a terminal createError", () => {
     const create = vi.fn();
-    setup({ wallet: undefined, isLoading: false, create, createError: new Error("boom") });
+    const { dependencies } = setup({ wallet: undefined, isLoading: false, create, createError: new Error("boom") });
 
-    renderHook(() => useEnsureTrialStarted());
+    renderHook(() => useEnsureTrialStarted(dependencies));
 
     expect(create).not.toHaveBeenCalled();
   });
 
   it("does not fire twice across re-renders", () => {
     const create = vi.fn();
-    setup({ wallet: undefined, isLoading: false, create });
+    const { dependencies } = setup({ wallet: undefined, isLoading: false, create });
 
-    const { rerender } = renderHook(() => useEnsureTrialStarted());
+    const { rerender } = renderHook(() => useEnsureTrialStarted(dependencies));
     rerender();
     rerender();
 
@@ -66,9 +64,9 @@ describe("useEnsureTrialStarted", () => {
   });
 
   it("exposes isWalletReady, isLoading and error", () => {
-    setup({ wallet: { address: "akash1..." }, isLoading: true, create: vi.fn(), createError: new Error("boom") });
+    const { dependencies } = setup({ wallet: { address: "akash1..." }, isLoading: true, create: vi.fn(), createError: new Error("boom") });
 
-    const { result } = renderHook(() => useEnsureTrialStarted());
+    const { result } = renderHook(() => useEnsureTrialStarted(dependencies));
 
     expect(result.current.isWalletReady).toBe(true);
     expect(result.current.isLoading).toBe(true);
@@ -76,13 +74,14 @@ describe("useEnsureTrialStarted", () => {
   });
 
   function setup(input: { wallet: { address: string } | undefined; isLoading: boolean; create: () => void; createError?: unknown }) {
-    vi.mocked(useManagedWallet).mockReturnValue(
-      mock<ReturnType<typeof useManagedWallet>>({
-        wallet: input.wallet as ReturnType<typeof useManagedWallet>["wallet"],
+    const useManagedWallet: typeof DEPENDENCIES.useManagedWallet = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useManagedWallet>>({
+        wallet: input.wallet as ReturnType<typeof DEPENDENCIES.useManagedWallet>["wallet"],
         isLoading: input.isLoading,
         create: input.create,
-        createError: input.createError as ReturnType<typeof useManagedWallet>["createError"]
-      })
-    );
+        createError: input.createError as ReturnType<typeof DEPENDENCIES.useManagedWallet>["createError"]
+      });
+
+    return { dependencies: { useManagedWallet } };
   }
 });

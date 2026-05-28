@@ -7,6 +7,7 @@ import Link from "next/link";
 import { NextSeo } from "next-seo";
 
 import { Title } from "@src/components/shared/Title";
+import { definePublicPage } from "@src/lib/pages/definePublicPage";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../components/layout/Layout";
 
@@ -50,4 +51,4 @@ Error.getInitialProps = async (context: NextPageContext) => {
   return { statusCode };
 };
 
-export default Error;
+export default definePublicPage(Error);

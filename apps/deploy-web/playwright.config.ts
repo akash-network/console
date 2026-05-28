@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 import dotenv from "dotenv";
 import path from "path";
 
-import { getUserAgent } from "./tests/ui/fixture/base-test"; // for process.env types
+import { getUserAgent } from "./tests/ui/fixture/user-agent"; // for process.env types
 
 dotenv.config({ path: path.resolve(__dirname, "env/.env.test.local") });
 dotenv.config({ path: path.resolve(__dirname, "env/.env.test") });

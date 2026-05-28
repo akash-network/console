@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { EditNotificationChannelPage } from "@src/components/alerts/EditNotificationChannelPage";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
-import { isAuthenticated, isFeatureEnabled } from "@src/lib/nextjs/pageGuards/pageGuards";
+import { isFeatureEnabled } from "@src/lib/nextjs/pageGuards/pageGuards";
 
 export default EditNotificationChannelPage;
 
@@ -24,7 +24,7 @@ export const getServerSideProps = defineServerSideProps({
       id: z.string().uuid()
     })
   }),
-  if: async ctx => (await isAuthenticated(ctx)) && (await isFeatureEnabled("alerts", ctx)),
+  if: async ctx => await isFeatureEnabled("alerts", ctx),
   handler: async (context): Promise<GetServerSidePropsResult<Props>> => {
     const session = (await context.services.getSession(context.req, context.res))!;
 

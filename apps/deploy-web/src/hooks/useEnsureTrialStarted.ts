@@ -2,6 +2,10 @@ import { useEffect } from "react";
 
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 
+export const DEPENDENCIES = {
+  useManagedWallet
+};
+
 export type EnsureTrialStartedResult = {
   isWalletReady: boolean;
   isLoading: boolean;
@@ -18,8 +22,8 @@ export type EnsureTrialStartedResult = {
  *
  * Use only on pages that are part of the onboarding redesign — the call is unguarded.
  */
-export const useEnsureTrialStarted = (): EnsureTrialStartedResult => {
-  const { wallet, create, isLoading, createError } = useManagedWallet();
+export const useEnsureTrialStarted = (dependencies: typeof DEPENDENCIES = DEPENDENCIES): EnsureTrialStartedResult => {
+  const { wallet, create, isLoading, createError } = dependencies.useManagedWallet();
   const isWalletReady = !!wallet?.address;
 
   useEffect(() => {

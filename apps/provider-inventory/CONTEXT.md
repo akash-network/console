@@ -91,6 +91,10 @@ Plain columns on `provider_inventory` (`total_available_*`, `max_node_free_*`, `
 **is_online_since startup ritual**:
 The single `UPDATE provider_inventory SET is_online_since = NULL` the streamer issues before opening any streams on boot. Because the partial prefilter index is defined `WHERE is_online AND is_online_since IS NOT NULL`, this empties the index until each stream's first message reasserts liveness — preventing bid screening from trusting rows that may have gone stale during streamer downtime.
 
+**online warm-up**:
+A cold-boot-only step that runs after the **`is_online_since` startup ritual** and before the first **discovery loop** tick. Reads `WHERE is_online = true` from `provider_inventory` and fires `streamStatus` connections to those owners using their cached `host_uri`. Does not block on the connections settling — the discovery loop runs concurrently against fresh chain data and reconciles (restart on hostUri change, stopAndDelete on chain absence). Purpose is to collapse the prefilter blackout window: with ~1960 chain providers but only ~83 reachable, prioritising the known-online subset lets them acquire the stream-connection semaphore permits ahead of chain-poll-discovered dead providers, so the partial prefilter index repopulates in seconds rather than minutes. `is_online` is preserved across streamer restarts (only `is_online_since` is nulled by the ritual), so the read after the ritual is valid. No freshness filter on `is_online = true`: stale rows just fall through to the 3-strike rule like any unreachable provider — no regression vs. today.
+_Avoid_: warm boot, online preflight, warm-start
+
 **prefilter**:
 The SQL stage that narrows the provider set on cluster aggregates and per-node max-free dimensions. Intentionally lossy — false positives flow through to the **bin-packer**; false negatives are bugs. One round-trip, one row per candidate, JSONB carries the bin-packer payload.
 
@@ -120,7 +124,7 @@ _Avoid_: matcher, scheduler
 >
 > **Engineer:** "So why don't we set `is_online = false` directly on startup instead of nulling a separate column?"
 >
-> **Domain expert:** "Because `is_online` is owned by the **3-strike rule** and represents a stream-local truth. The startup ritual is a *separate* invariant — 'this row was written by a *previous* streamer generation' — and a separate column keeps the two concerns from fighting each other."
+> **Domain expert:** "Because `is_online` is owned by the **3-strike rule** and represents a stream-local truth. The startup ritual is a *separate* invariant — 'this row was written by a *previous* streamer generation' — and a separate column keeps the two concerns from fighting each other. It also leaves `is_online = true` intact across restarts, which is what the **online warm-up** reads to know which providers to prioritise on cold boot."
 >
 > **Engineer:** "If the **GroupSpec** asks for region=us-west, do I match the **self-attribute** or the **signed-attribute**?"
 >

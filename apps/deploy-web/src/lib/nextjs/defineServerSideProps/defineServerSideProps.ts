@@ -7,6 +7,7 @@ import type { z } from "zod";
 
 import type { Session } from "@src/lib/auth0";
 import { services } from "@src/services/app-di-container/server-di-container.service";
+import { requireAuth } from "../pageGuards/pageGuards";
 import { createRequestExecutionContext, requestExecutionContext } from "../requestExecutionContext";
 
 export interface WrapServerSideOptions<TSchema extends z.ZodSchema<any> | undefined, TProps, TParams extends ParsedUrlQuery, TPreviewData extends PreviewData> {
@@ -15,8 +16,16 @@ export interface WrapServerSideOptions<TSchema extends z.ZodSchema<any> | undefi
    * This is used to identify the page in Sentry.
    */
   route: string;
+  /**
+   * When true, the page is served without an authenticated session. Every page is gated by default;
+   * only auth/marketing/legal pages (e.g. /login, /signup) should opt out. Unauthenticated visitors
+   * to a gated page are redirected to /login. This is the SSR counterpart of `definePublicPage`.
+   */
+  public?: boolean;
   schema?: TSchema;
-  if?: (context: AppTypedContext<TSchema, TParams, TPreviewData>) => boolean | GetServerSidePropsResult<any> | Promise<GetServerSidePropsResult<any> | boolean>;
+  if?: (
+    context: AppTypedContext<TSchema, TParams, TPreviewData>
+  ) => boolean | GetServerSidePropsResult<any> | undefined | Promise<GetServerSidePropsResult<any> | boolean | undefined>;
   handler?: (context: AppTypedContext<TSchema, TParams, TPreviewData>) => Promise<TProps> | TProps;
 }
 
@@ -68,6 +77,11 @@ export function defineServerSideProps<
         ...validatedContext?.data,
         getCurrentSession
       } as AppTypedContext<TSchema, TParams, TPreviewData>;
+
+      if (!options.public) {
+        const authRedirect = await requireAuth(newContext);
+        if (authRedirect) return authRedirect;
+      }
 
       const result = await options.if?.(newContext);
       if (typeof result === "object" && result) return result;

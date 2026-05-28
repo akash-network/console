@@ -1,44 +1,16 @@
-import { ManagementApiError } from "auth0";
-
-import { expect, test } from "./fixture/onboarding-test";
+import { expect, test } from "./fixture/base-test";
 import { testEnvConfig } from "./fixture/test-env.config";
-import { AuthPagePasswordless } from "./pages/AuthPagePasswordless";
 import { DeployPage } from "./pages/DeployPage";
 import { OnboardingPickerPage } from "./pages/OnboardingPickerPage";
-import { MailsacCodeVerificationStrategy } from "./services/email-verification/mailsac-code.strategy";
 
 test.describe("Onboarding redesign quick deploy", () => {
-  let testUserId: string | undefined;
-  const otp = new MailsacCodeVerificationStrategy(testEnvConfig.MAILSAC_API_KEY);
+  test.use({ userType: "new", authType: "passwordless" });
 
-  test.afterEach(async ({ auth0 }) => {
-    if (!testUserId) return;
-    const userIdToDelete = testUserId;
-    testUserId = undefined;
-    await auth0.deleteUser(userIdToDelete).catch(error => {
-      if (!(error instanceof ManagementApiError) || error.statusCode !== 404) throw error;
-    });
-  });
-
-  test("fresh passwordless user deploys hello world from /onboarding and closes it", async ({ context, page, auth0 }) => {
+  test("fresh passwordless user deploys hello world from /onboarding and closes it", async ({ context, page }) => {
     test.setTimeout(10 * 60 * 1000);
 
-    const email = otp.generateEmail();
-    const authPage = new AuthPagePasswordless(page);
     const onboardingPickerPage = new OnboardingPickerPage(page);
     const deployPage = new DeployPage(context, page);
-
-    await test.step("passwordless sign in with a fresh email", async () => {
-      await authPage.goto();
-      await authPage.startWithEmail(email);
-      await authPage.waitForVerifyScreen();
-      await otp.verify({ context: page.context(), email, userId: "" });
-      await authPage.waitForRedirectAwayFromLogin();
-
-      const auth0User = await auth0.getUserByEmail(email);
-      if (!auth0User) throw new Error(`Auth0 user was not created for ${email}`);
-      testUserId = auth0User.user_id;
-    });
 
     await test.step("open onboarding picker", async () => {
       await expect(onboardingPickerPage.getHeading()).toBeVisible({ timeout: 15_000 });

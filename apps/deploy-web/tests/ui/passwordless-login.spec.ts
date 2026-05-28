@@ -1,6 +1,6 @@
 import { ManagementApiError } from "auth0";
 
-import { test } from "./fixture/onboarding-test";
+import { test } from "./fixture/base-test";
 import { testEnvConfig } from "./fixture/test-env.config";
 import { AuthPagePasswordless } from "./pages/AuthPagePasswordless";
 import { MailsacCodeVerificationStrategy } from "./services/email-verification/mailsac-code.strategy";

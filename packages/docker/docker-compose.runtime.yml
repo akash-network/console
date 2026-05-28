@@ -45,6 +45,10 @@ services:
     restart: always
     environment:
       PORT: 3000
+      # see comment for details https://github.com/nodejs/node/issues/22468#issuecomment-416795256
+      # usually it's recommended to set this variable to number of CPU cores,
+      # but in case of provider inventory we can have a lot of idle time while waiting for messages from providers, so we can benefit from having more threads in the pool
+      UV_THREADPOOL_SIZE: 64
     env_file:
       - .env.sandbox.docker-compose-dev
       - path: ../../.env.local

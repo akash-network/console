@@ -17,7 +17,8 @@ const client = postgres(config.MIGRATION_DATABASE_URL, { max: 1 });
 const db = drizzle(client);
 
 async function runMigrations() {
-  console.log("Running migrations...");
+  const dbUrl = new URL(config.MIGRATION_DATABASE_URL);
+  console.log(`Running migrations on database: ${dbUrl.pathname.slice(1)}`);
   const start = Date.now();
   try {
     const possibleMigrationDirs = [path.join(process.cwd(), "drizzle"), path.join(process.cwd(), "dist", "drizzle")];

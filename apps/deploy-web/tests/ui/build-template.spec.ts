@@ -1,6 +1,8 @@
 import { expect, test } from "./fixture/base-test";
 import { BuildTemplatePage } from "./pages/BuildTemplatePage";
 
+test.use({ userType: "existing" });
+
 test("ssh function absence", async ({ page, context }) => {
   const sdlBuilderPage = new BuildTemplatePage(context, page);
   await sdlBuilderPage.gotoInteractive();

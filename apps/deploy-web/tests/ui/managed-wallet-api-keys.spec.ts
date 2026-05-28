@@ -1,22 +1,13 @@
-import { expect, test } from "./fixture/authenticated-test";
+import { expect, test } from "./fixture/base-test";
 import { ApiKeysPage } from "./pages/ApiKeysPage";
-import { AuthPage } from "./pages/AuthPage";
-import { HomePage } from "./pages/HomePage";
 
 test.describe("Managed wallet API keys", () => {
+  test.use({ userType: "existing" });
+
   const keyName = `e2e-test-${Date.now()}`;
 
-  test("creates and deletes an API key", async ({ page, login }) => {
-    const homePage = new HomePage(page);
-    const authPage = new AuthPage(page);
+  test("creates and deletes an API key", async ({ page }) => {
     const apiKeysPage = new ApiKeysPage(page);
-
-    await test.step("login", async () => {
-      await homePage.goto();
-      await homePage.openSignIn();
-      await authPage.waitForPage();
-      await login();
-    });
 
     await test.step("navigate to API keys via account menu", async () => {
       await page.getByRole("button", { name: /account menu/i }).click();

@@ -1,6 +1,9 @@
 import type { LoggerService } from "@akashnetwork/logging";
+import { Sema } from "async-sema";
 import type { RetryPolicy } from "cockatiel";
 import { ExponentialBackoff, handleAll, retry } from "cockatiel";
+import Dataloader from "dataloader";
+import once from "lodash/once";
 import { inject, singleton } from "tsyringe";
 
 import { projectRow } from "@src/lib/project-row/project-row";
@@ -31,6 +34,9 @@ export class StreamLifecycleManagerService {
   readonly #lastInventoryPerProvider = new Map<string, ProjectedRow>();
   readonly #onlineStatePerProvider = new Map<string, boolean>();
   readonly #retryStreamPolicy: RetryPolicy;
+  readonly #offlineDataloader: Dataloader<string, null>;
+  readonly #startStreamSemaphore: Sema;
+  readonly #pendingFirstAttempts = new Set<Promise<void>>();
 
   constructor(
     streamFactory: ProviderStreamFactory,
@@ -43,12 +49,24 @@ export class StreamLifecycleManagerService {
     this.#config = config;
     this.#logger = loggerFactory({ context: "StreamLifecycleManager" });
     this.#retryStreamPolicy = retry(handleAll, {
-      maxAttempts: Number.POSITIVE_INFINITY,
+      maxAttempts: 5,
       backoff: new ExponentialBackoff({
         initialDelay: this.#config.STREAM_RECONNECT_INITIAL_DELAY_MS,
         maxDelay: this.#config.STREAM_RECONNECT_MAX_DELAY_MS
       })
     });
+    this.#offlineDataloader = new Dataloader(
+      async owners => {
+        await this.#writer.bulkMarkOffline(owners as string[]);
+        return Array.from(owners, () => null);
+      },
+      {
+        cache: false,
+        maxBatchSize: 1000,
+        batchScheduleFn: callback => setTimeout(callback, 1000)
+      }
+    );
+    this.#startStreamSemaphore = new Sema(this.#config.MAX_CONCURRENT_STREAM_CONNECTIONS);
   }
 
   getRegistry(): ReadonlyMap<string, { hostUri: string }> {
@@ -59,7 +77,12 @@ export class StreamLifecycleManagerService {
     const controller = new AbortController();
     this.#activeStreams.set(provider.owner, { controller, hostUri: provider.hostUri });
     signal?.addEventListener("abort", () => controller.abort(), { once: true });
-    void this.#runStream(provider, controller.signal);
+
+    const firstAttempt = Promise.withResolvers<void>();
+    this.#pendingFirstAttempts.add(firstAttempt.promise);
+    firstAttempt.promise.finally(() => this.#pendingFirstAttempts.delete(firstAttempt.promise));
+
+    void this.#runStream(provider, controller.signal, firstAttempt.resolve);
   }
 
   restart(provider: ChainProvider, signal?: AbortSignal): void {
@@ -67,13 +90,19 @@ export class StreamLifecycleManagerService {
     this.start(provider, signal);
   }
 
-  async stopAndDelete(owner: string): Promise<void> {
-    this.#abortIfActive(owner, "STREAM_STOPPED_PROVIDER_GONE");
-    try {
-      await this.#writer.deleteByOwner(owner);
-    } catch (error) {
-      this.#logger.error({ event: "STREAM_PROVIDER_DELETE_ERROR", owner, error });
+  async waitForPendingConnections(): Promise<void> {
+    await Promise.allSettled(this.#pendingFirstAttempts);
+  }
+
+  async stopAndDelete(owners: string[]): Promise<void> {
+    const promises: Promise<void>[] = [];
+    for (const owner of owners) {
+      promises.push(this.#streamFactory.disposeProvider(this.#activeStreams.get(owner)?.hostUri ?? ""));
+      this.#abortIfActive(owner, "STREAM_STOPPED_PROVIDER_GONE");
     }
+
+    await Promise.all([Promise.all(promises), this.#writer.deleteByOwner(owners)]);
+    this.#logger.info({ event: "PROVIDER_INVENTORY_DELETED", owners });
   }
 
   #abortIfActive(owner: string, event: string): void {
@@ -84,7 +113,8 @@ export class StreamLifecycleManagerService {
     this.#logger.info({ event, owner });
   }
 
-  async #runStream(provider: ChainProvider, signal: AbortSignal): Promise<void> {
+  async #runStream(provider: ChainProvider, signal: AbortSignal, onFirstAttemptSettled: () => void): Promise<void> {
+    const onSettleAttempt = once(onFirstAttemptSettled);
     try {
       await this.#retryStreamPolicy.execute(ctx => {
         if (signal.aborted) return;
@@ -95,13 +125,14 @@ export class StreamLifecycleManagerService {
             attempt: ctx.attempt
           });
         }
-        return this.#runAttempt(provider, signal);
+        return this.#runAttempt(provider, signal, onSettleAttempt);
       }, signal);
     } catch (error) {
       if (!signal.aborted) {
         this.#logger.error({ event: "STREAM_GAVE_UP", owner: provider.owner, error });
       }
     } finally {
+      onSettleAttempt();
       this.#lastInventoryPerProvider.delete(provider.owner);
       this.#onlineStatePerProvider.delete(provider.owner);
       if (this.#activeStreams.get(provider.owner)?.controller.signal === signal) {
@@ -110,7 +141,7 @@ export class StreamLifecycleManagerService {
     }
   }
 
-  async #runAttempt(provider: ChainProvider, outerSignal: AbortSignal): Promise<void> {
+  async #runAttempt(provider: ChainProvider, outerSignal: AbortSignal, onAttemptSettled: () => void): Promise<void> {
     if (outerSignal.aborted) return;
 
     this.#lastInventoryPerProvider.delete(provider.owner);
@@ -121,38 +152,38 @@ export class StreamLifecycleManagerService {
     if (outerSignal.aborted) {
       forwardAbort();
     }
-    let firstMessageReceived = false;
+
+    await this.#startStreamSemaphore.acquire();
     const firstMessageTimeoutId = setTimeout(() => {
-      attemptController.abort();
+      attemptController.abort(new Error("first message not received within timeout"));
     }, this.#config.STREAM_FIRST_MESSAGE_TIMEOUT_MS);
+    const releasePermit = once(() => {
+      onAttemptSettled();
+      this.#startStreamSemaphore.release();
+      clearTimeout(firstMessageTimeoutId);
+    });
 
     try {
       const stream = this.#streamFactory.openStatusStream(provider, attemptController.signal);
 
       for await (const message of stream) {
+        this.#logger.debug({ event: "STREAM_MESSAGE_RECEIVED", owner: provider.owner });
         if (outerSignal.aborted) return;
-        if (!firstMessageReceived) {
-          firstMessageReceived = true;
-          clearTimeout(firstMessageTimeoutId);
-        }
+        releasePermit();
         await this.#applyMessage(provider, message);
       }
 
       if (outerSignal.aborted) return;
-
       await this.#tryMarkOffline(provider.owner);
 
-      if (firstMessageReceived) {
-        throw new Error("stream ended after delivering messages");
-      }
-      throw new Error("first message not received within timeout");
+      throw new Error("provider inventory stream ended");
     } catch (error) {
       if (outerSignal.aborted) return;
       this.#logger.warn({ event: "STREAM_ATTEMPT_FAILED", owner: provider.owner, error });
       await this.#tryMarkOffline(provider.owner);
       throw error;
     } finally {
-      clearTimeout(firstMessageTimeoutId);
+      releasePermit();
       outerSignal.removeEventListener("abort", forwardAbort);
     }
   }
@@ -160,6 +191,10 @@ export class StreamLifecycleManagerService {
   async #applyMessage(provider: ChainProvider, message: ClusterState): Promise<void> {
     const row = projectRow(message);
     const cached = this.#lastInventoryPerProvider.get(provider.owner);
+
+    if (!this.#onlineStatePerProvider.get(provider.owner)) {
+      this.#onlineStatePerProvider.set(provider.owner, true);
+    }
 
     if (cached && projectedRowsEqual(cached, row)) {
       this.#logger.debug({ event: "STREAM_MESSAGE_SKIPPED_IDENTICAL", owner: provider.owner });
@@ -169,16 +204,18 @@ export class StreamLifecycleManagerService {
     try {
       await this.#writer.updateInventory(provider, row);
       this.#lastInventoryPerProvider.set(provider.owner, row);
-      this.#onlineStatePerProvider.set(provider.owner, true);
     } catch (error) {
       this.#logger.error({ event: "STREAM_PROVIDER_WRITE_ERROR", owner: provider.owner, error });
     }
   }
 
   async #tryMarkOffline(owner: string): Promise<void> {
-    if (this.#onlineStatePerProvider.get(owner) === false) return;
+    if (this.#onlineStatePerProvider.get(owner) === false) {
+      await new Promise(resolve => setImmediate(resolve));
+      return;
+    }
     try {
-      await this.#writer.markOffline(owner);
+      await this.#offlineDataloader.load(owner);
       this.#onlineStatePerProvider.set(owner, false);
     } catch (error) {
       this.#logger.error({ event: "MARK_OFFLINE_ERROR", owner, error });

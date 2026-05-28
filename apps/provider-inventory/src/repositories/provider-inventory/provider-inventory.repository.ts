@@ -1,5 +1,5 @@
 import type { LoggerService } from "@akashnetwork/logging";
-import { eq, sql as rawSql } from "drizzle-orm";
+import { eq, inArray, sql as rawSql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { inject, singleton } from "tsyringe";
 
@@ -25,17 +25,21 @@ export class ProviderInventoryRepository {
     this.#logger.info({ event: "ONLINE_SINCE_RESET" });
   }
 
-  async deleteByOwner(owner: string): Promise<void> {
-    await this.#db.delete(providerInventory).where(eq(providerInventory.owner, owner));
-    this.#logger.info({ event: "PROVIDER_INVENTORY_DELETED", owner });
+  async deleteByOwner(owner: string | string[]): Promise<void> {
+    if (Array.isArray(owner)) {
+      await this.#db.delete(providerInventory).where(inArray(providerInventory.owner, owner));
+    } else {
+      await this.#db.delete(providerInventory).where(eq(providerInventory.owner, owner));
+    }
   }
 
-  async markOffline(owner: string): Promise<void> {
+  async bulkMarkOffline(owners: string[]): Promise<void> {
+    if (owners.length === 0) return;
     await this.#db
       .update(providerInventory)
       .set({ isOnline: false, isOnlineSince: null, updatedAt: rawSql`now()` })
-      .where(eq(providerInventory.owner, owner));
-    this.#logger.info({ event: "PROVIDER_MARKED_OFFLINE", owner });
+      .where(inArray(providerInventory.owner, owners));
+    this.#logger.info({ event: "PROVIDERS_MARKED_OFFLINE", owners });
   }
 
   async updateInventory(provider: ChainProvider, row: ProjectedRow): Promise<void> {
@@ -62,21 +66,33 @@ export class ProviderInventoryRepository {
     this.#logger.debug({ event: "PROVIDER_INVENTORY_UPDATED", owner: provider.owner });
   }
 
-  async upsertAttributes(provider: ChainProvider): Promise<void> {
-    const auditedBy = [...new Set(provider.signedAttributes.map(a => a.auditor))].sort();
-    const set = {
-      hostUri: provider.hostUri,
-      selfAttributes: provider.selfAttributes,
-      signedAttributes: provider.signedAttributes,
-      auditedBy,
-      updatedAt: rawSql`now()`
-    };
+  async bulkUpsertProviders(providers: ChainProvider[]): Promise<void> {
+    if (providers.length === 0) return;
+
+    const NOW_SQL = rawSql`now()`;
+    const rows = providers.map(provider => {
+      return {
+        owner: provider.owner,
+        hostUri: provider.hostUri,
+        selfAttributes: provider.selfAttributes,
+        signedAttributes: provider.signedAttributes,
+        auditedBy: provider.auditedBy.toSorted(),
+        updatedAt: NOW_SQL
+      };
+    });
 
     await this.#db
       .insert(providerInventory)
-      .values({ owner: provider.owner, ...set })
-      .onConflictDoUpdate({ target: providerInventory.owner, set });
-
-    this.#logger.debug({ event: "PROVIDER_ATTRIBUTES_UPSERTED", owner: provider.owner });
+      .values(rows)
+      .onConflictDoUpdate({
+        target: providerInventory.owner,
+        set: {
+          hostUri: rawSql.raw(`excluded.${providerInventory.hostUri.name}`),
+          selfAttributes: rawSql.raw(`excluded.${providerInventory.selfAttributes.name}`),
+          signedAttributes: rawSql.raw(`excluded.${providerInventory.signedAttributes.name}`),
+          auditedBy: rawSql.raw(`excluded.${providerInventory.auditedBy.name}`),
+          updatedAt: NOW_SQL
+        }
+      });
   }
 }

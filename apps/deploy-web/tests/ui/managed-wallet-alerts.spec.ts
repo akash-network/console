@@ -1,31 +1,22 @@
 import { createManagedDeployment } from "./actions/deploy";
-import { expect, test } from "./fixture/authenticated-test";
+import { expect, test } from "./fixture/base-test";
 import { AlertsPage } from "./pages/AlertsPage";
-import { AuthPage } from "./pages/AuthPage";
 import { BillingPage } from "./pages/BillingPage";
 import { DeploymentAlertsForm } from "./pages/DeploymentAlertsForm";
 import { DeployPage } from "./pages/DeployPage";
-import { HomePage } from "./pages/HomePage";
 import { Sidebar } from "./pages/Sidebar";
 
 test.describe("Managed wallet alerts", () => {
-  test("configures deployment alerts and verifies on alerts page", async ({ context, page, login }) => {
+  test.use({ userType: "existing" });
+
+  test("configures deployment alerts and verifies on alerts page", async ({ context, page }) => {
     test.setTimeout(4 * 60 * 1000);
 
-    const homePage = new HomePage(page);
-    const authPage = new AuthPage(page);
     const sidebar = new Sidebar(page);
     const alertsPage = new AlertsPage(page);
     const alertsForm = new DeploymentAlertsForm(page);
     const billingPage = new BillingPage(page);
     const deployPage = new DeployPage(context, page);
-
-    await test.step("login", async () => {
-      await homePage.goto();
-      await homePage.openSignIn();
-      await authPage.waitForPage();
-      await login();
-    });
 
     let dseq: string;
 

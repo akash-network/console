@@ -4,6 +4,8 @@ import { Sidebar } from "./pages/Sidebar";
 
 import { PlainLinuxPage } from "@tests/ui/pages/PlainLinuxPage";
 
+test.use({ userType: "existing" });
+
 test("ssh keys generation", async ({ page, context }) => {
   const homePage = new HomePage(page);
   const sidebar = new Sidebar(page);

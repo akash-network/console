@@ -1,3 +1,4 @@
 import { VerifyEmailPage } from "@src/components/onboarding/VerifyEmailPage/VerifyEmailPage";
+import { definePublicPage } from "@src/lib/pages/definePublicPage";
 
-export default VerifyEmailPage;
+export default definePublicPage(VerifyEmailPage);

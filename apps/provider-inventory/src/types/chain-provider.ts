@@ -14,4 +14,5 @@ export interface ChainProvider {
   hostUri: string;
   selfAttributes: SelfAttribute[];
   signedAttributes: SignedAttribute[];
+  auditedBy: string[];
 }
