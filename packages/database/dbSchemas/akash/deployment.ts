@@ -35,7 +35,7 @@ export class Deployment extends Model {
   @Required @Column owner!: string;
   /**
    * The dseq of the deployment (unique identifier for the deployment on the blockchain)
-   * It can be any uint64 chosen by the deployer. Historically derived from the block height at creation; managed-wallet deploys today derive it from a millisecond timestamp.
+   * It can be any uint64 chosen by the deployer (commonly a block height or millisecond timestamp).
    * Unique Identifier: DSEQ is a unique identifier assigned to each deployment on the Akash Network, enabling precise tracking and management of deployments
    * Order Sequence Number (OSEQ): DSEQ is associated with an Order Sequence Number (OSEQ), which indicates the order in which deployments are created and managed within the network
    * Deployment Management: DSEQ facilitates the management of deployments by providing a specific reference point for each deployment instance, ensuring clarity and organization in the deployment process

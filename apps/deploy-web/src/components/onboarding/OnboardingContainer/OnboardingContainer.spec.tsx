@@ -287,10 +287,6 @@ describe("OnboardingContainer", () => {
       newDeployment: vi.fn(() => "/deployments/new")
     };
 
-    const mockChainApiHttpClient = {
-      get: vi.fn()
-    };
-
     const mockDeploymentLocalStorage = {
       update: vi.fn()
     };
@@ -318,7 +314,6 @@ describe("OnboardingContainer", () => {
       analyticsService: mockAnalyticsService,
       urlService: mockUrlService,
       authService,
-      chainApiHttpClient: mockChainApiHttpClient,
       deploymentLocalStorage: mockDeploymentLocalStorage,
       publicConfig: mockAppConfig,
       errorHandler: mockErrorHandler,
@@ -451,7 +446,6 @@ describe("OnboardingContainer", () => {
       mockNavigateWithReturnTo,
       mockLocalStorage,
       mockSignAndBroadcastTx,
-      mockChainApiHttpClient,
       mockDeploymentLocalStorage,
       mockNewDeploymentData,
       mockValidateDeploymentData,

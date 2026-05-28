@@ -131,7 +131,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     try {
       const doc = yaml.load(editedManifest);
 
-      const dd = await d.deploymentData.NewDeploymentData(editedManifest, deployment.dseq, address); // TODO Flags
+      const dd = await d.deploymentData.NewDeploymentData(editedManifest, deployment.dseq, address);
       const mani = d.deploymentData.getManifest(doc);
 
       // If it's actual update, send a transaction, else just send the manifest
