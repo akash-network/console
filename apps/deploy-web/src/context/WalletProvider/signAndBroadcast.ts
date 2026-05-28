@@ -1,8 +1,11 @@
 import { isHttpError, type TxHttpService, type TxOutput } from "@akashnetwork/http-sdk";
+import { LoggerService } from "@akashnetwork/logging";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 
 import type { LoadingState } from "@src/components/layout/TransactionModal";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
+
+const logger = new LoggerService({ name: "signAndBroadcast" });
 
 export const MESSAGE_STATES: Record<string, LoadingState> = {
   "/akash.deployment.v1beta4.MsgCloseDeployment": "closingDeployment",
@@ -59,7 +62,7 @@ export async function signAndBroadcast({
 
     return true;
   } catch (err: any) {
-    console.error(err);
+    logger.error({ event: "SIGN_AND_BROADCAST_TX_FAILED", error: err });
 
     if (isHttpError(err) && err.response?.status !== 500) {
       const [title, message] = err.response?.data?.message?.split(": ") ?? [];

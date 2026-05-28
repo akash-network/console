@@ -34,7 +34,7 @@ describe("signAndBroadcast", () => {
     expect(setLoadingState).toHaveBeenCalledWith(MESSAGE_STATES["/akash.deployment.v1beta4.MsgCloseDeployment"]);
   });
 
-  it("returns false and skips loading state when message type is unknown", async () => {
+  it("skips setting a typed loading state when message type is unknown", async () => {
     const { input, setLoadingState } = setup({
       msgs: [{ typeUrl: "/akash.unknown.MsgFoo", value: new Uint8Array() }],
       txResult: { code: 0, transactionHash: "tx-hash", rawLog: "" }
