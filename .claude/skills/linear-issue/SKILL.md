@@ -106,6 +106,26 @@ Set the initial workflow status based on issue readiness:
 
 Use `--status "<status>"` in the CLI command. Default to **Triage** unless the user explicitly says the issue is ready to work on.
 
+## Sequence Numbering (`L-N.`)
+
+When creating **2+ issues in one go** (a project's worth of work), prefix every title with `L-N.` where `N` is the execution order, 1-indexed. The first issue someone should pick up is `L-1`.
+
+**Title format:** `L-<N>. <Original title>` — single space after the period. Examples:
+
+- `L-1. AEP-86 SDK release in pkg.akt.dev/go`
+- `L-2. Provider signer abstraction`
+- `L-11. Provider bidengine verification preflight`
+
+**Why this exists:** Linear's own issue IDs (`CON-123`) are global and arbitrary, so they don't tell you anything about execution order. The `L-N.` prefix gives a project a single scannable plan — sort by title and you see the intended order, what's done, and what's next at a glance. Any team member (or AI agent) can pick the lowest open `L-N` and start.
+
+**When NOT to apply:**
+- Single-issue creates (one-off bug, lone chore) — un-prefixed.
+- Improve-mode edits to an existing issue's content — don't retrofit a prefix.
+
+**Stability:** Once assigned, an issue keeps its number. Gaps are fine (cancelled issue → its number stays unused). The number lives in the title only — no Linear custom field, no label.
+
+**Adding to an already-sequenced project later:** see the "Adding issues to a sequenced project" section under Improve Existing Issues.
+
 ## Workflow
 
 ### Phase 1: Gather Context
@@ -170,6 +190,7 @@ When splitting, each issue should still be a **business-level slice** — not a 
 - The first issue should be the one that can be started immediately
 - Each issue should be mergeable on its own without breaking anything
 - Dependencies are tracked via native Linear relationships (blocked by / blocks / related), not in the description text — see Phase 5
+- When creating 2+ issues, assign each one a sequence number `L-N` reflecting execution order and prefix its title with `L-N.` (see **Sequence Numbering** above). `L-1` is what someone should pick up first.
 
 **When NOT to split:**
 - Simple bug fixes that are clearly small — just create one issue
@@ -178,6 +199,8 @@ When splitting, each issue should still be a **business-level slice** — not a 
 ### Phase 4: Fill Templates & Create Issues
 
 For each issue, fill the appropriate template.
+
+If this is a multi-issue plan, prefix each title with its `L-N.` sequence number (see **Sequence Numbering**). The prefix lives in the title only — templates below describe the **description** content and stay unchanged.
 
 #### Bug
 
@@ -230,13 +253,14 @@ Flows that should work:
 ### Phase 5: Confirm & Create
 
 Show the user ALL issues you plan to create with the following details for each:
-- **Title** and **description**
+- **Title** — for multi-issue plans, include the `L-N.` prefix (see **Sequence Numbering**)
+- **Description**
 - **Suggested project** (from live project list) — ask user to confirm or change
 - **Source label** (inferred from context)
 - **Type label** (Bug/Feature/Improvement)
 - **Initial status** (Triage by default)
 - **Priority** (if known)
-- **Ordering** (for multi-issue plans)
+- **Ordering** (for multi-issue plans) — matches the `L-N` sequence
 
 Let them adjust before you create anything.
 
@@ -360,6 +384,60 @@ If splitting into sub-issues, create the new child issues with `--parent <issue-
 If the title also needs improvement, add `--title "<improved title>"` to the update command.
 
 After updating, set up any missing relationships using the Linear MCP `save_issue` tool (see the relationship table in Phase 5). If the issue mentions dependencies in plain text, convert them to native `blockedBy`/`blocks`/`relatedTo` relationships and remove the text from the description.
+
+## Adding issues to a sequenced project
+
+When the user wants to add one or more new issues to a project that already uses `L-N.` numbering, the new issues must fit into the existing sequence — otherwise the plan loses its bird's-eye-view value.
+
+### Step 1: Detect the sequence
+
+List the project's issues and check whether any titles match `^L-\d+\.`:
+
+```bash
+linear issue list --project "<project name>" --json --no-pager
+```
+
+If at least one issue is sequenced, treat the whole project as sequenced. Compute the max `L-N` across all existing issues.
+
+If no titles match, the project isn't sequenced — fall back to the normal create flow (no prefix for single issues; offer to start a new sequence if creating 2+).
+
+### Step 2: Show the existing sequence
+
+Show the user the existing sequence as a compact list — `L-N. Title` (one per line, sorted by N). This is the bird's-eye view they need to decide where the new issue(s) belong.
+
+### Step 3: Ask where to insert
+
+Use `AskUserQuestion` to ask, for each new issue:
+
+- **Append at end** (default): new issue becomes `L-(max+1)`. Cleanest — no existing titles change.
+- **Insert at position K**: new issue becomes `L-K`. Every existing issue with `L-M` where `M >= K` is renumbered to `L-(M+1)`.
+
+If multiple new issues are being added, ask once per issue, processing them in the user's chosen logical order.
+
+### Step 4: Show the renumber diff before changing anything
+
+If any inserts cause renumbering, present a diff before touching Linear:
+
+```text
+Renumber plan:
+  L-23. Console sandbox rollout — tenant preview + QA   →  L-24. ...
+  L-22. Console testnet rollout — verification surface  →  L-23. ...
+  + (new) L-22. <new issue title>
+```
+
+Let the user confirm or adjust. Don't make any title changes until they approve.
+
+### Step 5: Apply renumbers, then create the new issue(s)
+
+Renumber existing titles in **descending order of N** to avoid intermediate collisions (e.g. update `L-23 → L-24` before `L-22 → L-23`):
+
+```bash
+linear issue update <issue-id> --title "L-<new-N>. <rest of original title>"
+```
+
+Strip the old `L-N.` prefix from the title before prepending the new one — don't end up with `L-24. L-23. Foo`.
+
+Once renumbering is done, create the new issue(s) using the normal Phase 4–5 flow, with their newly assigned `L-N.` prefix in the title.
 
 ## Tips
 
