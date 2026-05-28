@@ -1,5 +1,6 @@
 import type { LoggerService } from "@akashnetwork/logging";
-import { eq, inArray, sql as rawSql } from "drizzle-orm";
+import type { InferSelectModel } from "drizzle-orm";
+import { and, eq, gt, inArray, sql as rawSql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { inject, singleton } from "tsyringe";
 
@@ -9,6 +10,10 @@ import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
 import type { ChainProvider } from "@src/types/chain-provider";
 import type { ProjectedRow } from "@src/types/inventory";
+
+export type ProviderInventory = InferSelectModel<typeof providerInventory>;
+
+const DEFAULT_ONLINE_STREAM_BATCH_SIZE = 500;
 
 @singleton()
 export class ProviderInventoryRepository {
@@ -23,6 +28,29 @@ export class ProviderInventoryRepository {
   async resetOnlineSince(): Promise<void> {
     await this.#db.update(providerInventory).set({ isOnlineSince: null });
     this.#logger.info({ event: "ONLINE_SINCE_RESET" });
+  }
+
+  async *streamOnlineProviders(options?: { batchSize?: number }): AsyncGenerator<Pick<ProviderInventory, "owner" | "hostUri">> {
+    const batchSize = options?.batchSize ?? DEFAULT_ONLINE_STREAM_BATCH_SIZE;
+    let cursor: string | undefined;
+    const baseQuery = this.#db
+      .select({ owner: providerInventory.owner, hostUri: providerInventory.hostUri })
+      .from(providerInventory)
+      .orderBy(providerInventory.owner)
+      .limit(batchSize);
+
+    while (true) {
+      const where =
+        cursor === undefined ? eq(providerInventory.isOnline, true) : and(eq(providerInventory.isOnline, true), gt(providerInventory.owner, cursor));
+
+      const batch = await baseQuery.where(where);
+      if (batch.length === 0) return;
+
+      for (const row of batch) yield row;
+
+      if (batch.length < batchSize) return;
+      cursor = batch[batch.length - 1].owner;
+    }
   }
 
   async deleteByOwner(owner: string | string[]): Promise<void> {
