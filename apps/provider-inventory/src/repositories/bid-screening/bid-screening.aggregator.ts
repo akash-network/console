@@ -1,7 +1,6 @@
-import { parseGPUAttributes } from "@src/lib/gpu-attribute-parser/gpu-attribute-parser";
+import type { ParsedGPUAttributes } from "@src/lib/gpu-attribute-parser/gpu-attribute-parser";
 import type { GroupSpecJSON } from "@src/lib/groupspec-mapper/groupspec-mapper";
-import { parseStorageAttributes } from "@src/lib/storage-attribute-parser/storage-attribute-parser";
-import type { RequestedResourceUnit, RequestedStorage, ResourceAttribute } from "@src/types/inventory.types";
+import type { RequestedResourceUnit, RequestedStorage } from "@src/types/inventory.types";
 
 interface UnitFilters {
   gpuTokens: string[];
@@ -41,7 +40,7 @@ export function aggregateCriteria(resourceUnits: RequestedResourceUnit[], requir
 
     let effectiveMemory = unit.resources.memory.quantity;
     for (const vol of unit.resources.storage) {
-      const parsed = parseStorageAttributes(vol.attributes);
+      const parsed = vol.attributes;
       if (parsed.classification === "persistent") {
         totalPersistentStorage += vol.quantity * count;
       } else if (parsed.classification === "ephemeral") {
@@ -102,10 +101,10 @@ function escapeRegex(input: string): string {
   return input.replace(/[\\.^$*+?()[\]{}|]/g, "\\$&");
 }
 
-function collectGpuTokens(gpu: { units: bigint; attributes: ResourceAttribute[] }): string[] {
+function collectGpuTokens(gpu: { units: bigint; attributes: ParsedGPUAttributes[] }): string[] {
   if (gpu.units === 0n) return [];
   const tokens: string[] = [];
-  for (const parsed of parseGPUAttributes(gpu.attributes)) {
+  for (const parsed of gpu.attributes) {
     const token = parsed.model === "*" ? parsed.vendor : `${parsed.vendor}/${parsed.model}`;
     if (!tokens.includes(token)) tokens.push(token);
   }
@@ -115,7 +114,7 @@ function collectGpuTokens(gpu: { units: bigint; attributes: ResourceAttribute[] 
 function collectPersistentStorageTokens(storage: RequestedStorage[]): string[] {
   const tokens: string[] = [];
   for (const vol of storage) {
-    const parsed = parseStorageAttributes(vol.attributes);
+    const parsed = vol.attributes;
     if (parsed.classification === "persistent" && parsed.class && !tokens.includes(parsed.class)) {
       tokens.push(parsed.class);
     }

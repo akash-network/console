@@ -1,8 +1,7 @@
 import { singleton } from "tsyringe";
 
-import { matchesGPU, type ParsedGPUAttributes, parseGPUAttributes } from "../../lib/gpu-attribute-parser/gpu-attribute-parser";
-import { parseStorageAttributes } from "../../lib/storage-attribute-parser/storage-attribute-parser";
-import type { ClusterState, MatchResult, NodeState, RequestedResourceUnit, ResourceAttribute } from "../../types/inventory.types";
+import { matchesGPU, type ParsedGPUAttributes } from "../../lib/gpu-attribute-parser/gpu-attribute-parser";
+import type { ClusterState, MatchResult, NodeState, RequestedResourceUnit } from "../../types/inventory.types";
 
 interface CanonicalHardware {
   gpuSpecs: ParsedGPUAttributes | null;
@@ -27,7 +26,7 @@ export class ClusterInventoryMatcherService {
     for (let i = resourceUnits.length - 1; i >= 0; i--) {
       const group = resourceUnits[i];
 
-      const groupCpuFingerprint = getAttributeFingerprint(group.resources.cpu.attributes);
+      const groupCpuFingerprint = group.resources.cpu.fingerprint;
       if (canonical.cpuFingerprint && groupCpuFingerprint && canonical.cpuFingerprint !== groupCpuFingerprint) {
         return GROUP_MISMATCH;
       }
@@ -93,7 +92,7 @@ export class ClusterInventoryMatcherService {
 
     let resolvedGpuSpecs: ParsedGPUAttributes | undefined;
     if (group.resources.gpu.units > 0n) {
-      const effectiveSpecs = canonical.gpuSpecs ? [canonical.gpuSpecs] : parseGPUAttributes(group.resources.gpu.attributes);
+      const effectiveSpecs = canonical.gpuSpecs ? [canonical.gpuSpecs] : group.resources.gpu.attributes;
       const gpuResult = this.#tryAdjustGPU(nodeCopy, group.resources.gpu.units, effectiveSpecs);
       if (!gpuResult.ok) return FAIL_NODE;
       resolvedGpuSpecs = gpuResult.resolved;
@@ -116,7 +115,7 @@ export class ClusterInventoryMatcherService {
     vol: RequestedResourceUnit["resources"]["storage"][0],
     clusterStorage: ClusterState["storage"]
   ): { nodeOk: boolean; clusterOk: boolean } {
-    const parsed = parseStorageAttributes(vol.attributes);
+    const parsed = vol.attributes;
 
     if (parsed.classification === "ram") {
       if (!node.memory.allocate(vol.quantity)) return FAIL_NODE;
@@ -210,12 +209,4 @@ function copyNode(node: NodeState): NodeState {
     storageClasses: [...node.storageClasses],
     cpus: node.cpus.map(c => ({ ...c }))
   };
-}
-
-function getAttributeFingerprint(attributes: ResourceAttribute[]): string | null {
-  if (attributes.length === 0) return null;
-  return attributes
-    .map(a => `${a.key}=${a.value}`)
-    .sort()
-    .join(",");
 }

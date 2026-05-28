@@ -1,4 +1,6 @@
+import type { ParsedGPUAttributes } from "../lib/gpu-attribute-parser/gpu-attribute-parser";
 import type { ResourcePair } from "../lib/resource-pair/resource-pair";
+import type { ParsedStorageAttributes } from "../lib/storage-attribute-parser/storage-attribute-parser";
 
 export interface GpuInfo {
   vendor: string;
@@ -31,7 +33,7 @@ export interface ClusterState {
 export interface RequestedStorage {
   name: string;
   quantity: bigint;
-  attributes: ResourceAttribute[];
+  attributes: ParsedStorageAttributes;
 }
 
 export interface ResourceAttribute {
@@ -40,9 +42,9 @@ export interface ResourceAttribute {
 }
 
 export interface RequestedResources {
-  cpu: { units: bigint; attributes: ResourceAttribute[] };
-  gpu: { units: bigint; attributes: ResourceAttribute[] };
-  memory: { quantity: bigint; attributes: ResourceAttribute[] };
+  cpu: { units: bigint; fingerprint: string | null };
+  gpu: { units: bigint; attributes: ParsedGPUAttributes[] };
+  memory: { quantity: bigint };
   storage: RequestedStorage[];
 }
 

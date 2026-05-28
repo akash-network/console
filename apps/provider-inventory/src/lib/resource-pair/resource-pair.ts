@@ -20,6 +20,11 @@ export class ResourcePair {
     return this.#allocatable === UNLIMITED || this.#allocatable - this.#allocated >= val;
   }
 
+  canAllocateWithDelta(val: bigint, delta: bigint): boolean {
+    if (this.#allocatable === UNLIMITED) return true;
+    return this.#allocatable - this.#allocated - delta >= val;
+  }
+
   allocate(val: bigint): boolean {
     if (!this.canAllocate(val)) return false;
     this.#allocated += val;
