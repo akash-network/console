@@ -187,7 +187,6 @@ describe(useProviderJwt.name, () => {
                 isTrialing: false,
                 isOnboarding: false,
                 creditAmount: 0,
-                switchWalletType: vi.fn(),
                 hasManagedWallet: false,
                 managedWalletError: undefined,
                 ...input?.wallet

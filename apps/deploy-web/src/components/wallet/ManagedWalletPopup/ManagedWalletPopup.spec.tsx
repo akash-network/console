@@ -28,15 +28,15 @@ describe(ManagedWalletPopup.name, () => {
     expect(screen.getByText(/Wallet Balance is unknown/)).toBeInTheDocument();
   });
 
-  it("renders Free Trial header when managed and trialing", () => {
-    setup({ isManaged: true, isTrialing: true });
+  it("renders Free Trial header when trialing", () => {
+    setup({ isTrialing: true });
 
     expect(screen.getByText("Free Trial")).toBeInTheDocument();
     expect(screen.getByText(/Once your Free credits run out/)).toBeInTheDocument();
   });
 
   it("does not render Free Trial header when not trialing", () => {
-    setup({ isManaged: true, isTrialing: false });
+    setup({ isTrialing: false });
 
     expect(screen.queryByText("Free Trial")).not.toBeInTheDocument();
     expect(screen.queryByText(/Once your Free credits run out/)).not.toBeInTheDocument();
@@ -57,50 +57,13 @@ describe(ManagedWalletPopup.name, () => {
     expect(screen.getByTestId("add-funds-link")).toHaveAttribute("href", "/billing?openPayment=true");
   });
 
-  it("calls switchWalletType when Switch to Wallet Payments is clicked and wallet is connected", () => {
-    const { switchWalletType } = setup({ isWalletConnected: true });
-
-    fireEvent.click(screen.getByRole("button", { name: /Switch to Wallet Payments/ }));
-
-    expect(switchWalletType).toHaveBeenCalledTimes(1);
-  });
-
-  it("calls switchWalletType when Switch to Wallet Payments is clicked and wallet is not connected", () => {
-    const { switchWalletType } = setup({ isWalletConnected: false });
-
-    fireEvent.click(screen.getByRole("button", { name: /Switch to Wallet Payments/ }));
-
-    expect(switchWalletType).toHaveBeenCalledTimes(1);
-  });
-
-  it("hides Switch to Wallet Payments button when self_custody flag is OFF", () => {
-    setup({ isSelfCustodyEnabled: false });
-
-    expect(screen.queryByRole("button", { name: /Switch to Wallet Payments/ })).not.toBeInTheDocument();
-  });
-
-  it("renders Switch to Wallet Payments button when self_custody flag is ON", () => {
-    setup({ isSelfCustodyEnabled: true });
-
-    expect(screen.getByRole("button", { name: /Switch to Wallet Payments/ })).toBeInTheDocument();
-  });
-
-  function setup(input?: {
-    walletBalance?: WalletBalance | null;
-    isManaged?: boolean;
-    isTrialing?: boolean;
-    isWalletConnected?: boolean;
-    isSelfCustodyEnabled?: boolean;
-  }) {
-    const switchWalletType = vi.fn();
+  function setup(input?: { walletBalance?: WalletBalance | null; isTrialing?: boolean }) {
     const showManagedEscrowFaqModal = vi.fn();
 
     const dependencies = {
       ...DEPENDENCIES,
       useWallet: () => ({
-        isManaged: input?.isManaged ?? false,
-        isTrialing: input?.isTrialing ?? false,
-        switchWalletType
+        isTrialing: input?.isTrialing ?? false
       }),
       useManagedEscrowFaqModal: () => ({ showManagedEscrowFaqModal }),
       useServices: () => ({
@@ -108,7 +71,6 @@ describe(ManagedWalletPopup.name, () => {
           billing: ({ openPayment }: { openPayment?: boolean } = {}) => (openPayment ? "/billing?openPayment=true" : "/billing")
         }
       }),
-      useIsSelfCustodyEnabled: () => input?.isSelfCustodyEnabled ?? true,
       FormattedNumber: ({ value }: { value: number }) => <span>{value}</span>,
       LinkTo: ({ children, className, onClick }: { children: React.ReactNode; className?: string; onClick?: () => void }) => (
         <a className={className} onClick={onClick}>
@@ -124,6 +86,6 @@ describe(ManagedWalletPopup.name, () => {
 
     render(<ManagedWalletPopup walletBalance={input?.walletBalance ?? null} dependencies={dependencies} />);
 
-    return { switchWalletType, showManagedEscrowFaqModal };
+    return { showManagedEscrowFaqModal };
   }
 });

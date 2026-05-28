@@ -309,7 +309,6 @@ describe(YourAccount.name, () => {
         isWalletLoading: false,
         isTrialing: false,
         isOnboarding: false,
-        switchWalletType: vi.fn(),
         hasManagedWallet: false
       }) as ReturnType<typeof DEPENDENCIES.useWallet>;
 

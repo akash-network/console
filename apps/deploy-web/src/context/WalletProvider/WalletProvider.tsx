@@ -1,15 +1,9 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
-import { buttonVariants, Snackbar } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
 import type { EncodeObject } from "@cosmjs/proto-signing";
-import { OpenNewWindow } from "iconoir-react";
 import { useAtom } from "jotai";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useSnackbar } from "notistack";
 
-import type { LoadingState } from "@src/components/layout/TransactionModal";
 import { TransactionModal } from "@src/components/layout/TransactionModal";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useSelectedChain } from "@src/hooks/useSelectedChain/useSelectedChain";
@@ -20,13 +14,12 @@ import { useBalances } from "@src/queries/useBalancesQuery";
 import networkStore from "@src/store/networkStore";
 import walletStore from "@src/store/walletStore";
 import type { AppError } from "@src/types";
-import { UrlService } from "@src/utils/urlUtils";
 import { getStorageWallets, updateStorageWallets } from "@src/utils/walletUtils";
 import { useServices } from "../ServicesProvider";
 import { useSettings } from "../SettingsProvider";
 import { settingsIdAtom } from "../SettingsProvider/settingsStore";
 import { deriveWalletIsLoading } from "./deriveWalletIsLoading";
-import { signAndBroadcast } from "./signAndBroadcast";
+import { useSignAndBroadcast } from "./useSignAndBroadcast";
 
 type ManagedWalletMarker =
   | {
@@ -52,7 +45,6 @@ export type ContextType = {
   isOnboarding: boolean;
   creditAmount?: number;
   topUpMinAmountUsd: number;
-  switchWalletType: () => void;
   hasManagedWallet: boolean;
   managedWalletError?: AppError;
 } & ManagedWalletMarker;
@@ -66,12 +58,10 @@ export const WalletProviderContext = React.createContext<ContextType>({} as Cont
  * WalletProvider is a client only component
  */
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { analyticsService, tx: txHttpService, publicConfig: appConfig, urlService, windowLocation } = useServices();
+  const { analyticsService, publicConfig: appConfig, urlService, windowLocation } = useServices();
 
   const [, setSettingsId] = useAtom(settingsIdAtom);
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
-  const [loadingState, setLoadingState] = useState<LoadingState | undefined>(undefined);
-  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const router = useRouter();
   const { settings } = useSettings();
   const { user } = useUser();
@@ -100,6 +90,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     isManagedWalletLoading,
     isCustodialConnecting: userWallet.isWalletConnecting
   });
+  const { signAndBroadcastTx, loadingState } = useSignAndBroadcast({ refetchBalances });
 
   useWhen(walletAddress, loadWallet);
 
@@ -157,11 +148,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     windowLocation.reload();
   }, [selectedNetworkId, appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID, setSelectedNetworkId, windowLocation]);
 
-  function switchWalletType() {
-    // No-op: deploy-web is managed-wallet-only after CON-258. Kept on the
-    // contract so existing consumers compile; the field itself is removed in L-2.
-  }
-
   function connectManagedWallet() {
     if (!managedWallet) {
       createManagedWallet();
@@ -208,48 +194,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }
 
-  async function signAndBroadcastTx(msgs: EncodeObject[]): Promise<boolean> {
-    return signAndBroadcast({
-      userId: user?.id,
-      msgs,
-      txHttpService,
-      analyticsService,
-      setLoadingState,
-      refetchBalances,
-      showAddCreditsSnackbar,
-      showTransactionSnackbar
-    });
-  }
-
-  const showTransactionSnackbar = (
-    snackTitle: string,
-    snackMessage: string,
-    transactionHash: string,
-    snackVariant: React.ComponentProps<typeof Snackbar>["iconVariant"]
-  ) => {
-    enqueueSnackbar(
-      <Snackbar
-        title={snackTitle}
-        subTitle={<TransactionSnackbarContent snackMessage={snackMessage} transactionHash={transactionHash} isError={snackVariant === "error"} />}
-        iconVariant={snackVariant}
-      />,
-      {
-        variant: snackVariant,
-        autoHideDuration: 10000
-      }
-    );
-  };
-
-  const showAddCreditsSnackbar = (snackTitle: string, snackMessage: string) => {
-    const key = enqueueSnackbar(
-      <Snackbar title={snackTitle} subTitle={<AddCreditsSnackbarContent message={snackMessage} onAction={() => closeSnackbar(key)} />} iconVariant="warning" />,
-      {
-        variant: "warning",
-        autoHideDuration: 10000
-      }
-    );
-  };
-
   return (
     <WalletProviderContext.Provider
       value={{
@@ -268,7 +212,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         topUpMinAmountUsd: managedWallet?.topUpMinAmountUsd ?? 20,
         hasManagedWallet: !!managedWallet,
         managedWalletError,
-        switchWalletType,
         ...managedMarker
       }}
     >
@@ -289,55 +232,3 @@ export function useIsManagedWalletUser() {
 
   return { canVisit, isLoading };
 }
-
-const SUPPORT_EMAIL = "support@akash.network";
-
-const AddCreditsSnackbarContent: React.FC<{ message?: string; onAction?: () => void }> = ({ message, onAction }) => {
-  const { analyticsService } = useServices();
-  return (
-    <>
-      {message && <div>{message}</div>}
-      <Link
-        href={UrlService.billing({ openPayment: true })}
-        className={cn("mt-2 inline-flex h-7 items-center px-3 text-xs", buttonVariants({ variant: "default" }))}
-        onClick={() => {
-          analyticsService.track("add_funds_btn_clk");
-          onAction?.();
-        }}
-      >
-        Add Funds
-      </Link>
-    </>
-  );
-};
-
-const TransactionSnackbarContent: React.FC<{ snackMessage: string; transactionHash: string; isError?: boolean }> = ({
-  snackMessage,
-  transactionHash,
-  isError
-}) => {
-  const { publicConfig: appConfig } = useServices();
-  const selectedNetworkId = networkStore.useSelectedNetworkId();
-  const txUrl = transactionHash && `${appConfig.NEXT_PUBLIC_STATS_APP_URL}/transactions/${transactionHash}?network=${selectedNetworkId}`;
-
-  return (
-    <>
-      {snackMessage}
-      {snackMessage && <br />}
-      {txUrl && (
-        <Link href={txUrl} target="_blank" className="inline-flex items-center space-x-2 !text-white">
-          <span>View transaction</span>
-          <OpenNewWindow className="text-xs" />
-        </Link>
-      )}
-      {isError && (
-        <div className="mt-2 text-xs">
-          Need help?{" "}
-          <a href={`mailto:${SUPPORT_EMAIL}?subject=Transaction Error&body=${encodeURIComponent(snackMessage)}`} className="underline">
-            Contact {SUPPORT_EMAIL}
-          </a>
-        </div>
-      )}
-    </>
-  );
-};

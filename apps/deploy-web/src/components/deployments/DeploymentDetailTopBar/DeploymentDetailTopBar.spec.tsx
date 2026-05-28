@@ -256,7 +256,6 @@ describe(DeploymentDetailTopBar.name, () => {
         isWalletLoading: false,
         isTrialing: false,
         isOnboarding: false,
-        switchWalletType: vi.fn(),
         hasManagedWallet: false
       })) as typeof DEPENDENCIES.useWallet,
       usePricing: vi.fn(() => ({
