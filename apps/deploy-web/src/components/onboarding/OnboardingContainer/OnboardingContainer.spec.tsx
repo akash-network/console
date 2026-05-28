@@ -176,7 +176,7 @@ describe("OnboardingContainer", () => {
       await onComplete("hello-akash");
     });
 
-    const sdlArgument = mockNewDeploymentData.mock.calls[0][1];
+    const sdlArgument = mockNewDeploymentData.mock.calls[0][0];
     expect(sdlArgument).not.toContain("uakt");
   });
 
@@ -190,7 +190,7 @@ describe("OnboardingContainer", () => {
       await onComplete("hello-akash");
     });
 
-    const sdlArgument = mockNewDeploymentData.mock.calls[0][1];
+    const sdlArgument = mockNewDeploymentData.mock.calls[0][0];
     expect(sdlArgument).toBe("mock-sdl-content");
   });
 
@@ -230,7 +230,7 @@ describe("OnboardingContainer", () => {
       await onComplete("hello-akash");
     });
 
-    const sdlArgument = mockNewDeploymentData.mock.calls[0][1];
+    const sdlArgument = mockNewDeploymentData.mock.calls[0][0];
     expect(sdlArgument).toBe("mock-sdl-content");
     expect(sdlArgument).not.toContain("undefined");
   });

@@ -77,7 +77,6 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const {
     analyticsService,
     urlService,
-    chainApiHttpClient,
     deploymentLocalStorage,
     errorHandler,
     windowLocation,
@@ -280,7 +279,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
 
         const minDepositAmount = wallet.denom === "uact" ? minDeposit.act : wallet.denom !== "uakt" && wallet.isManaged ? minDeposit.act : minDeposit.akt;
         const deposit = d.denomToUdenom(minDepositAmount);
-        const dd = await d.deploymentData.NewDeploymentData(chainApiHttpClient, sdl, null, wallet.address, deposit);
+        const dd = await d.deploymentData.NewDeploymentData(sdl, null, wallet.address, deposit);
         d.validateDeploymentData(dd, null);
 
         if (!dd) {
@@ -318,7 +317,6 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       urlService,
       wallet,
       templateService,
-      chainApiHttpClient,
       minDeposit,
       deploymentLocalStorage,
       analyticsService,
