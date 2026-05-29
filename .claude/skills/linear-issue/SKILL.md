@@ -117,7 +117,12 @@ Titles get **no order prefix** by default — even for multi-issue plans. Linear
 
 ### Opt-in: `L-N.` title numbering
 
-Only when the user **explicitly asks** for a visible, sortable numbered plan in titles (e.g. "number these in order", "add L-N prefixes") apply the `L-N.` convention:
+Opt-in governs **starting a new sequence** on an un-numbered project. Apply the `L-N.` convention when either is true:
+
+- The user **explicitly asks** for a visible, sortable numbered plan in titles (e.g. "number these in order", "add L-N prefixes"), or
+- The **target project already uses `L-N.`** numbering — continuing an existing sequence is automatic, no explicit request needed (follow the "Adding issues to a sequenced project" flow).
+
+The convention:
 
 **Title format:** `L-<N>. <Original title>` — `N` is the execution order, 1-indexed, single space after the period. Examples:
 
@@ -127,7 +132,7 @@ Only when the user **explicitly asks** for a visible, sortable numbered plan in 
 
 **When NOT to apply (even within an opt-in sequence):**
 - Single-issue creates (one-off bug, lone chore) — un-prefixed. **Exception:** if the target project already uses `L-N.`, a lone new issue is *not* un-prefixed — the "Adding issues to a sequenced project" flow governs and assigns it an `L-N.` prefix with the proper insertion/renumbering procedure.
-- Improve-mode edits to an existing issue's content — don't retrofit a prefix.
+- Improve-mode edits to an existing issue's content — don't retrofit a prefix. If you're improving an un-prefixed issue that lives in a project already using `L-N.`, mention the missing prefix and offer to add it (per the "Adding issues to a sequenced project" flow), but leave it un-prefixed unless the user agrees — don't change the title silently.
 
 **Stability:** Once assigned, an issue keeps its number. Gaps are fine (cancelled issue → its number stays unused). The number lives in the title only — no Linear custom field, no label.
 
@@ -207,7 +212,12 @@ When splitting, each issue should still be a **business-level slice** — not a 
 
 For each issue, fill the appropriate template.
 
-**Only if** the user opted into `L-N.` numbering (see **Execution Order**), prefix each title with its sequence number — the prefix lives in the title only. Otherwise use the plain template title and let Linear's manual ordering carry the sequence. Either way, the templates below describe the **description** content and stay unchanged.
+**Title prefix routing** (see **Execution Order**):
+- If the **target project already uses `L-N.`** numbering, follow the "Adding issues to a sequenced project" flow to assign the prefix — even when the user didn't explicitly ask for numbering.
+- Else if the user **explicitly opted into** numbering for this plan, prefix each title with its sequence number.
+- Otherwise use the plain template title and let Linear's manual ordering carry the sequence.
+
+The prefix lives in the title only — the templates below describe the **description** content and stay unchanged.
 
 #### Bug
 
@@ -260,7 +270,7 @@ Flows that should work:
 ### Phase 5: Confirm & Create
 
 Show the user ALL issues you plan to create with the following details for each:
-- **Title** — include the `L-N.` prefix only if `L-N.` numbering was opted into (see **Execution Order**)
+- **Title** — include the `L-N.` prefix only when numbering applies: the target project already uses `L-N.`, or the user opted in for this plan (see **Execution Order**)
 - **Description**
 - **Suggested project** (from live project list) — ask user to confirm or change
 - **Source label** (inferred from context)
