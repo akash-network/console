@@ -2,229 +2,16 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
-import networkStore from "@src/store/networkStore";
-import {
-  deleteManagedWalletFromStorage,
-  deleteWalletFromStorage,
-  ensureUserManagedWalletOwnership,
-  getSelectedStorageWallet,
-  getStorageManagedWallet,
-  getStorageWallets,
-  type LocalWallet,
-  updateStorageManagedWallet,
-  updateStorageWallets,
-  updateWallet
-} from "./walletUtils";
+import { deleteManagedWalletFromStorage, ensureUserManagedWalletOwnership, getStorageManagedWallet, updateStorageManagedWallet } from "./walletUtils";
 
-import { buildCustodialLocalWallet, buildManagedLocalWallet } from "@tests/seeders/localWallet";
+import { buildManagedLocalWallet } from "@tests/seeders/localWallet";
 
 describe("walletUtils", () => {
-  const NETWORK_ID = "mainnet";
   const MANAGED_NETWORK_ID = "sandbox";
   const USER_ID_1 = "user-123";
   const USER_ID_2 = "user-456";
   const WALLET_ADDRESS_1 = "akash1abc123";
   const WALLET_ADDRESS_2 = "akash1def456";
-  const WALLET_ADDRESS_3 = "akash1ghi789";
-
-  describe("getStorageWallets", () => {
-    it("returns empty array when no wallets exist", () => {
-      const { cleanup } = setup();
-
-      const wallets = getStorageWallets();
-      expect(wallets).toEqual([]);
-
-      cleanup();
-    });
-
-    it("returns custodial wallets from storage", () => {
-      const { storage, cleanup } = setup();
-
-      const custodialWallets: LocalWallet[] = [
-        buildCustodialLocalWallet({ address: WALLET_ADDRESS_1, selected: true }),
-        buildCustodialLocalWallet({ address: WALLET_ADDRESS_2, selected: false })
-      ];
-
-      storage.set(`${NETWORK_ID}/wallets`, JSON.stringify(custodialWallets));
-
-      const result = getStorageWallets();
-      expect(result).toEqual(custodialWallets);
-
-      cleanup();
-    });
-
-    it("merges custodial and managed wallets", () => {
-      const { storage, cleanup } = setup();
-
-      const custodialWallet = buildCustodialLocalWallet({ address: WALLET_ADDRESS_1, selected: false });
-      const managedWallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_2,
-        userId: USER_ID_1,
-        selected: true
-      });
-
-      const managedWalletsMap = {
-        [USER_ID_1]: managedWallet
-      };
-
-      storage.set(`${NETWORK_ID}/wallets`, JSON.stringify([custodialWallet]));
-      storage.set(`${NETWORK_ID}/managed-wallets`, JSON.stringify(managedWalletsMap));
-
-      const result = getStorageWallets();
-
-      expect(result).toHaveLength(2);
-      expect(result[0]).toEqual(custodialWallet);
-      expect(result[1]).toEqual(managedWallet);
-
-      cleanup();
-    });
-
-    it("prioritizes selected managed wallet", () => {
-      const { storage, cleanup } = setup();
-
-      const custodialWallet = buildCustodialLocalWallet({ address: WALLET_ADDRESS_1, selected: true });
-      const managedWallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_2,
-        userId: USER_ID_1,
-        selected: true
-      });
-
-      const managedWalletsMap = {
-        [USER_ID_1]: managedWallet
-      };
-
-      storage.set(`${NETWORK_ID}/wallets`, JSON.stringify([custodialWallet]));
-      storage.set(`${NETWORK_ID}/managed-wallets`, JSON.stringify(managedWalletsMap));
-
-      const result = getStorageWallets();
-
-      expect(result[0].selected).toBe(false);
-      expect(result[1].selected).toBe(true);
-      expect(result[1].address).toBe(WALLET_ADDRESS_2);
-
-      cleanup();
-    });
-
-    it("removes duplicate managed wallets from old storage", () => {
-      const { storage, cleanup } = setup();
-
-      const custodialWallet = buildCustodialLocalWallet({ address: WALLET_ADDRESS_1, selected: true });
-      const managedWallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_2,
-        userId: USER_ID_1,
-        selected: false
-      });
-
-      const walletsWithOldFormat: LocalWallet[] = [custodialWallet, managedWallet];
-
-      const managedWalletsMap = {
-        [USER_ID_1]: managedWallet
-      };
-
-      storage.set(`${NETWORK_ID}/wallets`, JSON.stringify(walletsWithOldFormat));
-      storage.set(`${NETWORK_ID}/managed-wallets`, JSON.stringify(managedWalletsMap));
-
-      const result = getStorageWallets();
-
-      expect(result).toHaveLength(2);
-      expect(result.filter((w: LocalWallet) => w.isManaged)).toHaveLength(1);
-
-      cleanup();
-    });
-
-    it("handles corrupt managed-wallets JSON gracefully", () => {
-      const { storage, cleanup } = setup();
-
-      const custodialWallet = buildCustodialLocalWallet({ address: WALLET_ADDRESS_1, selected: true });
-
-      storage.set(`${NETWORK_ID}/wallets`, JSON.stringify([custodialWallet]));
-      storage.set(`${NETWORK_ID}/managed-wallets`, "invalid-json{");
-
-      const result = getStorageWallets();
-      expect(result).toEqual([custodialWallet]);
-
-      cleanup();
-    });
-
-    it("respects networkId parameter", () => {
-      const { storage, cleanup } = setup();
-
-      const mainnetWallet = buildCustodialLocalWallet({ address: WALLET_ADDRESS_1, selected: true });
-      const testnetWallet = buildCustodialLocalWallet({ address: WALLET_ADDRESS_2, selected: true });
-
-      storage.set("mainnet/wallets", JSON.stringify([mainnetWallet]));
-      storage.set("testnet/wallets", JSON.stringify([testnetWallet]));
-
-      expect(getStorageWallets("mainnet")).toEqual([mainnetWallet]);
-      expect(getStorageWallets("testnet")).toEqual([testnetWallet]);
-
-      cleanup();
-    });
-  });
-
-  describe("getSelectedStorageWallet", () => {
-    it("returns null when no wallets exist", () => {
-      const { cleanup } = setup();
-
-      expect(getSelectedStorageWallet()).toBeNull();
-
-      cleanup();
-    });
-
-    it("returns first wallet when none is selected", () => {
-      const { storage, cleanup } = setup();
-
-      const wallets: LocalWallet[] = [
-        buildCustodialLocalWallet({ address: WALLET_ADDRESS_1, selected: false }),
-        buildCustodialLocalWallet({ address: WALLET_ADDRESS_2, selected: false })
-      ];
-
-      storage.set(`${NETWORK_ID}/wallets`, JSON.stringify(wallets));
-
-      const result = getSelectedStorageWallet();
-      expect(result?.address).toBe(WALLET_ADDRESS_1);
-
-      cleanup();
-    });
-
-    it("returns selected wallet", () => {
-      const { storage, cleanup } = setup();
-
-      const wallets: LocalWallet[] = [
-        buildCustodialLocalWallet({ address: WALLET_ADDRESS_1, selected: false }),
-        buildCustodialLocalWallet({ address: WALLET_ADDRESS_2, selected: true })
-      ];
-
-      storage.set(`${NETWORK_ID}/wallets`, JSON.stringify(wallets));
-
-      const result = getSelectedStorageWallet();
-      expect(result?.address).toBe(WALLET_ADDRESS_2);
-
-      cleanup();
-    });
-
-    it("returns selected managed wallet", () => {
-      const { storage, cleanup } = setup();
-
-      const managedWallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_2,
-        userId: USER_ID_1,
-        selected: true
-      });
-
-      const managedWalletsMap = {
-        [USER_ID_1]: managedWallet
-      };
-
-      storage.set(`${NETWORK_ID}/managed-wallets`, JSON.stringify(managedWalletsMap));
-
-      const result = getSelectedStorageWallet();
-      expect(result?.address).toBe(WALLET_ADDRESS_2);
-      expect(result?.isManaged).toBe(true);
-
-      cleanup();
-    });
-  });
 
   describe("getStorageManagedWallet", () => {
     it("returns undefined when userId is not provided", () => {
@@ -239,13 +26,12 @@ describe("walletUtils", () => {
     it("returns undefined when no managed wallets exist", () => {
       const { cleanup } = setup();
 
-      const result = getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID);
-      expect(result).toBeUndefined();
+      expect(getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID)).toBeUndefined();
 
       cleanup();
     });
 
-    it("returns managed wallet for specific user", () => {
+    it("returns managed wallet for the requested userId", () => {
       const { storage, cleanup } = setup();
 
       const wallet1 = buildManagedLocalWallet({
@@ -256,7 +42,6 @@ describe("walletUtils", () => {
         isTrialing: false,
         token: "token-cert1"
       });
-
       const wallet2 = buildManagedLocalWallet({
         address: WALLET_ADDRESS_2,
         userId: USER_ID_2,
@@ -265,22 +50,10 @@ describe("walletUtils", () => {
         isTrialing: true
       });
 
-      const managedWalletsMap = {
-        [USER_ID_1]: wallet1,
-        [USER_ID_2]: wallet2
-      };
+      storage.set(`${MANAGED_NETWORK_ID}/managed-wallets`, JSON.stringify({ [USER_ID_1]: wallet1, [USER_ID_2]: wallet2 }));
 
-      storage.set(`${MANAGED_NETWORK_ID}/managed-wallets`, JSON.stringify(managedWalletsMap));
-
-      const result1 = getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID);
-      expect(result1?.address).toBe(WALLET_ADDRESS_1);
-      expect(result1?.userId).toBe(USER_ID_1);
-      expect(result1?.creditAmount).toBe(100);
-
-      const result2 = getStorageManagedWallet(USER_ID_2, MANAGED_NETWORK_ID);
-      expect(result2?.address).toBe(WALLET_ADDRESS_2);
-      expect(result2?.userId).toBe(USER_ID_2);
-      expect(result2?.creditAmount).toBe(200);
+      expect(getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID)?.address).toBe(WALLET_ADDRESS_1);
+      expect(getStorageManagedWallet(USER_ID_2, MANAGED_NETWORK_ID)?.address).toBe(WALLET_ADDRESS_2);
 
       cleanup();
     });
@@ -288,20 +61,10 @@ describe("walletUtils", () => {
     it("returns undefined for non-existent userId", () => {
       const { storage, cleanup } = setup();
 
-      const managedWallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        selected: true
-      });
+      const managedWallet = buildManagedLocalWallet({ address: WALLET_ADDRESS_1, userId: USER_ID_1, selected: true });
+      storage.set(`${MANAGED_NETWORK_ID}/managed-wallets`, JSON.stringify({ [USER_ID_1]: managedWallet }));
 
-      const managedWalletsMap = {
-        [USER_ID_1]: managedWallet
-      };
-
-      storage.set(`${MANAGED_NETWORK_ID}/managed-wallets`, JSON.stringify(managedWalletsMap));
-
-      const result = getStorageManagedWallet("non-existent-user", MANAGED_NETWORK_ID);
-      expect(result).toBeUndefined();
+      expect(getStorageManagedWallet("non-existent-user", MANAGED_NETWORK_ID)).toBeUndefined();
 
       cleanup();
     });
@@ -311,15 +74,14 @@ describe("walletUtils", () => {
 
       storage.set(`${MANAGED_NETWORK_ID}/managed-wallets`, "invalid-json");
 
-      const result = getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID);
-      expect(result).toBeUndefined();
+      expect(getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID)).toBeUndefined();
 
       cleanup();
     });
   });
 
   describe("updateStorageManagedWallet", () => {
-    it("creates new managed wallet", () => {
+    it("creates a new managed wallet entry", () => {
       const { cleanup } = setup();
 
       const wallet = buildManagedLocalWallet({
@@ -332,10 +94,10 @@ describe("walletUtils", () => {
 
       const result = updateStorageManagedWallet(wallet);
 
-      expect(result.name).toBe("Managed Wallet");
-      expect(result.isManaged).toBe(true);
-      expect(result.address).toBe(WALLET_ADDRESS_1);
-      expect(result.selected).toBe(true);
+      expect(result?.name).toBe("Managed Wallet");
+      expect(result?.isManaged).toBe(true);
+      expect(result?.address).toBe(WALLET_ADDRESS_1);
+      expect(result?.selected).toBe(true);
 
       const stored = getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID);
       expect(stored).toEqual(result);
@@ -343,423 +105,94 @@ describe("walletUtils", () => {
       cleanup();
     });
 
-    it("updates existing managed wallet", () => {
+    it("merges partial updates with the existing entry", () => {
       const { cleanup } = setup();
 
-      const initial = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        creditAmount: 100,
-        isTrialing: false,
-        token: "token-cert1"
-      });
+      updateStorageManagedWallet(
+        buildManagedLocalWallet({ address: WALLET_ADDRESS_1, userId: USER_ID_1, creditAmount: 100, isTrialing: false, token: "token-cert1" })
+      );
 
-      updateStorageManagedWallet(initial);
+      const result = updateStorageManagedWallet({ userId: USER_ID_1, token: "token-cert2" });
 
-      const updated = {
-        ...initial,
-        creditAmount: 200,
-        token: "token-cert2"
-      };
-
-      const result = updateStorageManagedWallet(updated);
-
-      expect(result.creditAmount).toBe(200);
-      expect(result.token).toBe("token-cert2");
+      expect(result?.token).toBe("token-cert2");
+      expect(result?.address).toBe(WALLET_ADDRESS_1);
+      expect(result?.creditAmount).toBe(100);
 
       cleanup();
     });
 
-    it("preserves other users' wallets (CRITICAL: multi-user isolation)", () => {
+    it("returns undefined when no prior entry and required fields missing", () => {
       const { cleanup } = setup();
 
-      const user1Wallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        creditAmount: 100,
-        isTrialing: false,
-        token: "token-cert1"
-      });
+      const result = updateStorageManagedWallet({ userId: USER_ID_1, token: "token-cert2" });
+      expect(result).toBeUndefined();
 
-      const user2Wallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_2,
-        userId: USER_ID_2,
-        creditAmount: 200,
-        isTrialing: true,
-        token: "token-cert2"
-      });
+      cleanup();
+    });
+
+    it("preserves other users' entries (multi-user isolation)", () => {
+      const { cleanup } = setup();
+
+      const user1Wallet = buildManagedLocalWallet({ address: WALLET_ADDRESS_1, userId: USER_ID_1, creditAmount: 100, isTrialing: false });
+      const user2Wallet = buildManagedLocalWallet({ address: WALLET_ADDRESS_2, userId: USER_ID_2, creditAmount: 200, isTrialing: true });
 
       updateStorageManagedWallet(user1Wallet);
       updateStorageManagedWallet(user2Wallet);
 
-      const storedUser1 = getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID);
-      const storedUser2 = getStorageManagedWallet(USER_ID_2, MANAGED_NETWORK_ID);
-
-      expect(storedUser1?.address).toBe(WALLET_ADDRESS_1);
-      expect(storedUser2?.address).toBe(WALLET_ADDRESS_2);
-
       updateStorageManagedWallet({ ...user1Wallet, creditAmount: 300 });
 
-      const updatedUser1 = getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID);
-      const unchangedUser2 = getStorageManagedWallet(USER_ID_2, MANAGED_NETWORK_ID);
-
-      expect(updatedUser1?.creditAmount).toBe(300);
-      expect(unchangedUser2?.creditAmount).toBe(200);
+      expect(getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID)?.creditAmount).toBe(300);
+      expect(getStorageManagedWallet(USER_ID_2, MANAGED_NETWORK_ID)?.creditAmount).toBe(200);
 
       cleanup();
     });
 
-    it("returns same object if no changes (optimization)", () => {
+    it("preserves selected flag from previous entry when omitted", () => {
       const { cleanup } = setup();
 
-      const wallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        creditAmount: 100,
-        isTrialing: false,
-        selected: true
-      });
-
-      const result1 = updateStorageManagedWallet(wallet);
-      const result2 = updateStorageManagedWallet(wallet);
-
-      expect(result1).toEqual(result2);
-
-      cleanup();
-    });
-
-    it("defaults selected to false if not specified", () => {
-      const { cleanup } = setup();
-
-      const wallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        creditAmount: 100,
-        isTrialing: false
-      });
-      delete (wallet as Partial<typeof wallet>).selected;
-
-      const result = updateStorageManagedWallet(wallet);
-      expect(result.selected).toBe(false);
-
-      cleanup();
-    });
-
-    it("preserves selected state from previous wallet", () => {
-      const { cleanup } = setup();
-
-      const wallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        creditAmount: 100,
-        isTrialing: false,
-        selected: true,
-        token: "token-cert1"
-      });
-
-      updateStorageManagedWallet(wallet);
-
-      const updated = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        creditAmount: 200,
-        isTrialing: false,
-        token: "token-cert2"
-      });
-      delete (updated as Partial<typeof updated>).selected;
-
-      const result = updateStorageManagedWallet(updated);
-      expect(result.selected).toBe(true);
-
-      cleanup();
-    });
-  });
-
-  describe("updateStorageWallets", () => {
-    it("stores custodial wallets in wallets array", () => {
-      const { storage, cleanup } = setup();
-
-      const wallets: LocalWallet[] = [
-        buildCustodialLocalWallet({ address: WALLET_ADDRESS_1, selected: true }),
-        buildCustodialLocalWallet({ address: WALLET_ADDRESS_2, selected: false })
-      ];
-
-      updateStorageWallets(wallets);
-
-      const stored = storage.get(`${NETWORK_ID}/wallets`);
-      expect(JSON.parse(stored!)).toEqual(wallets);
-
-      cleanup();
-    });
-
-    it("separates managed wallets to managed-wallets storage (CRITICAL: auto-migration)", () => {
-      const { storage, cleanup } = setup();
-
-      const custodialWallet = buildCustodialLocalWallet({ address: WALLET_ADDRESS_1, selected: false });
-      const managedWallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_2,
-        userId: USER_ID_1,
-        selected: true
-      });
-
-      const wallets: LocalWallet[] = [custodialWallet, managedWallet];
-
-      updateStorageWallets(wallets);
-
-      const custodialStored = JSON.parse(storage.get(`${NETWORK_ID}/wallets`)!);
-      expect(custodialStored).toHaveLength(1);
-      expect(custodialStored[0].address).toBe(WALLET_ADDRESS_1);
-
-      const managedStored = JSON.parse(storage.get(`${NETWORK_ID}/managed-wallets`)!);
-      expect(managedStored[USER_ID_1].address).toBe(WALLET_ADDRESS_2);
-
-      cleanup();
-    });
-
-    it("preserves existing managed wallets for other users", () => {
-      const { storage, cleanup } = setup();
-
-      const existingUser2Wallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_3,
-        userId: USER_ID_2,
-        selected: false,
-        creditAmount: 200,
-        isTrialing: true
-      });
-
-      storage.set(`${NETWORK_ID}/managed-wallets`, JSON.stringify({ [USER_ID_2]: existingUser2Wallet }));
-
-      const user1Wallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_2,
-        userId: USER_ID_1,
-        selected: true,
-        creditAmount: 100,
-        isTrialing: false
-      });
-
-      const wallets: LocalWallet[] = [user1Wallet];
-
-      updateStorageWallets(wallets);
-
-      const managedStored = JSON.parse(storage.get(`${NETWORK_ID}/managed-wallets`)!);
-      expect(managedStored[USER_ID_1].address).toBe(WALLET_ADDRESS_2);
-      expect(managedStored[USER_ID_2].address).toBe(WALLET_ADDRESS_3);
-
-      cleanup();
-    });
-
-    it("handles empty wallet array", () => {
-      const { storage, cleanup } = setup();
-
-      updateStorageWallets([]);
-
-      const stored = storage.get(`${NETWORK_ID}/wallets`);
-      expect(JSON.parse(stored!)).toEqual([]);
-
-      cleanup();
-    });
-  });
-
-  describe("updateWallet", () => {
-    it("updates custodial wallet", () => {
-      const { storage, cleanup } = setup();
-
-      const wallets: LocalWallet[] = [
-        buildCustodialLocalWallet({ address: WALLET_ADDRESS_1, selected: true }),
-        buildCustodialLocalWallet({ address: WALLET_ADDRESS_2, selected: false })
-      ];
-
-      storage.set(`${NETWORK_ID}/wallets`, JSON.stringify(wallets));
-
-      updateWallet(WALLET_ADDRESS_1, (w: LocalWallet) => ({ ...w, token: "new-token" }));
-
-      const updated = getStorageWallets();
-      const wallet1 = updated.find((w: LocalWallet) => w.address === WALLET_ADDRESS_1);
-
-      expect(wallet1?.token).toBe("new-token");
-
-      cleanup();
-    });
-
-    it("updates managed wallet", () => {
-      const { storage, cleanup } = setup();
-
-      const managedWallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        selected: true,
-        creditAmount: 100,
-        isTrialing: false
-      });
-
-      storage.set(`${NETWORK_ID}/managed-wallets`, JSON.stringify({ [USER_ID_1]: managedWallet }));
-
-      updateWallet(WALLET_ADDRESS_1, (w: LocalWallet) => ({ ...w, token: "new-token" }), NETWORK_ID);
-
-      const updated = getStorageManagedWallet(USER_ID_1, NETWORK_ID);
-      expect(updated?.token).toBe("new-token");
-      expect(updated?.userId).toBe(USER_ID_1);
-
-      cleanup();
-    });
-
-    it("does nothing if wallet not found", () => {
-      const { storage, cleanup } = setup();
-
-      const wallet = buildCustodialLocalWallet({ address: WALLET_ADDRESS_1, selected: true });
-
-      storage.set(`${NETWORK_ID}/wallets`, JSON.stringify([wallet]));
-
-      updateWallet("non-existent-address", (w: LocalWallet) => ({ ...w, token: "new-token" }));
-
-      const stored = getStorageWallets();
-      expect(stored).toHaveLength(1);
-      expect(stored[0].token).toBeUndefined();
-
-      cleanup();
-    });
-  });
-
-  describe("deleteWalletFromStorage", () => {
-    it("removes wallet by address", () => {
-      const { storage, cleanup } = setup();
-
-      const wallets: LocalWallet[] = [
-        buildCustodialLocalWallet({ address: WALLET_ADDRESS_1, selected: true }),
-        buildCustodialLocalWallet({ address: WALLET_ADDRESS_2, selected: false })
-      ];
-
-      storage.set(`${NETWORK_ID}/wallets`, JSON.stringify(wallets));
-
-      const result = deleteWalletFromStorage(WALLET_ADDRESS_1, false);
-
-      expect(result).toHaveLength(1);
-      expect(result[0].address).toBe(WALLET_ADDRESS_2);
-
-      cleanup();
-    });
-
-    it("selects first remaining wallet after deletion", () => {
-      const { storage, cleanup } = setup();
-
-      const wallets: LocalWallet[] = [
-        buildCustodialLocalWallet({ address: WALLET_ADDRESS_1, selected: true }),
-        buildCustodialLocalWallet({ address: WALLET_ADDRESS_2, selected: false })
-      ];
-
-      storage.set(`${NETWORK_ID}/wallets`, JSON.stringify(wallets));
-
-      const result = deleteWalletFromStorage(WALLET_ADDRESS_1, false);
-
-      expect(result[0].selected).toBe(true);
-
-      cleanup();
-    });
-
-    it("removes wallet settings from localStorage", () => {
-      const { storage, mockLocalStorage, cleanup } = setup();
-
-      const wallet = buildCustodialLocalWallet({ address: WALLET_ADDRESS_1, selected: true });
-
-      storage.set(`${NETWORK_ID}/wallets`, JSON.stringify([wallet]));
-      storage.set(`${NETWORK_ID}/${WALLET_ADDRESS_1}/settings`, "{}");
-      storage.set(`${NETWORK_ID}/${WALLET_ADDRESS_1}/provider.data`, "{}");
-
-      deleteWalletFromStorage(WALLET_ADDRESS_1, false);
-
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(`${NETWORK_ID}/${WALLET_ADDRESS_1}/settings`);
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(`${NETWORK_ID}/${WALLET_ADDRESS_1}/provider.data`);
-
-      cleanup();
-    });
-
-    it("removes deployments when deleteDeployments is true", () => {
-      const { storage, cleanup } = setup();
-
-      const wallet = buildCustodialLocalWallet({ address: WALLET_ADDRESS_1, selected: true });
-
-      storage.set(`${NETWORK_ID}/wallets`, JSON.stringify([wallet]));
-      storage.set(`${NETWORK_ID}/${WALLET_ADDRESS_1}/deployments/123`, "{}");
-      storage.set(`${NETWORK_ID}/${WALLET_ADDRESS_1}/deployments/456`, "{}");
-
-      deleteWalletFromStorage(WALLET_ADDRESS_1, true);
-
-      expect(storage.get(`${NETWORK_ID}/${WALLET_ADDRESS_1}/deployments/123`)).toBeUndefined();
-      expect(storage.get(`${NETWORK_ID}/${WALLET_ADDRESS_1}/deployments/456`)).toBeUndefined();
-
-      cleanup();
-    });
-
-    it("preserves deployments when deleteDeployments is false", () => {
-      const { storage, cleanup } = setup();
-
-      const wallet = buildCustodialLocalWallet({ address: WALLET_ADDRESS_1, selected: true });
-
-      storage.set(`${NETWORK_ID}/wallets`, JSON.stringify([wallet]));
-      storage.set(`${NETWORK_ID}/${WALLET_ADDRESS_1}/deployments/123`, "{}");
-
-      deleteWalletFromStorage(WALLET_ADDRESS_1, false);
-
-      expect(storage.get(`${NETWORK_ID}/${WALLET_ADDRESS_1}/deployments/123`)).toBeDefined();
+      updateStorageManagedWallet(
+        buildManagedLocalWallet({ address: WALLET_ADDRESS_1, userId: USER_ID_1, creditAmount: 100, isTrialing: false, selected: true })
+      );
+
+      const result = updateStorageManagedWallet({ userId: USER_ID_1, creditAmount: 200 });
+      expect(result?.selected).toBe(true);
 
       cleanup();
     });
   });
 
   describe("deleteManagedWalletFromStorage", () => {
-    it("removes managed wallet for specific user", () => {
+    it("removes managed wallet for the requested user", () => {
       const { storage, cleanup } = setup();
 
-      const wallet1 = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        selected: true,
-        creditAmount: 100,
-        isTrialing: false
-      });
-
-      const wallet2 = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_2,
-        userId: USER_ID_2,
-        selected: false,
-        creditAmount: 200,
-        isTrialing: true
-      });
-
-      const managedWalletsMap = {
-        [USER_ID_1]: wallet1,
-        [USER_ID_2]: wallet2
-      };
-
-      storage.set(`${MANAGED_NETWORK_ID}/managed-wallets`, JSON.stringify(managedWalletsMap));
+      storage.set(
+        `${MANAGED_NETWORK_ID}/managed-wallets`,
+        JSON.stringify({
+          [USER_ID_1]: buildManagedLocalWallet({ address: WALLET_ADDRESS_1, userId: USER_ID_1, selected: true, creditAmount: 100, isTrialing: false }),
+          [USER_ID_2]: buildManagedLocalWallet({ address: WALLET_ADDRESS_2, userId: USER_ID_2, selected: false, creditAmount: 200, isTrialing: true })
+        })
+      );
       storage.set(`${MANAGED_NETWORK_ID}/${WALLET_ADDRESS_1}/deployments/123`, "{}");
 
       deleteManagedWalletFromStorage(USER_ID_1, MANAGED_NETWORK_ID);
 
-      const remainingMap = JSON.parse(storage.get(`${MANAGED_NETWORK_ID}/managed-wallets`)!);
-      expect(remainingMap[USER_ID_1]).toBeUndefined();
-      expect(remainingMap[USER_ID_2]).toBeDefined();
+      const remaining = JSON.parse(storage.get(`${MANAGED_NETWORK_ID}/managed-wallets`)!);
+      expect(remaining[USER_ID_1]).toBeUndefined();
+      expect(remaining[USER_ID_2]).toBeDefined();
       expect(storage.get(`${MANAGED_NETWORK_ID}/${WALLET_ADDRESS_1}/deployments/123`)).toBeUndefined();
 
       cleanup();
     });
 
-    it("removes managed-wallets key when last wallet is deleted", () => {
+    it("removes the managed-wallets key when the last entry is deleted", () => {
       const { storage, cleanup } = setup();
 
-      const wallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        selected: true,
-        creditAmount: 100,
-        isTrialing: false
-      });
-
-      const managedWalletsMap = {
-        [USER_ID_1]: wallet
-      };
-
-      storage.set(`${MANAGED_NETWORK_ID}/managed-wallets`, JSON.stringify(managedWalletsMap));
+      storage.set(
+        `${MANAGED_NETWORK_ID}/managed-wallets`,
+        JSON.stringify({
+          [USER_ID_1]: buildManagedLocalWallet({ address: WALLET_ADDRESS_1, userId: USER_ID_1, selected: true, creditAmount: 100, isTrialing: false })
+        })
+      );
 
       deleteManagedWalletFromStorage(USER_ID_1, MANAGED_NETWORK_ID);
 
@@ -768,32 +201,24 @@ describe("walletUtils", () => {
       cleanup();
     });
 
-    it("does nothing if userId is empty", () => {
+    it("does nothing when userId is empty", () => {
       const { storage, cleanup } = setup();
 
-      const wallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        selected: true,
-        creditAmount: 100,
-        isTrialing: false
-      });
-
-      const managedWalletsMap = {
-        [USER_ID_1]: wallet
-      };
-
-      storage.set(`${MANAGED_NETWORK_ID}/managed-wallets`, JSON.stringify(managedWalletsMap));
+      storage.set(
+        `${MANAGED_NETWORK_ID}/managed-wallets`,
+        JSON.stringify({
+          [USER_ID_1]: buildManagedLocalWallet({ address: WALLET_ADDRESS_1, userId: USER_ID_1, selected: true, creditAmount: 100, isTrialing: false })
+        })
+      );
 
       deleteManagedWalletFromStorage("", MANAGED_NETWORK_ID);
 
-      const stored = storage.get(`${MANAGED_NETWORK_ID}/managed-wallets`);
-      expect(stored).toBeDefined();
+      expect(storage.get(`${MANAGED_NETWORK_ID}/managed-wallets`)).toBeDefined();
 
       cleanup();
     });
 
-    it("does nothing if wallet doesn't exist", () => {
+    it("does nothing when the wallet doesn't exist", () => {
       const { cleanup } = setup();
 
       deleteManagedWalletFromStorage("non-existent-user", MANAGED_NETWORK_ID);
@@ -803,279 +228,26 @@ describe("walletUtils", () => {
   });
 
   describe("ensureUserManagedWalletOwnership", () => {
-    it("adds managed wallet to shared wallet list if missing", () => {
-      const { storage, cleanup } = setup();
+    it("marks the user's managed wallet as selected when it is not", () => {
+      const { cleanup } = setup();
 
-      const managedWallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        selected: false,
-        creditAmount: 100,
-        isTrialing: false
-      });
-
-      storage.set(`${MANAGED_NETWORK_ID}/managed-wallets`, JSON.stringify({ [USER_ID_1]: managedWallet }));
+      updateStorageManagedWallet(
+        buildManagedLocalWallet({ address: WALLET_ADDRESS_1, userId: USER_ID_1, selected: false, creditAmount: 100, isTrialing: false })
+      );
 
       ensureUserManagedWalletOwnership(USER_ID_1);
 
-      const wallets = getStorageWallets(MANAGED_NETWORK_ID);
-      const found = wallets.find((w: LocalWallet) => w.isManaged && (w as { userId?: string }).userId === USER_ID_1);
-
-      expect(found).toBeDefined();
-      expect(found?.address).toBe(WALLET_ADDRESS_1);
+      expect(getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID)?.selected).toBe(true);
 
       cleanup();
     });
 
-    it("sets managed wallet as selected when adding to list", () => {
-      const { storage, cleanup } = setup();
-
-      const managedWallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        selected: false,
-        creditAmount: 100,
-        isTrialing: false
-      });
-
-      const custodialWallet = buildCustodialLocalWallet({
-        address: WALLET_ADDRESS_2,
-        selected: true
-      });
-
-      storage.set(`${MANAGED_NETWORK_ID}/managed-wallets`, JSON.stringify({ [USER_ID_1]: managedWallet }));
-      storage.set(`${MANAGED_NETWORK_ID}/wallets`, JSON.stringify([custodialWallet]));
-
-      ensureUserManagedWalletOwnership(USER_ID_1);
-
-      const wallets = getStorageWallets(MANAGED_NETWORK_ID);
-      const managed = wallets.find((w: LocalWallet) => w.isManaged && (w as { userId?: string }).userId === USER_ID_1);
-
-      expect(managed?.selected).toBe(true);
-
-      cleanup();
-    });
-
-    it("does nothing if wallet doesn't exist", () => {
+    it("is a no-op when the wallet doesn't exist", () => {
       const { cleanup } = setup();
 
       ensureUserManagedWalletOwnership("non-existent-user");
 
-      const wallets = getStorageWallets(MANAGED_NETWORK_ID);
-      expect(wallets).toHaveLength(0);
-
-      cleanup();
-    });
-
-    it("updates wallet list if address changed", () => {
-      const { storage, cleanup } = setup();
-
-      const oldManagedWallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        selected: true,
-        creditAmount: 100,
-        isTrialing: false
-      });
-
-      const newManagedWallet = buildManagedLocalWallet({
-        ...oldManagedWallet,
-        address: WALLET_ADDRESS_2
-      });
-
-      storage.set(`${MANAGED_NETWORK_ID}/wallets`, JSON.stringify([oldManagedWallet]));
-      storage.set(`${MANAGED_NETWORK_ID}/managed-wallets`, JSON.stringify({ [USER_ID_1]: newManagedWallet }));
-
-      ensureUserManagedWalletOwnership(USER_ID_1);
-
-      const custodialWallets = JSON.parse(storage.get(`${MANAGED_NETWORK_ID}/wallets`)!);
-      expect(custodialWallets.some((w: LocalWallet) => w.address === WALLET_ADDRESS_2)).toBe(false);
-
-      cleanup();
-    });
-  });
-
-  describe("CRITICAL BUG REGRESSION TESTS: No automatic deletion on disconnect", () => {
-    it("managed wallet persists when user becomes undefined (disconnect scenario)", () => {
-      const { cleanup } = setup();
-
-      const managedWallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        selected: true,
-        creditAmount: 100,
-        isTrialing: false,
-        token: "token-cert1"
-      });
-
-      updateStorageManagedWallet(managedWallet);
-
-      const beforeDisconnect = getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID);
-      expect(beforeDisconnect).toBeDefined();
-
-      const afterDisconnect = getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID);
-      expect(afterDisconnect).toEqual(beforeDisconnect);
-      expect(afterDisconnect?.token).toBe("token-cert1");
-
-      cleanup();
-    });
-
-    it("managed wallet persists across network disconnections", () => {
-      const { cleanup } = setup();
-
-      const managedWallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        selected: true,
-        creditAmount: 100,
-        isTrialing: false,
-        token: "token-important-cert"
-      });
-
-      updateStorageManagedWallet(managedWallet);
-
-      for (let i = 0; i < 10; i++) {
-        const retrieved = getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID);
-        expect(retrieved).toBeDefined();
-        expect(retrieved?.token).toBe("token-important-cert");
-      }
-
-      cleanup();
-    });
-
-    it("multiple users can disconnect and reconnect without losing data", () => {
-      const { cleanup } = setup();
-
-      const user1Wallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        creditAmount: 100,
-        isTrialing: false,
-        token: "token-user1-cert"
-      });
-
-      const user2Wallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_2,
-        userId: USER_ID_2,
-        creditAmount: 200,
-        isTrialing: true,
-        token: "token-user2-cert"
-      });
-
-      updateStorageManagedWallet(user1Wallet);
-      updateStorageManagedWallet(user2Wallet);
-
-      const user1Retrieved = getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID);
-      const user2Retrieved = getStorageManagedWallet(USER_ID_2, MANAGED_NETWORK_ID);
-
-      expect(user1Retrieved?.token).toBe("token-user1-cert");
-      expect(user2Retrieved?.token).toBe("token-user2-cert");
-
-      cleanup();
-    });
-  });
-
-  describe("Multi-user scenarios", () => {
-    it("User A and User B can both have managed wallets on same browser", () => {
-      const { cleanup } = setup();
-
-      const userAWallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        creditAmount: 100,
-        isTrialing: false,
-        token: "token-userA-cert"
-      });
-
-      const userBWallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_2,
-        userId: USER_ID_2,
-        creditAmount: 200,
-        isTrialing: true,
-        token: "token-userB-cert"
-      });
-
-      updateStorageManagedWallet(userAWallet);
-      updateStorageManagedWallet(userBWallet);
-
-      const storedA = getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID);
-      const storedB = getStorageManagedWallet(USER_ID_2, MANAGED_NETWORK_ID);
-
-      expect(storedA?.userId).toBe(USER_ID_1);
-      expect(storedB?.userId).toBe(USER_ID_2);
-      expect(storedA?.token).toBe("token-userA-cert");
-      expect(storedB?.token).toBe("token-userB-cert");
-
-      cleanup();
-    });
-
-    it("User B login doesn't erase User A data", () => {
-      const { cleanup } = setup();
-
-      const userAWallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        creditAmount: 100,
-        isTrialing: false,
-        token: "token-userA-cert"
-      });
-
-      updateStorageManagedWallet(userAWallet);
-
-      const userBWallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_2,
-        userId: USER_ID_2,
-        creditAmount: 200,
-        isTrialing: true,
-        token: "token-userB-cert",
-        selected: true
-      });
-
-      updateStorageManagedWallet(userBWallet);
-
-      const userAAfterBLogin = getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID);
-      expect(userAAfterBLogin).toBeDefined();
-      expect(userAAfterBLogin?.token).toBe("token-userA-cert");
-      expect(userAAfterBLogin?.userId).toBe(USER_ID_1);
-
-      cleanup();
-    });
-
-    it("Users can switch between accounts without data loss", () => {
-      const { cleanup } = setup();
-
-      const userAWallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_1,
-        userId: USER_ID_1,
-        creditAmount: 100,
-        isTrialing: false,
-        token: "token-userA-cert",
-        selected: true
-      });
-
-      const userBWallet = buildManagedLocalWallet({
-        address: WALLET_ADDRESS_2,
-        userId: USER_ID_2,
-        creditAmount: 200,
-        isTrialing: true,
-        token: "token-userB-cert",
-        selected: false
-      });
-
-      updateStorageManagedWallet(userAWallet);
-      updateStorageManagedWallet(userBWallet);
-
-      updateStorageManagedWallet({ ...userBWallet, selected: true });
-      updateStorageManagedWallet({ ...userAWallet, selected: false });
-
-      const allWallets = getStorageWallets(MANAGED_NETWORK_ID);
-      expect(allWallets).toHaveLength(2);
-
-      const userAStored = getStorageManagedWallet(USER_ID_1, MANAGED_NETWORK_ID);
-      const userBStored = getStorageManagedWallet(USER_ID_2, MANAGED_NETWORK_ID);
-
-      expect(userAStored?.token).toBe("token-userA-cert");
-      expect(userBStored?.token).toBe("token-userB-cert");
+      expect(getStorageManagedWallet("non-existent-user", MANAGED_NETWORK_ID)).toBeUndefined();
 
       cleanup();
     });
@@ -1095,10 +267,7 @@ describe("walletUtils", () => {
       clear: vi.fn(() => {
         storage.clear();
       }),
-      key: vi.fn((index: number) => {
-        const keys = Array.from(storage.keys());
-        return keys[index] ?? null;
-      }),
+      key: vi.fn((index: number) => Array.from(storage.keys())[index] ?? null),
       length: 0
     });
 
@@ -1111,16 +280,10 @@ describe("walletUtils", () => {
     const originalLocalStorage = global.localStorage;
 
     const localStorageProxy = new Proxy(mockLocalStorage, {
-      ownKeys: () => {
-        return Array.from(storage.keys());
-      },
-      getOwnPropertyDescriptor: (target, key) => {
+      ownKeys: () => Array.from(storage.keys()),
+      getOwnPropertyDescriptor: (_target, key) => {
         if (storage.has(key as string)) {
-          return {
-            enumerable: true,
-            configurable: true,
-            value: storage.get(key as string)
-          };
+          return { enumerable: true, configurable: true, value: storage.get(key as string) };
         }
         return undefined;
       }
@@ -1132,11 +295,6 @@ describe("walletUtils", () => {
       configurable: true
     });
 
-    Object.defineProperty(networkStore, "selectedNetworkId", {
-      value: NETWORK_ID,
-      writable: true,
-      configurable: true
-    });
     Object.defineProperty(browserEnvConfig, "NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID", {
       value: MANAGED_NETWORK_ID,
       writable: true,
@@ -1144,7 +302,6 @@ describe("walletUtils", () => {
     });
 
     return {
-      mockLocalStorage,
       storage,
       cleanup: () => {
         Object.defineProperty(global, "localStorage", {

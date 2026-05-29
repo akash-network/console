@@ -7,7 +7,6 @@ import { AccountMenu } from "./AccountMenu";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { buildWallet } from "@tests/seeders/wallet";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(AccountMenu.name, () => {
@@ -57,11 +56,10 @@ describe(AccountMenu.name, () => {
     expect(authService.logout).toHaveBeenCalledTimes(1);
   });
 
-  it("shows Billing & Usage when flag, userId, and managed wallet are all present", async () => {
+  it("shows Billing & Usage when flag and userId are both present", async () => {
     setup({
       username: "carol",
       userId: "user-1",
-      isManagedWallet: true,
       isBillingUsageEnabled: true
     });
 
@@ -74,7 +72,6 @@ describe(AccountMenu.name, () => {
     setup({
       username: "dan",
       userId: "user-1",
-      isManagedWallet: true,
       isBillingUsageEnabled: false
     });
 
@@ -84,7 +81,7 @@ describe(AccountMenu.name, () => {
     expect(screen.queryByText("Billing & Usage")).not.toBeInTheDocument();
   });
 
-  function setup(input: { isLoading?: boolean; username?: string; userId?: string; isManagedWallet?: boolean; isBillingUsageEnabled?: boolean }) {
+  function setup(input: { isLoading?: boolean; username?: string; userId?: string; isBillingUsageEnabled?: boolean }) {
     const push = vi.fn();
     const authService = mock<AuthService>();
 
@@ -95,8 +92,7 @@ describe(AccountMenu.name, () => {
           isLoading: input.isLoading ?? false
         }),
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push }),
-      useFlag: flagName => (flagName === "billing_usage" && input.isBillingUsageEnabled) ?? false,
-      useWallet: () => buildWallet({ isManaged: input.isManagedWallet ?? false })
+      useFlag: flagName => (flagName === "billing_usage" && input.isBillingUsageEnabled) ?? false
     };
 
     render(

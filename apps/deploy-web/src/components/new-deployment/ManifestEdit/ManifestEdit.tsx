@@ -37,7 +37,6 @@ import { SDLEditor } from "../../sdl/SDLEditor/SDLEditor";
 import { TrialDeploymentBadge } from "../../shared";
 import { CustomNextSeo } from "../../shared/CustomNextSeo";
 import { LinkTo } from "../../shared/LinkTo";
-import { PrerequisiteList } from "../../shared/PrerequisiteList";
 import { ViewPanel } from "../../shared/ViewPanel";
 import type { SdlBuilderRefType } from "../SdlBuilder";
 import { SdlBuilder } from "../SdlBuilder";
@@ -68,7 +67,6 @@ export const DEPENDENCIES = {
   TrialDeploymentBadge,
   CustomNextSeo,
   LinkTo,
-  PrerequisiteList,
   ViewPanel,
   useServices,
   useSettings,
@@ -96,7 +94,6 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const [deploymentName, setDeploymentName] = useState("");
   const [isCreatingDeployment, setIsCreatingDeployment] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
-  const [isCheckingPrerequisites, setIsCheckingPrerequisites] = useState(false);
   const [selectedSdlEditMode, setSelectedSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const [isRepoInputValid, setIsRepoInputValid] = useState(false);
   const sdlDenom = useMemo(() => {
@@ -112,7 +109,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
 
   const { analyticsService, publicConfig: appConfig, deploymentLocalStorage } = d.useServices();
   const { settings } = d.useSettings();
-  const { address, signAndBroadcastTx, isManaged, isTrialing } = d.useWallet();
+  const { address, signAndBroadcastTx, isTrialing } = d.useWallet();
   const router = d.useRouter();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const muiTheme = d.useMuiTheme();
@@ -128,13 +125,11 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const services = d.useImportSimpleSdl(isValidSdl ? editedManifest : null);
 
   useWhen(
-    wallet.isManaged && !!wallet.denom && sdlDenom !== wallet.denom && editedManifest,
+    !!wallet.denom && sdlDenom !== wallet.denom && editedManifest,
     () => {
-      if (wallet.isManaged) {
-        setEditedManifest(prev => (prev ? replaceSdlDenom(prev, wallet.denom) : prev));
-      }
+      setEditedManifest(prev => (prev ? replaceSdlDenom(prev, wallet.denom) : prev));
     },
-    [editedManifest, wallet.isManaged, wallet.denom, sdlDenom]
+    [editedManifest, wallet.denom, sdlDenom]
   );
   useWhen(hasComponent("ssh"), () => {
     setSelectedSdlEditMode("builder");
@@ -217,21 +212,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
       return;
     }
 
-    if (isManaged) {
-      setIsDepositingDeployment(true);
-    } else {
-      setIsCheckingPrerequisites(true);
-    }
-  };
-
-  const onPrerequisiteContinue = () => {
-    setIsCheckingPrerequisites(false);
-
-    if (isManaged) {
-      handleCreateClick(defaultDeposit);
-    } else {
-      setIsDepositingDeployment(true);
-    }
+    setIsDepositingDeployment(true);
   };
 
   const onDeploymentDeposit = async (deposit: number) => {
@@ -249,12 +230,10 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
         return;
       }
 
-      if (wallet.isManaged) {
-        sdl = appendAuditorRequirement(sdl);
+      sdl = appendAuditorRequirement(sdl);
 
-        if (wallet.denom !== "uakt") {
-          sdl = replaceSdlDenom(sdl, wallet.denom);
-        }
+      if (wallet.denom !== "uakt") {
+        sdl = replaceSdlDenom(sdl, wallet.denom);
       }
 
       const dd = await createAndValidateDeploymentData(sdl, null, deposit);
@@ -458,7 +437,6 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
           services={services}
         />
       )}
-      {isCheckingPrerequisites && <d.PrerequisiteList onClose={() => setIsCheckingPrerequisites(false)} onContinue={onPrerequisiteContinue} />}
     </>
   );
 };

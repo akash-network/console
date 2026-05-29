@@ -4,16 +4,14 @@ import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { ContextType as WalletProviderContextType } from "@src/context/WalletProvider/WalletProvider";
-import { USE_DEPLOYMENT_SETTING_DEPENDENCIES, useDeploymentSettingQuery } from "./deploymentSettingsQuery";
+import { useDeploymentSettingQuery } from "./deploymentSettingsQuery";
 
 import { act } from "@testing-library/react";
-import { buildWallet } from "@tests/seeders";
 import { setupQuery } from "@tests/unit/query-client";
 
 describe("useDeploymentSettingQuery", () => {
   describe("query", () => {
-    it("fetches deployment setting by dseq when wallet is managed", async () => {
+    it("fetches deployment setting by dseq", async () => {
       const dseq = faker.string.numeric(6);
       const settingData = buildDeploymentSetting({ dseq });
       const deploymentSettingService = mock<DeploymentSettingHttpService>({
@@ -26,20 +24,6 @@ describe("useDeploymentSettingQuery", () => {
         expect(result.current.data).toEqual(settingData);
       });
       expect(deploymentSettingService.findByDseq).toHaveBeenCalledWith(dseq);
-    });
-
-    it("does not fetch when wallet is not managed", () => {
-      const dseq = faker.string.numeric(6);
-      const deploymentSettingService = mock<DeploymentSettingHttpService>();
-
-      const { result } = setup({
-        dseq,
-        wallet: buildWallet({ isManaged: false }),
-        services: { deploymentSetting: () => deploymentSettingService }
-      });
-
-      expect(result.current.data).toBeUndefined();
-      expect(deploymentSettingService.findByDseq).not.toHaveBeenCalled();
     });
 
     it("does not fetch when dseq is empty", () => {
@@ -86,36 +70,10 @@ describe("useDeploymentSettingQuery", () => {
       });
       expect(deploymentSettingService.updateByDseq).toHaveBeenCalledWith(dseq, { autoTopUpEnabled: true });
     });
-
-    it("throws when wallet is not managed", async () => {
-      const dseq = faker.string.numeric(6);
-      const deploymentSettingService = mock<DeploymentSettingHttpService>();
-
-      const { result } = setup({
-        dseq,
-        wallet: buildWallet({ isManaged: false }),
-        services: { deploymentSetting: () => deploymentSettingService }
-      });
-
-      act(() => {
-        result.current.update(true);
-      });
-
-      await vi.waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-      expect(deploymentSettingService.updateByDseq).not.toHaveBeenCalled();
-    });
   });
 
-  function setup(input: { dseq: string; wallet?: WalletProviderContextType; services?: Record<string, () => unknown> }) {
-    const wallet = input.wallet ?? buildWallet({ isManaged: true });
-    const dependencies: typeof USE_DEPLOYMENT_SETTING_DEPENDENCIES = {
-      ...USE_DEPLOYMENT_SETTING_DEPENDENCIES,
-      useWallet: () => wallet
-    };
-
-    return setupQuery(() => useDeploymentSettingQuery({ dseq: input.dseq }, dependencies), {
+  function setup(input: { dseq: string; services?: Record<string, () => unknown> }) {
+    return setupQuery(() => useDeploymentSettingQuery({ dseq: input.dseq }), {
       services: {
         deploymentSetting: () => mock<DeploymentSettingHttpService>(),
         ...input.services

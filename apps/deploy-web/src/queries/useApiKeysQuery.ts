@@ -3,13 +3,11 @@ import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { useWallet } from "@src/context/WalletProvider";
 import { useUser } from "@src/hooks/useUser";
 import { QueryKeys } from "./queryKeys";
 
 export const USE_API_KEYS_DEPENDENCIES = {
-  useUser,
-  useWallet
+  useUser
 };
 
 export function useUserApiKeys(
@@ -17,13 +15,12 @@ export function useUserApiKeys(
   dependencies: typeof USE_API_KEYS_DEPENDENCIES = USE_API_KEYS_DEPENDENCIES
 ) {
   const { user } = dependencies.useUser();
-  const { isManaged } = dependencies.useWallet();
   const { apiKey } = useServices();
 
   return useQuery<ApiKeyResponse[], Error>({
     queryKey: QueryKeys.getApiKeysKey(user?.userId ?? ""),
     queryFn: async () => await apiKey.getApiKeys(),
-    enabled: !!user?.userId && isManaged,
+    enabled: !!user?.userId,
     refetchInterval: 10_000,
     retry: failureCount => failureCount < 5,
     retryDelay: 10_000,

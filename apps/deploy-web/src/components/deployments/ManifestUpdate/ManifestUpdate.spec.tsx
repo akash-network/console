@@ -326,16 +326,16 @@ describe(ManifestUpdate.name, () => {
       ({
         address: input?.wallet?.address || "akash1test",
         signAndBroadcastTx: input?.wallet?.signAndBroadcastTx || vi.fn(),
-        isManaged: input?.wallet?.isManaged ?? false,
+        isManaged: true,
         walletName: "",
         isWalletConnected: true,
         isWalletLoaded: true,
         connectManagedWallet: vi.fn(),
         logout: vi.fn(),
-        isCustodial: false,
         isWalletLoading: false,
         isTrialing: false,
         isOnboarding: false,
+        topUpMinAmountUsd: 20,
         hasManagedWallet: false,
         denom: "uact"
       }) as ReturnType<typeof DEPENDENCIES.useWallet>;

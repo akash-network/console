@@ -5,7 +5,6 @@ import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowDown, Wallet } from "iconoir-react";
 
 import { useWallet } from "@src/context/WalletProvider";
-import { getSplitText } from "@src/hooks/useShortText";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { ManagedWalletPopup } from "../wallet/ManagedWalletPopup/ManagedWalletPopup";
 import { WalletConnectionButtons } from "../wallet/WalletConnectionButtons";
@@ -23,7 +22,7 @@ interface Props {
 }
 
 export function WalletStatus({ dependencies: d = DEPENDENCIES }: Props = {}) {
-  const { walletName, isWalletLoaded, isWalletConnected, isManaged, isWalletLoading, isTrialing } = d.useWallet();
+  const { isWalletLoaded, isWalletConnected, isWalletLoading, isTrialing } = d.useWallet();
   const { balance: walletBalance, isLoading: isWalletBalanceLoading } = d.useWalletBalance();
   const isLoadingBalance = isWalletBalanceLoading && !walletBalance;
   const isInit = isWalletLoaded && !isWalletLoading && !isLoadingBalance;
@@ -43,24 +42,15 @@ export function WalletStatus({ dependencies: d = DEPENDENCIES }: Props = {}) {
                   >
                     <div className="flex items-center space-x-2" aria-label="Connected wallet name and balance">
                       <Wallet className="text-xs" />
-                      {isManaged && isTrialing && <span className="text-xs">Trial</span>}
-                      {!isManaged && (
-                        <>
-                          {walletName?.length > 20 ? (
-                            <span className="text-xs">{getSplitText(walletName, 4, 4)}</span>
-                          ) : (
-                            <span className="text-xs">{walletName}</span>
-                          )}
-                        </>
-                      )}
+                      {isTrialing && <span className="text-xs">Trial</span>}
                     </div>
 
-                    {walletBalance && ((isManaged && isTrialing) || !isManaged) && <div className="text-muted-foreground">|</div>}
+                    {walletBalance && isTrialing && <div className="text-muted-foreground">|</div>}
 
                     <div className="text-xs">
                       {walletBalance && (
                         <d.FormattedNumber
-                          value={isManaged ? walletBalance.totalDeploymentGrantsUSD : walletBalance.totalUsd}
+                          value={walletBalance.totalDeploymentGrantsUSD}
                           // eslint-disable-next-line react/style-prop-object
                           style="currency"
                           currency="USD"

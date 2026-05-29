@@ -109,22 +109,12 @@ describe(DeploymentDetailTopBar.name, () => {
       expect(screen.queryByText("Redeploy")).not.toBeInTheDocument();
     });
 
-    it("renders auto top-up section when wallet is managed", () => {
+    it("renders auto top-up section", () => {
       setup({
-        deployment: createDeployment({ state: "active" }),
-        wallet: { isManaged: true }
+        deployment: createDeployment({ state: "active" })
       });
 
       expect(screen.getByText("Auto top-up")).toBeInTheDocument();
-    });
-
-    it("does not render auto top-up section when wallet is not managed", () => {
-      setup({
-        deployment: createDeployment({ state: "active" }),
-        wallet: { isManaged: false }
-      });
-
-      expect(screen.queryByText("Auto top-up")).not.toBeInTheDocument();
     });
 
     it("renders DeploymentDepositModal after Add funds click", () => {
@@ -244,18 +234,18 @@ describe(DeploymentDetailTopBar.name, () => {
       })) as typeof DEPENDENCIES.useLocalNotes,
       useWallet: vi.fn(() => ({
         signAndBroadcastTx: input?.wallet?.signAndBroadcastTx ?? vi.fn(() => Promise.resolve(true)),
-        isManaged: input?.wallet?.isManaged ?? false,
-        denom: input?.wallet?.denom ?? "uakt",
+        isManaged: true,
+        denom: input?.wallet?.denom ?? "uact",
         address: "akash1test",
         walletName: "test",
         isWalletConnected: true,
         isWalletLoaded: true,
         connectManagedWallet: vi.fn(),
         logout: vi.fn(),
-        isCustodial: false,
         isWalletLoading: false,
         isTrialing: false,
         isOnboarding: false,
+        topUpMinAmountUsd: 20,
         hasManagedWallet: false
       })) as typeof DEPENDENCIES.useWallet,
       usePricing: vi.fn(() => ({

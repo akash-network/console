@@ -36,7 +36,6 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { useSettings } from "@src/context/SettingsProvider";
-import { useWallet } from "@src/context/WalletProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
 import sdlStore from "@src/store/sdlStore";
@@ -63,7 +62,6 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
-  const wallet = useWallet();
   const { user } = useUser();
   const isAlertsEnabled = useFlag("alerts");
 
@@ -102,7 +100,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
       }
     ];
 
-    if (isAlertsEnabled && user?.userId && wallet.isManaged) {
+    if (isAlertsEnabled && user?.userId) {
       routes.push({
         title: "Alerts",
         icon: props => <MessageAlert {...props} />,
@@ -112,7 +110,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
     }
 
     return routes;
-  }, [isAlertsEnabled, user?.userId, wallet.isManaged]);
+  }, [isAlertsEnabled, user?.userId]);
 
   const routeGroups: ISidebarGroupMenu[] = useMemo(
     () => [
@@ -270,7 +268,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
     ];
 
     return routes;
-  }, [wallet]);
+  }, []);
 
   const onToggleMenuClick = () => {
     onOpenMenuClick();

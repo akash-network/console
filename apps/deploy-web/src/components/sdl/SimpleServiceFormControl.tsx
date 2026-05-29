@@ -31,7 +31,6 @@ import Image from "next/legacy/image";
 import { SSHKeyFormControl } from "@src/components/sdl/SSHKeyFromControl";
 import { UACT_DENOM } from "@src/config/denom.config";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
-import { useWallet } from "@src/context/WalletProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
@@ -57,7 +56,6 @@ import { ImageInput } from "./ImageInput";
 import { MemoryFormControl } from "./MemoryFormControl";
 import { MountedStorageFormControl } from "./MountedStorageFormControl";
 import { PlacementFormModal } from "./PlacementFormModal";
-import { TokenFormControl } from "./TokenFormControl";
 
 type Props = {
   _services: ServiceType[];
@@ -101,7 +99,6 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   const _credentials = _services[serviceIndex]?.credentials;
   const _isGhcr = _credentials?.host === "ghcr.io";
   const { imageList, hasComponent, toggleCmp } = useSdlBuilder();
-  const wallet = useWallet();
   const isLogCollectorEnabled = useFlag("ui_sdl_log_collector_enabled");
   const onExpandClick = () => {
     setServiceCollapsed(prev => {
@@ -421,12 +418,6 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                           />
                         )}
                       />
-                    </div>
-                  )}
-
-                  {!wallet?.isManaged && (
-                    <div className="mt-4">
-                      <TokenFormControl control={control} name={`services.${serviceIndex}.placement.pricing.denom`} />
                     </div>
                   )}
 

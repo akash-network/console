@@ -244,28 +244,26 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
               Add funds
             </d.Button>
 
-            {wallet.isManaged && (
-              <div className="ml-4 flex items-center gap-2">
-                <d.Switch checked={deploymentSetting.data?.autoTopUpEnabled} onCheckedChange={setAutoTopUpEnabled} disabled={deploymentSetting.isLoading} />
-                <span>Auto top-up</span>
-                <d.CustomTooltip
-                  title={
-                    <div className="space-y-2">
-                      <div>
-                        <div>Estimated amount: ${udenomToUsd(deploymentSetting.data?.estimatedTopUpAmount || 0, wallet.denom)}</div>
-                        <div>Check period: {formatDuration(intervalToDuration({ start: 0, end: deploymentSetting.data?.topUpFrequencyMs || 0 }))}</div>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Auto top-up will only occur if there are insufficient funds to maintain the deployment until the next scheduled check.
-                      </div>
+            <div className="ml-4 flex items-center gap-2">
+              <d.Switch checked={deploymentSetting.data?.autoTopUpEnabled} onCheckedChange={setAutoTopUpEnabled} disabled={deploymentSetting.isLoading} />
+              <span>Auto top-up</span>
+              <d.CustomTooltip
+                title={
+                  <div className="space-y-2">
+                    <div>
+                      <div>Estimated amount: ${udenomToUsd(deploymentSetting.data?.estimatedTopUpAmount || 0, wallet.denom)}</div>
+                      <div>Check period: {formatDuration(intervalToDuration({ start: 0, end: deploymentSetting.data?.topUpFrequencyMs || 0 }))}</div>
                     </div>
-                  }
-                >
-                  <span className="cursor-help text-muted-foreground">ⓘ</span>
-                </d.CustomTooltip>
-                {deploymentSetting.isLoading && <d.Spinner size="small" />}
-              </div>
-            )}
+                    <div className="text-xs text-muted-foreground">
+                      Auto top-up will only occur if there are insufficient funds to maintain the deployment until the next scheduled check.
+                    </div>
+                  </div>
+                }
+              >
+                <span className="cursor-help text-muted-foreground">ⓘ</span>
+              </d.CustomTooltip>
+              {deploymentSetting.isLoading && <d.Spinner size="small" />}
+            </div>
           </div>
         )}
 

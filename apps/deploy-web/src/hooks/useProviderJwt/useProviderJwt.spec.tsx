@@ -1,16 +1,16 @@
 import type { JwtTokenPayload } from "@akashnetwork/chain-sdk/web";
 import type { HttpClient } from "@akashnetwork/http-sdk";
-import type { NetworkStore } from "@akashnetwork/network-store";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { ContextType as WalletContext } from "@src/context/WalletProvider";
-import type { ChainContext as CustodialWallet } from "@src/lib/cosmos-kit-jotai";
+import type { useUser } from "@src/hooks/useUser";
+import type { CustomUserProfile } from "@src/types/user";
 import type * as storedWalletsService from "@src/utils/walletUtils";
-import type { useSelectedChain } from "../useSelectedChain/useSelectedChain";
 import { DEPENDENCIES, REFRESH_SKEW_SECONDS, useProviderJwt } from "./useProviderJwt";
 
-import { act } from "@testing-library/react";
+import { buildWallet } from "@tests/seeders";
+import { buildManagedLocalWallet } from "@tests/seeders/localWallet";
 import type { RenderAppHookOptions } from "@tests/unit/query-client";
 import { setupQuery } from "@tests/unit/query-client";
 
@@ -25,48 +25,38 @@ describe(useProviderJwt.name, () => {
     expect(typeof result.current.generateToken).toBe("function");
   });
 
-  it("retrieves token from storage when wallet address changes", () => {
+  it("reads token from managed-wallet storage on mount", () => {
     const token = genFakeToken();
+    const userId = "user-1";
+    const wallet = buildManagedLocalWallet({ userId, token });
     const storedWalletsService = mock<StoredWalletsService>({
-      getStorageWallets: vi.fn().mockReturnValue([{ address: "akash1234567890", token }])
+      getStorageManagedWallet: vi.fn().mockReturnValue(wallet)
     });
 
     const { result } = setup({
-      services: {
-        storedWalletsService: () => storedWalletsService
-      },
-      wallet: {
-        address: "akash1234567890"
-      }
+      services: { storedWalletsService: () => storedWalletsService },
+      user: { id: userId }
     });
 
     expect(result.current.accessToken).toBe(token);
-    expect(storedWalletsService.getStorageWallets).toHaveBeenCalledWith("mainnet");
+    expect(storedWalletsService.getStorageManagedWallet).toHaveBeenCalledWith(userId);
   });
 
-  it("generates token for managed wallet via API", async () => {
+  it("generates a token via the API and persists it", async () => {
     const token = genFakeToken();
+    const userId = "user-1";
     const consoleApiHttpClient = mock<HttpClient>({
-      post: vi.fn().mockResolvedValue({
-        data: { data: { token } }
-      })
+      post: vi.fn().mockResolvedValue({ data: { data: { token } } })
     } as unknown as HttpClient);
-
     const storedWalletsService = mock<StoredWalletsService>({
-      updateWallet: vi.fn(),
-      getStorageWallets: vi.fn().mockReturnValue([{ address: "akash1234567890", token }])
+      getStorageManagedWallet: vi.fn().mockReturnValue(undefined),
+      updateStorageManagedWallet: vi.fn()
     });
 
     const { result } = setup({
-      services: {
-        consoleApiHttpClient: () => consoleApiHttpClient,
-        storedWalletsService: () => storedWalletsService
-      },
-      wallet: {
-        isManaged: true,
-        isWalletConnected: true,
-        address: "akash1234567890"
-      }
+      services: { consoleApiHttpClient: () => consoleApiHttpClient, storedWalletsService: () => storedWalletsService },
+      user: { id: userId },
+      wallet: { isWalletConnected: true }
     });
 
     await result.current.generateToken();
@@ -80,83 +70,45 @@ describe(useProviderJwt.name, () => {
         }
       }
     });
-    expect(storedWalletsService.updateWallet).toHaveBeenCalledWith("akash1234567890", expect.any(Function));
+    expect(storedWalletsService.updateStorageManagedWallet).toHaveBeenCalledWith({ userId, token });
     expect(result.current.accessToken).toBe(token);
   });
 
-  it("generates token for non-managed wallet via direct signing", async () => {
-    const address = "akash1".padEnd(6 + 38, "0");
-    const custodialWallet = mock<CustodialWallet>({
-      address,
-      signArbitrary: vi.fn().mockResolvedValue({ signature: btoa("signature") })
-    });
-
-    const storedWallets: storedWalletsService.LocalWallet[] = [{ address } as storedWalletsService.LocalWallet];
-    const storedWalletsService = mock<StoredWalletsService>({
-      getStorageWallets: vi.fn(() => storedWallets),
-      updateWallet: vi.fn((address, fn) => {
-        const walletIndex = storedWallets.findIndex(w => w.address === address);
-        if (walletIndex !== -1) {
-          storedWallets[walletIndex] = fn(storedWallets[walletIndex]);
-        }
-        return storedWallets;
-      })
-    });
+  it("throws when generating a token while wallet is disconnected", async () => {
+    const consoleApiHttpClient = mock<HttpClient>({ post: vi.fn() } as unknown as HttpClient);
 
     const { result } = setup({
-      services: {
-        storedWalletsService: () => storedWalletsService
-      },
-      wallet: {
-        isManaged: false,
-        address
-      },
-      custodialWallet
-    });
-
-    await act(() => result.current.generateToken());
-
-    expect(custodialWallet.signArbitrary).toHaveBeenCalledWith(address, expect.any(String));
-    expect(storedWalletsService.updateWallet).toHaveBeenCalledWith(address, expect.any(Function));
-
-    const [, , signature] = result.current.accessToken?.split(".") ?? [];
-    expect(atob(signature)).toBe("signature");
-  });
-
-  it("throws when generating a token while wallet is not connected", async () => {
-    const consoleApiHttpClient = mock<HttpClient>({
-      post: vi.fn()
-    } as unknown as HttpClient);
-
-    const { result } = setup({
-      services: {
-        consoleApiHttpClient: () => consoleApiHttpClient
-      },
-      wallet: {
-        isWalletConnected: false
-      }
+      services: { consoleApiHttpClient: () => consoleApiHttpClient },
+      wallet: { isWalletConnected: false }
     });
 
     await expect(result.current.generateToken()).rejects.toThrow(/wallet is not connected/i);
     expect(consoleApiHttpClient.post).not.toHaveBeenCalled();
   });
 
-  it("detects expired token correctly", () => {
-    const pastTime = Math.floor(Date.now() / 1000) - 100;
+  it("throws when generating a token without an authenticated user", async () => {
+    const consoleApiHttpClient = mock<HttpClient>({ post: vi.fn() } as unknown as HttpClient);
 
     const { result } = setup({
-      initialToken: genFakeToken({ exp: pastTime })
+      services: { consoleApiHttpClient: () => consoleApiHttpClient },
+      wallet: { isWalletConnected: true },
+      user: null
     });
+
+    await expect(result.current.generateToken()).rejects.toThrow(/user is not authenticated/i);
+    expect(consoleApiHttpClient.post).not.toHaveBeenCalled();
+  });
+
+  it("detects expired token correctly", () => {
+    const pastTime = Math.floor(Date.now() / 1000) - 100;
+    const { result } = setup({ initialToken: genFakeToken({ exp: pastTime }) });
 
     expect(result.current.isTokenExpired).toBe(true);
   });
 
   it("detects valid token correctly", () => {
     const futureTime = Math.floor(Date.now() / 1000) + 3600;
-
-    const { result } = setup({
-      initialToken: genFakeToken({ exp: futureTime })
-    });
+    const { result } = setup({ initialToken: genFakeToken({ exp: futureTime }) });
 
     expect(result.current.isTokenExpired).toBe(false);
   });
@@ -192,50 +144,29 @@ describe(useProviderJwt.name, () => {
   function setup(input?: {
     services?: Partial<RenderAppHookOptions["services"]>;
     wallet?: Partial<WalletContext>;
-    custodialWallet?: ReturnType<typeof useSelectedChain>;
+    user?: Partial<CustomUserProfile> | null;
     initialToken?: string;
   }) {
+    const user = input?.user === null ? undefined : { id: "user-1", ...(input?.user ?? {}) };
+    const seededWallet = input?.initialToken ? buildManagedLocalWallet({ userId: user?.id ?? "user-1", token: input.initialToken }) : undefined;
+
     return setupQuery(
       () =>
         useProviderJwt({
           dependencies: {
             ...DEPENDENCIES,
-            useWallet: () =>
-              ({
-                address: "akash1234567890",
-                walletName: "test-wallet",
-                isWalletLoaded: true,
-                connectManagedWallet: vi.fn(),
-                logout: vi.fn(),
-                signAndBroadcastTx: vi.fn(),
-                isManaged: false,
-                isWalletConnected: true,
-                isCustodial: false,
-                isWalletLoading: false,
-                isTrialing: false,
-                isOnboarding: false,
-                creditAmount: 0,
-                hasManagedWallet: false,
-                managedWalletError: undefined,
-                ...input?.wallet
-              }) as WalletContext,
-            useSelectedChain: () =>
-              input?.custodialWallet ??
-              mock<CustodialWallet>({
-                signArbitrary: vi.fn()
+            useWallet: () => buildWallet({ isWalletConnected: true, ...input?.wallet }),
+            useUser: () =>
+              mock<ReturnType<typeof useUser>>({
+                user: user as CustomUserProfile | undefined
               })
           }
         }),
       {
         services: {
-          networkStore: () =>
-            mock<NetworkStore>({
-              useSelectedNetworkId: () => "mainnet"
-            }),
           storedWalletsService: () =>
             mock<StoredWalletsService>({
-              getStorageWallets: () =>
-                input?.initialToken ? [{ address: "akash1234567890", token: input.initialToken } as storedWalletsService.LocalWallet] : []
+              getStorageManagedWallet: vi.fn().mockReturnValue(seededWallet)
             }),
           consoleApiHttpClient: () => mock(),
           ...input?.services

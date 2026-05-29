@@ -5,38 +5,23 @@ import { deriveWalletIsLoading, type DeriveWalletIsLoadingInput } from "./derive
 describe(deriveWalletIsLoading.name, () => {
   it.each<{ name: string; input: DeriveWalletIsLoadingInput; expected: boolean }>([
     {
-      name: "authenticated user, custodial selected, managed-wallet query still loading (the race-condition case)",
-      input: { hasAuthenticatedUserId: true, selectedWalletType: "custodial", isManagedWalletLoading: true, isCustodialConnecting: false },
+      name: "authenticated user with managed-wallet query still loading",
+      input: { hasAuthenticatedUserId: true, isManagedWalletLoading: true },
       expected: true
     },
     {
-      name: "authenticated user, managed selected, managed-wallet query still loading",
-      input: { hasAuthenticatedUserId: true, selectedWalletType: "managed", isManagedWalletLoading: true, isCustodialConnecting: false },
-      expected: true
-    },
-    {
-      name: "unauthenticated, managed selected, managed-wallet query still loading",
-      input: { hasAuthenticatedUserId: false, selectedWalletType: "managed", isManagedWalletLoading: true, isCustodialConnecting: false },
-      expected: true
-    },
-    {
-      name: "custodial selected and a connection is in progress",
-      input: { hasAuthenticatedUserId: false, selectedWalletType: "custodial", isManagedWalletLoading: false, isCustodialConnecting: true },
-      expected: true
-    },
-    {
-      name: "unauthenticated, custodial selected, no activity",
-      input: { hasAuthenticatedUserId: false, selectedWalletType: "custodial", isManagedWalletLoading: false, isCustodialConnecting: false },
+      name: "authenticated user with managed-wallet query settled",
+      input: { hasAuthenticatedUserId: true, isManagedWalletLoading: false },
       expected: false
     },
     {
-      name: "unauthenticated, custodial selected, managed query loading is irrelevant",
-      input: { hasAuthenticatedUserId: false, selectedWalletType: "custodial", isManagedWalletLoading: true, isCustodialConnecting: false },
+      name: "unauthenticated, managed-wallet query loading is irrelevant",
+      input: { hasAuthenticatedUserId: false, isManagedWalletLoading: true },
       expected: false
     },
     {
-      name: "authenticated, managed selected, nothing loading",
-      input: { hasAuthenticatedUserId: true, selectedWalletType: "managed", isManagedWalletLoading: false, isCustodialConnecting: false },
+      name: "unauthenticated, nothing loading",
+      input: { hasAuthenticatedUserId: false, isManagedWalletLoading: false },
       expected: false
     }
   ])("$name → $expected", ({ input, expected }) => {

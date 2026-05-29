@@ -1,33 +1,21 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import type { ApiManagedWalletOutput } from "@akashnetwork/http-sdk";
 import { useAtom } from "jotai";
 
 import { useUser } from "@src/hooks/useUser";
 import { useCreateManagedWalletMutation, useManagedWalletQuery } from "@src/queries/useManagedWalletQuery";
 import walletStore from "@src/store/walletStore";
-import { ensureUserManagedWalletOwnership, getSelectedStorageWallet, updateStorageManagedWallet } from "@src/utils/walletUtils";
+import { ensureUserManagedWalletOwnership, updateStorageManagedWallet } from "@src/utils/walletUtils";
 import { useCustomUser } from "./useCustomUser";
 
 export const useManagedWallet = () => {
   const { user } = useUser();
   const { user: signedInUser } = useCustomUser();
-  const [selectedWalletType, setSelectedWalletType] = useAtom(walletStore.selectedWalletType);
   const { data: queried, isLoading: isInitialLoading, isFetching, refetch } = useManagedWalletQuery(user?.id);
   const { mutate: create, data: created, isPending: isCreating, isSuccess: isCreated, error: createError } = useCreateManagedWalletMutation();
   const wallet = useMemo(() => (queried || created) as ApiManagedWalletOutput, [queried, created]);
   const isLoading = isInitialLoading || isCreating;
   const [, setIsSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
-  const selected = getSelectedStorageWallet();
-  const hasAutoSwitched = useRef(false);
-
-  useEffect(() => {
-    if (!hasAutoSwitched.current && queried) {
-      hasAutoSwitched.current = true;
-      if (selectedWalletType === "custodial") {
-        setSelectedWalletType("managed");
-      }
-    }
-  }, [queried, selectedWalletType, setSelectedWalletType]);
 
   useEffect(() => {
     if (signedInUser?.id && (!!queried || !!created)) {
@@ -65,7 +53,7 @@ export const useManagedWallet = () => {
             username: wallet.username,
             isWalletConnected: isConfigured,
             isWalletLoaded: isConfigured,
-            selected: selected?.address === wallet.address
+            selected: true
           }
         : undefined,
       isLoading,
@@ -73,5 +61,5 @@ export const useManagedWallet = () => {
       createError,
       refetch
     };
-  }, [wallet, selected?.address, isLoading, isFetching, createError, refetch, user?.id, create]);
+  }, [wallet, isLoading, isFetching, createError, refetch, user?.id, create]);
 };

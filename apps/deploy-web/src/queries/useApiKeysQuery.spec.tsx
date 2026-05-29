@@ -4,18 +4,16 @@ import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { ContextType as WalletProviderContextType } from "@src/context/WalletProvider/WalletProvider";
 import type { CustomUserProfile } from "@src/types/user";
 import { USE_API_KEYS_DEPENDENCIES, useCreateApiKey, useDeleteApiKey, useUserApiKeys } from "./useApiKeysQuery";
 
 import { act } from "@testing-library/react";
-import { buildApiKey, buildUser, buildWallet } from "@tests/seeders";
+import { buildApiKey, buildUser } from "@tests/seeders";
 import { setupQuery } from "@tests/unit/query-client";
 
 const mockApiKeys = [buildApiKey({ id: "key-1", name: "Test Key 1" }), buildApiKey({ id: "key-2", name: "Test Key 2" })];
 
 const mockUser: CustomUserProfile = buildUser();
-const mockWallet: WalletProviderContextType = buildWallet();
 
 describe("useApiKeysQuery", () => {
   describe("useUserApiKeys", () => {
@@ -26,7 +24,6 @@ describe("useApiKeysQuery", () => {
 
       const { result } = setupApiKeysQuery({
         user: undefined,
-        wallet: mockWallet,
         services: {
           apiKey: () => apiKeyService
         }
@@ -43,31 +40,13 @@ describe("useApiKeysQuery", () => {
       expect(result.current.query.isSuccess).toBe(false);
     });
 
-    it("should return undefined and not fetch when wallet is not managed", async () => {
-      const apiKeyService = mock<ApiKeyHttpService>({
-        getApiKeys: vi.fn()
-      });
-      const { result } = setupApiKeysQuery({
-        user: mockUser,
-        wallet: { ...mockWallet, isManaged: false },
-        services: {
-          apiKey: () => apiKeyService
-        }
-      });
-
-      expect(result.current.query.fetchStatus).toBe("idle");
-      expect(apiKeyService.getApiKeys).not.toHaveBeenCalled();
-      expect(result.current.query.data).toBeUndefined();
-    });
-
-    it("should fetch API keys when user is valid and wallet is managed", async () => {
+    it("should fetch API keys when user is valid", async () => {
       const apiKeyService = mock<ApiKeyHttpService>({
         getApiKeys: vi.fn().mockResolvedValue(mockApiKeys)
       });
 
       const { result } = setupApiKeysQuery({
         user: mockUser,
-        wallet: mockWallet,
         services: {
           apiKey: () => apiKeyService
         }
@@ -89,7 +68,6 @@ describe("useApiKeysQuery", () => {
       const queryClient = new QueryClient();
       const { result } = setupApiKeysQuery({
         user: mockUser,
-        wallet: mockWallet,
         services: {
           apiKey: () => apiKeyService,
           queryClient: () => queryClient
@@ -124,11 +102,11 @@ describe("useApiKeysQuery", () => {
         () => {
           const dependencies: typeof USE_API_KEYS_DEPENDENCIES = {
             ...USE_API_KEYS_DEPENDENCIES,
-            useUser: () => ({
-              user: mockUser,
-              isLoading: false
-            }),
-            useWallet: () => mockWallet
+            useUser: () =>
+              mock<ReturnType<typeof USE_API_KEYS_DEPENDENCIES.useUser>>({
+                user: mockUser,
+                isLoading: false
+              })
           };
           return useCreateApiKey(dependencies);
         },
@@ -172,11 +150,11 @@ describe("useApiKeysQuery", () => {
         () => {
           const dependencies: typeof USE_API_KEYS_DEPENDENCIES = {
             ...USE_API_KEYS_DEPENDENCIES,
-            useUser: () => ({
-              user: mockUser,
-              isLoading: false
-            }),
-            useWallet: () => mockWallet
+            useUser: () =>
+              mock<ReturnType<typeof USE_API_KEYS_DEPENDENCIES.useUser>>({
+                user: mockUser,
+                isLoading: false
+              })
           };
           return useDeleteApiKey("key-1", undefined, dependencies);
         },
@@ -220,11 +198,11 @@ describe("useApiKeysQuery", () => {
         () => {
           const dependencies: typeof USE_API_KEYS_DEPENDENCIES = {
             ...USE_API_KEYS_DEPENDENCIES,
-            useUser: () => ({
-              user: mockUser,
-              isLoading: false
-            }),
-            useWallet: () => mockWallet
+            useUser: () =>
+              mock<ReturnType<typeof USE_API_KEYS_DEPENDENCIES.useUser>>({
+                user: mockUser,
+                isLoading: false
+              })
           };
           return useDeleteApiKey("key-1", onSuccess, dependencies);
         },
@@ -247,14 +225,14 @@ describe("useApiKeysQuery", () => {
     });
   });
 
-  function setupApiKeysQuery(input?: { user?: CustomUserProfile | undefined; wallet?: WalletProviderContextType; services?: Record<string, () => unknown> }) {
+  function setupApiKeysQuery(input?: { user?: CustomUserProfile | undefined; services?: Record<string, () => unknown> }) {
     const dependencies: typeof USE_API_KEYS_DEPENDENCIES = {
       ...USE_API_KEYS_DEPENDENCIES,
-      useUser: () => ({
-        user: input?.user as CustomUserProfile,
-        isLoading: false
-      }),
-      useWallet: () => input?.wallet || mockWallet
+      useUser: () =>
+        mock<ReturnType<typeof USE_API_KEYS_DEPENDENCIES.useUser>>({
+          user: input?.user as CustomUserProfile,
+          isLoading: false
+        })
     };
 
     return setupQuery(
