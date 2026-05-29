@@ -126,7 +126,7 @@ Only when the user **explicitly asks** for a visible, sortable numbered plan in 
 - `L-11. Provider bidengine verification preflight`
 
 **When NOT to apply (even within an opt-in sequence):**
-- Single-issue creates (one-off bug, lone chore) — un-prefixed.
+- Single-issue creates (one-off bug, lone chore) — un-prefixed. **Exception:** if the target project already uses `L-N.`, a lone new issue is *not* un-prefixed — the "Adding issues to a sequenced project" flow governs and assigns it an `L-N.` prefix with the proper insertion/renumbering procedure.
 - Improve-mode edits to an existing issue's content — don't retrofit a prefix.
 
 **Stability:** Once assigned, an issue keeps its number. Gaps are fine (cancelled issue → its number stays unused). The number lives in the title only — no Linear custom field, no label.
