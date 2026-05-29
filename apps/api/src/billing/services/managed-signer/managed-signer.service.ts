@@ -22,6 +22,7 @@ import { LoggerService } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { Trace, withSpan } from "@src/core/services/tracing/tracing.service";
 import { UserRepository } from "@src/user/repositories";
+import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { BalancesService } from "../balances/balances.service";
 import { BillingConfigService } from "../billing-config/billing-config.service";
 import { ChainErrorService } from "../chain-error/chain-error.service";
@@ -119,7 +120,7 @@ export class ManagedSignerService {
 
     const tx = await this.executeDerivedTx(userWallet.id, messages);
 
-    if (tx.code !== 0) {
+    if (tx.code !== COSMOS_TX_CODE_OK) {
       this.logger.error({ event: "TX_LANDED_WITH_NON_ZERO_CODE", txHash: tx.hash, code: tx.code, rawLog: tx.rawLog });
       throw await this.chainErrorService.toAppError(new Error(tx.rawLog || `tx ${tx.hash} failed on-chain with code ${tx.code}`), messages);
     }
