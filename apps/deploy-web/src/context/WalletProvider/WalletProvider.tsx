@@ -74,17 +74,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setSettingsId(walletAddress || null);
   }, [walletAddress, setSettingsId]);
 
-  /**
-   * Force every visitor onto the managed-wallet network on first load.
-   *
-   * Why unconditional: every authenticated user gets a managed trial wallet,
-   * and the entire console experience targets that network. Firing on first
-   * load means the (one-time) reload happens before any user action.
-   *
-   * Why `reload()` not `href = home`: a hard nav to `/` was sending the user
-   * back to home after a successful deploy if the wallet-type flip happened
-   * post-success. Reloading in place keeps the URL.
-   */
+  // Reload in place (not nav home) so a successful deploy doesn't bounce the user back to `/`.
   useEffect(() => {
     if (selectedNetworkId === appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID) return;
     setSelectedNetworkId(appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID);

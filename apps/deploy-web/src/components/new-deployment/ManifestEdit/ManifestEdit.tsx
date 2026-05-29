@@ -231,10 +231,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
       }
 
       sdl = appendAuditorRequirement(sdl);
-
-      if (wallet.denom !== "uakt") {
-        sdl = replaceSdlDenom(sdl, wallet.denom);
-      }
+      sdl = replaceSdlDenom(sdl, wallet.denom);
 
       const dd = await createAndValidateDeploymentData(sdl, null, deposit);
 

@@ -8,11 +8,9 @@ import { useRouter } from "next/navigation";
 
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { UrlService } from "@src/utils/urlUtils";
 
 const DEPENDENCIES = {
-  useFlag,
   useRouter,
   useSettings
 };
