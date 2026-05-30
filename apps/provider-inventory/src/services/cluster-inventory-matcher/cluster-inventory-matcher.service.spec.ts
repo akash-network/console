@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { parseGPUAttributes } from "@src/lib/gpu-attribute-parser/gpu-attribute-parser";
+import { getAttributeFingerprint } from "@src/lib/groupspec-mapper/groupspec-mapper";
 import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
 import { parseStorageAttributes } from "@src/lib/storage-attribute-parser/storage-attribute-parser";
 import type { ClusterState, CpuInfo, GpuInfo, NodeState, RequestedResourceUnit, ResourceAttribute } from "../../types/inventory.types";
@@ -1079,19 +1080,11 @@ function buildResourceUnit(input: {
   return {
     id: input.id,
     resources: {
-      cpu: { units: input.cpu, fingerprint: fingerprintAttrs(input.cpuAttributes) },
+      cpu: { units: input.cpu, fingerprint: getAttributeFingerprint(input.cpuAttributes) },
       gpu: { units: input.gpuUnits ?? 0n, attributes: parseGPUAttributes(input.gpuAttributes ?? []) },
       memory: { quantity: input.memory },
       storage: input.storage.map(s => ({ name: s.name, quantity: s.quantity, attributes: parseStorageAttributes(s.attributes) }))
     },
     count: input.count
   };
-}
-
-function fingerprintAttrs(attributes: ResourceAttribute[] | undefined): string | null {
-  if (!attributes || attributes.length === 0) return null;
-  return attributes
-    .map(a => `${a.key}=${a.value}`)
-    .sort()
-    .join(",");
 }
