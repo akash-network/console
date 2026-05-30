@@ -35,7 +35,7 @@ export function mapGroupSpecToResourceUnits(request: GroupSpecJSON): RequestedRe
   });
 }
 
-function getAttributeFingerprint(attributes: ResourceAttribute[] | undefined): string | null {
+export function getAttributeFingerprint(attributes: ResourceAttribute[] | undefined): string | null {
   if (!attributes || attributes.length === 0) return null;
   return attributes
     .map(a => `${a.key}=${a.value}`)
