@@ -73,7 +73,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
   leases,
   dependencies: d = DEPENDENCIES
 }) => {
-  const { analyticsService } = d.useServices();
+  const { analyticsService, deploymentLocalStorage } = d.useServices();
   const { changeDeploymentName, getDeploymentData, getDeploymentName } = d.useLocalNotes();
   const { udenomToUsd } = d.usePricing();
   const router = d.useRouter();
@@ -105,6 +105,8 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
     const message = TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq);
     const response = await wallet.signAndBroadcastTx([message]);
     if (response) {
+      deploymentLocalStorage.delete(address, deployment.dseq);
+
       onDeploymentClose();
       removeLeases();
       loadDeploymentDetail();
