@@ -7,7 +7,6 @@ const FAIL_NODE = Object.freeze({ nodeOk: false, clusterOk: true } as const);
 const FAIL_CLUSTER = Object.freeze({ nodeOk: false, clusterOk: false } as const);
 const GPU_CHECK_FAIL = Object.freeze({ ok: false } as const);
 const NO_CAPACITY = Object.freeze({ matched: false, error: "INSUFFICIENT_CAPACITY" } as MatchResult);
-const GROUP_MISMATCH = Object.freeze({ matched: false, error: "GROUP_RESOURCE_MISMATCH" } as MatchResult);
 
 @singleton()
 export class ClusterInventoryMatcherService {
@@ -17,15 +16,10 @@ export class ClusterInventoryMatcherService {
       nodeDeltas[i] = { cpu: 0n, mem: 0n, eph: 0n, gpu: 0n };
     }
     const storageDeltas: Record<string, bigint> = Object.create(null);
-    let canonical: CanonicalHardware = { gpuSpecs: null, cpuFingerprint: null };
 
     for (let i = resourceUnits.length - 1; i >= 0; i--) {
       const group = resourceUnits[i];
-
-      const groupCpuFingerprint = group.resources.cpu.fingerprint;
-      if (canonical.cpuFingerprint && groupCpuFingerprint && canonical.cpuFingerprint !== groupCpuFingerprint) {
-        return GROUP_MISMATCH;
-      }
+      let canonical: CanonicalHardware = { gpuSpecs: null, cpuFingerprint: group.resources.cpu.fingerprint };
 
       let remaining = group.count;
 
@@ -54,10 +48,6 @@ export class ClusterInventoryMatcherService {
 
       if (remaining > 0) {
         return NO_CAPACITY;
-      }
-
-      if (canonical.cpuFingerprint === null) {
-        canonical = { ...canonical, cpuFingerprint: groupCpuFingerprint };
       }
     }
 
