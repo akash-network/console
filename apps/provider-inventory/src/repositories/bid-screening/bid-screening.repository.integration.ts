@@ -4,11 +4,13 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { container } from "tsyringe";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { parseGPUAttributes } from "@src/lib/gpu-attribute-parser/gpu-attribute-parser";
 import type { GroupSpecJSON } from "@src/lib/groupspec-mapper/groupspec-mapper";
 import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
+import { parseStorageAttributes } from "@src/lib/storage-attribute-parser/storage-attribute-parser";
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
-import type { RequestedResourceUnit, RequestedStorage, ResourceAttribute } from "@src/types/inventory.types";
+import type { RequestedResourceUnit, ResourceAttribute } from "@src/types/inventory.types";
 import { AUDITOR, BidScreeningRepository } from "./bid-screening.repository";
 
 describe(BidScreeningRepository.name, () => {
@@ -423,21 +425,21 @@ function unit(input: {
   gpu?: bigint;
   count?: number;
   gpuAttributes?: ResourceAttribute[];
-  storage?: RequestedStorage[];
+  storage?: RawStorageVolume[];
 }): RequestedResourceUnit {
   return {
     id: 1,
     count: input.count ?? 1,
     resources: {
-      cpu: { units: input.cpu ?? 0n, attributes: [] },
-      memory: { quantity: input.memory ?? 0n, attributes: [] },
-      gpu: { units: input.gpu ?? 0n, attributes: input.gpuAttributes ?? [] },
-      storage: input.storage ?? []
+      cpu: { units: input.cpu ?? 0n, fingerprint: null },
+      memory: { quantity: input.memory ?? 0n },
+      gpu: { units: input.gpu ?? 0n, attributes: parseGPUAttributes(input.gpuAttributes ?? []) },
+      storage: (input.storage ?? []).map(s => ({ name: s.name, quantity: s.quantity, attributes: parseStorageAttributes(s.attributes) }))
     }
   };
 }
 
-function persistentVolume(name: string, quantity: bigint, storageClass: string): RequestedStorage {
+function persistentVolume(name: string, quantity: bigint, storageClass: string): RawStorageVolume {
   return {
     name,
     quantity,
@@ -457,4 +459,10 @@ function requirements(input?: Partial<GroupSpecJSON["requirements"]>): GroupSpec
 
 function owners(rows: { owner: string }[]): string[] {
   return rows.map(r => r.owner).sort();
+}
+
+interface RawStorageVolume {
+  name: string;
+  quantity: bigint;
+  attributes: ResourceAttribute[];
 }

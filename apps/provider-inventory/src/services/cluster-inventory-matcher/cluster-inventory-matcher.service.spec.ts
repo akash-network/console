@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { parseGPUAttributes } from "@src/lib/gpu-attribute-parser/gpu-attribute-parser";
 import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
-import type { ClusterState, CpuInfo, GpuInfo, NodeState, RequestedResourceUnit } from "../../types/inventory.types";
+import { parseStorageAttributes } from "@src/lib/storage-attribute-parser/storage-attribute-parser";
+import type { ClusterState, CpuInfo, GpuInfo, NodeState, RequestedResourceUnit, ResourceAttribute } from "../../types/inventory.types";
 import { ClusterInventoryMatcherService } from "./cluster-inventory-matcher.service";
 
 describe(ClusterInventoryMatcherService.name, () => {
@@ -472,26 +474,22 @@ describe(ClusterInventoryMatcherService.name, () => {
         { cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n },
         { cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n }
       ]);
-      const cpuGroup: RequestedResourceUnit = {
+      const cpuGroup = buildResourceUnit({
         id: 1,
-        resources: {
-          cpu: { units: 4000n, attributes: [] },
-          gpu: { units: 0n, attributes: [] },
-          memory: { quantity: 8589934592n, attributes: [] },
-          storage: [{ name: "default", quantity: 5368709120n, attributes: [{ key: "persistent", value: "false" }] }]
-        },
+        cpu: 4000n,
+        memory: 8589934592n,
+        storage: [{ name: "default", quantity: 5368709120n, attributes: [{ key: "persistent", value: "false" }] }],
         count: 2
-      };
-      const gpuGroup: RequestedResourceUnit = {
+      });
+      const gpuGroup = buildResourceUnit({
         id: 2,
-        resources: {
-          cpu: { units: 2000n, attributes: [] },
-          gpu: { units: 1n, attributes: [{ key: "vendor/nvidia/model/a100", value: "true" }] },
-          memory: { quantity: 4294967296n, attributes: [] },
-          storage: [{ name: "default", quantity: 5368709120n, attributes: [{ key: "persistent", value: "false" }] }]
-        },
+        cpu: 2000n,
+        memory: 4294967296n,
+        gpuUnits: 1n,
+        gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }],
+        storage: [{ name: "default", quantity: 5368709120n, attributes: [{ key: "persistent", value: "false" }] }],
         count: 1
-      };
+      });
 
       const result = service.match(cluster, [cpuGroup, gpuGroup]);
       expect(result.matched).toBe(false);
@@ -513,16 +511,13 @@ describe(ClusterInventoryMatcherService.name, () => {
         { cpu: 16000n, memory: 34359738368n, ephemeral: 107374182400n }
       ]);
 
-      const cpuGroup: RequestedResourceUnit = {
+      const cpuGroup = buildResourceUnit({
         id: 1,
-        resources: {
-          cpu: { units: 2000n, attributes: [] },
-          gpu: { units: 0n, attributes: [] },
-          memory: { quantity: 4294967296n, attributes: [] },
-          storage: [{ name: "default", quantity: 5368709120n, attributes: [{ key: "persistent", value: "false" }] }]
-        },
+        cpu: 2000n,
+        memory: 4294967296n,
+        storage: [{ name: "default", quantity: 5368709120n, attributes: [{ key: "persistent", value: "false" }] }],
         count: 4
-      };
+      });
 
       const result = service.match(cluster, [cpuGroup]);
       expect(result.matched).toBe(true);
@@ -532,26 +527,20 @@ describe(ClusterInventoryMatcherService.name, () => {
       const service = new ClusterInventoryMatcherService();
       const cluster = makeCluster([{ cpu: 4000n, memory: 8589934592n, ephemeral: 107374182400n }]);
 
-      const smallGroup: RequestedResourceUnit = {
+      const smallGroup = buildResourceUnit({
         id: 1,
-        resources: {
-          cpu: { units: 1000n, attributes: [] },
-          gpu: { units: 0n, attributes: [] },
-          memory: { quantity: 1073741824n, attributes: [] },
-          storage: [{ name: "default", quantity: 1073741824n, attributes: [{ key: "persistent", value: "false" }] }]
-        },
+        cpu: 1000n,
+        memory: 1073741824n,
+        storage: [{ name: "default", quantity: 1073741824n, attributes: [{ key: "persistent", value: "false" }] }],
         count: 1
-      };
-      const largeGroup: RequestedResourceUnit = {
+      });
+      const largeGroup = buildResourceUnit({
         id: 2,
-        resources: {
-          cpu: { units: 10000n, attributes: [] },
-          gpu: { units: 0n, attributes: [] },
-          memory: { quantity: 1073741824n, attributes: [] },
-          storage: [{ name: "default", quantity: 1073741824n, attributes: [{ key: "persistent", value: "false" }] }]
-        },
+        cpu: 10000n,
+        memory: 1073741824n,
+        storage: [{ name: "default", quantity: 1073741824n, attributes: [{ key: "persistent", value: "false" }] }],
         count: 1
-      };
+      });
 
       const result = service.match(cluster, [smallGroup, largeGroup]);
       expect(result.matched).toBe(false);
@@ -561,26 +550,20 @@ describe(ClusterInventoryMatcherService.name, () => {
       const service = new ClusterInventoryMatcherService();
       const cluster = makeCluster([{ cpu: 32000n, memory: 68719476736n, ephemeral: 536870912000n }]);
 
-      const group1: RequestedResourceUnit = {
+      const group1 = buildResourceUnit({
         id: 1,
-        resources: {
-          cpu: { units: 4000n, attributes: [] },
-          gpu: { units: 0n, attributes: [] },
-          memory: { quantity: 8589934592n, attributes: [] },
-          storage: [{ name: "default", quantity: 10737418240n, attributes: [{ key: "persistent", value: "false" }] }]
-        },
+        cpu: 4000n,
+        memory: 8589934592n,
+        storage: [{ name: "default", quantity: 10737418240n, attributes: [{ key: "persistent", value: "false" }] }],
         count: 2
-      };
-      const group2: RequestedResourceUnit = {
+      });
+      const group2 = buildResourceUnit({
         id: 2,
-        resources: {
-          cpu: { units: 2000n, attributes: [] },
-          gpu: { units: 0n, attributes: [] },
-          memory: { quantity: 4294967296n, attributes: [] },
-          storage: [{ name: "default", quantity: 5368709120n, attributes: [{ key: "persistent", value: "false" }] }]
-        },
+        cpu: 2000n,
+        memory: 4294967296n,
+        storage: [{ name: "default", quantity: 5368709120n, attributes: [{ key: "persistent", value: "false" }] }],
         count: 3
-      };
+      });
 
       const result = service.match(cluster, [group1, group2]);
       expect(result.matched).toBe(true);
@@ -854,44 +837,40 @@ describe(ClusterInventoryMatcherService.name, () => {
 
     it("places multi-group reservation (CPU-only + GPU) across nodes", () => {
       const service = new ClusterInventoryMatcherService();
-      const cpuGroup: RequestedResourceUnit = {
+      const cpuGroup = buildResourceUnit({
         id: 1,
-        resources: {
-          cpu: { units: 68700n, attributes: [] },
-          gpu: { units: 0n, attributes: [] },
-          memory: { quantity: MEM_16GI, attributes: [] },
-          storage: [
-            {
-              name: "default",
-              quantity: STORAGE_8GI,
-              attributes: [
-                { key: "persistent", value: "false" },
-                { key: "class", value: "ephemeral" }
-              ]
-            }
-          ]
-        },
+        cpu: 68700n,
+        memory: MEM_16GI,
+        storage: [
+          {
+            name: "default",
+            quantity: STORAGE_8GI,
+            attributes: [
+              { key: "persistent", value: "false" },
+              { key: "class", value: "ephemeral" }
+            ]
+          }
+        ],
         count: 1
-      };
-      const gpuGroup: RequestedResourceUnit = {
+      });
+      const gpuGroup = buildResourceUnit({
         id: 2,
-        resources: {
-          cpu: { units: 68700n, attributes: [] },
-          gpu: { units: 1n, attributes: [{ key: "vendor/nvidia/model/a100", value: "true" }] },
-          memory: { quantity: MEM_16GI, attributes: [] },
-          storage: [
-            {
-              name: "default",
-              quantity: STORAGE_8GI,
-              attributes: [
-                { key: "persistent", value: "false" },
-                { key: "class", value: "ephemeral" }
-              ]
-            }
-          ]
-        },
+        cpu: 68700n,
+        memory: MEM_16GI,
+        gpuUnits: 1n,
+        gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }],
+        storage: [
+          {
+            name: "default",
+            quantity: STORAGE_8GI,
+            attributes: [
+              { key: "persistent", value: "false" },
+              { key: "class", value: "ephemeral" }
+            ]
+          }
+        ],
         count: 1
-      };
+      });
 
       expect(service.match(makeFourNodeCluster(), [cpuGroup, gpuGroup]).matched).toBe(true);
     });
@@ -915,6 +894,68 @@ describe(ClusterInventoryMatcherService.name, () => {
       const result = service.match(makeFourNodeCluster(), makeFourNodeUnits(119525n, 0n, 2));
       expect(result.matched).toBe(false);
       expect(result.error).toBe("INSUFFICIENT_CAPACITY");
+    });
+  });
+
+  describe("input immutability", () => {
+    it("does not mutate the cluster argument on a successful match", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster(
+        [
+          { cpu: 16000n, memory: 34359738368n, ephemeral: 107374182400n, storageClasses: ["beta2"] },
+          { cpu: 16000n, memory: 34359738368n, ephemeral: 107374182400n, storageClasses: ["beta2"] }
+        ],
+        [{ class: "beta2", allocatable: 536870912000n, allocated: 0n }]
+      );
+      const units = makeResourceUnits({
+        cpu: 1000n,
+        memory: 1073741824n,
+        ephemeral: 5368709120n,
+        count: 2,
+        extraStorage: [
+          {
+            name: "data",
+            quantity: 53687091200n,
+            attributes: [
+              { key: "persistent", value: "true" },
+              { key: "class", value: "beta2" }
+            ]
+          }
+        ]
+      });
+      const snapshot = snapshotCluster(cluster);
+
+      const result = service.match(cluster, units);
+
+      expect(result.matched).toBe(true);
+      expect(snapshotCluster(cluster)).toEqual(snapshot);
+    });
+
+    it("does not mutate the cluster argument on a failed match", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([{ cpu: 4000n, memory: 8589934592n, ephemeral: 107374182400n }]);
+      const units = makeResourceUnits({ cpu: 10000n, memory: 1073741824n, ephemeral: 5368709120n, count: 1 });
+      const snapshot = snapshotCluster(cluster);
+
+      const result = service.match(cluster, units);
+
+      expect(result.matched).toBe(false);
+      expect(snapshotCluster(cluster)).toEqual(snapshot);
+    });
+
+    it("produces identical results when called twice on the same cluster instance", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([
+        { cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n },
+        { cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n }
+      ]);
+      const units = makeResourceUnits({ cpu: 3000n, memory: 4294967296n, ephemeral: 5368709120n, count: 2 });
+
+      const first = service.match(cluster, units);
+      const second = service.match(cluster, units);
+
+      expect(first).toEqual(second);
+      expect(first.matched).toBe(true);
     });
   });
 
@@ -968,14 +1009,37 @@ function makeCluster(
   return { nodes: stateNodes, storage: storageMap };
 }
 
+function snapshotCluster(cluster: ClusterState) {
+  return {
+    nodes: cluster.nodes.map(n => ({
+      name: n.name,
+      cpu: { allocatable: n.cpu.allocatable, allocated: n.cpu.allocated },
+      memory: { allocatable: n.memory.allocatable, allocated: n.memory.allocated },
+      ephemeralStorage: { allocatable: n.ephemeralStorage.allocatable, allocated: n.ephemeralStorage.allocated },
+      gpu: {
+        quantity: { allocatable: n.gpu.quantity.allocatable, allocated: n.gpu.quantity.allocated },
+        info: n.gpu.info.map(g => ({ ...g }))
+      },
+      storageClasses: [...n.storageClasses],
+      cpus: n.cpus.map(c => ({ ...c }))
+    })),
+    storage: Object.fromEntries(
+      Object.entries(cluster.storage).map(([k, v]) => [
+        k,
+        { class: v.class, quantity: { allocatable: v.quantity.allocatable, allocated: v.quantity.allocated } }
+      ])
+    )
+  };
+}
+
 function makeResourceUnits(input: {
   cpu: bigint;
   memory: bigint;
   ephemeral: bigint;
   count: number;
   gpuUnits?: bigint;
-  gpuAttributes?: { key: string; value: string }[];
-  extraStorage?: { name: string; quantity: bigint; attributes: { key: string; value: string }[] }[];
+  gpuAttributes?: ResourceAttribute[];
+  extraStorage?: { name: string; quantity: bigint; attributes: ResourceAttribute[] }[];
 }): RequestedResourceUnit[] {
   const storageVols = [
     {
@@ -990,15 +1054,44 @@ function makeResourceUnits(input: {
   ];
 
   return [
-    {
+    buildResourceUnit({
       id: 1,
-      resources: {
-        cpu: { units: input.cpu, attributes: [] },
-        gpu: { units: input.gpuUnits ?? 0n, attributes: input.gpuAttributes ?? [] },
-        memory: { quantity: input.memory, attributes: [] },
-        storage: storageVols
-      },
+      cpu: input.cpu,
+      memory: input.memory,
+      gpuUnits: input.gpuUnits,
+      gpuAttributes: input.gpuAttributes,
+      storage: storageVols,
       count: input.count
-    }
+    })
   ];
+}
+
+function buildResourceUnit(input: {
+  id: number;
+  cpu: bigint;
+  cpuAttributes?: ResourceAttribute[];
+  memory: bigint;
+  gpuUnits?: bigint;
+  gpuAttributes?: ResourceAttribute[];
+  storage: { name: string; quantity: bigint; attributes: ResourceAttribute[] }[];
+  count: number;
+}): RequestedResourceUnit {
+  return {
+    id: input.id,
+    resources: {
+      cpu: { units: input.cpu, fingerprint: fingerprintAttrs(input.cpuAttributes) },
+      gpu: { units: input.gpuUnits ?? 0n, attributes: parseGPUAttributes(input.gpuAttributes ?? []) },
+      memory: { quantity: input.memory },
+      storage: input.storage.map(s => ({ name: s.name, quantity: s.quantity, attributes: parseStorageAttributes(s.attributes) }))
+    },
+    count: input.count
+  };
+}
+
+function fingerprintAttrs(attributes: ResourceAttribute[] | undefined): string | null {
+  if (!attributes || attributes.length === 0) return null;
+  return attributes
+    .map(a => `${a.key}=${a.value}`)
+    .sort()
+    .join(",");
 }

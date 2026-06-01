@@ -1,8 +1,9 @@
 import type { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 
-import type { RequestedResourceUnit, RequestedStorage, ToJSON } from "../../types/inventory.types";
+import type { RequestedResourceUnit, RequestedStorage, ResourceAttribute, ToJSON } from "../../types/inventory.types";
+import { parseGPUAttributes } from "../gpu-attribute-parser/gpu-attribute-parser";
+import { parseStorageAttributes } from "../storage-attribute-parser/storage-attribute-parser";
 
-const EMPTY_ARRAY = Object.freeze([]);
 export function mapGroupSpecToResourceUnits(request: GroupSpecJSON): RequestedResourceUnit[] {
   return request.resources.map(unit => {
     const resource = unit.resource;
@@ -12,28 +13,34 @@ export function mapGroupSpecToResourceUnits(request: GroupSpecJSON): RequestedRe
       resources: {
         cpu: {
           units: resource.cpu.units.val,
-          attributes: resource.cpu.attributes ?? EMPTY_ARRAY
+          fingerprint: getAttributeFingerprint(resource.cpu.attributes)
         },
         gpu: {
           units: resource.gpu.units.val,
-          attributes: resource.gpu.attributes ?? EMPTY_ARRAY
+          attributes: parseGPUAttributes(resource.gpu.attributes ?? [])
         },
         memory: {
-          quantity: resource.memory.quantity.val,
-          attributes: resource.memory.attributes ?? EMPTY_ARRAY
+          quantity: resource.memory.quantity.val
         },
         storage: resource.storage.map(
           (s): RequestedStorage => ({
             name: s.name,
             quantity: s.quantity.val,
-            attributes: s.attributes ?? EMPTY_ARRAY
+            attributes: parseStorageAttributes(s.attributes ?? [])
           })
-        ),
-        endpoints: resource.endpoints ?? EMPTY_ARRAY
+        )
       },
       count: unit.count
     };
   });
+}
+
+function getAttributeFingerprint(attributes: ResourceAttribute[] | undefined): string | null {
+  if (!attributes || attributes.length === 0) return null;
+  return attributes
+    .map(a => `${a.key}=${a.value}`)
+    .sort()
+    .join(",");
 }
 
 export type GroupSpecJSON = ToJSON<GroupSpec>;

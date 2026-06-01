@@ -55,6 +55,31 @@ describe(ResourcePair.name, () => {
     });
   });
 
+  describe("canAllocateWithDelta", () => {
+    it("treats delta as additional already-allocated capacity", () => {
+      const { pair } = setup({ allocatable: 100n, allocated: 30n });
+      expect(pair.canAllocateWithDelta(50n, 20n)).toBe(true);
+      expect(pair.canAllocateWithDelta(51n, 20n)).toBe(false);
+    });
+
+    it("succeeds at exact remaining boundary after delta", () => {
+      const { pair } = setup({ allocatable: 100n, allocated: 30n });
+      expect(pair.canAllocateWithDelta(50n, 20n)).toBe(true);
+      expect(pair.canAllocateWithDelta(50n, 21n)).toBe(false);
+    });
+
+    it("ignores delta when allocatable is unlimited", () => {
+      const { pair } = setup({ allocatable: -1n, allocated: 0n });
+      expect(pair.canAllocateWithDelta(MAX_INT64, MAX_INT64)).toBe(true);
+    });
+
+    it("does not mutate the pair", () => {
+      const { pair } = setup({ allocatable: 100n, allocated: 30n });
+      pair.canAllocateWithDelta(50n, 20n);
+      expect(pair.allocated).toBe(30n);
+    });
+  });
+
   describe("clone", () => {
     it("creates an independent copy", () => {
       const { pair } = setup({ allocatable: 100n, allocated: 30n });

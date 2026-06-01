@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
 
+import { parseGPUAttributes } from "@src/lib/gpu-attribute-parser/gpu-attribute-parser";
 import type { GroupSpecJSON } from "@src/lib/groupspec-mapper/groupspec-mapper";
-import type { RequestedResourceUnit, RequestedStorage, ResourceAttribute } from "@src/types/inventory.types";
+import { parseStorageAttributes } from "@src/lib/storage-attribute-parser/storage-attribute-parser";
+import type { RequestedResourceUnit, ResourceAttribute } from "@src/types/inventory.types";
 import { aggregateCriteria } from "./bid-screening.aggregator";
+
+interface RawStorageVolume {
+  name: string;
+  quantity: bigint;
+  attributes: ResourceAttribute[];
+}
 
 describe(aggregateCriteria.name, () => {
   describe("totals", () => {
@@ -367,17 +375,17 @@ function makeUnit(input: {
   memory?: bigint;
   gpu?: bigint;
   count?: number;
-  storage?: RequestedStorage[];
+  storage?: RawStorageVolume[];
   gpuAttributes?: ResourceAttribute[];
 }): RequestedResourceUnit {
   return {
     id: 1,
     count: input.count ?? 1,
     resources: {
-      cpu: { units: input.cpu ?? 0n, attributes: [] },
-      memory: { quantity: input.memory ?? 0n, attributes: [] },
-      gpu: { units: input.gpu ?? 0n, attributes: input.gpuAttributes ?? [] },
-      storage: input.storage ?? []
+      cpu: { units: input.cpu ?? 0n, fingerprint: null },
+      memory: { quantity: input.memory ?? 0n },
+      gpu: { units: input.gpu ?? 0n, attributes: parseGPUAttributes(input.gpuAttributes ?? []) },
+      storage: (input.storage ?? []).map(s => ({ name: s.name, quantity: s.quantity, attributes: parseStorageAttributes(s.attributes) }))
     }
   };
 }
