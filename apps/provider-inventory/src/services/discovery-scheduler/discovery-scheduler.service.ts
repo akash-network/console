@@ -15,23 +15,53 @@ import type { ChainProvider } from "@src/types/chain-provider";
 export class DiscoverySchedulerService {
   readonly #logger: LoggerService;
   readonly #poller: ChainProviderPollerService;
-  readonly #writer: ProviderInventoryRepository;
+  readonly #repository: ProviderInventoryRepository;
   readonly #lifecycle: StreamLifecycleManagerService;
   readonly #config: EnvConfig;
   #abortController: AbortController | null = null;
 
   constructor(
     poller: ChainProviderPollerService,
-    writer: ProviderInventoryRepository,
+    repository: ProviderInventoryRepository,
     lifecycle: StreamLifecycleManagerService,
     @inject(APP_CONFIG) config: EnvConfig,
     @inject(LOGGER_FACTORY) loggerFactory: LoggerFactory
   ) {
     this.#poller = poller;
-    this.#writer = writer;
+    this.#repository = repository;
     this.#lifecycle = lifecycle;
     this.#config = config;
     this.#logger = loggerFactory({ context: "DiscoveryScheduler" });
+  }
+
+  async warmUp(signal?: AbortSignal): Promise<void> {
+    const startedAt = Date.now();
+    let providerCount = 0;
+    const EMPTY_ARRAY = Object.freeze([]) as never[];
+
+    for await (const provider of this.#repository.streamOnlineProviders()) {
+      this.#lifecycle.start(
+        {
+          ...provider,
+          selfAttributes: EMPTY_ARRAY,
+          signedAttributes: EMPTY_ARRAY,
+          auditedBy: EMPTY_ARRAY
+        },
+        signal
+      );
+      providerCount++;
+    }
+
+    if (providerCount === 0) {
+      this.#logger.info({ event: "DISCOVERY_ONLINE_WARM_UP_SKIPPED", reason: "no_known_online_providers" });
+      return;
+    }
+
+    this.#logger.info({
+      event: "DISCOVERY_ONLINE_WARM_UP_STARTED",
+      providerCount,
+      completedInMs: Date.now() - startedAt
+    });
   }
 
   start(): void {
@@ -131,7 +161,7 @@ export class DiscoverySchedulerService {
   async #upsertProviders(providers: ChainProvider[]): Promise<boolean> {
     const owners = providers.map(p => p.owner);
     try {
-      await this.#writer.bulkUpsertProviders(providers);
+      await this.#repository.bulkUpsertProviders(providers);
       this.#logger.debug({ event: "UPSERT_PROVIDERS_UPSERTED", owners });
       return true;
     } catch (error) {

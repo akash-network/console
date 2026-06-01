@@ -28,6 +28,7 @@ export async function bootstrap(): Promise<void> {
 
   if (server) {
     try {
+      await container.resolve(DiscoverySchedulerService).warmUp();
       container.resolve(DiscoverySchedulerService).start();
     } catch (error) {
       server.close();
