@@ -75,6 +75,11 @@ export class StreamLifecycleManagerService {
   }
 
   start(provider: ChainProvider, signal?: AbortSignal): void {
+    if (signal?.aborted) {
+      this.#logger.warn({ event: "STREAM_START_ABORTED", owner: provider.owner, reason: "Received already aborted signal" });
+      return;
+    }
+
     const controller = new AbortController();
     const abortProviderStream = () => controller.abort();
     this.#activeStreams.set(provider.owner, { controller, hostUri: provider.hostUri });

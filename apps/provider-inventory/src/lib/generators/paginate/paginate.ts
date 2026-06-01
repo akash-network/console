@@ -15,9 +15,10 @@ export interface Page<T> {
  */
 export async function* paginate<T>(fetchPage: (key: Uint8Array | undefined) => Promise<Page<T>>, options: { signal?: AbortSignal } = {}): AsyncGenerator<T[]> {
   let nextKey: Uint8Array | undefined = undefined;
-  do {
+  while (!options.signal?.aborted) {
     const page = await fetchPage(nextKey);
     yield page.items;
     nextKey = page.nextKey;
-  } while (nextKey && nextKey.length > 0 && !options.signal?.aborted);
+    if (!nextKey || nextKey.length === 0) break;
+  }
 }
