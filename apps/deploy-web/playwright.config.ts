@@ -7,6 +7,8 @@ import { getUserAgent } from "./tests/ui/fixture/user-agent"; // for process.env
 dotenv.config({ path: path.resolve(__dirname, "env/.env.test.local") });
 dotenv.config({ path: path.resolve(__dirname, "env/.env.test") });
 
+const slowMo = Number(process.env.PW_SLOW_MO) || 0;
+
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
@@ -27,9 +29,10 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "retain-on-failure",
-    video: "retain-on-failure",
+    video: slowMo > 0 ? "on" : "retain-on-failure",
     actionTimeout: 15_000,
-    permissions: ["clipboard-read", "clipboard-write"]
+    permissions: ["clipboard-read", "clipboard-write"],
+    launchOptions: { slowMo }
   },
 
   /* Configure projects for major browsers */
