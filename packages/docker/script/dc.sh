@@ -60,9 +60,15 @@ docker_buildx_bake() {
     done
   fi
 
-  echo "docker buildx bake $(printf -- " --file %q" "${COMPOSE_FILES[@]}") --set *.cache-from="type=gha,scope=${BUILDKIT_CACHE_SCOPE}" --set *.cache-from="type=gha,scope=${BUILDKIT_CACHE_FALLBACK_SCOPE}" --set *.cache-to="type=gha,mode=max,scope=${BUILDKIT_CACHE_FALLBACK_SCOPE}" --load ${targets[@]}"
+  local platform_args=()
+  if [[ -n "$TARGET_PLATFORM" ]]; then
+    platform_args=(--set "*.platform=${TARGET_PLATFORM}")
+  fi
+
+  echo "docker buildx bake $(printf -- " --file %q" "${COMPOSE_FILES[@]}") --set *.platform=${TARGET_PLATFORM} --set *.cache-from="type=gha,scope=${BUILDKIT_CACHE_SCOPE}" --set *.cache-from="type=gha,scope=${BUILDKIT_CACHE_FALLBACK_SCOPE}" --set *.cache-to="type=gha,mode=max,scope=${BUILDKIT_CACHE_FALLBACK_SCOPE}" --load ${targets[@]}"
   docker buildx bake \
     $(printf -- " --file %q" "${COMPOSE_FILES[@]}") \
+    "${platform_args[@]}" \
     --set *.cache-from="type=gha,scope=${BUILDKIT_CACHE_SCOPE}" \
     --set *.cache-from="type=gha,scope=${BUILDKIT_CACHE_FALLBACK_SCOPE}" \
     --set *.cache-to="type=gha,mode=max,scope=${BUILDKIT_CACHE_FALLBACK_SCOPE}" \
@@ -98,6 +104,9 @@ COMMAND=$1
 shift
 
 USE_BUILDKIT="${USE_DOCKER_BUILDKIT:-0}"
+TARGET_PLATFORM="${TARGET_PLATFORM:-}"
+# Ensures the plain `docker compose build` path also targets amd64 (not the host arch, e.g. arm64)
+export DOCKER_DEFAULT_PLATFORM="${TARGET_PLATFORM}"
 BUILDKIT_CACHE_SCOPE="${DOCKER_BUILDKIT_CACHE_SCOPE:-main}"
 BUILDKIT_CACHE_SCOPE="${BUILDKIT_CACHE_SCOPE// /-}"
 # uses cache fallback scope in case package-lock.json changed in a branch PR

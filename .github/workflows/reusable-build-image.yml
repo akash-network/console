@@ -120,6 +120,7 @@ jobs:
           GIT_COMMIT_HASH: ${{ github.sha }}
           APP_PATH: "apps/${{ env.app }}"
           APP_VERSION: ${{ steps.determine.outputs.base_tag }}
+          TARGET_PLATFORM: linux/amd64
         run: |
           if [[ -n "${{ env.force_build }}" ]]; then
             force_build="${{ env.force_build }}"

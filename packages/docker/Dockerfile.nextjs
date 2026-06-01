@@ -17,6 +17,8 @@ ENV DEPLOYMENT_ENV $DEPLOYMENT_ENV
 ARG SENTRY_AUTH_TOKEN
 ARG GIT_COMMIT_HASH
 
+ARG TARGETARCH
+
 ENV NEXT_TELEMETRY_DISABLED 1
 
 WORKDIR /app
@@ -40,7 +42,7 @@ RUN apk add --no-cache libc6-compat
 
 COPY --from=prepare /app .
 
-RUN --mount=type=cache,id=npm-cache,target=/root/.npm npm run safe-install
+RUN --mount=type=cache,id=npm-cache-${TARGETARCH},target=/root/.npm npm run safe-install
 
 COPY $WORKSPACE ./$WORKSPACE
 COPY /packages /app/packages
