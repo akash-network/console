@@ -669,6 +669,148 @@ describe(ClusterInventoryMatcherService.name, () => {
     });
   });
 
+  describe("cross-service canonical scope (AC9)", () => {
+    it("places two services with disjoint GPU model requests independently in the same placement group", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([
+        {
+          cpu: 8000n,
+          memory: 17179869184n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
+          gpuInfo: [{ vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" }]
+        },
+        {
+          cpu: 8000n,
+          memory: 17179869184n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
+          gpuInfo: [{ vendor: "nvidia", name: "h100", modelId: "2330", interface: "PCIe", memorySize: "80Gi" }]
+        }
+      ]);
+      const serviceA = buildResourceUnit({
+        id: 1,
+        cpu: 1000n,
+        memory: 1073741824n,
+        gpuUnits: 1n,
+        gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }],
+        storage: [{ name: "default", quantity: 1073741824n, attributes: [{ key: "persistent", value: "false" }] }],
+        count: 1
+      });
+      const serviceB = buildResourceUnit({
+        id: 2,
+        cpu: 1000n,
+        memory: 1073741824n,
+        gpuUnits: 1n,
+        gpuAttributes: [{ key: "vendor/nvidia/model/h100", value: "true" }],
+        storage: [{ name: "default", quantity: 1073741824n, attributes: [{ key: "persistent", value: "false" }] }],
+        count: 1
+      });
+
+      expect(service.match(cluster, [serviceA, serviceB]).matched).toBe(true);
+    });
+
+    it("does not leak a wildcard-pinned GPU model from one service to another in the same placement group", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([
+        {
+          cpu: 8000n,
+          memory: 17179869184n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
+          gpuInfo: [{ vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" }]
+        },
+        {
+          cpu: 8000n,
+          memory: 17179869184n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
+          gpuInfo: [{ vendor: "nvidia", name: "h100", modelId: "2330", interface: "PCIe", memorySize: "80Gi" }]
+        }
+      ]);
+      const wildcardService = buildResourceUnit({
+        id: 1,
+        cpu: 1000n,
+        memory: 1073741824n,
+        gpuUnits: 1n,
+        gpuAttributes: [{ key: "vendor/nvidia", value: "true" }],
+        storage: [{ name: "default", quantity: 1073741824n, attributes: [{ key: "persistent", value: "false" }] }],
+        count: 1
+      });
+      const h100Service = buildResourceUnit({
+        id: 2,
+        cpu: 1000n,
+        memory: 1073741824n,
+        gpuUnits: 1n,
+        gpuAttributes: [{ key: "vendor/nvidia/model/h100", value: "true" }],
+        storage: [{ name: "default", quantity: 1073741824n, attributes: [{ key: "persistent", value: "false" }] }],
+        count: 1
+      });
+
+      expect(service.match(cluster, [wildcardService, h100Service]).matched).toBe(true);
+    });
+
+    it("places two services with different non-empty CPU fingerprints independently", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([
+        { cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n },
+        { cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n }
+      ]);
+      const intelService = buildResourceUnit({
+        id: 1,
+        cpu: 1000n,
+        cpuAttributes: [{ key: "vendor", value: "intel" }],
+        memory: 1073741824n,
+        storage: [{ name: "default", quantity: 1073741824n, attributes: [{ key: "persistent", value: "false" }] }],
+        count: 1
+      });
+      const amdService = buildResourceUnit({
+        id: 2,
+        cpu: 1000n,
+        cpuAttributes: [{ key: "vendor", value: "amd" }],
+        memory: 1073741824n,
+        storage: [{ name: "default", quantity: 1073741824n, attributes: [{ key: "persistent", value: "false" }] }],
+        count: 1
+      });
+
+      const result = service.match(cluster, [intelService, amdService]);
+      expect(result.matched).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+
+    it("returns INSUFFICIENT_CAPACITY (not GROUP_RESOURCE_MISMATCH) when a wildcard-pinned replica cannot find a second matching GPU within the same service", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([
+        {
+          cpu: 8000n,
+          memory: 17179869184n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
+          gpuInfo: [{ vendor: "nvidia", name: "a100", modelId: "2235", interface: "PCIe", memorySize: "80Gi" }]
+        },
+        {
+          cpu: 8000n,
+          memory: 17179869184n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
+          gpuInfo: [{ vendor: "nvidia", name: "h100", modelId: "2330", interface: "PCIe", memorySize: "80Gi" }]
+        }
+      ]);
+      const units = makeResourceUnits({
+        cpu: 1000n,
+        memory: 1073741824n,
+        ephemeral: 1073741824n,
+        count: 2,
+        gpuUnits: 1n,
+        gpuAttributes: [{ key: "vendor/nvidia", value: "true" }]
+      });
+
+      const result = service.match(cluster, units);
+      expect(result.matched).toBe(false);
+      expect(result.error).toBe("INSUFFICIENT_CAPACITY");
+    });
+  });
+
   describe("nodes with existing allocations", () => {
     it("matches when remaining capacity after allocation is sufficient", () => {
       const service = new ClusterInventoryMatcherService();
