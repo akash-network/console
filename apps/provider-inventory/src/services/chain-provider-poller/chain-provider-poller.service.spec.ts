@@ -63,15 +63,16 @@ describe(ChainProviderPollerService.name, () => {
   it("merges signed audit attributes into providers by owner", async () => {
     const { service, getAllProvidersAttributes, getProviders } = setup();
     getAllProvidersAttributes.mockResolvedValueOnce(
-      mock<AuditResponse>({
-        providers: [
+      auditResponse(
+        [
           mock<AuditRecord>({
             owner: "akash1aaa",
             auditor: "akash1auditor",
             attributes: [{ key: "region", value: "us-west" }]
           })
-        ]
-      })
+        ],
+        new Uint8Array(0)
+      )
     );
     getProviders.mockResolvedValueOnce(providersResponse([chainProvider({ owner: "akash1aaa" }), chainProvider({ owner: "akash1bbb" })], new Uint8Array(0)));
 
@@ -81,12 +82,38 @@ describe(ChainProviderPollerService.name, () => {
     expect(batch[1].signedAttributes).toEqual([]);
   });
 
+  it("follows nextKey across multiple audit pages and merges attributes from every page", async () => {
+    const { service, getAllProvidersAttributes, getProviders } = setup();
+    const pageOneKey = new Uint8Array([1, 2, 3]);
+    getAllProvidersAttributes
+      .mockResolvedValueOnce(
+        auditResponse([mock<AuditRecord>({ owner: "akash1aaa", auditor: "akash1auditor1", attributes: [{ key: "region", value: "us-west" }] })], pageOneKey)
+      )
+      .mockResolvedValueOnce(
+        auditResponse([mock<AuditRecord>({ owner: "akash1aaa", auditor: "akash1auditor2", attributes: [{ key: "tier", value: "gpu" }] })], new Uint8Array(0))
+      );
+    getProviders.mockResolvedValueOnce(providersResponse([chainProvider({ owner: "akash1aaa" })], new Uint8Array(0)));
+
+    const [batch] = await Array.fromAsync(service.poll());
+
+    expect(getAllProvidersAttributes).toHaveBeenCalledTimes(2);
+    expect(getAllProvidersAttributes).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ pagination: expect.objectContaining({ key: pageOneKey }) }),
+      expect.anything()
+    );
+    expect(batch[0].signedAttributes).toEqual([
+      { key: "region", value: "us-west", auditor: "akash1auditor1" },
+      { key: "tier", value: "gpu", auditor: "akash1auditor2" }
+    ]);
+  });
+
   function setup() {
     const chainSDK = mockDeep<ChainNodeWebSDK>();
     const getAllProvidersAttributes = chainSDK.akash.audit.v1.getAllProvidersAttributes;
     const getProviders = chainSDK.akash.provider.v1beta4.getProviders;
 
-    getAllProvidersAttributes.mockResolvedValue(mock<AuditResponse>({ providers: [] }));
+    getAllProvidersAttributes.mockResolvedValue(auditResponse([], new Uint8Array(0)));
 
     const loggerFactory: LoggerFactory = () => mock<ReturnType<LoggerFactory>>();
     const service = new ChainProviderPollerService(chainSDK, loggerFactory);
@@ -106,4 +133,8 @@ function chainProvider(overrides: Partial<ChainSDKProvider>): ChainSDKProvider {
 
 function providersResponse(providers: ChainSDKProvider[], nextKey: Uint8Array): ProvidersResponse {
   return { providers, pagination: { nextKey } } as unknown as ProvidersResponse;
+}
+
+function auditResponse(providers: AuditRecord[], nextKey: Uint8Array): AuditResponse {
+  return { providers, pagination: { nextKey } } as unknown as AuditResponse;
 }

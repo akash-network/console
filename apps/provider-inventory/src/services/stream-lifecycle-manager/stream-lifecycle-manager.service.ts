@@ -6,6 +6,7 @@ import Dataloader from "dataloader";
 import once from "lodash/once";
 import { inject, singleton } from "tsyringe";
 
+import { throttleLatest } from "@src/lib/generators/throttle-latest/throttle-latest";
 import { projectRow } from "@src/lib/project-row/project-row";
 import { projectedRowsEqual } from "@src/lib/projected-row-equals/projected-row-equals";
 import type { EnvConfig } from "@src/providers/app-config.provider";
@@ -75,18 +76,27 @@ export class StreamLifecycleManagerService {
 
   start(provider: ChainProvider, signal?: AbortSignal): void {
     const controller = new AbortController();
+    const abortProviderStream = () => controller.abort();
     this.#activeStreams.set(provider.owner, { controller, hostUri: provider.hostUri });
-    signal?.addEventListener("abort", () => controller.abort(), { once: true });
+    signal?.addEventListener("abort", abortProviderStream, { once: true });
 
     const firstAttempt = Promise.withResolvers<void>();
     this.#pendingFirstAttempts.add(firstAttempt.promise);
-    firstAttempt.promise.finally(() => this.#pendingFirstAttempts.delete(firstAttempt.promise));
+    firstAttempt.promise.finally(() => {
+      this.#pendingFirstAttempts.delete(firstAttempt.promise);
+    });
 
-    void this.#runStream(provider, controller.signal, firstAttempt.resolve);
+    void this.#runStream(provider, controller.signal, firstAttempt.resolve).finally(() => signal?.removeEventListener("abort", abortProviderStream));
   }
 
   restart(provider: ChainProvider, signal?: AbortSignal): void {
+    const previousHostUri = this.#activeStreams.get(provider.owner)?.hostUri;
     this.#abortIfActive(provider.owner, "STREAM_STOPPED_HOSTURI_CHANGE");
+    if (previousHostUri && previousHostUri !== provider.hostUri) {
+      void this.#streamFactory.disposeProvider(previousHostUri).catch(error => {
+        this.#logger.error({ event: "DISPOSE_STREAM_ERROR", owner: provider.owner, hostUri: previousHostUri, error });
+      });
+    }
     this.start(provider, signal);
   }
 
@@ -165,8 +175,9 @@ export class StreamLifecycleManagerService {
 
     try {
       const stream = this.#streamFactory.openStatusStream(provider, attemptController.signal);
+      const throttled = throttleLatest(stream, this.#config.STREAM_UPDATE_THROTTLE_MS, { signal: attemptController.signal });
 
-      for await (const message of stream) {
+      for await (const message of throttled) {
         this.#logger.debug({ event: "STREAM_MESSAGE_RECEIVED", owner: provider.owner });
         if (outerSignal.aborted) return;
         releasePermit();

@@ -75,7 +75,59 @@ describe(StreamLifecycleManagerService.name, () => {
       await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(2));
       expect(oldSignal.aborted).toBe(true);
       expect(streamFactory.openStatusStream).toHaveBeenLastCalledWith(updated, expect.any(AbortSignal));
+      expect(streamFactory.disposeProvider).toHaveBeenCalledWith("https://old:8443");
+      expect(streamFactory.disposeProvider).not.toHaveBeenCalledWith("https://new:8443");
       expect(writer.deleteByOwner).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("parent signal listener", () => {
+    it("keeps the parent-signal abort listener while the stream is healthy", async () => {
+      const parent = new AbortController();
+      const removeSpy = vi.spyOn(parent.signal, "removeEventListener");
+      const { manager, streamFactory } = setup({ streams: { "https://p1:8443": "hang" } });
+
+      manager.start(createProvider(), parent.signal);
+      await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalled());
+      await delay(50);
+
+      expect(removeSpy).not.toHaveBeenCalled();
+    });
+
+    it("removes the parent-signal abort listener once the stream gives up", async () => {
+      const parent = new AbortController();
+      const addSpy = vi.spyOn(parent.signal, "addEventListener");
+      const removeSpy = vi.spyOn(parent.signal, "removeEventListener");
+      const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.disposeProvider.mockResolvedValue();
+      streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
+      const { manager } = setup({ streamFactory });
+
+      manager.start(createProvider(), parent.signal);
+
+      const handler = addSpy.mock.calls.find(([type]) => type === "abort")?.[1];
+      await vi.waitFor(() => expect(removeSpy).toHaveBeenCalledWith("abort", handler), { timeout: 5000 });
+    });
+
+    it("removes the old listener and attaches a fresh one on restart without accumulating", async () => {
+      const old = createProvider({ owner: "a", hostUri: "https://old:8443" });
+      const updated = createProvider({ owner: "a", hostUri: "https://new:8443" });
+      const parent = new AbortController();
+      const addSpy = vi.spyOn(parent.signal, "addEventListener");
+      const removeSpy = vi.spyOn(parent.signal, "removeEventListener");
+      const { manager, streamFactory } = setup({ streams: { "https://old:8443": "hang", "https://new:8443": "hang" } });
+
+      manager.start(old, parent.signal);
+      await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(1));
+      const oldHandler = addSpy.mock.calls.filter(([type]) => type === "abort")[0][1];
+
+      manager.restart(updated, parent.signal);
+      await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(2));
+
+      await vi.waitFor(() => expect(removeSpy).toHaveBeenCalledWith("abort", oldHandler));
+      const abortAdds = addSpy.mock.calls.filter(([type]) => type === "abort");
+      expect(abortAdds).toHaveLength(2);
+      expect(removeSpy).not.toHaveBeenCalledWith("abort", abortAdds[1][1]);
     });
   });
 
@@ -171,6 +223,21 @@ describe(StreamLifecycleManagerService.name, () => {
 
       expect(writer.updateInventory).toHaveBeenCalledWith(providerA, expect.objectContaining({ totalAvailableCpu: 1000n }));
       expect(writer.updateInventory).toHaveBeenCalledWith(providerB, expect.objectContaining({ totalAvailableCpu: 1000n }));
+      expect(writer.updateInventory).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("update throttle", () => {
+    it("coalesces a burst of updates within the window into a single write of the latest", async () => {
+      const { manager, writer } = setup({ streams: { "https://p1:8443": leadThenBurst() }, throttleMs: 1000 });
+
+      manager.start(createProvider());
+
+      await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledWith(createProvider(), expect.objectContaining({ totalAvailableCpu: 3000n })), {
+        timeout: 3000
+      });
+      expect(writer.updateInventory).toHaveBeenCalledWith(createProvider(), expect.objectContaining({ totalAvailableCpu: 1000n }));
+      expect(writer.updateInventory).not.toHaveBeenCalledWith(createProvider(), expect.objectContaining({ totalAvailableCpu: 2000n }));
       expect(writer.updateInventory).toHaveBeenCalledTimes(2);
     });
   });
@@ -345,7 +412,11 @@ describe(StreamLifecycleManagerService.name, () => {
     });
   });
 
-  function setup(input?: { streams?: Record<string, AsyncIterable<ClusterState> | "hang">; streamFactory?: MockProxy<ProviderStreamFactory> }) {
+  function setup(input?: {
+    streams?: Record<string, AsyncIterable<ClusterState> | "hang">;
+    streamFactory?: MockProxy<ProviderStreamFactory>;
+    throttleMs?: number;
+  }) {
     const streamFactory = input?.streamFactory ?? mock<ProviderStreamFactory>();
     streamFactory.disposeProvider.mockResolvedValue();
     const writer = mock<ProviderInventoryRepository>();
@@ -358,7 +429,8 @@ describe(StreamLifecycleManagerService.name, () => {
       MAX_CONCURRENT_STREAM_CONNECTIONS: 100,
       STREAM_RECONNECT_INITIAL_DELAY_MS: 10,
       STREAM_RECONNECT_MAX_DELAY_MS: 50,
-      STREAM_FIRST_MESSAGE_TIMEOUT_MS: 80
+      STREAM_FIRST_MESSAGE_TIMEOUT_MS: 80,
+      STREAM_UPDATE_THROTTLE_MS: input?.throttleMs ?? 0
     });
 
     if (!input?.streamFactory) {
@@ -428,6 +500,16 @@ async function* throwingStream(error: Error): AsyncGenerator<ClusterState> {
 async function* msgsThenThrow(messages: ClusterState[], error: Error): AsyncGenerator<ClusterState> {
   for (const msg of messages) yield msg;
   throw error;
+}
+
+// Emits a leading message, then — after it has been consumed — a rapid burst within the throttle
+// window, so the burst coalesces to its latest value (3000) while the leading value (1000) survives.
+async function* leadThenBurst(): AsyncGenerator<ClusterState> {
+  yield createMessage({ cpu: 1000n });
+  await delay(20);
+  yield createMessage({ cpu: 2000n });
+  yield createMessage({ cpu: 3000n });
+  await new Promise<never>(() => undefined);
 }
 
 function hangingStream(signal?: AbortSignal): AsyncIterable<ClusterState> {
