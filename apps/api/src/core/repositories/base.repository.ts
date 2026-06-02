@@ -242,6 +242,13 @@ type TableNameInSchema<T extends PgTableWithColumns<any>> = {
 }[TableName<T>];
 
 const UNIQUE_VIOLATION_CODE = "23505";
+// drizzle-orm >=0.44 wraps driver errors in DrizzleQueryError; the underlying PostgresError lives on .cause
+export function getPostgresError(error: unknown): PostgresError | undefined {
+  if (error instanceof PostgresError) return error;
+  if (error instanceof Error && error.cause instanceof PostgresError) return error.cause;
+  return undefined;
+}
+
 export function isUniqueViolation(error: unknown): error is PostgresError {
-  return error instanceof PostgresError && error.code === UNIQUE_VIOLATION_CODE;
+  return getPostgresError(error)?.code === UNIQUE_VIOLATION_CODE;
 }
