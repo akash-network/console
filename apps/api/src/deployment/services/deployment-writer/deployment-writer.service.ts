@@ -1,5 +1,4 @@
 import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
-import { BlockHttpService } from "@akashnetwork/http-sdk";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
@@ -22,7 +21,6 @@ import { DeploymentReaderService } from "../deployment-reader/deployment-reader.
 @singleton()
 export class DeploymentWriterService {
   constructor(
-    private readonly blockHttpService: BlockHttpService,
     private readonly signerService: ManagedSignerService,
     private readonly rpcMessageService: RpcMessageService,
     private readonly sdlService: SdlService,
@@ -36,7 +34,8 @@ export class DeploymentWriterService {
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
     const manifest = this.#parseManifest(input.sdl, { isTrialing: !!wallet.isTrialing });
 
-    const [dseq, manifestVersion] = await Promise.all([this.blockHttpService.getCurrentHeight(), this.sdlService.generateManifestVersion(manifest.groups)]);
+    const dseq = Date.now();
+    const manifestVersion = await this.sdlService.generateManifestVersion(manifest.groups);
 
     const message = this.rpcMessageService.getCreateDeploymentMsg({
       owner: wallet.address,

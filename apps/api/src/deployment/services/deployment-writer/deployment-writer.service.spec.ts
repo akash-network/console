@@ -1,4 +1,4 @@
-import type { BlockHttpService } from "@akashnetwork/http-sdk";
+import { vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
@@ -58,11 +58,15 @@ describe(DeploymentWriterService.name, () => {
     }
   };
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe("create", () => {
-    it("creates a deployment and returns dseq, manifest, and signTx", async () => {
-      const { service, blockHttpService, signerService, rpcMessageService } = setup();
-      const dseq = 200;
-      blockHttpService.getCurrentHeight.mockResolvedValue(dseq);
+    it("creates a deployment with a millisecond-timestamp dseq", async () => {
+      const { service, signerService, rpcMessageService } = setup();
+      const dseq = 1748400000000;
+      vi.spyOn(Date, "now").mockReturnValue(dseq);
       const txResult = { code: 0, transactionHash: "tx-hash" };
       signerService.executeDerivedDecodedTxByUserId.mockResolvedValue(txResult);
       const createMsg = { typeUrl: "/create", value: {} };
@@ -70,7 +74,7 @@ describe(DeploymentWriterService.name, () => {
 
       const result = await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
 
-      expect(result.dseq).toBe("200");
+      expect(result.dseq).toBe("1748400000000");
       expect(result.signTx).toBe(txResult);
       expect(rpcMessageService.getCreateDeploymentMsg).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -194,7 +198,6 @@ describe(DeploymentWriterService.name, () => {
   });
 
   function setup() {
-    const blockHttpService = mock<BlockHttpService>();
     const signerService = mock<ManagedSignerService>();
     const rpcMessageService = mock<RpcMessageService>();
     const sdlService = mock<SdlService>();
@@ -211,7 +214,6 @@ describe(DeploymentWriterService.name, () => {
     deploymentReaderService.findByWalletAndDseq.mockResolvedValue(deploymentData);
 
     const service = new DeploymentWriterService(
-      blockHttpService,
       signerService,
       rpcMessageService,
       sdlService,
@@ -223,7 +225,6 @@ describe(DeploymentWriterService.name, () => {
 
     return {
       service,
-      blockHttpService,
       signerService,
       rpcMessageService,
       sdlService,

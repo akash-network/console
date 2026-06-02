@@ -176,7 +176,7 @@ describe("OnboardingContainer", () => {
       await onComplete("hello-akash");
     });
 
-    const sdlArgument = mockNewDeploymentData.mock.calls[0][1];
+    const sdlArgument = mockNewDeploymentData.mock.calls[0][0];
     expect(sdlArgument).not.toContain("uakt");
   });
 
@@ -190,7 +190,7 @@ describe("OnboardingContainer", () => {
       await onComplete("hello-akash");
     });
 
-    const sdlArgument = mockNewDeploymentData.mock.calls[0][1];
+    const sdlArgument = mockNewDeploymentData.mock.calls[0][0];
     expect(sdlArgument).toBe("mock-sdl-content");
   });
 
@@ -230,7 +230,7 @@ describe("OnboardingContainer", () => {
       await onComplete("hello-akash");
     });
 
-    const sdlArgument = mockNewDeploymentData.mock.calls[0][1];
+    const sdlArgument = mockNewDeploymentData.mock.calls[0][0];
     expect(sdlArgument).toBe("mock-sdl-content");
     expect(sdlArgument).not.toContain("undefined");
   });
@@ -287,10 +287,6 @@ describe("OnboardingContainer", () => {
       newDeployment: vi.fn(() => "/deployments/new")
     };
 
-    const mockChainApiHttpClient = {
-      get: vi.fn()
-    };
-
     const mockDeploymentLocalStorage = {
       update: vi.fn()
     };
@@ -318,7 +314,6 @@ describe("OnboardingContainer", () => {
       analyticsService: mockAnalyticsService,
       urlService: mockUrlService,
       authService,
-      chainApiHttpClient: mockChainApiHttpClient,
       deploymentLocalStorage: mockDeploymentLocalStorage,
       publicConfig: mockAppConfig,
       errorHandler: mockErrorHandler,
@@ -451,7 +446,6 @@ describe("OnboardingContainer", () => {
       mockNavigateWithReturnTo,
       mockLocalStorage,
       mockSignAndBroadcastTx,
-      mockChainApiHttpClient,
       mockDeploymentLocalStorage,
       mockNewDeploymentData,
       mockValidateDeploymentData,

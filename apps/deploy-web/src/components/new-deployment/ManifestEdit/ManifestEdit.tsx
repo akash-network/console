@@ -110,7 +110,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     }
   }, [editedManifest]);
 
-  const { analyticsService, chainApiHttpClient, publicConfig: appConfig, deploymentLocalStorage } = d.useServices();
+  const { analyticsService, publicConfig: appConfig, deploymentLocalStorage } = d.useServices();
   const { settings } = d.useSettings();
   const { address, signAndBroadcastTx, isManaged, isTrialing } = d.useWallet();
   const router = d.useRouter();
@@ -179,7 +179,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     try {
       if (!yamlStr) return null;
 
-      const dd = await deploymentData.NewDeploymentData(chainApiHttpClient, yamlStr, dseq, address, deposit);
+      const dd = await deploymentData.NewDeploymentData(yamlStr, dseq, address, deposit);
       validateDeploymentData(dd, selectedTemplate);
       setParsingError(null);
 

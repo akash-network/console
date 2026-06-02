@@ -18,3 +18,5 @@ export const openApiExampleValidatorAddress = "akashvaloper14mt78hz73d9tdwpdvkd5
 export const certVersion = "v1";
 export const deploymentVersion = "v1beta4";
 export const marketVersion = "v1beta5";
+
+export const COSMOS_TX_CODE_OK = 0;

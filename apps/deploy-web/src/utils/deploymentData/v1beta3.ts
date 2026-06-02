@@ -2,7 +2,6 @@ import type { Attribute } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import type { Manifest as AkashManifest, SDLInput } from "@akashnetwork/chain-sdk/web";
 import { generateManifestVersion } from "@akashnetwork/chain-sdk/web";
-import type { HttpClient } from "@akashnetwork/http-sdk";
 import yaml from "js-yaml";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
@@ -176,7 +175,6 @@ ${result}`;
 }
 
 export async function NewDeploymentData(
-  chainApiHttpClient: HttpClient,
   yamlStr: string,
   dseq: string | null,
   fromAddress: string,
@@ -191,11 +189,7 @@ export async function NewDeploymentData(
     const version = await generateManifestVersion(manifest.groups);
     const _deposit = (Array.isArray(deposit) && deposit.find(d => d.denom === denom)) || { denom, amount: deposit.toString() };
 
-    let finalDseq: string = dseq || "";
-    if (!finalDseq) {
-      const response = await chainApiHttpClient.get("/cosmos/base/tendermint/v1beta1/blocks/latest");
-      finalDseq = response.data.block.header.height;
-    }
+    const finalDseq: string = dseq || Date.now().toString();
 
     return {
       sdl: sdlInput,
