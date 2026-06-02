@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
 import type { InventoryRollups, ProjectedRow } from "@src/types/inventory";
 import type { ClusterState, GpuInfo, NodeState } from "@src/types/inventory.types";
 import { projectedRowsEqual } from "./projected-row-equals";
@@ -73,26 +72,26 @@ describe(projectedRowsEqual.name, () => {
 
   describe("ClusterState-nested differs", () => {
     it("returns false when a node's cpu allocatable differs", () => {
-      const a = buildRow({ nodes: [buildNode({ cpu: new ResourcePair(1000n, 0n) })] });
-      const b = buildRow({ nodes: [buildNode({ cpu: new ResourcePair(2000n, 0n) })] });
+      const a = buildRow({ nodes: [buildNode({ cpu: { allocatable: 1000n, allocated: 0n } })] });
+      const b = buildRow({ nodes: [buildNode({ cpu: { allocatable: 2000n, allocated: 0n } })] });
       expect(projectedRowsEqual(a, b)).toBe(false);
     });
 
     it("returns false when a node's cpu allocated differs", () => {
-      const a = buildRow({ nodes: [buildNode({ cpu: new ResourcePair(1000n, 0n) })] });
-      const b = buildRow({ nodes: [buildNode({ cpu: new ResourcePair(1000n, 500n) })] });
+      const a = buildRow({ nodes: [buildNode({ cpu: { allocatable: 1000n, allocated: 0n } })] });
+      const b = buildRow({ nodes: [buildNode({ cpu: { allocatable: 1000n, allocated: 500n } })] });
       expect(projectedRowsEqual(a, b)).toBe(false);
     });
 
     it("returns false when a node's memory differs", () => {
-      const a = buildRow({ nodes: [buildNode({ memory: new ResourcePair(1000n, 0n) })] });
-      const b = buildRow({ nodes: [buildNode({ memory: new ResourcePair(2000n, 0n) })] });
+      const a = buildRow({ nodes: [buildNode({ memory: { allocatable: 1000n, allocated: 0n } })] });
+      const b = buildRow({ nodes: [buildNode({ memory: { allocatable: 2000n, allocated: 0n } })] });
       expect(projectedRowsEqual(a, b)).toBe(false);
     });
 
     it("returns false when a node's ephemeralStorage differs", () => {
-      const a = buildRow({ nodes: [buildNode({ ephemeralStorage: new ResourcePair(1000n, 0n) })] });
-      const b = buildRow({ nodes: [buildNode({ ephemeralStorage: new ResourcePair(2000n, 0n) })] });
+      const a = buildRow({ nodes: [buildNode({ ephemeralStorage: { allocatable: 1000n, allocated: 0n } })] });
+      const b = buildRow({ nodes: [buildNode({ ephemeralStorage: { allocatable: 2000n, allocated: 0n } })] });
       expect(projectedRowsEqual(a, b)).toBe(false);
     });
 
@@ -103,14 +102,14 @@ describe(projectedRowsEqual.name, () => {
     });
 
     it("returns false when a node's gpu quantity differs", () => {
-      const a = buildRow({ nodes: [buildNode({ gpu: { quantity: new ResourcePair(1n, 0n), info: [gpu("nvidia", "a100")] } })] });
-      const b = buildRow({ nodes: [buildNode({ gpu: { quantity: new ResourcePair(2n, 0n), info: [gpu("nvidia", "a100")] } })] });
+      const a = buildRow({ nodes: [buildNode({ gpu: { quantity: { allocatable: 1n, allocated: 0n }, info: [gpu("nvidia", "a100")] } })] });
+      const b = buildRow({ nodes: [buildNode({ gpu: { quantity: { allocatable: 2n, allocated: 0n }, info: [gpu("nvidia", "a100")] } })] });
       expect(projectedRowsEqual(a, b)).toBe(false);
     });
 
     it("returns false when a node's gpu info differs", () => {
-      const a = buildRow({ nodes: [buildNode({ gpu: { quantity: new ResourcePair(1n, 0n), info: [gpu("nvidia", "a100")] } })] });
-      const b = buildRow({ nodes: [buildNode({ gpu: { quantity: new ResourcePair(1n, 0n), info: [gpu("amd", "mi300x")] } })] });
+      const a = buildRow({ nodes: [buildNode({ gpu: { quantity: { allocatable: 1n, allocated: 0n }, info: [gpu("nvidia", "a100")] } })] });
+      const b = buildRow({ nodes: [buildNode({ gpu: { quantity: { allocatable: 1n, allocated: 0n }, info: [gpu("amd", "mi300x")] } })] });
       expect(projectedRowsEqual(a, b)).toBe(false);
     });
 
@@ -148,10 +147,10 @@ describe(projectedRowsEqual.name, () => {
 
     it("ignores order of gpu info within a node", () => {
       const a = buildRow({
-        nodes: [buildNode({ gpu: { quantity: new ResourcePair(3n, 0n), info: [gpu("nvidia", "a100"), gpu("amd", "mi300x")] } })]
+        nodes: [buildNode({ gpu: { quantity: { allocatable: 3n, allocated: 0n }, info: [gpu("nvidia", "a100"), gpu("amd", "mi300x")] } })]
       });
       const b = buildRow({
-        nodes: [buildNode({ gpu: { quantity: new ResourcePair(3n, 0n), info: [gpu("amd", "mi300x"), gpu("nvidia", "a100")] } })]
+        nodes: [buildNode({ gpu: { quantity: { allocatable: 3n, allocated: 0n }, info: [gpu("amd", "mi300x"), gpu("nvidia", "a100")] } })]
       });
       expect(projectedRowsEqual(a, b)).toBe(true);
     });
@@ -175,9 +174,9 @@ function gpu(vendor: string, name: string): GpuInfo {
 }
 
 function storageMap(pools: { class: string; allocatable: bigint; allocated?: bigint }[]): ClusterState["storage"] {
-  const result: ClusterState["storage"] = Object.create(null);
+  const result: NonNullable<ClusterState["storage"]> = Object.create(null);
   for (const pool of pools) {
-    result[pool.class] = { class: pool.class, quantity: new ResourcePair(pool.allocatable, pool.allocated ?? 0n) };
+    result[pool.class] = { class: pool.class, quantity: { allocatable: pool.allocatable, allocated: pool.allocated ?? 0n } };
   }
   return result;
 }
@@ -207,10 +206,10 @@ function buildRow(overrides: Partial<InventoryRollups> & { nodes?: NodeState[]; 
 function buildNode(overrides?: Partial<NodeState>): NodeState {
   return {
     name: "node-1",
-    cpu: new ResourcePair(0n, 0n),
-    memory: new ResourcePair(0n, 0n),
-    ephemeralStorage: new ResourcePair(0n, 0n),
-    gpu: { quantity: new ResourcePair(0n, 0n), info: [] },
+    cpu: { allocatable: 0n, allocated: 0n },
+    memory: { allocatable: 0n, allocated: 0n },
+    ephemeralStorage: { allocatable: 0n, allocated: 0n },
+    gpu: { quantity: { allocatable: 0n, allocated: 0n }, info: [] },
     storageClasses: [],
     cpus: [],
     ...overrides

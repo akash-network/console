@@ -5,7 +5,6 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
-import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
 import type { ChainProvider } from "@src/types/chain-provider";
@@ -243,10 +242,10 @@ function createProvider(overrides?: Partial<ChainProvider>): ChainProvider {
 function createProjectedRow(overrides?: { cpu?: bigint }): ProjectedRow {
   const node = {
     name: "node-1",
-    cpu: new ResourcePair(overrides?.cpu ?? 0n, 0n),
-    memory: new ResourcePair(0n, 0n),
-    ephemeralStorage: new ResourcePair(0n, 0n),
-    gpu: { quantity: new ResourcePair(0n, 0n), info: [] },
+    cpu: { allocatable: overrides?.cpu ?? 0n, allocated: 0n },
+    memory: { allocatable: 0n, allocated: 0n },
+    ephemeralStorage: { allocatable: 0n, allocated: 0n },
+    gpu: { quantity: { allocatable: 0n, allocated: 0n }, info: [] },
     storageClasses: [],
     cpus: []
   };

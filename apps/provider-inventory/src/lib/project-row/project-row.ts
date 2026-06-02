@@ -1,3 +1,4 @@
+import { availableCapacity } from "@src/lib/resource-pair/resource-pair";
 import type { ProjectedRow } from "@src/types/inventory";
 import type { ClusterState } from "@src/types/inventory.types";
 
@@ -13,11 +14,11 @@ export function projectRow(cluster: ClusterState): ProjectedRow {
   const gpuModelSet = new Set<string>();
   const storageClassSet = new Set<string>();
 
-  for (const node of cluster.nodes) {
-    const nodeCpu = node.cpu.available();
-    const nodeMemory = node.memory.available();
-    const nodeEph = node.ephemeralStorage.available();
-    const nodeGpu = node.gpu.quantity.available();
+  for (const node of cluster.nodes ?? []) {
+    const nodeCpu = availableCapacity(node.cpu);
+    const nodeMemory = availableCapacity(node.memory);
+    const nodeEph = availableCapacity(node.ephemeralStorage);
+    const nodeGpu = availableCapacity(node.gpu.quantity);
 
     totalAvailableCpu += nodeCpu;
     totalAvailableMemory += nodeMemory;
@@ -43,8 +44,8 @@ export function projectRow(cluster: ClusterState): ProjectedRow {
     }
   }
 
-  for (const pool of Object.values(cluster.storage)) {
-    totalAvailablePersistent += pool.quantity.available();
+  for (const pool of Object.values(cluster.storage ?? {})) {
+    totalAvailablePersistent += availableCapacity(pool.quantity);
     if (pool.class) storageClassSet.add(pool.class);
   }
 

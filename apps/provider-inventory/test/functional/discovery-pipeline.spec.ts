@@ -3,7 +3,6 @@ import { container, Lifecycle } from "tsyringe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
-import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
 import { CHAIN_SDK } from "@src/providers/chain-sdk.provider";
 import { PG_CLIENT } from "@src/providers/postgres.provider";
 import { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
@@ -72,9 +71,9 @@ describe("DiscoveryScheduler pipeline", () => {
         nodes: [
           buildNode({
             name: "n1",
-            cpu: new ResourcePair(4000n, 0n),
-            memory: new ResourcePair(8_000_000_000n, 0n),
-            ephemeralStorage: new ResourcePair(100_000_000_000n, 0n)
+            cpu: { allocatable: 4000n, allocated: 0n },
+            memory: { allocatable: 8_000_000_000n, allocated: 0n },
+            ephemeralStorage: { allocatable: 100_000_000_000n, allocated: 0n }
           })
         ],
         storage: Object.create(null)
@@ -182,10 +181,10 @@ function emptyClusterState(): ClusterState {
 function buildNode(overrides?: Partial<NodeState>): NodeState {
   return {
     name: "node-1",
-    cpu: new ResourcePair(0n, 0n),
-    memory: new ResourcePair(0n, 0n),
-    ephemeralStorage: new ResourcePair(0n, 0n),
-    gpu: { quantity: new ResourcePair(0n, 0n), info: [] },
+    cpu: { allocatable: 0n, allocated: 0n },
+    memory: { allocatable: 0n, allocated: 0n },
+    ephemeralStorage: { allocatable: 0n, allocated: 0n },
+    gpu: { quantity: { allocatable: 0n, allocated: 0n }, info: [] },
     storageClasses: [],
     cpus: [],
     ...overrides

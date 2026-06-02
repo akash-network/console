@@ -1,5 +1,6 @@
 import { singleton } from "tsyringe";
 
+import { canAllocate } from "@src/lib/resource-pair/resource-pair";
 import { matchesGPU, type ParsedGPUAttributes } from "../../lib/gpu-attribute-parser/gpu-attribute-parser";
 import type { ClusterState, MatchResult, NodeState, RequestedResourceUnit } from "../../types/inventory.types";
 
@@ -7,12 +8,18 @@ const FAIL_NODE = Object.freeze({ nodeOk: false, clusterOk: true } as const);
 const FAIL_CLUSTER = Object.freeze({ nodeOk: false, clusterOk: false } as const);
 const GPU_CHECK_FAIL = Object.freeze({ ok: false } as const);
 const NO_CAPACITY = Object.freeze({ matched: false, error: "INSUFFICIENT_CAPACITY" } as MatchResult);
+const MATCHED = Object.freeze({ matched: true } as MatchResult);
+const EMPTY_NODES = Object.freeze([] as readonly NodeState[]);
 
 @singleton()
 export class ClusterInventoryMatcherService {
-  match(cluster: ClusterState, resourceUnits: RequestedResourceUnit[]): MatchResult {
-    const nodeDeltas: NodeDelta[] = new Array(cluster.nodes.length);
-    for (let i = 0; i < cluster.nodes.length; i++) {
+  match(cluster: ClusterState | undefined, resourceUnits: RequestedResourceUnit[]): MatchResult {
+    if (!cluster) return NO_CAPACITY;
+
+    const clusterNodes = cluster.nodes ?? EMPTY_NODES;
+    const nodeCount = clusterNodes.length;
+    const nodeDeltas: NodeDelta[] = new Array(nodeCount);
+    for (let i = 0; i < nodeCount; i++) {
       nodeDeltas[i] = { cpu: 0n, mem: 0n, eph: 0n, gpu: 0n };
     }
     const storageDeltas: Record<string, bigint> = Object.create(null);
@@ -23,8 +30,8 @@ export class ClusterInventoryMatcherService {
 
       let remaining = group.count;
 
-      for (let nodeIdx = 0; nodeIdx < cluster.nodes.length && remaining > 0; ) {
-        const result = this.#tryAdjust(cluster.nodes[nodeIdx], nodeDeltas[nodeIdx], cluster.storage, storageDeltas, group, canonical);
+      for (let nodeIdx = 0; nodeIdx < nodeCount && remaining > 0; ) {
+        const result = this.#tryAdjust(clusterNodes[nodeIdx], nodeDeltas[nodeIdx], cluster.storage, storageDeltas, group, canonical);
         if (!result.clusterOk) return NO_CAPACITY;
 
         if (result.nodeOk) {
@@ -51,7 +58,7 @@ export class ClusterInventoryMatcherService {
       }
     }
 
-    return { matched: true };
+    return MATCHED;
   }
 
   #tryAdjust(
@@ -62,9 +69,9 @@ export class ClusterInventoryMatcherService {
     group: RequestedResourceUnit,
     canonical: CanonicalHardware
   ): AttemptResult {
-    if (!node.cpu.canAllocateWithDelta(group.resources.cpu.units, baseDelta.cpu)) return FAIL_NODE;
-    if (!node.memory.canAllocateWithDelta(group.resources.memory.quantity, baseDelta.mem)) return FAIL_NODE;
-    if (!node.gpu.quantity.canAllocateWithDelta(group.resources.gpu.units, baseDelta.gpu)) return FAIL_NODE;
+    if (!canAllocate(node.cpu, group.resources.cpu.units + baseDelta.cpu)) return FAIL_NODE;
+    if (!canAllocate(node.memory, group.resources.memory.quantity + baseDelta.mem)) return FAIL_NODE;
+    if (!canAllocate(node.gpu.quantity, group.resources.gpu.units + baseDelta.gpu)) return FAIL_NODE;
 
     let stageMem = group.resources.memory.quantity;
     let stageEph = 0n;
@@ -75,26 +82,26 @@ export class ClusterInventoryMatcherService {
 
       if (attrs.classification === "ram") {
         const next = stageMem + vol.quantity;
-        if (!node.memory.canAllocateWithDelta(next, baseDelta.mem)) return FAIL_NODE;
+        if (!canAllocate(node.memory, next + baseDelta.mem)) return FAIL_NODE;
         stageMem = next;
         continue;
       }
 
       if (attrs.classification === "ephemeral") {
         const next = stageEph + vol.quantity;
-        if (!node.ephemeralStorage.canAllocateWithDelta(next, baseDelta.eph)) return FAIL_NODE;
+        if (!canAllocate(node.ephemeralStorage, next + baseDelta.eph)) return FAIL_NODE;
         stageEph = next;
         continue;
       }
 
       if (attrs.classification === "persistent") {
-        if (!node.storageClasses.includes(attrs.class)) return FAIL_NODE;
-        const pool = clusterStorage[attrs.class];
+        if (!node.storageClasses?.includes(attrs.class)) return FAIL_NODE;
+        const pool = clusterStorage?.[attrs.class];
         if (!pool) return FAIL_CLUSTER;
 
         const existing = stageStorage?.find(s => s.class === attrs.class);
         const classDelta = (storageDeltas[attrs.class] ?? 0n) + (existing?.quantity ?? 0n);
-        if (!pool.quantity.canAllocateWithDelta(vol.quantity, classDelta)) return FAIL_CLUSTER;
+        if (!canAllocate(pool.quantity, vol.quantity + classDelta)) return FAIL_CLUSTER;
 
         if (existing) {
           existing.quantity += vol.quantity;
@@ -126,7 +133,7 @@ export class ClusterInventoryMatcherService {
   }
 
   #tryAdjustGPU(node: NodeState, requestedUnits: bigint, gpuSpecs: ParsedGPUAttributes[]): { ok: boolean; resolved?: ParsedGPUAttributes } {
-    if (node.gpu.info.length === 0) return GPU_CHECK_FAIL;
+    if (!node.gpu?.info || node.gpu.info.length === 0) return GPU_CHECK_FAIL;
 
     if (gpuSpecs.length === 0) {
       const first = node.gpu.info[0];
