@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ExponentialBackoff, handleAll, retry } from "cockatiel";
+import { atom, getDefaultStore } from "jotai";
 
 import { useWallet } from "@src/context/WalletProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
@@ -22,11 +23,11 @@ const GENERATE_TOKEN_RETRY_POLICY = retry(handleAll, {
 
 const GENERATE_TOKEN_FAILURE_MESSAGE = "Failed to authorize with the provider. Please retry.";
 
-// Module-scoped so concurrent ensureToken calls from multiple hook instances
-// share the same in-flight request. A per-hook ref can't survive remount
-// mid-request, and a context provider would be a heavier rewiring; revisit if
-// the cross-instance coupling becomes a problem.
-const inFlightTracker: { current: { address: string; promise: Promise<string> } | null } = { current: null };
+// Cross-instance dedup: when multiple components mount and each calls
+// ensureToken on their auto-trigger effect, they all await the same promise
+// instead of issuing parallel generateToken requests (which for self-custodial
+// wallets would spawn N signArbitrary popups).
+const IN_FLIGHT_TOKEN_REQUEST_ATOM = atom<{ address: string; promise: Promise<string> } | null>(null);
 
 export type UseProviderCredentialsResult = {
   details: ProviderCredentials & {
@@ -55,16 +56,20 @@ export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UsePr
 
   useEffect(() => {
     setError(null);
-    if (inFlightTracker.current && inFlightTracker.current.address !== address) {
-      inFlightTracker.current = null;
+    const store = getDefaultStore();
+    const current = store.get(IN_FLIGHT_TOKEN_REQUEST_ATOM);
+    if (current && current.address !== address) {
+      store.set(IN_FLIGHT_TOKEN_REQUEST_ATOM, null);
     }
   }, [address]);
 
   const ensureToken = useCallback(async (): Promise<string> => {
     const { accessToken, isTokenExpired, generateToken, notificator, address } = stateRef.current;
     if (accessToken && !isTokenExpired) return accessToken;
-    if (inFlightTracker.current && inFlightTracker.current.address === address) {
-      return inFlightTracker.current.promise;
+    const store = getDefaultStore();
+    const current = store.get(IN_FLIGHT_TOKEN_REQUEST_ATOM);
+    if (current && current.address === address) {
+      return current.promise;
     }
 
     const promise = GENERATE_TOKEN_RETRY_POLICY.execute(() => generateToken())
@@ -79,11 +84,11 @@ export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UsePr
         throw normalizedError;
       })
       .finally(() => {
-        if (inFlightTracker.current?.promise === promise) {
-          inFlightTracker.current = null;
+        if (store.get(IN_FLIGHT_TOKEN_REQUEST_ATOM)?.promise === promise) {
+          store.set(IN_FLIGHT_TOKEN_REQUEST_ATOM, null);
         }
       });
-    inFlightTracker.current = { address, promise };
+    store.set(IN_FLIGHT_TOKEN_REQUEST_ATOM, { address, promise });
     return promise;
   }, []);
 
