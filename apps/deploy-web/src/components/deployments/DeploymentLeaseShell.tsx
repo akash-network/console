@@ -93,9 +93,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
       conn,
       abortController
     };
-    // ensureToken is intentionally omitted: it changes on every JWT rotation, which would tear down the live shell session
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [providerInfo, hasShellAccess, selectedLease, selectedService]);
+  }, [providerInfo, hasShellAccess, selectedLease, selectedService, providerCredentials.ensureToken]);
 
   useEffect(() => {
     if (!shellSession) return;

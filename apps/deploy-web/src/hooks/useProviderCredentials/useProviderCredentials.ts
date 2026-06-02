@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ExponentialBackoff, handleAll, retry } from "cockatiel";
 
 import { useWallet } from "@src/context/WalletProvider";
@@ -22,6 +22,10 @@ const GENERATE_TOKEN_RETRY_POLICY = retry(handleAll, {
 
 const GENERATE_TOKEN_FAILURE_MESSAGE = "Failed to authorize with the provider. Please retry.";
 
+// Module-scoped so concurrent ensureToken calls from multiple hook instances
+// share the same in-flight request. A per-hook ref can't survive remount
+// mid-request, and a context provider would be a heavier rewiring; revisit if
+// the cross-instance coupling becomes a problem.
 const inFlightTracker: { current: { address: string; promise: Promise<string> } | null } = { current: null };
 
 export type UseProviderCredentialsResult = {
@@ -46,6 +50,9 @@ export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UsePr
 
   const [error, setError] = useState<Error | null>(null);
 
+  const stateRef = useRef({ accessToken, isTokenExpired, generateToken, notificator, address });
+  stateRef.current = { accessToken, isTokenExpired, generateToken, notificator, address };
+
   useEffect(() => {
     setError(null);
     if (inFlightTracker.current && inFlightTracker.current.address !== address) {
@@ -54,6 +61,7 @@ export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UsePr
   }, [address]);
 
   const ensureToken = useCallback(async (): Promise<string> => {
+    const { accessToken, isTokenExpired, generateToken, notificator, address } = stateRef.current;
     if (accessToken && !isTokenExpired) return accessToken;
     if (inFlightTracker.current && inFlightTracker.current.address === address) {
       return inFlightTracker.current.promise;
@@ -77,10 +85,10 @@ export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UsePr
       });
     inFlightTracker.current = { address, promise };
     return promise;
-  }, [accessToken, isTokenExpired, generateToken, notificator, address]);
+  }, []);
 
   useEffect(() => {
-    if (!isWalletConnected || !isHydrated || isUsable || error || inFlightTracker.current) return;
+    if (!isWalletConnected || !isHydrated || isUsable || error) return;
     ensureToken().catch(() => {});
   }, [isWalletConnected, isHydrated, isUsable, error, ensureToken]);
 
