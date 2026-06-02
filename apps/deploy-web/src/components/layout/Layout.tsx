@@ -24,10 +24,11 @@ type Props = {
   isUsingWallet?: boolean;
   disableContainer?: boolean;
   containerClassName?: string;
+  background?: "default" | "white";
   children?: ReactNode;
 };
 
-const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName }) => {
+const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName, background }) => {
   const [locale, setLocale] = useState("en-US");
 
   useEffect(() => {
@@ -44,6 +45,7 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
         isUsingWallet={isUsingWallet}
         disableContainer={disableContainer}
         containerClassName={containerClassName}
+        background={background}
       >
         {children}
       </LayoutApp>
@@ -51,7 +53,15 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
   );
 };
 
-const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName = "" }) => {
+const LayoutApp: React.FunctionComponent<Props> = ({
+  children,
+  isLoading,
+  isUsingSettings,
+  isUsingWallet,
+  disableContainer,
+  containerClassName = "",
+  background = "default"
+}) => {
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const [isNavOpen, setIsNavOpen] = useState(() => {
@@ -93,7 +103,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className={cn("flex h-full flex-col", { "min-h-screen bg-white text-foreground": background === "white" })}>
       <TopBanner />
 
       <div className="w-full flex-1" style={{ marginTop: `${ACCOUNT_BAR_HEIGHT + (hasBanner ? 40 : 0)}px` }}>

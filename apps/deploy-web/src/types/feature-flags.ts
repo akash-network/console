@@ -9,4 +9,5 @@ export type FeatureFlag =
   | "console_embedded_login"
   | "self_custody"
   | "console_auth_redesign"
-  | "console_onboarding_redesign";
+  | "console_onboarding_redesign"
+  | "bid_screening";
