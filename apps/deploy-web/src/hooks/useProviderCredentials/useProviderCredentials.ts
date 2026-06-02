@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ExponentialBackoff, handleAll, retry } from "cockatiel";
-import { getDefaultStore } from "jotai";
+import { useSetAtom } from "jotai";
 
 import { useWallet } from "@src/context/WalletProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
@@ -24,11 +24,6 @@ const GENERATE_TOKEN_RETRY_POLICY = retry(handleAll, {
 
 const GENERATE_TOKEN_FAILURE_MESSAGE = "Failed to authorize with the provider. Please retry.";
 
-// Cross-instance dedup: when multiple components mount and each calls
-// ensureToken on their auto-trigger effect, they all await the same promise
-// instead of issuing parallel generateToken requests (which for self-custodial
-// wallets would spawn N signArbitrary popups).
-
 export type UseProviderCredentialsResult = {
   details: ProviderCredentials & {
     isExpired: boolean;
@@ -51,46 +46,43 @@ export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UsePr
 
   const [error, setError] = useState<Error | null>(null);
 
+  const claimInFlight = useSetAtom(providerCredentialsStore.claimInFlightTokenRequest);
+  const releaseInFlight = useSetAtom(providerCredentialsStore.releaseInFlightTokenRequest);
+  const clearInFlightForOtherAddress = useSetAtom(providerCredentialsStore.clearInFlightTokenRequestForOtherAddress);
+
   const stateRef = useRef({ accessToken, isTokenExpired, generateToken, notificator, address });
   stateRef.current = { accessToken, isTokenExpired, generateToken, notificator, address };
 
   useEffect(() => {
     setError(null);
-    const store = getDefaultStore();
-    const current = store.get(providerCredentialsStore.inFlightTokenRequest);
-    if (current && current.address !== address) {
-      store.set(providerCredentialsStore.inFlightTokenRequest, null);
-    }
-  }, [address]);
+    clearInFlightForOtherAddress(address);
+  }, [address, clearInFlightForOtherAddress]);
 
   const ensureToken = useCallback(async (): Promise<string> => {
     const { accessToken, isTokenExpired, generateToken, notificator, address } = stateRef.current;
     if (accessToken && !isTokenExpired) return accessToken;
-    const store = getDefaultStore();
-    const current = store.get(providerCredentialsStore.inFlightTokenRequest);
-    if (current && current.address === address) {
-      return current.promise;
-    }
 
-    const promise = GENERATE_TOKEN_RETRY_POLICY.execute(() => generateToken())
-      .then(token => {
-        setError(null);
-        return token;
-      })
-      .catch((err: unknown) => {
-        const normalizedError = err instanceof Error ? err : new Error(String(err));
-        setError(normalizedError);
-        notificator.error(GENERATE_TOKEN_FAILURE_MESSAGE);
-        throw normalizedError;
-      })
-      .finally(() => {
-        if (store.get(providerCredentialsStore.inFlightTokenRequest)?.promise === promise) {
-          store.set(providerCredentialsStore.inFlightTokenRequest, null);
-        }
-      });
-    store.set(providerCredentialsStore.inFlightTokenRequest, { address, promise });
-    return promise;
-  }, []);
+    return claimInFlight({
+      address,
+      createPromise: () => {
+        const createdPromise: Promise<string> = GENERATE_TOKEN_RETRY_POLICY.execute(() => generateToken())
+          .then(token => {
+            setError(null);
+            return token;
+          })
+          .catch((err: unknown) => {
+            const normalizedError = err instanceof Error ? err : new Error(String(err));
+            setError(normalizedError);
+            notificator.error(GENERATE_TOKEN_FAILURE_MESSAGE);
+            throw normalizedError;
+          })
+          .finally(() => {
+            releaseInFlight(createdPromise);
+          });
+        return createdPromise;
+      }
+    });
+  }, [claimInFlight, releaseInFlight]);
 
   useEffect(() => {
     if (!isWalletConnected || !isHydrated || isUsable || error) return;
