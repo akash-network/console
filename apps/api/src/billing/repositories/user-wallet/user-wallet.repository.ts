@@ -1,3 +1,4 @@
+import { Trace } from "@akashnetwork/instrumentation";
 import subDays from "date-fns/subDays";
 import { and, count, eq, gt, inArray, lte, or } from "drizzle-orm";
 import { singleton } from "tsyringe";
@@ -5,7 +6,6 @@ import { singleton } from "tsyringe";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
-import { Trace } from "@src/core/services/tracing/tracing.service";
 
 export type DbCreateUserWalletInput = ApiPgTables["UserWallets"]["$inferInsert"];
 export type DbUserWalletInput = Partial<DbCreateUserWalletInput>;

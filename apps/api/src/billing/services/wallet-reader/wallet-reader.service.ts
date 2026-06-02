@@ -1,9 +1,9 @@
+import { Trace } from "@akashnetwork/instrumentation";
 import assert from "http-assert";
 import { Lifecycle, scoped } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { UserWalletOutput, UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
-import { Trace } from "@src/core/services/tracing/tracing.service";
 
 export interface GetWalletOptions {
   userId: string;

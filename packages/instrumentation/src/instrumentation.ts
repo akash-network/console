@@ -12,7 +12,9 @@ export const sdk = new NodeSDK({
     new RuntimeNodeInstrumentation({
       monitoringPrecision: 10 // this is actually a resolution option for nodejs perf_hooks not a reporting option
     }),
-    new HttpInstrumentation(),
+    new HttpInstrumentation({
+      ignoreIncomingRequestHook: req => !!req.url?.includes("/healthz/")
+    }),
     new PgInstrumentation(),
     new PinoInstrumentation({
       disableLogSending: true

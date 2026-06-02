@@ -1,3 +1,4 @@
+import { Trace } from "@akashnetwork/instrumentation";
 import { compare } from "bcryptjs";
 import isAfter from "date-fns/isAfter";
 import parseISO from "date-fns/parseISO";
@@ -6,7 +7,6 @@ import { singleton } from "tsyringe";
 
 import { ApiKeyOutput, ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
-import { Trace } from "@src/core/services/tracing/tracing.service";
 import { ApiKeyGeneratorService } from "./api-key-generator.service";
 
 @singleton()

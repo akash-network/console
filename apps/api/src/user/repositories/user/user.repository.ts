@@ -1,3 +1,4 @@
+import { Trace } from "@akashnetwork/instrumentation";
 import { and, eq, isNull, lt, ne, or, SQL, sql } from "drizzle-orm";
 import { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
@@ -6,7 +7,6 @@ import { UserWallets } from "@src/billing/model-schemas";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
-import { Trace } from "@src/core/services/tracing/tracing.service";
 import { userAgentMaxLength } from "@src/user/model-schemas/user/user.schema";
 
 export type UserOutput = ApiPgTables["Users"]["$inferSelect"] & {
