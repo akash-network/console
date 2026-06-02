@@ -8,9 +8,12 @@ import { LOGGER_FACTORY } from "./logger-factory.provider";
 
 const logger = container.resolve(LOGGER_FACTORY)({ context: "POSTGRES" });
 
-const APP_PG_CLIENT = Symbol("APP_PG_CLIENT") as InjectionToken<postgres.Sql>;
+// The runtime client registers `postgres.BigInt` (see postgres.provider), so bigint params
+// are serialized correctly; reflect that in the type so bigint criteria can be bound directly.
+export type Database = postgres.Sql<{ bigint: bigint }>;
+export const PG_CLIENT = Symbol("APP_PG_CLIENT") as InjectionToken<Database>;
 
-container.register(APP_PG_CLIENT, {
+container.register(PG_CLIENT, {
   useFactory: instancePerContainerCachingFactory(c => {
     const config = c.resolve(APP_CONFIG);
     return postgres(config.PROVIDER_INVENTORY_POSTGRES_URL, {
@@ -43,10 +46,8 @@ container.register(DB_HEALTHCHECK, {
     c =>
       ({
         async ping() {
-          await c.resolve(APP_PG_CLIENT).unsafe("SELECT 1");
+          await c.resolve(PG_CLIENT).unsafe("SELECT 1");
         }
       }) satisfies DbHealthcheck
   )
 });
-
-export const PG_CLIENT = APP_PG_CLIENT;
