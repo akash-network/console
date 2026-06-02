@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ExponentialBackoff, handleAll, retry } from "cockatiel";
-import { atom, getDefaultStore } from "jotai";
+import { getDefaultStore } from "jotai";
 
 import { useWallet } from "@src/context/WalletProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
 import type { ProviderCredentials } from "@src/services/provider-proxy/provider-proxy.service";
+import providerCredentialsStore from "@src/store/providerCredentialsStore";
 import { useProviderJwt } from "../useProviderJwt/useProviderJwt";
 
 export const DEPENDENCIES = {
@@ -27,7 +28,7 @@ const GENERATE_TOKEN_FAILURE_MESSAGE = "Failed to authorize with the provider. P
 // ensureToken on their auto-trigger effect, they all await the same promise
 // instead of issuing parallel generateToken requests (which for self-custodial
 // wallets would spawn N signArbitrary popups).
-const IN_FLIGHT_TOKEN_REQUEST_ATOM = atom<{ address: string; promise: Promise<string> } | null>(null);
+const { inFlightTokenRequest } = providerCredentialsStore;
 
 export type UseProviderCredentialsResult = {
   details: ProviderCredentials & {
@@ -57,9 +58,9 @@ export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UsePr
   useEffect(() => {
     setError(null);
     const store = getDefaultStore();
-    const current = store.get(IN_FLIGHT_TOKEN_REQUEST_ATOM);
+    const current = store.get(inFlightTokenRequest);
     if (current && current.address !== address) {
-      store.set(IN_FLIGHT_TOKEN_REQUEST_ATOM, null);
+      store.set(inFlightTokenRequest, null);
     }
   }, [address]);
 
@@ -67,7 +68,7 @@ export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UsePr
     const { accessToken, isTokenExpired, generateToken, notificator, address } = stateRef.current;
     if (accessToken && !isTokenExpired) return accessToken;
     const store = getDefaultStore();
-    const current = store.get(IN_FLIGHT_TOKEN_REQUEST_ATOM);
+    const current = store.get(inFlightTokenRequest);
     if (current && current.address === address) {
       return current.promise;
     }
@@ -84,11 +85,11 @@ export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UsePr
         throw normalizedError;
       })
       .finally(() => {
-        if (store.get(IN_FLIGHT_TOKEN_REQUEST_ATOM)?.promise === promise) {
-          store.set(IN_FLIGHT_TOKEN_REQUEST_ATOM, null);
+        if (store.get(inFlightTokenRequest)?.promise === promise) {
+          store.set(inFlightTokenRequest, null);
         }
       });
-    store.set(IN_FLIGHT_TOKEN_REQUEST_ATOM, { address, promise });
+    store.set(inFlightTokenRequest, { address, promise });
     return promise;
   }, []);
 
