@@ -1,35 +1,41 @@
-import type { LoggerService } from "@akashnetwork/logging";
-import { inject, singleton } from "tsyringe";
+import { withSpan } from "@akashnetwork/instrumentation";
+import { singleton } from "tsyringe";
 
-import type { LoggerFactory } from "@src/providers/logger-factory.provider";
-import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
 import { type BidScreeningCandidate, BidScreeningRepository } from "@src/repositories/bid-screening/bid-screening.repository";
 import type { GroupSpecJSON } from "../../lib/groupspec-mapper/groupspec-mapper";
 import { mapGroupSpecToResourceUnits } from "../../lib/groupspec-mapper/groupspec-mapper";
-import type { BidScreeningResult } from "../../types/inventory.types";
+import type { BidScreeningResult, RequestedResourceUnit } from "../../types/inventory.types";
 import { ClusterInventoryMatcherService } from "../cluster-inventory-matcher/cluster-inventory-matcher.service";
 
 @singleton()
 export class BidScreeningService {
   readonly #repository: BidScreeningRepository;
   readonly #matcher: ClusterInventoryMatcherService;
-  readonly #logger: LoggerService;
 
-  constructor(repository: BidScreeningRepository, matcher: ClusterInventoryMatcherService, @inject(LOGGER_FACTORY) loggerFactory: LoggerFactory) {
+  constructor(repository: BidScreeningRepository, matcher: ClusterInventoryMatcherService) {
     this.#repository = repository;
     this.#matcher = matcher;
-    this.#logger = loggerFactory({ context: "BidScreening" });
   }
 
   async findMatchingProviders(request: GroupSpecJSON): Promise<BidScreeningResult[]> {
-    const startTime = Date.now();
-    const resourceUnits = mapGroupSpecToResourceUnits(request);
+    const resourceUnits = await withSpan("mapRequestToResourceUnits", async () => mapGroupSpecToResourceUnits(request));
 
-    this.#logger.info({ event: "BID_SCREENING_START", resourceGroupCount: resourceUnits.length });
+    const candidates = await withSpan("fetchCandidatesFromDB", async ({ activeSpan }) => {
+      const items = await this.#repository.findCandidates(resourceUnits, request.requirements);
+      activeSpan.setAttribute("amountOfCandidatesFromDb", items.length);
+      return items;
+    });
 
-    const candidates = await this.#repository.findCandidates(resourceUnits, request.requirements);
-    this.#logger.info({ event: "BID_SCREENING_CANDIDATES_FETCHED", count: candidates.length });
+    const results = await withSpan("applyingBinPackingAlg", async ({ activeSpan }) => {
+      const items = this.#filterProviders(candidates, resourceUnits);
+      activeSpan.setAttribute("amountOfCandidatesAfterBinPacking", items.length);
+      return items;
+    });
 
+    return results;
+  }
+
+  #filterProviders(candidates: BidScreeningCandidate[], resourceUnits: RequestedResourceUnit[]): BidScreeningResult[] {
     const results: BidScreeningResult[] = [];
 
     for (const candidate of candidates) {
@@ -39,13 +45,6 @@ export class BidScreeningService {
         results.push(this.#toResult(candidate));
       }
     }
-
-    this.#logger.info({
-      event: "BID_SCREENING_COMPLETE",
-      providerCount: candidates.length,
-      matchedCount: results.length,
-      durationMs: Date.now() - startTime
-    });
 
     return results;
   }
