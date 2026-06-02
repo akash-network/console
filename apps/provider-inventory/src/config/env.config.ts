@@ -16,6 +16,7 @@ export const envSchema = z.object({
   STREAM_RECONNECT_INITIAL_DELAY_MS: z.number({ coerce: true }).default(60_000),
   STREAM_RECONNECT_MAX_DELAY_MS: z.number({ coerce: true }).default(5 * 60 * 1000),
   STREAM_FIRST_MESSAGE_TIMEOUT_MS: z.number({ coerce: true }).default(10_000),
+  STREAM_UPDATE_THROTTLE_MS: z.number({ coerce: true }).nonnegative().default(1000),
   REST_API_NODE_URL: z.string().url()
 });
 

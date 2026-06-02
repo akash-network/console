@@ -2,6 +2,7 @@ import type { ChainNodeWebSDK } from "@akashnetwork/chain-sdk/web";
 import type { LoggerService } from "@akashnetwork/logging";
 import { inject, singleton } from "tsyringe";
 
+import { paginate } from "@src/lib/generators/paginate/paginate";
 import { CHAIN_SDK } from "@src/providers/chain-sdk.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
@@ -21,35 +22,49 @@ export class ChainProviderPollerService {
     const MAX_PROVIDERS_PER_BATCH = input.batchSize ?? 500;
     this.#logger.info({ event: "CHAIN_POLL_START" });
 
-    const auditRecords = await this.#chainSDK.akash.audit.v1.getAllProvidersAttributes({}, { signal: input.signal });
-
     const signedByOwner = new Map<string, { attributes: Array<{ key: string; value: string; auditor: string }>; auditors: Set<string> }>();
-    for (const record of auditRecords.providers) {
-      const existing = signedByOwner.get(record.owner);
-      const attributes = record.attributes.map(a => ({ key: a.key, value: a.value, auditor: record.auditor }));
-      if (existing) {
-        existing.attributes.push(...attributes);
-        existing.auditors.add(record.auditor);
-      } else {
-        signedByOwner.set(record.owner, { attributes, auditors: new Set([record.auditor]) });
+    const auditPages = paginate(
+      async key => {
+        const response = await this.#chainSDK.akash.audit.v1.getAllProvidersAttributes(
+          { pagination: { limit: MAX_PROVIDERS_PER_BATCH, key } },
+          { signal: input.signal }
+        );
+        return { items: response.providers, nextKey: response.pagination?.nextKey };
+      },
+      { signal: input.signal }
+    );
+
+    for await (const records of auditPages) {
+      for (const record of records) {
+        const existing = signedByOwner.get(record.owner);
+        const attributes = record.attributes.map(a => ({ key: a.key, value: a.value, auditor: record.auditor }));
+        if (existing) {
+          existing.attributes.push(...attributes);
+          existing.auditors.add(record.auditor);
+        } else {
+          signedByOwner.set(record.owner, { attributes, auditors: new Set([record.auditor]) });
+        }
       }
     }
 
     let providerCount = 0;
-    let nextKey: Uint8Array | undefined = undefined;
-    do {
-      this.#logger.info({ event: "CHAIN_PROVIDERS_POLL_BATCH", nextKey: nextKey ? Buffer.from(nextKey).toString("base64") : null });
+    const providerPages = paginate(
+      async key => {
+        this.#logger.info({ event: "CHAIN_PROVIDERS_POLL_BATCH", nextKey: key ? Buffer.from(key).toString("base64") : null });
+        const response = await this.#chainSDK.akash.provider.v1beta4.getProviders(
+          { pagination: { limit: MAX_PROVIDERS_PER_BATCH, key } },
+          { signal: input.signal }
+        );
+        return { items: response.providers, nextKey: response.pagination?.nextKey };
+      },
+      { signal: input.signal }
+    );
 
-      const response = await this.#chainSDK.akash.provider.v1beta4.getProviders(
-        {
-          pagination: { limit: MAX_PROVIDERS_PER_BATCH, key: nextKey }
-        },
-        { signal: input.signal }
-      );
-      providerCount += response.providers.length;
+    for await (const providers of providerPages) {
+      providerCount += providers.length;
 
       const validProviders: ChainProvider[] = [];
-      for (const provider of response.providers) {
+      for (const provider of providers) {
         if (isValidUrl(provider.hostUri)) {
           validProviders.push({
             owner: provider.owner,
@@ -66,9 +81,7 @@ export class ChainProviderPollerService {
       if (validProviders.length > 0) {
         yield validProviders;
       }
-
-      nextKey = response.pagination?.nextKey;
-    } while (nextKey && nextKey.length > 0 && !input.signal?.aborted);
+    }
 
     this.#logger.info({ event: "CHAIN_PROVIDERS_POLL_COMPLETE", providerCount });
   }
