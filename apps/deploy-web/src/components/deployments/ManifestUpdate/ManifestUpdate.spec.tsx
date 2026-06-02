@@ -111,7 +111,7 @@ describe(ManifestUpdate.name, () => {
     const ButtonMock = vi.fn(ComponentMock);
     setup({
       providerCredentials: {
-        details: { usable: false, isExpired: true, type: "jwt" as const, value: null }
+        details: { usable: false, isExpired: true, type: "jwt" as const, value: null, error: null }
       },
       dependencies: {
         Button: ButtonMock
@@ -310,7 +310,7 @@ describe(ManifestUpdate.name, () => {
     onManifestChange?: (value: string) => void;
     providers?: Array<Partial<{ owner: string; hostUri: string }>>;
     wallet?: Partial<{ address: string; signAndBroadcastTx: ReturnType<typeof vi.fn>; isManaged: boolean }>;
-    providerCredentials?: Partial<{ details: { usable: boolean; isExpired: boolean; type: "jwt"; value: string | null } }>;
+    providerCredentials?: Partial<{ details: { usable: boolean; isExpired: boolean; type: "jwt"; value: string | null; error: Error | null } }>;
     deploymentLocalStorage?: Partial<{ get: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> }>;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
@@ -351,7 +351,8 @@ describe(ManifestUpdate.name, () => {
         usable: true,
         isExpired: false,
         type: "jwt" as const,
-        value: "test-token"
+        value: "test-token",
+        error: null
       },
       ensureToken: vi.fn().mockResolvedValue("test-token")
     });

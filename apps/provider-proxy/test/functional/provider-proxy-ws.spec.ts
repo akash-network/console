@@ -358,6 +358,61 @@ describe("Provider proxy ws", () => {
     );
   });
 
+  it("emits a structured tokenExpired payload when the client sends an expired JWT", async () => {
+    const providerAddress = generateBech32();
+    const certPair = await createX509CertPair({ commonName: providerAddress });
+    const chainServer = await startChainApiServer([certPair.cert]);
+    const { providerUrl } = await startProviderServer({
+      certPair,
+      websocketServer: { enable: true, onConnection: pws => pws.send("connected") }
+    });
+    const proxyServerUrl = await startServer({ REST_API_NODE_URL: chainServer.url });
+    const ws = new WebSocket(`${proxyServerUrl}/ws`);
+
+    await new Promise(resolve => ws.once("open", resolve));
+
+    const wallet = await Secp256k1HdWallet.generate(24, { prefix: "akash" });
+    const tokenManager = new JwtTokenManager(wallet);
+    const issuer = (await wallet.getAccounts())[0].address;
+    const validToken = await tokenManager.generateToken({
+      iss: issuer,
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      version: "v1",
+      leases: { access: "full" }
+    });
+    const expiredToken = withExpiredPayload(validToken, issuer);
+
+    ws.send(
+      JSON.stringify(
+        ourMessage("hello", providerUrl, {
+          providerAddress,
+          auth: { type: "jwt", token: expiredToken }
+        })
+      )
+    );
+
+    expect(await waitForMessage(ws)).toEqual({
+      type: "websocket",
+      error: "tokenExpired"
+    });
+  });
+
+  function withExpiredPayload(token: string, issuer: string): string {
+    const [header, , signature] = token.split(".");
+    const now = Math.floor(Date.now() / 1000);
+    const expiredPayload = {
+      iss: issuer,
+      iat: now - 7200,
+      nbf: now - 7200,
+      exp: now - 60,
+      version: "v1",
+      leases: { access: "full" }
+    };
+    const encoded = Buffer.from(JSON.stringify(expiredPayload)).toString("base64url");
+    return `${header}.${encoded}.${signature}`;
+  }
+
   function providerMessage<T>(message: T, extra?: Record<string, any>) {
     return {
       ...extra,

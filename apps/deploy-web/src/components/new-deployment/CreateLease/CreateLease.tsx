@@ -203,12 +203,11 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
       });
 
     try {
-      const token = await providerCredentials.ensureToken();
       const yamlJson = yaml.load(localDeploymentData.manifest);
       const mani = deploymentData.getManifest(yamlJson);
       const options: SendManifestToProviderOptions = {
         dseq,
-        credentials: { type: "jwt", value: token }
+        ensureToken: providerCredentials.ensureToken
       };
 
       for (let i = 0; i < bidKeys.length; i++) {

@@ -114,6 +114,14 @@ export class WebsocketServer {
                 message: "Message doesn't match expected schema",
                 error: parsedMessage.error
               });
+              if (isJwtExpiredError(parsedMessage.error)) {
+                return ws.send(
+                  JSON.stringify({
+                    type: "websocket",
+                    error: "tokenExpired"
+                  })
+                );
+              }
               return ws.send(
                 JSON.stringify({
                   type: "websocket",
@@ -268,7 +276,7 @@ export class WebsocketServer {
         if (socket?.authorized) {
           // CA validation is successful, so certificate is not self-signed
           wsDetails.verification = "finished";
-          pws.emit("verified");
+          emitVerifiedWhenOpen(pws);
           return;
         }
 
@@ -443,6 +451,23 @@ interface CreateProviderSocketOptions {
   wsId: string;
   auth?: z.infer<typeof providerRequestSchema>["auth"];
   providerAddress: string;
+}
+
+export function emitVerifiedWhenOpen(ws: WebSocket): void {
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.emit("verified");
+    return;
+  }
+  ws.once("open", () => ws.emit("verified"));
+}
+
+export function isJwtExpiredError(error: z.ZodError): boolean {
+  return error.errors.some(issue => {
+    if (issue.code !== z.ZodIssueCode.custom) return false;
+    if (issue.path[0] !== "auth" || issue.path[1] !== "token") return false;
+    const params = (issue as { params?: { errors?: unknown } }).params;
+    return Array.isArray(params?.errors) && params.errors.includes("Token has expired");
+  });
 }
 
 function getWebSocketUsage(message: any): WebSocketUsage {

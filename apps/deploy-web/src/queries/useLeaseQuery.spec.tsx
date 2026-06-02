@@ -279,7 +279,8 @@ describe("useLeaseQuery", () => {
           type: "jwt",
           value: null,
           isExpired: false,
-          usable: false
+          usable: false,
+          error: null
         },
         services: {
           providerProxy: () => mock<ProviderProxyService>()
@@ -330,7 +331,8 @@ describe("useLeaseQuery", () => {
           type: "jwt",
           value: "jwt-token",
           isExpired: false,
-          usable: true
+          usable: true,
+          error: null
         },
         services: {
           providerProxy: () => providerProxy
@@ -364,7 +366,8 @@ describe("useLeaseQuery", () => {
             type: "jwt",
             value: "jwt-token",
             isExpired: false,
-            usable: true
+            usable: true,
+            error: null
           },
           ensureToken: vi.fn().mockResolvedValue("jwt-token")
         })

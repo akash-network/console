@@ -6,6 +6,7 @@ import { WarningCircle } from "iconoir-react";
 
 import { ViewPanel } from "@src/components/shared/ViewPanel";
 import { useServices } from "@src/context/ServicesProvider";
+import { useProviderAccess } from "@src/hooks/useProviderAccess/useProviderAccess";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { XTerm } from "@src/lib/XTerm";
 import type { XTermRefType } from "@src/lib/XTerm/XTerm";
@@ -16,6 +17,7 @@ import type { LeaseDto } from "@src/types/deployment";
 import { LeaseShellCode } from "@src/types/shell";
 import { forEachGeneratedItem } from "@src/utils/array";
 import { LeaseSelect } from "./LeaseSelect";
+import { ProviderAuthFallback } from "./ProviderAuthGate";
 import { ServiceSelect } from "./ServiceSelect";
 import { ShellDownloadModal } from "./ShellDownloadModal";
 
@@ -37,7 +39,13 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   const [isChangingSocket, setIsChangingSocket] = useState(false);
   const { data: providers } = useProviderList();
   const providerCredentials = useProviderCredentials();
+  const hasShellAccess = useProviderAccess(providerCredentials);
   const providerInfo = providers?.find(p => p.owner === selectedLease?.provider);
+  const providerHostUri = providerInfo?.hostUri;
+  const providerAddress = providerInfo?.owner;
+  const dseq = selectedLease?.dseq;
+  const gseq = selectedLease?.gseq;
+  const oseq = selectedLease?.oseq;
   const {
     data: leaseStatus,
     refetch: getLeaseStatus,
@@ -70,16 +78,16 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   }, [selectedLease, providerInfo, getLeaseStatus]);
 
   const shellSession = useMemo(() => {
-    if (!providerInfo || !providerCredentials.details.usable || !selectedLease || !selectedService) return null;
+    if (!providerHostUri || !providerAddress || !hasShellAccess || !dseq || gseq === undefined || oseq === undefined || !selectedService) return null;
 
     const abortController = new AbortController();
     const conn = providerProxy.connectToShell({
-      providerBaseUrl: providerInfo.hostUri,
-      providerAddress: providerInfo.owner,
-      providerCredentials: providerCredentials.details,
-      dseq: selectedLease.dseq,
-      gseq: selectedLease.gseq,
-      oseq: selectedLease.oseq,
+      providerBaseUrl: providerHostUri,
+      providerAddress,
+      ensureToken: providerCredentials.ensureToken,
+      dseq,
+      gseq,
+      oseq,
       service: selectedService,
       useStdIn: true,
       useTTY: true,
@@ -90,7 +98,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
       conn,
       abortController
     };
-  }, [providerInfo, providerCredentials.details, selectedLease, selectedService]);
+  }, [providerHostUri, providerAddress, hasShellAccess, dseq, gseq, oseq, selectedService, providerCredentials.ensureToken]);
 
   useEffect(() => {
     if (!shellSession) return;
@@ -230,7 +238,9 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
         <ShellDownloadModal onCloseClick={onCloseDownloadClick} selectedLease={selectedLease} providerInfo={providerInfo} selectedService={selectedService} />
       )}
 
-      {providerCredentials.details.usable && (
+      <ProviderAuthFallback hasAccess={hasShellAccess} error={providerCredentials.details.error} />
+
+      {hasShellAccess && (
         <>
           {selectedLease && (
             <>

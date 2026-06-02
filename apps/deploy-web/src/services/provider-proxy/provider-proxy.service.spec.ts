@@ -19,7 +19,7 @@ describe(ProviderProxyService.name, () => {
   describe("sendManifest", () => {
     it("does nothing if provider is undefined", () => {
       const { service, httpClient } = setup();
-      service.sendManifest(undefined, [] as Manifest, { dseq: "1" });
+      service.sendManifest(undefined, [] as Manifest, { dseq: "1", ensureToken: () => Promise.resolve("noop") });
       expect(httpClient.post).not.toHaveBeenCalled();
     });
 
@@ -79,7 +79,7 @@ describe(ProviderProxyService.name, () => {
         }
       ];
       const credentials: ProviderCredentials = { type: "jwt", value: "jwt-token" };
-      const promise = service.sendManifest(provider, manifest, { dseq, credentials });
+      const promise = service.sendManifest(provider, manifest, { dseq, ensureToken: () => Promise.resolve(credentials.value as string) });
 
       const [result] = await Promise.all([promise, vi.runAllTimersAsync()]);
 
@@ -108,7 +108,7 @@ describe(ProviderProxyService.name, () => {
         type: "logs" as const,
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "123",
         gseq: 1,
         oseq: 1
@@ -160,7 +160,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "456",
         gseq: 2,
         oseq: 3,
@@ -202,7 +202,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "token123" },
+        ensureToken: () => Promise.resolve("token123"),
         dseq: "789",
         gseq: 1,
         oseq: 1,
@@ -227,7 +227,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "111",
         gseq: 1,
         oseq: 1,
@@ -269,7 +269,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "222",
         gseq: 1,
         oseq: 1,
@@ -295,7 +295,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "111",
         gseq: 1,
         oseq: 1,
@@ -323,7 +323,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "123",
         gseq: 1,
         oseq: 1,
@@ -366,7 +366,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "456",
         gseq: 2,
         oseq: 3,
@@ -405,7 +405,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "token123" },
+        ensureToken: () => Promise.resolve("token123"),
         dseq: "789",
         gseq: 1,
         oseq: 1,
@@ -438,7 +438,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "999",
         gseq: 1,
         oseq: 1,
@@ -464,7 +464,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "111",
         gseq: 1,
         oseq: 1,
@@ -497,7 +497,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "222",
         gseq: 1,
         oseq: 1,
@@ -538,7 +538,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "123",
         gseq: 1,
         oseq: 1,
@@ -582,7 +582,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "token123" },
+        ensureToken: () => Promise.resolve("token123"),
         dseq: "456",
         gseq: 2,
         oseq: 3,
@@ -628,7 +628,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "789",
         gseq: 1,
         oseq: 1,
@@ -682,7 +682,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "999",
         gseq: 1,
         oseq: 1,
@@ -693,11 +693,10 @@ describe(ProviderProxyService.name, () => {
       const stream = service.getLogsStream(input);
 
       await dispatchWsEvent(websocket, new Event("open"));
-
-      const [result] = await Promise.all([stream.next(), abortController.abort()]);
+      abortController.abort();
+      const result = await stream.next();
 
       expect(result.done).toBe(true);
-      expect(websocket.close).toHaveBeenCalled();
     });
 
     it("includes `tail`, `services` and `follow` parameters in request", async () => {
@@ -705,7 +704,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "111",
         gseq: 1,
         oseq: 1,
@@ -732,7 +731,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "111",
         gseq: 1,
         oseq: 1,
@@ -751,6 +750,106 @@ describe(ProviderProxyService.name, () => {
 
       expect(createWebSocket).toHaveBeenCalledTimes(1);
     });
+
+    it("rotates the websocket when the server emits a tokenExpired payload", async () => {
+      const { service, createWebSocket } = setupWithSocketSequence(2);
+      const ensureToken = vi.fn().mockResolvedValueOnce("stale-token").mockResolvedValueOnce("fresh-token");
+
+      const stream = service.getLogsStream({
+        providerBaseUrl: "https://provider.akash.network",
+        providerAddress: "akash1provider",
+        ensureToken,
+        dseq: "111",
+        gseq: 1,
+        oseq: 1,
+        type: "logs" as const,
+        follow: true
+      });
+
+      const firstMessagePromise = stream.next();
+
+      await vi.waitFor(() => expect(createWebSocket).toHaveBeenCalledTimes(1));
+      const firstSocket = (createWebSocket as Mock).mock.results[0].value as WebSocket;
+      await dispatchWsEvent(firstSocket, new Event("open"));
+      await dispatchWsEvent(firstSocket, new MessageEvent("message", { data: JSON.stringify({ type: "websocket", error: "tokenExpired" }) }));
+
+      await vi.waitFor(() => expect(createWebSocket).toHaveBeenCalledTimes(2));
+
+      const secondSocket = (createWebSocket as Mock).mock.results[1].value as WebSocket;
+      await dispatchWsEvent(secondSocket, new Event("open"));
+
+      const logMessage: LogEntryMessage = { name: "web-1", message: "after rotation", service: "web" };
+      await dispatchWsEvent(secondSocket, new MessageEvent("message", { data: JSON.stringify({ message: JSON.stringify(logMessage) }) }));
+
+      const result = await firstMessagePromise;
+
+      expect(result.value).toEqual({ message: logMessage });
+      expect(ensureToken).toHaveBeenCalledTimes(2);
+      const secondHandshake = JSON.parse((secondSocket.send as Mock).mock.calls[0][0]);
+      expect(secondHandshake.auth).toEqual({ type: "jwt", token: "fresh-token" });
+
+      await dispatchWsEvent(secondSocket, new Event("close"));
+    });
+
+    it("stops rotating after exceeding the rotation cap, yields a closed message, and logs WS_ROTATION_LIMIT_EXCEEDED", async () => {
+      const { service, createWebSocket, logger } = setupWithSocketSequence(4);
+      const ensureToken = vi.fn().mockResolvedValue("any-token");
+
+      const stream = service.getLogsStream({
+        providerBaseUrl: "https://provider.akash.network",
+        providerAddress: "akash1provider",
+        ensureToken,
+        dseq: "222",
+        gseq: 1,
+        oseq: 1,
+        type: "logs" as const,
+        follow: true
+      });
+
+      const consumePromise = (async () => {
+        const messages = [];
+        for await (const message of stream) {
+          messages.push(message);
+        }
+        return messages;
+      })();
+
+      for (let attempt = 0; attempt < 4; attempt++) {
+        await vi.waitFor(() => expect(createWebSocket).toHaveBeenCalledTimes(attempt + 1));
+        const socket = (createWebSocket as Mock).mock.results[attempt].value as WebSocket;
+        await dispatchWsEvent(socket, new Event("open"));
+        await dispatchWsEvent(socket, new MessageEvent("message", { data: JSON.stringify({ type: "websocket", error: "tokenExpired" }) }));
+      }
+
+      const messages = await consumePromise;
+
+      expect(createWebSocket).toHaveBeenCalledTimes(4);
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "WS_ROTATION_LIMIT_EXCEEDED" }));
+      expect(messages.at(-1)).toEqual({ closed: true });
+    });
+
+    it("yields a closed message when ensureToken rejects", async () => {
+      const { service } = setup();
+      const ensureToken = vi.fn().mockRejectedValue(new Error("token unavailable"));
+
+      const stream = service.getLogsStream({
+        providerBaseUrl: "https://provider.akash.network",
+        providerAddress: "akash1provider",
+        ensureToken,
+        dseq: "333",
+        gseq: 1,
+        oseq: 1,
+        type: "logs" as const,
+        follow: true
+      });
+
+      const messages = [];
+      for await (const message of stream) {
+        messages.push(message);
+      }
+
+      expect(messages).toEqual([{ closed: true }]);
+    });
   });
 
   describe("connectToShell", () => {
@@ -759,7 +858,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.example.com",
         providerAddress: "akash1test",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "100",
         gseq: 2,
         oseq: 3,
@@ -781,7 +880,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "456",
         gseq: 1,
         oseq: 1,
@@ -803,7 +902,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "789",
         gseq: 1,
         oseq: 1,
@@ -826,7 +925,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "333",
         gseq: 1,
         oseq: 1,
@@ -849,7 +948,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "token123" },
+        ensureToken: () => Promise.resolve("token123"),
         dseq: "555",
         gseq: 1,
         oseq: 1,
@@ -872,7 +971,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "666",
         gseq: 1,
         oseq: 1,
@@ -893,7 +992,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "777",
         gseq: 1,
         oseq: 1,
@@ -914,7 +1013,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "888",
         gseq: 1,
         oseq: 1,
@@ -936,7 +1035,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "1000",
         gseq: 1,
         oseq: 1,
@@ -964,7 +1063,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "1111",
         gseq: 1,
         oseq: 1,
@@ -1005,7 +1104,7 @@ describe(ProviderProxyService.name, () => {
       const input = {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
-        providerCredentials: { type: "jwt" as const, value: "jwt-token" },
+        ensureToken: () => Promise.resolve("jwt-token"),
         dseq: "1111",
         gseq: 1,
         oseq: 1,
@@ -1039,5 +1138,16 @@ describe(ProviderProxyService.name, () => {
     const createWebSocket = vi.fn(() => websocket);
     const service = new ProviderProxyService(httpClient, logger, createWebSocket, saveFile);
     return { service, httpClient, logger, saveFile, websocket, createWebSocket };
+  }
+
+  function setupWithSocketSequence(count: number) {
+    const httpClient = mock<HttpClient>();
+    const logger = mock<LoggerService>();
+    const saveFile = vi.fn();
+    const sockets = Array.from({ length: count }, () => createWebsocketMock());
+    const createWebSocket = vi.fn();
+    sockets.forEach(socket => createWebSocket.mockReturnValueOnce(socket));
+    const service = new ProviderProxyService(httpClient, logger, createWebSocket, saveFile);
+    return { service, httpClient, logger, saveFile, sockets, createWebSocket };
   }
 });

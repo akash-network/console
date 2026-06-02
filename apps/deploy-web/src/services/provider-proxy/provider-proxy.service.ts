@@ -9,6 +9,10 @@ import type { ApiProviderList } from "@src/types/provider";
 import { toBase64 } from "@src/utils/encoding";
 import { wait } from "@src/utils/timer";
 import { formatK8sEvent, formatLogMessage } from "./logFormatters";
+import { type ReceivedShellMessage, RotatingShellSession } from "./RotatingShellSession";
+import { isTokenExpiredMessage, mergeSignals, RotationTracker } from "./ws-rotation";
+
+export type { ReceivedShellMessage } from "./RotatingShellSession";
 
 // @see https://www.rfc-editor.org/rfc/rfc6455.html#page-46
 export const WS_ERRORS = {
@@ -48,6 +52,7 @@ export class ProviderProxyService {
     await wait(ProviderProxyService.BEFORE_SEND_MANIFEST_DELAY);
 
     const serializedManifest = manifestToSortedJSON(manifest);
+    const credentials: ProviderCredentials = { type: "jwt", value: await options.ensureToken() };
     let response: AxiosResponse | undefined;
 
     for (let i = 1; i <= 3 && !response; i++) {
@@ -56,7 +61,7 @@ export class ProviderProxyService {
         if (!response) {
           response = await this.request(`/deployment/${options.dseq}/manifest`, {
             method: "PUT",
-            credentials: options.credentials,
+            credentials,
             body: serializedManifest,
             timeout: 60_000,
             providerIdentity: providerInfo
@@ -89,7 +94,7 @@ export class ProviderProxyService {
   async downloadLogs(input: {
     providerBaseUrl: string;
     providerAddress: string;
-    providerCredentials: ProviderCredentials;
+    ensureToken: () => Promise<string>;
     dseq: string;
     gseq: number;
     oseq: number;
@@ -139,7 +144,7 @@ export class ProviderProxyService {
   async downloadFileFromShell(input: {
     providerBaseUrl: string;
     providerAddress: string;
-    providerCredentials: ProviderCredentials;
+    ensureToken: () => Promise<string>;
     dseq: string;
     gseq: number;
     oseq: number;
@@ -220,7 +225,7 @@ export class ProviderProxyService {
   async *getLogsStream<T extends "logs" | "events">(input: {
     providerBaseUrl: string;
     providerAddress: string;
-    providerCredentials: ProviderCredentials;
+    ensureToken: () => Promise<string>;
     dseq: string;
     gseq: number;
     oseq: number;
@@ -232,38 +237,70 @@ export class ProviderProxyService {
   }): AsyncGenerator<T extends "logs" ? ProviderProxyMessage<LogEntryMessage> : ProviderProxyMessage<K8sEventMessage>> {
     const tail = input.tail ? `&tail=${input.tail}` : "";
     const url = `${providerLeaseUrl(input)}?follow=${input.follow ? "true" : "false"}${tail}${input.services ? `&service=${input.services.join(",")}` : ""}`;
+    const tracker = new RotationTracker(this.logger, url);
 
-    const session = new WebsocketSession<undefined, T extends "logs" ? ProviderProxyMessage<LogEntryMessage> : ProviderProxyMessage<K8sEventMessage>>({
-      websocketFactory: this.createWebSocket,
-      shouldRetry: error => !error.cause || !isInvalidProviderCertificate(error.cause as CloseEvent),
-      signal: input.signal,
-      transformSentMessage: () =>
-        JSON.stringify({
-          type: "websocket",
-          url,
-          auth: providerCredentialsToApiCredentials(input.providerCredentials),
-          providerAddress: input.providerAddress
-        }),
-      transformReceivedMessage: rawMessage => {
-        const message = JSON.parse(rawMessage as string);
-        if (!message.message) return message;
+    type LogStreamMessage = T extends "logs" ? ProviderProxyMessage<LogEntryMessage> : ProviderProxyMessage<K8sEventMessage>;
 
-        return {
-          ...message,
-          message: JSON.parse(message.message)
-        };
+    while (!input.signal?.aborted) {
+      let token: string;
+      try {
+        token = await input.ensureToken();
+      } catch {
+        yield { closed: true } as LogStreamMessage;
+        return;
       }
-    });
+      if (input.signal?.aborted) return;
+      const rotationAbort = new AbortController();
+      const session = new WebsocketSession<undefined, LogStreamMessage>({
+        websocketFactory: this.createWebSocket,
+        shouldRetry: error => !error.cause || !isInvalidProviderCertificate(error.cause as CloseEvent),
+        signal: mergeSignals(input.signal, rotationAbort.signal),
+        transformSentMessage: () =>
+          JSON.stringify({
+            type: "websocket",
+            url,
+            auth: { type: "jwt", token } satisfies ProviderApiCredentials,
+            providerAddress: input.providerAddress
+          }),
+        transformReceivedMessage: rawMessage => {
+          const message = JSON.parse(rawMessage as string);
+          if (!message.message) return message;
 
-    session.send(undefined);
+          return {
+            ...message,
+            message: JSON.parse(message.message)
+          };
+        }
+      });
 
-    return yield* session.receive();
+      session.send(undefined);
+
+      let rotate = false;
+      try {
+        for await (const message of session.receive()) {
+          if (isTokenExpiredMessage(message)) {
+            rotate = true;
+            break;
+          }
+          yield message;
+        }
+      } finally {
+        rotationAbort.abort();
+        await session.disconnect();
+      }
+
+      if (!rotate) return;
+      if (!tracker.allowRotation()) {
+        yield { closed: true } as LogStreamMessage;
+        return;
+      }
+    }
   }
 
   connectToShell(input: {
     providerBaseUrl: string;
     providerAddress: string;
-    providerCredentials: ProviderCredentials;
+    ensureToken: () => Promise<string>;
     dseq: string;
     gseq: number;
     oseq: number;
@@ -272,30 +309,38 @@ export class ProviderProxyService {
     useTTY?: boolean;
     command?: string[];
     signal?: AbortSignal;
-  }): WebsocketSession<Uint8Array, ReceivedShellMessage> {
+  }): RotatingShellSession {
     const argv = input.command ?? ["sh", "-c", "command -v bash >/dev/null 2>&1 && exec bash || exec sh"];
     const command = argv.map((c, i) => `cmd${i}=${encodeURIComponent(c)}`).join("&");
     const url = `${providerLeaseUrl({ ...input, type: "shell" })}?stdin=${input.useStdIn ? "1" : "0"}&tty=${input.useTTY ? "1" : "0"}&podIndex=0&${command}&service=${encodeURIComponent(input.service)}`;
+    const createWebSocket = this.createWebSocket;
 
-    return new WebsocketSession<Uint8Array, ReceivedShellMessage>({
-      websocketFactory: this.createWebSocket,
-      shouldRetry: error => !error.cause || !isInvalidProviderCertificate(error.cause as CloseEvent),
+    return new RotatingShellSession({
+      ensureToken: input.ensureToken,
       signal: input.signal,
-      transformSentMessage: message => {
-        const remoteMessage: Record<string, unknown> = {
-          type: "websocket",
-          url,
-          auth: providerCredentialsToApiCredentials(input.providerCredentials),
-          providerAddress: input.providerAddress,
-          isBase64: true
-        };
+      logger: this.logger,
+      url,
+      createSession: (token, sessionSignal) =>
+        new WebsocketSession<Uint8Array, ReceivedShellMessage>({
+          websocketFactory: createWebSocket,
+          shouldRetry: error => !error.cause || !isInvalidProviderCertificate(error.cause as CloseEvent),
+          signal: sessionSignal,
+          transformSentMessage: message => {
+            const remoteMessage: Record<string, unknown> = {
+              type: "websocket",
+              url,
+              auth: { type: "jwt", token } satisfies ProviderApiCredentials,
+              providerAddress: input.providerAddress,
+              isBase64: true
+            };
 
-        if (message.length > 0) {
-          remoteMessage.data = toBase64(message);
-        }
+            if (message.length > 0) {
+              remoteMessage.data = toBase64(message);
+            }
 
-        return JSON.stringify(remoteMessage);
-      }
+            return JSON.stringify(remoteMessage);
+          }
+        })
     });
   }
 }
@@ -303,14 +348,6 @@ export class ProviderProxyService {
 function providerLeaseUrl(input: { providerBaseUrl: string; dseq: string; gseq: number; oseq: number; type: "logs" | "events" | "shell" }): string {
   const type = input.type === "events" ? "kubeevents" : input.type;
   return `${input.providerBaseUrl}/lease/${input.dseq}/${input.gseq}/${input.oseq}/${type}`;
-}
-
-export interface ReceivedShellMessage {
-  message?: {
-    data: number[];
-  };
-  error?: string;
-  closed?: boolean;
 }
 
 export interface ProviderProxyPayload {
@@ -328,7 +365,7 @@ export interface ProviderIdentity {
 
 export interface SendManifestToProviderOptions {
   dseq: string;
-  credentials?: ProviderCredentials | null;
+  ensureToken: () => Promise<string>;
 }
 
 export type ProviderCredentials = {
