@@ -6,6 +6,7 @@ import type { Monaco } from "@monaco-editor/react";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { Download, MoreHoriz } from "iconoir-react";
+import { isEqual } from "lodash";
 import type { editor } from "monaco-editor";
 
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
@@ -52,6 +53,11 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   const monacoEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
   const providerInfo = providers?.find(p => p.owner === selectedLease?.provider);
+  const providerHostUri = providerInfo?.hostUri;
+  const providerAddress = providerInfo?.owner;
+  const dseq = selectedLease?.dseq;
+  const gseq = selectedLease?.gseq;
+  const oseq = selectedLease?.oseq;
   const {
     data: leaseStatus,
     refetch: getLeaseStatus,
@@ -86,11 +92,8 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   }, [monacoEditorRef.current]);
 
   useEffect(() => {
-    if (leaseStatus) {
-      setSelectedServices(Object.keys(leaseStatus.services));
-    } else {
-      setSelectedServices([]);
-    }
+    const next = leaseStatus ? Object.keys(leaseStatus.services) : [];
+    setSelectedServices(prev => (isEqual(prev, next) ? prev : next));
   }, [leaseStatus]);
 
   const updateLogText = useThrottledCallback(
@@ -116,7 +119,17 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   }, [selectedLease, providerInfo, getLeaseStatus]);
 
   useEffect(() => {
-    if (!providerInfo || !hasLogsAccess || !selectedLease || !services?.length || !selectedServices?.length) return;
+    if (
+      !providerHostUri ||
+      !providerAddress ||
+      !hasLogsAccess ||
+      !dseq ||
+      gseq === undefined ||
+      oseq === undefined ||
+      !services?.length ||
+      !selectedServices?.length
+    )
+      return;
 
     logs.current = [];
 
@@ -124,12 +137,12 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     const abortController = new AbortController();
     forEachGeneratedItem(
       providerProxy.getLogsStream({
-        providerBaseUrl: providerInfo.hostUri,
-        providerAddress: providerInfo.owner,
+        providerBaseUrl: providerHostUri,
+        providerAddress,
         ensureToken: providerCredentials.ensureToken,
-        dseq: selectedLease.dseq,
-        gseq: selectedLease.gseq,
-        oseq: selectedLease.oseq,
+        dseq,
+        gseq,
+        oseq,
         type: selectedLogsMode,
         follow: true,
         services: selectedServices.length < services.length ? selectedServices : undefined,
@@ -153,7 +166,18 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
       setIsLoadingLogs(false);
       setIsConnectionEstablished(false);
     };
-  }, [hasLogsAccess, selectedLogsMode, selectedLease, selectedServices, services?.length, providerInfo?.owner, providerInfo?.hostUri]);
+  }, [
+    hasLogsAccess,
+    selectedLogsMode,
+    dseq,
+    gseq,
+    oseq,
+    selectedServices,
+    services?.length,
+    providerHostUri,
+    providerAddress,
+    providerCredentials.ensureToken
+  ]);
 
   function onLogReceived(proxyMessage: ProviderProxyMessage<LogEntryMessage> | ProviderProxyMessage<K8sEventMessage>) {
     if (proxyMessage.closed) return;
