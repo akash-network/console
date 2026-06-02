@@ -41,6 +41,11 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   const providerCredentials = useProviderCredentials();
   const hasShellAccess = useProviderAccess(providerCredentials);
   const providerInfo = providers?.find(p => p.owner === selectedLease?.provider);
+  const providerHostUri = providerInfo?.hostUri;
+  const providerAddress = providerInfo?.owner;
+  const dseq = selectedLease?.dseq;
+  const gseq = selectedLease?.gseq;
+  const oseq = selectedLease?.oseq;
   const {
     data: leaseStatus,
     refetch: getLeaseStatus,
@@ -73,16 +78,16 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   }, [selectedLease, providerInfo, getLeaseStatus]);
 
   const shellSession = useMemo(() => {
-    if (!providerInfo || !hasShellAccess || !selectedLease || !selectedService) return null;
+    if (!providerHostUri || !providerAddress || !hasShellAccess || !dseq || gseq === undefined || oseq === undefined || !selectedService) return null;
 
     const abortController = new AbortController();
     const conn = providerProxy.connectToShell({
-      providerBaseUrl: providerInfo.hostUri,
-      providerAddress: providerInfo.owner,
+      providerBaseUrl: providerHostUri,
+      providerAddress,
       ensureToken: providerCredentials.ensureToken,
-      dseq: selectedLease.dseq,
-      gseq: selectedLease.gseq,
-      oseq: selectedLease.oseq,
+      dseq,
+      gseq,
+      oseq,
       service: selectedService,
       useStdIn: true,
       useTTY: true,
@@ -93,7 +98,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
       conn,
       abortController
     };
-  }, [providerInfo, hasShellAccess, selectedLease, selectedService, providerCredentials.ensureToken]);
+  }, [providerHostUri, providerAddress, hasShellAccess, dseq, gseq, oseq, selectedService, providerCredentials.ensureToken]);
 
   useEffect(() => {
     if (!shellSession) return;
