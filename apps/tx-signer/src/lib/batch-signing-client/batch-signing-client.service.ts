@@ -1,4 +1,5 @@
 import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
+import { withSpan } from "@akashnetwork/instrumentation";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
@@ -13,7 +14,6 @@ import { Err, Ok } from "ts-results";
 
 import type { AppConfigService } from "@src/services/app-config/app-config.service";
 import { memoizeAsync } from "../../caching/helpers/helpers";
-import { withSpan } from "../../services/tracing/tracing.service";
 import type { CreateSigningStargateClient } from "../signing-stargate-client-factory/signing-stargate-client.factory";
 import type { Wallet } from "../wallet/wallet";
 

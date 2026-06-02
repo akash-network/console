@@ -2,6 +2,7 @@ import { MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v
 import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { LeaseHttpService } from "@akashnetwork/http-sdk";
+import { Trace, withSpan } from "@akashnetwork/instrumentation";
 import { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { IndexedTx } from "@cosmjs/stargate";
 import { context, trace } from "@opentelemetry/api";
@@ -20,7 +21,6 @@ import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.se
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { LoggerService } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
-import { Trace, withSpan } from "@src/core/services/tracing/tracing.service";
 import { UserRepository } from "@src/user/repositories";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { BalancesService } from "../balances/balances.service";

@@ -1,3 +1,4 @@
+import { withSpan } from "@akashnetwork/instrumentation";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { context as otelContext, propagation, trace } from "@opentelemetry/api";
 import { secondsInMinute } from "date-fns";
@@ -9,7 +10,6 @@ import { singleton } from "tsyringe";
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { AuthService } from "@src/auth/services/auth.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
-import { withSpan } from "@src/core/services/tracing/tracing.service";
 import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { ApiKeyOutput, ApiKeyRepository } from "../repositories/api-key/api-key.repository";

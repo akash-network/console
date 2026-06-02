@@ -1,5 +1,6 @@
 import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { isRetriableError } from "@akashnetwork/http-sdk";
+import { withSpan } from "@akashnetwork/instrumentation";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
@@ -17,7 +18,6 @@ import type { CreateSigningStargateClient } from "@src/billing/lib/signing-starg
 import type { Wallet } from "@src/billing/lib/wallet/wallet";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { memoizeAsync } from "@src/caching/helpers";
-import { withSpan } from "@src/core/services/tracing/tracing.service";
 
 /**
  * Options for signing and broadcasting a transaction.

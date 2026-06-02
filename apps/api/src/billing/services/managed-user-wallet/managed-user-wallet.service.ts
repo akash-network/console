@@ -1,4 +1,5 @@
 import { AuthzHttpService } from "@akashnetwork/http-sdk";
+import { Trace, withSpan } from "@akashnetwork/instrumentation";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { ConstantBackoff, handleWhenResult, type IPolicy, retry } from "cockatiel";
 import add from "date-fns/add";
@@ -13,7 +14,6 @@ import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers"
 import type { UserWalletOutput } from "@src/billing/repositories";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { LoggerService } from "@src/core/providers/logging.provider";
-import { Trace, withSpan } from "@src/core/services/tracing/tracing.service";
 import type { ManagedSignerService } from "../managed-signer/managed-signer.service";
 import { RpcMessageService, SpendingAuthorizationMsgOptions } from "../rpc-message-service/rpc-message.service";
 

@@ -1,4 +1,5 @@
 import { AuthzHttpService, DeploymentHttpService, DeploymentInfo } from "@akashnetwork/http-sdk";
+import { Trace } from "@akashnetwork/instrumentation";
 import { singleton } from "tsyringe";
 
 import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balance.schema";
@@ -6,7 +7,6 @@ import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers"
 import { type UserWalletInput, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { Memoize } from "@src/caching/helpers";
-import { Trace } from "@src/core/services/tracing/tracing.service";
 import { StatsService } from "@src/dashboard/services/stats/stats.service";
 import { averageBlockTime } from "@src/utils/constants";
 

@@ -1,8 +1,8 @@
+import { Trace } from "@akashnetwork/instrumentation";
 import { singleton } from "tsyringe";
 
 import { ManagedSignerService, RpcMessageService } from "@src/billing/services";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
-import { Trace } from "@src/core/services/tracing/tracing.service";
 import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
