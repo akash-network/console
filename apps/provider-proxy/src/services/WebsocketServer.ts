@@ -453,7 +453,7 @@ interface CreateProviderSocketOptions {
   providerAddress: string;
 }
 
-function emitVerifiedWhenOpen(ws: WebSocket): void {
+export function emitVerifiedWhenOpen(ws: WebSocket): void {
   if (ws.readyState === WebSocket.OPEN) {
     ws.emit("verified");
     return;
@@ -461,7 +461,7 @@ function emitVerifiedWhenOpen(ws: WebSocket): void {
   ws.once("open", () => ws.emit("verified"));
 }
 
-function isJwtExpiredError(error: z.ZodError): boolean {
+export function isJwtExpiredError(error: z.ZodError): boolean {
   return error.errors.some(issue => {
     if (issue.code !== z.ZodIssueCode.custom) return false;
     if (issue.path[0] !== "auth" || issue.path[1] !== "token") return false;
