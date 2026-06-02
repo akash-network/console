@@ -106,25 +106,37 @@ Set the initial workflow status based on issue readiness:
 
 Use `--status "<status>"` in the CLI command. Default to **Triage** unless the user explicitly says the issue is ready to work on.
 
-## Sequence Numbering (`L-N.`)
+## Execution Order
 
-When creating **2+ issues in one go** (a project's worth of work), prefix every title with `L-N.` where `N` is the execution order, 1-indexed. The first issue someone should pick up is `L-1`.
+Express execution order **without polluting titles**. By default:
 
-**Title format:** `L-<N>. <Original title>` — single space after the period. Examples:
+- **Soft ordering** — use Linear's **manual ordering** (drag-drop in the project/board view). The team maintains the intended sequence there; titles stay clean.
+- **Hard dependencies** — use **native `blocked by` / `blocks` relationships** (see Phase 5). These make "X can't start until Y ships" explicit and enforceable, which a number in a title never is.
+
+Titles get **no order prefix** by default — even for multi-issue plans. Linear issues already have global IDs (`CON-123`); a second `L-N.` number in the title hurts search/filtering and causes confusion.
+
+### Opt-in: `L-N.` title numbering
+
+Opt-in governs **starting a new sequence** on an un-numbered project. Apply the `L-N.` convention when either is true:
+
+- The user **explicitly asks** for a visible, sortable numbered plan in titles (e.g. "number these in order", "add L-N prefixes"), or
+- The **target project already uses `L-N.`** numbering — continuing an existing sequence is automatic, no explicit request needed (follow the "Adding issues to a sequenced project" flow).
+
+The convention:
+
+**Title format:** `L-<N>. <Original title>` — `N` is the execution order, 1-indexed, single space after the period. Examples:
 
 - `L-1. AEP-86 SDK release in pkg.akt.dev/go`
 - `L-2. Provider signer abstraction`
 - `L-11. Provider bidengine verification preflight`
 
-**Why this exists:** Linear's own issue IDs (`CON-123`) are global and arbitrary, so they don't tell you anything about execution order. The `L-N.` prefix gives a project a single scannable plan — sort by title and you see the intended order, what's done, and what's next at a glance. Any team member (or AI agent) can pick the lowest open `L-N` and start.
-
-**When NOT to apply:**
-- Single-issue creates (one-off bug, lone chore) — un-prefixed.
-- Improve-mode edits to an existing issue's content — don't retrofit a prefix.
+**When NOT to apply (even within an opt-in sequence):**
+- Single-issue creates (one-off bug, lone chore) — un-prefixed. **Exception:** if the target project already uses `L-N.`, a lone new issue is *not* un-prefixed — the "Adding issues to a sequenced project" flow governs and assigns it an `L-N.` prefix with the proper insertion/renumbering procedure.
+- Improve-mode edits to an existing issue's content — don't retrofit a prefix. If you're improving an un-prefixed issue that lives in a project already using `L-N.`, mention the missing prefix and offer to add it (per the "Adding issues to a sequenced project" flow), but leave it un-prefixed unless the user agrees — don't change the title silently.
 
 **Stability:** Once assigned, an issue keeps its number. Gaps are fine (cancelled issue → its number stays unused). The number lives in the title only — no Linear custom field, no label.
 
-**Adding to an already-sequenced project later:** see the "Adding issues to a sequenced project" section under Improve Existing Issues.
+**Adding to an already-numbered project later:** see the "Adding issues to a sequenced project" section under Improve Existing Issues — it applies only to projects that already opted into `L-N.`.
 
 ## Workflow
 
@@ -190,7 +202,7 @@ When splitting, each issue should still be a **business-level slice** — not a 
 - The first issue should be the one that can be started immediately
 - Each issue should be mergeable on its own without breaking anything
 - Dependencies are tracked via native Linear relationships (blocked by / blocks / related), not in the description text — see Phase 5
-- When creating 2+ issues, assign each one a sequence number `L-N` reflecting execution order and prefix its title with `L-N.` (see **Sequence Numbering** above). `L-1` is what someone should pick up first.
+- Execution order lives in **Linear's manual ordering** and the blocked-by/blocks relationships — not in the title (see **Execution Order** above). Only add `L-N.` title prefixes if the user explicitly asks for visible numbering.
 
 **When NOT to split:**
 - Simple bug fixes that are clearly small — just create one issue
@@ -200,7 +212,12 @@ When splitting, each issue should still be a **business-level slice** — not a 
 
 For each issue, fill the appropriate template.
 
-If this is a multi-issue plan, prefix each title with its `L-N.` sequence number (see **Sequence Numbering**). The prefix lives in the title only — templates below describe the **description** content and stay unchanged.
+**Title prefix routing** (see **Execution Order**):
+- If the **target project already uses `L-N.`** numbering, follow the "Adding issues to a sequenced project" flow to assign the prefix — even when the user didn't explicitly ask for numbering.
+- Else if the user **explicitly opted into** numbering for this plan, prefix each title with its sequence number.
+- Otherwise use the plain template title and let Linear's manual ordering carry the sequence.
+
+The prefix lives in the title only — the templates below describe the **description** content and stay unchanged.
 
 #### Bug
 
@@ -253,14 +270,14 @@ Flows that should work:
 ### Phase 5: Confirm & Create
 
 Show the user ALL issues you plan to create with the following details for each:
-- **Title** — for multi-issue plans, include the `L-N.` prefix (see **Sequence Numbering**)
+- **Title** — include the `L-N.` prefix only when numbering applies: the target project already uses `L-N.`, or the user opted in for this plan (see **Execution Order**)
 - **Description**
 - **Suggested project** (from live project list) — ask user to confirm or change
 - **Source label** (inferred from context)
 - **Type label** (Bug/Feature/Improvement)
 - **Initial status** (Triage by default)
 - **Priority** (if known)
-- **Ordering** (for multi-issue plans) — matches the `L-N` sequence
+- **Ordering** (for multi-issue plans) — set via Linear's manual ordering, with `blocked by`/`blocks` for hard dependencies; matches the `L-N` sequence only when numbering was opted into
 
 Let them adjust before you create anything.
 
@@ -387,7 +404,9 @@ After updating, set up any missing relationships using the Linear MCP `save_issu
 
 ## Adding issues to a sequenced project
 
-When the user wants to add one or more new issues to a project that already uses `L-N.` numbering, the new issues must fit into the existing sequence — otherwise the plan loses its bird's-eye-view value.
+This applies **only** to a project that already opted into `L-N.` title numbering. By default projects aren't numbered — in that case there's nothing to renumber: just create the issue normally and let Linear's manual ordering place it.
+
+When a project does use `L-N.` numbering, new issues must fit into the existing sequence — otherwise the plan loses its bird's-eye-view value.
 
 ### Step 1: Detect the sequence
 
@@ -399,7 +418,7 @@ linear issue list --project "<project name>" --json --no-pager
 
 If at least one issue is sequenced, treat the whole project as sequenced. Compute the max `L-N` across all existing issues.
 
-If no titles match, the project isn't sequenced — fall back to the normal create flow (no prefix for single issues; offer to start a new sequence if creating 2+).
+If no titles match, the project isn't numbered (the default) — fall back to the normal create flow with no prefix. Only start a new `L-N.` sequence if the user explicitly asks for visible numbering.
 
 ### Step 2: Show the existing sequence
 
