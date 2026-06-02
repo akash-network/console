@@ -15,11 +15,11 @@ export class RotationTracker {
     while (this.timestamps.length > 0 && this.timestamps[0] < now - RotationTracker.WINDOW_MS) {
       this.timestamps.shift();
     }
-    this.timestamps.push(now);
-    if (this.timestamps.length > RotationTracker.MAX_PER_WINDOW) {
+    if (this.timestamps.length >= RotationTracker.MAX_PER_WINDOW) {
       this.logger.error({ event: "WS_ROTATION_LIMIT_EXCEEDED", url: this.url });
       return false;
     }
+    this.timestamps.push(now);
     return true;
   }
 }
