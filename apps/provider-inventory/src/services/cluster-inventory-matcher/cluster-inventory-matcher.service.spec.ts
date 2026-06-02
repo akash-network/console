@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { parseGPUAttributes } from "@src/lib/gpu-attribute-parser/gpu-attribute-parser";
 import { getAttributeFingerprint } from "@src/lib/groupspec-mapper/groupspec-mapper";
-import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
 import { parseStorageAttributes } from "@src/lib/storage-attribute-parser/storage-attribute-parser";
 import type { ClusterState, CpuInfo, GpuInfo, NodeState, RequestedResourceUnit, ResourceAttribute } from "../../types/inventory.types";
 import { ClusterInventoryMatcherService } from "./cluster-inventory-matcher.service";
@@ -1131,18 +1130,18 @@ function makeCluster(
   }[],
   storage?: { class: string; allocatable: bigint; allocated: bigint }[]
 ): ClusterState {
-  const storageMap: ClusterState["storage"] = Object.create(null);
+  const storageMap: NonNullable<ClusterState["storage"]> = Object.create(null);
   for (const pool of storage ?? []) {
-    storageMap[pool.class] = { class: pool.class, quantity: new ResourcePair(pool.allocatable, pool.allocated) };
+    storageMap[pool.class] = { class: pool.class, quantity: { allocatable: pool.allocatable, allocated: pool.allocated } };
   }
 
   const stateNodes: NodeState[] = nodes.map((n, i) => ({
     name: `node${i}`,
-    cpu: new ResourcePair(n.cpu, n.cpuAllocated ?? 0n),
-    memory: new ResourcePair(n.memory, n.memoryAllocated ?? 0n),
-    ephemeralStorage: new ResourcePair(n.ephemeral, n.ephemeralAllocated ?? 0n),
+    cpu: { allocatable: n.cpu, allocated: n.cpuAllocated ?? 0n },
+    memory: { allocatable: n.memory, allocated: n.memoryAllocated ?? 0n },
+    ephemeralStorage: { allocatable: n.ephemeral, allocated: n.ephemeralAllocated ?? 0n },
     gpu: {
-      quantity: new ResourcePair(n.gpuCount ?? 0n, n.gpuAllocated ?? 0n),
+      quantity: { allocatable: n.gpuCount ?? 0n, allocated: n.gpuAllocated ?? 0n },
       info: n.gpuInfo ?? []
     },
     storageClasses: n.storageClasses ?? [],
@@ -1154,7 +1153,7 @@ function makeCluster(
 
 function snapshotCluster(cluster: ClusterState) {
   return {
-    nodes: cluster.nodes.map(n => ({
+    nodes: (cluster.nodes ?? []).map(n => ({
       name: n.name,
       cpu: { allocatable: n.cpu.allocatable, allocated: n.cpu.allocated },
       memory: { allocatable: n.memory.allocatable, allocated: n.memory.allocated },
@@ -1167,7 +1166,7 @@ function snapshotCluster(cluster: ClusterState) {
       cpus: n.cpus.map(c => ({ ...c }))
     })),
     storage: Object.fromEntries(
-      Object.entries(cluster.storage).map(([k, v]) => [
+      Object.entries(cluster.storage ?? {}).map(([k, v]) => [
         k,
         { class: v.class, quantity: { allocatable: v.quantity.allocatable, allocated: v.quantity.allocated } }
       ])

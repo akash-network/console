@@ -3,7 +3,6 @@ import { setTimeout as delay } from "node:timers/promises";
 import { describe, expect, it, vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
 
-import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
 import type { EnvConfig } from "@src/providers/app-config.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import type { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
@@ -171,8 +170,8 @@ describe(StreamLifecycleManagerService.name, () => {
     });
 
     it("considers messages with reordered nodes equal", async () => {
-      const nodeA = buildNode({ name: "node-a", cpu: new ResourcePair(4000n, 0n) });
-      const nodeB = buildNode({ name: "node-b", cpu: new ResourcePair(2000n, 0n) });
+      const nodeA = buildNode({ name: "node-a", cpu: { allocatable: 4000n, allocated: 0n } });
+      const nodeB = buildNode({ name: "node-b", cpu: { allocatable: 2000n, allocated: 0n } });
       const first: ClusterState = { nodes: [nodeA, nodeB], storage: Object.create(null) };
       const reordered: ClusterState = { nodes: [nodeB, nodeA], storage: Object.create(null) };
 
@@ -465,9 +464,9 @@ function createMessage(overrides?: { cpu?: bigint }): ClusterState {
     nodes: [
       buildNode({
         name: "node-1",
-        cpu: new ResourcePair(overrides?.cpu ?? 4000n, 0n),
-        memory: new ResourcePair(8_000_000_000n, 0n),
-        ephemeralStorage: new ResourcePair(100_000_000_000n, 0n)
+        cpu: { allocatable: overrides?.cpu ?? 4000n, allocated: 0n },
+        memory: { allocatable: 8_000_000_000n, allocated: 0n },
+        ephemeralStorage: { allocatable: 100_000_000_000n, allocated: 0n }
       })
     ],
     storage: Object.create(null)
@@ -477,10 +476,10 @@ function createMessage(overrides?: { cpu?: bigint }): ClusterState {
 function buildNode(overrides?: Partial<NodeState>): NodeState {
   return {
     name: "node-1",
-    cpu: new ResourcePair(0n, 0n),
-    memory: new ResourcePair(0n, 0n),
-    ephemeralStorage: new ResourcePair(0n, 0n),
-    gpu: { quantity: new ResourcePair(0n, 0n), info: [] },
+    cpu: { allocatable: 0n, allocated: 0n },
+    memory: { allocatable: 0n, allocated: 0n },
+    ephemeralStorage: { allocatable: 0n, allocated: 0n },
+    gpu: { quantity: { allocatable: 0n, allocated: 0n }, info: [] },
     storageClasses: [],
     cpus: [],
     ...overrides

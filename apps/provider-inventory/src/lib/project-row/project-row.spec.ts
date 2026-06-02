@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
-import type { ClusterState, GpuInfo, NodeState } from "@src/types/inventory.types";
+import type { ClusterState, GpuInfo, NodeState, RawPair } from "@src/types/inventory.types";
 import { projectRow } from "./project-row";
 
 describe(projectRow.name, () => {
@@ -140,10 +139,10 @@ describe(projectRow.name, () => {
       buildCluster({
         nodes: [
           buildNode({
-            cpu: new ResourcePair(500n, 1000n),
-            memory: new ResourcePair(1_000_000n, 2_000_000n),
-            gpu: { quantity: new ResourcePair(0n, 1n), info: [gpu("nvidia", "a100")] },
-            ephemeralStorage: new ResourcePair(100n, 200n)
+            cpu: { allocatable: 500n, allocated: 1000n },
+            memory: { allocatable: 1_000_000n, allocated: 2_000_000n },
+            gpu: { quantity: { allocatable: 0n, allocated: 1n }, info: [gpu("nvidia", "a100")] },
+            ephemeralStorage: { allocatable: 100n, allocated: 200n }
           })
         ]
       })
@@ -174,8 +173,8 @@ describe(projectRow.name, () => {
   });
 });
 
-function pair(allocatable: bigint): ResourcePair {
-  return new ResourcePair(allocatable, 0n);
+function pair(allocatable: bigint): RawPair {
+  return { allocatable: allocatable, allocated: 0n };
 }
 
 function gpu(vendor: string, name: string): GpuInfo {

@@ -1,6 +1,7 @@
 import type { ParsedGPUAttributes } from "../lib/gpu-attribute-parser/gpu-attribute-parser";
-import type { ResourcePair } from "../lib/resource-pair/resource-pair";
 import type { ParsedStorageAttributes } from "../lib/storage-attribute-parser/storage-attribute-parser";
+
+export type RawPair = { allocatable: number | bigint; allocated: number | bigint };
 
 export interface GpuInfo {
   vendor: string;
@@ -17,17 +18,17 @@ export interface CpuInfo {
 
 export interface NodeState {
   name: string;
-  cpu: ResourcePair;
-  memory: ResourcePair;
-  ephemeralStorage: ResourcePair;
-  gpu: { quantity: ResourcePair; info: GpuInfo[] };
+  cpu: RawPair;
+  memory: RawPair;
+  ephemeralStorage: RawPair;
+  gpu: { quantity: RawPair; info: GpuInfo[] };
   storageClasses: string[];
   cpus: CpuInfo[];
 }
 
 export interface ClusterState {
-  nodes: NodeState[];
-  storage: Record<string, { class: string; quantity: ResourcePair }>;
+  nodes?: NodeState[];
+  storage?: Record<string, { class: string; quantity: RawPair }>;
 }
 
 export interface RequestedStorage {

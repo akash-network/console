@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { parseGPUAttributes } from "@src/lib/gpu-attribute-parser/gpu-attribute-parser";
 import type { GroupSpecJSON } from "@src/lib/groupspec-mapper/groupspec-mapper";
-import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
 import { parseStorageAttributes } from "@src/lib/storage-attribute-parser/storage-attribute-parser";
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
@@ -346,8 +345,8 @@ describe(BidScreeningRepository.name, () => {
     });
   });
 
-  describe("ClusterState hydration", () => {
-    it("rebuilds ResourcePair instances from persisted inventory JSONB", async () => {
+  describe("ClusterState passthrough", () => {
+    it("returns the persisted inventory JSONB as the candidate cluster state", async () => {
       await seed({
         owner: "akash1full",
         inventory: {
@@ -368,11 +367,9 @@ describe(BidScreeningRepository.name, () => {
 
       const [row] = await repository.findCandidates([unit({})], requirements());
 
-      const node = row.cluster.nodes[0];
-      expect(node.cpu).toBeInstanceOf(ResourcePair);
-      expect(node.cpu.allocatable).toBe(8000n);
-      expect(node.cpu.allocated).toBe(2000n);
-      expect(node.memory.allocatable).toBe(17179869184n);
+      const node = row.cluster?.nodes?.[0];
+      expect(node?.cpu).toEqual({ allocatable: 8000, allocated: 2000 });
+      expect(node?.memory).toEqual({ allocatable: 17179869184, allocated: 0 });
     });
   });
 

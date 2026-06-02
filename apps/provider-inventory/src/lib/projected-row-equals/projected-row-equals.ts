@@ -1,6 +1,5 @@
-import type { ResourcePair } from "@src/lib/resource-pair/resource-pair";
 import type { ProjectedRow } from "@src/types/inventory";
-import type { ClusterState, CpuInfo, GpuInfo, NodeState } from "@src/types/inventory.types";
+import type { ClusterState, CpuInfo, GpuInfo, NodeState, RawPair } from "@src/types/inventory.types";
 
 export function projectedRowsEqual(a: ProjectedRow, b: ProjectedRow): boolean {
   if (a === b) return true;
@@ -29,8 +28,9 @@ function clusterEqual(a: ClusterState, b: ClusterState): boolean {
   return clusterStorageEqual(a.storage, b.storage) && nodesEqual(a.nodes, b.nodes);
 }
 
-function nodesEqual(a: readonly NodeState[], b: readonly NodeState[]): boolean {
+function nodesEqual(a: readonly NodeState[] | undefined, b: readonly NodeState[] | undefined): boolean {
   if (a === b) return true;
+  if (!a || !b) return false;
   if (a.length !== b.length) return false;
 
   const byName = new Map<string, NodeState>();
@@ -57,7 +57,7 @@ function nodeEqual(a: NodeState, b: NodeState): boolean {
   );
 }
 
-function pairEqual(a: ResourcePair, b: ResourcePair): boolean {
+function pairEqual(a: RawPair, b: RawPair): boolean {
   return a.allocatable === b.allocatable && a.allocated === b.allocated;
 }
 
@@ -87,6 +87,7 @@ function cpuInfoEqual(a: readonly CpuInfo[], b: readonly CpuInfo[]): boolean {
 
 function clusterStorageEqual(a: ClusterState["storage"], b: ClusterState["storage"]): boolean {
   if (a === b) return true;
+  if (!a || !b) return false;
   const aKeys = Object.keys(a);
   const bKeys = Object.keys(b);
   if (aKeys.length !== bKeys.length) return false;

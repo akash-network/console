@@ -3,13 +3,11 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { inject, singleton } from "tsyringe";
 
 import type { GroupSpecJSON } from "@src/lib/groupspec-mapper/groupspec-mapper";
-import { hydrateClusterState } from "@src/lib/hydrate-cluster-state/hydrate-cluster-state";
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
 import type { RequestedResourceUnit } from "@src/types/inventory.types";
 import type { ProviderWithClusterState } from "@src/types/provider";
 import { aggregateCriteria, type BidScreeningCriteria } from "./bid-screening.aggregator";
-
 // TODO(Issue 5): move auditor allowlist into configuration and accept it as a request input.
 export const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
 
@@ -31,18 +29,13 @@ export class BidScreeningRepository {
       .select({
         owner: providerInventory.owner,
         hostUri: providerInventory.hostUri,
-        inventory: providerInventory.inventory,
+        cluster: providerInventory.inventory,
         isAudited: sql<boolean>`${providerInventory.auditedBy} @> ARRAY[${AUDITOR}]::text[]`.as("isAudited")
       })
       .from(providerInventory)
       .where(where);
 
-    return rows.map(row => ({
-      owner: row.owner,
-      hostUri: row.hostUri,
-      cluster: hydrateClusterState(row.inventory),
-      isAudited: row.isAudited
-    }));
+    return rows as BidScreeningCandidate[];
   }
 
   #buildWhere(criteria: BidScreeningCriteria): SQL[] {

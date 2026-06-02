@@ -7,8 +7,7 @@ import type {
   Storage as SdkStorage
 } from "@akashnetwork/chain-sdk/private-types/provider.akash.v1";
 
-import { ResourcePair } from "@src/lib/resource-pair/resource-pair";
-import type { ClusterState, CpuInfo, GpuInfo, NodeState } from "@src/types/inventory.types";
+import type { ClusterState, CpuInfo, GpuInfo, NodeState, RawPair } from "@src/types/inventory.types";
 
 interface Quantity {
   string?: string | undefined;
@@ -66,8 +65,11 @@ function parseMantissa(s: string): { negative: boolean; digits: bigint; fracLen:
   return { negative, digits: BigInt((intPart || "0") + fracPart || "0"), fracLen: fracPart.length };
 }
 
-function pairFromSdk(pair: SdkResourcePair | undefined, multiplier: bigint = 1n): ResourcePair {
-  return new ResourcePair(parseQuantity(pair?.allocatable, multiplier), parseQuantity(pair?.allocated, multiplier));
+function pairFromSdk(pair: SdkResourcePair | undefined, multiplier: bigint = 1n): RawPair {
+  return {
+    allocatable: parseQuantity(pair?.allocatable, multiplier),
+    allocated: parseQuantity(pair?.allocated, multiplier)
+  };
 }
 
 function mapGpuInfo(info: GPUInfo): GpuInfo {
@@ -101,7 +103,7 @@ function mapNode(node: SdkNode): NodeState {
 }
 
 function mapClusterStorage(storage: SdkStorage[]): ClusterState["storage"] {
-  const result: ClusterState["storage"] = Object.create(null);
+  const result: Exclude<ClusterState["storage"], undefined> = Object.create(null);
   for (const pool of storage) {
     const cls = pool.info?.class ?? "";
     result[cls] = { class: cls, quantity: pairFromSdk(pool.quantity) };
