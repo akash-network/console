@@ -1,8 +1,3 @@
-deploymentEnv: staging
-otel:
-  enabled: true
-
-chain: mainnet
 hostNames:
   - console-api-mainnet-staging.akash.network
 

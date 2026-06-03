@@ -1,4 +1,0 @@
-deploymentEnv: staging
-chain: mainnet
-otel:
-  enabled: true

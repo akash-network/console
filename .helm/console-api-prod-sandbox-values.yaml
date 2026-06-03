@@ -1,8 +1,3 @@
-deploymentEnv: production
-otel:
-  enabled: true
-
-chain: sandbox
 hostNames:
   - console-api-sandbox.akash.network
 

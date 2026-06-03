@@ -1,4 +1,0 @@
-deploymentEnv: staging
-
-otel:
-  enabled: true
