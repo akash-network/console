@@ -1,4 +1,4 @@
-import { minutesToMilliseconds } from "date-fns";
+import { minutesToMilliseconds, subHours } from "date-fns";
 import { inject, singleton } from "tsyringe";
 
 import { memoizeAsync } from "@src/caching/helpers";
@@ -27,17 +27,7 @@ export class DenomExchangeService {
       const mappedDenom = legacyToNewMapping[denom] ?? denom;
 
       try {
-        const latestBlock = await this.#chainSdk.cosmos.base.tendermint.v1beta1.getLatestBlock();
-        const currentHeight = latestBlock.block?.header?.height?.toBigInt() ?? 0n;
-        const blocksPerDay = (24n * 60n * 60n) / BigInt(Math.ceil(averageBlockTime));
-        const blockHeight24hAgo = currentHeight > blocksPerDay ? currentHeight - blocksPerDay : 1n;
-        const [oracleRate, rate24hAgo] = await Promise.all([
-          this.#chainSdk.akash.oracle.v1.getAggregatedPrice({ denom: mappedDenom }),
-          this.#chainSdk.akash.oracle.v1.getPrices({
-            filters: { assetDenom: mappedDenom, baseDenom: "usd", height: blockHeight24hAgo },
-            pagination: { limit: 1 }
-          })
-        ]);
+        const { oracleRate, rate24hAgo } = await this.#fetchOracleRate(mappedDenom);
 
         if (!oracleRate.priceHealth?.isHealthy) {
           this.#logger.warn({ event: "ORACLE_PRICE_UNHEALTHY", denom: mappedDenom });
@@ -62,6 +52,55 @@ export class DenomExchangeService {
     },
     { cacheItemLimit: 10, ttl: minutesToMilliseconds(10) }
   );
+
+  /**
+   * Version-aware oracle fetch: prefer Oracle V2, falling back to V1 when the V2 query service is
+   * unavailable (e.g. on nodes that have not yet run the v2.1.0 upgrade, which do not register the
+   * V2 query service so the call throws). The V1 fallback is removed once V2 is stable on mainnet.
+   */
+  async #fetchOracleRate(mappedDenom: string) {
+    try {
+      return await this.#fetchOracleRateV2(mappedDenom);
+    } catch (error) {
+      this.#logger.warn({ event: "ORACLE_V2_UNAVAILABLE_FALLBACK_V1", denom: mappedDenom, error });
+      return await this.#fetchOracleRateV1(mappedDenom);
+    }
+  }
+
+  async #fetchOracleRateV2(mappedDenom: string) {
+    const endTime = new Date();
+    const startTime = subHours(endTime, 24);
+    const [oracleRate, rate24hAgo] = await Promise.all([
+      this.#chainSdk.akash.oracle.v2.getAggregatedPrice({ denom: mappedDenom }),
+      // The 24h history feeds only the priceChange fields and is edge-of-retention in V2, so a
+      // failure here must not degrade the (billing-critical) current price — degrade to empty.
+      this.#chainSdk.akash.oracle.v2
+        .getPrices({
+          filters: { assetDenom: mappedDenom, baseDenom: "usd", startTime, endTime },
+          pagination: { limit: 1 }
+        })
+        .catch((error): { prices: [] } => {
+          this.#logger.warn({ event: "ORACLE_V2_PRICE_HISTORY_UNAVAILABLE", denom: mappedDenom, error });
+          return { prices: [] };
+        })
+    ]);
+    return { oracleRate, rate24hAgo };
+  }
+
+  async #fetchOracleRateV1(mappedDenom: string) {
+    const latestBlock = await this.#chainSdk.cosmos.base.tendermint.v1beta1.getLatestBlock();
+    const currentHeight = latestBlock.block?.header?.height?.toBigInt() ?? 0n;
+    const blocksPerDay = (24n * 60n * 60n) / BigInt(Math.ceil(averageBlockTime));
+    const blockHeight24hAgo = currentHeight > blocksPerDay ? currentHeight - blocksPerDay : 1n;
+    const [oracleRate, rate24hAgo] = await Promise.all([
+      this.#chainSdk.akash.oracle.v1.getAggregatedPrice({ denom: mappedDenom }),
+      this.#chainSdk.akash.oracle.v1.getPrices({
+        filters: { assetDenom: mappedDenom, baseDenom: "usd", height: blockHeight24hAgo },
+        pagination: { limit: 1 }
+      })
+    ]);
+    return { oracleRate, rate24hAgo };
+  }
 
   async #getFallbackExchangeRateToUSD() {
     const aktPrice = await this.#dayRepository.getLatestAktPrice();
