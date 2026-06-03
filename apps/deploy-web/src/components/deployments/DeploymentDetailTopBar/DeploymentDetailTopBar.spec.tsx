@@ -110,11 +110,12 @@ describe(DeploymentDetailTopBar.name, () => {
     });
 
     it("renders auto top-up section", () => {
-      setup({
+      const deps = setup({
         deployment: createDeployment({ state: "active" })
       });
 
       expect(screen.getByText("Auto top-up")).toBeInTheDocument();
+      expect(deps.Switch).toHaveBeenCalledWith(expect.objectContaining({ checked: false, disabled: false, onCheckedChange: expect.any(Function) }), {});
     });
 
     it("renders DeploymentDepositModal after Add funds click", () => {
