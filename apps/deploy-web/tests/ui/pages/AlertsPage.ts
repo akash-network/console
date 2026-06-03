@@ -26,9 +26,9 @@ export class AlertsPage {
   async findAlertRowByDseq(dseq: string, options: { timeout?: number } = {}) {
     const { timeout = 30_000 } = options;
     const deadline = Date.now() + timeout;
-    // Each deployment renders two rows on /alerts (Escrow Threshold + Deployment Close),
-    // both containing the same DSEQ — scope to the first to avoid strict-mode violations
-    // on downstream toggle/link actions.
+    // A deployment can render up to one row per configured alert type (Escrow Threshold,
+    // Deployment Close), all sharing the same DSEQ. Scope to the first match so downstream
+    // toggle/link actions stay strict-mode-safe regardless of how many are configured.
     const row = this.page.getByRole("row").filter({ hasText: dseq }).first();
     const nextButton = this.page.getByRole("link", { name: /go to next page/i });
 
