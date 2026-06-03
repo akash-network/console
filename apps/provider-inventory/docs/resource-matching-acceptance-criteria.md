@@ -21,6 +21,15 @@ packing boxes into trucks. If everything fits, the bid is valid. If not, the pro
 The match is **all-or-nothing**: every replica of every service must find a home, or the whole
 deployment is rejected. Inventory is only updated if all placements succeed.
 
+> **Scope note — leased IPs (AC18–AC21).** One part of the decision happens *outside* this
+> engine. **Leased IPs** (public IP addresses a tenant leases for a service) are checked by the
+> **inventory service** ([cluster/inventory.go](../cluster/inventory.go)) as a **cluster-level
+> pre-check, before** `tryAdjust`/`Adjust` is ever called. It is not part of the per-node engine,
+> but it *is* part of the same overall "can my cluster run this?" question and obeys the same
+> all-or-nothing outcome: if the provider lacks enough free leased IPs, the deployment is rejected
+> and the per-node engine never runs. The leased-IP criteria below (AC18–AC21) document that
+> pre-check.
+
 ---
 
 ## Core Concepts
@@ -28,6 +37,8 @@ deployment is rejected. Inventory is only updated if all placements succeed.
 - **Node** — one machine with its own CPU, RAM, GPUs, and local disk.
 - **Cluster storage** — shared persistent disk pools (e.g., `beta2`, `beta3`) usable by any node
   that supports that class.
+- **Leased IP** — a dedicated public IP a tenant leases for a service. Drawn from a single, finite
+  **provider-wide** pool (managed by MetalLB), not tied to any node.
 - **Resource group** — one service definition + a replica count.
 - **Available capacity** — `Allocatable − Allocated`, never negative. An `Allocatable` of `-1` is
   treated as effectively unlimited.
@@ -239,6 +250,7 @@ caller can inspect what would have been allocated. The engine's inventory does n
 - Recoverable example: Node 1 has no GPU → engine tries Node 2.
 - Fatal example: Cluster `beta2` pool is empty when any replica needs it → stop;
   `ErrInsufficientCapacity`.
+- Fatal example: Not enough free leased IPs (AC19) → stop before any node is tried.
 
 ### AC16 — "Unlimited" allocatable
 **WHAT:** When a node's `Allocatable` for a resource is `-1`, that dimension is treated as
@@ -257,6 +269,50 @@ failure: **CPU → GPU → Memory → Storage volumes (in declaration order)**.
 - The first storage volume that fails determines the failure kind (node-level for ephemeral /
   class-not-supported / RAM-volume-over-memory; cluster-level for pool exhaustion or bad
   attributes).
+
+### AC18 — Leased IP counting
+**WHAT:** The number of leased IPs a deployment needs is the count of **unique** `LEASED_IP`
+endpoint sequence numbers across the whole group spec. The same endpoint referenced by several
+services is **one** IP, not many.
+**HOW:** The provider counts via `GetEndpointQuantityOfResourceGroup(gspec, Endpoint_LEASED_IP)`,
+which collects distinct endpoint sequence numbers into a set and returns the set size. This is
+computed once per reservation and stored as the reservation's endpoint quantity.
+
+- ✅ **Counts as 1:** Three services all reference leased-IP endpoint `#1` → requested = 1.
+- ✅ **Counts as 2:** Group references leased-IP endpoints `#1` and `#2` → requested = 2.
+
+### AC19 — Leased IP availability gate (cluster-level, pre-engine)
+**WHAT:** Before any node is examined, the provider checks it has enough free leased IPs for the
+whole deployment. This is a single cluster-wide pool — never per-node, never per-replica.
+**HOW:** `available = leased_ip.allocatable − leased_ip.allocated`, where
+`allocated = in-use + reserved`. `reserved` counts IPs held by reservations that the IP operator
+has **not yet confirmed**, so pending bids still consume availability. If `requested > available`,
+the reservation is rejected with **`insufficient number of IPs`** and the per-node engine never
+runs.
+
+- ✅ **Match:** Pool of 10, 4 in use, 2 reserved → available 4; request 3 → passes; engine proceeds
+  to fit CPU/memory/GPU/storage.
+- ❌ **Reject (cluster-level):** Same pool, request 5 > available 4 → `insufficient number of IPs`;
+  no node is tried.
+- ❌ **No double-claiming:** Reserved-but-unconfirmed IPs still count as allocated, so two
+  concurrent requests cannot both be offered the same free IPs — the second sees lower availability.
+
+### AC20 — Provider without leased IP support
+**WHAT:** A provider that has no IP operator configured cannot serve leased IPs at all. Any
+deployment that needs at least one leased IP is rejected, regardless of node capacity.
+**HOW:** If the requested leased IP count is non-zero and the inventory service has no IP client,
+the reservation is rejected with **`no leased IPs available`**.
+
+- ❌ **Reject:** Request 1 leased IP against a provider with no IP operator → `no leased IPs
+  available`, even on an otherwise empty, fully-capable cluster.
+- ✅ **Unaffected:** Same provider, deployment requesting 0 leased IPs → IP check skipped (AC21).
+
+### AC21 — Zero leased IPs requested
+**WHAT:** A deployment requesting no leased IPs skips the IP gate entirely and proceeds straight to
+the per-node engine (parallels AC8 for GPUs). The reservation's IPs are treated as already
+confirmed.
+
+- ✅ **Match:** Requested leased IPs = 0 → no IP check; placement depends only on CPU/memory/GPU/storage.
 
 ---
 
@@ -288,6 +344,8 @@ Variations:
 |-----------------------------|---------------------------------------------------------------------------------------------------|
 | `ErrInsufficientCapacity`   | After exhausting all nodes, one or more replicas could not be placed; or a cluster-level resource (persistent pool, storage class, GPU constraint) blocks placement. |
 | `ErrGroupResourceMismatch`  | Defensive guardrail — a subsequent replica produced different adjusted resources or scheduler params than the first replica of the same service. Rare in practice because request freezing usually converts heterogeneity into capacity failures. |
+| `no leased IPs available`   | A deployment needs ≥1 leased IP but the provider has no IP operator configured (AC20). Wraps the inventory reservation error. |
+| `insufficient number of IPs`| Requested leased IPs exceed `leased_ip.allocatable − leased_ip.allocated` (AC19). Cluster-level — no node is tried. Wraps the inventory reservation error. |
 
 ---
 
@@ -299,3 +357,10 @@ Variations:
 - Attribute parsing: [ParseGPUAttributes / ParseStorageAttributes](../cluster/types/v1beta3/clients/inventory/metrics.go)
 - Interface normalization: [FilterGPUInterface](../cluster/types/v1beta3/types.go#L160)
 - Test fixtures (4-node CPU example): [client_test.go:609-704](../cluster/kube/operators/clients/inventory/client_test.go#L609-L704)
+
+Leased IP (AC18–AC21), enforced in the inventory service, not the per-node engine:
+
+- Leased IP gate: [handleRequest](../cluster/inventory.go#L457)
+- Availability math: [availableLeasedIPs / countReservedIPs / leasedIPStatus](../cluster/inventory.go#L411-L444)
+- Request counting: [GetEndpointQuantityOfResourceGroup](../cluster/util/endpoint_quantity.go#L8)
+- Status reporting: `provider.Inventory.LeasedIP` (`leased_ip.{allocatable, allocated}` in the provider status stream)
