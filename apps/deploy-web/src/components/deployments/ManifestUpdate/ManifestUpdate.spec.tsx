@@ -336,7 +336,6 @@ describe(ManifestUpdate.name, () => {
         isWalletLoading: false,
         isTrialing: false,
         isOnboarding: false,
-        switchWalletType: vi.fn(),
         hasManagedWallet: false,
         denom: "uact"
       }) as ReturnType<typeof DEPENDENCIES.useWallet>;
