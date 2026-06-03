@@ -85,12 +85,16 @@ test.describe("Managed wallet alerts", () => {
       await sidebar.openAlerts();
       await alertsPage.waitForPage();
       await alertsPage.openAlertsTab();
-      await expect(alertsPage.getAlertRow(0)).toBeVisible({ timeout: 10_000 });
+    });
+
+    const deploymentAlertRow = page.getByRole("row").filter({ hasText: dseq });
+
+    await test.step("wait for alert row for new deployment", async () => {
+      await expect(deploymentAlertRow).toBeVisible({ timeout: 30_000 });
     });
 
     await test.step("toggle alert from alerts list", async () => {
-      const firstAlertRow = alertsPage.getAlertRow(0);
-      const toggle = alertsPage.getAlertToggle(firstAlertRow);
+      const toggle = alertsPage.getAlertToggle(deploymentAlertRow);
 
       await toggle.click();
       await expect(toggle).not.toBeChecked({ timeout: 5_000 });
@@ -100,7 +104,7 @@ test.describe("Managed wallet alerts", () => {
     });
 
     await test.step("close deployment", async () => {
-      await page.getByRole("row").filter({ hasText: dseq }).getByRole("link").first().click();
+      await deploymentAlertRow.getByRole("link").first().click();
       await deployPage.closeDeployment();
       await expect(page.getByText(/are you sure you want to close/i)).toBeVisible({ timeout: 5_000 });
       await page.getByRole("button", { name: /confirm/i }).click();
