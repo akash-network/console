@@ -1,4 +1,1 @@
-deploymentEnv: staging
-
-chain: testnet
 nodePort: 30002

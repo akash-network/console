@@ -1,4 +1,0 @@
-deploymentEnv: production
-
-otel:
-  enabled: true

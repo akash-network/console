@@ -1,4 +1,0 @@
-deploymentEnv: staging
-chain: sandbox
-otel:
-  enabled: true

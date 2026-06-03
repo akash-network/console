@@ -1,4 +1,1 @@
-deploymentEnv: production
-
-chain: testnet
 nodePort: 30002

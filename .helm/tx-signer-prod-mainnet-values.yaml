@@ -1,4 +1,0 @@
-deploymentEnv: production
-chain: mainnet
-otel:
-  enabled: true

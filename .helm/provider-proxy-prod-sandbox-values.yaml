@@ -1,5 +1,0 @@
-deploymentEnv: production
-otel:
-  enabled: true
-
-chain: sandbox
