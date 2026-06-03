@@ -350,6 +350,7 @@ describe(AddCreditsForm.name, () => {
     isTrialing?: boolean;
     isPolling?: boolean;
     isWalletReady?: boolean;
+    initialBalance?: number | null;
     dependencies?: Partial<typeof DEPENDENCIES>;
   };
 
@@ -383,6 +384,11 @@ describe(AddCreditsForm.name, () => {
 
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false });
 
+    const useWalletBalance: typeof DEPENDENCIES.useWalletBalance = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>({
+        balance: input.initialBalance !== undefined ? ({ totalUsd: input.initialBalance } as ReturnType<typeof DEPENDENCIES.useWalletBalance>["balance"]) : null
+      });
+
     const use3DSecure: typeof DEPENDENCIES.use3DSecure = () =>
       mock<ReturnType<typeof DEPENDENCIES.use3DSecure>>({
         isOpen: false,
@@ -408,6 +414,7 @@ describe(AddCreditsForm.name, () => {
           usePaymentMutations,
           usePaymentPolling,
           useWallet,
+          useWalletBalance,
           use3DSecure,
           handleStripeError: input.handleStripeError ?? (() => ({ message: "fallback", userAction: undefined })),
           ...input.dependencies

@@ -14,6 +14,7 @@ import { usePaymentPolling } from "@src/context/PaymentPollingProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { use3DSecure } from "@src/hooks/use3DSecure";
 import { useUser } from "@src/hooks/useUser";
+import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { usePaymentMutations, useSetupIntentMutation } from "@src/queries";
 import { handleStripeError } from "@src/utils/stripeErrorHandler";
 
@@ -28,6 +29,7 @@ export const DEPENDENCIES = {
   usePaymentMutations,
   usePaymentPolling,
   useWallet,
+  useWalletBalance,
   use3DSecure,
   useUser,
   handleStripeError
@@ -45,6 +47,7 @@ interface PendingCharge {
   organization?: string;
   amount: number;
   wasTrialing: boolean;
+  initialBalance: number | null;
   status: "pending" | "charging";
 }
 
@@ -61,6 +64,7 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
   const { user } = d.useUser();
   const { pollForPayment, isPolling } = d.usePaymentPolling();
   const { isTrialing } = d.useWallet();
+  const { balance: currentBalance } = d.useWalletBalance();
   const {
     confirmPayment: { mutateAsync: confirmPayment }
   } = d.usePaymentMutations();
@@ -108,6 +112,7 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
       organization: paymentMethod.organization,
       amount,
       wasTrialing: isTrialing,
+      initialBalance: currentBalance?.totalUsd ?? null,
       status: "pending"
     });
   };
@@ -121,7 +126,7 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
 
   const threeDSecure = d.use3DSecure({
     onSuccess: function onThreeDSecureSuccess() {
-      pollForPayment();
+      pollForPayment(charge?.initialBalance ?? null);
     },
     onError: function onThreeDSecureError(message) {
       finalizeFailure(message);
@@ -151,7 +156,7 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
         }
 
         if (chargeResult.success) {
-          pollForPayment();
+          pollForPayment(pending.initialBalance);
           return;
         }
 
