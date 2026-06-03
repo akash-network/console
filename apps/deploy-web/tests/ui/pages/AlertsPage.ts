@@ -22,4 +22,29 @@ export class AlertsPage {
   getAlertToggle(row: Locator) {
     return row.getByRole("checkbox", { name: /toggle alert/i });
   }
+
+  async findAlertRowByDseq(dseq: string, options: { timeout?: number } = {}) {
+    const { timeout = 30_000 } = options;
+    const deadline = Date.now() + timeout;
+    const row = this.page.getByRole("row").filter({ hasText: dseq });
+    const nextButton = this.page.getByRole("link", { name: /go to next page/i });
+
+    while (Date.now() < deadline) {
+      try {
+        await row.waitFor({ state: "visible", timeout: 2_000 });
+        return row;
+      } catch {
+        // not on this page; fall through and try the next one
+      }
+
+      const nextVisible = await nextButton.isVisible().catch(() => false);
+      if (!nextVisible) break;
+      const ariaDisabled = await nextButton.getAttribute("aria-disabled").catch(() => null);
+      if (ariaDisabled === "true") break;
+
+      await nextButton.click();
+    }
+
+    throw new Error(`Alert row for DSEQ ${dseq} not found in alerts list`);
+  }
 }

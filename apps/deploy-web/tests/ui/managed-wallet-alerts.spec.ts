@@ -87,11 +87,7 @@ test.describe("Managed wallet alerts", () => {
       await alertsPage.openAlertsTab();
     });
 
-    const deploymentAlertRow = page.getByRole("row").filter({ hasText: dseq });
-
-    await test.step("wait for alert row for new deployment", async () => {
-      await expect(deploymentAlertRow).toBeVisible({ timeout: 30_000 });
-    });
+    const deploymentAlertRow = await alertsPage.findAlertRowByDseq(dseq!);
 
     await test.step("toggle alert from alerts list", async () => {
       const toggle = alertsPage.getAlertToggle(deploymentAlertRow);
