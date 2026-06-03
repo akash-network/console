@@ -1,6 +1,5 @@
 import { MsgAccountDeposit, MsgMintACT, Scope, Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
-import { MsgUpdateProvider } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { MsgSend } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 
@@ -105,18 +104,6 @@ export class TransactionMessageData {
           denom,
           amount: amount.toString()
         }
-      })
-    };
-  }
-
-  static getUpdateProviderMsg(owner: string, hostUri: string, attributes: { key: string; value: string }[], info?: { email: string; website: string }) {
-    return {
-      typeUrl: `/${MsgUpdateProvider.$type}`,
-      value: MsgUpdateProvider.fromPartial({
-        owner: owner,
-        hostUri: hostUri,
-        attributes: attributes,
-        info: info
       })
     };
   }

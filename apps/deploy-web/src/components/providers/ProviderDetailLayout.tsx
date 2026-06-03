@@ -2,13 +2,10 @@
 import type { ReactNode } from "react";
 import React from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { Button, buttonVariants, ErrorFallback, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
+import { Button, ErrorFallback, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { NavArrowLeft, Refresh } from "iconoir-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { useWallet } from "@src/context/WalletProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import type { ClientProviderDetailWithStatus } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
@@ -31,7 +28,6 @@ type Props = {
 
 const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, address, provider, refresh }) => {
   const router = useRouter();
-  const { address: walletAddress } = useWallet();
   const previousRoute = usePreviousRoute();
 
   const handleTabChange = (newValue: string) => {
@@ -70,14 +66,6 @@ const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, 
             <Refresh />
           </Button>
         </div>
-
-        {provider && walletAddress === address && (
-          <div className="ml-4">
-            <Link href={UrlService.providerDetailEdit(provider.owner as string)} className={cn(buttonVariants({ variant: "default", size: "sm" }))}>
-              Edit
-            </Link>
-          </div>
-        )}
       </div>
 
       {provider && (

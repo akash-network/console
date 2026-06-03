@@ -398,8 +398,7 @@ describe("OnboardingContainer", () => {
       getUpdateDeploymentMsg: vi.fn(),
       getDepositDeploymentMsg: vi.fn(),
       getCloseDeploymentMsg: vi.fn(),
-      getSendTokensMsg: vi.fn(),
-      getUpdateProviderMsg: vi.fn()
+      getSendTokensMsg: vi.fn()
     };
 
     // Create dependencies object
