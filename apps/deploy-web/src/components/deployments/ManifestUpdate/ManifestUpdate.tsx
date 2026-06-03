@@ -70,10 +70,10 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
   const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
   const [isSendingManifest, setIsSendingManifest] = useState(false);
-  const { address, signAndBroadcastTx, isManaged: isManagedWallet } = d.useWallet();
+  const { address, signAndBroadcastTx } = d.useWallet();
   const { data: providers } = d.useProviderList();
   const providerCredentials = d.useProviderCredentials();
-  const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
+  const { enqueueSnackbar } = d.useSnackbar();
   const { settings } = d.useSettings();
 
   useEffect(() => {
@@ -126,7 +126,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   }
 
   async function handleUpdateClick() {
-    let response, sendManifestKey;
+    let response;
 
     try {
       const doc = yaml.load(editedManifest);
@@ -150,13 +150,6 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
           manifestVersion: dd.hash
         });
 
-        sendManifestKey =
-          !isManagedWallet &&
-          enqueueSnackbar(<d.Snackbar title="Deploying! 🚀" subTitle="Please wait a few seconds..." showLoading />, {
-            variant: "info",
-            autoHideDuration: null
-          });
-
         const leaseProviders = leases.map(lease => lease.provider).filter((v, i, s) => s.indexOf(v) === i);
 
         for (const provider of leaseProviders) {
@@ -170,11 +163,6 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
         });
 
         setIsSendingManifest(false);
-
-        if (sendManifestKey) {
-          closeSnackbar(sendManifestKey);
-        }
-
         closeManifestEditor();
       }
     } catch (error: any) {
@@ -185,10 +173,6 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
         console.error(error);
       }
       setIsSendingManifest(false);
-
-      if (sendManifestKey) {
-        closeSnackbar(sendManifestKey);
-      }
     }
   }
 

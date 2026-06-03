@@ -70,16 +70,14 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
     const wallet = d.useWallet();
 
     useEffect(() => {
-      if (wallet.isManaged) {
-        formServices.forEach((service, index) => {
-          const { denom } = service.placement.pricing;
+      formServices.forEach((service, index) => {
+        const { denom } = service.placement.pricing;
 
-          if (denom !== wallet.denom) {
-            setValue(`services.${index}.placement.pricing.denom`, wallet.denom);
-          }
-        });
-      }
-    }, [formServices, sdlString, wallet.isManaged, wallet.denom]);
+        if (denom !== wallet.denom) {
+          setValue(`services.${index}.placement.pricing.denom`, wallet.denom);
+        }
+      });
+    }, [formServices, sdlString, wallet.denom]);
 
     React.useImperativeHandle(ref, () => ({
       getSdl: getSdl,

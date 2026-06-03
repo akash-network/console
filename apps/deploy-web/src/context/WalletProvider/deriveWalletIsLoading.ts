@@ -1,13 +1,8 @@
-import type { SelectedWalletType } from "@src/store/walletStore";
-
 export type DeriveWalletIsLoadingInput = {
   hasAuthenticatedUserId: boolean;
-  selectedWalletType: SelectedWalletType;
   isManagedWalletLoading: boolean;
-  isCustodialConnecting: boolean;
 };
 
 export const deriveWalletIsLoading = (input: DeriveWalletIsLoadingInput): boolean => {
-  const isManagedQueryRelevant = input.hasAuthenticatedUserId || input.selectedWalletType === "managed";
-  return (isManagedQueryRelevant && input.isManagedWalletLoading) || (input.selectedWalletType === "custodial" && input.isCustodialConnecting);
+  return input.hasAuthenticatedUserId && input.isManagedWalletLoading;
 };

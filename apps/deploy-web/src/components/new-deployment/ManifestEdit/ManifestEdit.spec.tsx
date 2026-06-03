@@ -108,41 +108,7 @@ describe(ManifestEdit.name, () => {
     expect(SDLEditor).not.toHaveBeenCalled();
   });
 
-  it("shows PrerequisiteList when create deployment is clicked for non-managed wallet", async () => {
-    const PrerequisiteList = vi.fn(ComponentMock);
-    const SDLEditor = vi.fn(ComponentMock);
-
-    setup({
-      editedManifest: "some-manifest",
-      isManaged: false,
-      PrerequisiteList,
-      SDLEditor,
-      hasComponents: ["yml-editor"],
-      selectedSdlEditMode: "yaml"
-    });
-
-    act(() => {
-      triggerSdlValidation(SDLEditor, true);
-    });
-
-    await vi.waitFor(() => {
-      expect(screen.getByRole("button", { name: /Create Deployment/i })).not.toBeDisabled();
-    });
-
-    await userEvent.click(screen.getByRole("button", { name: /Create Deployment/i }));
-
-    await vi.waitFor(() => {
-      expect(PrerequisiteList).toHaveBeenCalledWith(
-        expect.objectContaining({
-          onClose: expect.any(Function),
-          onContinue: expect.any(Function)
-        }),
-        expect.anything()
-      );
-    });
-  });
-
-  it("shows DeploymentDepositModal when create deployment is clicked for managed wallet", async () => {
+  it("shows DeploymentDepositModal when create deployment is clicked", async () => {
     const DeploymentDepositModal = vi.fn(ComponentMock);
     const SDLEditor = vi.fn(ComponentMock);
 
@@ -264,7 +230,6 @@ describe(ManifestEdit.name, () => {
     templateId?: string | null;
     SDLEditor?: Mock;
     SdlBuilder?: Mock | ForwardRefExoticComponent<any>;
-    PrerequisiteList?: Mock;
     DeploymentDepositModal?: Mock;
     analyticsService?: AppDIContainer["analyticsService"];
     selectedSdlEditMode?: "yaml" | "builder";
@@ -292,7 +257,6 @@ describe(ManifestEdit.name, () => {
       TrialDeploymentBadge: ComponentMock,
       CustomNextSeo: ComponentMock,
       LinkTo: ComponentMock,
-      PrerequisiteList: input?.PrerequisiteList ?? ComponentMock,
       ViewPanel: ComponentMock,
       useSettings: () => ({
         settings: {
@@ -315,7 +279,7 @@ describe(ManifestEdit.name, () => {
         walletName: "test",
         isWalletConnected: true,
         isWalletLoaded: true,
-        isManaged: input?.isManaged ?? false,
+        isManaged: true,
         isTrialing: false,
         denom: input?.walletDenom,
         signAndBroadcastTx: vi.fn().mockResolvedValue({})

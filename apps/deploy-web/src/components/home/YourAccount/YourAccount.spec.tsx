@@ -34,7 +34,7 @@ describe(YourAccount.name, () => {
 
     expect(AccountHeaderMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        isManagedWallet: false,
+        isManagedWallet: true,
         isBlockchainDown: false
       }),
       expect.anything()
@@ -71,7 +71,7 @@ describe(YourAccount.name, () => {
       expect.objectContaining({
         walletBalance,
         activeDeploymentsCount: 0,
-        isManagedWallet: false
+        isManagedWallet: true
       }),
       expect.anything()
     );
@@ -304,11 +304,12 @@ describe(YourAccount.name, () => {
         connectManagedWallet: vi.fn(),
         logout: vi.fn(),
         signAndBroadcastTx: vi.fn(),
-        isManaged: input.wallet?.isManaged ?? false,
-        isCustodial: false,
+        isManaged: true,
+        denom: "uact",
         isWalletLoading: false,
         isTrialing: false,
         isOnboarding: false,
+        topUpMinAmountUsd: 20,
         hasManagedWallet: false
       }) as ReturnType<typeof DEPENDENCIES.useWallet>;
 

@@ -5,6 +5,7 @@ const nextConfig = require("@akashnetwork/dev-config/.eslintrc.next");
 
 module.exports = {
   ...baseConfig,
+  root: true,
   settings: {
     next: {
       rootDir: "apps/*"

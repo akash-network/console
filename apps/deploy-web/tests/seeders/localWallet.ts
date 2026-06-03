@@ -1,10 +1,7 @@
 import { faker } from "@faker-js/faker";
 
-import type { LocalWallet } from "@src/utils/walletUtils";
+import type { ManagedLocalWallet } from "@src/utils/walletUtils";
 import { genWalletAddress } from "./wallet";
-
-type ManagedLocalWallet = Extract<LocalWallet, { isManaged: true }>;
-type CustodialLocalWallet = Extract<LocalWallet, { isManaged: false }>;
 
 export const buildManagedLocalWallet = (overrides: Partial<ManagedLocalWallet> = {}): ManagedLocalWallet => ({
   name: "Managed Wallet",
@@ -14,13 +11,5 @@ export const buildManagedLocalWallet = (overrides: Partial<ManagedLocalWallet> =
   isManaged: true,
   creditAmount: faker.number.int({ min: 0, max: 1000 }),
   isTrialing: faker.datatype.boolean(),
-  ...overrides
-});
-
-export const buildCustodialLocalWallet = (overrides: Partial<CustodialLocalWallet> = {}): CustodialLocalWallet => ({
-  name: faker.internet.username(),
-  address: genWalletAddress(),
-  selected: faker.datatype.boolean(),
-  isManaged: false,
   ...overrides
 });

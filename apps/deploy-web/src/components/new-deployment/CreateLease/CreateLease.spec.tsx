@@ -9,7 +9,7 @@ import type { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import type { LocalDeploymentData } from "@src/services/deployment-storage/deployment-storage.service";
 import type { DeploymentDto, RpcBid } from "@src/types/deployment";
 import type { ApiProviderDetail } from "@src/types/provider";
-import { updateStorageWallets } from "@src/utils/walletUtils";
+import { updateStorageManagedWallet } from "@src/utils/walletUtils";
 import { CreateLease, DEPENDENCIES as CREATE_LEASE_DEPENDENCIES } from "./CreateLease";
 
 import { act, render, screen } from "@testing-library/react";
@@ -296,14 +296,13 @@ describe(CreateLease.name, () => {
 
       await vi.waitFor(() => expect(BidGroup).toHaveBeenCalled());
       act(() => {
-        updateStorageWallets([
-          {
-            address: walletAddress,
-            isManaged: false,
-            name: "test",
-            selected: true
-          }
-        ]);
+        updateStorageManagedWallet({
+          address: walletAddress,
+          userId: "user-123",
+          creditAmount: 100,
+          isTrialing: false,
+          selected: true
+        });
         const bidGroupProps = BidGroup.mock.calls[0][0];
         bidGroupProps.handleBidSelected(mapToBidDto(bids[0]));
       });

@@ -25,27 +25,26 @@ describe(WalletStatus.name, () => {
     expect(screen.queryByLabelText("Connected wallet name and balance")).not.toBeInTheDocument();
   });
 
-  it("renders a custodial wallet name and balance", () => {
+  it("renders the managed deployment-grants balance", () => {
     setup({
       walletName: "alice-wallet",
-      isManaged: false,
-      balance: { totalUsd: 12.34, totalDeploymentGrantsUSD: 0 }
+      isTrialing: true,
+      balance: { totalUsd: 0, totalDeploymentGrantsUSD: 12.34 }
     });
 
     const container = screen.getByLabelText("Connected wallet name and balance");
-    expect(container).toHaveTextContent("alice-wallet");
     expect(container.parentElement).toHaveTextContent("$12.34");
   });
 
-  it("renders a Trial label when the wallet is managed and trialing", () => {
-    setup({ isManaged: true, isTrialing: true });
+  it("renders a Trial label when the wallet is trialing", () => {
+    setup({ isTrialing: true });
 
     expect(screen.getByText("Trial")).toBeInTheDocument();
   });
 
   it("opens the dropdown with ManagedWalletPopup on click", async () => {
     const ManagedWalletPopup = vi.fn(ComponentMock);
-    setup({ isManaged: true, dependencies: { ManagedWalletPopup } });
+    setup({ dependencies: { ManagedWalletPopup } });
 
     await userEvent.click(screen.getByLabelText("Connected wallet name and balance"));
 
@@ -56,7 +55,6 @@ describe(WalletStatus.name, () => {
     walletName?: string;
     isWalletLoaded?: boolean;
     isWalletConnected?: boolean;
-    isManaged?: boolean;
     isTrialing?: boolean;
     isWalletLoading?: boolean;
     balance?: { totalUsd: number; totalDeploymentGrantsUSD: number };
@@ -67,7 +65,6 @@ describe(WalletStatus.name, () => {
       walletName: input.walletName ?? "test-wallet",
       isWalletLoaded: input.isWalletLoaded ?? true,
       isWalletConnected: input.isWalletConnected ?? true,
-      isManaged: input.isManaged ?? false,
       isTrialing: input.isTrialing ?? false,
       isWalletLoading: input.isWalletLoading ?? false
     });
