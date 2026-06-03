@@ -5,11 +5,12 @@ export const jsonbBigint = customType<{ data: unknown; driverData: unknown }>({
     return "jsonb";
   },
   toDriver(value) {
-    // pass value as is because then it's handled by postgres.js jsonb serializer
+    // Pass through: the postgres.js client serializes jsonb via serializeJsonb (see postgres.provider.ts),
+    // which preserves bigints. drizzle.provider re-asserts that serializer after drizzle clobbers it.
     return value;
   },
   fromDriver(value) {
-    // postgres.js returns parsed JSON
+    // postgres.js parses jsonb via parseJsonb (see postgres.provider.ts); value is already parsed.
     return value;
   }
 });

@@ -1,7 +1,7 @@
 import type { AnyAbility } from "@casl/ability";
 import type { DBQueryConfig } from "drizzle-orm";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
-import type { PgTableWithColumns } from "drizzle-orm/pg-core";
+import type { PgTable, PgTableWithColumns } from "drizzle-orm/pg-core";
 import type { SQL } from "drizzle-orm/sql/sql";
 import { PostgresError } from "postgres";
 
@@ -93,7 +93,7 @@ export abstract class BaseRepository<
     const items: T["$inferSelect"][] | undefined = await this.txManager
       .getPgTx()
       ?.select()
-      .from(this.table)
+      .from(this.table as PgTable)
       .where(this.queryToWhere(query))
       .limit(1)
       .for("update");
@@ -187,7 +187,7 @@ export abstract class BaseRepository<
   async count(query?: Partial<Output>): Promise<number> {
     const [result] = await this.cursor
       .select({ count: sql<number>`count(*)::int` })
-      .from(this.table)
+      .from(this.table as PgTable)
       .where(this.queryToWhere(query));
     return result?.count ?? 0;
   }
@@ -242,6 +242,13 @@ type TableNameInSchema<T extends PgTableWithColumns<any>> = {
 }[TableName<T>];
 
 const UNIQUE_VIOLATION_CODE = "23505";
+// drizzle-orm >=0.44 wraps driver errors in DrizzleQueryError; the underlying PostgresError lives on .cause
+export function getPostgresError(error: unknown): PostgresError | undefined {
+  if (error instanceof PostgresError) return error;
+  if (error instanceof Error && error.cause instanceof PostgresError) return error.cause;
+  return undefined;
+}
+
 export function isUniqueViolation(error: unknown): error is PostgresError {
-  return error instanceof PostgresError && error.code === UNIQUE_VIOLATION_CODE;
+  return getPostgresError(error)?.code === UNIQUE_VIOLATION_CODE;
 }

@@ -13,6 +13,10 @@ const logger = container.resolve(LOGGER_FACTORY)({ context: "POSTGRES" });
 export type Database = postgres.Sql<{ bigint: bigint }>;
 export const PG_CLIENT = Symbol("APP_PG_CLIENT") as InjectionToken<Database>;
 
+// json (OID 114) and jsonb (OID 3802). drizzle's construct() overrides the serializers for both
+// with a passthrough on the shared client, expecting column types to own serialization.
+export const JSON_OIDS = [114, 3802];
+
 container.register(PG_CLIENT, {
   useFactory: instancePerContainerCachingFactory(c => {
     const config = c.resolve(APP_CONFIG);
@@ -25,8 +29,8 @@ container.register(PG_CLIENT, {
       types: {
         bigint: postgres.BigInt,
         json: {
-          to: 114, // OID 114 = json
-          from: [114, 3802], // 114 = json, 3802 = jsonb
+          to: 114,
+          from: JSON_OIDS,
           serialize: serializeJsonb,
           parse: parseJsonb
         }

@@ -5,7 +5,7 @@ import { singleton } from "tsyringe";
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import { LoggerService } from "@src/core/providers/logging.provider";
-import { isUniqueViolation } from "@src/core/repositories/base.repository";
+import { getPostgresError, isUniqueViolation } from "@src/core/repositories/base.repository";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { UserInput, type UserOutput, UserRepository } from "../../repositories/user/user.repository";
@@ -89,7 +89,7 @@ export class UserService {
     try {
       return await this.userRepository.upsertOnExternalIdConflict(userDetails);
     } catch (error) {
-      if (userDetails.username && isUniqueViolation(error) && error.constraint_name?.includes("username") && attempt < 10) {
+      if (userDetails.username && isUniqueViolation(error) && getPostgresError(error)?.constraint_name?.includes("username") && attempt < 10) {
         return this.upsertUser(
           {
             ...userDetails,
