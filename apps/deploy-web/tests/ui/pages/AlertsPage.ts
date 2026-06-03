@@ -26,7 +26,10 @@ export class AlertsPage {
   async findAlertRowByDseq(dseq: string, options: { timeout?: number } = {}) {
     const { timeout = 30_000 } = options;
     const deadline = Date.now() + timeout;
-    const row = this.page.getByRole("row").filter({ hasText: dseq });
+    // Each deployment renders two rows on /alerts (Escrow Threshold + Deployment Close),
+    // both containing the same DSEQ — scope to the first to avoid strict-mode violations
+    // on downstream toggle/link actions.
+    const row = this.page.getByRole("row").filter({ hasText: dseq }).first();
     const nextButton = this.page.getByRole("link", { name: /go to next page/i });
 
     while (Date.now() < deadline) {
