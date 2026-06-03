@@ -1,3 +1,5 @@
+import { MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
 
@@ -67,9 +69,9 @@ describe(DeploymentWriterService.name, () => {
       const { service, signerService, rpcMessageService } = setup();
       const dseq = 1748400000000;
       vi.spyOn(Date, "now").mockReturnValue(dseq);
-      const txResult = { code: 0, transactionHash: "tx-hash" };
+      const txResult = { code: 0, transactionHash: "tx-hash", hash: "tx-hash", rawLog: "" };
       signerService.executeDerivedDecodedTxByUserId.mockResolvedValue(txResult);
-      const createMsg = { typeUrl: "/create", value: {} };
+      const createMsg = { typeUrl: "/create", value: MsgCreateDeployment.fromPartial({}) };
       rpcMessageService.getCreateDeploymentMsg.mockReturnValue(createMsg);
 
       const result = await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
@@ -102,7 +104,7 @@ describe(DeploymentWriterService.name, () => {
   describe("closeByUserIdAndDseq", () => {
     it("fetches wallet and closes deployment", async () => {
       const { service, signerService, rpcMessageService } = setup();
-      const closeMsg = { typeUrl: "/close", value: {} };
+      const closeMsg = { typeUrl: "/close", value: MsgCloseDeployment.fromPartial({}) };
       rpcMessageService.getCloseDeploymentMsg.mockReturnValue(closeMsg);
 
       await service.closeByUserIdAndDseq("user-1", "100");
@@ -115,7 +117,7 @@ describe(DeploymentWriterService.name, () => {
   describe("close", () => {
     it("closes deployment by wallet and dseq", async () => {
       const { service, signerService, rpcMessageService } = setup();
-      const closeMsg = { typeUrl: "/close", value: {} };
+      const closeMsg = { typeUrl: "/close", value: MsgCloseDeployment.fromPartial({}) };
       rpcMessageService.getCloseDeploymentMsg.mockReturnValue(closeMsg);
 
       await service.close(wallet, "100");
@@ -130,7 +132,7 @@ describe(DeploymentWriterService.name, () => {
       const { service, rpcMessageService, signerService, deploymentReaderService } = setup();
       const updatedDeployment = { ...deploymentData };
       deploymentReaderService.findByWalletAndDseq.mockResolvedValue(updatedDeployment);
-      const depositMsg = { typeUrl: "/deposit", value: {} };
+      const depositMsg = { typeUrl: "/deposit", value: MsgAccountDeposit.fromPartial({}) };
       rpcMessageService.getDepositDeploymentMsg.mockReturnValue(depositMsg);
 
       const result = await service.deposit({ userId: "user-1", dseq: "100", amount: 3 });
@@ -155,7 +157,7 @@ describe(DeploymentWriterService.name, () => {
         deployment: { ...deploymentData.deployment, hash: "stale-hash" }
       };
       deploymentReaderService.findByWalletAndDseq.mockResolvedValueOnce(staleDeployment).mockResolvedValueOnce(deploymentData);
-      const updateMsg = { typeUrl: "/update", value: {} };
+      const updateMsg = { typeUrl: "/update", value: MsgUpdateDeployment.fromPartial({}) };
       rpcMessageService.getUpdateDeploymentMsg.mockReturnValue(updateMsg);
 
       const result = await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
@@ -187,7 +189,7 @@ describe(DeploymentWriterService.name, () => {
         ]
       };
       deploymentReaderService.findByWalletAndDseq.mockResolvedValueOnce(deploymentWithMultipleLeases).mockResolvedValueOnce(deploymentData);
-      providerService.toProviderAuth.mockResolvedValue({ certPem: "cert", keyPem: "key" });
+      providerService.toProviderAuth.mockResolvedValue({ type: "jwt", token: "test-token" });
 
       await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
 

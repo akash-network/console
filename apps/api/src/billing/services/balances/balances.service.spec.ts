@@ -114,7 +114,7 @@ describe(BalancesService.name, () => {
 
   function setup(input?: { limitsUpdate?: Partial<UserWalletInput>; deploymentLimit?: number; fiatAmount?: number; denom?: string }) {
     const billingConfig = mock<BillingConfig>();
-    billingConfig.DEPLOYMENT_GRANT_DENOM = input?.denom ?? "uakt";
+    billingConfig.DEPLOYMENT_GRANT_DENOM = (input?.denom ?? "uakt") as "uakt" | "uact";
     const userWalletRepository = mock<UserWalletRepository>();
     const txManagerService = mock<TxManagerService>();
     const authzHttpService = mock<AuthzHttpService>();
