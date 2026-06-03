@@ -89,7 +89,6 @@ export class UrlService {
   static providerDetail = (owner: string) => `/providers/${owner}${appendSearchParams({ network: networkStore.selectedNetworkId })}`;
   static providerDetailLeases = (owner: string) => `/providers/${owner}/leases`;
   static providerDetailRaw = (owner: string) => `/providers/${owner}/raw`;
-  static providerDetailEdit = (owner: string) => `/providers/${owner}/edit`;
   static alerts = () => "/alerts";
   static alertDetails = (id: string) => `/alerts/${id}`;
   static notificationChannels = () => "/alerts/notification-channels";
