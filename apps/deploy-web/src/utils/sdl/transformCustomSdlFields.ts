@@ -2,7 +2,7 @@ import cloneDeep from "lodash/cloneDeep";
 import flow from "lodash/flow";
 import isMatch from "lodash/isMatch";
 
-import type { ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SSH_EXPOSE, SSH_VM_IMAGES } from "@src/utils/sdl/data";
 
 interface TransformOptions {
@@ -11,7 +11,7 @@ interface TransformOptions {
 
 export class TransformError extends Error {}
 
-export const transformCustomSdlFields = (services: ServiceType[], options?: TransformOptions) => {
+export const transformCustomSdlFields = (formValues: SdlBuilderFormValuesType, options?: TransformOptions): SdlBuilderFormValuesType => {
   const pipeline = [addSshPubKey, ensureServiceCount];
 
   if (options?.withSSH) {
@@ -21,7 +21,10 @@ export const transformCustomSdlFields = (services: ServiceType[], options?: Tran
 
   const transform = flow(pipeline);
 
-  return services.map(service => transform(service));
+  return {
+    ...formValues,
+    services: formValues.services.map(service => transform(service))
+  };
 };
 
 function addSshPubKey(input: ServiceType) {

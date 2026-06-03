@@ -198,23 +198,21 @@ export const ExposeSchema = z.object({
 });
 
 export const PlacementSchema = z.object({
+  id: z.string().min(1, { message: "Placement id is required." }),
   name: z
     .string()
     .min(1, { message: "Placement name is required." })
     .regex(/^[a-z0-9-]+$/, { message: "Invalid placement name. It must only be lower case letters, numbers and dashes." })
     .regex(/^[a-z]/, { message: "Invalid starting character. It can only start with a lowercase letter." })
     .regex(/[^-]$/, { message: "Invalid ending character. It can only end with a lowercase letter or number" }),
+  region: z.string().optional(),
   attributes: z.array(PlacementAttributeSchema).optional(),
   signedBy: z
     .object({
       allOf: z.array(SignedBySchema),
       anyOf: z.array(SignedBySchema)
     })
-    .optional(),
-  pricing: z.object({
-    amount: z.number().min(1, { message: "Pricing amount is required." }),
-    denom: z.string().min(1, { message: "Pricing denom is required." })
-  })
+    .optional()
 });
 
 const validateCpuAmount = (value: number, serviceCount: number, context: z.RefinementCtx) => {
@@ -348,7 +346,11 @@ export const ServiceSchema = z
     expose: z.array(ExposeSchema),
     command: CommandSchema.optional(),
     env: z.array(EnvironmentVariableSchema).optional(),
-    placement: PlacementSchema,
+    placementId: z.string().min(1, { message: "Placement reference is required." }),
+    pricing: z.object({
+      amount: z.number().min(1, { message: "Pricing amount is required." }),
+      denom: z.string().min(1, { message: "Pricing denom is required." })
+    }),
     count: z.number().min(1, { message: "Service count is required." }),
     sshPubKey: z.string().optional(),
     params: z
@@ -383,12 +385,39 @@ const logProviderVars = z.discriminatedUnion("PROVIDER", [
 ]);
 
 export const SdlBuilderFormValuesSchema = z
-  .object({ services: z.array(ServiceSchema) })
+  .object({
+    placements: z.array(PlacementSchema).min(1, { message: "At least one placement is required." }),
+    services: z.array(ServiceSchema).min(1, { message: "At least one service is required." })
+  })
   .merge(ImageList)
   .merge(SSHKey)
   .superRefine((data, ctx) => {
-    // Docker image name validation
-    // Image list is set when we deploy a linux instance
+    const placementIds = new Set<string>();
+    for (let i = 0; i < data.placements.length; i++) {
+      const placementId = data.placements[i].id;
+      if (placementIds.has(placementId)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Placement id must be unique.",
+          path: ["placements", i, "id"],
+          fatal: true
+        });
+        continue;
+      }
+      placementIds.add(placementId);
+    }
+
+    for (let i = 0; i < data.services.length; i++) {
+      if (!placementIds.has(data.services[i].placementId)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Service references a placement that does not exist.",
+          path: ["services", i, "placementId"],
+          fatal: true
+        });
+      }
+    }
+
     if (data.imageList && data.imageList.length > 0) {
       for (let i = 0; i < data.services.length; i++) {
         if (!data.imageList.includes(data.services[i].image)) {
@@ -415,7 +444,6 @@ export const SdlBuilderFormValuesSchema = z
       }
     }
 
-    // SSH key validation
     if (data.hasSSHKey) {
       for (let i = 0; i < data.services.length; i++) {
         if (!data.services[i].sshPubKey) {

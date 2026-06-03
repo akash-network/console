@@ -1,7 +1,7 @@
 import yaml from "js-yaml";
 
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
-import type { ExposeType, ProfileGpuModelType, ServiceType } from "@src/types";
+import type { ExposeType, PlacementType, ProfileGpuModelType, SdlBuilderFormValuesType } from "@src/types";
 import { defaultHttpOptions } from "./data";
 
 export const buildCommand = (command: string) => {
@@ -23,38 +23,38 @@ export const buildCommand = (command: string) => {
   return command;
 };
 
-export const generateSdl = (services: ServiceType[], region?: string) => {
+export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
   const sdl: Record<string, any> = { version: "2.0", services: {}, profiles: { compute: {}, placement: {} }, deployment: {} };
+  const placementById = new Map<string, PlacementType>(formValues.placements.map(p => [p.id, p]));
 
-  services.forEach(service => {
+  formValues.services.forEach(service => {
+    const placement = placementById.get(service.placementId);
+    if (!placement) {
+      throw new Error(`Service "${service.title}" references unknown placementId "${service.placementId}"`);
+    }
+
     sdl.services[service.title] = {
       image: service.image,
 
       credentials: service.hasCredentials ? service.credentials : undefined,
 
-      // Expose
       expose: service.expose.map(e => {
-        // Port
         const _expose: Record<string, any> = { port: e.port };
 
-        // As
         if (e.as) {
           _expose["as"] = e.as;
         }
 
-        // Accept
         const accept = e.accept?.map(a => a.value);
         if ((accept?.length || 0) > 0) {
           _expose["accept"] = accept;
         }
 
-        // Proto
         const proto = getProto(e);
         if (proto) {
           _expose["proto"] = proto;
         }
 
-        // To
         const to = e.to?.map(to => ({ ["service"]: to.value }));
         _expose["to"] = [
           {
@@ -63,7 +63,6 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
           }
         ].concat(to as any);
 
-        // HTTP Options
         if (e.hasCustomHttpOptions) {
           _expose["http_options"] = {
             max_body_size: e.httpOptions?.maxBodySize ?? defaultHttpOptions.maxBodySize,
@@ -79,19 +78,16 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
       })
     };
 
-    // Command
     const trimmedCommand = service.command?.command?.trim();
     if (trimmedCommand) {
       sdl.services[service.title].command = buildCommand(trimmedCommand);
       sdl.services[service.title].args = [service.command?.arg?.trim()];
     }
 
-    // Env
     if ((service.env?.length || 0) > 0) {
       sdl.services[service.title].env = service.env?.map(e => `${e.key.trim()}=${e.isSecret ? "" : e.value?.trim()}`);
     }
 
-    // Compute
     sdl.profiles.compute[service.title] = {
       resources: {
         cpu: {
@@ -108,7 +104,6 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
       }
     };
 
-    // GPU
     if (service.profile.hasGpu) {
       sdl.profiles.compute[service.title].resources.gpu = {
         units: service.profile.gpu,
@@ -117,7 +112,6 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
         }
       };
 
-      // Group models by vendor
       const vendors =
         service.profile.gpuModels?.reduce<Record<string, ProfileGpuModelType[]>>((group, model) => {
           const { vendor } = model;
@@ -153,7 +147,6 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
       }
     }
 
-    // Persistent Storage
     if (service.profile.storage.length > 1) {
       sdl.services[service.title].params = {
         storage: {}
@@ -187,45 +180,41 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
       };
     }
 
-    // Placement
-    sdl.profiles.placement[service.placement.name] = sdl.profiles.placement[service.placement.name] || { pricing: {} };
-    sdl.profiles.placement[service.placement.name].pricing[service.title] = {
-      denom: service.placement.pricing.denom,
-      amount: service.placement.pricing.amount
+    sdl.profiles.placement[placement.name] = sdl.profiles.placement[placement.name] || { pricing: {} };
+    sdl.profiles.placement[placement.name].pricing[service.title] = {
+      denom: service.pricing.denom,
+      amount: service.pricing.amount
     };
 
-    // Signed by
-    if ((service.placement.signedBy?.anyOf?.length || 0) > 0 || (service.placement.signedBy?.anyOf?.length || 0) > 0) {
-      if ((service.placement.signedBy?.anyOf?.length || 0) > 0) {
-        sdl.profiles.placement[service.placement.name].signedBy = {
-          anyOf: service.placement.signedBy?.anyOf.map(x => x.value)
+    if ((placement.signedBy?.anyOf?.length || 0) > 0 || (placement.signedBy?.allOf?.length || 0) > 0) {
+      if ((placement.signedBy?.anyOf?.length || 0) > 0) {
+        sdl.profiles.placement[placement.name].signedBy = {
+          anyOf: placement.signedBy?.anyOf.map(x => x.value)
         };
       }
 
-      if ((service.placement.signedBy?.allOf?.length || 0) > 0) {
-        sdl.profiles.placement[service.placement.name].signedBy.allOf = service.placement.signedBy?.allOf.map(x => x.value);
+      if ((placement.signedBy?.allOf?.length || 0) > 0) {
+        sdl.profiles.placement[placement.name].signedBy = sdl.profiles.placement[placement.name].signedBy || {};
+        sdl.profiles.placement[placement.name].signedBy.allOf = placement.signedBy?.allOf.map(x => x.value);
       }
     }
 
-    // Attributes
-    if ((service.placement.attributes?.length || 0) > 0) {
-      sdl.profiles.placement[service.placement.name].attributes = service.placement.attributes?.reduce<Record<string, string>>(
+    if ((placement.attributes?.length || 0) > 0) {
+      sdl.profiles.placement[placement.name].attributes = placement.attributes?.reduce<Record<string, string>>(
         (acc, curr) => ((acc[curr.key] = curr.value), acc),
         {}
       );
     }
 
-    // Regions
-    if (!!region && region !== "any") {
-      sdl.profiles.placement[service.placement.name].attributes = {
-        ...(sdl.profiles.placement[service.placement.name].attributes || {}),
-        "location-region": region.toLowerCase()
+    if (!!placement.region && placement.region !== "any") {
+      sdl.profiles.placement[placement.name].attributes = {
+        ...(sdl.profiles.placement[placement.name].attributes || {}),
+        "location-region": placement.region.toLowerCase()
       };
     }
 
-    // IP Lease
     if (service.expose.some(exp => exp.ipName)) {
-      sdl["endpoints"] = {};
+      sdl["endpoints"] = sdl["endpoints"] || {};
 
       service.expose
         .filter((exp): exp is ExposeType & { ipName: string } => !!exp.ipName)
@@ -236,9 +225,8 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
         });
     }
 
-    // Count
     sdl.deployment[service.title] = {
-      [service.placement.name]: {
+      [placement.name]: {
         profile: service.title,
         count: service.count
       }
@@ -249,7 +237,7 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
     indent: 2,
     quotingType: '"',
     styles: {
-      "!!null": "empty" // dump null as empty value
+      "!!null": "empty"
     }
   });
 
@@ -257,6 +245,10 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
 ${result}`;
 };
 
+/**
+ * Returns the SDL proto value for an expose entry. SDL omits the proto field
+ * for HTTP exposes (it is the default), so http maps to null.
+ */
 const getProto = (expose: ExposeType) => {
   if (expose.proto && expose.proto === "http") {
     return null;

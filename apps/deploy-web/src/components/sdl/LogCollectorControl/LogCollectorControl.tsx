@@ -67,14 +67,18 @@ export const LogCollectorControl: FC<Props> = ({ serviceIndex, dependencies: d =
       }
       const nextTitle = toLogCollectorTitle(targetService);
 
-      const changes: Partial<Pick<ServiceType, "title" | "placement">> = {};
+      const changes: Partial<Pick<ServiceType, "title" | "placementId" | "pricing">> = {};
 
       if (logCollectorService.title !== nextTitle) {
         changes.title = nextTitle;
       }
 
-      if (targetService.placement.name !== logCollectorService.placement.name) {
-        changes.placement = targetService.placement;
+      if (targetService.placementId !== logCollectorService.placementId) {
+        changes.placementId = targetService.placementId;
+      }
+
+      if (targetService.pricing.amount !== logCollectorService.pricing.amount || targetService.pricing.denom !== logCollectorService.pricing.denom) {
+        changes.pricing = targetService.pricing;
       }
 
       if (Object.keys(changes).length > 0) {
@@ -84,7 +88,16 @@ export const LogCollectorControl: FC<Props> = ({ serviceIndex, dependencies: d =
         });
       }
     },
-    [logCollectorService, logCollectorServiceIndex, targetService.placement.name, targetService.title, update, env]
+    [
+      logCollectorService,
+      logCollectorServiceIndex,
+      targetService.placementId,
+      targetService.pricing.amount,
+      targetService.pricing.denom,
+      targetService.title,
+      update,
+      env
+    ]
   );
 
   useThrottledEffect(() => {
@@ -200,12 +213,15 @@ export function findOwnLogCollectorServiceIndex(service: ServiceType, services: 
   return services.findIndex(s => s.title === toLogCollectorTitle(service));
 }
 
-function generateLogCollectorService<T extends ServiceType>(targetService: T): Pick<T, "placement"> & Omit<ServiceType, "placement"> {
+function generateLogCollectorService<T extends ServiceType>(
+  targetService: T
+): Pick<T, "placementId" | "pricing"> & Omit<ServiceType, "placementId" | "pricing"> {
   return {
     id: toLogCollectorId(targetService),
     title: toLogCollectorTitle(targetService),
     image: LOG_COLLECTOR_IMAGE,
-    placement: targetService.placement,
+    placementId: targetService.placementId,
+    pricing: targetService.pricing,
     env: [
       { key: "PROVIDER", value: "DATADOG" },
       { key: "POD_LABEL_SELECTOR", value: `akash.network/manifest-service=${targetService.title}` },

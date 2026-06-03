@@ -22,7 +22,8 @@ describe(LogCollectorControl.name, () => {
     const logCollectorService = formValues.services.find(service => service.title === `${targetService.title}-log-collector`);
     expect(logCollectorService).toBeDefined();
     expect(logCollectorService?.image).toMatch(/ghcr\.io\/akash-network\/log-collector:\d+\.\d+\.\d+/);
-    expect(logCollectorService?.placement).toMatchObject(targetService.placement);
+    expect(logCollectorService?.placementId).toBe(targetService.placementId);
+    expect(logCollectorService?.pricing).toMatchObject(targetService.pricing);
   });
 
   it("removes log-collector service when checkbox is unchecked", async () => {
@@ -90,14 +91,36 @@ describe(LogCollectorControl.name, () => {
       expect(form.getValues("services.1.title")).toBe(`${targetService.title}-log-collector`);
     });
 
-    const newPlacement = buildSDLService().placement;
+    const newPlacementId = "placement-new";
     await act(async () => {
-      form.setValue("services.0.placement", newPlacement);
+      form.setValue("services.0.placementId", newPlacementId);
     });
 
     await vi.waitFor(
       () => {
-        expect(form.getValues("services.1.placement.name")).toBe(newPlacement.name);
+        expect(form.getValues("services.1.placementId")).toBe(newPlacementId);
+      },
+      { timeout: 1000 }
+    );
+  });
+
+  it("updates log-collector pricing when target service pricing is changed", async () => {
+    const { user, form, targetService } = await setup();
+    const checkbox = screen.getByRole("checkbox");
+    await user.click(checkbox);
+
+    await vi.waitFor(() => {
+      expect(form.getValues("services.1.title")).toBe(`${targetService.title}-log-collector`);
+    });
+
+    const newPricing = { amount: 42_000, denom: "uact" };
+    await act(async () => {
+      form.setValue("services.0.pricing", newPricing);
+    });
+
+    await vi.waitFor(
+      () => {
+        expect(form.getValues("services.1.pricing")).toEqual(newPricing);
       },
       { timeout: 1000 }
     );

@@ -9,7 +9,7 @@ import { useTheme } from "next-themes";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
-import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType } from "@src/types";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { SDLEditor } from "./SDLEditor/SDLEditor";
 
@@ -33,11 +33,11 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
     try {
       if (!yamlStr) return null;
 
-      const services = importSimpleSdl(yamlStr);
+      const formValues = importSimpleSdl(yamlStr);
 
       setParsingError(null);
 
-      return services;
+      return formValues;
     } catch (err: any) {
       if (err.name === "YAMLException" || err.name === "CustomValidationError") {
         setParsingError(err.message);
@@ -45,7 +45,6 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
         setParsingError(err.message);
       } else {
         setParsingError("Error while parsing SDL file");
-        // setParsingError(err.message);
         console.error(err);
       }
     }
@@ -56,7 +55,8 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
 
     if (!result) return;
 
-    setValue("services", result as ServiceType[]);
+    setValue("placements", result.placements);
+    setValue("services", result.services);
 
     enqueueSnackbar(<Snackbar title="Import success!" iconVariant="success" />, {
       variant: "success",

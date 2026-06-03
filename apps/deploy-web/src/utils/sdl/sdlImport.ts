@@ -1,7 +1,7 @@
 import yaml from "js-yaml";
 import { nanoid } from "nanoid";
 
-import type { ExposeType, ProfileGpuModelType, ServiceType } from "@src/types";
+import type { ExposeType, PlacementAttributeType, PlacementType, ProfileGpuModelType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { CustomValidationError } from "../deploymentData";
 import { capitalizeFirstLetter } from "../stringUtils";
 import { defaultHttpOptions } from "./data";
@@ -22,11 +22,18 @@ export const parseSvcCommand = (command?: string | string[]): string => {
   return command.filter(Boolean).join("\n");
 };
 
-export const importSimpleSdl = (yamlStr: string) => {
+export const importSimpleSdl = (yamlStr: string): SdlBuilderFormValuesType => {
   try {
     const yamlJson = yaml.load(yamlStr) as any;
+    const placements: PlacementType[] = [];
+    const placementIdByName = new Map<string, string>();
     const services: ServiceType[] = [];
-    if (!yamlJson.services) return services;
+
+    if (!yamlJson || typeof yamlJson !== "object" || Array.isArray(yamlJson)) {
+      throw new CustomValidationError("SDL root must be a YAML object.");
+    }
+
+    if (!yamlJson.services) return { placements, services };
 
     Object.keys(yamlJson.services).forEach(svcName => {
       const svc = yamlJson.services[svcName];
@@ -42,8 +49,6 @@ export const importSimpleSdl = (yamlStr: string) => {
       const compute = yamlJson.profiles.compute[svcName];
       const storages = compute.resources.storage.map ? compute.resources.storage : [compute.resources.storage];
 
-      // TODO validation
-      // Service compute profile
       service.profile = {
         cpu: compute.resources.cpu.units,
         gpu: compute.resources.gpu ? compute.resources.gpu.units : 0,
@@ -78,16 +83,13 @@ export const importSimpleSdl = (yamlStr: string) => {
         })
       };
 
-      // Command
       service.command = {
         command: parseSvcCommand(svc.command),
         arg: svc.args ? svc.args[0] : ""
       };
 
-      // Env
       service.env = svc.env?.map((e: any) => ({ id: nanoid(), key: e.split("=")[0], value: e.split("=")[1] })) || [];
 
-      // Expose
       service.expose = [];
       svc.expose?.forEach((expose: any) => {
         const isGlobal = expose.to.find((t: any) => t.global);
@@ -115,41 +117,32 @@ export const importSimpleSdl = (yamlStr: string) => {
         service.expose?.push(_expose);
       });
 
-      // Placement
       const depl = yamlJson.deployment[svcName];
       const sortedPlacementNames = Object.keys(depl).sort();
-      // Only one placement available
       const placementName = sortedPlacementNames[0];
-      const placement = yamlJson.profiles.placement[placementName];
+      const placementProfile = yamlJson.profiles.placement[placementName];
 
-      if (!placement) {
+      if (!placementProfile) {
         throw new CustomValidationError(`Unable to find placement: ${placementName}`);
       }
 
-      const placementPricing = placement.pricing[svcName];
+      let placementId = placementIdByName.get(placementName);
+      if (!placementId) {
+        placementId = nanoid();
+        placementIdByName.set(placementName, placementId);
+        placements.push(hydratePlacement(placementId, placementName, placementProfile));
+      }
+
+      const placementPricing = placementProfile.pricing?.[svcName];
+      if (!placementPricing) {
+        throw new CustomValidationError(`Unable to find pricing for service "${svcName}" in placement "${placementName}"`);
+      }
       const deployment = depl[placementName];
 
-      service.placement = {
-        name: placementName,
-        pricing: {
-          amount: placementPricing.amount,
-          denom: placementPricing.denom
-        },
-        signedBy: {
-          anyOf: placement.signedBy && placement.signedBy?.anyOf ? placement.signedBy.anyOf.map((x: string) => ({ id: nanoid(), value: x })) : [],
-          allOf: placement.signedBy && placement.signedBy?.allOf ? placement.signedBy.allOf.map((x: string) => ({ id: nanoid(), value: x })) : []
-        },
-        attributes: placement.attributes
-          ? Object.keys(placement.attributes).map(attKey => {
-              const attVal = placement.attributes[attKey];
-
-              return {
-                id: nanoid(),
-                key: attKey,
-                value: attVal
-              };
-            })
-          : []
+      service.placementId = placementId;
+      service.pricing = {
+        amount: placementPricing.amount,
+        denom: placementPricing.denom
       };
 
       service.count = deployment.count;
@@ -157,7 +150,7 @@ export const importSimpleSdl = (yamlStr: string) => {
       services.push(service as ServiceType);
     });
 
-    return services;
+    return { placements, services };
   } catch (error) {
     console.error(error);
     throw error;
@@ -199,3 +192,33 @@ const getGpuModels = (vendor: { [key: string]: { model: string; ram: string; int
 
   return models;
 };
+
+/**
+ * Builds a fresh PlacementType from a raw SDL placement profile, lifting the
+ * location-region attribute into a first-class field and dropping it from the
+ * remaining attributes list.
+ */
+function hydratePlacement(id: string, name: string, profile: any): PlacementType {
+  const rawAttributes: Record<string, string> = profile.attributes || {};
+  const attributes: PlacementAttributeType[] = [];
+  let region: string | undefined;
+
+  for (const [key, value] of Object.entries(rawAttributes)) {
+    if (key === "location-region") {
+      region = value;
+      continue;
+    }
+    attributes.push({ id: nanoid(), key, value });
+  }
+
+  return {
+    id,
+    name,
+    region,
+    attributes,
+    signedBy: {
+      anyOf: profile.signedBy?.anyOf ? profile.signedBy.anyOf.map((x: string) => ({ id: nanoid(), value: x })) : [],
+      allOf: profile.signedBy?.allOf ? profile.signedBy.allOf.map((x: string) => ({ id: nanoid(), value: x })) : []
+    }
+  };
+}

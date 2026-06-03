@@ -7,7 +7,7 @@ export function useImportSimpleSdl(sdl: string | null | undefined) {
     if (!sdl) return [];
 
     try {
-      return importSimpleSdl(sdl);
+      return importSimpleSdl(sdl).services;
     } catch {
       return [];
     }

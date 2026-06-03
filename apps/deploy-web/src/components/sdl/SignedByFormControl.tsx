@@ -12,7 +12,7 @@ import type { SdlBuilderFormValuesType, SignedByType } from "@src/types";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
-  serviceIndex: number;
+  placementIndex: number;
   control: Control<SdlBuilderFormValuesType, any>;
   children?: ReactNode;
   signedByAnyOf: SignedByType[];
@@ -25,14 +25,14 @@ export type SignedByRefType = {
 };
 
 export const SignedByFormControl = forwardRef<SignedByRefType, Props>(
-  ({ control, serviceIndex, signedByAnyOf: _signedByAnyOf = [], signedByAllOf: _signedByAllOf = [] }, ref) => {
+  ({ control, placementIndex, signedByAnyOf: _signedByAnyOf = [], signedByAllOf: _signedByAllOf = [] }, ref) => {
     const {
       fields: signedByAnyOf,
       remove: removeAnyOf,
       append: appendAnyOf
     } = useFieldArray({
       control,
-      name: `services.${serviceIndex}.placement.signedBy.anyOf`,
+      name: `placements.${placementIndex}.signedBy.anyOf`,
       keyName: "id"
     });
     const {
@@ -41,7 +41,7 @@ export const SignedByFormControl = forwardRef<SignedByRefType, Props>(
       append: appendAllOf
     } = useFieldArray({
       control,
-      name: `services.${serviceIndex}.placement.signedBy.allOf`,
+      name: `placements.${placementIndex}.signedBy.allOf`,
       keyName: "id"
     });
 
@@ -109,7 +109,7 @@ export const SignedByFormControl = forwardRef<SignedByRefType, Props>(
                       {/** TODO Add list of auditors */}
                       <FormField
                         control={control}
-                        name={`services.${serviceIndex}.placement.signedBy.anyOf.${anyOfIndex}.value`}
+                        name={`placements.${placementIndex}.signedBy.anyOf.${anyOfIndex}.value`}
                         render={({ field }) => (
                           <FormInput type="text" label="Value" value={field.value} className="w-full" onChange={event => field.onChange(event.target.value)} />
                         )}
@@ -152,7 +152,7 @@ export const SignedByFormControl = forwardRef<SignedByRefType, Props>(
                     {/** TODO Add list of auditors */}
                     <FormField
                       control={control}
-                      name={`services.${serviceIndex}.placement.signedBy.allOf.${allOfIndex}.value`}
+                      name={`placements.${placementIndex}.signedBy.allOf.${allOfIndex}.value`}
                       render={({ field }) => (
                         <FormInput type="text" label="Value" className="w-full" value={field.value} onChange={event => field.onChange(event.target.value)} />
                       )}

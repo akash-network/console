@@ -11,7 +11,7 @@ import { useSdlServiceManager } from "@src/hooks/useSdlServiceManager/useSdlServ
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
-import { getDefaultService } from "@src/utils/sdl/data";
+import { defaultServiceWithPlacement, sshServiceOverrides } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { transformCustomSdlFields, TransformError } from "@src/utils/sdl/transformCustomSdlFields";
@@ -52,12 +52,13 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
     const formRef = useRef<HTMLFormElement>(null);
     const [isInit, setIsInit] = useState(false);
     const { hasComponent, imageList } = d.useSdlBuilder();
+    const initialValues = useRef<SdlBuilderFormValuesType>({
+      ...defaultServiceWithPlacement(hasComponent("ssh") ? sshServiceOverrides : undefined),
+      imageList: imageList,
+      hasSSHKey: hasComponent("ssh")
+    }).current;
     const form = useForm<SdlBuilderFormValuesType>({
-      defaultValues: {
-        services: [getDefaultService({ supportsSSH: hasComponent("ssh") })],
-        imageList: imageList,
-        hasSSHKey: hasComponent("ssh")
-      },
+      defaultValues: initialValues,
       resolver: zodResolver(SdlBuilderFormValuesSchema)
     });
     const { control, trigger, watch, setValue, formState } = form;
@@ -71,10 +72,10 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
 
     useEffect(() => {
       formServices.forEach((service, index) => {
-        const { denom } = service.placement.pricing;
+        const { denom } = service.pricing;
 
         if (denom !== wallet.denom) {
-          setValue(`services.${index}.placement.pricing.denom`, wallet.denom);
+          setValue(`services.${index}.pricing.denom`, wallet.denom);
         }
       });
     }, [formServices, sdlString, wallet.denom]);
@@ -90,9 +91,14 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
 
     useEffect(() => {
       const { unsubscribe } = watch(data => {
-        const sdl = generateSdl(data.services as ServiceType[]);
-        lastSyncedSdlRef.current = sdl;
-        setEditedManifest(sdl);
+        try {
+          const sdl = generateSdl(data as SdlBuilderFormValuesType);
+          setError(null);
+          lastSyncedSdlRef.current = sdl;
+          setEditedManifest(sdl);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Failed to generate SDL");
+        }
       });
       return () => {
         unsubscribe();
@@ -102,17 +108,17 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
     useEffect(() => {
       if (sdlString && sdlString !== lastSyncedSdlRef.current) {
         try {
-          const services = createAndValidateSdl(sdlString);
-          if (services) {
+          const imported = createAndValidateSdl(sdlString);
+          if (imported) {
             lastSyncedSdlRef.current = sdlString;
-            setValue("services", services as ServiceType[]);
+            form.reset({ ...form.getValues(), placements: imported.placements, services: imported.services });
           }
         } catch (error) {
           setError("Error importing SDL");
         }
       }
       setIsInit(true);
-    }, [sdlString, setValue]);
+    }, [sdlString, form]);
 
     useEffect(() => {
       onValidate?.({ isValid: formState.isValid });
@@ -120,23 +126,25 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
 
     const getSdl = () => {
       try {
-        return generateSdl(transformCustomSdlFields(formServices, { withSSH: hasComponent("ssh") }));
+        return generateSdl(transformCustomSdlFields(form.getValues(), { withSSH: hasComponent("ssh") }));
       } catch (err) {
         if (err instanceof TransformError) {
           setError(err.message);
+        } else {
+          setError(err instanceof Error ? err.message : String(err));
         }
       }
     };
 
     const createAndValidateSdl = (yamlStr: string) => {
       try {
-        if (!yamlStr) return [];
+        if (!yamlStr) return null;
 
-        const services = importSimpleSdl(yamlStr);
+        const formValues = importSimpleSdl(yamlStr);
 
         setError(null);
 
-        return services;
+        return formValues;
       } catch (err: any) {
         if (err.name === "YAMLException" || err.name === "CustomValidationError") {
           setError(err.message);

@@ -2,7 +2,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useState } from "react";
 import type { Control, UseFormSetValue, UseFormTrigger } from "react-hook-form";
-import { useFieldArray } from "react-hook-form";
+import { useFieldArray, useWatch } from "react-hook-form";
 import {
   Button,
   Card,
@@ -92,6 +92,9 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   const isDesktop = useMediaQuery(muiTheme.breakpoints.up("sm"));
   const expanded = !serviceCollapsed.some(x => x === serviceIndex);
   const currentService: ServiceType = _services[serviceIndex];
+  const placements = useWatch({ control, name: "placements" }) || [];
+  const currentPlacementIndex = placements.findIndex(p => p.id === currentService?.placementId);
+  const currentPlacement = currentPlacementIndex >= 0 ? placements[currentPlacementIndex] : undefined;
   const _isEditingEnv = serviceIndex === isEditingEnv;
   const _isEditingCommands = serviceIndex === isEditingCommands;
   const _isEditingExpose = serviceIndex === isEditingExpose;
@@ -149,13 +152,13 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
             />
           )}
           {/** Edit Placement */}
-          {_isEditingPlacement && (
+          {_isEditingPlacement && currentPlacement && (
             <PlacementFormModal
               control={control}
               onClose={() => setIsEditingPlacement(null)}
               serviceIndex={serviceIndex}
               services={_services}
-              placement={currentService.placement}
+              placement={currentPlacement}
             />
           )}
           <div
@@ -463,12 +466,12 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                       <div className="text-xs">
                         <div>
                           <strong>Name</strong>&nbsp;&nbsp;
-                          <span className="text-muted-foreground">{currentService.placement.name}</span>
+                          <span className="text-muted-foreground">{currentPlacement?.name}</span>
                         </div>
                         <div>
                           <strong>Pricing</strong>&nbsp;&nbsp;
                           <span className="inline-flex items-center text-muted-foreground">
-                            Max {udenomToDenom(currentService.placement.pricing.amount, 6)} ACT per block
+                            Max {udenomToDenom(currentService.pricing.amount, 6)} ACT per block
                             <CustomTooltip
                               title={
                                 <>
@@ -481,7 +484,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                   <div>
                                     <strong>
                                       ~
-                                      <PriceValue denom={UACT_DENOM} value={udenomToDenom(getAvgCostPerMonth(currentService.placement.pricing.amount))} />
+                                      <PriceValue denom={UACT_DENOM} value={udenomToDenom(getAvgCostPerMonth(currentService.pricing.amount))} />
                                     </strong>
                                     &nbsp; per month
                                   </div>
@@ -495,8 +498,8 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                         <div>
                           <strong>Attributes</strong>&nbsp;&nbsp;
                           <span className="text-muted-foreground">
-                            {(currentService.placement.attributes?.length || 0) > 0
-                              ? currentService.placement.attributes?.map((a, i) => (
+                            {(currentPlacement?.attributes?.length || 0) > 0
+                              ? currentPlacement?.attributes?.map((a, i) => (
                                   <span key={i} className="text-xs">
                                     {a.key}=<span>{a.value}</span>
                                   </span>
@@ -507,8 +510,8 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                         <div>
                           <strong>Signed by any of</strong>&nbsp;&nbsp;
                           <span className="text-muted-foreground">
-                            {(currentService.placement.signedBy?.anyOf?.length || 0) > 0
-                              ? currentService.placement.signedBy?.anyOf?.map((a, i) => (
+                            {(currentPlacement?.signedBy?.anyOf?.length || 0) > 0
+                              ? currentPlacement?.signedBy?.anyOf?.map((a, i) => (
                                   <span key={i} className={cn({ ["ml-2"]: i !== 0 })}>
                                     {a.value}
                                   </span>
@@ -519,8 +522,8 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                         <div>
                           <strong>Signed by all of</strong>&nbsp;&nbsp;
                           <span className="text-muted-foreground">
-                            {(currentService.placement.signedBy?.allOf?.length || 0) > 0
-                              ? currentService.placement.signedBy?.allOf?.map((a, i) => (
+                            {(currentPlacement?.signedBy?.allOf?.length || 0) > 0
+                              ? currentPlacement?.signedBy?.allOf?.map((a, i) => (
                                   <span key={i} className={cn({ ["ml-2"]: i !== 0 })}>
                                     {a.value}
                                   </span>

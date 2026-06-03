@@ -1,8 +1,7 @@
-import cloneDeep from "lodash/cloneDeep";
 import { nanoid } from "nanoid";
 
 import { UACT_DENOM } from "@src/config/denom.config";
-import type { ServiceType } from "@src/types";
+import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 
 export const protoTypes = [
   { id: 1, name: "http" },
@@ -19,7 +18,25 @@ export const defaultHttpOptions = {
   nextTimeout: 60000
 };
 
-const defaultService: ServiceType = {
+/**
+ * Builds a fresh placement with a generated id and the dcloud defaults.
+ */
+export const defaultPlacement = (overrides?: Partial<PlacementType>): PlacementType => ({
+  id: nanoid(),
+  name: "dcloud",
+  signedBy: {
+    anyOf: [],
+    allOf: []
+  },
+  attributes: [],
+  ...overrides
+});
+
+/**
+ * Builds a fresh service bound to the given placement id and seeded with the
+ * standard single-port HTTP expose / compute / pricing defaults.
+ */
+export const defaultService = (placementId: string, overrides?: Partial<ServiceType>): ServiceType => ({
   id: nanoid(),
   title: "service-1",
   image: "",
@@ -54,7 +71,7 @@ const defaultService: ServiceType = {
         maxBodySize: defaultHttpOptions.maxBodySize,
         readTimeout: defaultHttpOptions.readTimeout,
         sendTimeout: defaultHttpOptions.sendTimeout,
-        nextCases: defaultHttpOptions.nextCases,
+        nextCases: [...defaultHttpOptions.nextCases],
         nextTries: defaultHttpOptions.nextTries,
         nextTimeout: defaultHttpOptions.nextTimeout
       }
@@ -62,19 +79,26 @@ const defaultService: ServiceType = {
   ],
   command: { command: "", arg: "" },
   env: [],
-  placement: {
-    name: "dcloud",
-    pricing: {
-      amount: 100000,
-      denom: UACT_DENOM
-    },
-    signedBy: {
-      anyOf: [],
-      allOf: []
-    },
-    attributes: []
+  placementId,
+  pricing: {
+    amount: 100000,
+    denom: UACT_DENOM
   },
-  count: 1
+  count: 1,
+  ...overrides
+});
+
+/**
+ * Builds top-level form values for a brand-new deployment: one placement
+ * paired with one service that references it. Use this anywhere the form
+ * is initialized from scratch.
+ */
+export const defaultServiceWithPlacement = (serviceOverrides?: Partial<ServiceType>): SdlBuilderFormValuesType => {
+  const placement = defaultPlacement();
+  return {
+    placements: [placement],
+    services: [defaultService(placement.id, serviceOverrides)]
+  };
 };
 
 export const defaultPersistentStorage = {
@@ -112,15 +136,13 @@ export const SSH_EXPOSE = {
   to: []
 };
 
-export const getDefaultService = (options: { supportsSSH?: boolean } = {}) => {
-  const res = cloneDeep(defaultService);
-
-  if (options.supportsSSH) {
-    res.image = sshVmDistros[0];
-    res.expose = [];
-  }
-
-  return res;
+/**
+ * Overrides applied to a fresh service when the surrounding flow exposes SSH:
+ * picks a known SSH-enabled VM image and drops the default HTTP expose.
+ */
+export const sshServiceOverrides: Partial<ServiceType> = {
+  image: sshVmDistros[0],
+  expose: []
 };
 
 export const nextCases = [

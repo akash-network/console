@@ -6,17 +6,10 @@ export const buildSDLService = (overrides: Partial<ServiceType> = {}): ServiceTy
   id: faker.string.uuid(),
   title: faker.lorem.word(),
   image: faker.helpers.arrayElement(["nginx:latest", "node:18-alpine", "postgres:15", "redis:7-alpine", "python:3.11-slim"]),
-  placement: {
-    name: faker.lorem.word(),
-    pricing: {
-      amount: faker.number.int({ min: 100, max: 10000 }),
-      denom: faker.helpers.arrayElement(["uact", "uact"])
-    },
-    signedBy: {
-      anyOf: [],
-      allOf: []
-    },
-    attributes: []
+  placementId: faker.string.uuid(),
+  pricing: {
+    amount: faker.number.int({ min: 100, max: 10000 }),
+    denom: "uact"
   },
   profile: {
     cpu: faker.number.float({ min: 0.1, max: 8, fractionDigits: 1 }),

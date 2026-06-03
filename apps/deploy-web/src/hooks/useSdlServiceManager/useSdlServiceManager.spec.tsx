@@ -169,6 +169,7 @@ describe(useSdlServiceManager.name, () => {
     };
 
     const defaultFormValues: SdlBuilderFormValuesType = {
+      placements: [{ id: "p-1", name: "dcloud" }],
       services: defaultServices,
       imageList: [],
       hasSSHKey: false

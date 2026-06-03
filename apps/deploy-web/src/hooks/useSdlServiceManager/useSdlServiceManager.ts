@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 
 import { findOwnLogCollectorServiceIndex, isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import type { SdlBuilderFormValuesType } from "@src/types";
-import { getDefaultService } from "@src/utils/sdl/data";
+import { defaultPlacement, defaultService } from "@src/utils/sdl/data";
 
 type Props = {
   control: Control<SdlBuilderFormValuesType>;
@@ -13,11 +13,22 @@ type Props = {
 
 export const useSdlServiceManager = ({ control }: Props) => {
   const watchedServices = useWatch<SdlBuilderFormValuesType>({ control, name: "services", defaultValue: [] });
+  const watchedPlacements = useWatch<SdlBuilderFormValuesType>({ control, name: "placements", defaultValue: [] });
   const services = useMemo(() => (Array.isArray(watchedServices) ? (watchedServices as SdlBuilderFormValuesType["services"]) : []), [watchedServices]);
+  const placements = useMemo(
+    () => (Array.isArray(watchedPlacements) ? (watchedPlacements as SdlBuilderFormValuesType["placements"]) : []),
+    [watchedPlacements]
+  );
 
   const { remove: removeService, append: appendService } = useFieldArray({
     control,
     name: "services",
+    keyName: "id"
+  });
+
+  const { append: appendPlacement } = useFieldArray({
+    control,
+    name: "placements",
     keyName: "id"
   });
 
@@ -41,8 +52,14 @@ export const useSdlServiceManager = ({ control }: Props) => {
   }, [services]);
 
   const add = useCallback(() => {
-    appendService({ ...getDefaultService(), id: nanoid(), title: calcNextServiceTitle() });
-  }, [appendService, calcNextServiceTitle]);
+    let placementId = placements[0]?.id;
+    if (!placementId) {
+      const placement = defaultPlacement();
+      placementId = placement.id;
+      appendPlacement(placement);
+    }
+    appendService({ ...defaultService(placementId), id: nanoid(), title: calcNextServiceTitle() });
+  }, [appendService, appendPlacement, calcNextServiceTitle, placements]);
 
   const remove = useCallback(
     (index: number) => {

@@ -2,6 +2,7 @@
 import type { ReactNode } from "react";
 import { useRef } from "react";
 import type { Control } from "react-hook-form";
+import { useWatch } from "react-hook-form";
 import { FormattedNumber } from "react-intl";
 import { CustomTooltip, FormField, FormInput, Popup } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
@@ -33,9 +34,10 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
   const attritubesRef = useRef<AttributesRefType>(null);
   const supportedSdlDenoms = useSupportedDenoms();
   const currentService = services[serviceIndex];
-  const selectedDenom = supportedSdlDenoms.find(x => x.value === currentService.placement.pricing.denom);
+  const placementIndex = usePlacementIndexForService(control, serviceIndex);
+  const selectedDenom = supportedSdlDenoms.find(x => x.value === currentService.pricing.denom);
 
-  const _onClose = () => {
+  const closeAfterPruningEmptyRows = () => {
     const attributesToRemove: number[] = [];
     const signedByAnyToRemove: number[] = [];
     const signedByAllToRemove: number[] = [];
@@ -77,10 +79,10 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
           color: "secondary",
           variant: "ghost",
           side: "right",
-          onClick: _onClose
+          onClick: closeAfterPruningEmptyRows
         }
       ]}
-      onClose={_onClose}
+      onClose={closeAfterPruningEmptyRows}
       maxWidth="xl"
       enableCloseOnBackdropClick
     >
@@ -90,7 +92,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
             <div>
               <FormField
                 control={control}
-                name={`services.${serviceIndex}.placement.name`}
+                name={`placements.${placementIndex}.name`}
                 render={({ field }) => (
                   <FormInput
                     type="text"
@@ -112,13 +114,13 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
             <div>
               <FormField
                 control={control}
-                name={`services.${serviceIndex}.placement.pricing.amount`}
+                name={`services.${serviceIndex}.pricing.amount`}
                 render={({ field }) => (
                   <FormInput
                     type="number"
                     label={
                       <div className="flex items-center">
-                        Pricing, ${toReadableDenom(currentService.placement.pricing.denom)}
+                        Pricing, ${toReadableDenom(currentService.pricing.denom)}
                         <CustomTooltip
                           title={
                             <>
@@ -129,12 +131,12 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
                               <strong>
                                 {selectedDenom?.value === UAKT_DENOM ? (
                                   <>
-                                    ~<PriceValue denom={UAKT_DENOM} value={getAvgCostPerMonth(uaktToAKT(_placement.pricing.amount))} />
+                                    ~<PriceValue denom={UAKT_DENOM} value={getAvgCostPerMonth(uaktToAKT(currentService.pricing.amount))} />
                                   </>
                                 ) : (
                                   <>
                                     <span>
-                                      <FormattedNumber value={getAvgCostPerMonth(udenomToDenom(_placement.pricing.amount))} maximumFractionDigits={2} />
+                                      <FormattedNumber value={getAvgCostPerMonth(udenomToDenom(currentService.pricing.amount))} maximumFractionDigits={2} />
                                     </span>
                                     <USDLabel />
                                   </>
@@ -163,7 +165,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
             <div>
               <SignedByFormControl
                 control={control}
-                serviceIndex={serviceIndex}
+                placementIndex={placementIndex}
                 signedByAnyOf={_placement.signedBy?.anyOf || []}
                 signedByAllOf={_placement.signedBy?.allOf || []}
                 ref={signedByRef}
@@ -171,7 +173,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
             </div>
 
             <div>
-              <AttributesFormControl control={control} serviceIndex={serviceIndex} attributes={_placement.attributes || []} ref={attritubesRef} />
+              <AttributesFormControl control={control} placementIndex={placementIndex} attributes={_placement.attributes || []} ref={attritubesRef} />
             </div>
           </div>
         </div>
@@ -179,3 +181,15 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
     </Popup>
   );
 };
+
+/**
+ * Resolves the index of the placement referenced by the service at
+ * `serviceIndex` inside `placements`. Returns `-1` when the reference can't be
+ * resolved so callers can gate placement-bound UI on a valid index instead of
+ * silently editing the first placement.
+ */
+export function usePlacementIndexForService(control: Control<SdlBuilderFormValuesType>, serviceIndex: number) {
+  const placementId = useWatch({ control, name: `services.${serviceIndex}.placementId` });
+  const placements = useWatch({ control, name: "placements" });
+  return placements?.findIndex(p => p.id === placementId) ?? -1;
+}

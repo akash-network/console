@@ -12,7 +12,7 @@ import type { PlacementAttributeType, SdlBuilderFormValuesType } from "@src/type
 import { FormPaper } from "./FormPaper";
 
 type Props = {
-  serviceIndex: number;
+  placementIndex: number;
   control: Control<SdlBuilderFormValuesType, any>;
   children?: ReactNode;
   attributes: PlacementAttributeType[];
@@ -22,14 +22,14 @@ export type AttributesRefType = {
   _removeAttribute: (index: number | number[]) => void;
 };
 
-export const AttributesFormControl = forwardRef<AttributesRefType, Props>(({ control, serviceIndex, attributes: _attributes = [] }, ref) => {
+export const AttributesFormControl = forwardRef<AttributesRefType, Props>(({ control, placementIndex, attributes: _attributes = [] }, ref) => {
   const {
     fields: attributes,
     remove: removeAttribute,
     append: appendAttribute
   } = useFieldArray({
     control,
-    name: `services.${serviceIndex}.placement.attributes`,
+    name: `placements.${placementIndex}.attributes`,
     keyName: "id"
   });
 
@@ -69,7 +69,7 @@ export const AttributesFormControl = forwardRef<AttributesRefType, Props>(({ con
                   <div>
                     <FormField
                       control={control}
-                      name={`services.${serviceIndex}.placement.attributes.${attIndex}.key`}
+                      name={`placements.${placementIndex}.attributes.${attIndex}.key`}
                       render={({ field }) => (
                         <FormInput type="text" label="Key" className="w-full" value={field.value} onChange={event => field.onChange(event.target.value)} />
                       )}
@@ -79,7 +79,7 @@ export const AttributesFormControl = forwardRef<AttributesRefType, Props>(({ con
                   <div className="ml-2">
                     <FormField
                       control={control}
-                      name={`services.${serviceIndex}.placement.attributes.${attIndex}.value`}
+                      name={`placements.${placementIndex}.attributes.${attIndex}.value`}
                       render={({ field }) => (
                         <FormInput type="text" label="Value" className="w-full" value={field.value} onChange={event => field.onChange(event.target.value)} />
                       )}

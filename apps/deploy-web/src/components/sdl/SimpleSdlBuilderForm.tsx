@@ -20,7 +20,7 @@ import type { ITemplate, SdlBuilderFormValuesType, ServiceType } from "@src/type
 import { SdlBuilderFormValuesSchema } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { memoryUnits, storageUnits } from "@src/utils/akash/units";
-import { getDefaultService } from "@src/utils/sdl/data";
+import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { UrlService } from "@src/utils/urlUtils";
@@ -43,16 +43,16 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
   const [sdlBuilderSdl, setSdlBuilderSdl] = useAtom(sdlStore.sdlBuilderSdl);
   const { data: gpuModels } = useGpuModels();
   const { enqueueSnackbar } = useSnackbar();
-  const defaultServices = useMemo(() => ({ services: [getDefaultService()] }), []);
+  const initialValues = useMemo(() => defaultServiceWithPlacement(), []);
   const form = useForm<SdlBuilderFormValuesType>({
     resolver: zodResolver(SdlBuilderFormValuesSchema),
-    defaultValues: defaultServices
+    defaultValues: initialValues
   });
   const { handleSubmit, reset, control, trigger, watch, setValue } = form;
   const { clear: clearFormStorage } = useFormPersist("sdl-builder-form", {
     watch,
     setValue,
-    defaultValues: defaultServices,
+    defaultValues: initialValues,
     storage: typeof window === "undefined" ? undefined : window.localStorage
   });
   const { services: _services } = watch();
@@ -63,6 +63,9 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
 
   useEffect(() => {
     if (sdlBuilderSdl && sdlBuilderSdl.services) {
+      if (sdlBuilderSdl.placements) {
+        setValue("placements", sdlBuilderSdl.placements);
+      }
       setValue("services", sdlBuilderSdl.services);
     }
   }, []);
@@ -82,11 +85,13 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
     }
   }, [templateQueryId, templateMetadata, clearFormStorage, setSdlBuilderSdl, reset]);
 
+  const { placements: _placements } = watch();
+
   useEffect(() => {
     if (_services) {
-      setSdlBuilderSdl({ services: _services as ServiceType[] });
+      setSdlBuilderSdl({ placements: _placements as SdlBuilderFormValuesType["placements"], services: _services as ServiceType[] });
     }
-  }, [_services]);
+  }, [_services, _placements]);
 
   const loadTemplate = async (id: string) => {
     try {
@@ -94,13 +99,14 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
       const response = await consoleApiHttpClient.get(`/v1/user/template/${id}`);
       const template: ITemplate = response.data;
 
-      const services = importSimpleSdl(template.sdl);
+      const imported = importSimpleSdl(template.sdl);
 
       setIsLoadingTemplate(false);
 
       reset();
-      setValue("services", services as ServiceType[]);
-      setServiceCollapsed(services.map((x, i) => i));
+      setValue("placements", imported.placements);
+      setValue("services", imported.services);
+      setServiceCollapsed(imported.services.map((x, i) => i));
       setTemplateMetadata(template);
     } catch (error) {
       enqueueSnackbar(<Snackbar title="Error fetching template." iconVariant="error" />, {
@@ -115,7 +121,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
     setError(null);
 
     try {
-      const sdl = generateSdl(data.services);
+      const sdl = generateSdl(data);
 
       setDeploySdl({
         title: "",
@@ -148,7 +154,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
     setError(null);
 
     try {
-      const sdl = generateSdl(_services as ServiceType[]);
+      const sdl = generateSdl(form.getValues());
       setSdlResult(sdl);
       setIsPreviewingSdl(true);
 
@@ -162,7 +168,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
   };
 
   const getTemplateData = () => {
-    const sdl = generateSdl(_services as ServiceType[]);
+    const sdl = generateSdl(form.getValues());
     const template: Partial<ITemplate> = {
       id: templateMetadata?.id || undefined,
       sdl,
@@ -262,7 +268,8 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
                     label: "Reset SDL"
                   });
 
-                  setValue("services", defaultServices.services);
+                  setValue("placements", initialValues.placements);
+                  setValue("services", initialValues.services);
                 }}
               >
                 Reset

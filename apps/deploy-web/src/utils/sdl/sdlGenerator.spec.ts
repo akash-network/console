@@ -2,13 +2,13 @@ import yaml from "js-yaml";
 import { describe, expect, it } from "vitest";
 
 import { LOG_COLLECTOR_IMAGE } from "@src/config/log-collector.config";
-import type { ServiceType } from "@src/types";
+import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { buildCommand, generateSdl } from "./sdlGenerator";
 
 describe("sdlGenerator", () => {
   describe(generateSdl.name, () => {
     it("includes permissions params for log-collector services", () => {
-      const result = generateSdl([createLogCollectorService()]);
+      const result = generateSdl(buildFormValues(buildLogCollectorService()));
       const parsed = yaml.load(result) as { services: Record<string, ServiceType> };
 
       expect(parsed.services["web-log-collector"].params).toEqual({
@@ -19,15 +19,58 @@ describe("sdlGenerator", () => {
     });
 
     it("does not include permissions params for non-log-collector services", () => {
-      const result = generateSdl([createLogCollectorService({ title: "web", image: "nginx:latest" })]);
+      const result = generateSdl(buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" })));
       const parsed = yaml.load(result) as { services: Record<string, { params?: unknown }> };
 
       expect(parsed.services["web"].params).toBeUndefined();
     });
 
-    function createLogCollectorService(overrides?: Partial<ServiceType>): ServiceType {
+    it("injects location-region attribute when placement.region is set", () => {
+      const formValues = buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" }));
+      formValues.placements[0].region = "us-west";
+      const result = generateSdl(formValues);
+      const parsed = yaml.load(result) as { profiles: { placement: Record<string, { attributes?: Record<string, string> }> } };
+
+      expect(parsed.profiles.placement["dcloud"].attributes).toMatchObject({ "location-region": "us-west" });
+    });
+
+    it("does not inject location-region when placement.region is undefined or 'any'", () => {
+      const formValuesNoRegion = buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" }));
+      const parsedNoRegion = yaml.load(generateSdl(formValuesNoRegion)) as {
+        profiles: { placement: Record<string, { attributes?: Record<string, string> }> };
+      };
+      expect(parsedNoRegion.profiles.placement["dcloud"].attributes?.["location-region"]).toBeUndefined();
+
+      const formValuesAny = buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" }));
+      formValuesAny.placements[0].region = "any";
+      const parsedAny = yaml.load(generateSdl(formValuesAny)) as { profiles: { placement: Record<string, { attributes?: Record<string, string> }> } };
+      expect(parsedAny.profiles.placement["dcloud"].attributes?.["location-region"]).toBeUndefined();
+    });
+
+    it("throws when a service references a placementId that does not exist", () => {
+      const formValues = {
+        placements: [{ id: "p-1", name: "dcloud" }],
+        services: [buildLogCollectorService({ title: "web", image: "nginx:latest", placementId: "p-MISSING" })]
+      } as SdlBuilderFormValuesType;
+
+      expect(() => generateSdl(formValues)).toThrow(/unknown placementId/);
+    });
+
+    it("deduplicates placement profiles when multiple services share a placementId", () => {
+      const formValues = buildFormValues(
+        buildLogCollectorService({ title: "web", image: "nginx:latest" }),
+        buildLogCollectorService({ title: "api", image: "node:18-alpine" })
+      );
+      const result = generateSdl(formValues);
+      const parsed = yaml.load(result) as { profiles: { placement: Record<string, { pricing: Record<string, unknown> }> } };
+
+      expect(Object.keys(parsed.profiles.placement)).toEqual(["dcloud"]);
+      expect(Object.keys(parsed.profiles.placement["dcloud"].pricing)).toEqual(["web", "api"]);
+    });
+
+    function buildLogCollectorService(overrides?: Partial<ServiceType>): ServiceType {
       return {
-        id: "web-log-collector",
+        id: overrides?.title ? `${overrides.title}-id` : "web-log-collector",
         title: "web-log-collector",
         image: LOG_COLLECTOR_IMAGE,
         profile: {
@@ -39,13 +82,19 @@ describe("sdlGenerator", () => {
           gpu: 0
         },
         expose: [{ port: 80, as: 80, global: true, to: [] }],
-        placement: {
-          name: "dcloud",
-          pricing: { amount: 1000, denom: "uakt" }
-        },
+        placementId: "p-1",
+        pricing: { amount: 1000, denom: "uakt" },
         count: 1,
         ...overrides
       } as ServiceType;
+    }
+
+    function buildFormValues(...services: ServiceType[]): SdlBuilderFormValuesType {
+      const placement: PlacementType = { id: "p-1", name: "dcloud" };
+      return {
+        placements: [placement],
+        services
+      } as SdlBuilderFormValuesType;
     }
   });
 
