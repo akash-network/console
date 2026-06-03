@@ -20,6 +20,7 @@ describe("TYPE_REGISTRY", () => {
 
     expect(decoded.id?.owner).toBe("akash1test");
     expect(decoded.id?.provider).toBe("akash1prov");
+    expect(String(decoded.id?.dseq)).toBe("100");
     expect(decoded.id?.gseq).toBe(1);
     expect(decoded.id?.oseq).toBe(1);
     expect(decoded.reason).toBe(1);
