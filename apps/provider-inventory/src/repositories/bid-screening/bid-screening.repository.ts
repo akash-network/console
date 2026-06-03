@@ -11,13 +11,20 @@ import { aggregateCriteria, type BidScreeningCriteria } from "./bid-screening.ag
 // TODO(Issue 5): move auditor allowlist into configuration and accept it as a request input.
 export const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
 
-export type BidScreeningCandidate = ProviderWithClusterState & { isAudited: boolean };
+export type BidScreeningCandidate = ProviderWithClusterState & {
+  isAudited: boolean;
+  updatedAt: string;
+};
 
 const TABLE = getTableName(providerInventory);
 
 @singleton()
 export class BidScreeningRepository {
   readonly #sql: Database;
+  /**
+   * Cache for provider inventory to avoid fetching and parsing its JSONB inventory and event loop overhead.
+   */
+  readonly #providersInventory = new Map<string, BidScreeningCandidate>();
 
   constructor(@inject(PG_CLIENT) sql: Database) {
     this.#sql = sql;
@@ -28,17 +35,49 @@ export class BidScreeningRepository {
     const criteria = aggregateCriteria(resourceUnits, requirements);
     const where = this.#joinAnd(this.#buildWhere(criteria));
 
-    const rows = await sql<BidScreeningCandidate[]>`
+    const rows = await sql<Array<{ owner: string; updatedAt: string }>>`
       SELECT
         ${sql(providerInventory.owner.name)} AS owner,
-        ${sql(providerInventory.hostUri.name)} AS "hostUri",
-        ${sql(providerInventory.inventory.name)} AS cluster,
-        ${sql(providerInventory.auditedBy.name)} @> ARRAY[${AUDITOR}]::text[] AS "isAudited"
+        ${sql(providerInventory.updatedAt.name)} AS "updatedAt"
       FROM ${sql(TABLE)}
       WHERE ${where}
     `;
 
-    return [...rows];
+    const missingFinalCandidatesIndexes = new Map<string, number>();
+    const ownersToFetch: string[] = [];
+    const finalCandidates: BidScreeningCandidate[] = new Array(rows.length);
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const cache = this.#providersInventory.get(row.owner);
+      if (!cache || cache.updatedAt !== row.updatedAt) {
+        ownersToFetch.push(row.owner);
+        missingFinalCandidatesIndexes.set(row.owner, i);
+      } else {
+        finalCandidates[i] = cache;
+      }
+    }
+
+    if (ownersToFetch.length > 0) {
+      const candidates = await sql<BidScreeningCandidate[]>`
+        SELECT
+          ${sql(providerInventory.owner.name)} AS owner,
+          ${sql(providerInventory.updatedAt.name)} AS "updatedAt",
+          ${sql(providerInventory.hostUri.name)} AS "hostUri",
+          ${sql(providerInventory.inventory.name)} AS cluster,
+          ${sql(providerInventory.auditedBy.name)} @> ARRAY[${AUDITOR}]::text[] AS "isAudited"
+        FROM ${sql(TABLE)}
+        WHERE ${sql(providerInventory.owner.name)} IN${sql(ownersToFetch)}
+      `;
+      for (const candidate of candidates) {
+        this.#providersInventory.set(candidate.owner, candidate);
+        const index = missingFinalCandidatesIndexes.get(candidate.owner);
+        if (index !== undefined) {
+          finalCandidates[index] = candidate;
+        }
+      }
+    }
+
+    return finalCandidates;
   }
 
   #buildWhere(criteria: BidScreeningCriteria) {

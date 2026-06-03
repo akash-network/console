@@ -1,5 +1,6 @@
 import "@src/providers";
 
+import { eq } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { container } from "tsyringe";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -370,6 +371,48 @@ describe(BidScreeningRepository.name, () => {
       const node = row.cluster?.nodes?.[0];
       expect(node?.cpu).toEqual({ allocatable: 8000, allocated: 2000 });
       expect(node?.memory).toEqual({ allocatable: 17179869184, allocated: 0 });
+    });
+  });
+
+  describe("inventory cache", () => {
+    it("returns the same cached candidate instance when the row is unchanged", async () => {
+      await seed({ owner: "akash1cacheHit" });
+
+      const [first] = await repository.findCandidates([unit({})], requirements());
+      const [second] = await repository.findCandidates([unit({})], requirements());
+
+      // Same object reference proves the second call was served from cache, not re-fetched.
+      expect(second).toBe(first);
+    });
+
+    it("re-fetches a fresh candidate instance after updatedAt changes", async () => {
+      await seed({ owner: "akash1cacheBump" });
+      const [first] = await repository.findCandidates([unit({})], requirements());
+
+      await db
+        .update(providerInventory)
+        .set({ updatedAt: new Date("2999-01-01T00:00:00Z") })
+        .where(eq(providerInventory.owner, "akash1cacheBump"));
+
+      const [second] = await repository.findCandidates([unit({})], requirements());
+
+      expect(second).not.toBe(first);
+      expect(second.updatedAt).not.toBe(first.updatedAt);
+    });
+
+    it("reuses cached providers while fetching only the uncached ones in a mixed batch", async () => {
+      await seed({ owner: "akash1cacheWarm" });
+      const [warm] = await repository.findCandidates([unit({})], requirements());
+
+      await seed({ owner: "akash1cacheCold" });
+      const batch = await repository.findCandidates([unit({})], requirements());
+
+      const warmAgain = batch.find(candidate => candidate.owner === "akash1cacheWarm");
+      const cold = batch.find(candidate => candidate.owner === "akash1cacheCold");
+
+      expect(warmAgain).toBe(warm);
+      expect(cold).not.toBe(warm);
+      expect(cold?.owner).toBe("akash1cacheCold");
     });
   });
 
