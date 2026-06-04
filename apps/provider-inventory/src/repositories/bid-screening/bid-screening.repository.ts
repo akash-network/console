@@ -2,19 +2,21 @@ import { getTableName } from "drizzle-orm";
 import type postgres from "postgres";
 import { inject, singleton } from "tsyringe";
 
-import type { GroupSpecJSON } from "@src/lib/groupspec-mapper/groupspec-mapper";
+import type { GroupSpecJSON } from "@src/mappers/groupspec-mapper/groupspec-mapper";
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { type Database, PG_CLIENT } from "@src/providers/postgres.provider";
-import type { RequestedResourceUnit } from "@src/types/inventory.types";
-import type { ProviderWithClusterState } from "@src/types/provider";
+import type { ClusterState, RequestedResourceUnit } from "@src/types/inventory";
 import { aggregateCriteria, type BidScreeningCriteria } from "./bid-screening.aggregator";
 // TODO(Issue 5): move auditor allowlist into configuration and accept it as a request input.
 export const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
 
-export type BidScreeningCandidate = ProviderWithClusterState & {
+export interface BidScreeningCandidate {
+  owner: string;
+  hostUri: string;
+  cluster?: ClusterState;
   isAudited: boolean;
   updatedAt: string;
-};
+}
 
 const TABLE = getTableName(providerInventory);
 

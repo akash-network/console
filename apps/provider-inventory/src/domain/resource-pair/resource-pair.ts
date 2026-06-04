@@ -1,4 +1,4 @@
-import type { RawPair } from "@src/types/inventory.types";
+import type { RawPair } from "@src/types/inventory";
 
 const UNLIMITED = -1n;
 export const MAX_INT64 = 9223372036854775807n;

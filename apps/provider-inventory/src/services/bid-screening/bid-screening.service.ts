@@ -2,9 +2,9 @@ import { withSpan } from "@akashnetwork/instrumentation";
 import { singleton } from "tsyringe";
 
 import { type BidScreeningCandidate, BidScreeningRepository } from "@src/repositories/bid-screening/bid-screening.repository";
-import type { GroupSpecJSON } from "../../lib/groupspec-mapper/groupspec-mapper";
-import { mapGroupSpecToResourceUnits } from "../../lib/groupspec-mapper/groupspec-mapper";
-import type { BidScreeningResult, RequestedResourceUnit } from "../../types/inventory.types";
+import type { GroupSpecJSON } from "../../mappers/groupspec-mapper/groupspec-mapper";
+import { mapGroupSpecToResourceUnits } from "../../mappers/groupspec-mapper/groupspec-mapper";
+import type { BidScreeningResult, RequestedResourceUnit } from "../../types/inventory";
 import { ClusterInventoryMatcherService } from "../cluster-inventory-matcher/cluster-inventory-matcher.service";
 
 @singleton()

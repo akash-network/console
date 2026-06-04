@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { parseGPUAttributes } from "@src/lib/gpu-attribute-parser/gpu-attribute-parser";
-import { getAttributeFingerprint } from "@src/lib/groupspec-mapper/groupspec-mapper";
-import { parseStorageAttributes } from "@src/lib/storage-attribute-parser/storage-attribute-parser";
-import type { ClusterState, CpuInfo, GpuInfo, NodeState, RequestedResourceUnit, ResourceAttribute } from "../../types/inventory.types";
+import { parseGPUAttributes } from "@src/mappers/gpu-attribute-parser/gpu-attribute-parser";
+import { getAttributeFingerprint } from "@src/mappers/groupspec-mapper/groupspec-mapper";
+import { parseStorageAttributes } from "@src/mappers/storage-attribute-parser/storage-attribute-parser";
+import type { ClusterState, CpuInfo, GpuInfo, NodeState, RequestedResourceUnit, ResourceAttribute } from "../../types/inventory";
 import { ClusterInventoryMatcherService } from "./cluster-inventory-matcher.service";
 
 describe(ClusterInventoryMatcherService.name, () => {

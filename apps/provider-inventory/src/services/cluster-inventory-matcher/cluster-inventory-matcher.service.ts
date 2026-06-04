@@ -1,8 +1,8 @@
 import { singleton } from "tsyringe";
 
-import { canAllocate } from "@src/lib/resource-pair/resource-pair";
-import { matchesGPU, type ParsedGPUAttributes } from "../../lib/gpu-attribute-parser/gpu-attribute-parser";
-import type { ClusterState, MatchResult, NodeState, RequestedResourceUnit } from "../../types/inventory.types";
+import { canAllocate } from "@src/domain/resource-pair/resource-pair";
+import { matchesGPU, type ParsedGPUAttributes } from "../../mappers/gpu-attribute-parser/gpu-attribute-parser";
+import type { ClusterState, MatchResult, NodeState, RequestedResourceUnit } from "../../types/inventory";
 
 const FAIL_NODE = Object.freeze({ nodeOk: false, clusterOk: true } as const);
 const FAIL_CLUSTER = Object.freeze({ nodeOk: false, clusterOk: false } as const);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { GroupSpecJSON } from "@src/lib/groupspec-mapper/groupspec-mapper";
+import type { GroupSpecJSON } from "@src/mappers/groupspec-mapper/groupspec-mapper";
 import type { BidScreeningCandidate, BidScreeningRepository } from "@src/repositories/bid-screening/bid-screening.repository";
 import type { ClusterInventoryMatcherService } from "../cluster-inventory-matcher/cluster-inventory-matcher.service";
 import { BidScreeningService } from "./bid-screening.service";

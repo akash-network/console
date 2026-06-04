@@ -3,7 +3,7 @@ import { container } from "tsyringe";
 import { BidScreeningController } from "@src/controllers/bid-screening/bid-screening.controller";
 import { BidScreeningRequestSchema, BidScreeningResponseSchema } from "@src/http-schemas/bid-screening.schema";
 import { createRoute } from "@src/lib/create-route/create-route";
-import { OpenApiHonoHandler } from "@src/services/open-api-hono-handler/open-api-hono-handler";
+import { OpenApiHonoHandler } from "@src/lib/open-api-hono-handler/open-api-hono-handler";
 
 export const bidScreeningRouter = new OpenApiHonoHandler();
 

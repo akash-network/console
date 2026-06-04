@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { parseGPUAttributes } from "@src/lib/gpu-attribute-parser/gpu-attribute-parser";
-import type { GroupSpecJSON } from "@src/lib/groupspec-mapper/groupspec-mapper";
-import { parseStorageAttributes } from "@src/lib/storage-attribute-parser/storage-attribute-parser";
-import type { RequestedResourceUnit, ResourceAttribute } from "@src/types/inventory.types";
+import { parseGPUAttributes } from "@src/mappers/gpu-attribute-parser/gpu-attribute-parser";
+import type { GroupSpecJSON } from "@src/mappers/groupspec-mapper/groupspec-mapper";
+import { parseStorageAttributes } from "@src/mappers/storage-attribute-parser/storage-attribute-parser";
+import type { RequestedResourceUnit, ResourceAttribute } from "@src/types/inventory";
 import { aggregateCriteria } from "./bid-screening.aggregator";
 
 interface RawStorageVolume {

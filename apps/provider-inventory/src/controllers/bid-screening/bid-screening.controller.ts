@@ -1,6 +1,6 @@
 import { inject, singleton } from "tsyringe";
 
-import type { GroupSpecJSON } from "@src/lib/groupspec-mapper/groupspec-mapper";
+import type { GroupSpecJSON } from "@src/mappers/groupspec-mapper/groupspec-mapper";
 import { BidScreeningService } from "@src/services/bid-screening/bid-screening.service";
 import type { BidScreeningRequest, BidScreeningResponse } from "../../http-schemas/bid-screening.schema";
 

@@ -1,29 +1,6 @@
-import type { ProjectedRow } from "@src/types/inventory";
-import type { ClusterState, CpuInfo, GpuInfo, NodeState, RawPair } from "@src/types/inventory.types";
+import type { ClusterState, CpuInfo, GpuInfo, NodeState, RawPair } from "@src/types/inventory";
 
-export function projectedRowsEqual(a: ProjectedRow, b: ProjectedRow): boolean {
-  if (a === b) return true;
-
-  if (
-    a.totalAvailableCpu !== b.totalAvailableCpu ||
-    a.totalAvailableMemory !== b.totalAvailableMemory ||
-    a.totalAvailableGpu !== b.totalAvailableGpu ||
-    a.totalAvailableEph !== b.totalAvailableEph ||
-    a.totalAvailablePersistent !== b.totalAvailablePersistent ||
-    a.maxNodeFreeCpu !== b.maxNodeFreeCpu ||
-    a.maxNodeFreeMemory !== b.maxNodeFreeMemory ||
-    a.maxNodeFreeGpu !== b.maxNodeFreeGpu
-  ) {
-    return false;
-  }
-
-  if (!stringArrayEqual(a.gpuModels, b.gpuModels)) return false;
-  if (!stringArrayEqual(a.storageClasses, b.storageClasses)) return false;
-
-  return clusterEqual(a.cluster, b.cluster);
-}
-
-function clusterEqual(a: ClusterState, b: ClusterState): boolean {
+export function isEqualClusterState(a: ClusterState, b: ClusterState): boolean {
   if (a === b) return true;
   return clusterStorageEqual(a.storage, b.storage) && nodesEqual(a.nodes, b.nodes);
 }
@@ -66,7 +43,7 @@ function gpuInfoEqual(a: readonly GpuInfo[], b: readonly GpuInfo[]): boolean {
   if (a.length !== b.length) return false;
 
   for (let i = 0; i < a.length; i++) {
-    const match = b.find(
+    const match = b.some(
       g => g.vendor === a[i].vendor && g.name === a[i].name && g.modelId === a[i].modelId && g.interface === a[i].interface && g.memorySize === a[i].memorySize
     );
     if (!match) return false;
@@ -79,7 +56,7 @@ function cpuInfoEqual(a: readonly CpuInfo[], b: readonly CpuInfo[]): boolean {
   if (a.length !== b.length) return false;
 
   for (let i = 0; i < a.length; i++) {
-    const match = b.find(c => c.vendor === a[i].vendor && c.model === a[i].model);
+    const match = b.some(c => c.vendor === a[i].vendor && c.model === a[i].model);
     if (!match) return false;
   }
   return true;

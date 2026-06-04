@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import type { ClusterState, GpuInfo, NodeState, RawPair } from "@src/types/inventory.types";
-import { projectRow } from "./project-row";
+import type { ClusterState, GpuInfo, NodeState, RawPair } from "@src/types/inventory";
+import { mapToStoredClusterState } from "./stored-cluster-state-mapper";
 
-describe(projectRow.name, () => {
+describe(mapToStoredClusterState.name, () => {
   it("projects an empty cluster", () => {
-    const result = projectRow(buildCluster());
+    const result = mapToStoredClusterState(buildCluster());
 
     expect(result).toEqual({
       cluster: { nodes: [], storage: {} },
@@ -28,13 +28,13 @@ describe(projectRow.name, () => {
       storage: { beta2: { class: "beta2", quantity: pair(2_000_000_000_000n) } }
     });
 
-    const result = projectRow(cluster);
+    const result = mapToStoredClusterState(cluster);
 
     expect(result.cluster).toBe(cluster);
   });
 
   it("computes rollups for a single node", () => {
-    const result = projectRow(
+    const result = mapToStoredClusterState(
       buildCluster({
         nodes: [
           buildNode({
@@ -62,7 +62,7 @@ describe(projectRow.name, () => {
   });
 
   it("sums totals across multiple nodes and tracks max-per-node", () => {
-    const result = projectRow(
+    const result = mapToStoredClusterState(
       buildCluster({
         nodes: [
           buildNode({
@@ -91,7 +91,7 @@ describe(projectRow.name, () => {
   });
 
   it("deduplicates GPU models across nodes", () => {
-    const result = projectRow(
+    const result = mapToStoredClusterState(
       buildCluster({
         nodes: [
           buildNode({ gpu: { quantity: pair(2n), info: [gpu("nvidia", "a100"), gpu("amd", "mi300x")] } }),
@@ -104,7 +104,7 @@ describe(projectRow.name, () => {
   });
 
   it("handles ephemeral-only storage", () => {
-    const result = projectRow(buildCluster({ nodes: [buildNode({ ephemeralStorage: pair(500_000_000_000n) })] }));
+    const result = mapToStoredClusterState(buildCluster({ nodes: [buildNode({ ephemeralStorage: pair(500_000_000_000n) })] }));
 
     expect(result.totalAvailableEph).toBe(500_000_000_000n);
     expect(result.totalAvailablePersistent).toBe(0n);
@@ -112,7 +112,7 @@ describe(projectRow.name, () => {
   });
 
   it("collects storage classes from both nodes and cluster-level storage", () => {
-    const result = projectRow(
+    const result = mapToStoredClusterState(
       buildCluster({
         nodes: [buildNode({ storageClasses: ["beta2"] })],
         storage: { beta3: { class: "beta3", quantity: pair(500n) } }
@@ -123,7 +123,7 @@ describe(projectRow.name, () => {
   });
 
   it("handles nodes with no GPUs", () => {
-    const result = projectRow(
+    const result = mapToStoredClusterState(
       buildCluster({
         nodes: [buildNode({ cpu: pair(4000n), memory: pair(8_000_000_000n), ephemeralStorage: pair(100_000_000_000n) })]
       })
@@ -135,7 +135,7 @@ describe(projectRow.name, () => {
   });
 
   it("treats over-allocated nodes as zero available (no negative leakage)", () => {
-    const result = projectRow(
+    const result = mapToStoredClusterState(
       buildCluster({
         nodes: [
           buildNode({
@@ -158,7 +158,7 @@ describe(projectRow.name, () => {
   });
 
   it("sums GPU count per node for max-node-free-gpu", () => {
-    const result = projectRow(
+    const result = mapToStoredClusterState(
       buildCluster({
         nodes: [
           buildNode({ gpu: { quantity: pair(5n), info: [gpu("nvidia", "a100"), gpu("nvidia", "h100")] } }),

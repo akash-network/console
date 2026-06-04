@@ -1,4 +1,4 @@
-import type { ResourceAttribute } from "../../types/inventory.types";
+import type { ResourceAttribute } from "../../types/inventory";
 
 export type StorageClassification = "ephemeral" | "ram" | "persistent";
 

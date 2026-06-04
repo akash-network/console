@@ -1,6 +1,6 @@
 import type { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 
-import type { RequestedResourceUnit, RequestedStorage, ResourceAttribute, ToJSON } from "../../types/inventory.types";
+import type { RequestedResourceUnit, RequestedStorage, ResourceAttribute, ToJSON } from "../../types/inventory";
 import { parseGPUAttributes } from "../gpu-attribute-parser/gpu-attribute-parser";
 import { parseStorageAttributes } from "../storage-attribute-parser/storage-attribute-parser";
 

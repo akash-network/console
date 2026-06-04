@@ -1,11 +1,11 @@
 import { createProviderSDK } from "@akashnetwork/chain-sdk";
 import { inject, singleton } from "tsyringe";
 
-import { mapClusterToStreamStatus } from "@src/lib/stream-status-mapper/stream-status-mapper";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
+import { mapClusterToStreamStatus } from "@src/services/provider-stream-factory/stream-status-mapper";
 import { ChainProvider } from "@src/types/chain-provider";
-import type { ClusterState } from "@src/types/inventory.types";
+import type { ClusterState } from "@src/types/inventory";
 
 @singleton()
 export class ProviderStreamFactory {

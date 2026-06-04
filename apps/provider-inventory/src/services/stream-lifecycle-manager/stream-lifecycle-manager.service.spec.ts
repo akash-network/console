@@ -7,7 +7,7 @@ import type { EnvConfig } from "@src/providers/app-config.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import type { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
 import type { ChainProvider } from "@src/types/chain-provider";
-import type { ClusterState, NodeState } from "@src/types/inventory.types";
+import type { ClusterState, NodeState } from "@src/types/inventory";
 import type { ProviderStreamFactory } from "../provider-stream-factory/provider-stream-factory.sevice";
 import { StreamLifecycleManagerService } from "./stream-lifecycle-manager.service";
 
@@ -24,14 +24,16 @@ describe(StreamLifecycleManagerService.name, () => {
 
     it("calls updateInventory for each unique stream message", async () => {
       const provider = createProvider();
-      const messages = [createMessage({ cpu: 1000n }), createMessage({ cpu: 2000n })];
+      const messages = [createCluster({ cpu: 1000n }), createCluster({ cpu: 2000n })];
       const { manager, writer } = setup({ streams: { "https://p1:8443": msgsThenHang(messages) } });
 
       manager.start(provider);
 
       await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(2));
-      expect(writer.updateInventory).toHaveBeenCalledWith(provider, expect.objectContaining({ totalAvailableCpu: 1000n }));
-      expect(writer.updateInventory).toHaveBeenCalledWith(provider, expect.objectContaining({ totalAvailableCpu: 2000n }));
+      manager.dispose();
+
+      expect(writer.updateInventory).toHaveBeenCalledWith(provider, createCluster({ cpu: 1000n }));
+      expect(writer.updateInventory).toHaveBeenCalledWith(provider, createCluster({ cpu: 2000n }));
     });
   });
 
@@ -149,7 +151,7 @@ describe(StreamLifecycleManagerService.name, () => {
   describe("diff cache", () => {
     it("performs a single write when two consecutive identical messages arrive", async () => {
       const { manager, writer, logger } = setup({
-        streams: { "https://p1:8443": msgsThenHang([createMessage({ cpu: 1000n }), createMessage({ cpu: 1000n })]) }
+        streams: { "https://p1:8443": msgsThenHang([createCluster({ cpu: 1000n }), createCluster({ cpu: 1000n })]) }
       });
       manager.start(createProvider());
 
@@ -161,7 +163,7 @@ describe(StreamLifecycleManagerService.name, () => {
     it("writes again when any meaningful field differs", async () => {
       const { manager, writer } = setup({
         streams: {
-          "https://p1:8443": msgsThenHang([createMessage({ cpu: 1000n }), createMessage({ cpu: 1001n })])
+          "https://p1:8443": msgsThenHang([createCluster({ cpu: 1000n }), createCluster({ cpu: 1001n })])
         }
       });
       manager.start(createProvider());
@@ -186,7 +188,7 @@ describe(StreamLifecycleManagerService.name, () => {
     });
 
     it("writes the first message even when it would later be cacheable", async () => {
-      const message = createMessage();
+      const message = createCluster();
       const { manager, writer } = setup({
         streams: { "https://p1:8443": msgsThenHang([message]) }
       });
@@ -197,7 +199,7 @@ describe(StreamLifecycleManagerService.name, () => {
 
     it("does not cache a row when the write fails — next identical message retries", async () => {
       const { manager, writer } = setup({
-        streams: { "https://p1:8443": msgsThenHang([createMessage(), createMessage()]) }
+        streams: { "https://p1:8443": msgsThenHang([createCluster(), createCluster()]) }
       });
       writer.updateInventory.mockRejectedValueOnce(new Error("DB down"));
       manager.start(createProvider());
@@ -210,8 +212,8 @@ describe(StreamLifecycleManagerService.name, () => {
       const providerB = createProvider({ owner: "b", hostUri: "https://b:8443" });
       const { manager, writer, logger } = setup({
         streams: {
-          "https://a:8443": msgsThenHang([createMessage({ cpu: 1000n }), createMessage({ cpu: 1000n })]),
-          "https://b:8443": msgsThenHang([createMessage({ cpu: 1000n })])
+          "https://a:8443": msgsThenHang([createCluster({ cpu: 1000n }), createCluster({ cpu: 1000n })]),
+          "https://b:8443": msgsThenHang([createCluster({ cpu: 1000n })])
         }
       });
       manager.start(providerA);
@@ -220,8 +222,8 @@ describe(StreamLifecycleManagerService.name, () => {
       await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(2));
       await vi.waitFor(() => expect(logger.debug).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_MESSAGE_SKIPPED_IDENTICAL", owner: "a" })));
 
-      expect(writer.updateInventory).toHaveBeenCalledWith(providerA, expect.objectContaining({ totalAvailableCpu: 1000n }));
-      expect(writer.updateInventory).toHaveBeenCalledWith(providerB, expect.objectContaining({ totalAvailableCpu: 1000n }));
+      expect(writer.updateInventory).toHaveBeenCalledWith(providerA, createCluster({ cpu: 1000n }));
+      expect(writer.updateInventory).toHaveBeenCalledWith(providerB, createCluster({ cpu: 1000n }));
       expect(writer.updateInventory).toHaveBeenCalledTimes(2);
     });
   });
@@ -232,18 +234,18 @@ describe(StreamLifecycleManagerService.name, () => {
 
       manager.start(createProvider());
 
-      await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledWith(createProvider(), expect.objectContaining({ totalAvailableCpu: 3000n })), {
+      await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledWith(createProvider(), createCluster({ cpu: 3000n })), {
         timeout: 3000
       });
-      expect(writer.updateInventory).toHaveBeenCalledWith(createProvider(), expect.objectContaining({ totalAvailableCpu: 1000n }));
-      expect(writer.updateInventory).not.toHaveBeenCalledWith(createProvider(), expect.objectContaining({ totalAvailableCpu: 2000n }));
+      expect(writer.updateInventory).toHaveBeenCalledWith(createProvider(), createCluster({ cpu: 1000n }));
+      expect(writer.updateInventory).not.toHaveBeenCalledWith(createProvider(), createCluster({ cpu: 2000n }));
       expect(writer.updateInventory).toHaveBeenCalledTimes(2);
     });
   });
 
   describe("error handling", () => {
     it("logs and continues when updateInventory throws", async () => {
-      const messages = [createMessage({ cpu: 1000n }), createMessage({ cpu: 2000n })];
+      const messages = [createCluster({ cpu: 1000n }), createCluster({ cpu: 2000n })];
       const { manager, writer, logger } = setup({ streams: { "https://p1:8443": msgsThenHang(messages) } });
       writer.updateInventory.mockRejectedValueOnce(new Error("DB down"));
       manager.start(createProvider());
@@ -260,7 +262,7 @@ describe(StreamLifecycleManagerService.name, () => {
       streamFactory.openStatusStream.mockImplementation(() => {
         attempt++;
         if (attempt === 1) return throwingStream(new Error("connection lost"));
-        return msgsThenHang([createMessage()]);
+        return msgsThenHang([createCluster()]);
       });
       const { manager, logger } = setup({ streamFactory });
       manager.start(createProvider());
@@ -294,7 +296,7 @@ describe(StreamLifecycleManagerService.name, () => {
       streamFactory.openStatusStream.mockImplementation(() => {
         attempt++;
         if (attempt === 1) return throwingStream(new Error("initial failure"));
-        if (attempt === 2) return msgsThenThrow([createMessage()], new Error("dropped"));
+        if (attempt === 2) return msgsThenThrow([createCluster()], new Error("dropped"));
         return throwingStream(new Error("still down"));
       });
       const { manager, writer } = setup({ streamFactory });
@@ -306,7 +308,7 @@ describe(StreamLifecycleManagerService.name, () => {
 
     it("does not mark offline when the very first attempt is delivering messages", async () => {
       const { manager, writer } = setup({
-        streams: { "https://p1:8443": msgsThenHang([createMessage()]) }
+        streams: { "https://p1:8443": msgsThenHang([createCluster()]) }
       });
 
       manager.start(createProvider());
@@ -398,13 +400,13 @@ describe(StreamLifecycleManagerService.name, () => {
     });
 
     it("clears diff cache on shutdown", async () => {
-      const { manager, streamFactory, writer } = setup({ streams: { "https://p1:8443": msgsThenHang([createMessage({ cpu: 1000n })]) } });
+      const { manager, streamFactory, writer } = setup({ streams: { "https://p1:8443": msgsThenHang([createCluster({ cpu: 1000n })]) } });
       manager.start(createProvider());
 
       await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(1));
 
       manager.shutdown();
-      streamFactory.openStatusStream.mockReturnValue(msgsThenHang([createMessage({ cpu: 1000n })]));
+      streamFactory.openStatusStream.mockReturnValue(msgsThenHang([createCluster({ cpu: 1000n })]));
       manager.start(createProvider());
 
       await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(2));
@@ -459,7 +461,7 @@ function createProvider(overrides?: Partial<ChainProvider>): ChainProvider {
   };
 }
 
-function createMessage(overrides?: { cpu?: bigint }): ClusterState {
+function createCluster(overrides?: { cpu?: bigint }): ClusterState {
   return {
     nodes: [
       buildNode({
@@ -504,10 +506,10 @@ async function* msgsThenThrow(messages: ClusterState[], error: Error): AsyncGene
 // Emits a leading message, then — after it has been consumed — a rapid burst within the throttle
 // window, so the burst coalesces to its latest value (3000) while the leading value (1000) survives.
 async function* leadThenBurst(): AsyncGenerator<ClusterState> {
-  yield createMessage({ cpu: 1000n });
+  yield createCluster({ cpu: 1000n });
   await delay(20);
-  yield createMessage({ cpu: 2000n });
-  yield createMessage({ cpu: 3000n });
+  yield createCluster({ cpu: 2000n });
+  yield createCluster({ cpu: 3000n });
   await new Promise<never>(() => undefined);
 }
 
