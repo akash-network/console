@@ -7,11 +7,26 @@ import { LoggerService } from "@src/core/providers/logging.provider";
 import { DayRepository } from "@src/gpu/repositories/day.repository";
 import { averageBlockTime } from "@src/utils/constants";
 
+/**
+ * gRPC status code (`Unimplemented`) the node's grpc-gateway returns — as HTTP 501 with a
+ * `{ "code": 12 }` body — when a query method isn't registered. The chain-sdk surfaces it as a
+ * `TransportError` carrying this numeric `code`, but the enum isn't exported, so we match the
+ * number. This is the SDK equivalent of provider-proxy's former `response.status === 501` check.
+ */
+const TRANSPORT_CODE_UNIMPLEMENTED = 12;
+
+function isOracleQueryUnimplemented(error: unknown): boolean {
+  return error instanceof Error && error.name === "TransportError" && (error as { code?: unknown }).code === TRANSPORT_CODE_UNIMPLEMENTED;
+}
+
 @singleton()
 export class DenomExchangeService {
   readonly #chainSdk: ChainSDK;
   readonly #dayRepository: DayRepository;
   readonly #logger: LoggerService;
+  // Cached availability of the Oracle V2 query service. Set false on a V2 "unimplemented" error
+  // (pre-v2.1.0 nodes) so we stop probing V2 until the V1 fallback itself breaks.
+  #isOracleV2Available = true;
 
   constructor(@inject(CHAIN_SDK) chainSdk: ChainSDK, dayRepository: DayRepository, logger: LoggerService) {
     this.#chainSdk = chainSdk;
@@ -54,16 +69,28 @@ export class DenomExchangeService {
   );
 
   /**
-   * Version-aware oracle fetch: prefer Oracle V2, falling back to V1 when the V2 query service is
-   * unavailable (e.g. on nodes that have not yet run the v2.1.0 upgrade, which do not register the
-   * V2 query service so the call throws). The V1 fallback is removed once V2 is stable on mainnet.
+   * Version-aware oracle fetch: prefer Oracle V2, falling back to V1 only when the node hasn't
+   * registered the V2 query service yet (pre-v2.1.0 — gRPC Unimplemented / HTTP 501). The decision
+   * is cached so we stop probing V2 until the V1 fallback breaks (expected once v2.1.0 ships and V1
+   * is removed), at which point we re-probe V2. Any other V2 error falls through to the CoinGecko
+   * net in the caller. The whole V1 fallback is removed once V2 is stable on mainnet.
    */
   async #fetchOracleRate(mappedDenom: string) {
+    if (this.#isOracleV2Available) {
+      try {
+        return await this.#fetchOracleRateV2(mappedDenom);
+      } catch (error) {
+        if (!isOracleQueryUnimplemented(error)) throw error;
+        this.#isOracleV2Available = false;
+        this.#logger.warn({ event: "ORACLE_V2_UNAVAILABLE_FALLBACK_V1", denom: mappedDenom });
+      }
+    }
+
     try {
-      return await this.#fetchOracleRateV2(mappedDenom);
-    } catch (error) {
-      this.#logger.warn({ event: "ORACLE_V2_UNAVAILABLE_FALLBACK_V1", denom: mappedDenom, error });
       return await this.#fetchOracleRateV1(mappedDenom);
+    } catch (error) {
+      this.#isOracleV2Available = true;
+      throw error;
     }
   }
 

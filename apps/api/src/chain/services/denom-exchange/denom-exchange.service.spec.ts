@@ -93,6 +93,28 @@ describe(DenomExchangeService.name, () => {
       expect(result.price).toBe(0.56);
     });
 
+    it("does not fall back to V1 on a non-Unimplemented V2 error", async () => {
+      const { service, getAggregatedPriceV1, getLatestBlock, dayRepository, logger } = setup({ v2TransientError: true, latestAktPrice: 1.5 });
+
+      const result = await service.getExchangeRateToUSD("akt");
+
+      expect(getAggregatedPriceV1).not.toHaveBeenCalled();
+      expect(getLatestBlock).not.toHaveBeenCalled();
+      expect(dayRepository.getLatestAktPrice).toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "ORACLE_RPC_FAILED" }));
+      expect(result.price).toBe(1.5);
+    });
+
+    it("caches the V2-unavailable decision and skips V2 on subsequent calls", async () => {
+      const { service, getAggregatedPriceV2, getAggregatedPriceV1 } = setup({ v2Unavailable: true });
+
+      await service.getExchangeRateToUSD("akt");
+      await service.getExchangeRateToUSD("akash-network");
+
+      expect(getAggregatedPriceV2).toHaveBeenCalledTimes(1);
+      expect(getAggregatedPriceV1).toHaveBeenCalledTimes(2);
+    });
+
     it("falls back to DB price when oracle reports unhealthy", async () => {
       const { service, dayRepository, logger, getAggregatedPriceV1 } = setup({ isHealthy: false, latestAktPrice: 1.23 });
 
@@ -152,6 +174,7 @@ describe(DenomExchangeService.name, () => {
     isHealthy?: boolean;
     oracleThrows?: boolean;
     v2Unavailable?: boolean;
+    v2TransientError?: boolean;
     v2HistoryThrows?: boolean;
     latestAktPrice?: number | null;
   }) {
@@ -172,14 +195,19 @@ describe(DenomExchangeService.name, () => {
     const getPricesV1 = vi.fn().mockResolvedValue(pricesResponse);
 
     if (input.v2Unavailable) {
-      getAggregatedPriceV2.mockRejectedValue(new Error("V2 query service unavailable"));
+      // gRPC Unimplemented (HTTP 501): the node hasn't registered the V2 query service yet.
+      getAggregatedPriceV2.mockRejectedValue(makeTransportError(12));
+    }
+    if (input.v2TransientError) {
+      // Any non-Unimplemented V2 error must NOT trigger the V1 fallback.
+      getAggregatedPriceV2.mockRejectedValue(makeTransportError(14));
     }
     if (input.v2HistoryThrows) {
       getPricesV2.mockRejectedValue(new Error("price history pruned"));
     }
     if (input.oracleThrows) {
-      // Both the V2 query and the V1 fallback fail, so the service falls through to CoinGecko.
-      getAggregatedPriceV2.mockRejectedValue(new Error("V2 RPC connection refused"));
+      // V2 is unimplemented (-> tries V1) and V1 also fails, so the service falls through to CoinGecko.
+      getAggregatedPriceV2.mockRejectedValue(makeTransportError(12));
       getLatestBlock.mockRejectedValue(new Error("RPC connection refused"));
     }
 
@@ -198,5 +226,11 @@ describe(DenomExchangeService.name, () => {
     const service = new DenomExchangeService(chainSdk, dayRepository, logger);
 
     return { service, getLatestBlock, getAggregatedPriceV2, getPricesV2, getAggregatedPriceV1, getPricesV1, dayRepository, logger };
+  }
+
+  // Mirrors a chain-sdk TransportError: an unregistered query method surfaces as gRPC code 12
+  // (Unimplemented / HTTP 501); other failures carry a different code.
+  function makeTransportError(code: number) {
+    return Object.assign(new Error(`transport error ${code}`), { name: "TransportError", code });
   }
 });
