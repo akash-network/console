@@ -326,6 +326,70 @@ describe(BidScreeningRepository.name, () => {
     });
   });
 
+  describe("leased IP filter", () => {
+    it("excludes providers whose total available leased IPs falls short of the request", async () => {
+      await seed({ owner: "akash1noIps", totalAvailableLeasedIp: 0n });
+      await seed({ owner: "akash1oneIp", totalAvailableLeasedIp: 1n });
+
+      const rows = await repository.findCandidates([unit({ endpoints: [leasedIp(1)] })], requirements());
+
+      expect(owners(rows)).toEqual(["akash1oneIp"]);
+    });
+
+    it("includes a provider whose leased IP capacity exactly meets the request", async () => {
+      await seed({ owner: "akash1exact", totalAvailableLeasedIp: 2n });
+      await seed({ owner: "akash1short", totalAvailableLeasedIp: 1n });
+
+      const rows = await repository.findCandidates([unit({ endpoints: [leasedIp(1), leasedIp(2)] })], requirements());
+
+      expect(owners(rows)).toEqual(["akash1exact"]);
+    });
+
+    it("counts unique sequenceNumbers across units, so duplicates do not inflate the requirement", async () => {
+      await seed({ owner: "akash1oneIp", totalAvailableLeasedIp: 1n });
+
+      // Same sequenceNumber across two units is a single leased IP → one provider IP is enough.
+      const rows = await repository.findCandidates([unit({ endpoints: [leasedIp(7)] }), unit({ endpoints: [leasedIp(7)] })], requirements());
+
+      expect(owners(rows)).toEqual(["akash1oneIp"]);
+    });
+
+    it("sums distinct sequenceNumbers across units when computing the requirement", async () => {
+      await seed({ owner: "akash1oneIp", totalAvailableLeasedIp: 1n });
+      await seed({ owner: "akash1twoIps", totalAvailableLeasedIp: 2n });
+
+      const rows = await repository.findCandidates([unit({ endpoints: [leasedIp(1)] }), unit({ endpoints: [leasedIp(2)] })], requirements());
+
+      expect(owners(rows)).toEqual(["akash1twoIps"]);
+    });
+
+    it("ignores non-LEASED_IP endpoints when computing the requirement, so zero-IP providers stay in the result", async () => {
+      await seed({ owner: "akash1noIps", totalAvailableLeasedIp: 0n });
+
+      const rows = await repository.findCandidates(
+        [
+          unit({
+            endpoints: [
+              { kind: "SHARED_HTTP", sequenceNumber: 1 },
+              { kind: "RANDOM_PORT", sequenceNumber: 2 }
+            ]
+          })
+        ],
+        requirements()
+      );
+
+      expect(owners(rows)).toEqual(["akash1noIps"]);
+    });
+
+    it("keeps providers with no leased IP capacity when the deployment requests none", async () => {
+      await seed({ owner: "akash1noIps", totalAvailableLeasedIp: 0n });
+
+      const rows = await repository.findCandidates([unit({})], requirements());
+
+      expect(owners(rows)).toEqual(["akash1noIps"]);
+    });
+  });
+
   describe("online filter", () => {
     it("excludes rows where is_online is false", async () => {
       await seed({ owner: "akash1up" });
@@ -426,6 +490,7 @@ describe(BidScreeningRepository.name, () => {
     totalAvailableGpu?: bigint;
     totalAvailableEph?: bigint;
     totalAvailablePersistent?: bigint;
+    totalAvailableLeasedIp?: bigint;
     maxNodeFreeCpu?: bigint;
     maxNodeFreeMemory?: bigint;
     maxNodeFreeGpu?: bigint;
@@ -447,6 +512,7 @@ describe(BidScreeningRepository.name, () => {
       totalAvailableGpu: input.totalAvailableGpu ?? 0n,
       totalAvailableEph: input.totalAvailableEph ?? 1_000_000_000n,
       totalAvailablePersistent: input.totalAvailablePersistent ?? 0n,
+      totalAvailableLeasedIp: input.totalAvailableLeasedIp ?? 0n,
       maxNodeFreeCpu: input.maxNodeFreeCpu ?? 1_000_000n,
       maxNodeFreeMemory: input.maxNodeFreeMemory ?? 1_000_000_000n,
       maxNodeFreeGpu: input.maxNodeFreeGpu ?? 0n,
@@ -466,6 +532,7 @@ function unit(input: {
   count?: number;
   gpuAttributes?: ResourceAttribute[];
   storage?: RawStorageVolume[];
+  endpoints?: Array<{ kind: string; sequenceNumber: number }>;
 }): RequestedResourceUnit {
   return {
     id: 1,
@@ -474,9 +541,14 @@ function unit(input: {
       cpu: { units: input.cpu ?? 0n, fingerprint: null },
       memory: { quantity: input.memory ?? 0n },
       gpu: { units: input.gpu ?? 0n, attributes: parseGPUAttributes(input.gpuAttributes ?? []) },
-      storage: (input.storage ?? []).map(s => ({ name: s.name, quantity: s.quantity, attributes: parseStorageAttributes(s.attributes) }))
+      storage: (input.storage ?? []).map(s => ({ name: s.name, quantity: s.quantity, attributes: parseStorageAttributes(s.attributes) })),
+      endpoints: input.endpoints ?? []
     }
   };
+}
+
+function leasedIp(sequenceNumber: number): { kind: string; sequenceNumber: number } {
+  return { kind: "LEASED_IP", sequenceNumber };
 }
 
 function persistentVolume(name: string, quantity: bigint, storageClass: string): RawStorageVolume {

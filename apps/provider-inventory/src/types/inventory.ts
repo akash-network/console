@@ -48,6 +48,10 @@ export interface RequestedResources {
   gpu: { units: bigint; attributes: ParsedGPUAttributes[] };
   memory: { quantity: bigint };
   storage: RequestedStorage[];
+  endpoints: Array<{
+    kind: string;
+    sequenceNumber: number;
+  }>;
 }
 
 export interface RequestedResourceUnit {
