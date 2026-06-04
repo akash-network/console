@@ -98,7 +98,8 @@ export class BidScreeningRepository {
         AND ${sql(providerInventory.totalAvailablePersistent.name)} >= ${criteria.totalPersistentStorage}
         AND ${sql(providerInventory.maxNodeFreeCpu.name)} >= ${criteria.maxPerReplicaCpu}
         AND ${sql(providerInventory.maxNodeFreeMemory.name)} >= ${criteria.maxPerReplicaMemory}
-        AND ${sql(providerInventory.maxNodeFreeGpu.name)} >= ${criteria.maxPerReplicaGpu}`
+        AND ${sql(providerInventory.maxNodeFreeGpu.name)} >= ${criteria.maxPerReplicaGpu}
+        AND ${sql(providerInventory.totalAvailableLeasedIp.name)} >= ${criteria.totalLeasedIps}`
     ];
 
     for (const unit of criteria.units) {

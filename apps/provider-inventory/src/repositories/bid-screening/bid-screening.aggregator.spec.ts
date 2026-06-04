@@ -123,6 +123,85 @@ describe(aggregateCriteria.name, () => {
     });
   });
 
+  describe("totalLeasedIps", () => {
+    it("counts each LEASED_IP endpoint by its unique sequenceNumber", () => {
+      const c = aggregateCriteria(
+        [
+          makeUnit({
+            endpoints: [
+              { kind: "LEASED_IP", sequenceNumber: 1 },
+              { kind: "LEASED_IP", sequenceNumber: 2 }
+            ]
+          })
+        ],
+        makeRequirements()
+      );
+      expect(c.totalLeasedIps).toBe(2n);
+    });
+
+    it("dedupes the same sequenceNumber declared across multiple units", () => {
+      const c = aggregateCriteria(
+        [makeUnit({ endpoints: [{ kind: "LEASED_IP", sequenceNumber: 1 }] }), makeUnit({ endpoints: [{ kind: "LEASED_IP", sequenceNumber: 1 }] })],
+        makeRequirements()
+      );
+      expect(c.totalLeasedIps).toBe(1n);
+    });
+
+    it("dedupes a sequenceNumber repeated within a single unit's endpoints", () => {
+      const c = aggregateCriteria(
+        [
+          makeUnit({
+            endpoints: [
+              { kind: "LEASED_IP", sequenceNumber: 7 },
+              { kind: "LEASED_IP", sequenceNumber: 7 }
+            ]
+          })
+        ],
+        makeRequirements()
+      );
+      expect(c.totalLeasedIps).toBe(1n);
+    });
+
+    it("counts distinct sequenceNumbers across multiple units", () => {
+      const c = aggregateCriteria(
+        [makeUnit({ endpoints: [{ kind: "LEASED_IP", sequenceNumber: 1 }] }), makeUnit({ endpoints: [{ kind: "LEASED_IP", sequenceNumber: 2 }] })],
+        makeRequirements()
+      );
+      expect(c.totalLeasedIps).toBe(2n);
+    });
+
+    it("ignores endpoints whose kind is not LEASED_IP", () => {
+      const c = aggregateCriteria(
+        [
+          makeUnit({
+            endpoints: [
+              { kind: "SHARED_HTTP", sequenceNumber: 1 },
+              { kind: "RANDOM_PORT", sequenceNumber: 2 },
+              { kind: "LEASED_IP", sequenceNumber: 3 }
+            ]
+          })
+        ],
+        makeRequirements()
+      );
+      expect(c.totalLeasedIps).toBe(1n);
+    });
+
+    it("is unaffected by unit count — counts unique IPs, not replicas", () => {
+      const c = aggregateCriteria([makeUnit({ count: 5, endpoints: [{ kind: "LEASED_IP", sequenceNumber: 1 }] })], makeRequirements());
+      expect(c.totalLeasedIps).toBe(1n);
+    });
+
+    it("returns 0 when no endpoints request a leased IP", () => {
+      const c = aggregateCriteria([makeUnit({ endpoints: [{ kind: "SHARED_HTTP", sequenceNumber: 1 }] })], makeRequirements());
+      expect(c.totalLeasedIps).toBe(0n);
+    });
+
+    it("returns 0 when there are no endpoints at all", () => {
+      const c = aggregateCriteria([makeUnit({})], makeRequirements());
+      expect(c.totalLeasedIps).toBe(0n);
+    });
+  });
+
   describe("maxPerReplica", () => {
     it("picks max of unit.cpu — not max of unit.cpu * count", () => {
       const c = aggregateCriteria(
@@ -377,6 +456,7 @@ function makeUnit(input: {
   count?: number;
   storage?: RawStorageVolume[];
   gpuAttributes?: ResourceAttribute[];
+  endpoints?: Array<{ kind: string; sequenceNumber: number }>;
 }): RequestedResourceUnit {
   return {
     id: 1,
@@ -385,7 +465,8 @@ function makeUnit(input: {
       cpu: { units: input.cpu ?? 0n, fingerprint: null },
       memory: { quantity: input.memory ?? 0n },
       gpu: { units: input.gpu ?? 0n, attributes: parseGPUAttributes(input.gpuAttributes ?? []) },
-      storage: (input.storage ?? []).map(s => ({ name: s.name, quantity: s.quantity, attributes: parseStorageAttributes(s.attributes) }))
+      storage: (input.storage ?? []).map(s => ({ name: s.name, quantity: s.quantity, attributes: parseStorageAttributes(s.attributes) })),
+      endpoints: input.endpoints ?? []
     }
   };
 }

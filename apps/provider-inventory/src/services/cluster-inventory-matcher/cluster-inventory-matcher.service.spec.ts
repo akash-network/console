@@ -1224,7 +1224,8 @@ function buildResourceUnit(input: {
       cpu: { units: input.cpu, fingerprint: getAttributeFingerprint(input.cpuAttributes) },
       gpu: { units: input.gpuUnits ?? 0n, attributes: parseGPUAttributes(input.gpuAttributes ?? []) },
       memory: { quantity: input.memory },
-      storage: input.storage.map(s => ({ name: s.name, quantity: s.quantity, attributes: parseStorageAttributes(s.attributes) }))
+      storage: input.storage.map(s => ({ name: s.name, quantity: s.quantity, attributes: parseStorageAttributes(s.attributes) })),
+      endpoints: []
     },
     count: input.count
   };

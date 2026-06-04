@@ -272,8 +272,7 @@ failure: **CPU → GPU → Memory → Storage volumes (in declaration order)**.
 
 ### AC18 — Leased IP counting
 **WHAT:** The number of leased IPs a deployment needs is the count of **unique** `LEASED_IP`
-endpoint sequence numbers across the whole group spec. The same endpoint referenced by several
-services is **one** IP, not many.
+endpoint sequence numbers across the whole group spec. The same endpoint referenced by several services is **one** IP, not many.
 **HOW:** The provider counts via `GetEndpointQuantityOfResourceGroup(gspec, Endpoint_LEASED_IP)`,
 which collects distinct endpoint sequence numbers into a set and returns the set size. This is
 computed once per reservation and stored as the reservation's endpoint quantity.
@@ -282,8 +281,7 @@ computed once per reservation and stored as the reservation's endpoint quantity.
 - ✅ **Counts as 2:** Group references leased-IP endpoints `#1` and `#2` → requested = 2.
 
 ### AC19 — Leased IP availability gate (cluster-level, pre-engine)
-**WHAT:** Before any node is examined, the provider checks it has enough free leased IPs for the
-whole deployment. This is a single cluster-wide pool — never per-node, never per-replica.
+**WHAT:** Before any node is examined, the provider checks it has enough free leased IPs for the whole deployment. This is a single cluster-wide pool — never per-node, never per-replica.
 **HOW:** `available = leased_ip.allocatable − leased_ip.allocated`, where
 `allocated = in-use + reserved`. `reserved` counts IPs held by reservations that the IP operator
 has **not yet confirmed**, so pending bids still consume availability. If `requested > available`,

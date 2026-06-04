@@ -13,6 +13,7 @@ export interface BidScreeningCriteria {
   totalGpu: bigint;
   totalEphemeralStorage: bigint;
   totalPersistentStorage: bigint;
+  totalLeasedIps: bigint;
   maxPerReplicaCpu: bigint;
   maxPerReplicaMemory: bigint;
   maxPerReplicaGpu: bigint;
@@ -32,6 +33,7 @@ export function aggregateCriteria(resourceUnits: RequestedResourceUnit[], requir
   let maxPerReplicaMemory = 0n;
   let maxPerReplicaGpu = 0n;
   const units: UnitFilters[] = [];
+  const leasedIps = new Set<number>();
 
   for (const unit of resourceUnits) {
     const count = BigInt(unit.count);
@@ -47,6 +49,12 @@ export function aggregateCriteria(resourceUnits: RequestedResourceUnit[], requir
         totalEphemeralStorage += vol.quantity * count;
       } else if (parsed.classification === "ram") {
         effectiveMemory += vol.quantity;
+      }
+    }
+
+    for (const endpoint of unit.resources.endpoints) {
+      if (endpoint.kind === "LEASED_IP") {
+        leasedIps.add(endpoint.sequenceNumber);
       }
     }
 
@@ -82,6 +90,7 @@ export function aggregateCriteria(resourceUnits: RequestedResourceUnit[], requir
     totalGpu,
     totalEphemeralStorage,
     totalPersistentStorage,
+    totalLeasedIps: BigInt(leasedIps.size),
     maxPerReplicaCpu,
     maxPerReplicaMemory,
     maxPerReplicaGpu,
