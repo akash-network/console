@@ -335,23 +335,6 @@ describe(TemplateGalleryService.name, () => {
       expect(result).toEqual(template);
       expect(fsMock.readFile).toHaveBeenCalledWith("/data/templates/v1/templates/akash-network-awesome-akash-DeepSeek-V3.1.json", "utf8");
     });
-
-    ["../../../etc/passwd", "/etc/passwd", "../secret"].forEach(maliciousId => {
-      it(`rejects path traversal id "${maliciousId}" without reading any file`, async () => {
-        const { service, fsMock, logger } = setup();
-
-        const result = await service.getTemplateById(maliciousId);
-
-        expect(result).toBeNull();
-        expect(fsMock.readFile).not.toHaveBeenCalled();
-        expect(logger.warn).toHaveBeenCalledWith(
-          expect.objectContaining({
-            event: "TEMPLATE_PATH_TRAVERSAL_BLOCKED",
-            templateId: maliciousId
-          })
-        );
-      });
-    });
   });
 
   function setup(input?: { getTagsConfig?: () => TemplateTagsConfig }) {

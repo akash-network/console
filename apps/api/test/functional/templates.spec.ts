@@ -13,17 +13,17 @@ describe("Templates", () => {
   };
 
   describe("GET /v1/templates/{id} path traversal", () => {
-    // Encoded path-traversal payloads: %2F survives Hono routing as a single segment and
-    // is decoded to "/" before reaching the handler, so an unguarded endpoint would escape
-    // the template cache directory. All of these must resolve to a plain 404, never leaking
-    // file contents (CON-428).
+    // %2F survives Hono routing as a single segment and is only decoded to "/" when the param is
+    // read, so the id schema sees the real separator and rejects it with a 400 before any file is
+    // read. The double-encoded payload decodes to a literal "%2F" (no separator), so it passes
+    // validation and resolves to a missing file -> 404. Either way no file contents leak (CON-428).
     [
-      "..%2F..%2F..%2Fetc%2Fpasswd", // ../../../etc/passwd
-      "%2Fetc%2Fpasswd", // /etc/passwd (absolute escape)
-      "..%2F..%2Fsecret",
-      "..%252F..%252Fsecret" // double-encoded: must not be decoded into a separator
-    ].forEach(encodedId => {
-      it(`responds 404 for traversal attempt "${encodedId}"`, async () => {
+      { encodedId: "..%2F..%2F..%2Fetc%2Fpasswd", expectedStatus: 400 }, // ../../../etc/passwd
+      { encodedId: "%2Fetc%2Fpasswd", expectedStatus: 400 }, // /etc/passwd (absolute escape)
+      { encodedId: "..%2F..%2Fsecret", expectedStatus: 400 },
+      { encodedId: "..%252F..%252Fsecret", expectedStatus: 404 } // double-encoded: stays a literal "%2F"
+    ].forEach(({ encodedId, expectedStatus }) => {
+      it(`rejects traversal attempt "${encodedId}" with ${expectedStatus} and no leaked file contents`, async () => {
         await setup();
 
         const response = await app.request(`/v1/templates/${encodedId}`, {
@@ -31,7 +31,9 @@ describe("Templates", () => {
           headers: new Headers({ "Content-Type": "application/json" })
         });
 
-        expect(response.status).toBe(404);
+        expect(response.status).toBe(expectedStatus);
+        const body = await response.text();
+        expect(body).not.toContain("root:x:"); // /etc/passwd marker — proves no file contents are returned
       });
     });
   });

@@ -55,6 +55,9 @@ const getTemplateByIdRoute = createRoute({
         }
       }
     },
+    400: {
+      description: "Invalid template ID"
+    },
     404: {
       description: "Template not found"
     }

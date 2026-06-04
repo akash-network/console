@@ -8,7 +8,6 @@ import type z from "zod";
 
 import type { LoggerService } from "@src/core";
 import type { Category, FinalCategory, Template } from "@src/template/types/template";
-import { resolvePathWithinDir } from "@src/utils/path";
 import { reusePendingPromise } from "../../../caching/helpers.ts";
 import { GitHubArchiveService } from "../github-archive/github-archive.service.ts";
 import { REPOSITORIES, TemplateFetcherService } from "../template-fetcher/template-fetcher.service.ts";
@@ -245,16 +244,10 @@ export class TemplateGalleryService {
   }
 
   async getTemplateById(id: Required<Template>["id"]): Promise<Template | null> {
-    const cachePath = resolvePathWithinDir(`${this.#galleriesCachePath}/v1/templates`, `${id}.json`);
-    if (!cachePath) {
-      this.#logger.warn({ event: "TEMPLATE_PATH_TRAVERSAL_BLOCKED", templateId: id });
-      return null;
-    }
-
     if (this.#parsedTemplates.has(id)) return this.#parsedTemplates.get(id)!;
 
     try {
-      const templateContent = await this.#fs.readFile(cachePath, "utf8");
+      const templateContent = await this.#fs.readFile(this.#templateCachePath(id), "utf8");
       const template = JSON.parse(templateContent).data;
       this.#parsedTemplates.set(id, template);
       return template;
