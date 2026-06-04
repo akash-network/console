@@ -13,15 +13,18 @@ describe("Templates", () => {
   };
 
   describe("GET /v1/templates/{id} path traversal", () => {
-    // %2F survives Hono routing as a single segment and is only decoded to "/" when the param is
-    // read, so the id schema sees the real separator and rejects it with a 400 before any file is
-    // read. The double-encoded payload decodes to a literal "%2F" (no separator), so it passes
-    // validation and resolves to a missing file -> 404. Either way no file contents leak (CON-428).
+    // An encoded separator (%2F -> "/", %5C -> "\") survives Hono routing as a single segment and is
+    // only decoded when the param is read, so the id schema sees the real separator and rejects it
+    // with a 400 before any file is read. A double-encoded payload decodes to a literal "%2F"/"%5C"
+    // (no separator), so it passes validation and resolves to a missing file -> 404. Either way no
+    // file contents leak (CON-428). The schema blocks both "/" and "\", so both are exercised here.
     [
       { encodedId: "..%2F..%2F..%2Fetc%2Fpasswd", expectedStatus: 400 }, // ../../../etc/passwd
       { encodedId: "%2Fetc%2Fpasswd", expectedStatus: 400 }, // /etc/passwd (absolute escape)
       { encodedId: "..%2F..%2Fsecret", expectedStatus: 400 },
-      { encodedId: "..%252F..%252Fsecret", expectedStatus: 404 } // double-encoded: stays a literal "%2F"
+      { encodedId: "..%252F..%252Fsecret", expectedStatus: 404 }, // double-encoded: stays a literal "%2F"
+      { encodedId: "..%5C..%5Csecret", expectedStatus: 400 }, // ..\..\secret (backslash separator)
+      { encodedId: "..%255C..%255Csecret", expectedStatus: 404 } // double-encoded: stays a literal "%5C"
     ].forEach(({ encodedId, expectedStatus }) => {
       it(`rejects traversal attempt "${encodedId}" with ${expectedStatus} and no leaked file contents`, async () => {
         await setup();
