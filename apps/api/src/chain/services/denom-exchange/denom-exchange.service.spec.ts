@@ -228,8 +228,7 @@ describe(DenomExchangeService.name, () => {
     return { service, getLatestBlock, getAggregatedPriceV2, getPricesV2, getAggregatedPriceV1, getPricesV1, dayRepository, logger };
   }
 
-  // Mirrors a chain-sdk TransportError: an unregistered query method surfaces as gRPC code 12
-  // (Unimplemented / HTTP 501); other failures carry a different code.
+  // Mirrors a chain-sdk TransportError (gRPC code 12 = Unimplemented for an unregistered method).
   function makeTransportError(code: number) {
     return Object.assign(new Error(`transport error ${code}`), { name: "TransportError", code });
   }

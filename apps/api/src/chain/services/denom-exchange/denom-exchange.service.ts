@@ -7,12 +7,7 @@ import { LoggerService } from "@src/core/providers/logging.provider";
 import { DayRepository } from "@src/gpu/repositories/day.repository";
 import { averageBlockTime } from "@src/utils/constants";
 
-/**
- * gRPC status code (`Unimplemented`) the node's grpc-gateway returns — as HTTP 501 with a
- * `{ "code": 12 }` body — when a query method isn't registered. The chain-sdk surfaces it as a
- * `TransportError` carrying this numeric `code`, but the enum isn't exported, so we match the
- * number. This is the SDK equivalent of provider-proxy's former `response.status === 501` check.
- */
+// gRPC "Unimplemented" code, returned for an unregistered query method (chain-sdk's TransportErrorCode isn't exported).
 const TRANSPORT_CODE_UNIMPLEMENTED = 12;
 
 function isOracleQueryUnimplemented(error: unknown): boolean {
@@ -24,8 +19,7 @@ export class DenomExchangeService {
   readonly #chainSdk: ChainSDK;
   readonly #dayRepository: DayRepository;
   readonly #logger: LoggerService;
-  // Cached availability of the Oracle V2 query service. Set false on a V2 "unimplemented" error
-  // (pre-v2.1.0 nodes) so we stop probing V2 until the V1 fallback itself breaks.
+  // Goes false once V2 returns Unimplemented; we then skip V2 until the V1 fallback breaks.
   #isOracleV2Available = true;
 
   constructor(@inject(CHAIN_SDK) chainSdk: ChainSDK, dayRepository: DayRepository, logger: LoggerService) {
@@ -68,13 +62,8 @@ export class DenomExchangeService {
     { cacheItemLimit: 10, ttl: minutesToMilliseconds(10) }
   );
 
-  /**
-   * Version-aware oracle fetch: prefer Oracle V2, falling back to V1 only when the node hasn't
-   * registered the V2 query service yet (pre-v2.1.0 — gRPC Unimplemented / HTTP 501). The decision
-   * is cached so we stop probing V2 until the V1 fallback breaks (expected once v2.1.0 ships and V1
-   * is removed), at which point we re-probe V2. Any other V2 error falls through to the CoinGecko
-   * net in the caller. The whole V1 fallback is removed once V2 is stable on mainnet.
-   */
+  // Prefer V2; fall back to V1 only when V2 is unimplemented (pre-v2.1.0), caching that until V1
+  // breaks. Other V2 errors propagate to the caller's CoinGecko fallback.
   async #fetchOracleRate(mappedDenom: string) {
     if (this.#isOracleV2Available) {
       try {
@@ -96,9 +85,7 @@ export class DenomExchangeService {
 
   async #fetchOracleRateV2(mappedDenom: string) {
     const endTime = new Date();
-    // V2 prunes oracle state to ~24h; query just inside that window (23h) since a price exactly 24h
-    // back may already be pruned. This figure feeds only the (currently unused) priceChange fields,
-    // so a failure here must not degrade the billing-critical current price — degrade to empty.
+    // 23h, not 24h: V2 prunes to ~24h, so the exact-24h price may already be gone.
     const startTime = subHours(endTime, 23);
     const [oracleRate, rate24hAgo] = await Promise.all([
       this.#chainSdk.akash.oracle.v2.getAggregatedPrice({ denom: mappedDenom }),
@@ -107,6 +94,7 @@ export class DenomExchangeService {
           filters: { assetDenom: mappedDenom, baseDenom: "usd", startTime, endTime },
           pagination: { limit: 1 }
         })
+        // history feeds only the unused priceChange fields — never fail the price over it
         .catch((error): { prices: [] } => {
           this.#logger.warn({ event: "ORACLE_V2_PRICE_HISTORY_UNAVAILABLE", denom: mappedDenom, error });
           return { prices: [] };
