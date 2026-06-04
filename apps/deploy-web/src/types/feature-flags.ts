@@ -8,6 +8,6 @@ export type FeatureFlag =
   | "auto_credit_reload"
   | "console_embedded_login"
   | "self_custody"
-  | "console_auth_redesign"
+  | "console_auth_passwordless"
   | "console_onboarding_redesign"
   | "bid_screening";

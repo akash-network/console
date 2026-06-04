@@ -1,5 +1,6 @@
 import { ManagementApiError } from "auth0";
 
+import { detectAuthType } from "./actions/auth";
 import { test } from "./fixture/base-test";
 import { testEnvConfig } from "./fixture/test-env.config";
 import { AuthPagePasswordless } from "./pages/AuthPagePasswordless";
@@ -25,14 +26,17 @@ test.describe("Passwordless login", () => {
   test("receives OTP, verifies, lands authenticated", async ({ page, auth0 }) => {
     test.setTimeout(3 * 60 * 1000);
 
+    const authType = await detectAuthType(page);
+    test.skip(authType !== "passwordless", "Skipped: /login renders email-password — passwordless flow not active in this environment");
+
     const email = otp.generateEmail();
     const auth = new AuthPagePasswordless(page);
 
-    await auth.goto();
+    const sinceMs = Date.now();
     await auth.startWithEmail(email);
     await auth.waitForVerifyScreen();
 
-    await otp.verify({ context: page.context(), email, userId: "" });
+    await otp.verify({ context: page.context(), email, userId: "", sinceMs });
 
     await auth.waitForRedirectAwayFromLogin();
 

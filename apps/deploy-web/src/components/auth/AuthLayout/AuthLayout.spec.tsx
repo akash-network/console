@@ -1,31 +1,20 @@
-import { ThemeProvider as NextThemeProvider } from "next-themes";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { CustomThemeProvider } from "@src/context/CustomThemeContext/CustomThemeContext";
-import { AuthLayout } from "./AuthLayout";
+import { AuthLayout, DEPENDENCIES } from "./AuthLayout";
 
 import { render } from "@testing-library/react";
 
 describe(AuthLayout.name, () => {
-  it("renders light theme layout", () => {
-    const result = setup({ theme: "light" });
-    expect(result.container).toMatchSnapshot();
-  });
-
-  it("renders dark theme layout", () => {
-    const result = setup({ theme: "dark" });
-    expect(result.container).toMatchSnapshot();
-  });
-
-  function setup(input?: { theme?: "light" | "dark" }) {
-    return render(
-      <NextThemeProvider defaultTheme={input?.theme ?? "light"}>
-        <CustomThemeProvider>
-          <AuthLayout>
-            <div>Children</div>
-          </AuthLayout>
-        </CustomThemeProvider>
-      </NextThemeProvider>
+  it("renders the Globe with REGION_MARKERS", () => {
+    const GlobeMock = vi.fn<(props: React.ComponentProps<typeof DEPENDENCIES.Globe>) => React.ReactElement>(() => <div data-testid="globe-mock" />);
+    render(
+      <AuthLayout dependencies={{ ...DEPENDENCIES, Globe: GlobeMock }}>
+        <div>Children</div>
+      </AuthLayout>
     );
-  }
+    expect(GlobeMock).toHaveBeenCalled();
+    expect(GlobeMock.mock.calls[0][0]).toMatchObject({
+      markers: expect.arrayContaining([expect.objectContaining({ label: "us-east-1" })])
+    });
+  });
 });

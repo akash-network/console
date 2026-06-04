@@ -43,59 +43,58 @@ const getSafeCurrentLocation = (preferredLocation?: string, fallbackLocation: st
 const getSafeReturnableUrl = (destination: string, currentLocation?: string, extraReturnToParams: Record<string, string> = {}) =>
   UrlReturnToStack.createReturnable(getSafeCurrentLocation(currentLocation), destination, { extraQueryParams: extraReturnToParams });
 
-export class UrlService {
-  static home = () => "/";
-  static getStarted = () => "/get-started";
+export const UrlService = {
+  home: () => "/",
+  getStarted: () => "/get-started",
 
-  static sdlBuilder = (id?: string) => `/sdl-builder${appendSearchParams({ id })}`;
-  static plainLinux = () => `/deploy-linux`;
-  static priceCompare = () => "/price-compare";
-  static analytics = () => "/analytics";
-  static graph = (snapshot: string) => `/graph/${snapshot}`;
-  static providerGraph = (snapshot: string) => `/provider-graph/${snapshot}`;
-  static priceCompareCustom = (cpu: number, memory: number, storage: number, memoryUnit: string, storageUnit: string) =>
-    `/price-compare${appendSearchParams({ cpu, memory, storage, memoryUnit, storageUnit })}`;
-  static contact = () => "/contact";
-  static faq = (q?: FaqAnchorType) => `/faq${q ? "#" + q : ""}`;
-  static privacyPolicy = () => "/privacy-policy";
-  static termsOfService = () => "/terms-of-service";
+  sdlBuilder: (id?: string) => `/sdl-builder${appendSearchParams({ id })}`,
+  plainLinux: () => `/deploy-linux`,
+  priceCompare: () => "/price-compare",
+  analytics: () => "/analytics",
+  graph: (snapshot: string) => `/graph/${snapshot}`,
+  providerGraph: (snapshot: string) => `/provider-graph/${snapshot}`,
+  priceCompareCustom: (cpu: number, memory: number, storage: number, memoryUnit: string, storageUnit: string) =>
+    `/price-compare${appendSearchParams({ cpu, memory, storage, memoryUnit, storageUnit })}`,
+  contact: () => "/contact",
+  faq: (q?: FaqAnchorType) => `/faq${q ? "#" + q : ""}`,
+  privacyPolicy: () => "/privacy-policy",
+  termsOfService: () => "/terms-of-service",
 
   // User
-  static userSettings = () => "/user/settings";
-  static userApiKeys = () => "/user/api-keys";
-  static userFavorites = () => `/user/settings/favorites`;
-  static userProfile = (username: string) => `/profile/${username}`;
-  static usage = () => "/usage";
-  static paymentMethods = () => "/payment-methods";
-  static billing = ({ openPayment }: { openPayment?: boolean } = {}) => `/billing${appendSearchParams({ openPayment })}`;
+  userSettings: () => "/user/settings",
+  userApiKeys: () => "/user/api-keys",
+  userFavorites: () => `/user/settings/favorites`,
+  userProfile: (username: string) => `/profile/${username}`,
+  usage: () => "/usage",
+  paymentMethods: () => "/payment-methods",
+  billing: ({ openPayment }: { openPayment?: boolean } = {}) => `/billing${appendSearchParams({ openPayment })}`,
   /** @deprecated use .newLogin instead */
-  static login = () => "/api/auth/login";
+  login: () => "/api/auth/login",
   /** @deprecated use .newSignup instead */
-  static signup = () => "/api/auth/signup";
-  static newLogin = ({ returnTo }: ReturnableOptions = {}) => getSafeReturnableUrl(`/login${appendSearchParams({ tab: "login" })}`, returnTo);
-  static newSignup = ({ returnTo, ...extraReturnToParams }: ReturnableOptions & Record<string, string> = {}) =>
-    getSafeReturnableUrl(`/login${appendSearchParams({ tab: "signup" })}`, returnTo, extraReturnToParams);
-  static logout = () => "/api/auth/logout";
-  static onboarding = ({ returnTo }: ReturnableOptions = {}) => getSafeReturnableUrl("/signup", returnTo);
-  static onboardingPicker = () => "/onboarding";
-  static template = (id: string) => `/template/${id}`;
+  signup: () => "/api/auth/signup",
+  newLogin: ({ returnTo }: ReturnableOptions = {}) => getSafeReturnableUrl(`/login${appendSearchParams({ tab: "login" })}`, returnTo),
+  newSignup: ({ returnTo, ...extraReturnToParams }: ReturnableOptions & Record<string, string> = {}) =>
+    getSafeReturnableUrl(`/login${appendSearchParams({ tab: "signup" })}`, returnTo, extraReturnToParams),
+  logout: () => "/api/auth/logout",
+  onboarding: ({ returnTo }: ReturnableOptions = {}) => getSafeReturnableUrl("/signup", returnTo),
+  template: (id: string) => `/template/${id}`,
 
   // Deploy
-  static deploymentList = () => `/deployments`;
-  static deploymentDetails = (dseq: string, tab?: string, logsMode?: string) => `/deployments/${dseq}${appendSearchParams({ tab, logsMode })}`;
-  static templates = (category?: string | null, search?: string) => `/templates${appendSearchParams({ category, search })}`;
-  static templateDetails = (templateId: string) => `/templates/${templateId}`;
-  static providers = (sort?: string) => `/providers${appendSearchParams({ sort })}`;
-  static providerDetail = (owner: string) => `/providers/${owner}${appendSearchParams({ network: networkStore.selectedNetworkId })}`;
-  static providerDetailLeases = (owner: string) => `/providers/${owner}/leases`;
-  static providerDetailRaw = (owner: string) => `/providers/${owner}/raw`;
-  static alerts = () => "/alerts";
-  static alertDetails = (id: string) => `/alerts/${id}`;
-  static notificationChannels = () => "/alerts/notification-channels";
-  static newNotificationChannel = () => "/alerts/notification-channels/new";
-  static notificationChannelDetails = (id: string) => `/alerts/notification-channels/${id}`;
+deploymentList: () => `/deployments`,
+  deploymentDetails: (dseq: string, tab?: string, logsMode?: string) => `/deployments/${dseq}${appendSearchParams({ tab, logsMode })}`,
+  templates: (category?: string | null, search?: string) => `/templates${appendSearchParams({ category, search })}`,
+  templateDetails: (templateId: string) => `/templates/${templateId}`,
+  providers: (sort?: string) => `/providers${appendSearchParams({ sort })}`,
+  providerDetail: (owner: string) => `/providers/${owner}${appendSearchParams({ network: networkStore.selectedNetworkId })}`,
+  providerDetailLeases: (owner: string) => `/providers/${owner}/leases`,
+  providerDetailRaw: (owner: string) => `/providers/${owner}/raw`,
+  alerts: () => "/alerts",
+  alertDetails: (id: string) => `/alerts/${id}`,
+  notificationChannels: () => "/alerts/notification-channels",
+  newNotificationChannel: () => "/alerts/notification-channels/new",
+  notificationChannelDetails: (id: string) => `/alerts/notification-channels/${id}`,
 
-  static newDeployment = (params: NewDeploymentParams = {}) => {
+  newDeployment: (params: NewDeploymentParams = {}) => {
     const {
       step,
       dseq,
@@ -113,8 +112,8 @@ export class UrlService {
     } = params;
     const page = params.page || "new-deployment";
     return `/${page}${appendSearchParams({ dseq, step, templateId, redeploy, gitProvider, code: gitProviderCode, repoUrl, branch, buildCommand, startCommand, installCommand, buildDirectory, nodeVersion })}`;
-  };
-}
+  }
+};
 
 export function appendSearchParams(params: { [key: string]: string | number | boolean | null | undefined } = {}) {
   const urlParams = new URLSearchParams("");
