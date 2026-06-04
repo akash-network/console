@@ -4,6 +4,7 @@ import { and, eq, gt, inArray, sql as rawSql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { inject, singleton } from "tsyringe";
 
+import { paginate } from "@src/lib/generators/paginate/paginate";
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
@@ -33,24 +34,21 @@ export class ProviderInventoryRepository {
 
   async *streamOnlineProviders(options?: { batchSize?: number }): AsyncGenerator<Pick<ProviderInventory, "owner" | "hostUri">> {
     const batchSize = options?.batchSize ?? DEFAULT_ONLINE_STREAM_BATCH_SIZE;
-    let cursor: string | undefined;
     const baseQuery = this.#db
       .select({ owner: providerInventory.owner, hostUri: providerInventory.hostUri })
       .from(providerInventory)
       .orderBy(providerInventory.owner)
       .limit(batchSize);
 
-    while (true) {
-      const where =
-        cursor === undefined ? eq(providerInventory.isOnline, true) : and(eq(providerInventory.isOnline, true), gt(providerInventory.owner, cursor));
+    const allProviders = paginate<Pick<ProviderInventory, "owner" | "hostUri">, string>(async key => {
+      const where = key === undefined ? eq(providerInventory.isOnline, true) : and(eq(providerInventory.isOnline, true), gt(providerInventory.owner, key));
+      const items = await baseQuery.where(where);
+      const nextKey = items.length === batchSize ? items[items.length - 1].owner : undefined;
+      return { items, nextKey };
+    });
 
-      const batch = await baseQuery.where(where);
-      if (batch.length === 0) return;
-
+    for await (const batch of allProviders) {
       for (const row of batch) yield row;
-
-      if (batch.length < batchSize) return;
-      cursor = batch[batch.length - 1].owner;
     }
   }
 
@@ -81,6 +79,7 @@ export class ProviderInventoryRepository {
         totalAvailableMemory: row.totalAvailableMemory,
         totalAvailableGpu: row.totalAvailableGpu,
         totalAvailableEph: row.totalAvailableEph,
+        totalAvailableLeasedIp: row.totalAvailableLeasedIp,
         totalAvailablePersistent: row.totalAvailablePersistent,
         maxNodeFreeCpu: row.maxNodeFreeCpu,
         maxNodeFreeMemory: row.maxNodeFreeMemory,

@@ -1,7 +1,7 @@
 import type {
-  Cluster,
   CPUInfo,
   GPUInfo,
+  Inventory,
   Node as SdkNode,
   ResourcePair as SdkResourcePair,
   Storage as SdkStorage
@@ -102,7 +102,9 @@ function mapNode(node: SdkNode): NodeState {
   };
 }
 
-function mapClusterStorage(storage: SdkStorage[]): ClusterState["storage"] {
+function mapClusterStorage(storage: SdkStorage[] | undefined): ClusterState["storage"] {
+  if (!storage) return;
+
   const result: Exclude<ClusterState["storage"], undefined> = Object.create(null);
   for (const pool of storage) {
     const cls = pool.info?.class ?? "";
@@ -111,9 +113,10 @@ function mapClusterStorage(storage: SdkStorage[]): ClusterState["storage"] {
   return result;
 }
 
-export function mapClusterToStreamStatus(cluster: Cluster): ClusterState {
+export function mapInventoryToClusterState(inventory: Inventory): ClusterState {
   return {
-    nodes: cluster.nodes.map(mapNode),
-    storage: mapClusterStorage(cluster.storage)
+    nodes: inventory.cluster?.nodes.map(mapNode),
+    storage: mapClusterStorage(inventory.cluster?.storage),
+    leasedIp: pairFromSdk(inventory.leasedIp)
   };
 }

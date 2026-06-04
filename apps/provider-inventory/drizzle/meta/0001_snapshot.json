@@ -1,6 +1,6 @@
 {
-  "id": "00000000-0000-0000-0000-000000000000",
-  "prevId": "",
+  "id": "b5bc1ea9-e4f7-46f1-8cb8-43cb58b9ba51",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -70,6 +70,13 @@
         },
         "total_available_persistent": {
           "name": "total_available_persistent",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "total_available_leased_ip": {
+          "name": "total_available_leased_ip",
           "type": "bigint",
           "primaryKey": false,
           "notNull": true,
@@ -167,6 +174,10 @@
   },
   "enums": {},
   "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},
