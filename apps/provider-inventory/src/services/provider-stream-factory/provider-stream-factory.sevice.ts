@@ -3,7 +3,7 @@ import { inject, singleton } from "tsyringe";
 
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
-import { mapClusterToStreamStatus } from "@src/services/provider-stream-factory/stream-status-mapper";
+import { mapInventoryToClusterState } from "@src/services/provider-stream-factory/stream-status-mapper";
 import { ChainProvider } from "@src/types/chain-provider";
 import type { ClusterState } from "@src/types/inventory";
 
@@ -36,7 +36,7 @@ export class ProviderStreamFactory {
     this.#logger.debug({ event: "STREAM_OPENED", owner: provider.owner, msSinceCreate: Date.now() - openedAt });
 
     for await (const status of stream) {
-      const inventory = status.cluster?.inventory?.cluster;
+      const inventory = status.cluster?.inventory;
       this.#logger.debug({
         event: "STREAM_RAW_ENVELOPE",
         owner: provider.owner,
@@ -44,7 +44,7 @@ export class ProviderStreamFactory {
         hasInventoryCluster: !!inventory
       });
       if (inventory) {
-        yield mapClusterToStreamStatus(inventory);
+        yield mapInventoryToClusterState(inventory);
       }
     }
   }

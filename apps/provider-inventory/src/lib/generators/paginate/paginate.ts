@@ -1,6 +1,6 @@
-export interface Page<T> {
+export interface Page<T, TKey extends string | Uint8Array = string> {
   items: T[];
-  nextKey?: Uint8Array;
+  nextKey?: TKey;
 }
 
 /**
@@ -13,8 +13,11 @@ export interface Page<T> {
  * Yielding page-by-page keeps only a single page in memory at once instead of accumulating the
  * full result set up front.
  */
-export async function* paginate<T>(fetchPage: (key: Uint8Array | undefined) => Promise<Page<T>>, options: { signal?: AbortSignal } = {}): AsyncGenerator<T[]> {
-  let nextKey: Uint8Array | undefined = undefined;
+export async function* paginate<T, TKey extends string | Uint8Array = Uint8Array>(
+  fetchPage: (key: TKey | undefined) => Promise<Page<T, TKey>>,
+  options: { signal?: AbortSignal } = {}
+): AsyncGenerator<T[]> {
+  let nextKey: TKey | undefined = undefined;
   while (!options.signal?.aborted) {
     const page = await fetchPage(nextKey);
     yield page.items;

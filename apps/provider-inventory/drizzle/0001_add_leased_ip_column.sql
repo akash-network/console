@@ -1,0 +1,1 @@
+ALTER TABLE "provider_inventory" ADD COLUMN "total_available_leased_ip" bigint DEFAULT 0 NOT NULL;

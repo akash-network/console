@@ -13,14 +13,33 @@ export const providerInventory = pgTable(
 
     inventory: jsonbBigint("inventory").notNull().default({}),
 
-    totalAvailableCpu: bigint("total_available_cpu", { mode: "bigint" }).notNull().default(BigInt(0)),
-    totalAvailableMemory: bigint("total_available_memory", { mode: "bigint" }).notNull().default(BigInt(0)),
-    totalAvailableGpu: bigint("total_available_gpu", { mode: "bigint" }).notNull().default(BigInt(0)),
-    totalAvailableEph: bigint("total_available_eph", { mode: "bigint" }).notNull().default(BigInt(0)),
-    totalAvailablePersistent: bigint("total_available_persistent", { mode: "bigint" }).notNull().default(BigInt(0)),
-    maxNodeFreeCpu: bigint("max_node_free_cpu", { mode: "bigint" }).notNull().default(BigInt(0)),
-    maxNodeFreeMemory: bigint("max_node_free_memory", { mode: "bigint" }).notNull().default(BigInt(0)),
-    maxNodeFreeGpu: bigint("max_node_free_gpu", { mode: "bigint" }).notNull().default(BigInt(0)),
+    totalAvailableCpu: bigint("total_available_cpu", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    totalAvailableMemory: bigint("total_available_memory", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    totalAvailableGpu: bigint("total_available_gpu", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    totalAvailableEph: bigint("total_available_eph", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    totalAvailablePersistent: bigint("total_available_persistent", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    totalAvailableLeasedIp: bigint("total_available_leased_ip", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    maxNodeFreeCpu: bigint("max_node_free_cpu", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    maxNodeFreeMemory: bigint("max_node_free_memory", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    maxNodeFreeGpu: bigint("max_node_free_gpu", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
 
     gpuModels: text("gpu_models").array().notNull().default([]),
     storageClasses: text("storage_classes").array().notNull().default([]),

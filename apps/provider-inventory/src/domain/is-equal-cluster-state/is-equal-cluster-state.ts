@@ -1,8 +1,10 @@
 import type { ClusterState, CpuInfo, GpuInfo, NodeState, RawPair } from "@src/types/inventory";
 
+const EMPTY_PAIR: RawPair = { allocatable: 0n, allocated: 0n };
+
 export function isEqualClusterState(a: ClusterState, b: ClusterState): boolean {
   if (a === b) return true;
-  return clusterStorageEqual(a.storage, b.storage) && nodesEqual(a.nodes, b.nodes);
+  return clusterStorageEqual(a.storage, b.storage) && nodesEqual(a.nodes, b.nodes) && pairEqual(a.leasedIp ?? EMPTY_PAIR, b.leasedIp ?? EMPTY_PAIR);
 }
 
 function nodesEqual(a: readonly NodeState[] | undefined, b: readonly NodeState[] | undefined): boolean {

@@ -14,6 +14,7 @@ describe(mapToStoredClusterState.name, () => {
       totalAvailableGpu: 0n,
       totalAvailableEph: 0n,
       totalAvailablePersistent: 0n,
+      totalAvailableLeasedIp: 0n,
       maxNodeFreeCpu: 0n,
       maxNodeFreeMemory: 0n,
       maxNodeFreeGpu: 0n,
@@ -45,7 +46,8 @@ describe(mapToStoredClusterState.name, () => {
             storageClasses: ["beta2"]
           })
         ],
-        storage: { beta2: { class: "beta2", quantity: pair(500_000_000_000n) } }
+        storage: { beta2: { class: "beta2", quantity: pair(500_000_000_000n) } },
+        leasedIp: pair(10n)
       })
     );
 
@@ -54,6 +56,7 @@ describe(mapToStoredClusterState.name, () => {
     expect(result.totalAvailableGpu).toBe(2n);
     expect(result.totalAvailableEph).toBe(100_000_000_000n);
     expect(result.totalAvailablePersistent).toBe(500_000_000_000n);
+    expect(result.totalAvailableLeasedIp).toBe(10n);
     expect(result.maxNodeFreeCpu).toBe(4000n);
     expect(result.maxNodeFreeMemory).toBe(8_000_000_000n);
     expect(result.maxNodeFreeGpu).toBe(2n);
@@ -196,6 +199,7 @@ function buildNode(overrides?: Partial<NodeState>): NodeState {
 
 function buildCluster(overrides?: Partial<ClusterState>): ClusterState {
   return {
+    ...overrides,
     nodes: overrides?.nodes ?? [],
     storage: overrides?.storage ?? Object.create(null)
   };

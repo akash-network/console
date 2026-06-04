@@ -7,6 +7,7 @@ export function mapToStoredClusterState(cluster: ClusterState): StoredClusterSta
   let totalAvailableGpu = 0n;
   let totalAvailableEph = 0n;
   let totalAvailablePersistent = 0n;
+  let totalAvailableLeasedIp = 0n;
   let maxNodeFreeCpu = 0n;
   let maxNodeFreeMemory = 0n;
   let maxNodeFreeGpu = 0n;
@@ -52,6 +53,10 @@ export function mapToStoredClusterState(cluster: ClusterState): StoredClusterSta
     }
   }
 
+  if (cluster.leasedIp) {
+    totalAvailableLeasedIp += availableCapacity(cluster.leasedIp);
+  }
+
   return {
     cluster,
     totalAvailableCpu,
@@ -59,6 +64,7 @@ export function mapToStoredClusterState(cluster: ClusterState): StoredClusterSta
     totalAvailableGpu,
     totalAvailableEph,
     totalAvailablePersistent,
+    totalAvailableLeasedIp,
     maxNodeFreeCpu,
     maxNodeFreeMemory,
     maxNodeFreeGpu,
@@ -73,6 +79,7 @@ export interface StoredClusterState {
   totalAvailableGpu: bigint;
   totalAvailableEph: bigint;
   totalAvailablePersistent: bigint;
+  totalAvailableLeasedIp: bigint;
   maxNodeFreeCpu: bigint;
   maxNodeFreeMemory: bigint;
   maxNodeFreeGpu: bigint;
