@@ -3,7 +3,7 @@ import { container } from "tsyringe";
 import { HealthzController } from "@src/controllers/healthz/healthz.controller";
 import { HealthzResponseSchema } from "@src/http-schemas/healthz.schema";
 import { createRoute } from "@src/lib/create-route/create-route";
-import { OpenApiHonoHandler } from "@src/services/open-api-hono-handler/open-api-hono-handler";
+import { OpenApiHonoHandler } from "@src/lib/open-api-hono-handler/open-api-hono-handler";
 
 export const healthzRouter = new OpenApiHonoHandler();
 

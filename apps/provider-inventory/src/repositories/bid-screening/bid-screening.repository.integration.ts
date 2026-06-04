@@ -5,12 +5,12 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { container } from "tsyringe";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { parseGPUAttributes } from "@src/lib/gpu-attribute-parser/gpu-attribute-parser";
-import type { GroupSpecJSON } from "@src/lib/groupspec-mapper/groupspec-mapper";
-import { parseStorageAttributes } from "@src/lib/storage-attribute-parser/storage-attribute-parser";
+import { parseGPUAttributes } from "@src/mappers/gpu-attribute-parser/gpu-attribute-parser";
+import type { GroupSpecJSON } from "@src/mappers/groupspec-mapper/groupspec-mapper";
+import { parseStorageAttributes } from "@src/mappers/storage-attribute-parser/storage-attribute-parser";
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
-import type { RequestedResourceUnit, ResourceAttribute } from "@src/types/inventory.types";
+import type { RequestedResourceUnit, ResourceAttribute } from "@src/types/inventory";
 import { AUDITOR, BidScreeningRepository } from "./bid-screening.repository";
 
 describe(BidScreeningRepository.name, () => {

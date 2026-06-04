@@ -11,7 +11,7 @@ import { DiscoverySchedulerService } from "@src/services/discovery-scheduler/dis
 import { ProviderStreamFactory } from "@src/services/provider-stream-factory/provider-stream-factory.sevice";
 import { StreamLifecycleManagerService } from "@src/services/stream-lifecycle-manager/stream-lifecycle-manager.service";
 import type { ChainProvider } from "@src/types/chain-provider";
-import type { ClusterState, NodeState } from "@src/types/inventory.types";
+import type { ClusterState, NodeState } from "@src/types/inventory";
 import { testDb } from "../setup-functional-tests";
 
 describe("DiscoveryScheduler pipeline", () => {

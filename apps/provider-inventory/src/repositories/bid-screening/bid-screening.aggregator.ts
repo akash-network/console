@@ -1,6 +1,6 @@
-import type { ParsedGPUAttributes } from "@src/lib/gpu-attribute-parser/gpu-attribute-parser";
-import type { GroupSpecJSON } from "@src/lib/groupspec-mapper/groupspec-mapper";
-import type { RequestedResourceUnit, RequestedStorage } from "@src/types/inventory.types";
+import type { ParsedGPUAttributes } from "@src/mappers/gpu-attribute-parser/gpu-attribute-parser";
+import type { GroupSpecJSON } from "@src/mappers/groupspec-mapper/groupspec-mapper";
+import type { RequestedResourceUnit, RequestedStorage } from "@src/types/inventory";
 
 interface UnitFilters {
   gpuTokens: string[];

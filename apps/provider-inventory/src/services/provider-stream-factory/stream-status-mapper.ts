@@ -7,7 +7,7 @@ import type {
   Storage as SdkStorage
 } from "@akashnetwork/chain-sdk/private-types/provider.akash.v1";
 
-import type { ClusterState, CpuInfo, GpuInfo, NodeState, RawPair } from "@src/types/inventory.types";
+import type { ClusterState, CpuInfo, GpuInfo, NodeState, RawPair } from "@src/types/inventory";
 
 interface Quantity {
   string?: string | undefined;

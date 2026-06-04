@@ -6,17 +6,15 @@ import Dataloader from "dataloader";
 import once from "lodash/once";
 import { inject, singleton } from "tsyringe";
 
+import { isEqualClusterState } from "@src/domain/is-equal-cluster-state/is-equal-cluster-state";
 import { throttleLatest } from "@src/lib/generators/throttle-latest/throttle-latest";
-import { projectRow } from "@src/lib/project-row/project-row";
-import { projectedRowsEqual } from "@src/lib/projected-row-equals/projected-row-equals";
 import type { EnvConfig } from "@src/providers/app-config.provider";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
 import { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
 import type { ChainProvider } from "@src/types/chain-provider";
-import type { ProjectedRow } from "@src/types/inventory";
-import type { ClusterState } from "@src/types/inventory.types";
+import type { ClusterState } from "@src/types/inventory";
 import { ProviderStreamFactory } from "../provider-stream-factory/provider-stream-factory.sevice";
 
 @singleton()
@@ -32,7 +30,7 @@ export class StreamLifecycleManagerService {
       hostUri: string;
     }
   >();
-  readonly #lastInventoryPerProvider = new Map<string, ProjectedRow>();
+  readonly #lastInventoryPerProvider = new Map<string, ClusterState>();
   readonly #onlineStatePerProvider = new Map<string, boolean>();
   readonly #retryStreamPolicy: RetryPolicy;
   readonly #offlineDataloader: Dataloader<string, null>;
@@ -204,22 +202,21 @@ export class StreamLifecycleManagerService {
     }
   }
 
-  async #applyMessage(provider: ChainProvider, message: ClusterState): Promise<void> {
-    const row = projectRow(message);
+  async #applyMessage(provider: ChainProvider, cluster: ClusterState): Promise<void> {
     const cached = this.#lastInventoryPerProvider.get(provider.owner);
 
     if (!this.#onlineStatePerProvider.get(provider.owner)) {
       this.#onlineStatePerProvider.set(provider.owner, true);
     }
 
-    if (cached && projectedRowsEqual(cached, row)) {
+    if (cached && isEqualClusterState(cached, cluster)) {
       this.#logger.debug({ event: "STREAM_MESSAGE_SKIPPED_IDENTICAL", owner: provider.owner });
       return;
     }
 
     try {
-      await this.#writer.updateInventory(provider, row);
-      this.#lastInventoryPerProvider.set(provider.owner, row);
+      await this.#writer.updateInventory(provider, cluster);
+      this.#lastInventoryPerProvider.set(provider.owner, cluster);
     } catch (error) {
       this.#logger.error({ event: "STREAM_PROVIDER_WRITE_ERROR", owner: provider.owner, error });
     }

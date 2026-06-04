@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
 import type { ChainProvider } from "@src/types/chain-provider";
-import type { ProjectedRow } from "@src/types/inventory";
+import type { ClusterState } from "@src/types/inventory";
 import { ProviderInventoryRepository } from "./provider-inventory.repository";
 
 describe(ProviderInventoryRepository.name, () => {
@@ -154,8 +154,8 @@ describe(ProviderInventoryRepository.name, () => {
       const { repository, db } = setup();
       await seed(db, { owner: "akash1a", isOnline: false, isOnlineSince: null });
 
-      await repository.updateInventory(createProvider({ owner: "akash1a" }), createProjectedRow({ cpu: 1000n }));
-      await repository.updateInventory(createProvider({ owner: "akash1loser" }), createProjectedRow({ cpu: 1000n }));
+      await repository.updateInventory(createProvider({ owner: "akash1a" }), createCluster({ cpu: 1000n }));
+      await repository.updateInventory(createProvider({ owner: "akash1loser" }), createCluster({ cpu: 1000n }));
 
       const rows = await db.select().from(providerInventory);
       expect(rows).toHaveLength(1);
@@ -167,7 +167,7 @@ describe(ProviderInventoryRepository.name, () => {
       const { repository, db } = setup();
       await seed(db, { owner: "akash1a", isOnline: false, isOnlineSince: null });
 
-      await repository.updateInventory(createProvider({ owner: "akash1a" }), createProjectedRow({ cpu: 8000n }));
+      await repository.updateInventory(createProvider({ owner: "akash1a" }), createCluster({ cpu: 8000n }));
 
       const [stored] = await db.select().from(providerInventory).where(eq(providerInventory.owner, "akash1a"));
       expect(stored.inventory).toMatchObject({
@@ -186,7 +186,7 @@ describe(ProviderInventoryRepository.name, () => {
       const firstSeenAt = new Date("2026-01-01T00:00:00Z");
       await seed(db, { owner: "akash1a", isOnlineSince: firstSeenAt });
 
-      await repository.updateInventory(createProvider({ owner: "akash1a" }), createProjectedRow({ cpu: 1000n }));
+      await repository.updateInventory(createProvider({ owner: "akash1a" }), createCluster({ cpu: 1000n }));
 
       const [row] = await db.select().from(providerInventory).where(eq(providerInventory.owner, "akash1a"));
       expect(row.isOnlineSince?.toISOString()).toBe(firstSeenAt.toISOString());
@@ -239,7 +239,7 @@ function createProvider(overrides?: Partial<ChainProvider>): ChainProvider {
   };
 }
 
-function createProjectedRow(overrides?: { cpu?: bigint }): ProjectedRow {
+function createCluster(overrides?: { cpu?: bigint }): ClusterState {
   const node = {
     name: "node-1",
     cpu: { allocatable: overrides?.cpu ?? 0n, allocated: 0n },
@@ -249,17 +249,5 @@ function createProjectedRow(overrides?: { cpu?: bigint }): ProjectedRow {
     storageClasses: [],
     cpus: []
   };
-  return {
-    cluster: { nodes: [node], storage: Object.create(null) },
-    totalAvailableCpu: overrides?.cpu ?? 0n,
-    totalAvailableMemory: 0n,
-    totalAvailableGpu: 0n,
-    totalAvailableEph: 0n,
-    totalAvailablePersistent: 0n,
-    maxNodeFreeCpu: 0n,
-    maxNodeFreeMemory: 0n,
-    maxNodeFreeGpu: 0n,
-    gpuModels: [],
-    storageClasses: []
-  };
+  return { nodes: [node], storage: Object.create(null) };
 }

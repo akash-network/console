@@ -9,7 +9,8 @@ import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
 import type { ChainProvider } from "@src/types/chain-provider";
-import type { ProjectedRow } from "@src/types/inventory";
+import { ClusterState } from "@src/types/inventory";
+import { mapToStoredClusterState } from "./stored-cluster-state-mapper/stored-cluster-state-mapper";
 
 export type ProviderInventory = InferSelectModel<typeof providerInventory>;
 
@@ -70,7 +71,8 @@ export class ProviderInventoryRepository {
     this.#logger.info({ event: "PROVIDERS_MARKED_OFFLINE", owners });
   }
 
-  async updateInventory(provider: ChainProvider, row: ProjectedRow): Promise<void> {
+  async updateInventory(provider: ChainProvider, cluster: ClusterState): Promise<void> {
+    const row = mapToStoredClusterState(cluster);
     await this.#db
       .update(providerInventory)
       .set({
