@@ -206,6 +206,35 @@ describe(PaymentPollingProvider.name, () => {
     consoleSpy.mockRestore();
   });
 
+  it("signals 'Payment successful!' on trial flip and suppresses the later timeout warning", async () => {
+    const { enqueueSnackbar, setIsTrialing, advancePollCycle, cleanup } = setup({
+      isTrialing: true,
+      balance: { totalUsd: 100 },
+      isWalletBalanceLoading: false
+    });
+
+    await act(async () => {
+      screen.getByTestId("start-polling").click();
+    });
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarWithTitle("Processing payment..."), expect.anything());
+
+    await setIsTrialing(false);
+    await advancePollCycle();
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarWithTitle("Payment successful!"), expect.objectContaining({ variant: "success" }));
+
+    await advancePollCycle(30000);
+
+    expect(enqueueSnackbar).not.toHaveBeenCalledWith(snackbarWithTitle("Payment processing timeout"), expect.anything());
+
+    cleanup();
+  });
+
+  function snackbarWithTitle(title: string) {
+    return expect.objectContaining({ props: expect.objectContaining({ title }) });
+  }
+
   function setup(input: { isTrialing: boolean; balance: { totalUsd: number } | null; isWalletBalanceLoading: boolean }) {
     vi.useFakeTimers();
 
@@ -214,33 +243,33 @@ describe(PaymentPollingProvider.name, () => {
     const analyticsService = mock<AnalyticsService>();
     const mockEnqueueSnackbar = vi.fn();
     const mockCloseSnackbar = vi.fn();
-    const wallet = buildWallet({ isTrialing: input.isTrialing });
-    const managedWallet = buildManagedWallet({ isTrialing: input.isTrialing });
-    const walletBalance = input.balance ? buildWalletBalance(input.balance) : null;
+
+    const state = {
+      isTrialing: input.isTrialing,
+      balance: input.balance
+    };
 
     const mockSnackbar = ({ title, subTitle, iconVariant, showLoading }: { title: string; subTitle: string; iconVariant?: string; showLoading?: boolean }) => (
       <div data-testid="snackbar" data-title={title} data-subtitle={subTitle} data-icon-variant={iconVariant} data-show-loading={showLoading} />
     );
 
-    const mockManagedWallet = {
-      ...managedWallet,
-      username: "Managed Wallet" as const,
-      isWalletConnected: true,
-      isWalletLoaded: true,
-      selected: true,
-      creditAmount: 0
-    };
-
     const dependencies = {
       ...DEPENDENCIES,
-      useWallet: vi.fn(() => wallet),
+      useWallet: vi.fn(() => buildWallet({ isTrialing: state.isTrialing })),
       useWalletBalance: vi.fn(() => ({
-        balance: walletBalance,
+        balance: state.balance ? buildWalletBalance(state.balance) : null,
         refetch: refetchBalance,
         isLoading: input.isWalletBalanceLoading
       })),
       useManagedWallet: vi.fn(() => ({
-        wallet: mockManagedWallet,
+        wallet: {
+          ...buildManagedWallet({ isTrialing: state.isTrialing }),
+          username: "Managed Wallet" as const,
+          isWalletConnected: true,
+          isWalletLoaded: true,
+          selected: true,
+          creditAmount: 0
+        },
         isLoading: false,
         isFetching: false,
         createError: null,
@@ -272,11 +301,12 @@ describe(PaymentPollingProvider.name, () => {
       );
     };
 
-    const { rerender, unmount } = render(
-      <PaymentPollingProvider dependencies={dependencies}>
+    const buildUi = () => (
+      <PaymentPollingProvider dependencies={{ ...dependencies }}>
         <TestComponent />
       </PaymentPollingProvider>
     );
+    const { rerender, unmount } = render(buildUi());
 
     return {
       refetchBalance,
@@ -286,6 +316,17 @@ describe(PaymentPollingProvider.name, () => {
       closeSnackbar: mockCloseSnackbar,
       rerender,
       unmount,
+      setIsTrialing: async (isTrialing: boolean) => {
+        state.isTrialing = isTrialing;
+        await act(async () => {
+          rerender(buildUi());
+        });
+      },
+      advancePollCycle: async (time: number = 2000) => {
+        await act(async () => {
+          vi.advanceTimersByTime(time);
+        });
+      },
       cleanup: () => {
         vi.useRealTimers();
       }

@@ -58,6 +58,7 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
   const wasTrialingRef = useRef<boolean>(wasTrialing);
   const initialTrialingRef = useRef<boolean>(wasTrialing);
   const loadingSnackbarKeyRef = useRef<string | number | null>(null);
+  const hasSignaledSuccessRef = useRef<boolean>(false);
 
   const closeLoadingSnackbar = useCallback(() => {
     if (loadingSnackbarKeyRef.current) {
@@ -85,9 +86,11 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
 
     if (attemptCountRef.current > MAX_ATTEMPTS) {
       stopPolling();
-      enqueueSnackbar(<d.Snackbar title="Payment processing timeout" subTitle="Please refresh the page to check your balance" iconVariant="warning" />, {
-        variant: "warning"
-      });
+      if (!hasSignaledSuccessRef.current) {
+        enqueueSnackbar(<d.Snackbar title="Payment processing timeout" subTitle="Please refresh the page to check your balance" iconVariant="warning" />, {
+          variant: "warning"
+        });
+      }
       return;
     }
 
@@ -104,6 +107,7 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
       const balanceToUse = initialBalance ?? currentBalance?.totalUsd ?? null;
       initialBalanceRef.current = balanceToUse;
       initialTrialingRef.current = wasTrialing;
+      hasSignaledSuccessRef.current = false;
       isPollingRef.current = true;
       attemptCountRef.current = 0;
       setIsPolling(true);
@@ -156,29 +160,31 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
 
   useEffect(
     function checkForPaymentCompletion() {
-      if (!isPolling || !currentBalance || initialBalanceRef.current == null) {
+      if (!isPolling || hasSignaledSuccessRef.current) {
         return;
       }
 
-      const currentTotalBalance = currentBalance.totalUsd;
-      const initialBalanceValue = initialBalanceRef.current;
+      const balanceIncreased = currentBalance != null && initialBalanceRef.current != null && currentBalance.totalUsd > initialBalanceRef.current;
+      const trialFlipped = initialTrialingRef.current && !wasTrialing;
 
-      if (currentTotalBalance > initialBalanceValue) {
-        closeLoadingSnackbar();
-        enqueueSnackbar(<d.Snackbar title="Payment successful!" subTitle="Your balance has been updated" iconVariant="success" />, { variant: "success" });
+      if (!balanceIncreased && !trialFlipped) {
+        return;
+      }
 
-        // Track analytics for trial users after stopping polling
-        if (initialTrialingRef.current) {
-          analyticsService.track("trial_completed", {
-            category: "user",
-            label: "First payment completed"
-          });
-        } else {
-          stopPolling();
-        }
+      hasSignaledSuccessRef.current = true;
+      closeLoadingSnackbar();
+      enqueueSnackbar(<d.Snackbar title="Payment successful!" subTitle="Your balance has been updated" iconVariant="success" />, { variant: "success" });
+
+      if (initialTrialingRef.current) {
+        analyticsService.track("trial_completed", {
+          category: "user",
+          label: "First payment completed"
+        });
+      } else {
+        stopPolling();
       }
     },
-    [isPolling, currentBalance, stopPolling, enqueueSnackbar, analyticsService, d, closeLoadingSnackbar]
+    [isPolling, currentBalance, wasTrialing, stopPolling, enqueueSnackbar, analyticsService, d, closeLoadingSnackbar]
   );
 
   useEffect(
