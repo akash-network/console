@@ -25,7 +25,7 @@ describe(DenomExchangeService.name, () => {
       });
     });
 
-    it("queries the V2 price history over a 24h time window", async () => {
+    it("queries the V2 price history over a window inside the 24h retention", async () => {
       const { service, getPricesV2 } = setup({});
 
       await service.getExchangeRateToUSD("akt");
@@ -41,7 +41,9 @@ describe(DenomExchangeService.name, () => {
         })
       );
       const { startTime, endTime } = getPricesV2.mock.calls[0][0].filters;
-      expect(endTime.getTime() - startTime.getTime()).toBe(24 * 60 * 60 * 1000);
+      const windowMs = endTime.getTime() - startTime.getTime();
+      expect(windowMs).toBe(23 * 60 * 60 * 1000);
+      expect(windowMs).toBeLessThan(24 * 60 * 60 * 1000);
     });
 
     it("returns zero price change when historical price is zero", async () => {

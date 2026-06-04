@@ -69,11 +69,12 @@ export class DenomExchangeService {
 
   async #fetchOracleRateV2(mappedDenom: string) {
     const endTime = new Date();
-    const startTime = subHours(endTime, 24);
+    // V2 prunes oracle state to ~24h; query just inside that window (23h) since a price exactly 24h
+    // back may already be pruned. This figure feeds only the (currently unused) priceChange fields,
+    // so a failure here must not degrade the billing-critical current price — degrade to empty.
+    const startTime = subHours(endTime, 23);
     const [oracleRate, rate24hAgo] = await Promise.all([
       this.#chainSdk.akash.oracle.v2.getAggregatedPrice({ denom: mappedDenom }),
-      // The 24h history feeds only the priceChange fields and is edge-of-retention in V2, so a
-      // failure here must not degrade the (billing-critical) current price — degrade to empty.
       this.#chainSdk.akash.oracle.v2
         .getPrices({
           filters: { assetDenom: mappedDenom, baseDenom: "usd", startTime, endTime },
