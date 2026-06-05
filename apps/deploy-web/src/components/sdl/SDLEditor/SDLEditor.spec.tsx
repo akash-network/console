@@ -33,6 +33,19 @@ describe(SDLEditor.name || "SDLEditor", () => {
     );
   });
 
+  it("renders validation decorations when readonly", () => {
+    const { Editor } = setup({ readonly: true });
+
+    expect(Editor).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({
+          renderValidationDecorations: "on"
+        })
+      }),
+      expect.anything()
+    );
+  });
+
   it("passes readonly as false when readonly prop is false", () => {
     const { Editor } = setup({ readonly: false });
 

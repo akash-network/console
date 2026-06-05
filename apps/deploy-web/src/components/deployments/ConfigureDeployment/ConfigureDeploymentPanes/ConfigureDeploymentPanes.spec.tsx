@@ -1,3 +1,4 @@
+import { createStore, Provider as JotaiStoreProvider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 
 import type { DEPENDENCIES } from "./ConfigureDeploymentPanes";
@@ -53,12 +54,66 @@ describe("ConfigureDeploymentPanes", () => {
     expect(marketplaceRegion).not.toHaveClass("hidden");
   });
 
-  function setup() {
+  it("does not render the SDL preview pane when the flag is disabled", () => {
+    const { SdlPreviewPane } = setup({ isSdlPreviewEnabled: false });
+
+    expect(SdlPreviewPane).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("sdl-preview-pane-mock")).not.toBeInTheDocument();
+  });
+
+  it("renders the preview pane closed with the sdl when the flag is enabled", () => {
+    const { SdlPreviewPane } = setup({ isSdlPreviewEnabled: true, sdl: 'version: "2.0"' });
+
+    expect(SdlPreviewPane).toHaveBeenCalledWith(expect.objectContaining({ isOpen: false, sdl: 'version: "2.0"' }), expect.anything());
+  });
+
+  it("opens the preview pane when it requests opening and closes it back", async () => {
+    const { SdlPreviewPane } = setup({ isSdlPreviewEnabled: true });
+
+    await userEvent.click(screen.getByRole("button", { name: "Open SDL preview mock" }));
+    expect(SdlPreviewPane).toHaveBeenLastCalledWith(expect.objectContaining({ isOpen: true }), expect.anything());
+
+    await userEvent.click(screen.getByRole("button", { name: "Close SDL preview mock" }));
+    expect(SdlPreviewPane).toHaveBeenLastCalledWith(expect.objectContaining({ isOpen: false }), expect.anything());
+  });
+
+  it("restores the open state from a previous session", async () => {
+    const first = setup({ isSdlPreviewEnabled: true });
+    await userEvent.click(screen.getByRole("button", { name: "Open SDL preview mock" }));
+    first.unmount();
+
+    const second = setup({ isSdlPreviewEnabled: true, preserveStorage: true });
+
+    await vi.waitFor(() => {
+      expect(second.SdlPreviewPane).toHaveBeenLastCalledWith(expect.objectContaining({ isOpen: true }), expect.anything());
+    });
+  });
+
+  function setup(input: { isSdlPreviewEnabled?: boolean; sdl?: string; preserveStorage?: boolean } = {}) {
+    const SdlPreviewPane = vi.fn(({ isOpen, onOpen, onClose }: { isOpen: boolean; onOpen: () => void; onClose: () => void }) => (
+      <div data-testid="sdl-preview-pane-mock" data-open={isOpen}>
+        <button type="button" aria-label="Open SDL preview mock" onClick={onOpen} />
+        <button type="button" aria-label="Close SDL preview mock" onClick={onClose} />
+      </div>
+    ));
     const dependencies: typeof DEPENDENCIES = {
       DeploymentPane: vi.fn(() => <div data-testid="deployment-pane-mock" />),
       ConfigurationPane: vi.fn(() => <div data-testid="configuration-pane-mock" />),
-      MarketplacePane: vi.fn(() => <div data-testid="marketplace-pane-mock" />)
+      MarketplacePane: vi.fn(() => <div data-testid="marketplace-pane-mock" />),
+      SdlPreviewPane: SdlPreviewPane as never,
+      useFlag: (() => input.isSdlPreviewEnabled ?? false) as never
     };
-    return render(<ConfigureDeploymentPanes dependencies={dependencies} />);
+
+    if (!input.preserveStorage) {
+      localStorage.clear();
+    }
+
+    const { unmount } = render(
+      <JotaiStoreProvider store={createStore()}>
+        <ConfigureDeploymentPanes sdl={input.sdl ?? ""} dependencies={dependencies} />
+      </JotaiStoreProvider>
+    );
+
+    return { SdlPreviewPane, unmount };
   }
 });

@@ -154,6 +154,7 @@ export const SDLEditor = forwardRef<SdlEditorRefType, Props>(({ onChange, onVali
         ...props.options,
         readOnly: !!props.readonly,
         domReadOnly: !!props.readonly,
+        ...(props.readonly && { renderValidationDecorations: "on" as const }),
         hover: {
           enabled: true,
           ...(props.options?.hover as Record<string, unknown>)
