@@ -191,6 +191,92 @@ describe(DrainingDeploymentRpcService.name, () => {
       expect(result).toHaveLength(1);
       expect(result[0].closedHeight).toBe(input.leases[0].closedHeight);
     });
+
+    it("marks a deployment as terminal when its lease is reclaiming", async () => {
+      const input = {
+        leases: [{ blockRate: 50, state: "reclaiming" }],
+        deployment: {
+          createdHeight: 995000,
+          funds: 40000,
+          transferred: 20000
+        }
+      };
+
+      const { service, owner, dseqs, closureHeight } = setup({
+        inputs: [input]
+      });
+
+      const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].isTerminal).toBe(true);
+    });
+
+    it("does not mark a deployment as terminal when only some of its leases are reclaiming", async () => {
+      const input = {
+        leases: [
+          { blockRate: 30, gseq: 0, state: "reclaiming" },
+          { blockRate: 20, gseq: 1, state: "active" }
+        ],
+        deployment: {
+          createdHeight: 995000,
+          funds: 40000,
+          transferred: 20000
+        }
+      };
+
+      const { service, owner, dseqs, closureHeight } = setup({
+        inputs: [input]
+      });
+
+      const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].isTerminal).toBe(false);
+    });
+
+    it("marks a deployment as terminal when all its leases are reclaiming or closed", async () => {
+      const input = {
+        leases: [
+          { blockRate: 30, gseq: 0, state: "reclaiming" },
+          { blockRate: 20, gseq: 1, state: "closed", closedHeight: 999000 }
+        ],
+        deployment: {
+          createdHeight: 995000,
+          funds: 40000,
+          transferred: 20000
+        }
+      };
+
+      const { service, owner, dseqs, closureHeight } = setup({
+        inputs: [input]
+      });
+
+      const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].isTerminal).toBe(true);
+    });
+
+    it("marks an active deployment as not terminal", async () => {
+      const input = {
+        leases: [{ blockRate: 50, state: "active" }],
+        deployment: {
+          createdHeight: 995000,
+          funds: 40000,
+          transferred: 20000
+        }
+      };
+
+      const { service, owner, dseqs, closureHeight } = setup({
+        inputs: [input]
+      });
+
+      const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].isTerminal).toBe(false);
+    });
   });
 
   function setup({

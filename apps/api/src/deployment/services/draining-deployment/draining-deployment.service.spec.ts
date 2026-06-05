@@ -106,6 +106,60 @@ describe(DrainingDeploymentService.name, () => {
         );
       });
     });
+
+    it("marks terminal (reclaiming) deployments as closed and excludes them from top-up", async () => {
+      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const deploymentSettings = createManyAutoTopUpDeployments(2);
+      const addresses = deploymentSettings.map(s => s.address);
+      const dseqs = deploymentSettings.map(s => Number(s.dseq));
+
+      const activeBatch: DrainingDeploymentOutput[] = [
+        {
+          dseq: dseqs[0],
+          owner: addresses[0],
+          denom: "uakt",
+          blockRate: faker.number.int({ min: 50, max: 100 }),
+          predictedClosedHeight: faker.number.int({ min: 900000, max: 1000000 }),
+          isTerminal: false
+        }
+      ];
+
+      const terminalBatch: DrainingDeploymentOutput[] = [
+        {
+          dseq: dseqs[1],
+          owner: addresses[1],
+          denom: "uakt",
+          blockRate: faker.number.int({ min: 50, max: 100 }),
+          predictedClosedHeight: currentHeight + 1000,
+          isTerminal: true
+        }
+      ];
+
+      jest.spyOn(service, "findLeases").mockResolvedValueOnce(activeBatch).mockResolvedValueOnce(terminalBatch);
+
+      const deploymentSettingsByAddress = groupBy(deploymentSettings, "address");
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+        (async function* () {
+          for (const [address, settings] of Object.entries(deploymentSettingsByAddress)) {
+            yield { address, deploymentSettings: settings };
+          }
+        })()
+      );
+
+      const callback = jest.fn();
+      for await (const result of service.findDrainingDeploymentsByOwner()) {
+        callback(result);
+      }
+
+      expect(deploymentSettingRepository.updateManyById).toHaveBeenCalledWith(expect.arrayContaining([deploymentSettings[1].id]), { closed: true });
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          address: addresses[0],
+          deployments: expect.arrayContaining([expect.objectContaining({ dseq: dseqs[0].toString() })])
+        })
+      );
+    });
   });
 
   describe("findLeases", () => {

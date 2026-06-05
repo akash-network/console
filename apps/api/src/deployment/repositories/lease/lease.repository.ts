@@ -11,6 +11,13 @@ export interface DrainingDeploymentOutput {
   blockRate: number;
   predictedClosedHeight: number;
   closedHeight?: number;
+  /**
+   * True when every lease of the deployment has reached a terminal state (closed or reclaiming).
+   * A reclaiming lease is terminal because a provider-initiated reclamation cannot be cancelled,
+   * so reclamation always proceeds to close. Treated like a closed deployment for auto-top-up.
+   * Only populated by the RPC source; the DB source lacks reclaim state and leaves it undefined.
+   */
+  isTerminal?: boolean;
 }
 
 export interface DatabaseLeaseListParams {

@@ -62,7 +62,8 @@ export class DrainingDeploymentService {
               return acc;
             }
 
-            if (deployment.closedHeight) {
+            // A reclaiming/paused deployment is terminal: stop topping it up, same as an already-closed one.
+            if (deployment.closedHeight || deployment.isTerminal) {
               acc[1].push(deploymentSetting.id);
             } else {
               acc[0].push({

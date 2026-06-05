@@ -5,6 +5,13 @@ import { LoggerService } from "@src/core";
 import { DrainingDeploymentOutput } from "@src/deployment/repositories/lease/lease.repository";
 import { DrainingDeploymentLeaseSource, RpcDeploymentInfo } from "@src/deployment/types/draining-deployment";
 
+/**
+ * REST serializes Lease_State via lease_StateToJSON; reclaiming (=4) maps to "reclaiming".
+ * A reclaiming lease is terminal: a provider-initiated reclamation cannot be cancelled,
+ * so reclamation always proceeds to close. We stop topping such deployments up.
+ */
+const RECLAIMING_LEASE_STATE = "reclaiming";
+
 @singleton()
 export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSource {
   constructor(
@@ -131,12 +138,17 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
       const denom = rpcLease.escrow_payment.state.rate.denom;
       const rateAmount = Number(rpcLease.escrow_payment.state.rate.amount);
       const closedHeight = rpcLease.lease.closed_on && rpcLease.lease.closed_on !== "0" ? Number(rpcLease.lease.closed_on) : undefined;
+      const isLeaseTerminal = !!closedHeight || rpcLease.lease.state === RECLAIMING_LEASE_STATE;
 
       const existing = leaseMap.get(dseq);
       if (existing) {
         existing.blockRate += rateAmount;
+        // A dseq stays active (not closed/terminal) as long as any of its leases is still active.
         if (!closedHeight) {
           existing.closedHeight = undefined;
+        }
+        if (!isLeaseTerminal) {
+          existing.isTerminal = false;
         }
       } else {
         leaseMap.set(dseq, {
@@ -144,7 +156,8 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
           owner,
           denom,
           blockRate: rateAmount,
-          closedHeight
+          closedHeight,
+          isTerminal: isLeaseTerminal
         });
       }
     }
