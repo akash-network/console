@@ -13,29 +13,18 @@ describe("Market Data", () => {
       .get("/cosmos/base/tendermint/v1beta1/blocks/latest")
       .reply(200, { block: { header: { height: "1000000" } } });
 
+    // DenomExchangeService queries oracle V2 first and only falls back to V1 when V2 is unimplemented.
     nock(restApiNodeUrl)
       .persist()
-      .get("/akash/oracle/v1/aggregated_price/akt")
+      .get("/akash/oracle/v2/aggregated_price/akt")
       .query(true)
       .reply(200, { aggregated_price: { median_price: "1.5" }, price_health: { is_healthy: true } });
 
     nock(restApiNodeUrl)
       .persist()
-      .get("/akash/oracle/v1/aggregated_price/usdc")
-      .query(true)
-      .reply(200, { aggregated_price: { median_price: "1.0" }, price_health: { is_healthy: true } });
-
-    nock(restApiNodeUrl)
-      .persist()
-      .get("/akash/oracle/v1/prices")
+      .get("/akash/oracle/v2/prices")
       .query(q => q["filters.asset_denom"] === "akt")
       .reply(200, { prices: [{ state: { price: "1.25" } }] });
-
-    nock(restApiNodeUrl)
-      .persist()
-      .get("/akash/oracle/v1/prices")
-      .query(q => q["filters.asset_denom"] === "usdc")
-      .reply(200, { prices: [{ state: { price: "0.5" } }] });
   });
 
   afterAll(() => {
