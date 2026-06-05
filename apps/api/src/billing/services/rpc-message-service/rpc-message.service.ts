@@ -1,4 +1,5 @@
 import {
+  type DeploymentReclamation,
   DepositAuthorization,
   DepositAuthorization_Scope,
   MsgAccountDeposit,
@@ -37,6 +38,7 @@ export interface DepositDeploymentMsgOptions extends DepositDeploymentMsgOptions
 export interface CreateDeploymentMsgOptions extends DepositDeploymentMsgOptionsBase {
   groups: GroupSpec[];
   hash: Uint8Array;
+  reclamation?: DeploymentReclamation;
 }
 
 export interface CreateLeaseMsgOptions {
@@ -158,7 +160,7 @@ export class RpcMessageService {
     };
   }
 
-  getCreateDeploymentMsg({ owner, dseq, groups, hash, denom, amount }: CreateDeploymentMsgOptions) {
+  getCreateDeploymentMsg({ owner, dseq, groups, hash, denom, amount, reclamation }: CreateDeploymentMsgOptions) {
     return {
       typeUrl: `/${MsgCreateDeployment.$type}`,
       value: MsgCreateDeployment.fromPartial({
@@ -174,7 +176,8 @@ export class RpcMessageService {
             amount: amount.toString()
           },
           sources: [Source.grant]
-        }
+        },
+        reclamation
       })
     };
   }

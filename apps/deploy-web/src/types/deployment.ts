@@ -1,3 +1,4 @@
+import type { DeploymentReclamation } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import type { Bid, DeploymentResource } from "@akashnetwork/http-sdk";
 
@@ -337,4 +338,5 @@ export interface NewDeploymentData {
   leaseId: unknown[];
   deposit: DepositParams;
   hash: Uint8Array;
+  reclamation?: DeploymentReclamation;
 }

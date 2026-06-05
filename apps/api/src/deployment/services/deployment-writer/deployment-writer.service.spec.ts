@@ -1,4 +1,4 @@
-import { MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { DeploymentReclamation, MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
@@ -98,6 +98,24 @@ describe(DeploymentWriterService.name, () => {
       } as any);
 
       await expect(service.create({ userId: "user-1", sdl: "bad-sdl", deposit: 5 })).rejects.toThrow();
+    });
+
+    it("forwards the reclamation block to getCreateDeploymentMsg when the SDL declares it", async () => {
+      const { service, sdlService, rpcMessageService } = setup();
+      const reclamation = DeploymentReclamation.fromPartial({ minWindow: { seconds: 86400 } });
+      sdlService.generateManifest.mockReturnValue({ ok: true, value: { ...manifestValue, reclamation } } as any);
+
+      await service.create({ userId: "user-1", sdl: "sdl-with-reclamation", deposit: 5 });
+
+      expect(rpcMessageService.getCreateDeploymentMsg).toHaveBeenCalledWith(expect.objectContaining({ reclamation }));
+    });
+
+    it("passes reclamation as undefined for an SDL without a reclamation block", async () => {
+      const { service, rpcMessageService } = setup();
+
+      await service.create({ userId: "user-1", sdl: "sdl-2.0", deposit: 5 });
+
+      expect(rpcMessageService.getCreateDeploymentMsg.mock.calls[0][0].reclamation).toBeUndefined();
     });
   });
 
