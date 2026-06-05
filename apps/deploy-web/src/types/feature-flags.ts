@@ -10,4 +10,5 @@ export type FeatureFlag =
   | "self_custody"
   | "console_auth_redesign"
   | "console_onboarding_redesign"
-  | "bid_screening";
+  | "bid_screening"
+  | "ui_sdl_preview_panel";
