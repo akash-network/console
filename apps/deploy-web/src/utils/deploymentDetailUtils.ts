@@ -90,6 +90,16 @@ export function leaseToDto(lease: RpcLease, deployment: Pick<RpcDeployment, "gro
             .reduce((a, b) => a + b, 0)
         )
       : undefined,
-    group
+    group,
+    reason: lease.lease.reason,
+    closedOn: lease.lease.closed_on,
+    reclamation: lease.lease.reclamation
+      ? {
+          deadline: lease.lease.reclamation.deadline ? parseInt(lease.lease.reclamation.deadline) : undefined,
+          reason: lease.lease.reclamation.reason,
+          startedAt: lease.lease.reclamation.started_at,
+          window: lease.lease.reclamation.window
+        }
+      : undefined
   } as LeaseDto;
 }

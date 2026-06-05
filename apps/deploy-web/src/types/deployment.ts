@@ -286,6 +286,14 @@ export interface LeaseDto {
   memoryAmount: number;
   storageAmount: number;
   group: DeploymentGroup;
+  reason?: string;
+  closedOn?: string;
+  reclamation?: {
+    deadline?: number;
+    reason?: string;
+    startedAt?: string;
+    window?: string;
+  };
 }
 
 export interface BidDto {

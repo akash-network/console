@@ -24,11 +24,13 @@ import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { extractRepositoryUrl } from "@src/services/remote-deploy/env-var-manager.service";
 import { RouteStep } from "@src/types/route-steps.type";
+import { isLeaseLive } from "@src/utils/reclamationUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
 import { DeploymentDetailTopBar } from "./DeploymentDetailTopBar/DeploymentDetailTopBar";
 import { ManifestUpdate } from "./ManifestUpdate/ManifestUpdate";
+import { ReclamationBanner } from "./ReclamationBanner/ReclamationBanner";
 import { DeploymentLeaseShell } from "./DeploymentLeaseShell";
 import { DeploymentLogs } from "./DeploymentLogs";
 import { DeploymentSubHeader } from "./DeploymentSubHeader";
@@ -70,8 +72,9 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   });
   useEffect(() => {
     if (leases) {
-      // Redirect to select bids if has no lease
-      if (deployment?.state === "active" && leases.length === 0) {
+      // Redirect to select bids if has no lease — but not when a group is paused (reclaimed): the
+      // deployment is still active with no live lease, and must remain viewable, not bounce to bid selection.
+      if (deployment?.state === "active" && leases.length === 0 && !deployment.groups?.some(g => g.state === "paused")) {
         router.replace(UrlService.newDeployment({ dseq, step: RouteStep.createLeases }));
       }
 
@@ -99,7 +102,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
     }
   }, [deployment, dseq, getLeases, getProviders, address, deploymentLocalStorage]);
 
-  const isActive = deployment?.state === "active" && leases?.some(x => x.state === "active");
+  const isActive = deployment?.state === "active" && leases?.some(isLeaseLive);
 
   const tabs = useMemo(() => {
     const tabs: { label: string; value: Tab; badged?: boolean }[] = [
@@ -237,6 +240,8 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
 
       {deployment && isLeasesLoaded && (
         <>
+          <ReclamationBanner leases={leases} dseq={dseq} />
+
           <DeploymentSubHeader deployment={deployment} leases={leases} />
 
           <Tabs value={activeTab} onValueChange={value => changeTab(value as Tab)}>

@@ -29,10 +29,12 @@ import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { deploymentData } from "@src/utils/deploymentData";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
+import { isLeaseLive, isProviderReclaimed } from "@src/utils/reclamationUtils";
 import { sshVmImages } from "@src/utils/sdl/data";
 import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar/ManifestErrorSnackbar";
 import { ProviderName } from "../shared/ProviderName";
+import { ReclamationCard } from "./ReclamationCard/ReclamationCard";
 
 type Props = {
   index: number;
@@ -54,7 +56,9 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
     const { providerProxy } = useServices();
     const provider = providers?.find(p => p.owner === lease?.provider);
     const providerCredentials = useProviderCredentials();
-    const isLeaseActive = lease.state === "active";
+    // A reclaiming lease is still running (grace period), so it keeps workload tools live alongside active leases.
+    const isLeaseActive = isLeaseLive(lease);
+    const isReclaimed = isProviderReclaimed(lease);
     const [isServicesAvailable, setIsServicesAvailable] = useState(false);
     const { favoriteProviders, updateFavoriteProviders } = useLocalNotes();
     const isFavorite = favoriteProviders.some(x => lease?.provider === x);
@@ -190,6 +194,8 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
           </div>
         </CardHeader>
         <CardContent className="pt-6">
+          {isReclaimed && <ReclamationCard lease={lease} dseq={dseq} onClosed={loadDeploymentDetail} />}
+
           <div className="space-y-4">
             <div>
               <SpecDetail

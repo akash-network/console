@@ -16,6 +16,7 @@ import {
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
 import formatDistanceToNow from "date-fns/formatDistanceToNow";
+import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 import isValid from "date-fns/isValid";
 import { CalendarArrowDown, Coins, Edit, MoreHoriz, NavArrowRight, Plus, Upload, WarningTriangle, XmarkSquare } from "iconoir-react";
 import { keyBy } from "lodash";
@@ -30,10 +31,11 @@ import { useProviderCredentials } from "@src/hooks/useProviderCredentials/usePro
 import { useRealTimeLeft } from "@src/hooks/useRealTimeLeft";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { useAllLeases, useLeaseStatus } from "@src/queries/useLeaseQuery";
-import type { NamedDeploymentDto } from "@src/types/deployment";
+import type { LeaseDto, NamedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth, getTimeLeft } from "@src/utils/priceUtils";
+import { getLeaseCloseReasonLabel, getReclamationDeadline, isLeaseLive, isProviderReclaimed, isReclaiming } from "@src/utils/reclamationUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import { TrialDeploymentBadge } from "../shared";
@@ -68,10 +70,15 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const isActive = deployment.state === "active";
   const { data: leases, isLoading: isLoadingLeases } = useAllLeases(address, { enabled: !!deployment && isActive });
   const filteredLeases = leases?.filter(l => l.dseq === deployment.dseq);
-  const hasLeases = leases && !!leases.length && leases.some(l => l.dseq === deployment.dseq && l.state === "active");
-  const hasActiveLeases = hasLeases && filteredLeases?.some(l => l.state === "active");
-  const isAllLeasesClosed = hasLeases && !filteredLeases?.some(l => l.state === "active");
-  const deploymentCost = hasLeases ? filteredLeases?.reduce((prev, current) => prev + parseFloat(current.price.amount), 0) : 0;
+  // A reclaiming lease is still running (grace period), so it counts as live for cost/escrow metrics.
+  const liveLeases = filteredLeases?.filter(isLeaseLive);
+  const hasActiveLeases = !!liveLeases?.length;
+  const reclaimingLease = filteredLeases?.find(isReclaiming);
+  const closedLease = filteredLeases?.find(l => !isLeaseLive(l));
+  const isAllLeasesClosed = !!filteredLeases?.length && !hasActiveLeases;
+  const deploymentCost = hasActiveLeases ? liveLeases?.reduce((prev, current) => prev + parseFloat(current.price.amount), 0) : 0;
+  const reclaimDeadline = reclaimingLease ? getReclamationDeadline(reclaimingLease) : null;
+  const closedReasonLabel = closedLease ? getClosedLeaseLabel(closedLease) : null;
   const hasGpu = Boolean(deployment.gpuAmount && deployment.gpuAmount > 0);
   const timeLeft = getTimeLeft(deploymentCost || 0, deployment.escrowBalance);
   const realTimeLeft = useRealTimeLeft(
@@ -287,13 +294,22 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
         </TableCell>
 
         <TableCell className="text-center">
-          {hasLeases && (
-            <div className="inline-flex flex-wrap items-center">
-              {filteredLeases?.map(lease => <LeaseChip key={lease.id} lease={lease} providers={providers} />)}
+          {isLoadingLeases && <Spinner size="small" />}
+          {!isLoadingLeases && (
+            <div className="inline-flex flex-col items-center gap-1">
+              {hasActiveLeases && (
+                <div className="inline-flex flex-wrap items-center justify-center gap-1">
+                  {liveLeases?.map(lease => <LeaseChip key={lease.id} lease={lease} providers={providers} />)}
+                </div>
+              )}
+              {reclaimingLease && (
+                <span className="whitespace-nowrap text-xs text-warning">
+                  {reclaimDeadline ? `closes in ${formatDistanceToNowStrict(reclaimDeadline)}` : "reclamation pending"}
+                </span>
+              )}
+              {isAllLeasesClosed && closedReasonLabel && <Badge variant="outline">{closedReasonLabel}</Badge>}
             </div>
           )}
-          {isLoadingLeases && <Spinner size="small" />}
-          {!isLoadingLeases && isAllLeasesClosed && <Badge>All leases closed</Badge>}
         </TableCell>
 
         <TableCell>
@@ -374,4 +390,10 @@ function getTimeLeftText(timeLeft?: Date) {
   if (!timeLeft) return "";
   const text = formatDistanceToNow(timeLeft);
   return `will be active for ${text.startsWith("about") ? text : `about ${text}`}`;
+}
+
+export function getClosedLeaseLabel(lease: LeaseDto): string {
+  const label = getLeaseCloseReasonLabel(lease.reason ?? lease.reclamation?.reason);
+  // A reclaimed lease whose reason didn't classify (e.g. only the group is paused) still reads as provider-closed.
+  return label === "Closed" && isProviderReclaimed(lease) ? "Closed by provider" : label;
 }
