@@ -9,21 +9,24 @@ import { LeaseClosedReason } from "@akashnetwork/chain-sdk/private-types/akash.v
  * `UNRECOGNIZED`.
  */
 export function toLeaseClosedReason(raw: string | number): LeaseClosedReason {
-  if (typeof raw === "number") {
-    return raw in LeaseClosedReason ? (raw as LeaseClosedReason) : LeaseClosedReason.UNRECOGNIZED;
+  // A proto name (e.g. "lease_closed_reason_unstable") resolves to its numeric
+  // value via the enum's forward lookup. A numeric string reverse-maps to a name
+  // (not a number) here, so it falls through to be parsed as a value below.
+  if (typeof raw === "string") {
+    const byName = LeaseClosedReason[raw as keyof typeof LeaseClosedReason];
+    if (typeof byName === "number") {
+      return byName;
+    }
   }
 
-  if (/^-?\d+$/.test(raw)) {
-    const numeric = Number(raw);
-    return numeric in LeaseClosedReason ? (numeric as LeaseClosedReason) : LeaseClosedReason.UNRECOGNIZED;
-  }
-
-  const byName = LeaseClosedReason[raw as keyof typeof LeaseClosedReason];
-  return typeof byName === "number" ? byName : LeaseClosedReason.UNRECOGNIZED;
+  const numeric = Number(raw);
+  return numeric in LeaseClosedReason ? (numeric as LeaseClosedReason) : LeaseClosedReason.UNRECOGNIZED;
 }
 
+const FALLBACK_REASON_TEXT = "an unspecified reason";
+
 const REASON_TEXT: Record<number, string> = {
-  [LeaseClosedReason.lease_closed_invalid]: "an unspecified reason",
+  [LeaseClosedReason.lease_closed_invalid]: FALLBACK_REASON_TEXT,
   [LeaseClosedReason.lease_closed_owner]: "the owner closed the lease",
   [LeaseClosedReason.lease_closed_reason_unstable]: "the workload has been unstable",
   [LeaseClosedReason.lease_closed_reason_decommission]: "the provider is being decommissioned",
@@ -31,8 +34,6 @@ const REASON_TEXT: Record<number, string> = {
   [LeaseClosedReason.lease_closed_reason_manifest_timeout]: "the manifest was not received in time",
   [LeaseClosedReason.lease_closed_reason_insufficient_funds]: "the deployment has insufficient funds"
 };
-
-const FALLBACK_REASON_TEXT = "an unspecified reason";
 
 /**
  * Returns human-readable text describing a {@link LeaseClosedReason}, with a

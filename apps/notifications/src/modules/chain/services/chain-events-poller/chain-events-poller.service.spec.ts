@@ -83,7 +83,7 @@ describe(ChainEventsPollerService.name, () => {
     ]);
   });
 
-  it("fetches lease reclaim started events from the market module", async () => {
+  it("fetches deployment and market events for a block in a single call", async () => {
     const { service, txEventsService, CURRENT_HEIGHT } = await setup();
 
     service.onApplicationBootstrap();
@@ -92,12 +92,10 @@ describe(ChainEventsPollerService.name, () => {
 
     expect(txEventsService.getBlockEvents).toHaveBeenCalledWith(
       CURRENT_HEIGHT + 1,
-      {
-        module: "market",
-        version: "v1",
-        source: "akash",
-        action: ["lease-reclaim-started"]
-      },
+      expect.arrayContaining([
+        { module: "deployment", version: "v1", source: "akash", action: ["deployment-closed"] },
+        { module: "market", version: "v1", source: "akash", action: ["lease-reclaim-started"] }
+      ]),
       expect.any(AbortSignal)
     );
   });
@@ -280,31 +278,27 @@ describe(ChainEventsPollerService.name, () => {
     });
 
     const txEventsService = module.get<MockProxy<TxEventsService>>(TxEventsService);
-    txEventsService.getBlockEvents.mockImplementation(async (_height, filter) => {
-      if (filter?.module === "market") {
-        return [
-          {
-            type: "akash.v1",
-            module: "market",
-            action: "lease-reclaim-started",
-            owner: "akash1qh0f0h7jlq4x5gpxghrxvps5l09y7uuvcumcyd",
-            dseq: "22350842",
-            provider: "akash1provideraddressxxxxxxxxxxxxxxxxxxxxxx",
-            reason: "lease_closed_reason_unstable",
-            deadline: "1749398400"
-          }
-        ];
+    // The poller fetches every event family in a single call, so the mock returns
+    // the deployment and market events together in one array.
+    txEventsService.getBlockEvents.mockResolvedValue([
+      {
+        type: "akash.v1",
+        module: "deployment",
+        action: "deployment-closed",
+        owner: "akash1qh0f0h7jlq4x5gpxghrxvps5l09y7uuvcumcyd",
+        dseq: "22350842"
+      },
+      {
+        type: "akash.v1",
+        module: "market",
+        action: "lease-reclaim-started",
+        owner: "akash1qh0f0h7jlq4x5gpxghrxvps5l09y7uuvcumcyd",
+        dseq: "22350842",
+        provider: "akash1provideraddressxxxxxxxxxxxxxxxxxxxxxx",
+        reason: "lease_closed_reason_unstable",
+        deadline: "1749398400"
       }
-      return [
-        {
-          type: "akash.v1",
-          module: "deployment",
-          action: "deployment-closed",
-          owner: "akash1qh0f0h7jlq4x5gpxghrxvps5l09y7uuvcumcyd",
-          dseq: "22350842"
-        }
-      ];
-    });
+    ]);
 
     return {
       module,

@@ -1,9 +1,8 @@
 const HOUR_MS = 3_600_000;
 
 function toUtcString(ms: number): string {
-  const date = new Date(ms);
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())} UTC`;
+  // toISOString is always UTC: "2025-06-08T16:00:00.000Z" -> "2025-06-08 16:00 UTC"
+  return `${new Date(ms).toISOString().slice(0, 16).replace("T", " ")} UTC`;
 }
 
 function toRelative(deadlineMs: number, nowMs: number): string {
