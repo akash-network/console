@@ -83,7 +83,8 @@ function hasReclamationStarted(lease: Pick<LeaseDto, "reclamation">): boolean {
 /**
  * Terminal reclamation: the provider has reclaimed the lease and it is no longer live.
  * "Reclaimed" requires reclamation *evidence* (reclamation started, or the group is paused) — a bare
- * provider-range close reason alone is NOT enough (see apps/deploy-web/CONTEXT.md flagged ambiguity).
+ * provider-range close reason alone is NOT enough, since a provider can close a lease directly
+ * without going through the AEP-82 reclamation grace period.
  */
 export function isProviderReclaimed(lease: ReclaimableLease): boolean {
   if (isReclaiming(lease)) return false;
