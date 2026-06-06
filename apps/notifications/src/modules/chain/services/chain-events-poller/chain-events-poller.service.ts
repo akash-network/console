@@ -156,6 +156,17 @@ export class ChainEventsPollerService implements OnApplicationBootstrap, OnModul
         this.signal
       );
 
+      const marketEvents = await this.txEventsService.getBlockEvents(
+        nextBlockHeight,
+        {
+          module: "market",
+          version: "v1",
+          source: "akash",
+          action: ["lease-reclaim-started"]
+        },
+        this.signal
+      );
+
       await this.brokerService.publishAll([
         {
           eventName: eventKeyRegistry.blockCreated,
@@ -167,7 +178,7 @@ export class ChainEventsPollerService implements OnApplicationBootstrap, OnModul
           eventName: message.type,
           event: message
         })),
-        ...txEvents.map(event => ({
+        ...[...txEvents, ...marketEvents].map(event => ({
           eventName: `${event.type}.${event.module}.${event.action}`,
           event: event
         }))

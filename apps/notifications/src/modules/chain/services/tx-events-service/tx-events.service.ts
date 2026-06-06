@@ -18,7 +18,7 @@ interface ProcessedEvent {
 /**
  * Supported blockchain event actions
  */
-type Action = "deployment-closed" | "deployment-created";
+type Action = "deployment-closed" | "deployment-created" | "lease-reclaim-started";
 
 /**
  * Filter criteria for blockchain events
@@ -26,7 +26,7 @@ type Action = "deployment-closed" | "deployment-created";
 interface EventFilter {
   source?: "akash";
   action?: Action | Action[];
-  module?: "deployment";
+  module?: "deployment" | "market";
   version?: "v1";
 }
 
@@ -46,7 +46,8 @@ interface EventFilter {
 export class TxEventsService {
   private readonly EVENT_ACTIONS: Record<string, string> = {
     EventDeploymentClosed: "deployment-closed",
-    EventDeploymentCreated: "deployment-created"
+    EventDeploymentCreated: "deployment-created",
+    EventLeaseReclaimStarted: "lease-reclaim-started"
   };
 
   private readonly ACTION_EVENTS: Record<string, string> = Object.fromEntries(Object.entries(this.EVENT_ACTIONS).map(([k, v]) => [v, k]));

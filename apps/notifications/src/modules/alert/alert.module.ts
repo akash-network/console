@@ -12,6 +12,7 @@ import { DbHealthzService } from "@src/infrastructure/db/services/db-healthz/db-
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import { ChainAlertService } from "@src/modules/alert/services/chain-alert/chain-alert.service";
 import { DeploymentAlertService } from "@src/modules/alert/services/deployment-alert/deployment-alert.service";
+import { ReclaimAlertService } from "@src/modules/alert/services/reclaim-alert/reclaim-alert.service";
 import { WalletBalanceAlertsService } from "@src/modules/alert/services/wallet-balance-alerts/wallet-balance-alerts.service";
 import { HTTP_SDK_PROVIDERS } from "./providers/http-sdk.provider";
 import { AlertMessageService } from "./services/alert-message/alert-message.service";
@@ -34,10 +35,19 @@ import * as schema from "./model-schemas";
     DeploymentService,
     TemplateService,
     DeploymentAlertService,
+    ReclaimAlertService,
     DbHealthzService,
     ...HTTP_SDK_PROVIDERS
   ],
-  exports: [ChainAlertService, DeploymentBalanceAlertsService, WalletBalanceAlertsService, AlertRepository, DeploymentAlertService, DbHealthzService]
+  exports: [
+    ChainAlertService,
+    DeploymentBalanceAlertsService,
+    WalletBalanceAlertsService,
+    AlertRepository,
+    DeploymentAlertService,
+    ReclaimAlertService,
+    DbHealthzService
+  ]
 })
 export class AlertModule implements OnApplicationShutdown {
   constructor(@InjectDrizzle(DRIZZLE_PROVIDER_TOKEN) private readonly db: NodePgDatabase<FullSchema>) {}
