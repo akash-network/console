@@ -60,7 +60,9 @@ export function getLeaseCloseReasonLabel(reason?: string): string {
 /** Reclamation deadline as a Date, or null when absent/0/NaN. `deadline` is unix seconds. */
 export function getReclamationDeadline(lease: Pick<LeaseDto, "reclamation">): Date | null {
   const deadline = lease.reclamation?.deadline;
-  if (!deadline || Number.isNaN(deadline)) return null;
+  // `!deadline` rejects undefined/0/NaN; `!Number.isFinite` additionally rejects ±Infinity, any of
+  // which would otherwise produce an Invalid Date and break the downstream countdown formatting.
+  if (!deadline || !Number.isFinite(deadline)) return null;
   return new Date(deadline * 1000);
 }
 

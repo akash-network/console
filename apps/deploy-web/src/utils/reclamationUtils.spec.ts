@@ -66,9 +66,11 @@ describe("reclamationUtils", () => {
       expect(getReclamationDeadline(createLease())).toBeNull();
     });
 
-    it("returns null for a 0 / NaN deadline", () => {
+    it("returns null for a 0 / NaN / non-finite deadline", () => {
       expect(getReclamationDeadline(createLease({ reclamation: { deadline: 0 } }))).toBeNull();
       expect(getReclamationDeadline(createLease({ reclamation: { deadline: NaN } }))).toBeNull();
+      expect(getReclamationDeadline(createLease({ reclamation: { deadline: Infinity } }))).toBeNull();
+      expect(getReclamationDeadline(createLease({ reclamation: { deadline: -Infinity } }))).toBeNull();
     });
   });
 

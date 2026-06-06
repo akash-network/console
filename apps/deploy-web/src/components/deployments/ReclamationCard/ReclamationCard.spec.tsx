@@ -8,6 +8,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
+type DeploymentData = NonNullable<ReturnType<ReturnType<typeof DEPENDENCIES.useLocalNotes>["getDeploymentData"]>>;
+
 describe("ReclamationCard", () => {
   it("shows the provider close reason as the title", () => {
     setup({ reason: "lease_closed_reason_unstable" });
@@ -31,52 +33,43 @@ describe("ReclamationCard", () => {
   });
 
   it("closes the deployment when confirmed", async () => {
-    const closeDeploymentConfirm = vi.fn().mockResolvedValue(true);
-    const signAndBroadcastTx = vi.fn().mockResolvedValue(true);
     const onClosed = vi.fn();
-    setup({ closeDeploymentConfirm, signAndBroadcastTx, onClosed });
+    const { wallet, confirm } = setup({ isConfirmed: true, onClosed });
 
     await userEvent.click(screen.getByRole("button", { name: "Close (recover escrow)" }));
 
-    await waitFor(() => expect(signAndBroadcastTx).toHaveBeenCalled());
-    expect(closeDeploymentConfirm).toHaveBeenCalledWith(["123"]);
+    await waitFor(() => expect(wallet.signAndBroadcastTx).toHaveBeenCalled());
+    expect(confirm.closeDeploymentConfirm).toHaveBeenCalledWith(["123"]);
     expect(onClosed).toHaveBeenCalled();
   });
 
   it("does not close when the confirmation is declined", async () => {
-    const closeDeploymentConfirm = vi.fn().mockResolvedValue(false);
-    const signAndBroadcastTx = vi.fn().mockResolvedValue(true);
-    setup({ closeDeploymentConfirm, signAndBroadcastTx });
+    const { wallet, confirm } = setup({ isConfirmed: false });
 
     await userEvent.click(screen.getByRole("button", { name: "Close (recover escrow)" }));
 
-    await waitFor(() => expect(closeDeploymentConfirm).toHaveBeenCalled());
-    expect(signAndBroadcastTx).not.toHaveBeenCalled();
+    await waitFor(() => expect(confirm.closeDeploymentConfirm).toHaveBeenCalled());
+    expect(wallet.signAndBroadcastTx).not.toHaveBeenCalled();
   });
 
-  function setup(
-    input: {
-      reason?: string;
-      hasLocalManifest?: boolean;
-      closeDeploymentConfirm?: ReturnType<typeof vi.fn>;
-      signAndBroadcastTx?: ReturnType<typeof vi.fn>;
-      onClosed?: () => void;
-    } = {}
-  ) {
-    const signAndBroadcastTx = input.signAndBroadcastTx ?? vi.fn().mockResolvedValue(true);
-    const closeDeploymentConfirm = input.closeDeploymentConfirm ?? vi.fn().mockResolvedValue(true);
-    const push = vi.fn();
+  function setup(input: { reason?: string; hasLocalManifest?: boolean; isConfirmed?: boolean; onClosed?: () => void } = {}) {
+    const wallet = mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: "akash1owner" });
+    wallet.signAndBroadcastTx.mockResolvedValue(true);
 
-    const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: "akash1owner", signAndBroadcastTx });
-    const useManagedDeploymentConfirm: typeof DEPENDENCIES.useManagedDeploymentConfirm = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useManagedDeploymentConfirm>>({ closeDeploymentConfirm });
-    const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>({
-        getDeploymentData: vi.fn().mockReturnValue(input.hasLocalManifest ? { manifest: "version: 2.0" } : undefined)
-      });
-    const useRouter: typeof DEPENDENCIES.useRouter = () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push });
+    const confirm = mock<ReturnType<typeof DEPENDENCIES.useManagedDeploymentConfirm>>();
+    confirm.closeDeploymentConfirm.mockResolvedValue(input.isConfirmed ?? true);
 
-    const lease = {
+    const localNotes = mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>();
+    localNotes.getDeploymentData.mockReturnValue(input.hasLocalManifest ? mock<DeploymentData>({ manifest: "version: 2.0" }) : null);
+
+    const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
+
+    const useWallet: typeof DEPENDENCIES.useWallet = () => wallet;
+    const useManagedDeploymentConfirm: typeof DEPENDENCIES.useManagedDeploymentConfirm = () => confirm;
+    const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () => localNotes;
+    const useRouter: typeof DEPENDENCIES.useRouter = () => router;
+
+    const lease = mock<LeaseDto>({
       id: "1",
       owner: "akash1owner",
       provider: "provider1",
@@ -85,13 +78,10 @@ describe("ReclamationCard", () => {
       oseq: 1,
       state: "closed",
       price: { denom: "uakt", amount: "100" },
-      cpuAmount: 0,
-      memoryAmount: 0,
-      storageAmount: 0,
       reason: input.reason ?? "lease_closed_reason_unstable"
-    } as LeaseDto;
+    });
 
-    return render(
+    render(
       <ReclamationCard
         lease={lease}
         dseq="123"
@@ -99,5 +89,7 @@ describe("ReclamationCard", () => {
         dependencies={MockComponents(DEPENDENCIES, { useWallet, useManagedDeploymentConfirm, useLocalNotes, useRouter })}
       />
     );
+
+    return { wallet, confirm, router };
   }
 });
