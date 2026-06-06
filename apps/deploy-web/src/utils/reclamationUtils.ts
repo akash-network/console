@@ -48,12 +48,7 @@ export function getLeaseCloseReasonLabel(reason?: string): string {
       return "Closed (insufficient funds)";
     default:
       // Covers the provider "unspecified" reason plus tenant/network buckets without a specific copy.
-      switch (classifyLeaseCloseReason(reason)) {
-        case "provider":
-          return "Closed by provider";
-        default:
-          return "Closed";
-      }
+      return classifyLeaseCloseReason(reason) === "provider" ? "Closed by provider" : "Closed";
   }
 }
 
