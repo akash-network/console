@@ -11,8 +11,8 @@ import { SdlBuilderProvider } from "@src/context/SdlBuilderProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { EnvVarManagerService } from "@src/services/remote-deploy/env-var-manager.service";
 import { tokens } from "@src/store/remoteDeployStore";
-import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { getDefaultService } from "@src/utils/sdl/data";
+import type { SdlBuilderFormValuesType } from "@src/types";
+import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import BitBranches from "../bitbucket/BitBucketBranches";
@@ -24,20 +24,26 @@ const RemoteDeployUpdate = ({ sdlString, onManifestChange }: { sdlString: string
   const [token] = useAtom(tokens);
   const { enqueueSnackbar } = useSnackbar();
   const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(false);
-  const { control, watch, setValue } = useForm<SdlBuilderFormValuesType>({ defaultValues: { services: [getDefaultService()] } });
+  const initialValues = useMemo(() => defaultServiceWithPlacement(), []);
+  const { control, watch, setValue } = useForm<SdlBuilderFormValuesType>({
+    defaultValues: initialValues
+  });
   const { fields: services } = useFieldArray({ control, name: "services", keyName: "id" });
   const envVarManagerService = useMemo(() => new EnvVarManagerService(services), [services]);
   const { publicConfig } = useServices();
 
   useEffect(() => {
     const { unsubscribe }: any = watch(data => {
-      const sdl = generateSdl(data.services as ServiceType[]);
+      const sdl = generateSdl(data as SdlBuilderFormValuesType);
       onManifestChange(sdl);
     });
     try {
       if (sdlString) {
-        const services = createAndValidateSdl(sdlString);
-        setValue("services", services as ServiceType[]);
+        const imported = createAndValidateSdl(sdlString);
+        if (imported) {
+          setValue("placements", imported.placements);
+          setValue("services", imported.services);
+        }
       }
     } catch (error) {
       enqueueSnackbar(<Snackbar title="Error while parsing SDL file" />, { variant: "error" });
@@ -50,7 +56,7 @@ const RemoteDeployUpdate = ({ sdlString, onManifestChange }: { sdlString: string
 
   const createAndValidateSdl = (yamlStr: string) => {
     try {
-      return yamlStr ? importSimpleSdl(yamlStr) : [];
+      return yamlStr ? importSimpleSdl(yamlStr) : null;
     } catch (err: any) {
       if (err.name === "YAMLException" || err.name === "CustomValidationError") {
         enqueueSnackbar(<Snackbar title={err.message} />, { variant: "error" });

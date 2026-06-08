@@ -103,6 +103,7 @@ describe("useSdlEnv", () => {
     };
 
     const defaultFormValues: SdlBuilderFormValuesType = {
+      placements: [{ id: "p-1", name: "dcloud" }],
       services: [buildSDLService({ env: [] })],
       imageList: [],
       hasSSHKey: false
