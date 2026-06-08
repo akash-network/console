@@ -2,6 +2,8 @@ import { expect, test } from "./fixture/base-test";
 import { BillingPage } from "./pages/BillingPage";
 import { HomePage } from "./pages/HomePage";
 
+const TOP_UP_AMOUNT = 100;
+
 test.describe("Managed wallet credits", () => {
   test.use({ userType: "existing" });
 
@@ -23,7 +25,7 @@ test.describe("Managed wallet credits", () => {
     });
 
     await test.step("submit payment", async () => {
-      await billingPage.submitPayment("20");
+      await billingPage.submitPayment(String(TOP_UP_AMOUNT));
     });
 
     await test.step("verify payment success", async () => {
@@ -34,7 +36,7 @@ test.describe("Managed wallet credits", () => {
       await expect(async () => {
         const text = await billingPage.getAvailableBalance().textContent();
         const balanceAfter = parseBalance(text);
-        expect(balanceAfter).toBeGreaterThanOrEqual(balanceBefore + 20);
+        expect(balanceAfter).toBeGreaterThanOrEqual(balanceBefore + TOP_UP_AMOUNT);
       }).toPass({ timeout: 30_000, intervals: [2_000] });
     });
   });
