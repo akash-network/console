@@ -22,6 +22,13 @@
       "when": 1780921639304,
       "tag": "0002_add_created_at_column",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780929614273,
+      "tag": "0003_add_provider_incidents",
+      "breakpoints": true
     }
   ]
 }

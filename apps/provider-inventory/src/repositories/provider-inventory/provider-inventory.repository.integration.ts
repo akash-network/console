@@ -82,6 +82,45 @@ describe(ProviderInventoryRepository.name, () => {
       });
     });
 
+    it("leaves updatedAt untouched when the upserted values are identical", async () => {
+      const { repository, db } = setup();
+      const upsertedAt = new Date("2026-01-01T00:00:00Z");
+      await seed(db, {
+        owner: "akash1a",
+        hostUri: "https://h:8443",
+        selfAttributes: [{ key: "region", value: "us-east" }],
+        signedAttributes: [{ key: "tier", value: "gold", auditor: "aud-1" }],
+        auditedBy: ["aud-1"],
+        updatedAt: upsertedAt
+      });
+
+      await repository.bulkUpsertProviders([
+        createProvider({
+          owner: "akash1a",
+          hostUri: "https://h:8443",
+          selfAttributes: [{ key: "region", value: "us-east" }],
+          signedAttributes: [{ key: "tier", value: "gold", auditor: "aud-1" }],
+          auditedBy: ["aud-1"]
+        })
+      ]);
+
+      const [row] = await db.select().from(providerInventory).where(eq(providerInventory.owner, "akash1a"));
+      expect(row.updatedAt.toISOString()).toBe(upsertedAt.toISOString());
+    });
+
+    it("bumps updatedAt when an attribute changes", async () => {
+      const { repository, db } = setup();
+      const upsertedAt = new Date("2026-01-01T00:00:00Z");
+      await seed(db, { owner: "akash1a", hostUri: "https://h:8443", selfAttributes: [{ key: "region", value: "us-east" }], updatedAt: upsertedAt });
+
+      await repository.bulkUpsertProviders([
+        createProvider({ owner: "akash1a", hostUri: "https://h:8443", selfAttributes: [{ key: "region", value: "us-west" }] })
+      ]);
+
+      const [row] = await db.select().from(providerInventory).where(eq(providerInventory.owner, "akash1a"));
+      expect(row.updatedAt.getTime()).toBeGreaterThan(upsertedAt.getTime());
+    });
+
     it("sorts the provider's auditedBy list before writing", async () => {
       const { repository, db } = setup();
 
@@ -214,6 +253,7 @@ interface SeedInput {
   selfAttributes?: { key: string; value: string }[];
   signedAttributes?: { key: string; value: string; auditor: string }[];
   auditedBy?: string[];
+  updatedAt?: Date;
 }
 
 async function seed(db: PostgresJsDatabase, input: SeedInput): Promise<void> {
@@ -224,7 +264,8 @@ async function seed(db: PostgresJsDatabase, input: SeedInput): Promise<void> {
     isOnlineSince: input.isOnlineSince === undefined ? new Date() : input.isOnlineSince,
     selfAttributes: input.selfAttributes ?? [],
     signedAttributes: input.signedAttributes ?? [],
-    auditedBy: input.auditedBy ?? []
+    auditedBy: input.auditedBy ?? [],
+    ...(input.updatedAt && { updatedAt: input.updatedAt })
   });
 }
 

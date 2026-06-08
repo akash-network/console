@@ -110,6 +110,12 @@ export class ProviderInventoryRepository {
       };
     });
 
+    const conflictColumns = [providerInventory.hostUri, providerInventory.selfAttributes, providerInventory.signedAttributes, providerInventory.auditedBy];
+    const hasChanges = rawSql.join(
+      conflictColumns.map(column => rawSql`${column} IS DISTINCT FROM excluded.${rawSql.raw(column.name)}`),
+      rawSql` OR `
+    );
+
     await this.#db
       .insert(providerInventory)
       .values(rows)
@@ -121,7 +127,8 @@ export class ProviderInventoryRepository {
           signedAttributes: rawSql.raw(`excluded.${providerInventory.signedAttributes.name}`),
           auditedBy: rawSql.raw(`excluded.${providerInventory.auditedBy.name}`),
           updatedAt: NOW_SQL
-        }
+        },
+        setWhere: hasChanges
       });
   }
 }

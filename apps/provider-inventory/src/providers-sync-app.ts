@@ -5,6 +5,7 @@ import { Hono } from "hono";
 import { container } from "tsyringe";
 
 import { APP_CONFIG } from "@src/providers/app-config.provider";
+import { ProviderIncidentRepository } from "@src/repositories/provider-incident/provider-incident.repository";
 import { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
 import { healthzRouter } from "@src/routes";
 import { DiscoverySchedulerService } from "@src/services/discovery-scheduler/discovery-scheduler.service";
@@ -22,7 +23,7 @@ export async function bootstrap(): Promise<void> {
   const server = await startServer(app, createOtelLogger({ context: "PROVIDERS_SYNC" }), process, {
     port: container.resolve(APP_CONFIG).PORT,
     beforeStart: async () => {
-      await container.resolve(ProviderInventoryRepository).resetOnlineSince();
+      await Promise.all([container.resolve(ProviderInventoryRepository).resetOnlineSince(), container.resolve(ProviderIncidentRepository).closeAllOpen()]);
     }
   });
 

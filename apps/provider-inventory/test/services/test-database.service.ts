@@ -41,7 +41,7 @@ export class TestDatabaseService {
   async truncate(): Promise<void> {
     const sql = postgres(`${this.#postgresUri}/${this.#dbName}`, { max: 1 });
     try {
-      await sql`TRUNCATE TABLE provider_inventory RESTART IDENTITY CASCADE`;
+      await sql`TRUNCATE TABLE provider_inventory, provider_incidents RESTART IDENTITY CASCADE`;
     } finally {
       await sql.end();
     }
