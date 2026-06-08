@@ -10,6 +10,7 @@ export const providerAttributesFormValuesSchema = z.object({
   host: z.string().min(1, { message: "Host is required." }),
   tier: z.string().optional(),
   email: z.string().email({ message: "Email is invalid." }).optional(),
+  "discord-username": z.string().optional(),
   organization: z.string().optional(),
   website: z.string().optional(),
   "status-page": z.string().optional(),
@@ -23,15 +24,18 @@ export const providerAttributesFormValuesSchema = z.object({
   "hardware-cpu-arch": z.string().optional(),
   "hardware-gpu": z.string().optional(),
   "hardware-gpu-model": z.array(providerAttributeSchemaDetailValueSchema),
-  "hardware-disk": z.array(providerAttributeSchemaDetailValueSchema).min(1, { message: "Hardware disk is required." }),
+  "hardware-gpu-capability": z.array(providerAttributeSchemaDetailValueSchema).optional(),
+  "hardware-persistent-storage-class": z.string().optional(),
+  "hardware-persistent-storage-capability": z.boolean().optional(),
+  "hardware-cuda": z.string().optional(),
+  datacenter: z.string().optional(),
   "hardware-memory": z.string().min(1, { message: "Hardware memory is required." }),
   "network-provider": z.string().optional(),
   "network-speed-up": z.number().optional(),
   "network-speed-down": z.number().optional(),
   "feat-persistent-storage": z.boolean().optional(),
-  "feat-persistent-storage-type": z.array(providerAttributeSchemaDetailValueSchema).optional(),
-  "workload-support-chia": z.boolean().optional(),
-  "workload-support-chia-capabilities": z.array(providerAttributeSchemaDetailValueSchema).optional(),
+  "feat-shm": z.boolean().optional(),
+  "hardware-shm": z.array(providerAttributeSchemaDetailValueSchema).optional(),
   "feat-endpoint-ip": z.boolean().optional(),
   "feat-endpoint-custom-domain": z.boolean().optional(),
   "unknown-attributes": z
@@ -48,6 +52,7 @@ export const providerAttributesFormValuesSchema = z.object({
 export type ProviderAttributesSchema = {
   host: ProviderAttributeSchemaDetail;
   email: ProviderAttributeSchemaDetail;
+  "discord-username": ProviderAttributeSchemaDetail;
   organization: ProviderAttributeSchemaDetail;
   website: ProviderAttributeSchemaDetail;
   tier: ProviderAttributeSchemaDetail;
@@ -62,15 +67,18 @@ export type ProviderAttributesSchema = {
   "hardware-cpu-arch": ProviderAttributeSchemaDetail;
   "hardware-gpu": ProviderAttributeSchemaDetail;
   "hardware-gpu-model": ProviderAttributeSchemaDetail;
-  "hardware-disk": ProviderAttributeSchemaDetail;
+  "hardware-gpu-capability": ProviderAttributeSchemaDetail;
+  "hardware-persistent-storage-class": ProviderAttributeSchemaDetail;
+  "hardware-persistent-storage-capability": ProviderAttributeSchemaDetail;
+  "hardware-cuda": ProviderAttributeSchemaDetail;
+  datacenter: ProviderAttributeSchemaDetail;
   "hardware-memory": ProviderAttributeSchemaDetail;
   "network-provider": ProviderAttributeSchemaDetail;
   "network-speed-up": ProviderAttributeSchemaDetail;
   "network-speed-down": ProviderAttributeSchemaDetail;
   "feat-persistent-storage": ProviderAttributeSchemaDetail;
-  "feat-persistent-storage-type": ProviderAttributeSchemaDetail;
-  "workload-support-chia": ProviderAttributeSchemaDetail;
-  "workload-support-chia-capabilities": ProviderAttributeSchemaDetail;
+  "feat-shm": ProviderAttributeSchemaDetail;
+  "hardware-shm": ProviderAttributeSchemaDetail;
   "feat-endpoint-ip": ProviderAttributeSchemaDetail;
   "feat-endpoint-custom-domain": ProviderAttributeSchemaDetail;
 };

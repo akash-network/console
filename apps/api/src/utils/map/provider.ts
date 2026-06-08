@@ -82,7 +82,7 @@ export const mapProviderToList = (
     host: getStringAttribute("host", attrMap, providerAttributeSchema),
     organization: getStringAttribute("organization", attrMap, providerAttributeSchema),
     statusPage: getStringAttribute("status-page", attrMap, providerAttributeSchema),
-    locationRegion: getStringAttribute("location-region", attrMap, providerAttributeSchema),
+    locationRegion: getLocationRegion(attrMap, providerAttributeSchema),
     country: getStringAttribute("country", attrMap, providerAttributeSchema),
     city: getStringAttribute("city", attrMap, providerAttributeSchema),
     timezone: getStringAttribute("timezone", attrMap, providerAttributeSchema),
@@ -92,17 +92,19 @@ export const mapProviderToList = (
     hardwareCpuArch: getStringAttribute("hardware-cpu-arch", attrMap, providerAttributeSchema),
     hardwareGpuVendor: getStringAttribute("hardware-gpu", attrMap, providerAttributeSchema),
     hardwareGpuModels: getStringArrayAttribute("hardware-gpu-model", provider, providerAttributeSchema),
-    hardwareDisk: getStringArrayAttribute("hardware-disk", provider, providerAttributeSchema),
-    featPersistentStorage: getBooleanAttribute("feat-persistent-storage", attrMap, providerAttributeSchema),
-    featPersistentStorageType: getStringArrayAttribute("feat-persistent-storage-type", provider, providerAttributeSchema),
+    hardwareGpuCapabilities: getStringArrayAttribute("hardware-gpu-capability", provider, providerAttributeSchema),
+    hardwarePersistentStorageClass: getStringAttribute("hardware-persistent-storage-class", attrMap, providerAttributeSchema),
+    featPersistentStorage: getPersistentStorageSupport(attrMap, providerAttributeSchema),
+    featShm: getShmSupport(attrMap, providerAttributeSchema),
+    hardwareShm: getStringArrayAttribute("hardware-shm", provider, providerAttributeSchema),
+    hardwareCuda: getStringAttribute("hardware-cuda", attrMap, providerAttributeSchema),
+    datacenter: getStringAttribute("datacenter", attrMap, providerAttributeSchema),
     hardwareMemory: getStringAttribute("hardware-memory", attrMap, providerAttributeSchema),
     networkProvider: getStringAttribute("network-provider", attrMap, providerAttributeSchema),
     networkSpeedDown: getNumberAttribute("network-speed-down", attrMap, providerAttributeSchema),
     networkSpeedUp: getNumberAttribute("network-speed-up", attrMap, providerAttributeSchema),
     tier: getStringAttribute("tier", attrMap, providerAttributeSchema),
     featEndpointCustomDomain: getBooleanAttribute("feat-endpoint-custom-domain", attrMap, providerAttributeSchema),
-    workloadSupportChia: getBooleanAttribute("workload-support-chia", attrMap, providerAttributeSchema),
-    workloadSupportChiaCapabilities: getStringArrayAttribute("workload-support-chia-capabilities", provider, providerAttributeSchema),
     featEndpointIp: getBooleanAttribute("feat-endpoint-ip", attrMap, providerAttributeSchema)
   };
 };
@@ -125,10 +127,50 @@ function getStringAttribute(key: keyof ProviderAttributesSchema, attrMap: Map<st
   return attrMap.get(schemaKey) || null;
 }
 
+function getLocationRegion(attrMap: Map<string, string>, schema: ProviderAttributesSchema): string | null {
+  const locationRegion = getStringAttribute("location-region", attrMap, schema);
+  if (locationRegion) {
+    return locationRegion;
+  }
+
+  // Legacy providers may still have `region` on-chain; console expects `location-region`.
+  return attrMap.get("region") || null;
+}
+
 function getBooleanAttribute(key: keyof ProviderAttributesSchema, attrMap: Map<string, string>, schema: ProviderAttributesSchema): boolean {
   const schemaKey = schema[key].key;
   const value = attrMap.get(schemaKey);
   return value === "true";
+}
+
+function hasShmCapability(attrMap: Map<string, string>): boolean {
+  for (const [key, value] of attrMap.entries()) {
+    if (/^capabilities\/storage\/\d+\/class$/.test(key) && value === "ram") {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function getShmSupport(attrMap: Map<string, string>, schema: ProviderAttributesSchema): boolean {
+  if (getBooleanAttribute("feat-shm", attrMap, schema)) {
+    return true;
+  }
+
+  return hasShmCapability(attrMap);
+}
+
+function getPersistentStorageSupport(attrMap: Map<string, string>, schema: ProviderAttributesSchema): boolean {
+  if (getBooleanAttribute("feat-persistent-storage", attrMap, schema)) {
+    return true;
+  }
+
+  if (getBooleanAttribute("hardware-persistent-storage-capability", attrMap, schema)) {
+    return true;
+  }
+
+  return attrMap.get("capabilities/storage/1/persistent") === "true";
 }
 
 function getNumberAttribute(key: keyof ProviderAttributesSchema, attrMap: Map<string, string>, schema: ProviderAttributesSchema): number {

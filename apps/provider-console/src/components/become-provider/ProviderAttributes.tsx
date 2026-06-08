@@ -81,24 +81,24 @@ const createGpuAttributes = (gpuConfigs: GpuConfig[] | undefined) => {
 
     return [
       {
-        key: "unknown-attributes",
+        key: "hardware-gpu-capability",
         value: "true",
         customKey: `capabilities/gpu/vendor/${vendor}/model/${model}`
       },
       {
-        key: "unknown-attributes",
+        key: "hardware-gpu-capability",
         value: "true",
         customKey: `capabilities/gpu/vendor/${vendor}/model/${model}/ram/${memory}`
       },
       {
-        key: "unknown-attributes",
-        value: "true",
-        customKey: `capabilities/gpu/vendor/${vendor}/model/${model}/ram/${memory}/interface/${iface}`
-      },
-      {
-        key: "unknown-attributes",
+        key: "hardware-gpu-capability",
         value: "true",
         customKey: `capabilities/gpu/vendor/${vendor}/model/${model}/interface/${iface}`
+      },
+      {
+        key: "hardware-gpu-capability",
+        value: "true",
+        customKey: `capabilities/gpu/vendor/${vendor}/model/${model}/interface/${iface}/ram/${memory}`
       }
     ];
   });

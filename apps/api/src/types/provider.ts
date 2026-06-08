@@ -50,17 +50,19 @@ export interface ProviderList {
   hardwareCpuArch: string | null;
   hardwareGpuVendor: string | null;
   hardwareGpuModels: string[] | null;
-  hardwareDisk: string[] | null;
+  hardwareGpuCapabilities: string[] | null;
+  hardwarePersistentStorageClass: string | null;
   featPersistentStorage: boolean;
-  featPersistentStorageType: string[] | null;
+  featShm: boolean;
+  hardwareShm: string[] | null;
+  hardwareCuda: string | null;
+  datacenter: string | null;
   hardwareMemory: string | null;
   networkProvider: string | null;
   networkSpeedDown: number;
   networkSpeedUp: number;
   tier: string | null;
   featEndpointCustomDomain: boolean;
-  workloadSupportChia: boolean;
-  workloadSupportChiaCapabilities: string[] | null;
   featEndpointIp: boolean;
 }
 

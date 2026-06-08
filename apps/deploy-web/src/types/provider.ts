@@ -220,17 +220,19 @@ export interface ApiProviderList {
   hardwareCpuArch: string;
   hardwareGpuVendor: string;
   hardwareGpuModels: string[];
-  hardwareDisk: string[];
+  hardwareGpuCapabilities: string[];
+  hardwarePersistentStorageClass: string;
   featPersistentStorage: boolean;
-  featPersistentStorageType: string[];
+  featShm: boolean;
+  hardwareShm: string[];
+  hardwareCuda: string;
+  datacenter: string;
   hardwareMemory: string;
   networkProvider: string;
   networkSpeedDown: number;
   networkSpeedUp: number;
   tier: string;
   featEndpointCustomDomain: boolean;
-  workloadSupportChia: boolean;
-  workloadSupportChiaCapabilities: string[];
   featEndpointIp: boolean;
 }
 
