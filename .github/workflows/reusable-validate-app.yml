@@ -88,7 +88,7 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() && steps.tests_details.outputs.has_tests == 'true' && github.event_name != 'merge_group' }}
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           report_type: test_results
           files: ./junit.xml
@@ -98,7 +98,7 @@ jobs:
 
       - name: Upload Test Coverage
         if: steps.tests_details.outputs.has_tests == 'true' && github.event_name != 'merge_group'
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           fail_ci_if_error: true
           directory: ./apps/${{ inputs.app }}/coverage
