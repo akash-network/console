@@ -77,7 +77,9 @@ export interface ProviderCapacityStats {
   };
 }
 
-export interface ProviderDetail extends ProviderList {
+export interface ProviderDetail extends Omit<ProviderList, "hardwareGpuCapabilities" | "hardwareShm"> {
+  hardwareGpuCapabilities: string[];
+  hardwareShm: string[];
   uptime: {
     id: string;
     isOnline: boolean;

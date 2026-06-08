@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "servers": [
     {
-      "url": "http://localhost:3080"
+      "url": "https://console-api-sandbox.akash.network"
     }
   ],
   "info": {
@@ -1920,7 +1920,6 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "default": "2026-06-08",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -2046,7 +2045,6 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "default": "2026-06-08",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },

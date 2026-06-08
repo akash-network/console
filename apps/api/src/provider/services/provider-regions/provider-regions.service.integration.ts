@@ -1,6 +1,6 @@
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
-import type { GitHubHttpService } from "@akashnetwork/http-sdk";
+import type { GitHubHttpService, ProviderAttributesSchema } from "@akashnetwork/http-sdk";
 import fs from "fs/promises";
 import path from "path";
 import { container } from "tsyringe";
@@ -50,8 +50,8 @@ describe("ProviderRegions", () => {
   function setup() {
     return new ProviderRegionsService(
       new ProviderAttributesSchemaService({
-        async getProviderAttributesSchema() {
-          return JSON.parse(await fs.readFile(path.join(__dirname, "../../../../../../config/provider-attributes.json"), "utf8"));
+        async getProviderAttributesSchema(): Promise<ProviderAttributesSchema> {
+          return JSON.parse(await fs.readFile(path.join(__dirname, "../../../../../../config/provider-attributes.json"), "utf8")) as ProviderAttributesSchema;
         }
       } as unknown as GitHubHttpService)
     );

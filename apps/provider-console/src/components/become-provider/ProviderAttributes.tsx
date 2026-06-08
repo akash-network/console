@@ -163,7 +163,7 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
       const updatedProviderProcess = {
         ...providerProcess,
         attributes: data.attributes.map(attr => ({
-          key: attr.key === "unknown-attributes" ? attr.customKey || "" : attr.key || "",
+          key: attr.customKey?.trim() ? attr.customKey : attr.key || "",
           value: attr.value
         }))
       };
@@ -171,7 +171,7 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
       onComplete && onComplete();
     } else {
       const attributes = data.attributes.map(attr => ({
-        key: attr.key === "unknown-attributes" ? attr.customKey || "" : attr.key || "",
+        key: attr.customKey?.trim() ? attr.customKey : attr.key || "",
         value: attr.value
       }));
       const request = {

@@ -161,6 +161,16 @@ function getShmSupport(attrMap: Map<string, string>, schema: ProviderAttributesS
   return hasShmCapability(attrMap);
 }
 
+function hasPersistentStorageCapability(attrMap: Map<string, string>): boolean {
+  for (const [key, value] of attrMap.entries()) {
+    if (/^capabilities\/storage\/\d+\/persistent$/.test(key) && value === "true") {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function getPersistentStorageSupport(attrMap: Map<string, string>, schema: ProviderAttributesSchema): boolean {
   if (getBooleanAttribute("feat-persistent-storage", attrMap, schema)) {
     return true;
@@ -170,7 +180,7 @@ function getPersistentStorageSupport(attrMap: Map<string, string>, schema: Provi
     return true;
   }
 
-  return attrMap.get("capabilities/storage/1/persistent") === "true";
+  return hasPersistentStorageCapability(attrMap);
 }
 
 function getNumberAttribute(key: keyof ProviderAttributesSchema, attrMap: Map<string, string>, schema: ProviderAttributesSchema): number {

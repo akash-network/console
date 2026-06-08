@@ -1,4 +1,4 @@
-import { GitHubHttpService } from "@akashnetwork/http-sdk";
+import { GitHubHttpService, type ProviderAttributesSchema } from "@akashnetwork/http-sdk";
 import { minutesToSeconds } from "date-fns";
 import fs from "fs/promises";
 import path from "path";
@@ -11,10 +11,10 @@ export class ProviderAttributesSchemaService {
   constructor(private readonly gitHubHttpService: GitHubHttpService) {}
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
-  async getProviderAttributesSchema() {
+  async getProviderAttributesSchema(): Promise<ProviderAttributesSchema> {
     if (process.env.DEPLOYMENT_ENV === "test") {
       const schemaPath = path.join(__dirname, "../../../../../../config/provider-attributes.json");
-      return JSON.parse(await fs.readFile(schemaPath, "utf8"));
+      return JSON.parse(await fs.readFile(schemaPath, "utf8")) as ProviderAttributesSchema;
     }
 
     return await this.gitHubHttpService.getProviderAttributesSchema();

@@ -39,7 +39,7 @@
     "key": "location-region",
     "type": "option",
     "required": true,
-    "description": "Geo location region of the provider. Required on-chain key is location-region (not the legacy region key). Based on the United Nations geoscheme. https://en.wikipedia.org/wiki/United_Nations_geoscheme",
+    "description": "Geo location region of the provider. Preferred on-chain key is location-region; legacy region is still read for backward compatibility. Based on the United Nations geoscheme. https://en.wikipedia.org/wiki/United_Nations_geoscheme",
     "values": [
       {
         "key": "na-ca-west",
