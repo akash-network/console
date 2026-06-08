@@ -1,12 +1,15 @@
+import { isOnboardingRedesignAvailable } from "./actions/feature-flags";
 import { expect, test } from "./fixture/base-test";
 import { AddCreditsSheetPage } from "./pages/AddCreditsSheetPage";
 import { OnboardingPickerPage } from "./pages/OnboardingPickerPage";
 
 test.describe("Onboarding picker — unlocking the gated LLM template via Add Credits", () => {
-  test.use({ userType: "new", authType: "passwordless" });
+  test.use({ userType: "new" });
 
   test("a fresh trialing user unlocks the LLM template by purchasing credits", async ({ page }) => {
     test.setTimeout(5 * 60 * 1000);
+
+    expect(await isOnboardingRedesignAvailable(page), "console_onboarding_redesign must be enabled in the test environment").toBe(true);
 
     const onboardingPickerPage = new OnboardingPickerPage(page);
     const addCreditsSheet = new AddCreditsSheetPage(page);

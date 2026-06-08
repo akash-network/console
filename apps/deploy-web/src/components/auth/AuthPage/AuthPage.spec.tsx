@@ -6,23 +6,26 @@ import { AuthPage } from "./AuthPage";
 import { render, screen } from "@testing-library/react";
 
 describe(AuthPage.name, () => {
-  it("renders AuthPageLegacy when console_auth_redesign is off", () => {
-    setup({ isRedesignEnabled: false });
-    expect(screen.getByTestId("legacy")).toBeInTheDocument();
+  it("renders PasswordAuth when console_auth_passwordless is off", () => {
+    setup({ isPasswordless: false });
+    expect(screen.getByTestId("password")).toBeInTheDocument();
     expect(screen.queryByTestId("passwordless")).not.toBeInTheDocument();
   });
 
-  it("renders AuthPagePasswordless when console_auth_redesign is on", () => {
-    setup({ isRedesignEnabled: true });
+  it("renders PasswordlessAuth when console_auth_passwordless is on", () => {
+    setup({ isPasswordless: true });
     expect(screen.getByTestId("passwordless")).toBeInTheDocument();
-    expect(screen.queryByTestId("legacy")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("password")).not.toBeInTheDocument();
   });
 
-  function setup(input: { isRedesignEnabled: boolean }) {
+  function setup(input: { isPasswordless: boolean }) {
     const dependencies: typeof DEPENDENCIES = {
-      AuthPageLegacy: vi.fn(() => <div data-testid="legacy" />) as never,
-      AuthPagePasswordless: vi.fn(() => <div data-testid="passwordless" />) as never,
-      useFlag: (() => input.isRedesignEnabled) as never
+      AuthLayout: (({ children }: { children?: React.ReactNode }) => <div data-testid="layout">{children}</div>) as never,
+      H100PriceStatus: (() => <div data-testid="h100" />) as never,
+      NextSeo: (() => null) as never,
+      PasswordAuth: vi.fn(() => <div data-testid="password" />) as never,
+      PasswordlessAuth: vi.fn(() => <div data-testid="passwordless" />) as never,
+      useFlag: (() => input.isPasswordless) as never
     };
     render(<AuthPage dependencies={dependencies} />);
   }

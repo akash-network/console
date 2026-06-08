@@ -1,48 +1,22 @@
-import { generateTestPassword } from "./actions/auth";
 import { expect, test } from "./fixture/base-test";
-import { testEnvConfig } from "./fixture/test-env.config";
-import { AuthPage } from "./pages/AuthPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 
 test.describe("Managed wallet onboarding", () => {
-  let testUserId: string | undefined;
+  test.use({ userType: "new" });
 
-  test.afterEach(async ({ auth0 }) => {
-    if (testUserId) {
-      await auth0.deleteUser(testUserId).catch(() => {});
-      testUserId = undefined;
-    }
-  });
-
-  test("completes full onboarding from free trial to welcome", async ({ page, auth0, emailVerification }) => {
+  test("completes full onboarding from free trial to welcome", async ({ page }) => {
     test.setTimeout(3 * 60 * 1000);
 
-    const email = emailVerification.generateEmail();
-    const password = generateTestPassword();
-    const authPage = new AuthPage(page);
     const onboardingPage = new OnboardingPage(page);
 
     await test.step("begin free trial onboarding", async () => {
-      await page.goto(`${testEnvConfig.BASE_URL}/signup`);
-      await onboardingPage.startFreeTrial();
-    });
+      const startFreeTrialBtn = page.getByRole("button", { name: /start free trial/i });
+      const addPaymentBtn = onboardingPage.getAddPaymentMethodButton();
 
-    await test.step("sign up with email and password", async () => {
-      await authPage.waitForSignUpTab();
-      await authPage.signUp({ email, password });
-    });
+      await Promise.any([startFreeTrialBtn.waitFor({ state: "visible", timeout: 30_000 }), addPaymentBtn.waitFor({ state: "visible", timeout: 30_000 })]);
 
-    await test.step("arrive at email verification step", async () => {
-      await onboardingPage.waitForPage();
-      await expect(onboardingPage.getFirstVerificationCodeDigit()).toBeVisible({ timeout: 15_000 });
-    });
-
-    await test.step("verify email via verification code", async () => {
-      const auth0User = await auth0.getUserByEmail(email);
-      expect(auth0User).toBeTruthy();
-      testUserId = auth0User!.user_id;
-
-      await emailVerification.verify({ context: page.context(), email, userId: testUserId! });
+      if (await addPaymentBtn.isVisible()) return;
+      await startFreeTrialBtn.click();
     });
 
     await test.step("add payment method via Stripe", async () => {

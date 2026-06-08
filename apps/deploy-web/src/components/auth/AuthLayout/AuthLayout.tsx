@@ -1,65 +1,69 @@
 import type { ReactNode } from "react";
-import { cn } from "@akashnetwork/ui/utils";
-import { DollarSignIcon, RocketIcon, ZapIcon } from "lucide-react";
+import dynamic from "next/dynamic";
 
 import { AkashConsoleLogo } from "@src/components/icons/AkashConsoleLogo";
-import useCookieTheme from "@src/hooks/useTheme";
+import { REGION_MARKERS } from "./markers";
+
+const Globe = dynamic(() => import("@src/components/globe/Globe/Globe").then(m => m.Globe), {
+  ssr: false,
+  loading: () => <div className="aspect-square w-full max-w-[600px] rounded-full bg-[hsl(var(--muted))] opacity-30" />
+});
+
+const DEPLOYMENT_GUIDE_URL = "https://akash.network/docs/getting-started/quick-start/";
+
+export const DEPENDENCIES = {
+  Globe,
+  AkashConsoleLogo,
+  REGION_MARKERS,
+  DEPLOYMENT_GUIDE_URL
+};
 
 interface Props {
   children: ReactNode;
+  topRightContent?: ReactNode;
+  dependencies?: typeof DEPENDENCIES;
 }
 
-export function AuthLayout({ children }: Props) {
-  const theme = useCookieTheme();
-  const sidebarClass = theme === "dark" ? "bg-[#171717] lg:bg-[hsl(var(--background))]" : "bg-[hsl(var(--background))] dark";
-
+export function AuthLayout({ children, topRightContent, dependencies: d = DEPENDENCIES }: Props) {
   return (
     <div className="relative flex h-screen">
-      <div
-        className={cn(
-          "absolute flex h-full w-full items-center justify-center overflow-y-auto lg:static lg:w-1/2",
-          sidebarClass,
-          "bg-[radial-gradient(circle,rgba(255,255,255,0.07)_2px,transparent_2px)]"
-        )}
-        style={{
-          backgroundSize: "24px 24px",
-          color: "hsl(var(--foreground))"
-        }}
-      >
-        <div className="hidden max-w-[576px] flex-col gap-6 px-4 lg:flex">
-          <AkashConsoleLogo size={{ width: 291, height: 32 }} />
-          <p>The fastest way to deploy an application on Akash.Network</p>
-          <div className="flex gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md border border-[#E5E5E5] bg-white" style={{ color: "hsl(var(--background))" }}>
-              <ZapIcon />
-            </div>
-            <div className="flex-1">
-              <h5 className="font-semibold">Generous Free Trial</h5>
-              <p className="mt-1">$100 of cloud compute credits so you can test real workloads.</p>
-            </div>
-          </div>
-          <div className="flex gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md border border-[#E5E5E5] bg-white" style={{ color: "hsl(var(--background))" }}>
-              <RocketIcon />
-            </div>
-            <div className="flex-1">
-              <h5 className="font-semibold">Optimized for AI/ML</h5>
-              <p className="mt-1">Container native with a library of templates for leading open source AI models and applications.</p>
-            </div>
-          </div>
-          <div className="flex gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md border border-[#E5E5E5] bg-white" style={{ color: "hsl(var(--background))" }}>
-              <DollarSignIcon />
-            </div>
-            <div className="flex-1">
-              <h5 className="font-semibold">Cost Savings</h5>
-              <p className="mt-1">The most competitive prices for GPUs on-demand, anywhere on the internet.</p>
-            </div>
+      <div className="dark relative hidden flex-col px-10 py-14 text-[hsl(var(--foreground))] lg:flex lg:w-1/2">
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[#141414]" />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.13]"
+          style={{
+            backgroundImage: "url('/images/auth-panel-noise.webp')",
+            backgroundSize: "469.6px 469.6px",
+            backgroundRepeat: "repeat",
+            backgroundPosition: "top left"
+          }}
+        />
+
+        <header className="relative flex items-center justify-between">
+          <d.AkashConsoleLogo size={{ width: 305, height: 33 }} />
+          {topRightContent}
+        </header>
+
+        <div className="relative flex flex-1 items-center justify-center py-8">
+          <div className="aspect-square w-full max-w-[640px]">
+            <d.Globe markers={d.REGION_MARKERS} surfaceTheme="dark" />
           </div>
         </div>
+
+        <footer className="relative flex justify-end">
+          <a
+            href={d.DEPLOYMENT_GUIDE_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+          >
+            Need Help? Read the full deployment guide ↗
+          </a>
+        </footer>
       </div>
 
-      <div className="relative z-10 flex w-full flex-1 items-center justify-center overflow-y-auto px-3 py-4 lg:p-0">{children}</div>
+      <div className="relative z-10 flex w-full flex-1 items-center justify-center overflow-y-auto bg-white px-3 py-4 lg:p-0 dark:bg-[#0a0a0a]">{children}</div>
     </div>
   );
 }

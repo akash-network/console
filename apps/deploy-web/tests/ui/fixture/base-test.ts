@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { test as baseTest } from "@playwright/test";
 
-import { type AuthType, loginExistingUser, registerNewUser } from "../actions/auth";
+import { loginExistingUser, registerNewUser } from "../actions/auth";
 import { Auth0ManagementService } from "../services/auth0-management.service";
 import { createEmailVerificationStrategy, type EmailVerificationStrategy } from "../services/email-verification";
 import { testEnvConfig } from "./test-env.config";
@@ -21,15 +21,12 @@ const emailVerification = createEmailVerificationStrategy(auth0);
 type Fixtures = {
   /** Who the test runs as. Omit for no auth precondition. */
   userType?: UserType;
-  /** Which credential mechanism to authenticate with. Passwordless is reserved for new onboarding flows. */
-  authType: AuthType;
   auth0: Auth0ManagementService;
   emailVerification: EmailVerificationStrategy;
 };
 
 export const test = baseTest.extend<Fixtures>({
   userType: [undefined, { option: true }],
-  authType: ["email-password", { option: true }],
   // eslint-disable-next-line no-empty-pattern
   auth0: async ({}, use) => {
     await use(auth0);
@@ -38,15 +35,15 @@ export const test = baseTest.extend<Fixtures>({
   emailVerification: async ({}, use) => {
     await use(emailVerification);
   },
-  page: async ({ page, userType, authType }, use) => {
+  page: async ({ page, userType }, use) => {
     await injectUIConfig(page);
     await routeTestingClientToken(page);
 
     let createdUserId: string | undefined;
     if (userType === "existing") {
-      await loginExistingUser(page, authType);
+      await loginExistingUser(page);
     } else if (userType === "new") {
-      createdUserId = (await registerNewUser(page, { auth0, emailVerification, authType })).userId;
+      createdUserId = (await registerNewUser(page, { auth0, emailVerification })).userId;
     }
 
     await use(page);

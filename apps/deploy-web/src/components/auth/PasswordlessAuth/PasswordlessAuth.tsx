@@ -3,15 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { NextSeo } from "next-seo";
 
-import { H100PriceStatus } from "@src/components/gpu/H100PriceStatus/H100PriceStatus";
 import type { TurnstileRef } from "@src/components/turnstile/Turnstile";
 import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
 import { useServices } from "@src/context/ServicesProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useReturnTo } from "@src/hooks/useReturnTo/useReturnTo";
 import { useUser } from "@src/hooks/useUser";
-import { AuthLayoutV2 } from "../AuthLayoutV2/AuthLayoutV2";
 import { EmailCodeStart } from "../EmailCodeStart/EmailCodeStart";
 import { EmailCodeVerify } from "../EmailCodeVerify/EmailCodeVerify";
 import { OAuthRow } from "../OAuthRow/OAuthRow";
@@ -19,14 +17,12 @@ import type { PassedFlowProps } from "./withPersistedPasswordlessFlow";
 import { withPersistedPasswordlessFlow } from "./withPersistedPasswordlessFlow";
 
 export const DEPENDENCIES = {
-  AuthLayoutV2,
   EmailCodeStart,
   EmailCodeVerify,
-  H100PriceStatus,
   Link,
-  NextSeo,
   OAuthRow,
   Turnstile: ClientOnlyTurnstile,
+  useFlag,
   useReturnTo,
   useUser
 };
@@ -35,10 +31,11 @@ interface Props extends PassedFlowProps {
   dependencies?: typeof DEPENDENCIES;
 }
 
-export function AuthPagePasswordless({ dependencies: d = DEPENDENCIES, ...props }: Props) {
+export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: Props) {
   const { publicConfig } = useServices();
   const { navigateBack } = d.useReturnTo({ defaultReturnTo: "/" });
   const { checkSession } = d.useUser();
+  const isOnboardingRedesignEnabled = d.useFlag("console_onboarding_redesign");
   const [email, setEmail] = useState(props.initialEmail);
   const [screen, setScreen] = useState<"entry" | "verify">(props.initialScreen);
   const [screenKey, setScreenKey] = useState(0);
@@ -89,75 +86,74 @@ export function AuthPagePasswordless({ dependencies: d = DEPENDENCIES, ...props 
   );
 
   return (
-    <d.AuthLayoutV2 topRightContent={<d.H100PriceStatus />}>
-      <d.NextSeo title="Sign in to Akash Console" />
-      <div className="flex w-full max-w-[420px] flex-col items-center gap-6 px-3 py-4 sm:px-6 lg:px-0">
-        <div className="flex w-full flex-col items-center gap-2 text-center">
-          <h1 className="text-[30px] font-bold leading-9 text-neutral-950 dark:text-neutral-50">Start deploying</h1>
+    <>
+      <div className="flex w-full flex-col items-center gap-2 text-center">
+        <h1 className="text-[30px] font-bold leading-9 text-neutral-950 dark:text-neutral-50">Start deploying</h1>
+        {isOnboardingRedesignEnabled && (
           <p className="text-sm leading-5 text-neutral-500 dark:text-neutral-400">$5 credit to deploy your first container. No card required.</p>
-        </div>
-        {screen === "entry" && (
-          <>
-            <d.OAuthRow />
-            <div className="flex w-full items-center gap-3">
-              <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
-              <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400">OR</span>
-              <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
-            </div>
-            <d.EmailCodeStart key={`start-${screenKey}`} defaultEmail={email} getCaptchaToken={getCaptchaToken} onStarted={goToVerify} />
-            <p className="text-center text-xs leading-4 text-neutral-500 dark:text-neutral-400">
-              By continuing, you agree to our{" "}
-              <d.Link
-                href="/terms-of-service"
-                prefetch={false}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-neutral-950 underline dark:text-neutral-50"
-              >
-                Terms
-              </d.Link>{" "}
-              and{" "}
-              <d.Link
-                href="/privacy-policy"
-                prefetch={false}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-neutral-950 underline dark:text-neutral-50"
-              >
-                Privacy Policy
-              </d.Link>
-              .
-            </p>
-          </>
         )}
-        {screen === "verify" && (
-          <d.EmailCodeVerify
-            key={`verify-${screenKey}`}
-            email={email}
-            getCaptchaToken={getCaptchaToken}
-            onEditEmail={goBackToEntry}
-            onVerified={handleVerified}
-          />
-        )}
-        <d.Turnstile
-          turnstileRef={turnstileRef}
-          enabled={publicConfig.NEXT_PUBLIC_TURNSTILE_ENABLED}
-          siteKey={publicConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-          onDismissed={remountActiveScreen}
-        />
       </div>
-    </d.AuthLayoutV2>
+      {screen === "entry" && (
+        <>
+          <d.OAuthRow />
+          <div className="flex w-full items-center gap-3">
+            <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
+            <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400">OR</span>
+            <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
+          </div>
+          <d.EmailCodeStart key={`start-${screenKey}`} defaultEmail={email} getCaptchaToken={getCaptchaToken} onStarted={goToVerify} />
+          <p className="text-center text-xs leading-4 text-neutral-500 dark:text-neutral-400">
+            By continuing, you agree to our{" "}
+            <d.Link
+              href="/terms-of-service"
+              prefetch={false}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-neutral-950 underline dark:text-neutral-50"
+            >
+              Terms
+            </d.Link>{" "}
+            and{" "}
+            <d.Link
+              href="/privacy-policy"
+              prefetch={false}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-neutral-950 underline dark:text-neutral-50"
+            >
+              Privacy Policy
+            </d.Link>
+            .
+          </p>
+        </>
+      )}
+      {screen === "verify" && (
+        <d.EmailCodeVerify
+          key={`verify-${screenKey}`}
+          email={email}
+          getCaptchaToken={getCaptchaToken}
+          onEditEmail={goBackToEntry}
+          onVerified={handleVerified}
+        />
+      )}
+      <d.Turnstile
+        turnstileRef={turnstileRef}
+        enabled={publicConfig.NEXT_PUBLIC_TURNSTILE_ENABLED}
+        siteKey={publicConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+        onDismissed={remountActiveScreen}
+      />
+    </>
   );
 }
 
-const PersistedAuthPagePasswordless = withPersistedPasswordlessFlow(AuthPagePasswordless);
+const PersistedPasswordlessAuth = withPersistedPasswordlessFlow(PasswordlessAuth);
 
 /**
  * Route-facing entry: wraps the orchestrator with sessionStorage persistence and skips SSR.
  * Skipping SSR avoids the hydration mismatch that would otherwise produce a "wrong screen" flash on reload —
  * the lazy useState initializer inside the HoC reads sessionStorage during the first (client-only) render.
  */
-export const AuthPagePasswordlessClient = dynamic(() => Promise.resolve(PersistedAuthPagePasswordless), {
+export const PasswordlessAuthClient = dynamic(() => Promise.resolve(PersistedPasswordlessAuth), {
   ssr: false,
   loading: () => null
 });

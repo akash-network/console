@@ -3,13 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { TurnstileRef } from "@src/components/turnstile/Turnstile";
-import { AuthPagePasswordless, DEPENDENCIES } from "./AuthPagePasswordless";
+import { DEPENDENCIES, PasswordlessAuth } from "./PasswordlessAuth";
 
-import { act, render } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { ComponentMock, MockComponents } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
-describe(AuthPagePasswordless.name, () => {
+describe(PasswordlessAuth.name, () => {
   it("flips to the verify screen when EmailCodeStart calls onStarted", () => {
     const EmailCodeStartMock = vi.fn(ComponentMock);
     const EmailCodeVerifyMock = vi.fn(ComponentMock);
@@ -17,12 +17,9 @@ describe(AuthPagePasswordless.name, () => {
       dependencies: { EmailCodeStart: EmailCodeStartMock as never, EmailCodeVerify: EmailCodeVerifyMock as never }
     });
 
-    act(() => {
-      EmailCodeStartMock.mock.calls[0][0].onStarted("alice@example.com");
-    });
+    act(() => EmailCodeStartMock.mock.lastCall![0].onStarted("alice@example.com"));
 
-    expect(EmailCodeVerifyMock).toHaveBeenCalled();
-    expect(EmailCodeVerifyMock.mock.calls.at(-1)?.[0].email).toBe("alice@example.com");
+    expect(EmailCodeVerifyMock).toHaveBeenLastCalledWith(expect.objectContaining({ email: "alice@example.com" }), expect.anything());
   });
 
   it("starts on the verify screen and prefills email from initialEmail/initialScreen", () => {
@@ -34,8 +31,7 @@ describe(AuthPagePasswordless.name, () => {
       dependencies: { EmailCodeStart: EmailCodeStartMock as never, EmailCodeVerify: EmailCodeVerifyMock as never }
     });
 
-    expect(EmailCodeVerifyMock).toHaveBeenCalled();
-    expect(EmailCodeVerifyMock.mock.calls.at(-1)?.[0].email).toBe("alice@example.com");
+    expect(EmailCodeVerifyMock).toHaveBeenLastCalledWith(expect.objectContaining({ email: "alice@example.com" }), expect.anything());
   });
 
   it("returns to the entry screen when EmailCodeVerify calls onEditEmail", () => {
@@ -47,21 +43,16 @@ describe(AuthPagePasswordless.name, () => {
       dependencies: { EmailCodeStart: EmailCodeStartMock as never, EmailCodeVerify: EmailCodeVerifyMock as never }
     });
 
-    act(() => {
-      EmailCodeVerifyMock.mock.calls.at(-1)?.[0].onEditEmail();
-    });
+    act(() => EmailCodeVerifyMock.mock.lastCall![0].onEditEmail());
 
-    expect(EmailCodeStartMock).toHaveBeenCalled();
-    expect(EmailCodeStartMock.mock.calls.at(-1)?.[0].defaultEmail).toBe("alice@example.com");
+    expect(EmailCodeStartMock).toHaveBeenLastCalledWith(expect.objectContaining({ defaultEmail: "alice@example.com" }), expect.anything());
   });
 
   it("notifies the persistence layer when EmailCodeStart succeeds", () => {
     const EmailCodeStartMock = vi.fn(ComponentMock);
     const { onFlowChange } = setup({ dependencies: { EmailCodeStart: EmailCodeStartMock as never } });
 
-    act(() => {
-      EmailCodeStartMock.mock.calls[0][0].onStarted("alice@example.com");
-    });
+    act(() => EmailCodeStartMock.mock.lastCall![0].onStarted("alice@example.com"));
 
     expect(onFlowChange).toHaveBeenLastCalledWith({ email: "alice@example.com", screen: "verify" });
   });
@@ -75,7 +66,7 @@ describe(AuthPagePasswordless.name, () => {
     });
 
     await act(async () => {
-      await EmailCodeVerifyMock.mock.calls.at(-1)?.[0].onVerified();
+      await EmailCodeVerifyMock.mock.lastCall![0].onVerified();
     });
 
     expect(onFlowReset).toHaveBeenCalled();
@@ -87,16 +78,27 @@ describe(AuthPagePasswordless.name, () => {
     const EmailCodeStartMock = vi.fn(ComponentMock);
     setup({ dependencies: { EmailCodeStart: EmailCodeStartMock as never } });
 
-    const getCaptchaToken = EmailCodeStartMock.mock.calls[0][0].getCaptchaToken as () => Promise<string>;
+    const { getCaptchaToken } = EmailCodeStartMock.mock.lastCall![0];
     const token = await getCaptchaToken();
 
     expect(token).toBe("test-captcha-token");
+  });
+
+  it("shows the $5 credit subtext when console_onboarding_redesign is enabled", () => {
+    setup({ isOnboardingRedesignEnabled: true });
+    expect(screen.getByText(/\$5 credit to deploy your first container/i)).toBeInTheDocument();
+  });
+
+  it("hides the $5 credit subtext when console_onboarding_redesign is disabled", () => {
+    setup({ isOnboardingRedesignEnabled: false });
+    expect(screen.queryByText(/\$5 credit to deploy your first container/i)).not.toBeInTheDocument();
   });
 
   function setup(
     input: {
       initialEmail?: string;
       initialScreen?: "entry" | "verify";
+      isOnboardingRedesignEnabled?: boolean;
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
@@ -118,6 +120,7 @@ describe(AuthPagePasswordless.name, () => {
         hasReturnTo: false,
         isDeploymentReturnTo: false
       });
+    const useFlag: typeof DEPENDENCIES.useFlag = (() => Boolean(input.isOnboardingRedesignEnabled)) as never;
 
     const Turnstile = vi.fn(({ turnstileRef }: { turnstileRef?: RefObject<TurnstileRef> }) => {
       if (turnstileRef) {
@@ -130,7 +133,7 @@ describe(AuthPagePasswordless.name, () => {
 
     render(
       <TestContainerProvider services={{}}>
-        <AuthPagePasswordless
+        <PasswordlessAuth
           initialEmail={input.initialEmail ?? ""}
           initialScreen={input.initialScreen ?? "entry"}
           onFlowChange={onFlowChange}
@@ -139,6 +142,7 @@ describe(AuthPagePasswordless.name, () => {
             ...MockComponents(DEPENDENCIES),
             useUser,
             useReturnTo,
+            useFlag,
             Turnstile,
             ...input.dependencies
           }}

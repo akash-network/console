@@ -1,18 +1,22 @@
+import { isOnboardingRedesignAvailable } from "./actions/feature-flags";
 import { expect, test } from "./fixture/base-test";
 import { testEnvConfig } from "./fixture/test-env.config";
 import { DeployPage } from "./pages/DeployPage";
 import { OnboardingPickerPage } from "./pages/OnboardingPickerPage";
 
 test.describe("Onboarding redesign quick deploy", () => {
-  test.use({ userType: "new", authType: "passwordless" });
+  test.use({ userType: "new" });
 
-  test("fresh passwordless user deploys hello world from /onboarding and closes it", async ({ context, page }) => {
+  test("fresh user deploys hello world from /onboarding and closes it", async ({ context, page }) => {
     test.setTimeout(10 * 60 * 1000);
+
+    expect(await isOnboardingRedesignAvailable(page), "console_onboarding_redesign must be enabled in the test environment").toBe(true);
 
     const onboardingPickerPage = new OnboardingPickerPage(page);
     const deployPage = new DeployPage(context, page);
 
     await test.step("open onboarding picker", async () => {
+      await onboardingPickerPage.goto();
       await expect(onboardingPickerPage.getHeading()).toBeVisible({ timeout: 15_000 });
     });
 

@@ -6,7 +6,7 @@ export class AuthPagePasswordless {
   constructor(readonly page: Page) {}
 
   async goto() {
-    await this.page.goto(`${testEnvConfig.BASE_URL}/login-v2`);
+    await this.page.goto(`${testEnvConfig.BASE_URL}/login`);
   }
 
   async startWithEmail(email: string) {
@@ -19,6 +19,6 @@ export class AuthPagePasswordless {
   }
 
   async waitForRedirectAwayFromLogin() {
-    await this.page.waitForURL(url => !/^\/login(\/|$)/.test(url.pathname) && !/^\/login-v2(\/|$)/.test(url.pathname));
+    await this.page.waitForURL(url => !/^\/login(\/|$)/.test(url.pathname));
   }
 }
