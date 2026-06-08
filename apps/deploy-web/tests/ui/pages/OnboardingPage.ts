@@ -7,6 +7,15 @@ export class OnboardingPage {
     await this.page.waitForURL(/\/signup/);
   }
 
+  /**
+   * Resolves true once the app has settled on the onboarding flow (signup or the
+   * redesigned onboarding picker) — i.e. the current user is new and not yet onboarded.
+   */
+  async isCurrentPage(): Promise<boolean> {
+    await this.page.waitForURL(/\/(signup|onboarding)/, { timeout: 30_000 });
+    return /\/(signup|onboarding)/.test(new URL(this.page.url()).pathname);
+  }
+
   async startFreeTrial() {
     await this.page.getByRole("button", { name: /start free trial/i }).click();
   }

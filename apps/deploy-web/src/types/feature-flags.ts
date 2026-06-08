@@ -9,6 +9,7 @@ export type FeatureFlag =
   | "console_embedded_login"
   | "self_custody"
   | "console_auth_passwordless"
+  | "console_auth_password_escape_hatch"
   | "console_onboarding_redesign"
   | "bid_screening"
   | "ui_sdl_preview_panel";

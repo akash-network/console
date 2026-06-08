@@ -23,11 +23,17 @@ export function generateTestPassword(): string {
  * flow is active. Races a passwordless marker against an email/password marker
  * and returns the first to appear.
  *
+ * When `preferPassword` is set, navigates to /login?auth=password so the FF-gated
+ * password escape hatch (console_auth_password_escape_hatch) is selected when
+ * available; the param is inert when the flag is off, so callers transparently
+ * fall back to whichever UI the environment serves.
+ *
  * Throws if neither marker resolves within DETECT_TIMEOUT_MS.
  * Leaves the page on /login so callers can drive the matching flow directly.
  */
-export async function detectAuthType(page: Page): Promise<AuthType> {
-  await page.goto(`${testEnvConfig.BASE_URL}/login`);
+export async function detectAuthType(page: Page, options: { preferPassword?: boolean } = {}): Promise<AuthType> {
+  const path = options.preferPassword ? "/login?auth=password" : "/login";
+  await page.goto(`${testEnvConfig.BASE_URL}${path}`);
 
   const passwordless = page
     .getByRole("button", { name: /continue with email/i })
@@ -56,7 +62,7 @@ export async function loginExistingUser(page: Page): Promise<void> {
     throw new Error('TEST_USER_EMAIL env var is required for userType: "existing" tests');
   }
 
-  const authType = await detectAuthType(page);
+  const authType = await detectAuthType(page, { preferPassword: true });
 
   if (authType === "passwordless") {
     await signInPasswordless(page, email);
@@ -81,7 +87,7 @@ export async function registerNewUser(
   page: Page,
   deps: { auth0: Auth0ManagementService; emailVerification: EmailVerificationStrategy }
 ): Promise<{ email: string; userId: string }> {
-  const authType = await detectAuthType(page);
+  const authType = await detectAuthType(page, { preferPassword: true });
   const email = authType === "passwordless" ? await registerPasswordless(page) : await registerWithEmailPassword(page, deps);
 
   const auth0User = await deps.auth0.getUserByEmail(email);
@@ -101,7 +107,7 @@ async function registerWithEmailPassword(page: Page, deps: { auth0: Auth0Managem
   const email = deps.emailVerification.generateEmail();
   const auth = new AuthPage(page);
 
-  await page.goto(`${testEnvConfig.BASE_URL}/login?tab=signup`);
+  await page.goto(`${testEnvConfig.BASE_URL}/login?tab=signup&auth=password`);
 
   const sinceMs = Date.now();
   const signupResponse = page.waitForResponse(response => response.url().endsWith("/api/auth/password-signup") && response.ok(), {
@@ -128,7 +134,7 @@ async function signInWithPassword(page: Page, credentials: { email: string; pass
 }
 
 /** Drives the passwordless (email OTP via Mailsac) flow for the given email. Page is expected to be on /login. */
-async function signInPasswordless(page: Page, email: string): Promise<void> {
+export async function signInPasswordless(page: Page, email: string): Promise<void> {
   const otp = new MailsacCodeVerificationStrategy(testEnvConfig.MAILSAC_API_KEY);
   const auth = new AuthPagePasswordless(page);
 

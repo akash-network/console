@@ -57,7 +57,11 @@ export function updateStorageManagedWallet(update: ManagedWalletUpdate): Managed
   const networkId = browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID;
   const prev = getStorageManagedWallet(update.userId, networkId);
 
-  if (!prev && (update.address === undefined || update.creditAmount === undefined || update.isTrialing === undefined)) {
+  const address = update.address ?? prev?.address;
+  const creditAmount = update.creditAmount ?? prev?.creditAmount;
+  const isTrialing = update.isTrialing ?? prev?.isTrialing;
+
+  if (address === undefined || creditAmount === undefined || isTrialing === undefined) {
     errorHandler.reportError({
       error: new Error("Cannot create managed wallet entry without address, creditAmount and isTrialing"),
       severity: "warning",
@@ -68,10 +72,10 @@ export function updateStorageManagedWallet(update: ManagedWalletUpdate): Managed
   }
 
   const next: ManagedLocalWallet = {
-    address: update.address ?? prev!.address,
+    address,
     token: update.token ?? prev?.token,
-    creditAmount: update.creditAmount ?? prev!.creditAmount,
-    isTrialing: update.isTrialing ?? prev!.isTrialing,
+    creditAmount,
+    isTrialing,
     userId: update.userId,
     name: "Managed Wallet",
     isManaged: true,
