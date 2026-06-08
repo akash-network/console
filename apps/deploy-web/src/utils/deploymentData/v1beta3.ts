@@ -202,7 +202,8 @@ export async function NewDeploymentData(
       orderId: [],
       leaseId: [],
       hash: version,
-      deposit: _deposit
+      deposit: _deposit,
+      reclamation: manifest.reclamation
     };
   } catch (e: any) {
     const error = new CustomValidationError(e.message);

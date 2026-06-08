@@ -43,7 +43,8 @@ export class DeploymentWriterService {
       groups: manifest.groupSpecs,
       denom: this.billingConfig.get("DEPLOYMENT_GRANT_DENOM"),
       amount: denomToUdenom(input.deposit),
-      hash: manifestVersion
+      hash: manifestVersion,
+      reclamation: manifest.reclamation
     });
 
     const result = await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, [message]);
