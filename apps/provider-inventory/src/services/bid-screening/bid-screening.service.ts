@@ -54,7 +54,8 @@ export class BidScreeningService {
     return {
       owner: candidate.owner,
       hostUri: candidate.hostUri,
-      isAudited: candidate.isAudited
+      isAudited: candidate.isAudited,
+      createdAt: candidate.createdAt
     };
   }
 }

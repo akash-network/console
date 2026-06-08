@@ -69,6 +69,7 @@ export interface BidScreeningResult {
   owner: string;
   hostUri: string;
   isAudited: boolean;
+  createdAt: string;
 }
 
 export type ToJSON<T> = T extends Uint8Array ? bigint : T extends object ? { -readonly [K in keyof T]: ToJSON<Exclude<T[K], undefined>> } : T;
