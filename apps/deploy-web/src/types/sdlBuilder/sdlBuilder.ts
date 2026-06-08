@@ -393,6 +393,7 @@ export const SdlBuilderFormValuesSchema = z
   .merge(SSHKey)
   .superRefine((data, ctx) => {
     const placementIds = new Set<string>();
+    const placementNames = new Set<string>();
     for (let i = 0; i < data.placements.length; i++) {
       const placementId = data.placements[i].id;
       if (placementIds.has(placementId)) {
@@ -405,6 +406,18 @@ export const SdlBuilderFormValuesSchema = z
         continue;
       }
       placementIds.add(placementId);
+
+      const placementName = data.placements[i].name;
+      if (placementNames.has(placementName)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Placement name must be unique.",
+          path: ["placements", i, "name"],
+          fatal: true
+        });
+      } else {
+        placementNames.add(placementName);
+      }
     }
 
     for (let i = 0; i < data.services.length; i++) {
@@ -415,6 +428,21 @@ export const SdlBuilderFormValuesSchema = z
           path: ["services", i, "placementId"],
           fatal: true
         });
+      }
+    }
+
+    const serviceTitles = new Set<string>();
+    for (let i = 0; i < data.services.length; i++) {
+      const title = data.services[i].title;
+      if (serviceTitles.has(title)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Service name must be unique.",
+          path: ["services", i, "title"],
+          fatal: true
+        });
+      } else {
+        serviceTitles.add(title);
       }
     }
 

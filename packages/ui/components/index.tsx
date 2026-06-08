@@ -15,6 +15,7 @@ export * from "./dropdown-menu";
 export * from "./field";
 export * from "./form";
 export * from "./label";
+export * from "./inline-edit-input";
 export * from "./input";
 export * from "./navigation-menu";
 export * from "./pagination";

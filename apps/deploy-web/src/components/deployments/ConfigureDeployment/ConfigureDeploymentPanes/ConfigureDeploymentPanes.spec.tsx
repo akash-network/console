@@ -89,16 +89,34 @@ describe("ConfigureDeploymentPanes", () => {
     });
   });
 
-  function setup(input: { isSdlPreviewEnabled?: boolean; sdl?: string; preserveStorage?: boolean } = {}) {
+  it("threads the selected service and selection handler into the deployment and configuration panes", () => {
+    const onSelectService = vi.fn();
+    const { DeploymentPane, ConfigurationPane } = setup({ selectedServiceId: "svc-1", onSelectService });
+
+    expect(DeploymentPane).toHaveBeenCalledWith(expect.objectContaining({ selectedServiceId: "svc-1", onSelectService }), expect.anything());
+    expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ selectedServiceId: "svc-1" }), expect.anything());
+  });
+
+  function setup(
+    input: {
+      isSdlPreviewEnabled?: boolean;
+      sdl?: string;
+      preserveStorage?: boolean;
+      selectedServiceId?: string | null;
+      onSelectService?: (serviceId: string) => void;
+    } = {}
+  ) {
     const SdlPreviewPane = vi.fn(({ isOpen, onOpen, onClose }: { isOpen: boolean; onOpen: () => void; onClose: () => void }) => (
       <div data-testid="sdl-preview-pane-mock" data-open={isOpen}>
         <button type="button" aria-label="Open SDL preview mock" onClick={onOpen} />
         <button type="button" aria-label="Close SDL preview mock" onClick={onClose} />
       </div>
     ));
+    const DeploymentPane = vi.fn(() => <div data-testid="deployment-pane-mock" />);
+    const ConfigurationPane = vi.fn(() => <div data-testid="configuration-pane-mock" />);
     const dependencies: typeof DEPENDENCIES = {
-      DeploymentPane: vi.fn(() => <div data-testid="deployment-pane-mock" />),
-      ConfigurationPane: vi.fn(() => <div data-testid="configuration-pane-mock" />),
+      DeploymentPane: DeploymentPane as never,
+      ConfigurationPane: ConfigurationPane as never,
       MarketplacePane: vi.fn(() => <div data-testid="marketplace-pane-mock" />),
       SdlPreviewPane: SdlPreviewPane as never,
       useFlag: (() => input.isSdlPreviewEnabled ?? false) as never
@@ -110,10 +128,15 @@ describe("ConfigureDeploymentPanes", () => {
 
     const { unmount } = render(
       <JotaiStoreProvider store={createStore()}>
-        <ConfigureDeploymentPanes sdl={input.sdl ?? ""} dependencies={dependencies} />
+        <ConfigureDeploymentPanes
+          sdl={input.sdl ?? ""}
+          selectedServiceId={input.selectedServiceId ?? null}
+          onSelectService={input.onSelectService ?? vi.fn()}
+          dependencies={dependencies}
+        />
       </JotaiStoreProvider>
     );
 
-    return { SdlPreviewPane, unmount };
+    return { SdlPreviewPane, DeploymentPane, ConfigurationPane, unmount };
   }
 });

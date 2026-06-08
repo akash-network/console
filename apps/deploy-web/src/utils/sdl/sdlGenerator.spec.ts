@@ -56,6 +56,17 @@ describe("sdlGenerator", () => {
       expect(() => generateSdl(formValues)).toThrow(/unknown placementId/);
     });
 
+    it("emits a placement profile for a placement without services", () => {
+      const formValues = buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" }));
+      formValues.placements.push({ id: "p-2", name: "placement-1", region: "eu-west" } as PlacementType);
+      const result = generateSdl(formValues);
+      const parsed = yaml.load(result) as { profiles: { placement: Record<string, { attributes?: Record<string, string> }> }; deployment: object };
+
+      expect(Object.keys(parsed.profiles.placement)).toEqual(["dcloud", "placement-1"]);
+      expect(parsed.profiles.placement["placement-1"].attributes).toMatchObject({ "location-region": "eu-west" });
+      expect(Object.keys(parsed.deployment)).toEqual(["web"]);
+    });
+
     it("deduplicates placement profiles when multiple services share a placementId", () => {
       const formValues = buildFormValues(
         buildLogCollectorService({ title: "web", image: "nginx:latest" }),

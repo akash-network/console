@@ -16,10 +16,12 @@ export const DEPENDENCIES = { DeploymentPane, ConfigurationPane, MarketplacePane
 
 type Props = {
   sdl: string;
+  selectedServiceId: string | null;
+  onSelectService: (serviceId: string) => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const ConfigureDeploymentPanes: FC<Props> = ({ sdl, dependencies: d = DEPENDENCIES }) => {
+export const ConfigureDeploymentPanes: FC<Props> = ({ sdl, selectedServiceId, onSelectService, dependencies: d = DEPENDENCIES }) => {
   const [activePane, setActivePane] = useState<ActivePane>("deployment");
   const [isSdlPreviewOpen, setIsSdlPreviewOpen] = useAtom(sdlStore.sdlPreviewOpen);
   const isSdlPreviewEnabled = d.useFlag("ui_sdl_preview_panel");
@@ -28,10 +30,10 @@ export const ConfigureDeploymentPanes: FC<Props> = ({ sdl, dependencies: d = DEP
     <div className="flex h-full w-full flex-col">
       <div className="grid min-h-0 flex-1 grid-rows-1 md:auto-cols-fr md:grid-flow-col md:grid-cols-[auto_320px_1fr] md:divide-x md:divide-zinc-300 md:border-t md:border-zinc-300 md:dark:divide-zinc-700 md:dark:border-zinc-700">
         <div className={cn("min-h-0 md:block", { hidden: activePane !== "deployment" })}>
-          <d.DeploymentPane />
+          <d.DeploymentPane selectedServiceId={selectedServiceId} onSelectService={onSelectService} />
         </div>
         <div className={cn("min-h-0 md:block", { hidden: activePane !== "configuration" })}>
-          <d.ConfigurationPane />
+          <d.ConfigurationPane selectedServiceId={selectedServiceId} />
         </div>
         <div className={cn("min-h-0 md:block", { hidden: activePane !== "marketplace" })}>
           <d.MarketplacePane />

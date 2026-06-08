@@ -20,6 +20,35 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
   const sdl: Record<string, any> = { version: "2.0", services: {}, profiles: { compute: {}, placement: {} }, deployment: {} };
   const placementById = new Map<string, PlacementType>(formValues.placements.map(p => [p.id, p]));
 
+  formValues.placements.forEach(placement => {
+    sdl.profiles.placement[placement.name] = { pricing: {} };
+
+    if ((placement.signedBy?.anyOf?.length || 0) > 0) {
+      sdl.profiles.placement[placement.name].signedBy = {
+        anyOf: placement.signedBy?.anyOf.map(x => x.value)
+      };
+    }
+
+    if ((placement.signedBy?.allOf?.length || 0) > 0) {
+      sdl.profiles.placement[placement.name].signedBy = sdl.profiles.placement[placement.name].signedBy || {};
+      sdl.profiles.placement[placement.name].signedBy.allOf = placement.signedBy?.allOf.map(x => x.value);
+    }
+
+    if ((placement.attributes?.length || 0) > 0) {
+      sdl.profiles.placement[placement.name].attributes = placement.attributes?.reduce<Record<string, string>>(
+        (acc, curr) => ((acc[curr.key] = curr.value), acc),
+        {}
+      );
+    }
+
+    if (!!placement.region && placement.region !== "any") {
+      sdl.profiles.placement[placement.name].attributes = {
+        ...(sdl.profiles.placement[placement.name].attributes || {}),
+        "location-region": placement.region.toLowerCase()
+      };
+    }
+  });
+
   formValues.services.forEach(service => {
     const placement = placementById.get(service.placementId);
     if (!placement) {
@@ -177,38 +206,10 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
       };
     }
 
-    sdl.profiles.placement[placement.name] = sdl.profiles.placement[placement.name] || { pricing: {} };
     sdl.profiles.placement[placement.name].pricing[service.title] = {
       denom: service.pricing.denom,
       amount: service.pricing.amount
     };
-
-    if ((placement.signedBy?.anyOf?.length || 0) > 0 || (placement.signedBy?.allOf?.length || 0) > 0) {
-      if ((placement.signedBy?.anyOf?.length || 0) > 0) {
-        sdl.profiles.placement[placement.name].signedBy = {
-          anyOf: placement.signedBy?.anyOf.map(x => x.value)
-        };
-      }
-
-      if ((placement.signedBy?.allOf?.length || 0) > 0) {
-        sdl.profiles.placement[placement.name].signedBy = sdl.profiles.placement[placement.name].signedBy || {};
-        sdl.profiles.placement[placement.name].signedBy.allOf = placement.signedBy?.allOf.map(x => x.value);
-      }
-    }
-
-    if ((placement.attributes?.length || 0) > 0) {
-      sdl.profiles.placement[placement.name].attributes = placement.attributes?.reduce<Record<string, string>>(
-        (acc, curr) => ((acc[curr.key] = curr.value), acc),
-        {}
-      );
-    }
-
-    if (!!placement.region && placement.region !== "any") {
-      sdl.profiles.placement[placement.name].attributes = {
-        ...(sdl.profiles.placement[placement.name].attributes || {}),
-        "location-region": placement.region.toLowerCase()
-      };
-    }
 
     if (service.expose.some(exp => exp.ipName)) {
       sdl["endpoints"] = sdl["endpoints"] || {};
