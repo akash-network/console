@@ -10,7 +10,11 @@ export function useCountdown(deadline: Date | null): string | null {
 
   useEffect(() => {
     if (deadlineTime === undefined) return;
-    const interval = setInterval(() => setNow(new Date()), 1000);
+    const interval = setInterval(() => {
+      const nextNow = new Date();
+      setNow(nextNow);
+      if (nextNow.getTime() >= deadlineTime) clearInterval(interval);
+    }, 1000);
     return () => clearInterval(interval);
   }, [deadlineTime]);
 

@@ -58,6 +58,17 @@ describe(useCountdown.name, () => {
     expect(result.current).toBeNull();
   });
 
+  it("clears the interval once the deadline is reached so it stops re-rendering", () => {
+    setup({ secondsFromNow: 2 });
+    expect(vi.getTimerCount()).toBe(1);
+
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("stops ticking after unmount", () => {
     const { unmount } = setup({ secondsFromNow: 60 });
     expect(vi.getTimerCount()).toBe(1);
