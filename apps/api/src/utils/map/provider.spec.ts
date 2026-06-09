@@ -18,6 +18,20 @@ function mapWithAttributes(attributes: Array<{ key: string; value: string }>) {
 }
 
 describe(mapProviderToList.name, () => {
+  describe("discordUsername", () => {
+    it("maps discord-username from on-chain attributes", () => {
+      const mapped = mapWithAttributes([{ key: "discord-username", value: "provider_contact" }]);
+
+      expect(mapped.discordUsername).toBe("provider_contact");
+    });
+
+    it("is null when discord-username is absent", () => {
+      const mapped = mapWithAttributes([{ key: "host", value: "example.com" }]);
+
+      expect(mapped.discordUsername).toBeNull();
+    });
+  });
+
   describe("locationRegion", () => {
     it("prefers location-region over legacy region", () => {
       const mapped = mapWithAttributes([

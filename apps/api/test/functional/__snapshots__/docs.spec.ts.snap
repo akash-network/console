@@ -12009,6 +12009,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "nullable": true,
                         "type": "number",
                       },
+                      "discordUsername": {
+                        "nullable": true,
+                        "type": "string",
+                      },
                       "email": {
                         "nullable": true,
                         "type": "string",
@@ -12233,6 +12237,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "gpuModels",
                       "attributes",
                       "host",
+                      "discordUsername",
                       "organization",
                       "statusPage",
                       "locationRegion",
@@ -12344,6 +12349,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     },
                     "deploymentCount": {
                       "type": "number",
+                    },
+                    "discordUsername": {
+                      "nullable": true,
+                      "type": "string",
                     },
                     "email": {
                       "nullable": true,
@@ -12705,6 +12714,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "gpuModels",
                     "attributes",
                     "host",
+                    "discordUsername",
                     "organization",
                     "statusPage",
                     "locationRegion",

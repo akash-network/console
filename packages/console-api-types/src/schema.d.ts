@@ -3854,6 +3854,7 @@ export interface paths {
                 auditedBy: string[];
               }[];
               host: string | null;
+              discordUsername: string | null;
               organization: string | null;
               statusPage: string | null;
               locationRegion: string | null;
@@ -3984,6 +3985,7 @@ export interface paths {
                 auditedBy: string[];
               }[];
               host: string | null;
+              discordUsername: string | null;
               organization: string | null;
               statusPage: string | null;
               locationRegion: string | null;

@@ -208,6 +208,7 @@ export interface ApiProviderList {
 
   // Attributes schema
   host: string;
+  discordUsername: string | null;
   organization: string;
   statusPage: string;
   locationRegion: string;

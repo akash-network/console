@@ -61,6 +61,7 @@ export const ProviderListResponseSchema = z.array(
       })
     ),
     host: z.string().nullable(),
+    discordUsername: z.string().nullable(),
     organization: z.string().nullable(),
     statusPage: z.string().nullable(),
     locationRegion: z.string().nullable(),
@@ -153,6 +154,7 @@ export const ProviderResponseSchema = z.object({
     })
   ),
   host: z.string().nullable(),
+  discordUsername: z.string().nullable(),
   organization: z.string().nullable(),
   statusPage: z.string().nullable(),
   locationRegion: z.string().nullable(),

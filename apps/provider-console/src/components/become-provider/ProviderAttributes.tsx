@@ -163,6 +163,7 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
             { key: "host", value: "akash", customKey: "" },
             { key: "tier", value: "community", customKey: "" },
             { key: "organization", value: organizationName || "", customKey: "" },
+            { key: "discord-username", value: "", customKey: "" },
             ...(gpuConfigs?.length ? createGpuAttributes(gpuConfigs) : [])
           ]
     }

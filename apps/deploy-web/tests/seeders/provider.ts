@@ -76,6 +76,7 @@ export function buildProvider(overrides?: Partial<ApiProviderDetail>): ApiProvid
       { key: "capabilities/gpu/vendor/nvidia/model/rtx4000", value: "true", auditedBy: [faker.string.alphanumeric(42)] }
     ],
     host: faker.internet.domainWord(),
+    discordUsername: faker.internet.userName(),
     organization: faker.company.name(),
     statusPage: null,
     locationRegion: "na-us-southeast",

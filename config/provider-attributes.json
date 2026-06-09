@@ -829,7 +829,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/amd/model/mi100/interface/pcie/ram/32Gi",
+        "key": "capabilities/gpu/vendor/amd/model/mi100/ram/32Gi/interface/pcie",
         "description": "amd mi100 32Gi pcie",
         "value": true
       },
@@ -849,7 +849,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/amd/model/mi60/interface/pcie/ram/32Gi",
+        "key": "capabilities/gpu/vendor/amd/model/mi60/ram/32Gi/interface/pcie",
         "description": "amd mi60 32Gi pcie",
         "value": true
       },
@@ -869,7 +869,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/a100/interface/pcie/ram/40Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/a100/ram/40Gi/interface/pcie",
         "description": "nvidia a100 40Gi pcie",
         "value": true
       },
@@ -879,7 +879,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/a100/interface/sxm/ram/40Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/a100/ram/40Gi/interface/sxm",
         "description": "nvidia a100 40Gi sxm",
         "value": true
       },
@@ -889,7 +889,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/a100/interface/sxm/ram/64Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/a100/ram/64Gi/interface/sxm",
         "description": "nvidia a100 64Gi sxm",
         "value": true
       },
@@ -899,12 +899,12 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/a100/interface/pcie/ram/80Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/a100/ram/80Gi/interface/pcie",
         "description": "nvidia a100 80Gi pcie",
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/a100/interface/sxm/ram/80Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/a100/ram/80Gi/interface/sxm",
         "description": "nvidia a100 80Gi sxm",
         "value": true
       },
@@ -924,7 +924,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/a40/interface/pcie/ram/48Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/a40/ram/48Gi/interface/pcie",
         "description": "nvidia a40 48Gi pcie",
         "value": true
       },
@@ -944,7 +944,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/a5000/interface/pcie/ram/24Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/a5000/ram/24Gi/interface/pcie",
         "description": "nvidia a5000 24Gi pcie",
         "value": true
       },
@@ -964,7 +964,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/a800/interface/sxm/ram/80Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/a800/ram/80Gi/interface/sxm",
         "description": "nvidia a800 80Gi sxm",
         "value": true
       },
@@ -984,7 +984,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gt1030/interface/pcie/ram/2Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gt1030/ram/2Gi/interface/pcie",
         "description": "nvidia gt1030 2Gi pcie",
         "value": true
       },
@@ -1004,7 +1004,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gtx1050/interface/pcie/ram/2Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gtx1050/ram/2Gi/interface/pcie",
         "description": "nvidia gtx1050 2Gi pcie",
         "value": true
       },
@@ -1014,7 +1014,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gtx1050/interface/pcie/ram/3Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gtx1050/ram/3Gi/interface/pcie",
         "description": "nvidia gtx1050 3Gi pcie",
         "value": true
       },
@@ -1034,7 +1034,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gtx1050ti/interface/pcie/ram/4Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gtx1050ti/ram/4Gi/interface/pcie",
         "description": "nvidia gtx1050ti 4Gi pcie",
         "value": true
       },
@@ -1054,7 +1054,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gtx1060/interface/pcie/ram/3Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gtx1060/ram/3Gi/interface/pcie",
         "description": "nvidia gtx1060 3Gi pcie",
         "value": true
       },
@@ -1064,7 +1064,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gtx1060/interface/pcie/ram/5Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gtx1060/ram/5Gi/interface/pcie",
         "description": "nvidia gtx1060 5Gi pcie",
         "value": true
       },
@@ -1074,7 +1074,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gtx1060/interface/pcie/ram/6Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gtx1060/ram/6Gi/interface/pcie",
         "description": "nvidia gtx1060 6Gi pcie",
         "value": true
       },
@@ -1094,7 +1094,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gtx1070/interface/pcie/ram/8Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gtx1070/ram/8Gi/interface/pcie",
         "description": "nvidia gtx1070 8Gi pcie",
         "value": true
       },
@@ -1114,7 +1114,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gtx1070ti/interface/pcie/ram/8Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gtx1070ti/ram/8Gi/interface/pcie",
         "description": "nvidia gtx1070ti 8Gi pcie",
         "value": true
       },
@@ -1134,7 +1134,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gtx1080/interface/pcie/ram/8Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gtx1080/ram/8Gi/interface/pcie",
         "description": "nvidia gtx1080 8Gi pcie",
         "value": true
       },
@@ -1154,7 +1154,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gtx1080ti/interface/pcie/ram/11Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gtx1080ti/ram/11Gi/interface/pcie",
         "description": "nvidia gtx1080ti 11Gi pcie",
         "value": true
       },
@@ -1174,7 +1174,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gtx1650s/interface/pcie/ram/4Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gtx1650s/ram/4Gi/interface/pcie",
         "description": "nvidia gtx1650s 4Gi pcie",
         "value": true
       },
@@ -1194,7 +1194,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gtx1650ti/interface/pcie/ram/4Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gtx1650ti/ram/4Gi/interface/pcie",
         "description": "nvidia gtx1650ti 4Gi pcie",
         "value": true
       },
@@ -1214,7 +1214,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gtx1660/interface/pcie/ram/6Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gtx1660/ram/6Gi/interface/pcie",
         "description": "nvidia gtx1660 6Gi pcie",
         "value": true
       },
@@ -1234,7 +1234,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gtx1660ti/interface/pcie/ram/6Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gtx1660ti/ram/6Gi/interface/pcie",
         "description": "nvidia gtx1660ti 6Gi pcie",
         "value": true
       },
@@ -1254,7 +1254,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gtx960/interface/pcie/ram/2Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gtx960/ram/2Gi/interface/pcie",
         "description": "nvidia gtx960 2Gi pcie",
         "value": true
       },
@@ -1264,7 +1264,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gtx960/interface/pcie/ram/4Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gtx960/ram/4Gi/interface/pcie",
         "description": "nvidia gtx960 4Gi pcie",
         "value": true
       },
@@ -1284,7 +1284,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gtx970/interface/pcie/ram/4Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gtx970/ram/4Gi/interface/pcie",
         "description": "nvidia gtx970 4Gi pcie",
         "value": true
       },
@@ -1304,7 +1304,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gtx980/interface/pcie/ram/4Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gtx980/ram/4Gi/interface/pcie",
         "description": "nvidia gtx980 4Gi pcie",
         "value": true
       },
@@ -1324,7 +1324,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/gtx980ti/interface/pcie/ram/6Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/gtx980ti/ram/6Gi/interface/pcie",
         "description": "nvidia gtx980ti 6Gi pcie",
         "value": true
       },
@@ -1344,7 +1344,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/h100/interface/pcie/ram/80Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/h100/ram/80Gi/interface/pcie",
         "description": "nvidia h100 80Gi pcie",
         "value": true
       },
@@ -1354,7 +1354,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/h100/interface/sxm/ram/80Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/h100/ram/80Gi/interface/sxm",
         "description": "nvidia h100 80Gi sxm",
         "value": true
       },
@@ -1374,7 +1374,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/h200/interface/sxm/ram/141Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/h200/ram/141Gi/interface/sxm",
         "description": "nvidia h200 141Gi sxm",
         "value": true
       },
@@ -1394,7 +1394,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/h200nvl/interface/pcie/ram/141Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/h200nvl/ram/141Gi/interface/pcie",
         "description": "nvidia h200nvl 141Gi pcie",
         "value": true
       },
@@ -1414,7 +1414,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/m4000/interface/pcie/ram/8Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/m4000/ram/8Gi/interface/pcie",
         "description": "nvidia m4000 8Gi pcie",
         "value": true
       },
@@ -1434,7 +1434,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/mx150/interface/pcie/ram/2Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/mx150/ram/2Gi/interface/pcie",
         "description": "nvidia mx150 2Gi pcie",
         "value": true
       },
@@ -1454,7 +1454,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/p100/interface/pcie/ram/16Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/p100/ram/16Gi/interface/pcie",
         "description": "nvidia p100 16Gi pcie",
         "value": true
       },
@@ -1474,7 +1474,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/p2000/interface/pcie/ram/4Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/p2000/ram/4Gi/interface/pcie",
         "description": "nvidia p2000 4Gi pcie",
         "value": true
       },
@@ -1484,7 +1484,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/p2000/interface/pcie/ram/5Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/p2000/ram/5Gi/interface/pcie",
         "description": "nvidia p2000 5Gi pcie",
         "value": true
       },
@@ -1504,7 +1504,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/p4/interface/pcie/ram/8Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/p4/ram/8Gi/interface/pcie",
         "description": "nvidia p4 8Gi pcie",
         "value": true
       },
@@ -1524,7 +1524,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/p40/interface/pcie/ram/24Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/p40/ram/24Gi/interface/pcie",
         "description": "nvidia p40 24Gi pcie",
         "value": true
       },
@@ -1544,7 +1544,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/p4000/interface/pcie/ram/8Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/p4000/ram/8Gi/interface/pcie",
         "description": "nvidia p4000 8Gi pcie",
         "value": true
       },
@@ -1564,7 +1564,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/p5000/interface/pcie/ram/16Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/p5000/ram/16Gi/interface/pcie",
         "description": "nvidia p5000 16Gi pcie",
         "value": true
       },
@@ -1584,7 +1584,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/p6000/interface/pcie/ram/24Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/p6000/ram/24Gi/interface/pcie",
         "description": "nvidia p6000 24Gi pcie",
         "value": true
       },
@@ -1604,7 +1604,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/pro6000mq/interface/pcie/ram/96Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/pro6000mq/ram/96Gi/interface/pcie",
         "description": "nvidia pro6000mq 96Gi pcie",
         "value": true
       },
@@ -1624,7 +1624,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/pro6000se/interface/pcie/ram/96Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/pro6000se/ram/96Gi/interface/pcie",
         "description": "nvidia pro6000se 96Gi pcie",
         "value": true
       },
@@ -1644,7 +1644,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/pro6000we/interface/pcie/ram/96Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/pro6000we/ram/96Gi/interface/pcie",
         "description": "nvidia pro6000we 96Gi pcie",
         "value": true
       },
@@ -1664,7 +1664,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx2000eada/interface/pcie/ram/16Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx2000eada/ram/16Gi/interface/pcie",
         "description": "nvidia rtx2000eada 16Gi pcie",
         "value": true
       },
@@ -1684,7 +1684,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx2060/interface/pcie/ram/6Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx2060/ram/6Gi/interface/pcie",
         "description": "nvidia rtx2060 6Gi pcie",
         "value": true
       },
@@ -1704,7 +1704,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx2060s/interface/pcie/ram/8Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx2060s/ram/8Gi/interface/pcie",
         "description": "nvidia rtx2060s 8Gi pcie",
         "value": true
       },
@@ -1724,7 +1724,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx2070/interface/pcie/ram/8Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx2070/ram/8Gi/interface/pcie",
         "description": "nvidia rtx2070 8Gi pcie",
         "value": true
       },
@@ -1744,7 +1744,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx2070s/interface/pcie/ram/8Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx2070s/ram/8Gi/interface/pcie",
         "description": "nvidia rtx2070s 8Gi pcie",
         "value": true
       },
@@ -1764,7 +1764,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx2080/interface/pcie/ram/8Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx2080/ram/8Gi/interface/pcie",
         "description": "nvidia rtx2080 8Gi pcie",
         "value": true
       },
@@ -1784,7 +1784,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx2080s/interface/pcie/ram/8Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx2080s/ram/8Gi/interface/pcie",
         "description": "nvidia rtx2080s 8Gi pcie",
         "value": true
       },
@@ -1804,7 +1804,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx2080ti/interface/pcie/ram/11Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx2080ti/ram/11Gi/interface/pcie",
         "description": "nvidia rtx2080ti 11Gi pcie",
         "value": true
       },
@@ -1824,7 +1824,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx3060/interface/pcie/ram/12Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx3060/ram/12Gi/interface/pcie",
         "description": "nvidia rtx3060 12Gi pcie",
         "value": true
       },
@@ -1844,7 +1844,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx3060m/interface/pcie/ram/6Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx3060m/ram/6Gi/interface/pcie",
         "description": "nvidia rtx3060m 6Gi pcie",
         "value": true
       },
@@ -1864,7 +1864,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx3060ti/interface/pcie/ram/8Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx3060ti/ram/8Gi/interface/pcie",
         "description": "nvidia rtx3060ti 8Gi pcie",
         "value": true
       },
@@ -1884,7 +1884,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx3070/interface/pcie/ram/8Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx3070/ram/8Gi/interface/pcie",
         "description": "nvidia rtx3070 8Gi pcie",
         "value": true
       },
@@ -1904,7 +1904,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx3080/interface/pcie/ram/10Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx3080/ram/10Gi/interface/pcie",
         "description": "nvidia rtx3080 10Gi pcie",
         "value": true
       },
@@ -1924,7 +1924,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx3090/interface/pcie/ram/24Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx3090/ram/24Gi/interface/pcie",
         "description": "nvidia rtx3090 24Gi pcie",
         "value": true
       },
@@ -1944,7 +1944,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx3090ti/interface/pcie/ram/24Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx3090ti/ram/24Gi/interface/pcie",
         "description": "nvidia rtx3090ti 24Gi pcie",
         "value": true
       },
@@ -1964,7 +1964,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx4000/interface/pcie/ram/8Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx4000/ram/8Gi/interface/pcie",
         "description": "nvidia rtx4000 8Gi pcie",
         "value": true
       },
@@ -1984,7 +1984,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx4000ada/interface/pcie/ram/20Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx4000ada/ram/20Gi/interface/pcie",
         "description": "nvidia rtx4000ada 20Gi pcie",
         "value": true
       },
@@ -2004,7 +2004,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx4000sada/interface/pcie/ram/20Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx4000sada/ram/20Gi/interface/pcie",
         "description": "nvidia rtx4000sada 20Gi pcie",
         "value": true
       },
@@ -2024,7 +2024,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx4060/interface/pcie/ram/8Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx4060/ram/8Gi/interface/pcie",
         "description": "nvidia rtx4060 8Gi pcie",
         "value": true
       },
@@ -2044,7 +2044,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx4060ti/interface/pcie/ram/16Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx4060ti/ram/16Gi/interface/pcie",
         "description": "nvidia rtx4060ti 16Gi pcie",
         "value": true
       },
@@ -2064,7 +2064,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx4070/interface/pcie/ram/12Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx4070/ram/12Gi/interface/pcie",
         "description": "nvidia rtx4070 12Gi pcie",
         "value": true
       },
@@ -2084,7 +2084,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx4070s/interface/pcie/ram/12Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx4070s/ram/12Gi/interface/pcie",
         "description": "nvidia rtx4070s 12Gi pcie",
         "value": true
       },
@@ -2104,7 +2104,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx4070ti/interface/pcie/ram/12Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx4070ti/ram/12Gi/interface/pcie",
         "description": "nvidia rtx4070ti 12Gi pcie",
         "value": true
       },
@@ -2124,7 +2124,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx4080/interface/pcie/ram/16Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx4080/ram/16Gi/interface/pcie",
         "description": "nvidia rtx4080 16Gi pcie",
         "value": true
       },
@@ -2144,7 +2144,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx4080s/interface/pcie/ram/16Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx4080s/ram/16Gi/interface/pcie",
         "description": "nvidia rtx4080s 16Gi pcie",
         "value": true
       },
@@ -2164,7 +2164,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx4090/interface/pcie/ram/24Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx4090/ram/24Gi/interface/pcie",
         "description": "nvidia rtx4090 24Gi pcie",
         "value": true
       },
@@ -2184,7 +2184,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx5000/interface/pcie/ram/16Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx5000/ram/16Gi/interface/pcie",
         "description": "nvidia rtx5000 16Gi pcie",
         "value": true
       },
@@ -2204,7 +2204,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx5070/interface/pcie/ram/12Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx5070/ram/12Gi/interface/pcie",
         "description": "nvidia rtx5070 12Gi pcie",
         "value": true
       },
@@ -2224,7 +2224,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx5080/interface/pcie/ram/16Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx5080/ram/16Gi/interface/pcie",
         "description": "nvidia rtx5080 16Gi pcie",
         "value": true
       },
@@ -2244,7 +2244,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx5090/interface/pcie/ram/32Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx5090/ram/32Gi/interface/pcie",
         "description": "nvidia rtx5090 32Gi pcie",
         "value": true
       },
@@ -2264,7 +2264,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx5090m/interface/pcie/ram/24Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx5090m/ram/24Gi/interface/pcie",
         "description": "nvidia rtx5090m 24Gi pcie",
         "value": true
       },
@@ -2284,7 +2284,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx6000/interface/pcie/ram/24Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx6000/ram/24Gi/interface/pcie",
         "description": "nvidia rtx6000 24Gi pcie",
         "value": true
       },
@@ -2304,7 +2304,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtx8000/interface/pcie/ram/48Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtx8000/ram/48Gi/interface/pcie",
         "description": "nvidia rtx8000 48Gi pcie",
         "value": true
       },
@@ -2324,7 +2324,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtxa2000/interface/pcie/ram/6Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtxa2000/ram/6Gi/interface/pcie",
         "description": "nvidia rtxa2000 6Gi pcie",
         "value": true
       },
@@ -2344,7 +2344,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/rtxa6000/interface/pcie/ram/48Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/rtxa6000/ram/48Gi/interface/pcie",
         "description": "nvidia rtxa6000 48Gi pcie",
         "value": true
       },
@@ -2364,7 +2364,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/t4/interface/pcie/ram/16Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/t4/ram/16Gi/interface/pcie",
         "description": "nvidia t4 16Gi pcie",
         "value": true
       },
@@ -2384,7 +2384,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/v100/interface/sxm/ram/16Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/v100/ram/16Gi/interface/sxm",
         "description": "nvidia v100 16Gi sxm",
         "value": true
       },
@@ -2394,7 +2394,7 @@
         "value": true
       },
       {
-        "key": "capabilities/gpu/vendor/nvidia/model/v100/interface/sxm/ram/32Gi",
+        "key": "capabilities/gpu/vendor/nvidia/model/v100/ram/32Gi/interface/sxm",
         "description": "nvidia v100 32Gi sxm",
         "value": true
       }

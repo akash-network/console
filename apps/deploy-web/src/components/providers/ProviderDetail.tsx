@@ -192,6 +192,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
                   </div>
                   <div>
                     <LabelValue label="Email" value={provider.email} />
+                    <LabelValue label="Discord" value={provider.discordUsername} />
                     <LabelValue label="Organization" value={provider.organization} />
                     <LabelValue label="Region" value={provider.locationRegion} />
                     <LabelValue label="City" value={provider.city} />

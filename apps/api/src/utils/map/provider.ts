@@ -80,6 +80,7 @@ export const mapProviderToList = (
     })),
 
     host: getStringAttribute("host", attrMap, providerAttributeSchema),
+    discordUsername: getStringAttribute("discord-username", attrMap, providerAttributeSchema),
     organization: getStringAttribute("organization", attrMap, providerAttributeSchema),
     statusPage: getStringAttribute("status-page", attrMap, providerAttributeSchema),
     locationRegion: getLocationRegion(attrMap, providerAttributeSchema),

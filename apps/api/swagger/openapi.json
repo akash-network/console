@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "servers": [
     {
-      "url": "https://console-api-sandbox.akash.network"
+      "url": "http://localhost:3080"
     }
   ],
   "info": {
@@ -1920,6 +1920,7 @@
             "schema": {
               "type": "string",
               "format": "date",
+              "default": "2026-06-09",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -2045,6 +2046,7 @@
             "schema": {
               "type": "string",
               "format": "date",
+              "default": "2026-06-09",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -9979,6 +9981,10 @@
                         "type": "string",
                         "nullable": true
                       },
+                      "discordUsername": {
+                        "type": "string",
+                        "nullable": true
+                      },
                       "organization": {
                         "type": "string",
                         "nullable": true
@@ -10110,6 +10116,7 @@
                       "gpuModels",
                       "attributes",
                       "host",
+                      "discordUsername",
                       "organization",
                       "statusPage",
                       "locationRegion",
@@ -10425,6 +10432,10 @@
                       "type": "string",
                       "nullable": true
                     },
+                    "discordUsername": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "organization": {
                       "type": "string",
                       "nullable": true
@@ -10581,6 +10592,7 @@
                     "gpuModels",
                     "attributes",
                     "host",
+                    "discordUsername",
                     "organization",
                     "statusPage",
                     "locationRegion",

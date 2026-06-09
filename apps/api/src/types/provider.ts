@@ -38,6 +38,7 @@ export interface ProviderList {
 
   // Attributes schema
   host: string | null;
+  discordUsername: string | null;
   organization: string | null;
   statusPage: string | null;
   locationRegion: string | null;
