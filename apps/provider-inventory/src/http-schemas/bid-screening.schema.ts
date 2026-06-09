@@ -99,7 +99,11 @@ export type BidScreeningRequest = z.infer<typeof BidScreeningRequestSchema>;
 const ProviderResultSchema = z.object({
   owner: z.string().openapi({ description: "Provider address", example: "akash1q7spv2cw06yszgfp4f9ed59lkka6ytn8g4tkjf" }),
   hostUri: z.string().openapi({ description: "Provider HTTPS endpoint", example: "https://provider.europlots.com:8443" }),
-  isAudited: z.boolean().openapi({ description: "True if signed by a known auditor" })
+  isAudited: z.boolean().openapi({ description: "True if signed by a known auditor" }),
+  createdAt: z
+    .string()
+    .datetime()
+    .openapi({ description: "ISO 8601 timestamp marking when the provider was first enrolled in the inventory", example: "2026-01-01T00:00:00.000Z" })
 });
 
 export const BidScreeningResponseSchema = z.object({

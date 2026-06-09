@@ -184,7 +184,7 @@ export class StreamLifecycleManagerService {
         this.#logger.debug({ event: "STREAM_MESSAGE_RECEIVED", owner: provider.owner });
         if (outerSignal.aborted) return;
         releasePermit();
-        await this.#applyMessage(provider, message);
+        await this.#updateProviderInventory(provider, message);
       }
 
       if (outerSignal.aborted) return;
@@ -202,7 +202,7 @@ export class StreamLifecycleManagerService {
     }
   }
 
-  async #applyMessage(provider: ChainProvider, cluster: ClusterState): Promise<void> {
+  async #updateProviderInventory(provider: ChainProvider, cluster: ClusterState): Promise<void> {
     const cached = this.#lastInventoryPerProvider.get(provider.owner);
 
     if (!this.#onlineStatePerProvider.get(provider.owner)) {

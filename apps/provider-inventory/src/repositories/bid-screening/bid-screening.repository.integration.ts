@@ -179,6 +179,17 @@ describe(BidScreeningRepository.name, () => {
     });
   });
 
+  describe("createdAt projection", () => {
+    it("returns the persisted created_at as the candidate enrollment date", async () => {
+      const enrolledAt = new Date("2025-07-15T12:34:56.789Z");
+      await seed({ owner: "akash1enrolled", createdAt: enrolledAt });
+
+      const [row] = await repository.findCandidates([unit({})], requirements());
+
+      expect(row.createdAt).toBe(enrolledAt.toISOString());
+    });
+  });
+
   describe("gpu_models filter", () => {
     it("vendor-only request matches mixed-model providers via the vendor token", async () => {
       await seed({ owner: "akash1nvidiaA100", gpuModels: ["nvidia", "nvidia/a100"], totalAvailableGpu: 8n, maxNodeFreeGpu: 8n });
@@ -499,6 +510,7 @@ describe(BidScreeningRepository.name, () => {
     gpuModels?: string[];
     storageClasses?: string[];
     inventory?: unknown;
+    createdAt?: Date;
   }
 
   async function seed(input: SeedInput): Promise<void> {
@@ -520,7 +532,8 @@ describe(BidScreeningRepository.name, () => {
       auditedBy: input.auditedBy ?? [],
       gpuModels: input.gpuModels ?? [],
       storageClasses: input.storageClasses ?? [],
-      inventory: input.inventory ?? { nodes: [], storage: {} }
+      inventory: input.inventory ?? { nodes: [], storage: {} },
+      createdAt: input.createdAt
     });
   }
 });

@@ -36,6 +36,7 @@ export class BidScreeningService {
   }
 
   #filterProviders(candidates: BidScreeningCandidate[], resourceUnits: RequestedResourceUnit[]): BidScreeningResult[] {
+    if (!candidates.length) return candidates;
     const results: BidScreeningResult[] = [];
 
     for (const candidate of candidates) {
@@ -53,7 +54,8 @@ export class BidScreeningService {
     return {
       owner: candidate.owner,
       hostUri: candidate.hostUri,
-      isAudited: candidate.isAudited
+      isAudited: candidate.isAudited,
+      createdAt: candidate.createdAt
     };
   }
 }

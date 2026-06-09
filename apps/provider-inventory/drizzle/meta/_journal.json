@@ -15,6 +15,13 @@
       "when": 1780549868503,
       "tag": "0001_add_leased_ip_column",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780921639304,
+      "tag": "0002_add_created_at_column",
+      "breakpoints": true
     }
   ]
 }
