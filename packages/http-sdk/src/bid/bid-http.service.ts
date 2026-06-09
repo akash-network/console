@@ -60,6 +60,9 @@ export type Bid = {
       count: number;
     }[];
     created_at: string;
+    // Present only on v2.1+ bids where the provider offers a reclamation window (AEP-82).
+    // Nil when the provider offers no reclamation. REST serializes the Duration, e.g. "86400s".
+    reclamation_window?: string;
   };
   escrow_account: {
     id: {

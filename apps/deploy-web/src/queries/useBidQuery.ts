@@ -26,7 +26,8 @@ export function mapToBidDto(b: RpcBid): BidDto {
     oseq: b.bid.id.oseq,
     price: b.bid.price,
     state: b.bid.state,
-    resourcesOffer: b.bid.resources_offer
+    resourcesOffer: b.bid.resources_offer,
+    reclamationWindow: b.bid.reclamation_window
   };
 }
 

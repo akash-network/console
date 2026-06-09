@@ -2,7 +2,9 @@
 import { useEffect } from "react";
 import { Badge, CustomTooltip, RadioGroup, RadioGroupItem, Spinner, TableCell, TableRow } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { CloudXmark, WarningTriangle } from "iconoir-react";
+import formatDuration from "date-fns/formatDuration";
+import intervalToDuration from "date-fns/intervalToDuration";
+import { CloudXmark, ShieldCheck, WarningTriangle } from "iconoir-react";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useServices } from "@src/context/ServicesProvider";
@@ -12,6 +14,7 @@ import type { ApiProviderList } from "@src/types/provider";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
 import { hasSomeParentTheClass } from "@src/utils/domUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
+import { parseReclamationWindowSeconds } from "@src/utils/reclamationUtils";
 import { AuditorButton } from "../../providers/AuditorButton";
 import { Uptime } from "../../providers/Uptime";
 import { CopyTextToClipboardButton } from "../../shared/CopyTextToClipboardButton";
@@ -44,6 +47,7 @@ export const COMPONENTS = {
   ProviderName,
   CopyTextToClipboardButton,
   CloudXmark,
+  ShieldCheck,
   Uptime,
   AuditorButton
 };
@@ -70,6 +74,9 @@ export const BidRow: React.FunctionComponent<Props> = ({
     retry: false
   });
   const gpuModels = bid.resourcesOffer.flatMap(x => getGpusFromAttributes(x.resources.gpu.attributes));
+  const reclamationWindowSeconds = parseReclamationWindowSeconds(bid.reclamationWindow);
+  const reclamationWindowLabel =
+    reclamationWindowSeconds !== null ? formatDuration(intervalToDuration({ start: 0, end: reclamationWindowSeconds * 1000 })) : null;
 
   useEffect(() => {
     if (provider) {
@@ -146,6 +153,14 @@ export const BidRow: React.FunctionComponent<Props> = ({
             <c.CopyTextToClipboardButton value={provider?.name ?? provider?.hostUri ?? "-"} />
           </div>
         </div>
+        {reclamationWindowLabel && (
+          <c.CustomTooltip title={<>This provider offers a reclamation window of {reclamationWindowLabel} before reclaiming the lease.</>}>
+            <c.Badge variant="secondary" className="mt-1 inline-flex items-center gap-1 px-1.5 py-0 text-xs font-normal">
+              <c.ShieldCheck className="text-xs" />
+              <span>Reclamation: {reclamationWindowLabel}</span>
+            </c.Badge>
+          </c.CustomTooltip>
+        )}
       </c.TableCell>
 
       {gpuModels.length > 0 && (

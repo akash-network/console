@@ -313,6 +313,9 @@ export interface BidDto {
     resources: DeploymentResource_V3;
     count: number;
   }>;
+  // Reclamation window the provider offers for this bid (AEP-82), as a REST Duration string e.g. "86400s".
+  // Undefined on pre-v2.1 bids or when the provider offers no reclamation.
+  reclamationWindow?: string;
 }
 
 export interface RpcDepositParams {

@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
-import { classifyLeaseCloseReason, getLeaseCloseReasonLabel, getReclamationDeadline, isLeaseLive, isProviderReclaimed, isReclaiming } from "./reclamationUtils";
+import {
+  classifyLeaseCloseReason,
+  getLeaseCloseReasonLabel,
+  getReclamationDeadline,
+  isLeaseLive,
+  isProviderReclaimed,
+  isReclaiming,
+  parseReclamationWindowSeconds
+} from "./reclamationUtils";
 
 describe("reclamationUtils", () => {
   describe("classifyLeaseCloseReason", () => {
@@ -53,6 +61,27 @@ describe("reclamationUtils", () => {
 
     it("never returns a raw enum name", () => {
       expect(getLeaseCloseReasonLabel("lease_closed_reason_unstable")).not.toMatch(/lease_closed/);
+    });
+  });
+
+  describe("parseReclamationWindowSeconds", () => {
+    it("parses a REST Duration string to seconds", () => {
+      expect(parseReclamationWindowSeconds("86400s")).toBe(86400);
+    });
+
+    it("tolerates a bare seconds count without the trailing 's'", () => {
+      expect(parseReclamationWindowSeconds("3600")).toBe(3600);
+    });
+
+    it("returns null when the window is absent or empty", () => {
+      expect(parseReclamationWindowSeconds(undefined)).toBeNull();
+      expect(parseReclamationWindowSeconds("")).toBeNull();
+    });
+
+    it("returns null for a non-positive or unparseable window", () => {
+      expect(parseReclamationWindowSeconds("0s")).toBeNull();
+      expect(parseReclamationWindowSeconds("-100s")).toBeNull();
+      expect(parseReclamationWindowSeconds("abc")).toBeNull();
     });
   });
 

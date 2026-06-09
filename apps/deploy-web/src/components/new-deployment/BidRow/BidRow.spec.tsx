@@ -93,6 +93,20 @@ describe(BidRow.name, () => {
     expect(components.RadioGroupItem).not.toHaveBeenCalled();
   });
 
+  it("displays the offered reclamation window when the bid has one", () => {
+    const bid = buildDeploymentBid({ reclamationWindow: "86400s" });
+    const { getByText } = setup({ bid });
+
+    expect(getByText(/Reclamation: 1 day/)).toBeInTheDocument();
+  });
+
+  it("does not display a reclamation window when the bid has none", () => {
+    const bid = buildDeploymentBid({ reclamationWindow: undefined });
+    const { queryByText } = setup({ bid });
+
+    expect(queryByText(/Reclamation:/)).not.toBeInTheDocument();
+  });
+
   function setup(
     props: Partial<{
       bid: BidDto;
