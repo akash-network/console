@@ -1,45 +1,11 @@
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
-import type { ProviderAttributesSchema } from "@akashnetwork/http-sdk";
 import { describe, expect, it } from "vitest";
 
 import { createProviderSeed } from "../../../test/seeders/provider.seeder";
+import { createProviderAttributesSchema } from "../../../test/seeders/provider-attributes-schema.seeder";
 import { mapProviderToList } from "./provider";
 
-const schemaDetail = { key: "test", type: "string" as const, required: false, description: "test", values: null };
-
-const providerAttributeSchemaStub: ProviderAttributesSchema = {
-  host: { ...schemaDetail, key: "host" },
-  email: { ...schemaDetail, key: "email" },
-  "discord-username": { ...schemaDetail, key: "discord-username" },
-  organization: { ...schemaDetail, key: "organization" },
-  website: { ...schemaDetail, key: "website" },
-  tier: { ...schemaDetail, key: "tier" },
-  "status-page": { ...schemaDetail, key: "status-page" },
-  "location-region": { ...schemaDetail, key: "location-region", type: "option" },
-  country: { ...schemaDetail, key: "country" },
-  city: { ...schemaDetail, key: "city" },
-  timezone: { ...schemaDetail, key: "timezone" },
-  "location-type": { ...schemaDetail, key: "location-type" },
-  "hosting-provider": { ...schemaDetail, key: "hosting-provider" },
-  "hardware-cpu": { ...schemaDetail, key: "hardware-cpu" },
-  "hardware-cpu-arch": { ...schemaDetail, key: "hardware-cpu-arch" },
-  "hardware-gpu": { ...schemaDetail, key: "hardware-gpu" },
-  "hardware-gpu-model": { ...schemaDetail, key: "hardware-gpu-model", type: "multiple-option" },
-  "hardware-gpu-capability": { ...schemaDetail, key: "hardware-gpu-capability", type: "multiple-option" },
-  "hardware-persistent-storage-class": { ...schemaDetail, key: "hardware-persistent-storage-class", type: "option" },
-  "hardware-persistent-storage-capability": { ...schemaDetail, key: "hardware-persistent-storage-capability", type: "boolean" },
-  "hardware-cuda": { ...schemaDetail, key: "hardware-cuda" },
-  datacenter: { ...schemaDetail, key: "datacenter" },
-  "hardware-memory": { ...schemaDetail, key: "hardware-memory" },
-  "network-provider": { ...schemaDetail, key: "network-provider" },
-  "network-speed-up": { ...schemaDetail, key: "network-speed-up", type: "number" },
-  "network-speed-down": { ...schemaDetail, key: "network-speed-down", type: "number" },
-  "feat-persistent-storage": { ...schemaDetail, key: "feat-persistent-storage", type: "boolean" },
-  "feat-shm": { ...schemaDetail, key: "feat-shm", type: "boolean" },
-  "hardware-shm": { ...schemaDetail, key: "hardware-shm", type: "multiple-option" },
-  "feat-endpoint-ip": { ...schemaDetail, key: "feat-endpoint-ip", type: "boolean" },
-  "feat-endpoint-custom-domain": { ...schemaDetail, key: "feat-endpoint-custom-domain", type: "boolean" }
-};
+const providerAttributeSchemaStub = createProviderAttributesSchema();
 
 function mapWithAttributes(attributes: Array<{ key: string; value: string }>) {
   const provider = {
@@ -92,15 +58,28 @@ describe(mapProviderToList.name, () => {
     });
   });
 
+  describe("hardwareShm", () => {
+    it("maps shm capability attributes from the schema", () => {
+      const mapped = mapWithAttributes([
+        { key: "capabilities/storage/2/class", value: "ram" },
+        { key: "capabilities/storage/2/persistent", value: "false" }
+      ]);
+
+      expect(mapped.hardwareShm).toEqual(["SHM storage class", "SHM non-persistent"]);
+    });
+  });
+
+  describe("hardwareGpuCapabilities", () => {
+    it("maps gpu capability attributes from the schema", () => {
+      const mapped = mapWithAttributes([{ key: "capabilities/gpu/vendor/nvidia/model/rtx4090", value: "true" }]);
+
+      expect(mapped.hardwareGpuCapabilities).toEqual(["nvidia rtx4090 24Gi pcie"]);
+    });
+  });
+
   describe("featPersistentStorage", () => {
     it("is true when feat-persistent-storage is true", () => {
       const mapped = mapWithAttributes([{ key: "feat-persistent-storage", value: "true" }]);
-
-      expect(mapped.featPersistentStorage).toBe(true);
-    });
-
-    it("is true when hardware-persistent-storage-capability is true", () => {
-      const mapped = mapWithAttributes([{ key: "hardware-persistent-storage-capability", value: "true" }]);
 
       expect(mapped.featPersistentStorage).toBe(true);
     });

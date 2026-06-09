@@ -122,6 +122,27 @@ const providerFormSchema = z.object({
 
 type ProviderFormValues = z.infer<typeof providerFormSchema>;
 
+type ProviderFormAttribute = ProviderFormValues["attributes"][number];
+
+function toOnChainAttributeKey(attr: ProviderFormAttribute): string {
+  if (attr.key === "unknown-attributes") {
+    return attr.customKey?.trim() || "";
+  }
+
+  if (attr.key === "hardware-gpu-capability" && attr.customKey?.trim()) {
+    return attr.customKey.trim();
+  }
+
+  return attr.key || "";
+}
+
+function toOnChainAttributes(attributes: ProviderFormValues["attributes"]): Array<{ key: string; value: string }> {
+  return attributes.map(attr => ({
+    key: toOnChainAttributeKey(attr),
+    value: attr.value
+  }));
+}
+
 export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps> = ({ onComplete, existingAttributes, editMode }) => {
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const organizationName = providerProcess.config?.organization;
@@ -159,21 +180,16 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
   const [showSuccess, setShowSuccess] = React.useState(false);
 
   const updateProviderAttributesAndProceed: SubmitHandler<ProviderFormValues> = async data => {
+    const attributes = toOnChainAttributes(data.attributes);
+
     if (!editMode) {
       const updatedProviderProcess = {
         ...providerProcess,
-        attributes: data.attributes.map(attr => ({
-          key: attr.customKey?.trim() ? attr.customKey : attr.key || "",
-          value: attr.value
-        }))
+        attributes
       };
       setProviderProcess(updatedProviderProcess);
       onComplete && onComplete();
     } else {
-      const attributes = data.attributes.map(attr => ({
-        key: attr.customKey?.trim() ? attr.customKey : attr.key || "",
-        value: attr.value
-      }));
       const request = {
         control_machine: sanitizeMachineAccess(activeControlMachine),
         attributes

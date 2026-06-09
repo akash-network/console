@@ -1,12 +1,8 @@
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
-import type { GitHubHttpService, ProviderAttributesSchema } from "@akashnetwork/http-sdk";
-import fs from "fs/promises";
-import path from "path";
 import { container } from "tsyringe";
 
 import { CHAIN_DB } from "@src/chain";
-import { ProviderAttributesSchemaService } from "../provider-attributes-schema/provider-attributes-schema.service";
 import { ProviderRegionsService } from "./provider-regions.service";
 
 import { createProvider } from "@test/seeders";
@@ -38,7 +34,7 @@ describe("ProviderRegions", () => {
 
   describe("GET /v1/provider-regions", () => {
     it("returns providers grouped by regions", async () => {
-      const service = setup();
+      const service = container.resolve(ProviderRegionsService);
       const data = Object.groupBy(await service.getProviderRegions(), item => item.key);
 
       expect(data["na-ca-west"]?.[0]?.providers?.sort()).toEqual([providers[0].owner].sort());
@@ -46,14 +42,4 @@ describe("ProviderRegions", () => {
       expect(data["na-ca-prairie"]?.[0]?.providers?.sort()).toEqual([]);
     });
   });
-
-  function setup() {
-    return new ProviderRegionsService(
-      new ProviderAttributesSchemaService({
-        async getProviderAttributesSchema(): Promise<ProviderAttributesSchema> {
-          return JSON.parse(await fs.readFile(path.join(__dirname, "../../../../../../config/provider-attributes.json"), "utf8")) as ProviderAttributesSchema;
-        }
-      } as unknown as GitHubHttpService)
-    );
-  }
 });

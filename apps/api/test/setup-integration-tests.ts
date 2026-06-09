@@ -1,12 +1,16 @@
 import "reflect-metadata";
+import "@src/core/providers/http-sdk.provider";
 
 import { container } from "tsyringe";
 
 import { cacheEngine } from "@src/caching/helpers";
+import { registerLocalProviderAttributesSchemaGitHubHttpService } from "./helpers/register-local-provider-attributes-schema";
 import { TestDatabaseService } from "./services/test-database.service";
 
 const testPath = expect.getState().testPath;
 const dbService = new TestDatabaseService(testPath!);
+
+registerLocalProviderAttributesSchemaGitHubHttpService();
 
 beforeAll(async () => {
   cacheEngine.clearAllKeyInCache();
