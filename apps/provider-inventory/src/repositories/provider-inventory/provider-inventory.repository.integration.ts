@@ -82,6 +82,45 @@ describe(ProviderInventoryRepository.name, () => {
       });
     });
 
+    it("leaves updatedAt untouched when the upserted values are identical", async () => {
+      const { repository, db } = setup();
+      const upsertedAt = new Date("2026-01-01T00:00:00Z");
+      await seed(db, {
+        owner: "akash1a",
+        hostUri: "https://h:8443",
+        selfAttributes: [{ key: "region", value: "us-east" }],
+        signedAttributes: [{ key: "tier", value: "gold", auditor: "aud-1" }],
+        auditedBy: ["aud-1"],
+        updatedAt: upsertedAt
+      });
+
+      await repository.bulkUpsertProviders([
+        createProvider({
+          owner: "akash1a",
+          hostUri: "https://h:8443",
+          selfAttributes: [{ key: "region", value: "us-east" }],
+          signedAttributes: [{ key: "tier", value: "gold", auditor: "aud-1" }],
+          auditedBy: ["aud-1"]
+        })
+      ]);
+
+      const [row] = await db.select().from(providerInventory).where(eq(providerInventory.owner, "akash1a"));
+      expect(row.updatedAt.toISOString()).toBe(upsertedAt.toISOString());
+    });
+
+    it("bumps updatedAt when an attribute changes", async () => {
+      const { repository, db } = setup();
+      const upsertedAt = new Date("2026-01-01T00:00:00Z");
+      await seed(db, { owner: "akash1a", hostUri: "https://h:8443", selfAttributes: [{ key: "region", value: "us-east" }], updatedAt: upsertedAt });
+
+      await repository.bulkUpsertProviders([
+        createProvider({ owner: "akash1a", hostUri: "https://h:8443", selfAttributes: [{ key: "region", value: "us-west" }] })
+      ]);
+
+      const [row] = await db.select().from(providerInventory).where(eq(providerInventory.owner, "akash1a"));
+      expect(row.updatedAt.getTime()).toBeGreaterThan(upsertedAt.getTime());
+    });
+
     it("sorts the provider's auditedBy list before writing", async () => {
       const { repository, db } = setup();
 
@@ -159,8 +198,18 @@ describe(ProviderInventoryRepository.name, () => {
 
       const rows = await db.select().from(providerInventory);
       expect(rows).toHaveLength(1);
-      expect(rows[0]).toMatchObject({ owner: "akash1a", totalAvailableCpu: 1000n, isOnline: true });
-      expect(rows[0].isOnlineSince).toBeInstanceOf(Date);
+      expect(rows[0]).toMatchObject({ owner: "akash1a", totalAvailableCpu: 1000n });
+    });
+
+    it("leaves online state untouched", async () => {
+      const { repository, db } = setup();
+      await seed(db, { owner: "akash1a", isOnline: false, isOnlineSince: null });
+
+      await repository.updateInventory(createProvider({ owner: "akash1a" }), createCluster({ cpu: 1000n }));
+
+      const [row] = await db.select().from(providerInventory).where(eq(providerInventory.owner, "akash1a"));
+      expect(row.isOnline).toBe(false);
+      expect(row.isOnlineSince).toBeNull();
     });
 
     it("writes the ClusterState as inventory JSONB", async () => {
@@ -181,7 +230,7 @@ describe(ProviderInventoryRepository.name, () => {
       });
     });
 
-    it("preserves isOnlineSince on subsequent updates via coalesce", async () => {
+    it("preserves an existing isOnlineSince across updates", async () => {
       const { repository, db } = setup();
       const firstSeenAt = new Date("2026-01-01T00:00:00Z");
       await seed(db, { owner: "akash1a", isOnlineSince: firstSeenAt });
@@ -190,6 +239,31 @@ describe(ProviderInventoryRepository.name, () => {
 
       const [row] = await db.select().from(providerInventory).where(eq(providerInventory.owner, "akash1a"));
       expect(row.isOnlineSince?.toISOString()).toBe(firstSeenAt.toISOString());
+    });
+  });
+
+  describe("markAsOnline", () => {
+    it("flips an offline provider to online and stamps isOnlineSince", async () => {
+      const { repository, db } = setup();
+      await seed(db, { owner: "akash1a", isOnline: false, isOnlineSince: null });
+
+      await repository.markAsOnline("akash1a");
+
+      const [row] = await db.select().from(providerInventory).where(eq(providerInventory.owner, "akash1a"));
+      expect(row.isOnline).toBe(true);
+      expect(row.isOnlineSince).toBeInstanceOf(Date);
+    });
+
+    it("does not affect other providers", async () => {
+      const { repository, db } = setup();
+      await seed(db, { owner: "akash1a", isOnline: false, isOnlineSince: null });
+      await seed(db, { owner: "akash1b", isOnline: false, isOnlineSince: null });
+
+      await repository.markAsOnline("akash1a");
+
+      const [other] = await db.select().from(providerInventory).where(eq(providerInventory.owner, "akash1b"));
+      expect(other.isOnline).toBe(false);
+      expect(other.isOnlineSince).toBeNull();
     });
   });
 
@@ -214,6 +288,7 @@ interface SeedInput {
   selfAttributes?: { key: string; value: string }[];
   signedAttributes?: { key: string; value: string; auditor: string }[];
   auditedBy?: string[];
+  updatedAt?: Date;
 }
 
 async function seed(db: PostgresJsDatabase, input: SeedInput): Promise<void> {
@@ -224,7 +299,8 @@ async function seed(db: PostgresJsDatabase, input: SeedInput): Promise<void> {
     isOnlineSince: input.isOnlineSince === undefined ? new Date() : input.isOnlineSince,
     selfAttributes: input.selfAttributes ?? [],
     signedAttributes: input.signedAttributes ?? [],
-    auditedBy: input.auditedBy ?? []
+    auditedBy: input.auditedBy ?? [],
+    ...(input.updatedAt && { updatedAt: input.updatedAt })
   });
 }
 

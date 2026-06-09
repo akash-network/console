@@ -1,16 +1,12 @@
-import type { LoggerService } from "@akashnetwork/logging";
 import type { InferSelectModel } from "drizzle-orm";
 import { and, eq, gt, inArray, sql as rawSql } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { inject, singleton } from "tsyringe";
+import { singleton } from "tsyringe";
 
 import { paginate } from "@src/lib/generators/paginate/paginate";
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
-import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
-import type { LoggerFactory } from "@src/providers/logger-factory.provider";
-import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
 import type { ChainProvider } from "@src/types/chain-provider";
 import { ClusterState } from "@src/types/inventory";
+import { DbDriver } from "../db-driver/db-driver";
 import { mapToStoredClusterState } from "./stored-cluster-state-mapper/stored-cluster-state-mapper";
 
 export type ProviderInventory = InferSelectModel<typeof providerInventory>;
@@ -19,22 +15,20 @@ const DEFAULT_ONLINE_STREAM_BATCH_SIZE = 500;
 
 @singleton()
 export class ProviderInventoryRepository {
-  readonly #logger: LoggerService;
-  readonly #db: PostgresJsDatabase;
+  readonly #driver: DbDriver;
 
-  constructor(@inject(DRIZZLE_DB) db: PostgresJsDatabase, @inject(LOGGER_FACTORY) loggerFactory: LoggerFactory) {
-    this.#db = db;
-    this.#logger = loggerFactory({ context: "ProviderInventoryRepository" });
+  constructor(dbDriver: DbDriver) {
+    this.#driver = dbDriver;
   }
 
   async resetOnlineSince(): Promise<void> {
-    await this.#db.update(providerInventory).set({ isOnlineSince: null });
-    this.#logger.info({ event: "ONLINE_SINCE_RESET" });
+    await this.#driver.getDb().update(providerInventory).set({ isOnlineSince: null });
   }
 
   async *streamOnlineProviders(options?: { batchSize?: number }): AsyncGenerator<Pick<ProviderInventory, "owner" | "hostUri">> {
     const batchSize = options?.batchSize ?? DEFAULT_ONLINE_STREAM_BATCH_SIZE;
-    const baseQuery = this.#db
+    const baseQuery = this.#driver
+      .getDb()
       .select({ owner: providerInventory.owner, hostUri: providerInventory.hostUri })
       .from(providerInventory)
       .orderBy(providerInventory.owner)
@@ -53,25 +47,35 @@ export class ProviderInventoryRepository {
   }
 
   async deleteByOwner(owner: string | string[]): Promise<void> {
+    const db = this.#driver.getDb();
     if (Array.isArray(owner)) {
-      await this.#db.delete(providerInventory).where(inArray(providerInventory.owner, owner));
+      await db.delete(providerInventory).where(inArray(providerInventory.owner, owner));
     } else {
-      await this.#db.delete(providerInventory).where(eq(providerInventory.owner, owner));
+      await db.delete(providerInventory).where(eq(providerInventory.owner, owner));
     }
   }
 
   async bulkMarkOffline(owners: string[]): Promise<void> {
     if (owners.length === 0) return;
-    await this.#db
+    await this.#driver
+      .getDb()
       .update(providerInventory)
       .set({ isOnline: false, isOnlineSince: null, updatedAt: rawSql`now()` })
       .where(inArray(providerInventory.owner, owners));
-    this.#logger.info({ event: "PROVIDERS_MARKED_OFFLINE", owners });
+  }
+
+  async markAsOnline(owner: string): Promise<void> {
+    await this.#driver
+      .getDb()
+      .update(providerInventory)
+      .set({ isOnline: true, isOnlineSince: new Date(), updatedAt: rawSql`now()` })
+      .where(eq(providerInventory.owner, owner));
   }
 
   async updateInventory(provider: ChainProvider, cluster: ClusterState): Promise<void> {
     const row = mapToStoredClusterState(cluster);
-    await this.#db
+    await this.#driver
+      .getDb()
       .update(providerInventory)
       .set({
         inventory: row.cluster,
@@ -86,13 +90,9 @@ export class ProviderInventoryRepository {
         maxNodeFreeGpu: row.maxNodeFreeGpu,
         gpuModels: row.gpuModels,
         storageClasses: row.storageClasses,
-        isOnline: true,
-        isOnlineSince: rawSql`coalesce(${providerInventory.isOnlineSince}, now())`,
         updatedAt: rawSql`now()`
       })
       .where(eq(providerInventory.owner, provider.owner));
-
-    this.#logger.debug({ event: "PROVIDER_INVENTORY_UPDATED", owner: provider.owner });
   }
 
   async bulkUpsertProviders(providers: ChainProvider[]): Promise<void> {
@@ -110,7 +110,14 @@ export class ProviderInventoryRepository {
       };
     });
 
-    await this.#db
+    const conflictColumns = [providerInventory.hostUri, providerInventory.selfAttributes, providerInventory.signedAttributes, providerInventory.auditedBy];
+    const hasChanges = rawSql.join(
+      conflictColumns.map(column => rawSql`${column} IS DISTINCT FROM excluded.${rawSql.raw(column.name)}`),
+      rawSql` OR `
+    );
+
+    await this.#driver
+      .getDb()
       .insert(providerInventory)
       .values(rows)
       .onConflictDoUpdate({
@@ -121,7 +128,8 @@ export class ProviderInventoryRepository {
           signedAttributes: rawSql.raw(`excluded.${providerInventory.signedAttributes.name}`),
           auditedBy: rawSql.raw(`excluded.${providerInventory.auditedBy.name}`),
           updatedAt: NOW_SQL
-        }
+        },
+        setWhere: hasChanges
       });
   }
 }
