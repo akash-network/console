@@ -8,7 +8,7 @@ import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import type { DbDriver } from "@src/repositories/db-driver/db-driver";
 import type { ProviderIncidentRepository } from "@src/repositories/provider-incident/provider-incident.repository";
 import type { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
-import type { ChainProvider } from "@src/types/chain-provider";
+import type { ChainProvider, ChainProviderWithLastUpdated } from "@src/types/chain-provider";
 import type { ClusterState, NodeState } from "@src/types/inventory";
 import type { ProviderStreamFactory } from "../provider-stream-factory/provider-stream-factory.sevice";
 import { StreamLifecycleManagerService } from "./stream-lifecycle-manager.service";
@@ -380,6 +380,65 @@ describe(StreamLifecycleManagerService.name, () => {
     });
   });
 
+  describe("dead provider retry policy", () => {
+    it("attempts a long-dead provider at most twice before giving up", async () => {
+      const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.disposeProvider.mockResolvedValue();
+      streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
+      const { manager, incidents, logger } = setup({ streamFactory });
+      const longDead = createProvider({ lastUpdated: new Date(Date.now() - 10_000) });
+
+      manager.start(longDead);
+
+      await vi.waitFor(() => expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_GAVE_UP", owner: "akash1owner" })), {
+        timeout: 5000
+      });
+      expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(2);
+      expect(incidents.openIncident).toHaveBeenCalledWith("akash1owner");
+    });
+
+    it("logs STREAM_RECONNECTING only once for a long-dead provider", async () => {
+      const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.disposeProvider.mockResolvedValue();
+      streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
+      const { manager, logger } = setup({ streamFactory });
+      const countReconnects = () => logger.warn.mock.calls.filter(([arg]) => (arg as { event?: string })?.event === "STREAM_RECONNECTING").length;
+
+      manager.start(createProvider({ lastUpdated: new Date(Date.now() - 10_000) }));
+
+      await vi.waitFor(() => expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_GAVE_UP" })), { timeout: 5000 });
+      expect(countReconnects()).toBe(1);
+    });
+
+    it("uses the full retry budget for a recently-updated offline provider", async () => {
+      const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.disposeProvider.mockResolvedValue();
+      streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
+      const { manager, logger } = setup({ streamFactory });
+
+      manager.start(createProvider({ lastUpdated: new Date(Date.now() - 100) }));
+
+      await vi.waitFor(() => expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_GAVE_UP" })), { timeout: 5000 });
+      expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(6);
+    });
+
+    it("recovers a long-dead provider when its single retry succeeds", async () => {
+      let attempt = 0;
+      const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.disposeProvider.mockResolvedValue();
+      streamFactory.openStatusStream.mockImplementation(() => {
+        attempt++;
+        if (attempt === 1) return throwingStream(new Error("initial failure"));
+        return msgsThenHang([createCluster()]);
+      });
+      const { manager, writer } = setup({ streamFactory });
+
+      manager.start(createProvider({ lastUpdated: new Date(Date.now() - 10_000) }));
+
+      await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(1), { timeout: 5000 });
+    });
+  });
+
   describe("stale finalizer", () => {
     it("does not evict a replacement stream's registry entry when the old stream finishes", async () => {
       let resolveOldStream!: () => void;
@@ -479,6 +538,7 @@ describe(StreamLifecycleManagerService.name, () => {
     streams?: Record<string, AsyncIterable<ClusterState> | "hang">;
     streamFactory?: MockProxy<ProviderStreamFactory>;
     throttleMs?: number;
+    deadProviderThresholdMs?: number;
   }) {
     const streamFactory = input?.streamFactory ?? mock<ProviderStreamFactory>();
     streamFactory.disposeProvider.mockResolvedValue();
@@ -498,7 +558,8 @@ describe(StreamLifecycleManagerService.name, () => {
       STREAM_RECONNECT_INITIAL_DELAY_MS: 10,
       STREAM_RECONNECT_MAX_DELAY_MS: 50,
       STREAM_FIRST_MESSAGE_TIMEOUT_MS: 80,
-      STREAM_UPDATE_THROTTLE_MS: input?.throttleMs ?? 0
+      STREAM_UPDATE_THROTTLE_MS: input?.throttleMs ?? 0,
+      DEAD_PROVIDER_UPDATED_THRESHOLD_MS: input?.deadProviderThresholdMs ?? 1000
     });
 
     if (!input?.streamFactory) {
@@ -517,13 +578,14 @@ describe(StreamLifecycleManagerService.name, () => {
   }
 });
 
-function createProvider(overrides?: Partial<ChainProvider>): ChainProvider {
+function createProvider(overrides?: Partial<ChainProviderWithLastUpdated>): ChainProviderWithLastUpdated {
   return {
     owner: "akash1owner",
     hostUri: "https://p1:8443",
     selfAttributes: [],
     signedAttributes: [],
     auditedBy: [],
+    lastUpdated: null,
     ...overrides
   };
 }

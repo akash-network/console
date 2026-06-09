@@ -61,7 +61,7 @@ export class ProviderInventoryRepository {
       .getDb()
       .update(providerInventory)
       .set({ isOnline: false, isOnlineSince: null, updatedAt: rawSql`now()` })
-      .where(inArray(providerInventory.owner, owners));
+      .where(and(inArray(providerInventory.owner, owners), eq(providerInventory.isOnline, true)));
   }
 
   async markAsOnline(owner: string): Promise<void> {
@@ -69,7 +69,7 @@ export class ProviderInventoryRepository {
       .getDb()
       .update(providerInventory)
       .set({ isOnline: true, isOnlineSince: new Date(), updatedAt: rawSql`now()` })
-      .where(eq(providerInventory.owner, owner));
+      .where(and(eq(providerInventory.owner, owner), eq(providerInventory.isOnline, false)));
   }
 
   async updateInventory(provider: ChainProvider, cluster: ClusterState): Promise<void> {
@@ -131,5 +131,22 @@ export class ProviderInventoryRepository {
         },
         setWhere: hasChanges
       });
+  }
+
+  async getInventoryLastUpdatedPerOfflineProvider(providers: string[]): Promise<Map<string, Date | null>> {
+    if (providers.length === 0) return new Map();
+    const db = this.#driver.getDb();
+    const rows = await db
+      .select({
+        owner: providerInventory.owner,
+        updatedAt: providerInventory.updatedAt
+      })
+      .from(providerInventory)
+      .where(and(inArray(providerInventory.owner, providers), eq(providerInventory.isOnline, false)));
+    const result = new Map<string, Date | null>();
+    for (const row of rows) {
+      result.set(row.owner, new Date(row.updatedAt));
+    }
+    return result;
   }
 }
