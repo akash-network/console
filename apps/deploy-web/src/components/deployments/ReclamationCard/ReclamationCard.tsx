@@ -39,7 +39,7 @@ export const ReclamationCard: React.FunctionComponent<Props> = ({ lease, dseq, o
   const reasonLabel = getLeaseCloseReasonLabel(lease.reclamation?.reason ?? lease.reason);
   const hasLocalManifest = !!getDeploymentData(dseq)?.manifest;
 
-  const onClose = async () => {
+  const confirmAndClose = async () => {
     const isConfirmed = await closeDeploymentConfirm([dseq]);
     if (!isConfirmed) return;
 
@@ -53,7 +53,7 @@ export const ReclamationCard: React.FunctionComponent<Props> = ({ lease, dseq, o
     }
   };
 
-  const onRedeploy = () => router.push(UrlService.newDeployment({ redeploy: dseq }));
+  const redeploy = () => router.push(UrlService.newDeployment({ redeploy: dseq }));
 
   return (
     <Alert variant="warning" className="mt-4">
@@ -65,11 +65,11 @@ export const ReclamationCard: React.FunctionComponent<Props> = ({ lease, dseq, o
           on a new lease.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Button variant="default" size="sm" onClick={onClose} disabled={isClosing}>
+          <Button variant="default" size="sm" onClick={confirmAndClose} disabled={isClosing}>
             {isClosing ? <Spinner size="small" /> : "Close (recover escrow)"}
           </Button>
           {hasLocalManifest ? (
-            <Button variant="outline" size="sm" onClick={onRedeploy}>
+            <Button variant="outline" size="sm" onClick={redeploy}>
               Redeploy
             </Button>
           ) : (
