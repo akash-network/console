@@ -5,6 +5,7 @@ import { mock, type MockProxy } from "vitest-mock-extended";
 
 import type { EnvConfig } from "@src/providers/app-config.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
+import type { DbDriver } from "@src/repositories/db-driver/db-driver";
 import type { ProviderIncidentRepository } from "@src/repositories/provider-incident/provider-incident.repository";
 import type { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
 import type { ChainProvider } from "@src/types/chain-provider";
@@ -488,6 +489,8 @@ describe(StreamLifecycleManagerService.name, () => {
     const incidents = mock<ProviderIncidentRepository>();
     incidents.openIncident.mockResolvedValue();
     incidents.closeIncident.mockResolvedValue();
+    const dbDriver = mock<DbDriver>();
+    dbDriver.transaction.mockImplementation(cb => cb());
     const logger = mock<LoggerService>();
     const loggerFactory: LoggerFactory = () => logger;
     const config = mock<EnvConfig>({
@@ -508,9 +511,9 @@ describe(StreamLifecycleManagerService.name, () => {
       });
     }
 
-    const manager = new StreamLifecycleManagerService(streamFactory, writer, incidents, loggerFactory, config);
+    const manager = new StreamLifecycleManagerService(streamFactory, writer, incidents, dbDriver, loggerFactory, config);
 
-    return { manager, streamFactory, writer, incidents, logger };
+    return { manager, streamFactory, writer, incidents, dbDriver, logger };
   }
 });
 

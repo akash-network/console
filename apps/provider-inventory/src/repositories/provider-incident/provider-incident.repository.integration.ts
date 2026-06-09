@@ -1,5 +1,3 @@
-import "@src/providers";
-
 import { eq } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { container } from "tsyringe";

@@ -12,6 +12,7 @@ import type { EnvConfig } from "@src/providers/app-config.provider";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
+import { DbDriver } from "@src/repositories/db-driver/db-driver";
 import { ProviderIncidentRepository } from "@src/repositories/provider-incident/provider-incident.repository";
 import { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
 import type { ChainProvider } from "@src/types/chain-provider";
@@ -38,17 +39,20 @@ export class StreamLifecycleManagerService {
   readonly #offlineDataloader: Dataloader<string, null>;
   readonly #startStreamSemaphore: Sema;
   readonly #pendingFirstAttempts = new Set<Promise<void>>();
+  readonly #dbDriver: DbDriver;
 
   constructor(
     streamFactory: ProviderStreamFactory,
     inventoryRepo: ProviderInventoryRepository,
     incidentsRepo: ProviderIncidentRepository,
+    dbDriver: DbDriver,
     @inject(LOGGER_FACTORY) loggerFactory: LoggerFactory,
     @inject(APP_CONFIG) config: EnvConfig
   ) {
     this.#streamFactory = streamFactory;
     this.#inventoryRepo = inventoryRepo;
     this.#incidentsRepo = incidentsRepo;
+    this.#dbDriver = dbDriver;
     this.#config = config;
     this.#logger = loggerFactory({ context: "StreamLifecycleManager" });
     this.#retryStreamPolicy = retry(handleAll, {
@@ -61,6 +65,7 @@ export class StreamLifecycleManagerService {
     this.#offlineDataloader = new Dataloader(
       async owners => {
         await this.#inventoryRepo.bulkMarkOffline(owners as string[]);
+        this.#logger.info({ event: "PROVIDERS_MARKED_OFFLINE", owners });
         return Array.from(owners, () => null);
       },
       {
@@ -215,10 +220,14 @@ export class StreamLifecycleManagerService {
     const cached = this.#lastInventoryPerProvider.get(provider.owner);
 
     if (!this.#onlineStatePerProvider.get(provider.owner)) {
-      this.#onlineStatePerProvider.set(provider.owner, true);
       try {
-        await this.#incidentsRepo.closeIncident(provider.owner);
+        this.#onlineStatePerProvider.set(provider.owner, true);
+        await this.#dbDriver.transaction(async () => {
+          await Promise.all([this.#inventoryRepo.markAsOnline(provider.owner), this.#incidentsRepo.closeIncident(provider.owner)]);
+        });
+        this.#logger.info({ event: "PROVIDER_MARKED_ONLINE", owner: provider.owner });
       } catch (error) {
+        this.#onlineStatePerProvider.set(provider.owner, false);
         this.#logger.error({ event: "CLOSE_INCIDENT_ERROR", owner: provider.owner, error });
       }
     }
@@ -230,6 +239,7 @@ export class StreamLifecycleManagerService {
 
     try {
       await this.#inventoryRepo.updateInventory(provider, cluster);
+      this.#logger.debug({ event: "PROVIDER_INVENTORY_UPDATED", owner: provider.owner });
       this.#lastInventoryPerProvider.set(provider.owner, cluster);
     } catch (error) {
       this.#logger.error({ event: "STREAM_PROVIDER_WRITE_ERROR", owner: provider.owner, error });

@@ -20,10 +20,21 @@ export async function bootstrap(): Promise<void> {
   app.route("/", healthzRouter);
   app.onError(container.resolve(HonoErrorHandlerService).handle);
 
-  const server = await startServer(app, createOtelLogger({ context: "PROVIDERS_SYNC" }), process, {
+  const appLogger = createOtelLogger({ context: "PROVIDERS_SYNC" });
+  const server = await startServer(app, appLogger, process, {
     port: container.resolve(APP_CONFIG).PORT,
     beforeStart: async () => {
-      await Promise.all([container.resolve(ProviderInventoryRepository).resetOnlineSince(), container.resolve(ProviderIncidentRepository).closeAllOpen()]);
+      await Promise.all([
+        // keep new line
+        container
+          .resolve(ProviderInventoryRepository)
+          .resetOnlineSince()
+          .then(() => appLogger.info({ event: "ONLINE_SINCE_RESET" })),
+        container
+          .resolve(ProviderIncidentRepository)
+          .closeAllOpen()
+          .then(() => appLogger.info({ event: "OPEN_INCIDENTS_CLOSED" }))
+      ]);
     }
   });
 
