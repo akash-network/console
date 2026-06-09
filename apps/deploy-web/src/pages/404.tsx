@@ -7,6 +7,7 @@ import { useRouter } from "next/router";
 import { NextSeo } from "next-seo";
 
 import { Title } from "@src/components/shared/Title";
+import { useUser } from "@src/hooks/useUser";
 import { isSelfCustodyRoute } from "@src/lib/nextjs/pageGuards/selfCustody";
 import { definePublicPage } from "@src/lib/pages/definePublicPage";
 import { UrlService } from "@src/utils/urlUtils";
@@ -17,6 +18,8 @@ export const CONSOLE_AIR_REPO_URL = "https://github.com/akash-network/console-ai
 const FourOhFour: React.FunctionComponent = () => {
   const router = useRouter();
   const showSelfCustodyHint = isSelfCustodyRoute(router.asPath);
+  const { user } = useUser();
+  const isAuthenticated = !!user?.userId;
 
   return (
     <Layout>
@@ -26,12 +29,14 @@ const FourOhFour: React.FunctionComponent = () => {
         <Title className="mb-2">404</Title>
         <h3 className="text-2xl">Page not found.</h3>
 
-        <div className="pt-6">
-          <Link href={UrlService.home()} className={cn(buttonVariants({ variant: "default" }), "inline-flex items-center")}>
-            <ArrowLeft className="mr-4" />
-            Go to homepage
-          </Link>
-        </div>
+        {isAuthenticated && (
+          <div className="pt-6">
+            <Link href={UrlService.home()} className={cn(buttonVariants({ variant: "default" }), "inline-flex items-center")}>
+              <ArrowLeft className="mr-4" />
+              Go to homepage
+            </Link>
+          </div>
+        )}
 
         {showSelfCustodyHint && (
           <Card className="mx-auto mt-10 max-w-xl text-left">
