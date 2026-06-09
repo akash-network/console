@@ -14577,6 +14577,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "schema": {
               "description": "Template ID",
               "example": "akash-network-cosmos-omnibus-agoric",
+              "pattern": "^[^/\\\\]+$",
               "type": "string",
             },
           },
@@ -14652,6 +14653,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               },
             },
             "description": "Return a template by id",
+          },
+          "400": {
+            "description": "Invalid template ID",
           },
           "404": {
             "description": "Template not found",
