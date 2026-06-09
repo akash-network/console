@@ -98,7 +98,7 @@ const createGpuAttributes = (gpuConfigs: GpuConfig[] | undefined) => {
       {
         key: "hardware-gpu-capability",
         value: "true",
-        customKey: `capabilities/gpu/vendor/${vendor}/model/${model}/interface/${iface}/ram/${memory}`
+        customKey: `capabilities/gpu/vendor/${vendor}/model/${model}/ram/${memory}/interface/${iface}`
       }
     ];
   });
