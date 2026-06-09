@@ -180,8 +180,9 @@ export class AlertRepository {
     const alert = await this.db.query.Alert.findFirst({
       where: and(
         eq(schema.Alert.type, "CHAIN_EVENT"),
-        sql`${schema.Alert.params}->>'type' = 'DEPLOYMENT_CLOSED'`,
-        sql`${schema.Alert.params}->>'dseq' = ${dseq}`,
+        // Containment (`@>`) rather than `->>` extraction so the GIN `jsonb_path_ops`
+        // index on `params` (idx_alerts_params) is used; dseq is stored as a string.
+        sql`${schema.Alert.params} @> ${JSON.stringify({ type: "DEPLOYMENT_CLOSED", dseq })}::jsonb`,
         sql`${schema.Alert.conditions}->'value' @> ${JSON.stringify([{ field: "owner", value: owner }])}::jsonb`
       )
     });
