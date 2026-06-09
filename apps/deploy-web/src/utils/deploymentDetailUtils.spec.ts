@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
+import type { RpcLease } from "@src/types/deployment";
 import { deploymentToDto, leaseToDto } from "./deploymentDetailUtils";
 
 describe("deploymentDetailUtils", () => {
@@ -82,7 +84,7 @@ describe("deploymentDetailUtils", () => {
     });
 
     it("maps the reclamation object and close reason when present", () => {
-      const lease = {
+      const lease = mock<RpcLease>({
         lease: {
           id: { owner: "test-owner", dseq: "123", gseq: 1, oseq: 1, provider: "provider1", bseq: 1 },
           state: "reclaiming",
@@ -97,9 +99,9 @@ describe("deploymentDetailUtils", () => {
             reason: "lease_closed_reason_unstable"
           }
         }
-      };
+      });
 
-      const dto = leaseToDto(lease as never, { groups: [] });
+      const dto = leaseToDto(lease, { groups: [] });
 
       expect(dto.reason).toBe("lease_closed_reason_unstable");
       expect(dto.closedOn).toBe("0");
