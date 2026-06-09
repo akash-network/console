@@ -16,3 +16,7 @@ export interface ChainProvider {
   signedAttributes: SignedAttribute[];
   auditedBy: string[];
 }
+
+export interface ChainProviderWithLastUpdated extends ChainProvider {
+  lastUpdated: Date | null;
+}

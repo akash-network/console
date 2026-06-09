@@ -45,7 +45,8 @@ export class DiscoverySchedulerService {
           ...provider,
           selfAttributes: EMPTY_ARRAY,
           signedAttributes: EMPTY_ARRAY,
-          auditedBy: EMPTY_ARRAY
+          auditedBy: EMPTY_ARRAY,
+          lastUpdated: null
         },
         signal
       );
@@ -97,16 +98,26 @@ export class DiscoverySchedulerService {
 
         // important to upsert before starting new stream,
         // otherwise stream will have nothing to update in the db
-        const isUpsertedBatch = await this.#upsertProviders(providers);
+        const [isUpsertedBatch, lastUpdatedPerProvider] = await Promise.all([
+          this.#upsertProviders(providers),
+          this.#repository.getInventoryLastUpdatedPerOfflineProvider(providers.map(p => p.owner))
+        ]);
         for (const provider of providers) {
           const observedProvider = watchedProviders.get(provider.owner);
+          const lastUpdated = lastUpdatedPerProvider.get(provider.owner);
+
+          if (lastUpdated && Date.now() - lastUpdated.getTime() >= this.#config.DEAD_PROVIDER_UPDATED_THRESHOLD_MS) {
+            this.#logger.debug({ event: "DISCOVERY_SKIP_PROVIDER", owner: provider.owner, reason: "provider inventory has not been updated for a long time" });
+            continue;
+          }
+
           if (!observedProvider) {
             if (isUpsertedBatch) {
-              this.#lifecycle.start(provider, signal);
+              this.#lifecycle.start({ ...provider, lastUpdated: lastUpdated ?? null }, signal);
               startedProvidersCount++;
             }
           } else if (observedProvider.hostUri !== provider.hostUri) {
-            this.#lifecycle.restart(provider, signal);
+            this.#lifecycle.restart({ ...provider, lastUpdated: lastUpdated ?? null }, signal);
             restartedProvidersCount++;
           }
 
