@@ -9,6 +9,7 @@ export * from "./MsgCreateLease";
 export * from "./MsgCreateProvider";
 export * from "./MsgDeleteProviderAttributes";
 export * from "./MsgDepositDeployment";
+export * from "./MsgLeaseStartReclaim";
 export * from "./MsgPauseGroup";
 export * from "./MsgRevokeCertificate";
 export * from "./MsgSignProviderAttributes";
