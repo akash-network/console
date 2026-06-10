@@ -17,6 +17,7 @@ export interface BidScreeningCandidate {
   isAudited: boolean;
   createdAt: string;
   updatedAt: string;
+  location: string | null;
 }
 
 const TABLE = getTableName(providerInventory);
@@ -68,7 +69,11 @@ export class BidScreeningRepository {
           to_char(${sql(providerInventory.createdAt.name)} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "createdAt",
           ${sql(providerInventory.hostUri.name)} AS "hostUri",
           ${sql(providerInventory.inventory.name)} AS cluster,
-          ${sql(providerInventory.auditedBy.name)} @> ARRAY[${AUDITOR}]::text[] AS "isAudited"
+          ${sql(providerInventory.auditedBy.name)} @> ARRAY[${AUDITOR}]::text[] AS "isAudited",
+          COALESCE(
+            (SELECT sa->>'value' FROM jsonb_array_elements(${sql(providerInventory.signedAttributes.name)}) AS sa WHERE sa->>'key' = 'location-region' LIMIT 1),
+            (SELECT sa->>'value' FROM jsonb_array_elements(${sql(providerInventory.selfAttributes.name)}) AS sa WHERE sa->>'key' = 'location-region' LIMIT 1)
+          ) AS location
         FROM ${sql(TABLE)}
         WHERE ${sql(providerInventory.owner.name)} IN${sql(ownersToFetch)}
       `;

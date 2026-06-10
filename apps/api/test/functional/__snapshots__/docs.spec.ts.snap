@@ -3084,6 +3084,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "description": "True if signed by a known auditor",
                             "type": "boolean",
                           },
+                          "location": {
+                            "description": "Provider region from the location-region attribute (signed preferred, else self-declared); null if unset",
+                            "example": "us-west",
+                            "nullable": true,
+                            "type": "string",
+                          },
                           "owner": {
                             "description": "Provider address",
                             "example": "akash1q7spv2cw06yszgfp4f9ed59lkka6ytn8g4tkjf",
@@ -3095,6 +3101,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "hostUri",
                           "isAudited",
                           "createdAt",
+                          "location",
                         ],
                         "type": "object",
                       },
