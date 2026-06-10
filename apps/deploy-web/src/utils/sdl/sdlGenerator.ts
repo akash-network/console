@@ -4,23 +4,16 @@ import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/L
 import type { ExposeType, PlacementType, ProfileGpuModelType, SdlBuilderFormValuesType } from "@src/types";
 import { defaultHttpOptions } from "./data";
 
-export const buildCommand = (command: string) => {
-  if (command.trim() === "sh -c") {
-    return ["sh", "-c"];
-  }
-
-  const lines = command.split("\n");
-
-  if (lines.length > 1 || command.startsWith("sh -c")) {
-    const commandWithoutEmptyLines =
-      lines
-        .map(line => line.trim())
-        .filter(Boolean)
-        .join("\n") + "\n";
-    return ["sh", "-c", commandWithoutEmptyLines.replace(/^sh -c\s*/, "")];
-  }
-
-  return command;
+/**
+ * Converts the Command form field (one command-array token per line) into the
+ * SDL `command` array. Tokens are trimmed and empty lines dropped. The user's
+ * command is preserved verbatim — no shell wrapper (e.g. `sh -c`) is forced.
+ */
+export const buildCommand = (command: string): string[] => {
+  return command
+    .split("\n")
+    .map(line => line.trim())
+    .filter(Boolean);
 };
 
 export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
@@ -81,7 +74,11 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
     const trimmedCommand = service.command?.command?.trim();
     if (trimmedCommand) {
       sdl.services[service.title].command = buildCommand(trimmedCommand);
-      sdl.services[service.title].args = [service.command?.arg?.trim()];
+
+      const arg = service.command?.arg;
+      if (arg) {
+        sdl.services[service.title].args = [arg];
+      }
     }
 
     if ((service.env?.length || 0) > 0) {

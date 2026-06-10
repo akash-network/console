@@ -19,6 +19,14 @@ export interface RpcLease {
     created_at: string;
     closed_on: string;
     reason?: string;
+    // Present only on v2.1+ leases that a provider has flagged for reclamation (AEP-82).
+    // REST serializes deadline as unix seconds and reason as a `lease_closed_reason_*` enum name.
+    reclamation?: {
+      window?: string;
+      started_at?: string;
+      deadline?: string;
+      reason?: string;
+    };
   };
   escrow_payment: {
     id: {
@@ -62,7 +70,7 @@ export type RestAkashLeaseListResponse = {
 export type LeaseListParams = {
   owner: string;
   dseq?: string;
-  state?: "active" | "insufficient_funds" | "closed";
+  state?: "active" | "insufficient_funds" | "closed" | "reclaiming";
   pagination?: {
     limit?: number;
     key?: string;

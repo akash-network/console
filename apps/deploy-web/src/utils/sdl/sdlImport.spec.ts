@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { generateSdl } from "./sdlGenerator";
+import { buildCommand, generateSdl } from "./sdlGenerator";
 import { importSimpleSdl, parseSvcCommand } from "./sdlImport";
 
 describe("sdlImport", () => {
@@ -32,16 +32,16 @@ describe("sdlImport", () => {
       expect(parseSvcCommand(["echo", "", "foo"])).toEqual("echo\nfoo");
     });
 
-    it("returns command as string if command is array of strings with sh -c", () => {
-      expect(parseSvcCommand(["sh", "-c", "echo 'foo'"])).toEqual("echo 'foo'");
+    it("preserves a leading sh -c instead of stripping it", () => {
+      expect(parseSvcCommand(["sh", "-c", "echo 'foo'"])).toEqual("sh\n-c\necho 'foo'");
     });
 
-    it("returns rest of command as string if command is array of strings with sh -c", () => {
-      expect(parseSvcCommand(["sh", "-c", "echo 'foo'", "echo 'bar'"])).toEqual("echo 'foo'\necho 'bar'");
+    it("joins every command element with a newline", () => {
+      expect(parseSvcCommand(["sh", "-c", "echo 'foo'", "echo 'bar'"])).toEqual("sh\n-c\necho 'foo'\necho 'bar'");
     });
 
-    it("returns rest of command as string if command is array of strings with sh -c, drops empty lines", () => {
-      expect(parseSvcCommand(["sh", "-c", "echo 'foo'", "", "echo 'bar'"])).toEqual("echo 'foo'\necho 'bar'");
+    it("joins every command element with a newline, dropping empty lines", () => {
+      expect(parseSvcCommand(["sh", "-c", "echo 'foo'", "", "echo 'bar'"])).toEqual("sh\n-c\necho 'foo'\necho 'bar'");
     });
   });
 
@@ -126,6 +126,67 @@ describe("sdlImport", () => {
       const roundtripped = yaml.load(regenerated) as Record<string, unknown>;
 
       expect(roundtripped).toEqual(original);
+    });
+
+    it.each([
+      { command: ["bash", "-lc"], args: ["./run.sh"] },
+      { command: ["sh", "-c"], args: ["echo hi"] },
+      { command: ["sh", "-c", "echo foo"], args: undefined },
+      { command: ["bash", "-c"], args: ["run"] }
+    ])("preserves command $command and args $args without forcing a shell wrapper", ({ command, args }) => {
+      const formCommand = parseSvcCommand(command);
+      const formArg = args ? args[0] : "";
+
+      const rebuiltCommand = buildCommand(formCommand.trim());
+      const rebuiltArgs = formArg ? [formArg] : undefined;
+
+      expect(rebuiltCommand).toEqual(command);
+      expect(rebuiltArgs).toEqual(args);
+    });
+
+    it("does not emit an args key when a service has a command but no args", () => {
+      const yml = [
+        "version: '2.0'",
+        "services:",
+        "  web:",
+        "    image: nginx:1.0",
+        "    command:",
+        "      - sh",
+        "      - -c",
+        "      - echo hello",
+        "    expose:",
+        "      - port: 80",
+        "        as: 80",
+        "        to:",
+        "          - global: true",
+        "profiles:",
+        "  compute:",
+        "    web:",
+        "      resources:",
+        "        cpu:",
+        "          units: 0.5",
+        "        memory:",
+        "          size: 512Mi",
+        "        storage:",
+        "          - size: 512Mi",
+        "  placement:",
+        "    dcloud:",
+        "      pricing:",
+        "        web:",
+        "          denom: uact",
+        "          amount: 1000",
+        "deployment:",
+        "  web:",
+        "    dcloud:",
+        "      profile: web",
+        "      count: 1"
+      ].join("\n");
+
+      const regenerated = generateSdl(importSimpleSdl(yml));
+      const parsed = yaml.load(regenerated) as { services: Record<string, { command?: unknown }> };
+
+      expect(parsed.services.web.command).toEqual(["sh", "-c", "echo hello"]);
+      expect(parsed.services.web).not.toHaveProperty("args");
     });
   });
 });

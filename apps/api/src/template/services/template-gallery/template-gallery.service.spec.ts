@@ -323,6 +323,18 @@ describe(TemplateGalleryService.name, () => {
         })
       );
     });
+
+    it("reads the correct file for a legit id containing dots", async () => {
+      const { service, fsMock } = setup();
+      const template = { id: "akash-network-awesome-akash-DeepSeek-V3.1", name: "DeepSeek" };
+
+      fsMock.readFile.mockResolvedValue(JSON.stringify({ data: template }));
+
+      const result = await service.getTemplateById("akash-network-awesome-akash-DeepSeek-V3.1");
+
+      expect(result).toEqual(template);
+      expect(fsMock.readFile).toHaveBeenCalledWith("/data/templates/v1/templates/akash-network-awesome-akash-DeepSeek-V3.1.json", "utf8");
+    });
   });
 
   function setup(input?: { getTagsConfig?: () => TemplateTagsConfig }) {

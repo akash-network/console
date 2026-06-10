@@ -38,7 +38,13 @@ export const CommandFormModal: React.FunctionComponent<Props> = ({ control, serv
           control={control}
           name={`services.${serviceIndex}.command.command`}
           render={({ field }) => (
-            <Textarea rows={4} label="Command" value={field.value} placeholder="Example: bash -c" onChange={event => field.onChange(event.target.value)} />
+            <Textarea
+              rows={4}
+              label="Command"
+              value={field.value}
+              placeholder={"One token per line. Example:\nsh\n-c"}
+              onChange={event => field.onChange(event.target.value)}
+            />
           )}
         />
 

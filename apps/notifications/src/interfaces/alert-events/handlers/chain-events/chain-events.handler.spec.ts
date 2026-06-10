@@ -8,8 +8,10 @@ import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { BrokerService } from "@src/infrastructure/broker";
 import { ChainBlockCreatedDto } from "@src/modules/alert/dto/chain-block-created.dto";
 import { EventClosedDeploymentDto } from "@src/modules/alert/dto/event-closed-deployment.dto";
+import { EventLeaseReclaimStartedDto } from "@src/modules/alert/dto/event-lease-reclaim-started.dto";
 import { ChainAlertService } from "@src/modules/alert/services/chain-alert/chain-alert.service";
 import { DeploymentBalanceAlertsService } from "@src/modules/alert/services/deployment-balance-alerts/deployment-balance-alerts.service";
+import { ReclaimAlertService } from "@src/modules/alert/services/reclaim-alert/reclaim-alert.service";
 import { WalletBalanceAlertsService } from "@src/modules/alert/services/wallet-balance-alerts/wallet-balance-alerts.service";
 import { ChainEventsHandler } from "./chain-events.handler";
 
@@ -28,6 +30,21 @@ describe(ChainEventsHandler.name, () => {
       await controller.processDeploymentClosed(mockEvent);
 
       expect(chainMessageAlertService.alertFor).toHaveBeenCalledWith({ type: "CHAIN_EVENT", payload: mockEvent }, expect.any(Function));
+      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, alertMessage);
+    });
+  });
+
+  describe("processLeaseReclaimStarted", () => {
+    it("routes the reclaim event to the reclaim alert service and publishes notifications", async () => {
+      const { controller, reclaimAlertService, brokerService } = await setup();
+
+      const mockEvent = generateMock(EventLeaseReclaimStartedDto.schema);
+      const alertMessage = generateAlertMessage({});
+      reclaimAlertService.alertFor.mockImplementation((_, callback) => callback(alertMessage));
+
+      await controller.processLeaseReclaimStarted(mockEvent);
+
+      expect(reclaimAlertService.alertFor).toHaveBeenCalledWith(mockEvent, expect.any(Function));
       expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, alertMessage);
     });
   });
@@ -55,7 +72,8 @@ describe(ChainEventsHandler.name, () => {
         ChainEventsHandler,
         MockProvider(ChainAlertService),
         MockProvider(DeploymentBalanceAlertsService),
-        MockProvider(WalletBalanceAlertsService)
+        MockProvider(WalletBalanceAlertsService),
+        MockProvider(ReclaimAlertService)
       ]
     }).compile();
 
@@ -64,6 +82,7 @@ describe(ChainEventsHandler.name, () => {
       chainMessageAlertService: module.get<MockProxy<ChainAlertService>>(ChainAlertService),
       deploymentBalanceAlertsService: module.get<MockProxy<DeploymentBalanceAlertsService>>(DeploymentBalanceAlertsService),
       walletBalanceAlertsService: module.get<MockProxy<WalletBalanceAlertsService>>(WalletBalanceAlertsService),
+      reclaimAlertService: module.get<MockProxy<ReclaimAlertService>>(ReclaimAlertService),
       brokerService: module.get<MockProxy<BrokerService>>(BrokerService)
     };
   }

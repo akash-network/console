@@ -9,11 +9,14 @@ import type { EmailVerificationStrategy } from "./email-verification.strategy";
  */
 const CODE_NEAR_KEYWORD = /\bcode\b[\s\S]{0,200}?\b(\d{6})\b/i;
 
-/** Delay between Mailsac inbox polls while waiting for a fresh code. */
-const POLL_INTERVAL_MS = 2_000;
+/** Total time to wait for a fresh code to arrive before giving up. */
+const POLL_DEADLINE_MS = 60_000;
 
-/** Maximum poll cycles before giving up on a fresh code arriving. ~60s at default interval. */
-const POLL_MAX_ATTEMPTS = 30;
+/** First delay between inbox polls; grows exponentially up to the cap to reduce API calls when delivery lags. */
+const POLL_INITIAL_INTERVAL_MS = 1_000;
+
+/** Upper bound on the backoff delay between polls. */
+const POLL_MAX_INTERVAL_MS = 5_000;
 
 /** How long after typing a code we wait for either successful navigation or a rejection alert. */
 const SUBMIT_TIMEOUT_MS = 10_000;
@@ -60,12 +63,13 @@ export class MailsacCodeVerificationStrategy implements EmailVerificationStrateg
   async verify(input: { context: BrowserContext; email: string; userId: string; sinceMs: number }): Promise<void> {
     const page = this.#requireActivePage(input.context);
     const triedMessageIds = new Set<string>();
+    const scannedWithoutCode = new Set<string>();
     const failures: CodeAttemptFailure[] = [];
 
     for (;;) {
       let candidate: CodeCandidate;
       try {
-        candidate = await this.#pollForNextCode(input.email, input.sinceMs, triedMessageIds);
+        candidate = await this.#pollForNextCode(input.email, input.sinceMs, triedMessageIds, scannedWithoutCode);
       } catch (pollError) {
         throw this.#buildExhaustedError(input.email, failures, pollError);
       }
@@ -86,28 +90,38 @@ export class MailsacCodeVerificationStrategy implements EmailVerificationStrateg
     return page;
   }
 
-  async #pollForNextCode(email: string, freshAfterMs: number, excludeMessageIds: Set<string>): Promise<CodeCandidate> {
+  async #pollForNextCode(email: string, freshAfterMs: number, excludeMessageIds: Set<string>, scannedWithoutCode: Set<string>): Promise<CodeCandidate> {
     const pollErrors: Error[] = [];
+    const deadline = Date.now() + POLL_DEADLINE_MS;
+    let interval = POLL_INITIAL_INTERVAL_MS;
 
-    for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
+    for (;;) {
       try {
         const messages = await this.#fetchMessages(email);
-        for (const message of messages) {
-          if (excludeMessageIds.has(message._id)) continue;
+        for (const message of messagesNewestFirst(messages)) {
+          if (excludeMessageIds.has(message._id) || scannedWithoutCode.has(message._id)) continue;
           if (!isMessageFreshSince(message, freshAfterMs)) continue;
           const body = await this.#fetchMessageBody(email, message._id);
           const code = body.match(CODE_NEAR_KEYWORD)?.[1];
-          if (code) return { messageId: message._id, code };
+          if (code) {
+            return { messageId: message._id, code };
+          }
+          scannedWithoutCode.add(message._id);
         }
       } catch (error) {
         pollErrors.push(error instanceof Error ? error : new Error(String(error)));
       }
 
-      await sleep(POLL_INTERVAL_MS);
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) break;
+      await sleep(Math.min(interval, remaining));
+      interval = Math.min(interval * 2, POLL_MAX_INTERVAL_MS);
     }
 
-    const timeoutSec = (POLL_MAX_ATTEMPTS * POLL_INTERVAL_MS) / 1_000;
-    throw new AggregateError(pollErrors, `No fresh verification code found for ${email} within ${timeoutSec}s (excluded ${excludeMessageIds.size} tried)`);
+    throw new AggregateError(
+      pollErrors,
+      `No fresh verification code found for ${email} within ${POLL_DEADLINE_MS / 1_000}s (excluded ${excludeMessageIds.size} tried)`
+    );
   }
 
   async #submitCode(page: Page, code: string, mustWaitForInputClear: boolean): Promise<void> {
@@ -186,8 +200,21 @@ export class MailsacCodeVerificationStrategy implements EmailVerificationStrateg
 }
 
 function isMessageFreshSince(message: MailsacMessage, freshAfterMs: number): boolean {
-  const receivedMs = message.received ? Date.parse(message.received) : NaN;
-  return !Number.isNaN(receivedMs) && receivedMs >= freshAfterMs;
+  return receivedMs(message) >= freshAfterMs;
+}
+
+/**
+ * Sorts a copy newest-first so the most recent (and most likely OTP) message is scanned
+ * before older ones — the working code is then found in the fewest body fetches.
+ */
+function messagesNewestFirst(messages: MailsacMessage[]): MailsacMessage[] {
+  return [...messages].sort((a, b) => receivedMs(b) - receivedMs(a));
+}
+
+/** Parsed `received` timestamp in ms, or -Infinity when missing/unparseable so it sorts last. */
+function receivedMs(message: MailsacMessage): number {
+  const ms = message.received ? Date.parse(message.received) : NaN;
+  return Number.isNaN(ms) ? -Infinity : ms;
 }
 
 function sleep(ms: number): Promise<void> {

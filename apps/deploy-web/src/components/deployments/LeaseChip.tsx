@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
+import { isReclaiming } from "@src/utils/reclamationUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
 import { ShortenedValue } from "../shared/ShortenedValue";
@@ -40,6 +41,12 @@ export const LeaseChip: React.FunctionComponent<Props> = ({ lease, providers }) 
           <StatusPill state={lease.state} size="small" />
         </Badge>
       </Link>
+
+      {isReclaiming(lease) && (
+        <Badge variant="outline" className="whitespace-nowrap border-amber-500 text-xs text-amber-600">
+          Reclaiming
+        </Badge>
+      )}
 
       {providerName && <CopyTextToClipboardButton value={providerName} />}
     </div>

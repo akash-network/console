@@ -19,7 +19,8 @@ describe(BidScreeningService.name, () => {
         {
           owner: "akash1abc",
           hostUri: "https://provider.example.com:8443",
-          isAudited: false
+          isAudited: false,
+          createdAt: "2026-01-01T00:00:00.000Z"
         }
       ]);
     });
@@ -97,11 +98,12 @@ describe(BidScreeningService.name, () => {
   }
 });
 
-function makeCandidate(owner: string, overrides?: { isAudited?: boolean }): BidScreeningCandidate {
+function makeCandidate(owner: string, overrides?: { isAudited?: boolean; createdAt?: string }): BidScreeningCandidate {
   return {
     owner,
     hostUri: "https://provider.example.com:8443",
     isAudited: overrides?.isAudited ?? false,
+    createdAt: overrides?.createdAt ?? "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     cluster: {
       nodes: [

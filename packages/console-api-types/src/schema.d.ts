@@ -6961,15 +6961,14 @@ export interface paths {
                  * @example https://provider.europlots.com:8443
                  */
                 hostUri: string;
-                /** @description Geo-resolved region from IP */
-                region: string | null;
-                /**
-                 * @description 7-day uptime as decimal (0.0-1.0)
-                 * @example 0.998
-                 */
-                uptime7d: number | null;
                 /** @description True if signed by a known auditor */
                 isAudited: boolean;
+                /**
+                 * Format: date-time
+                 * @description ISO 8601 timestamp marking when the provider was first enrolled in the inventory
+                 * @example 2026-01-01T00:00:00.000Z
+                 */
+                createdAt: string;
               }[];
             };
           };

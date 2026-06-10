@@ -16979,28 +16979,22 @@
                             "description": "Provider HTTPS endpoint",
                             "example": "https://provider.europlots.com:8443"
                           },
-                          "region": {
-                            "type": "string",
-                            "nullable": true,
-                            "description": "Geo-resolved region from IP"
-                          },
-                          "uptime7d": {
-                            "type": "number",
-                            "nullable": true,
-                            "description": "7-day uptime as decimal (0.0-1.0)",
-                            "example": 0.998
-                          },
                           "isAudited": {
                             "type": "boolean",
                             "description": "True if signed by a known auditor"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "description": "ISO 8601 timestamp marking when the provider was first enrolled in the inventory",
+                            "example": "2026-01-01T00:00:00.000Z"
                           }
                         },
                         "required": [
                           "owner",
                           "hostUri",
-                          "region",
-                          "uptime7d",
-                          "isAudited"
+                          "isAudited",
+                          "createdAt"
                         ]
                       }
                     }

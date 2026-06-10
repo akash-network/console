@@ -9,6 +9,8 @@ import type { StreamLifecycleManagerService } from "@src/services/stream-lifecyc
 import type { ChainProvider } from "@src/types/chain-provider";
 import { DiscoverySchedulerService } from "./discovery-scheduler.service";
 
+const DEAD_PROVIDER_UPDATED_THRESHOLD_MS = 10 * 24 * 60 * 60 * 1000;
+
 describe(DiscoverySchedulerService.name, () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -74,7 +76,42 @@ describe(DiscoverySchedulerService.name, () => {
 
     expect(lifecycle.getRegistry).toHaveBeenCalled();
     expect(writer.bulkUpsertProviders).toHaveBeenCalledWith([fresh]);
-    expect(lifecycle.start).toHaveBeenCalledWith(fresh, expect.any(AbortSignal));
+    expect(lifecycle.start).toHaveBeenCalledWith({ ...fresh, lastUpdated: null }, expect.any(AbortSignal));
+  });
+
+  it("forwards the offline provider's last-updated timestamp to lifecycle.start", async () => {
+    const offline = createProvider({ owner: "offline", hostUri: "https://offline:8443" });
+    const lastUpdated = new Date(Date.now() - 60_000);
+    const { lifecycle } = setup({ providers: [offline], lastUpdated: new Map([[offline.owner, lastUpdated]]) });
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(lifecycle.start).toHaveBeenCalledWith({ ...offline, lastUpdated }, expect.any(AbortSignal));
+  });
+
+  it("skips a provider whose inventory has not been updated past the dead-provider threshold", async () => {
+    const dead = createProvider({ owner: "dead", hostUri: "https://dead:8443" });
+    const lastUpdated = new Date(Date.now() - DEAD_PROVIDER_UPDATED_THRESHOLD_MS - 1_000);
+    const { lifecycle, logger } = setup({ providers: [dead], lastUpdated: new Map([[dead.owner, lastUpdated]]) });
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(lifecycle.start).not.toHaveBeenCalled();
+    expect(logger.debug).toHaveBeenCalledWith(expect.objectContaining({ event: "DISCOVERY_SKIP_PROVIDER", owner: "dead" }));
+  });
+
+  it("forwards the last-updated timestamp to lifecycle.restart when an observed provider changes hostUri", async () => {
+    const updated = createProvider({ owner: "moving", hostUri: "https://new:8443" });
+    const lastUpdated = new Date(Date.now() - 60_000);
+    const { lifecycle } = setup({
+      providers: [updated],
+      watched: new Map([["moving", { hostUri: "https://old:8443" }]]),
+      lastUpdated: new Map([[updated.owner, lastUpdated]])
+    });
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(lifecycle.restart).toHaveBeenCalledWith({ ...updated, lastUpdated }, expect.any(AbortSignal));
   });
 
   it("continues after a poll error and re-arms the next tick", async () => {
@@ -193,14 +230,17 @@ describe(DiscoverySchedulerService.name, () => {
     pollDelay?: (config: EnvConfig) => number;
     onlineOwners?: Pick<ProviderInventory, "owner" | "hostUri">[];
     autoStart?: boolean;
+    watched?: Map<string, { hostUri: string }>;
+    lastUpdated?: Map<string, Date>;
   }) {
     const poller = mock<ChainProviderPollerService>();
     const writer = mock<ProviderInventoryRepository>();
     const lifecycle = mock<StreamLifecycleManagerService>();
-    lifecycle.getRegistry.mockReturnValue(new Map());
+    lifecycle.getRegistry.mockReturnValue(input?.watched ?? new Map());
     lifecycle.stopAndDelete.mockResolvedValue();
     lifecycle.waitForPendingConnections.mockResolvedValue();
     writer.bulkUpsertProviders.mockResolvedValue();
+    writer.getInventoryLastUpdatedPerOfflineProvider.mockResolvedValue(input?.lastUpdated ?? new Map());
 
     const onlineOwners = input?.onlineOwners ?? [];
     writer.streamOnlineProviders.mockReturnValue(
@@ -221,6 +261,7 @@ describe(DiscoverySchedulerService.name, () => {
       STREAM_RECONNECT_INITIAL_DELAY_MS: 1_000,
       STREAM_RECONNECT_MAX_DELAY_MS: 300_000,
       STREAM_FIRST_MESSAGE_TIMEOUT_MS: 10_000,
+      DEAD_PROVIDER_UPDATED_THRESHOLD_MS,
       REST_API_NODE_URL: "http://localhost:1317"
     } as EnvConfig;
 

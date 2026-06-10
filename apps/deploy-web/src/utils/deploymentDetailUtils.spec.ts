@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
+import type { RpcLease } from "@src/types/deployment";
 import { deploymentToDto, leaseToDto } from "./deploymentDetailUtils";
 
 describe("deploymentDetailUtils", () => {
@@ -74,7 +76,40 @@ describe("deploymentDetailUtils", () => {
         },
         provider: "provider1",
         state: "active",
-        storageAmount: 0
+        storageAmount: 0,
+        reason: undefined,
+        closedOn: "",
+        reclamation: undefined
+      });
+    });
+
+    it("maps the reclamation object and close reason when present", () => {
+      const lease = mock<RpcLease>({
+        lease: {
+          id: { owner: "test-owner", dseq: "123", gseq: 1, oseq: 1, provider: "provider1", bseq: 1 },
+          state: "reclaiming",
+          price: { amount: "1000", denom: "uakt" },
+          created_at: new Date().toISOString(),
+          closed_on: "0",
+          reason: "lease_closed_reason_unstable",
+          reclamation: {
+            window: "3600s",
+            started_at: "1700000000",
+            deadline: "1700003600",
+            reason: "lease_closed_reason_unstable"
+          }
+        }
+      });
+
+      const dto = leaseToDto(lease, { groups: [] });
+
+      expect(dto.reason).toBe("lease_closed_reason_unstable");
+      expect(dto.closedOn).toBe("0");
+      expect(dto.reclamation).toEqual({
+        deadline: 1700003600,
+        reason: "lease_closed_reason_unstable",
+        startedAt: "1700000000",
+        window: "3600s"
       });
     });
   });

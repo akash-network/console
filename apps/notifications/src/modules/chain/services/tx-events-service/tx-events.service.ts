@@ -18,7 +18,7 @@ interface ProcessedEvent {
 /**
  * Supported blockchain event actions
  */
-type Action = "deployment-closed" | "deployment-created";
+type Action = "deployment-closed" | "deployment-created" | "lease-reclaim-started";
 
 /**
  * Filter criteria for blockchain events
@@ -26,7 +26,7 @@ type Action = "deployment-closed" | "deployment-created";
 interface EventFilter {
   source?: "akash";
   action?: Action | Action[];
-  module?: "deployment";
+  module?: "deployment" | "market";
   version?: "v1";
 }
 
@@ -46,7 +46,8 @@ interface EventFilter {
 export class TxEventsService {
   private readonly EVENT_ACTIONS: Record<string, string> = {
     EventDeploymentClosed: "deployment-closed",
-    EventDeploymentCreated: "deployment-created"
+    EventDeploymentCreated: "deployment-created",
+    EventLeaseReclaimStarted: "lease-reclaim-started"
   };
 
   private readonly ACTION_EVENTS: Record<string, string> = Object.fromEntries(Object.entries(this.EVENT_ACTIONS).map(([k, v]) => [v, k]));
@@ -61,12 +62,17 @@ export class TxEventsService {
   }
 
   /**
-   * Retrieves and processes block events filtered by type and action
+   * Retrieves and processes block events filtered by type and action.
+   *
+   * Accepts one filter or several: the block is fetched from the chain only once
+   * and every filter is applied in-memory, so callers needing multiple event
+   * families (e.g. deployment + market) don't pay for a duplicate block fetch.
+   *
    * @param blockHeight - The height of the block to process
-   * @param filter - Optional filter to apply to events
-   * @returns Array of processed events matching the filter criteria
+   * @param filter - Optional filter, or list of filters, to apply to events
+   * @returns Array of processed events matching any of the filter criteria
    */
-  async getBlockEvents(blockHeight: number, filter?: EventFilter, signal?: AbortSignal): Promise<ProcessedEvent[]> {
+  async getBlockEvents(blockHeight: number, filter?: EventFilter | EventFilter[], signal?: AbortSignal): Promise<ProcessedEvent[]> {
     try {
       const blockResults = await this.fetchBlockResultsWithRetry(blockHeight, signal);
 
@@ -76,7 +82,8 @@ export class TxEventsService {
         transactionCount: blockResults.results.length
       });
 
-      return this.extractFilteredEventsFromBlockResults(blockResults, filter);
+      const filters = Array.isArray(filter) ? filter : [filter];
+      return filters.flatMap(f => this.extractFilteredEventsFromBlockResults(blockResults, f));
     } catch (error) {
       this.loggerService.error({
         event: "BLOCK_EVENTS_PROCESSING_FAILED",

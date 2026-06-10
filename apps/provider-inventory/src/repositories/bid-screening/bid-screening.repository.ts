@@ -15,6 +15,7 @@ export interface BidScreeningCandidate {
   hostUri: string;
   cluster?: ClusterState;
   isAudited: boolean;
+  createdAt: string;
   updatedAt: string;
 }
 
@@ -40,7 +41,7 @@ export class BidScreeningRepository {
     const rows = await sql<Array<{ owner: string; updatedAt: string }>>`
       SELECT
         ${sql(providerInventory.owner.name)} AS owner,
-        ${sql(providerInventory.updatedAt.name)} AS "updatedAt"
+        to_char(${sql(providerInventory.updatedAt.name)} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "updatedAt"
       FROM ${sql(TABLE)}
       WHERE ${where}
     `;
@@ -63,7 +64,8 @@ export class BidScreeningRepository {
       const candidates = await sql<BidScreeningCandidate[]>`
         SELECT
           ${sql(providerInventory.owner.name)} AS owner,
-          ${sql(providerInventory.updatedAt.name)} AS "updatedAt",
+          to_char(${sql(providerInventory.updatedAt.name)} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "updatedAt",
+          to_char(${sql(providerInventory.createdAt.name)} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "createdAt",
           ${sql(providerInventory.hostUri.name)} AS "hostUri",
           ${sql(providerInventory.inventory.name)} AS cluster,
           ${sql(providerInventory.auditedBy.name)} @> ARRAY[${AUDITOR}]::text[] AS "isAudited"

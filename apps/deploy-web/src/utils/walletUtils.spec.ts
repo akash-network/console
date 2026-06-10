@@ -130,6 +130,27 @@ describe("walletUtils", () => {
       cleanup();
     });
 
+    it("returns undefined without throwing when an update has a null address and no prior entry", () => {
+      const { cleanup } = setup();
+
+      const result = updateStorageManagedWallet({ userId: USER_ID_1, address: null as never, creditAmount: 100, isTrialing: false });
+      expect(result).toBeUndefined();
+
+      cleanup();
+    });
+
+    it("falls back to the previous address when an update carries a null address", () => {
+      const { cleanup } = setup();
+
+      updateStorageManagedWallet(buildManagedLocalWallet({ address: WALLET_ADDRESS_1, userId: USER_ID_1, creditAmount: 100, isTrialing: false }));
+      const result = updateStorageManagedWallet({ userId: USER_ID_1, address: null as never, creditAmount: 150 });
+
+      expect(result?.address).toBe(WALLET_ADDRESS_1);
+      expect(result?.creditAmount).toBe(150);
+
+      cleanup();
+    });
+
     it("preserves other users' entries (multi-user isolation)", () => {
       const { cleanup } = setup();
 

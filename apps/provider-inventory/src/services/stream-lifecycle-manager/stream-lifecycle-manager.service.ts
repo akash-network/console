@@ -12,8 +12,10 @@ import type { EnvConfig } from "@src/providers/app-config.provider";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
+import { DbDriver } from "@src/repositories/db-driver/db-driver";
+import { ProviderIncidentRepository } from "@src/repositories/provider-incident/provider-incident.repository";
 import { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
-import type { ChainProvider } from "@src/types/chain-provider";
+import type { ChainProviderWithLastUpdated } from "@src/types/chain-provider";
 import type { ClusterState } from "@src/types/inventory";
 import { ProviderStreamFactory } from "../provider-stream-factory/provider-stream-factory.sevice";
 
@@ -21,7 +23,8 @@ import { ProviderStreamFactory } from "../provider-stream-factory/provider-strea
 export class StreamLifecycleManagerService {
   readonly #logger: LoggerService;
   readonly #streamFactory: ProviderStreamFactory;
-  readonly #writer: ProviderInventoryRepository;
+  readonly #inventoryRepo: ProviderInventoryRepository;
+  readonly #incidentsRepo: ProviderIncidentRepository;
   readonly #config: EnvConfig;
   readonly #activeStreams = new Map<
     string,
@@ -32,23 +35,36 @@ export class StreamLifecycleManagerService {
   >();
   readonly #lastInventoryPerProvider = new Map<string, ClusterState>();
   readonly #onlineStatePerProvider = new Map<string, boolean>();
-  readonly #retryStreamPolicy: RetryPolicy;
+  readonly #healthyProviderRetryStreamPolicy: RetryPolicy;
+  readonly #potentiallyDeadProviderRetryStreamPolicy: RetryPolicy;
   readonly #offlineDataloader: Dataloader<string, null>;
   readonly #startStreamSemaphore: Sema;
   readonly #pendingFirstAttempts = new Set<Promise<void>>();
+  readonly #dbDriver: DbDriver;
 
   constructor(
     streamFactory: ProviderStreamFactory,
-    writer: ProviderInventoryRepository,
+    inventoryRepo: ProviderInventoryRepository,
+    incidentsRepo: ProviderIncidentRepository,
+    dbDriver: DbDriver,
     @inject(LOGGER_FACTORY) loggerFactory: LoggerFactory,
     @inject(APP_CONFIG) config: EnvConfig
   ) {
     this.#streamFactory = streamFactory;
-    this.#writer = writer;
+    this.#inventoryRepo = inventoryRepo;
+    this.#incidentsRepo = incidentsRepo;
+    this.#dbDriver = dbDriver;
     this.#config = config;
     this.#logger = loggerFactory({ context: "StreamLifecycleManager" });
-    this.#retryStreamPolicy = retry(handleAll, {
+    this.#healthyProviderRetryStreamPolicy = retry(handleAll, {
       maxAttempts: 5,
+      backoff: new ExponentialBackoff({
+        initialDelay: this.#config.STREAM_RECONNECT_INITIAL_DELAY_MS,
+        maxDelay: this.#config.STREAM_RECONNECT_MAX_DELAY_MS
+      })
+    });
+    this.#potentiallyDeadProviderRetryStreamPolicy = retry(handleAll, {
+      maxAttempts: 1,
       backoff: new ExponentialBackoff({
         initialDelay: this.#config.STREAM_RECONNECT_INITIAL_DELAY_MS,
         maxDelay: this.#config.STREAM_RECONNECT_MAX_DELAY_MS
@@ -56,7 +72,8 @@ export class StreamLifecycleManagerService {
     });
     this.#offlineDataloader = new Dataloader(
       async owners => {
-        await this.#writer.bulkMarkOffline(owners as string[]);
+        await this.#inventoryRepo.bulkMarkOffline(owners as string[]);
+        this.#logger.info({ event: "PROVIDERS_MARKED_OFFLINE", owners });
         return Array.from(owners, () => null);
       },
       {
@@ -72,7 +89,7 @@ export class StreamLifecycleManagerService {
     return this.#activeStreams;
   }
 
-  start(provider: ChainProvider, signal?: AbortSignal): void {
+  start(provider: ChainProviderWithLastUpdated, signal?: AbortSignal): void {
     if (signal?.aborted) {
       this.#logger.warn({ event: "STREAM_START_ABORTED", owner: provider.owner, reason: "Received already aborted signal" });
       return;
@@ -92,7 +109,7 @@ export class StreamLifecycleManagerService {
     void this.#runStream(provider, controller.signal, firstAttempt.resolve).finally(() => signal?.removeEventListener("abort", abortProviderStream));
   }
 
-  restart(provider: ChainProvider, signal?: AbortSignal): void {
+  restart(provider: ChainProviderWithLastUpdated, signal?: AbortSignal): void {
     const previousHostUri = this.#activeStreams.get(provider.owner)?.hostUri;
     this.#abortIfActive(provider.owner, "STREAM_STOPPED_HOSTURI_CHANGE");
     if (previousHostUri && previousHostUri !== provider.hostUri) {
@@ -114,7 +131,7 @@ export class StreamLifecycleManagerService {
       this.#abortIfActive(owner, "STREAM_STOPPED_PROVIDER_GONE");
     }
 
-    await Promise.all([Promise.all(promises), this.#writer.deleteByOwner(owners)]);
+    await Promise.all([Promise.all(promises), this.#inventoryRepo.deleteByOwner(owners), this.#incidentsRepo.closeIncident(owners)]);
     this.#logger.info({ event: "PROVIDER_INVENTORY_DELETED", owners });
   }
 
@@ -126,10 +143,13 @@ export class StreamLifecycleManagerService {
     this.#logger.info({ event, owner });
   }
 
-  async #runStream(provider: ChainProvider, signal: AbortSignal, onFirstAttemptSettled: () => void): Promise<void> {
+  async #runStream(provider: ChainProviderWithLastUpdated, signal: AbortSignal, onFirstAttemptSettled: () => void): Promise<void> {
     const onSettleAttempt = once(onFirstAttemptSettled);
     try {
-      await this.#retryStreamPolicy.execute(ctx => {
+      const isPotentiallyDeadProvider =
+        provider.lastUpdated && Date.now() - provider.lastUpdated.getTime() > this.#config.DEAD_PROVIDER_UPDATED_THRESHOLD_MS / 2;
+      const retryPolicy = isPotentiallyDeadProvider ? this.#potentiallyDeadProviderRetryStreamPolicy : this.#healthyProviderRetryStreamPolicy;
+      await retryPolicy.execute(ctx => {
         if (signal.aborted) return;
         if (ctx.attempt > 0) {
           this.#logger.warn({
@@ -143,6 +163,11 @@ export class StreamLifecycleManagerService {
     } catch (error) {
       if (!signal.aborted) {
         this.#logger.error({ event: "STREAM_GAVE_UP", owner: provider.owner, error });
+        try {
+          await this.#incidentsRepo.openIncident(provider.owner);
+        } catch (incidentError) {
+          this.#logger.error({ event: "OPEN_INCIDENT_ERROR", owner: provider.owner, error: incidentError });
+        }
       }
     } finally {
       onSettleAttempt();
@@ -154,7 +179,7 @@ export class StreamLifecycleManagerService {
     }
   }
 
-  async #runAttempt(provider: ChainProvider, outerSignal: AbortSignal, onAttemptSettled: () => void): Promise<void> {
+  async #runAttempt(provider: ChainProviderWithLastUpdated, outerSignal: AbortSignal, onAttemptSettled: () => void): Promise<void> {
     if (outerSignal.aborted) return;
 
     this.#lastInventoryPerProvider.delete(provider.owner);
@@ -184,7 +209,7 @@ export class StreamLifecycleManagerService {
         this.#logger.debug({ event: "STREAM_MESSAGE_RECEIVED", owner: provider.owner });
         if (outerSignal.aborted) return;
         releasePermit();
-        await this.#applyMessage(provider, message);
+        await this.#updateProviderInventory(provider, message);
       }
 
       if (outerSignal.aborted) return;
@@ -202,11 +227,20 @@ export class StreamLifecycleManagerService {
     }
   }
 
-  async #applyMessage(provider: ChainProvider, cluster: ClusterState): Promise<void> {
+  async #updateProviderInventory(provider: ChainProviderWithLastUpdated, cluster: ClusterState): Promise<void> {
     const cached = this.#lastInventoryPerProvider.get(provider.owner);
 
     if (!this.#onlineStatePerProvider.get(provider.owner)) {
-      this.#onlineStatePerProvider.set(provider.owner, true);
+      try {
+        this.#onlineStatePerProvider.set(provider.owner, true);
+        await this.#dbDriver.transaction(async () => {
+          await Promise.all([this.#inventoryRepo.markAsOnline(provider.owner), this.#incidentsRepo.closeIncident(provider.owner)]);
+        });
+        this.#logger.info({ event: "PROVIDER_MARKED_ONLINE", owner: provider.owner });
+      } catch (error) {
+        this.#onlineStatePerProvider.set(provider.owner, false);
+        this.#logger.error({ event: "CLOSE_INCIDENT_ERROR", owner: provider.owner, error });
+      }
     }
 
     if (cached && isEqualClusterState(cached, cluster)) {
@@ -215,7 +249,8 @@ export class StreamLifecycleManagerService {
     }
 
     try {
-      await this.#writer.updateInventory(provider, cluster);
+      await this.#inventoryRepo.updateInventory(provider, cluster);
+      this.#logger.debug({ event: "PROVIDER_INVENTORY_UPDATED", owner: provider.owner });
       this.#lastInventoryPerProvider.set(provider.owner, cluster);
     } catch (error) {
       this.#logger.error({ event: "STREAM_PROVIDER_WRITE_ERROR", owner: provider.owner, error });
