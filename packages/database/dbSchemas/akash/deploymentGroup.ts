@@ -18,6 +18,9 @@ import { Lease } from "./lease"; // eslint-disable-line import-x/no-cycle
     {
       unique: true,
       fields: ["owner", "dseq", "gseq"]
+    },
+    {
+      fields: ["deploymentId"]
     }
   ]
 })
