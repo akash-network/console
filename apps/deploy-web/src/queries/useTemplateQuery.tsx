@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { TemplateCategory, TemplateHttpService, TemplateOutputSummary } from "@akashnetwork/http-sdk";
+import type { TemplateCategory, TemplateHttpService, TemplateOutput, TemplateOutputSummary } from "@akashnetwork/http-sdk";
 import { Snackbar } from "@akashnetwork/ui/components";
 import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -36,6 +36,21 @@ export function useTemplate(id: string, options?: Omit<UseQueryOptions<ITemplate
   return useQuery<ITemplate, Error>({
     queryKey: QueryKeys.getTemplateKey(id),
     queryFn: () => consoleApiHttpClient.get<ITemplate>(`/v1/user/template/${id}`).then(response => response.data),
+    ...options
+  });
+}
+
+/**
+ * Fetches a public gallery template by id (same source the legacy new-deployment
+ * flow resolves `templateId` against). The query stays idle until an id is given.
+ */
+export function usePublicTemplate(id: string | undefined, options?: Omit<UseQueryOptions<TemplateOutput, Error, any, QueryKey>, "queryKey" | "queryFn">) {
+  const { template: templateService } = useServices();
+
+  return useQuery<TemplateOutput, Error>({
+    queryKey: QueryKeys.getPublicTemplateKey(id ?? ""),
+    queryFn: () => templateService.findById(id as string),
+    enabled: !!id,
     ...options
   });
 }
