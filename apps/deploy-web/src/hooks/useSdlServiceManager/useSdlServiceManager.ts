@@ -3,9 +3,9 @@ import type { Control } from "react-hook-form";
 import { useFieldArray, useWatch } from "react-hook-form";
 import { nanoid } from "nanoid";
 
-import { findOwnLogCollectorServiceIndex, isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { defaultPlacement, defaultService } from "@src/utils/sdl/data";
+import { nextServiceTitle, serviceRemovalIndexes } from "@src/utils/sdl/formArrayHelpers";
 
 type Props = {
   control: Control<SdlBuilderFormValuesType>;
@@ -32,35 +32,15 @@ export const useSdlServiceManager = ({ control }: Props) => {
     keyName: "id"
   });
 
-  const calcNextServiceTitle = useCallback(() => {
-    const visibleServices = services.filter(service => !isLogCollectorService(service));
-    const lastService = visibleServices[visibleServices.length - 1];
-    const lastServiceIndex = lastService?.title?.match(/service-(\d+)/)?.[1];
-
-    let nextIndex = lastServiceIndex ? parseInt(lastServiceIndex) + 1 : visibleServices.length + 1;
-    let hasDuplicate = false;
-
-    do {
-      hasDuplicate = visibleServices.some(service => service.title === `service-${nextIndex}`);
-
-      if (hasDuplicate) {
-        nextIndex++;
-      }
-    } while (hasDuplicate);
-
-    return `service-${nextIndex}`;
-  }, [services]);
-
   const add = useCallback(() => {
     const placement = defaultPlacement();
     appendPlacement(placement);
-    appendService({ ...defaultService(placement.id), id: nanoid(), title: calcNextServiceTitle() });
-  }, [appendService, appendPlacement, calcNextServiceTitle]);
+    appendService({ ...defaultService(placement.id), id: nanoid(), title: nextServiceTitle(services) });
+  }, [appendService, appendPlacement, services]);
 
   const remove = useCallback(
     (index: number) => {
-      const ownLogCollectorServiceIndex = findOwnLogCollectorServiceIndex(services[index], services);
-      const indexes = (ownLogCollectorServiceIndex === -1 ? [index] : [index, ownLogCollectorServiceIndex]).sort((a, b) => b - a);
+      const indexes = serviceRemovalIndexes(services, index);
 
       const removedPlacementIds = new Set(indexes.map(serviceIndex => services[serviceIndex]?.placementId));
       const remainingPlacementIds = new Set(services.filter((_, serviceIndex) => !indexes.includes(serviceIndex)).map(service => service.placementId));
