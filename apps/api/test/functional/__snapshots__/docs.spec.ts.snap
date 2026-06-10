@@ -17036,7 +17036,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
   },
   "servers": [
     {
-      "url": "http://localhost:3080",
+      "url": "https://console-api-sandbox.akash.network",
     },
   ],
 }

@@ -129,13 +129,7 @@ function getStringAttribute(key: keyof ProviderAttributesSchema, attrMap: Map<st
 }
 
 function getLocationRegion(attrMap: Map<string, string>, schema: ProviderAttributesSchema): string | null {
-  const locationRegion = getStringAttribute("location-region", attrMap, schema);
-  if (locationRegion) {
-    return locationRegion;
-  }
-
-  // Legacy providers may still have `region` on-chain; console expects `location-region`.
-  return attrMap.get("region") || null;
+  return getStringAttribute("location-region", attrMap, schema);
 }
 
 function getBooleanAttribute(key: keyof ProviderAttributesSchema, attrMap: Map<string, string>, schema: ProviderAttributesSchema): boolean {

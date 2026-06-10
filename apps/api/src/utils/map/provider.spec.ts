@@ -33,19 +33,16 @@ describe(mapProviderToList.name, () => {
   });
 
   describe("locationRegion", () => {
-    it("prefers location-region over legacy region", () => {
-      const mapped = mapWithAttributes([
-        { key: "location-region", value: "na-us-west" },
-        { key: "region", value: "us-west" }
-      ]);
+    it("maps location-region from on-chain attributes", () => {
+      const mapped = mapWithAttributes([{ key: "location-region", value: "na-us-west" }]);
 
       expect(mapped.locationRegion).toBe("na-us-west");
     });
 
-    it("falls back to legacy region when location-region is absent", () => {
+    it("is null when only legacy region is present", () => {
       const mapped = mapWithAttributes([{ key: "region", value: "us-west" }]);
 
-      expect(mapped.locationRegion).toBe("us-west");
+      expect(mapped.locationRegion).toBeNull();
     });
   });
 

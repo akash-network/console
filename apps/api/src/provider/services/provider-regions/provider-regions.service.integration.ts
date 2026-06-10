@@ -1,3 +1,5 @@
+import "@test/setup-provider-attributes-schema";
+
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
 import { container } from "tsyringe";

@@ -5,7 +5,6 @@ import { container } from "tsyringe";
 
 import { cacheEngine } from "@src/caching/helpers";
 import { RAW_APP_CONFIG } from "@src/core/providers/raw-app-config.provider";
-import { registerLocalProviderAttributesSchemaGitHubHttpService } from "./helpers/register-local-provider-attributes-schema";
 import { TestDatabaseService } from "./services/test-database.service";
 
 const testPath = expect.getState().testPath;
@@ -36,7 +35,6 @@ export function clearCache(keyOrPrefix?: string) {
 }
 
 container.register(RAW_APP_CONFIG, { useValue: process.env });
-registerLocalProviderAttributesSchemaGitHubHttpService();
 
 beforeAll(async () => {
   cacheEngine.clearAllKeyInCache();
