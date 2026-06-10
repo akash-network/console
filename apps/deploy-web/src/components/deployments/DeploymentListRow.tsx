@@ -100,7 +100,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const lease = filteredLeases?.find(lease => !!(lease?.provider && providersByOwner[lease.provider]));
   const provider = providersByOwner[lease?.provider || ""];
   const providerCredentials = useProviderCredentials();
-  const { data: leaseStatus } = useLeaseStatus({ provider, lease, enabled: !!(provider && lease?.state === "active" && providerCredentials.details.usable) });
+  const { data: leaseStatus } = useLeaseStatus({ provider, lease, enabled: !!(provider && lease && isLeaseLive(lease) && providerCredentials.details.usable) });
 
   const viewDeployment = useCallback(() => {
     router.push(UrlService.deploymentDetails(deployment.dseq));
