@@ -106,7 +106,8 @@ describe("useSdlEnv", () => {
       placements: [{ id: "p-1", name: "dcloud" }],
       services: [buildSDLService({ env: [] })],
       imageList: [],
-      hasSSHKey: false
+      hasSSHKey: false,
+      endpoints: []
     };
 
     const { result } = renderHook(

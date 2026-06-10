@@ -222,7 +222,8 @@ describe(useSdlServiceManager.name, () => {
       placements: defaultPlacements,
       services: defaultServices,
       imageList: [],
-      hasSSHKey: false
+      hasSSHKey: false,
+      endpoints: []
     };
 
     const { result } = renderHook(

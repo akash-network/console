@@ -42,7 +42,8 @@ describe("usePlacementManager", () => {
     const placementB = defaultPlacement({ name: "placement-2" });
     const values: SdlBuilderFormValuesType = {
       placements: [placementA, placementB],
-      services: [defaultService(placementA.id, { title: "web" }), defaultService(placementB.id, { title: "api" })]
+      services: [defaultService(placementA.id, { title: "web" }), defaultService(placementB.id, { title: "api" })],
+      endpoints: []
     };
     const { result } = setup({ values });
 
@@ -67,7 +68,8 @@ describe("usePlacementManager", () => {
     const placementB = defaultPlacement({ name: "placement-2" });
     const values: SdlBuilderFormValuesType = {
       placements: [placementA, placementB],
-      services: [defaultService(placementA.id, { title: "web" })]
+      services: [defaultService(placementA.id, { title: "web" })],
+      endpoints: []
     };
     const { result } = setup({ values });
 
@@ -86,7 +88,7 @@ describe("usePlacementManager", () => {
     const placement = defaultPlacement();
     const serviceA = defaultService(placement.id, { title: "web" });
     const serviceB = defaultService(placement.id, { title: "api" });
-    const { result } = setup({ values: { placements: [placement], services: [serviceA, serviceB] } });
+    const { result } = setup({ values: { placements: [placement], services: [serviceA, serviceB], endpoints: [] } });
 
     act(() => {
       result.current.removeService(serviceB.id as string);
@@ -108,7 +110,7 @@ describe("usePlacementManager", () => {
     const web = defaultService(placement.id, { title: "web" });
     const collector = defaultService(placement.id, { title: "web-log-collector", image: LOG_COLLECTOR_IMAGE });
     const api = defaultService(placement.id, { title: "api" });
-    const { result } = setup({ values: { placements: [placement], services: [web, collector, api] } });
+    const { result } = setup({ values: { placements: [placement], services: [web, collector, api], endpoints: [] } });
 
     act(() => {
       result.current.removeService(web.id as string);

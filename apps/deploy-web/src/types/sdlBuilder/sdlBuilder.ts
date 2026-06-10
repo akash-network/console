@@ -215,6 +215,16 @@ export const PlacementSchema = z.object({
     .optional()
 });
 
+export const EndpointSchema = z.object({
+  id: z.string().min(1, { message: "Endpoint id is required." }),
+  name: z
+    .string()
+    .min(1, { message: "Endpoint name is required." })
+    .regex(ENDPOINT_NAME_VALIDATION_REGEX, { message: "Invalid endpoint name. It must only be lower case letters, numbers and dashes." })
+    .regex(/^[a-z]/, { message: "Invalid starting character. It can only start with a lowercase letter." })
+    .regex(/[^-]$/, { message: "Invalid ending character. It can only end with a lowercase letter or number" })
+});
+
 const validateCpuAmount = (value: number, serviceCount: number, context: z.RefinementCtx) => {
   if (serviceCount === 1 && value < 0.1) {
     context.addIssue({
@@ -384,16 +394,37 @@ const logProviderVars = z.discriminatedUnion("PROVIDER", [
   })
 ]);
 
+/**
+ * Returns the indexes of every item whose `selectKey` value is shared by more
+ * than one item, including the first occurrence — so each row in a duplicate
+ * group can be flagged, not just the later ones.
+ */
+function findDuplicateIndexes<T>(items: T[], selectKey: (item: T) => string): Set<number> {
+  const firstIndexByKey = new Map<string, number>();
+  const duplicateIndexes = new Set<number>();
+  items.forEach((item, index) => {
+    const key = selectKey(item);
+    const firstIndex = firstIndexByKey.get(key);
+    if (firstIndex === undefined) {
+      firstIndexByKey.set(key, index);
+    } else {
+      duplicateIndexes.add(firstIndex);
+      duplicateIndexes.add(index);
+    }
+  });
+  return duplicateIndexes;
+}
+
 export const SdlBuilderFormValuesSchema = z
   .object({
     placements: z.array(PlacementSchema).min(1, { message: "At least one placement is required." }),
-    services: z.array(ServiceSchema).min(1, { message: "At least one service is required." })
+    services: z.array(ServiceSchema).min(1, { message: "At least one service is required." }),
+    endpoints: z.array(EndpointSchema).optional().default([])
   })
   .merge(ImageList)
   .merge(SSHKey)
   .superRefine((data, ctx) => {
     const placementIds = new Set<string>();
-    const placementNames = new Set<string>();
     for (let i = 0; i < data.placements.length; i++) {
       const placementId = data.placements[i].id;
       if (placementIds.has(placementId)) {
@@ -406,18 +437,15 @@ export const SdlBuilderFormValuesSchema = z
         continue;
       }
       placementIds.add(placementId);
+    }
 
-      const placementName = data.placements[i].name;
-      if (placementNames.has(placementName)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Placement name must be unique.",
-          path: ["placements", i, "name"],
-          fatal: true
-        });
-      } else {
-        placementNames.add(placementName);
-      }
+    for (const index of findDuplicateIndexes(data.placements, placement => placement.name)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Placement name must be unique.",
+        path: ["placements", index, "name"],
+        fatal: true
+      });
     }
 
     for (let i = 0; i < data.services.length; i++) {
@@ -431,19 +459,21 @@ export const SdlBuilderFormValuesSchema = z
       }
     }
 
-    const serviceTitles = new Set<string>();
-    for (let i = 0; i < data.services.length; i++) {
-      const title = data.services[i].title;
-      if (serviceTitles.has(title)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Service name must be unique.",
-          path: ["services", i, "title"],
-          fatal: true
-        });
-      } else {
-        serviceTitles.add(title);
-      }
+    for (const index of findDuplicateIndexes(data.services, service => service.title)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Service name must be unique.",
+        path: ["services", index, "title"],
+        fatal: true
+      });
+    }
+
+    for (const index of findDuplicateIndexes(data.endpoints ?? [], endpoint => endpoint.name)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Endpoint name must be unique.",
+        path: ["endpoints", index, "name"]
+      });
     }
 
     if (data.imageList && data.imageList.length > 0) {
@@ -513,3 +543,4 @@ export type PlacementAttributeType = z.infer<typeof PlacementAttributeSchema>;
 export type SignedByType = z.infer<typeof SignedBySchema>;
 export type ExposeType = z.infer<typeof ExposeSchema>;
 export type PlacementType = z.infer<typeof PlacementSchema>;
+export type EndpointType = z.infer<typeof EndpointSchema>;

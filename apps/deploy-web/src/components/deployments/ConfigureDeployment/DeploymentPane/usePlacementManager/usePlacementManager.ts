@@ -4,12 +4,17 @@ import { useFieldArray, useFormContext, useWatch } from "react-hook-form";
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultPlacement, defaultService } from "@src/utils/sdl/data";
-import { nextPlacementName, nextServiceTitle, serviceRemovalIndexes } from "@src/utils/sdl/formArrayHelpers";
+import { mergeFieldValues, nextPlacementName, nextServiceTitle, serviceRemovalIndexes } from "@src/utils/sdl/formArrayHelpers";
+import { useRevalidateUniqueness } from "../useRevalidateUniqueness/useRevalidateUniqueness";
 
 export type IndexedService = { service: ServiceType; index: number };
 
 export const usePlacementManager = () => {
   const { control, getValues } = useFormContext<SdlBuilderFormValuesType>();
+
+  useRevalidateUniqueness("placements", placement => placement.name);
+  useRevalidateUniqueness("services", service => service.title);
+
   const watchedPlacements = useWatch<SdlBuilderFormValuesType>({ control, name: "placements" });
   const watchedServices = useWatch<SdlBuilderFormValuesType>({ control, name: "services" });
 
@@ -99,20 +104,3 @@ export const usePlacementManager = () => {
     [placements, getPlacementServices, addPlacement, canRemovePlacement, removePlacement, addService, canRemoveService, removeService]
   );
 };
-
-/**
- * Controlled field-array merge (per react-hook-form docs): `fields` is the
- * single source of truth for structure and ordering — which keeps the
- * library's internal re-index bookkeeping consistent with what is rendered —
- * while the watched values overlay live field edits (e.g. renames).
- *
- * Rendering from watched values alone drifts from RHF's field registry on
- * removal: index-based Controllers (`services.${i}.title`) shift their
- * registered path and the abandoned registration resurrects as a partial
- * `{ name }`/`{ title }`-only ghost row. Reading `fields[i]` alone instead
- * shows stale text until the next structural mutation. Merging avoids both.
- */
-function mergeFieldValues<T extends object>(fields: (T & { fieldId: string })[], values: T[] | undefined): T[] {
-  const liveValues = Array.isArray(values) ? values : [];
-  return fields.map((field, index) => ({ ...field, ...liveValues[index] }));
-}

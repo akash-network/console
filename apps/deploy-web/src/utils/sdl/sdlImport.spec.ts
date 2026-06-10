@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { defaultServiceWithPlacement } from "./data";
 import { buildCommand, generateSdl } from "./sdlGenerator";
 import { importSimpleSdl, parseSvcCommand } from "./sdlImport";
 
@@ -199,5 +200,16 @@ describe("sdlImport", () => {
       expect(parsed.services.web.command).toEqual(["sh", "-c", "echo hello"]);
       expect(parsed.services.web).not.toHaveProperty("args");
     });
+  });
+});
+
+describe("importSimpleSdl endpoints", () => {
+  it("round-trips a declared endpoint back into the form model", () => {
+    const formValues = { ...defaultServiceWithPlacement({ image: "nginx:latest" }), endpoints: [{ id: "e-1", name: "endpoint-1" }] };
+    const sdl = generateSdl(formValues);
+
+    const imported = importSimpleSdl(sdl);
+
+    expect(imported.endpoints?.map(endpoint => endpoint.name)).toEqual(["endpoint-1"]);
   });
 });

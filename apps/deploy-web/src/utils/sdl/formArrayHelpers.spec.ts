@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { LOG_COLLECTOR_IMAGE } from "@src/config/log-collector.config";
-import { nextPlacementName, nextServiceTitle, serviceRemovalIndexes } from "./formArrayHelpers";
+import { nextEndpointName, nextPlacementName, nextServiceTitle, serviceRemovalIndexes } from "./formArrayHelpers";
 
 import { buildSDLService } from "@tests/seeders/sdlService";
 
@@ -54,5 +54,19 @@ describe("serviceRemovalIndexes", () => {
     const indexes = serviceRemovalIndexes(services, 0);
 
     expect(indexes).toEqual([1, 0]);
+  });
+});
+
+describe("nextEndpointName", () => {
+  it("starts numbering at endpoint-1 for an empty list", () => {
+    expect(nextEndpointName([])).toBe("endpoint-1");
+  });
+
+  it("skips names already taken", () => {
+    const endpoints = [
+      { id: "e-1", name: "endpoint-1" },
+      { id: "e-2", name: "endpoint-3" }
+    ];
+    expect(nextEndpointName(endpoints)).toBe("endpoint-2");
   });
 });

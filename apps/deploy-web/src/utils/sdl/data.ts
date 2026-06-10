@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 
 import { UACT_DENOM } from "@src/config/denom.config";
-import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { EndpointType, PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 
 export const protoTypes = [
   { id: 1, name: "http" },
@@ -29,6 +29,13 @@ export const defaultPlacement = (overrides?: Partial<PlacementType>): PlacementT
     allOf: []
   },
   attributes: [],
+  ...overrides
+});
+
+/** Builds a fresh IP endpoint with a generated id and the default name "endpoint-1"; callers pass a unique name via overrides. */
+export const defaultEndpoint = (overrides?: Partial<EndpointType>): EndpointType => ({
+  id: nanoid(),
+  name: "endpoint-1",
   ...overrides
 });
 
@@ -97,7 +104,8 @@ export const defaultServiceWithPlacement = (serviceOverrides?: Partial<ServiceTy
   const placement = defaultPlacement();
   return {
     placements: [placement],
-    services: [defaultService(placement.id, serviceOverrides)]
+    services: [defaultService(placement.id, serviceOverrides)],
+    endpoints: []
   };
 };
 

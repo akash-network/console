@@ -231,6 +231,14 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
     };
   });
 
+  (formValues.endpoints ?? []).forEach(endpoint => {
+    if (!endpoint.name) {
+      return;
+    }
+    sdl["endpoints"] = sdl["endpoints"] || {};
+    sdl["endpoints"][endpoint.name] = { kind: "ip" };
+  });
+
   const result = yaml.dump(sdl, {
     indent: 2,
     quotingType: '"',

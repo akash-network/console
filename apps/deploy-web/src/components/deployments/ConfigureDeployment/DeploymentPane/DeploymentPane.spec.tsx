@@ -72,6 +72,13 @@ describe("DeploymentPane", () => {
     expect(onSelectService).toHaveBeenCalledWith("new-service-id");
   });
 
+  it("renders the IP endpoints section", () => {
+    const IpEndpointsSection = vi.fn(() => null);
+    setup({ dependencies: { IpEndpointsSection } });
+
+    expect(IpEndpointsSection).toHaveBeenCalled();
+  });
+
   function setup(input: {
     placements?: ReturnType<typeof defaultPlacement>[];
     onSelectService?: (serviceId: string) => void;

@@ -89,7 +89,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
 
   useEffect(() => {
     if (_services) {
-      setSdlBuilderSdl({ placements: _placements as SdlBuilderFormValuesType["placements"], services: _services as ServiceType[] });
+      setSdlBuilderSdl({ placements: _placements as SdlBuilderFormValuesType["placements"], services: _services as ServiceType[], endpoints: [] });
     }
   }, [_services, _placements]);
 
