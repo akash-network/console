@@ -15,10 +15,6 @@ export const parseSvcCommand = (command?: string | string[]): string => {
     return parseSvcCommand([command]);
   }
 
-  if (command[0] === "sh" && command[1] === "-c") {
-    return command.slice(2).filter(Boolean).join("\n");
-  }
-
   return command.filter(Boolean).join("\n");
 };
 
