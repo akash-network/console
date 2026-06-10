@@ -194,9 +194,9 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
           </div>
         </CardHeader>
         <CardContent className="pt-6">
-          {isReclaimed && <ReclamationCard lease={lease} dseq={dseq} onClosed={loadDeploymentDetail} />}
-
           <div className="space-y-4">
+            {isReclaimed && <ReclamationCard lease={lease} dseq={dseq} onClosed={loadDeploymentDetail} />}
+
             <div>
               <SpecDetail
                 cpuAmount={lease.cpuAmount}

@@ -19,7 +19,7 @@ describe("ReclamationCard", () => {
   it("offers Close + Redeploy and no restart control", () => {
     setup({ hasLocalManifest: true });
 
-    expect(screen.getByRole("button", { name: "Close (recover escrow)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close & refund" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Redeploy" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /restart/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /resume/i })).not.toBeInTheDocument();
@@ -28,7 +28,7 @@ describe("ReclamationCard", () => {
   it("falls back to a 'new SDL' link when there is no local manifest", () => {
     setup({ hasLocalManifest: false });
 
-    expect(screen.getByRole("link", { name: "Start from a new SDL" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Start a new deployment" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Redeploy" })).not.toBeInTheDocument();
   });
 
@@ -36,7 +36,7 @@ describe("ReclamationCard", () => {
     const onClosed = vi.fn();
     const { wallet, confirm } = setup({ isConfirmed: true, onClosed });
 
-    await userEvent.click(screen.getByRole("button", { name: "Close (recover escrow)" }));
+    await userEvent.click(screen.getByRole("button", { name: "Close & refund" }));
 
     await waitFor(() => expect(wallet.signAndBroadcastTx).toHaveBeenCalled());
     expect(confirm.closeDeploymentConfirm).toHaveBeenCalledWith(["123"]);
@@ -46,7 +46,7 @@ describe("ReclamationCard", () => {
   it("does not close when the confirmation is declined", async () => {
     const { wallet, confirm } = setup({ isConfirmed: false });
 
-    await userEvent.click(screen.getByRole("button", { name: "Close (recover escrow)" }));
+    await userEvent.click(screen.getByRole("button", { name: "Close & refund" }));
 
     await waitFor(() => expect(confirm.closeDeploymentConfirm).toHaveBeenCalled());
     expect(wallet.signAndBroadcastTx).not.toHaveBeenCalled();
