@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useServices } from "@src/context/ServicesProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import type { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
 import { useTemplates } from "@src/queries/useTemplateQuery";
 import sdlStore from "@src/store/sdlStore";
@@ -39,18 +40,27 @@ const previewTemplateIds = [
   "akash-network-awesome-akash-FastChat"
 ];
 
+export const DEPENDENCIES = { useTemplates, useRouter, useFlag };
+
 type Props = {
   onChangeGitProvider: (gh: boolean) => void;
   onTemplateSelected: (template: TemplateCreation | null) => void;
   setEditedManifest: (manifest: string) => void;
+  dependencies?: typeof DEPENDENCIES;
 };
 
-export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvider, onTemplateSelected, setEditedManifest }) => {
+export const TemplateList: React.FunctionComponent<Props> = ({
+  onChangeGitProvider,
+  onTemplateSelected,
+  setEditedManifest,
+  dependencies: d = DEPENDENCIES
+}) => {
   const { analyticsService } = useServices();
-  const { templates } = useTemplates();
-  const router = useRouter();
+  const { templates } = d.useTemplates();
+  const router = d.useRouter();
   const [previewTemplates, setPreviewTemplates] = useState<TemplateOutputSummaryWithCategory[]>([]);
   const [, setSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
+  const isBuildAndDeployEnabled = d.useFlag("ui_build_and_deploy");
 
   const handleGithubTemplate = async () => {
     analyticsService.track("build_n_deploy_btn_clk", "Amplitude");
@@ -113,19 +123,21 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
             <span>Upload SDL</span>
           </FileButton>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <DeployOptionBox
-            title="Build and Deploy"
-            description="Build & Deploy directly from a code repository (VCS)"
-            topIcons={[{ light: "/images/github.png", dark: "/images/github-dark.svg" }, "/images/gitlab.png", "/images/bitbucket.png"]}
-            bottomIcons={[
-              { light: "/images/nextjs.png", dark: "/images/nextjs-dark.svg" },
-              "/images/vuejs.png",
-              { light: "/images/astrojs.png", dark: "/images/astrojs-dark.svg" },
-              "/images/python.png"
-            ]}
-            onClick={handleGithubTemplate}
-          />
+        <CardContent className={cn("grid grid-cols-1 gap-4", isBuildAndDeployEnabled ? "md:grid-cols-3" : "md:grid-cols-2")}>
+          {isBuildAndDeployEnabled && (
+            <DeployOptionBox
+              title="Build and Deploy"
+              description="Build & Deploy directly from a code repository (VCS)"
+              topIcons={[{ light: "/images/github.png", dark: "/images/github-dark.svg" }, "/images/gitlab.png", "/images/bitbucket.png"]}
+              bottomIcons={[
+                { light: "/images/nextjs.png", dark: "/images/nextjs-dark.svg" },
+                "/images/vuejs.png",
+                { light: "/images/astrojs.png", dark: "/images/astrojs-dark.svg" },
+                "/images/python.png"
+              ]}
+              onClick={handleGithubTemplate}
+            />
+          )}
 
           <DeployOptionBox
             title="Launch Container-VM"
