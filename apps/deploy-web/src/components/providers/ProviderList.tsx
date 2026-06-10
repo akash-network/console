@@ -26,6 +26,7 @@ import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useNetworkCapacity, useProviderList } from "@src/queries/useProvidersQuery";
 import networkStore from "@src/store/networkStore";
 import type { ClientProviderList } from "@src/types/provider";
+import { isLeaseLive } from "@src/utils/reclamationUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
@@ -89,7 +90,7 @@ export const ProviderList: React.FunctionComponent = () => {
     if (providers) {
       let filteredProviders = [...providers].map(p => {
         const numberOfDeployments = leases?.filter(d => d.provider === p.owner).length || 0;
-        const numberOfActiveLeases = leases?.filter(d => d.provider === p.owner && d.state === "active").length || 0;
+        const numberOfActiveLeases = leases?.filter(d => d.provider === p.owner && isLeaseLive(d)).length || 0;
 
         return {
           ...p,

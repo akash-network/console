@@ -285,7 +285,16 @@ export interface LeaseDto {
   gpuAmount?: number;
   memoryAmount: number;
   storageAmount: number;
-  group: DeploymentGroup;
+  // Optional: leaseToDto leaves it undefined when no group matches the lease's gseq.
+  group?: DeploymentGroup;
+  reason?: string;
+  closedOn?: string;
+  reclamation?: {
+    deadline?: number;
+    reason?: string;
+    startedAt?: string;
+    window?: string;
+  };
 }
 
 export interface BidDto {

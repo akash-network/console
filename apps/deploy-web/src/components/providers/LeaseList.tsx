@@ -17,6 +17,7 @@ import {
 import isEqual from "lodash/isEqual";
 
 import type { LeaseDto } from "@src/types/deployment";
+import { isLeaseLive } from "@src/utils/reclamationUtils";
 import { LeaseRow } from "./LeaseRow";
 
 type Props = {
@@ -36,10 +37,10 @@ const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases
 
   useEffect(() => {
     if (leases) {
-      let _filteredLeases = [...leases].sort(a => (a.state === "active" ? -1 : 1));
+      let _filteredLeases = [...leases].sort(a => (isLeaseLive(a) ? -1 : 1));
 
       if (isFilteringActive) {
-        _filteredLeases = _filteredLeases.filter(x => x.state === "active");
+        _filteredLeases = _filteredLeases.filter(isLeaseLive);
       }
 
       setFilteredLeases(_filteredLeases);

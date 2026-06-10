@@ -17,6 +17,7 @@ import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
 import { useTrialDeploymentTimeRemaining } from "@src/hooks/useTrialDeploymentTimeRemaining";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { udenomToDenom } from "@src/utils/mathHelpers";
+import { isLeaseLive } from "@src/utils/reclamationUtils";
 
 type Props = {
   deployment: DeploymentDto;
@@ -28,8 +29,8 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
   const { deploymentCost, realTimeLeft } = useDeploymentMetrics({ deployment, leases });
   const isActive = deployment.state === "active";
   const hasLeases = !!leases && leases.length > 0;
-  const hasActiveLeases = hasLeases && leases.some(l => l.state === "active");
-  const hasGpu = leases?.some(l => l.state === "active" && l.gpuAmount && l.gpuAmount > 0);
+  const hasActiveLeases = hasLeases && leases.some(isLeaseLive);
+  const hasGpu = leases?.some(l => isLeaseLive(l) && l.gpuAmount && l.gpuAmount > 0);
   const { isTrialing } = useWallet();
   const { publicConfig: appConfig } = useServices();
 

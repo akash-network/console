@@ -10,6 +10,7 @@ import type { DeploymentDto, LeaseDto, RpcLease } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { leaseToDto } from "@src/utils/deploymentDetailUtils";
+import { isLeaseLive } from "@src/utils/reclamationUtils";
 import { QueryKeys } from "./queryKeys";
 
 // Leases
@@ -83,7 +84,7 @@ export function useLeaseStatus(
   return useQuery({
     queryKey: QueryKeys.getLeaseStatusKey(lease?.dseq || "", lease?.gseq || NaN, lease?.oseq || NaN),
     queryFn: async () => {
-      if (lease?.state !== "active" || !providerCredentials.details.usable) return null;
+      if (!lease || !isLeaseLive(lease) || !providerCredentials.details.usable) return null;
 
       const token = await providerCredentials.ensureToken();
       const response = await fetchProviderUrl<LeaseStatusDto>(`/lease/${lease.dseq}/${lease.gseq}/${lease.oseq}/status`, {
