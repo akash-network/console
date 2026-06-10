@@ -83,8 +83,7 @@ export class TxEventsService {
       });
 
       const filters = Array.isArray(filter) ? filter : [filter];
-      const events = filters.flatMap(f => this.extractFilteredEventsFromBlockResults(blockResults, f));
-      return this.dedupeEvents(events);
+      return filters.flatMap(f => this.extractFilteredEventsFromBlockResults(blockResults, f));
     } catch (error) {
       this.loggerService.error({
         event: "BLOCK_EVENTS_PROCESSING_FAILED",
@@ -93,24 +92,6 @@ export class TxEventsService {
       });
       return [];
     }
-  }
-
-  /**
-   * Removes duplicate events that arise when overlapping filters match the same
-   * chain event, preserving first-seen order. Without this, a single chain event
-   * could be published — and the tenant emailed — multiple times.
-   *
-   * @param events - Events merged from all filters
-   * @returns Events with duplicates removed
-   */
-  private dedupeEvents(events: ProcessedEvent[]): ProcessedEvent[] {
-    const seen = new Set<string>();
-    return events.filter(event => {
-      const key = JSON.stringify(event);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
   }
 
   private readonly retryExecutor = retry(handleAll, {

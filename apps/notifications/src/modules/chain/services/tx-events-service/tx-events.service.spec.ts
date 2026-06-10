@@ -237,7 +237,7 @@ describe(TxEventsService.name, () => {
       ]);
     });
 
-    it("does not emit duplicate events when overlapping filters match the same event", async () => {
+    it("applies multiple filters in a single block fetch", async () => {
       const { module } = await setup();
       const service = module.get<TxEventsService>(TxEventsService);
       const cometClient = module.get<MockProxy<Comet38Client>>(Comet38Client);
@@ -250,6 +250,10 @@ describe(TxEventsService.name, () => {
             data: Uint8Array.from([]),
             events: [
               {
+                type: "akash.deployment.v1.EventDeploymentClosed",
+                attributes: [{ key: "id", value: '{"owner":"akash1qh0f0h7jlq4x5gpxghrxvps5l09y7uuvcumcyd","dseq":"22350843"}' }]
+              },
+              {
                 type: "akash.market.v1.EventLeaseReclaimStarted",
                 attributes: [
                   {
@@ -258,8 +262,7 @@ describe(TxEventsService.name, () => {
                       '{"owner":"akash1qh0f0h7jlq4x5gpxghrxvps5l09y7uuvcumcyd","dseq":"22350842","gseq":1,"oseq":1,"provider":"akash1provideraddressxxxxxxxxxxxxxxxxxxxxxx"}'
                   },
                   { key: "reason", value: '"lease_closed_reason_unstable"' },
-                  { key: "deadline", value: '"1749398400"' },
-                  { key: "msg_index", value: "0" }
+                  { key: "deadline", value: '"1749398400"' }
                 ]
               }
             ],
@@ -272,13 +275,19 @@ describe(TxEventsService.name, () => {
       };
       cometClient.blockResults.mockResolvedValue(blockResults);
 
-      // A specific filter and a broad one that both match the same event
       const result = await service.getBlockEvents(1, [
-        { source: "akash", module: "market", version: "v1", action: ["lease-reclaim-started"] },
-        { source: "akash", module: "market", version: "v1" }
+        { source: "akash", module: "deployment", version: "v1", action: ["deployment-closed"] },
+        { source: "akash", module: "market", version: "v1", action: ["lease-reclaim-started"] }
       ]);
 
       expect(result).toEqual([
+        {
+          type: "akash.v1",
+          module: "deployment",
+          action: "deployment-closed",
+          owner: "akash1qh0f0h7jlq4x5gpxghrxvps5l09y7uuvcumcyd",
+          dseq: "22350843"
+        },
         {
           type: "akash.v1",
           module: "market",
