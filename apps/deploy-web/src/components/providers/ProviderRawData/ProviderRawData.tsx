@@ -6,6 +6,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
 import type { ApiProviderList, ClientProviderDetailWithStatus } from "@src/types/provider";
+import { isLeaseLive } from "@src/utils/reclamationUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../../layout/Layout";
 import { CustomNextSeo } from "../../shared/CustomNextSeo";
@@ -63,7 +64,7 @@ export const ProviderRawData: React.FunctionComponent<Props> = ({ owner, compone
   useEffect(() => {
     if (leases) {
       const numberOfDeployments = leases?.filter(d => d.provider === owner).length || 0;
-      const numberOfActiveLeases = leases?.filter(d => d.provider === owner && d.state === "active").length || 0;
+      const numberOfActiveLeases = leases?.filter(d => d.provider === owner && isLeaseLive(d)).length || 0;
 
       setProvider(provider => ({ ...provider, userLeases: numberOfDeployments, userActiveLeases: numberOfActiveLeases }));
     }

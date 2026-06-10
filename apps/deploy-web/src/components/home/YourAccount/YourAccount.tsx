@@ -14,6 +14,7 @@ import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
+import { isLeaseLive } from "@src/utils/reclamationUtils";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { ConnectWallet } from "../../shared/ConnectWallet";
 import { AccountHeader } from "../AccountHeader";
@@ -69,7 +70,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({
   const costs = useMemo(() => {
     if (!leases || !price || !isAktPriceLoaded) return null;
 
-    const activeLeases = leases.filter(x => x.state === "active");
+    const activeLeases = leases.filter(isLeaseLive);
     const totalCostPerBlock = activeLeases
       .map(x => {
         switch (x.price.denom) {
@@ -93,7 +94,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({
   }, [leases, price, isAktPriceLoaded, usdcIbcDenom]);
   const userProviders = useMemo(() => {
     if (!leases || !providers) return [];
-    const activeLeases = leases.filter(x => x.state === "active");
+    const activeLeases = leases.filter(isLeaseLive);
     return Array.from(new Set(activeLeases.map(x => x.provider)), providerAddress => {
       const provider = providers.find(p => p.owner === providerAddress);
       return { owner: provider?.owner || "", name: provider?.name || "Unknown" };
