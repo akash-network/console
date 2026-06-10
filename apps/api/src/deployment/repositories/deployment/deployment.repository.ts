@@ -107,6 +107,12 @@ export class DeploymentRepository {
   async *findAllWithGpuResources(options: { minHeight: number; chunkSize?: number }) {
     const BID_TYPES = ["/akash.market.v1beta4.MsgCreateBid", "/akash.market.v1beta5.MsgCreateBid"];
     const chunkSize = options.chunkSize ?? 1000;
+    // A non-positive chunkSize would make `batch.length < chunkSize` never break on an empty
+    // result and then dereference batch[-1] for the cursor. chunkSize is internal/test-only, so
+    // treat a bad value as a programmer error.
+    if (!Number.isInteger(chunkSize) || chunkSize <= 0) {
+      throw new Error("findAllWithGpuResources: chunkSize must be a positive integer");
+    }
     // Keyset cursor over (createdHeight, id) — the leading columns of the existing
     // `deployment_created_height_closed_height` index, so each chunk is an index scan
     // (no full `deployment` seq scan) and we never prefetch the whole ID list.

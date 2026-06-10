@@ -75,6 +75,12 @@ describe(DeploymentRepository.name, () => {
       expect(mine).toEqual([d1.id, d2.id, d3.id]);
     });
 
+    it("rejects a non-positive chunkSize", async () => {
+      const { repository, base } = setup();
+
+      await expect(collect(repository.findAllWithGpuResources({ minHeight: base, chunkSize: 0 }))).rejects.toThrow("positive integer");
+    });
+
     it("does not skip later deployments when a chunk contains a GPU deployment with no qualifying bid", async () => {
       const { repository, base, band } = setup();
       await createAkashBlock({ height: base });
