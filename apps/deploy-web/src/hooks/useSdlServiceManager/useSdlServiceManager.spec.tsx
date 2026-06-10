@@ -157,7 +157,57 @@ describe(useSdlServiceManager.name, () => {
     expect(currentServices[0].title).toBe("service-1");
   });
 
-  async function setup({ defaultServices = [] }: { defaultServices?: SdlBuilderFormValuesType["services"] } = {}) {
+  it("gives each added service its own placement", async () => {
+    const { result, form } = await setup({ defaultServices: [], defaultPlacements: [] });
+
+    await act(async () => {
+      result.current.add();
+    });
+    await act(async () => {
+      result.current.add();
+    });
+
+    const services = form.getValues("services");
+    const placements = form.getValues("placements");
+    const placementIds = services.map(service => service.placementId);
+
+    expect(new Set(placementIds).size).toBe(services.length);
+    placementIds.forEach(id => expect(placements.some(placement => placement.id === id)).toBe(true));
+  });
+
+  it("removes the placement of a removed service when no other service references it", async () => {
+    const { result, form } = await setup({
+      defaultServices: [buildSDLService({ title: "service-1", placementId: "p-a" }), buildSDLService({ title: "service-2", placementId: "p-b" })],
+      defaultPlacements: [
+        { id: "p-a", name: "dcloud" },
+        { id: "p-b", name: "dcloud" }
+      ]
+    });
+
+    await act(async () => {
+      result.current.remove(0);
+    });
+
+    expect(form.getValues("placements").map(placement => placement.id)).toEqual(["p-b"]);
+  });
+
+  it("keeps a placement that another service still references", async () => {
+    const { result, form } = await setup({
+      defaultServices: [buildSDLService({ title: "service-1", placementId: "p-shared" }), buildSDLService({ title: "service-2", placementId: "p-shared" })],
+      defaultPlacements: [{ id: "p-shared", name: "dcloud" }]
+    });
+
+    await act(async () => {
+      result.current.remove(0);
+    });
+
+    expect(form.getValues("placements").map(placement => placement.id)).toEqual(["p-shared"]);
+  });
+
+  async function setup({
+    defaultServices = [],
+    defaultPlacements = [{ id: "p-1", name: "dcloud" }]
+  }: { defaultServices?: SdlBuilderFormValuesType["services"]; defaultPlacements?: SdlBuilderFormValuesType["placements"] } = {}) {
     let methods: UseFormReturn<SdlBuilderFormValuesType>;
 
     const TestWrapper = ({ children, defaultValues }: { children: React.ReactNode; defaultValues: SdlBuilderFormValuesType }) => {
@@ -169,7 +219,7 @@ describe(useSdlServiceManager.name, () => {
     };
 
     const defaultFormValues: SdlBuilderFormValuesType = {
-      placements: [{ id: "p-1", name: "dcloud" }],
+      placements: defaultPlacements,
       services: defaultServices,
       imageList: [],
       hasSSHKey: false

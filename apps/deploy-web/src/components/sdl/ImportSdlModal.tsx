@@ -33,7 +33,7 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
     try {
       if (!yamlStr) return null;
 
-      const formValues = importSimpleSdl(yamlStr);
+      const formValues = importSimpleSdl(yamlStr, { placementPerService: true });
 
       setParsingError(null);
 

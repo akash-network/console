@@ -18,7 +18,14 @@ export const parseSvcCommand = (command?: string | string[]): string => {
   return command.filter(Boolean).join("\n");
 };
 
-export const importSimpleSdl = (yamlStr: string): SdlBuilderFormValuesType => {
+/**
+ * Imports an SDL YAML into builder form values. By default placements are
+ * deduplicated by name (a placement's identity is its name), so services that
+ * share a placement name reference one record. Pass `placementPerService` for
+ * the legacy builder, which edits a placement per service and needs each to
+ * stay independent across edits/round-trips.
+ */
+export const importSimpleSdl = (yamlStr: string, { placementPerService = false }: { placementPerService?: boolean } = {}): SdlBuilderFormValuesType => {
   try {
     const yamlJson = yaml.load(yamlStr) as any;
     const placements: PlacementType[] = [];
@@ -122,11 +129,19 @@ export const importSimpleSdl = (yamlStr: string): SdlBuilderFormValuesType => {
         throw new CustomValidationError(`Unable to find placement: ${placementName}`);
       }
 
-      let placementId = placementIdByName.get(placementName);
-      if (!placementId) {
+      let placementId: string;
+      if (placementPerService) {
         placementId = nanoid();
-        placementIdByName.set(placementName, placementId);
         placements.push(hydratePlacement(placementId, placementName, placementProfile));
+      } else {
+        const existingPlacementId = placementIdByName.get(placementName);
+        if (existingPlacementId) {
+          placementId = existingPlacementId;
+        } else {
+          placementId = nanoid();
+          placementIdByName.set(placementName, placementId);
+          placements.push(hydratePlacement(placementId, placementName, placementProfile));
+        }
       }
 
       const placementPricing = placementProfile.pricing?.[svcName];
