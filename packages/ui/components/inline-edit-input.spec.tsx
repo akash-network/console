@@ -57,17 +57,41 @@ describe("InlineEditInput", () => {
     expect(input).toHaveValue("service-1");
   });
 
-  it("renders the field error beneath the input", async () => {
-    const { setError } = setup({ initialValue: "service-1" });
+  it("renders its own error message beneath the input by default", () => {
+    const { setError, getInput } = setup({ initialValue: "service-1" });
 
     act(() => {
       setError("Invalid name.");
     });
 
-    expect(await screen.findByText("Invalid name.")).toBeInTheDocument();
+    const input = getInput();
+    expect(input).toHaveClass("text-destructive");
+    expect(screen.getByText("Invalid name.")).toBeInTheDocument();
+    const describedBy = input.getAttribute("aria-describedby");
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy as string)).toHaveTextContent("Invalid name.");
   });
 
-  function setup(input: { initialValue: string }) {
+  it("suppresses its own message and links the external id when suppressErrorMessage is set", () => {
+    const { setError, getInput } = setup({ initialValue: "service-1", suppressErrorMessage: true, errorMessageId: "err-1" });
+
+    act(() => {
+      setError("Invalid name.");
+    });
+
+    expect(getInput()).toHaveAttribute("aria-describedby", "err-1");
+    expect(getInput()).toHaveClass("text-destructive");
+    expect(screen.queryByText("Invalid name.")).not.toBeInTheDocument();
+  });
+
+  it("does not link or render an error while the field is valid", () => {
+    const { getInput } = setup({ initialValue: "service-1" });
+
+    expect(getInput()).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText("Invalid name.")).not.toBeInTheDocument();
+  });
+
+  function setup(input: { initialValue: string; suppressErrorMessage?: boolean; errorMessageId?: string }) {
     let values: FormValues = { title: input.initialValue };
     const formRef: { current?: UseFormReturn<FormValues> } = {};
     const Wrapper = ({ children }: PropsWithChildren) => {
@@ -79,12 +103,13 @@ describe("InlineEditInput", () => {
 
     render(
       <Wrapper>
-        <InlineEditInput name="title" label="Title" />
+        <InlineEditInput name="title" label="Title" suppressErrorMessage={input.suppressErrorMessage} errorMessageId={input.errorMessageId} />
       </Wrapper>
     );
 
     return {
       getValue: () => values.title,
+      getInput: () => screen.getByRole("textbox", { name: "Title" }),
       setError: (message: string) => formRef.current?.setError("title", { message }),
       subscribeToValueChanges: () => {
         const onValueChange = vi.fn();

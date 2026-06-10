@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
-import { EndpointRow } from "./EndpointRow";
+import { DEPENDENCIES, EndpointRow } from "./EndpointRow";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -24,7 +24,13 @@ describe("EndpointRow", () => {
     expect(onRemove).toHaveBeenCalled();
   });
 
-  function setup(input: { name?: string }) {
+  it("renders the validation error message below the row", () => {
+    setup({ error: "Names must start with a lower case letter." });
+
+    expect(screen.getByText("Names must start with a lower case letter.")).toBeInTheDocument();
+  });
+
+  function setup(input: { name?: string; error?: string }) {
     const name = input.name ?? "endpoint-1";
     const values: SdlBuilderFormValuesType = { ...defaultServiceWithPlacement(), endpoints: [{ id: "e-1", name }] };
     const onRemove = vi.fn();
@@ -36,7 +42,12 @@ describe("EndpointRow", () => {
     render(
       <Wrapper>
         <ul aria-label="IP endpoints">
-          <EndpointRow endpoint={values.endpoints![0]} endpointIndex={0} onRemove={onRemove} />
+          <EndpointRow
+            endpoint={values.endpoints![0]}
+            endpointIndex={0}
+            onRemove={onRemove}
+            dependencies={{ ...DEPENDENCIES, useFieldError: () => ({ error: input.error }) }}
+          />
         </ul>
       </Wrapper>
     );

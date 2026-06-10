@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { defaultPlacement, defaultService } from "@src/utils/sdl/data";
+import type { ConfigStatus } from "../ConfigStatusIcon/ConfigStatusIcon";
 import { DEPENDENCIES, PlacementCard } from "./PlacementCard";
 
 import { render, screen } from "@testing-library/react";
@@ -40,7 +41,31 @@ describe("PlacementCard", () => {
     expect(screen.queryByRole("button", { name: "Remove placement" })).not.toBeInTheDocument();
   });
 
-  function setup(input: { serviceTitles: string[]; canRemove?: boolean; dependencies?: Partial<typeof DEPENDENCIES> }) {
+  it("shows the complete marker when the placement aggregates as complete", () => {
+    setup({ serviceTitles: ["web"], status: "complete" });
+
+    expect(screen.getByRole("img", { name: "Complete" })).toBeInTheDocument();
+  });
+
+  it("shows the partial marker when only some services are configured", () => {
+    setup({ serviceTitles: ["web"], status: "partial" });
+
+    expect(screen.getByRole("img", { name: "Partial" })).toBeInTheDocument();
+  });
+
+  it("shows the incomplete marker when no services are configured", () => {
+    setup({ serviceTitles: ["web"], status: "incomplete" });
+
+    expect(screen.getByRole("img", { name: "Incomplete" })).toBeInTheDocument();
+  });
+
+  it("renders the placement name error below the header", () => {
+    setup({ serviceTitles: ["web"], error: "Names must start with a lower case letter." });
+
+    expect(screen.getByText("Names must start with a lower case letter.")).toBeInTheDocument();
+  });
+
+  function setup(input: { serviceTitles: string[]; canRemove?: boolean; status?: ConfigStatus; error?: string; dependencies?: Partial<typeof DEPENDENCIES> }) {
     const placement = defaultPlacement({ name: "placement-1" });
     const services = input.serviceTitles.map((title, index) => ({
       service: defaultService(placement.id, { title }),
@@ -69,7 +94,11 @@ describe("PlacementCard", () => {
           onAddService={onAddService}
           onRemoveService={onRemoveService}
           onRemove={onRemove}
-          dependencies={MockComponents(DEPENDENCIES, input.dependencies)}
+          dependencies={MockComponents(DEPENDENCIES, {
+            usePlacementStatus: () => input.status ?? "incomplete",
+            useFieldError: () => ({ error: input.error }),
+            ...input.dependencies
+          })}
         />
       </Wrapper>
     );
