@@ -22,9 +22,20 @@ describe(BidScreeningService.name, () => {
           hostUri: "https://provider.example.com:8443",
           isAudited: false,
           createdAt: "2026-01-01T00:00:00.000Z",
+          location: null,
           incidents: []
         }
       ]);
+    });
+
+    it("threads candidate.location through to the result", async () => {
+      const { service, repository, matcher } = setup();
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc", { location: "us-west" })]);
+      matcher.match.mockReturnValue({ matched: true });
+
+      const results = await service.findMatchingProviders(makeRequest());
+
+      expect(results[0].location).toBe("us-west");
     });
 
     it("filters out candidates that fail matching", async () => {
@@ -156,13 +167,14 @@ describe(BidScreeningService.name, () => {
   }
 });
 
-function makeCandidate(owner: string, overrides?: { isAudited?: boolean; createdAt?: string }): BidScreeningCandidate {
+function makeCandidate(owner: string, overrides?: { isAudited?: boolean; createdAt?: string; location?: string | null }): BidScreeningCandidate {
   return {
     owner,
     hostUri: "https://provider.example.com:8443",
     isAudited: overrides?.isAudited ?? false,
     createdAt: overrides?.createdAt ?? "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
+    location: overrides?.location ?? null,
     cluster: {
       nodes: [
         {

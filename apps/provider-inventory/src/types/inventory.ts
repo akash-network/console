@@ -75,6 +75,7 @@ export interface BidScreeningResult {
   hostUri: string;
   isAudited: boolean;
   createdAt: string;
+  location: string | null;
   incidents: Incident[];
 }
 

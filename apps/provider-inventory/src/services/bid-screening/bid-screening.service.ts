@@ -74,6 +74,7 @@ export class BidScreeningService {
       hostUri: candidate.hostUri,
       isAudited: candidate.isAudited,
       createdAt: candidate.createdAt,
+      location: candidate.location,
       incidents: incidentsByOwner[candidate.owner] ?? []
     };
   }

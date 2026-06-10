@@ -104,7 +104,11 @@ const ProviderResultSchema = z.object({
   createdAt: z
     .string()
     .datetime()
-    .openapi({ description: "ISO 8601 timestamp marking when the provider was first enrolled in the inventory", example: "2026-01-01T00:00:00.000Z" })
+    .openapi({ description: "ISO 8601 timestamp marking when the provider was first enrolled in the inventory", example: "2026-01-01T00:00:00.000Z" }),
+  location: z.string().nullable().openapi({
+    description: "Provider region from the location-region attribute (signed preferred, else self-declared); null if unset",
+    example: "us-west"
+  })
 });
 
 export const BidScreeningResponseSchema = z.object({

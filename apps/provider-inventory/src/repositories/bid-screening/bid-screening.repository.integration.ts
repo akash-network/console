@@ -190,6 +190,40 @@ describe(BidScreeningRepository.name, () => {
     });
   });
 
+  describe("location projection", () => {
+    it("prefers location-region from signed_attributes when both sets define it", async () => {
+      await seed({
+        owner: "akash1signed",
+        selfAttributes: [{ key: "location-region", value: "self-region" }],
+        signedAttributes: [{ key: "location-region", value: "signed-region", auditor: AUDITOR }]
+      });
+
+      const [row] = await repository.findCandidates([unit({})], requirements());
+
+      expect(row.location).toBe("signed-region");
+    });
+
+    it("falls back to self_attributes when signed_attributes has no location-region", async () => {
+      await seed({
+        owner: "akash1self",
+        selfAttributes: [{ key: "location-region", value: "self-region" }],
+        signedAttributes: [{ key: "country", value: "us", auditor: AUDITOR }]
+      });
+
+      const [row] = await repository.findCandidates([unit({})], requirements());
+
+      expect(row.location).toBe("self-region");
+    });
+
+    it("returns null when neither attribute set defines location-region", async () => {
+      await seed({ owner: "akash1none", selfAttributes: [{ key: "country", value: "us" }] });
+
+      const [row] = await repository.findCandidates([unit({})], requirements());
+
+      expect(row.location).toBeNull();
+    });
+  });
+
   describe("gpu_models filter", () => {
     it("vendor-only request matches mixed-model providers via the vendor token", async () => {
       await seed({ owner: "akash1nvidiaA100", gpuModels: ["nvidia", "nvidia/a100"], totalAvailableGpu: 8n, maxNodeFreeGpu: 8n });
@@ -506,6 +540,7 @@ describe(BidScreeningRepository.name, () => {
     maxNodeFreeMemory?: bigint;
     maxNodeFreeGpu?: bigint;
     selfAttributes?: { key: string; value: string }[];
+    signedAttributes?: { key: string; value: string; auditor: string }[];
     auditedBy?: string[];
     gpuModels?: string[];
     storageClasses?: string[];
@@ -529,6 +564,7 @@ describe(BidScreeningRepository.name, () => {
       maxNodeFreeMemory: input.maxNodeFreeMemory ?? 1_000_000_000n,
       maxNodeFreeGpu: input.maxNodeFreeGpu ?? 0n,
       selfAttributes: input.selfAttributes ?? [],
+      signedAttributes: input.signedAttributes ?? [],
       auditedBy: input.auditedBy ?? [],
       gpuModels: input.gpuModels ?? [],
       storageClasses: input.storageClasses ?? [],
