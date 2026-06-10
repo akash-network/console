@@ -64,6 +64,17 @@ describe("sdlImport", () => {
       expect(services.every(service => service.placementId === placements[0].id)).toBe(true);
     });
 
+    it("gives each service its own placement when placementPerService is set", () => {
+      const yml = fs.readFileSync(path.resolve(__dirname, "../../../tests/mocks/two-services-sdl.yml"), "utf8");
+
+      const { placements, services } = importSimpleSdl(yml, { placementPerService: true });
+
+      expect(placements).toHaveLength(2);
+      expect(placements.every(placement => placement.name === "dcloud")).toBe(true);
+      expect(services.map(service => service.placementId)).toEqual([placements[0].id, placements[1].id]);
+      expect(new Set(services.map(service => service.placementId)).size).toBe(2);
+    });
+
     it("lifts location-region attribute onto placement.region", () => {
       const yml = [
         "version: '2.0'",

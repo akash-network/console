@@ -26,7 +26,7 @@ export const useSdlServiceManager = ({ control }: Props) => {
     keyName: "id"
   });
 
-  const { append: appendPlacement } = useFieldArray({
+  const { append: appendPlacement, remove: removePlacement } = useFieldArray({
     control,
     name: "placements",
     keyName: "id"
@@ -52,22 +52,30 @@ export const useSdlServiceManager = ({ control }: Props) => {
   }, [services]);
 
   const add = useCallback(() => {
-    let placementId = placements[0]?.id;
-    if (!placementId) {
-      const placement = defaultPlacement();
-      placementId = placement.id;
-      appendPlacement(placement);
-    }
-    appendService({ ...defaultService(placementId), id: nanoid(), title: calcNextServiceTitle() });
-  }, [appendService, appendPlacement, calcNextServiceTitle, placements]);
+    const placement = defaultPlacement();
+    appendPlacement(placement);
+    appendService({ ...defaultService(placement.id), id: nanoid(), title: calcNextServiceTitle() });
+  }, [appendService, appendPlacement, calcNextServiceTitle]);
 
   const remove = useCallback(
     (index: number) => {
       const ownLogCollectorServiceIndex = findOwnLogCollectorServiceIndex(services[index], services);
       const indexes = (ownLogCollectorServiceIndex === -1 ? [index] : [index, ownLogCollectorServiceIndex]).sort((a, b) => b - a);
+
+      const removedPlacementIds = new Set(indexes.map(serviceIndex => services[serviceIndex]?.placementId));
+      const remainingPlacementIds = new Set(services.filter((_, serviceIndex) => !indexes.includes(serviceIndex)).map(service => service.placementId));
+      const orphanPlacementIndexes = placements
+        .map((placement, placementIndex) => ({ placement, placementIndex }))
+        .filter(({ placement }) => removedPlacementIds.has(placement.id) && !remainingPlacementIds.has(placement.id))
+        .map(({ placementIndex }) => placementIndex)
+        .sort((a, b) => b - a);
+
       removeService(indexes);
+      if (orphanPlacementIndexes.length > 0) {
+        removePlacement(orphanPlacementIndexes);
+      }
     },
-    [services, removeService]
+    [services, placements, removeService, removePlacement]
   );
 
   return useMemo(

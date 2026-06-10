@@ -140,7 +140,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
       try {
         if (!yamlStr) return null;
 
-        const formValues = importSimpleSdl(yamlStr);
+        const formValues = importSimpleSdl(yamlStr, { placementPerService: true });
 
         setError(null);
 

@@ -99,7 +99,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
       const response = await consoleApiHttpClient.get(`/v1/user/template/${id}`);
       const template: ITemplate = response.data;
 
-      const imported = importSimpleSdl(template.sdl);
+      const imported = importSimpleSdl(template.sdl, { placementPerService: true });
 
       setIsLoadingTemplate(false);
 
