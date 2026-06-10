@@ -37,7 +37,7 @@ export class StreamLifecycleManagerService {
   readonly #onlineStatePerProvider = new Map<string, boolean>();
   readonly #healthyProviderRetryStreamPolicy: RetryPolicy;
   readonly #potentiallyDeadProviderRetryStreamPolicy: RetryPolicy;
-  readonly #offlineDataloader: Dataloader<string, null>;
+  readonly #offlineDataloader: Dataloader<{ owner: string; requestedAt: Date }, boolean>;
   readonly #startStreamSemaphore: Sema;
   readonly #pendingFirstAttempts = new Set<Promise<void>>();
   readonly #dbDriver: DbDriver;
@@ -71,10 +71,11 @@ export class StreamLifecycleManagerService {
       })
     });
     this.#offlineDataloader = new Dataloader(
-      async owners => {
-        await this.#inventoryRepo.bulkMarkOffline(owners as string[]);
-        this.#logger.info({ event: "PROVIDERS_MARKED_OFFLINE", owners });
-        return Array.from(owners, () => null);
+      async keys => {
+        const owners = keys.map(k => k.owner);
+        const results = await this.#inventoryRepo.bulkMarkOffline(owners, keys[0].requestedAt);
+        const updatedOwners = new Set(results.map(r => r.owner));
+        return Array.from(owners, owner => updatedOwners.has(owner));
       },
       {
         cache: false,
@@ -263,8 +264,11 @@ export class StreamLifecycleManagerService {
       return;
     }
     try {
-      await this.#offlineDataloader.load(owner);
-      this.#onlineStatePerProvider.set(owner, false);
+      const isMarkedAsOffline = await this.#offlineDataloader.load({ owner, requestedAt: new Date() });
+      if (isMarkedAsOffline) {
+        this.#onlineStatePerProvider.set(owner, false);
+        this.#logger.info({ event: "PROVIDER_MARKED_OFFLINE", owner });
+      }
     } catch (error) {
       this.#logger.error({ event: "MARK_OFFLINE_ERROR", owner, error });
     }

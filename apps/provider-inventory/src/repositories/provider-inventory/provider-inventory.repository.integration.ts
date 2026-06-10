@@ -1,6 +1,6 @@
 import "@src/providers";
 
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
@@ -283,9 +283,9 @@ describe(ProviderInventoryRepository.name, () => {
   describe("bulkMarkOffline", () => {
     it("flips an online provider to offline and clears isOnlineSince", async () => {
       const { repository, db } = setup();
-      await seed(db, { owner: "akash1a", isOnline: true, isOnlineSince: new Date() });
+      await seed(db, { owner: "akash1a", isOnline: true, isOnlineSince: new Date(), updatedAt: new Date(Date.now() - 5 * 1000) });
 
-      await repository.bulkMarkOffline(["akash1a"]);
+      await repository.bulkMarkOffline(["akash1a"], new Date());
 
       const [row] = await db.select().from(providerInventory).where(eq(providerInventory.owner, "akash1a"));
       expect(row.isOnline).toBe(false);
@@ -297,7 +297,7 @@ describe(ProviderInventoryRepository.name, () => {
       const updatedAt = new Date("2026-01-01T00:00:00Z");
       await seed(db, { owner: "akash1a", isOnline: true, isOnlineSince: new Date(), updatedAt });
 
-      await repository.bulkMarkOffline(["akash1a"]);
+      await repository.bulkMarkOffline(["akash1a"], new Date(updatedAt.getTime() + 1000));
 
       const [row] = await db.select().from(providerInventory).where(eq(providerInventory.owner, "akash1a"));
       expect(row.updatedAt.getTime()).toBeGreaterThan(updatedAt.getTime());
@@ -308,7 +308,7 @@ describe(ProviderInventoryRepository.name, () => {
       const updatedAt = new Date("2026-01-01T00:00:00Z");
       await seed(db, { owner: "akash1a", isOnline: false, isOnlineSince: null, updatedAt });
 
-      await repository.bulkMarkOffline(["akash1a"]);
+      await repository.bulkMarkOffline(["akash1a"], new Date(updatedAt.getTime() + 1000));
 
       const [row] = await db.select().from(providerInventory).where(eq(providerInventory.owner, "akash1a"));
       expect(row.updatedAt.toISOString()).toBe(updatedAt.toISOString());
@@ -316,10 +316,10 @@ describe(ProviderInventoryRepository.name, () => {
 
     it("only marks the listed owners offline", async () => {
       const { repository, db } = setup();
-      await seed(db, { owner: "akash1a", isOnline: true, isOnlineSince: new Date() });
-      await seed(db, { owner: "akash1b", isOnline: true, isOnlineSince: new Date() });
+      await seed(db, { owner: "akash1a", isOnline: true, isOnlineSince: new Date(), updatedAt: new Date() });
+      await seed(db, { owner: "akash1b", isOnline: true, isOnlineSince: new Date(), updatedAt: new Date() });
 
-      await repository.bulkMarkOffline(["akash1a"]);
+      await repository.bulkMarkOffline(["akash1a"], new Date(Date.now() + 1000));
 
       const [other] = await db.select().from(providerInventory).where(eq(providerInventory.owner, "akash1b"));
       expect(other.isOnline).toBe(true);
@@ -327,12 +327,30 @@ describe(ProviderInventoryRepository.name, () => {
 
     it("is a no-op when called with an empty list", async () => {
       const { repository, db } = setup();
-      await seed(db, { owner: "akash1a", isOnline: true, isOnlineSince: new Date() });
+      await seed(db, { owner: "akash1a", isOnline: true, isOnlineSince: new Date(), updatedAt: new Date() });
 
-      await repository.bulkMarkOffline([]);
+      await repository.bulkMarkOffline([], new Date());
 
       const [row] = await db.select().from(providerInventory).where(eq(providerInventory.owner, "akash1a"));
       expect(row.isOnline).toBe(true);
+    });
+
+    it("does not update providers that have been updated since the given timestamp", async () => {
+      const { repository, db } = setup();
+      const oldUpdatedAt = new Date("2026-01-01T00:00:00Z");
+      const newUpdatedAt = new Date("2026-01-02T00:00:00Z");
+      await seed(db, { owner: "akash1a", isOnline: true, isOnlineSince: new Date(), updatedAt: oldUpdatedAt });
+      await seed(db, { owner: "akash1b", isOnline: true, isOnlineSince: new Date(), updatedAt: newUpdatedAt });
+
+      await repository.bulkMarkOffline(["akash1a", "akash1b"], new Date(oldUpdatedAt.getTime() + 1000));
+
+      const [rowA, rowB] = await db
+        .select()
+        .from(providerInventory)
+        .where(inArray(providerInventory.owner, ["akash1a", "akash1b"]))
+        .orderBy(providerInventory.owner);
+      expect(rowA.isOnline).toBe(false);
+      expect(rowB.isOnline).toBe(true);
     });
   });
 
