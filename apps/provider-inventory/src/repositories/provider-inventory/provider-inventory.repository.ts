@@ -1,5 +1,5 @@
 import type { InferSelectModel } from "drizzle-orm";
-import { and, eq, gt, inArray, sql as rawSql } from "drizzle-orm";
+import { and, eq, gt, inArray, lt, sql as rawSql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { paginate } from "@src/lib/generators/paginate/paginate";
@@ -55,13 +55,14 @@ export class ProviderInventoryRepository {
     }
   }
 
-  async bulkMarkOffline(owners: string[]): Promise<void> {
-    if (owners.length === 0) return;
-    await this.#driver
+  async bulkMarkOffline(owners: string[], notUpdatedSince: Date): Promise<Pick<ProviderInventory, "owner">[]> {
+    if (owners.length === 0) return [];
+    return await this.#driver
       .getDb()
       .update(providerInventory)
       .set({ isOnline: false, isOnlineSince: null, updatedAt: rawSql`now()` })
-      .where(and(inArray(providerInventory.owner, owners), eq(providerInventory.isOnline, true)));
+      .where(and(inArray(providerInventory.owner, owners), eq(providerInventory.isOnline, true), lt(providerInventory.updatedAt, notUpdatedSince)))
+      .returning({ owner: providerInventory.owner });
   }
 
   async markAsOnline(owner: string): Promise<void> {

@@ -288,7 +288,7 @@ describe(StreamLifecycleManagerService.name, () => {
       await vi.waitFor(() => expect(countFailures()).toBeGreaterThanOrEqual(3), { timeout: 5000 });
 
       await vi.waitFor(() => expect(writer.bulkMarkOffline).toHaveBeenCalledTimes(1), { timeout: 5000 });
-      expect(writer.bulkMarkOffline).toHaveBeenCalledWith(["akash1owner"]);
+      expect(writer.bulkMarkOffline).toHaveBeenCalledWith(["akash1owner"], expect.any(Date));
     });
 
     it("marks offline again after a provider recovers and then drops", async () => {
@@ -544,7 +544,7 @@ describe(StreamLifecycleManagerService.name, () => {
     streamFactory.disposeProvider.mockResolvedValue();
     const writer = mock<ProviderInventoryRepository>();
     writer.deleteByOwner.mockResolvedValue();
-    writer.bulkMarkOffline.mockResolvedValue();
+    writer.bulkMarkOffline.mockImplementation(async owners => owners.map(owner => ({ owner })));
     writer.updateInventory.mockResolvedValue();
     const incidents = mock<ProviderIncidentRepository>();
     incidents.openIncident.mockResolvedValue();
