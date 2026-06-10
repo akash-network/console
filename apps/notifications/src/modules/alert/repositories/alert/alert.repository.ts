@@ -168,6 +168,50 @@ export class AlertRepository {
     );
   }
 
+  /**
+   * Finds the deployment-closed CHAIN_EVENT alert for a specific owner AND dseq.
+   *
+   * dseq is per-owner (not globally unique) and the owner is stored in the alert's
+   * `conditions.value[]` (not `params`), so both must be matched. This runs in a
+   * background/system context with no CASL ability scope, so it is intentionally
+   * not filtered by `whereAccessibleBy`.
+   */
+  async findDeploymentClosedAlertByOwnerAndDseq(owner: string, dseq: string): Promise<AlertOutput | undefined> {
+    const alert = await this.db.query.Alert.findFirst({
+      where: and(
+        eq(schema.Alert.type, "CHAIN_EVENT"),
+        // Containment (`@>`) rather than `->>` extraction so the GIN `jsonb_path_ops`
+        // index on `params` (idx_alerts_params) is used; dseq is stored as a string.
+        sql`${schema.Alert.params} @> ${JSON.stringify({ type: "DEPLOYMENT_CLOSED", dseq })}::jsonb`,
+        sql`${schema.Alert.conditions}->'value' @> ${JSON.stringify([{ field: "owner", value: owner }])}::jsonb`
+      )
+    });
+
+    return alert && this.toOutput(alert);
+  }
+
+  /**
+   * Atomically claims the reclaim notification for an alert by stamping
+   * `params.reclaimNotifiedAt`, but only if it has not been claimed before.
+   * Returns the updated alert when this call won the claim, or `undefined` when
+   * it was already claimed (replay / pg-boss redelivery) — making the reclaim
+   * email exactly-once.
+   */
+  async claimReclaimNotification(id: string): Promise<AlertOutput | undefined> {
+    return this.db.transaction(async transaction => {
+      const [alert] = await transaction
+        .update(schema.Alert)
+        .set({
+          params: sql`COALESCE(${schema.Alert.params}, '{}'::jsonb) || jsonb_build_object('reclaimNotifiedAt', to_jsonb(NOW()))`,
+          updatedAt: sql`NOW()`
+        })
+        .where(and(eq(schema.Alert.id, id), sql`NOT jsonb_exists(COALESCE(${schema.Alert.params}, '{}'::jsonb), 'reclaimNotifiedAt')`))
+        .returning();
+
+      return alert && this.toOutput(alert);
+    });
+  }
+
   async deleteOneById(id: string): Promise<AlertOutput | undefined> {
     return this.db.transaction(async transaction => {
       const [alert] = await transaction

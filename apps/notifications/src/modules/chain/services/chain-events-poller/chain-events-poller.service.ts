@@ -145,14 +145,12 @@ export class ChainEventsPollerService implements OnApplicationBootstrap, OnModul
 
       const block = await this.blockMessageService.getMessages(nextBlockHeight, [MsgCloseDeployment["$type"], MsgCreateDeployment["$type"]], this.signal);
 
-      const txEvents = await this.txEventsService.getBlockEvents(
+      const blockEvents = await this.txEventsService.getBlockEvents(
         nextBlockHeight,
-        {
-          module: "deployment",
-          version: "v1",
-          source: "akash",
-          action: ["deployment-closed"]
-        },
+        [
+          { module: "deployment", version: "v1", source: "akash", action: ["deployment-closed"] },
+          { module: "market", version: "v1", source: "akash", action: ["lease-reclaim-started"] }
+        ],
         this.signal
       );
 
@@ -167,7 +165,7 @@ export class ChainEventsPollerService implements OnApplicationBootstrap, OnModul
           eventName: message.type,
           event: message
         })),
-        ...txEvents.map(event => ({
+        ...blockEvents.map(event => ({
           eventName: `${event.type}.${event.module}.${event.action}`,
           event: event
         }))

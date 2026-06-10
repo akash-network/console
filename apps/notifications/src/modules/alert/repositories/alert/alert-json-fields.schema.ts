@@ -49,7 +49,8 @@ export const walletBalanceParamsSchema = z.object({
 export const generalParamsSchema = z.object({
   dseq: dseqSchema,
   type: z.string(),
-  suppressedBySystem: z.boolean().optional()
+  suppressedBySystem: z.boolean().optional(),
+  reclaimNotifiedAt: z.string().optional()
 });
 
 export const chainMessageTypeSchema = z.literal("CHAIN_MESSAGE");
