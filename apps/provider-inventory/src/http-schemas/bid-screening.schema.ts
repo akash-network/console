@@ -103,7 +103,15 @@ const ProviderResultSchema = z.object({
   createdAt: z
     .string()
     .datetime()
-    .openapi({ description: "ISO 8601 timestamp marking when the provider was first enrolled in the inventory", example: "2026-01-01T00:00:00.000Z" })
+    .openapi({ description: "ISO 8601 timestamp marking when the provider was first enrolled in the inventory", example: "2026-01-01T00:00:00.000Z" }),
+  incidents: z
+    .array(
+      z.object({
+        startedAt: z.string().datetime(),
+        endedAt: z.string().datetime().nullable()
+      })
+    )
+    .openapi({ description: "Provider incident intervals within the last ~8 days; endedAt null = ongoing" })
 });
 
 export const BidScreeningResponseSchema = z.object({

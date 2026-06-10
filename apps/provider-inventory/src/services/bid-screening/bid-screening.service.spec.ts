@@ -3,6 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { GroupSpecJSON } from "@src/mappers/groupspec-mapper/groupspec-mapper";
 import type { BidScreeningCandidate, BidScreeningRepository } from "@src/repositories/bid-screening/bid-screening.repository";
+import type { ProviderIncidentRepository } from "@src/repositories/provider-incident/provider-incident.repository";
 import type { ClusterInventoryMatcherService } from "../cluster-inventory-matcher/cluster-inventory-matcher.service";
 import { BidScreeningService } from "./bid-screening.service";
 
@@ -20,7 +21,8 @@ describe(BidScreeningService.name, () => {
           owner: "akash1abc",
           hostUri: "https://provider.example.com:8443",
           isAudited: false,
-          createdAt: "2026-01-01T00:00:00.000Z"
+          createdAt: "2026-01-01T00:00:00.000Z",
+          incidents: []
         }
       ]);
     });
@@ -88,13 +90,69 @@ describe(BidScreeningService.name, () => {
       expect(results.find(r => r.owner === "akash1abc")?.isAudited).toBe(true);
       expect(results.find(r => r.owner === "akash1def")?.isAudited).toBe(false);
     });
+
+    it("groups flat incident rows into per-owner arrays on the results", async () => {
+      const { service, repository, incidentRepository, matcher } = setup();
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc"), makeCandidate("akash1def")]);
+      matcher.match.mockReturnValue({ matched: true });
+      incidentRepository.findRecentByProviders.mockResolvedValue([
+        { provider: "akash1abc", startedAt: "2026-06-01T00:00:00.000Z", endedAt: "2026-06-01T01:00:00.000Z" },
+        { provider: "akash1abc", startedAt: "2026-06-03T00:00:00.000Z", endedAt: null },
+        { provider: "akash1def", startedAt: "2026-06-02T00:00:00.000Z", endedAt: "2026-06-02T02:00:00.000Z" }
+      ]);
+
+      const results = await service.findMatchingProviders(makeRequest());
+
+      expect(results.find(r => r.owner === "akash1abc")?.incidents).toEqual([
+        { startedAt: "2026-06-01T00:00:00.000Z", endedAt: "2026-06-01T01:00:00.000Z" },
+        { startedAt: "2026-06-03T00:00:00.000Z", endedAt: null }
+      ]);
+      expect(results.find(r => r.owner === "akash1def")?.incidents).toEqual([{ startedAt: "2026-06-02T00:00:00.000Z", endedAt: "2026-06-02T02:00:00.000Z" }]);
+    });
+
+    it("defaults incidents to an empty array for a matched provider with no incident rows", async () => {
+      const { service, repository, incidentRepository, matcher } = setup();
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc")]);
+      matcher.match.mockReturnValue({ matched: true });
+      incidentRepository.findRecentByProviders.mockResolvedValue([]);
+
+      const results = await service.findMatchingProviders(makeRequest());
+
+      expect(results[0].incidents).toEqual([]);
+    });
+
+    it("does not query incidents when the matched set is empty", async () => {
+      const { service, repository, incidentRepository, matcher } = setup();
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc")]);
+      matcher.match.mockReturnValue({ matched: false, error: "INSUFFICIENT_CAPACITY" });
+
+      const results = await service.findMatchingProviders(makeRequest());
+
+      expect(results).toEqual([]);
+      expect(incidentRepository.findRecentByProviders).not.toHaveBeenCalled();
+    });
+
+    it("fetches incidents only for matched providers, not dropped candidates", async () => {
+      const { service, repository, incidentRepository, matcher } = setup();
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc"), makeCandidate("akash1def")]);
+      matcher.match.mockReturnValueOnce({ matched: true }).mockReturnValueOnce({ matched: false, error: "INSUFFICIENT_CAPACITY" });
+      incidentRepository.findRecentByProviders.mockResolvedValue([{ provider: "akash1abc", startedAt: "2026-06-01T00:00:00.000Z", endedAt: null }]);
+
+      const results = await service.findMatchingProviders(makeRequest());
+
+      expect(incidentRepository.findRecentByProviders).toHaveBeenCalledWith(["akash1abc"]);
+      expect(results).toHaveLength(1);
+      expect(results[0].incidents).toEqual([{ startedAt: "2026-06-01T00:00:00.000Z", endedAt: null }]);
+    });
   });
 
   function setup() {
     const repository = mock<BidScreeningRepository>();
+    const incidentRepository = mock<ProviderIncidentRepository>();
+    incidentRepository.findRecentByProviders.mockResolvedValue([]);
     const matcher = mock<ClusterInventoryMatcherService>();
-    const service = new BidScreeningService(repository, matcher);
-    return { service, repository, matcher };
+    const service = new BidScreeningService(repository, incidentRepository, matcher);
+    return { service, repository, incidentRepository, matcher };
   }
 });
 

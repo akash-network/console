@@ -120,12 +120,90 @@ describe(ProviderIncidentRepository.name, () => {
     });
   });
 
+  describe("findRecentByProviders", () => {
+    it("returns an empty array when called with no owners", async () => {
+      const { repository } = setup();
+
+      const rows = await repository.findRecentByProviders([]);
+
+      expect(rows).toEqual([]);
+    });
+
+    it("returns a closed incident inside the window", async () => {
+      const { repository, db } = setup();
+      await seedIncident(db, { provider: "akash1a", startedAt: daysAgo(2), endedAt: daysAgo(1) });
+
+      const rows = await repository.findRecentByProviders(["akash1a"]);
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].provider).toBe("akash1a");
+      expect(rows[0].startedAt).toMatch(ISO_MS);
+      expect(rows[0].endedAt).toMatch(ISO_MS);
+    });
+
+    it("returns an ongoing incident with endedAt null", async () => {
+      const { repository, db } = setup();
+      await seedIncident(db, { provider: "akash1a", startedAt: daysAgo(3), endedAt: null });
+
+      const rows = await repository.findRecentByProviders(["akash1a"]);
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].endedAt).toBeNull();
+    });
+
+    it("includes an incident at the inner edge of the window and excludes one beyond it", async () => {
+      const { repository, db } = setup();
+      await seedIncident(db, { provider: "akash1in", startedAt: daysAgo(7.6), endedAt: daysAgo(7.5) });
+      await seedIncident(db, { provider: "akash1out", startedAt: daysAgo(9.1), endedAt: daysAgo(9) });
+
+      const rows = await repository.findRecentByProviders(["akash1in", "akash1out"]);
+
+      expect(rows.map(r => r.provider)).toEqual(["akash1in"]);
+    });
+
+    it("orders multiple incidents for one provider by startedAt ascending", async () => {
+      const { repository, db } = setup();
+      await seedIncident(db, { provider: "akash1a", startedAt: daysAgo(1), endedAt: daysAgo(0.5) });
+      await seedIncident(db, { provider: "akash1a", startedAt: daysAgo(5), endedAt: daysAgo(4) });
+      await seedIncident(db, { provider: "akash1a", startedAt: daysAgo(3), endedAt: daysAgo(2) });
+
+      const rows = await repository.findRecentByProviders(["akash1a"]);
+
+      expect(rows).toHaveLength(3);
+      const startedAts = rows.map(r => r.startedAt);
+      expect(startedAts).toEqual([...startedAts].sort());
+    });
+
+    it("returns only the real incident for a recently enrolled provider without fabricating pre-enrollment rows", async () => {
+      const { repository, db } = setup();
+      await seedIncident(db, { provider: "akash1a", startedAt: daysAgo(2), endedAt: daysAgo(1) });
+
+      const rows = await repository.findRecentByProviders(["akash1a"]);
+
+      expect(rows).toHaveLength(1);
+    });
+
+    it("groups and filters incidents by provider across a batched call", async () => {
+      const { repository, db } = setup();
+      await seedIncident(db, { provider: "akash1a", startedAt: daysAgo(2), endedAt: daysAgo(1) });
+      await seedIncident(db, { provider: "akash1b", startedAt: daysAgo(3), endedAt: null });
+      await seedIncident(db, { provider: "akash1c", startedAt: daysAgo(1), endedAt: daysAgo(0.5) });
+
+      const rows = await repository.findRecentByProviders(["akash1a", "akash1b"]);
+
+      const byProvider = rows.reduce<Record<string, number>>((acc, r) => ({ ...acc, [r.provider]: (acc[r.provider] ?? 0) + 1 }), {});
+      expect(byProvider).toEqual({ akash1a: 1, akash1b: 1 });
+    });
+  });
+
   function setup() {
     const repository = container.resolve(ProviderIncidentRepository);
     const db = container.resolve<PostgresJsDatabase>(DRIZZLE_DB);
     return { repository, db };
   }
 });
+
+const ISO_MS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
 interface SeedClosedInput {
   provider: string;
@@ -139,4 +217,12 @@ async function seedClosed(db: PostgresJsDatabase, input: SeedClosedInput): Promi
     startedAt: input.startedAt ?? new Date(input.endedAt.getTime() - 60_000),
     endedAt: input.endedAt
   });
+}
+
+function daysAgo(days: number): Date {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+}
+
+async function seedIncident(db: PostgresJsDatabase, input: { provider: string; startedAt: Date; endedAt: Date | null }): Promise<void> {
+  await db.insert(providerIncidents).values({ provider: input.provider, startedAt: input.startedAt, endedAt: input.endedAt });
 }
