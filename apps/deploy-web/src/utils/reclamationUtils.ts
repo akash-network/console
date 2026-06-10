@@ -52,6 +52,18 @@ export function getLeaseCloseReasonLabel(reason?: string): string {
   }
 }
 
+/**
+ * Parse a bid's offered reclamation window (REST Duration, e.g. "86400s") to seconds, or null when
+ * absent/empty/non-positive/unparseable. The trailing "s" is optional for resilience against a bare
+ * seconds count. Used to format the offered window in the bid-selection UI (AEP-82).
+ */
+export function parseReclamationWindowSeconds(reclamationWindow?: string): number | null {
+  if (!reclamationWindow) return null;
+  const seconds = Number(reclamationWindow.trim().replace(/s$/, ""));
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  return seconds;
+}
+
 /** Reclamation deadline as a Date, or null when absent/0/NaN. `deadline` is unix seconds. */
 export function getReclamationDeadline(lease: Pick<LeaseDto, "reclamation">): Date | null {
   const deadline = lease.reclamation?.deadline;

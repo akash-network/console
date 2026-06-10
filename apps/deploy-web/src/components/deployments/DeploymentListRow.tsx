@@ -76,7 +76,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const reclaimingLease = filteredLeases?.find(isReclaiming);
   const closedLease = filteredLeases?.find(l => !isLeaseLive(l));
   const isAllLeasesClosed = !!filteredLeases?.length && !hasActiveLeases;
-  const deploymentCost = hasActiveLeases ? liveLeases?.reduce((prev, current) => prev + parseFloat(current.price.amount), 0) : 0;
+  const deploymentCost = liveLeases?.reduce((prev, current) => prev + parseFloat(current.price.amount), 0) ?? 0;
   const reclaimDeadline = reclaimingLease ? getReclamationDeadline(reclaimingLease) : null;
   const closedReasonLabel = closedLease ? getClosedLeaseLabel(closedLease) : null;
   const hasGpu = Boolean(deployment.gpuAmount && deployment.gpuAmount > 0);

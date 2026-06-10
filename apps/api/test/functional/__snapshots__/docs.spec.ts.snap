@@ -3203,6 +3203,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 ],
                                 "type": "object",
                               },
+                              "reclamation_window": {
+                                "type": "string",
+                              },
                               "resources_offer": {
                                 "items": {
                                   "properties": {
@@ -3647,6 +3650,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   "amount",
                                 ],
                                 "type": "object",
+                              },
+                              "reclamation_window": {
+                                "type": "string",
                               },
                               "resources_offer": {
                                 "items": {

@@ -79,7 +79,10 @@ export const BidResponseSchema = z.object({
         resources: DeploymentResource_V3,
         count: z.number()
       })
-    )
+    ),
+    // Present only on v2.1+ bids where the provider offers a reclamation window (AEP-82).
+    // Zod strips unknown keys, so without this the field would be dropped from the managed API response.
+    reclamation_window: z.string().optional()
   }),
   escrow_account: z.object({
     id: z.object({
