@@ -57,9 +57,9 @@ export function getLeaseCloseReasonLabel(reason?: string): string {
  * absent/empty/non-positive/unparseable. The trailing "s" is optional for resilience against a bare
  * seconds count. Used to format the offered window in the bid-selection UI (AEP-82).
  */
-export function parseReclamationWindowSeconds(window?: string): number | null {
-  if (!window) return null;
-  const seconds = Number(window.trim().replace(/s$/, ""));
+export function parseReclamationWindowSeconds(reclamationWindow?: string): number | null {
+  if (!reclamationWindow) return null;
+  const seconds = Number(reclamationWindow.trim().replace(/s$/, ""));
   if (!Number.isFinite(seconds) || seconds <= 0) return null;
   return seconds;
 }
