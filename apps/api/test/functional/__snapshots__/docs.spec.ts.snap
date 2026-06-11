@@ -3047,7 +3047,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       ],
                       "type": "object",
                     },
-                    "minItems": 1,
                     "type": "array",
                   },
                 },
@@ -3080,6 +3079,28 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "example": "https://provider.europlots.com:8443",
                             "type": "string",
                           },
+                          "incidents": {
+                            "description": "Provider incident intervals within the last ~8 days; endedAt null = ongoing",
+                            "items": {
+                              "properties": {
+                                "endedAt": {
+                                  "format": "date-time",
+                                  "nullable": true,
+                                  "type": "string",
+                                },
+                                "startedAt": {
+                                  "format": "date-time",
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "startedAt",
+                                "endedAt",
+                              ],
+                              "type": "object",
+                            },
+                            "type": "array",
+                          },
                           "isAudited": {
                             "description": "True if signed by a known auditor",
                             "type": "boolean",
@@ -3102,6 +3123,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "isAudited",
                           "createdAt",
                           "location",
+                          "incidents",
                         ],
                         "type": "object",
                       },

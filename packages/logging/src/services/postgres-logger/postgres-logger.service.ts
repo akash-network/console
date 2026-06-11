@@ -48,6 +48,10 @@ export class PostgresLoggerService implements Logger {
 
     this.#logger.debug(formatted);
   }
+
+  logNotice(message: unknown): void {
+    this.#logger.warn(message);
+  }
 }
 
 function stringifyParam(param: unknown): string {

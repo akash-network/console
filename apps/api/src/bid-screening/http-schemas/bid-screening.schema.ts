@@ -1,4 +1,3 @@
-/* v8 ignore start */
 import { z } from "@hono/zod-openapi";
 
 const UIntStringSchema = z.string().regex(/^\d+$/, "Must be an unsigned integer string");
@@ -14,7 +13,7 @@ const ResourceValueSchema = z.object({
       return NaN;
     })
     .refine(
-      val => !Number.isFinite(val) && typeof val === "bigint" && val >= 0n,
+      (val): val is bigint => !Number.isFinite(val) && typeof val === "bigint" && val >= 0n,
       "Must be a non-negative integer or its protobuf base64-encoded representation"
     )
 });
@@ -93,7 +92,7 @@ const RequirementsSchema = z.object({
 export const BidScreeningRequestSchema = z.object({
   name: z.string().openapi({ description: "Group name", example: "westcoast" }),
   requirements: RequirementsSchema.default({}),
-  resources: z.array(ResourceUnitSchema).min(1).openapi({ description: "Resource units with replica counts" })
+  resources: z.array(ResourceUnitSchema).openapi({ description: "Resource units with replica counts" })
 });
 export type BidScreeningRequest = z.infer<typeof BidScreeningRequestSchema>;
 
@@ -108,7 +107,15 @@ const ProviderResultSchema = z.object({
   location: z.string().nullable().openapi({
     description: "Provider region from the location-region attribute (signed preferred, else self-declared); null if unset",
     example: "us-west"
-  })
+  }),
+  incidents: z
+    .array(
+      z.object({
+        startedAt: z.string().datetime(),
+        endedAt: z.string().datetime().nullable()
+      })
+    )
+    .openapi({ description: "Provider incident intervals within the last ~8 days; endedAt null = ongoing" })
 });
 
 export const BidScreeningResponseSchema = z.object({
