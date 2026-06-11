@@ -122,8 +122,7 @@ describe("usePaymentQueries", () => {
         await result.current.confirmPayment.mutateAsync({
           userId: "u1",
           paymentMethodId: mockPaymentResponse.id,
-          amount: mockPaymentResponse.amount,
-          currency: mockPaymentResponse.currency
+          amount: mockPaymentResponse.amount
         });
       });
 

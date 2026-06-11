@@ -15,6 +15,7 @@ const updateCustomerOrganizationRoute = createRoute({
   description: "Updates the organization/business name for the current user's Stripe customer account",
   tags: ["Payment"],
   security: SECURITY_BEARER_OR_API_KEY,
+  hiddenInOpenApiDocs: true,
   request: {
     body: {
       content: {

@@ -23,6 +23,7 @@ const confirmPaymentRoute = createRoute({
     "Processes a payment using a previously saved payment method. This endpoint handles wallet top-ups and may require 3D Secure authentication for certain payment methods or amounts.",
   tags: ["Payment"],
   security: SECURITY_BEARER_OR_API_KEY,
+  hiddenInOpenApiDocs: true,
   request: {
     body: {
       content: {
@@ -56,8 +57,7 @@ stripeTransactionsRouter.openapi(confirmPaymentRoute, async function confirmPaym
   const result = await container.resolve(StripeController).confirmPayment({
     userId: data.userId,
     paymentMethodId: data.paymentMethodId,
-    amount: data.amount,
-    currency: data.currency
+    amount: data.amount
   });
 
   // Check if 3D Secure is required
@@ -74,6 +74,7 @@ const getCustomerTransactionsRoute = createRoute({
   summary: "Get transaction history for the current customer",
   tags: ["Payment"],
   security: SECURITY_BEARER_OR_API_KEY,
+  hiddenInOpenApiDocs: true,
   request: {
     query: CustomerTransactionsQuerySchema
   },
@@ -106,6 +107,7 @@ const exportTransactionsCsvRoute = createRoute({
   summary: "Export transaction history as CSV for the current customer",
   tags: ["Payment"],
   security: SECURITY_BEARER_OR_API_KEY,
+  hiddenInOpenApiDocs: true,
   request: {
     query: CustomerTransactionsCsvExportQuerySchema
   },

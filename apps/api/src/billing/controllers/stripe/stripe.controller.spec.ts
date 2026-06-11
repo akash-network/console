@@ -31,8 +31,7 @@ describe(StripeController.name, () => {
       const result = await controller.confirmPayment({
         userId: user.id,
         paymentMethodId: faker.string.uuid(),
-        amount: 100,
-        currency: "usd"
+        amount: 100
       });
 
       expect(result).toEqual({
@@ -62,7 +61,6 @@ describe(StripeController.name, () => {
         userId: user.id,
         paymentMethodId: faker.string.uuid(),
         amount: 100,
-        currency: "usd",
         awaitResolved: true
       });
 
@@ -91,8 +89,7 @@ describe(StripeController.name, () => {
       await controller.confirmPayment({
         userId: user.id,
         paymentMethodId: faker.string.uuid(),
-        amount: 100,
-        currency: "usd"
+        amount: 100
       });
 
       expect(trialValidationService.validateTopUpAmount).toHaveBeenCalledWith(wallet, 100);
@@ -111,8 +108,7 @@ describe(StripeController.name, () => {
         controller.confirmPayment({
           userId: user.id,
           paymentMethodId: faker.string.uuid(),
-          amount: 50,
-          currency: "usd"
+          amount: 50
         })
       ).rejects.toBe(trialError);
       expect(stripe.hasPaymentMethod).not.toHaveBeenCalled();
@@ -133,8 +129,7 @@ describe(StripeController.name, () => {
       await controller.confirmPayment({
         userId: user.id,
         paymentMethodId: faker.string.uuid(),
-        amount: 50,
-        currency: "usd"
+        amount: 50
       });
 
       expect(trialValidationService.validateTopUpAmount).toHaveBeenCalledWith(undefined, 50);
@@ -159,8 +154,7 @@ describe(StripeController.name, () => {
       const result = await controller.confirmPayment({
         userId: user.id,
         paymentMethodId: faker.string.uuid(),
-        amount: 100,
-        currency: "usd"
+        amount: 100
       });
 
       expect(result).toEqual({

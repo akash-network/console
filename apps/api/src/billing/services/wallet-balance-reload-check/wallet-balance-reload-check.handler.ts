@@ -194,7 +194,6 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
         customer: resources.user.stripeCustomerId,
         payment_method: resources.paymentMethod.id,
         amount: reloadAmountInFiat,
-        currency: "usd",
         confirm: true,
         idempotencyKey: `${WalletBalanceReloadCheck.name}.${resources.job.id}`
       });

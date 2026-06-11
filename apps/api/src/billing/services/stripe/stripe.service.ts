@@ -26,6 +26,12 @@ interface StripePrices {
   currency: string;
 }
 
+/**
+ * We only support USD for Stripe payments. Hardcoding the currency at the single
+ * payment-intent chokepoint guarantees no caller can ever create a non-USD charge.
+ */
+const STRIPE_CURRENCY = "usd";
+
 export type PaymentMethod = Stripe.PaymentMethod & { validated: boolean; isDefault: boolean };
 
 @singleton()
@@ -190,7 +196,6 @@ export class StripeService extends Stripe {
     customer: string;
     payment_method: string;
     amount: number;
-    currency: string;
     confirm: boolean;
     metadata?: Record<string, string>;
     idempotencyKey?: string;
@@ -202,7 +207,7 @@ export class StripeService extends Stripe {
       type: "payment_intent",
       status: "created",
       amount: amountInCents,
-      currency: params.currency
+      currency: STRIPE_CURRENCY
     });
 
     const createOptions: Parameters<Stripe["paymentIntents"]["create"]> = [
@@ -210,7 +215,7 @@ export class StripeService extends Stripe {
         customer: params.customer,
         payment_method: params.payment_method,
         amount: amountInCents,
-        currency: params.currency,
+        currency: STRIPE_CURRENCY,
         confirm: params.confirm,
         metadata: {
           ...params.metadata,
@@ -793,7 +798,7 @@ export class StripeService extends Stripe {
       paymentIntent = await this.paymentIntents.create(
         {
           amount: 100, // $1.00 USD in cents
-          currency: "usd",
+          currency: STRIPE_CURRENCY,
           payment_method_types: ["card", "link"],
           capture_method: "manual", // Don't capture the charge, they expire after 7 days
           customer: params.customer,

@@ -27,6 +27,7 @@ const route = createRoute({
   description: "Retrieves the list of available pricing options for wallet top-ups, including custom amounts and standard pricing tiers",
   tags: ["Payment"],
   security: SECURITY_BEARER_OR_API_KEY,
+  hiddenInOpenApiDocs: true,
   request: {},
   responses: {
     200: {

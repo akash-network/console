@@ -179,8 +179,7 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
       const response = await confirmPayment({
         userId: user.id,
         paymentMethodId: selectedMethodId,
-        amount,
-        currency: "usd"
+        amount
       });
 
       if (response && response.requiresAction && response.clientSecret && response.paymentIntentId) {
