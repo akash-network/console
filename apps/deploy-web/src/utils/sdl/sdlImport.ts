@@ -1,7 +1,7 @@
 import yaml from "js-yaml";
 import { nanoid } from "nanoid";
 
-import type { ExposeType, PlacementAttributeType, PlacementType, ProfileGpuModelType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { EndpointType, ExposeType, PlacementAttributeType, PlacementType, ProfileGpuModelType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { CustomValidationError } from "../deploymentData";
 import { capitalizeFirstLetter } from "../stringUtils";
 import { defaultHttpOptions } from "./data";
@@ -36,7 +36,12 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
       throw new CustomValidationError("SDL root must be a YAML object.");
     }
 
-    if (!yamlJson.services) return { placements, services };
+    const endpoints: EndpointType[] =
+      yamlJson.endpoints && typeof yamlJson.endpoints === "object" && !Array.isArray(yamlJson.endpoints)
+        ? Object.keys(yamlJson.endpoints).map(name => ({ id: nanoid(), name }))
+        : [];
+
+    if (!yamlJson.services) return { placements, services, endpoints };
 
     Object.keys(yamlJson.services).forEach(svcName => {
       const svc = yamlJson.services[svcName];
@@ -161,7 +166,7 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
       services.push(service as ServiceType);
     });
 
-    return { placements, services };
+    return { placements, services, endpoints };
   } catch (error) {
     console.error(error);
     throw error;

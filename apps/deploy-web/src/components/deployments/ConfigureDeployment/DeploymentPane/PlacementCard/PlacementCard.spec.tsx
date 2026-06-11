@@ -46,7 +46,7 @@ describe("PlacementCard", () => {
       service: defaultService(placement.id, { title }),
       index
     }));
-    const values: SdlBuilderFormValuesType = { placements: [placement], services: services.map(({ service }) => service) };
+    const values: SdlBuilderFormValuesType = { placements: [placement], services: services.map(({ service }) => service), endpoints: [] };
     const onAddService = vi.fn();
     const onRemove = vi.fn();
     const onSelectService = vi.fn();
