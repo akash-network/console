@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
-import { ServiceRow } from "./ServiceRow";
+import { DEPENDENCIES, ServiceRow } from "./ServiceRow";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -47,10 +47,10 @@ describe("ServiceRow", () => {
     expect(screen.getByRole("img", { name: "Incomplete" })).toBeInTheDocument();
   });
 
-  it("shows the configured status for a valid service", () => {
+  it("shows the complete status for a valid service", () => {
     setup({ image: "nginx:latest" });
 
-    expect(screen.getByRole("img", { name: "Configured" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Complete" })).toBeInTheDocument();
   });
 
   it("removes the service", async () => {
@@ -67,7 +67,19 @@ describe("ServiceRow", () => {
     expect(screen.queryByRole("button", { name: "Remove service-1" })).not.toBeInTheDocument();
   });
 
-  function setup(input: { isSelected?: boolean; canRemove?: boolean; image?: string }) {
+  it("renders the validation error message below the row", () => {
+    setup({ error: "Names must start with a lower case letter." });
+
+    expect(screen.getByText("Names must start with a lower case letter.")).toBeInTheDocument();
+  });
+
+  it("does not render an error message when the field is valid", () => {
+    setup({});
+
+    expect(screen.queryByText("Names must start with a lower case letter.")).not.toBeInTheDocument();
+  });
+
+  function setup(input: { isSelected?: boolean; canRemove?: boolean; image?: string; error?: string }) {
     const values = defaultServiceWithPlacement({ title: "service-1", image: input.image ?? "" });
     const onSelect = vi.fn();
     const onRemove = vi.fn();
@@ -86,6 +98,7 @@ describe("ServiceRow", () => {
             canRemove={input.canRemove ?? true}
             onSelect={onSelect}
             onRemove={onRemove}
+            dependencies={{ ...DEPENDENCIES, useFieldError: () => ({ error: input.error }) }}
           />
         </ul>
       </Wrapper>
