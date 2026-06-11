@@ -24,6 +24,7 @@ const setupIntentRoute = createRoute({
     "Creates a Stripe SetupIntent that allows users to securely add payment methods to their account. The SetupIntent provides a client secret that can be used with Stripe's frontend SDKs to collect payment method details.",
   tags: ["Payment"],
   security: SECURITY_BEARER_OR_API_KEY,
+  hiddenInOpenApiDocs: true,
   request: {},
   responses: {
     200: {
@@ -48,6 +49,7 @@ const markAsDefaultRoute = createRoute({
   summary: "Marks a payment method as the default.",
   tags: ["Payment"],
   security: SECURITY_BEARER_OR_API_KEY,
+  hiddenInOpenApiDocs: true,
   request: {
     body: {
       content: {
@@ -77,6 +79,7 @@ const getDefaultPaymentMethodRoute = createRoute({
     "Retrieves the default payment method associated with the current user's account, including card details, validation status, and billing information.",
   tags: ["Payment"],
   security: SECURITY_BEARER_OR_API_KEY,
+  hiddenInOpenApiDocs: true,
   request: {},
   responses: {
     200: {
@@ -106,6 +109,7 @@ const paymentMethodsRoute = createRoute({
     "Retrieves all saved payment methods associated with the current user's account, including card details, validation status, and billing information.",
   tags: ["Payment"],
   security: SECURITY_BEARER_OR_API_KEY,
+  hiddenInOpenApiDocs: true,
   request: {},
   responses: {
     200: {
@@ -131,6 +135,7 @@ const removePaymentMethodRoute = createRoute({
   description: "Permanently removes a saved payment method from the user's account. This action cannot be undone.",
   tags: ["Payment"],
   security: SECURITY_BEARER_OR_API_KEY,
+  hiddenInOpenApiDocs: true,
   request: {
     params: RemovePaymentMethodParamsSchema
   },
@@ -155,6 +160,7 @@ const validatePaymentMethodRoute = createRoute({
     "Completes the validation process for a payment method that required 3D Secure authentication. This endpoint should be called after the user completes the 3D Secure challenge.",
   tags: ["Payment"],
   security: SECURITY_BEARER_OR_API_KEY,
+  hiddenInOpenApiDocs: true,
   request: {
     body: {
       content: {

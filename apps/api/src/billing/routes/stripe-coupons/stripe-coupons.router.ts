@@ -14,6 +14,7 @@ const applyCouponRoute = createRoute({
   summary: "Apply a coupon to the current user",
   tags: ["Payment"],
   security: SECURITY_BEARER_OR_API_KEY,
+  hiddenInOpenApiDocs: true,
   request: {
     body: {
       content: {
