@@ -40,6 +40,6 @@ const postBidScreeningRoute = createRoute({
 
 bidScreeningRouter.openapi(postBidScreeningRoute, async function routePostBidScreening(c) {
   const request = c.req.valid("json");
-  const response = await container.resolve(BidScreeningController).screenProviders(request);
+  const response = await container.resolve(BidScreeningController).screenProviders(request, { signal: c.req.raw.signal });
   return c.json(response, 200);
 });
