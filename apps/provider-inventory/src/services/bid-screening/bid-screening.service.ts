@@ -1,6 +1,7 @@
 import { withSpan } from "@akashnetwork/instrumentation";
 import { singleton } from "tsyringe";
 
+import { bidScreeningBinPackerMatched, bidScreeningPrefilterCandidates } from "@src/metrics/metrics";
 import { type BidScreeningCandidate, BidScreeningRepository } from "@src/repositories/bid-screening/bid-screening.repository";
 import { ProviderIncidentRepository, RecentIncidentRow } from "@src/repositories/provider-incident/provider-incident.repository";
 import type { GroupSpecJSON } from "../../mappers/groupspec-mapper/groupspec-mapper";
@@ -28,12 +29,14 @@ export class BidScreeningService {
     const candidates = await withSpan("fetchCandidatesFromDB", async ({ activeSpan }) => {
       const items = await this.#repository.findCandidates(resourceUnits, request.requirements);
       activeSpan.setAttribute("amountOfCandidatesFromDb", items.length);
+      bidScreeningPrefilterCandidates.record(items.length);
       return items;
     });
 
     const matched = await withSpan("applyingBinPackingAlg", async ({ activeSpan }) => {
       const items = this.#filterProviders(candidates, resourceUnits);
       activeSpan.setAttribute("amountOfCandidatesAfterBinPacking", items.length);
+      bidScreeningBinPackerMatched.record(items.length);
       return items;
     });
 

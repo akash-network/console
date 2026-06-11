@@ -8,6 +8,7 @@ import { inject, singleton } from "tsyringe";
 
 import { isEqualClusterState } from "@src/domain/is-equal-cluster-state/is-equal-cluster-state";
 import { throttleLatest } from "@src/lib/generators/throttle-latest/throttle-latest";
+import { providerInventoryStreamUpdates } from "@src/metrics/metrics";
 import type { EnvConfig } from "@src/providers/app-config.provider";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
@@ -246,6 +247,7 @@ export class StreamLifecycleManagerService {
 
     if (cached && isEqualClusterState(cached, cluster)) {
       this.#logger.debug({ event: "STREAM_MESSAGE_SKIPPED_IDENTICAL", owner: provider.owner });
+      providerInventoryStreamUpdates.add(1, { provider: provider.owner, result: "noop" });
       return;
     }
 
@@ -253,8 +255,10 @@ export class StreamLifecycleManagerService {
       await this.#inventoryRepo.updateInventory(provider, cluster);
       this.#logger.debug({ event: "PROVIDER_INVENTORY_UPDATED", owner: provider.owner });
       this.#lastInventoryPerProvider.set(provider.owner, cluster);
+      providerInventoryStreamUpdates.add(1, { provider: provider.owner, result: "updated" });
     } catch (error) {
       this.#logger.error({ event: "STREAM_PROVIDER_WRITE_ERROR", owner: provider.owner, error });
+      providerInventoryStreamUpdates.add(1, { provider: provider.owner, result: "error" });
     }
   }
 
