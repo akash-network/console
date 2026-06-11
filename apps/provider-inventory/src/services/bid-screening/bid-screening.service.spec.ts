@@ -155,6 +155,63 @@ describe(BidScreeningService.name, () => {
       expect(results).toHaveLength(1);
       expect(results[0].incidents).toEqual([{ startedAt: "2026-06-01T00:00:00.000Z", endedAt: null }]);
     });
+
+    it("returns empty array without fetching candidates when the signal is already aborted", async () => {
+      const { service, repository, incidentRepository, matcher } = setup();
+      const controller = new AbortController();
+      controller.abort();
+
+      const results = await service.findMatchingProviders(makeRequest(), { signal: controller.signal });
+
+      expect(results).toEqual([]);
+      expect(repository.findCandidates).not.toHaveBeenCalled();
+      expect(matcher.match).not.toHaveBeenCalled();
+      expect(incidentRepository.findRecentByProviders).not.toHaveBeenCalled();
+    });
+
+    it("skips matching and incidents when the signal aborts during the candidates query", async () => {
+      const { service, repository, incidentRepository, matcher } = setup();
+      const controller = new AbortController();
+      repository.findCandidates.mockImplementation(async () => {
+        controller.abort();
+        return [makeCandidate("akash1abc")];
+      });
+
+      const results = await service.findMatchingProviders(makeRequest(), { signal: controller.signal });
+
+      expect(results).toEqual([]);
+      expect(matcher.match).not.toHaveBeenCalled();
+      expect(incidentRepository.findRecentByProviders).not.toHaveBeenCalled();
+    });
+
+    it("returns matched providers with empty incidents when the signal aborts during matching", async () => {
+      const { service, repository, incidentRepository, matcher } = setup();
+      const controller = new AbortController();
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc")]);
+      matcher.match.mockImplementation(() => {
+        controller.abort();
+        return { matched: true };
+      });
+
+      const results = await service.findMatchingProviders(makeRequest(), { signal: controller.signal });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].owner).toBe("akash1abc");
+      expect(results[0].incidents).toEqual([]);
+      expect(incidentRepository.findRecentByProviders).not.toHaveBeenCalled();
+    });
+
+    it("runs the full pipeline when a non-aborted signal is provided", async () => {
+      const { service, repository, incidentRepository, matcher } = setup();
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc")]);
+      matcher.match.mockReturnValue({ matched: true });
+      incidentRepository.findRecentByProviders.mockResolvedValue([{ provider: "akash1abc", startedAt: "2026-06-01T00:00:00.000Z", endedAt: null }]);
+
+      const results = await service.findMatchingProviders(makeRequest(), { signal: new AbortController().signal });
+
+      expect(incidentRepository.findRecentByProviders).toHaveBeenCalledWith(["akash1abc"]);
+      expect(results[0].incidents).toEqual([{ startedAt: "2026-06-01T00:00:00.000Z", endedAt: null }]);
+    });
   });
 
   function setup() {

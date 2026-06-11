@@ -1,3 +1,4 @@
+import type { Abortable } from "node:events";
 import { inject, singleton } from "tsyringe";
 
 import type { GroupSpecJSON } from "@src/mappers/groupspec-mapper/groupspec-mapper";
@@ -12,8 +13,8 @@ export class BidScreeningController {
     this.#bidScreeningService = bidScreeningService;
   }
 
-  async screenProviders(request: BidScreeningRequest): Promise<BidScreeningResponse> {
-    const results = await this.#bidScreeningService.findMatchingProviders(request as GroupSpecJSON);
+  async screenProviders(request: BidScreeningRequest, options?: Abortable): Promise<BidScreeningResponse> {
+    const results = await this.#bidScreeningService.findMatchingProviders(request as GroupSpecJSON, options);
     return { providers: results };
   }
 }

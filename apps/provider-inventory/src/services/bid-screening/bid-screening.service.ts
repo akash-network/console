@@ -1,4 +1,5 @@
 import { withSpan } from "@akashnetwork/instrumentation";
+import type { Abortable } from "node:events";
 import { singleton } from "tsyringe";
 
 import { bidScreeningBinPackerMatched, bidScreeningPrefilterCandidates } from "@src/metrics/metrics";
@@ -23,10 +24,11 @@ export class BidScreeningService {
     this.#matcher = matcher;
   }
 
-  async findMatchingProviders(request: GroupSpecJSON): Promise<BidScreeningResult[]> {
+  async findMatchingProviders(request: GroupSpecJSON, options?: Abortable): Promise<BidScreeningResult[]> {
     const resourceUnits = await withSpan("mapRequestToResourceUnits", async () => mapGroupSpecToResourceUnits(request));
 
     const candidates = await withSpan("fetchCandidatesFromDB", async ({ activeSpan }) => {
+      if (options?.signal?.aborted) return [];
       const items = await this.#repository.findCandidates(resourceUnits, request.requirements);
       activeSpan.setAttribute("amountOfCandidatesFromDb", items.length);
       bidScreeningPrefilterCandidates.record(items.length);
@@ -34,6 +36,7 @@ export class BidScreeningService {
     });
 
     const matched = await withSpan("applyingBinPackingAlg", async ({ activeSpan }) => {
+      if (options?.signal?.aborted) return [];
       const items = this.#filterProviders(candidates, resourceUnits);
       activeSpan.setAttribute("amountOfCandidatesAfterBinPacking", items.length);
       bidScreeningBinPackerMatched.record(items.length);
@@ -41,7 +44,7 @@ export class BidScreeningService {
     });
 
     const incidentsByOwner = await withSpan("fetchIncidentsForMatched", async ({ activeSpan }) => {
-      if (!matched.length) return EMPTY_OBJECT;
+      if (!matched.length || options?.signal?.aborted) return EMPTY_OBJECT;
       const rows = await this.#incidentRepository.findRecentByProviders(matched.map(candidate => candidate.owner));
       activeSpan.setAttribute("amountOfIncidents", rows.length);
 
