@@ -2,6 +2,7 @@ import type { LoggerService } from "@akashnetwork/logging";
 import { inject, singleton } from "tsyringe";
 
 import { chunkify } from "@src/lib/generators/chunkify";
+import { providersGauge } from "@src/metrics/metrics";
 import type { EnvConfig } from "@src/providers/app-config.provider";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
@@ -84,15 +85,16 @@ export class DiscoverySchedulerService {
 
   async discoverProviders(signal?: AbortSignal): Promise<void> {
     try {
-      this.#logger.info({ event: "DISCOVERY_TICK_START" });
       const watchedProviders = this.#lifecycle.getRegistry();
       const providersToStop = new Set(watchedProviders.keys());
 
-      this.#logger.info({ event: "DISCOVERY_CURRENT_REGISTRY", providerCount: watchedProviders.size });
+      this.#logger.info({ event: "DISCOVERY_TICK_START", watchedProviders: watchedProviders.size });
 
       const startedAt = Date.now();
       let startedProvidersCount = 0;
       let restartedProvidersCount = 0;
+      let totalProviders = 0;
+      let deadProvidersCount = 0;
       for await (const providers of this.#poller.poll({ signal, batchSize: 500 })) {
         if (signal?.aborted) break;
 
@@ -103,11 +105,13 @@ export class DiscoverySchedulerService {
           this.#repository.getInventoryLastUpdatedPerOfflineProvider(providers.map(p => p.owner))
         ]);
         for (const provider of providers) {
+          totalProviders++;
           const observedProvider = watchedProviders.get(provider.owner);
           const lastUpdated = lastUpdatedPerProvider.get(provider.owner);
 
           if (lastUpdated && Date.now() - lastUpdated.getTime() >= this.#config.DEAD_PROVIDER_UPDATED_THRESHOLD_MS) {
             this.#logger.debug({ event: "DISCOVERY_SKIP_PROVIDER", owner: provider.owner, reason: "provider inventory has not been updated for a long time" });
+            deadProvidersCount++;
             continue;
           }
 
@@ -138,6 +142,13 @@ export class DiscoverySchedulerService {
       });
 
       await this.#lifecycle.waitForPendingConnections();
+
+      if (!signal?.aborted) {
+        const monitoredProvidersCount = this.#lifecycle.getRegistry().size;
+        providersGauge.record(totalProviders, { state: "total" });
+        providersGauge.record(monitoredProvidersCount, { state: "monitored" });
+        providersGauge.record(deadProvidersCount, { state: "dead" });
+      }
 
       this.#logger.info({
         event: "DISCOVERY_PROVIDERS_INVENTORY_CONNECTED",
