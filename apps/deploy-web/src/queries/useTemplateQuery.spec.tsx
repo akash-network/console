@@ -1,4 +1,4 @@
-import type { TemplateHttpService } from "@akashnetwork/http-sdk";
+import type { TemplateHttpService, TemplateOutput } from "@akashnetwork/http-sdk";
 import type { UserProfile } from "@auth0/nextjs-auth0/client";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
 import type { AxiosInstance } from "axios";
@@ -12,6 +12,7 @@ import { setupQuery } from "../../tests/unit/query-client";
 import {
   useAddFavoriteTemplate,
   useDeleteTemplate,
+  usePublicTemplate,
   useRemoveFavoriteTemplate,
   useSaveUserTemplate,
   useTemplate,
@@ -352,6 +353,44 @@ describe("useTemplateQuery", () => {
       return setupQuery(() => useRemoveFavoriteTemplate(input?.templateId || "template-1"), {
         services: input?.services,
         wrapper: ({ children }) => <CustomSnackbarProvider>{children}</CustomSnackbarProvider>
+      });
+    }
+  });
+
+  describe(usePublicTemplate.name, () => {
+    it("fetches a public template by id", async () => {
+      const template = mock<TemplateOutput>({ id: "tpl-1", deploy: "version: '2.0'" });
+      const templateService = mock<TemplateHttpService>({ findById: vi.fn().mockResolvedValue(template) });
+
+      const { result } = setup({ id: "tpl-1", services: { template: () => templateService } });
+
+      await vi.waitFor(() => {
+        expect(templateService.findById).toHaveBeenCalledWith("tpl-1");
+        expect(result.current.isSuccess).toBe(true);
+        expect(result.current.data).toEqual(template);
+      });
+    });
+
+    it("does not fetch when id is undefined", () => {
+      const templateService = mock<TemplateHttpService>({ findById: vi.fn() });
+
+      const { result } = setup({ id: undefined, services: { template: () => templateService } });
+
+      expect(templateService.findById).not.toHaveBeenCalled();
+      expect(result.current.fetchStatus).toBe("idle");
+    });
+
+    it("handles error when fetching a public template", async () => {
+      const templateService = mock<TemplateHttpService>({ findById: vi.fn().mockRejectedValue(new Error("Template not found")) });
+
+      const { result } = setup({ id: "tpl-1", services: { template: () => templateService } });
+
+      await vi.waitFor(() => expect(result.current.isError).toBe(true));
+    });
+
+    function setup(input: { id: string | undefined; services?: ServicesProviderProps["services"] }) {
+      return setupQuery(() => usePublicTemplate(input.id), {
+        services: input.services
       });
     }
   });
