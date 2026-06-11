@@ -14299,9 +14299,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "awaitResolved": {
                         "type": "boolean",
                       },
-                      "currency": {
-                        "type": "string",
-                      },
                       "paymentMethodId": {
                         "type": "string",
                       },
@@ -14313,7 +14310,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "userId",
                       "paymentMethodId",
                       "amount",
-                      "currency",
                     ],
                     "type": "object",
                   },

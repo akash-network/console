@@ -252,8 +252,7 @@ describe(PaymentPopup.name, () => {
       expect(mockConfirmPayment).toHaveBeenCalledWith({
         userId: "user_123",
         paymentMethodId: "pm_test123",
-        amount: 50,
-        currency: "usd"
+        amount: 50
       });
     });
 

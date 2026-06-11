@@ -56,8 +56,7 @@ stripeTransactionsRouter.openapi(confirmPaymentRoute, async function confirmPaym
   const result = await container.resolve(StripeController).confirmPayment({
     userId: data.userId,
     paymentMethodId: data.paymentMethodId,
-    amount: data.amount,
-    currency: data.currency
+    amount: data.amount
   });
 
   // Check if 3D Secure is required

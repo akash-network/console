@@ -67,7 +67,6 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
         customer: expect.any(String),
         payment_method: expect.any(String),
         amount: expectedReloadAmount,
-        currency: "usd",
         confirm: true,
         idempotencyKey: `${WalletBalanceReloadCheck.name}.${jobMeta.id}`
       });
@@ -106,7 +105,6 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
         customer: expect.any(String),
         payment_method: expect.any(String),
         amount: expectedReloadAmount,
-        currency: "usd",
         confirm: true,
         idempotencyKey: `${WalletBalanceReloadCheck.name}.${jobMeta.id}`
       });

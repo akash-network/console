@@ -98,7 +98,6 @@ export class StripeController {
         customer: currentUser.stripeCustomerId,
         payment_method: params.paymentMethodId,
         amount: params.amount,
-        currency: params.currency,
         confirm: true
       });
 

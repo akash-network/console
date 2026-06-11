@@ -76,7 +76,6 @@ export interface ConfirmPaymentParams {
   userId: string;
   paymentMethodId: string;
   amount: number;
-  currency: string;
 }
 
 export interface ApplyCouponParams {

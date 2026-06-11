@@ -137,8 +137,7 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
         const chargeResult = await confirmPayment({
           userId: user.id,
           paymentMethodId: pending.paymentMethodId,
-          amount: pending.amount,
-          currency: "usd"
+          amount: pending.amount
         });
 
         if (chargeResult.requiresAction && chargeResult.clientSecret && chargeResult.paymentIntentId) {

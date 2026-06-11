@@ -61,11 +61,10 @@ describe(StripeService.name, () => {
       customer: TEST_CONSTANTS.CUSTOMER_ID,
       payment_method: TEST_CONSTANTS.PAYMENT_METHOD_ID,
       amount: 100,
-      currency: "usd",
       confirm: true
     };
 
-    it("creates payment intent successfully", async () => {
+    it("creates the transaction and payment intent in USD regardless of caller input", async () => {
       const { service, stripeTransactionRepository } = setup();
       const result = await service.createPaymentIntent(mockPaymentParams);
       expect(stripeTransactionRepository.create).toHaveBeenCalledWith({
@@ -73,13 +72,13 @@ describe(StripeService.name, () => {
         type: "payment_intent",
         status: "created",
         amount: 10000,
-        currency: mockPaymentParams.currency
+        currency: "usd"
       });
       expect(service.paymentIntents.create).toHaveBeenCalledWith({
         customer: mockPaymentParams.customer,
         payment_method: mockPaymentParams.payment_method,
         amount: 10000,
-        currency: mockPaymentParams.currency,
+        currency: "usd",
         confirm: mockPaymentParams.confirm,
         payment_method_types: ["card", "link"],
         metadata: {

@@ -66,7 +66,7 @@ describe(AddCreditsForm.name, () => {
     });
 
     expect(addPaymentMethod).toHaveBeenCalledTimes(1);
-    expect(confirmPayment).toHaveBeenCalledWith({ userId: "user_1", paymentMethodId: "pm_1", amount: 100, currency: "usd" });
+    expect(confirmPayment).toHaveBeenCalledWith({ userId: "user_1", paymentMethodId: "pm_1", amount: 100 });
     expect(pollForPayment).toHaveBeenCalledTimes(1);
     expect(onDone).not.toHaveBeenCalled();
   });
@@ -156,7 +156,7 @@ describe(AddCreditsForm.name, () => {
       rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, isWalletReady: true });
     });
 
-    await waitFor(() => expect(confirmPayment).toHaveBeenCalledWith({ userId: "user_1", paymentMethodId: "pm_1", amount: 100, currency: "usd" }));
+    await waitFor(() => expect(confirmPayment).toHaveBeenCalledWith({ userId: "user_1", paymentMethodId: "pm_1", amount: 100 }));
   });
 
   it("does not call the API when addPaymentMethod resolves null", async () => {
