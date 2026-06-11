@@ -35,6 +35,7 @@ export const deploymentGroup = pgTable(
       table.dseq.asc().nullsLast().op("text_ops"),
       table.gseq.asc().nullsLast().op("int4_ops")
     ),
+    index("deployment_group_deployment_id").using("btree", table.deploymentId.asc().nullsLast().op("uuid_ops")),
     foreignKey({
       columns: [table.deploymentId],
       foreignColumns: [deployment.id],

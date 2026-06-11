@@ -104,48 +104,58 @@ export class DeploymentRepository {
     return deployments ? (deployments as unknown as StaleDeploymentsOutput[]) : [];
   }
 
-  async *findAllWithGpuResources(options: { minHeight: number }) {
-    // First, get all deployment IDs matching the criteria (lightweight query)
-    const recordsWithIds = await Deployment.findAll({
-      attributes: ["id"],
-      where: { createdHeight: { [Op.gte]: options.minHeight } },
-      include: [
-        {
-          attributes: [],
-          model: DeploymentGroup,
-          required: true,
-          include: [
-            {
-              attributes: [],
-              model: DeploymentGroupResource,
-              required: true,
-              where: { gpuUnits: 1 }
-            }
-          ]
-        }
-      ],
-      raw: true
-    });
+  async *findAllWithGpuResources(options: { minHeight: number; chunkSize?: number }) {
+    const BID_TYPES = ["/akash.market.v1beta4.MsgCreateBid", "/akash.market.v1beta5.MsgCreateBid"];
+    const chunkSize = options.chunkSize ?? 1000;
+    // A non-positive chunkSize would make `batch.length < chunkSize` never break on an empty
+    // result and then dereference batch[-1] for the cursor. chunkSize is internal/test-only, so
+    // treat a bad value as a programmer error.
+    if (!Number.isInteger(chunkSize) || chunkSize <= 0) {
+      throw new Error("findAllWithGpuResources: chunkSize must be a positive integer");
+    }
+    // Keyset cursor over (createdHeight, id) — the leading columns of the existing
+    // `deployment_created_height_closed_height` index, so each chunk is an index scan
+    // (no full `deployment` seq scan) and we never prefetch the whole ID list.
+    let cursor: { createdHeight: number; id: string } | undefined;
 
-    const ids = recordsWithIds.map(r => r.id);
-    const BATCH_SIZE = 200;
-
-    // Iterate over IDs in batches and yield each deployment
-    for (let i = 0; i < ids.length; i += BATCH_SIZE) {
-      const batchIds = ids.slice(i, i + BATCH_SIZE);
-
+    while (true) {
       const batch = await Deployment.findAll({
-        attributes: ["id", "owner"],
-        where: { id: { [Op.in]: batchIds } },
+        attributes: ["id", "owner", "createdHeight"],
+        where: {
+          [Op.and]: [
+            { createdHeight: { [Op.gte]: options.minHeight } },
+            ...(cursor
+              ? [
+                  {
+                    [Op.or]: [{ createdHeight: { [Op.gt]: cursor.createdHeight } }, { createdHeight: cursor.createdHeight, id: { [Op.gt]: cursor.id } }]
+                  }
+                ]
+              : []),
+            // Express the single-GPU membership as a non-fanning EXISTS instead of an
+            // INNER JOIN: a deployment with >1 matching resource must still be yielded once.
+            // Correlates on the main query's "deployment" alias (lowercase, matching the SQL
+            // Sequelize emits for this model).
+            literal(`EXISTS (
+              SELECT 1
+              FROM "deploymentGroup" dg
+              JOIN "deploymentGroupResource" dgr ON dgr."deploymentGroupId" = dg."id"
+              WHERE dg."deploymentId" = "deployment"."id" AND dgr."gpuUnits" = 1
+            )`)
+          ]
+        },
         include: [
           {
-            attributes: ["height", "data", "type"],
             model: AkashMessage,
             as: "relatedMessages",
+            // Load bids in a dedicated query keyed on the indexed relatedDeploymentId instead of
+            // joining inline. This keeps the main query a pure indexed deployment scan, so LIMIT
+            // counts deployments and the keyset cursor stays exact. Joining inline would make
+            // LIMIT count joined message rows and a non-bid deployment in the window could shorten
+            // a chunk and end paging early.
+            separate: true,
+            attributes: ["height", "data", "type"],
             where: {
-              type: {
-                [Op.or]: ["/akash.market.v1beta4.MsgCreateBid", "/akash.market.v1beta5.MsgCreateBid"]
-              },
+              type: { [Op.in]: BID_TYPES },
               height: { [Op.gte]: options.minHeight }
             },
             include: [
@@ -153,12 +163,21 @@ export class DeploymentRepository {
               { model: Transaction, attributes: ["hash"], required: true }
             ]
           }
-        ]
+        ],
+        order: [
+          ["createdHeight", "ASC"],
+          ["id", "ASC"]
+        ] as [string, "ASC" | "DESC"][],
+        limit: chunkSize
       });
 
       for (const deployment of batch) {
         yield deployment;
       }
+
+      if (batch.length < chunkSize) break;
+      const last = batch[batch.length - 1];
+      cursor = { createdHeight: last.createdHeight, id: last.id };
     }
   }
 
