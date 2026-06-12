@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { VerificationCodeInputRef } from "@src/components/onboarding/steps/EmailVerificationStep/VerificationCodeInput";
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { AuthService } from "@src/services/auth/auth/auth.service";
 import { DEPENDENCIES, EmailCodeVerify, RESEND_COOLDOWN_SEC } from "./EmailCodeVerify";
 
@@ -48,13 +49,14 @@ describe(EmailCodeVerify.name, () => {
     });
   });
 
-  it("calls onEditEmail when 'Wrong email? Edit' is clicked", async () => {
+  it("calls onEditEmail and tracks wrong_email_clk when 'Wrong email? Edit' is clicked", async () => {
     const onEditEmail = vi.fn();
-    setup({ onEditEmail });
+    const { analyticsService } = setup({ onEditEmail });
 
     await userEvent.click(screen.getByRole("button", { name: /edit/i }));
 
     expect(onEditEmail).toHaveBeenCalledTimes(1);
+    expect(analyticsService.track).toHaveBeenCalledWith("wrong_email_clk");
   });
 
   it("disables resend during the initial cooldown and enables it when the timer hits zero", async () => {
@@ -74,7 +76,7 @@ describe(EmailCodeVerify.name, () => {
 
   it("resends the code and restarts the cooldown on successful resend", async () => {
     const getCaptchaToken = vi.fn().mockResolvedValue("captcha-2");
-    const { authService } = setup({ getCaptchaToken });
+    const { authService, analyticsService } = setup({ getCaptchaToken });
     authService.startEmailCode.mockResolvedValue(undefined);
 
     await act(async () => {
@@ -88,6 +90,7 @@ describe(EmailCodeVerify.name, () => {
     await vi.waitFor(() => {
       expect(authService.startEmailCode).toHaveBeenCalledWith({ email: "alice@example.com", captchaToken: "captcha-2" });
     });
+    expect(analyticsService.track).toHaveBeenCalledWith("resend_code_clk");
     expect(screen.getByRole("button", { name: /resend/i })).toHaveTextContent(`Resend in ${RESEND_COOLDOWN_SEC}s`);
   });
 
@@ -100,6 +103,7 @@ describe(EmailCodeVerify.name, () => {
     } = {}
   ) {
     const authService = mock<AuthService>();
+    const analyticsService = mock<AnalyticsService>();
     const onVerified = input.onVerified ?? vi.fn();
     const onEditEmail = input.onEditEmail ?? vi.fn();
     const getCaptchaToken = input.getCaptchaToken ?? vi.fn().mockResolvedValue("captcha-token");
@@ -114,7 +118,7 @@ describe(EmailCodeVerify.name, () => {
     );
 
     render(
-      <TestContainerProvider services={{ authService: () => authService }}>
+      <TestContainerProvider services={{ authService: () => authService, analyticsService: () => analyticsService }}>
         <EmailCodeVerify
           email="alice@example.com"
           getCaptchaToken={getCaptchaToken}
@@ -125,6 +129,6 @@ describe(EmailCodeVerify.name, () => {
       </TestContainerProvider>
     );
 
-    return { authService, onVerified, onEditEmail, captureOnComplete: () => capturedOnComplete };
+    return { authService, analyticsService, onVerified, onEditEmail, captureOnComplete: () => capturedOnComplete };
   }
 });

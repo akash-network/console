@@ -1,11 +1,13 @@
-import type { RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { TurnstileRef } from "@src/components/turnstile/Turnstile";
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import { DEPENDENCIES, PasswordlessAuth } from "./PasswordlessAuth";
 
 import { act, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { ComponentMock, MockComponents } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
@@ -94,6 +96,22 @@ describe(PasswordlessAuth.name, () => {
     expect(screen.queryByText(/\$5 credit to deploy your first container/i)).not.toBeInTheDocument();
   });
 
+  it("tracks terms_link_clk when the Terms link is clicked", async () => {
+    const { analyticsService } = setup({ dependencies: { Link: AnchorLink as never } });
+
+    await userEvent.click(screen.getByRole("link", { name: "Terms" }));
+
+    expect(analyticsService.track).toHaveBeenCalledWith("terms_link_clk");
+  });
+
+  it("tracks privacy_policy_link_clk when the Privacy Policy link is clicked", async () => {
+    const { analyticsService } = setup({ dependencies: { Link: AnchorLink as never } });
+
+    await userEvent.click(screen.getByRole("link", { name: "Privacy Policy" }));
+
+    expect(analyticsService.track).toHaveBeenCalledWith("privacy_policy_link_clk");
+  });
+
   function setup(
     input: {
       initialEmail?: string;
@@ -102,6 +120,7 @@ describe(PasswordlessAuth.name, () => {
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
+    const analyticsService = mock<AnalyticsService>();
     const onFlowChange = vi.fn();
     const onFlowReset = vi.fn();
     const checkSession = vi.fn(async () => undefined);
@@ -132,7 +151,7 @@ describe(PasswordlessAuth.name, () => {
     });
 
     render(
-      <TestContainerProvider services={{}}>
+      <TestContainerProvider services={{ analyticsService: () => analyticsService }}>
         <PasswordlessAuth
           initialEmail={input.initialEmail ?? ""}
           initialScreen={input.initialScreen ?? "entry"}
@@ -150,6 +169,15 @@ describe(PasswordlessAuth.name, () => {
       </TestContainerProvider>
     );
 
-    return { onFlowChange, onFlowReset, checkSession, navigateBack };
+    return { analyticsService, onFlowChange, onFlowReset, checkSession, navigateBack };
   }
 });
+
+/** Renders Link dependency as a real anchor so click handlers are exercised in tests. */
+function AnchorLink({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
+  return (
+    <a href="#" onClick={onClick}>
+      {children}
+    </a>
+  );
+}

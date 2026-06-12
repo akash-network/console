@@ -32,7 +32,7 @@ interface Props extends PassedFlowProps {
 }
 
 export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: Props) {
-  const { publicConfig } = useServices();
+  const { publicConfig, analyticsService } = useServices();
   const { navigateBack } = d.useReturnTo({ defaultReturnTo: "/" });
   const { checkSession } = d.useUser();
   const isOnboardingRedesignEnabled = d.useFlag("console_onboarding_redesign");
@@ -109,6 +109,7 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
               prefetch={false}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => analyticsService.track("terms_link_clk")}
               className="font-medium text-neutral-950 underline dark:text-neutral-50"
             >
               Terms
@@ -119,6 +120,7 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
               prefetch={false}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => analyticsService.track("privacy_policy_link_clk")}
               className="font-medium text-neutral-950 underline dark:text-neutral-50"
             >
               Privacy Policy

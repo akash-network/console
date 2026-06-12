@@ -35,10 +35,11 @@ interface Props {
 }
 
 export function EmailCodeStart({ dependencies: d = DEPENDENCIES, ...props }: Props) {
-  const { authService } = useServices();
+  const { authService, analyticsService } = useServices();
 
   const startMutation = d.useMutation({
     async mutationFn(input: { email: string }) {
+      analyticsService.track("email_login_init");
       const captchaToken = await props.getCaptchaToken();
       await authService.startEmailCode({ email: input.email, captchaToken });
     },

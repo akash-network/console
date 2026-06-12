@@ -28,7 +28,7 @@ interface Props {
 }
 
 export function EmailCodeVerify({ dependencies: d = DEPENDENCIES, ...props }: Props) {
-  const { authService } = useServices();
+  const { authService, analyticsService } = useServices();
   const verifyInputRef = useRef<VerificationCodeInputRef>(null);
   const [resendCooldownSec, setResendCooldownSec] = useState(RESEND_COOLDOWN_SEC);
 
@@ -79,13 +79,23 @@ export function EmailCodeVerify({ dependencies: d = DEPENDENCIES, ...props }: Pr
   const resendLabel = resendCooldownSec > 0 ? `Resend in ${resendCooldownSec}s` : "Resend code";
   const activeError = isAnyMutationPending ? null : verifyMutation.error ?? resendMutation.error;
 
+  function editEmail() {
+    analyticsService.track("wrong_email_clk");
+    props.onEditEmail();
+  }
+
+  function resendCode() {
+    analyticsService.track("resend_code_clk");
+    resendMutation.mutate();
+  }
+
   return (
     <>
       <d.RemoteApiError className="w-full" error={activeError} />
       <div className="flex flex-col items-center gap-5 self-stretch">
         <p className="text-sm text-neutral-500">
           Enter the 6-digit code sent to <span className="font-medium text-neutral-900 dark:text-neutral-100">{props.email}</span>.{" "}
-          <d.Button variant="link" className="h-auto p-0 align-baseline text-sm" onClick={props.onEditEmail} type="button">
+          <d.Button variant="link" className="h-auto p-0 align-baseline text-sm" onClick={editEmail} type="button">
             Wrong email? Edit
           </d.Button>
         </p>
@@ -95,7 +105,7 @@ export function EmailCodeVerify({ dependencies: d = DEPENDENCIES, ...props }: Pr
           disabled={verifyMutation.isPending || resendMutation.isPending}
         />
         <p className="text-xs text-neutral-500">Code expires in 10 minutes.</p>
-        <d.Button variant="link" className="h-auto p-0 text-sm" disabled={isResendDisabled} onClick={() => resendMutation.mutate()} type="button">
+        <d.Button variant="link" className="h-auto p-0 text-sm" disabled={isResendDisabled} onClick={resendCode} type="button">
           {resendLabel}
         </d.Button>
       </div>
