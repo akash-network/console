@@ -1,5 +1,5 @@
 import type { InferSelectModel } from "drizzle-orm";
-import { and, eq, gt, inArray, lt, sql as rawSql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, lt, or, sql as rawSql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { paginate } from "@src/lib/generators/paginate/paginate";
@@ -70,7 +70,17 @@ export class ProviderInventoryRepository {
       .getDb()
       .update(providerInventory)
       .set({ isOnline: true, isOnlineSince: new Date(), updatedAt: rawSql`now()` })
-      .where(and(eq(providerInventory.owner, owner), eq(providerInventory.isOnline, false)));
+      .where(
+        and(
+          // keep new line
+          eq(providerInventory.owner, owner),
+          or(
+            // keep new line
+            eq(providerInventory.isOnline, false),
+            isNull(providerInventory.isOnlineSince)
+          )
+        )
+      );
   }
 
   async updateInventory(provider: ChainProvider, cluster: ClusterState): Promise<void> {
