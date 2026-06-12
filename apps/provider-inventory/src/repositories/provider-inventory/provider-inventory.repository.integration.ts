@@ -278,6 +278,18 @@ describe(ProviderInventoryRepository.name, () => {
       expect(row.isOnlineSince?.toISOString()).toBe(onlineSince.toISOString());
       expect(row.updatedAt.toISOString()).toBe(updatedAt.toISOString());
     });
+
+    it("re-stamps isOnlineSince for a provider left online by the boot-time resetOnlineSince ritual", async () => {
+      const { repository, db } = setup();
+      await seed(db, { owner: "akash1a", isOnline: true, isOnlineSince: new Date("2026-01-01T00:00:00Z") });
+
+      await repository.resetOnlineSince();
+      await repository.markAsOnline("akash1a");
+
+      const [row] = await db.select().from(providerInventory).where(eq(providerInventory.owner, "akash1a"));
+      expect(row.isOnline).toBe(true);
+      expect(row.isOnlineSince).toBeInstanceOf(Date);
+    });
   });
 
   describe("bulkMarkOffline", () => {
