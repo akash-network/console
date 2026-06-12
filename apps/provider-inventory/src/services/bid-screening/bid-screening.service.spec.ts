@@ -1,3 +1,4 @@
+import type { LoggerService } from "@akashnetwork/logging";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -219,8 +220,9 @@ describe(BidScreeningService.name, () => {
     const incidentRepository = mock<ProviderIncidentRepository>();
     incidentRepository.findRecentByProviders.mockResolvedValue([]);
     const matcher = mock<ClusterInventoryMatcherService>();
-    const service = new BidScreeningService(repository, incidentRepository, matcher);
-    return { service, repository, incidentRepository, matcher };
+    const logger = mock<LoggerService>();
+    const service = new BidScreeningService(repository, incidentRepository, matcher, () => logger);
+    return { service, repository, incidentRepository, matcher, logger };
   }
 });
 
