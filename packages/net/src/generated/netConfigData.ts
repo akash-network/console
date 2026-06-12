@@ -1,6 +1,6 @@
 export const netConfigData = {
   mainnet: {
-    version: "v2.0.1",
+    version: "v2.1.0",
     faucetUrl: null,
     apiUrls: [
       "https://rpc.akt.dev/rest",
