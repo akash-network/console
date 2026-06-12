@@ -46,8 +46,12 @@ export const usePlacementManager = () => {
   );
 
   const addPlacement = useCallback(() => {
-    appendPlacement(defaultPlacement({ name: nextPlacementName(getValues("placements")) }));
-  }, [appendPlacement, getValues]);
+    const placement = defaultPlacement({ name: nextPlacementName(getValues("placements")) });
+    const service = defaultService(placement.id as string, { title: nextServiceTitle(getValues("services")) });
+    appendPlacement(placement);
+    appendService(service);
+    return service.id as string;
+  }, [appendPlacement, appendService, getValues]);
 
   const canRemovePlacement = placements.length > 1;
 

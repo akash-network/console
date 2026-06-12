@@ -6966,6 +6966,11 @@ export interface paths {
                  * @example 2026-01-01T00:00:00.000Z
                  */
                 createdAt: string;
+                /**
+                 * @description Provider region from the location-region attribute (signed preferred, else self-declared); null if unset
+                 * @example us-west
+                 */
+                location: string | null;
               }[];
             };
           };

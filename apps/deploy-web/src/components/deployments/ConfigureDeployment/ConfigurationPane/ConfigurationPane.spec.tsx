@@ -11,19 +11,19 @@ import { render, screen } from "@testing-library/react";
 describe("ConfigurationPane", () => {
   it("shows the selected service title", () => {
     const values = defaultServiceWithPlacement({ title: "api" });
-    setup({ values, selectedServiceId: values.services[0].id as string });
+    setup({ values, selectedServiceId: values.services[0].id });
 
     expect(screen.getByText("api")).toBeInTheDocument();
   });
 
-  it("shows no target when nothing is selected", () => {
+  it("shows no target when the selection matches no service", () => {
     const values = defaultServiceWithPlacement({ title: "api" });
-    setup({ values, selectedServiceId: null });
+    setup({ values, selectedServiceId: "missing" });
 
     expect(screen.queryByText("api")).not.toBeInTheDocument();
   });
 
-  function setup(input: { values: SdlBuilderFormValuesType; selectedServiceId: string | null }) {
+  function setup(input: { values: SdlBuilderFormValuesType; selectedServiceId: string }) {
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({ defaultValues: input.values });
       return <FormProvider {...form}>{children}</FormProvider>;

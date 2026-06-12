@@ -100,9 +100,19 @@ const TWO_SERVICE_SDL = [
 
 describe(ConfigureDeploymentForm.name, () => {
   it("seeds the panes with the carried-in template SDL", () => {
-    const { ConfigureDeploymentPanes } = setup({ initialSdl: 'version: "2.0"' });
+    const { ConfigureDeploymentPanes } = setup({ initialSdl: VALID_SDL });
 
-    expect(ConfigureDeploymentPanes).toHaveBeenCalledWith(expect.objectContaining({ sdl: 'version: "2.0"' }), expect.anything());
+    expect(ConfigureDeploymentPanes).toHaveBeenCalledWith(expect.objectContaining({ sdl: VALID_SDL }), expect.anything());
+  });
+
+  it("falls back to a default deployment when the carried-in SDL has no services", () => {
+    const { ConfigureDeploymentPanes, enqueueSnackbar } = setup({ initialSdl: 'version: "2.0"' });
+
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
+    expect(ConfigureDeploymentPanes).toHaveBeenCalledWith(
+      expect.objectContaining({ sdl: expect.stringContaining('version: "2.0"'), selectedServiceId: expect.any(String) }),
+      expect.anything()
+    );
   });
 
   it("generates the SDL of the default deployment when no SDL was provided", () => {
@@ -180,7 +190,7 @@ describe(ConfigureDeploymentForm.name, () => {
 
 interface ProbePanesProps {
   sdl: string;
-  selectedServiceId: string | null;
+  selectedServiceId: string;
 }
 
 /** Panes stand-in that mutates the shared form to drive the SDL preview subscription. */
@@ -210,7 +220,7 @@ function SelectionProbePanes({ selectedServiceId }: ProbePanesProps) {
   const firstServiceId = Array.isArray(services) ? (services as SdlBuilderFormValuesType["services"])[0]?.id : undefined;
   return (
     <div>
-      <div data-testid="selected">{selectedServiceId ?? ""}</div>
+      <div data-testid="selected">{selectedServiceId}</div>
       <div data-testid="first-service-id">{firstServiceId ?? ""}</div>
       <button type="button" onClick={() => setValue("services", [defaultService(getValues("placements")[0].id, { title: "service-2" })])}>
         replace services

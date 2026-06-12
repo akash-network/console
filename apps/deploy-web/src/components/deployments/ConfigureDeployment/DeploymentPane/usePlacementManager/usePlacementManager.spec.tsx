@@ -10,15 +10,20 @@ import { usePlacementManager } from "./usePlacementManager";
 import { act, renderHook } from "@testing-library/react";
 
 describe("usePlacementManager", () => {
-  it("appends a placement with a unique generated name", () => {
+  it("appends a placement with a unique generated name and a default service, returning the service id", () => {
     const { result } = setup({ values: defaultServiceWithPlacement() });
 
+    let addedServiceId = "";
     act(() => {
-      result.current.addPlacement();
+      addedServiceId = result.current.addPlacement();
     });
 
     expect(result.current.placements).toHaveLength(2);
     expect(result.current.placements[1].name).toBe("placement-1");
+
+    const newPlacementServices = result.current.getPlacementServices(result.current.placements[1].id);
+    expect(newPlacementServices).toHaveLength(1);
+    expect(newPlacementServices[0].service.id).toBe(addedServiceId);
   });
 
   it("adds a service bound to the given placement with the next generated title and returns its id", () => {

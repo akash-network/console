@@ -2,20 +2,20 @@ import { z } from "@hono/zod-openapi";
 
 const UIntStringSchema = z.string().regex(/^\d+$/, "Must be an unsigned integer string");
 
+/**
+ * Validates the resource value but does NOT transform it. This service only proxies the request to
+ * provider-inventory, which parses the value itself; transforming to BigInt here would break the
+ * `JSON.stringify` forward in the controller. Value is a non-negative integer string or its
+ * protobuf base64-encoded representation.
+ */
 const ResourceValueSchema = z.object({
   val: z
     .string()
     .max(80)
-    .transform(str => {
-      if (/^\d+$/.test(str)) return BigInt(str);
-      const parsed = Buffer.from(str, "base64").toString("utf-8");
-      if (/^\d+$/.test(parsed)) return BigInt(parsed);
-      return NaN;
-    })
-    .refine(
-      (val): val is bigint => !Number.isFinite(val) && typeof val === "bigint" && val >= 0n,
-      "Must be a non-negative integer or its protobuf base64-encoded representation"
-    )
+    .refine(str => {
+      const decoded = /^\d+$/.test(str) ? str : Buffer.from(str, "base64").toString("utf-8");
+      return /^\d+$/.test(decoded);
+    }, "Must be a non-negative integer or its protobuf base64-encoded representation")
 });
 
 // Mirrors AttributeNameRegexpStringWildcard in akash-network/chain-sdk

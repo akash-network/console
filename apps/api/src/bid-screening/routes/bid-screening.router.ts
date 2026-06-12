@@ -16,6 +16,7 @@ export const bidScreeningRouter = new OpenApiHonoHandler();
 
 const postBidScreeningRoute = createRoute({
   method: "post",
+  operationId: "screenProviders",
   path: "/v1/bid-screening",
   summary: "Screen providers by deployment resource requirements",
   tags: ["Bid Screening"],
