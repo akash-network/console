@@ -92,7 +92,7 @@ const RequirementsSchema = z.object({
 export const BidScreeningRequestSchema = z.object({
   name: z.string().openapi({ description: "Group name", example: "westcoast" }),
   requirements: RequirementsSchema.default({}),
-  resources: z.array(ResourceUnitSchema).min(1).openapi({ description: "Resource units with replica counts" })
+  resources: z.array(ResourceUnitSchema).openapi({ description: "Resource units with replica counts" })
 });
 export type BidScreeningRequest = z.infer<typeof BidScreeningRequestSchema>;
 
