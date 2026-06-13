@@ -99,9 +99,9 @@ describe(PaymentMethodCard.name, () => {
     });
 
     it("renders Remove button in selectable mode", () => {
-      const { dependencies } = setup({ isSelectable: true });
+      setup({ isSelectable: true });
 
-      expect((dependencies.Button as Mock).mock.calls.length).toBeGreaterThan(0);
+      expect(screen.getByText("Remove")).toBeInTheDocument();
     });
 
     it("does not show expiry for link methods", () => {
