@@ -3,10 +3,10 @@ import React, { useState } from "react";
 import { buttonVariants, Snackbar } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import type { EncodeObject } from "@cosmjs/proto-signing";
+import Link from "next/link";
 import { useSnackbar } from "notistack";
 
 import type { LoadingState } from "@src/components/layout/TransactionModal";
-import { AddFundsLink } from "@src/components/user/AddFundsLink";
 import { useNotificator } from "@src/hooks/useNotificator";
 import { useUser } from "@src/hooks/useUser";
 import { UrlService } from "@src/utils/urlUtils";
@@ -58,15 +58,24 @@ export function useSignAndBroadcast({ refetchBalances }: UseSignAndBroadcastInpu
   return { signAndBroadcastTx, loadingState };
 }
 
-const AddCreditsSnackbarContent: React.FC<{ message?: string; onAction?: () => void }> = ({ message, onAction }) => (
-  <>
-    {message && <div>{message}</div>}
-    <AddFundsLink
-      href={UrlService.billing({ openPayment: true })}
-      className={cn("mt-2 inline-flex h-7 items-center px-3 text-xs", buttonVariants({ variant: "default" }))}
-      onClick={onAction}
-    >
-      Add Funds
-    </AddFundsLink>
-  </>
-);
+// Rendered inside the notistack snackbar portal, which mounts outside PopupProvider. Use a plain
+// next/link Link (not AddFundsLink, which calls usePopup() via the email-verification hook and would
+// throw here); the billing page itself handles login/verification gating.
+export const AddCreditsSnackbarContent: React.FC<{ message?: string; onAction?: () => void }> = ({ message, onAction }) => {
+  const { analyticsService } = useServices();
+  return (
+    <>
+      {message && <div>{message}</div>}
+      <Link
+        href={UrlService.billing({ openPayment: true })}
+        className={cn("mt-2 inline-flex h-7 items-center px-3 text-xs", buttonVariants({ variant: "default" }))}
+        onClick={() => {
+          analyticsService.track("add_funds_btn_clk");
+          onAction?.();
+        }}
+      >
+        Add Funds
+      </Link>
+    </>
+  );
+};
