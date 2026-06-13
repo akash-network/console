@@ -23,7 +23,6 @@ export type PaymentMethodsRowProps = {
   onSetPaymentMethodAsDefault: (id: string) => void;
   onRemovePaymentMethod: (id: string) => void;
   hasOtherPaymentMethods: boolean;
-  isTrialing: boolean;
   isAutoReloadEnabled: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
@@ -33,7 +32,6 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
   onSetPaymentMethodAsDefault,
   onRemovePaymentMethod,
   hasOtherPaymentMethods,
-  isTrialing,
   isAutoReloadEnabled,
   dependencies: d = DEPENDENCIES
 }) => {
@@ -102,7 +100,7 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
 
   const canSetAsDefault = !paymentMethod.isDefault && hasOtherPaymentMethods;
   const isDefaultBlockedByAutoReload = paymentMethod.isDefault && isAutoReloadEnabled;
-  const canRemove = !isDefaultBlockedByAutoReload && !isTrialing;
+  const canRemove = !isDefaultBlockedByAutoReload;
   const showActions = canSetAsDefault || canRemove;
 
   return (

@@ -1,6 +1,5 @@
 import React, { useCallback, useState } from "react";
 
-import { useWallet } from "@src/context/WalletProvider";
 import { usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation, useWalletSettingsQuery } from "@src/queries";
 import type { PaymentMethodsViewProps } from "../PaymentMethodsView/PaymentMethodsView";
 
@@ -8,7 +7,6 @@ const DEPENDENCIES = {
   usePaymentMethodsQuery,
   usePaymentMutations,
   useSetupIntentMutation,
-  useWallet,
   useWalletSettingsQuery
 };
 
@@ -24,7 +22,6 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
     refetch: refetchPaymentMethods,
     isRefetching: isRefetchingPaymentMethods
   } = d.usePaymentMethodsQuery();
-  const { isTrialing } = d.useWallet();
   const { data: walletSettings, isLoading: isWalletSettingsLoading } = d.useWalletSettingsQuery();
   const isAutoReloadEnabled = walletSettings?.autoReloadEnabled ?? isWalletSettingsLoading;
   const paymentMutations = d.usePaymentMutations();
@@ -75,7 +72,6 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
         setupIntent,
         onAddCardSuccess,
         isInProgress,
-        isTrialing,
         isAutoReloadEnabled
       })}
     </>

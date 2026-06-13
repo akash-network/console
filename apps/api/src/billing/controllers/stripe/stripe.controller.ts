@@ -176,10 +176,7 @@ export class StripeController {
   async removePaymentMethod(paymentMethodId: string): Promise<void> {
     const { currentUser } = this.authService;
 
-    const userWallet = await this.userWalletRepository.findOneByUserId(currentUser.id);
-
     assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
-    assert(!(userWallet && userWallet.isTrialing), 403, "Cannot remove payment method during trial. Please contact support.");
 
     try {
       // Verify payment method ownership

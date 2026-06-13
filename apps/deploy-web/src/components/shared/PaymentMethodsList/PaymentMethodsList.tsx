@@ -14,7 +14,6 @@ interface PaymentMethodsListProps {
   onPaymentMethodSelect?: (id: string) => void;
   // Display mode props
   showValidationBadge?: boolean;
-  isTrialing?: boolean;
 }
 
 export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
@@ -24,8 +23,7 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
   isSelectable = false,
   selectedPaymentMethodId,
   onPaymentMethodSelect,
-  showValidationBadge = true,
-  isTrialing = false
+  showValidationBadge = true
 }) => {
   if (paymentMethods.length === 0) {
     return <p className="text-gray-500">No payment methods added yet.</p>;
@@ -47,7 +45,6 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
                   isSelectable={true}
                   isSelected={selectedPaymentMethodId === method.id}
                   onSelect={onPaymentMethodSelect}
-                  isTrialing={isTrialing}
                 />
               ))}
             </RadioGroup>
