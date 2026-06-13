@@ -317,20 +317,6 @@ export const deploymentGroupResource = pgTable(
   ]
 );
 
-export const monitoredValue = pgTable(
-  "monitoredValue",
-  {
-    id: uuid().primaryKey().notNull(),
-    tracker: varchar({ length: 255 }).notNull(),
-    target: varchar({ length: 255 }).notNull(),
-    value: varchar({ length: 255 }),
-    lastUpdateDate: timestamp({ withTimezone: true, mode: "string" })
-  },
-  table => [
-    uniqueIndex("monitored_value_tracker_target").using("btree", table.tracker.asc().nullsLast().op("text_ops"), table.target.asc().nullsLast().op("text_ops"))
-  ]
-);
-
 export const providerAttribute = pgTable(
   "providerAttribute",
   {

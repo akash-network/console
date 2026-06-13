@@ -64,6 +64,13 @@
       "when": 1762900000000,
       "tag": "0008_add_deployment_group_deployment_id_index",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1763000000000,
+      "tag": "0009_drop_monitored_value",
+      "breakpoints": true
     }
   ]
 }
