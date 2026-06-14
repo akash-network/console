@@ -5,31 +5,26 @@ import { cn } from "@akashnetwork/ui/utils";
 import { differenceInSeconds } from "date-fns";
 import { InfoCircle } from "iconoir-react";
 
-import { useBlock } from "@src/queries/useBlocksQuery";
-
 type Props = {
-  height: string | null;
+  // The deployment dseq, which is a millisecond timestamp of the deployment creation time.
+  dseq: string | null;
 };
 
 // 5 minutes
 const time = 5 * 60;
 
-export const BidCountdownTimer: React.FunctionComponent<Props> = ({ height }) => {
+export const BidCountdownTimer: React.FunctionComponent<Props> = ({ dseq }) => {
   const [timeLeft, setTimeLeft] = useState(time); // Set the initial time in seconds
   const [isTimerInit, setIsTimerInit] = useState(false);
-  const { data: block, refetch: getBlock } = useBlock(height || "");
 
   useEffect(() => {
-    getBlock();
-  }, []);
-  useEffect(() => {
-    const date = block ? new Date(block.block.header.time) : new Date(0);
+    const date = dseq ? new Date(Number(dseq)) : new Date(0);
     const now = new Date();
     // add 20 seconds for the delay between deployment creation and bid creation
     const diff = Math.max(0, time - differenceInSeconds(now, date) + 20);
     setTimeLeft(diff);
-    setIsTimerInit(!!block);
-  }, [block]);
+    setIsTimerInit(!!dseq);
+  }, [dseq]);
 
   useEffect(() => {
     // Exit early when we reach 0
@@ -42,7 +37,7 @@ export const BidCountdownTimer: React.FunctionComponent<Props> = ({ height }) =>
 
     // Clear interval on unmount
     return () => clearInterval(intervalId);
-  }, [timeLeft, block]);
+  }, [timeLeft]);
 
   // Calculate the minutes and seconds
   const minutes = Math.floor(timeLeft / 60);

@@ -510,7 +510,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
 
             {!isSendingManifest && (
               <div className="mt-2 flex items-center self-start sm:self-center md:ml-4 md:mt-0">
-                <d.BidCountdownTimer height={bids && bids?.length > 0 ? bids[0].dseq : null} />
+                <d.BidCountdownTimer dseq={bids && bids?.length > 0 ? bids[0].dseq : null} />
               </div>
             )}
 
