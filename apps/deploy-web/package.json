@@ -116,7 +116,6 @@
     "@akashnetwork/docker": "*",
     "@akashnetwork/net": "*",
     "@akashnetwork/releaser": "*",
-    "@cosmjs/amino": "~0.38.0",
     "@faker-js/faker": "^9.4.0",
     "@next/bundle-analyzer": "^15.5.18",
     "@octokit/openapi-types": "^22.2.0",
