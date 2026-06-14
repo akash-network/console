@@ -8,6 +8,7 @@ html {
 body {
   height: calc(100% - 57px) !important;
   padding: 0 !important;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
 header {
