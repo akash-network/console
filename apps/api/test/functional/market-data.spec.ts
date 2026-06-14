@@ -8,12 +8,7 @@ describe("Market Data", () => {
   beforeAll(async () => {
     const restApiNodeUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
 
-    nock(restApiNodeUrl)
-      .persist()
-      .get("/cosmos/base/tendermint/v1beta1/blocks/latest")
-      .reply(200, { block: { header: { height: "1000000" } } });
-
-    // DenomExchangeService queries oracle V2 first and only falls back to V1 when V2 is unimplemented.
+    // DenomExchangeService queries Oracle V2.
     nock(restApiNodeUrl)
       .persist()
       .get("/akash/oracle/v2/aggregated_price/akt")
