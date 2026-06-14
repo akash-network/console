@@ -52,7 +52,8 @@ export class DenomExchangeService {
     { cacheItemLimit: 10, ttl: minutesToMilliseconds(10) }
   );
 
-  // Queries Oracle V2 only. Any failure propagates to the caller's CoinGecko/DB fallback.
+  // Queries Oracle V2 only. A failed aggregated-price query propagates to the caller's
+  // CoinGecko/DB fallback; a failed 24h-history query is swallowed (see below).
   async #fetchOracleRate(mappedDenom: string) {
     const endTime = new Date();
     // 23h, not 24h: V2 prunes to ~24h, so the exact-24h price may already be gone.
