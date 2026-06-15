@@ -1,5 +1,6 @@
 import type { TypedResponse } from "hono";
 import { HTTPException } from "hono/http-exception";
+import type { StatusCode } from "hono/utils/http-status";
 import { container } from "tsyringe";
 
 import { BID_SCREENING_CONFIG } from "@src/bid-screening/providers/config.provider";
@@ -61,7 +62,8 @@ bidScreeningRouter.openapi(postBidScreeningRoute, async function routePostBidScr
       signal: c.req.raw.signal
     });
   } catch (error) {
-    throw new HTTPException(503, { cause: error, message: "Failed to screen providers." });
+    const statusCode = (error instanceof Error && error.name === "AbortError" ? 499 : 503) as StatusCode;
+    throw new HTTPException(statusCode, { cause: error, message: "Failed to screen providers." });
   }
 
   return new Response(upstream.body, {
