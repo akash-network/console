@@ -1,5 +1,7 @@
 ## Commit and PR Conventions
 
+**IMPORTANT!!!** whenever you change `apps/*/src` or `packages/*/src` it cannot be a "chore" commit! It's either "fix" or "refactor": decide based on whether the change fixes a bug in code or it's just a cleanup or internal refactoring. If you are in doubt, use "refactor".
+
 ## Commit Messages
 - Must comply with `.commitlintrc.json` (extends `@commitlint/config-conventional`)
 - Scope is required and must be from the allowed list in `.commitlintrc.json`
