@@ -18,19 +18,12 @@ const mockUseTheme = vi.fn(() => ({
   systemTheme: "light" as "light" | "dark" | undefined
 }));
 
-const MockPaymentMethodsRow = ({
-  paymentMethod,
-  onSetPaymentMethodAsDefault,
-  onRemovePaymentMethod,
-  hasOtherPaymentMethods,
-  isTrialing,
-  isAutoReloadEnabled
-}: PaymentMethodsRowProps) => (
-  <tr data-testid={`payment-method-row-${paymentMethod.id}`} data-is-trialing={isTrialing} data-auto-reload={isAutoReloadEnabled}>
+const MockPaymentMethodsRow = ({ paymentMethod, onSetPaymentMethodAsDefault, onRemovePaymentMethod, isAutoReloadEnabled }: PaymentMethodsRowProps) => (
+  <tr data-testid={`payment-method-row-${paymentMethod.id}`} data-auto-reload={isAutoReloadEnabled}>
     <td>
       <span>{paymentMethod.card?.last4}</span>
       <button onClick={() => onSetPaymentMethodAsDefault(paymentMethod.id)}>Set as Default</button>
-      {(hasOtherPaymentMethods || !isTrialing) && <button onClick={() => onRemovePaymentMethod(paymentMethod.id)}>Remove</button>}
+      <button onClick={() => onRemovePaymentMethod(paymentMethod.id)}>Remove</button>
     </td>
   </tr>
 );
@@ -152,17 +145,9 @@ describe(PaymentMethodsView.name, () => {
       expect(row2.textContent).toContain("Remove");
     });
 
-    it("hides Remove for only payment method when trialing", () => {
+    it("shows Remove for only payment method", () => {
       const paymentMethods = [createMockPaymentMethods()[0]];
-      setup({ data: paymentMethods, isTrialing: true });
-
-      const row = screen.getByTestId("payment-method-row-pm_123");
-      expect(row.textContent).not.toContain("Remove");
-    });
-
-    it("shows Remove for only payment method when not trialing", () => {
-      const paymentMethods = [createMockPaymentMethods()[0]];
-      setup({ data: paymentMethods, isTrialing: false });
+      setup({ data: paymentMethods });
 
       const row = screen.getByTestId("payment-method-row-pm_123");
       expect(row.textContent).toContain("Remove");
@@ -420,7 +405,6 @@ function setup(
     setupIntent?: SetupIntentResponse;
     onAddCardSuccess?: Mock;
     isInProgress?: boolean;
-    isTrialing?: boolean;
     isAutoReloadEnabled?: boolean;
     dependencies?: typeof DEPENDENCIES;
   } = {}
@@ -436,7 +420,6 @@ function setup(
     setupIntent: undefined,
     onAddCardSuccess: vi.fn(),
     isInProgress: false,
-    isTrialing: false,
     isAutoReloadEnabled: false,
     dependencies: mockDependencies
   };

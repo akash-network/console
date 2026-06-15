@@ -48,7 +48,6 @@ interface PaymentMethodCardProps {
   isSelected?: boolean;
   onSelect?: (paymentMethodId: string) => void;
   showValidationBadge?: boolean;
-  isTrialing?: boolean;
   dependencies?: typeof DEPENDENCIES;
 }
 
@@ -60,7 +59,6 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
   isSelected = false,
   onSelect,
   showValidationBadge = true,
-  isTrialing = false,
   dependencies: d = DEPENDENCIES
 }) => {
   const handleCardClick = () => {
@@ -94,11 +92,9 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
             </div>
           </div>
         </div>
-        {!isTrialing && (
-          <d.Button variant="ghost" size="sm" onClick={handleRemoveClick} disabled={isRemoving}>
-            Remove
-          </d.Button>
-        )}
+        <d.Button variant="ghost" size="sm" onClick={handleRemoveClick} disabled={isRemoving}>
+          Remove
+        </d.Button>
       </div>
     );
   }

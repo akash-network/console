@@ -98,16 +98,10 @@ describe(PaymentMethodCard.name, () => {
       expect(onSelect).toHaveBeenCalledWith("pm_click");
     });
 
-    it("renders Remove button when not trialing", () => {
-      const { dependencies } = setup({ isSelectable: true, isTrialing: false });
+    it("renders Remove button in selectable mode", () => {
+      setup({ isSelectable: true });
 
-      expect((dependencies.Button as Mock).mock.calls.length).toBeGreaterThan(0);
-    });
-
-    it("does not render Remove button when trialing", () => {
-      const { dependencies } = setup({ isSelectable: true, isTrialing: true });
-
-      expect((dependencies.Button as Mock).mock.calls.length).toBe(0);
+      expect(screen.getByText("Remove")).toBeInTheDocument();
     });
 
     it("does not show expiry for link methods", () => {
@@ -140,7 +134,6 @@ describe(PaymentMethodCard.name, () => {
       isSelected?: boolean;
       onSelect?: Mock;
       showValidationBadge?: boolean;
-      isTrialing?: boolean;
     } = {}
   ) {
     const dependencies = MockComponents(DEPENDENCIES);

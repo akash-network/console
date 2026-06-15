@@ -34,7 +34,6 @@ export type PaymentMethodsViewProps = {
   setupIntent: SetupIntentResponse | undefined;
   onAddCardSuccess: () => void;
   isInProgress: boolean;
-  isTrialing: boolean;
   isAutoReloadEnabled: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
@@ -50,7 +49,6 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
   setupIntent,
   onAddCardSuccess,
   isInProgress,
-  isTrialing,
   isAutoReloadEnabled,
   dependencies: d = DEPENDENCIES
 }) => {
@@ -86,7 +84,6 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
                       onSetPaymentMethodAsDefault={onSetPaymentMethodAsDefault}
                       onRemovePaymentMethod={onRemovePaymentMethod}
                       hasOtherPaymentMethods={data.length > 1}
-                      isTrialing={isTrialing}
                       isAutoReloadEnabled={isAutoReloadEnabled}
                     />
                   ))}
