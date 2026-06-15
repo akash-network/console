@@ -45,8 +45,6 @@ Tasks can be configured to report their execution to healthcheck endpoints autom
 |[Sync Providers Info](./src/providers/providerStatusProvider.ts#L11)|15 minutes| Responsible for querying the `/status` endpoint of every akash provider to track their uptime and available resources.
 |[Provider IP Lookup](./src/providers/ipLocationProvider.ts#25)|30 minutes|Responsible for updating the akash providers location based on the node's ip address.
 |[Sync Keybase Info](./src/db/keybaseProvider.ts#L5)|6 hours|Responsible for fetching validator names and picture from [keybase.io](https://keybase.io/).|
-|[Address Balance Monitor](./src/monitors/addressBalanceMonitor.ts#L6)|10 minutes|Responsible for updating tracked address balances  (**Blockspy Specific**)
-|[Deployment Balance Monitor](./src/monitors/deploymentBalanceMonitor.ts#L7)|10 minutes|Responsible for updating tracked deployment balances.  This is **blockspy specific** and not used in the deploy tool.
 [Sync Blocks](./src/chain/chainSync.ts#L77)|7 seconds|Responsible for downloading new blocks and passing them through the correct indexers.
 
 ## Data Flow

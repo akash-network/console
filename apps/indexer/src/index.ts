@@ -20,7 +20,6 @@ import { env } from "./shared/utils/env";
 import { bytesToHumanReadableSize } from "./shared/utils/files";
 import { updateProviderUptime } from "./tasks/providerUptimeTracker";
 import { updateUsdSpending } from "./tasks/usdSpendingTracker";
-import { addressBalanceMonitor, deploymentBalanceMonitor } from "./monitors";
 import { Scheduler } from "./scheduler";
 
 const app = express();
@@ -92,7 +91,6 @@ function startScheduler() {
     id: env.HEALTHCHECKS_SYNC_AKT_PRICE_HISTORY,
     measureDuration: true
   });
-  scheduler.registerTask("Address Balance Monitor", () => addressBalanceMonitor.run(), "10 minutes");
 
   if (env.ACTIVE_CHAIN === "akash" || env.ACTIVE_CHAIN === "akashTestnet" || env.ACTIVE_CHAIN === "akashSandbox") {
     scheduler.registerTask("Sync Providers Info", syncProvidersInfo, "10 seconds", true, {
@@ -100,7 +98,6 @@ function startScheduler() {
       measureDuration: true
     });
 
-    scheduler.registerTask("Deployment Balance Monitor", () => deploymentBalanceMonitor.run(), "10 minutes");
     scheduler.registerTask("Provider IP Lookup", () => updateProvidersLocation(), "30 minutes", true);
     scheduler.registerTask("USD Spending Tracker", () => updateUsdSpending(), "1 minute", true);
     scheduler.registerTask("Update provider uptime", () => updateProviderUptime(), "10 minutes", true);

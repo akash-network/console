@@ -1,17 +1,7 @@
 import type { Model, ModelCtor } from "sequelize-typescript";
 
 import { activeChain, chainDefinitions } from "../chainDefinitions";
-import {
-  AddressReference,
-  Block as BaseBlock,
-  Day,
-  Message as BaseMessage,
-  MonitoredValue,
-  Transaction,
-  TransactionEvent,
-  TransactionEventAttribute,
-  Validator
-} from "./base";
+import { AddressReference, Block as BaseBlock, Day, Message as BaseMessage, Transaction, TransactionEvent, TransactionEventAttribute, Validator } from "./base";
 
 function getFilteredBaseModel(): ModelCtor<Model<any, any>>[] {
   let models: ModelCtor<Model<any, any>>[] = baseModels;
@@ -33,8 +23,7 @@ const baseModels: ModelCtor<Model<any, any>>[] = [
   Transaction,
   TransactionEvent,
   TransactionEventAttribute,
-  Validator,
-  MonitoredValue
+  Validator
 ];
 
 export function getChainModels(chainName: string) {

@@ -6,4 +6,3 @@ export { TransactionEvent } from "./transactionEvent";
 export { TransactionEventAttribute } from "./transactionEventAttribute";
 export { Message } from "./message";
 export { AddressReference } from "./addressReference";
-export { MonitoredValue } from "./monitoredValue";
