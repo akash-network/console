@@ -23,9 +23,13 @@ export const providerRequestSchema = z.object({
     .string()
     .url()
     .refine(url => {
-      const parsedUrl = new URL(url);
-      const hostname = parsedUrl.hostname.startsWith("[") ? parsedUrl.hostname.slice(1, -1) : parsedUrl.hostname;
-      return parsedUrl.protocol === "https:" && !hostname.endsWith(".local") && !isIP(hostname);
+      try {
+        const parsedUrl = new URL(url);
+        const hostname = parsedUrl.hostname.startsWith("[") ? parsedUrl.hostname.slice(1, -1) : parsedUrl.hostname;
+        return parsedUrl.protocol === "https:" && !hostname.endsWith(".local") && !isIP(hostname);
+      } catch {
+        return false;
+      }
     }, "URL must use https protocol and cannot point to IP address"),
   providerAddress: z.string().refine(isValidBech32Address, "is not bech32 address").describe("Bech32 representation of provider wallet address"),
   isBase64: z
