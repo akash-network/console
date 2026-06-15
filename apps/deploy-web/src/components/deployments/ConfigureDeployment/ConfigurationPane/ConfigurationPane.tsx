@@ -4,7 +4,7 @@ import { useFormContext, useWatch } from "react-hook-form";
 import type { SdlBuilderFormValuesType } from "@src/types";
 
 type Props = {
-  selectedServiceId: string | null;
+  selectedServiceId: string;
 };
 
 export const ConfigurationPane: FC<Props> = ({ selectedServiceId }) => {

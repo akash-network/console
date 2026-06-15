@@ -342,7 +342,7 @@ const validateStorageAmount = (value: number, storageUnit: string, serviceCount:
 
 export const ServiceSchema = z
   .object({
-    id: z.string().optional(),
+    id: z.string().min(1, { message: "Service id is required." }),
     title: z
       .string()
       .min(1, { message: "Service name is required." })

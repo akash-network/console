@@ -1,7 +1,7 @@
 "use client";
 import type { FC } from "react";
 import { useEffect, useState } from "react";
-import { FormProvider, useForm } from "react-hook-form";
+import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import debounce from "lodash/debounce";
@@ -31,13 +31,16 @@ type Props = {
 export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, dependencies: d = DEPENDENCIES }) => {
   const [initialState] = useState(() => getInitialState(initialSdl));
   const [sdl, setSdl] = useState(initialState.sdl);
-  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(initialState.selectedServiceId);
+  const [selectedServiceId, setSelectedServiceId] = useState<string>(initialState.selectedServiceId);
   const { enqueueSnackbar } = d.useSnackbar();
   const form = useForm<SdlBuilderFormValuesType>({
     defaultValues: initialState.values,
     mode: "onChange",
     resolver: zodResolver(SdlBuilderFormValuesSchema)
   });
+  const services = useWatch({ control: form.control, name: "services" });
+  const placements = useWatch({ control: form.control, name: "placements" });
+  const selectedPlacementName = resolveSelectedPlacementName(services, placements, selectedServiceId);
 
   useEffect(
     function notifyOnImportError() {
@@ -83,7 +86,12 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, dependencies: d
           <d.ConfigureDeploymentHeader />
         </div>
         <div className="mt-6 flex min-h-0 flex-1">
-          <d.ConfigureDeploymentPanes sdl={sdl} selectedServiceId={selectedServiceId} onSelectService={setSelectedServiceId} />
+          <d.ConfigureDeploymentPanes
+            sdl={sdl}
+            selectedServiceId={selectedServiceId}
+            selectedPlacementName={selectedPlacementName}
+            onSelectService={setSelectedServiceId}
+          />
         </div>
       </FormProvider>
     </d.Layout>
@@ -93,29 +101,39 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, dependencies: d
 interface InitialState {
   values: SdlBuilderFormValuesType;
   sdl: string;
-  selectedServiceId: string | null;
+  selectedServiceId: string;
   importError?: string;
 }
 
 /**
- * Derives the form values, preview SDL, and initial selection from one source
- * so they can never diverge. A parseable carried-in template keeps its exact
- * SDL text for the preview; if it can't be imported the screen falls back to a
- * default deployment and reports `importError` so the failure is surfaced
- * rather than silently swallowed.
+ * Derives the form values, preview SDL, and initial selection from one source so they can never diverge.
+ * A carried-in SDL is used only when it imports to a usable deployment (at least one visible service);
+ * otherwise — invalid YAML, or a service-less SDL the configure screen can't work with — the screen falls
+ * back to a default deployment. This guarantees there is always a service (and placement) to select.
  */
 function getInitialState(carriedInSdl: string | undefined): InitialState {
   if (carriedInSdl) {
     try {
       const values = importSimpleSdl(carriedInSdl);
-      return { values, sdl: carriedInSdl, selectedServiceId: seedSelectedServiceId(values) };
+      if (hasVisibleService(values)) {
+        return { values, sdl: carriedInSdl, selectedServiceId: seedSelectedServiceId(values) };
+      }
     } catch (error) {
-      const values = defaultServiceWithPlacement();
-      return { values, sdl: regenerateSdl(values, ""), selectedServiceId: seedSelectedServiceId(values), importError: getImportErrorMessage(error) };
+      return defaultInitialState(getImportErrorMessage(error));
     }
   }
+  return defaultInitialState();
+}
+
+/** A fresh default deployment, optionally annotated with the error that made an import unusable. */
+function defaultInitialState(importError?: string): InitialState {
   const values = defaultServiceWithPlacement();
-  return { values, sdl: regenerateSdl(values, ""), selectedServiceId: seedSelectedServiceId(values) };
+  return { values, sdl: regenerateSdl(values, ""), selectedServiceId: seedSelectedServiceId(values), importError };
+}
+
+/** A usable deployment has at least one service the user can configure (log collectors don't count). */
+function hasVisibleService(values: SdlBuilderFormValuesType): boolean {
+  return values.services.some(service => !isLogCollectorService(service));
 }
 
 /**
@@ -130,9 +148,10 @@ function getImportErrorMessage(error: unknown): string {
   return "The deployment couldn't be loaded.";
 }
 
-/** Picks the first user-visible service to focus when the screen first mounts. */
-function seedSelectedServiceId(values: SdlBuilderFormValuesType): string | null {
-  return values.services.find(service => !isLogCollectorService(service))?.id ?? null;
+/** Picks the first user-visible service to focus when the screen first mounts. `getInitialState` guarantees one exists. */
+function seedSelectedServiceId(values: SdlBuilderFormValuesType): string {
+  const visible = values.services.find(candidate => !isLogCollectorService(candidate)) ?? values.services[0];
+  return visible.id;
 }
 
 /** Regenerates the preview SDL, keeping the last good output while the form is mid-edit. */
@@ -144,11 +163,29 @@ function regenerateSdl(values: SdlBuilderFormValuesType, previous: string): stri
   }
 }
 
+/**
+ * Resolves the placement the marketplace is scoped to. There is always a placement and a service, so this
+ * returns a name rather than null: it uses the selected service when present, otherwise the first visible
+ * service (which also covers the brief window after a removal, before the reselect effect runs), and falls
+ * back to the first placement.
+ */
+function resolveSelectedPlacementName(
+  services: SdlBuilderFormValuesType["services"],
+  placements: SdlBuilderFormValuesType["placements"],
+  selectedServiceId: string
+): string {
+  const selected = services.find(candidate => candidate.id === selectedServiceId);
+  const service = selected ?? services.find(candidate => !isLogCollectorService(candidate));
+  const placement = (service && placements.find(candidate => candidate.id === service.placementId)) || placements[0];
+  return placement.name;
+}
+
 /** Keeps the selection on an existing service, falling back to the first visible one after a removal. */
-function nextSelectedServiceId(values: SdlBuilderFormValuesType, previous: string | null): string | null {
+function nextSelectedServiceId(values: SdlBuilderFormValuesType, previous: string): string {
   const services = values.services ?? [];
-  if (previous && services.some(service => service?.id === previous)) {
+  if (services.some(candidate => candidate?.id === previous)) {
     return previous;
   }
-  return services.find(service => service && !isLogCollectorService(service as ServiceType))?.id ?? null;
+  const visible = services.find(candidate => candidate && !isLogCollectorService(candidate as ServiceType)) ?? services[0];
+  return visible.id;
 }

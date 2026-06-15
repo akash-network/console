@@ -5,6 +5,7 @@ import { EndpointSchema, SdlBuilderFormValuesSchema, ServiceSchema } from "./sdl
 describe("ServiceSchema", () => {
   it("validates a minimal valid service", () => {
     const result = ServiceSchema.safeParse({
+      id: "svc-1",
       title: "web",
       image: "nginx:latest",
       profile: {
@@ -29,6 +30,7 @@ describe("SdlBuilderFormValuesSchema", () => {
       placements: [{ id: "p-1", name: "dcloud" }],
       services: [
         {
+          id: "svc-1",
           title: "web",
           image: "nginx:latest",
           profile: { cpu: 0.1, ram: 256, ramUnit: "Mi", storage: [{ size: 512, unit: "Mi" }] },
@@ -55,6 +57,7 @@ describe("SdlBuilderFormValuesSchema", () => {
       ],
       services: [
         {
+          id: "svc-1",
           title: "web",
           image: "nginx:latest",
           profile: { cpu: 0.1, ram: 256, ramUnit: "Mi", storage: [{ size: 512, unit: "Mi" }] },
@@ -74,6 +77,7 @@ describe("SdlBuilderFormValuesSchema", () => {
 
   it("rejects duplicate service titles", () => {
     const service = {
+      id: "svc-1",
       title: "web",
       image: "nginx:latest",
       profile: { cpu: 0.1, ram: 256, ramUnit: "Mi", storage: [{ size: 512, unit: "Mi" }] },
@@ -84,7 +88,7 @@ describe("SdlBuilderFormValuesSchema", () => {
     };
     const result = SdlBuilderFormValuesSchema.safeParse({
       placements: [{ id: "p-1", name: "dcloud" }],
-      services: [service, { ...service }]
+      services: [service, { ...service, id: "svc-2" }]
     });
 
     expect(result.success).toBe(false);
@@ -98,6 +102,7 @@ describe("SdlBuilderFormValuesSchema", () => {
       placements: [{ id: "p-1", name: "dcloud" }],
       services: [
         {
+          id: "svc-1",
           title: "web",
           image: "nginx:latest",
           profile: { cpu: 0.1, ram: 256, ramUnit: "Mi", storage: [{ size: 512, unit: "Mi" }] },
@@ -118,6 +123,7 @@ describe("SdlBuilderFormValuesSchema", () => {
       placements: [{ id: "p-1", name: "dcloud" }],
       services: [
         {
+          id: "svc-1",
           title: "web",
           image: "nginx:latest",
           profile: { cpu: 0.1, ram: 256, ramUnit: "Mi", storage: [{ size: 512, unit: "Mi" }] },
@@ -144,6 +150,7 @@ describe("SdlBuilderFormValuesSchema", () => {
       placements: [{ id: "p-1", name: "dcloud" }],
       services: [
         {
+          id: "svc-1",
           title: "web",
           image: "",
           profile: { cpu: 0.1, ram: 256, ramUnit: "Mi", storage: [{ size: 512, unit: "Mi" }] },

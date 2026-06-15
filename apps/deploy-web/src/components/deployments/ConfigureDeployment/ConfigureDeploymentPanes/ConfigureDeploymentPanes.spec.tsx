@@ -97,12 +97,19 @@ describe("ConfigureDeploymentPanes", () => {
     expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ selectedServiceId: "svc-1" }), expect.anything());
   });
 
+  it("threads the sdl and selected placement into the marketplace pane", () => {
+    const { MarketplacePane } = setup({ sdl: 'version: "2.0"', selectedPlacementName: "dcloud" });
+
+    expect(MarketplacePane).toHaveBeenCalledWith(expect.objectContaining({ sdl: 'version: "2.0"', placementName: "dcloud" }), expect.anything());
+  });
+
   function setup(
     input: {
       isSdlPreviewEnabled?: boolean;
       sdl?: string;
       preserveStorage?: boolean;
-      selectedServiceId?: string | null;
+      selectedServiceId?: string;
+      selectedPlacementName?: string;
       onSelectService?: (serviceId: string) => void;
     } = {}
   ) {
@@ -114,10 +121,11 @@ describe("ConfigureDeploymentPanes", () => {
     ));
     const DeploymentPane = vi.fn(() => <div data-testid="deployment-pane-mock" />);
     const ConfigurationPane = vi.fn(() => <div data-testid="configuration-pane-mock" />);
+    const MarketplacePane = vi.fn(() => <div data-testid="marketplace-pane-mock" />);
     const dependencies: typeof DEPENDENCIES = {
       DeploymentPane: DeploymentPane as never,
       ConfigurationPane: ConfigurationPane as never,
-      MarketplacePane: vi.fn(() => <div data-testid="marketplace-pane-mock" />),
+      MarketplacePane: MarketplacePane as never,
       SdlPreviewPane: SdlPreviewPane as never,
       useFlag: (() => input.isSdlPreviewEnabled ?? false) as never
     };
@@ -130,13 +138,14 @@ describe("ConfigureDeploymentPanes", () => {
       <JotaiStoreProvider store={createStore()}>
         <ConfigureDeploymentPanes
           sdl={input.sdl ?? ""}
-          selectedServiceId={input.selectedServiceId ?? null}
+          selectedServiceId={input.selectedServiceId ?? ""}
+          selectedPlacementName={input.selectedPlacementName ?? "dcloud"}
           onSelectService={input.onSelectService ?? vi.fn()}
           dependencies={dependencies}
         />
       </JotaiStoreProvider>
     );
 
-    return { SdlPreviewPane, DeploymentPane, ConfigurationPane, unmount };
+    return { SdlPreviewPane, DeploymentPane, ConfigurationPane, MarketplacePane, unmount };
   }
 });

@@ -65,6 +65,23 @@ describe("PlacementCard", () => {
     expect(screen.getByText("Names must start with a lower case letter.")).toBeInTheDocument();
   });
 
+  it("selects the placement's first service when the placement card is clicked", async () => {
+    const { onSelectService, services, container } = setup({ serviceTitles: ["web", "api"] });
+
+    await userEvent.click(container.firstChild as Element);
+
+    expect(onSelectService).toHaveBeenCalledWith(services[0].service.id);
+  });
+
+  it("selects the clicked service rather than the placement's first", async () => {
+    const { onSelectService, services } = setup({ serviceTitles: ["web", "api"], dependencies: { ServiceRow: DEPENDENCIES.ServiceRow } });
+
+    await userEvent.click(screen.getByRole("button", { name: "Select api" }));
+
+    expect(onSelectService).toHaveBeenCalledWith(services[1].service.id);
+    expect(onSelectService).not.toHaveBeenCalledWith(services[0].service.id);
+  });
+
   function setup(input: { serviceTitles: string[]; canRemove?: boolean; status?: ConfigStatus; error?: string; dependencies?: Partial<typeof DEPENDENCIES> }) {
     const placement = defaultPlacement({ name: "placement-1" });
     const services = input.serviceTitles.map((title, index) => ({
@@ -81,13 +98,13 @@ describe("PlacementCard", () => {
       return <FormProvider {...form}>{children}</FormProvider>;
     };
 
-    render(
+    const { container } = render(
       <Wrapper>
         <PlacementCard
           placement={placement}
           placementIndex={0}
           services={services}
-          selectedServiceId={null}
+          selectedServiceId=""
           canRemove={input.canRemove ?? true}
           canRemoveService={true}
           onSelectService={onSelectService}
@@ -103,6 +120,6 @@ describe("PlacementCard", () => {
       </Wrapper>
     );
 
-    return { onAddService, onRemove, onSelectService, onRemoveService };
+    return { onAddService, onRemove, onSelectService, onRemoveService, services, container };
   }
 });

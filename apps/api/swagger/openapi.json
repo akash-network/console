@@ -16378,6 +16378,7 @@
     },
     "/v1/bid-screening": {
       "post": {
+        "operationId": "screenProviders",
         "summary": "Screen providers by deployment resource requirements",
         "tags": [
           "Bid Screening"
@@ -16736,13 +16737,20 @@
                             "format": "date-time",
                             "description": "ISO 8601 timestamp marking when the provider was first enrolled in the inventory",
                             "example": "2026-01-01T00:00:00.000Z"
+                          },
+                          "location": {
+                            "type": "string",
+                            "description": "Provider region from the location-region attribute (signed preferred, else self-declared); null if unset",
+                            "example": "us-west",
+                            "nullable": true
                           }
                         },
                         "required": [
                           "owner",
                           "hostUri",
                           "isAudited",
-                          "createdAt"
+                          "createdAt",
+                          "location"
                         ]
                       }
                     }

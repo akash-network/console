@@ -39,7 +39,7 @@ module.exports = {
       "error",
       {
         additionalVerbs: {
-          post: { collection: ["deposit"] },
+          post: { collection: ["deposit", "screen"] },
           delete: { single: ["close"] }
         }
       }

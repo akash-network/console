@@ -96,7 +96,7 @@ describe("DeploymentPane", () => {
     render(
       <TooltipProvider>
         <DeploymentPane
-          selectedServiceId={null}
+          selectedServiceId=""
           onSelectService={input.onSelectService ?? vi.fn()}
           dependencies={MockComponents(DEPENDENCIES, { usePlacementManager, ...input.dependencies })}
         />
@@ -119,8 +119,8 @@ describe("DeploymentPane placement management", () => {
     const values = getForm().getValues();
     expect(values.placements).toHaveLength(1);
     expect(values.placements[0].name).toBe("placement-1");
-    expect(values.services).toHaveLength(2);
-    expect(values.services.map(service => service.title)).toEqual(["service-2", "service-3"]);
+    expect(values.services).toHaveLength(3);
+    expect(values.services.map(service => service.title)).toEqual(["service-2", "service-3", "service-4"]);
     expect(values.services.every(service => service.placementId === values.placements[0].id)).toBe(true);
   });
 
@@ -142,7 +142,7 @@ describe("DeploymentPane placement management", () => {
 
     render(
       <Wrapper>
-        <DeploymentPane selectedServiceId={null} onSelectService={vi.fn()} dependencies={{ ...DEPENDENCIES, PlacementCard: PlacementCardWithStubbedRegion }} />
+        <DeploymentPane selectedServiceId="" onSelectService={vi.fn()} dependencies={{ ...DEPENDENCIES, PlacementCard: PlacementCardWithStubbedRegion }} />
       </Wrapper>
     );
 

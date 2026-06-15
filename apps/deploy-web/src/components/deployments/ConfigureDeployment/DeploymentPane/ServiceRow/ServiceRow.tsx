@@ -30,12 +30,17 @@ export const ServiceRow: FC<Props> = ({ service, serviceIndex, isSelected, canRe
     onRemove();
   }
 
+  function selectWithoutSelectingPlacement(event: MouseEvent<HTMLLIElement>) {
+    event.stopPropagation();
+    onSelect();
+  }
+
   return (
-    <li onClick={onSelect} className="group flex cursor-pointer flex-col gap-1">
+    <li onClick={selectWithoutSelectingPlacement} className="group flex cursor-pointer flex-col gap-1">
       <div
         className={cn("flex items-start gap-2 rounded-md border px-2.5 py-2", {
           "border-destructive": !!error,
-          "border-foreground": isSelected && !error,
+          "border-foreground bg-accent": isSelected && !error,
           "border-zinc-300 hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-600": !isSelected && !error
         })}
       >

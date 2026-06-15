@@ -10,7 +10,7 @@ import { usePlacementManager } from "./usePlacementManager/usePlacementManager";
 export const DEPENDENCIES = { PlacementCard, usePlacementManager, IpEndpointsSection };
 
 type Props = {
-  selectedServiceId: string | null;
+  selectedServiceId: string;
   onSelectService: (serviceId: string) => void;
   dependencies?: typeof DEPENDENCIES;
 };
@@ -70,7 +70,7 @@ export const DeploymentPane: FC<Props> = ({ selectedServiceId, onSelectService, 
             <Button
               type="button"
               variant="ghost"
-              onClick={manager.addPlacement}
+              onClick={() => onSelectService(manager.addPlacement())}
               className="w-full gap-1.5 rounded-lg border border-zinc-300 py-2 text-foreground dark:border-zinc-700"
             >
               <Plus className="h-4 w-4" />
