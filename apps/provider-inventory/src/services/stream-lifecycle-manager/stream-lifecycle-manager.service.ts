@@ -175,7 +175,11 @@ export class StreamLifecycleManagerService {
       onSettleAttempt();
       this.#lastInventoryPerProvider.delete(provider.owner);
       this.#onlineStatePerProvider.delete(provider.owner);
-      if (this.#activeStreams.get(provider.owner)?.controller.signal === signal) {
+      const activeStream = this.#activeStreams.get(provider.owner);
+      if (activeStream?.controller.signal === signal) {
+        this.#streamFactory.disposeProvider(activeStream.hostUri).catch(error => {
+          this.#logger.error({ event: "DISPOSE_STREAM_ERROR", owner: provider.owner, hostUri: activeStream.hostUri, error });
+        });
         this.#activeStreams.delete(provider.owner);
       }
     }
