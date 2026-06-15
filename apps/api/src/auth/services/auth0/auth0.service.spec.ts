@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker";
 import type { GetUsers200ResponseOneOfInner, ManagementClient } from "auth0";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { Auth0Service } from "./auth0.service";
 
@@ -112,16 +113,62 @@ describe(Auth0Service.name, () => {
     });
   });
 
+  describe("getUsersByEmail", () => {
+    it("returns all users found for the email", async () => {
+      const email = faker.internet.email();
+      const mockUsers: Partial<GetUsers200ResponseOneOfInner>[] = [
+        createAuth0User({ email, email_verified: true }),
+        createAuth0User({ email, email_verified: false })
+      ];
+
+      const mockGetByEmail = vi.fn().mockResolvedValue({ data: mockUsers });
+      const { auth0Service } = setup({ usersByEmail: { getByEmail: mockGetByEmail } });
+
+      const result = await auth0Service.getUsersByEmail(email);
+
+      expect(result).toEqual(mockUsers);
+      expect(mockGetByEmail).toHaveBeenCalledWith({ email });
+    });
+
+    it("returns an empty array when no users are found", async () => {
+      const email = faker.internet.email();
+      const mockGetByEmail = vi.fn().mockResolvedValue({ data: [] });
+      const { auth0Service } = setup({ usersByEmail: { getByEmail: mockGetByEmail } });
+
+      const result = await auth0Service.getUsersByEmail(email);
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe("linkUsers", () => {
+    it("links the secondary identity into the primary user", async () => {
+      const link = vi.fn().mockResolvedValue({ data: [] });
+      const { auth0Service } = setup({ users: { link } });
+
+      await auth0Service.linkUsers("auth0|primary", { provider: "google-oauth2", userId: "google-oauth2|secondary" });
+
+      expect(link).toHaveBeenCalledWith({ id: "auth0|primary" }, { provider: "google-oauth2", user_id: "google-oauth2|secondary", connection_id: undefined });
+    });
+
+    it("passes connection_id when provided", async () => {
+      const link = vi.fn().mockResolvedValue({ data: [] });
+      const { auth0Service } = setup({ users: { link } });
+
+      await auth0Service.linkUsers("auth0|primary", { provider: "auth0", userId: "auth0|secondary", connectionId: "con_123" });
+
+      expect(link).toHaveBeenCalledWith({ id: "auth0|primary" }, { provider: "auth0", user_id: "auth0|secondary", connection_id: "con_123" });
+    });
+  });
+
   function setup(
     input: {
       jobs?: { verifyEmail: Mock };
-      users?: { update?: Mock; create?: Mock };
+      users?: { update?: Mock; create?: Mock; link?: Mock };
       usersByEmail?: { getByEmail: Mock };
     } = {}
   ) {
-    const mockManagementClient = {
-      ...input
-    } as unknown as ManagementClient;
+    const mockManagementClient = mock<ManagementClient>(input);
 
     const auth0Service = new Auth0Service(mockManagementClient);
 

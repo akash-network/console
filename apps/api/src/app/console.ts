@@ -7,6 +7,7 @@ import { Err } from "ts-results";
 import { container } from "tsyringe";
 import { z } from "zod";
 
+import { Auth0AccountLinkerService } from "@src/auth/services/auth0-account-linker/auth0-account-linker.service";
 import { MasterWalletMintController } from "@src/billing/controllers/master-wallet-mint/master-wallet-mint.controller";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
@@ -77,6 +78,15 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       await container.resolve(GpuBotController).createGpuBids();
+    });
+  });
+
+program
+  .command("link-auth0-accounts")
+  .description("Interactively link a secondary Auth0 account into a primary one (Auth0 only, no DB writes)")
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      await container.resolve(Auth0AccountLinkerService).linkAccountsInteractively();
     });
   });
 
