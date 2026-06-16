@@ -116,6 +116,9 @@ export class ApiUrlService {
   static networkCapacity() {
     return `${this.baseApiUrl}/v1/network-capacity`;
   }
+  static blockchainStatus() {
+    return `${this.baseApiUrl}/v1/blockchain-status`;
+  }
   static gpuModels() {
     return `${this.baseApiUrl}/v1/gpu-models`;
   }

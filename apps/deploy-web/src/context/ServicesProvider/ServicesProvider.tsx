@@ -82,7 +82,8 @@ function createAppContainer<T extends Factories>(settingsState: SettingsContextT
           },
           onSuccess: () => {
             if (isBlockchainDown) {
-              settingsState.refreshNodeStatuses();
+              isBlockchainDown = false;
+              settingsState.setSettings(prev => ({ ...prev, isBlockchainDown: false }));
             }
           }
         }),

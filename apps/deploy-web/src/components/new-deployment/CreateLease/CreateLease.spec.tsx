@@ -434,17 +434,11 @@ describe(CreateLease.name, () => {
               settings: {
                 apiEndpoint: "https://api.example.com",
                 rpcEndpoint: "https://rpc.example.com",
-                isCustomNode: false,
-                nodes: [],
-                selectedNode: null,
-                customNode: null,
                 isBlockchainDown: input?.isBlockchainDown ?? false
               },
               setSettings: vi.fn(),
               isLoadingSettings: false,
-              isSettingsInit: true,
-              refreshNodeStatuses: vi.fn(),
-              isRefreshingNodeStatus: false
+              isSettingsInit: true
             })
           }}
         />
