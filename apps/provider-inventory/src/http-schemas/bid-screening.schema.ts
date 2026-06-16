@@ -89,10 +89,14 @@ const RequirementsSchema = z.object({
   attributes: z.array(AttributeSchema).default([])
 });
 
+const SUPPORTED_TIMEZONES = new Set(Intl.supportedValuesOf("timeZone"));
 export const BidScreeningRequestSchema = z.object({
-  name: z.string().openapi({ description: "Group name", example: "westcoast" }),
   requirements: RequirementsSchema.default({}),
-  resources: z.array(ResourceUnitSchema).openapi({ description: "Resource units with replica counts" })
+  resources: z.array(ResourceUnitSchema).openapi({ description: "Resource units with replica counts" }),
+  timezone: z
+    .string()
+    .refine(val => SUPPORTED_TIMEZONES.has(val), { message: "Timezone is not supported" })
+    .openapi({ description: "Client timezone, validated against supported Node.js Intl timezones", example: "America/Chicago" })
 });
 export type BidScreeningRequest = z.infer<typeof BidScreeningRequestSchema>;
 
@@ -111,11 +115,13 @@ const ProviderResultSchema = z.object({
   incidents: z
     .array(
       z.object({
-        startedAt: z.string().datetime(),
-        endedAt: z.string().datetime().nullable()
+        date: z.string().openapi({ description: "Local calendar day, YYYY-MM-DD", example: "2026-06-01" }),
+        hasOpenIncident: z.boolean().openapi({ description: "True if the provider currently has any open incident" }),
+        incidentCount: z.number().int().openapi({ description: "Number of incident intervals overlapping that day" }),
+        downtimeSeconds: z.number().int().openapi({ description: "Downtime clipped to that day, in seconds (max 86400)" })
       })
     )
-    .openapi({ description: "Provider incident intervals within the last ~8 days; endedAt null = ongoing" })
+    .openapi({ description: "Per-day downtime over a rolling 7-day window" })
 });
 
 export const BidScreeningResponseSchema = z.object({

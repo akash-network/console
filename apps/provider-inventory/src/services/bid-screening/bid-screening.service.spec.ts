@@ -2,10 +2,10 @@ import type { LoggerService } from "@akashnetwork/logging";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { GroupSpecJSON } from "@src/mappers/groupspec-mapper/groupspec-mapper";
 import type { BidScreeningCandidate, BidScreeningRepository } from "@src/repositories/bid-screening/bid-screening.repository";
-import type { ProviderIncidentRepository } from "@src/repositories/provider-incident/provider-incident.repository";
+import type { DailyDowntimeRow, ProviderIncidentRepository } from "@src/repositories/provider-incident/provider-incident.repository";
 import type { ClusterInventoryMatcherService } from "../cluster-inventory-matcher/cluster-inventory-matcher.service";
+import type { BidScreeningInput } from "./bid-screening.service";
 import { BidScreeningService } from "./bid-screening.service";
 
 describe(BidScreeningService.name, () => {
@@ -107,26 +107,28 @@ describe(BidScreeningService.name, () => {
       const { service, repository, incidentRepository, matcher } = setup();
       repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc"), makeCandidate("akash1def")]);
       matcher.match.mockReturnValue({ matched: true });
-      incidentRepository.findRecentByProviders.mockResolvedValue([
-        { provider: "akash1abc", startedAt: "2026-06-01T00:00:00.000Z", endedAt: "2026-06-01T01:00:00.000Z" },
-        { provider: "akash1abc", startedAt: "2026-06-03T00:00:00.000Z", endedAt: null },
-        { provider: "akash1def", startedAt: "2026-06-02T00:00:00.000Z", endedAt: "2026-06-02T02:00:00.000Z" }
+      incidentRepository.findDailyDowntimeByProviders.mockResolvedValue([
+        makeDowntimeRow("akash1abc", { date: "2026-06-01", downtimeSeconds: 3600 }),
+        makeDowntimeRow("akash1abc", { date: "2026-06-03", hasOpenIncident: true, downtimeSeconds: 7200 }),
+        makeDowntimeRow("akash1def", { date: "2026-06-02", downtimeSeconds: 7200 })
       ]);
 
       const results = await service.findMatchingProviders(makeRequest());
 
       expect(results.find(r => r.owner === "akash1abc")?.incidents).toEqual([
-        { startedAt: "2026-06-01T00:00:00.000Z", endedAt: "2026-06-01T01:00:00.000Z" },
-        { startedAt: "2026-06-03T00:00:00.000Z", endedAt: null }
+        { date: "2026-06-01", hasOpenIncident: false, incidentCount: 1, downtimeSeconds: 3600 },
+        { date: "2026-06-03", hasOpenIncident: true, incidentCount: 1, downtimeSeconds: 7200 }
       ]);
-      expect(results.find(r => r.owner === "akash1def")?.incidents).toEqual([{ startedAt: "2026-06-02T00:00:00.000Z", endedAt: "2026-06-02T02:00:00.000Z" }]);
+      expect(results.find(r => r.owner === "akash1def")?.incidents).toEqual([
+        { date: "2026-06-02", hasOpenIncident: false, incidentCount: 1, downtimeSeconds: 7200 }
+      ]);
     });
 
     it("defaults incidents to an empty array for a matched provider with no incident rows", async () => {
       const { service, repository, incidentRepository, matcher } = setup();
       repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc")]);
       matcher.match.mockReturnValue({ matched: true });
-      incidentRepository.findRecentByProviders.mockResolvedValue([]);
+      incidentRepository.findDailyDowntimeByProviders.mockResolvedValue([]);
 
       const results = await service.findMatchingProviders(makeRequest());
 
@@ -141,20 +143,21 @@ describe(BidScreeningService.name, () => {
       const results = await service.findMatchingProviders(makeRequest());
 
       expect(results).toEqual([]);
-      expect(incidentRepository.findRecentByProviders).not.toHaveBeenCalled();
+      expect(incidentRepository.findDailyDowntimeByProviders).not.toHaveBeenCalled();
     });
 
     it("fetches incidents only for matched providers, not dropped candidates", async () => {
       const { service, repository, incidentRepository, matcher } = setup();
       repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc"), makeCandidate("akash1def")]);
       matcher.match.mockReturnValueOnce({ matched: true }).mockReturnValueOnce({ matched: false, error: "INSUFFICIENT_CAPACITY" });
-      incidentRepository.findRecentByProviders.mockResolvedValue([{ provider: "akash1abc", startedAt: "2026-06-01T00:00:00.000Z", endedAt: null }]);
+      incidentRepository.findDailyDowntimeByProviders.mockResolvedValue([makeDowntimeRow("akash1abc", { hasOpenIncident: true })]);
 
-      const results = await service.findMatchingProviders(makeRequest());
+      const request = makeRequest();
+      const results = await service.findMatchingProviders(request);
 
-      expect(incidentRepository.findRecentByProviders).toHaveBeenCalledWith(["akash1abc"]);
+      expect(incidentRepository.findDailyDowntimeByProviders).toHaveBeenCalledWith(["akash1abc"], request.timezone);
       expect(results).toHaveLength(1);
-      expect(results[0].incidents).toEqual([{ startedAt: "2026-06-01T00:00:00.000Z", endedAt: null }]);
+      expect(results[0].incidents).toEqual([{ date: "2026-06-01", hasOpenIncident: true, incidentCount: 1, downtimeSeconds: 3600 }]);
     });
 
     it("returns empty array without fetching candidates when the signal is already aborted", async () => {
@@ -167,7 +170,7 @@ describe(BidScreeningService.name, () => {
       expect(results).toEqual([]);
       expect(repository.findCandidates).not.toHaveBeenCalled();
       expect(matcher.match).not.toHaveBeenCalled();
-      expect(incidentRepository.findRecentByProviders).not.toHaveBeenCalled();
+      expect(incidentRepository.findDailyDowntimeByProviders).not.toHaveBeenCalled();
     });
 
     it("skips matching and incidents when the signal aborts during the candidates query", async () => {
@@ -182,7 +185,7 @@ describe(BidScreeningService.name, () => {
 
       expect(results).toEqual([]);
       expect(matcher.match).not.toHaveBeenCalled();
-      expect(incidentRepository.findRecentByProviders).not.toHaveBeenCalled();
+      expect(incidentRepository.findDailyDowntimeByProviders).not.toHaveBeenCalled();
     });
 
     it("returns matched providers with empty incidents when the signal aborts during matching", async () => {
@@ -199,32 +202,37 @@ describe(BidScreeningService.name, () => {
       expect(results).toHaveLength(1);
       expect(results[0].owner).toBe("akash1abc");
       expect(results[0].incidents).toEqual([]);
-      expect(incidentRepository.findRecentByProviders).not.toHaveBeenCalled();
+      expect(incidentRepository.findDailyDowntimeByProviders).not.toHaveBeenCalled();
     });
 
     it("runs the full pipeline when a non-aborted signal is provided", async () => {
       const { service, repository, incidentRepository, matcher } = setup();
       repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc")]);
       matcher.match.mockReturnValue({ matched: true });
-      incidentRepository.findRecentByProviders.mockResolvedValue([{ provider: "akash1abc", startedAt: "2026-06-01T00:00:00.000Z", endedAt: null }]);
+      incidentRepository.findDailyDowntimeByProviders.mockResolvedValue([makeDowntimeRow("akash1abc", { hasOpenIncident: true })]);
 
-      const results = await service.findMatchingProviders(makeRequest(), { signal: new AbortController().signal });
+      const request = makeRequest();
+      const results = await service.findMatchingProviders(request, { signal: new AbortController().signal });
 
-      expect(incidentRepository.findRecentByProviders).toHaveBeenCalledWith(["akash1abc"]);
-      expect(results[0].incidents).toEqual([{ startedAt: "2026-06-01T00:00:00.000Z", endedAt: null }]);
+      expect(incidentRepository.findDailyDowntimeByProviders).toHaveBeenCalledWith(["akash1abc"], request.timezone);
+      expect(results[0].incidents).toEqual([{ date: "2026-06-01", hasOpenIncident: true, incidentCount: 1, downtimeSeconds: 3600 }]);
     });
   });
 
   function setup() {
     const repository = mock<BidScreeningRepository>();
     const incidentRepository = mock<ProviderIncidentRepository>();
-    incidentRepository.findRecentByProviders.mockResolvedValue([]);
+    incidentRepository.findDailyDowntimeByProviders.mockResolvedValue([]);
     const matcher = mock<ClusterInventoryMatcherService>();
     const logger = mock<LoggerService>();
     const service = new BidScreeningService(repository, incidentRepository, matcher, () => logger);
     return { service, repository, incidentRepository, matcher, logger };
   }
 });
+
+function makeDowntimeRow(provider: string, overrides?: Partial<DailyDowntimeRow>): DailyDowntimeRow {
+  return { provider, date: "2026-06-01", hasOpenIncident: false, incidentCount: 1, downtimeSeconds: 3600, ...overrides };
+}
 
 function makeCandidate(owner: string, overrides?: { isAudited?: boolean; createdAt?: string; location?: string | null }): BidScreeningCandidate {
   return {
@@ -256,9 +264,9 @@ function makeRequest(
     attributes: { key: string; value: string }[];
     signedBy: { allOf: string[]; anyOf: string[] };
   }>
-): GroupSpecJSON {
+): BidScreeningInput {
   return {
-    name: "westcoast",
+    timezone: "America/Chicago",
     requirements: {
       signedBy: overrides?.signedBy ?? { allOf: [], anyOf: [] },
       attributes: overrides?.attributes ?? []
