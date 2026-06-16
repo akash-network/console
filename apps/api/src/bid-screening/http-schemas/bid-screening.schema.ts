@@ -112,6 +112,10 @@ const ProviderResultSchema = z.object({
     description: "Provider region from the location-region attribute (signed preferred, else self-declared); null if unset",
     example: "us-west"
   }),
+  organization: z.string().nullable().openapi({
+    description: "Provider organization from the organization attribute (signed preferred, else self-declared); null if unset",
+    example: "Akash"
+  }),
   incidents: z
     .array(
       z.object({

@@ -224,6 +224,40 @@ describe(BidScreeningRepository.name, () => {
     });
   });
 
+  describe("organization projection", () => {
+    it("prefers organization from signed_attributes when both sets define it", async () => {
+      await seed({
+        owner: "akash1signedorg",
+        selfAttributes: [{ key: "organization", value: "self-org" }],
+        signedAttributes: [{ key: "organization", value: "signed-org", auditor: AUDITOR }]
+      });
+
+      const [row] = await repository.findCandidates([unit({})], requirements());
+
+      expect(row.organization).toBe("signed-org");
+    });
+
+    it("falls back to self_attributes when signed_attributes has no organization", async () => {
+      await seed({
+        owner: "akash1selforg",
+        selfAttributes: [{ key: "organization", value: "self-org" }],
+        signedAttributes: [{ key: "country", value: "us", auditor: AUDITOR }]
+      });
+
+      const [row] = await repository.findCandidates([unit({})], requirements());
+
+      expect(row.organization).toBe("self-org");
+    });
+
+    it("returns null when neither attribute set defines organization", async () => {
+      await seed({ owner: "akash1noorg", selfAttributes: [{ key: "country", value: "us" }] });
+
+      const [row] = await repository.findCandidates([unit({})], requirements());
+
+      expect(row.organization).toBeNull();
+    });
+  });
+
   describe("gpu_models filter", () => {
     it("vendor-only request matches mixed-model providers via the vendor token", async () => {
       await seed({ owner: "akash1nvidiaA100", gpuModels: ["nvidia", "nvidia/a100"], totalAvailableGpu: 8n, maxNodeFreeGpu: 8n });

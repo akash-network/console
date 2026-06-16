@@ -18,6 +18,7 @@ export interface BidScreeningCandidate {
   createdAt: string;
   updatedAt: string;
   location: string | null;
+  organization: string | null;
 }
 
 const TABLE = getTableName(providerInventory);
@@ -73,7 +74,11 @@ export class BidScreeningRepository {
           COALESCE(
             (SELECT sa->>'value' FROM jsonb_array_elements(${sql(providerInventory.signedAttributes.name)}) AS sa WHERE sa->>'key' = 'location-region' LIMIT 1),
             (SELECT sa->>'value' FROM jsonb_array_elements(${sql(providerInventory.selfAttributes.name)}) AS sa WHERE sa->>'key' = 'location-region' LIMIT 1)
-          ) AS location
+          ) AS location,
+          COALESCE(
+            (SELECT sa->>'value' FROM jsonb_array_elements(${sql(providerInventory.signedAttributes.name)}) AS sa WHERE sa->>'key' = 'organization' LIMIT 1),
+            (SELECT sa->>'value' FROM jsonb_array_elements(${sql(providerInventory.selfAttributes.name)}) AS sa WHERE sa->>'key' = 'organization' LIMIT 1)
+          ) AS organization
         FROM ${sql(TABLE)}
         WHERE ${sql(providerInventory.owner.name)} = ANY(${ownersToFetch}::text[])
       `;
