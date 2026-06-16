@@ -2,12 +2,12 @@ import type { NextRouter } from "next/router";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { CONSOLE_AIR_REPO_URL, DEPENDENCIES, FourOhFour } from "./404";
+import { CONSOLE_AIR_REPO_URL, DEPENDENCIES, NotFoundPage } from "./NotFoundPage";
 
 import { render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
 
-describe("FourOhFour", () => {
+describe(NotFoundPage.name, () => {
   it.each(["/get-started/wallet", "/mint-burn", "/settings/authorizations"])("shows the Console Air hint on removed self-custody route %s", asPath => {
     setup({ asPath });
 
@@ -34,6 +34,6 @@ describe("FourOhFour", () => {
     const useRouter: typeof DEPENDENCIES.useRouter = () => mock<NextRouter>({ asPath: input.asPath });
     const useUser: typeof DEPENDENCIES.useUser = () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: undefined });
 
-    return render(<FourOhFour dependencies={MockComponents(DEPENDENCIES, { useRouter, useUser })} />);
+    return render(<NotFoundPage dependencies={MockComponents(DEPENDENCIES, { useRouter, useUser })} />);
   }
 });
