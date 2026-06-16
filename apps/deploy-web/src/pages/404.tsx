@@ -8,21 +8,34 @@ import { NextSeo } from "next-seo";
 
 import { Title } from "@src/components/shared/Title";
 import { useUser } from "@src/hooks/useUser";
-import { isSelfCustodyRoute } from "@src/lib/nextjs/pageGuards/selfCustody";
 import { definePublicPage } from "@src/lib/pages/definePublicPage";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../components/layout/Layout";
 
 export const CONSOLE_AIR_REPO_URL = "https://github.com/akash-network/console-air";
 
-const FourOhFour: React.FunctionComponent = () => {
-  const router = useRouter();
-  const showSelfCustodyHint = isSelfCustodyRoute(router.asPath);
-  const { user } = useUser();
+const REMOVED_SELF_CUSTODY_ROUTES = ["/get-started/wallet", "/mint-burn", "/settings/authorizations"];
+
+const normalizePath = (path: string) => path.split("?")[0].split("#")[0].replace(/\/+$/, "") || "/";
+
+export const DEPENDENCIES = {
+  useRouter,
+  useUser,
+  Layout
+};
+
+type Props = {
+  dependencies?: typeof DEPENDENCIES;
+};
+
+export const FourOhFour: React.FunctionComponent<Props> = ({ dependencies: d = DEPENDENCIES }) => {
+  const router = d.useRouter();
+  const showSelfCustodyHint = REMOVED_SELF_CUSTODY_ROUTES.includes(normalizePath(router.asPath));
+  const { user } = d.useUser();
   const isAuthenticated = !!user?.userId;
 
   return (
-    <Layout>
+    <d.Layout>
       <NextSeo title="Page not found" />
 
       <div className="mt-10 text-center">
@@ -58,7 +71,7 @@ const FourOhFour: React.FunctionComponent = () => {
           </Card>
         )}
       </div>
-    </Layout>
+    </d.Layout>
   );
 };
 

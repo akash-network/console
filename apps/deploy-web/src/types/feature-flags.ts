@@ -7,7 +7,6 @@ export type FeatureFlag =
   | "maintenance_banner"
   | "auto_credit_reload"
   | "console_embedded_login"
-  | "self_custody"
   | "console_auth_passwordless"
   | "console_auth_password_escape_hatch"
   | "console_onboarding_redesign"
