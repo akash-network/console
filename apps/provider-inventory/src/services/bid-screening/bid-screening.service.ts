@@ -107,6 +107,7 @@ export class BidScreeningService {
       isAudited: candidate.isAudited,
       createdAt: candidate.createdAt,
       location: candidate.location,
+      organization: candidate.organization,
       incidents: incidentsByOwner[candidate.owner] ?? []
     };
   }

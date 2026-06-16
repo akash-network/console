@@ -72,6 +72,7 @@ export interface BidScreeningResult {
   isAudited: boolean;
   createdAt: string;
   location: string | null;
+  organization: string | null;
   incidents: Omit<DailyDowntimeRow, "provider">[];
 }
 

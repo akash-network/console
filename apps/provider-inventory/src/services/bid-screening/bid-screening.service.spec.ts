@@ -24,6 +24,7 @@ describe(BidScreeningService.name, () => {
           isAudited: false,
           createdAt: "2026-01-01T00:00:00.000Z",
           location: null,
+          organization: null,
           incidents: []
         }
       ]);
@@ -37,6 +38,16 @@ describe(BidScreeningService.name, () => {
       const results = await service.findMatchingProviders(makeRequest());
 
       expect(results[0].location).toBe("us-west");
+    });
+
+    it("threads candidate.organization through to the result", async () => {
+      const { service, repository, matcher } = setup();
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc", { organization: "Akash" })]);
+      matcher.match.mockReturnValue({ matched: true });
+
+      const results = await service.findMatchingProviders(makeRequest());
+
+      expect(results[0].organization).toBe("Akash");
     });
 
     it("filters out candidates that fail matching", async () => {
@@ -234,7 +245,10 @@ function makeDowntimeRow(provider: string, overrides?: Partial<DailyDowntimeRow>
   return { provider, date: "2026-06-01", hasOpenIncident: false, incidentCount: 1, downtimeSeconds: 3600, ...overrides };
 }
 
-function makeCandidate(owner: string, overrides?: { isAudited?: boolean; createdAt?: string; location?: string | null }): BidScreeningCandidate {
+function makeCandidate(
+  owner: string,
+  overrides?: { isAudited?: boolean; createdAt?: string; location?: string | null; organization?: string | null }
+): BidScreeningCandidate {
   return {
     owner,
     hostUri: "https://provider.example.com:8443",
@@ -242,6 +256,7 @@ function makeCandidate(owner: string, overrides?: { isAudited?: boolean; created
     createdAt: overrides?.createdAt ?? "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     location: overrides?.location ?? null,
+    organization: overrides?.organization ?? null,
     cluster: {
       nodes: [
         {
