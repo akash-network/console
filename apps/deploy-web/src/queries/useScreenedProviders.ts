@@ -8,6 +8,9 @@ import { AUDITOR } from "@src/utils/deploymentData/v1beta3";
 
 type ScreeningRequest = NonNullable<paths["/v1/bid-screening"]["post"]["requestBody"]>["content"]["application/json"];
 
+/** The screening request minus `timezone`, which the hook attaches from the client's resolved locale. */
+type ScreeningRequestBody = Omit<ScreeningRequest, "timezone">;
+
 export type ScreenedProvidersResponse = paths["/v1/bid-screening"]["post"]["responses"][200]["content"]["application/json"];
 
 export type ScreenedProvider = ScreenedProvidersResponse["providers"][number];
@@ -15,6 +18,7 @@ export type ScreenedProvider = ScreenedProvidersResponse["providers"][number];
 interface UseScreenedProvidersInput {
   sdl: string;
   placementName: string;
+  region?: string;
 }
 
 interface UseScreenedProvidersResult {
@@ -23,27 +27,18 @@ interface UseScreenedProvidersResult {
   isError: boolean;
 }
 
-/** Group name required by the request but irrelevant to catalog matching when no placement resolves. */
-const SCREENING_GROUP_NAME = "screening";
-
-/**
- * Full audited catalog query, used before a deployment is configured (no SDL yet, mid-edit/invalid SDL,
- * or no placement selected). The screening endpoint returns every audited provider for an empty resource spec.
- */
-const EMPTY_CATALOG_REQUEST: ScreeningRequest = {
-  name: SCREENING_GROUP_NAME,
-  requirements: { signedBy: { allOf: [AUDITOR] }, attributes: [] },
-  resources: []
-};
-
 /**
  * Screens providers for the given placement's group spec. The marketplace is placement-scoped: it converts
  * the current SDL to group specs and queries the one matching `placementName`. While the SDL is mid-edit or
- * invalid it falls back to the full audited catalog (empty resource spec). Audited-only via signedBy.
+ * invalid it falls back to the full audited catalog (empty resource spec). The selected `region` lives outside
+ * the SDL, so it is threaded in explicitly and still constrains the catalog fallback. Audited-only via signedBy.
  */
-export function useScreenedProviders({ sdl, placementName }: UseScreenedProvidersInput): UseScreenedProvidersResult {
+export function useScreenedProviders({ sdl, placementName, region }: UseScreenedProvidersInput): UseScreenedProvidersResult {
   const { api } = useServices();
-  const request = useMemo(() => buildPlacementScreeningRequest(sdl, placementName) ?? EMPTY_CATALOG_REQUEST, [sdl, placementName]);
+  const request = useMemo(() => {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return { ...(buildPlacementScreeningRequest(sdl, placementName) ?? buildCatalogScreeningRequest(region)), timezone };
+  }, [sdl, placementName, region]);
   const query = api.v1.screenProviders.useQuery(request);
 
   return {
@@ -60,7 +55,7 @@ export function useScreenedProviders({ sdl, placementName }: UseScreenedProvider
  * from the placement and carry the `location-region` filter (and any other declared attribute). The proto
  * JSON encodes resource values as base64 integer strings, which the screening endpoint accepts.
  */
-export function buildPlacementScreeningRequest(sdl: string, placementName: string): ScreeningRequest | null {
+export function buildPlacementScreeningRequest(sdl: string, placementName: string): ScreeningRequestBody | null {
   if (!sdl) return null;
 
   let groups: ReturnType<typeof DeploymentGroups>;
@@ -79,11 +74,28 @@ export function buildPlacementScreeningRequest(sdl: string, placementName: strin
   };
 
   return {
-    name: placementName,
     requirements: {
       signedBy: { allOf: [AUDITOR] },
       attributes: groupJson.requirements?.attributes ?? []
     },
     resources: groupJson.resources
+  };
+}
+
+/**
+ * Builds the full audited catalog request (empty resource spec) used before a deployment is configured (no
+ * SDL yet, mid-edit/invalid SDL, or no placement selected). Because the region is chosen independently of the
+ * SDL, it is honored here too: a selected region is added as a `location-region` attribute constraint. The
+ * region key comes from the provider-regions API, which derives it from the same provider attribute values
+ * being matched, so it is passed through verbatim. An empty/unset region means "any region", i.e. no
+ * constraint. Audited-only via signedBy.
+ */
+export function buildCatalogScreeningRequest(region?: string): ScreeningRequestBody {
+  return {
+    requirements: {
+      signedBy: { allOf: [AUDITOR] },
+      attributes: region ? [{ key: "location-region", value: region }] : []
+    },
+    resources: []
   };
 }

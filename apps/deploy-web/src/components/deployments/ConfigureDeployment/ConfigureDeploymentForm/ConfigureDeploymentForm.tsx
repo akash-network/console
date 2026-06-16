@@ -40,7 +40,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, dependencies: d
   });
   const services = useWatch({ control: form.control, name: "services" });
   const placements = useWatch({ control: form.control, name: "placements" });
-  const selectedPlacementName = resolveSelectedPlacementName(services, placements, selectedServiceId);
+  const selectedPlacement = resolveSelectedPlacement(services, placements, selectedServiceId);
 
   useEffect(
     function notifyOnImportError() {
@@ -89,7 +89,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, dependencies: d
           <d.ConfigureDeploymentPanes
             sdl={sdl}
             selectedServiceId={selectedServiceId}
-            selectedPlacementName={selectedPlacementName}
+            selectedPlacementName={selectedPlacement.name}
+            selectedPlacementRegion={selectedPlacement.region}
             onSelectService={setSelectedServiceId}
           />
         </div>
@@ -165,19 +166,19 @@ function regenerateSdl(values: SdlBuilderFormValuesType, previous: string): stri
 
 /**
  * Resolves the placement the marketplace is scoped to. There is always a placement and a service, so this
- * returns a name rather than null: it uses the selected service when present, otherwise the first visible
+ * returns a placement rather than null: it uses the selected service when present, otherwise the first visible
  * service (which also covers the brief window after a removal, before the reselect effect runs), and falls
- * back to the first placement.
+ * back to the first placement. The placement carries the region the marketplace filters by — kept independent
+ * of the SDL so it still applies before the deployment is valid.
  */
-function resolveSelectedPlacementName(
+function resolveSelectedPlacement(
   services: SdlBuilderFormValuesType["services"],
   placements: SdlBuilderFormValuesType["placements"],
   selectedServiceId: string
-): string {
+): SdlBuilderFormValuesType["placements"][number] {
   const selected = services.find(candidate => candidate.id === selectedServiceId);
   const service = selected ?? services.find(candidate => !isLogCollectorService(candidate));
-  const placement = (service && placements.find(candidate => candidate.id === service.placementId)) || placements[0];
-  return placement.name;
+  return (service && placements.find(candidate => candidate.id === service.placementId)) || placements[0];
 }
 
 /** Keeps the selection on an existing service, falling back to the first visible one after a removal. */

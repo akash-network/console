@@ -8,11 +8,12 @@ export const DEPENDENCIES = { useScreenedProviders, MarketplaceProvidersTable };
 interface Props {
   sdl: string;
   placementName: string;
+  region?: string;
   dependencies?: typeof DEPENDENCIES;
 }
 
-export const MarketplacePane: FC<Props> = ({ sdl, placementName, dependencies: d = DEPENDENCIES }) => {
-  const { providers, isLoading, isError } = d.useScreenedProviders({ sdl, placementName });
+export const MarketplacePane: FC<Props> = ({ sdl, placementName, region, dependencies: d = DEPENDENCIES }) => {
+  const { providers, isLoading, isError } = d.useScreenedProviders({ sdl, placementName, region });
   const hasFailedWithoutData = isError && providers.length === 0;
 
   return (

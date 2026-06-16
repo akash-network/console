@@ -18,11 +18,19 @@ type Props = {
   sdl: string;
   selectedServiceId: string;
   selectedPlacementName: string;
+  selectedPlacementRegion?: string;
   onSelectService: (serviceId: string) => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const ConfigureDeploymentPanes: FC<Props> = ({ sdl, selectedServiceId, selectedPlacementName, onSelectService, dependencies: d = DEPENDENCIES }) => {
+export const ConfigureDeploymentPanes: FC<Props> = ({
+  sdl,
+  selectedServiceId,
+  selectedPlacementName,
+  selectedPlacementRegion,
+  onSelectService,
+  dependencies: d = DEPENDENCIES
+}) => {
   const [activePane, setActivePane] = useState<ActivePane>("deployment");
   const [isSdlPreviewOpen, setIsSdlPreviewOpen] = useAtom(sdlStore.sdlPreviewOpen);
   const isSdlPreviewEnabled = d.useFlag("ui_sdl_preview_panel");
@@ -37,7 +45,7 @@ export const ConfigureDeploymentPanes: FC<Props> = ({ sdl, selectedServiceId, se
           <d.ConfigurationPane selectedServiceId={selectedServiceId} />
         </div>
         <div className={cn("min-h-0 md:block", { hidden: activePane !== "marketplace" })}>
-          <d.MarketplacePane sdl={sdl} placementName={selectedPlacementName} />
+          <d.MarketplacePane sdl={sdl} placementName={selectedPlacementName} region={selectedPlacementRegion} />
         </div>
         {isSdlPreviewEnabled && (
           <d.SdlPreviewPane sdl={sdl} isOpen={isSdlPreviewOpen} onOpen={() => setIsSdlPreviewOpen(true)} onClose={() => setIsSdlPreviewOpen(false)} />
