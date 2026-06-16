@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "../../community"
+		},
+		{
+			"path": "../../website"
+		},
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../provider-configs"
+		}
+	],
+	"settings": {}
+}

@@ -43,8 +43,8 @@ export const createProvider = async (overrides: Partial<CreationAttributes<Provi
   await ProviderAttributeSignature.create({
     provider: provider.owner,
     auditor: AUDITOR,
-    key: "region",
-    value: "us-west"
+    key: "location-region",
+    value: "na-us-west"
   });
 
   return provider;
@@ -58,8 +58,8 @@ export const createProviderWithAttributeSignatures = (auditor: string): Provider
       {
         provider: providerSeed.owner,
         auditor,
-        key: "region",
-        value: "us-west"
+        key: "location-region",
+        value: "na-us-west"
       }
     ] as any,
     providerAttributes: [] as any

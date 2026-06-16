@@ -1,6 +1,5 @@
 import type { JwtTokenPayload } from "@akashnetwork/chain-sdk";
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
-import type { ProviderAttributesSchema } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { AxiosError } from "axios";
 import { Ok } from "ts-results";
@@ -11,6 +10,7 @@ import { cacheEngine } from "@src/caching/helpers";
 import { AUDITOR } from "@src/deployment/config/provider.config";
 import { createLeaseStatus } from "../../../../test/seeders/lease-status.seeder";
 import { createProviderSeed, createProviderWithAttributeSignatures } from "../../../../test/seeders/provider.seeder";
+import { createProviderAttributesSchema } from "../../../../test/seeders/provider-attributes-schema.seeder";
 import { createUserWallet } from "../../../../test/seeders/user-wallet.seeder";
 import type { ProviderRepository } from "../../repositories/provider/provider.repository";
 import type { AuditorService } from "../auditors/auditors.service";
@@ -19,36 +19,7 @@ import type { ProviderJwtTokenService } from "../provider-jwt-token/provider-jwt
 import { ProviderService } from "./provider.service";
 import type { ProviderProxyService } from "./provider-proxy.service";
 
-const schemaDetail = { key: "test", type: "string" as const, required: false, description: "test", values: null };
-const providerAttributeSchemaStub: ProviderAttributesSchema = {
-  host: schemaDetail,
-  email: schemaDetail,
-  organization: schemaDetail,
-  website: schemaDetail,
-  tier: schemaDetail,
-  "status-page": schemaDetail,
-  "location-region": schemaDetail,
-  country: schemaDetail,
-  city: schemaDetail,
-  timezone: schemaDetail,
-  "location-type": schemaDetail,
-  "hosting-provider": schemaDetail,
-  "hardware-cpu": schemaDetail,
-  "hardware-cpu-arch": schemaDetail,
-  "hardware-gpu": schemaDetail,
-  "hardware-gpu-model": schemaDetail,
-  "hardware-disk": schemaDetail,
-  "hardware-memory": schemaDetail,
-  "network-provider": schemaDetail,
-  "network-speed-up": schemaDetail,
-  "network-speed-down": schemaDetail,
-  "feat-persistent-storage": schemaDetail,
-  "feat-persistent-storage-type": schemaDetail,
-  "workload-support-chia": schemaDetail,
-  "workload-support-chia-capabilities": schemaDetail,
-  "feat-endpoint-ip": schemaDetail,
-  "feat-endpoint-custom-domain": schemaDetail
-};
+const providerAttributeSchemaStub = createProviderAttributesSchema();
 
 describe(ProviderService.name, () => {
   describe("sendManifest", () => {

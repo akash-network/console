@@ -9887,6 +9887,110 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       ],
                       "type": "object",
                     },
+                    "datacenter": {
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                        },
+                        "key": {
+                          "type": "string",
+                        },
+                        "required": {
+                          "type": "boolean",
+                        },
+                        "type": {
+                          "enum": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "option",
+                            "multiple-option",
+                          ],
+                          "type": "string",
+                        },
+                        "values": {
+                          "items": {
+                            "properties": {
+                              "description": {
+                                "type": "string",
+                              },
+                              "key": {
+                                "type": "string",
+                              },
+                              "value": {
+                                "nullable": true,
+                              },
+                            },
+                            "required": [
+                              "key",
+                              "description",
+                            ],
+                            "type": "object",
+                          },
+                          "nullable": true,
+                          "type": "array",
+                        },
+                      },
+                      "required": [
+                        "key",
+                        "type",
+                        "required",
+                        "description",
+                      ],
+                      "type": "object",
+                    },
+                    "discord-username": {
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                        },
+                        "key": {
+                          "type": "string",
+                        },
+                        "required": {
+                          "type": "boolean",
+                        },
+                        "type": {
+                          "enum": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "option",
+                            "multiple-option",
+                          ],
+                          "type": "string",
+                        },
+                        "values": {
+                          "items": {
+                            "properties": {
+                              "description": {
+                                "type": "string",
+                              },
+                              "key": {
+                                "type": "string",
+                              },
+                              "value": {
+                                "nullable": true,
+                              },
+                            },
+                            "required": [
+                              "key",
+                              "description",
+                            ],
+                            "type": "object",
+                          },
+                          "nullable": true,
+                          "type": "array",
+                        },
+                      },
+                      "required": [
+                        "key",
+                        "type",
+                        "required",
+                        "description",
+                      ],
+                      "type": "object",
+                    },
                     "email": {
                       "properties": {
                         "description": {
@@ -10095,7 +10199,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       ],
                       "type": "object",
                     },
-                    "feat-persistent-storage-type": {
+                    "feat-shm": {
                       "properties": {
                         "description": {
                           "type": "string",
@@ -10251,7 +10355,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       ],
                       "type": "object",
                     },
-                    "hardware-disk": {
+                    "hardware-cuda": {
                       "properties": {
                         "description": {
                           "type": "string",
@@ -10304,6 +10408,58 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "type": "object",
                     },
                     "hardware-gpu": {
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                        },
+                        "key": {
+                          "type": "string",
+                        },
+                        "required": {
+                          "type": "boolean",
+                        },
+                        "type": {
+                          "enum": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "option",
+                            "multiple-option",
+                          ],
+                          "type": "string",
+                        },
+                        "values": {
+                          "items": {
+                            "properties": {
+                              "description": {
+                                "type": "string",
+                              },
+                              "key": {
+                                "type": "string",
+                              },
+                              "value": {
+                                "nullable": true,
+                              },
+                            },
+                            "required": [
+                              "key",
+                              "description",
+                            ],
+                            "type": "object",
+                          },
+                          "nullable": true,
+                          "type": "array",
+                        },
+                      },
+                      "required": [
+                        "key",
+                        "type",
+                        "required",
+                        "description",
+                      ],
+                      "type": "object",
+                    },
+                    "hardware-gpu-capability": {
                       "properties": {
                         "description": {
                           "type": "string",
@@ -10408,6 +10564,162 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "type": "object",
                     },
                     "hardware-memory": {
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                        },
+                        "key": {
+                          "type": "string",
+                        },
+                        "required": {
+                          "type": "boolean",
+                        },
+                        "type": {
+                          "enum": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "option",
+                            "multiple-option",
+                          ],
+                          "type": "string",
+                        },
+                        "values": {
+                          "items": {
+                            "properties": {
+                              "description": {
+                                "type": "string",
+                              },
+                              "key": {
+                                "type": "string",
+                              },
+                              "value": {
+                                "nullable": true,
+                              },
+                            },
+                            "required": [
+                              "key",
+                              "description",
+                            ],
+                            "type": "object",
+                          },
+                          "nullable": true,
+                          "type": "array",
+                        },
+                      },
+                      "required": [
+                        "key",
+                        "type",
+                        "required",
+                        "description",
+                      ],
+                      "type": "object",
+                    },
+                    "hardware-persistent-storage-capability": {
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                        },
+                        "key": {
+                          "type": "string",
+                        },
+                        "required": {
+                          "type": "boolean",
+                        },
+                        "type": {
+                          "enum": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "option",
+                            "multiple-option",
+                          ],
+                          "type": "string",
+                        },
+                        "values": {
+                          "items": {
+                            "properties": {
+                              "description": {
+                                "type": "string",
+                              },
+                              "key": {
+                                "type": "string",
+                              },
+                              "value": {
+                                "nullable": true,
+                              },
+                            },
+                            "required": [
+                              "key",
+                              "description",
+                            ],
+                            "type": "object",
+                          },
+                          "nullable": true,
+                          "type": "array",
+                        },
+                      },
+                      "required": [
+                        "key",
+                        "type",
+                        "required",
+                        "description",
+                      ],
+                      "type": "object",
+                    },
+                    "hardware-persistent-storage-class": {
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                        },
+                        "key": {
+                          "type": "string",
+                        },
+                        "required": {
+                          "type": "boolean",
+                        },
+                        "type": {
+                          "enum": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "option",
+                            "multiple-option",
+                          ],
+                          "type": "string",
+                        },
+                        "values": {
+                          "items": {
+                            "properties": {
+                              "description": {
+                                "type": "string",
+                              },
+                              "key": {
+                                "type": "string",
+                              },
+                              "value": {
+                                "nullable": true,
+                              },
+                            },
+                            "required": [
+                              "key",
+                              "description",
+                            ],
+                            "type": "object",
+                          },
+                          "nullable": true,
+                          "type": "array",
+                        },
+                      },
+                      "required": [
+                        "key",
+                        "type",
+                        "required",
+                        "description",
+                      ],
+                      "type": "object",
+                    },
+                    "hardware-shm": {
                       "properties": {
                         "description": {
                           "type": "string",
@@ -11083,114 +11395,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       ],
                       "type": "object",
                     },
-                    "workload-support-chia": {
-                      "properties": {
-                        "description": {
-                          "type": "string",
-                        },
-                        "key": {
-                          "type": "string",
-                        },
-                        "required": {
-                          "type": "boolean",
-                        },
-                        "type": {
-                          "enum": [
-                            "string",
-                            "number",
-                            "boolean",
-                            "option",
-                            "multiple-option",
-                          ],
-                          "type": "string",
-                        },
-                        "values": {
-                          "items": {
-                            "properties": {
-                              "description": {
-                                "type": "string",
-                              },
-                              "key": {
-                                "type": "string",
-                              },
-                              "value": {
-                                "nullable": true,
-                              },
-                            },
-                            "required": [
-                              "key",
-                              "description",
-                            ],
-                            "type": "object",
-                          },
-                          "nullable": true,
-                          "type": "array",
-                        },
-                      },
-                      "required": [
-                        "key",
-                        "type",
-                        "required",
-                        "description",
-                      ],
-                      "type": "object",
-                    },
-                    "workload-support-chia-capabilities": {
-                      "properties": {
-                        "description": {
-                          "type": "string",
-                        },
-                        "key": {
-                          "type": "string",
-                        },
-                        "required": {
-                          "type": "boolean",
-                        },
-                        "type": {
-                          "enum": [
-                            "string",
-                            "number",
-                            "boolean",
-                            "option",
-                            "multiple-option",
-                          ],
-                          "type": "string",
-                        },
-                        "values": {
-                          "items": {
-                            "properties": {
-                              "description": {
-                                "type": "string",
-                              },
-                              "key": {
-                                "type": "string",
-                              },
-                              "value": {
-                                "nullable": true,
-                              },
-                            },
-                            "required": [
-                              "key",
-                              "description",
-                            ],
-                            "type": "object",
-                          },
-                          "nullable": true,
-                          "type": "array",
-                        },
-                      },
-                      "required": [
-                        "key",
-                        "type",
-                        "required",
-                        "description",
-                      ],
-                      "type": "object",
-                    },
                   },
                   "required": [
                     "host",
                     "email",
+                    "discord-username",
                     "organization",
                     "website",
                     "tier",
@@ -11205,15 +11414,18 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "hardware-cpu-arch",
                     "hardware-gpu",
                     "hardware-gpu-model",
-                    "hardware-disk",
+                    "hardware-gpu-capability",
+                    "hardware-persistent-storage-class",
+                    "hardware-persistent-storage-capability",
+                    "hardware-cuda",
+                    "datacenter",
                     "hardware-memory",
                     "network-provider",
                     "network-speed-up",
                     "network-speed-down",
                     "feat-persistent-storage",
-                    "feat-persistent-storage-type",
-                    "workload-support-chia",
-                    "workload-support-chia-capabilities",
+                    "feat-shm",
+                    "hardware-shm",
                     "feat-endpoint-ip",
                     "feat-endpoint-custom-domain",
                   ],
@@ -11829,9 +12041,17 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "createdHeight": {
                         "type": "number",
                       },
+                      "datacenter": {
+                        "nullable": true,
+                        "type": "string",
+                      },
                       "deploymentCount": {
                         "nullable": true,
                         "type": "number",
+                      },
+                      "discordUsername": {
+                        "nullable": true,
+                        "type": "string",
                       },
                       "email": {
                         "nullable": true,
@@ -11846,12 +12066,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "featPersistentStorage": {
                         "type": "boolean",
                       },
-                      "featPersistentStorageType": {
-                        "items": {
-                          "type": "string",
-                        },
-                        "nullable": true,
-                        "type": "array",
+                      "featShm": {
+                        "type": "boolean",
                       },
                       "gpuModels": {
                         "items": {
@@ -11887,7 +12103,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "nullable": true,
                         "type": "string",
                       },
-                      "hardwareDisk": {
+                      "hardwareCuda": {
+                        "nullable": true,
+                        "type": "string",
+                      },
+                      "hardwareGpuCapabilities": {
                         "items": {
                           "type": "string",
                         },
@@ -11908,6 +12128,17 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "hardwareMemory": {
                         "nullable": true,
                         "type": "string",
+                      },
+                      "hardwarePersistentStorageClass": {
+                        "nullable": true,
+                        "type": "string",
+                      },
+                      "hardwareShm": {
+                        "items": {
+                          "type": "string",
+                        },
+                        "nullable": true,
+                        "type": "array",
                       },
                       "host": {
                         "nullable": true,
@@ -12022,16 +12253,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "nullable": true,
                         "type": "string",
                       },
-                      "workloadSupportChia": {
-                        "type": "boolean",
-                      },
-                      "workloadSupportChiaCapabilities": {
-                        "items": {
-                          "type": "string",
-                        },
-                        "nullable": true,
-                        "type": "array",
-                      },
                     },
                     "required": [
                       "owner",
@@ -12056,6 +12277,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "gpuModels",
                       "attributes",
                       "host",
+                      "discordUsername",
                       "organization",
                       "statusPage",
                       "locationRegion",
@@ -12068,17 +12290,19 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "hardwareCpuArch",
                       "hardwareGpuVendor",
                       "hardwareGpuModels",
-                      "hardwareDisk",
+                      "hardwareGpuCapabilities",
+                      "hardwarePersistentStorageClass",
                       "featPersistentStorage",
-                      "featPersistentStorageType",
+                      "featShm",
+                      "hardwareShm",
+                      "hardwareCuda",
+                      "datacenter",
                       "hardwareMemory",
                       "networkProvider",
                       "networkSpeedDown",
                       "networkSpeedUp",
                       "tier",
                       "featEndpointCustomDomain",
-                      "workloadSupportChia",
-                      "workloadSupportChiaCapabilities",
                       "featEndpointIp",
                     ],
                     "type": "object",
@@ -12159,8 +12383,16 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "createdHeight": {
                       "type": "number",
                     },
+                    "datacenter": {
+                      "nullable": true,
+                      "type": "string",
+                    },
                     "deploymentCount": {
                       "type": "number",
+                    },
+                    "discordUsername": {
+                      "nullable": true,
+                      "type": "string",
                     },
                     "email": {
                       "nullable": true,
@@ -12175,11 +12407,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "featPersistentStorage": {
                       "type": "boolean",
                     },
-                    "featPersistentStorageType": {
-                      "items": {
-                        "type": "string",
-                      },
-                      "type": "array",
+                    "featShm": {
+                      "type": "boolean",
                     },
                     "gpuModels": {
                       "items": {
@@ -12215,7 +12444,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "nullable": true,
                       "type": "string",
                     },
-                    "hardwareDisk": {
+                    "hardwareCuda": {
+                      "nullable": true,
+                      "type": "string",
+                    },
+                    "hardwareGpuCapabilities": {
                       "items": {
                         "type": "string",
                       },
@@ -12234,6 +12467,16 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "hardwareMemory": {
                       "nullable": true,
                       "type": "string",
+                    },
+                    "hardwarePersistentStorageClass": {
+                      "nullable": true,
+                      "type": "string",
+                    },
+                    "hardwareShm": {
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
                     },
                     "host": {
                       "nullable": true,
@@ -12481,15 +12724,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "nullable": true,
                       "type": "string",
                     },
-                    "workloadSupportChia": {
-                      "type": "boolean",
-                    },
-                    "workloadSupportChiaCapabilities": {
-                      "items": {
-                        "type": "string",
-                      },
-                      "type": "array",
-                    },
                   },
                   "required": [
                     "owner",
@@ -12520,6 +12754,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "gpuModels",
                     "attributes",
                     "host",
+                    "discordUsername",
                     "organization",
                     "statusPage",
                     "locationRegion",
@@ -12532,17 +12767,19 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "hardwareCpuArch",
                     "hardwareGpuVendor",
                     "hardwareGpuModels",
-                    "hardwareDisk",
+                    "hardwareGpuCapabilities",
+                    "hardwarePersistentStorageClass",
                     "featPersistentStorage",
-                    "featPersistentStorageType",
+                    "featShm",
+                    "hardwareShm",
+                    "hardwareCuda",
+                    "datacenter",
                     "hardwareMemory",
                     "networkProvider",
                     "networkSpeedDown",
                     "networkSpeedUp",
                     "tier",
                     "featEndpointCustomDomain",
-                    "workloadSupportChia",
-                    "workloadSupportChiaCapabilities",
                     "featEndpointIp",
                     "uptime",
                   ],
@@ -15579,7 +15816,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
   },
   "servers": [
     {
-      "url": "http://localhost:3080",
+      "url": "https://console-api-sandbox.akash.network",
     },
   ],
 }

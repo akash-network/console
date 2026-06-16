@@ -38,17 +38,19 @@ export interface ProviderDetails {
   hardwareCpuArch: string[];
   hardwareGpuVendor: string[];
   hardwareGpuModels: string[];
-  hardwareDisk: string[];
+  hardwareGpuCapabilities: string[];
+  hardwarePersistentStorageClass: string[];
   featPersistentStorage: boolean;
-  featPersistentStorageType: string[];
+  featShm: boolean;
+  hardwareShm: string[];
+  hardwareCuda: string | null;
+  datacenter: string | null;
   hardwareMemory: string[];
   networkProvider: string | null;
   networkSpeedDown: number;
   networkSpeedUp: number;
   tier: string[];
   featEndpointCustomDomain: boolean;
-  workloadSupportChia: boolean;
-  workloadSupportChiaCapabilities: string[];
   featEndpointIp: boolean;
   uptime: Uptime[];
   stats: {

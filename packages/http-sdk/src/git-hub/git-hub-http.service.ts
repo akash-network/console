@@ -15,6 +15,7 @@ type ProviderAttributeSchemaDetail = {
 export type ProviderAttributesSchema = {
   host: ProviderAttributeSchemaDetail;
   email: ProviderAttributeSchemaDetail;
+  "discord-username": ProviderAttributeSchemaDetail;
   organization: ProviderAttributeSchemaDetail;
   website: ProviderAttributeSchemaDetail;
   tier: ProviderAttributeSchemaDetail;
@@ -29,15 +30,18 @@ export type ProviderAttributesSchema = {
   "hardware-cpu-arch": ProviderAttributeSchemaDetail;
   "hardware-gpu": ProviderAttributeSchemaDetail;
   "hardware-gpu-model": ProviderAttributeSchemaDetail;
-  "hardware-disk": ProviderAttributeSchemaDetail;
+  "hardware-gpu-capability": ProviderAttributeSchemaDetail;
+  "hardware-persistent-storage-class": ProviderAttributeSchemaDetail;
+  "hardware-persistent-storage-capability": ProviderAttributeSchemaDetail;
+  "hardware-cuda": ProviderAttributeSchemaDetail;
+  datacenter: ProviderAttributeSchemaDetail;
   "hardware-memory": ProviderAttributeSchemaDetail;
   "network-provider": ProviderAttributeSchemaDetail;
   "network-speed-up": ProviderAttributeSchemaDetail;
   "network-speed-down": ProviderAttributeSchemaDetail;
   "feat-persistent-storage": ProviderAttributeSchemaDetail;
-  "feat-persistent-storage-type": ProviderAttributeSchemaDetail;
-  "workload-support-chia": ProviderAttributeSchemaDetail;
-  "workload-support-chia-capabilities": ProviderAttributeSchemaDetail;
+  "feat-shm": ProviderAttributeSchemaDetail;
+  "hardware-shm": ProviderAttributeSchemaDetail;
   "feat-endpoint-ip": ProviderAttributeSchemaDetail;
   "feat-endpoint-custom-domain": ProviderAttributeSchemaDetail;
 };

@@ -193,6 +193,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
                   </div>
                   <div>
                     <LabelValue label="Email" value={provider.email} />
+                    <LabelValue label="Discord" value={provider.discordUsername} />
                     <LabelValue label="Organization" value={provider.organization} />
                     <LabelValue label="Region" value={provider.locationRegion} />
                     <LabelValue label="City" value={provider.city} />
@@ -218,12 +219,11 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
                   <div>
                     <LabelValue label="Akash version" value={provider.akashVersion || "Unknown"} />
                     <LabelValue label="IP Leases" value={provider.featEndpointIp && <Check className="ml-0 text-primary sm:ml-2" />} />
-                    <LabelValue label="Chia" value={provider.workloadSupportChia && <Check className="ml-0 text-primary sm:ml-2" />} />
+                    <LabelValue label="Shared Memory (SHM)" value={provider.featShm && <Check className="ml-0 text-primary sm:ml-2" />} />
                   </div>
                   <div>
                     <LabelValue label="Kube version" value={provider.kube ? `${provider.kube?.major}.${provider.kube?.minor}` : "Unkown"} />
                     <LabelValue label="Custom domain" value={provider.featEndpointCustomDomain && <Check className="ml-0 text-primary sm:ml-2" />} />
-                    <LabelValue label="Chia capabilities" value={provider.workloadSupportChiaCapabilities} />
                   </div>
                 </CardContent>
               </Card>

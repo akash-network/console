@@ -1,3 +1,5 @@
+import "@test/setup-provider-attributes-schema";
+
 import type { Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import { ProviderAttributeSignature } from "@akashnetwork/database/dbSchemas/akash";
 import subDays from "date-fns/subDays";

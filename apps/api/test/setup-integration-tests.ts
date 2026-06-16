@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import "@src/core/providers/http-sdk.provider";
 
 import { container } from "tsyringe";
 

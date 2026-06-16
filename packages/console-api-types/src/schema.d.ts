@@ -48,6 +48,8 @@ export interface paths {
                 address: string | null;
                 denom: string;
                 isTrialing: boolean;
+                /** @description Minimum USD amount accepted by the next paid top-up for this wallet. */
+                topUpMinAmountUsd: number;
                 createdAt: string | null;
                 requires3DS?: boolean;
                 clientSecret?: string | null;
@@ -71,6 +73,8 @@ export interface paths {
                 address: string | null;
                 denom: string;
                 isTrialing: boolean;
+                /** @description Minimum USD amount accepted by the next paid top-up for this wallet. */
+                topUpMinAmountUsd: number;
                 createdAt: string | null;
                 requires3DS?: boolean;
                 clientSecret?: string | null;
@@ -122,6 +126,8 @@ export interface paths {
                 address: string | null;
                 denom: string;
                 isTrialing: boolean;
+                /** @description Minimum USD amount accepted by the next paid top-up for this wallet. */
+                topUpMinAmountUsd: number;
                 createdAt: string | null;
                 requires3DS?: boolean;
                 clientSecret?: string | null;
@@ -353,55 +359,6 @@ export interface paths {
                 transactionHash: string;
                 rawLog: string;
               };
-            };
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/stripe-webhook": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Stripe Webhook Handler */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "text/plain": string;
-        };
-      };
-      responses: {
-        /** @description Webhook processed successfully */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-        /** @description Stripe signature is required */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              error: string;
             };
           };
         };
@@ -3897,6 +3854,7 @@ export interface paths {
                 auditedBy: string[];
               }[];
               host: string | null;
+              discordUsername: string | null;
               organization: string | null;
               statusPage: string | null;
               locationRegion: string | null;
@@ -3909,17 +3867,19 @@ export interface paths {
               hardwareCpuArch: string | null;
               hardwareGpuVendor: string | null;
               hardwareGpuModels: string[] | null;
-              hardwareDisk: string[] | null;
+              hardwareGpuCapabilities: string[] | null;
+              hardwarePersistentStorageClass: string | null;
               featPersistentStorage: boolean;
-              featPersistentStorageType: string[] | null;
+              featShm: boolean;
+              hardwareShm: string[] | null;
+              hardwareCuda: string | null;
+              datacenter: string | null;
               hardwareMemory: string | null;
               networkProvider: string | null;
               networkSpeedDown: number;
               networkSpeedUp: number;
               tier: string | null;
               featEndpointCustomDomain: boolean;
-              workloadSupportChia: boolean;
-              workloadSupportChiaCapabilities: string[] | null;
               featEndpointIp: boolean;
             }[];
           };
@@ -4025,6 +3985,7 @@ export interface paths {
                 auditedBy: string[];
               }[];
               host: string | null;
+              discordUsername: string | null;
               organization: string | null;
               statusPage: string | null;
               locationRegion: string | null;
@@ -4037,17 +3998,19 @@ export interface paths {
               hardwareCpuArch: string | null;
               hardwareGpuVendor: string | null;
               hardwareGpuModels: string[];
-              hardwareDisk: string[];
+              hardwareGpuCapabilities: string[];
+              hardwarePersistentStorageClass: string | null;
               featPersistentStorage: boolean;
-              featPersistentStorageType: string[];
+              featShm: boolean;
+              hardwareShm: string[];
+              hardwareCuda: string | null;
+              datacenter: string | null;
               hardwareMemory: string | null;
               networkProvider: string | null;
               networkSpeedDown: number;
               networkSpeedUp: number;
               tier: string | null;
               featEndpointCustomDomain: boolean;
-              workloadSupportChia: boolean;
-              workloadSupportChiaCapabilities: string[];
               featEndpointIp: boolean;
               uptime: {
                 id: string;
@@ -4222,6 +4185,20 @@ export interface paths {
                   | null;
               };
               email: {
+                key: string;
+                /** @enum {string} */
+                type: "string" | "number" | "boolean" | "option" | "multiple-option";
+                required: boolean;
+                description: string;
+                values?:
+                  | {
+                      key: string;
+                      description: string;
+                      value?: unknown;
+                    }[]
+                  | null;
+              };
+              "discord-username": {
                 key: string;
                 /** @enum {string} */
                 type: "string" | "number" | "boolean" | "option" | "multiple-option";
@@ -4431,7 +4408,63 @@ export interface paths {
                     }[]
                   | null;
               };
-              "hardware-disk": {
+              "hardware-gpu-capability": {
+                key: string;
+                /** @enum {string} */
+                type: "string" | "number" | "boolean" | "option" | "multiple-option";
+                required: boolean;
+                description: string;
+                values?:
+                  | {
+                      key: string;
+                      description: string;
+                      value?: unknown;
+                    }[]
+                  | null;
+              };
+              "hardware-persistent-storage-class": {
+                key: string;
+                /** @enum {string} */
+                type: "string" | "number" | "boolean" | "option" | "multiple-option";
+                required: boolean;
+                description: string;
+                values?:
+                  | {
+                      key: string;
+                      description: string;
+                      value?: unknown;
+                    }[]
+                  | null;
+              };
+              "hardware-persistent-storage-capability": {
+                key: string;
+                /** @enum {string} */
+                type: "string" | "number" | "boolean" | "option" | "multiple-option";
+                required: boolean;
+                description: string;
+                values?:
+                  | {
+                      key: string;
+                      description: string;
+                      value?: unknown;
+                    }[]
+                  | null;
+              };
+              "hardware-cuda": {
+                key: string;
+                /** @enum {string} */
+                type: "string" | "number" | "boolean" | "option" | "multiple-option";
+                required: boolean;
+                description: string;
+                values?:
+                  | {
+                      key: string;
+                      description: string;
+                      value?: unknown;
+                    }[]
+                  | null;
+              };
+              datacenter: {
                 key: string;
                 /** @enum {string} */
                 type: "string" | "number" | "boolean" | "option" | "multiple-option";
@@ -4515,7 +4548,7 @@ export interface paths {
                     }[]
                   | null;
               };
-              "feat-persistent-storage-type": {
+              "feat-shm": {
                 key: string;
                 /** @enum {string} */
                 type: "string" | "number" | "boolean" | "option" | "multiple-option";
@@ -4529,21 +4562,7 @@ export interface paths {
                     }[]
                   | null;
               };
-              "workload-support-chia": {
-                key: string;
-                /** @enum {string} */
-                type: "string" | "number" | "boolean" | "option" | "multiple-option";
-                required: boolean;
-                description: string;
-                values?:
-                  | {
-                      key: string;
-                      description: string;
-                      value?: unknown;
-                    }[]
-                  | null;
-              };
-              "workload-support-chia-capabilities": {
+              "hardware-shm": {
                 key: string;
                 /** @enum {string} */
                 type: "string" | "number" | "boolean" | "option" | "multiple-option";
@@ -6837,13 +6856,9 @@ export interface paths {
                 id: number;
                 cpu: {
                   units: {
-                    /**
-                     * @description String-encoded integer value
-                     * @example 1000
-                     */
                     val: string;
                   };
-                  attributes: {
+                  attributes?: {
                     /**
                      * @description Attribute key
                      * @example persistent
@@ -6858,13 +6873,9 @@ export interface paths {
                 };
                 memory: {
                   quantity: {
-                    /**
-                     * @description String-encoded integer value
-                     * @example 1000
-                     */
                     val: string;
                   };
-                  attributes: {
+                  attributes?: {
                     /**
                      * @description Attribute key
                      * @example persistent
@@ -6879,13 +6890,9 @@ export interface paths {
                 };
                 gpu: {
                   units: {
-                    /**
-                     * @description String-encoded integer value
-                     * @example 1000
-                     */
                     val: string;
                   };
-                  attributes: {
+                  attributes?: {
                     /**
                      * @description Attribute key
                      * @example persistent
@@ -6905,13 +6912,9 @@ export interface paths {
                    */
                   name: string;
                   quantity: {
-                    /**
-                     * @description String-encoded integer value
-                     * @example 1000
-                     */
                     val: string;
                   };
-                  attributes: {
+                  attributes?: {
                     /**
                      * @description Attribute key
                      * @example persistent

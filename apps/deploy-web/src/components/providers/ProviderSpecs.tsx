@@ -25,6 +25,7 @@ export const ProviderSpecs: React.FunctionComponent<Props> = ({ provider }) => {
           <LabelValue label="CPU" value={provider.hardwareCpu || "Unknown"} />
           <LabelValue label="Memory (RAM)" value={provider.hardwareMemory || "Unknown"} />
           <LabelValue label="Persistent Storage" value={provider.featPersistentStorage && <Check className="ml-2 text-primary" />} />
+          <LabelValue label="Shared Memory (SHM)" value={provider.featShm && <Check className="ml-2 text-primary" />} />
           <LabelValue label="Download speed" value={provider.networkSpeedDown} />
           <LabelValue label="Network Provider" value={provider.networkProvider} />
         </div>
@@ -39,8 +40,9 @@ export const ProviderSpecs: React.FunctionComponent<Props> = ({ provider }) => {
             ))}
           />
           <LabelValue label="CPU Architecture" value={provider.hardwareCpuArch} />
-          <LabelValue label="Disk Storage" value={provider.hardwareDisk} />
-          <LabelValue label="Persistent Disk Storage" value={provider.featPersistentStorageType} />
+          <LabelValue label="Persistent Storage Class" value={provider.hardwarePersistentStorageClass || "Unknown"} />
+          <LabelValue label="CUDA" value={provider.hardwareCuda || "Unknown"} />
+          <LabelValue label="Datacenter" value={provider.datacenter || "Unknown"} />
           <LabelValue label="Upload speed" value={provider.networkSpeedUp} />
         </div>
       </CardContent>

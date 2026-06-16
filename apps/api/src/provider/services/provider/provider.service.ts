@@ -254,8 +254,12 @@ export class ProviderService {
       this.providerAttributesSchemaService.getProviderAttributesSchema()
     ]);
 
+    const mapped = mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot ?? undefined);
+
     return {
-      ...mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot ?? undefined),
+      ...mapped,
+      hardwareGpuCapabilities: mapped.hardwareGpuCapabilities ?? [],
+      hardwareShm: mapped.hardwareShm ?? [],
       uptime: uptimeSnapshots.map(ps => ({
         id: ps.id,
         isOnline: ps.isOnline,
