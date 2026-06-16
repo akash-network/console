@@ -1,4 +1,4 @@
-import { GetUsers200ResponseOneOfInner, ManagementClient } from "auth0";
+import { GetUsers200ResponseOneOfInner, ManagementClient, PostIdentitiesRequestProviderEnum } from "auth0";
 import { singleton } from "tsyringe";
 
 export const AUTH0_DB_CONNECTION = "Username-Password-Authentication";
@@ -31,5 +31,21 @@ export class Auth0Service {
     }
 
     return users[0];
+  }
+
+  async getUsersByEmail(email: string): Promise<GetUsers200ResponseOneOfInner[]> {
+    const { data: users } = await this.managementClient.usersByEmail.getByEmail({ email });
+    return users;
+  }
+
+  async linkUsers(primaryUserId: string, secondary: { provider: string; userId: string; connectionId?: string }): Promise<void> {
+    await this.managementClient.users.link(
+      { id: primaryUserId },
+      {
+        provider: secondary.provider as PostIdentitiesRequestProviderEnum,
+        user_id: secondary.userId,
+        connection_id: secondary.connectionId
+      }
+    );
   }
 }
