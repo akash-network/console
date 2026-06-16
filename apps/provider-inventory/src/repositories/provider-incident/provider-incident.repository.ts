@@ -13,6 +13,14 @@ export interface RecentIncidentRow {
   endedAt: string | null;
 }
 
+export interface DailyDowntimeRow {
+  provider: string;
+  date: string; // local calendar date, "YYYY-MM-DD"
+  hasOpenIncident: boolean; // true if the provider has ANY currently-open incident
+  incidentCount: number; // incident intervals overlapping that day
+  downtimeSeconds: number; // clipped-to-day downtime in seconds (max 86400/day)
+}
+
 @singleton()
 export class ProviderIncidentRepository {
   readonly driver: DbDriver;
@@ -24,23 +32,49 @@ export class ProviderIncidentRepository {
   }
 
   /**
-   * Returns raw incident intervals for the given providers within the rolling window (default 8 days).
-   * Ongoing incidents (`ended_at IS NULL`) are always included with `endedAt: null`.
-   * Rows are flat and ordered by `(provider, started_at ASC)` so callers can group in returned order.
+   * Per-provider, per-day downtime over a rolling 7-day window (today + 6 prior days),
+   * with calendar-day boundaries computed in `timeZone` (default UTC).
+   * `hasOpenIncident` is provider-wide (true if any incident is still open now).
+   * Rows are ordered by `(provider, date ASC)`.
    */
-  async findRecentByProviders(owners: string[], days = 8): Promise<RecentIncidentRow[]> {
-    if (owners.length === 0) return [];
+  async findDailyDowntimeByProviders(providers: string[], timeZone = "UTC"): Promise<DailyDowntimeRow[]> {
+    if (providers.length === 0) return [];
 
+    const daysAgo = 7; // 7-day rolling window (today + 6 prior days)
     const sql = this.#sql;
-    return sql<RecentIncidentRow[]>`
+    return sql<DailyDowntimeRow[]>`
+      WITH day_bounds AS MATERIALIZED (
+        SELECT
+          (date_trunc('day', now() AT TIME ZONE ${timeZone}::text) - make_interval(days => g.idx))::date AS day,
+          (date_trunc('day', now() AT TIME ZONE ${timeZone}::text) - make_interval(days => g.idx)) AT TIME ZONE ${timeZone}::text AS day_start,
+          (date_trunc('day', now() AT TIME ZONE ${timeZone}::text) - make_interval(days => g.idx) + interval '1 day') AT TIME ZONE ${timeZone}::text AS day_end
+        FROM generate_series(0, ${daysAgo - 1}) AS g(idx)
+      ),
+      recent AS (
+        SELECT
+          ${sql(providerIncidents.provider.name)} AS provider,
+          ${sql(providerIncidents.startedAt.name)} AS started_at,
+          ${sql(providerIncidents.endedAt.name)} IS NULL AS is_open,
+          COALESCE(${sql(providerIncidents.endedAt.name)}, now()) AS ended_at
+        FROM ${sql(INCIDENTS_TABLE)}
+        WHERE ${sql(providerIncidents.provider.name)} IN ${sql(providers)}
+          AND (${sql(providerIncidents.endedAt.name)} IS NULL
+               OR ${sql(providerIncidents.endedAt.name)} >= (date_trunc('day', now() AT TIME ZONE ${timeZone}::text) - make_interval(days => 6)) AT TIME ZONE ${timeZone}::text)
+      )
       SELECT
-        ${sql(providerIncidents.provider.name)} AS provider,
-        to_char(${sql(providerIncidents.startedAt.name)} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "startedAt",
-        to_char(${sql(providerIncidents.endedAt.name)} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "endedAt"
-      FROM ${sql(INCIDENTS_TABLE)}
-      WHERE ${sql(providerIncidents.provider.name)} IN ${sql(owners)}
-        AND (${sql(providerIncidents.endedAt.name)} IS NULL OR ${sql(providerIncidents.endedAt.name)} >= now() - make_interval(days => ${days}))
-      ORDER BY ${sql(providerIncidents.provider.name)}, ${sql(providerIncidents.startedAt.name)} ASC
+        i.provider,
+        to_char(d.day, 'YYYY-MM-DD') AS "date",
+        bool_or(bool_or(i.is_open)) OVER (PARTITION BY i.provider) AS "hasOpenIncident",
+        count(*)::int AS "incidentCount",
+        SUM(EXTRACT(EPOCH FROM (
+          LEAST(i.ended_at, d.day_end) - GREATEST(i.started_at, d.day_start)
+        )))::int AS "downtimeSeconds"
+      FROM recent i
+      JOIN day_bounds d
+        ON i.started_at < d.day_end
+       AND i.ended_at  > d.day_start
+      GROUP BY i.provider, d.day
+      ORDER BY i.provider, d.day
     `;
   }
 

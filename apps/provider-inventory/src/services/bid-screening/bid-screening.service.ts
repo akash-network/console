@@ -5,10 +5,10 @@ import { inject, singleton } from "tsyringe";
 import { bidScreeningBinPackerMatched, bidScreeningPrefilterCandidates } from "@src/metrics/metrics";
 import { LOGGER_FACTORY, type LoggerFactory, LoggerService } from "@src/providers/logger-factory.provider";
 import { type BidScreeningCandidate, BidScreeningRepository } from "@src/repositories/bid-screening/bid-screening.repository";
-import { ProviderIncidentRepository, RecentIncidentRow } from "@src/repositories/provider-incident/provider-incident.repository";
+import { DailyDowntimeRow, ProviderIncidentRepository } from "@src/repositories/provider-incident/provider-incident.repository";
 import type { GroupSpecJSON } from "../../mappers/groupspec-mapper/groupspec-mapper";
 import { mapGroupSpecToResourceUnits } from "../../mappers/groupspec-mapper/groupspec-mapper";
-import type { BidScreeningResult, Incident, RequestedResourceUnit } from "../../types/inventory";
+import type { BidScreeningResult, RequestedResourceUnit } from "../../types/inventory";
 import { ClusterInventoryMatcherService } from "../cluster-inventory-matcher/cluster-inventory-matcher.service";
 
 const EMPTY_OBJECT = Object.freeze(Object.create(null));
@@ -32,7 +32,7 @@ export class BidScreeningService {
     this.#logger = createLogger({ context: "BidScreeningService" });
   }
 
-  async findMatchingProviders(request: GroupSpecJSON, options?: Abortable): Promise<BidScreeningResult[]> {
+  async findMatchingProviders(request: BidScreeningInput, options?: Abortable): Promise<BidScreeningResult[]> {
     const resourceUnits = await withSpan("mapRequestToResourceUnits", async () => mapGroupSpecToResourceUnits(request));
 
     this.#logger.info({ event: "BID_SCREENING_START", resourceGroupCount: resourceUnits.length });
@@ -57,23 +57,29 @@ export class BidScreeningService {
       return items;
     });
 
-    const incidentsByOwner = await withSpan("fetchIncidentsForMatched", async ({ activeSpan }) => {
-      if (!matched.length || options?.signal?.aborted) return EMPTY_OBJECT;
-      const rows = await this.#incidentRepository.findRecentByProviders(matched.map(candidate => candidate.owner));
-      activeSpan.setAttribute("amountOfIncidents", rows.length);
+    const incidentsByOwner: Partial<Record<string, Omit<DailyDowntimeRow, "provider">[]>> = await withSpan(
+      "fetchIncidentsForMatched",
+      async ({ activeSpan }) => {
+        if (!matched.length || options?.signal?.aborted) return EMPTY_OBJECT;
+        const rows = await this.#incidentRepository.findDailyDowntimeByProviders(
+          matched.map(candidate => candidate.owner),
+          request.timezone
+        );
+        activeSpan.setAttribute("amountOfIncidents", rows.length);
 
-      const grouped = Object.create(null) as Partial<Record<string, Pick<RecentIncidentRow, "startedAt" | "endedAt">[]>>;
-      for (const row of rows) {
-        grouped[row.provider] ??= [];
-        grouped[row.provider]!.push({ startedAt: row.startedAt, endedAt: row.endedAt });
+        const grouped = Object.create(null);
+        for (const { provider, ...row } of rows) {
+          grouped[provider] ??= [];
+          grouped[provider]!.push(row);
+        }
+
+        this.#logger.info({
+          event: "BID_SCREENING_PROVIDER_INCIDENTS_FETCHED",
+          incidentsCount: rows.length
+        });
+        return grouped;
       }
-
-      this.#logger.info({
-        event: "BID_SCREENING_PROVIDER_INCIDENTS_FETCHED",
-        incidentsCount: rows.length
-      });
-      return grouped;
-    });
+    );
 
     return matched.map(candidate => this.#toResult(candidate, incidentsByOwner));
   }
@@ -94,7 +100,7 @@ export class BidScreeningService {
     return matched;
   }
 
-  #toResult(candidate: BidScreeningCandidate, incidentsByOwner: Record<string, Incident[]>): BidScreeningResult {
+  #toResult(candidate: BidScreeningCandidate, incidentsByOwner: Partial<Record<string, Omit<DailyDowntimeRow, "provider">[]>>): BidScreeningResult {
     return {
       owner: candidate.owner,
       hostUri: candidate.hostUri,
@@ -104,4 +110,8 @@ export class BidScreeningService {
       incidents: incidentsByOwner[candidate.owner] ?? []
     };
   }
+}
+
+export interface BidScreeningInput extends Omit<GroupSpecJSON, "name"> {
+  timezone: string;
 }

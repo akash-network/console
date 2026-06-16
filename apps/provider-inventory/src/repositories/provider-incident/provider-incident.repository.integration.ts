@@ -7,6 +7,8 @@ import { providerIncidents } from "@src/model-schemas/provider-incident/provider
 import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
 import { ProviderIncidentRepository } from "./provider-incident.repository";
 
+const SECONDS_PER_DAY = 24 * 60 * 60;
+
 describe(ProviderIncidentRepository.name, () => {
   describe("openIncident", () => {
     it("inserts an open row when no prior incident exists for the provider", async () => {
@@ -120,79 +122,77 @@ describe(ProviderIncidentRepository.name, () => {
     });
   });
 
-  describe("findRecentByProviders", () => {
-    it("returns an empty array when called with no owners", async () => {
+  describe("findDailyDowntimeByProviders", () => {
+    it("returns an empty array when called with no providers", async () => {
       const { repository } = setup();
 
-      const rows = await repository.findRecentByProviders([]);
+      const rows = await repository.findDailyDowntimeByProviders([]);
 
       expect(rows).toEqual([]);
     });
 
-    it("returns a closed incident inside the window", async () => {
+    it("reports a single closed within-day incident as one row with its exact duration", async () => {
       const { repository, db } = setup();
-      await seedIncident(db, { provider: "akash1a", startedAt: daysAgo(2), endedAt: daysAgo(1) });
+      const startedAt = atDaysAgoUtc(2, 10);
+      const endedAt = atDaysAgoUtc(2, 10, 5);
+      await seedIncident(db, { provider: "akash1a", startedAt, endedAt });
 
-      const rows = await repository.findRecentByProviders(["akash1a"]);
+      const rows = await repository.findDailyDowntimeByProviders(["akash1a"]);
 
-      expect(rows).toHaveLength(1);
-      expect(rows[0].provider).toBe("akash1a");
-      expect(rows[0].startedAt).toMatch(ISO_MS);
-      expect(rows[0].endedAt).toMatch(ISO_MS);
+      expect(rows).toEqual([
+        {
+          provider: "akash1a",
+          date: utcDate(startedAt),
+          hasOpenIncident: false,
+          incidentCount: 1,
+          downtimeSeconds: 5 * 60
+        }
+      ]);
     });
 
-    it("returns an ongoing incident with endedAt null", async () => {
+    it("flags every row of a provider with a currently-open incident", async () => {
       const { repository, db } = setup();
-      await seedIncident(db, { provider: "akash1a", startedAt: daysAgo(3), endedAt: null });
+      await seedIncident(db, { provider: "akash1a", startedAt: atDaysAgoUtc(2, 10), endedAt: null });
 
-      const rows = await repository.findRecentByProviders(["akash1a"]);
+      const rows = await repository.findDailyDowntimeByProviders(["akash1a"]);
 
-      expect(rows).toHaveLength(1);
-      expect(rows[0].endedAt).toBeNull();
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.every(r => r.hasOpenIncident)).toBe(true);
     });
 
-    it("includes an incident at the inner edge of the window and excludes one beyond it", async () => {
+    it("treats the open flag as provider-wide when a closed and an open incident coexist", async () => {
       const { repository, db } = setup();
-      await seedIncident(db, { provider: "akash1in", startedAt: daysAgo(7.6), endedAt: daysAgo(7.5) });
-      await seedIncident(db, { provider: "akash1out", startedAt: daysAgo(9.1), endedAt: daysAgo(9) });
+      await seedIncident(db, { provider: "akash1a", startedAt: atDaysAgoUtc(4, 10), endedAt: atDaysAgoUtc(4, 10, 5) });
+      await seedIncident(db, { provider: "akash1a", startedAt: atDaysAgoUtc(2, 10), endedAt: null });
 
-      const rows = await repository.findRecentByProviders(["akash1in", "akash1out"]);
+      const rows = await repository.findDailyDowntimeByProviders(["akash1a"]);
 
-      expect(rows.map(r => r.provider)).toEqual(["akash1in"]);
+      expect(rows.every(r => r.hasOpenIncident)).toBe(true);
     });
 
-    it("orders multiple incidents for one provider by startedAt ascending", async () => {
+    it("clips an incident crossing UTC midnight into one row per day", async () => {
       const { repository, db } = setup();
-      await seedIncident(db, { provider: "akash1a", startedAt: daysAgo(1), endedAt: daysAgo(0.5) });
-      await seedIncident(db, { provider: "akash1a", startedAt: daysAgo(5), endedAt: daysAgo(4) });
-      await seedIncident(db, { provider: "akash1a", startedAt: daysAgo(3), endedAt: daysAgo(2) });
+      const startedAt = atDaysAgoUtc(2, 23);
+      const endedAt = atDaysAgoUtc(1, 1);
+      await seedIncident(db, { provider: "akash1a", startedAt, endedAt });
 
-      const rows = await repository.findRecentByProviders(["akash1a"]);
+      const rows = await repository.findDailyDowntimeByProviders(["akash1a"]);
 
-      expect(rows).toHaveLength(3);
-      const startedAts = rows.map(r => r.startedAt);
-      expect(startedAts).toEqual([...startedAts].sort());
+      expect(rows.map(r => r.date)).toEqual([utcDate(startedAt), utcDate(endedAt)]);
+      expect(rows.map(r => r.downtimeSeconds)).toEqual([60 * 60, 60 * 60]);
+      expect(rows.reduce((sum, r) => sum + r.downtimeSeconds, 0)).toBe(2 * 60 * 60);
     });
 
-    it("returns only the real incident for a recently enrolled provider without fabricating pre-enrollment rows", async () => {
+    it("groups and filters by provider across a batched call, ordered by provider then date", async () => {
       const { repository, db } = setup();
-      await seedIncident(db, { provider: "akash1a", startedAt: daysAgo(2), endedAt: daysAgo(1) });
+      await seedIncident(db, { provider: "akash1b", startedAt: atDaysAgoUtc(3, 10), endedAt: atDaysAgoUtc(3, 10, 5) });
+      await seedIncident(db, { provider: "akash1a", startedAt: atDaysAgoUtc(2, 10), endedAt: atDaysAgoUtc(2, 10, 5) });
+      await seedIncident(db, { provider: "akash1c", startedAt: atDaysAgoUtc(2, 10), endedAt: atDaysAgoUtc(2, 10, 5) });
 
-      const rows = await repository.findRecentByProviders(["akash1a"]);
+      const rows = await repository.findDailyDowntimeByProviders(["akash1a", "akash1b"]);
 
-      expect(rows).toHaveLength(1);
-    });
-
-    it("groups and filters incidents by provider across a batched call", async () => {
-      const { repository, db } = setup();
-      await seedIncident(db, { provider: "akash1a", startedAt: daysAgo(2), endedAt: daysAgo(1) });
-      await seedIncident(db, { provider: "akash1b", startedAt: daysAgo(3), endedAt: null });
-      await seedIncident(db, { provider: "akash1c", startedAt: daysAgo(1), endedAt: daysAgo(0.5) });
-
-      const rows = await repository.findRecentByProviders(["akash1a", "akash1b"]);
-
-      const byProvider = rows.reduce<Record<string, number>>((acc, r) => ({ ...acc, [r.provider]: (acc[r.provider] ?? 0) + 1 }), {});
-      expect(byProvider).toEqual({ akash1a: 1, akash1b: 1 });
+      expect(rows.map(r => r.provider)).toEqual(["akash1a", "akash1b"]);
+      expect([...rows].sort(byProviderThenDate)).toEqual(rows);
     });
   });
 
@@ -203,7 +203,21 @@ describe(ProviderIncidentRepository.name, () => {
   }
 });
 
-const ISO_MS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+function byProviderThenDate(a: { provider: string; date: string }, b: { provider: string; date: string }): number {
+  return a.provider === b.provider ? a.date.localeCompare(b.date) : a.provider.localeCompare(b.provider);
+}
+
+// A timestamp `daysAgo` whole UTC days back, pinned to a fixed UTC wall-clock time so single-day
+// intervals stay comfortably away from midnight and land on a deterministic calendar day.
+function atDaysAgoUtc(daysAgo: number, hour: number, minute = 0): Date {
+  const date = new Date(Date.now() - daysAgo * SECONDS_PER_DAY * 1000);
+  date.setUTCHours(hour, minute, 0, 0);
+  return date;
+}
+
+function utcDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
 
 interface SeedClosedInput {
   provider: string;
@@ -217,10 +231,6 @@ async function seedClosed(db: PostgresJsDatabase, input: SeedClosedInput): Promi
     startedAt: input.startedAt ?? new Date(input.endedAt.getTime() - 60_000),
     endedAt: input.endedAt
   });
-}
-
-function daysAgo(days: number): Date {
-  return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 }
 
 async function seedIncident(db: PostgresJsDatabase, input: { provider: string; startedAt: Date; endedAt: Date | null }): Promise<void> {

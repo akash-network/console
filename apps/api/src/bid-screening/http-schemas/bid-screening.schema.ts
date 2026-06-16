@@ -2,20 +2,20 @@ import { z } from "@hono/zod-openapi";
 
 const UIntStringSchema = z.string().regex(/^\d+$/, "Must be an unsigned integer string");
 
-/**
- * Validates the resource value but does NOT transform it. This service only proxies the request to
- * provider-inventory, which parses the value itself; transforming to BigInt here would break the
- * `JSON.stringify` forward in the controller. Value is a non-negative integer string or its
- * protobuf base64-encoded representation.
- */
 const ResourceValueSchema = z.object({
   val: z
     .string()
     .max(80)
-    .refine(str => {
-      const decoded = /^\d+$/.test(str) ? str : Buffer.from(str, "base64").toString("utf-8");
-      return /^\d+$/.test(decoded);
-    }, "Must be a non-negative integer or its protobuf base64-encoded representation")
+    .transform(str => {
+      if (/^\d+$/.test(str)) return BigInt(str);
+      const parsed = Buffer.from(str, "base64").toString("utf-8");
+      if (/^\d+$/.test(parsed)) return BigInt(parsed);
+      return NaN;
+    })
+    .refine(
+      (val): val is bigint => !Number.isFinite(val) && typeof val === "bigint" && val >= 0n,
+      "Must be a non-negative integer or its protobuf base64-encoded representation"
+    )
 });
 
 // Mirrors AttributeNameRegexpStringWildcard in akash-network/chain-sdk
@@ -89,10 +89,14 @@ const RequirementsSchema = z.object({
   attributes: z.array(AttributeSchema).default([])
 });
 
+const SUPPORTED_TIMEZONES = new Set(Intl.supportedValuesOf("timeZone"));
 export const BidScreeningRequestSchema = z.object({
-  name: z.string().openapi({ description: "Group name", example: "westcoast" }),
   requirements: RequirementsSchema.default({}),
-  resources: z.array(ResourceUnitSchema).openapi({ description: "Resource units with replica counts" })
+  resources: z.array(ResourceUnitSchema).openapi({ description: "Resource units with replica counts" }),
+  timezone: z
+    .string()
+    .refine(val => SUPPORTED_TIMEZONES.has(val), { message: "Timezone is not supported" })
+    .openapi({ description: "Client timezone, validated against supported Node.js Intl timezones", example: "America/Chicago" })
 });
 export type BidScreeningRequest = z.infer<typeof BidScreeningRequestSchema>;
 
@@ -111,11 +115,13 @@ const ProviderResultSchema = z.object({
   incidents: z
     .array(
       z.object({
-        startedAt: z.string().datetime(),
-        endedAt: z.string().datetime().nullable()
+        date: z.string().openapi({ description: "Local calendar day, YYYY-MM-DD", example: "2026-06-01" }),
+        hasOpenIncident: z.boolean().openapi({ description: "True if the provider currently has any open incident" }),
+        incidentCount: z.number().int().openapi({ description: "Number of incident intervals overlapping that day" }),
+        downtimeSeconds: z.number().int().openapi({ description: "Downtime clipped to that day, in seconds (max 86400)" })
       })
     )
-    .openapi({ description: "Provider incident intervals within the last ~8 days; endedAt null = ongoing" })
+    .openapi({ description: "Per-day downtime over a rolling 7-day window" })
 });
 
 export const BidScreeningResponseSchema = z.object({

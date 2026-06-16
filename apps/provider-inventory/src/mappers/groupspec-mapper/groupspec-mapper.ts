@@ -4,7 +4,7 @@ import type { RequestedResourceUnit, RequestedStorage, ResourceAttribute, ToJSON
 import { parseGPUAttributes } from "../gpu-attribute-parser/gpu-attribute-parser";
 import { parseStorageAttributes } from "../storage-attribute-parser/storage-attribute-parser";
 
-export function mapGroupSpecToResourceUnits(request: GroupSpecJSON): RequestedResourceUnit[] {
+export function mapGroupSpecToResourceUnits(request: Omit<GroupSpecJSON, "name">): RequestedResourceUnit[] {
   return request.resources.map(unit => {
     const resource = unit.resource;
 

@@ -2745,11 +2745,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "application/json": {
               "schema": {
                 "properties": {
-                  "name": {
-                    "description": "Group name",
-                    "example": "westcoast",
-                    "type": "string",
-                  },
                   "requirements": {
                     "default": {},
                     "properties": {
@@ -3050,10 +3045,15 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     },
                     "type": "array",
                   },
+                  "timezone": {
+                    "description": "Client timezone, validated against supported Node.js Intl timezones",
+                    "example": "America/Chicago",
+                    "type": "string",
+                  },
                 },
                 "required": [
-                  "name",
                   "resources",
+                  "timezone",
                 ],
                 "type": "object",
               },
@@ -3081,22 +3081,32 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "type": "string",
                           },
                           "incidents": {
-                            "description": "Provider incident intervals within the last ~8 days; endedAt null = ongoing",
+                            "description": "Per-day downtime over a rolling 7-day window",
                             "items": {
                               "properties": {
-                                "endedAt": {
-                                  "format": "date-time",
-                                  "nullable": true,
+                                "date": {
+                                  "description": "Local calendar day, YYYY-MM-DD",
+                                  "example": "2026-06-01",
                                   "type": "string",
                                 },
-                                "startedAt": {
-                                  "format": "date-time",
-                                  "type": "string",
+                                "downtimeSeconds": {
+                                  "description": "Downtime clipped to that day, in seconds (max 86400)",
+                                  "type": "integer",
+                                },
+                                "hasOpenIncident": {
+                                  "description": "True if the provider currently has any open incident",
+                                  "type": "boolean",
+                                },
+                                "incidentCount": {
+                                  "description": "Number of incident intervals overlapping that day",
+                                  "type": "integer",
                                 },
                               },
                               "required": [
-                                "startedAt",
-                                "endedAt",
+                                "date",
+                                "hasOpenIncident",
+                                "incidentCount",
+                                "downtimeSeconds",
                               ],
                               "type": "object",
                             },

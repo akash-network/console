@@ -75,7 +75,7 @@ export class BidScreeningRepository {
             (SELECT sa->>'value' FROM jsonb_array_elements(${sql(providerInventory.selfAttributes.name)}) AS sa WHERE sa->>'key' = 'location-region' LIMIT 1)
           ) AS location
         FROM ${sql(TABLE)}
-        WHERE ${sql(providerInventory.owner.name)} IN${sql(ownersToFetch)}
+        WHERE ${sql(providerInventory.owner.name)} = ANY(${ownersToFetch}::text[])
       `;
       for (const candidate of candidates) {
         this.#providersInventory.set(candidate.owner, candidate);
