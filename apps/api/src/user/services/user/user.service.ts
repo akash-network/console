@@ -44,6 +44,8 @@ export class UserService {
       lastFingerprint: data.fingerprint
     };
 
+    const existingUser = await this.userRepository.findByUserId(data.userId);
+
     const user = await this.upsertUser({
       ...userDetails,
       username: data.wantedUsername
@@ -54,6 +56,10 @@ export class UserService {
       username: user.username,
       email: user.email
     });
+
+    if (!existingUser) {
+      this.analyticsService.track(user.id, "account_created", { category: "user" });
+    }
 
     const result = await this.notificationService.createDefaultChannel(user).catch(error => ({ error }));
 

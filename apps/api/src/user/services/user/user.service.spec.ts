@@ -55,6 +55,32 @@ describe(UserService.name, () => {
       expect(result.id).toBe(user.id);
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "FAILED_TO_SEND_INITIAL_VERIFICATION_CODE", id: user.id, error: sendError }));
     });
+
+    it("tracks account_created when the user did not previously exist", async () => {
+      const user = createUser({ emailVerified: true, email: "test@example.com" });
+      const { service, userRepository, analyticsService, notificationService } = setup();
+
+      userRepository.findByUserId.mockResolvedValue(undefined);
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue(user);
+      notificationService.createDefaultChannel.mockResolvedValue(undefined);
+
+      await service.registerUser(createRegisterInput({ emailVerified: true }));
+
+      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "account_created", { category: "user" });
+    });
+
+    it("does not track account_created when the user already exists", async () => {
+      const user = createUser({ emailVerified: true, email: "test@example.com" });
+      const { service, userRepository, analyticsService, notificationService } = setup();
+
+      userRepository.findByUserId.mockResolvedValue(user);
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue(user);
+      notificationService.createDefaultChannel.mockResolvedValue(undefined);
+
+      await service.registerUser(createRegisterInput({ emailVerified: true }));
+
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
   });
 
   function setup() {
