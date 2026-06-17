@@ -5,12 +5,13 @@ import type { DEPENDENCIES } from "./MarketplacePane";
 import { MarketplacePane } from "./MarketplacePane";
 
 import { render, screen } from "@testing-library/react";
+import { buildScreenedProvider } from "@tests/seeders/screenedProvider";
 
 describe("MarketplacePane", () => {
-  it("screens the given placement using the current sdl", () => {
-    const { useScreenedProviders } = setup({ sdl: "version: 2.0", placementName: "dcloud" });
+  it("screens the given placement using the current sdl and region", () => {
+    const { useScreenedProviders } = setup({ sdl: "version: 2.0", placementName: "dcloud", region: "na-us-west" });
 
-    expect(useScreenedProviders).toHaveBeenCalledWith({ sdl: "version: 2.0", placementName: "dcloud" });
+    expect(useScreenedProviders).toHaveBeenCalledWith({ sdl: "version: 2.0", placementName: "dcloud", region: "na-us-west" });
   });
 
   it("shows the placement name in the header", () => {
@@ -20,7 +21,7 @@ describe("MarketplacePane", () => {
   });
 
   it("passes screened providers and loading state to the table", () => {
-    const providers = [makeProvider()];
+    const providers = [buildScreenedProvider()];
     const { MarketplaceProvidersTable } = setup({ providers, isLoading: false });
 
     expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ providers, isLoading: false }), expect.anything());
@@ -34,18 +35,16 @@ describe("MarketplacePane", () => {
   });
 
   it("keeps the table when a refetch fails but providers are still cached", () => {
-    const providers = [makeProvider()];
+    const providers = [buildScreenedProvider()];
     const { MarketplaceProvidersTable } = setup({ isError: true, providers });
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ providers }), expect.anything());
   });
 
-  function makeProvider(): ScreenedProvider {
-    return { owner: "akash1a", hostUri: "https://a.example:8443", isAudited: true, location: "us-west", createdAt: "2026-01-01T00:00:00.000Z" };
-  }
-
-  function setup(input: { sdl?: string; placementName?: string; providers?: ScreenedProvider[]; isLoading?: boolean; isError?: boolean } = {}) {
+  function setup(
+    input: { sdl?: string; placementName?: string; region?: string; providers?: ScreenedProvider[]; isLoading?: boolean; isError?: boolean } = {}
+  ) {
     const useScreenedProviders = vi.fn(() => ({
       providers: input.providers ?? [],
       isLoading: input.isLoading ?? false,
@@ -57,7 +56,7 @@ describe("MarketplacePane", () => {
       MarketplaceProvidersTable: MarketplaceProvidersTable as never
     };
 
-    render(<MarketplacePane sdl={input.sdl ?? ""} placementName={input.placementName ?? "dcloud"} dependencies={dependencies} />);
+    render(<MarketplacePane sdl={input.sdl ?? ""} placementName={input.placementName ?? "dcloud"} region={input.region} dependencies={dependencies} />);
     return { useScreenedProviders, MarketplaceProvidersTable };
   }
 });

@@ -76,6 +76,10 @@
                         "isTrialing": {
                           "type": "boolean"
                         },
+                        "topUpMinAmountUsd": {
+                          "type": "number",
+                          "description": "Minimum USD amount accepted by the next paid top-up for this wallet."
+                        },
                         "createdAt": {
                           "type": "string",
                           "nullable": true
@@ -103,6 +107,7 @@
                         "address",
                         "denom",
                         "isTrialing",
+                        "topUpMinAmountUsd",
                         "createdAt"
                       ],
                       "additionalProperties": false
@@ -146,6 +151,10 @@
                         "isTrialing": {
                           "type": "boolean"
                         },
+                        "topUpMinAmountUsd": {
+                          "type": "number",
+                          "description": "Minimum USD amount accepted by the next paid top-up for this wallet."
+                        },
                         "createdAt": {
                           "type": "string",
                           "nullable": true
@@ -173,6 +182,7 @@
                         "address",
                         "denom",
                         "isTrialing",
+                        "topUpMinAmountUsd",
                         "createdAt"
                       ],
                       "additionalProperties": false
@@ -248,6 +258,10 @@
                           "isTrialing": {
                             "type": "boolean"
                           },
+                          "topUpMinAmountUsd": {
+                            "type": "number",
+                            "description": "Minimum USD amount accepted by the next paid top-up for this wallet."
+                          },
                           "createdAt": {
                             "type": "string",
                             "nullable": true
@@ -275,6 +289,7 @@
                           "address",
                           "denom",
                           "isTrialing",
+                          "topUpMinAmountUsd",
                           "createdAt"
                         ]
                       }
@@ -608,1270 +623,6 @@
         }
       }
     },
-    "/v1/stripe/prices": {
-      "get": {
-        "summary": "Get available Stripe pricing options",
-        "description": "Retrieves the list of available pricing options for wallet top-ups, including custom amounts and standard pricing tiers",
-        "tags": [
-          "Payment"
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Available pricing options retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "currency": {
-                            "type": "string"
-                          },
-                          "unitAmount": {
-                            "type": "number"
-                          },
-                          "isCustom": {
-                            "type": "boolean"
-                          }
-                        },
-                        "required": [
-                          "currency",
-                          "unitAmount",
-                          "isCustom"
-                        ]
-                      }
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/stripe/coupons/apply": {
-      "post": {
-        "summary": "Apply a coupon to the current user",
-        "tags": [
-          "Payment"
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "data": {
-                    "type": "object",
-                    "properties": {
-                      "couponId": {
-                        "type": "string"
-                      },
-                      "userId": {
-                        "type": "string"
-                      },
-                      "awaitResolved": {
-                        "type": "boolean"
-                      }
-                    },
-                    "required": [
-                      "couponId",
-                      "userId"
-                    ]
-                  }
-                },
-                "required": [
-                  "data"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Coupon applied successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "coupon": {
-                          "type": "object",
-                          "nullable": true,
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "percent_off": {
-                              "type": "number",
-                              "nullable": true
-                            },
-                            "amount_off": {
-                              "type": "number",
-                              "nullable": true
-                            },
-                            "valid": {
-                              "type": "boolean",
-                              "nullable": true
-                            },
-                            "name": {
-                              "type": "string",
-                              "nullable": true
-                            },
-                            "description": {
-                              "type": "string",
-                              "nullable": true
-                            }
-                          },
-                          "required": [
-                            "id"
-                          ]
-                        },
-                        "amountAdded": {
-                          "type": "number"
-                        },
-                        "transactionId": {
-                          "type": "string"
-                        },
-                        "transactionStatus": {
-                          "type": "string",
-                          "enum": [
-                            "created",
-                            "pending",
-                            "requires_action",
-                            "succeeded",
-                            "failed",
-                            "refunded",
-                            "canceled"
-                          ]
-                        },
-                        "error": {
-                          "type": "object",
-                          "properties": {
-                            "message": {
-                              "type": "string"
-                            },
-                            "code": {
-                              "type": "string"
-                            },
-                            "type": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "message"
-                          ]
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/stripe/customers/organization": {
-      "put": {
-        "summary": "Update customer organization",
-        "description": "Updates the organization/business name for the current user's Stripe customer account",
-        "tags": [
-          "Payment"
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "organization": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "organization"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": "Organization updated successfully"
-          }
-        }
-      }
-    },
-    "/v1/stripe/payment-methods/setup": {
-      "post": {
-        "summary": "Create a Stripe SetupIntent for adding a payment method",
-        "description": "Creates a Stripe SetupIntent that allows users to securely add payment methods to their account. The SetupIntent provides a client secret that can be used with Stripe's frontend SDKs to collect payment method details.",
-        "tags": [
-          "Payment"
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "SetupIntent created successfully with client secret",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "clientSecret": {
-                          "type": "string",
-                          "nullable": true
-                        }
-                      },
-                      "required": [
-                        "clientSecret"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/stripe/payment-methods/default": {
-      "post": {
-        "summary": "Marks a payment method as the default.",
-        "tags": [
-          "Payment"
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "data": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "id"
-                    ]
-                  }
-                },
-                "required": [
-                  "data"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Payment method is marked as the default successfully."
-          }
-        }
-      },
-      "get": {
-        "summary": "Get the default payment method for the current user",
-        "description": "Retrieves the default payment method associated with the current user's account, including card details, validation status, and billing information.",
-        "tags": [
-          "Payment"
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default payment method retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "type": {
-                          "type": "string"
-                        },
-                        "validated": {
-                          "type": "boolean"
-                        },
-                        "isDefault": {
-                          "type": "boolean"
-                        },
-                        "card": {
-                          "type": "object",
-                          "nullable": true,
-                          "properties": {
-                            "brand": {
-                              "type": "string",
-                              "nullable": true
-                            },
-                            "last4": {
-                              "type": "string",
-                              "nullable": true
-                            },
-                            "exp_month": {
-                              "type": "number"
-                            },
-                            "exp_year": {
-                              "type": "number"
-                            },
-                            "funding": {
-                              "type": "string",
-                              "nullable": true
-                            },
-                            "country": {
-                              "type": "string",
-                              "nullable": true
-                            },
-                            "network": {
-                              "type": "string",
-                              "nullable": true
-                            },
-                            "three_d_secure_usage": {
-                              "type": "object",
-                              "nullable": true,
-                              "properties": {
-                                "supported": {
-                                  "type": "boolean",
-                                  "nullable": true
-                                }
-                              }
-                            }
-                          },
-                          "required": [
-                            "brand",
-                            "last4",
-                            "exp_month",
-                            "exp_year"
-                          ]
-                        },
-                        "link": {
-                          "type": "object",
-                          "nullable": true,
-                          "properties": {
-                            "email": {
-                              "type": "string",
-                              "nullable": true
-                            }
-                          }
-                        },
-                        "billing_details": {
-                          "type": "object",
-                          "properties": {
-                            "address": {
-                              "type": "object",
-                              "nullable": true,
-                              "properties": {
-                                "city": {
-                                  "type": "string",
-                                  "nullable": true
-                                },
-                                "country": {
-                                  "type": "string",
-                                  "nullable": true
-                                },
-                                "line1": {
-                                  "type": "string",
-                                  "nullable": true
-                                },
-                                "line2": {
-                                  "type": "string",
-                                  "nullable": true
-                                },
-                                "postal_code": {
-                                  "type": "string",
-                                  "nullable": true
-                                },
-                                "state": {
-                                  "type": "string",
-                                  "nullable": true
-                                }
-                              },
-                              "required": [
-                                "city",
-                                "country",
-                                "line1",
-                                "line2",
-                                "postal_code",
-                                "state"
-                              ]
-                            },
-                            "email": {
-                              "type": "string",
-                              "nullable": true
-                            },
-                            "name": {
-                              "type": "string",
-                              "nullable": true
-                            },
-                            "phone": {
-                              "type": "string",
-                              "nullable": true
-                            }
-                          }
-                        }
-                      },
-                      "required": [
-                        "type"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Default payment method not found"
-          }
-        }
-      }
-    },
-    "/v1/stripe/payment-methods": {
-      "get": {
-        "summary": "Get all payment methods for the current user",
-        "description": "Retrieves all saved payment methods associated with the current user's account, including card details, validation status, and billing information.",
-        "tags": [
-          "Payment"
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Payment methods retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "type": {
-                            "type": "string"
-                          },
-                          "validated": {
-                            "type": "boolean"
-                          },
-                          "isDefault": {
-                            "type": "boolean"
-                          },
-                          "card": {
-                            "type": "object",
-                            "nullable": true,
-                            "properties": {
-                              "brand": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "last4": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "exp_month": {
-                                "type": "number"
-                              },
-                              "exp_year": {
-                                "type": "number"
-                              },
-                              "funding": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "country": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "network": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "three_d_secure_usage": {
-                                "type": "object",
-                                "nullable": true,
-                                "properties": {
-                                  "supported": {
-                                    "type": "boolean",
-                                    "nullable": true
-                                  }
-                                }
-                              }
-                            },
-                            "required": [
-                              "brand",
-                              "last4",
-                              "exp_month",
-                              "exp_year"
-                            ]
-                          },
-                          "link": {
-                            "type": "object",
-                            "nullable": true,
-                            "properties": {
-                              "email": {
-                                "type": "string",
-                                "nullable": true
-                              }
-                            }
-                          },
-                          "billing_details": {
-                            "type": "object",
-                            "properties": {
-                              "address": {
-                                "type": "object",
-                                "nullable": true,
-                                "properties": {
-                                  "city": {
-                                    "type": "string",
-                                    "nullable": true
-                                  },
-                                  "country": {
-                                    "type": "string",
-                                    "nullable": true
-                                  },
-                                  "line1": {
-                                    "type": "string",
-                                    "nullable": true
-                                  },
-                                  "line2": {
-                                    "type": "string",
-                                    "nullable": true
-                                  },
-                                  "postal_code": {
-                                    "type": "string",
-                                    "nullable": true
-                                  },
-                                  "state": {
-                                    "type": "string",
-                                    "nullable": true
-                                  }
-                                },
-                                "required": [
-                                  "city",
-                                  "country",
-                                  "line1",
-                                  "line2",
-                                  "postal_code",
-                                  "state"
-                                ]
-                              },
-                              "email": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "name": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "phone": {
-                                "type": "string",
-                                "nullable": true
-                              }
-                            }
-                          }
-                        },
-                        "required": [
-                          "type"
-                        ]
-                      }
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/stripe/payment-methods/{paymentMethodId}": {
-      "delete": {
-        "summary": "Remove a payment method",
-        "description": "Permanently removes a saved payment method from the user's account. This action cannot be undone.",
-        "tags": [
-          "Payment"
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "The unique identifier of the payment method to remove",
-              "example": "pm_1234567890"
-            },
-            "required": true,
-            "name": "paymentMethodId",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Payment method removed successfully"
-          }
-        }
-      }
-    },
-    "/v1/stripe/payment-methods/validate": {
-      "post": {
-        "summary": "Validates a payment method after 3D Secure authentication",
-        "description": "Completes the validation process for a payment method that required 3D Secure authentication. This endpoint should be called after the user completes the 3D Secure challenge.",
-        "tags": [
-          "Payment"
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "data": {
-                    "type": "object",
-                    "properties": {
-                      "paymentMethodId": {
-                        "type": "string"
-                      },
-                      "paymentIntentId": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "paymentMethodId",
-                      "paymentIntentId"
-                    ]
-                  }
-                },
-                "required": [
-                  "data"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Payment method validated successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "success"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/stripe/transactions/confirm": {
-      "post": {
-        "summary": "Confirm a payment using a saved payment method",
-        "description": "Processes a payment using a previously saved payment method. This endpoint handles wallet top-ups and may require 3D Secure authentication for certain payment methods or amounts.",
-        "tags": [
-          "Payment"
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "data": {
-                    "type": "object",
-                    "properties": {
-                      "userId": {
-                        "type": "string"
-                      },
-                      "paymentMethodId": {
-                        "type": "string"
-                      },
-                      "amount": {
-                        "type": "number",
-                        "minimum": 20
-                      },
-                      "currency": {
-                        "type": "string"
-                      },
-                      "awaitResolved": {
-                        "type": "boolean"
-                      }
-                    },
-                    "required": [
-                      "userId",
-                      "paymentMethodId",
-                      "amount",
-                      "currency"
-                    ]
-                  }
-                },
-                "required": [
-                  "data"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Payment processed successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "success": {
-                          "type": "boolean"
-                        },
-                        "requiresAction": {
-                          "type": "boolean"
-                        },
-                        "clientSecret": {
-                          "type": "string"
-                        },
-                        "paymentIntentId": {
-                          "type": "string"
-                        },
-                        "transactionId": {
-                          "type": "string"
-                        },
-                        "transactionStatus": {
-                          "type": "string",
-                          "enum": [
-                            "created",
-                            "pending",
-                            "requires_action",
-                            "succeeded",
-                            "failed",
-                            "refunded",
-                            "canceled"
-                          ]
-                        }
-                      },
-                      "required": [
-                        "success",
-                        "transactionId"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ]
-                }
-              }
-            }
-          },
-          "202": {
-            "description": "3D Secure authentication required to complete payment",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "success": {
-                          "type": "boolean"
-                        },
-                        "requiresAction": {
-                          "type": "boolean"
-                        },
-                        "clientSecret": {
-                          "type": "string"
-                        },
-                        "paymentIntentId": {
-                          "type": "string"
-                        },
-                        "transactionId": {
-                          "type": "string"
-                        },
-                        "transactionStatus": {
-                          "type": "string",
-                          "enum": [
-                            "created",
-                            "pending",
-                            "requires_action",
-                            "succeeded",
-                            "failed",
-                            "refunded",
-                            "canceled"
-                          ]
-                        }
-                      },
-                      "required": [
-                        "success",
-                        "transactionId"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/stripe/transactions": {
-      "get": {
-        "summary": "Get transaction history for the current customer",
-        "tags": [
-          "Payment"
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "number",
-              "description": "Number of transactions to return",
-              "minimum": 1,
-              "maximum": 100,
-              "example": 100,
-              "default": 100
-            },
-            "required": false,
-            "name": "limit",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "description": "ID of the last transaction from the previous page (if paginating forwards)",
-              "example": "ch_1234567890"
-            },
-            "required": false,
-            "name": "startingAfter",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "description": "ID of the first transaction from the previous page (if paginating backwards)",
-              "example": "ch_0987654321"
-            },
-            "required": false,
-            "name": "endingBefore",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "description": "Start date for filtering transactions (inclusive)",
-              "example": "2025-01-01T00:00:00Z"
-            },
-            "required": false,
-            "name": "startDate",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "description": "End date for filtering transactions (inclusive)",
-              "example": "2025-01-02T00:00:00Z"
-            },
-            "required": false,
-            "name": "endDate",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Customer transactions retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "transactions": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string"
-                              },
-                              "amount": {
-                                "type": "number"
-                              },
-                              "currency": {
-                                "type": "string"
-                              },
-                              "status": {
-                                "type": "string"
-                              },
-                              "created": {
-                                "type": "number"
-                              },
-                              "paymentMethod": {
-                                "type": "object",
-                                "nullable": true,
-                                "properties": {
-                                  "type": {
-                                    "type": "string"
-                                  },
-                                  "validated": {
-                                    "type": "boolean"
-                                  },
-                                  "isDefault": {
-                                    "type": "boolean"
-                                  },
-                                  "card": {
-                                    "type": "object",
-                                    "nullable": true,
-                                    "properties": {
-                                      "brand": {
-                                        "type": "string",
-                                        "nullable": true
-                                      },
-                                      "last4": {
-                                        "type": "string",
-                                        "nullable": true
-                                      },
-                                      "exp_month": {
-                                        "type": "number"
-                                      },
-                                      "exp_year": {
-                                        "type": "number"
-                                      },
-                                      "funding": {
-                                        "type": "string",
-                                        "nullable": true
-                                      },
-                                      "country": {
-                                        "type": "string",
-                                        "nullable": true
-                                      },
-                                      "network": {
-                                        "type": "string",
-                                        "nullable": true
-                                      },
-                                      "three_d_secure_usage": {
-                                        "type": "object",
-                                        "nullable": true,
-                                        "properties": {
-                                          "supported": {
-                                            "type": "boolean",
-                                            "nullable": true
-                                          }
-                                        }
-                                      }
-                                    },
-                                    "required": [
-                                      "brand",
-                                      "last4",
-                                      "exp_month",
-                                      "exp_year"
-                                    ]
-                                  },
-                                  "link": {
-                                    "type": "object",
-                                    "nullable": true,
-                                    "properties": {
-                                      "email": {
-                                        "type": "string",
-                                        "nullable": true
-                                      }
-                                    }
-                                  },
-                                  "billing_details": {
-                                    "type": "object",
-                                    "properties": {
-                                      "address": {
-                                        "type": "object",
-                                        "nullable": true,
-                                        "properties": {
-                                          "city": {
-                                            "type": "string",
-                                            "nullable": true
-                                          },
-                                          "country": {
-                                            "type": "string",
-                                            "nullable": true
-                                          },
-                                          "line1": {
-                                            "type": "string",
-                                            "nullable": true
-                                          },
-                                          "line2": {
-                                            "type": "string",
-                                            "nullable": true
-                                          },
-                                          "postal_code": {
-                                            "type": "string",
-                                            "nullable": true
-                                          },
-                                          "state": {
-                                            "type": "string",
-                                            "nullable": true
-                                          }
-                                        },
-                                        "required": [
-                                          "city",
-                                          "country",
-                                          "line1",
-                                          "line2",
-                                          "postal_code",
-                                          "state"
-                                        ]
-                                      },
-                                      "email": {
-                                        "type": "string",
-                                        "nullable": true
-                                      },
-                                      "name": {
-                                        "type": "string",
-                                        "nullable": true
-                                      },
-                                      "phone": {
-                                        "type": "string",
-                                        "nullable": true
-                                      }
-                                    }
-                                  }
-                                },
-                                "required": [
-                                  "type"
-                                ]
-                              },
-                              "receiptUrl": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "description": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "metadata": {
-                                "type": "object",
-                                "nullable": true,
-                                "additionalProperties": {
-                                  "type": "string"
-                                }
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "amount",
-                              "currency",
-                              "status",
-                              "created",
-                              "paymentMethod"
-                            ]
-                          }
-                        },
-                        "hasMore": {
-                          "type": "boolean"
-                        },
-                        "nextPage": {
-                          "type": "string",
-                          "nullable": true
-                        }
-                      },
-                      "required": [
-                        "transactions",
-                        "hasMore"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/stripe/transactions/export": {
-      "get": {
-        "summary": "Export transaction history as CSV for the current customer",
-        "tags": [
-          "Payment"
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "Timezone for date formatting in the CSV",
-              "example": "America/New_York"
-            },
-            "required": true,
-            "name": "timezone",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "description": "Start date for filtering transactions (inclusive)",
-              "example": "2025-01-01T00:00:00Z"
-            },
-            "required": true,
-            "name": "startDate",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "format": "date-time",
-              "description": "End date for filtering transactions (inclusive)",
-              "example": "2025-01-02T00:00:00Z"
-            },
-            "required": true,
-            "name": "endDate",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "CSV file with transaction data",
-            "content": {
-              "text/csv": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/usage/history": {
       "get": {
         "summary": "Get historical data of billing and usage for a wallet address.",
@@ -1905,7 +656,7 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "default": "2026-05-20",
+              "default": "2026-06-17",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -2031,7 +782,7 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "default": "2026-05-20",
+              "default": "2026-06-17",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -9097,6 +7848,9 @@
                                     "count"
                                   ]
                                 }
+                              },
+                              "reclamation_window": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -9542,6 +8296,9 @@
                                     "count"
                                   ]
                                 }
+                              },
+                              "reclamation_window": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -15712,6 +14469,7 @@
           {
             "schema": {
               "type": "string",
+              "pattern": "^[^/\\\\]+$",
               "description": "Template ID",
               "example": "akash-network-cosmos-omnibus-agoric"
             },
@@ -15791,6 +14549,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid template ID"
           },
           "404": {
             "description": "Template not found"
@@ -16390,11 +15151,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "name": {
-                    "type": "string",
-                    "description": "Group name",
-                    "example": "westcoast"
-                  },
                   "requirements": {
                     "type": "object",
                     "properties": {
@@ -16693,13 +15449,17 @@
                         "price"
                       ]
                     },
-                    "minItems": 1,
                     "description": "Resource units with replica counts"
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "description": "Client timezone, validated against supported Node.js Intl timezones",
+                    "example": "America/Chicago"
                   }
                 },
                 "required": [
-                  "name",
-                  "resources"
+                  "resources",
+                  "timezone"
                 ]
               }
             }
@@ -16740,9 +15500,41 @@
                           },
                           "location": {
                             "type": "string",
+                            "nullable": true,
                             "description": "Provider region from the location-region attribute (signed preferred, else self-declared); null if unset",
-                            "example": "us-west",
-                            "nullable": true
+                            "example": "us-west"
+                          },
+                          "incidents": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "date": {
+                                  "type": "string",
+                                  "description": "Local calendar day, YYYY-MM-DD",
+                                  "example": "2026-06-01"
+                                },
+                                "hasOpenIncident": {
+                                  "type": "boolean",
+                                  "description": "True if the provider currently has any open incident"
+                                },
+                                "incidentCount": {
+                                  "type": "integer",
+                                  "description": "Number of incident intervals overlapping that day"
+                                },
+                                "downtimeSeconds": {
+                                  "type": "integer",
+                                  "description": "Downtime clipped to that day, in seconds (max 86400)"
+                                }
+                              },
+                              "required": [
+                                "date",
+                                "hasOpenIncident",
+                                "incidentCount",
+                                "downtimeSeconds"
+                              ]
+                            },
+                            "description": "Per-day downtime over a rolling 7-day window"
                           }
                         },
                         "required": [
@@ -16750,7 +15542,8 @@
                           "hostUri",
                           "isAudited",
                           "createdAt",
-                          "location"
+                          "location",
+                          "incidents"
                         ]
                       }
                     }

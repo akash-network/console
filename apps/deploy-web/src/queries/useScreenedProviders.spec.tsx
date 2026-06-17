@@ -5,7 +5,9 @@ import { mock } from "vitest-mock-extended";
 import { AUDITOR } from "@src/utils/deploymentData/v1beta3";
 import { setupQuery } from "../../tests/unit/query-client";
 import type { ScreenedProvider, ScreenedProvidersResponse } from "./useScreenedProviders";
-import { buildPlacementScreeningRequest, useScreenedProviders } from "./useScreenedProviders";
+import { buildCatalogScreeningRequest, buildPlacementScreeningRequest, useScreenedProviders } from "./useScreenedProviders";
+
+import { buildScreenedProvider } from "@tests/seeders/screenedProvider";
 
 const HELLO_WORLD_SDL = `---
 version: "2.0"
@@ -46,7 +48,6 @@ describe("useScreenedProviders", () => {
 
     expect(useQuery).toHaveBeenCalledWith(
       expect.objectContaining({
-        name: "dcloud",
         requirements: { signedBy: { allOf: [AUDITOR] }, attributes: [] },
         resources: expect.arrayContaining([expect.objectContaining({ count: 1 })])
       })
@@ -57,24 +58,30 @@ describe("useScreenedProviders", () => {
     const { useQuery } = setup({ sdl: "foo: [unclosed", placementName: "dcloud" });
 
     expect(useQuery).toHaveBeenCalledWith({
-      name: "screening",
       requirements: { signedBy: { allOf: [AUDITOR] }, attributes: [] },
-      resources: []
+      resources: [],
+      timezone: expect.any(String)
+    });
+  });
+
+  it("keeps the selected region as a location-region filter on the catalog fallback when the SDL is invalid", () => {
+    const { useQuery } = setup({ sdl: "foo: [unclosed", placementName: "dcloud", region: "na-us-west" });
+
+    expect(useQuery).toHaveBeenCalledWith({
+      requirements: { signedBy: { allOf: [AUDITOR] }, attributes: [{ key: "location-region", value: "na-us-west" }] },
+      resources: [],
+      timezone: expect.any(String)
     });
   });
 
   it("returns the screened providers from the query result", () => {
-    const providers = [makeProvider()];
+    const providers = [buildScreenedProvider()];
     const { result } = setup({ placementName: "dcloud", providers });
 
     expect(result.current.providers).toEqual(providers);
   });
 
-  function makeProvider(): ScreenedProvider {
-    return { owner: "akash1a", hostUri: "https://a.example:8443", isAudited: true, location: "us-west", createdAt: "2026-01-01T00:00:00.000Z" };
-  }
-
-  function setup(input: { placementName: string; sdl?: string; providers?: ScreenedProvider[] }) {
+  function setup(input: { placementName: string; sdl?: string; region?: string; providers?: ScreenedProvider[] }) {
     const useQuery = vi.fn().mockReturnValue(
       mock<UseQueryResult<ScreenedProvidersResponse>>({
         data: { providers: input.providers ?? [] },
@@ -86,7 +93,7 @@ describe("useScreenedProviders", () => {
       NonNullable<NonNullable<NonNullable<Parameters<typeof setupQuery>[1]>["services"]>["api"]>
     >;
 
-    const { result } = setupQuery(() => useScreenedProviders({ sdl: input.sdl ?? HELLO_WORLD_SDL, placementName: input.placementName }), {
+    const { result } = setupQuery(() => useScreenedProviders({ sdl: input.sdl ?? HELLO_WORLD_SDL, placementName: input.placementName, region: input.region }), {
       services: { api: () => api }
     });
     return { result, useQuery };
@@ -97,7 +104,7 @@ describe("buildPlacementScreeningRequest", () => {
   it("builds an audited request from the matching placement group spec", () => {
     const request = buildPlacementScreeningRequest(HELLO_WORLD_SDL, "dcloud");
 
-    expect(request).toMatchObject({ name: "dcloud", requirements: { signedBy: { allOf: [AUDITOR] } } });
+    expect(request).toMatchObject({ requirements: { signedBy: { allOf: [AUDITOR] } } });
     expect(request?.resources[0].resource.cpu.units.val).toBeTruthy();
   });
 
@@ -107,5 +114,21 @@ describe("buildPlacementScreeningRequest", () => {
 
   it("returns null when the SDL is invalid", () => {
     expect(buildPlacementScreeningRequest("foo: [unclosed", "dcloud")).toBeNull();
+  });
+});
+
+describe("buildCatalogScreeningRequest", () => {
+  it("requests the full audited catalog with no attributes when no region is given (any region)", () => {
+    expect(buildCatalogScreeningRequest()).toEqual({
+      requirements: { signedBy: { allOf: [AUDITOR] }, attributes: [] },
+      resources: []
+    });
+  });
+
+  it("adds the region as a location-region attribute constraint", () => {
+    expect(buildCatalogScreeningRequest("na-ca-central")).toEqual({
+      requirements: { signedBy: { allOf: [AUDITOR] }, attributes: [{ key: "location-region", value: "na-ca-central" }] },
+      resources: []
+    });
   });
 });
