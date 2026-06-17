@@ -7968,6 +7968,11 @@ export interface operations {
                * @example us-west
                */
               location: string | null;
+              /**
+               * @description Provider organization from the organization attribute (signed preferred, else self-declared); null if unset
+               * @example Akash
+               */
+              organization: string | null;
               /** @description Per-day downtime over a rolling 7-day window */
               incidents: {
                 /**

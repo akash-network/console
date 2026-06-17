@@ -10,6 +10,7 @@ export function buildScreenedProvider(overrides?: Partial<ScreenedProvider>): Sc
     isAudited: faker.datatype.boolean(),
     createdAt: faker.date.past().toISOString(),
     location: faker.location.state({ abbreviated: true }),
+    organization: null,
     incidents: [],
     ...overrides
   };
