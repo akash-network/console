@@ -9,27 +9,6 @@ import { OpenApiHonoHandler } from "../open-api-hono-handler/open-api-hono-handl
 import { OpenApiDocsService } from "./openapi-docs.service";
 import { SECURITY_NONE } from "./openapi-security";
 
-const visibleRoute = createRoute({
-  method: "get",
-  path: "/v1/test-visible",
-  operationId: "listTestVisible",
-  summary: "Visible test route",
-  tags: ["Test"],
-  security: SECURITY_NONE,
-  responses: { 200: { description: "OK" } }
-});
-
-const hiddenRoute = createRoute({
-  method: "get",
-  path: "/v1/test-hidden",
-  operationId: "listTestHidden",
-  summary: "Hidden test route",
-  tags: ["Test"],
-  security: SECURITY_NONE,
-  hiddenInOpenApiDocs: true,
-  responses: { 200: { description: "OK" } }
-});
-
 describe("OpenApiDocsService", () => {
   const fetchMock = vi.fn();
 
@@ -193,7 +172,30 @@ describe("OpenApiDocsService", () => {
     expect(publicDocs.paths["/v1/test-hidden"]).toBeUndefined();
   });
 
+  // Routes are built here rather than at module scope so createRoute's HIDDEN_ROUTES
+  // side effect happens per-test, not as an import-time global mutation.
   function buildHandler() {
+    const visibleRoute = createRoute({
+      method: "get",
+      path: "/v1/test-visible",
+      operationId: "listTestVisible",
+      summary: "Visible test route",
+      tags: ["Test"],
+      security: SECURITY_NONE,
+      responses: { 200: { description: "OK" } }
+    });
+
+    const hiddenRoute = createRoute({
+      method: "get",
+      path: "/v1/test-hidden",
+      operationId: "listTestHidden",
+      summary: "Hidden test route",
+      tags: ["Test"],
+      security: SECURITY_NONE,
+      hiddenInOpenApiDocs: true,
+      responses: { 200: { description: "OK" } }
+    });
+
     const handler = new OpenApiHonoHandler();
     handler.openapi(visibleRoute, c => c.body(null, 200));
     handler.openapi(hiddenRoute, c => c.body(null, 200));

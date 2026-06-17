@@ -12,6 +12,8 @@ import { createRoute, HIDDEN_ROUTES } from "./create-route";
 describe(createRoute.name, () => {
   afterEach(() => {
     container.clearInstances();
+    // createRoute mutates the process-wide HIDDEN_ROUTES set; clear it so tests stay isolated.
+    HIDDEN_ROUTES.clear();
   });
 
   describe("when given GET config", () => {
