@@ -72,6 +72,31 @@ describe(UserRepository.name, () => {
     });
   });
 
+  describe("upsertOnExternalIdConflict", () => {
+    it("returns wasInserted true when the external user id is new", async () => {
+      const { userRepository, trackForCleanup } = setup();
+
+      const { user, wasInserted } = await userRepository.upsertOnExternalIdConflict(newUserInput());
+      trackForCleanup(user.id);
+
+      expect(wasInserted).toBe(true);
+    });
+
+    it("returns wasInserted false when the external user id already exists", async () => {
+      const { userRepository, trackForCleanup } = setup();
+      const input = newUserInput();
+
+      const first = await userRepository.upsertOnExternalIdConflict(input);
+      trackForCleanup(first.user.id);
+
+      const second = await userRepository.upsertOnExternalIdConflict({ ...input, email: faker.internet.email() });
+
+      expect(first.wasInserted).toBe(true);
+      expect(second.wasInserted).toBe(false);
+      expect(second.user.id).toBe(first.user.id);
+    });
+  });
+
   let cleanup: () => Promise<void>;
   afterEach(async () => {
     await cleanup?.();
@@ -81,6 +106,16 @@ describe(UserRepository.name, () => {
     const date = new Date();
     date.setHours(date.getHours() - hours);
     return date;
+  }
+
+  function newUserInput() {
+    return {
+      userId: faker.string.uuid(),
+      username: `testuser_${Date.now()}_${faker.string.alphanumeric(6)}`,
+      email: faker.internet.email(),
+      emailVerified: false,
+      subscribedToNewsletter: false
+    };
   }
 
   function setup() {
@@ -107,6 +142,12 @@ describe(UserRepository.name, () => {
       return user;
     }
 
-    return { userRepository, createTestUser };
+    return {
+      userRepository,
+      createTestUser,
+      trackForCleanup: (id: string) => {
+        createdUserIds.push(id);
+      }
+    };
   }
 });

@@ -20,7 +20,7 @@ describe(UserService.name, () => {
       const user = createUser({ emailVerified: false, email: "test@example.com" });
       const { service, emailVerificationCodeService, userRepository, notificationService } = setup();
 
-      userRepository.upsertOnExternalIdConflict.mockResolvedValue(user);
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
       emailVerificationCodeService.sendCode.mockResolvedValue({ codeSentAt: new Date().toISOString() });
 
@@ -33,7 +33,7 @@ describe(UserService.name, () => {
       const user = createUser({ emailVerified: true, email: "test@example.com" });
       const { service, emailVerificationCodeService, userRepository, notificationService } = setup();
 
-      userRepository.upsertOnExternalIdConflict.mockResolvedValue(user);
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
 
       await service.registerUser(createRegisterInput({ emailVerified: true }));
@@ -46,7 +46,7 @@ describe(UserService.name, () => {
       const { service, emailVerificationCodeService, userRepository, notificationService, logger } = setup();
       const sendError = new Error("Send failed");
 
-      userRepository.upsertOnExternalIdConflict.mockResolvedValue(user);
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
       emailVerificationCodeService.sendCode.mockRejectedValue(sendError);
 
@@ -56,12 +56,11 @@ describe(UserService.name, () => {
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "FAILED_TO_SEND_INITIAL_VERIFICATION_CODE", id: user.id, error: sendError }));
     });
 
-    it("tracks account_created when the user did not previously exist", async () => {
+    it("tracks account_created when the user was newly created", async () => {
       const user = createUser({ emailVerified: true, email: "test@example.com" });
       const { service, userRepository, analyticsService, notificationService } = setup();
 
-      userRepository.findByUserId.mockResolvedValue(undefined);
-      userRepository.upsertOnExternalIdConflict.mockResolvedValue(user);
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
 
       await service.registerUser(createRegisterInput({ emailVerified: true }));
@@ -69,12 +68,11 @@ describe(UserService.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith(user.id, "account_created", { category: "user" });
     });
 
-    it("does not track account_created when the user already exists", async () => {
+    it("does not track account_created when the user already existed", async () => {
       const user = createUser({ emailVerified: true, email: "test@example.com" });
       const { service, userRepository, analyticsService, notificationService } = setup();
 
-      userRepository.findByUserId.mockResolvedValue(user);
-      userRepository.upsertOnExternalIdConflict.mockResolvedValue(user);
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
 
       await service.registerUser(createRegisterInput({ emailVerified: true }));

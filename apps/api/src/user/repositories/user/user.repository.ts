@@ -1,5 +1,5 @@
 import { Trace } from "@akashnetwork/instrumentation";
-import { and, eq, isNull, lt, ne, or, SQL, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, isNull, lt, ne, or, SQL, sql } from "drizzle-orm";
 import { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
@@ -71,8 +71,11 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
       );
   }
 
-  async upsertOnExternalIdConflict(data: UserInput): Promise<UserOutput> {
+  async upsertOnExternalIdConflict(data: UserInput): Promise<{ user: UserOutput; wasInserted: boolean }> {
     const { username, ...withoutUsername } = data;
+    // `xmax = 0` is true only for a freshly inserted row; an ON CONFLICT update yields a non-zero
+    // xmax. This lets callers act exactly once on first creation, atomically, without a race-prone
+    // read-before-write.
     const [item] = await this.cursor
       .insert(this.table)
       .values(this.toInput(data))
@@ -80,8 +83,9 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
         target: [this.table.userId],
         set: withoutUsername
       })
-      .returning();
-    return this.toOutput(item);
+      .returning({ ...getTableColumns(this.table), wasInserted: sql<boolean>`xmax = 0` });
+    const { wasInserted, ...user } = item;
+    return { user: this.toOutput(user), wasInserted };
   }
 
   async findTrialUsersByFingerprint(fingerprint: string, excludeUserId: string): Promise<{ id: string }[]> {

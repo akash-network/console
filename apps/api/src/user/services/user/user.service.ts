@@ -44,9 +44,7 @@ export class UserService {
       lastFingerprint: data.fingerprint
     };
 
-    const existingUser = await this.userRepository.findByUserId(data.userId);
-
-    const user = await this.upsertUser({
+    const { user, wasInserted } = await this.upsertUser({
       ...userDetails,
       username: data.wantedUsername
     });
@@ -57,7 +55,7 @@ export class UserService {
       email: user.email
     });
 
-    if (!existingUser) {
+    if (wasInserted) {
       this.analyticsService.track(user.id, "account_created", { category: "user" });
     }
 
@@ -91,7 +89,7 @@ export class UserService {
     } as Awaited<ReturnType<this["registerUser"]>>;
   }
 
-  private async upsertUser(userDetails: UpdateUserInput, attempt = 0): Promise<UserOutput> {
+  private async upsertUser(userDetails: UpdateUserInput, attempt = 0): Promise<{ user: UserOutput; wasInserted: boolean }> {
     try {
       return await this.userRepository.upsertOnExternalIdConflict(userDetails);
     } catch (error) {
