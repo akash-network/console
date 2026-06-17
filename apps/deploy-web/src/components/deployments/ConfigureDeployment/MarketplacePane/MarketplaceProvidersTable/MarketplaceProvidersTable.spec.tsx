@@ -1,7 +1,7 @@
 import { IntlProvider } from "react-intl";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { format, subDays } from "date-fns";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { ScreenedProvider } from "@src/queries/useScreenedProviders";
 import { MarketplaceProvidersTable } from "./MarketplaceProvidersTable";
@@ -72,11 +72,51 @@ describe("MarketplaceProvidersTable", () => {
     expect(within(rows[2]).getByText("up.example")).toBeInTheDocument();
   });
 
-  function setup(input: { providers: ScreenedProvider[] }) {
+  it("displays the organization name when present", () => {
+    setup({ providers: [buildScreenedProvider({ organization: "Polaris Compute", hostUri: "https://a.example:8443" })] });
+
+    expect(screen.getByText("Polaris Compute")).toBeInTheDocument();
+  });
+
+  it("falls back to the host name when organization is absent", () => {
+    setup({ providers: [buildScreenedProvider({ organization: null, hostUri: "https://a.example:8443" })] });
+
+    expect(screen.getByText("a.example")).toBeInTheDocument();
+  });
+
+  it("shows a search empty state with a clear action when a search excludes all rows", async () => {
+    const onClearSearch = vi.fn();
+    setup({ providers: [], isSearchActive: true, onClearSearch });
+
+    expect(screen.getByText(/no providers match/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /clear search/i }));
+    expect(onClearSearch).toHaveBeenCalled();
+  });
+
+  it("shows the plain empty state when not searching and there are no providers", () => {
+    setup({ providers: [], isSearchActive: false });
+
+    expect(screen.getByText("No providers found.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /clear search/i })).not.toBeInTheDocument();
+  });
+
+  it("omits the clear action in the search empty state when no clear handler is provided", () => {
+    setup({ providers: [], isSearchActive: true });
+
+    expect(screen.getByText(/no providers match/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /clear search/i })).not.toBeInTheDocument();
+  });
+
+  function setup(input: { providers: ScreenedProvider[]; isLoading?: boolean; isSearchActive?: boolean; onClearSearch?: () => void }) {
     return render(
       <IntlProvider locale="en">
         <TooltipProvider>
-          <MarketplaceProvidersTable providers={input.providers} />
+          <MarketplaceProvidersTable
+            providers={input.providers}
+            isLoading={input.isLoading}
+            isSearchActive={input.isSearchActive}
+            onClearSearch={input.onClearSearch}
+          />
         </TooltipProvider>
       </IntlProvider>
     );

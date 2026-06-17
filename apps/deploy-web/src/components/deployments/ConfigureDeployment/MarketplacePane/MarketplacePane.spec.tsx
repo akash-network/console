@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { ScreenedProvider } from "@src/queries/useScreenedProviders";
+import { ProviderSearchInput } from "./ProviderSearchInput/ProviderSearchInput";
 import type { DEPENDENCIES } from "./MarketplacePane";
 import { MarketplacePane } from "./MarketplacePane";
 
@@ -42,21 +43,56 @@ describe("MarketplacePane", () => {
     expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ providers }), expect.anything());
   });
 
+  it("renders the provider search input in the header", () => {
+    setup({ providers: [buildScreenedProvider()] });
+
+    expect(screen.getByRole("searchbox", { name: /search providers/i })).toBeInTheDocument();
+  });
+
+  it("passes the filtered providers and search props to the table", () => {
+    const providers = [buildScreenedProvider(), buildScreenedProvider()];
+    const filteredProviders = [providers[0]];
+    const { MarketplaceProvidersTable } = setup({ providers, filteredProviders, isSearchActive: true });
+
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(
+      expect.objectContaining({ providers: filteredProviders, isSearchActive: true, onClearSearch: expect.any(Function) }),
+      expect.anything()
+    );
+  });
+
   function setup(
-    input: { sdl?: string; placementName?: string; region?: string; providers?: ScreenedProvider[]; isLoading?: boolean; isError?: boolean } = {}
+    input: {
+      sdl?: string;
+      placementName?: string;
+      region?: string;
+      providers?: ScreenedProvider[];
+      filteredProviders?: ScreenedProvider[];
+      isLoading?: boolean;
+      isError?: boolean;
+      isSearchActive?: boolean;
+    } = {}
   ) {
     const useScreenedProviders = vi.fn(() => ({
       providers: input.providers ?? [],
       isLoading: input.isLoading ?? false,
       isError: input.isError ?? false
     }));
+    const useProviderSearch = vi.fn((providers: ScreenedProvider[]) => ({
+      query: "",
+      setQuery: vi.fn(),
+      clear: vi.fn(),
+      filteredProviders: input.filteredProviders ?? providers,
+      isSearchActive: input.isSearchActive ?? false
+    }));
     const MarketplaceProvidersTable = vi.fn(() => <div data-testid="marketplace-table-mock" />);
     const dependencies: typeof DEPENDENCIES = {
       useScreenedProviders: useScreenedProviders as never,
-      MarketplaceProvidersTable: MarketplaceProvidersTable as never
+      useProviderSearch: useProviderSearch as never,
+      MarketplaceProvidersTable: MarketplaceProvidersTable as never,
+      ProviderSearchInput
     };
 
     render(<MarketplacePane sdl={input.sdl ?? ""} placementName={input.placementName ?? "dcloud"} region={input.region} dependencies={dependencies} />);
-    return { useScreenedProviders, MarketplaceProvidersTable };
+    return { useScreenedProviders, useProviderSearch, MarketplaceProvidersTable };
   }
 });

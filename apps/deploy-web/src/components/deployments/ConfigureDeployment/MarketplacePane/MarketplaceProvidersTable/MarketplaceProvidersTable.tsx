@@ -1,6 +1,6 @@
 import type { FC } from "react";
 import { useMemo, useState } from "react";
-import { Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+import { Button, Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import type { Column, SortingState } from "@tanstack/react-table";
 import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
@@ -23,9 +23,11 @@ const HEALTHY_UPTIME: ProviderUptime = { percent: 1, buckets: [] };
 interface Props {
   providers: ScreenedProvider[];
   isLoading?: boolean;
+  isSearchActive?: boolean;
+  onClearSearch?: () => void;
 }
 
-export const MarketplaceProvidersTable: FC<Props> = ({ providers, isLoading }) => {
+export const MarketplaceProvidersTable: FC<Props> = ({ providers, isLoading, isSearchActive, onClearSearch }) => {
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const uptimeByOwner = useProvidersUptime(providers);
@@ -49,6 +51,18 @@ export const MarketplaceProvidersTable: FC<Props> = ({ providers, isLoading }) =
   }
 
   if (providers.length === 0) {
+    if (isSearchActive) {
+      return (
+        <div className="flex flex-col items-start gap-2 p-4">
+          <p className="text-sm text-muted-foreground">No providers match your search.</p>
+          {onClearSearch && (
+            <Button variant="outline" size="sm" onClick={onClearSearch}>
+              Clear search
+            </Button>
+          )}
+        </div>
+      );
+    }
     return <p className="p-4 text-sm text-muted-foreground">No providers found.</p>;
   }
 
@@ -106,7 +120,7 @@ function SortableHeader({ column, title }: { column: Column<ScreenedProvider, un
 /** Builds the table columns, closing over the per-provider uptime derived once in the component. */
 function buildColumns(uptimeByOwner: Map<string, ProviderUptime>) {
   return [
-    columnHelper.accessor(provider => getProviderNameFromUri(provider.hostUri), {
+    columnHelper.accessor(provider => provider.organization?.trim() || getProviderNameFromUri(provider.hostUri), {
       id: "hostUri",
       header: ({ column }) => <SortableHeader column={column} title="Provider" />,
       cell: info => <ShortenedValue value={info.getValue()} maxLength={40} headLength={14} />
