@@ -22,6 +22,7 @@ export const stripePricesRouter = new OpenApiHonoHandler();
 
 const route = createRoute({
   method: "get",
+  operationId: "listStripePrices",
   path: "/v1/stripe/prices",
   summary: "Get available Stripe pricing options",
   description: "Retrieves the list of available pricing options for wallet top-ups, including custom amounts and standard pricing tiers",

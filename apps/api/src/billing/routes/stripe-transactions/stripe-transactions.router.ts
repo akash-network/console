@@ -17,6 +17,7 @@ export const stripeTransactionsRouter = new OpenApiHonoHandler();
 
 const confirmPaymentRoute = createRoute({
   method: "post",
+  operationId: "confirmStripeTransaction",
   path: "/v1/stripe/transactions/confirm",
   summary: "Confirm a payment using a saved payment method",
   description:
@@ -70,6 +71,7 @@ stripeTransactionsRouter.openapi(confirmPaymentRoute, async function confirmPaym
 
 const getCustomerTransactionsRoute = createRoute({
   method: "get",
+  operationId: "listStripeTransactions",
   path: "/v1/stripe/transactions",
   summary: "Get transaction history for the current customer",
   tags: ["Payment"],
@@ -103,6 +105,7 @@ stripeTransactionsRouter.openapi(getCustomerTransactionsRoute, async function ge
 
 const exportTransactionsCsvRoute = createRoute({
   method: "get",
+  operationId: "exportStripeTransactions",
   path: "/v1/stripe/transactions/export",
   summary: "Export transaction history as CSV for the current customer",
   tags: ["Payment"],

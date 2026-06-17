@@ -10,6 +10,7 @@ export const stripeCustomersRouter = new OpenApiHonoHandler();
 
 const updateCustomerOrganizationRoute = createRoute({
   method: "put",
+  operationId: "updateStripeCustomerOrganization",
   path: "/v1/stripe/customers/organization",
   summary: "Update customer organization",
   description: "Updates the organization/business name for the current user's Stripe customer account",

@@ -12,7 +12,9 @@ const logger = createOtelLogger({ context: "SwaggerGen" });
 export async function bootstrap() {
   try {
     const service = container.resolve(OpenApiDocsService);
-    const docs = await service.generateDocs(openApiHonoHandlers, { scope: "full", source: "file" });
+    // includeHidden:true keeps routes flagged hiddenInOpenApiDocs (e.g. Stripe) in the committed spec
+    // so they're generated into the internal typed SDK. The served /v1/doc still strips them.
+    const docs = await service.generateDocs(openApiHonoHandlers, { scope: "full", source: "file", includeHidden: true });
 
     logger.info({ event: "OPENAPI_SPEC_WRITING", path: OUT });
     await mkdir(dirname(OUT), { recursive: true });

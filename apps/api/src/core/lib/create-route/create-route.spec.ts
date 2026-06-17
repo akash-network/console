@@ -7,7 +7,7 @@ import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "../../../auth/services/auth.service";
 import { SECURITY_NONE } from "../../services/openapi-docs/openapi-security";
-import { createRoute } from "./create-route";
+import { createRoute, HIDDEN_ROUTES } from "./create-route";
 
 describe(createRoute.name, () => {
   afterEach(() => {
@@ -216,6 +216,52 @@ describe(createRoute.name, () => {
       expect(middlewares).toHaveLength(2);
       expect(middlewares[1]).toBe(existingMiddleware);
     });
+  });
+
+  describe("when hiddenInOpenApiDocs is true", () => {
+    it("registers the explicit operationId (not the METHOD path) in HIDDEN_ROUTES so the served spec can strip it", () => {
+      createRoute({
+        method: "get",
+        path: "/hidden-resources",
+        operationId: "listHiddenResources",
+        summary: "Test",
+        tags: ["Test"],
+        security: SECURITY_NONE,
+        hiddenInOpenApiDocs: true,
+        responses: { 200: { description: "OK" } }
+      });
+
+      expect(HIDDEN_ROUTES.has("listHiddenResources")).toBe(true);
+      expect(HIDDEN_ROUTES.has("GET /hidden-resources")).toBe(false);
+    });
+
+    it("falls back to METHOD and path when no operationId is set", () => {
+      createRoute({
+        method: "post",
+        path: "/hidden-without-operation-id",
+        summary: "Test",
+        tags: ["Test"],
+        security: SECURITY_NONE,
+        hiddenInOpenApiDocs: true,
+        responses: { 200: { description: "OK" } }
+      });
+
+      expect(HIDDEN_ROUTES.has("POST /hidden-without-operation-id")).toBe(true);
+    });
+  });
+
+  it("does not register a route that is not hidden", () => {
+    createRoute({
+      method: "get",
+      path: "/visible-resources",
+      operationId: "listVisibleResources",
+      summary: "Test",
+      tags: ["Test"],
+      security: SECURITY_NONE,
+      responses: { 200: { description: "OK" } }
+    });
+
+    expect(HIDDEN_ROUTES.has("listVisibleResources")).toBe(false);
   });
 
   function setup(input: {

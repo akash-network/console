@@ -18,6 +18,7 @@ export const stripePaymentMethodsRouter = new OpenApiHonoHandler();
 
 const setupIntentRoute = createRoute({
   method: "post",
+  operationId: "createSetupIntent",
   path: "/v1/stripe/payment-methods/setup",
   summary: "Create a Stripe SetupIntent for adding a payment method",
   description:
@@ -45,6 +46,9 @@ stripePaymentMethodsRouter.openapi(setupIntentRoute, async function createSetupI
 
 const markAsDefaultRoute = createRoute({
   method: "post",
+  // /default is a named singleton, not a collection; operation-id-format only recognises {id} singletons.
+  // eslint-disable-next-line akash/operation-id-format
+  operationId: "setDefaultPaymentMethod",
   path: "/v1/stripe/payment-methods/default",
   summary: "Marks a payment method as the default.",
   tags: ["Payment"],
@@ -73,6 +77,9 @@ stripePaymentMethodsRouter.openapi(markAsDefaultRoute, async function markAsDefa
 
 const getDefaultPaymentMethodRoute = createRoute({
   method: "get",
+  // /default is a named singleton, not a collection; operation-id-format only recognises {id} singletons.
+  // eslint-disable-next-line akash/operation-id-format
+  operationId: "getDefaultPaymentMethod",
   path: "/v1/stripe/payment-methods/default",
   summary: "Get the default payment method for the current user",
   description:
@@ -103,6 +110,7 @@ stripePaymentMethodsRouter.openapi(getDefaultPaymentMethodRoute, async function 
 
 const paymentMethodsRoute = createRoute({
   method: "get",
+  operationId: "listPaymentMethods",
   path: "/v1/stripe/payment-methods",
   summary: "Get all payment methods for the current user",
   description:
@@ -130,6 +138,7 @@ stripePaymentMethodsRouter.openapi(paymentMethodsRoute, async function getPaymen
 
 const removePaymentMethodRoute = createRoute({
   method: "delete",
+  operationId: "deletePaymentMethod",
   path: "/v1/stripe/payment-methods/{paymentMethodId}",
   summary: "Remove a payment method",
   description: "Permanently removes a saved payment method from the user's account. This action cannot be undone.",
@@ -154,6 +163,7 @@ stripePaymentMethodsRouter.openapi(removePaymentMethodRoute, async function remo
 
 const validatePaymentMethodRoute = createRoute({
   method: "post",
+  operationId: "validatePaymentMethod",
   path: "/v1/stripe/payment-methods/validate",
   summary: "Validates a payment method after 3D Secure authentication",
   description:

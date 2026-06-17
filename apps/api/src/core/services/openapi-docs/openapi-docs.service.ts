@@ -25,7 +25,7 @@ export class OpenApiDocsService {
   }
 
   generateDocs = memoizeAsync(
-    async (handlers: OpenApiHonoHandler[], options: { scope: string; source?: "file" | "http" }): Promise<OpenAPIObject> => {
+    async (handlers: OpenApiHonoHandler[], options: { scope: string; source?: "file" | "http"; includeHidden?: boolean }): Promise<OpenAPIObject> => {
       const source = options.source ?? "http";
       const version = "v1";
       const docs: OpenAPIObject & { components: NonNullable<OpenAPIObject["components"]> } = {
@@ -66,7 +66,10 @@ export class OpenApiDocsService {
             }
           });
 
-          Object.assign(docs.paths, this.#stripHiddenOperations(handlerDocs.paths));
+          // The committed openapi.json (SDK input) is generated with includeHidden:true so internal
+          // routes (e.g. Stripe) are typed and addressable via api.v1.*; the served /v1/doc keeps
+          // stripping them so the public Swagger surface stays clean.
+          Object.assign(docs.paths, options.includeHidden ? handlerDocs.paths : this.#stripHiddenOperations(handlerDocs.paths));
         } catch (error) {
           logger.error({
             name: `Error generating OpenAPI docs for handler, example path: ${handler.routes[0]?.path || "unknown"}`,
@@ -106,7 +109,7 @@ export class OpenApiDocsService {
     {
       ttl: 60 * 60 * 1000, // 1 hour
       cacheItemLimit: 10,
-      getCacheKey: (_, options) => `${options.scope}-${options.source ?? "http"}`
+      getCacheKey: (_, options) => `${options.scope}-${options.source ?? "http"}-${options.includeHidden ? "all" : "public"}`
     }
   );
 

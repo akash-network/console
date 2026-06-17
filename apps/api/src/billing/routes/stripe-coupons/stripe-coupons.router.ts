@@ -10,6 +10,7 @@ export const stripeCouponsRouter = new OpenApiHonoHandler();
 
 const applyCouponRoute = createRoute({
   method: "post",
+  operationId: "applyStripeCoupon",
   path: "/v1/stripe/coupons/apply",
   summary: "Apply a coupon to the current user",
   tags: ["Payment"],
