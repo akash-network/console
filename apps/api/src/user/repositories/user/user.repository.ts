@@ -1,5 +1,5 @@
 import { Trace } from "@akashnetwork/instrumentation";
-import { and, eq, getTableColumns, isNull, lt, ne, or, SQL, sql } from "drizzle-orm";
+import { and, eq, isNull, lt, ne, or, SQL, sql } from "drizzle-orm";
 import { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
@@ -73,19 +73,22 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
 
   async upsertOnExternalIdConflict(data: UserInput): Promise<{ user: UserOutput; wasInserted: boolean }> {
     const { username, ...withoutUsername } = data;
-    // `xmax = 0` is true only for a freshly inserted row; an ON CONFLICT update yields a non-zero
-    // xmax. This lets callers act exactly once on first creation, atomically, without a race-prone
-    // read-before-write.
-    const [item] = await this.cursor
+
+    // ON CONFLICT DO NOTHING returns a row only to the call whose insert actually created it, so
+    // the unique constraint — not a race-prone read-before-write — decides who is the creator.
+    const [inserted] = await this.cursor
       .insert(this.table)
       .values(this.toInput(data))
-      .onConflictDoUpdate({
-        target: [this.table.userId],
-        set: withoutUsername
-      })
-      .returning({ ...getTableColumns(this.table), wasInserted: sql<boolean>`xmax = 0` });
-    const { wasInserted, ...user } = item;
-    return { user: this.toOutput(user), wasInserted };
+      .onConflictDoNothing({ target: [this.table.userId] })
+      .returning();
+
+    if (inserted) {
+      return { user: this.toOutput(inserted), wasInserted: true };
+    }
+
+    // Existing user: refresh the same mutable fields the previous upsert kept up to date.
+    const [updated] = await this.cursor.update(this.table).set(withoutUsername).where(eq(this.table.userId, data.userId!)).returning();
+    return { user: this.toOutput(updated), wasInserted: false };
   }
 
   async findTrialUsersByFingerprint(fingerprint: string, excludeUserId: string): Promise<{ id: string }[]> {
