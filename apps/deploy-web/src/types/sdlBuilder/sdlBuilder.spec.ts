@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { CredentialsSchema, EndpointSchema, EnvironmentVariableSchema, SdlBuilderFormValuesSchema, ServiceSchema } from "./sdlBuilder";
+import { CredentialsSchema, EndpointSchema, EnvironmentVariableSchema, SdlBuilderFormValuesSchema, ServiceSchema, ServiceStorageSchema } from "./sdlBuilder";
+
+describe("ServiceStorageSchema", () => {
+  it("surfaces a friendly required message instead of the raw type error when size is cleared", () => {
+    const result = ServiceStorageSchema.safeParse({ size: null, unit: "Gi" });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["size"], message: "Storage is required." }));
+    expect(result.error.issues.some(issue => /received null/i.test(issue.message))).toBe(false);
+  });
+});
 
 describe("ServiceSchema", () => {
   it("validates a minimal valid service", () => {

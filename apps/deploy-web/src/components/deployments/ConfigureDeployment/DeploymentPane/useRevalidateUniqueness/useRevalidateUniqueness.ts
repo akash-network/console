@@ -3,8 +3,23 @@ import { useFormContext, useFormState, useWatch } from "react-hook-form";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 
-/** Field arrays whose rows are validated for a unique key (name/title). */
-type UniqueFieldArrayName = "placements" | "services" | "endpoints";
+type ServiceStorage = SdlBuilderFormValuesType["services"][number]["profile"]["storage"][number];
+
+/**
+ * RHF paths to field arrays whose rows are validated for a unique key
+ * (name/title). Top-level arrays plus the per-service storage array, whose
+ * persistent and RAM volumes must each carry a unique name and mount.
+ */
+type UniqueFieldArrayName = "placements" | "services" | "endpoints" | `services.${number}.profile.storage`;
+
+/** Resolves the row item type for a given field-array path so `selectKey` stays typed. */
+type UniqueFieldArrayItem<TName extends UniqueFieldArrayName> = TName extends "placements"
+  ? SdlBuilderFormValuesType["placements"][number]
+  : TName extends "services"
+    ? SdlBuilderFormValuesType["services"][number]
+    : TName extends "endpoints"
+      ? NonNullable<SdlBuilderFormValuesType["endpoints"]>[number]
+      : ServiceStorage;
 
 /**
  * Re-runs validation for the `name` field array whenever the `selectKey` value
@@ -25,14 +40,15 @@ type UniqueFieldArrayName = "placements" | "services" | "endpoints";
  * validate-on-submit mode. Before the first submit there is nothing on screen to
  * keep fresh; once submitted, this keeps sibling uniqueness errors consistent as
  * rows are renamed, added or removed.
+ *
+ * `useWatch` widens its return to the union of every possible field value when
+ * `name` is a generic path, so its result is narrowed back to this path's row
+ * type — the one place RHF's types can't track a generic path to its element.
  */
-export const useRevalidateUniqueness = <TName extends UniqueFieldArrayName>(
-  name: TName,
-  selectKey: (item: SdlBuilderFormValuesType[TName][number]) => string
-) => {
+export const useRevalidateUniqueness = <TName extends UniqueFieldArrayName>(name: TName, selectKey: (item: UniqueFieldArrayItem<TName>) => string) => {
   const { control, trigger } = useFormContext<SdlBuilderFormValuesType>();
   const { isSubmitted } = useFormState({ control });
-  const items = useWatch({ control, name }) as SdlBuilderFormValuesType[TName] | undefined;
+  const items = useWatch({ control, name }) as UniqueFieldArrayItem<TName>[] | undefined;
   const key = (items ?? []).map(selectKey).join("\u0000");
 
   useEffect(

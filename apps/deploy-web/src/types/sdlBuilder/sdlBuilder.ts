@@ -41,7 +41,7 @@ export const ProfileGpuModelSchema = z.object({
 });
 
 export const ServiceStorageSchema = z.object({
-  size: z.number().min(1, { message: "Storage is required." }).default(1),
+  size: z.number({ invalid_type_error: "Storage is required.", required_error: "Storage is required." }).min(1, { message: "Storage is required." }).default(1),
   unit: z.string().min(1, { message: "Storage unit is required." }).default("Gi"),
   isPersistent: z.boolean().optional().default(false),
   name: z
