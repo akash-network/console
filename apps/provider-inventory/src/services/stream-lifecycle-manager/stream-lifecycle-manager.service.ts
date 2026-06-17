@@ -8,7 +8,7 @@ import { inject, singleton } from "tsyringe";
 
 import { isEqualClusterState } from "@src/domain/is-equal-cluster-state/is-equal-cluster-state";
 import { throttleLatest } from "@src/lib/generators/throttle-latest/throttle-latest";
-import { providerInventoryStreamUpdates } from "@src/metrics/metrics";
+import { providerInventoryStreamUpdates, providersGauge } from "@src/metrics/metrics";
 import type { EnvConfig } from "@src/providers/app-config.provider";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
@@ -36,6 +36,7 @@ export class StreamLifecycleManagerService {
   >();
   readonly #lastInventoryPerProvider = new Map<string, ClusterState>();
   readonly #onlineStatePerProvider = new Map<string, boolean>();
+  #onlineProvidersCount = 0;
   readonly #healthyProviderRetryStreamPolicy: RetryPolicy;
   readonly #potentiallyDeadProviderRetryStreamPolicy: RetryPolicy;
   readonly #offlineDataloader: Dataloader<{ owner: string; requestedAt: Date }, boolean>;
@@ -100,6 +101,7 @@ export class StreamLifecycleManagerService {
     const controller = new AbortController();
     const abortProviderStream = () => controller.abort();
     this.#activeStreams.set(provider.owner, { controller, hostUri: provider.hostUri });
+    this.#recordMonitoredCount();
     signal?.addEventListener("abort", abortProviderStream, { once: true });
 
     const firstAttempt = Promise.withResolvers<void>();
@@ -142,6 +144,7 @@ export class StreamLifecycleManagerService {
     if (!existing) return;
     existing.controller.abort();
     this.#activeStreams.delete(owner);
+    this.#recordMonitoredCount();
     this.#logger.info({ event, owner });
   }
 
@@ -174,13 +177,14 @@ export class StreamLifecycleManagerService {
     } finally {
       onSettleAttempt();
       this.#lastInventoryPerProvider.delete(provider.owner);
-      this.#onlineStatePerProvider.delete(provider.owner);
+      this.#forgetProviderState(provider.owner);
       const activeStream = this.#activeStreams.get(provider.owner);
       if (activeStream?.controller.signal === signal) {
         this.#streamFactory.disposeProvider(activeStream.hostUri).catch(error => {
           this.#logger.error({ event: "DISPOSE_STREAM_ERROR", owner: provider.owner, hostUri: activeStream.hostUri, error });
         });
         this.#activeStreams.delete(provider.owner);
+        this.#recordMonitoredCount();
       }
     }
   }
@@ -238,13 +242,13 @@ export class StreamLifecycleManagerService {
 
     if (!this.#onlineStatePerProvider.get(provider.owner)) {
       try {
-        this.#onlineStatePerProvider.set(provider.owner, true);
+        this.#markProviderOnline(provider.owner);
         await this.#dbDriver.transaction(async () => {
           await Promise.all([this.#inventoryRepo.markAsOnline(provider.owner), this.#incidentsRepo.closeIncident(provider.owner)]);
         });
         this.#logger.info({ event: "PROVIDER_MARKED_ONLINE", owner: provider.owner });
       } catch (error) {
-        this.#onlineStatePerProvider.set(provider.owner, false);
+        this.#markProviderOffline(provider.owner);
         this.#logger.error({ event: "CLOSE_INCIDENT_ERROR", owner: provider.owner, error });
       }
     }
@@ -274,12 +278,47 @@ export class StreamLifecycleManagerService {
     try {
       const isMarkedAsOffline = await this.#offlineDataloader.load({ owner, requestedAt: new Date() });
       if (isMarkedAsOffline) {
-        this.#onlineStatePerProvider.set(owner, false);
+        this.#markProviderOffline(owner);
         this.#logger.info({ event: "PROVIDER_MARKED_OFFLINE", owner });
       }
     } catch (error) {
       this.#logger.error({ event: "MARK_OFFLINE_ERROR", owner, error });
     }
+  }
+
+  /**
+   * Online-state mutations funnel through these three helpers so the gauge is emitted in lockstep with
+   * the change and `#onlineProvidersCount` always equals the number of `true` entries in the map.
+   */
+  #markProviderOnline(owner: string): void {
+    if (this.#onlineStatePerProvider.get(owner) === true) return;
+    this.#onlineStatePerProvider.set(owner, true);
+    this.#onlineProvidersCount++;
+    providersGauge.record(this.#onlineProvidersCount, { state: "online" });
+  }
+
+  #markProviderOffline(owner: string): void {
+    if (this.#onlineStatePerProvider.get(owner) === true) {
+      this.#onlineProvidersCount--;
+      providersGauge.record(this.#onlineProvidersCount, { state: "online" });
+    }
+    this.#onlineStatePerProvider.set(owner, false);
+  }
+
+  #forgetProviderState(owner: string): void {
+    if (this.#onlineStatePerProvider.get(owner) === true) {
+      this.#onlineProvidersCount--;
+      providersGauge.record(this.#onlineProvidersCount, { state: "online" });
+    }
+    this.#onlineStatePerProvider.delete(owner);
+  }
+
+  /**
+   * `monitored` mirrors the active-stream registry (streams open or retrying). `Map.size` is O(1) and
+   * always exact, so we emit it directly at every registry mutation instead of keeping a counter.
+   */
+  #recordMonitoredCount(): void {
+    providersGauge.record(this.#activeStreams.size, { state: "monitored" });
   }
 
   shutdown(): void {
@@ -290,6 +329,9 @@ export class StreamLifecycleManagerService {
     this.#activeStreams.clear();
     this.#lastInventoryPerProvider.clear();
     this.#onlineStatePerProvider.clear();
+    this.#onlineProvidersCount = 0;
+    this.#recordMonitoredCount();
+    providersGauge.record(0, { state: "online" });
   }
 
   dispose(): void {

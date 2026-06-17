@@ -144,9 +144,7 @@ export class DiscoverySchedulerService {
       await this.#lifecycle.waitForPendingConnections();
 
       if (!signal?.aborted) {
-        const monitoredProvidersCount = this.#lifecycle.getRegistry().size;
         providersGauge.record(totalProviders, { state: "total" });
-        providersGauge.record(monitoredProvidersCount, { state: "monitored" });
         providersGauge.record(deadProvidersCount, { state: "dead" });
       }
 
