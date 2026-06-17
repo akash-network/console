@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { bigint, boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { bigint, boolean, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 import { jsonbBigint } from "@src/lib/jsonb-bigint/jsonb-bigint.column";
 
@@ -40,6 +40,7 @@ export const providerInventory = pgTable(
     maxNodeFreeGpu: bigint("max_node_free_gpu", { mode: "bigint" })
       .notNull()
       .default(sql`0`),
+    reclamationWindow: integer("reclamation_window"),
 
     gpuModels: text("gpu_models").array().notNull().default([]),
     storageClasses: text("storage_classes").array().notNull().default([]),

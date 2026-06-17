@@ -3,7 +3,7 @@ import { inject, singleton } from "tsyringe";
 
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
-import { mapInventoryToClusterState } from "@src/services/provider-stream-factory/stream-status-mapper";
+import { mapProviderStatusToClusterState } from "@src/services/provider-stream-factory/stream-status-mapper";
 import { ChainProvider } from "@src/types/chain-provider";
 import type { ClusterState } from "@src/types/inventory";
 
@@ -35,16 +35,19 @@ export class ProviderStreamFactory {
     const stream = await sdk.akash.provider.v1.streamStatus({}, { signal });
     this.#logger.debug({ event: "STREAM_OPENED", owner: provider.owner, msSinceCreate: Date.now() - openedAt });
 
+    let isFirstMessage = true;
     for await (const status of stream) {
-      const inventory = status.cluster?.inventory;
-      this.#logger.debug({
-        event: "STREAM_RAW_ENVELOPE",
-        owner: provider.owner,
-        msSinceOpen: Date.now() - openedAt,
-        hasInventoryCluster: !!inventory
-      });
-      if (inventory) {
-        yield mapInventoryToClusterState(inventory);
+      if (isFirstMessage) {
+        isFirstMessage = false;
+        this.#logger.debug({
+          event: "STREAM_FIRST_MESSAGE_RECEIVED",
+          owner: provider.owner,
+          msSinceOpen: Date.now() - openedAt,
+          hasInventoryCluster: !!status.cluster?.inventory
+        });
+      }
+      if (status.cluster?.inventory) {
+        yield mapProviderStatusToClusterState(status);
       }
     }
   }

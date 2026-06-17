@@ -101,6 +101,7 @@ export class ProviderInventoryRepository {
         maxNodeFreeGpu: row.maxNodeFreeGpu,
         gpuModels: row.gpuModels,
         storageClasses: row.storageClasses,
+        reclamationWindow: cluster.reclamationWindow ?? null,
         updatedAt: rawSql`now()`
       })
       .where(eq(providerInventory.owner, provider.owner));

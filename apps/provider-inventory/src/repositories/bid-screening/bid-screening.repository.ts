@@ -2,11 +2,10 @@ import { getTableName } from "drizzle-orm";
 import type postgres from "postgres";
 import { inject, singleton } from "tsyringe";
 
-import type { GroupSpecJSON } from "@src/mappers/groupspec-mapper/groupspec-mapper";
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { type Database, PG_CLIENT } from "@src/providers/postgres.provider";
 import type { ClusterState, RequestedResourceUnit } from "@src/types/inventory";
-import { aggregateCriteria, type BidScreeningCriteria } from "./bid-screening.aggregator";
+import { aggregateCriteria, type BidScreeningCriteria, type PlacementRequirements } from "./bid-screening.aggregator";
 // TODO(Issue 5): move auditor allowlist into configuration and accept it as a request input.
 export const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
 
@@ -35,7 +34,7 @@ export class BidScreeningRepository {
     this.#sql = sql;
   }
 
-  async findCandidates(resourceUnits: RequestedResourceUnit[], requirements: GroupSpecJSON["requirements"]): Promise<BidScreeningCandidate[]> {
+  async findCandidates(resourceUnits: RequestedResourceUnit[], requirements: PlacementRequirements): Promise<BidScreeningCandidate[]> {
     const sql = this.#sql;
     const criteria = aggregateCriteria(resourceUnits, requirements);
     const where = this.#joinAnd(this.#buildWhere(criteria));
@@ -113,6 +112,10 @@ export class BidScreeningRepository {
         AND ${sql(providerInventory.maxNodeFreeGpu.name)} >= ${criteria.maxPerReplicaGpu}
         AND ${sql(providerInventory.totalAvailableLeasedIp.name)} >= ${criteria.totalLeasedIps}`
     ];
+
+    if (criteria.reclamationWindow !== undefined) {
+      conditions.push(sql`${sql(providerInventory.reclamationWindow.name)} >= ${criteria.reclamationWindow}`);
+    }
 
     for (const unit of criteria.units) {
       if (unit.gpuTokens.length > 0) {

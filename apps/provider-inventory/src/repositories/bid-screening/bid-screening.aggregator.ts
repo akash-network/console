@@ -21,9 +21,10 @@ export interface BidScreeningCriteria {
   globAttributes: { keyPattern: string; value: string }[];
   signedBy: { allOf: string[]; anyOf: string[] };
   units: UnitFilters[];
+  reclamationWindow?: number;
 }
 
-export function aggregateCriteria(resourceUnits: RequestedResourceUnit[], requirements: GroupSpecJSON["requirements"]): BidScreeningCriteria {
+export function aggregateCriteria(resourceUnits: RequestedResourceUnit[], requirements: PlacementRequirements): BidScreeningCriteria {
   let totalCpu = 0n;
   let totalMemory = 0n;
   let totalGpu = 0n;
@@ -100,7 +101,8 @@ export function aggregateCriteria(resourceUnits: RequestedResourceUnit[], requir
       allOf: requirements.signedBy.allOf,
       anyOf: requirements.signedBy.anyOf
     },
-    units
+    units,
+    reclamationWindow: requirements.reclamationWindow
   };
 }
 
@@ -129,4 +131,8 @@ function collectPersistentStorageTokens(storage: RequestedStorage[]): string[] {
     }
   }
   return tokens;
+}
+
+export interface PlacementRequirements extends Exclude<GroupSpecJSON["requirements"], undefined> {
+  reclamationWindow?: number;
 }
