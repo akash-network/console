@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import type { Column, SortingState } from "@tanstack/react-table";
 import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
@@ -8,23 +8,17 @@ import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { ShortenedValue } from "@src/components/shared/ShortenedValue";
 import type { ScreenedProvider } from "@src/queries/useScreenedProviders";
 import { getProviderNameFromUri } from "@src/utils/providerUtils";
+import type { ProviderUptime } from "./ProviderUptimeCell/deriveProviderUptime";
+import { useProvidersUptime } from "./ProviderUptimeCell/deriveProviderUptime";
+import { ProviderUptimeCell } from "./ProviderUptimeCell/ProviderUptimeCell";
 
 const columnHelper = createColumnHelper<ScreenedProvider>();
 
 /** Shown when a provider has no region attribute. */
 const NO_REGION = "—";
 
-const columns = [
-  columnHelper.accessor(provider => getProviderNameFromUri(provider.hostUri), {
-    id: "hostUri",
-    header: ({ column }) => <SortableHeader column={column} title="Provider" />,
-    cell: info => <ShortenedValue value={info.getValue()} maxLength={40} headLength={14} />
-  }),
-  columnHelper.accessor("location", {
-    header: ({ column }) => <SortableHeader column={column} title="Region" />,
-    cell: info => info.getValue() ?? NO_REGION
-  })
-];
+/** Fallback uptime for a provider missing from the derived map; treated as fully healthy. */
+const HEALTHY_UPTIME: ProviderUptime = { percent: 1, buckets: [] };
 
 interface Props {
   providers: ScreenedProvider[];
@@ -33,6 +27,10 @@ interface Props {
 
 export const MarketplaceProvidersTable: FC<Props> = ({ providers, isLoading }) => {
   const [sorting, setSorting] = useState<SortingState>([]);
+
+  const uptimeByOwner = useProvidersUptime(providers);
+  const columns = useMemo(() => buildColumns(uptimeByOwner), [uptimeByOwner]);
+
   const table = useReactTable({
     data: providers,
     columns,
@@ -103,4 +101,24 @@ function SortableHeader({ column, title }: { column: Column<ScreenedProvider, un
       )}
     </button>
   );
+}
+
+/** Builds the table columns, closing over the per-provider uptime derived once in the component. */
+function buildColumns(uptimeByOwner: Map<string, ProviderUptime>) {
+  return [
+    columnHelper.accessor(provider => getProviderNameFromUri(provider.hostUri), {
+      id: "hostUri",
+      header: ({ column }) => <SortableHeader column={column} title="Provider" />,
+      cell: info => <ShortenedValue value={info.getValue()} maxLength={40} headLength={14} />
+    }),
+    columnHelper.accessor("location", {
+      header: ({ column }) => <SortableHeader column={column} title="Region" />,
+      cell: info => info.getValue() ?? NO_REGION
+    }),
+    columnHelper.accessor(provider => (uptimeByOwner.get(provider.owner) ?? HEALTHY_UPTIME).percent, {
+      id: "uptime",
+      header: ({ column }) => <SortableHeader column={column} title="Uptime (7D)" />,
+      cell: info => <ProviderUptimeCell uptime={uptimeByOwner.get(info.row.original.owner) ?? HEALTHY_UPTIME} />
+    })
+  ];
 }

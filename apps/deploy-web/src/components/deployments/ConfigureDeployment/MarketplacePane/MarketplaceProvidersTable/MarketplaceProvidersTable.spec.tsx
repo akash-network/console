@@ -1,4 +1,6 @@
+import { IntlProvider } from "react-intl";
 import { TooltipProvider } from "@akashnetwork/ui/components";
+import { format, subDays } from "date-fns";
 import { describe, expect, it } from "vitest";
 
 import type { ScreenedProvider } from "@src/queries/useScreenedProviders";
@@ -53,11 +55,30 @@ describe("MarketplaceProvidersTable", () => {
     expect(within(rows[2]).getByText("zeta.example")).toBeInTheDocument();
   });
 
+  it("sorts rows by derived uptime when the Uptime header is toggled ascending", async () => {
+    const recentDay = format(subDays(new Date(), 2), "yyyy-MM-dd");
+    const downProvider = buildScreenedProvider({
+      owner: "akash1down",
+      hostUri: "https://down.example:8443",
+      incidents: [{ date: recentDay, hasOpenIncident: false, incidentCount: 1, downtimeSeconds: 24 * 60 * 60 }]
+    });
+    const upProvider = buildScreenedProvider({ owner: "akash1up", hostUri: "https://up.example:8443", incidents: [] });
+    setup({ providers: [upProvider, downProvider] });
+
+    await userEvent.click(screen.getByRole("button", { name: /Uptime/ }));
+
+    const rows = screen.getAllByRole("row");
+    expect(within(rows[1]).getByText("down.example")).toBeInTheDocument();
+    expect(within(rows[2]).getByText("up.example")).toBeInTheDocument();
+  });
+
   function setup(input: { providers: ScreenedProvider[] }) {
     return render(
-      <TooltipProvider>
-        <MarketplaceProvidersTable providers={input.providers} />
-      </TooltipProvider>
+      <IntlProvider locale="en">
+        <TooltipProvider>
+          <MarketplaceProvidersTable providers={input.providers} />
+        </TooltipProvider>
+      </IntlProvider>
     );
   }
 });
