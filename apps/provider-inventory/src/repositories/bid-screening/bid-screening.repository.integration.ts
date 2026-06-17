@@ -6,11 +6,11 @@ import { container } from "tsyringe";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { parseGPUAttributes } from "@src/mappers/gpu-attribute-parser/gpu-attribute-parser";
-import type { GroupSpecJSON } from "@src/mappers/groupspec-mapper/groupspec-mapper";
 import { parseStorageAttributes } from "@src/mappers/storage-attribute-parser/storage-attribute-parser";
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
 import type { RequestedResourceUnit, ResourceAttribute } from "@src/types/inventory";
+import type { PlacementRequirements } from "./bid-screening.aggregator";
 import { AUDITOR, BidScreeningRepository } from "./bid-screening.repository";
 
 describe(BidScreeningRepository.name, () => {
@@ -469,6 +469,45 @@ describe(BidScreeningRepository.name, () => {
     });
   });
 
+  describe("reclamation window filter", () => {
+    // AEP-82: providers must offer a reclamation window meeting or exceeding the tenant's requested minimum.
+    it("excludes providers whose reclamation window is shorter than the requested minimum", async () => {
+      await seed({ owner: "akash1short", reclamationWindow: 1800 });
+      await seed({ owner: "akash1long", reclamationWindow: 7200 });
+
+      const rows = await repository.findCandidates([unit({})], requirements({ reclamationWindow: 3600 }));
+
+      expect(owners(rows)).toEqual(["akash1long"]);
+    });
+
+    it("includes a provider whose reclamation window exactly meets the requested minimum", async () => {
+      await seed({ owner: "akash1exact", reclamationWindow: 3600 });
+      await seed({ owner: "akash1under", reclamationWindow: 3599 });
+
+      const rows = await repository.findCandidates([unit({})], requirements({ reclamationWindow: 3600 }));
+
+      expect(owners(rows)).toEqual(["akash1exact"]);
+    });
+
+    it("excludes providers that do not advertise a reclamation window when one is requested", async () => {
+      await seed({ owner: "akash1none", reclamationWindow: null });
+      await seed({ owner: "akash1offers", reclamationWindow: 7200 });
+
+      const rows = await repository.findCandidates([unit({})], requirements({ reclamationWindow: 3600 }));
+
+      expect(owners(rows)).toEqual(["akash1offers"]);
+    });
+
+    it("omits the clause entirely when no reclamation window is requested, so providers without one stay in the result", async () => {
+      await seed({ owner: "akash1none", reclamationWindow: null });
+      await seed({ owner: "akash1offers", reclamationWindow: 7200 });
+
+      const rows = await repository.findCandidates([unit({})], requirements());
+
+      expect(owners(rows)).toEqual(["akash1none", "akash1offers"]);
+    });
+  });
+
   describe("online filter", () => {
     it("excludes rows where is_online is false", async () => {
       await seed({ owner: "akash1up" });
@@ -578,6 +617,7 @@ describe(BidScreeningRepository.name, () => {
     auditedBy?: string[];
     gpuModels?: string[];
     storageClasses?: string[];
+    reclamationWindow?: number | null;
     inventory?: unknown;
     createdAt?: Date;
   }
@@ -602,6 +642,7 @@ describe(BidScreeningRepository.name, () => {
       auditedBy: input.auditedBy ?? [],
       gpuModels: input.gpuModels ?? [],
       storageClasses: input.storageClasses ?? [],
+      reclamationWindow: input.reclamationWindow ?? null,
       inventory: input.inventory ?? { nodes: [], storage: {} },
       createdAt: input.createdAt
     });
@@ -645,10 +686,11 @@ function persistentVolume(name: string, quantity: bigint, storageClass: string):
   };
 }
 
-function requirements(input?: Partial<GroupSpecJSON["requirements"]>): GroupSpecJSON["requirements"] {
+function requirements(input?: Partial<PlacementRequirements>): PlacementRequirements {
   return {
     signedBy: input?.signedBy ?? { allOf: [], anyOf: [] },
-    attributes: input?.attributes ?? []
+    attributes: input?.attributes ?? [],
+    reclamationWindow: input?.reclamationWindow
   };
 }
 

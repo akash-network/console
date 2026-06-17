@@ -1,0 +1,1 @@
+ALTER TABLE "provider_inventory" ADD COLUMN "reclamation_window" integer;

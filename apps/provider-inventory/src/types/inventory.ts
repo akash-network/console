@@ -31,6 +31,7 @@ export interface ClusterState {
   nodes?: NodeState[];
   storage?: Record<string, { class: string; quantity: RawPair }>;
   leasedIp?: RawPair;
+  reclamationWindow?: number;
 }
 
 export interface RequestedStorage {

@@ -7,12 +7,13 @@ import type {
   Node as SdkNode,
   NodeCapabilities,
   ResourcePair as SdkResourcePair,
+  Status as ProviderStatus,
   Storage as SdkStorage,
   StorageInfo
 } from "@akashnetwork/chain-sdk/private-types/provider.akash.v1";
 import { describe, expect, it } from "vitest";
 
-import { mapInventoryToClusterState, parseQuantity } from "./stream-status-mapper";
+import { mapProviderStatusToClusterState, parseQuantity } from "./stream-status-mapper";
 
 describe(parseQuantity.name, () => {
   describe("empty / unparseable input", () => {
@@ -169,36 +170,36 @@ describe(parseQuantity.name, () => {
   });
 });
 
-describe(mapInventoryToClusterState.name, () => {
+describe(mapProviderStatusToClusterState.name, () => {
   describe("nodes", () => {
     it("returns undefined nodes when the cluster is missing", () => {
-      const result = mapInventoryToClusterState(buildInventory({ cluster: undefined }));
+      const result = mapProviderStatusToClusterState(buildStatus({ cluster: undefined }));
 
       expect(result.nodes).toBeUndefined();
     });
 
     it("maps every node in the cluster", () => {
-      const inventory = buildInventory({
+      const inventory = buildStatus({
         cluster: buildCluster({ nodes: [buildNode({ name: "node-a" }), buildNode({ name: "node-b" })] })
       });
 
-      const result = mapInventoryToClusterState(inventory);
+      const result = mapProviderStatusToClusterState(inventory);
 
       expect(result.nodes?.map(node => node.name)).toEqual(["node-a", "node-b"]);
     });
 
     it("scales cpu quantities to millicores via the 1000n multiplier", () => {
-      const inventory = buildInventory({
+      const inventory = buildStatus({
         cluster: buildCluster({ nodes: [buildNode({ cpu: buildPair({ allocatable: "2", allocated: "1.5" }) })] })
       });
 
-      const result = mapInventoryToClusterState(inventory);
+      const result = mapProviderStatusToClusterState(inventory);
 
       expect(result.nodes?.[0].cpu).toEqual({ allocatable: 2000n, allocated: 1500n });
     });
 
     it("maps memory and ephemeral storage without scaling", () => {
-      const inventory = buildInventory({
+      const inventory = buildStatus({
         cluster: buildCluster({
           nodes: [
             buildNode({
@@ -209,14 +210,14 @@ describe(mapInventoryToClusterState.name, () => {
         })
       });
 
-      const result = mapInventoryToClusterState(inventory);
+      const result = mapProviderStatusToClusterState(inventory);
 
       expect(result.nodes?.[0].memory).toEqual({ allocatable: 34359738368n, allocated: 1073741824n });
       expect(result.nodes?.[0].ephemeralStorage).toEqual({ allocatable: 107374182400n, allocated: 0n });
     });
 
     it("maps the gpu quantity pair and info", () => {
-      const inventory = buildInventory({
+      const inventory = buildStatus({
         cluster: buildCluster({
           nodes: [
             buildNode({
@@ -239,7 +240,7 @@ describe(mapInventoryToClusterState.name, () => {
         })
       });
 
-      const result = mapInventoryToClusterState(inventory);
+      const result = mapProviderStatusToClusterState(inventory);
 
       expect(result.nodes?.[0].gpu).toEqual({
         quantity: { allocatable: 4n, allocated: 1n },
@@ -248,53 +249,53 @@ describe(mapInventoryToClusterState.name, () => {
     });
 
     it("defaults gpu info to an empty array when absent", () => {
-      const inventory = buildInventory({
+      const inventory = buildStatus({
         cluster: buildCluster({ nodes: [buildNode({ gpu: buildGpu({ info: undefined }) })] })
       });
 
-      const result = mapInventoryToClusterState(inventory);
+      const result = mapProviderStatusToClusterState(inventory);
 
       expect(result.nodes?.[0].gpu.info).toEqual([]);
     });
 
     it("maps cpu info entries", () => {
-      const inventory = buildInventory({
+      const inventory = buildStatus({
         cluster: buildCluster({
           nodes: [buildNode({ cpus: [{ vendor: "amd", model: "epyc" } as CPUInfo] })]
         })
       });
 
-      const result = mapInventoryToClusterState(inventory);
+      const result = mapProviderStatusToClusterState(inventory);
 
       expect(result.nodes?.[0].cpus).toEqual([{ vendor: "amd", model: "epyc" }]);
     });
 
     it("defaults cpu info to an empty array when absent", () => {
-      const inventory = buildInventory({
+      const inventory = buildStatus({
         cluster: buildCluster({ nodes: [buildNode({ cpus: undefined })] })
       });
 
-      const result = mapInventoryToClusterState(inventory);
+      const result = mapProviderStatusToClusterState(inventory);
 
       expect(result.nodes?.[0].cpus).toEqual([]);
     });
 
     it("maps the node storage classes", () => {
-      const inventory = buildInventory({
+      const inventory = buildStatus({
         cluster: buildCluster({ nodes: [buildNode({ storageClasses: ["beta2", "beta3"] })] })
       });
 
-      const result = mapInventoryToClusterState(inventory);
+      const result = mapProviderStatusToClusterState(inventory);
 
       expect(result.nodes?.[0].storageClasses).toEqual(["beta2", "beta3"]);
     });
 
     it("defaults storage classes to an empty array when capabilities are missing", () => {
-      const inventory = buildInventory({
+      const inventory = buildStatus({
         cluster: buildCluster({ nodes: [buildNode({ capabilities: undefined })] })
       });
 
-      const result = mapInventoryToClusterState(inventory);
+      const result = mapProviderStatusToClusterState(inventory);
 
       expect(result.nodes?.[0].storageClasses).toEqual([]);
     });
@@ -302,19 +303,19 @@ describe(mapInventoryToClusterState.name, () => {
 
   describe("storage", () => {
     it("returns undefined when the cluster is missing", () => {
-      const result = mapInventoryToClusterState(buildInventory({ cluster: undefined }));
+      const result = mapProviderStatusToClusterState(buildStatus({ cluster: undefined }));
 
       expect(result.storage).toBeUndefined();
     });
 
     it("returns undefined when the cluster has no storage", () => {
-      const result = mapInventoryToClusterState(buildInventory({ cluster: buildCluster({ storage: undefined }) }));
+      const result = mapProviderStatusToClusterState(buildStatus({ cluster: buildCluster({ storage: undefined }) }));
 
       expect(result.storage).toBeUndefined();
     });
 
     it("keys each pool by its storage class", () => {
-      const inventory = buildInventory({
+      const inventory = buildStatus({
         cluster: buildCluster({
           storage: [
             buildStorage({ class: "beta2", allocatable: "100Gi", allocated: "10Gi" }),
@@ -323,7 +324,7 @@ describe(mapInventoryToClusterState.name, () => {
         })
       });
 
-      const result = mapInventoryToClusterState(inventory);
+      const result = mapProviderStatusToClusterState(inventory);
 
       expect(result.storage).toEqual({
         beta2: { class: "beta2", quantity: { allocatable: 107374182400n, allocated: 10737418240n } },
@@ -332,11 +333,11 @@ describe(mapInventoryToClusterState.name, () => {
     });
 
     it("falls back to an empty-string class when the pool info is missing", () => {
-      const inventory = buildInventory({
+      const inventory = buildStatus({
         cluster: buildCluster({ storage: [buildStorage({ class: undefined, allocatable: "50Gi", allocated: "0" })] })
       });
 
-      const result = mapInventoryToClusterState(inventory);
+      const result = mapProviderStatusToClusterState(inventory);
 
       expect(result.storage?.[""]).toEqual({ class: "", quantity: { allocatable: 53687091200n, allocated: 0n } });
     });
@@ -344,22 +345,22 @@ describe(mapInventoryToClusterState.name, () => {
 
   describe("leasedIp", () => {
     it("maps the leased ip pair", () => {
-      const inventory = buildInventory({ leasedIp: buildPair({ allocatable: "10", allocated: "3" }) });
+      const inventory = buildStatus({ leasedIp: buildPair({ allocatable: "10", allocated: "3" }) });
 
-      const result = mapInventoryToClusterState(inventory);
+      const result = mapProviderStatusToClusterState(inventory);
 
       expect(result.leasedIp).toEqual({ allocatable: 10n, allocated: 3n });
     });
 
     it("defaults to a zero pair when leasedIp is missing", () => {
-      const result = mapInventoryToClusterState(buildInventory({ leasedIp: undefined }));
+      const result = mapProviderStatusToClusterState(buildStatus({ leasedIp: undefined }));
 
       expect(result.leasedIp).toEqual({ allocatable: 0n, allocated: 0n });
     });
   });
 
-  function buildInventory(overrides: Partial<Inventory>): Inventory {
-    return { cluster: undefined, leasedIp: undefined, ...overrides } as Inventory;
+  function buildStatus(overrides: Partial<Inventory>): ProviderStatus {
+    return { cluster: { inventory: { cluster: undefined, leasedIp: undefined, ...overrides } } } as ProviderStatus;
   }
 
   function buildCluster(overrides: { nodes?: SdkNode[]; storage?: SdkStorage[] }): Cluster {

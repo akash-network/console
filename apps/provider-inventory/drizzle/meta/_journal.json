@@ -29,6 +29,13 @@
       "when": 1780929614273,
       "tag": "0003_add_provider_incidents",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781690088926,
+      "tag": "0004_add_reclamation_window",
+      "breakpoints": true
     }
   ]
 }

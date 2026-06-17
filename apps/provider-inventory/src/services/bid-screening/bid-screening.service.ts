@@ -39,7 +39,7 @@ export class BidScreeningService {
     const candidates = await withSpan("fetchCandidatesFromDB", async () => {
       if (options?.signal?.aborted) return [];
 
-      const items = await this.#repository.findCandidates(resourceUnits, request.requirements);
+      const items = await this.#repository.findCandidates(resourceUnits, { ...request.requirements, reclamationWindow: request.reclamationWindow });
       bidScreeningPrefilterCandidates.record(items.length);
       this.#logger.info({ event: "BID_SCREENING_CANDIDATES_FETCHED", count: items.length });
       return items;
@@ -115,4 +115,5 @@ export class BidScreeningService {
 
 export interface BidScreeningInput extends Omit<GroupSpecJSON, "name"> {
   timezone: string;
+  reclamationWindow?: number;
 }

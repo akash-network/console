@@ -1,9 +1,9 @@
 import type {
   CPUInfo,
   GPUInfo,
-  Inventory,
   Node as SdkNode,
   ResourcePair as SdkResourcePair,
+  Status as ProviderStatus,
   Storage as SdkStorage
 } from "@akashnetwork/chain-sdk/private-types/provider.akash.v1";
 
@@ -113,10 +113,14 @@ function mapClusterStorage(storage: SdkStorage[] | undefined): ClusterState["sto
   return result;
 }
 
-export function mapInventoryToClusterState(inventory: Inventory): ClusterState {
+export function mapProviderStatusToClusterState(status: ProviderStatus): ClusterState {
+  const inventory = status.cluster?.inventory;
+  if (!inventory) return {};
+
   return {
     nodes: inventory.cluster?.nodes.map(mapNode),
     storage: mapClusterStorage(inventory.cluster?.storage),
-    leasedIp: pairFromSdk(inventory.leasedIp)
+    leasedIp: pairFromSdk(inventory.leasedIp),
+    reclamationWindow: status.reclamationWindow ? Number(status.reclamationWindow.seconds ?? 0) : undefined
   };
 }
