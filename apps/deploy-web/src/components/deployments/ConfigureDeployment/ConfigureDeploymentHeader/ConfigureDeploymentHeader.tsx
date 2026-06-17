@@ -2,7 +2,11 @@ import type { FC } from "react";
 import { Button } from "@akashnetwork/ui/components";
 import { Send } from "iconoir-react";
 
+import { useDeploymentResourceSummary } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
+
 export const ConfigureDeploymentHeader: FC = () => {
+  const deploymentSummary = useDeploymentResourceSummary();
+
   return (
     <header className="flex flex-row items-center justify-between gap-3 md:items-end">
       <div className="flex min-w-0 flex-1 flex-col gap-1 md:gap-2">
@@ -13,7 +17,7 @@ export const ConfigureDeploymentHeader: FC = () => {
       </div>
 
       <div className="flex shrink-0 items-center gap-3 md:gap-6">
-        <DeploymentSummaryBlock label="Deployment" value="—" />
+        <DeploymentSummaryBlock label="Your deployment" value={deploymentSummary} />
         <div className="hidden h-12 w-px self-stretch bg-border md:block" aria-hidden="true" />
         <DeploymentSummaryBlock label="Cost" value="—" suffix="/hr" />
         <Button disabled className="h-9 shrink-0 px-3 md:h-10 md:px-8">
