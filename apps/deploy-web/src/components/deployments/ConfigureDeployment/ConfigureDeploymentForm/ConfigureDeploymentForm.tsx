@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
-import debounce from "lodash/debounce";
 import { NextSeo } from "next-seo";
 import { useSnackbar } from "notistack";
 
@@ -20,7 +19,7 @@ import { ConfigureDeploymentPanes } from "../ConfigureDeploymentPanes/ConfigureD
 
 export const DEPENDENCIES = { Layout, NextSeo, ConfigureDeploymentHeader, ConfigureDeploymentPanes, useSnackbar, Snackbar };
 
-/** Delay between a form edit and regenerating the SDL preview. */
+/** Delay between a form edit and updating the debounced SDL preview. */
 const SDL_SYNC_DEBOUNCE_MS = 300;
 
 type Props = {
@@ -30,7 +29,8 @@ type Props = {
 
 export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, dependencies: d = DEPENDENCIES }) => {
   const [initialState] = useState(() => getInitialState(initialSdl));
-  const [sdl, setSdl] = useState(initialState.sdl);
+  const [liveSdl, setLiveSdl] = useState(initialState.sdl);
+  const [previewSdl, setPreviewSdl] = useState(initialState.sdl);
   const [selectedServiceId, setSelectedServiceId] = useState<string>(initialState.selectedServiceId);
   const { enqueueSnackbar } = d.useSnackbar();
   const form = useForm<SdlBuilderFormValuesType>({
@@ -53,17 +53,23 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, dependencies: d
   );
 
   useEffect(
-    function syncSdlPreview() {
-      const writeSdl = debounce((values: unknown) => {
-        setSdl(previous => regenerateSdl(values as SdlBuilderFormValuesType, previous));
-      }, SDL_SYNC_DEBOUNCE_MS);
-      const subscription = form.watch(values => writeSdl(values));
-      return function teardownSdlSync() {
-        writeSdl.cancel();
+    function syncLiveSdl() {
+      const subscription = form.watch(values => setLiveSdl(previous => regenerateSdl(values as SdlBuilderFormValuesType, previous)));
+      return function teardownLiveSync() {
         subscription.unsubscribe();
       };
     },
     [form]
+  );
+
+  useEffect(
+    function debouncePreviewSdl() {
+      const timeout = setTimeout(() => setPreviewSdl(liveSdl), SDL_SYNC_DEBOUNCE_MS);
+      return function cancelPreviewDebounce() {
+        clearTimeout(timeout);
+      };
+    },
+    [liveSdl]
   );
 
   useEffect(
@@ -87,7 +93,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, dependencies: d
         </div>
         <div className="mt-6 flex min-h-0 flex-1">
           <d.ConfigureDeploymentPanes
-            sdl={sdl}
+            sdl={liveSdl}
+            previewSdl={previewSdl}
             selectedServiceId={selectedServiceId}
             selectedPlacementName={selectedPlacement.name}
             selectedPlacementRegion={selectedPlacement.region}

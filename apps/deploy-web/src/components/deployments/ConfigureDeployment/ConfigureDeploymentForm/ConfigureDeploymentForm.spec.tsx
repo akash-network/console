@@ -105,6 +105,12 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(ConfigureDeploymentPanes).toHaveBeenCalledWith(expect.objectContaining({ sdl: VALID_SDL }), expect.anything());
   });
 
+  it("threads both the live sdl and the debounced preview sdl into the panes", () => {
+    const { ConfigureDeploymentPanes } = setup({ initialSdl: VALID_SDL });
+
+    expect(ConfigureDeploymentPanes).toHaveBeenCalledWith(expect.objectContaining({ sdl: VALID_SDL, previewSdl: VALID_SDL }), expect.anything());
+  });
+
   it("falls back to a default deployment when the carried-in SDL has no services", () => {
     const { ConfigureDeploymentPanes, enqueueSnackbar } = setup({ initialSdl: 'version: "2.0"' });
 

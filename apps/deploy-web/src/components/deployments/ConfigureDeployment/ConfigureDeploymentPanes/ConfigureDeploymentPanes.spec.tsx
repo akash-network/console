@@ -61,8 +61,8 @@ describe("ConfigureDeploymentPanes", () => {
     expect(screen.queryByTestId("sdl-preview-pane-mock")).not.toBeInTheDocument();
   });
 
-  it("renders the preview pane closed with the sdl when the flag is enabled", () => {
-    const { SdlPreviewPane } = setup({ isSdlPreviewEnabled: true, sdl: 'version: "2.0"' });
+  it("renders the preview pane closed with the preview sdl when the flag is enabled", () => {
+    const { SdlPreviewPane } = setup({ isSdlPreviewEnabled: true, previewSdl: 'version: "2.0"' });
 
     expect(SdlPreviewPane).toHaveBeenCalledWith(expect.objectContaining({ isOpen: false, sdl: 'version: "2.0"' }), expect.anything());
   });
@@ -110,6 +110,7 @@ describe("ConfigureDeploymentPanes", () => {
     input: {
       isSdlPreviewEnabled?: boolean;
       sdl?: string;
+      previewSdl?: string;
       preserveStorage?: boolean;
       selectedServiceId?: string;
       selectedPlacementName?: string;
@@ -142,6 +143,7 @@ describe("ConfigureDeploymentPanes", () => {
       <JotaiStoreProvider store={createStore()}>
         <ConfigureDeploymentPanes
           sdl={input.sdl ?? ""}
+          previewSdl={input.previewSdl ?? ""}
           selectedServiceId={input.selectedServiceId ?? ""}
           selectedPlacementName={input.selectedPlacementName ?? "dcloud"}
           selectedPlacementRegion={input.selectedPlacementRegion}

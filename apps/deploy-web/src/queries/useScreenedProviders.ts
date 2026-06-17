@@ -1,8 +1,10 @@
 import { useMemo } from "react";
 import { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import type { paths } from "@akashnetwork/console-api-types";
+import { keepPreviousData } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
+import { usePacedValue } from "@src/hooks/usePacedValue/usePacedValue";
 import { DeploymentGroups } from "@src/utils/deploymentData/helpers";
 import { AUDITOR } from "@src/utils/deploymentData/v1beta3";
 
@@ -27,6 +29,11 @@ interface UseScreenedProvidersResult {
   isError: boolean;
 }
 
+/** Quiet period after the last spec edit before the current spec is screened. */
+export const SCREENING_DEBOUNCE_MS = 400;
+/** Hard ceiling so continuous editing still screens the spec at most ~once per this window. */
+export const SCREENING_MAX_WAIT_MS = 2000;
+
 /**
  * Screens providers for the given placement's group spec. The marketplace is placement-scoped: it converts
  * the current SDL to group specs and queries the one matching `placementName`. While the SDL is mid-edit or
@@ -39,7 +46,8 @@ export function useScreenedProviders({ sdl, placementName, region }: UseScreened
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     return { ...(buildPlacementScreeningRequest(sdl, placementName) ?? buildCatalogScreeningRequest(region)), timezone };
   }, [sdl, placementName, region]);
-  const query = api.v1.screenProviders.useQuery(request);
+  const pacedRequest = usePacedValue(request, { wait: SCREENING_DEBOUNCE_MS, maxWait: SCREENING_MAX_WAIT_MS });
+  const query = api.v1.screenProviders.useQuery(pacedRequest, { placeholderData: keepPreviousData });
 
   return {
     providers: query.data?.providers ?? [],
