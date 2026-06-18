@@ -125,6 +125,38 @@ describe(DiscoverySchedulerService.name, () => {
     expect(logger.debug).not.toHaveBeenCalledWith(expect.objectContaining({ event: "DISCOVERY_SKIP_PROVIDER" }));
   });
 
+  it("does not stop-and-delete a dead provider that is still registered on-chain", async () => {
+    // A dead provider is still on-chain, so its inventory row and open incident must be preserved.
+    // Deleting them (via stopAndDelete) would reset dead-detection and re-monitor it as brand-new next tick.
+    const dead = createProvider({ owner: "dead", hostUri: "https://dead:8443" });
+    const offlineSince = new Date(Date.now() - DEAD_PROVIDER_UPDATED_THRESHOLD_MS - 1_000);
+    const { lifecycle } = setup({
+      providers: [dead],
+      watched: new Map([["dead", { hostUri: "https://dead:8443" }]]),
+      offlineSince: new Map([[dead.owner, offlineSince]])
+    });
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(lifecycle.start).not.toHaveBeenCalled();
+    expect(lifecycle.stopAndDelete).not.toHaveBeenCalled();
+  });
+
+  it("stops and deletes a watched provider that is no longer returned by the poller", async () => {
+    const stillOnChain = createProvider({ owner: "alive", hostUri: "https://alive:8443" });
+    const { lifecycle } = setup({
+      providers: [stillOnChain],
+      watched: new Map([
+        ["alive", { hostUri: "https://alive:8443" }],
+        ["gone", { hostUri: "https://gone:8443" }]
+      ])
+    });
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(lifecycle.stopAndDelete).toHaveBeenCalledWith(["gone"]);
+  });
+
   it("forwards the offline-since timestamp to lifecycle.restart when an observed provider changes hostUri", async () => {
     const updated = createProvider({ owner: "moving", hostUri: "https://new:8443" });
     const offlineSince = new Date(Date.now() - 60_000);
