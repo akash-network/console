@@ -88,6 +88,10 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
 
     // Existing user: refresh the same mutable fields the previous upsert kept up to date.
     const [updated] = await this.cursor.update(this.table).set(withoutUsername).where(eq(this.table.userId, data.userId!)).returning();
+    if (!updated) {
+      // The row existed at INSERT time but is gone now — only possible via a concurrent delete.
+      throw new Error(`Failed to upsert user: no row to update for userId ${data.userId}`);
+    }
     return { user: this.toOutput(updated), wasInserted: false };
   }
 
