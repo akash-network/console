@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { createRoute } from "../../lib/create-route/create-route";
+import { createRoute, HIDDEN_ROUTES } from "../../lib/create-route/create-route";
 import { OpenApiHonoHandler } from "../open-api-hono-handler/open-api-hono-handler";
 import { OpenApiDocsService } from "./openapi-docs.service";
 import { SECURITY_NONE } from "./openapi-security";
@@ -19,6 +19,8 @@ describe("OpenApiDocsService", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     fetchMock.mockReset();
+    // buildHandler mutates the process-wide HIDDEN_ROUTES set; clear it so tests stay isolated.
+    HIDDEN_ROUTES.clear();
   });
 
   it("loads the notifications spec from disk when source = file", async () => {
