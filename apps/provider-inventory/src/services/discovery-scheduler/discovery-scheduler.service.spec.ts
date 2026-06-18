@@ -3,6 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { EnvConfig } from "@src/providers/app-config.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
+import type { ProviderIncidentRepository } from "@src/repositories/provider-incident/provider-incident.repository";
 import type { ProviderInventory, ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
 import type { ChainProviderPollerService } from "@src/services/chain-provider-poller/chain-provider-poller.service";
 import type { StreamLifecycleManagerService } from "@src/services/stream-lifecycle-manager/stream-lifecycle-manager.service";
@@ -136,6 +137,55 @@ describe(DiscoverySchedulerService.name, () => {
     expect(lifecycle.start).not.toHaveBeenCalled();
   });
 
+  it("prunes incidents older than the configured retention window on the first tick", async () => {
+    const { incidentRepository, config } = setup();
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(incidentRepository.deleteEndedBefore).toHaveBeenCalledTimes(1);
+    expect(incidentRepository.deleteEndedBefore).toHaveBeenCalledWith(config.INCIDENT_RETENTION_DAYS);
+  });
+
+  it("does not prune again on subsequent ticks within the cleanup interval", async () => {
+    const { incidentRepository, config } = setup();
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(incidentRepository.deleteEndedBefore).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(config.DISCOVERY_INTERVAL_MS * 5);
+    expect(incidentRepository.deleteEndedBefore).toHaveBeenCalledTimes(1);
+  });
+
+  it("prunes again once the cleanup interval has elapsed", async () => {
+    const { incidentRepository, config } = setup();
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(incidentRepository.deleteEndedBefore).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(config.INCIDENT_CLEANUP_INTERVAL_MS);
+    expect(incidentRepository.deleteEndedBefore).toHaveBeenCalledTimes(2);
+  });
+
+  it("still prunes incidents when the poll fails so cleanup is not blocked by a tick error", async () => {
+    const { incidentRepository } = setup({ pollError: new Error("chain RPC unavailable") });
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(incidentRepository.deleteEndedBefore).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries the prune on the next tick when cleanup fails rather than waiting a full interval", async () => {
+    const { incidentRepository, poller, config, logger } = setup();
+    incidentRepository.deleteEndedBefore.mockRejectedValueOnce(new Error("DB down"));
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "DISCOVERY_INCIDENTS_CLEANUP_ERROR" }));
+
+    await vi.advanceTimersByTimeAsync(config.DISCOVERY_INTERVAL_MS);
+    expect(poller.poll).toHaveBeenCalledTimes(2);
+    expect(incidentRepository.deleteEndedBefore).toHaveBeenCalledTimes(2);
+  });
+
   it("stops scheduling after stop is called", async () => {
     const { scheduler, poller, config } = setup();
 
@@ -235,12 +285,14 @@ describe(DiscoverySchedulerService.name, () => {
   }) {
     const poller = mock<ChainProviderPollerService>();
     const writer = mock<ProviderInventoryRepository>();
+    const incidentRepository = mock<ProviderIncidentRepository>();
     const lifecycle = mock<StreamLifecycleManagerService>();
     lifecycle.getRegistry.mockReturnValue(input?.watched ?? new Map());
     lifecycle.stopAndDelete.mockResolvedValue();
     lifecycle.waitForPendingConnections.mockResolvedValue();
     writer.bulkUpsertProviders.mockResolvedValue();
     writer.getInventoryLastUpdatedPerOfflineProvider.mockResolvedValue(input?.lastUpdated ?? new Map());
+    incidentRepository.deleteEndedBefore.mockResolvedValue(0);
 
     const onlineOwners = input?.onlineOwners ?? [];
     writer.streamOnlineProviders.mockReturnValue(
@@ -262,7 +314,9 @@ describe(DiscoverySchedulerService.name, () => {
       STREAM_RECONNECT_MAX_DELAY_MS: 300_000,
       STREAM_FIRST_MESSAGE_TIMEOUT_MS: 10_000,
       DEAD_PROVIDER_UPDATED_THRESHOLD_MS,
-      REST_API_NODE_URL: "http://localhost:1317"
+      REST_API_NODE_URL: "http://localhost:1317",
+      INCIDENT_RETENTION_DAYS: 31,
+      INCIDENT_CLEANUP_INTERVAL_MS: 24 * 60 * 60 * 1000
     } as EnvConfig;
 
     if (input?.pollError) {
@@ -287,10 +341,10 @@ describe(DiscoverySchedulerService.name, () => {
       });
     }
 
-    const scheduler = new DiscoverySchedulerService(poller, writer, lifecycle, config, loggerFactory);
+    const scheduler = new DiscoverySchedulerService(poller, writer, incidentRepository, lifecycle, config, loggerFactory);
     if (input?.autoStart !== false) scheduler.start();
 
-    return { scheduler, poller, writer, lifecycle, config, logger };
+    return { scheduler, poller, writer, incidentRepository, lifecycle, config, logger };
   }
 });
 

@@ -122,6 +122,43 @@ describe(ProviderIncidentRepository.name, () => {
     });
   });
 
+  describe("deleteEndedBefore", () => {
+    it("deletes incidents that ended before the retention window and reports the deleted count", async () => {
+      const { repository, db } = setup();
+      await seedClosed(db, { provider: "akash1a", endedAt: atDaysAgoUtc(40, 10) });
+      await seedClosed(db, { provider: "akash1b", endedAt: atDaysAgoUtc(35, 10) });
+
+      const deletedCount = await repository.deleteEndedBefore(31);
+
+      expect(deletedCount).toBe(2);
+      const rows = await db.select().from(providerIncidents);
+      expect(rows).toHaveLength(0);
+    });
+
+    it("keeps incidents that ended within the retention window", async () => {
+      const { repository, db } = setup();
+      await seedClosed(db, { provider: "akash1a", endedAt: atDaysAgoUtc(10, 10) });
+
+      const deletedCount = await repository.deleteEndedBefore(31);
+
+      expect(deletedCount).toBe(0);
+      const rows = await db.select().from(providerIncidents);
+      expect(rows).toHaveLength(1);
+      expect(rows[0].provider).toBe("akash1a");
+    });
+
+    it("never deletes still-open incidents regardless of how long ago they started", async () => {
+      const { repository, db } = setup();
+      await seedIncident(db, { provider: "akash1a", startedAt: atDaysAgoUtc(90, 10), endedAt: null });
+
+      const deletedCount = await repository.deleteEndedBefore(31);
+
+      expect(deletedCount).toBe(0);
+      const [row] = await db.select().from(providerIncidents);
+      expect(row).toMatchObject({ provider: "akash1a", endedAt: null });
+    });
+  });
+
   describe("findDailyDowntimeByProviders", () => {
     it("returns an empty array when called with no providers", async () => {
       const { repository } = setup();

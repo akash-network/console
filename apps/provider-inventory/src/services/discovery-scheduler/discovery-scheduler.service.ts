@@ -7,6 +7,7 @@ import type { EnvConfig } from "@src/providers/app-config.provider";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
+import { ProviderIncidentRepository } from "@src/repositories/provider-incident/provider-incident.repository";
 import { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
 import { ChainProviderPollerService } from "@src/services/chain-provider-poller/chain-provider-poller.service";
 import { StreamLifecycleManagerService } from "@src/services/stream-lifecycle-manager/stream-lifecycle-manager.service";
@@ -17,19 +18,23 @@ export class DiscoverySchedulerService {
   readonly #logger: LoggerService;
   readonly #poller: ChainProviderPollerService;
   readonly #repository: ProviderInventoryRepository;
+  readonly #incidentRepository: ProviderIncidentRepository;
   readonly #lifecycle: StreamLifecycleManagerService;
   readonly #config: EnvConfig;
   #abortController: AbortController | null = null;
+  #lastIncidentCleanupAt: number | null = null;
 
   constructor(
     poller: ChainProviderPollerService,
     repository: ProviderInventoryRepository,
+    incidentRepository: ProviderIncidentRepository,
     lifecycle: StreamLifecycleManagerService,
     @inject(APP_CONFIG) config: EnvConfig,
     @inject(LOGGER_FACTORY) loggerFactory: LoggerFactory
   ) {
     this.#poller = poller;
     this.#repository = repository;
+    this.#incidentRepository = incidentRepository;
     this.#lifecycle = lifecycle;
     this.#config = config;
     this.#logger = loggerFactory({ context: "DiscoveryScheduler" });
@@ -157,6 +162,24 @@ export class DiscoverySchedulerService {
       });
     } catch (error) {
       this.#logger.error({ event: "DISCOVERY_TICK_ERROR", error });
+    }
+
+    await this.#cleanupOldIncidents();
+  }
+
+  async #cleanupOldIncidents(): Promise<void> {
+    const now = Date.now();
+    if (this.#lastIncidentCleanupAt !== null && now - this.#lastIncidentCleanupAt < this.#config.INCIDENT_CLEANUP_INTERVAL_MS) {
+      return;
+    }
+
+    const retentionDays = this.#config.INCIDENT_RETENTION_DAYS;
+    try {
+      const deletedCount = await this.#incidentRepository.deleteEndedBefore(retentionDays);
+      this.#lastIncidentCleanupAt = now;
+      this.#logger.info({ event: "DISCOVERY_INCIDENTS_CLEANUP", retentionDays, deletedCount });
+    } catch (error) {
+      this.#logger.error({ event: "DISCOVERY_INCIDENTS_CLEANUP_ERROR", retentionDays, error });
     }
   }
 

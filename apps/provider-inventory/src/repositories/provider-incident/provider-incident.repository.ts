@@ -1,4 +1,4 @@
-import { and, eq, getTableName, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, getTableName, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { inject, singleton } from "tsyringe";
 
 import { providerIncidents } from "@src/model-schemas/provider-incident/provider-incident.schema";
@@ -31,12 +31,6 @@ export class ProviderIncidentRepository {
     this.#sql = sql;
   }
 
-  /**
-   * Per-provider, per-day downtime over a rolling 7-day window (today + 6 prior days),
-   * with calendar-day boundaries computed in `timeZone` (default UTC).
-   * `hasOpenIncident` is provider-wide (true if any incident is still open now).
-   * Rows are ordered by `(provider, date ASC)`.
-   */
   async findDailyDowntimeByProviders(providers: string[], timeZone = "UTC"): Promise<DailyDowntimeRow[]> {
     if (providers.length === 0) return [];
 
@@ -100,5 +94,15 @@ export class ProviderIncidentRepository {
       .update(providerIncidents)
       .set({ endedAt: sql`now()` })
       .where(isNull(providerIncidents.endedAt));
+  }
+
+  async deleteEndedBefore(retentionDays: number): Promise<number> {
+    const deleted = await this.driver
+      .getDb()
+      .delete(providerIncidents)
+      .where(and(isNotNull(providerIncidents.endedAt), lt(providerIncidents.endedAt, sql`now() - make_interval(days => ${retentionDays})`)))
+      .returning({ provider: providerIncidents.provider });
+
+    return deleted.length;
   }
 }
