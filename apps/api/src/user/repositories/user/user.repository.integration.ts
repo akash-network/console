@@ -131,11 +131,8 @@ describe(UserRepository.name, () => {
     async function createTestUser(overrides: { lastActiveAt?: Date | null; lastIp?: string } = {}) {
       const user = await userRepository.create({
         id: faker.string.uuid(),
-        userId: faker.string.uuid(),
-        username: `testuser_${Date.now()}_${faker.string.alphanumeric(6)}`,
-        email: faker.internet.email(),
+        ...newUserInput(),
         emailVerified: faker.datatype.boolean(),
-        subscribedToNewsletter: false,
         ...overrides
       });
       createdUserIds.push(user.id);
