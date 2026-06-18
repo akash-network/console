@@ -6,7 +6,6 @@ import { IntlProvider } from "react-intl";
 import { ErrorFallback, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
-import { millisecondsInMinute } from "date-fns/constants";
 
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
 import { useSettings } from "@src/context/SettingsProvider";
@@ -74,19 +73,9 @@ const LayoutApp: React.FunctionComponent<Props> = ({
     return true;
   });
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const { refreshNodeStatuses, isSettingsInit } = useSettings();
+  const { isSettingsInit } = useSettings();
   const { isWalletLoaded } = useWallet();
   const { hasBanner } = useTopBanner();
-
-  useEffect(() => {
-    const refreshNodeIntervalId = setInterval(async () => {
-      await refreshNodeStatuses();
-    }, millisecondsInMinute);
-
-    return () => {
-      clearInterval(refreshNodeIntervalId);
-    };
-  }, [refreshNodeStatuses]);
 
   const onOpenMenuClick = () => {
     setIsNavOpen(prev => {

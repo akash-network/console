@@ -290,9 +290,7 @@ describe(YourAccount.name, () => {
         settings: { isBlockchainDown: false },
         setSettings: vi.fn(),
         isLoadingSettings: false,
-        isSettingsInit: true,
-        refreshNodeStatuses: vi.fn(),
-        isRefreshingNodeStatus: false
+        isSettingsInit: true
       }) as unknown as ReturnType<typeof DEPENDENCIES.useSettings>;
 
     const useWallet: typeof DEPENDENCIES.useWallet = () =>
