@@ -16,6 +16,7 @@ export const DEPENDENCIES = { DeploymentPane, ConfigurationPane, MarketplacePane
 
 type Props = {
   sdl: string;
+  previewSdl: string;
   selectedServiceId: string;
   selectedPlacementName: string;
   selectedPlacementRegion?: string;
@@ -25,6 +26,7 @@ type Props = {
 
 export const ConfigureDeploymentPanes: FC<Props> = ({
   sdl,
+  previewSdl,
   selectedServiceId,
   selectedPlacementName,
   selectedPlacementRegion,
@@ -48,7 +50,7 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
           <d.MarketplacePane sdl={sdl} placementName={selectedPlacementName} region={selectedPlacementRegion} />
         </div>
         {isSdlPreviewEnabled && (
-          <d.SdlPreviewPane sdl={sdl} isOpen={isSdlPreviewOpen} onOpen={() => setIsSdlPreviewOpen(true)} onClose={() => setIsSdlPreviewOpen(false)} />
+          <d.SdlPreviewPane sdl={previewSdl} isOpen={isSdlPreviewOpen} onOpen={() => setIsSdlPreviewOpen(true)} onClose={() => setIsSdlPreviewOpen(false)} />
         )}
       </div>
 
