@@ -20,7 +20,12 @@ export const envSchema = z.object({
   STREAM_FIRST_MESSAGE_TIMEOUT_MS: z.number({ coerce: true }).default(10_000),
   STREAM_UPDATE_THROTTLE_MS: z.number({ coerce: true }).nonnegative().default(1000),
   REST_API_NODE_URL: z.string().url(),
-  DEAD_PROVIDER_UPDATED_THRESHOLD_MS: z.number({ coerce: true }).default(10 * 24 * 60 * ONE_MINUTE)
+  DEAD_PROVIDER_UPDATED_THRESHOLD_MS: z.number({ coerce: true }).default(10 * 24 * 60 * ONE_MINUTE),
+  INCIDENT_RETENTION_DAYS: z.number({ coerce: true }).int().positive().default(31),
+  INCIDENT_CLEANUP_INTERVAL_MS: z
+    .number({ coerce: true })
+    .nonnegative()
+    .default(24 * 60 * ONE_MINUTE)
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
