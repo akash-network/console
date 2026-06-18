@@ -19,11 +19,15 @@ describe(isEqualClusterState.name, () => {
     it("considers two structurally identical fully-populated rows equal", () => {
       const a = buildCluster({
         nodes: [buildNode({ name: "node-1" }), buildNode({ name: "node-2" })],
-        storage: storageMap([{ class: "beta2", allocatable: 100n }])
+        storage: storageMap([{ class: "beta2", allocatable: 100n }]),
+        leasedIp: { allocatable: 10n, allocated: 2n },
+        reclamationWindow: 60
       });
       const b = buildCluster({
         nodes: [buildNode({ name: "node-1" }), buildNode({ name: "node-2" })],
-        storage: storageMap([{ class: "beta2", allocatable: 100n }])
+        storage: storageMap([{ class: "beta2", allocatable: 100n }]),
+        leasedIp: { allocatable: 10n, allocated: 2n },
+        reclamationWindow: 60
       });
 
       expect(isEqualClusterState(a, b)).toBe(true);
@@ -96,6 +100,30 @@ describe(isEqualClusterState.name, () => {
       const b = buildCluster({ nodes: [buildNode({ name: "node-1" }), buildNode({ name: "node-2" })] });
       expect(isEqualClusterState(a, b)).toBe(false);
     });
+
+    it("returns false when leasedIp allocatable differs", () => {
+      const a = buildCluster({ leasedIp: { allocatable: 10n, allocated: 0n } });
+      const b = buildCluster({ leasedIp: { allocatable: 20n, allocated: 0n } });
+      expect(isEqualClusterState(a, b)).toBe(false);
+    });
+
+    it("returns false when leasedIp allocated differs", () => {
+      const a = buildCluster({ leasedIp: { allocatable: 10n, allocated: 0n } });
+      const b = buildCluster({ leasedIp: { allocatable: 10n, allocated: 5n } });
+      expect(isEqualClusterState(a, b)).toBe(false);
+    });
+
+    it("returns false when reclamationWindow differs", () => {
+      const a = buildCluster({ reclamationWindow: 60 });
+      const b = buildCluster({ reclamationWindow: 120 });
+      expect(isEqualClusterState(a, b)).toBe(false);
+    });
+
+    it("returns false when reclamationWindow is set on only one side", () => {
+      const a = buildCluster({ reclamationWindow: 60 });
+      const b = buildCluster();
+      expect(isEqualClusterState(a, b)).toBe(false);
+    });
   });
 
   describe("order-insensitive comparison", () => {
@@ -132,7 +160,9 @@ function storageMap(pools: { class: string; allocatable: bigint; allocated?: big
 function buildCluster(overrides: Partial<ClusterState> = {}) {
   const cluster: ClusterState = {
     nodes: overrides.nodes ?? [],
-    storage: overrides.storage ?? Object.create(null)
+    storage: overrides.storage ?? Object.create(null),
+    leasedIp: overrides.leasedIp,
+    reclamationWindow: overrides.reclamationWindow
   };
   return cluster;
 }
