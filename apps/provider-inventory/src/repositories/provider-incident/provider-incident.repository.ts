@@ -100,9 +100,8 @@ export class ProviderIncidentRepository {
     const deleted = await this.driver
       .getDb()
       .delete(providerIncidents)
-      .where(and(isNotNull(providerIncidents.endedAt), lt(providerIncidents.endedAt, sql`now() - make_interval(days => ${retentionDays})`)))
-      .returning({ provider: providerIncidents.provider });
+      .where(and(isNotNull(providerIncidents.endedAt), lt(providerIncidents.endedAt, sql`now() - make_interval(days => ${retentionDays})`)));
 
-    return deleted.length;
+    return deleted.count;
   }
 }
