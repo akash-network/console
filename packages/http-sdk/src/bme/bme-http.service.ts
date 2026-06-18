@@ -42,9 +42,32 @@ export class BmeHttpService {
 
       if (records.length === 0) return true;
 
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      if (!(await waitForPollInterval(pollInterval, options?.signal))) return false;
     }
 
     return false;
   }
+}
+
+function waitForPollInterval(pollInterval: number, signal?: AbortSignal): Promise<boolean> {
+  if (signal?.aborted) return Promise.resolve(false);
+
+  return new Promise(resolve => {
+    const timeout = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve(true);
+    }, pollInterval);
+
+    const onAbort = () => {
+      clearTimeout(timeout);
+      signal?.removeEventListener("abort", onAbort);
+      resolve(false);
+    };
+
+    signal?.addEventListener("abort", onAbort, { once: true });
+
+    if (signal?.aborted) {
+      onAbort();
+    }
+  });
 }
