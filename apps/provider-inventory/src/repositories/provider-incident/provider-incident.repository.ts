@@ -88,12 +88,20 @@ export class ProviderIncidentRepository {
       .where(and(where, isNull(providerIncidents.endedAt)));
   }
 
-  async closeAllOpen(): Promise<void> {
-    await this.driver
+  async getOfflineSince(providers: string[]): Promise<Map<string, Date>> {
+    if (providers.length === 0) return new Map();
+
+    const rows = await this.driver
       .getDb()
-      .update(providerIncidents)
-      .set({ endedAt: sql`now()` })
-      .where(isNull(providerIncidents.endedAt));
+      .select({ provider: providerIncidents.provider, startedAt: providerIncidents.startedAt })
+      .from(providerIncidents)
+      .where(and(inArray(providerIncidents.provider, providers), isNull(providerIncidents.endedAt)));
+
+    const result = new Map<string, Date>();
+    for (const row of rows) {
+      result.set(row.provider, row.startedAt);
+    }
+    return result;
   }
 
   async deleteEndedBefore(retentionDays: number): Promise<number> {

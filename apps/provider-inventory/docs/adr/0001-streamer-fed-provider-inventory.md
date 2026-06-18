@@ -99,13 +99,13 @@ Attribute columns (`self_attributes`, `signed_attributes`, `audited_by`) are not
 
 ## Lifecycle scenarios
 
-- **Cold boot.** Streamer starts → `UPDATE provider_inventory SET is_online_since = NULL` (drops every row from the prefilter index) → **online warm-up** fires `streamStatus` connections to every owner with `is_online = true` (cached host_uri) → **discovery loop fires immediately** in parallel (chain queries for providers + attributes) → the discovery tick sees warm-up owners already in the registry and only opens streams for the rest; hostUri-changed owners are `restart`'d, chain-absent owners are `stopAndDelete`'d → first message per provider re-asserts `is_online_since = now()`. Because warm-up's `lifecycle.start` calls reach the stream-connection semaphore before the discovery tick's chain RPC returns, the ~83 reachable providers acquire permits ahead of the ~1877 dead ones from chain — the prefilter index repopulates in seconds rather than minutes. The next discovery tick is scheduled 10 min after the first one finishes, via recursive `setTimeout`.
+- **Cold boot.** streamer doesn't reset online status of providers because for us it's better to have stale response rather than not having it at all → **online warm-up** fires `streamStatus` connections to every owner with `is_online = true` (cached host_uri) → **discovery loop fires immediately** in parallel (chain queries for providers + attributes) → the discovery tick sees warm-up owners already in the registry and only opens streams for the rest; hostUri-changed owners are `restart`'d, chain-absent owners are `stopAndDelete`'d → first message per provider re-asserts `is_online_since = now()`. Because warm-up's `lifecycle.start` calls reach the stream-connection semaphore before the discovery tick's chain RPC returns, the ~83 reachable providers acquire permits ahead of the ~1877 dead ones from chain — the prefilter index repopulates in seconds rather than minutes. The next discovery tick is scheduled 10 min after the first one finishes, via recursive `setTimeout`.
 - **Stream disconnect.** Diff cache for that provider is cleared. Reconnect attempts: t=0, +1s, +2s, +4s (full jitter). After 3rd failure, `is_online = false, is_online_since = NULL`. Continued retries with cap ~5 min until success.
 - **Reconnect after disconnect.** First message is full state — written through unconditionally because the diff cache was cleared. `is_online`/`is_online_since` flip back.
 - **Provider hostUri changes** (`MsgUpdateProvider`). Discovery loop sees diff on next tick (≤10 min), closes old stream, opens new one against the new hostUri.
 - **Provider deleted on chain.** Discovery loop sees the provider absent from the next `Provider/Providers` result, closes stream, deletes row from `provider_inventory`.
 - **Two providers share hostUri.** Discovery loop dedupes by hostUri keeping the latest `createdHeight`. The "loser" has no row in `provider_inventory`; bid-screening cannot route to it.
-- **Worker crash.** Rows persist with `is_online = true, is_online_since = <pre-crash time>` until restart. Cold-boot ritual nulls `is_online_since`, prefilter rejects them, no stale data is served.
+- **Worker crash.** Rows persist with `is_online = true, is_online_since = <pre-crash time>` until restart.
 
 ## Migration plan
 
@@ -141,7 +141,7 @@ Attribute columns (`self_attributes`, `signed_attributes`, `audited_by`) are not
 
 ## Consequences
 
-- The streamer is the **single writer** to `provider_inventory`. Streamer death = up to ~10 s window of stale rows for active deployments. Mitigated by the **`is_online_since` startup ritual**: before opening any streams, the streamer runs `UPDATE provider_inventory SET is_online_since = NULL`, which empties the partial prefilter index until each stream's first message re-asserts liveness.
+- The streamer is the **single writer** to `provider_inventory`. Streamer death = up to ~10 s window of stale rows for active deployments. Staleness is ok for us, since having some results for bid screening is better than not having them at all
 - The prefilter is **intentionally lossy**. The JS bin-packer is the strict check. False positives are acceptable; false negatives are bugs.
 - **HOT updates are preserved.** The only index is partial on `WHERE is_online AND is_online_since IS NOT NULL`. `is_online` flips rarely (only on connect / 3-strike disconnect). High-frequency inventory updates touch no indexed column. `FILLFACTOR = 70` keeps page-local update space available.
 - **TOAST behaviour.** Large per-provider inventories (many nodes + GPUs) push `inventory` JSONB into TOAST. TOAST has its own MVCC and vacuum; updates rewrite the TOAST tuple but do not break HOT in the heap. Acceptable at current scale.

@@ -98,7 +98,8 @@ export const BidScreeningRequestSchema = z.object({
     .refine(val => SUPPORTED_TIMEZONES.has(val), { message: "Timezone is not supported" })
     .openapi({ description: "Client timezone, validated against supported Node.js Intl timezones", example: "America/Chicago" }),
   reclamationWindow: z.number().int().positive().optional().openapi({
-    description: "Optional reclamation window in seconds; if provided, only providers with a matching reclamation window will be considered",
+    description:
+      "Optional reclamation window in seconds; if provided, only providers with a reclamationWindow greater than or equal to this value will be considered",
     example: 3600
   })
 });

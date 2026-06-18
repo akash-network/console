@@ -21,10 +21,6 @@ export class ProviderInventoryRepository {
     this.#driver = dbDriver;
   }
 
-  async resetOnlineSince(): Promise<void> {
-    await this.#driver.getDb().update(providerInventory).set({ isOnlineSince: null });
-  }
-
   async *streamOnlineProviders(options?: { batchSize?: number }): AsyncGenerator<Pick<ProviderInventory, "owner" | "hostUri">> {
     const batchSize = options?.batchSize ?? DEFAULT_ONLINE_STREAM_BATCH_SIZE;
     const baseQuery = this.#driver
@@ -107,8 +103,8 @@ export class ProviderInventoryRepository {
       .where(eq(providerInventory.owner, provider.owner));
   }
 
-  async bulkUpsertProviders(providers: ChainProvider[]): Promise<void> {
-    if (providers.length === 0) return;
+  async bulkUpsertProviders(providers: ChainProvider[]): Promise<Pick<ProviderInventory, "owner">[]> {
+    if (providers.length === 0) return [];
 
     const NOW_SQL = rawSql`now()`;
     const rows = providers.map(provider => {
@@ -128,7 +124,7 @@ export class ProviderInventoryRepository {
       rawSql` OR `
     );
 
-    await this.#driver
+    return this.#driver
       .getDb()
       .insert(providerInventory)
       .values(rows)
@@ -142,23 +138,7 @@ export class ProviderInventoryRepository {
           updatedAt: NOW_SQL
         },
         setWhere: hasChanges
-      });
-  }
-
-  async getInventoryLastUpdatedPerOfflineProvider(providers: string[]): Promise<Map<string, Date | null>> {
-    if (providers.length === 0) return new Map();
-    const db = this.#driver.getDb();
-    const rows = await db
-      .select({
-        owner: providerInventory.owner,
-        updatedAt: providerInventory.updatedAt
       })
-      .from(providerInventory)
-      .where(and(inArray(providerInventory.owner, providers), eq(providerInventory.isOnline, false)));
-    const result = new Map<string, Date | null>();
-    for (const row of rows) {
-      result.set(row.owner, new Date(row.updatedAt));
-    }
-    return result;
+      .returning({ owner: providerInventory.owner });
   }
 }
