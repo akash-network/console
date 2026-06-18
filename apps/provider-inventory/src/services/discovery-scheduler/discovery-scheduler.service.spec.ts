@@ -77,23 +77,23 @@ describe(DiscoverySchedulerService.name, () => {
 
     expect(lifecycle.getRegistry).toHaveBeenCalled();
     expect(writer.bulkUpsertProviders).toHaveBeenCalledWith([fresh]);
-    expect(lifecycle.start).toHaveBeenCalledWith({ ...fresh, lastUpdated: null }, expect.any(AbortSignal));
+    expect(lifecycle.start).toHaveBeenCalledWith({ ...fresh, offlineSince: null }, expect.any(AbortSignal));
   });
 
-  it("forwards the offline provider's last-updated timestamp to lifecycle.start", async () => {
+  it("forwards the provider's offline-since timestamp to lifecycle.start", async () => {
     const offline = createProvider({ owner: "offline", hostUri: "https://offline:8443" });
-    const lastUpdated = new Date(Date.now() - 60_000);
-    const { lifecycle } = setup({ providers: [offline], lastUpdated: new Map([[offline.owner, lastUpdated]]) });
+    const offlineSince = new Date(Date.now() - 60_000);
+    const { lifecycle } = setup({ providers: [offline], offlineSince: new Map([[offline.owner, offlineSince]]) });
 
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(lifecycle.start).toHaveBeenCalledWith({ ...offline, lastUpdated }, expect.any(AbortSignal));
+    expect(lifecycle.start).toHaveBeenCalledWith({ ...offline, offlineSince }, expect.any(AbortSignal));
   });
 
-  it("skips a provider whose inventory has not been updated past the dead-provider threshold", async () => {
+  it("skips a provider whose open incident is older than the dead-provider threshold", async () => {
     const dead = createProvider({ owner: "dead", hostUri: "https://dead:8443" });
-    const lastUpdated = new Date(Date.now() - DEAD_PROVIDER_UPDATED_THRESHOLD_MS - 1_000);
-    const { lifecycle, logger } = setup({ providers: [dead], lastUpdated: new Map([[dead.owner, lastUpdated]]) });
+    const offlineSince = new Date(Date.now() - DEAD_PROVIDER_UPDATED_THRESHOLD_MS - 1_000);
+    const { lifecycle, logger } = setup({ providers: [dead], offlineSince: new Map([[dead.owner, offlineSince]]) });
 
     await vi.advanceTimersByTimeAsync(0);
 
@@ -101,18 +101,42 @@ describe(DiscoverySchedulerService.name, () => {
     expect(logger.debug).toHaveBeenCalledWith(expect.objectContaining({ event: "DISCOVERY_SKIP_PROVIDER", owner: "dead" }));
   });
 
-  it("forwards the last-updated timestamp to lifecycle.restart when an observed provider changes hostUri", async () => {
+  it("retries a dead provider instead of skipping it when its on-chain record changed this tick", async () => {
+    const dead = createProvider({ owner: "dead", hostUri: "https://dead:8443" });
+    const offlineSince = new Date(Date.now() - DEAD_PROVIDER_UPDATED_THRESHOLD_MS - 1_000);
+    const { writer, lifecycle, logger } = setup({ providers: [dead], offlineSince: new Map([[dead.owner, offlineSince]]) });
+    writer.bulkUpsertProviders.mockResolvedValue([{ owner: dead.owner }]);
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(lifecycle.start).toHaveBeenCalledWith({ ...dead, offlineSince }, expect.any(AbortSignal));
+    expect(logger.debug).not.toHaveBeenCalledWith(expect.objectContaining({ event: "DISCOVERY_SKIP_PROVIDER" }));
+  });
+
+  it("starts a provider that has no open incident instead of flagging it dead", async () => {
+    // dead detection keys off open incidents only — a provider with no open incident is never skipped,
+    // regardless of how stale its inventory row is
+    const provider = createProvider({ owner: "healthy", hostUri: "https://healthy:8443" });
+    const { lifecycle, logger } = setup({ providers: [provider], offlineSince: new Map() });
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(lifecycle.start).toHaveBeenCalledWith({ ...provider, offlineSince: null }, expect.any(AbortSignal));
+    expect(logger.debug).not.toHaveBeenCalledWith(expect.objectContaining({ event: "DISCOVERY_SKIP_PROVIDER" }));
+  });
+
+  it("forwards the offline-since timestamp to lifecycle.restart when an observed provider changes hostUri", async () => {
     const updated = createProvider({ owner: "moving", hostUri: "https://new:8443" });
-    const lastUpdated = new Date(Date.now() - 60_000);
+    const offlineSince = new Date(Date.now() - 60_000);
     const { lifecycle } = setup({
       providers: [updated],
       watched: new Map([["moving", { hostUri: "https://old:8443" }]]),
-      lastUpdated: new Map([[updated.owner, lastUpdated]])
+      offlineSince: new Map([[updated.owner, offlineSince]])
     });
 
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(lifecycle.restart).toHaveBeenCalledWith({ ...updated, lastUpdated }, expect.any(AbortSignal));
+    expect(lifecycle.restart).toHaveBeenCalledWith({ ...updated, offlineSince }, expect.any(AbortSignal));
   });
 
   it("continues after a poll error and re-arms the next tick", async () => {
@@ -281,7 +305,7 @@ describe(DiscoverySchedulerService.name, () => {
     onlineOwners?: Pick<ProviderInventory, "owner" | "hostUri">[];
     autoStart?: boolean;
     watched?: Map<string, { hostUri: string }>;
-    lastUpdated?: Map<string, Date>;
+    offlineSince?: Map<string, Date>;
   }) {
     const poller = mock<ChainProviderPollerService>();
     const writer = mock<ProviderInventoryRepository>();
@@ -290,8 +314,8 @@ describe(DiscoverySchedulerService.name, () => {
     lifecycle.getRegistry.mockReturnValue(input?.watched ?? new Map());
     lifecycle.stopAndDelete.mockResolvedValue();
     lifecycle.waitForPendingConnections.mockResolvedValue();
-    writer.bulkUpsertProviders.mockResolvedValue();
-    writer.getInventoryLastUpdatedPerOfflineProvider.mockResolvedValue(input?.lastUpdated ?? new Map());
+    writer.bulkUpsertProviders.mockResolvedValue([]);
+    incidentRepository.getOfflineSince.mockResolvedValue(input?.offlineSince ?? new Map());
     incidentRepository.deleteEndedBefore.mockResolvedValue(0);
 
     const onlineOwners = input?.onlineOwners ?? [];

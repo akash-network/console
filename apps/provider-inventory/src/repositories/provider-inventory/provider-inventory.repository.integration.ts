@@ -279,11 +279,10 @@ describe(ProviderInventoryRepository.name, () => {
       expect(row.updatedAt.toISOString()).toBe(updatedAt.toISOString());
     });
 
-    it("re-stamps isOnlineSince for a provider left online by the boot-time resetOnlineSince ritual", async () => {
+    it("re-stamps isOnlineSince for a provider that is online but has a null isOnlineSince", async () => {
       const { repository, db } = setup();
-      await seed(db, { owner: "akash1a", isOnline: true, isOnlineSince: new Date("2026-01-01T00:00:00Z") });
+      await seed(db, { owner: "akash1a", isOnline: true, isOnlineSince: null });
 
-      await repository.resetOnlineSince();
       await repository.markAsOnline("akash1a");
 
       const [row] = await db.select().from(providerInventory).where(eq(providerInventory.owner, "akash1a"));
@@ -363,47 +362,6 @@ describe(ProviderInventoryRepository.name, () => {
         .orderBy(providerInventory.owner);
       expect(rowA.isOnline).toBe(false);
       expect(rowB.isOnline).toBe(true);
-    });
-  });
-
-  describe("getInventoryLastUpdatedPerOfflineProvider", () => {
-    it("returns the updatedAt timestamp for each offline provider in the list", async () => {
-      const { repository, db } = setup();
-      const updatedAt = new Date("2026-01-01T00:00:00Z");
-      await seed(db, { owner: "akash1a", isOnline: false, isOnlineSince: null, updatedAt });
-
-      const result = await repository.getInventoryLastUpdatedPerOfflineProvider(["akash1a"]);
-
-      expect(result.get("akash1a")?.toISOString()).toBe(updatedAt.toISOString());
-    });
-
-    it("excludes providers that are currently online", async () => {
-      const { repository, db } = setup();
-      await seed(db, { owner: "akash1online", isOnline: true, isOnlineSince: new Date() });
-      await seed(db, { owner: "akash1offline", isOnline: false, isOnlineSince: null });
-
-      const result = await repository.getInventoryLastUpdatedPerOfflineProvider(["akash1online", "akash1offline"]);
-
-      expect(result.has("akash1online")).toBe(false);
-      expect(result.has("akash1offline")).toBe(true);
-    });
-
-    it("excludes owners that are not in the requested list", async () => {
-      const { repository, db } = setup();
-      await seed(db, { owner: "akash1a", isOnline: false, isOnlineSince: null });
-      await seed(db, { owner: "akash1b", isOnline: false, isOnlineSince: null });
-
-      const result = await repository.getInventoryLastUpdatedPerOfflineProvider(["akash1a"]);
-
-      expect([...result.keys()]).toEqual(["akash1a"]);
-    });
-
-    it("returns an empty map for an empty list", async () => {
-      const { repository } = setup();
-
-      const result = await repository.getInventoryLastUpdatedPerOfflineProvider([]);
-
-      expect(result.size).toBe(0);
     });
   });
 

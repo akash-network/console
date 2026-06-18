@@ -8,7 +8,7 @@ import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import type { DbDriver } from "@src/repositories/db-driver/db-driver";
 import type { ProviderIncidentRepository } from "@src/repositories/provider-incident/provider-incident.repository";
 import type { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
-import type { ChainProvider, ChainProviderWithLastUpdated } from "@src/types/chain-provider";
+import type { ChainProvider, ChainProviderWithOfflineSince } from "@src/types/chain-provider";
 import type { ClusterState, NodeState } from "@src/types/inventory";
 import type { ProviderStreamFactory } from "../provider-stream-factory/provider-stream-factory.sevice";
 import { StreamLifecycleManagerService } from "./stream-lifecycle-manager.service";
@@ -386,7 +386,7 @@ describe(StreamLifecycleManagerService.name, () => {
       streamFactory.disposeProvider.mockResolvedValue();
       streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
       const { manager, incidents, logger } = setup({ streamFactory });
-      const longDead = createProvider({ lastUpdated: new Date(Date.now() - 10_000) });
+      const longDead = createProvider({ offlineSince: new Date(Date.now() - 10_000) });
 
       manager.start(longDead);
 
@@ -404,7 +404,7 @@ describe(StreamLifecycleManagerService.name, () => {
       const { manager, logger } = setup({ streamFactory });
       const countReconnects = () => logger.warn.mock.calls.filter(([arg]) => (arg as { event?: string })?.event === "STREAM_RECONNECTING").length;
 
-      manager.start(createProvider({ lastUpdated: new Date(Date.now() - 10_000) }));
+      manager.start(createProvider({ offlineSince: new Date(Date.now() - 10_000) }));
 
       await vi.waitFor(() => expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_GAVE_UP" })), { timeout: 5000 });
       expect(countReconnects()).toBe(1);
@@ -416,7 +416,7 @@ describe(StreamLifecycleManagerService.name, () => {
       streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
       const { manager, logger } = setup({ streamFactory });
 
-      manager.start(createProvider({ lastUpdated: new Date(Date.now() - 100) }));
+      manager.start(createProvider({ offlineSince: new Date(Date.now() - 100) }));
 
       await vi.waitFor(() => expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_GAVE_UP" })), { timeout: 5000 });
       expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(6);
@@ -433,7 +433,7 @@ describe(StreamLifecycleManagerService.name, () => {
       });
       const { manager, writer } = setup({ streamFactory });
 
-      manager.start(createProvider({ lastUpdated: new Date(Date.now() - 10_000) }));
+      manager.start(createProvider({ offlineSince: new Date(Date.now() - 10_000) }));
 
       await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(1), { timeout: 5000 });
     });
@@ -578,14 +578,14 @@ describe(StreamLifecycleManagerService.name, () => {
   }
 });
 
-function createProvider(overrides?: Partial<ChainProviderWithLastUpdated>): ChainProviderWithLastUpdated {
+function createProvider(overrides?: Partial<ChainProviderWithOfflineSince>): ChainProviderWithOfflineSince {
   return {
     owner: "akash1owner",
     hostUri: "https://p1:8443",
     selfAttributes: [],
     signedAttributes: [],
     auditedBy: [],
-    lastUpdated: null,
+    offlineSince: null,
     ...overrides
   };
 }

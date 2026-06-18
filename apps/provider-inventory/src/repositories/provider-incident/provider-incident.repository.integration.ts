@@ -105,20 +105,52 @@ describe(ProviderIncidentRepository.name, () => {
     });
   });
 
-  describe("closeAllOpen", () => {
-    it("closes every open row and leaves already-closed rows untouched", async () => {
+  describe("getOfflineSince", () => {
+    it("returns the open incident's started_at for a provider with an open incident", async () => {
       const { repository, db } = setup();
-      await repository.openIncident("akash1a");
-      await repository.openIncident("akash1b");
-      await seedClosed(db, { provider: "akash1c", endedAt: new Date("2026-01-01T00:05:00Z") });
+      const startedAt = new Date("2026-01-01T00:00:00Z");
+      await seedIncident(db, { provider: "akash1a", startedAt, endedAt: null });
 
-      await repository.closeAllOpen();
+      const result = await repository.getOfflineSince(["akash1a"]);
 
-      const rows = await db.select().from(providerIncidents);
-      const byProvider = Object.fromEntries(rows.map(r => [r.provider, r.endedAt]));
-      expect(byProvider["akash1a"]).toBeInstanceOf(Date);
-      expect(byProvider["akash1b"]).toBeInstanceOf(Date);
-      expect(byProvider["akash1c"]?.toISOString()).toBe("2026-01-01T00:05:00.000Z");
+      expect(result.get("akash1a")?.toISOString()).toBe(startedAt.toISOString());
+    });
+
+    it("returns the open incident's started_at even when an earlier closed incident exists", async () => {
+      const { repository, db } = setup();
+      const openStartedAt = new Date("2026-02-01T00:00:00Z");
+      await seedClosed(db, { provider: "akash1a", startedAt: new Date("2026-01-01T00:00:00Z"), endedAt: new Date("2026-01-01T00:05:00Z") });
+      await seedIncident(db, { provider: "akash1a", startedAt: openStartedAt, endedAt: null });
+
+      const result = await repository.getOfflineSince(["akash1a"]);
+
+      expect(result.get("akash1a")?.toISOString()).toBe(openStartedAt.toISOString());
+    });
+
+    it("omits providers whose only incident is already closed", async () => {
+      const { repository, db } = setup();
+      await seedClosed(db, { provider: "akash1a", endedAt: new Date("2026-01-01T00:05:00Z") });
+
+      const result = await repository.getOfflineSince(["akash1a"]);
+
+      expect(result.has("akash1a")).toBe(false);
+    });
+
+    it("omits requested providers that have no incident at all", async () => {
+      const { repository, db } = setup();
+      await seedIncident(db, { provider: "akash1a", startedAt: new Date("2026-01-01T00:00:00Z"), endedAt: null });
+
+      const result = await repository.getOfflineSince(["akash1a", "akash1unknown"]);
+
+      expect([...result.keys()]).toEqual(["akash1a"]);
+    });
+
+    it("returns an empty map for an empty list", async () => {
+      const { repository } = setup();
+
+      const result = await repository.getOfflineSince([]);
+
+      expect(result.size).toBe(0);
     });
   });
 

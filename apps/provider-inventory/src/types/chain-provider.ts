@@ -17,6 +17,6 @@ export interface ChainProvider {
   auditedBy: string[];
 }
 
-export interface ChainProviderWithLastUpdated extends ChainProvider {
-  lastUpdated: Date | null;
+export interface ChainProviderWithOfflineSince extends ChainProvider {
+  offlineSince: Date | null;
 }

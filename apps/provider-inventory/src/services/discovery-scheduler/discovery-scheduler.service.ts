@@ -52,7 +52,7 @@ export class DiscoverySchedulerService {
           selfAttributes: EMPTY_ARRAY,
           signedAttributes: EMPTY_ARRAY,
           auditedBy: EMPTY_ARRAY,
-          lastUpdated: null
+          offlineSince: null
         },
         signal
       );
@@ -105,28 +105,36 @@ export class DiscoverySchedulerService {
 
         // important to upsert before starting new stream,
         // otherwise stream will have nothing to update in the db
-        const [isUpsertedBatch, lastUpdatedPerProvider] = await Promise.all([
+        const [updatedProviders, offlineSincePerProvider] = await Promise.all([
           this.#upsertProviders(providers),
-          this.#repository.getInventoryLastUpdatedPerOfflineProvider(providers.map(p => p.owner))
+          this.#incidentRepository.getOfflineSince(providers.map(p => p.owner))
         ]);
         for (const provider of providers) {
           totalProviders++;
           const observedProvider = watchedProviders.get(provider.owner);
-          const lastUpdated = lastUpdatedPerProvider.get(provider.owner);
+          const offlineSince = offlineSincePerProvider.get(provider.owner);
 
-          if (lastUpdated && Date.now() - lastUpdated.getTime() >= this.#config.DEAD_PROVIDER_UPDATED_THRESHOLD_MS) {
-            this.#logger.debug({ event: "DISCOVERY_SKIP_PROVIDER", owner: provider.owner, reason: "provider inventory has not been updated for a long time" });
+          if (
+            !updatedProviders?.has(provider.owner) &&
+            offlineSince &&
+            Date.now() - offlineSince.getTime() >= this.#config.DEAD_PROVIDER_UPDATED_THRESHOLD_MS
+          ) {
+            this.#logger.debug({
+              event: "DISCOVERY_SKIP_PROVIDER",
+              owner: provider.owner,
+              reason: "provider has an open incident older than the dead-provider threshold"
+            });
             deadProvidersCount++;
             continue;
           }
 
           if (!observedProvider) {
-            if (isUpsertedBatch) {
-              this.#lifecycle.start({ ...provider, lastUpdated: lastUpdated ?? null }, signal);
+            if (updatedProviders) {
+              this.#lifecycle.start({ ...provider, offlineSince: offlineSince ?? null }, signal);
               startedProvidersCount++;
             }
           } else if (observedProvider.hostUri !== provider.hostUri) {
-            this.#lifecycle.restart({ ...provider, lastUpdated: lastUpdated ?? null }, signal);
+            this.#lifecycle.restart({ ...provider, offlineSince: offlineSince ?? null }, signal);
             restartedProvidersCount++;
           }
 
@@ -201,15 +209,15 @@ export class DiscoverySchedulerService {
     }
   }
 
-  async #upsertProviders(providers: ChainProvider[]): Promise<boolean> {
+  async #upsertProviders(providers: ChainProvider[]) {
     const owners = providers.map(p => p.owner);
     try {
-      await this.#repository.bulkUpsertProviders(providers);
+      const updatedProviders = await this.#repository.bulkUpsertProviders(providers);
       this.#logger.debug({ event: "UPSERT_PROVIDERS_UPSERTED", owners });
-      return true;
+      return new Set(updatedProviders?.map(p => p.owner) ?? []);
     } catch (error) {
       this.#logger.error({ event: "UPSERT_PROVIDERS_ERROR", owners, error });
-      return false;
+      return null;
     }
   }
 }
