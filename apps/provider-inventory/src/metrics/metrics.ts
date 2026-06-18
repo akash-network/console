@@ -2,11 +2,12 @@ import { metrics } from "@akashnetwork/instrumentation";
 
 const meter = metrics.getMeter("provider-inventory", "1.0.0");
 
-export type ProviderState = "total" | "monitored" | "dead";
+export type ProviderState = "total" | "monitored" | "dead" | "online";
 export type StreamMessageResult = "noop" | "updated" | "error";
 
 export const providersGauge = meter.createGauge<{ state: ProviderState }>("provider_inventory_providers", {
-  description: "Number of providers by state, observed during the latest discovery tick"
+  description:
+    "Number of providers by state. total/dead are sampled per discovery tick; online/monitored is updated in real time as streams connect and disconnect"
 });
 
 export const providerInventoryStreamUpdates = meter.createCounter<{ provider: string; result: StreamMessageResult }>(
