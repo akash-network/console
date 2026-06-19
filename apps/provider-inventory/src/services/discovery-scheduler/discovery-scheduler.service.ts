@@ -111,6 +111,12 @@ export class DiscoverySchedulerService {
         ]);
         for (const provider of providers) {
           totalProviders++;
+          // The provider is still registered on-chain this tick, so it must never be treated as "gone"
+          // and stopped+deleted. Only providers absent from the poll remain in providersToStop. Deleting
+          // its inventory row / closing its incident here would erase the very state dead-detection relies
+          // on, causing a dead provider to re-appear as brand-new (re-inserted == "updated") next tick.
+          providersToStop.delete(provider.owner);
+
           const observedProvider = watchedProviders.get(provider.owner);
           const offlineSince = offlineSincePerProvider.get(provider.owner);
 
@@ -137,8 +143,6 @@ export class DiscoverySchedulerService {
             this.#lifecycle.restart({ ...provider, offlineSince: offlineSince ?? null }, signal);
             restartedProvidersCount++;
           }
-
-          providersToStop.delete(provider.owner);
         }
       }
 
