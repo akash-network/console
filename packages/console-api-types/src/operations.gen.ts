@@ -3,6 +3,88 @@
 
 export const operations = {
   v1: {
+    listStripePrices: { path: "/v1/stripe/prices", method: "get", operationId: "listStripePrices", pathParams: [], queryParams: [], hasBody: false },
+    applyStripeCoupon: { path: "/v1/stripe/coupons/apply", method: "post", operationId: "applyStripeCoupon", pathParams: [], queryParams: [], hasBody: true },
+    updateStripeCustomerOrganization: {
+      path: "/v1/stripe/customers/organization",
+      method: "put",
+      operationId: "updateStripeCustomerOrganization",
+      pathParams: [],
+      queryParams: [],
+      hasBody: true
+    },
+    createSetupIntent: {
+      path: "/v1/stripe/payment-methods/setup",
+      method: "post",
+      operationId: "createSetupIntent",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
+    setDefaultPaymentMethod: {
+      path: "/v1/stripe/payment-methods/default",
+      method: "post",
+      operationId: "setDefaultPaymentMethod",
+      pathParams: [],
+      queryParams: [],
+      hasBody: true
+    },
+    getDefaultPaymentMethod: {
+      path: "/v1/stripe/payment-methods/default",
+      method: "get",
+      operationId: "getDefaultPaymentMethod",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
+    listPaymentMethods: {
+      path: "/v1/stripe/payment-methods",
+      method: "get",
+      operationId: "listPaymentMethods",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
+    deletePaymentMethod: {
+      path: "/v1/stripe/payment-methods/{paymentMethodId}",
+      method: "delete",
+      operationId: "deletePaymentMethod",
+      pathParams: ["paymentMethodId"],
+      queryParams: [],
+      hasBody: false
+    },
+    validatePaymentMethod: {
+      path: "/v1/stripe/payment-methods/validate",
+      method: "post",
+      operationId: "validatePaymentMethod",
+      pathParams: [],
+      queryParams: [],
+      hasBody: true
+    },
+    confirmStripeTransaction: {
+      path: "/v1/stripe/transactions/confirm",
+      method: "post",
+      operationId: "confirmStripeTransaction",
+      pathParams: [],
+      queryParams: [],
+      hasBody: true
+    },
+    listStripeTransactions: {
+      path: "/v1/stripe/transactions",
+      method: "get",
+      operationId: "listStripeTransactions",
+      pathParams: [],
+      queryParams: ["limit", "startingAfter", "endingBefore", "startDate", "endDate"],
+      hasBody: false
+    },
+    exportStripeTransactions: {
+      path: "/v1/stripe/transactions/export",
+      method: "get",
+      operationId: "exportStripeTransactions",
+      pathParams: [],
+      queryParams: ["timezone", "startDate", "endDate"],
+      hasBody: false
+    },
     getDeployment: { path: "/v1/deployments/{dseq}", method: "get", operationId: "getDeployment", pathParams: ["dseq"], queryParams: [], hasBody: false },
     closeDeployment: {
       path: "/v1/deployments/{dseq}",

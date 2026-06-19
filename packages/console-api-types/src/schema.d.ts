@@ -370,6 +370,267 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/stripe-webhook": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Stripe Webhook Handler */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "text/plain": string;
+        };
+      };
+      responses: {
+        /** @description Webhook processed successfully */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Stripe signature is required */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              error: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/stripe/prices": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get available Stripe pricing options
+     * @description Retrieves the list of available pricing options for wallet top-ups, including custom amounts and standard pricing tiers
+     */
+    get: operations["listStripePrices"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/stripe/coupons/apply": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Apply a coupon to the current user */
+    post: operations["applyStripeCoupon"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/stripe/customers/organization": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Update customer organization
+     * @description Updates the organization/business name for the current user's Stripe customer account
+     */
+    put: operations["updateStripeCustomerOrganization"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/stripe/payment-methods/setup": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create a Stripe SetupIntent for adding a payment method
+     * @description Creates a Stripe SetupIntent that allows users to securely add payment methods to their account. The SetupIntent provides a client secret that can be used with Stripe's frontend SDKs to collect payment method details.
+     */
+    post: operations["createSetupIntent"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/stripe/payment-methods/default": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get the default payment method for the current user
+     * @description Retrieves the default payment method associated with the current user's account, including card details, validation status, and billing information.
+     */
+    get: operations["getDefaultPaymentMethod"];
+    put?: never;
+    /** Marks a payment method as the default. */
+    post: operations["setDefaultPaymentMethod"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/stripe/payment-methods": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get all payment methods for the current user
+     * @description Retrieves all saved payment methods associated with the current user's account, including card details, validation status, and billing information.
+     */
+    get: operations["listPaymentMethods"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/stripe/payment-methods/{paymentMethodId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Remove a payment method
+     * @description Permanently removes a saved payment method from the user's account. This action cannot be undone.
+     */
+    delete: operations["deletePaymentMethod"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/stripe/payment-methods/validate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Validates a payment method after 3D Secure authentication
+     * @description Completes the validation process for a payment method that required 3D Secure authentication. This endpoint should be called after the user completes the 3D Secure challenge.
+     */
+    post: operations["validatePaymentMethod"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/stripe/transactions/confirm": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Confirm a payment using a saved payment method
+     * @description Processes a payment using a previously saved payment method. This endpoint handles wallet top-ups and may require 3D Secure authentication for certain payment methods or amounts.
+     */
+    post: operations["confirmStripeTransaction"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/stripe/transactions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get transaction history for the current customer */
+    get: operations["listStripeTransactions"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/stripe/transactions/export": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Export transaction history as CSV for the current customer */
+    get: operations["exportStripeTransactions"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/usage/history": {
     parameters: {
       query?: never;
@@ -6974,6 +7235,482 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  listStripePrices: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Available pricing options retrieved successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              currency: string;
+              unitAmount: number;
+              isCustom: boolean;
+            }[];
+          };
+        };
+      };
+    };
+  };
+  applyStripeCoupon: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": {
+          data: {
+            couponId: string;
+            userId: string;
+            awaitResolved?: boolean;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description Coupon applied successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              coupon?: {
+                id: string;
+                percent_off?: number | null;
+                amount_off?: number | null;
+                valid?: boolean | null;
+                name?: string | null;
+                description?: string | null;
+              } | null;
+              amountAdded?: number;
+              transactionId?: string;
+              /** @enum {string} */
+              transactionStatus?: "created" | "pending" | "requires_action" | "succeeded" | "failed" | "refunded" | "canceled";
+              error?: {
+                message: string;
+                code?: string;
+                type?: string;
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+  updateStripeCustomerOrganization: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": {
+          organization: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Organization updated successfully */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  createSetupIntent: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description SetupIntent created successfully with client secret */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              clientSecret: string | null;
+            };
+          };
+        };
+      };
+    };
+  };
+  getDefaultPaymentMethod: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Default payment method retrieved successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              type: string;
+              validated?: boolean;
+              isDefault?: boolean;
+              card?: {
+                brand: string | null;
+                last4: string | null;
+                exp_month: number;
+                exp_year: number;
+                funding?: string | null;
+                country?: string | null;
+                network?: string | null;
+                three_d_secure_usage?: {
+                  supported?: boolean | null;
+                } | null;
+              } | null;
+              link?: {
+                email?: string | null;
+              } | null;
+              billing_details?: {
+                address?: {
+                  city: string | null;
+                  country: string | null;
+                  line1: string | null;
+                  line2: string | null;
+                  postal_code: string | null;
+                  state: string | null;
+                } | null;
+                email?: string | null;
+                name?: string | null;
+                phone?: string | null;
+              };
+            };
+          };
+        };
+      };
+      /** @description Default payment method not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  setDefaultPaymentMethod: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": {
+          data: {
+            id: string;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description Payment method is marked as the default successfully. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listPaymentMethods: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Payment methods retrieved successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              type: string;
+              validated?: boolean;
+              isDefault?: boolean;
+              card?: {
+                brand: string | null;
+                last4: string | null;
+                exp_month: number;
+                exp_year: number;
+                funding?: string | null;
+                country?: string | null;
+                network?: string | null;
+                three_d_secure_usage?: {
+                  supported?: boolean | null;
+                } | null;
+              } | null;
+              link?: {
+                email?: string | null;
+              } | null;
+              billing_details?: {
+                address?: {
+                  city: string | null;
+                  country: string | null;
+                  line1: string | null;
+                  line2: string | null;
+                  postal_code: string | null;
+                  state: string | null;
+                } | null;
+                email?: string | null;
+                name?: string | null;
+                phone?: string | null;
+              };
+            }[];
+          };
+        };
+      };
+    };
+  };
+  deletePaymentMethod: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        paymentMethodId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Payment method removed successfully */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  validatePaymentMethod: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": {
+          data: {
+            paymentMethodId: string;
+            paymentIntentId: string;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description Payment method validated successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            success: boolean;
+          };
+        };
+      };
+    };
+  };
+  confirmStripeTransaction: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": {
+          data: {
+            userId: string;
+            paymentMethodId: string;
+            amount: number;
+            awaitResolved?: boolean;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description Payment processed successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              success: boolean;
+              requiresAction?: boolean;
+              clientSecret?: string;
+              paymentIntentId?: string;
+              transactionId: string;
+              /** @enum {string} */
+              transactionStatus?: "created" | "pending" | "requires_action" | "succeeded" | "failed" | "refunded" | "canceled";
+            };
+          };
+        };
+      };
+      /** @description 3D Secure authentication required to complete payment */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              success: boolean;
+              requiresAction?: boolean;
+              clientSecret?: string;
+              paymentIntentId?: string;
+              transactionId: string;
+              /** @enum {string} */
+              transactionStatus?: "created" | "pending" | "requires_action" | "succeeded" | "failed" | "refunded" | "canceled";
+            };
+          };
+        };
+      };
+    };
+  };
+  listStripeTransactions: {
+    parameters: {
+      query?: {
+        limit?: number;
+        startingAfter?: string;
+        endingBefore?: string;
+        startDate?: string;
+        endDate?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Customer transactions retrieved successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              transactions: {
+                id: string;
+                amount: number;
+                currency: string;
+                status: string;
+                created: number;
+                paymentMethod: {
+                  type: string;
+                  validated?: boolean;
+                  isDefault?: boolean;
+                  card?: {
+                    brand: string | null;
+                    last4: string | null;
+                    exp_month: number;
+                    exp_year: number;
+                    funding?: string | null;
+                    country?: string | null;
+                    network?: string | null;
+                    three_d_secure_usage?: {
+                      supported?: boolean | null;
+                    } | null;
+                  } | null;
+                  link?: {
+                    email?: string | null;
+                  } | null;
+                  billing_details?: {
+                    address?: {
+                      city: string | null;
+                      country: string | null;
+                      line1: string | null;
+                      line2: string | null;
+                      postal_code: string | null;
+                      state: string | null;
+                    } | null;
+                    email?: string | null;
+                    name?: string | null;
+                    phone?: string | null;
+                  };
+                } | null;
+                receiptUrl?: string | null;
+                description?: string | null;
+                metadata?: {
+                  [key: string]: string;
+                } | null;
+              }[];
+              hasMore: boolean;
+              nextPage?: string | null;
+            };
+          };
+        };
+      };
+    };
+  };
+  exportStripeTransactions: {
+    parameters: {
+      query: {
+        timezone: string;
+        startDate: string;
+        endDate: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description CSV file with transaction data */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/csv": string;
+        };
+      };
+    };
+  };
   getDeployment: {
     parameters: {
       query?: never;

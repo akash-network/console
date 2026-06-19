@@ -4,7 +4,10 @@ import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { createRoute, HIDDEN_ROUTES } from "../../lib/create-route/create-route";
+import { OpenApiHonoHandler } from "../open-api-hono-handler/open-api-hono-handler";
 import { OpenApiDocsService } from "./openapi-docs.service";
+import { SECURITY_NONE } from "./openapi-security";
 
 describe("OpenApiDocsService", () => {
   const fetchMock = vi.fn();
@@ -16,6 +19,8 @@ describe("OpenApiDocsService", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     fetchMock.mockReset();
+    // buildHandler mutates the process-wide HIDDEN_ROUTES set; clear it so tests stay isolated.
+    HIDDEN_ROUTES.clear();
   });
 
   it("loads the notifications spec from disk when source = file", async () => {
@@ -139,6 +144,65 @@ describe("OpenApiDocsService", () => {
       await fs.rm(tmpDir, { recursive: true, force: true });
     }
   });
+
+  it("excludes routes flagged hiddenInOpenApiDocs from the served spec by default", async () => {
+    const { service } = setup({});
+
+    const docs = await service.generateDocs([buildHandler()], { scope: "console" });
+
+    expect(docs.paths["/v1/test-visible"]).toBeDefined();
+    expect(docs.paths["/v1/test-hidden"]).toBeUndefined();
+  });
+
+  it("includes routes flagged hiddenInOpenApiDocs when includeHidden is true", async () => {
+    const { service } = setup({});
+
+    const docs = await service.generateDocs([buildHandler()], { scope: "console", includeHidden: true });
+
+    expect(docs.paths["/v1/test-visible"]).toBeDefined();
+    expect(docs.paths["/v1/test-hidden"]).toBeDefined();
+  });
+
+  it("does not serve a cached includeHidden spec to a subsequent public request", async () => {
+    const { service } = setup({});
+    const handler = buildHandler();
+
+    const sdkDocs = await service.generateDocs([handler], { scope: "console", includeHidden: true });
+    expect(sdkDocs.paths["/v1/test-hidden"]).toBeDefined();
+
+    const publicDocs = await service.generateDocs([handler], { scope: "console" });
+    expect(publicDocs.paths["/v1/test-hidden"]).toBeUndefined();
+  });
+
+  // Routes are built here rather than at module scope so createRoute's HIDDEN_ROUTES
+  // side effect happens per-test, not as an import-time global mutation.
+  function buildHandler() {
+    const visibleRoute = createRoute({
+      method: "get",
+      path: "/v1/test-visible",
+      operationId: "listTestVisible",
+      summary: "Visible test route",
+      tags: ["Test"],
+      security: SECURITY_NONE,
+      responses: { 200: { description: "OK" } }
+    });
+
+    const hiddenRoute = createRoute({
+      method: "get",
+      path: "/v1/test-hidden",
+      operationId: "listTestHidden",
+      summary: "Hidden test route",
+      tags: ["Test"],
+      security: SECURITY_NONE,
+      hiddenInOpenApiDocs: true,
+      responses: { 200: { description: "OK" } }
+    });
+
+    const handler = new OpenApiHonoHandler();
+    handler.openapi(visibleRoute, c => c.body(null, 200));
+    handler.openapi(hiddenRoute, c => c.body(null, 200));
+    return handler;
+  }
 
   function setup(input: { notificationsSwaggerPath?: string }) {
     const service = new OpenApiDocsService(

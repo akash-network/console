@@ -39,7 +39,8 @@ module.exports = {
       "error",
       {
         additionalVerbs: {
-          post: { collection: ["deposit", "screen"] },
+          get: { collection: ["export"] },
+          post: { collection: ["deposit", "screen", "apply", "validate", "confirm"] },
           delete: { single: ["close"] }
         }
       }

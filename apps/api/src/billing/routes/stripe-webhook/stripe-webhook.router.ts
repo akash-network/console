@@ -8,6 +8,7 @@ import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security"
 
 export const stripeWebhook = new OpenApiHonoHandler();
 
+// no operationId: excluded from the generated api.v1.* client; called server-to-server by Stripe.
 const route = createRoute({
   method: "post",
   path: "/v1/stripe-webhook",
