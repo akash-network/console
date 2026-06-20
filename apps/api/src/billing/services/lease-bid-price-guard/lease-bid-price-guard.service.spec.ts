@@ -14,6 +14,7 @@ import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createBid } from "@test/seeders/bid.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
+const OWNER = "akash1owner";
 const ACCEPTED = { dseq: "111", gseq: 1, oseq: 1, bseq: 1, provider: "akash1prov" };
 
 describe(LeaseBidPriceGuardService.name, () => {
@@ -125,6 +126,17 @@ describe(LeaseBidPriceGuardService.name, () => {
     });
   });
 
+  it("rejects with 403 when the bid owner does not match the lease message owner", async () => {
+    const foreignBid = createBid({ owner: "akash1someoneelse", ...ACCEPTED });
+    foreignBid.bid.price = { denom: "uakt", amount: "100" };
+    const { service } = setup({ bids: [foreignBid] });
+
+    await expect(service.validateLeaseBidPrices([leaseMessage(ACCEPTED)], createUserWallet())).rejects.toMatchObject({
+      status: 403,
+      message: expect.stringContaining("Referenced lease bid not found")
+    });
+  });
+
   it("evaluates each order independently and blocks the offending one", async () => {
     const cheapOrder = { dseq: "111", gseq: 1, oseq: 1, bseq: 1, provider: "akash1prov" };
     const absurdOrder = { dseq: "111", gseq: 2, oseq: 1, bseq: 1, provider: "akash1prov" };
@@ -144,7 +156,7 @@ describe(LeaseBidPriceGuardService.name, () => {
   });
 
   function pricedBid(ids: { dseq: string; gseq: number; oseq: number; bseq: number; provider: string }, amount: number, denom = "uakt"): Bid {
-    const bid = createBid(ids);
+    const bid = createBid({ owner: OWNER, ...ids });
     bid.bid.price = { denom, amount: amount.toString() };
     return bid;
   }
@@ -152,7 +164,7 @@ describe(LeaseBidPriceGuardService.name, () => {
   function leaseMessage(bidId: { dseq: string; gseq: number; oseq: number; bseq: number; provider: string }): EncodeObject {
     return {
       typeUrl: `/${MsgCreateLease.$type}`,
-      value: MsgCreateLease.fromPartial({ bidId: { owner: "akash1owner", ...bidId } })
+      value: MsgCreateLease.fromPartial({ bidId: { owner: OWNER, ...bidId } })
     };
   }
 

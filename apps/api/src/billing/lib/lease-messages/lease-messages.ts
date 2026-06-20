@@ -50,7 +50,12 @@ export async function resolveLeaseBids(messages: EncodeObject[], owner: string, 
   return leaseBidIds.map(bidId => {
     const orderBids = bidsByDseq.get(bidId.dseq.toString()) ?? [];
     const accepted = orderBids.find(
-      b => b.bid.id.gseq === bidId.gseq && b.bid.id.oseq === bidId.oseq && b.bid.id.provider === bidId.provider && b.bid.id.bseq === bidId.bseq
+      b =>
+        b.bid.id.owner === bidId.owner &&
+        b.bid.id.gseq === bidId.gseq &&
+        b.bid.id.oseq === bidId.oseq &&
+        b.bid.id.provider === bidId.provider &&
+        b.bid.id.bseq === bidId.bseq
     );
     assert(
       accepted,
