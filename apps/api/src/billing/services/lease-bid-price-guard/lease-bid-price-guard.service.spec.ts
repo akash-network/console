@@ -29,7 +29,7 @@ describe(LeaseBidPriceGuardService.name, () => {
         message: expect.stringContaining("cheapest competing bid")
       });
       expect(logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ event: "LEASE_BLOCKED_EXCESSIVE_BID_PRICE", reason: "relative", provider: "akash1prov", denom: "uakt" })
+        expect.objectContaining({ event: "LEASE_BLOCKED_EXCESSIVE_BID_PRICE", reason: "relative", provider: "akash1prov", denom: "uact" })
       );
     });
 
@@ -66,27 +66,27 @@ describe(LeaseBidPriceGuardService.name, () => {
 
   describe("absolute limit", () => {
     it("blocks a sole bidder priced above the per-denom ceiling", async () => {
-      const { service, logger } = setup({ absoluteMaxUakt: 1000, bids: [pricedBid(ACCEPTED, 2000)] });
+      const { service, logger } = setup({ absoluteMaxUact: 1000, bids: [pricedBid(ACCEPTED, 2000)] });
 
       await expect(service.validateLeaseBidPrices([leaseMessage(ACCEPTED)], createUserWallet())).rejects.toMatchObject({ status: 403 });
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "LEASE_BLOCKED_EXCESSIVE_BID_PRICE", reason: "absolute" }));
     });
 
     it("allows a sole bidder priced below the per-denom ceiling", async () => {
-      const { service } = setup({ absoluteMaxUakt: 1000, bids: [pricedBid(ACCEPTED, 500)] });
+      const { service } = setup({ absoluteMaxUact: 1000, bids: [pricedBid(ACCEPTED, 500)] });
 
       await expect(service.validateLeaseBidPrices([leaseMessage(ACCEPTED)], createUserWallet())).resolves.toBeUndefined();
     });
 
-    it("allows a sole bidder at any price when no ceiling is configured for the denom", async () => {
-      const { service } = setup({ absoluteMaxUakt: undefined, bids: [pricedBid(ACCEPTED, 9_519_658)] });
+    it("allows a sole bidder at any price when no ceiling is configured", async () => {
+      const { service } = setup({ absoluteMaxUact: undefined, bids: [pricedBid(ACCEPTED, 9_519_658)] });
 
       await expect(service.validateLeaseBidPrices([leaseMessage(ACCEPTED)], createUserWallet())).resolves.toBeUndefined();
     });
 
     it("applies the ceiling independently of the relative check when peers exist", async () => {
       const { service, logger } = setup({
-        absoluteMaxUakt: 300,
+        absoluteMaxUact: 300,
         bids: [pricedBid(ACCEPTED, 400), pricedBid({ ...ACCEPTED, provider: "akash1cheap", bseq: 2 }, 100)]
       });
 
@@ -94,10 +94,10 @@ describe(LeaseBidPriceGuardService.name, () => {
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ reason: "absolute" }));
     });
 
-    it("uses the uact ceiling for uact-denominated bids", async () => {
-      const { service } = setup({ absoluteMaxUact: 1000, bids: [pricedBid(ACCEPTED, 2000, "uact")] });
+    it("does not apply the ceiling to a non-uact denom", async () => {
+      const { service } = setup({ absoluteMaxUact: 1000, bids: [pricedBid(ACCEPTED, 2000, "uakt")] });
 
-      await expect(service.validateLeaseBidPrices([leaseMessage(ACCEPTED)], createUserWallet())).rejects.toMatchObject({ status: 403 });
+      await expect(service.validateLeaseBidPrices([leaseMessage(ACCEPTED)], createUserWallet())).resolves.toBeUndefined();
     });
   });
 
@@ -155,7 +155,7 @@ describe(LeaseBidPriceGuardService.name, () => {
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ reason: "relative", gseq: 2 }));
   });
 
-  function pricedBid(ids: { dseq: string; gseq: number; oseq: number; bseq: number; provider: string }, amount: number, denom = "uakt"): Bid {
+  function pricedBid(ids: { dseq: string; gseq: number; oseq: number; bseq: number; provider: string }, amount: number, denom = "uact"): Bid {
     const bid = createBid({ owner: OWNER, ...ids });
     bid.bid.price = { denom, amount: amount.toString() };
     return bid;
@@ -176,7 +176,6 @@ describe(LeaseBidPriceGuardService.name, () => {
     enabled?: boolean;
     warnMultiplier?: number;
     blockMultiplier?: number;
-    absoluteMaxUakt?: number;
     absoluteMaxUact?: number;
     bids?: Bid[];
   }) {
@@ -184,7 +183,6 @@ describe(LeaseBidPriceGuardService.name, () => {
       MANAGED_WALLET_BID_PRICE_GUARD_ENABLED: input.enabled ?? true,
       MANAGED_WALLET_BID_PRICE_WARN_MULTIPLIER: input.warnMultiplier ?? 5,
       MANAGED_WALLET_BID_PRICE_BLOCK_MULTIPLIER: input.blockMultiplier ?? 10,
-      MANAGED_WALLET_BID_PRICE_ABSOLUTE_MAX_UAKT: input.absoluteMaxUakt,
       MANAGED_WALLET_BID_PRICE_ABSOLUTE_MAX_UACT: input.absoluteMaxUact
     });
     const bidHttpService = mock<BidHttpService>();

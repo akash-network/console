@@ -133,14 +133,9 @@ export class LeaseBidPriceGuardService {
     assert(false, 403, message);
   }
 
+  // Deployments are uact-denominated; the ceiling only applies to uact bids. Any other denom
+  // (e.g. a legacy uakt bid) has no absolute cap and is covered by the relative check alone.
   #getAbsoluteMax(denom: string): number | undefined {
-    switch (denom) {
-      case "uakt":
-        return this.config.get("MANAGED_WALLET_BID_PRICE_ABSOLUTE_MAX_UAKT");
-      case "uact":
-        return this.config.get("MANAGED_WALLET_BID_PRICE_ABSOLUTE_MAX_UACT");
-      default:
-        return undefined;
-    }
+    return denom === "uact" ? this.config.get("MANAGED_WALLET_BID_PRICE_ABSOLUTE_MAX_UACT") : undefined;
   }
 }

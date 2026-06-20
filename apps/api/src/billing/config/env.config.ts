@@ -59,7 +59,6 @@ export const envSchema = z
       .transform(val => val === "true"),
     MANAGED_WALLET_BID_PRICE_WARN_MULTIPLIER: z.number({ coerce: true }).positive().default(5),
     MANAGED_WALLET_BID_PRICE_BLOCK_MULTIPLIER: z.number({ coerce: true }).positive().default(10),
-    MANAGED_WALLET_BID_PRICE_ABSOLUTE_MAX_UAKT: z.number({ coerce: true }).positive().optional(),
     MANAGED_WALLET_BID_PRICE_ABSOLUTE_MAX_UACT: z.number({ coerce: true }).positive().optional(),
     TX_SIGNER_BASE_URL: z.string()
   })
