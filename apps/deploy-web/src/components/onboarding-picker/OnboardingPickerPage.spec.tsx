@@ -33,6 +33,12 @@ describe(OnboardingPickerPage.name, () => {
     expect(PhasedDeploymentContainer).not.toHaveBeenCalled();
   });
 
+  it("renders the trial credit amount from public config", () => {
+    setup({ trialCreditsAmount: 1 });
+
+    expect(screen.getByText("$1 in free trial credits")).toBeInTheDocument();
+  });
+
   it("switches to the deployment container with the chosen template's name and sdl", () => {
     const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
     const PhasedDeploymentContainer = vi.fn(ComponentMock);
@@ -196,6 +202,7 @@ describe(OnboardingPickerPage.name, () => {
       replace?: () => void;
       isTrialing?: boolean;
       isWalletLoading?: boolean;
+      trialCreditsAmount?: number;
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
@@ -203,16 +210,19 @@ describe(OnboardingPickerPage.name, () => {
     const replace: () => void = input.replace ?? vi.fn();
     const isTrialing = input.isTrialing ?? true;
     const isWalletLoading = input.isWalletLoading ?? false;
+    const trialCreditsAmount = input.trialCreditsAmount ?? 100;
 
     const useRouter: () => AppRouterInstance = vi.fn(() => mock<AppRouterInstance>({ replace }));
     const useSnackbar: () => ProviderContext = vi.fn(() => mock<ProviderContext>({ enqueueSnackbar }));
     const useEnsureTrialStarted: () => EnsureTrialStartedResult = vi.fn(() => ({ isWalletReady: true, isLoading: false, error: null, refreshWallet: vi.fn() }));
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing, isWalletLoading });
+    const useServices: typeof DEPENDENCIES.useServices = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useServices>>({ publicConfig: { NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT: trialCreditsAmount } });
 
     return render(
       <OnboardingPickerPage
         templates={input.templates ?? { helloWorld: "hello-sdl", imageGen: "image-sdl", llmChatbot: "llm-sdl" }}
-        dependencies={MockComponents(DEPENDENCIES, { useSnackbar, useRouter, useEnsureTrialStarted, useWallet, ...input.dependencies })}
+        dependencies={MockComponents(DEPENDENCIES, { useSnackbar, useRouter, useEnsureTrialStarted, useWallet, useServices, ...input.dependencies })}
       />
     );
   }

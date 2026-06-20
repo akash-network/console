@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import { AkashLogo } from "@src/components/layout/AkashLogo";
 import { Title } from "@src/components/shared/Title";
+import { useServices } from "@src/context/ServicesProvider";
 import { UrlService } from "@src/utils/urlUtils";
 
 const benefits = [
@@ -36,6 +37,9 @@ interface FreeTrialLandingStepProps {
 }
 
 export const FreeTrialLandingStep: React.FunctionComponent<FreeTrialLandingStepProps> = ({ onStartTrial }) => {
+  const { publicConfig } = useServices();
+  const trialCreditsAmount = publicConfig.NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT;
+
   return (
     <div className="space-y-8">
       <div className="text-center">
@@ -72,7 +76,7 @@ export const FreeTrialLandingStep: React.FunctionComponent<FreeTrialLandingStepP
             <ul className="space-y-2 text-left" role="list" aria-label="Free trial benefits">
               <li className="flex items-center gap-2" role="listitem">
                 <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
-                <span>100$ of free credits</span>
+                <span>${trialCreditsAmount} of free credits</span>
               </li>
               <li className="flex items-center gap-2" role="listitem">
                 <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
