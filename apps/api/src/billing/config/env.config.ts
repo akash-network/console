@@ -52,6 +52,14 @@ export const envSchema = z.object({
       message: "MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS entries must be in 'vendor/model' format"
     }),
   MASTER_WALLET_TARGET_ACT_BALANCE: z.number({ coerce: true }).default(10_000_000_000),
+  MANAGED_WALLET_BID_PRICE_GUARD_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform(val => val === "true"),
+  MANAGED_WALLET_BID_PRICE_WARN_MULTIPLIER: z.number({ coerce: true }).positive().default(5),
+  MANAGED_WALLET_BID_PRICE_BLOCK_MULTIPLIER: z.number({ coerce: true }).positive().default(10),
+  MANAGED_WALLET_BID_PRICE_ABSOLUTE_MAX_UAKT: z.number({ coerce: true }).positive().optional(),
+  MANAGED_WALLET_BID_PRICE_ABSOLUTE_MAX_UACT: z.number({ coerce: true }).positive().optional(),
   TX_SIGNER_BASE_URL: z.string()
 });
 
