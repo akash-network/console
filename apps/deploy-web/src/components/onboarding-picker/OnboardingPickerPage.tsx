@@ -12,6 +12,7 @@ import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCredits
 import { DeploymentTemplatePickerCard } from "@src/components/deployments/DeploymentTemplatePickerCard/DeploymentTemplatePickerCard";
 import { PhasedDeploymentContainer } from "@src/components/deployments/PhasedDeploymentContainer/PhasedDeploymentContainer";
 import { AkashConsoleLogo } from "@src/components/icons/AkashConsoleLogo";
+import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
 import { UrlService } from "@src/utils/urlUtils";
@@ -21,6 +22,7 @@ export const DEPENDENCIES = {
   useSnackbar,
   useWallet,
   useEnsureTrialStarted,
+  useServices,
   DeploymentTemplatePickerCard,
   PhasedDeploymentContainer,
   AddCreditsSheet
@@ -44,6 +46,8 @@ export function OnboardingPickerPage({ templates, dependencies: d = DEPENDENCIES
   const { enqueueSnackbar } = d.useSnackbar();
   const router = d.useRouter();
   const { isTrialing } = d.useWallet();
+  const { publicConfig } = d.useServices();
+  const trialCreditsAmount = publicConfig.NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT;
   const [isAddCreditsSheetOpen, setIsAddCreditsSheetOpen] = useState(false);
   const [deploying, setDeploying] = useState<DeployingState | null>(null);
   const { isWalletReady, error: trialError } = d.useEnsureTrialStarted();
@@ -83,9 +87,8 @@ export function OnboardingPickerPage({ templates, dependencies: d = DEPENDENCIES
               <div className="flex flex-col gap-1.5">
                 <h1 className="text-3xl font-bold leading-9 text-foreground">Let&apos;s deploy your first app</h1>
                 <p className="max-w-2xl text-sm leading-5 text-muted-foreground">
-                  We&apos;ve provided you with <span className="font-medium text-blue-600 dark:text-blue-400">$5 in free trial</span> credits. This covers a
-                  couple of smaller deployments so you can see how easy it is. Verify your identity to unlock our full trial - $100 credits and 30 day
-                  deployments. Pick a template to get a live URL in about 30 seconds.
+                  We&apos;ve provided you with <span className="font-medium text-blue-600 dark:text-blue-400">${trialCreditsAmount} in free trial credits</span>
+                  . Pick a template to get a live URL in about 30 seconds. Some templates require identity verification to unlock.
                 </p>
               </div>
 
