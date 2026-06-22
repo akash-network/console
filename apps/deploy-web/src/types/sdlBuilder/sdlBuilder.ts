@@ -419,9 +419,13 @@ export const ServiceSchema = z
     sshPubKey: z.string().optional(),
     params: z
       .object({
-        permissions: z.object({
-          read: z.array(z.enum(["deployment", "logs", "events"]))
-        })
+        permissions: z
+          .object({
+            read: z.array(z.enum(["deployment", "logs", "events"]))
+          })
+          .optional(),
+        // Preserved verbatim through the builder round-trip; not yet editable in the form UI.
+        tee: z.enum(["cpu", "cpu-gpu"]).optional()
       })
       .optional()
   })

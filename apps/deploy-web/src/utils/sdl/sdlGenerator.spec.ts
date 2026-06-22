@@ -25,6 +25,23 @@ describe("sdlGenerator", () => {
       expect(parsed.services["web"].params).toBeUndefined();
     });
 
+    it("preserves params.tee carried on the service model", () => {
+      const result = generateSdl(buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest", params: { tee: "cpu" } })));
+      const parsed = yaml.load(result) as { services: Record<string, { params?: { tee?: string } }> };
+
+      expect(parsed.services.web.params?.tee).toBe("cpu");
+    });
+
+    it("merges params.tee alongside log-collector permissions", () => {
+      const result = generateSdl(buildFormValues(buildLogCollectorService({ params: { tee: "cpu-gpu" } })));
+      const parsed = yaml.load(result) as { services: Record<string, { params?: { tee?: string; permissions?: unknown } }> };
+
+      expect(parsed.services["web-log-collector"].params).toEqual({
+        permissions: { read: ["deployment", "logs", "events"] },
+        tee: "cpu-gpu"
+      });
+    });
+
     it("injects location-region attribute when placement.region is set", () => {
       const formValues = buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" }));
       formValues.placements[0].region = "us-west";
