@@ -241,6 +241,82 @@ deployment:
       count: 1
 `;
 
+const SDL_WITH_TEE = (tee: string) => `
+version: "2.0"
+services:
+  web:
+    image: nginx
+    params:
+      tee: ${tee}
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          size: 1Gi
+  placement:
+    westcoast:
+      pricing:
+        web:
+          denom: uakt
+          amount: 1000
+deployment:
+  web:
+    westcoast:
+      profile: web
+      count: 1
+`;
+
+const SDL_WITH_TEE_AND_GPU = (tee: string) => `
+version: "2.0"
+services:
+  web:
+    image: nginx
+    params:
+      tee: ${tee}
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          size: 1Gi
+        gpu:
+          units: 1
+          attributes:
+            vendor:
+              nvidia:
+                - model: h100
+  placement:
+    westcoast:
+      pricing:
+        web:
+          denom: uakt
+          amount: 1000
+deployment:
+  web:
+    westcoast:
+      profile: web
+      count: 1
+`;
+
 describe(SdlService.name, () => {
   describe("generateManifest", () => {
     it("parses SDL containing template variables without throwing", () => {
@@ -359,6 +435,38 @@ describe(SdlService.name, () => {
 
       expect(result.ok).toBe(true);
     });
+
+    describe("confidential compute (tee)", () => {
+      it("projects a cpu tee selection into the manifest sent to the provider", () => {
+        const { result } = setup({ sdl: SDL_WITH_TEE("cpu") });
+
+        expect(result.ok).toBe(true);
+        expect(getManifestService(result, "westcoast", "web").params?.tee).toEqual({ type: "cpu", attestation: true });
+      });
+
+      it("projects a cpu-gpu tee selection into the manifest when gpu resources are present", () => {
+        const { result } = setup({ sdl: SDL_WITH_TEE_AND_GPU("cpu-gpu") });
+
+        expect(result.ok).toBe(true);
+        expect(getManifestService(result, "westcoast", "web").params?.tee).toEqual({ type: "cpu-gpu", attestation: true });
+      });
+
+      it("rejects a cpu-gpu tee selection without gpu resources", () => {
+        const { result } = setup({ sdl: SDL_WITH_TEE("cpu-gpu") });
+
+        expect(result).toMatchObject({
+          ok: false,
+          value: [expect.objectContaining({ message: expect.stringContaining("tee type requires gpu") })]
+        });
+      });
+
+      it("leaves manifest service params untouched when no tee is selected", () => {
+        const { result } = setup({ sdl: VALID_SDL });
+
+        expect(result.ok).toBe(true);
+        expect(getManifestService(result, "westcoast", "web").params?.tee).toBeUndefined();
+      });
+    });
   });
 
   function setup(input?: { sdl?: string; allowedAuditors?: string[]; deploymentGrantDenom?: string; blockedGpuModels?: string[]; isTrialing?: boolean }) {
@@ -390,5 +498,14 @@ describe(SdlService.name, () => {
 
   function getPrice(result: ReturnType<SdlService["generateManifest"]>, placementName: string) {
     return getGroupSpec(result, placementName).resources[0].price!;
+  }
+
+  function getManifestService(result: ReturnType<SdlService["generateManifest"]>, groupName: string, serviceName: string) {
+    if (!result.ok) throw new Error("Expected ok result");
+    const group = result.value.groups.find(g => g.name === groupName);
+    if (!group) throw new Error(`Manifest group "${groupName}" not found`);
+    const service = group.services.find(s => s.name === serviceName);
+    if (!service) throw new Error(`Manifest service "${serviceName}" not found`);
+    return service;
   }
 });
