@@ -15,7 +15,7 @@ import type { GpuBidType, GpuPriceModel, GpuProviderType, GpuWithPricesType, Pro
 import { forEachInChunks } from "@src/utils/array/array";
 import { averageBlockCountInAMonth, averageBlockCountInAnHour } from "@src/utils/constants";
 import { average, median, round, weightedAverage } from "@src/utils/math";
-import { decodeMsg, uint8arrayToString } from "@src/utils/protobuf";
+import { uint8arrayToString } from "@src/utils/protobuf";
 import type { GpuConfig } from "../../config/env.config";
 import { GPU_CONFIG } from "../../providers/config.provider";
 import { DayRepository } from "../../repositories/day.repository";
@@ -75,10 +75,10 @@ export class GpuPriceService {
         let provider: string;
 
         if (x.type.includes("v1beta5")) {
-          decodedBid = decodeMsg(this.#typeRegistry, `/${MsgCreateBidV5.$type}`, x.data) as MsgCreateBidV5;
+          decodedBid = this.#typeRegistry.decode({ typeUrl: `/${MsgCreateBidV5.$type}`, value: x.data }) as MsgCreateBidV5;
           provider = decodedBid.id?.provider || "";
         } else {
-          decodedBid = decodeMsg(this.#typeRegistry, `/${MsgCreateBidV4.$type}`, x.data) as MsgCreateBidV4;
+          decodedBid = this.#typeRegistry.decode({ typeUrl: `/${MsgCreateBidV4.$type}`, value: x.data }) as MsgCreateBidV4;
           provider = decodedBid.provider || "";
         }
 
