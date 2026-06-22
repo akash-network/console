@@ -10,7 +10,6 @@ import { inject, singleton } from "tsyringe";
 
 import type { Registry } from "@src/billing/providers/type-registry.provider";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
-import { decodeMsg } from "@src/utils/protobuf";
 
 @singleton()
 export class MessageRepository {
@@ -43,7 +42,7 @@ export class MessageRepository {
     const createBidMsgs = relatedMessages
       .filter(msg => msg.type.endsWith("MsgCreateBid"))
       .map(msg => ({
-        decoded: decodeMsg(this.#typeRegistry, msg.type, msg.data) as
+        decoded: this.#typeRegistry.decode({ typeUrl: msg.type, value: msg.data }) as
           | v1beta1.MsgCreateBid
           | v1beta2.MsgCreateBid
           | v1beta3.MsgCreateBid
@@ -56,7 +55,7 @@ export class MessageRepository {
       .filter(x => x.type.endsWith("MsgCreateLease"))
       .map(
         msg =>
-          decodeMsg(this.#typeRegistry, msg.type, msg.data) as
+          this.#typeRegistry.decode({ typeUrl: msg.type, value: msg.data }) as
             | v1beta1.MsgCreateLease
             | v1beta2.MsgCreateLease
             | v1beta3.MsgCreateLease

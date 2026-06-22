@@ -1,5 +1,6 @@
 import { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/database/dbSchemas/akash";
 import { AddressReference, Transaction } from "@akashnetwork/database/dbSchemas/base";
+import type { GeneratedType } from "@cosmjs/proto-signing";
 import { QueryTypes, Sequelize } from "sequelize";
 import { inject, singleton } from "tsyringe";
 
@@ -8,7 +9,6 @@ import type { Registry } from "@src/billing/providers/type-registry.provider";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { CHAIN_DB } from "@src/chain";
 import { GetTransactionByHashResponse, ListTransactionsResponse } from "@src/transaction/http-schemas/transaction.schema";
-import { msgToJSON } from "@src/utils/protobuf";
 
 @singleton()
 export class TransactionRepository {
@@ -100,12 +100,16 @@ export class TransactionRepository {
       gasWanted: tx.gasWanted,
       fee: parseInt(tx.fee),
       memo: tx.memo,
-      messages: messages.map(msg => ({
-        id: msg.id,
-        type: msg.type,
-        data: msgToJSON(this.#typeRegistry, msg.type, msg.data),
-        relatedDeploymentId: msg.relatedDeploymentId
-      }))
+      messages: messages.map(msg => {
+        const data = this.#typeRegistry.decode({ typeUrl: msg.type, value: msg.data });
+        const jsonData = (this.#typeRegistry.lookupType(msg.type) as (GeneratedType & { toJSON(data: unknown): any }) | undefined)?.toJSON(data);
+        return {
+          id: msg.id,
+          type: msg.type,
+          data: jsonData,
+          relatedDeploymentId: msg.relatedDeploymentId
+        };
+      })
     };
   }
 

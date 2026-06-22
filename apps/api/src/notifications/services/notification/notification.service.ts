@@ -1,32 +1,37 @@
 import { extractApiErrorCode } from "@akashnetwork/openapi-sdk";
-import { backOff, type BackoffOptions } from "exponential-backoff";
+import { ExponentialBackoff, handleAll, retry, type RetryPolicy } from "cockatiel";
 import { inject, singleton } from "tsyringe";
 
-import { LoggerService } from "@src/core/providers/logging.provider";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { UserRepository } from "@src/user/repositories";
 import type { NotificationsApiClient, NotificationsInternalApiClient, NotificationsInternalOperationDefs } from "../../providers/notifications-api.provider";
 import { NOTIFICATIONS_API_CLIENT, NOTIFICATIONS_INTERNAL_API_CLIENT } from "../../providers/notifications-api.provider";
 
-const DEFAULT_BACKOFF_OPTIONS: BackoffOptions = {
-  maxDelay: 5_000,
-  startingDelay: 500,
-  timeMultiple: 2,
-  numOfAttempts: 5
-};
-
 @singleton()
 export class NotificationService {
+  readonly #logger: ReturnType<CreateLogger>;
+  readonly #retryPolicy: RetryPolicy;
+
   constructor(
     @inject(NOTIFICATIONS_API_CLIENT) private readonly notificationsApi: NotificationsApiClient,
     @inject(NOTIFICATIONS_INTERNAL_API_CLIENT) private readonly notificationsInternalApi: NotificationsInternalApiClient,
     private readonly userRepository: UserRepository,
-    private readonly logger: LoggerService
-  ) {}
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.#logger = createLogger({ context: "NotificationService" });
+    this.#retryPolicy = retry(handleAll, {
+      maxAttempts: 4,
+      backoff: new ExponentialBackoff({
+        maxDelay: 5_000,
+        initialDelay: 500
+      })
+    });
+  }
 
   async createNotification(input: CreateNotificationInput): Promise<void> {
     const { user, ...notification } = input;
     let defaultChannelCreated = false;
-    await backOff(async () => {
+    await this.#retryPolicy.execute(async () => {
       try {
         await this.notificationsInternalApi.v1.createNotification(notification, { headers: { "x-user-id": user.id } });
       } catch (error) {
@@ -36,11 +41,11 @@ export class NotificationService {
         }
         throw new Error("Failed to create notification", { cause: error });
       }
-    }, DEFAULT_BACKOFF_OPTIONS);
+    });
   }
 
   async createDefaultChannel(user: UserInput): Promise<void> {
-    await backOff(async () => {
+    await this.#retryPolicy.execute(async () => {
       try {
         await this.notificationsApi.v1.createDefaultNotificationChannel(
           { data: { name: "Default", type: "email", config: { addresses: [user.email!] } } },
@@ -49,19 +54,19 @@ export class NotificationService {
       } catch (error) {
         throw new Error("Failed to create default notification channel", { cause: error });
       }
-    }, DEFAULT_BACKOFF_OPTIONS);
+    });
   }
 
   async autoEnableDeploymentAlert(input: AutoEnableDeploymentAlertInput): Promise<void> {
     const user = await this.userRepository.findById(input.userId);
     if (!user?.email) {
-      this.logger.debug({ event: "SKIP_AUTO_ENABLE_ALERT", reason: "No user email", userId: input.userId });
+      this.#logger.debug({ event: "SKIP_AUTO_ENABLE_ALERT", reason: "No user email", userId: input.userId });
       return;
     }
 
     const channelId = await this.getOrCreateNotificationChannelId(input.userId, user.email);
     if (!channelId) {
-      this.logger.warn({ event: "SKIP_AUTO_ENABLE_ALERT", reason: "No channel found after creation", userId: input.userId });
+      this.#logger.warn({ event: "SKIP_AUTO_ENABLE_ALERT", reason: "No channel found after creation", userId: input.userId });
       return;
     }
 
@@ -81,7 +86,7 @@ export class NotificationService {
       // same user may have already won the race, so swallow the create error and let the
       // re-fetch decide whether a channel is now available.
       await this.createDefaultChannel({ id: userId, email }).catch(error => {
-        this.logger.debug({ event: "AUTO_ENABLE_ALERT_CHANNEL_CREATE_FAILED", userId, error });
+        this.#logger.debug({ event: "AUTO_ENABLE_ALERT_CHANNEL_CREATE_FAILED", userId, error });
       });
       channels = await this.getNotificationChannels(userId);
     }
@@ -90,27 +95,24 @@ export class NotificationService {
   }
 
   private async getNotificationChannels(userId: string) {
-    return backOff(
-      () => this.notificationsApi.v1.listNotificationChannels({ page: 1, limit: 1 }, { headers: { "x-user-id": userId } }),
-      DEFAULT_BACKOFF_OPTIONS
-    );
+    return this.#retryPolicy.execute(async () => {
+      return this.notificationsApi.v1.listNotificationChannels({ page: 1, limit: 1 }, { headers: { "x-user-id": userId } });
+    });
   }
 
   private async upsertDeploymentClosedAlert(input: { userId: string; walletAddress: string; dseq: string; channelId: string }) {
-    await backOff(
-      () =>
-        this.notificationsApi.v1.upsertDeploymentAlert(
-          {
-            dseq: input.dseq,
-            data: {
-              alerts: {
-                deploymentClosed: { notificationChannelId: input.channelId, enabled: true }
-              }
+    await this.#retryPolicy.execute(async () =>
+      this.notificationsApi.v1.upsertDeploymentAlert(
+        {
+          dseq: input.dseq,
+          data: {
+            alerts: {
+              deploymentClosed: { notificationChannelId: input.channelId, enabled: true }
             }
-          },
-          { headers: { "x-owner-address": input.walletAddress, "x-user-id": input.userId } }
-        ),
-      DEFAULT_BACKOFF_OPTIONS
+          }
+        },
+        { headers: { "x-owner-address": input.walletAddress, "x-user-id": input.userId } }
+      )
     );
   }
 }

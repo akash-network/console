@@ -12,6 +12,7 @@ import * as cosmosv2alpha1 from "@akashnetwork/chain-sdk/private-types/cosmos.v2
 import type { GeneratedType } from "@cosmjs/proto-signing";
 import { Registry } from "@cosmjs/proto-signing";
 import { defaultRegistryTypes as stargateDefaultRegistryTypes } from "@cosmjs/stargate";
+import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
 import { omit } from "lodash";
 import type { InjectionToken } from "tsyringe";
 import { container, inject } from "tsyringe";
@@ -39,7 +40,12 @@ const newAkashTypes: ReadonlyArray<[string, GeneratedType]> = [...Object.values(
   .filter(x => "$type" in x)
   .map(x => ["/" + x.$type, x as unknown as GeneratedType]);
 
-const registry = new Registry([...defaultRegistryTypes, ...akashTypes, ...newAkashTypes]);
+const registry = new Registry([
+  ...defaultRegistryTypes,
+  ...akashTypes,
+  ...newAkashTypes,
+  [MsgExecuteContract.typeUrl, MsgExecuteContract] as [string, GeneratedType]
+]);
 
 export const TYPE_REGISTRY: InjectionToken<Registry> = Symbol("TYPE_REGISTRY");
 export type { Registry };
