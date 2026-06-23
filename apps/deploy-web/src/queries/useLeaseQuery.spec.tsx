@@ -12,7 +12,7 @@ import type { ApiProviderList } from "@src/types/provider";
 import { leaseToDto } from "@src/utils/deploymentDetailUtils";
 import { setupQuery } from "../../tests/unit/query-client";
 import { QueryKeys } from "./queryKeys";
-import { USE_LEASE_STATUS_DEPENDENCIES, useAllLeases, useDeploymentLeaseList, useLeaseStatus } from "./useLeaseQuery";
+import { type LeaseStatusDto, USE_LEASE_STATUS_DEPENDENCIES, useAllLeases, useDeploymentLeaseList, useLeaseStatus } from "./useLeaseQuery";
 
 import { act } from "@testing-library/react";
 import { buildProvider } from "@tests/seeders/provider";
@@ -353,11 +353,71 @@ describe("useLeaseQuery", () => {
       expect(result.current.data).toEqual(mockLeaseStatus);
     });
 
+    it("filters the attestation sidecar out of the returned services", async () => {
+      const provider = buildProvider();
+      const statusWithSidecar = {
+        forwarded_ports: {},
+        ips: {},
+        services: {
+          web: { name: "web", available: 1 },
+          "akash-attestation-sidecar": { name: "akash-attestation-sidecar", available: 1 }
+        }
+      };
+      const providerProxy = mock<ProviderProxyService>({
+        request: vi.fn().mockResolvedValue({ data: statusWithSidecar })
+      });
+      const { result } = setupLeaseStatus({
+        provider,
+        lease: mockLease,
+        services: {
+          providerProxy: () => providerProxy
+        }
+      });
+
+      await vi.waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
+
+      expect(result.current.data?.services).toHaveProperty("web");
+      expect(result.current.data?.services).not.toHaveProperty("akash-attestation-sidecar");
+    });
+
+    it("composes a caller-provided select on top of the sidecar filter", async () => {
+      const statusWithSidecar = {
+        forwarded_ports: {},
+        ips: {},
+        services: {
+          web: { name: "web", available: 1 },
+          "akash-attestation-sidecar": { name: "akash-attestation-sidecar", available: 1 }
+        }
+      };
+      const providerProxy = mock<ProviderProxyService>({
+        request: vi.fn().mockResolvedValue({ data: statusWithSidecar })
+      });
+      const callerSelect = vi.fn((data: LeaseStatusDto | null) => data);
+      const { result } = setupLeaseStatus({
+        lease: mockLease,
+        select: callerSelect,
+        services: {
+          providerProxy: () => providerProxy
+        }
+      });
+
+      await vi.waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
+
+      const receivedServices = callerSelect.mock.calls[0][0]?.services ?? {};
+      expect(receivedServices).toHaveProperty("web");
+      expect(receivedServices).not.toHaveProperty("akash-attestation-sidecar");
+    });
+
     function setupLeaseStatus(input?: {
       provider?: ApiProviderList;
       lease?: LeaseDto;
       providerCredentials?: UseProviderCredentialsResult["details"];
       services?: ServicesProviderProps["services"];
+      select?: (data: LeaseStatusDto | null) => LeaseStatusDto | null;
     }) {
       const dependencies: typeof USE_LEASE_STATUS_DEPENDENCIES = {
         ...USE_LEASE_STATUS_DEPENDENCIES,
@@ -372,7 +432,7 @@ describe("useLeaseQuery", () => {
           ensureToken: vi.fn().mockResolvedValue("jwt-token")
         })
       };
-      return setupQuery(() => useLeaseStatus({ provider: input?.provider || buildProvider(), lease: input?.lease, dependencies }), {
+      return setupQuery(() => useLeaseStatus({ provider: input?.provider || buildProvider(), lease: input?.lease, dependencies, select: input?.select }), {
         services: {
           providerProxy: () => mock<ProviderProxyService>(),
           ...input?.services

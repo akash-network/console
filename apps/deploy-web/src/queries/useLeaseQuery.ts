@@ -9,6 +9,7 @@ import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl"
 import type { DeploymentDto, LeaseDto, RpcLease } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
+import { omitAttestationSidecar } from "@src/utils/confidentialCompute";
 import { leaseToDto } from "@src/utils/deploymentDetailUtils";
 import { isLeaseLive } from "@src/utils/reclamationUtils";
 import { QueryKeys } from "./queryKeys";
@@ -77,7 +78,7 @@ export function useLeaseStatus(
     dependencies?: typeof USE_LEASE_STATUS_DEPENDENCIES;
   } & Omit<UseQueryOptions<LeaseStatusDto | null>, "queryKey" | "queryFn"> = {}
 ) {
-  const { provider, lease, dependencies: d = USE_LEASE_STATUS_DEPENDENCIES, ...options } = params;
+  const { provider, lease, dependencies: d = USE_LEASE_STATUS_DEPENDENCIES, select: callerSelect, ...options } = params;
   const providerCredentials = d.useProviderCredentials();
   const fetchProviderUrl = d.useScopedFetchProviderUrl(provider);
 
@@ -100,7 +101,14 @@ export function useLeaseStatus(
       return response.data;
     },
     ...options,
-    enabled: options.enabled !== false && providerCredentials.details.usable
+    enabled: options.enabled !== false && providerCredentials.details.usable,
+    // Defensive: the attestation sidecar is a pod container under the current provider design and
+    // never appears as a lease-status service, so this is a passthrough today. It keeps the sidecar
+    // out of every consumer (status list, logs/shell selectors) at one chokepoint if that changes.
+    select: data => {
+      const filtered = data ? omitAttestationSidecar(data) : data;
+      return callerSelect ? callerSelect(filtered) : filtered;
+    }
   });
 }
 export const USE_LEASE_STATUS_DEPENDENCIES = {

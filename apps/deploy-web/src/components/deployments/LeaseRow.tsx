@@ -25,6 +25,7 @@ import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
+import { getTeeServiceCarveouts } from "@src/utils/confidentialCompute";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { deploymentData } from "@src/utils/deploymentData";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
@@ -35,6 +36,7 @@ import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar/ManifestErrorSnackbar";
 import { ProviderName } from "../shared/ProviderName";
 import { ReclamationCard } from "./ReclamationCard/ReclamationCard";
+import { ConfidentialComputeResources } from "./ConfidentialComputeResources";
 
 type Props = {
   index: number;
@@ -101,6 +103,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
     }, [isLeaseActive, provider, providerCredentials.details, getLeaseStatus, getProviderStatus]);
 
     const parsedManifest = useMemo(() => yaml.load(deploymentManifest), [deploymentManifest]);
+    const teeCarveouts = useMemo(() => getTeeServiceCarveouts(parsedManifest), [parsedManifest]);
 
     const checkIfServicesAreAvailable = (leaseStatus: LeaseStatusDto) => {
       const servicesNames = leaseStatus ? Object.keys(leaseStatus.services) : [];
@@ -208,6 +211,8 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                 size="medium"
               />
             </div>
+
+            <ConfidentialComputeResources carveouts={teeCarveouts} />
             <LabelValueOld
               label="Price:"
               value={
