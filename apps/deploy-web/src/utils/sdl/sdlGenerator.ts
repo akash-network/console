@@ -206,6 +206,14 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
       };
     }
 
+    // Preserve the TEE param through the round-trip even though the builder UI cannot edit it yet.
+    if (service.params?.tee) {
+      sdl.services[service.title].params = {
+        ...sdl.services[service.title].params,
+        tee: service.params.tee
+      };
+    }
+
     sdl.profiles.placement[placement.name].pricing[service.title] = {
       denom: service.pricing.denom,
       amount: service.pricing.amount

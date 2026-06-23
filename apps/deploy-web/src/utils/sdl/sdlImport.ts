@@ -171,6 +171,11 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
 
       service.count = deployment.count;
 
+      // Preserve the TEE param through the round-trip even though the builder UI cannot edit it yet.
+      if (svc.params?.tee) {
+        service.params = { ...service.params, tee: svc.params.tee };
+      }
+
       services.push(service as ServiceType);
     });
 

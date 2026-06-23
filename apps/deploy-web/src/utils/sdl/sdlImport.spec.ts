@@ -195,9 +195,29 @@ describe("sdlImport", () => {
         "      count: 1"
       ].join("\n");
     }
+    it("captures params.tee onto the service model", () => {
+      const { services } = importSimpleSdl(teeSdl("cpu-gpu"));
+
+      expect(services[0].params?.tee).toBe("cpu-gpu");
+    });
+
+    it("leaves params undefined when the service has no tee param", () => {
+      const yml = fs.readFileSync(path.resolve(__dirname, "../../../tests/mocks/two-services-sdl.yml"), "utf8");
+
+      const { services } = importSimpleSdl(yml);
+
+      expect(services[0].params).toBeUndefined();
+    });
   });
 
   describe("SDL roundtrip", () => {
+    it("preserves params.tee when importing then regenerating the SDL", () => {
+      const regenerated = generateSdl(importSimpleSdl(teeSdl("cpu")));
+      const parsed = yaml.load(regenerated) as { services: Record<string, { params?: { tee?: string } }> };
+
+      expect(parsed.services.web.params?.tee).toBe("cpu");
+    });
+
     it("imports an SDL, regenerates it, and produces semantically equal output", () => {
       const yml = fs.readFileSync(path.resolve(__dirname, "../../../tests/mocks/two-services-sdl.yml"), "utf8");
       const formValues = importSimpleSdl(yml);
@@ -271,6 +291,42 @@ describe("sdlImport", () => {
     });
   });
 });
+
+const teeSdl = (tee: "cpu" | "cpu-gpu") =>
+  [
+    "version: '2.1'",
+    "services:",
+    "  web:",
+    "    image: nginx:latest",
+    "    expose:",
+    "      - port: 80",
+    "        as: 80",
+    "        to:",
+    "          - global: true",
+    "    params:",
+    `      tee: ${tee}`,
+    "profiles:",
+    "  compute:",
+    "    web:",
+    "      resources:",
+    "        cpu:",
+    "          units: 0.5",
+    "        memory:",
+    "          size: 512Mi",
+    "        storage:",
+    "          - size: 512Mi",
+    "  placement:",
+    "    dcloud:",
+    "      pricing:",
+    "        web:",
+    "          denom: uakt",
+    "          amount: 1000",
+    "deployment:",
+    "  web:",
+    "    dcloud:",
+    "      profile: web",
+    "      count: 1"
+  ].join("\n");
 
 describe("importSimpleSdl endpoints", () => {
   it("round-trips a declared endpoint back into the form model", () => {
