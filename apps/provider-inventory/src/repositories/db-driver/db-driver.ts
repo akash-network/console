@@ -1,20 +1,19 @@
 import type { ExtractTablesWithRelations } from "drizzle-orm";
 import type { PgTransaction } from "drizzle-orm/pg-core";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js/session";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { inject, singleton } from "tsyringe";
 
-import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
+import { DRIZZLE_DB, type DrizzleDb } from "@src/providers/drizzle.provider";
 
 @singleton()
 export class DbDriver {
   readonly #storage = new AsyncLocalStorage<
     Map<"PG_TX", PgTransaction<PostgresJsQueryResultHKT, Record<string, never>, ExtractTablesWithRelations<Record<string, never>>>>
   >();
-  readonly #db: PostgresJsDatabase;
+  readonly #db: DrizzleDb;
 
-  constructor(@inject(DRIZZLE_DB) db: PostgresJsDatabase) {
+  constructor(@inject(DRIZZLE_DB) db: DrizzleDb) {
     this.#db = db;
   }
 

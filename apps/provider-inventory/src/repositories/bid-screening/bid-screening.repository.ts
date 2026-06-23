@@ -1,5 +1,4 @@
 import { getTableName } from "drizzle-orm";
-import type postgres from "postgres";
 import { inject, singleton } from "tsyringe";
 
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
@@ -37,7 +36,7 @@ export class BidScreeningRepository {
   async findCandidates(resourceUnits: RequestedResourceUnit[], requirements: PlacementRequirements): Promise<BidScreeningCandidate[]> {
     const sql = this.#sql;
     const criteria = aggregateCriteria(resourceUnits, requirements);
-    const where = this.#joinAnd(this.#buildWhere(criteria));
+    const where = this.#buildWhere(criteria);
 
     const rows = await sql<Array<{ owner: string; updatedAt: string }>>`
       SELECT
@@ -95,6 +94,7 @@ export class BidScreeningRepository {
 
   #buildWhere(criteria: BidScreeningCriteria) {
     const sql = this.#sql;
+    const AND = sql`AND`;
     /**
      * Ensure that total* are enough to cover resource request (may have false positives),
      * and that the largest service can be placed on at least one node (prevents false positives due to fragmentation).
@@ -114,43 +114,37 @@ export class BidScreeningRepository {
     ];
 
     if (criteria.reclamationWindow !== undefined) {
-      conditions.push(sql`${sql(providerInventory.reclamationWindow.name)} >= ${criteria.reclamationWindow}`);
+      conditions.push(AND, sql`${sql(providerInventory.reclamationWindow.name)} >= ${criteria.reclamationWindow}`);
     }
 
     for (const unit of criteria.units) {
       if (unit.gpuTokens.length > 0) {
-        conditions.push(sql`${sql(providerInventory.gpuModels.name)} && ${unit.gpuTokens}::text[]`);
+        conditions.push(AND, sql`${sql(providerInventory.gpuModels.name)} && ${unit.gpuTokens}::text[]`);
       }
 
       if (unit.persistentClasses.length > 0) {
-        conditions.push(sql`${sql(providerInventory.storageClasses.name)} @> ${unit.persistentClasses}::text[]`);
+        conditions.push(AND, sql`${sql(providerInventory.storageClasses.name)} @> ${unit.persistentClasses}::text[]`);
       }
     }
 
     if (criteria.attributes.length > 0) {
-      conditions.push(sql`${sql(providerInventory.selfAttributes.name)} @> ${sql.json(criteria.attributes)}::jsonb`);
+      conditions.push(AND, sql`${sql(providerInventory.selfAttributes.name)} @> ${sql.json(criteria.attributes)}::jsonb`);
     }
 
     for (const glob of criteria.globAttributes) {
       conditions.push(
+        AND,
         sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${sql(providerInventory.selfAttributes.name)}) AS sa WHERE sa->>'key' ~* ${glob.keyPattern} AND sa->>'value' = ${glob.value})`
       );
     }
 
     if (criteria.signedBy.allOf.length > 0) {
-      conditions.push(sql`${sql(providerInventory.auditedBy.name)} @> ${criteria.signedBy.allOf}::text[]`);
+      conditions.push(AND, sql`${sql(providerInventory.auditedBy.name)} @> ${criteria.signedBy.allOf}::text[]`);
     }
     if (criteria.signedBy.anyOf.length > 0) {
-      conditions.push(sql`${sql(providerInventory.auditedBy.name)} && ${criteria.signedBy.anyOf}::text[]`);
+      conditions.push(AND, sql`${sql(providerInventory.auditedBy.name)} && ${criteria.signedBy.anyOf}::text[]`);
     }
 
     return conditions;
   }
-
-  #joinAnd(conditions: SqlFragment[]): SqlFragment {
-    const sql = this.#sql;
-    return conditions.reduce((acc, condition) => sql`${acc} AND ${condition}`);
-  }
 }
-
-type SqlFragment = postgres.PendingQuery<postgres.Row[]>;

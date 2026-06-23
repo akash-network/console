@@ -147,6 +147,7 @@ export class DiscoverySchedulerService {
       }
 
       for (const chunk of chunkify(providersToStop, 100)) {
+        if (signal?.aborted) break;
         await this.#lifecycle.stopAndDelete(chunk as string[]);
       }
 
@@ -176,7 +177,9 @@ export class DiscoverySchedulerService {
       this.#logger.error({ event: "DISCOVERY_TICK_ERROR", error });
     }
 
-    await this.#cleanupOldIncidents();
+    if (!signal?.aborted) {
+      await this.#cleanupOldIncidents();
+    }
   }
 
   async #cleanupOldIncidents(): Promise<void> {

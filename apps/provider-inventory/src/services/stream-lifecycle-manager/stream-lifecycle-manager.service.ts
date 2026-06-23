@@ -43,6 +43,7 @@ export class StreamLifecycleManagerService {
   readonly #startStreamSemaphore: Sema;
   readonly #pendingFirstAttempts = new Set<Promise<void>>();
   readonly #dbDriver: DbDriver;
+  #isShutDown = false;
 
   constructor(
     streamFactory: ProviderStreamFactory,
@@ -74,6 +75,7 @@ export class StreamLifecycleManagerService {
     });
     this.#offlineDataloader = new Dataloader(
       async keys => {
+        if (this.#isShutDown) return Array.from(keys, () => false);
         const owners = keys.map(k => k.owner);
         const results = await this.#inventoryRepo.bulkMarkOffline(owners, keys[0].requestedAt);
         const updatedOwners = new Set(results.map(r => r.owner));
@@ -217,7 +219,7 @@ export class StreamLifecycleManagerService {
 
       for await (const message of throttled) {
         this.#logger.debug({ event: "STREAM_MESSAGE_RECEIVED", owner: provider.owner });
-        if (outerSignal.aborted) return;
+        if (attemptController.signal.aborted) return;
         releasePermit();
         await this.#updateProviderInventory(provider, message);
       }
@@ -332,6 +334,7 @@ export class StreamLifecycleManagerService {
     this.#onlineProvidersCount = 0;
     this.#recordMonitoredCount();
     providersGauge.record(0, { state: "online" });
+    this.#isShutDown = true;
   }
 
   dispose(): void {
