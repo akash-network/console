@@ -20,6 +20,29 @@ export const computeResourcesTooltip = (
   </>
 );
 
+export const ramStorageTooltip = (
+  <>
+    The amount of RAM-backed storage required for this workload.
+    <br />
+    <br />
+    This volume is mounted in memory, so it is fast but ephemeral — its contents are lost when the container restarts.
+  </>
+);
+
+export const persistentStorageTooltip = (
+  <>
+    The amount of persistent storage required for this workload.
+    <br />
+    <br />
+    This storage is mounted on a persistent volume and persistent through the lifetime of the deployment
+    <br />
+    <br />
+    <a href="https://akash.network/docs/developers/deployment/akash-sdl/advanced-features/#persistent-storage" target="_blank" rel="noopener">
+      View official documentation
+    </a>
+  </>
+);
+
 export const imageRuntimeTooltip = (
   <>
     Docker image of the container.
