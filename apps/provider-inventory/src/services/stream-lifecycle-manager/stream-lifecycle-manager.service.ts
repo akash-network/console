@@ -69,14 +69,14 @@ export class StreamLifecycleManagerService {
         initialDelay: this.#config.STREAM_RECONNECT_INITIAL_DELAY_MS,
         maxDelay: this.#config.STREAM_RECONNECT_MAX_DELAY_MS
       })
-    });
+    }).dangerouslyUnref();
     this.#potentiallyDeadProviderRetryStreamPolicy = retry(handleAll, {
       maxAttempts: 1,
       backoff: new ExponentialBackoff({
         initialDelay: this.#config.STREAM_RECONNECT_INITIAL_DELAY_MS,
         maxDelay: this.#config.STREAM_RECONNECT_MAX_DELAY_MS
       })
-    });
+    }).dangerouslyUnref();
     this.#offlineDataloader = new Dataloader(
       async keys => {
         if (this.#isShutDown) return Array.from(keys, () => false);
