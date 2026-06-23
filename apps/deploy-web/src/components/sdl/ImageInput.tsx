@@ -6,6 +6,7 @@ import { InfoCircle, OpenInWindow } from "iconoir-react";
 import Link from "next/link";
 
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import { normalizeDockerImage } from "@src/utils/sdl/normalizeDockerImage";
 import { ImageRegistryLogo } from "./ImageRegistryLogo/ImageRegistryLogo";
 
 type Props = {
@@ -70,7 +71,7 @@ export const ImageInput: React.FunctionComponent<Props> = ({ serviceIndex, contr
             placeholder="Example: mydockerimage:1.01"
             value={field.value}
             error={!!fieldState.error}
-            onChange={event => field.onChange((event.target.value || "").toLowerCase())}
+            onChange={event => field.onChange(normalizeDockerImage(event.target.value || ""))}
             startIconClassName="pl-2"
             startIcon={<ImageRegistryLogo host={credentials?.host} />}
             endIcon={

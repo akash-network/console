@@ -14,6 +14,7 @@ import { SdlBuilderFormValuesSchema } from "@src/types";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
+import { applyImportedSshState } from "@src/utils/sdl/sshKey";
 import { ConfigureDeploymentHeader } from "../ConfigureDeploymentHeader/ConfigureDeploymentHeader";
 import { ConfigureDeploymentPanes } from "../ConfigureDeploymentPanes/ConfigureDeploymentPanes";
 
@@ -35,7 +36,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, dependencies: d
   const { enqueueSnackbar } = d.useSnackbar();
   const form = useForm<SdlBuilderFormValuesType>({
     defaultValues: initialState.values,
-    mode: "onChange",
+    mode: "onSubmit",
+    reValidateMode: "onChange",
     resolver: zodResolver(SdlBuilderFormValuesSchema)
   });
   const services = useWatch({ control: form.control, name: "services" });
@@ -85,7 +87,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, dependencies: d
   );
 
   return (
-    <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col">
+    <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col dark:bg-card">
       <d.NextSeo title="Configure your deployment" />
       <FormProvider {...form}>
         <div className="px-6 pt-6">
@@ -122,7 +124,7 @@ interface InitialState {
 function getInitialState(carriedInSdl: string | undefined): InitialState {
   if (carriedInSdl) {
     try {
-      const values = importSimpleSdl(carriedInSdl);
+      const values = applyImportedSshState(importSimpleSdl(carriedInSdl));
       if (hasVisibleService(values)) {
         return { values, sdl: carriedInSdl, selectedServiceId: seedSelectedServiceId(values) };
       }

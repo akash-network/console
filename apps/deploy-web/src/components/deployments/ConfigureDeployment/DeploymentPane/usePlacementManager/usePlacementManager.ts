@@ -5,6 +5,7 @@ import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/L
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultPlacement, defaultService } from "@src/utils/sdl/data";
 import { mergeFieldValues, nextPlacementName, nextServiceTitle, serviceRemovalIndexes } from "@src/utils/sdl/formArrayHelpers";
+import { readServiceSshKey, withServiceSshKey } from "@src/utils/sdl/sshKey";
 import { useRevalidateUniqueness } from "../useRevalidateUniqueness/useRevalidateUniqueness";
 
 export type IndexedService = { service: ServiceType; index: number };
@@ -47,7 +48,7 @@ export const usePlacementManager = () => {
 
   const addPlacement = useCallback(() => {
     const placement = defaultPlacement({ name: nextPlacementName(getValues("placements")) });
-    const service = defaultService(placement.id as string, { title: nextServiceTitle(getValues("services")) });
+    const service = withSeededSshKey(defaultService(placement.id as string, { title: nextServiceTitle(getValues("services")) }), getValues());
     appendPlacement(placement);
     appendService(service);
     return service.id as string;
@@ -73,7 +74,7 @@ export const usePlacementManager = () => {
 
   const addService = useCallback(
     (placementId: string) => {
-      const service = defaultService(placementId, { title: nextServiceTitle(getValues("services")) });
+      const service = withSeededSshKey(defaultService(placementId, { title: nextServiceTitle(getValues("services")) }), getValues());
       appendService(service);
       return service.id as string;
     },
@@ -108,3 +109,16 @@ export const usePlacementManager = () => {
     [placements, getPlacementServices, addPlacement, canRemovePlacement, removePlacement, addService, canRemoveService, removeService]
   );
 };
+
+/**
+ * Seeds the deployment-wide SSH key onto a freshly added service so it isn't left
+ * invalid while "Expose SSH" is on — the schema requires every service to carry
+ * the key. No-op when SSH is off or no key has been set on any service yet.
+ */
+function withSeededSshKey(service: ServiceType, values: SdlBuilderFormValuesType): ServiceType {
+  if (!values.hasSSHKey) {
+    return service;
+  }
+  const key = values.services.map(readServiceSshKey).find(Boolean);
+  return key ? withServiceSshKey(service, key) : service;
+}

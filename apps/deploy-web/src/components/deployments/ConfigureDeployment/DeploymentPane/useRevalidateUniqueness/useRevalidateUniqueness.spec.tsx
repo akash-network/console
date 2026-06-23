@@ -14,7 +14,20 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 type FieldArrayName = "placements" | "services" | "endpoints";
 
 describe(useRevalidateUniqueness.name, () => {
-  it("shows the uniqueness error on every conflicting endpoint row, not just the last", async () => {
+  it("does not surface validation errors before the form is submitted", () => {
+    setup({
+      name: "endpoints",
+      subField: "name",
+      values: {
+        ...defaultServiceWithPlacement(),
+        endpoints: [{ id: "e-1", name: "" }]
+      }
+    });
+
+    expect(screen.queryByText("Endpoint name is required.")).not.toBeInTheDocument();
+  });
+
+  it("shows the uniqueness error on every conflicting endpoint row after submit, not just the last", async () => {
     setup({
       name: "endpoints",
       subField: "name",
@@ -26,8 +39,9 @@ describe(useRevalidateUniqueness.name, () => {
         ]
       }
     });
-
     duplicateSecondRowOnto("endpoints", "endpoint-1");
+
+    submitForm();
 
     await waitFor(() => {
       expect(screen.getAllByText("Endpoint name must be unique.")).toHaveLength(2);
@@ -47,6 +61,7 @@ describe(useRevalidateUniqueness.name, () => {
       }
     });
     duplicateSecondRowOnto("endpoints", "endpoint-1");
+    submitForm();
     await waitFor(() => expect(screen.getAllByText("Endpoint name must be unique.")).toHaveLength(2));
 
     editRow("endpoints", 0, "endpoint-3");
@@ -69,6 +84,7 @@ describe(useRevalidateUniqueness.name, () => {
       }
     });
     duplicateSecondRowOnto("placements", "dcloud");
+    submitForm();
     await waitFor(() => expect(screen.getAllByText("Placement name must be unique.")).toHaveLength(2));
 
     editRow("placements", 0, "dcloud-3");
@@ -80,6 +96,10 @@ describe(useRevalidateUniqueness.name, () => {
 
   function duplicateSecondRowOnto(name: FieldArrayName, value: string) {
     editRow(name, 1, value);
+  }
+
+  function submitForm() {
+    fireEvent.submit(screen.getByRole("button", { name: "submit" }).closest("form") as HTMLFormElement);
   }
 
   function editRow(name: FieldArrayName, index: number, value: string) {
@@ -98,10 +118,18 @@ describe(useRevalidateUniqueness.name, () => {
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({
         defaultValues: input.values,
-        mode: "onChange",
+        mode: "onSubmit",
+        reValidateMode: "onChange",
         resolver: zodResolver(SdlBuilderFormValuesSchema)
       });
-      return <FormProvider {...form}>{children}</FormProvider>;
+      return (
+        <FormProvider {...form}>
+          <form onSubmit={form.handleSubmit(() => undefined)}>
+            {children}
+            <button type="submit">submit</button>
+          </form>
+        </FormProvider>
+      );
     };
     render(
       <Wrapper>

@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { SdlBuilderFormValuesSchema } from "@src/types/sdlBuilder/sdlBuilder";
 import { defaultServiceWithPlacement } from "./data";
 import { buildCommand, generateSdl } from "./sdlGenerator";
 import { importSimpleSdl, parseSvcCommand } from "./sdlImport";
@@ -126,6 +127,74 @@ describe("sdlImport", () => {
       expect(services[0].pricing).toEqual({ amount: 1000, denom: "uact" });
       expect(services[1].pricing).toEqual({ amount: 100000, denom: "uact" });
     });
+
+    it("imports a reserved SSH_PUBKEY env var as a managed entry (id equals key) so the schema exempts it", () => {
+      const yml = sshPubKeySdl("ssh-rsa AAAAimported");
+
+      const { services } = importSimpleSdl(yml);
+
+      const sshEnv = services[0].env?.find(e => e.key === "SSH_PUBKEY");
+      expect(sshEnv).toMatchObject({ id: "SSH_PUBKEY", key: "SSH_PUBKEY", value: "ssh-rsa AAAAimported" });
+    });
+
+    it("validates a deployment imported with an SSH_PUBKEY env var without flagging the reserved key", () => {
+      const values = importSimpleSdl(sshPubKeySdl("ssh-rsa AAAAimported"));
+
+      const result = SdlBuilderFormValuesSchema.safeParse(values);
+
+      const envIssue = result.success ? undefined : result.error.issues.find(issue => issue.message.includes("reserved variable name"));
+      expect(envIssue).toBeUndefined();
+    });
+
+    it("preserves env values that contain '=' instead of truncating at the first one", () => {
+      const yml = envSdl(["DB_URL=postgres://u:p@h/db?a=1&b=2", "TOKEN=YWJjZGVm=="]);
+
+      const { services } = importSimpleSdl(yml);
+
+      expect(services[0].env).toContainEqual(expect.objectContaining({ key: "DB_URL", value: "postgres://u:p@h/db?a=1&b=2" }));
+      expect(services[0].env).toContainEqual(expect.objectContaining({ key: "TOKEN", value: "YWJjZGVm==" }));
+    });
+
+    function sshPubKeySdl(sshPubKey: string) {
+      return envSdl([`SSH_PUBKEY=${sshPubKey}`]);
+    }
+
+    function envSdl(envLines: string[]) {
+      return [
+        "version: '2.0'",
+        "services:",
+        "  web:",
+        "    image: nginx:1.0",
+        "    env:",
+        ...envLines.map(line => `      - ${line}`),
+        "    expose:",
+        "      - port: 80",
+        "        as: 80",
+        "        to:",
+        "          - global: true",
+        "profiles:",
+        "  compute:",
+        "    web:",
+        "      resources:",
+        "        cpu:",
+        "          units: 0.5",
+        "        memory:",
+        "          size: 512Mi",
+        "        storage:",
+        "          - size: 512Mi",
+        "  placement:",
+        "    dcloud:",
+        "      pricing:",
+        "        web:",
+        "          denom: uact",
+        "          amount: 1000",
+        "deployment:",
+        "  web:",
+        "    dcloud:",
+        "      profile: web",
+        "      count: 1"
+      ].join("\n");
+    }
   });
 
   describe("SDL roundtrip", () => {

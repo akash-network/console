@@ -73,6 +73,7 @@ describe("IpEndpointsSection uniqueness validation", () => {
     });
 
     duplicateSecondRow("endpoint-1");
+    submitForm();
     await waitFor(() => expect(screen.getAllByText("Endpoint name must be unique.")).toHaveLength(2));
 
     const removeButtons = screen.getAllByRole("button", { name: /Remove endpoint-1/ });
@@ -89,16 +90,24 @@ describe("IpEndpointsSection uniqueness validation", () => {
     fireEvent.blur(inputs[1]);
   }
 
+  function submitForm() {
+    fireEvent.submit(screen.getByRole("button", { name: "submit" }).closest("form") as HTMLFormElement);
+  }
+
   function setup(input: { endpoints: SdlBuilderFormValuesType["endpoints"] }) {
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({
         defaultValues: { ...defaultServiceWithPlacement(), endpoints: input.endpoints },
-        mode: "onChange",
+        mode: "onSubmit",
+        reValidateMode: "onChange",
         resolver: zodResolver(SdlBuilderFormValuesSchema)
       });
       return (
         <FormProvider {...form}>
-          <TooltipProvider>{children}</TooltipProvider>
+          <form onSubmit={form.handleSubmit(() => undefined)}>
+            <TooltipProvider>{children}</TooltipProvider>
+            <button type="submit">submit</button>
+          </form>
         </FormProvider>
       );
     };

@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { defaultService } from "@src/utils/sdl/data";
+import { usePlacementManager } from "../DeploymentPane/usePlacementManager/usePlacementManager";
 import type { DEPENDENCIES } from "./ConfigureDeploymentForm";
 import { ConfigureDeploymentForm } from "./ConfigureDeploymentForm";
 
@@ -163,6 +164,27 @@ describe(ConfigureDeploymentForm.name, () => {
     await waitFor(() => expect(screen.getByTestId("sdl").textContent).toContain("nginx:latest"));
   });
 
+  it("drops the removed service from the preview after it is added then removed", async () => {
+    setup({ initialSdl: undefined, Panes: AddRemoveProbePanes });
+
+    await userEvent.click(screen.getByRole("button", { name: "add service" }));
+    await waitFor(() => expect(screen.getByTestId("sdl").textContent).toContain("service-2"));
+
+    await userEvent.click(screen.getByRole("button", { name: "remove service" }));
+
+    await waitFor(() => expect(screen.getByTestId("sdl").textContent).not.toContain("service-2"));
+  });
+
+  it("keeps regenerating the preview after a placement is added then removed", async () => {
+    setup({ initialSdl: undefined, Panes: AddRemoveProbePanes });
+
+    await userEvent.click(screen.getByRole("button", { name: "add placement" }));
+    await userEvent.click(screen.getByRole("button", { name: "remove placement" }));
+    await userEvent.click(screen.getByRole("button", { name: "change image" }));
+
+    await waitFor(() => expect(screen.getByTestId("sdl").textContent).toContain("nginx:latest"));
+  });
+
   it("reselects the first remaining service when the selected one is removed", async () => {
     setup({ initialSdl: undefined, Panes: SelectionProbePanes });
     const initialSelectedId = screen.getByTestId("selected").textContent;
@@ -217,6 +239,32 @@ function ServiceListProbePanes() {
   const services = useWatch<SdlBuilderFormValuesType>({ name: "services" });
   const titles = Array.isArray(services) ? (services as SdlBuilderFormValuesType["services"]).map(service => service.title) : [];
   return <div data-testid="service-titles">{titles.join(",")}</div>;
+}
+
+/** Panes stand-in that adds then removes a service via the real manager before editing, mirroring the UI flow. */
+function AddRemoveProbePanes({ sdl }: ProbePanesProps) {
+  const manager = usePlacementManager();
+  const { setValue, getValues } = useFormContext<SdlBuilderFormValuesType>();
+  return (
+    <div>
+      <div data-testid="sdl">{sdl}</div>
+      <button type="button" onClick={() => manager.addService(getValues("placements")[0].id)}>
+        add service
+      </button>
+      <button type="button" onClick={() => manager.removeService(getValues("services")[1].id)}>
+        remove service
+      </button>
+      <button type="button" onClick={() => manager.addPlacement()}>
+        add placement
+      </button>
+      <button type="button" onClick={() => manager.removePlacement(getValues("placements")[1].id)}>
+        remove placement
+      </button>
+      <button type="button" onClick={() => setValue("services.0.image", "nginx:latest")}>
+        change image
+      </button>
+    </div>
+  );
 }
 
 /** Panes stand-in that swaps out the services to drive the reselection subscription. */

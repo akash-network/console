@@ -2,6 +2,7 @@ import yaml from "js-yaml";
 import { nanoid } from "nanoid";
 
 import type { EndpointType, ExposeType, PlacementAttributeType, PlacementType, ProfileGpuModelType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import { RESERVED_ENV_KEYS } from "@src/types/sdlBuilder/sdlBuilder";
 import { CustomValidationError } from "../deploymentData";
 import { capitalizeFirstLetter } from "../stringUtils";
 import { defaultHttpOptions } from "./data";
@@ -96,7 +97,14 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
         arg: svc.args ? svc.args[0] : ""
       };
 
-      service.env = svc.env?.map((e: any) => ({ id: nanoid(), key: e.split("=")[0], value: e.split("=")[1] })) || [];
+      service.env =
+        svc.env?.map((e: string) => {
+          const separatorIndex = e.indexOf("=");
+          const key = separatorIndex === -1 ? e : e.slice(0, separatorIndex);
+          const value = separatorIndex === -1 ? undefined : e.slice(separatorIndex + 1);
+          const id = (RESERVED_ENV_KEYS as readonly string[]).includes(key) ? key : nanoid();
+          return { id, key, value };
+        }) || [];
 
       service.expose = [];
       svc.expose?.forEach((expose: any) => {

@@ -12,6 +12,27 @@ import { bytesToShrink } from "@src/utils/unitUtils";
 const VALID_IMAGE_NAME =
   /^(?:(?:[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])(?:(?:\.(?:[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]))+)?(?::[0-9]+)?\/)?[a-z0-9]+(?:(?:(?:[._]|__|[-]*)[a-z0-9]+)+)?(?:\/[a-z0-9]+(?:(?:(?:[._]|__|[-]*)[a-z0-9]+)+)?)*(?::[a-zA-Z0-9_.-]+)?(?:@[a-zA-Z0-9_.:+-]+)?$/;
 
+/**
+ * Returns the indexes of every item whose `selectKey` value is shared by more
+ * than one item, including the first occurrence — so each row in a duplicate
+ * group can be flagged, not just the later ones.
+ */
+function findDuplicateIndexes<T>(items: T[], selectKey: (item: T) => string): Set<number> {
+  const firstIndexByKey = new Map<string, number>();
+  const duplicateIndexes = new Set<number>();
+  items.forEach((item, index) => {
+    const key = selectKey(item);
+    const firstIndex = firstIndexByKey.get(key);
+    if (firstIndex === undefined) {
+      firstIndexByKey.set(key, index);
+    } else {
+      duplicateIndexes.add(firstIndex);
+      duplicateIndexes.add(index);
+    }
+  });
+  return duplicateIndexes;
+}
+
 export const ProfileGpuModelSchema = z.object({
   vendor: z.string().min(1, { message: "Vendor is required." }),
   name: z.string().optional(),
@@ -44,12 +65,34 @@ export const CommandSchema = z.object({
   arg: z.string().optional()
 });
 
-export const EnvironmentVariableSchema = z.object({
-  id: z.string().optional(),
-  key: z.string().min(1, { message: "Key is required." }),
-  value: z.string().optional(),
-  isSecret: z.boolean().optional()
-});
+/** Env key under which the managed SSH public key is mirrored onto every service. */
+export const SSH_PUBKEY_ENV_KEY = "SSH_PUBKEY";
+
+/**
+ * Env var keys the user may not set themselves. The matching values are managed
+ * elsewhere (e.g. `SSH_PUBKEY` is mirrored from the SSH key field) and the managed
+ * entry is exempt from the check via the `id === key` sentinel it carries.
+ */
+export const RESERVED_ENV_KEYS = [SSH_PUBKEY_ENV_KEY] as const;
+
+export const EnvironmentVariableSchema = z
+  .object({
+    id: z.string().optional(),
+    key: z.string().min(1, { message: "Key is required." }),
+    value: z.string().optional(),
+    isSecret: z.boolean().optional()
+  })
+  .superRefine((env, ctx) => {
+    const isReserved = (RESERVED_ENV_KEYS as readonly string[]).includes(env.key);
+    const isManagedEntry = env.id === env.key;
+    if (isReserved && !isManagedEntry) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["key"],
+        message: `"${env.key}" is a reserved variable name`
+      });
+    }
+  });
 
 export const ToSchema = z.object({
   id: z.string().optional(),
@@ -101,17 +144,17 @@ export const CredentialsSchema = z
       )
       .default("docker.io"),
     username: z.string(),
-    password: z.string()
+    password: z.string().min(6, { message: "Password must be at least 6 characters." })
   })
   .optional();
 
 export const ProfileSchema = z
   .object({
-    cpu: z.number({ invalid_type_error: "CPU count is required." }).min(0.1, { message: "CPU count is required." }),
+    cpu: z.number({ invalid_type_error: "CPU count is required." }).min(0.1, { message: "Minimum amount of CPU for a single service instance is 0.1." }),
     hasGpu: z.boolean().optional(),
     gpu: z.number({ invalid_type_error: "GPU amount is required." }).optional(),
     gpuModels: z.array(ProfileGpuModelSchema).optional(),
-    ram: z.number().min(1, { message: "RAM is required." }),
+    ram: z.number({ invalid_type_error: "RAM is required." }),
     ramUnit: z.string().min(1, { message: "RAM unit is required." }),
     storage: z.array(ServiceStorageSchema).min(1, { message: "Storage is required." })
   })
@@ -123,10 +166,7 @@ export const ProfileSchema = z
     }
 
     if (data.storage.length > 1) {
-      const names = data.storage.map(storage => storage.name);
-      const mounts = data.storage.map(storage => storage.mount);
-
-      data.storage.map((storage, index) => {
+      data.storage.forEach((storage, index) => {
         if (index === 0) {
           return;
         }
@@ -150,15 +190,29 @@ export const ProfileSchema = z
         if (!storage.mount) {
           customIssues.push({ code: z.ZodIssueCode.custom, message: "Storage mount is required", path: ["storage", index, "mount"], fatal: true });
         }
-
-        if (names.slice(0, index).includes(storage.name)) {
-          customIssues.push({ code: z.ZodIssueCode.custom, message: "Storage name must be unique", path: ["storage", index, "name"], fatal: true });
-        }
-
-        if (mounts.slice(0, index).includes(storage.mount)) {
-          customIssues.push({ code: z.ZodIssueCode.custom, message: "Storage mount must be unique", path: ["storage", index, "mount"], fatal: true });
-        }
       });
+
+      const namedStorages = data.storage.map((storage, index) => ({ storage, index })).filter(({ storage, index }) => index > 0 && !!storage.name);
+
+      for (const position of findDuplicateIndexes(namedStorages, ({ storage }) => storage.name ?? "")) {
+        customIssues.push({
+          code: z.ZodIssueCode.custom,
+          message: "Storage name must be unique",
+          path: ["storage", namedStorages[position].index, "name"],
+          fatal: true
+        });
+      }
+
+      const mountedStorages = data.storage.map((storage, index) => ({ storage, index })).filter(({ storage, index }) => index > 0 && !!storage.mount);
+
+      for (const position of findDuplicateIndexes(mountedStorages, ({ storage }) => storage.mount ?? "")) {
+        customIssues.push({
+          code: z.ZodIssueCode.custom,
+          message: "Storage mount must be unique",
+          path: ["storage", mountedStorages[position].index, "mount"],
+          fatal: true
+        });
+      }
     }
 
     if (customIssues.length) {
@@ -325,7 +379,7 @@ const validateStorageAmount = (value: number, storageUnit: string, serviceCount:
     context.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Minimum amount of storage for a single service instance is 5 Mi.",
-      path: ["profile", "storage"],
+      path: ["profile", "storage", 0, "size"],
       fatal: true
     });
     return z.NEVER;
@@ -333,7 +387,7 @@ const validateStorageAmount = (value: number, storageUnit: string, serviceCount:
     context.addIssue({
       code: z.ZodIssueCode.custom,
       message: `Maximum amount of storage for a single service instance is ${roundDecimal(maxValue.value, 2)} ${maxValue.unit}.`,
-      path: ["profile", "storage"],
+      path: ["profile", "storage", 0, "size"],
       fatal: true
     });
     return z.NEVER;
@@ -393,27 +447,6 @@ const logProviderVars = z.discriminatedUnion("PROVIDER", [
     PROVIDER: z.literal("DATADOG")
   })
 ]);
-
-/**
- * Returns the indexes of every item whose `selectKey` value is shared by more
- * than one item, including the first occurrence — so each row in a duplicate
- * group can be flagged, not just the later ones.
- */
-function findDuplicateIndexes<T>(items: T[], selectKey: (item: T) => string): Set<number> {
-  const firstIndexByKey = new Map<string, number>();
-  const duplicateIndexes = new Set<number>();
-  items.forEach((item, index) => {
-    const key = selectKey(item);
-    const firstIndex = firstIndexByKey.get(key);
-    if (firstIndex === undefined) {
-      firstIndexByKey.set(key, index);
-    } else {
-      duplicateIndexes.add(firstIndex);
-      duplicateIndexes.add(index);
-    }
-  });
-  return duplicateIndexes;
-}
 
 export const SdlBuilderFormValuesSchema = z
   .object({

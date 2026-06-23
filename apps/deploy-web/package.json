@@ -82,7 +82,7 @@
     "js-yaml": "^4.1.0",
     "jszip": "^3.10.1",
     "lodash": "^4.17.21",
-    "lucide-react": "^0.292.0",
+    "lucide-react": "^1.17.0",
     "monaco-editor": "^0.55.1",
     "monaco-yaml": "^5.4.0",
     "nanoid": "^3.3.4",
