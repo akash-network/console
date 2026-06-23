@@ -12,6 +12,7 @@ import { ProviderInventoryRepository } from "@src/repositories/provider-inventor
 import { ChainProviderPollerService } from "@src/services/chain-provider-poller/chain-provider-poller.service";
 import { StreamLifecycleManagerService } from "@src/services/stream-lifecycle-manager/stream-lifecycle-manager.service";
 import type { ChainProvider } from "@src/types/chain-provider";
+import { TimerService } from "../timer/timer.service";
 
 @singleton()
 export class DiscoverySchedulerService {
@@ -21,6 +22,7 @@ export class DiscoverySchedulerService {
   readonly #incidentRepository: ProviderIncidentRepository;
   readonly #lifecycle: StreamLifecycleManagerService;
   readonly #config: EnvConfig;
+  readonly #timer: TimerService;
   #abortController: AbortController | null = null;
   #lastIncidentCleanupAt: number | null = null;
 
@@ -29,6 +31,7 @@ export class DiscoverySchedulerService {
     repository: ProviderInventoryRepository,
     incidentRepository: ProviderIncidentRepository,
     lifecycle: StreamLifecycleManagerService,
+    timer: TimerService,
     @inject(APP_CONFIG) config: EnvConfig,
     @inject(LOGGER_FACTORY) loggerFactory: LoggerFactory
   ) {
@@ -36,6 +39,7 @@ export class DiscoverySchedulerService {
     this.#repository = repository;
     this.#incidentRepository = incidentRepository;
     this.#lifecycle = lifecycle;
+    this.#timer = timer;
     this.#config = config;
     this.#logger = loggerFactory({ context: "DiscoveryScheduler" });
   }
@@ -136,11 +140,11 @@ export class DiscoverySchedulerService {
 
           if (!observedProvider) {
             if (updatedProviders) {
-              this.#lifecycle.start({ ...provider, offlineSince: offlineSince ?? null }, signal);
+              void this.#lifecycle.start({ ...provider, offlineSince: offlineSince ?? null }, signal);
               startedProvidersCount++;
             }
           } else if (observedProvider.hostUri !== provider.hostUri) {
-            this.#lifecycle.restart({ ...provider, offlineSince: offlineSince ?? null }, signal);
+            void this.#lifecycle.restart({ ...provider, offlineSince: offlineSince ?? null }, signal);
             restartedProvidersCount++;
           }
         }
@@ -202,17 +206,7 @@ export class DiscoverySchedulerService {
     while (!signal.aborted) {
       await this.discoverProviders(signal);
       if (signal.aborted) break;
-      await new Promise<void>(resolve => {
-        const clearDelay = () => {
-          clearTimeout(timerId);
-          resolve();
-        };
-        const timerId = setTimeout(() => {
-          signal.removeEventListener("abort", clearDelay);
-          resolve();
-        }, this.#config.DISCOVERY_INTERVAL_MS);
-        signal.addEventListener("abort", clearDelay, { once: true });
-      });
+      await this.#timer.delay(this.#config.DISCOVERY_INTERVAL_MS, undefined, { signal }).catch(() => undefined);
     }
   }
 

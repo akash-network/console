@@ -8,13 +8,14 @@ import type { ProviderInventory, ProviderInventoryRepository } from "@src/reposi
 import type { ChainProviderPollerService } from "@src/services/chain-provider-poller/chain-provider-poller.service";
 import type { StreamLifecycleManagerService } from "@src/services/stream-lifecycle-manager/stream-lifecycle-manager.service";
 import type { ChainProvider } from "@src/types/chain-provider";
+import type { TimerService } from "../timer/timer.service";
 import { DiscoverySchedulerService } from "./discovery-scheduler.service";
 
 const DEAD_PROVIDER_UPDATED_THRESHOLD_MS = 10 * 24 * 60 * 60 * 1000;
 
 describe(DiscoverySchedulerService.name, () => {
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.useFakeTimers().setTimerTickMode("nextTimerAsync");
   });
 
   afterEach(() => {
@@ -397,7 +398,10 @@ describe(DiscoverySchedulerService.name, () => {
       });
     }
 
-    const scheduler = new DiscoverySchedulerService(poller, writer, incidentRepository, lifecycle, config, loggerFactory);
+    const timer = mock<TimerService>({
+      delay: <T>(ms?: number, value?: T) => new Promise<T>(resolve => setTimeout(() => resolve(value as T), ms))
+    });
+    const scheduler = new DiscoverySchedulerService(poller, writer, incidentRepository, lifecycle, timer as unknown as TimerService, config, loggerFactory);
     if (input?.autoStart !== false) scheduler.start();
 
     return { scheduler, poller, writer, incidentRepository, lifecycle, config, logger };

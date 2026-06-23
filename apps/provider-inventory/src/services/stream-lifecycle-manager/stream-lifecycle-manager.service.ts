@@ -19,6 +19,7 @@ import { ProviderInventoryRepository } from "@src/repositories/provider-inventor
 import type { ChainProviderWithOfflineSince } from "@src/types/chain-provider";
 import type { ClusterState } from "@src/types/inventory";
 import { ProviderStreamFactory } from "../provider-stream-factory/provider-stream-factory.sevice";
+import { TimerService } from "../timer/timer.service";
 
 @singleton()
 export class StreamLifecycleManagerService {
@@ -43,6 +44,7 @@ export class StreamLifecycleManagerService {
   readonly #startStreamSemaphore: Sema;
   readonly #pendingFirstAttempts = new Set<Promise<void>>();
   readonly #dbDriver: DbDriver;
+  readonly #timer: TimerService;
   #isShutDown = false;
 
   constructor(
@@ -50,6 +52,7 @@ export class StreamLifecycleManagerService {
     inventoryRepo: ProviderInventoryRepository,
     incidentsRepo: ProviderIncidentRepository,
     dbDriver: DbDriver,
+    timer: TimerService,
     @inject(LOGGER_FACTORY) loggerFactory: LoggerFactory,
     @inject(APP_CONFIG) config: EnvConfig
   ) {
@@ -57,6 +60,7 @@ export class StreamLifecycleManagerService {
     this.#inventoryRepo = inventoryRepo;
     this.#incidentsRepo = incidentsRepo;
     this.#dbDriver = dbDriver;
+    this.#timer = timer;
     this.#config = config;
     this.#logger = loggerFactory({ context: "StreamLifecycleManager" });
     this.#healthyProviderRetryStreamPolicy = retry(handleAll, {
@@ -83,8 +87,8 @@ export class StreamLifecycleManagerService {
       },
       {
         cache: false,
-        maxBatchSize: 1000,
-        batchScheduleFn: callback => setTimeout(callback, 1000)
+        maxBatchSize: 500,
+        batchScheduleFn: callback => this.#timer.delayCb(callback, 1000).unref()
       }
     );
     this.#startStreamSemaphore = new Sema(this.#config.MAX_CONCURRENT_STREAM_CONNECTIONS);
@@ -94,7 +98,7 @@ export class StreamLifecycleManagerService {
     return this.#activeStreams;
   }
 
-  start(provider: ChainProviderWithOfflineSince, signal?: AbortSignal): void {
+  async start(provider: ChainProviderWithOfflineSince, signal?: AbortSignal): Promise<void> {
     if (signal?.aborted) {
       this.#logger.warn({ event: "STREAM_START_ABORTED", owner: provider.owner, reason: "Received already aborted signal" });
       return;
@@ -112,18 +116,20 @@ export class StreamLifecycleManagerService {
       this.#pendingFirstAttempts.delete(firstAttempt.promise);
     });
 
-    void this.#runStream(provider, controller.signal, firstAttempt.resolve).finally(() => signal?.removeEventListener("abort", abortProviderStream));
+    await this.#runStream(provider, controller.signal, firstAttempt.resolve).finally(() => signal?.removeEventListener("abort", abortProviderStream));
   }
 
-  restart(provider: ChainProviderWithOfflineSince, signal?: AbortSignal): void {
+  async restart(provider: ChainProviderWithOfflineSince, signal?: AbortSignal): Promise<void> {
     const previousHostUri = this.#activeStreams.get(provider.owner)?.hostUri;
     this.#abortIfActive(provider.owner, "STREAM_STOPPED_HOSTURI_CHANGE");
-    if (previousHostUri && previousHostUri !== provider.hostUri) {
-      void this.#streamFactory.disposeProvider(previousHostUri).catch(error => {
-        this.#logger.error({ event: "DISPOSE_STREAM_ERROR", owner: provider.owner, hostUri: previousHostUri, error });
-      });
-    }
-    this.start(provider, signal);
+    await Promise.all([
+      previousHostUri && previousHostUri !== provider.hostUri
+        ? this.#streamFactory.disposeProvider(previousHostUri).catch(error => {
+            this.#logger.error({ event: "DISPOSE_STREAM_ERROR", owner: provider.owner, hostUri: previousHostUri, error });
+          })
+        : undefined,
+      this.start(provider, signal)
+    ]);
   }
 
   async waitForPendingConnections(): Promise<void> {
@@ -204,9 +210,11 @@ export class StreamLifecycleManagerService {
     }
 
     await this.#startStreamSemaphore.acquire();
-    const firstMessageTimeoutId = setTimeout(() => {
-      attemptController.abort(new Error("first message not received within timeout"));
-    }, this.#config.STREAM_FIRST_MESSAGE_TIMEOUT_MS);
+    const firstMessageTimeoutId = this.#timer
+      .delayCb(() => {
+        attemptController.abort(new Error("first message not received within timeout"));
+      }, this.#config.STREAM_FIRST_MESSAGE_TIMEOUT_MS)
+      .unref();
     const releasePermit = once(() => {
       onAttemptSettled();
       this.#startStreamSemaphore.release();
@@ -274,7 +282,7 @@ export class StreamLifecycleManagerService {
 
   async #tryMarkOffline(owner: string): Promise<void> {
     if (this.#onlineStatePerProvider.get(owner) === false) {
-      await new Promise(resolve => setImmediate(resolve));
+      await this.#timer.immediate();
       return;
     }
     try {

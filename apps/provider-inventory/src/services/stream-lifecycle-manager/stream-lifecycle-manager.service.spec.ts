@@ -1,6 +1,6 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import { setTimeout as delay } from "node:timers/promises";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
 
 import type { EnvConfig } from "@src/providers/app-config.provider";
@@ -11,9 +11,18 @@ import type { ProviderInventoryRepository } from "@src/repositories/provider-inv
 import type { ChainProvider, ChainProviderWithOfflineSince } from "@src/types/chain-provider";
 import type { ClusterState, NodeState } from "@src/types/inventory";
 import type { ProviderStreamFactory } from "../provider-stream-factory/provider-stream-factory.sevice";
+import type { TimerService } from "../timer/timer.service";
 import { StreamLifecycleManagerService } from "./stream-lifecycle-manager.service";
 
 describe(StreamLifecycleManagerService.name, () => {
+  beforeEach(() => {
+    vi.useFakeTimers().setTimerTickMode("nextTimerAsync");
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   describe("start", () => {
     it("opens a stream for the provider", async () => {
       const provider = createProvider();
@@ -42,7 +51,7 @@ describe(StreamLifecycleManagerService.name, () => {
   describe("stopAndDelete", () => {
     it("aborts the stream and deletes the row for a vanished provider", async () => {
       const provider = createProvider();
-      const { manager, streamFactory, writer } = setup({ streams: { "https://p1:8443": "hang" } });
+      const { manager, streamFactory, writer } = setup({ streams: { "https://p1:8443": msgsThenHang([createCluster()]) } });
       manager.start(provider);
       await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(1));
       const signal = captureSignal(streamFactory);
@@ -67,7 +76,7 @@ describe(StreamLifecycleManagerService.name, () => {
       const old = createProvider({ owner: "a", hostUri: "https://old:8443" });
       const updated = createProvider({ owner: "a", hostUri: "https://new:8443" });
       const { manager, streamFactory, writer } = setup({
-        streams: { "https://old:8443": "hang", "https://new:8443": "hang" }
+        streams: { "https://old:8443": msgsThenHang([createCluster()]), "https://new:8443": msgsThenHang([createCluster()]) }
       });
       manager.start(old);
       await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(1));
@@ -88,7 +97,7 @@ describe(StreamLifecycleManagerService.name, () => {
     it("keeps the parent-signal abort listener while the stream is healthy", async () => {
       const parent = new AbortController();
       const removeSpy = vi.spyOn(parent.signal, "removeEventListener");
-      const { manager, streamFactory } = setup({ streams: { "https://p1:8443": "hang" } });
+      const { manager, streamFactory } = setup({ streams: { "https://p1:8443": msgsThenHang([createCluster()]) } });
 
       manager.start(createProvider(), parent.signal);
       await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalled());
@@ -118,7 +127,9 @@ describe(StreamLifecycleManagerService.name, () => {
       const parent = new AbortController();
       const addSpy = vi.spyOn(parent.signal, "addEventListener");
       const removeSpy = vi.spyOn(parent.signal, "removeEventListener");
-      const { manager, streamFactory } = setup({ streams: { "https://old:8443": "hang", "https://new:8443": "hang" } });
+      const { manager, streamFactory } = setup({
+        streams: { "https://old:8443": msgsThenHang([createCluster()]), "https://new:8443": msgsThenHang([createCluster()]) }
+      });
 
       manager.start(old, parent.signal);
       await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(1));
@@ -368,10 +379,10 @@ describe(StreamLifecycleManagerService.name, () => {
     it("closes incidents in a single batched call on stopAndDelete", async () => {
       const a = createProvider({ owner: "a", hostUri: "https://a:8443" });
       const b = createProvider({ owner: "b", hostUri: "https://b:8443" });
-      const { manager, streamFactory, incidents } = setup({ streams: { "https://a:8443": "hang", "https://b:8443": "hang" } });
+      const { manager, incidents } = setup({ streams: { "https://a:8443": "hang", "https://b:8443": "hang" } });
+      // start() registers each stream synchronously, so stopAndDelete sees both owners without waiting
       manager.start(a);
       manager.start(b);
-      await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(2));
 
       await manager.stopAndDelete(["a", "b"]);
 
@@ -449,16 +460,25 @@ describe(StreamLifecycleManagerService.name, () => {
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
       let callCount = 0;
+      let oldStreamDelivered = false;
       streamFactory.openStatusStream.mockImplementation(() => {
         callCount++;
         if (callCount === 1) {
+          // The old stream emits an initial snapshot (so it stays open past the first-message timeout)
+          // and then idles until the test resolves it to `done` to simulate a late completion.
           return {
             [Symbol.asyncIterator]() {
-              return { next: () => oldStreamPromise };
+              return {
+                next: () => {
+                  if (oldStreamDelivered) return oldStreamPromise;
+                  oldStreamDelivered = true;
+                  return Promise.resolve<IteratorResult<ClusterState>>({ done: false, value: createCluster() });
+                }
+              };
             }
           };
         }
-        return hangingStream();
+        return msgsThenHang([createCluster()]);
       });
       const { manager } = setup({ streamFactory });
 
@@ -481,7 +501,9 @@ describe(StreamLifecycleManagerService.name, () => {
     it("aborts all active streams", async () => {
       const providerA = createProvider({ owner: "a", hostUri: "https://a:8443" });
       const providerB = createProvider({ owner: "b", hostUri: "https://b:8443" });
-      const { manager, streamFactory } = setup({ streams: { "https://a:8443": "hang", "https://b:8443": "hang" } });
+      const { manager, streamFactory } = setup({
+        streams: { "https://a:8443": msgsThenHang([createCluster()]), "https://b:8443": msgsThenHang([createCluster()]) }
+      });
       manager.start(providerA);
       manager.start(providerB);
       await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(2));
@@ -572,7 +594,9 @@ describe(StreamLifecycleManagerService.name, () => {
       });
     }
 
-    const manager = new StreamLifecycleManagerService(streamFactory, writer, incidents, dbDriver, loggerFactory, config);
+    const timer = mock<TimerService>({ delayCb: setTimeout });
+
+    const manager = new StreamLifecycleManagerService(streamFactory, writer, incidents, dbDriver, timer, loggerFactory, config);
 
     return { manager, streamFactory, writer, incidents, dbDriver, logger };
   }
