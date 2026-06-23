@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@akashnetwork/akash-api": "1.4.3",
-    "@akashnetwork/chain-sdk": "1.0.0-alpha.36",
+    "@akashnetwork/chain-sdk": "1.0.0-alpha.37",
     "@akashnetwork/console-api-types": "*",
     "@akashnetwork/database": "*",
     "@akashnetwork/env-loader": "*",
