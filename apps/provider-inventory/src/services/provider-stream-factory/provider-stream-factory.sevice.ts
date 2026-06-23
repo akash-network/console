@@ -62,6 +62,7 @@ export class ProviderStreamFactory {
   }
 
   async dispose(): Promise<void> {
+    this.#logger.debug({ event: "PROVIDER_STREAM_FACTORY_START_DISPOSE" });
     await Promise.all(Array.from(this.#sdks.values(), sdk => sdk[Symbol.asyncDispose]()));
     this.#sdks.clear();
     this.#logger.debug({ event: "PROVIDER_STREAM_FACTORY_DISPOSED" });

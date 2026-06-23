@@ -8,7 +8,7 @@ import type { DependencyContainer } from "tsyringe";
 import { container as rootContainer } from "tsyringe";
 
 import { shutdownServer } from "../shutdown-server/shutdown-server";
-import { APP_INITIALIZER, ON_APP_START } from "./app-initializer";
+import { APP_INITIALIZER, ON_APP_START, ON_APP_STOP } from "./app-initializer";
 
 /**
  * Runs registered in container `APP_INITIALIZER`s
@@ -28,9 +28,14 @@ export async function startServer(
   const container = options.container ?? rootContainer;
   const disposeContainerOnce = once(() => {
     logger.info({ event: "DISPOSING_CONTAINER" });
-    return Promise.resolve(container.dispose()).catch(error => {
-      logger.error({ event: "CONTAINER_DISPOSE_ERROR", error });
-    });
+    const initializers = container.isRegistered(APP_INITIALIZER, true) ? container.resolveAll(APP_INITIALIZER) : [];
+    return Promise.resolve(container.dispose())
+      .then(async () => {
+        await Promise.allSettled(initializers.map(initializer => initializer[ON_APP_STOP]?.()));
+      })
+      .catch(error => {
+        logger.error({ event: "CONTAINER_DISPOSE_ERROR", error });
+      });
   });
 
   let server: ServerType | undefined;

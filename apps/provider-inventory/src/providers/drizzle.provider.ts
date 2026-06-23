@@ -4,10 +4,14 @@ import type { InjectionToken } from "tsyringe";
 import { container, instancePerContainerCachingFactory } from "tsyringe";
 
 import { parseJsonb, serializeJsonb } from "@src/lib/jsonb-bigint/jsonb-bigint";
-import { DB_LOGGER, JSON_OIDS, PG_CLIENT } from "@src/providers/postgres.provider";
+import { type Database, DB_LOGGER, JSON_OIDS, PG_CLIENT } from "@src/providers/postgres.provider";
+import { APP_INITIALIZER, ON_APP_START, ON_APP_STOP } from "@src/services/start-server/app-initializer";
 import * as modelsSchema from "../model-schemas";
 
-export const DRIZZLE_DB: InjectionToken<PostgresJsDatabase> = Symbol("DRIZZLE_DB");
+export type DrizzleDb = PostgresJsDatabase & {
+  $client: Database;
+};
+export const DRIZZLE_DB: InjectionToken<DrizzleDb> = Symbol("DRIZZLE_DB");
 
 container.register(DRIZZLE_DB, {
   useFactory: instancePerContainerCachingFactory(c => {
@@ -28,5 +32,15 @@ container.register(DRIZZLE_DB, {
     }
 
     return db;
+  })
+});
+
+container.register(APP_INITIALIZER, {
+  useFactory: instancePerContainerCachingFactory(c => {
+    const db = c.resolve<DrizzleDb>(DRIZZLE_DB);
+    return {
+      [ON_APP_START]: () => {},
+      [ON_APP_STOP]: () => db.$client.end({ timeout: 5 })
+    };
   })
 });

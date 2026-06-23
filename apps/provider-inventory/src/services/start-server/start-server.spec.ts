@@ -162,7 +162,7 @@ describe("startServer", () => {
   });
 
   let startedServer: ServerType | undefined;
-  function setup(input?: { beforeStart?: () => Promise<void>; port?: number; initializers?: Array<{ [ON_APP_START]: () => Promise<void> }> }) {
+  function setup(input?: { beforeStart?: () => Promise<void>; port?: number; initializers?: AppInitializer[] }) {
     const app = mock<Hono<any>>();
     const logger = mock<LoggerService>();
     const processEvents = new EventEmitter();
