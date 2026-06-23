@@ -66,7 +66,7 @@ describe(useProviderJwt.name, () => {
         ttl: 1800, // 30 * 60
         leases: {
           access: "scoped",
-          scope: ["status", "shell", "events", "logs", "send-manifest", "get-manifest"]
+          scope: ["status", "shell", "events", "logs", "send-manifest", "get-manifest", "attestation"]
         }
       }
     });
