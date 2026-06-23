@@ -1,4 +1,5 @@
 import type { LoggerService } from "@akashnetwork/logging";
+import { getEventListeners } from "node:events";
 import { setTimeout as delay } from "node:timers/promises";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
@@ -553,6 +554,66 @@ describe(StreamLifecycleManagerService.name, () => {
       manager.start(createProvider());
 
       await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(2));
+    });
+  });
+
+  // Deterministic, GC-free leak guards. The service registers an abort listener on the caller-provided
+  // (long-lived) signal and tracks each stream in #activeStreams; both must return to baseline once a
+  // stream ends, is replaced, or is shut down — otherwise listeners/entries accumulate per provider over
+  // the process lifetime. We assert observable invariants (parent-signal listener count and registry
+  // size), never reaching into GC.
+  describe("memory safety", () => {
+    it("releases the parent-signal listener, empties the registry, and disposes the SDK once streams give up", async () => {
+      const parent = new AbortController();
+      const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.disposeProvider.mockResolvedValue();
+      streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
+      const { manager, logger } = setup({ streamFactory });
+      const giveUps = () => logger.error.mock.calls.filter(([arg]) => (arg as { event?: string })?.event === "STREAM_GAVE_UP").length;
+      const providers = [
+        createProvider({ owner: "a", hostUri: "https://a:8443" }),
+        createProvider({ owner: "b", hostUri: "https://b:8443" }),
+        createProvider({ owner: "c", hostUri: "https://c:8443" })
+      ];
+
+      for (const provider of providers) manager.start(provider, parent.signal);
+
+      await vi.waitFor(() => expect(giveUps()).toBe(providers.length), { timeout: 5000 });
+
+      expect(getEventListeners(parent.signal, "abort")).toHaveLength(0);
+      expect(manager.getRegistry().size).toBe(0);
+      for (const provider of providers) expect(streamFactory.disposeProvider).toHaveBeenCalledWith(provider.hostUri);
+    });
+
+    it("does not accumulate registry entries or parent-signal listeners across repeated restarts of one owner", async () => {
+      const parent = new AbortController();
+      const hostUris = ["https://h0:8443", "https://h1:8443", "https://h2:8443", "https://h3:8443"];
+      const { manager, streamFactory } = setup({ streams: Object.fromEntries(hostUris.map(h => [h, msgsThenHang([createCluster()])])) });
+
+      manager.start(createProvider({ owner: "a", hostUri: hostUris[0] }), parent.signal);
+      for (let i = 1; i < hostUris.length; i++) {
+        manager.restart(createProvider({ owner: "a", hostUri: hostUris[i] }), parent.signal);
+        await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(i + 1));
+      }
+
+      // one owner, many restarts -> exactly one live registry entry and one live abort listener
+      await vi.waitFor(() => expect(getEventListeners(parent.signal, "abort")).toHaveLength(1));
+      expect(manager.getRegistry().size).toBe(1);
+    });
+
+    it("removes every parent-signal listener and clears the registry on shutdown", async () => {
+      const parent = new AbortController();
+      const { manager, streamFactory } = setup({
+        streams: { "https://a:8443": msgsThenHang([createCluster()]), "https://b:8443": msgsThenHang([createCluster()]) }
+      });
+      manager.start(createProvider({ owner: "a", hostUri: "https://a:8443" }), parent.signal);
+      manager.start(createProvider({ owner: "b", hostUri: "https://b:8443" }), parent.signal);
+      await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(2));
+
+      manager.shutdown();
+
+      expect(manager.getRegistry().size).toBe(0);
+      await vi.waitFor(() => expect(getEventListeners(parent.signal, "abort")).toHaveLength(0));
     });
   });
 

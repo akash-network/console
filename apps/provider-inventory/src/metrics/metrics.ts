@@ -10,12 +10,9 @@ export const providersGauge = meter.createGauge<{ state: ProviderState }>("provi
     "Number of providers by state. total/dead are sampled per discovery tick; online/monitored is updated in real time as streams connect and disconnect"
 });
 
-export const providerInventoryStreamUpdates = meter.createCounter<{ provider: string; result: StreamMessageResult }>(
-  "provider_inventory_stream_messages_total",
-  {
-    description: "Post-throttle provider inventory stream updates by processing result"
-  }
-);
+export const providerInventoryStreamUpdates = meter.createCounter<{ result: StreamMessageResult }>("provider_inventory_stream_messages_total", {
+  description: "Post-throttle provider inventory stream updates by processing result"
+});
 
 const CANDIDATE_COUNT_BUCKETS = [0, 1, 2, 5, 10, 25, 50, 75, 100, 250, 500];
 
