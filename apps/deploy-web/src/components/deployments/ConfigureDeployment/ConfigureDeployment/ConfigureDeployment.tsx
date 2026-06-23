@@ -41,10 +41,9 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
       if (!fetchedTemplateId || !templateQuery.isError) {
         return;
       }
-      enqueueSnackbar(
-        <d.Snackbar title="Couldn't load the template" subTitle="Starting from a default deployment instead." iconVariant="error" />,
-        { variant: "error" }
-      );
+      enqueueSnackbar(<d.Snackbar title="Couldn't load the template" subTitle="Starting from a default deployment instead." iconVariant="error" />, {
+        variant: "error"
+      });
     },
     [fetchedTemplateId, templateQuery.isError, enqueueSnackbar, d]
   );

@@ -12,8 +12,8 @@ export const validationConfig = {
   maxGroupCpuCount: maxUnitCPU * maxUnitCount,
   maxGpuAmount: maxUnitGPU,
   maxGroupGpuCount: maxUnitGPU * maxUnitCount,
-  minMemory: 1024, // 1 Mi
-  minStorage: 5 * 1024, // 5 Mi
+  minMemory: 1024 ** 2, // 1 Mi
+  minStorage: 5 * 1024 ** 2, // 5 Mi
   maxMemory: maxUnitMemory,
   maxGroupMemory: maxUnitMemory * maxUnitCount,
   maxStorage: maxUnitStorage,
