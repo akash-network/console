@@ -265,7 +265,7 @@ export class StreamLifecycleManagerService {
 
     if (cached && isEqualClusterState(cached, cluster)) {
       this.#logger.debug({ event: "STREAM_MESSAGE_SKIPPED_IDENTICAL", owner: provider.owner });
-      providerInventoryStreamUpdates.add(1, { provider: provider.owner, result: "noop" });
+      providerInventoryStreamUpdates.add(1, { result: "noop" });
       return;
     }
 
@@ -273,10 +273,10 @@ export class StreamLifecycleManagerService {
       await this.#inventoryRepo.updateInventory(provider, cluster);
       this.#logger.debug({ event: "PROVIDER_INVENTORY_UPDATED", owner: provider.owner });
       this.#lastInventoryPerProvider.set(provider.owner, cluster);
-      providerInventoryStreamUpdates.add(1, { provider: provider.owner, result: "updated" });
+      providerInventoryStreamUpdates.add(1, { result: "updated" });
     } catch (error) {
       this.#logger.error({ event: "STREAM_PROVIDER_WRITE_ERROR", owner: provider.owner, error });
-      providerInventoryStreamUpdates.add(1, { provider: provider.owner, result: "error" });
+      providerInventoryStreamUpdates.add(1, { result: "error" });
     }
   }
 
