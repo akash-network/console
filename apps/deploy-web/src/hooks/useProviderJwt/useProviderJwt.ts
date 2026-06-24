@@ -73,6 +73,32 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
     return token;
   }, [isWalletConnected, userId, consoleApiHttpClient, storedWalletsService, setAccessToken]);
 
+  const generateScopedProviderToken = useCallback(
+    async ({ provider, scope }: { provider: string; scope: readonly string[] }): Promise<string> => {
+      if (!isWalletConnected) {
+        throw new Error("Cannot generate JWT: wallet is not connected");
+      }
+      if (!userId) {
+        throw new Error("Cannot generate JWT: user is not authenticated");
+      }
+
+      const response = await consoleApiHttpClient.post<{ data: { token: string } }>("/v1/create-jwt-token", {
+        data: {
+          ttl: 30 * 60,
+          leases: {
+            access: "granular",
+            permissions: [{ provider, access: "scoped", scope }]
+          }
+        }
+      });
+
+      // Intentionally not persisted to JWT_TOKEN_ATOM / managed-wallet storage: this is an ephemeral,
+      // single-provider token (e.g. for the attestation-quote endpoint), not the shared global token.
+      return response.data.data.token;
+    },
+    [isWalletConnected, userId, consoleApiHttpClient]
+  );
+
   return useMemo(
     () => ({
       get isTokenExpired() {
@@ -80,9 +106,10 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
       },
       accessToken,
       generateToken,
+      generateScopedProviderToken,
       isHydrated
     }),
-    [accessToken, generateToken, isHydrated]
+    [accessToken, generateToken, generateScopedProviderToken, isHydrated]
   );
 }
 
@@ -90,5 +117,6 @@ export interface UseProviderJwtResult {
   isTokenExpired: boolean;
   accessToken: string | null;
   generateToken: () => Promise<string>;
+  generateScopedProviderToken: (params: { provider: string; scope: readonly string[] }) => Promise<string>;
   isHydrated: boolean;
 }

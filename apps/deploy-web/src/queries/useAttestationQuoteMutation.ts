@@ -1,18 +1,22 @@
 import { useMutation } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
+import { useProviderJwt } from "@src/hooks/useProviderJwt/useProviderJwt";
 import type { ProviderIdentity } from "@src/services/provider-proxy/provider-proxy.service";
 import type { AttestationQuote } from "@src/utils/confidentialCompute";
 
 export const DEPENDENCIES = {
   useServices,
-  useProviderCredentials
+  useProviderJwt
 };
 
 /**
  * Fetches the lease's attestation evidence on demand. Modeled as a mutation rather than a query because a
  * fresh nonce is generated per request (CON-540): the evidence must be re-fetched, never served from cache.
+ *
+ * The provider attestationQuote endpoint requires the `attestation` JWT scope, which is NOT on the shared
+ * global token. We mint an ephemeral, single-provider granular token carrying only `attestation` for the
+ * target provider, since only TEE-capable providers accept that scope (non-TEE providers reject it).
  */
 export function useAttestationQuoteMutation(
   params: {
@@ -24,17 +28,18 @@ export function useAttestationQuoteMutation(
   dependencies: typeof DEPENDENCIES = DEPENDENCIES
 ) {
   const { providerProxy } = dependencies.useServices();
-  const { ensureToken } = dependencies.useProviderCredentials();
+  const { generateScopedProviderToken } = dependencies.useProviderJwt();
 
   return useMutation<AttestationQuote, Error>({
     mutationFn: () => {
-      if (!params.provider) throw new Error("Provider is not available for this lease.");
+      const provider = params.provider;
+      if (!provider) throw new Error("Provider is not available for this lease.");
       return providerProxy.fetchAttestationQuote({
-        provider: params.provider,
+        provider,
         dseq: params.dseq,
         gseq: params.gseq,
         oseq: params.oseq,
-        ensureToken
+        ensureToken: () => generateScopedProviderToken({ provider: provider.owner, scope: ["attestation"] })
       });
     }
   });
