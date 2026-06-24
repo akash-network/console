@@ -37,6 +37,7 @@ import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar/ManifestE
 import { ProviderName } from "../shared/ProviderName";
 import { ReclamationCard } from "./ReclamationCard/ReclamationCard";
 import { ConfidentialComputeResources } from "./ConfidentialComputeResources";
+import { DownloadAttestationEvidence } from "./DownloadAttestationEvidence";
 
 type Props = {
   index: number;
@@ -213,6 +214,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
             </div>
 
             <ConfidentialComputeResources carveouts={teeCarveouts} />
+            <DownloadAttestationEvidence lease={lease} provider={provider} />
             <LabelValueOld
               label="Price:"
               value={

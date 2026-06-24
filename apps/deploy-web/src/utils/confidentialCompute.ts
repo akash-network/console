@@ -1,4 +1,5 @@
 import type { DeploymentGroup } from "@src/types/deployment";
+import { toBase64 } from "@src/utils/encoding";
 
 /**
  * Confidential Compute (TEE) helpers for the deployment detail view.
@@ -185,4 +186,39 @@ export function omitAttestationSidecar<T extends LeaseStatusLike>(leaseStatus: T
 /** Human-readable label for a TEE type (bare "cpu" reads oddly as a TEE indicator). */
 export function formatTeeTypeLabel(teeType: TeeType): string {
   return teeType === "cpu-gpu" ? "CPU + GPU" : "CPU";
+}
+
+/**
+ * Attestation evidence (AEP-83 §5). The provider gateway forwards the tenant nonce to the attestation
+ * sidecar and returns the hardware-signed evidence unchanged. The exact field names are provider-controlled,
+ * so consumers should treat every field as potentially absent and never throw on a malformed payload.
+ */
+export type TeePlatform = "snp" | "tdx" | "snp-gpu" | "tdx-gpu";
+
+export interface GpuAttestationReport {
+  /** Device index of the GPU this report attests, used to disambiguate multiple GPUs. */
+  index: number;
+  /** Hardware-signed GPU attestation report, base64. */
+  report: string;
+}
+
+export interface AttestationQuote {
+  /** CPU attestation report (one per quote), base64. */
+  report: string;
+  tee_platform: TeePlatform;
+  /** Per-GPU attestation reports; absent/empty for CPU-only platforms. */
+  gpu_reports?: GpuAttestationReport[];
+}
+
+/** The attestation nonce must decode to exactly this many bytes (AEP-83 §5). */
+export const ATTESTATION_NONCE_BYTES = 64;
+
+/**
+ * Generates a fresh per-request attestation challenge: 64 cryptographically random bytes, base64-encoded.
+ * A new value on every call binds the returned evidence to that specific request (CON-540 acceptance criteria).
+ */
+export function generateAttestationNonce(): string {
+  const bytes = new Uint8Array(ATTESTATION_NONCE_BYTES);
+  crypto.getRandomValues(bytes);
+  return toBase64(bytes);
 }
