@@ -154,7 +154,19 @@ export const BidRow: React.FunctionComponent<Props> = ({
           </div>
         </div>
         {reclamationWindowLabel && (
-          <c.CustomTooltip title={<>This provider offers a reclamation window of {reclamationWindowLabel} before reclaiming the lease.</>}>
+          <c.CustomTooltip
+            title={
+              <>
+                Resource reclamation gives you a grace period before this provider can terminate your lease. If the provider initiates reclamation, your
+                workload keeps running (and being paid for) for {reclamationWindowLabel}, giving you time to migrate to another provider.
+                <br />
+                <br />
+                <a href="https://akash.network/docs/developers/deployment/akash-sdl/advanced-features/#resource-reclamation" target="_blank" rel="noopener">
+                  Learn more
+                </a>
+              </>
+            }
+          >
             <c.Badge variant="secondary" className="mt-1 inline-flex items-center gap-1 px-1.5 py-0 text-xs font-normal">
               <c.ShieldCheck className="text-xs" />
               <span>Reclamation: {reclamationWindowLabel}</span>
