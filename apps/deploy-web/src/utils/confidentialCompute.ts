@@ -156,24 +156,28 @@ interface LeaseStatusLike {
 export function omitAttestationSidecar<T extends LeaseStatusLike>(leaseStatus: T): T {
   if (!leaseStatus) return leaseStatus;
 
-  // Detect by key presence (not truthiness) so a sidecar entry with a falsy value is still stripped,
-  // staying consistent with the `omit` helper below.
-  const hasSidecar = (record: Record<string, unknown> | null | undefined): boolean => !!record && ATTESTATION_SIDECAR_SERVICE_NAME in record;
-  const present = hasSidecar(leaseStatus.services) || hasSidecar(leaseStatus.forwarded_ports) || hasSidecar(leaseStatus.ips);
-
-  if (!present) return leaseStatus;
-
+  // Strip by key presence (not truthiness) so a sidecar entry with a falsy value is still removed.
+  // Returns the same record reference when the key is absent, which lets an untouched status pass
+  // through unchanged below (referentially stable for React Query consumers).
   const omit = <V>(record: Record<string, V> | null | undefined): Record<string, V> | null | undefined => {
     if (!record || !(ATTESTATION_SIDECAR_SERVICE_NAME in record)) return record;
     const { [ATTESTATION_SIDECAR_SERVICE_NAME]: _omitted, ...rest } = record;
     return rest;
   };
 
+  const services = omit(leaseStatus.services);
+  const forwardedPorts = omit(leaseStatus.forwarded_ports);
+  const ips = omit(leaseStatus.ips);
+
+  if (services === leaseStatus.services && forwardedPorts === leaseStatus.forwarded_ports && ips === leaseStatus.ips) {
+    return leaseStatus;
+  }
+
   return {
     ...leaseStatus,
-    services: omit(leaseStatus.services) as T["services"],
-    forwarded_ports: omit(leaseStatus.forwarded_ports),
-    ips: omit(leaseStatus.ips)
+    services: services as T["services"],
+    forwarded_ports: forwardedPorts,
+    ips
   };
 }
 
