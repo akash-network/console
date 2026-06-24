@@ -14,7 +14,7 @@
     "test:unit": "NODE_ENV=test vitest run"
   },
   "dependencies": {
-    "@akashnetwork/chain-sdk": "1.0.0-alpha.37",
+    "@akashnetwork/chain-sdk": "1.0.0-alpha.38",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/logging": "*",
     "@akashnetwork/network-store": "*",
