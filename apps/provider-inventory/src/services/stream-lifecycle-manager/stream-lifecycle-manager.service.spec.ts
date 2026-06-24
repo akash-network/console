@@ -461,6 +461,26 @@ describe(StreamLifecycleManagerService.name, () => {
 
       await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(1), { timeout: 5000 });
     });
+
+    it("graduates a recovered potentially-dead provider to the full retry budget once it has come online", async () => {
+      let attempt = 0;
+      const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.disposeProvider.mockResolvedValue();
+      streamFactory.openStatusStream.mockImplementation(() => {
+        attempt++;
+        // First attempt comes online (delivers inventory) and then drops; every later attempt fails.
+        if (attempt === 1) return msgsThenThrow([createCluster()], new Error("dropped after coming online"));
+        return throwingStream(new Error("still down"));
+      });
+      const { manager, logger } = setup({ streamFactory });
+
+      manager.start(createProvider({ offlineSince: new Date(Date.now() - 10_000) }));
+
+      await vi.waitFor(() => expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_GAVE_UP" })), { timeout: 5000 });
+      // Having come online once, it is no longer treated as potentially dead: it gets the full
+      // budget (5 attempts) instead of being dropped after the reduced budget (2 attempts).
+      expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(5);
+    });
   });
 
   describe("stale finalizer", () => {

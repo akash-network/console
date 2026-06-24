@@ -1,7 +1,7 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import { Sema } from "async-sema";
 import type { RetryPolicy } from "cockatiel";
-import { ExponentialBackoff, handleAll, retry } from "cockatiel";
+import { ExponentialBackoff, handleWhen, retry } from "cockatiel";
 import Dataloader from "dataloader";
 import once from "lodash/once";
 import { inject, singleton } from "tsyringe";
@@ -38,8 +38,7 @@ export class StreamLifecycleManagerService {
   readonly #lastInventoryPerProvider = new Map<string, ClusterState>();
   readonly #onlineStatePerProvider = new Map<string, boolean>();
   #onlineProvidersCount = 0;
-  readonly #healthyProviderRetryStreamPolicy: RetryPolicy;
-  readonly #potentiallyDeadProviderRetryStreamPolicy: RetryPolicy;
+  readonly #retryPolicy: RetryPolicy;
   readonly #offlineDataloader: Dataloader<{ owner: string; requestedAt: Date }, boolean>;
   readonly #startStreamSemaphore: Sema;
   readonly #pendingFirstAttempts = new Set<Promise<void>>();
@@ -63,20 +62,16 @@ export class StreamLifecycleManagerService {
     this.#timer = timer;
     this.#config = config;
     this.#logger = loggerFactory({ context: "StreamLifecycleManager" });
-    this.#healthyProviderRetryStreamPolicy = retry(handleAll, {
-      maxAttempts: 4,
-      backoff: new ExponentialBackoff({
-        initialDelay: this.#config.STREAM_RECONNECT_INITIAL_DELAY_MS,
-        maxDelay: this.#config.STREAM_RECONNECT_MAX_DELAY_MS
-      })
-    }).dangerouslyUnref();
-    this.#potentiallyDeadProviderRetryStreamPolicy = retry(handleAll, {
-      maxAttempts: 1,
-      backoff: new ExponentialBackoff({
-        initialDelay: this.#config.STREAM_RECONNECT_INITIAL_DELAY_MS,
-        maxDelay: this.#config.STREAM_RECONNECT_MAX_DELAY_MS
-      })
-    }).dangerouslyUnref();
+    this.#retryPolicy = retry(
+      handleWhen(error => !(error instanceof OfflineProviderError)),
+      {
+        maxAttempts: 4,
+        backoff: new ExponentialBackoff({
+          initialDelay: this.#config.STREAM_RECONNECT_INITIAL_DELAY_MS,
+          maxDelay: this.#config.STREAM_RECONNECT_MAX_DELAY_MS
+        })
+      }
+    ).dangerouslyUnref();
     this.#offlineDataloader = new Dataloader(
       async keys => {
         if (this.#isShutDown) return Array.from(keys, () => false);
@@ -120,16 +115,10 @@ export class StreamLifecycleManagerService {
   }
 
   async restart(provider: ChainProviderWithOfflineSince, signal?: AbortSignal): Promise<void> {
-    const previousHostUri = this.#activeStreams.get(provider.owner)?.hostUri;
-    this.#abortIfActive(provider.owner, "STREAM_STOPPED_HOSTURI_CHANGE");
-    await Promise.all([
-      previousHostUri && previousHostUri !== provider.hostUri
-        ? this.#streamFactory.disposeProvider(previousHostUri).catch(error => {
-            this.#logger.error({ event: "DISPOSE_STREAM_ERROR", owner: provider.owner, hostUri: previousHostUri, error });
-          })
-        : undefined,
-      this.start(provider, signal)
-    ]);
+    // order of actions is important here and must be parallelized to update activeStreams:
+    // 1. abort existing stream if any
+    // 2. start new stream
+    await Promise.all([this.#abortIfActive(provider.owner, "STREAM_STOPPED_HOSTURI_CHANGE"), this.start(provider, signal)]);
   }
 
   async waitForPendingConnections(): Promise<void> {
@@ -137,31 +126,46 @@ export class StreamLifecycleManagerService {
   }
 
   async stopAndDelete(owners: string[]): Promise<void> {
-    const promises: Promise<void>[] = [];
-    for (const owner of owners) {
-      promises.push(this.#streamFactory.disposeProvider(this.#activeStreams.get(owner)?.hostUri ?? ""));
-      this.#abortIfActive(owner, "STREAM_STOPPED_PROVIDER_GONE");
-    }
-
-    await Promise.all([Promise.all(promises), this.#inventoryRepo.deleteByOwner(owners), this.#incidentsRepo.closeIncident(owners)]);
+    const promises = owners.map(owner => this.#abortIfActive(owner, "STREAM_STOPPED_PROVIDER_GONE"));
+    await Promise.all([
+      // keep new lines
+      Promise.all(promises),
+      this.#inventoryRepo.deleteByOwner(owners),
+      this.#incidentsRepo.closeIncident(owners)
+    ]);
     this.#logger.info({ event: "PROVIDER_INVENTORY_DELETED", owners });
   }
 
-  #abortIfActive(owner: string, event: string): void {
+  async #abortIfActive(owner: string, event: string): Promise<void> {
     const existing = this.#activeStreams.get(owner);
     if (!existing) return;
     existing.controller.abort();
     this.#activeStreams.delete(owner);
     this.#recordMonitoredCount();
     this.#logger.info({ event, owner });
+
+    try {
+      await this.#streamFactory.disposeProvider(existing.hostUri);
+    } catch (error) {
+      this.#logger.error({ event: "DISPOSE_STREAM_ERROR", owner, hostUri: existing.hostUri, error });
+    }
   }
 
   async #runStream(provider: ChainProviderWithOfflineSince, signal: AbortSignal, onFirstAttemptSettled: () => void): Promise<void> {
-    const onSettleAttempt = once(onFirstAttemptSettled);
+    let wasProviderOnline = false;
+    const onFirstAttempSettledOnce = once(onFirstAttemptSettled);
+    const onSettleAttempt = (isSuccess: boolean) => {
+      wasProviderOnline ||= isSuccess;
+      onFirstAttempSettledOnce();
+    };
+    const activeStream = this.#activeStreams.get(provider.owner);
     try {
-      const retryPolicy = provider.offlineSince ? this.#potentiallyDeadProviderRetryStreamPolicy : this.#healthyProviderRetryStreamPolicy;
-      await retryPolicy.execute(ctx => {
+      await this.#retryPolicy.execute(ctx => {
         if (signal.aborted) return;
+        const isStillOffline = provider.offlineSince && ctx.attempt > 1 && !wasProviderOnline;
+        if (isStillOffline) {
+          throw new OfflineProviderError(`Provider ${provider.owner} is still offline after ${ctx.attempt + 1} attempts`);
+        }
         if (ctx.attempt > 0) {
           this.#logger.warn({
             event: "STREAM_RECONNECTING",
@@ -181,21 +185,16 @@ export class StreamLifecycleManagerService {
         }
       }
     } finally {
-      onSettleAttempt();
-      this.#lastInventoryPerProvider.delete(provider.owner);
-      this.#forgetProviderState(provider.owner);
-      const activeStream = this.#activeStreams.get(provider.owner);
-      if (activeStream?.controller.signal === signal) {
-        this.#streamFactory.disposeProvider(activeStream.hostUri).catch(error => {
-          this.#logger.error({ event: "DISPOSE_STREAM_ERROR", owner: provider.owner, hostUri: activeStream.hostUri, error });
-        });
-        this.#activeStreams.delete(provider.owner);
-        this.#recordMonitoredCount();
+      onSettleAttempt(false);
+      if (activeStream === this.#activeStreams.get(provider.owner)) {
+        // dispose stream only if it was not disposed beforec
+        this.#forgetProviderState(provider.owner);
+        await this.#abortIfActive(provider.owner, "STREAM_STOPPED_PROVIDER_GAVE_UP");
       }
     }
   }
 
-  async #runAttempt(provider: ChainProviderWithOfflineSince, outerSignal: AbortSignal, onAttemptSettled: () => void): Promise<void> {
+  async #runAttempt(provider: ChainProviderWithOfflineSince, outerSignal: AbortSignal, onAttemptSettled: (result: boolean) => void): Promise<void> {
     if (outerSignal.aborted) return;
 
     this.#lastInventoryPerProvider.delete(provider.owner);
@@ -213,8 +212,8 @@ export class StreamLifecycleManagerService {
         attemptController.abort(new Error("first message not received within timeout"));
       }, this.#config.STREAM_FIRST_MESSAGE_TIMEOUT_MS)
       .unref();
-    const releasePermit = once(() => {
-      onAttemptSettled();
+    const releasePermit = once((value: boolean) => {
+      onAttemptSettled(value);
       this.#startStreamSemaphore.release();
       clearTimeout(firstMessageTimeoutId);
     });
@@ -226,7 +225,7 @@ export class StreamLifecycleManagerService {
       for await (const message of throttled) {
         this.#logger.debug({ event: "STREAM_MESSAGE_RECEIVED", owner: provider.owner });
         if (attemptController.signal.aborted) return;
-        releasePermit();
+        releasePermit(true);
         await this.#updateProviderInventory(provider, message);
       }
 
@@ -240,7 +239,7 @@ export class StreamLifecycleManagerService {
       await this.#tryMarkOffline(provider.owner);
       throw error;
     } finally {
-      releasePermit();
+      releasePermit(false);
       outerSignal.removeEventListener("abort", forwardAbort);
     }
   }
@@ -319,6 +318,7 @@ export class StreamLifecycleManagerService {
       providersGauge.record(this.#onlineProvidersCount, { state: "online" });
     }
     this.#onlineStatePerProvider.delete(owner);
+    this.#lastInventoryPerProvider.delete(owner);
   }
 
   /**
@@ -346,4 +346,8 @@ export class StreamLifecycleManagerService {
   dispose(): void {
     this.shutdown();
   }
+}
+
+class OfflineProviderError extends Error {
+  name = "OfflineProviderError";
 }
