@@ -7,7 +7,7 @@ import saveFileInBrowser from "file-saver";
 import { useAttestationQuoteMutation } from "@src/queries/useAttestationQuoteMutation";
 import type { ProviderIdentity } from "@src/services/provider-proxy/provider-proxy.service";
 import type { LeaseDto } from "@src/types/deployment";
-import type { AttestationQuote } from "@src/utils/confidentialCompute";
+import type { AttestationEvidence } from "@src/utils/confidentialCompute";
 
 export const DEPENDENCIES = {
   useAttestationQuoteMutation,
@@ -34,12 +34,13 @@ function ReportBlock({ label, report }: { label: string; report: string }) {
   );
 }
 
-function buildBundle(lease: Pick<LeaseDto, "dseq" | "gseq" | "oseq">, quote: AttestationQuote) {
+function buildBundle(lease: Pick<LeaseDto, "dseq" | "gseq" | "oseq">, evidence: AttestationEvidence) {
   return {
     lease: { dseq: lease.dseq, gseq: lease.gseq, oseq: lease.oseq },
-    tee_platform: quote.tee_platform,
-    report: quote.report,
-    gpu_reports: quote.gpu_reports ?? []
+    nonce: evidence.nonce,
+    tee_platform: evidence.quote.tee_platform,
+    report: evidence.quote.report,
+    gpu_reports: evidence.quote.gpu_reports ?? []
   };
 }
 
@@ -61,7 +62,8 @@ export function AttestationEvidenceModal({ provider, lease, onClose, dependencie
     d.saveFile(new Blob([JSON.stringify(buildBundle(lease, data), null, 2)], { type: "application/json" }), filename);
   };
 
-  const gpuReports = data?.gpu_reports ?? [];
+  const quote = data?.quote;
+  const gpuReports = quote?.gpu_reports ?? [];
 
   return (
     <Popup
@@ -106,14 +108,14 @@ export function AttestationEvidenceModal({ provider, lease, onClose, dependencie
         </Alert>
       )}
 
-      {!isPending && data && (
+      {!isPending && quote && (
         <div className="mt-3 space-y-3">
           <div className="flex items-center justify-between gap-4 text-sm">
             <span className="text-muted-foreground">Platform</span>
-            <span className="font-medium uppercase">{data.tee_platform}</span>
+            <span className="font-medium uppercase">{quote.tee_platform}</span>
           </div>
 
-          <ReportBlock label="CPU report" report={data.report} />
+          <ReportBlock label="CPU report" report={quote.report} />
 
           {gpuReports.length > 0 && (
             <div className="space-y-2">

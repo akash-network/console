@@ -3,7 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useServices } from "@src/context/ServicesProvider";
 import { useProviderJwt } from "@src/hooks/useProviderJwt/useProviderJwt";
 import type { ProviderIdentity } from "@src/services/provider-proxy/provider-proxy.service";
-import type { AttestationQuote } from "@src/utils/confidentialCompute";
+import type { AttestationEvidence } from "@src/utils/confidentialCompute";
 
 export const DEPENDENCIES = {
   useServices,
@@ -30,7 +30,7 @@ export function useAttestationQuoteMutation(
   const { providerProxy } = dependencies.useServices();
   const { generateScopedProviderToken } = dependencies.useProviderJwt();
 
-  return useMutation<AttestationQuote, Error>({
+  return useMutation<AttestationEvidence, Error>({
     mutationFn: () => {
       const provider = params.provider;
       if (!provider) throw new Error("Provider is not available for this lease.");

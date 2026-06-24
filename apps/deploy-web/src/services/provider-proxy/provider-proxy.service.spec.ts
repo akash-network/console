@@ -1140,8 +1140,7 @@ describe(ProviderProxyService.name, () => {
         ensureToken: () => Promise.resolve("jwt-token")
       });
 
-      expect(result).toEqual(quote);
-      const [, payload] = (httpClient.post as Mock).mock.calls[0];
+      const [, payload, requestConfig] = (httpClient.post as Mock).mock.calls[0];
       expect(payload.method).toBe("POST");
       expect(payload.url).toBe("https://provider.test/lease/123/1/2/attestation/quote");
       expect(payload.auth).toEqual({ type: "jwt", token: "jwt-token" });
@@ -1149,6 +1148,10 @@ describe(ProviderProxyService.name, () => {
       const body = JSON.parse(payload.body);
       expect(body.bind_tls).toBe(false);
       expect(fromBase64(body.nonce)).toHaveLength(64);
+
+      expect(result.quote).toEqual(quote);
+      expect(result.nonce).toBe(body.nonce);
+      expect(requestConfig.timeout).toBe(60_000);
     });
   });
 

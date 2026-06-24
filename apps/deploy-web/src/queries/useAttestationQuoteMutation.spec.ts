@@ -9,14 +9,13 @@ import { DEPENDENCIES, useAttestationQuoteMutation } from "./useAttestationQuote
 import { setupQuery } from "@tests/unit/query-client";
 
 describe(useAttestationQuoteMutation.name, () => {
-  it("fetches the attestation quote for the lease and exposes the data", async () => {
-    const quote: AttestationQuote = { report: "cpu-report", tee_platform: "snp" };
-    const { result, providerProxy } = setup({ quote });
+  it("fetches the attestation evidence for the lease and exposes the data", async () => {
+    const { result, providerProxy, evidence } = setup({ nonce: "nonce-base64", quote: { report: "cpu-report", tee_platform: "snp" } });
 
     result.current.mutate();
 
     await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual(quote);
+    expect(result.current.data).toEqual(evidence);
     expect(providerProxy.fetchAttestationQuote).toHaveBeenCalledWith(
       expect.objectContaining({ provider: { owner: "akash1provider", hostUri: "https://provider.test" }, dseq: "123", gseq: 1, oseq: 2 })
     );
@@ -42,9 +41,10 @@ describe(useAttestationQuoteMutation.name, () => {
     expect(result.current.error?.message).toBe("provider unreachable");
   });
 
-  function setup(input: { quote?: AttestationQuote; rejection?: Error }) {
+  function setup(input: { quote?: AttestationQuote; nonce?: string; rejection?: Error }) {
+    const evidence = input.quote ? { nonce: input.nonce ?? "nonce-base64", quote: input.quote } : undefined;
     const providerProxy = mock<ProviderProxyService>({
-      fetchAttestationQuote: vi.fn(input.rejection ? () => Promise.reject(input.rejection) : () => Promise.resolve(input.quote!))
+      fetchAttestationQuote: vi.fn(input.rejection ? () => Promise.reject(input.rejection) : () => Promise.resolve(evidence!))
     });
     const generateScopedProviderToken = vi.fn().mockResolvedValue("attestation-jwt");
     const useProviderJwtMock: typeof useProviderJwt = () => mock<ReturnType<typeof useProviderJwt>>({ generateScopedProviderToken });
@@ -58,6 +58,6 @@ describe(useAttestationQuoteMutation.name, () => {
       { services: { providerProxy: () => providerProxy } }
     );
 
-    return { result, providerProxy, generateScopedProviderToken };
+    return { result, providerProxy, generateScopedProviderToken, evidence };
   }
 });

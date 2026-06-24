@@ -210,6 +210,16 @@ export interface AttestationQuote {
   gpu_reports?: GpuAttestationReport[];
 }
 
+/**
+ * The attestation evidence as fetched for a single request: the per-request {@link nonce} that was sent as the
+ * freshness challenge plus the hardware-signed {@link quote} it produced. The nonce must travel with the quote so a
+ * verifier can confirm the evidence is bound to this specific request (AEP-83 §5).
+ */
+export interface AttestationEvidence {
+  nonce: string;
+  quote: AttestationQuote;
+}
+
 /** The attestation nonce must decode to exactly this many bytes (AEP-83 §5). */
 export const ATTESTATION_NONCE_BYTES = 64;
 

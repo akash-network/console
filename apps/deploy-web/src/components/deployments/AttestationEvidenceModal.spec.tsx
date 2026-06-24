@@ -1,3 +1,4 @@
+import type { Mock } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 
 import type { AttestationQuote } from "@src/utils/confidentialCompute";
@@ -14,14 +15,14 @@ describe(AttestationEvidenceModal.name, () => {
   });
 
   it("renders the platform and CPU report on success", () => {
-    setup({ data: { report: "cpu-report-base64", tee_platform: "snp" } });
+    setup({ quote: { report: "cpu-report-base64", tee_platform: "snp" } });
     expect(screen.getByText("snp")).toBeInTheDocument();
     expect(screen.getByText("cpu-report-base64")).toBeInTheDocument();
   });
 
   it("lists one report per GPU for a cpu-gpu platform", () => {
     setup({
-      data: {
+      quote: {
         report: "cpu-report",
         tee_platform: "snp-gpu",
         gpu_reports: [
@@ -36,16 +37,18 @@ describe(AttestationEvidenceModal.name, () => {
   });
 
   it("does not render a GPU section for a CPU-only platform", () => {
-    setup({ data: { report: "cpu-report", tee_platform: "snp" } });
+    setup({ quote: { report: "cpu-report", tee_platform: "snp" } });
     expect(screen.queryByText(/GPU reports/)).not.toBeInTheDocument();
   });
 
-  it("downloads the full bundle as JSON when the download action is clicked", async () => {
-    const { saveFile } = setup({ data: { report: "cpu-report", tee_platform: "snp" } });
+  it("downloads the full bundle including the nonce as JSON when the download action is clicked", async () => {
+    const { saveFile } = setup({ nonce: "nonce-base64", quote: { report: "cpu-report", tee_platform: "snp" } });
 
     await userEvent.click(screen.getByRole("button", { name: "Download JSON" }));
 
     expect(saveFile).toHaveBeenCalledWith(expect.any(Blob), "attestation-123-1-2.json");
+    const [blob] = (saveFile as Mock).mock.calls[0];
+    expect(JSON.parse(await blob.text())).toMatchObject({ nonce: "nonce-base64", report: "cpu-report", tee_platform: "snp" });
   });
 
   it("shows an error and offers a retry when the fetch fails", () => {
@@ -54,12 +57,12 @@ describe(AttestationEvidenceModal.name, () => {
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 
-  function setup(input: { data?: AttestationQuote; error?: Error }) {
+  function setup(input: { nonce?: string; quote?: AttestationQuote; error?: Error }) {
     const mutate = vi.fn();
     const saveFile = vi.fn();
+    const data = input.quote ? { nonce: input.nonce ?? "nonce-base64", quote: input.quote } : undefined;
     const useAttestationQuoteMutation = vi.fn(
-      () =>
-        ({ mutate, data: input.data, error: input.error ?? null, isPending: false }) as unknown as ReturnType<typeof DEPENDENCIES.useAttestationQuoteMutation>
+      () => ({ mutate, data, error: input.error ?? null, isPending: false }) as unknown as ReturnType<typeof DEPENDENCIES.useAttestationQuoteMutation>
     );
 
     render(
