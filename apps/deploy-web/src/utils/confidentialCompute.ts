@@ -41,9 +41,10 @@ function isTeeType(value: unknown): value is TeeType {
 /** Parses an on-chain integer-valued string (millicores, bytes, gpu units). Returns undefined on garbage. */
 function parseIntegerVal(value: unknown): number | undefined {
   if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
-  if (typeof value !== "string") return undefined;
-  const parsed = parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : undefined;
+  // Require an exact integer string: parseInt accepts prefixes ("500Mi" -> 500), which would treat
+  // a malformed on-chain value as a valid count instead of skipping it.
+  if (typeof value !== "string" || !/^-?\d+$/.test(value)) return undefined;
+  return parseInt(value, 10);
 }
 
 /** Returns the TEE type declared on a group's on-chain placement requirements, or undefined when none/unknown. */

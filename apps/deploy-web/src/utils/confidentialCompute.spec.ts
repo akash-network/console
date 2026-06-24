@@ -219,6 +219,23 @@ describe(getTeeResourceCarveouts.name, () => {
     expect(getTeeResourceCarveouts(group).map(c => c.id)).toEqual(["2"]);
   });
 
+  it("skips resource units whose on-chain cpu is a suffixed (non-integer) string", () => {
+    const group = buildGroup({
+      group_spec: {
+        requirements: { attributes: [{ key: "tee/type", value: "cpu" }] },
+        resources: [
+          {
+            ...buildResourceUnit({ id: 1, cpuMillicores: 500, memoryBytes: 256 * MIB }),
+            resource: { ...buildResourceUnit({ id: 1, cpuMillicores: 500, memoryBytes: 256 * MIB }).resource, cpu: { units: { val: "500Mi" }, attributes: [] } }
+          },
+          buildResourceUnit({ id: 2, cpuMillicores: 1000, memoryBytes: GIB })
+        ]
+      }
+    });
+
+    expect(getTeeResourceCarveouts(group).map(c => c.id)).toEqual(["2"]);
+  });
+
   it("returns an empty array for a nullish group", () => {
     expect(getTeeResourceCarveouts(undefined)).toEqual([]);
     expect(getTeeResourceCarveouts(null)).toEqual([]);
