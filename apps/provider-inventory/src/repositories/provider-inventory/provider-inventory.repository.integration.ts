@@ -138,6 +138,43 @@ describe(ProviderInventoryRepository.name, () => {
       const rows = await db.select().from(providerInventory);
       expect(rows).toEqual([]);
     });
+
+    it("returns the owners of inserted and changed providers", async () => {
+      const { repository, db } = setup();
+      await seed(db, { owner: "akash1changed", hostUri: "https://old:8443" });
+
+      const result = await repository.bulkUpsertProviders([
+        createProvider({ owner: "akash1new", hostUri: "https://new:8443" }),
+        createProvider({ owner: "akash1changed", hostUri: "https://updated:8443" })
+      ]);
+
+      expect(new Set(result.map(r => r.owner))).toEqual(new Set(["akash1new", "akash1changed"]));
+    });
+
+    it("does not return owners whose values are unchanged", async () => {
+      // DiscoveryScheduler's dead-provider detection treats an owner absent from the returned set as
+      // "not updated this tick", so unchanged rows must be omitted from RETURNING.
+      const { repository, db } = setup();
+      await seed(db, {
+        owner: "akash1same",
+        hostUri: "https://h:8443",
+        selfAttributes: [{ key: "region", value: "us-east" }],
+        signedAttributes: [{ key: "tier", value: "gold", auditor: "aud-1" }],
+        auditedBy: ["aud-1"]
+      });
+
+      const result = await repository.bulkUpsertProviders([
+        createProvider({
+          owner: "akash1same",
+          hostUri: "https://h:8443",
+          selfAttributes: [{ key: "region", value: "us-east" }],
+          signedAttributes: [{ key: "tier", value: "gold", auditor: "aud-1" }],
+          auditedBy: ["aud-1"]
+        })
+      ]);
+
+      expect(result).toEqual([]);
+    });
   });
 
   describe("streamOnlineProviders", () => {
