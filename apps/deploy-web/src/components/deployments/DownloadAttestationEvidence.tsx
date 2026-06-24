@@ -23,14 +23,14 @@ type Props = {
 
 /**
  * Surfaces the attestation-evidence download for a running Confidential Compute lease. Renders nothing
- * unless the feature flag is on, the lease is live, and the lease's on-chain group declares a TEE type —
- * so the option never appears for non-Confidential-Compute deployments (CON-540).
+ * unless the feature flag is on, the lease is live, a provider is resolved, and the lease's on-chain group
+ * declares a TEE type — so the option never appears for non-Confidential-Compute deployments (CON-540).
  */
 export function DownloadAttestationEvidence({ lease, provider, dependencies: d = DEPENDENCIES }: Props) {
   const isEnabled = d.useFlag("ui_confidential_compute");
   const [isOpen, setIsOpen] = useState(false);
 
-  if (!isEnabled || !isLeaseLive(lease) || !getGroupTeeType(lease.group)) return null;
+  if (!isEnabled || !isLeaseLive(lease) || !provider || !getGroupTeeType(lease.group)) return null;
 
   return (
     <>

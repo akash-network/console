@@ -190,8 +190,8 @@ export function formatTeeTypeLabel(teeType: TeeType): string {
 
 /**
  * Attestation evidence (AEP-83 §5). The provider gateway forwards the tenant nonce to the attestation
- * sidecar and returns the hardware-signed evidence unchanged. The exact field names are provider-controlled,
- * so consumers should treat every field as potentially absent and never throw on a malformed payload.
+ * sidecar and returns the hardware-signed evidence unchanged: a CPU report and platform for every quote,
+ * plus one report per GPU on GPU-backed platforms.
  */
 export type TeePlatform = "snp" | "tdx" | "snp-gpu" | "tdx-gpu";
 

@@ -1,4 +1,5 @@
 "use client";
+import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { Alert, Popup, Spinner } from "@akashnetwork/ui/components";
 import saveFileInBrowser from "file-saver";
@@ -20,10 +21,14 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
+function ReportLabel({ children }: { children: ReactNode }) {
+  return <p className="text-xs font-medium text-muted-foreground">{children}</p>;
+}
+
 function ReportBlock({ label, report }: { label: string; report: string }) {
   return (
     <div className="space-y-1">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <ReportLabel>{label}</ReportLabel>
       <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-all rounded-md border bg-muted/40 p-2 font-mono text-xs">{report}</pre>
     </div>
   );
@@ -112,7 +117,7 @@ export function AttestationEvidenceModal({ provider, lease, onClose, dependencie
 
           {gpuReports.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">GPU reports ({gpuReports.length})</p>
+              <ReportLabel>GPU reports ({gpuReports.length})</ReportLabel>
               {gpuReports.map(gpu => (
                 <ReportBlock key={gpu.index} label={`GPU ${gpu.index}`} report={gpu.report} />
               ))}
