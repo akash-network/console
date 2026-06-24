@@ -15,6 +15,7 @@ import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
+import type { LeaseBidPriceGuardService } from "@src/billing/services/lease-bid-price-guard/lease-bid-price-guard.service";
 import type { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import type { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
@@ -395,6 +396,29 @@ describe(ManagedSignerService.name, () => {
 
       expect(anonymousValidateService.validateLeaseProvidersAuditors).toHaveBeenCalledWith(messages, wallet);
     });
+
+    it("rejects an overpriced lease before broadcasting", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100 });
+      const user = createUser({ userId: "user-123" });
+      const messages: EncodeObject[] = [
+        {
+          typeUrl: MsgCreateLease.$type,
+          value: MsgCreateLease.fromPartial({ bidId: { dseq: 123, provider: "akash1provider" } })
+        }
+      ];
+      const signAndBroadcastWithDerivedWallet = jest.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" });
+
+      const { service } = setup({
+        findOneByUserId: jest.fn().mockResolvedValue(wallet),
+        findById: jest.fn().mockResolvedValue(user),
+        validateLeaseProvidersAuditors: jest.fn().mockResolvedValue(undefined),
+        validateLeaseBidPrices: jest.fn().mockRejectedValue(Object.assign(new Error("Bid price too high"), { status: 403 })),
+        signAndBroadcastWithDerivedWallet
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", messages)).rejects.toMatchObject({ status: 403 });
+      expect(signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+    });
   });
 
   describe("executeDerivedEncodedTxByUserId", () => {
@@ -572,6 +596,7 @@ describe(ManagedSignerService.name, () => {
     enabledFeatures?: FeatureFlagValue[];
     validateLeaseProviders?: TrialValidationService["validateLeaseProviders"];
     validateLeaseProvidersAuditors?: TrialValidationService["validateLeaseProvidersAuditors"];
+    validateLeaseBidPrices?: LeaseBidPriceGuardService["validateLeaseBidPrices"];
     signAndBroadcastWithDerivedWallet?: TxManagerService["signAndBroadcastWithDerivedWallet"];
     signAndBroadcastWithFundingWallet?: TxManagerService["signAndBroadcastWithFundingWallet"];
     refreshUserWalletLimits?: BalancesService["refreshUserWalletLimits"];
@@ -604,6 +629,9 @@ describe(ManagedSignerService.name, () => {
       }),
       anonymousValidateService: mock<TrialValidationService>({
         validateLeaseProvidersAuditors: input?.validateLeaseProvidersAuditors ?? jest.fn()
+      }),
+      leaseBidPriceGuardService: mock<LeaseBidPriceGuardService>({
+        validateLeaseBidPrices: input?.validateLeaseBidPrices ?? jest.fn()
       }),
       txManagerService: mock<TxManagerService>({
         signAndBroadcastWithDerivedWallet: input?.signAndBroadcastWithDerivedWallet ?? jest.fn(),
@@ -646,6 +674,7 @@ describe(ManagedSignerService.name, () => {
       mocks.authService,
       mocks.chainErrorService,
       mocks.anonymousValidateService,
+      mocks.leaseBidPriceGuardService,
       mocks.txManagerService,
       mocks.domainEvents,
       mocks.leaseHttpService,

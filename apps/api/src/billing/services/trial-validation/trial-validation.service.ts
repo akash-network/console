@@ -1,11 +1,11 @@
 import { GroupSpec, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
-import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { BidHttpService } from "@akashnetwork/http-sdk";
 import { Trace } from "@akashnetwork/instrumentation";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
+import { getLeaseBidIds, resolveLeaseBids } from "@src/billing/lib/lease-messages/lease-messages";
 import type { UserWalletOutput } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { AUDITOR, TRIAL_ATTRIBUTE, TRIAL_REGISTERED_ATTRIBUTE } from "@src/deployment/config/provider.config";
@@ -52,7 +52,7 @@ export class TrialValidationService {
       return;
     }
 
-    const bidIds = this.getLeaseBidIds(messages);
+    const bidIds = getLeaseBidIds(messages);
     if (bidIds.length === 0) return;
 
     const uniqueProviderAddresses = Array.from(new Set(bidIds.map(id => id.provider)));
@@ -105,42 +105,14 @@ export class TrialValidationService {
     if (!userWallet.isTrialing) return;
     if (!this.blockedGpuService.hasBlockedModels()) return;
 
-    const leaseBidIds = this.getLeaseBidIds(messages);
-    if (leaseBidIds.length === 0) return;
+    const resolvedBids = await resolveLeaseBids(messages, userWallet.address!, this.bidHttpService);
 
-    const uniqueDseqs = Array.from(new Set(leaseBidIds.map(id => id.dseq.toString())));
-    const owner = userWallet.address!;
-
-    const bidsByDseq = new Map<string, Awaited<ReturnType<BidHttpService["list"]>>>();
-    await Promise.all(
-      uniqueDseqs.map(async dseq => {
-        bidsByDseq.set(dseq, await this.bidHttpService.list(owner, dseq));
-      })
-    );
-
-    for (const bidId of leaseBidIds) {
-      const bids = bidsByDseq.get(bidId.dseq.toString()) ?? [];
-      const bid = bids.find(
-        b => b.bid.id.gseq === bidId.gseq && b.bid.id.oseq === bidId.oseq && b.bid.id.provider === bidId.provider && b.bid.id.bseq === bidId.bseq
-      );
-      assert(
-        bid,
-        403,
-        `Referenced lease bid not found: dseq=${bidId.dseq}, gseq=${bidId.gseq}, oseq=${bidId.oseq}, provider=${bidId.provider}, bseq=${bidId.bseq}`
-      );
-
-      const blocked = this.blockedGpuService.findInBid(bid);
+    for (const { accepted } of resolvedBids) {
+      const blocked = this.blockedGpuService.findInBid(accepted);
       if (blocked.length === 0) continue;
 
       assert(false, 402, `${this.blockedGpuService.formatList(blocked)} not available on free trial: Add funds to unlock GPU access`);
     }
-  }
-
-  private getLeaseBidIds(messages: EncodeObject[]): NonNullable<MsgCreateLease["bidId"]>[] {
-    return messages
-      .filter(message => message.typeUrl === `/${MsgCreateLease.$type}`)
-      .map(message => (message.value as MsgCreateLease).bidId)
-      .filter((id): id is NonNullable<MsgCreateLease["bidId"]> => !!id);
   }
 
   private validateAttribute(groups: GroupSpec[], key: string) {

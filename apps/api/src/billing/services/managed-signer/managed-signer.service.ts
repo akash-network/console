@@ -16,6 +16,7 @@ import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deplo
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import { LeaseBidPriceGuardService } from "@src/billing/services/lease-bid-price-guard/lease-bid-price-guard.service";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
@@ -43,6 +44,7 @@ export class ManagedSignerService {
     private readonly authService: AuthService,
     private readonly chainErrorService: ChainErrorService,
     private readonly anonymousValidateService: TrialValidationService,
+    private readonly leaseBidPriceGuardService: LeaseBidPriceGuardService,
     private readonly txManagerService: TxManagerService,
     private readonly domainEvents: DomainEventsService,
     private readonly leaseHttpService: LeaseHttpService,
@@ -111,7 +113,8 @@ export class ManagedSignerService {
     await Promise.all([
       this.anonymousValidateService.validateLeaseProvidersAuditors(messages, userWallet),
       this.anonymousValidateService.validateDeploymentGpuModels(messages, userWallet),
-      this.anonymousValidateService.validateLeaseGpuModels(messages, userWallet)
+      this.anonymousValidateService.validateLeaseGpuModels(messages, userWallet),
+      this.leaseBidPriceGuardService.validateLeaseBidPrices(messages, userWallet)
     ]);
 
     const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
