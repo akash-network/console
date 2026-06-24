@@ -19,13 +19,13 @@ import { SpecDetail } from "@src/components/shared/SpecDetail";
 import { StatusPill } from "@src/components/shared/StatusPill";
 import { useServices } from "@src/context/ServicesProvider";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
+import { useTeeResourceCarveouts } from "@src/hooks/useTeeResourceCarveouts";
 import { useBidInfo } from "@src/queries/useBidQuery";
 import type { LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
-import { getTeeResourceCarveouts } from "@src/utils/confidentialCompute";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { deploymentData } from "@src/utils/deploymentData";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
@@ -103,9 +103,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
     }, [isLeaseActive, provider, providerCredentials.details, getLeaseStatus, getProviderStatus]);
 
     const parsedManifest = useMemo(() => yaml.load(deploymentManifest), [deploymentManifest]);
-    // TEE type + resources are declared on-chain (group placement requirement + group_spec.resources),
-    // so the carve-out is sourced from the lease's group rather than the locally stored SDL manifest.
-    const teeCarveouts = useMemo(() => getTeeResourceCarveouts(lease.group), [lease.group]);
+    const teeCarveouts = useTeeResourceCarveouts(lease);
 
     const checkIfServicesAreAvailable = (leaseStatus: LeaseStatusDto) => {
       const servicesNames = leaseStatus ? Object.keys(leaseStatus.services) : [];

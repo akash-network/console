@@ -15,6 +15,7 @@ import { DeploymentAlerts } from "@src/components/deployments/DeploymentAlerts/D
 import { useServices } from "@src/context/ServicesProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
 import { useFlag } from "@src/hooks/useFlag";
 import { useNavigationGuard } from "@src/hooks/useNavigationGuard/useNavigationGuard";
 import { useUser } from "@src/hooks/useUser";
@@ -24,7 +25,6 @@ import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { extractRepositoryUrl } from "@src/services/remote-deploy/env-var-manager.service";
 import { RouteStep } from "@src/types/route-steps.type";
-import { getDeclaredTeeTypes } from "@src/utils/confidentialCompute";
 import { isLeaseLive } from "@src/utils/reclamationUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
@@ -104,7 +104,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   }, [deployment, dseq, getLeases, getProviders, address, deploymentLocalStorage]);
 
   const isActive = deployment?.state === "active" && leases?.some(isLeaseLive);
-  const declaredTeeTypes = useMemo(() => getDeclaredTeeTypes(deployment?.groups), [deployment?.groups]);
+  const declaredTeeTypes = useDeclaredTeeTypes(deployment);
 
   const tabs = useMemo(() => {
     const tabs: { label: string; value: Tab; badged?: boolean }[] = [
