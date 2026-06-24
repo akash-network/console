@@ -62,7 +62,7 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
         ttl: 30 * 60,
         leases: {
           access: "scoped",
-          scope: ["status", "shell", "events", "logs", "send-manifest", "get-manifest", "attestation"]
+          scope: ["status", "shell", "events", "logs", "send-manifest", "get-manifest"]
         }
       }
     });
