@@ -3,13 +3,13 @@ import * as React from "react";
 import { CustomTooltip } from "@akashnetwork/ui/components";
 import { Info } from "lucide-react";
 
-import type { TeeServiceCarveout } from "@src/utils/confidentialCompute";
+import type { TeeResourceCarveout } from "@src/utils/confidentialCompute";
 import { MIN_PRIMARY_CPU_MILLICORES, MIN_PRIMARY_MEMORY_BYTES } from "@src/utils/confidentialCompute";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { bytesToShrink } from "@src/utils/unitUtils";
 
 export type Props = {
-  carveouts: TeeServiceCarveout[];
+  carveouts: TeeResourceCarveout[];
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -20,6 +20,13 @@ const formatCpu = (millicores: number) => `${roundDecimal(millicores / 1000, 2)}
 const formatMemory = (bytes: number) => {
   const { value, unit } = bytesToShrink(bytes, true);
   return `${roundDecimal(value, 2)} ${unit}`;
+};
+
+/** Self-describing label for a resource unit (on-chain groups carry no service names). */
+const formatUnitLabel = (carveout: TeeResourceCarveout) => {
+  const parts = [formatCpu(carveout.requested.cpu), formatMemory(carveout.requested.memory)];
+  if (carveout.gpuUnits > 0) parts.push(`${carveout.gpuUnits} GPU`);
+  return parts.join(" · ");
 };
 
 function ResourceLine({ label, cpu, memory }: { label: string; cpu: number; memory: number }) {
@@ -56,15 +63,20 @@ export function ConfidentialComputeResources({ carveouts, dependencies: d = DEPE
           carveout.requested.memory - carveout.reserved.memory < MIN_PRIMARY_MEMORY_BYTES;
 
         return (
-          <div key={carveout.serviceName} className="space-y-1 rounded-md border p-3">
-            {multiple && <div className="text-sm font-medium">{carveout.serviceName}</div>}
+          <div key={carveout.id} className="space-y-1 rounded-md border p-3">
+            {(multiple || carveout.count > 1) && (
+              <div className="flex items-center justify-between gap-4 text-sm font-medium">
+                <span>{multiple ? formatUnitLabel(carveout) : null}</span>
+                {carveout.count > 1 && <span className="text-xs text-muted-foreground">× {carveout.count} replicas</span>}
+              </div>
+            )}
             <ResourceLine label="Requested" cpu={carveout.requested.cpu} memory={carveout.requested.memory} />
             <ResourceLine label="Attestation sidecar" cpu={carveout.reserved.cpu} memory={carveout.reserved.memory} />
             <ResourceLine label="Available to your container" cpu={carveout.container.cpu} memory={carveout.container.memory} />
             {isConstrained && (
               <p className="text-xs text-muted-foreground">
-                This service&apos;s declared resources are at or below the attestation sidecar&apos;s reservation, so the provider applies a minimum for your
-                container — the values above are not a direct subtraction. Consider increasing the declared CPU and memory.
+                These declared resources are at or below the attestation sidecar&apos;s reservation, so the provider applies a minimum for your container — the
+                values above are not a direct subtraction. Consider increasing the declared CPU and memory.
               </p>
             )}
           </div>

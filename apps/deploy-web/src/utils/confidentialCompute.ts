@@ -1,18 +1,20 @@
-import yaml from "js-yaml";
-
-import { parseSizeStr } from "./deploymentData/helpers";
+import type { DeploymentGroup } from "@src/types/deployment";
 
 /**
  * Confidential Compute (TEE) helpers for the deployment detail view.
  *
- * The declared TEE type lives only in the off-chain SDL manifest the user stored locally
- * (`services.<name>.params.tee`); it is not projected on-chain. The constants below mirror the
- * provider's attestation-sidecar resource footprint (akash-network/provider PR #396,
- * `cluster/kube/builder`) so we can show the tenant how much of their declared budget the
- * provider-injected sidecar reserves.
+ * The declared TEE type is an on-chain group placement requirement: `group_spec.requirements.attributes`
+ * carries a `tee/type` attribute (`cpu` | `cpu-gpu`) so only TEE-capable providers can bid/match. It is
+ * therefore authoritative and available for every deployment (Console, CLI or otherwise) without the
+ * stored SDL manifest. The constants below mirror the provider's attestation-sidecar resource footprint
+ * (akash-network/provider PR #396, `cluster/kube/builder`) so we can show the tenant how much of their
+ * declared per-pod budget the provider-injected sidecar reserves.
  */
 
 export type TeeType = "cpu" | "cpu-gpu";
+
+/** On-chain group placement attribute key carrying the declared TEE type. */
+export const TEE_TYPE_ATTRIBUTE_KEY = "tee/type";
 
 /** Exact container name the provider injects (akash-network/provider, webhook/sidecar.go). */
 export const ATTESTATION_SIDECAR_SERVICE_NAME = "akash-attestation-sidecar";
@@ -36,21 +38,33 @@ function isTeeType(value: unknown): value is TeeType {
   return typeof value === "string" && (TEE_TYPES as readonly string[]).includes(value);
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+/** Parses an on-chain integer-valued string (millicores, bytes, gpu units). Returns undefined on garbage. */
+function parseIntegerVal(value: unknown): number | undefined {
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
+  if (typeof value !== "string") return undefined;
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+/** Returns the TEE type declared on a group's on-chain placement requirements, or undefined when none/unknown. */
+export function getGroupTeeType(group: DeploymentGroup | undefined | null): TeeType | undefined {
+  const attributes = group?.group_spec?.requirements?.attributes;
+  if (!Array.isArray(attributes)) return undefined;
+  const value = attributes.find(attribute => attribute?.key === TEE_TYPE_ATTRIBUTE_KEY)?.value;
+  return isTeeType(value) ? value : undefined;
 }
 
 /**
- * Returns the distinct set of TEE types declared across all services, in canonical order.
- * Never throws — a malformed manifest yields an empty array so the deployment view stays intact.
+ * Returns the distinct set of TEE types declared across all of a deployment's groups, in canonical order.
+ * Never throws — a missing or malformed group list yields an empty array so the deployment view stays intact.
  */
-export function getDeclaredTeeTypes(parsedManifest: unknown): TeeType[] {
+export function getDeclaredTeeTypes(groups: DeploymentGroup[] | undefined | null): TeeType[] {
   const declared = new Set<TeeType>();
 
-  if (isRecord(parsedManifest) && isRecord(parsedManifest.services)) {
-    for (const service of Object.values(parsedManifest.services)) {
-      const tee = isRecord(service) && isRecord(service.params) ? service.params.tee : undefined;
-      if (isTeeType(tee)) declared.add(tee);
+  if (Array.isArray(groups)) {
+    for (const group of groups) {
+      const teeType = getGroupTeeType(group);
+      if (teeType) declared.add(teeType);
     }
   }
 
@@ -58,75 +72,9 @@ export function getDeclaredTeeTypes(parsedManifest: unknown): TeeType[] {
 }
 
 /**
- * Parses a stored SDL manifest (YAML string) and returns its declared TEE types. Never throws —
- * malformed YAML yields an empty array, keeping the deployment view safe (the feature has no flag).
- */
-export function getDeclaredTeeTypesFromYaml(manifestYaml: string | null | undefined): TeeType[] {
-  if (!manifestYaml) return [];
-  try {
-    return getDeclaredTeeTypes(yaml.load(manifestYaml));
-  } catch {
-    return [];
-  }
-}
-
-/** Returns the TEE type declared by a single service, or undefined when none/unknown. */
-export function getServiceTeeType(parsedManifest: unknown, serviceName: string): TeeType | undefined {
-  if (!isRecord(parsedManifest) || !isRecord(parsedManifest.services)) return undefined;
-  const service = parsedManifest.services[serviceName];
-  const tee = isRecord(service) && isRecord(service.params) ? service.params.tee : undefined;
-  return isTeeType(tee) ? tee : undefined;
-}
-
-function parseCpuToMillicores(units: unknown): number | undefined {
-  if (typeof units === "number" && Number.isFinite(units)) return units * 1000;
-  if (typeof units === "string") {
-    const trimmed = units.trim();
-    if (trimmed.endsWith("m")) {
-      const millis = parseFloat(trimmed.slice(0, -1));
-      return Number.isFinite(millis) ? millis : undefined;
-    }
-    const cores = parseFloat(trimmed);
-    return Number.isFinite(cores) ? cores * 1000 : undefined;
-  }
-  return undefined;
-}
-
-/**
- * Resolves a service's per-container compute resources from its compute profile
- * (service name == compute-profile name, the console convention). Returns undefined when the
- * profile or resources cannot be resolved.
- */
-export function getServiceComputeResources(parsedManifest: unknown, serviceName: string): { cpuMillicores: number; memoryBytes: number } | undefined {
-  if (!isRecord(parsedManifest) || !isRecord(parsedManifest.profiles) || !isRecord(parsedManifest.profiles.compute)) return undefined;
-
-  const profile = parsedManifest.profiles.compute[serviceName];
-  const resources = isRecord(profile) ? profile.resources : undefined;
-  if (!isRecord(resources) || !isRecord(resources.cpu) || !isRecord(resources.memory)) return undefined;
-
-  const cpuMillicores = parseCpuToMillicores(resources.cpu.units);
-  if (cpuMillicores === undefined) return undefined;
-
-  // memory.size is normally a suffixed string ("256Mi"), but a hand-written SDL may use a raw byte
-  // count as a YAML number — accept both, mirroring how cpu.units accepts numbers and strings.
-  const memorySize = resources.memory.size;
-  let memoryBytes: number;
-  if (typeof memorySize === "string") {
-    memoryBytes = Number(parseSizeStr(memorySize));
-  } else if (typeof memorySize === "number") {
-    memoryBytes = memorySize;
-  } else {
-    return undefined;
-  }
-  if (!Number.isFinite(memoryBytes)) return undefined;
-
-  return { cpuMillicores, memoryBytes };
-}
-
-/**
  * Replicates the provider's resource split: the sidecar's fixed limits are reserved, and the
  * primary container keeps the remainder floored at the provider minimums. The lease's declared
- * (billed) resources are unchanged — this only describes how the pod's budget is divided.
+ * (billed) resources are unchanged — this only describes how a single pod's budget is divided.
  */
 export function computeSidecarCarveout(input: { cpuMillicores: number; memoryBytes: number; teeType: TeeType }): {
   reserved: { cpu: number; memory: number };
@@ -144,45 +92,52 @@ export function computeSidecarCarveout(input: { cpuMillicores: number; memoryByt
   };
 }
 
-export interface TeeServiceCarveout {
-  serviceName: string;
+export interface TeeResourceCarveout {
+  /** On-chain resource unit id, used as a stable React key. */
+  id: string;
   teeType: TeeType;
+  /** Number of pods (replicas) using this resource unit; each pod gets its own attestation sidecar. */
+  count: number;
+  /** GPU units per pod, used to disambiguate units when a lease declares more than one. */
+  gpuUnits: number;
+  /** Per-pod declared (billed) resources. */
   requested: { cpu: number; memory: number };
+  /** Per-pod resources reserved by the attestation sidecar. */
   reserved: { cpu: number; memory: number };
+  /** Per-pod resources left to the primary container after the sidecar reservation. */
   container: { cpu: number; memory: number };
 }
 
 /**
- * Builds the per-service resource carve-out for every TEE service in the manifest whose compute
- * resources can be resolved, sorted by service name. Services without a TEE type or with
- * unresolvable resources are omitted. Never throws on malformed input.
- *
- * Note: this gates on resolvable resources, while the header badge gates only on a declared
- * `params.tee` ({@link getDeclaredTeeTypes}). So a TEE service with an unresolvable compute profile
- * (e.g. a non-standard manifest) shows the badge but no carve-out row — an accepted divergence,
- * since console-generated SDLs always use the service-name == profile-name convention.
+ * Builds the per-pod resource carve-out for every resource unit in a TEE group. The `tee/type` attribute
+ * is a group-level placement requirement, so the provider injects the attestation sidecar into every pod
+ * of the group — each resource unit (and each of its `count` replicas) reserves the same sidecar footprint.
+ * Returns an empty array when the group declares no TEE type. Resource units whose on-chain cpu/memory
+ * cannot be parsed are skipped; never throws on malformed input.
  */
-export function getTeeServiceCarveouts(parsedManifest: unknown): TeeServiceCarveout[] {
-  if (!isRecord(parsedManifest) || !isRecord(parsedManifest.services)) return [];
+export function getTeeResourceCarveouts(group: DeploymentGroup | undefined | null): TeeResourceCarveout[] {
+  const teeType = getGroupTeeType(group);
+  const resources = group?.group_spec?.resources;
+  if (!teeType || !Array.isArray(resources)) return [];
 
-  const carveouts: TeeServiceCarveout[] = [];
+  const carveouts: TeeResourceCarveout[] = [];
 
-  for (const serviceName of Object.keys(parsedManifest.services).sort()) {
-    const teeType = getServiceTeeType(parsedManifest, serviceName);
-    if (!teeType) continue;
+  resources.forEach((entry, index) => {
+    const cpuMillicores = parseIntegerVal(entry?.resource?.cpu?.units?.val);
+    const memoryBytes = parseIntegerVal(entry?.resource?.memory?.quantity?.val);
+    if (cpuMillicores === undefined || memoryBytes === undefined) return;
 
-    const resources = getServiceComputeResources(parsedManifest, serviceName);
-    if (!resources) continue;
-
-    const { reserved, container } = computeSidecarCarveout({ cpuMillicores: resources.cpuMillicores, memoryBytes: resources.memoryBytes, teeType });
+    const { reserved, container } = computeSidecarCarveout({ cpuMillicores, memoryBytes, teeType });
     carveouts.push({
-      serviceName,
+      id: String(entry?.resource?.id ?? index),
       teeType,
-      requested: { cpu: resources.cpuMillicores, memory: resources.memoryBytes },
+      count: entry?.count ?? 1,
+      gpuUnits: parseIntegerVal(entry?.resource?.gpu?.units?.val) ?? 0,
+      requested: { cpu: cpuMillicores, memory: memoryBytes },
       reserved,
       container
     });
-  }
+  });
 
   return carveouts;
 }

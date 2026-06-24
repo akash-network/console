@@ -24,7 +24,7 @@ import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { extractRepositoryUrl } from "@src/services/remote-deploy/env-var-manager.service";
 import { RouteStep } from "@src/types/route-steps.type";
-import { getDeclaredTeeTypesFromYaml } from "@src/utils/confidentialCompute";
+import { getDeclaredTeeTypes } from "@src/utils/confidentialCompute";
 import { isLeaseLive } from "@src/utils/reclamationUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
@@ -104,7 +104,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   }, [deployment, dseq, getLeases, getProviders, address, deploymentLocalStorage]);
 
   const isActive = deployment?.state === "active" && leases?.some(isLeaseLive);
-  const declaredTeeTypes = useMemo(() => getDeclaredTeeTypesFromYaml(deploymentManifest), [deploymentManifest]);
+  const declaredTeeTypes = useMemo(() => getDeclaredTeeTypes(deployment?.groups), [deployment?.groups]);
 
   const tabs = useMemo(() => {
     const tabs: { label: string; value: Tab; badged?: boolean }[] = [
