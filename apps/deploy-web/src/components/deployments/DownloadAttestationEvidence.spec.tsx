@@ -14,28 +14,23 @@ const TEE_GROUP = mock<DeploymentGroup>({
 } as unknown as DeploymentGroup);
 
 describe(DownloadAttestationEvidence.name, () => {
-  it("renders the trigger when the flag is on, the lease is live and a TEE type is declared", () => {
-    setup({ flagEnabled: true, state: "active", group: TEE_GROUP });
+  it("renders the trigger when the lease is live and a TEE type is declared", () => {
+    setup({ state: "active", group: TEE_GROUP });
     expect(screen.getByRole("button", { name: /Attestation evidence/ })).toBeInTheDocument();
   });
 
-  it("renders nothing when the feature flag is off", () => {
-    setup({ flagEnabled: false, state: "active", group: TEE_GROUP });
-    expect(screen.queryByRole("button", { name: /Attestation evidence/ })).not.toBeInTheDocument();
-  });
-
   it("renders nothing when the lease is not live", () => {
-    setup({ flagEnabled: true, state: "closed", group: TEE_GROUP });
+    setup({ state: "closed", group: TEE_GROUP });
     expect(screen.queryByRole("button", { name: /Attestation evidence/ })).not.toBeInTheDocument();
   });
 
   it("renders nothing for a non-Confidential-Compute lease", () => {
-    setup({ flagEnabled: true, state: "active", group: undefined });
+    setup({ state: "active", group: undefined });
     expect(screen.queryByRole("button", { name: /Attestation evidence/ })).not.toBeInTheDocument();
   });
 
   it("opens the evidence modal when the trigger is clicked", async () => {
-    const { AttestationEvidenceModal } = setup({ flagEnabled: true, state: "active", group: TEE_GROUP });
+    const { AttestationEvidenceModal } = setup({ state: "active", group: TEE_GROUP });
 
     expect(AttestationEvidenceModal).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: /Attestation evidence/ }));
@@ -43,8 +38,7 @@ describe(DownloadAttestationEvidence.name, () => {
     expect(AttestationEvidenceModal).toHaveBeenCalled();
   });
 
-  function setup(input: { flagEnabled: boolean; state: LeaseDto["state"]; group?: DeploymentGroup }) {
-    const useFlag = vi.fn(() => input.flagEnabled);
+  function setup(input: { state: LeaseDto["state"]; group?: DeploymentGroup }) {
     const AttestationEvidenceModal = vi.fn(() => <div>modal</div>);
     const lease = mock<LeaseDto>({ state: input.state, group: input.group, dseq: "123", gseq: 1, oseq: 2 });
 
@@ -52,10 +46,10 @@ describe(DownloadAttestationEvidence.name, () => {
       <DownloadAttestationEvidence
         lease={lease}
         provider={{ owner: "akash1provider", hostUri: "https://provider.test" }}
-        dependencies={MockComponents(DEPENDENCIES, { useFlag, AttestationEvidenceModal })}
+        dependencies={MockComponents(DEPENDENCIES, { AttestationEvidenceModal })}
       />
     );
 
-    return { useFlag, AttestationEvidenceModal };
+    return { AttestationEvidenceModal };
   }
 });

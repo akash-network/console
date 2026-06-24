@@ -12,5 +12,4 @@ export type FeatureFlag =
   | "console_onboarding_redesign"
   | "bid_screening"
   | "ui_sdl_preview_panel"
-  | "ui_build_and_deploy"
-  | "ui_confidential_compute";
+  | "ui_build_and_deploy";
