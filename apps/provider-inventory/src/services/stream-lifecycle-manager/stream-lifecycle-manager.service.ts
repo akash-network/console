@@ -64,7 +64,7 @@ export class StreamLifecycleManagerService {
     this.#config = config;
     this.#logger = loggerFactory({ context: "StreamLifecycleManager" });
     this.#healthyProviderRetryStreamPolicy = retry(handleAll, {
-      maxAttempts: 5,
+      maxAttempts: 4,
       backoff: new ExponentialBackoff({
         initialDelay: this.#config.STREAM_RECONNECT_INITIAL_DELAY_MS,
         maxDelay: this.#config.STREAM_RECONNECT_MAX_DELAY_MS
@@ -159,9 +159,7 @@ export class StreamLifecycleManagerService {
   async #runStream(provider: ChainProviderWithOfflineSince, signal: AbortSignal, onFirstAttemptSettled: () => void): Promise<void> {
     const onSettleAttempt = once(onFirstAttemptSettled);
     try {
-      const isPotentiallyDeadProvider =
-        provider.offlineSince && Date.now() - provider.offlineSince.getTime() > this.#config.DEAD_PROVIDER_UPDATED_THRESHOLD_MS / 2;
-      const retryPolicy = isPotentiallyDeadProvider ? this.#potentiallyDeadProviderRetryStreamPolicy : this.#healthyProviderRetryStreamPolicy;
+      const retryPolicy = provider.offlineSince ? this.#potentiallyDeadProviderRetryStreamPolicy : this.#healthyProviderRetryStreamPolicy;
       await retryPolicy.execute(ctx => {
         if (signal.aborted) return;
         if (ctx.attempt > 0) {

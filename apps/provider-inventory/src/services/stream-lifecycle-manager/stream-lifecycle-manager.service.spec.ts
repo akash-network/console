@@ -392,15 +392,15 @@ describe(StreamLifecycleManagerService.name, () => {
     });
   });
 
-  describe("dead provider retry policy", () => {
-    it("attempts a long-dead provider at most twice before giving up", async () => {
+  describe("offline provider retry policy", () => {
+    it("attempts a provider with an open incident at most twice before giving up", async () => {
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
       streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
       const { manager, incidents, logger } = setup({ streamFactory });
-      const longDead = createProvider({ offlineSince: new Date(Date.now() - 10_000) });
+      const offline = createProvider({ offlineSince: new Date(Date.now() - 10_000) });
 
-      manager.start(longDead);
+      manager.start(offline);
 
       await vi.waitFor(() => expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_GAVE_UP", owner: "akash1owner" })), {
         timeout: 5000
@@ -409,7 +409,7 @@ describe(StreamLifecycleManagerService.name, () => {
       expect(incidents.openIncident).toHaveBeenCalledWith("akash1owner");
     });
 
-    it("logs STREAM_RECONNECTING only once for a long-dead provider", async () => {
+    it("logs STREAM_RECONNECTING only once for a provider with an open incident", async () => {
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
       streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
@@ -422,7 +422,7 @@ describe(StreamLifecycleManagerService.name, () => {
       expect(countReconnects()).toBe(1);
     });
 
-    it("uses the full retry budget for a recently-updated offline provider", async () => {
+    it("uses the reduced retry budget even for a provider that just went offline", async () => {
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
       streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
@@ -431,10 +431,22 @@ describe(StreamLifecycleManagerService.name, () => {
       manager.start(createProvider({ offlineSince: new Date(Date.now() - 100) }));
 
       await vi.waitFor(() => expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_GAVE_UP" })), { timeout: 5000 });
-      expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(6);
+      expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(2);
     });
 
-    it("recovers a long-dead provider when its single retry succeeds", async () => {
+    it("uses the full retry budget for a healthy provider with no open incident", async () => {
+      const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.disposeProvider.mockResolvedValue();
+      streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
+      const { manager, logger } = setup({ streamFactory });
+
+      manager.start(createProvider({ offlineSince: null }));
+
+      await vi.waitFor(() => expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_GAVE_UP" })), { timeout: 5000 });
+      expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(5);
+    });
+
+    it("recovers a provider with an open incident when its single retry succeeds", async () => {
       let attempt = 0;
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
@@ -621,7 +633,6 @@ describe(StreamLifecycleManagerService.name, () => {
     streams?: Record<string, AsyncIterable<ClusterState> | "hang">;
     streamFactory?: MockProxy<ProviderStreamFactory>;
     throttleMs?: number;
-    deadProviderThresholdMs?: number;
   }) {
     const streamFactory = input?.streamFactory ?? mock<ProviderStreamFactory>();
     streamFactory.disposeProvider.mockResolvedValue();
@@ -642,7 +653,7 @@ describe(StreamLifecycleManagerService.name, () => {
       STREAM_RECONNECT_MAX_DELAY_MS: 50,
       STREAM_FIRST_MESSAGE_TIMEOUT_MS: 80,
       STREAM_UPDATE_THROTTLE_MS: input?.throttleMs ?? 0,
-      DEAD_PROVIDER_UPDATED_THRESHOLD_MS: input?.deadProviderThresholdMs ?? 1000
+      DEAD_PROVIDER_UPDATED_THRESHOLD_MS: 1000
     });
 
     if (!input?.streamFactory) {

@@ -93,6 +93,10 @@ export class DiscoverySchedulerService {
   }
 
   async discoverProviders(signal?: AbortSignal): Promise<void> {
+    return await this.#runDiscoveryTick(signal);
+  }
+
+  async #runDiscoveryTick(signal?: AbortSignal): Promise<void> {
     try {
       const watchedProviders = this.#lifecycle.getRegistry();
       const providersToStop = new Set(watchedProviders.keys());
@@ -172,6 +176,7 @@ export class DiscoverySchedulerService {
 
       this.#logger.info({
         event: "DISCOVERY_PROVIDERS_INVENTORY_CONNECTED",
+        connectedCount: this.#lifecycle.getRegistry().size,
         stoppedCount: providersToStop.size,
         startedCount: startedProvidersCount,
         restartedCount: restartedProvidersCount,
@@ -204,9 +209,9 @@ export class DiscoverySchedulerService {
 
   async #runDiscoveryLoop(signal: AbortSignal): Promise<void> {
     while (!signal.aborted) {
-      await this.discoverProviders(signal);
+      await this.#runDiscoveryTick(signal);
       if (signal.aborted) break;
-      await this.#timer.delay(this.#config.DISCOVERY_INTERVAL_MS, undefined, { signal }).catch(() => undefined);
+      await this.#timer.delay(this.#config.DISCOVERY_INTERVAL_MS, undefined, { signal, ref: false }).catch(() => undefined);
     }
   }
 
