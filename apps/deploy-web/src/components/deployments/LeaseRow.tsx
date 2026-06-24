@@ -19,6 +19,7 @@ import { SpecDetail } from "@src/components/shared/SpecDetail";
 import { StatusPill } from "@src/components/shared/StatusPill";
 import { useServices } from "@src/context/ServicesProvider";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
+import { useTeeResourceCarveouts } from "@src/hooks/useTeeResourceCarveouts";
 import { useBidInfo } from "@src/queries/useBidQuery";
 import type { LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
@@ -35,6 +36,7 @@ import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar/ManifestErrorSnackbar";
 import { ProviderName } from "../shared/ProviderName";
 import { ReclamationCard } from "./ReclamationCard/ReclamationCard";
+import { ConfidentialComputeResources } from "./ConfidentialComputeResources";
 
 type Props = {
   index: number;
@@ -101,6 +103,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
     }, [isLeaseActive, provider, providerCredentials.details, getLeaseStatus, getProviderStatus]);
 
     const parsedManifest = useMemo(() => yaml.load(deploymentManifest), [deploymentManifest]);
+    const teeCarveouts = useTeeResourceCarveouts(lease);
 
     const checkIfServicesAreAvailable = (leaseStatus: LeaseStatusDto) => {
       const servicesNames = leaseStatus ? Object.keys(leaseStatus.services) : [];
@@ -208,6 +211,8 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                 size="medium"
               />
             </div>
+
+            <ConfidentialComputeResources carveouts={teeCarveouts} />
             <LabelValueOld
               label="Price:"
               value={

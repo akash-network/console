@@ -15,6 +15,7 @@ import { DeploymentAlerts } from "@src/components/deployments/DeploymentAlerts/D
 import { useServices } from "@src/context/ServicesProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
 import { useFlag } from "@src/hooks/useFlag";
 import { useNavigationGuard } from "@src/hooks/useNavigationGuard/useNavigationGuard";
 import { useUser } from "@src/hooks/useUser";
@@ -103,6 +104,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   }, [deployment, dseq, getLeases, getProviders, address, deploymentLocalStorage]);
 
   const isActive = deployment?.state === "active" && leases?.some(isLeaseLive);
+  const declaredTeeTypes = useDeclaredTeeTypes(deployment);
 
   const tabs = useMemo(() => {
     const tabs: { label: string; value: Tab; badged?: boolean }[] = [
@@ -242,7 +244,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
         <>
           <ReclamationBanner leases={leases} dseq={dseq} />
 
-          <DeploymentSubHeader deployment={deployment} leases={leases} />
+          <DeploymentSubHeader deployment={deployment} leases={leases} teeTypes={declaredTeeTypes} />
 
           <Tabs value={activeTab} onValueChange={value => changeTab(value as Tab)}>
             <TabsList
