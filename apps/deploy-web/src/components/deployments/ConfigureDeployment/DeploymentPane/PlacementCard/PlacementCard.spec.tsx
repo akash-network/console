@@ -104,6 +104,14 @@ describe("PlacementCard", () => {
     screen.getAllByRole("group").forEach(group => expect(group).toBeEnabled());
   });
 
+  it("disables the region select while locked", () => {
+    const RegionSelect = vi.fn<typeof DEPENDENCIES.RegionSelect>(() => null);
+    setup({ serviceTitles: ["web"], locked: true, dependencies: { RegionSelect } });
+
+    expect(RegionSelect).toHaveBeenCalled();
+    expect(RegionSelect.mock.calls[0][0]).toEqual(expect.objectContaining({ disabled: true }));
+  });
+
   function setup(input: {
     serviceTitles: string[];
     canRemove?: boolean;

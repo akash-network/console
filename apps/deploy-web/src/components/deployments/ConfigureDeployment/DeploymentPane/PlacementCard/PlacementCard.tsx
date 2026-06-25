@@ -75,7 +75,7 @@ export const PlacementCard: FC<Props> = ({
       <div className="flex flex-col gap-1 px-1 pb-2">
         <div className="flex items-center gap-2">
           <ConfigStatusIcon status={status} />
-          <fieldset disabled={locked} className="m-0 min-w-0 flex-1 border-0 p-0">
+          <fieldset disabled={locked} className="m-0 min-w-0 flex-1 border-0 p-0 disabled:pointer-events-none">
             <d.InlineEditInput name={`placements.${placementIndex}.name`} label="Placement name" suppressErrorMessage errorMessageId={errorId} />
           </fieldset>
           {canRemove && (
@@ -86,8 +86,8 @@ export const PlacementCard: FC<Props> = ({
         </div>
         {error && <FieldErrorMessage id={errorId}>{error}</FieldErrorMessage>}
       </div>
-      <fieldset disabled={locked} className="m-0 min-w-0 border-0 p-0">
-        <d.RegionSelect placementIndex={placementIndex} />
+      <fieldset disabled={locked} className="m-0 min-w-0 border-0 p-0 disabled:pointer-events-none">
+        <d.RegionSelect placementIndex={placementIndex} disabled={locked} />
       </fieldset>
       <ul aria-label={`${placement.name} services`} className="mt-2 space-y-2">
         {services.map(({ service, index }) => (
@@ -97,6 +97,7 @@ export const PlacementCard: FC<Props> = ({
             serviceIndex={index}
             isSelected={service.id === selectedServiceId}
             canRemove={canRemoveService}
+            locked={locked}
             onSelect={() => onSelectService(service.id as string)}
             onRemove={() => onRemoveService(service.id as string)}
           />

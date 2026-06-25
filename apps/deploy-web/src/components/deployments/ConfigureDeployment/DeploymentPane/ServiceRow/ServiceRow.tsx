@@ -15,12 +15,14 @@ type Props = {
   serviceIndex: number;
   isSelected: boolean;
   canRemove: boolean;
+  /** While locked the row stays selectable, but the service name is disabled (clicks fall through to select it). */
+  locked?: boolean;
   onSelect: () => void;
   onRemove: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const ServiceRow: FC<Props> = ({ service, serviceIndex, isSelected, canRemove, onSelect, onRemove, dependencies: d = DEPENDENCIES }) => {
+export const ServiceRow: FC<Props> = ({ service, serviceIndex, isSelected, canRemove, locked = false, onSelect, onRemove, dependencies: d = DEPENDENCIES }) => {
   const isConfigured = d.useServiceStatus(serviceIndex);
   const { error } = d.useFieldError(`services.${serviceIndex}.title`);
   const errorId = useId();
@@ -52,7 +54,9 @@ export const ServiceRow: FC<Props> = ({ service, serviceIndex, isSelected, canRe
         >
           <ConfigStatusIcon status={isConfigured ? "complete" : "incomplete"} />
         </button>
-        <d.InlineEditInput name={`services.${serviceIndex}.title`} label="Service name" suppressErrorMessage errorMessageId={errorId} />
+        <fieldset disabled={locked} className="m-0 min-w-0 flex-1 border-0 p-0 disabled:pointer-events-none">
+          <d.InlineEditInput name={`services.${serviceIndex}.title`} label="Service name" suppressErrorMessage errorMessageId={errorId} />
+        </fieldset>
         {canRemove && (
           <button
             type="button"
