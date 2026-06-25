@@ -40,6 +40,10 @@ function buildBundle(lease: Pick<LeaseDto, "dseq" | "gseq" | "oseq">, evidence: 
     nonce: evidence.nonce,
     tee_platform: evidence.quote.tee_platform,
     report: evidence.quote.report,
+    // Cert material is required to verify the CPU report independently (e.g. AMD VCEK chain); keep it in the
+    // downloaded bundle even when empty so the JSON is self-describing.
+    cert_chain: evidence.quote.cert_chain ?? "",
+    auxblob: evidence.quote.auxblob ?? "",
     gpu_reports: evidence.quote.gpu_reports ?? []
   };
 }
@@ -121,7 +125,7 @@ export function AttestationEvidenceModal({ provider, lease, onClose, dependencie
             <div className="space-y-2">
               <ReportLabel>GPU reports ({gpuReports.length})</ReportLabel>
               {gpuReports.map(gpu => (
-                <ReportBlock key={gpu.index} label={`GPU ${gpu.index}`} report={gpu.report} />
+                <ReportBlock key={gpu.device_index} label={`GPU ${gpu.device_index}`} report={gpu.report} />
               ))}
             </div>
           )}

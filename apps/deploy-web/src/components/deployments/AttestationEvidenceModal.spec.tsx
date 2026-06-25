@@ -26,12 +26,14 @@ describe(AttestationEvidenceModal.name, () => {
         report: "cpu-report",
         tee_platform: "snp-gpu",
         gpu_reports: [
-          { index: 0, report: "gpu-0-report" },
-          { index: 1, report: "gpu-1-report" }
+          { device_index: 0, report: "gpu-0-report" },
+          { device_index: 1, report: "gpu-1-report" }
         ]
       }
     });
     expect(screen.getByText("GPU reports (2)")).toBeInTheDocument();
+    expect(screen.getByText("GPU 0")).toBeInTheDocument();
+    expect(screen.getByText("GPU 1")).toBeInTheDocument();
     expect(screen.getByText("gpu-0-report")).toBeInTheDocument();
     expect(screen.getByText("gpu-1-report")).toBeInTheDocument();
   });
@@ -41,14 +43,23 @@ describe(AttestationEvidenceModal.name, () => {
     expect(screen.queryByText(/GPU reports/)).not.toBeInTheDocument();
   });
 
-  it("downloads the full bundle including the nonce as JSON when the download action is clicked", async () => {
-    const { saveFile } = setup({ nonce: "nonce-base64", quote: { report: "cpu-report", tee_platform: "snp" } });
+  it("downloads the full bundle including the nonce and cert material as JSON when the download action is clicked", async () => {
+    const { saveFile } = setup({
+      nonce: "nonce-base64",
+      quote: { report: "cpu-report", tee_platform: "snp", cert_chain: "cpu-cert-chain", auxblob: "aux" }
+    });
 
     await userEvent.click(screen.getByRole("button", { name: "Download JSON" }));
 
     expect(saveFile).toHaveBeenCalledWith(expect.any(Blob), "attestation-123-1-2.json");
     const [blob] = (saveFile as Mock).mock.calls[0];
-    expect(JSON.parse(await blob.text())).toMatchObject({ nonce: "nonce-base64", report: "cpu-report", tee_platform: "snp" });
+    expect(JSON.parse(await blob.text())).toMatchObject({
+      nonce: "nonce-base64",
+      report: "cpu-report",
+      tee_platform: "snp",
+      cert_chain: "cpu-cert-chain",
+      auxblob: "aux"
+    });
   });
 
   it("shows an error and offers a retry when the fetch fails", () => {
