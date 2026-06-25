@@ -121,7 +121,7 @@ export function AttestationEvidenceModal({ provider, lease, onClose, dependencie
             <div className="space-y-2">
               <ReportLabel>GPU reports ({gpuReports.length})</ReportLabel>
               {gpuReports.map(gpu => (
-                <ReportBlock key={gpu.index} label={`GPU ${gpu.index}`} report={gpu.report} />
+                <ReportBlock key={gpu.device_index} label={`GPU ${gpu.device_index}`} report={gpu.report} />
               ))}
             </div>
           )}

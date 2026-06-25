@@ -26,12 +26,14 @@ describe(AttestationEvidenceModal.name, () => {
         report: "cpu-report",
         tee_platform: "snp-gpu",
         gpu_reports: [
-          { index: 0, report: "gpu-0-report" },
-          { index: 1, report: "gpu-1-report" }
+          { device_index: 0, report: "gpu-0-report" },
+          { device_index: 1, report: "gpu-1-report" }
         ]
       }
     });
     expect(screen.getByText("GPU reports (2)")).toBeInTheDocument();
+    expect(screen.getByText("GPU 0")).toBeInTheDocument();
+    expect(screen.getByText("GPU 1")).toBeInTheDocument();
     expect(screen.getByText("gpu-0-report")).toBeInTheDocument();
     expect(screen.getByText("gpu-1-report")).toBeInTheDocument();
   });

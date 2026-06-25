@@ -197,7 +197,7 @@ export type TeePlatform = "snp" | "tdx" | "snp-gpu" | "tdx-gpu";
 
 export interface GpuAttestationReport {
   /** Device index of the GPU this report attests, used to disambiguate multiple GPUs. */
-  index: number;
+  device_index: number;
   /** Hardware-signed GPU attestation report, base64. */
   report: string;
 }
