@@ -1128,7 +1128,7 @@ describe(ProviderProxyService.name, () => {
 
   describe("fetchAttestationQuote", () => {
     it("posts a fresh 64-byte nonce to the attestation quote endpoint with jwt credentials", async () => {
-      const quote = { report: "cpu-report", tee_platform: "snp-gpu", gpu_reports: [{ index: 0, report: "gpu-0" }] };
+      const quote = { report: "cpu-report", tee_platform: "snp-gpu", gpu_reports: [{ device_index: 0, report: "gpu-0" }] };
       const httpClient = mock<HttpClient>({ post: vi.fn().mockResolvedValue({ data: quote }) } as unknown as HttpClient);
       const { service } = setup({ httpClient });
 
