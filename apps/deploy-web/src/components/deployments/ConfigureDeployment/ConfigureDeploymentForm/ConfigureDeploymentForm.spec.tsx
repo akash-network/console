@@ -206,11 +206,18 @@ describe(ConfigureDeploymentForm.name, () => {
       NextSeo: vi.fn(() => null) as never,
       ConfigureDeploymentHeader: vi.fn(() => <div data-testid="header-mock" />),
       ConfigureDeploymentPanes: ConfigureDeploymentPanes as never,
+      useDeploymentFlow: (() => mock<ReturnType<typeof DEPENDENCIES.useDeploymentFlow>>({ phase: "configuring", dseq: null, bidStrategy: "select" })) as never,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       Snackbar: Snackbar as never
     };
 
-    render(<ConfigureDeploymentForm initialSdl={input.initialSdl} dependencies={dependencies} />);
+    render(
+      <ConfigureDeploymentForm
+        initialSdl={input.initialSdl}
+        intent={{ sdlStrategy: "edit", bidStrategy: "select", dseq: undefined }}
+        dependencies={dependencies}
+      />
+    );
 
     return { ConfigureDeploymentPanes, enqueueSnackbar };
   }

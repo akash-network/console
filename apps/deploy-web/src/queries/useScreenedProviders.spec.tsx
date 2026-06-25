@@ -103,6 +103,18 @@ describe("useScreenedProviders", () => {
     expect(lastRequest(useQuery).resources.length).toBeGreaterThan(0);
   });
 
+  it("enables the screening query by default", () => {
+    const { useQuery } = setup({ placementName: "dcloud" });
+
+    expect(useQuery.mock.lastCall![1]).toEqual(expect.objectContaining({ enabled: true }));
+  });
+
+  it("disables the screening query when not enabled (locked)", () => {
+    const { useQuery } = setup({ placementName: "dcloud", enabled: false });
+
+    expect(useQuery.mock.lastCall![1]).toEqual(expect.objectContaining({ enabled: false }));
+  });
+
   it("paces input changes so rapid edits do not change the screening request until they settle", () => {
     vi.useFakeTimers();
     try {
@@ -120,7 +132,7 @@ describe("useScreenedProviders", () => {
     }
   });
 
-  function setup(input: { placementName: string; sdl?: string; region?: string; providers?: ScreenedProvider[] }) {
+  function setup(input: { placementName: string; sdl?: string; region?: string; providers?: ScreenedProvider[]; enabled?: boolean }) {
     const useQuery = vi.fn().mockReturnValue(
       mock<UseQueryResult<ScreenedProvidersResponse>>({
         data: { providers: input.providers ?? [] },
@@ -132,7 +144,7 @@ describe("useScreenedProviders", () => {
       NonNullable<NonNullable<NonNullable<Parameters<typeof setupQuery>[1]>["services"]>["api"]>
     >;
 
-    const current = { sdl: input.sdl ?? HELLO_WORLD_SDL, placementName: input.placementName, region: input.region };
+    const current = { sdl: input.sdl ?? HELLO_WORLD_SDL, placementName: input.placementName, region: input.region, enabled: input.enabled };
     const view = setupQuery(() => useScreenedProviders({ ...current }), { services: { api: () => api } });
 
     function rerender(next: { sdl?: string; region?: string }) {

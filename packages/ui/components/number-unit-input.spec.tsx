@@ -50,7 +50,14 @@ describe(NumberUnitInput.name, () => {
     expect(screen.getByLabelText("Memory")).toHaveAttribute("aria-invalid", "true");
   });
 
-  function setup(input: { value: number; unit: string; error?: string }) {
+  it("disables both halves when disabled", () => {
+    setup({ value: 256, unit: "MB", disabled: true });
+
+    expect(screen.getByLabelText("Memory")).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Memory unit" })).toBeDisabled();
+  });
+
+  function setup(input: { value: number; unit: string; error?: string; disabled?: boolean }) {
     const onValueChange = vi.fn();
     const onUnitChange = vi.fn();
     function Harness() {
@@ -63,6 +70,7 @@ describe(NumberUnitInput.name, () => {
           value={value}
           unit={unit}
           error={input.error}
+          disabled={input.disabled}
           onValueChange={next => {
             onValueChange(next);
             setValue(next);

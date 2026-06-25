@@ -15,3 +15,19 @@ describe(UrlService.billing.name, () => {
     expect(UrlService.billing({ openPayment: false })).toBe("/billing");
   });
 });
+
+describe(UrlService.configureDeployment.name, () => {
+  it("builds the base configure path with strategy params", () => {
+    expect(UrlService.configureDeployment({ templateId: "abc", sdlStrategy: "default", bidStrategy: "auto" })).toBe(
+      "/new-deployment/configure?templateId=abc&sdl-strategy=default&bid-strategy=auto"
+    );
+  });
+
+  it("puts dseq in the path once present", () => {
+    expect(UrlService.configureDeployment({ dseq: "12345", bidStrategy: "auto" })).toBe("/new-deployment/configure/12345?bid-strategy=auto");
+  });
+
+  it("omits absent params", () => {
+    expect(UrlService.configureDeployment({})).toBe("/new-deployment/configure");
+  });
+});

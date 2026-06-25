@@ -3,7 +3,7 @@ import type { FC } from "react";
 import { useEffect } from "react";
 import { Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { useAtomValue } from "jotai";
-import { useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
 import { useSnackbar } from "notistack";
 
@@ -12,8 +12,9 @@ import { usePublicTemplate } from "@src/queries/useTemplateQuery";
 import sdlStore from "@src/store/sdlStore";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { ConfigureDeploymentForm } from "../ConfigureDeploymentForm/ConfigureDeploymentForm";
+import { parseDeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 
-export const DEPENDENCIES = { Layout, NextSeo, ConfigureDeploymentForm, usePublicTemplate, useSearchParams, useSnackbar, Snackbar };
+export const DEPENDENCIES = { Layout, NextSeo, ConfigureDeploymentForm, usePublicTemplate, useSearchParams, useParams, useSnackbar, Snackbar };
 
 type Props = {
   dependencies?: typeof DEPENDENCIES;
@@ -29,6 +30,9 @@ type Props = {
  */
 export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES }) => {
   const searchParams = d.useSearchParams();
+  const routeParams = d.useParams();
+  const dseqSegment = Array.isArray(routeParams?.dseq) ? routeParams.dseq[0] : (routeParams?.dseq as string | undefined);
+  const intent = parseDeploymentIntent({ dseqSegment, searchParams: new URLSearchParams(searchParams?.toString() ?? "") });
   const templateId = searchParams?.get("templateId") ?? undefined;
   const deploySdl = useAtomValue(sdlStore.deploySdl);
   const hardcodedTemplate = templateId ? hardcodedTemplates.find(template => template.code === templateId) : undefined;
@@ -61,5 +65,5 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
 
   const initialSdl = hardcodedTemplate?.content ?? (fetchedTemplateId ? templateQuery.data?.deploy : deploySdl?.content);
 
-  return <d.ConfigureDeploymentForm initialSdl={initialSdl} />;
+  return <d.ConfigureDeploymentForm initialSdl={initialSdl} intent={intent} />;
 };

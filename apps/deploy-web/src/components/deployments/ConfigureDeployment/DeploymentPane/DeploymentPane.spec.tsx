@@ -79,9 +79,30 @@ describe("DeploymentPane", () => {
     expect(IpEndpointsSection).toHaveBeenCalled();
   });
 
+  it("shows the lock banner and disables adding placements while locked", async () => {
+    const onCancelAndEdit = vi.fn();
+    setup({ locked: true, onCancelAndEdit });
+
+    expect(screen.getByRole("button", { name: "Add Placement" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: /cancel and edit/i }));
+    expect(onCancelAndEdit).toHaveBeenCalled();
+  });
+
+  it("keeps placements selectable but blocks removing them while locked", () => {
+    const PlacementCard = vi.fn(() => null);
+    setup({ locked: true, dependencies: { PlacementCard } });
+
+    expect(PlacementCard).toHaveBeenCalledWith(
+      expect.objectContaining({ locked: true, canRemove: false, canRemoveService: false, onSelectService: expect.any(Function) }),
+      expect.anything()
+    );
+  });
+
   function setup(input: {
     placements?: ReturnType<typeof defaultPlacement>[];
     onSelectService?: (serviceId: string) => void;
+    locked?: boolean;
+    onCancelAndEdit?: () => void;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const placements = input.placements ?? [defaultPlacement({ name: "placement-1" })];
@@ -98,6 +119,8 @@ describe("DeploymentPane", () => {
         <DeploymentPane
           selectedServiceId=""
           onSelectService={input.onSelectService ?? vi.fn()}
+          locked={input.locked}
+          onCancelAndEdit={input.onCancelAndEdit}
           dependencies={MockComponents(DEPENDENCIES, { usePlacementManager, ...input.dependencies })}
         />
       </TooltipProvider>

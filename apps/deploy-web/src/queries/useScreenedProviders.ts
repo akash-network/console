@@ -21,6 +21,12 @@ interface UseScreenedProvidersInput {
   sdl: string;
   placementName: string;
   region?: string;
+  /**
+   * Gates the screening query. Defaults to true. Set false once the deployment is locked (quoting/creating/closing):
+   * the spec is frozen, so re-running the CPU-heavy screening yields nothing new — the last result is kept (via
+   * `keepPreviousData`) while live bids drive the marketplace.
+   */
+  enabled?: boolean;
 }
 
 interface UseScreenedProvidersResult {
@@ -40,14 +46,14 @@ export const SCREENING_MAX_WAIT_MS = 2000;
  * invalid it falls back to the full audited catalog (empty resource spec). The selected `region` lives outside
  * the SDL, so it is threaded in explicitly and still constrains the catalog fallback. Audited-only via signedBy.
  */
-export function useScreenedProviders({ sdl, placementName, region }: UseScreenedProvidersInput): UseScreenedProvidersResult {
+export function useScreenedProviders({ sdl, placementName, region, enabled = true }: UseScreenedProvidersInput): UseScreenedProvidersResult {
   const { api } = useServices();
   const request = useMemo(() => {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     return { ...(buildPlacementScreeningRequest(sdl, placementName) ?? buildCatalogScreeningRequest(region)), timezone };
   }, [sdl, placementName, region]);
   const pacedRequest = usePacedValue(request, { wait: SCREENING_DEBOUNCE_MS, maxWait: SCREENING_MAX_WAIT_MS });
-  const query = api.v1.screenProviders.useQuery(pacedRequest, { placeholderData: keepPreviousData });
+  const query = api.v1.screenProviders.useQuery(pacedRequest, { enabled, placeholderData: keepPreviousData });
 
   return {
     providers: query.data?.providers ?? [],

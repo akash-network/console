@@ -71,6 +71,7 @@ describe(ConfigureDeployment.name, () => {
       ConfigureDeploymentForm: ConfigureDeploymentForm as never,
       usePublicTemplate: usePublicTemplate as never,
       useSearchParams: () => params as unknown as ReadonlyURLSearchParams,
+      useParams: (() => ({})) as never,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       Snackbar: vi.fn(() => null) as never
     };

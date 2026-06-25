@@ -8,14 +8,16 @@ import { useEndpointManager } from "../useEndpointManager/useEndpointManager";
 export const DEPENDENCIES = { EndpointRow, useEndpointManager };
 
 type Props = {
+  /** While the pane is locked the endpoint controls are disabled so they can't be edited (keyboard included) while quotes are active. */
+  locked?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const IpEndpointsSection: FC<Props> = ({ dependencies: d = DEPENDENCIES }) => {
+export const IpEndpointsSection: FC<Props> = ({ locked = false, dependencies: d = DEPENDENCIES }) => {
   const manager = d.useEndpointManager();
 
   return (
-    <div className="space-y-2">
+    <fieldset disabled={locked} className="m-0 min-w-0 space-y-2 border-0 p-0">
       <div className="flex items-center gap-2 px-1 font-mono text-xs uppercase text-muted-foreground">
         IP Endpoints
         <CustomTooltip
@@ -41,6 +43,6 @@ export const IpEndpointsSection: FC<Props> = ({ dependencies: d = DEPENDENCIES }
         <Plus className="h-4 w-4" />
         Add endpoint
       </Button>
-    </div>
+    </fieldset>
   );
 };

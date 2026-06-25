@@ -29,6 +29,8 @@ export const DEPENDENCIES = {
 
 type Props = {
   serviceIndex: number;
+  /** While locked the hardware controls are disabled (cards stay expandable for viewing). */
+  locked?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -44,7 +46,7 @@ type Props = {
  * the "must be unique" error in sync across every conflicting row, not just the
  * edited one.
  */
-export const HardwareSection: FC<Props> = ({ serviceIndex, dependencies: d = DEPENDENCIES }) => {
+export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   d.useRevalidateUniqueness(`services.${serviceIndex}.profile.storage`, storageUniquenessKey);
 
   return (
@@ -52,12 +54,12 @@ export const HardwareSection: FC<Props> = ({ serviceIndex, dependencies: d = DEP
       <p className="font-mono text-xs uppercase text-muted-foreground">Hardware</p>
       <div className="flex flex-col gap-4">
         <d.CollapsibleCard title="Compute Resources" icon={<CpuIcon className="h-4 w-4" />} infoTooltip={computeResourcesTooltip}>
-          <d.ComputeResourcesCard serviceIndex={serviceIndex} />
+          <d.ComputeResourcesCard serviceIndex={serviceIndex} locked={locked} />
         </d.CollapsibleCard>
 
-        <d.RamStorageCard serviceIndex={serviceIndex} />
+        <d.RamStorageCard serviceIndex={serviceIndex} locked={locked} />
 
-        <d.PersistentStorageCard serviceIndex={serviceIndex} />
+        <d.PersistentStorageCard serviceIndex={serviceIndex} locked={locked} />
       </div>
     </div>
   );

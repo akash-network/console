@@ -17,18 +17,21 @@ import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { applyImportedSshState } from "@src/utils/sdl/sshKey";
 import { ConfigureDeploymentHeader } from "../ConfigureDeploymentHeader/ConfigureDeploymentHeader";
 import { ConfigureDeploymentPanes } from "../ConfigureDeploymentPanes/ConfigureDeploymentPanes";
+import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
+import { useDeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 
-export const DEPENDENCIES = { Layout, NextSeo, ConfigureDeploymentHeader, ConfigureDeploymentPanes, useSnackbar, Snackbar };
+export const DEPENDENCIES = { Layout, NextSeo, ConfigureDeploymentHeader, ConfigureDeploymentPanes, useDeploymentFlow, useSnackbar, Snackbar };
 
 /** Delay between a form edit and updating the debounced SDL preview. */
 const SDL_SYNC_DEBOUNCE_MS = 300;
 
 type Props = {
   initialSdl?: string;
+  intent: DeploymentIntent;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, dependencies: d = DEPENDENCIES }) => {
+export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, intent, dependencies: d = DEPENDENCIES }) => {
   const [initialState] = useState(() => getInitialState(initialSdl));
   const [liveSdl, setLiveSdl] = useState(initialState.sdl);
   const [previewSdl, setPreviewSdl] = useState(initialState.sdl);
@@ -86,12 +89,14 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, dependencies: d
     [form]
   );
 
+  const flow = d.useDeploymentFlow({ intent, sdl: liveSdl });
+
   return (
     <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col dark:bg-card">
       <d.NextSeo title="Configure your deployment" />
       <FormProvider {...form}>
         <div className="px-6 pt-6">
-          <d.ConfigureDeploymentHeader />
+          <d.ConfigureDeploymentHeader flow={flow} />
         </div>
         <div className="mt-6 flex min-h-0 flex-1">
           <d.ConfigureDeploymentPanes
@@ -101,6 +106,9 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, dependencies: d
             selectedPlacementName={selectedPlacement.name}
             selectedPlacementRegion={selectedPlacement.region}
             onSelectService={setSelectedServiceId}
+            phase={flow.phase}
+            dseq={flow.dseq}
+            onCancelAndEdit={flow.actions.cancelAndEdit}
           />
         </div>
       </FormProvider>
