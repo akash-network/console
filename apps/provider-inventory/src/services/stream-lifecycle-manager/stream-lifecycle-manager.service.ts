@@ -152,19 +152,20 @@ export class StreamLifecycleManagerService {
   }
 
   async #runStream(provider: ChainProviderWithOfflineSince, signal: AbortSignal, onFirstAttemptSettled: () => void): Promise<void> {
+    const settleFirstAttempt = once(onFirstAttemptSettled);
     let wasProviderOnline = false;
-    const onFirstAttempSettledOnce = once(onFirstAttemptSettled);
-    const onSettleAttempt = (isSuccess: boolean) => {
-      wasProviderOnline ||= isSuccess;
-      onFirstAttempSettledOnce();
+    const onConnected = () => {
+      wasProviderOnline = true;
+      settleFirstAttempt();
     };
     const activeStream = this.#activeStreams.get(provider.owner);
+    const offlineProviderMaxAttempts = this.#config.OFFLINE_PROVIDER_RETRY_MAX_ATTEMPTS - 1;
     try {
-      await this.#retryPolicy.execute(ctx => {
+      await this.#retryPolicy.execute(async ctx => {
         if (signal.aborted) return;
-        const isStillOffline = provider.offlineSince && ctx.attempt > 1 && !wasProviderOnline;
+        const isStillOffline = provider.offlineSince && ctx.attempt > offlineProviderMaxAttempts && !wasProviderOnline;
         if (isStillOffline) {
-          throw new OfflineProviderError(`Provider ${provider.owner} is still offline after ${ctx.attempt + 1} attempts`);
+          throw new OfflineProviderError();
         }
         if (ctx.attempt > 0) {
           this.#logger.warn({
@@ -173,28 +174,31 @@ export class StreamLifecycleManagerService {
             attempt: ctx.attempt
           });
         }
-        return this.#runAttempt(provider, signal, onSettleAttempt);
+        try {
+          await this.#runAttempt(provider, signal, onConnected);
+        } finally {
+          settleFirstAttempt();
+        }
       }, signal);
     } catch (error) {
       if (!signal.aborted) {
         this.#logger.error({ event: "STREAM_GAVE_UP", owner: provider.owner, error });
-        try {
-          await this.#incidentsRepo.openIncident(provider.owner);
-        } catch (incidentError) {
-          this.#logger.error({ event: "OPEN_INCIDENT_ERROR", owner: provider.owner, error: incidentError });
-        }
+        await this.#openIncident(provider);
       }
     } finally {
-      onSettleAttempt(false);
-      if (activeStream === this.#activeStreams.get(provider.owner)) {
-        // dispose stream only if it was not disposed beforec
+      settleFirstAttempt();
+      const currentActiveStream = this.#activeStreams.get(provider.owner);
+      if (activeStream === currentActiveStream) {
+        // dispose stream only if it was not disposed before
         this.#forgetProviderState(provider.owner);
         await this.#abortIfActive(provider.owner, "STREAM_STOPPED_PROVIDER_GAVE_UP");
+      } else if (!currentActiveStream) {
+        this.#forgetProviderState(provider.owner);
       }
     }
   }
 
-  async #runAttempt(provider: ChainProviderWithOfflineSince, outerSignal: AbortSignal, onAttemptSettled: (result: boolean) => void): Promise<void> {
+  async #runAttempt(provider: ChainProviderWithOfflineSince, outerSignal: AbortSignal, onConnected: () => void): Promise<void> {
     if (outerSignal.aborted) return;
 
     this.#lastInventoryPerProvider.delete(provider.owner);
@@ -212,20 +216,21 @@ export class StreamLifecycleManagerService {
         attemptController.abort(new Error("first message not received within timeout"));
       }, this.#config.STREAM_FIRST_MESSAGE_TIMEOUT_MS)
       .unref();
-    const releasePermit = once((value: boolean) => {
-      onAttemptSettled(value);
-      this.#startStreamSemaphore.release();
+    const releasePermit = once(() => this.#startStreamSemaphore.release());
+    const onFirstMessage = once(() => {
       clearTimeout(firstMessageTimeoutId);
+      onConnected();
     });
 
     try {
-      const stream = this.#streamFactory.openStatusStream(provider, attemptController.signal);
-      const throttled = throttleLatest(stream, this.#config.STREAM_UPDATE_THROTTLE_MS, { signal: attemptController.signal });
+      const stream = await this.#streamFactory.openStatusStream(provider, attemptController.signal);
+      releasePermit();
 
+      const throttled = throttleLatest(stream, this.#config.STREAM_UPDATE_THROTTLE_MS, { signal: attemptController.signal });
       for await (const message of throttled) {
         this.#logger.debug({ event: "STREAM_MESSAGE_RECEIVED", owner: provider.owner });
         if (attemptController.signal.aborted) return;
-        releasePermit(true);
+        onFirstMessage();
         await this.#updateProviderInventory(provider, message);
       }
 
@@ -239,8 +244,17 @@ export class StreamLifecycleManagerService {
       await this.#tryMarkOffline(provider.owner);
       throw error;
     } finally {
-      releasePermit(false);
+      releasePermit();
+      clearTimeout(firstMessageTimeoutId);
       outerSignal.removeEventListener("abort", forwardAbort);
+    }
+  }
+
+  async #openIncident(provider: ChainProviderWithOfflineSince): Promise<void> {
+    try {
+      await this.#incidentsRepo.openIncident(provider.owner);
+    } catch (error) {
+      this.#logger.error({ event: "OPEN_INCIDENT_ERROR", owner: provider.owner, error });
     }
   }
 
