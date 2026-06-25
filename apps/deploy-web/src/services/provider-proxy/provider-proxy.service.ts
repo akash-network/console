@@ -6,6 +6,8 @@ import saveFileInBrowser from "file-saver";
 
 import { WebsocketSession } from "@src/lib/websocket/WebsocketSession";
 import type { ApiProviderList } from "@src/types/provider";
+import type { AttestationEvidence, AttestationQuote } from "@src/utils/confidentialCompute";
+import { generateAttestationNonce } from "@src/utils/confidentialCompute";
 import { toBase64 } from "@src/utils/encoding";
 import { wait } from "@src/utils/timer";
 import { formatK8sEvent, formatLogMessage } from "./logFormatters";
@@ -42,6 +44,32 @@ export class ProviderProxyService {
       },
       { timeout }
     );
+  }
+
+  static readonly ATTESTATION_QUOTE_TIMEOUT = 60_000;
+
+  /**
+   * Fetches the lease's attestation evidence (AEP-83 §5). A fresh 64-byte nonce is generated per call so the
+   * returned hardware-signed evidence is bound to this specific request, and the nonce is returned alongside the
+   * quote so callers can persist the freshness challenge with the evidence. Authenticated with the lease JWT
+   * (the managed-wallet token carries the `attestation` scope) through the provider proxy.
+   */
+  async fetchAttestationQuote(input: {
+    provider: ProviderIdentity;
+    dseq: string;
+    gseq: number;
+    oseq: number;
+    ensureToken: () => Promise<string>;
+  }): Promise<AttestationEvidence> {
+    const nonce = generateAttestationNonce();
+    const response = await this.request<AttestationQuote>(`/lease/${input.dseq}/${input.gseq}/${input.oseq}/attestation/quote`, {
+      method: "POST",
+      body: JSON.stringify({ nonce, bind_tls: false }),
+      credentials: { type: "jwt", value: await input.ensureToken() },
+      providerIdentity: input.provider,
+      timeout: ProviderProxyService.ATTESTATION_QUOTE_TIMEOUT
+    });
+    return { nonce, quote: response.data };
   }
 
   async sendManifest(providerInfo: ApiProviderList | undefined | null, manifest: Manifest, options: SendManifestToProviderOptions) {

@@ -99,6 +99,69 @@ describe(useProviderJwt.name, () => {
     expect(consoleApiHttpClient.post).not.toHaveBeenCalled();
   });
 
+  it("generates a per-provider granular token without persisting it", async () => {
+    const token = genFakeToken();
+    const userId = "user-1";
+    const consoleApiHttpClient = mock<HttpClient>({
+      post: vi.fn().mockResolvedValue({ data: { data: { token } } })
+    } as unknown as HttpClient);
+    const storedWalletsService = mock<StoredWalletsService>({
+      getStorageManagedWallet: vi.fn().mockReturnValue(undefined),
+      updateStorageManagedWallet: vi.fn()
+    });
+
+    const { result } = setup({
+      services: { consoleApiHttpClient: () => consoleApiHttpClient, storedWalletsService: () => storedWalletsService },
+      user: { id: userId },
+      wallet: { isWalletConnected: true }
+    });
+
+    const returned = await result.current.generateScopedProviderToken({ provider: "akash1provider", scope: ["attestation"] });
+
+    expect(returned).toBe(token);
+    expect(consoleApiHttpClient.post).toHaveBeenCalledWith("/v1/create-jwt-token", {
+      data: {
+        ttl: 1800, // 30 * 60
+        leases: {
+          access: "granular",
+          permissions: [{ provider: "akash1provider", access: "scoped", scope: ["attestation"] }]
+        }
+      }
+    });
+    // ephemeral: the shared global token (storage + atom) must not be touched
+    expect(storedWalletsService.updateStorageManagedWallet).not.toHaveBeenCalled();
+    expect(result.current.accessToken).toBeNull();
+  });
+
+  it("throws when generating a scoped provider token while wallet is disconnected", async () => {
+    const consoleApiHttpClient = mock<HttpClient>({ post: vi.fn() } as unknown as HttpClient);
+
+    const { result } = setup({
+      services: { consoleApiHttpClient: () => consoleApiHttpClient },
+      wallet: { isWalletConnected: false }
+    });
+
+    await expect(result.current.generateScopedProviderToken({ provider: "akash1provider", scope: ["attestation"] })).rejects.toThrow(
+      /wallet is not connected/i
+    );
+    expect(consoleApiHttpClient.post).not.toHaveBeenCalled();
+  });
+
+  it("throws when generating a scoped provider token without an authenticated user", async () => {
+    const consoleApiHttpClient = mock<HttpClient>({ post: vi.fn() } as unknown as HttpClient);
+
+    const { result } = setup({
+      services: { consoleApiHttpClient: () => consoleApiHttpClient },
+      wallet: { isWalletConnected: true },
+      user: null
+    });
+
+    await expect(result.current.generateScopedProviderToken({ provider: "akash1provider", scope: ["attestation"] })).rejects.toThrow(
+      /user is not authenticated/i
+    );
+    expect(consoleApiHttpClient.post).not.toHaveBeenCalled();
+  });
+
   it("detects expired token correctly", () => {
     const pastTime = Math.floor(Date.now() / 1000) - 100;
     const { result } = setup({ initialToken: genFakeToken({ exp: pastTime }) });

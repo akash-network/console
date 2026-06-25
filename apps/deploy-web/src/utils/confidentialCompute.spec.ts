@@ -2,9 +2,12 @@ import type { QueryInput as DeepPartial } from "@akashnetwork/chain-sdk";
 import { describe, expect, it } from "vitest";
 
 import type { DeploymentGroup } from "@src/types/deployment";
+import { fromBase64 } from "@src/utils/encoding";
 import {
+  ATTESTATION_NONCE_BYTES,
   computeSidecarCarveout,
   formatTeeTypeLabel,
+  generateAttestationNonce,
   getDeclaredTeeTypes,
   getGroupTeeType,
   getTeeResourceCarveouts,
@@ -284,5 +287,16 @@ describe(formatTeeTypeLabel.name, () => {
   it("renders friendly labels for each TEE type", () => {
     expect(formatTeeTypeLabel("cpu")).toBe("CPU");
     expect(formatTeeTypeLabel("cpu-gpu")).toBe("CPU + GPU");
+  });
+});
+
+describe(generateAttestationNonce.name, () => {
+  it("produces a base64 value decoding to exactly 64 bytes", () => {
+    const nonce = generateAttestationNonce();
+    expect(fromBase64(nonce)).toHaveLength(ATTESTATION_NONCE_BYTES);
+  });
+
+  it("produces a distinct value on each call", () => {
+    expect(generateAttestationNonce()).not.toEqual(generateAttestationNonce());
   });
 });

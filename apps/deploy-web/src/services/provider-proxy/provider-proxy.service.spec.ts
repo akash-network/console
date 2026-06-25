@@ -5,6 +5,7 @@ import type { LoggerService } from "@akashnetwork/logging";
 import { afterEach, describe, expect, it, type Mock, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { fromBase64 } from "@src/utils/encoding";
 import type { K8sEventMessage, LogEntryMessage, ProviderCredentials } from "./provider-proxy.service";
 import { ProviderProxyService, WS_ERRORS } from "./provider-proxy.service";
 
@@ -1122,6 +1123,35 @@ describe(ProviderProxyService.name, () => {
       await vi.advanceTimersByTimeAsync(10_000);
 
       expect(createWebSocket).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("fetchAttestationQuote", () => {
+    it("posts a fresh 64-byte nonce to the attestation quote endpoint with jwt credentials", async () => {
+      const quote = { report: "cpu-report", tee_platform: "snp-gpu", gpu_reports: [{ index: 0, report: "gpu-0" }] };
+      const httpClient = mock<HttpClient>({ post: vi.fn().mockResolvedValue({ data: quote }) } as unknown as HttpClient);
+      const { service } = setup({ httpClient });
+
+      const result = await service.fetchAttestationQuote({
+        provider: { owner: "akash1provider", hostUri: "https://provider.test" },
+        dseq: "123",
+        gseq: 1,
+        oseq: 2,
+        ensureToken: () => Promise.resolve("jwt-token")
+      });
+
+      const [, payload, requestConfig] = (httpClient.post as Mock).mock.calls[0];
+      expect(payload.method).toBe("POST");
+      expect(payload.url).toBe("https://provider.test/lease/123/1/2/attestation/quote");
+      expect(payload.auth).toEqual({ type: "jwt", token: "jwt-token" });
+
+      const body = JSON.parse(payload.body);
+      expect(body.bind_tls).toBe(false);
+      expect(fromBase64(body.nonce)).toHaveLength(64);
+
+      expect(result.quote).toEqual(quote);
+      expect(result.nonce).toBe(body.nonce);
+      expect(requestConfig.timeout).toBe(60_000);
     });
   });
 
