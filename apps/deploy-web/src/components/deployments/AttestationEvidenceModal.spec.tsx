@@ -1,6 +1,7 @@
 import type { Mock } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 
+import type { AttestationValidationResult } from "@src/queries/useAttestationValidationMutation";
 import type { AttestationQuote } from "@src/utils/confidentialCompute";
 import type { DEPENDENCIES } from "./AttestationEvidenceModal";
 import { AttestationEvidenceModal } from "./AttestationEvidenceModal";
@@ -68,12 +69,90 @@ describe(AttestationEvidenceModal.name, () => {
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 
-  function setup(input: { nonce?: string; quote?: AttestationQuote; error?: Error }) {
+  it("validates the fetched evidence when the validate action is clicked", async () => {
+    const { validate } = setup({ nonce: "nonce-base64", quote: { report: "cpu-report", tee_platform: "snp" } });
+
+    await userEvent.click(screen.getByRole("button", { name: "Validate" }));
+
+    expect(validate).toHaveBeenCalledWith({ evidence: { nonce: "nonce-base64", quote: { report: "cpu-report", tee_platform: "snp" } } });
+  });
+
+  it("disables validation until the evidence is loaded", () => {
+    setup({});
+    expect(screen.getByRole("button", { name: "Validate" })).toBeDisabled();
+  });
+
+  it("shows a verdict per report and keeps the CPU verdict when a GPU report is unverifiable", () => {
+    setup({
+      quote: { report: "cpu-report", tee_platform: "snp-gpu", gpu_reports: [{ device_index: 0, report: "gpu-0-report" }] },
+      validation: {
+        data: {
+          overall: "unverifiable",
+          nonce: "nonce-base64",
+          reports: [
+            { kind: "cpu", vendor: "amd-sev-snp", status: "valid", detail: "Genuine AMD SEV-SNP hardware" },
+            { kind: "gpu", device_index: 0, vendor: "nvidia", status: "unverifiable", detail: "NVIDIA NRAS unreachable" }
+          ]
+        }
+      }
+    });
+
+    // Per-report isolation: the CPU verdict stands even though the GPU report is unverifiable.
+    expect(screen.getByText("Valid")).toBeInTheDocument();
+    expect(screen.getByText("Unverifiable")).toBeInTheDocument();
+    expect(screen.getByText("Genuine AMD SEV-SNP hardware")).toBeInTheDocument();
+    expect(screen.getByText("NVIDIA NRAS unreachable")).toBeInTheDocument();
+  });
+
+  it("shows an invalid verdict for a report that fails verification", () => {
+    setup({
+      quote: { report: "cpu-report", tee_platform: "snp" },
+      validation: {
+        data: {
+          overall: "invalid",
+          nonce: "nonce-base64",
+          reports: [{ kind: "cpu", vendor: "amd-sev-snp", status: "invalid", detail: "signature did not verify" }]
+        }
+      }
+    });
+
+    expect(screen.getByText("Invalid")).toBeInTheDocument();
+    expect(screen.getByText("signature did not verify")).toBeInTheDocument();
+  });
+
+  it("surfaces a non-blocking validation error while still rendering the evidence", () => {
+    setup({
+      quote: { report: "cpu-report", tee_platform: "snp" },
+      validation: { error: new Error("validation service unavailable") }
+    });
+
+    expect(screen.getByText(/validation service unavailable/)).toBeInTheDocument();
+    // The raw report still renders, so the rest of the view is intact.
+    expect(screen.getByText("cpu-report")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Validate" })).toBeEnabled();
+  });
+
+  function setup(input: {
+    nonce?: string;
+    quote?: AttestationQuote;
+    error?: Error;
+    validation?: { data?: AttestationValidationResult; error?: Error; isPending?: boolean };
+  }) {
     const mutate = vi.fn();
+    const validate = vi.fn();
     const saveFile = vi.fn();
     const data = input.quote ? { nonce: input.nonce ?? "nonce-base64", quote: input.quote } : undefined;
     const useAttestationQuoteMutation = vi.fn(
       () => ({ mutate, data, error: input.error ?? null, isPending: false }) as unknown as ReturnType<typeof DEPENDENCIES.useAttestationQuoteMutation>
+    );
+    const useAttestationValidationMutation = vi.fn(
+      () =>
+        ({
+          mutate: validate,
+          data: input.validation?.data,
+          error: input.validation?.error ?? null,
+          isPending: input.validation?.isPending ?? false
+        }) as unknown as ReturnType<typeof DEPENDENCIES.useAttestationValidationMutation>
     );
 
     render(
@@ -81,10 +160,10 @@ describe(AttestationEvidenceModal.name, () => {
         provider={{ owner: "akash1provider", hostUri: "https://provider.test" }}
         lease={{ dseq: "123", gseq: 1, oseq: 2 }}
         onClose={vi.fn()}
-        dependencies={{ useAttestationQuoteMutation, saveFile }}
+        dependencies={{ useAttestationQuoteMutation, useAttestationValidationMutation, saveFile }}
       />
     );
 
-    return { mutate, saveFile };
+    return { mutate, validate, saveFile };
   }
 });
