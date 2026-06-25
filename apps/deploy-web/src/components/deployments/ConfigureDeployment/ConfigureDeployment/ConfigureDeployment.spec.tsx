@@ -55,25 +55,74 @@ describe(ConfigureDeployment.name, () => {
     expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialSdl: helloWorldTemplate.content }), expect.anything());
   });
 
+  it("mints a draft id, keys the draft store by it, and writes it into the URL when none is present", () => {
+    const { replace, ConfigureDeploymentForm, useConfigureDraft } = setup({ templateId: null, mintedDraftId: "fresh-1" });
+
+    expect(useConfigureDraft).toHaveBeenCalledWith("fresh-1");
+    expect(replace).toHaveBeenCalledWith(expect.stringContaining("draftId=fresh-1"), undefined, { shallow: true });
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ intent: expect.objectContaining({ draftId: "fresh-1" }) }), expect.anything());
+  });
+
+  it("restores the persisted draft and skips the template when a draft id is in the URL", () => {
+    const { ConfigureDeploymentForm, usePublicTemplate, useConfigureDraft, replace, mintDraftId } = setup({
+      templateId: "tpl-1",
+      urlDraftId: "draft-1",
+      persistedSdl: "restored: sdl"
+    });
+
+    expect(useConfigureDraft).toHaveBeenCalledWith("draft-1");
+    expect(mintDraftId).not.toHaveBeenCalled();
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialSdl: "restored: sdl" }), expect.anything());
+    expect(usePublicTemplate).toHaveBeenCalledWith(undefined);
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the template when a draft id is in the URL but nothing is persisted", () => {
+    const { ConfigureDeploymentForm, usePublicTemplate } = setup({
+      templateId: "tpl-1",
+      urlDraftId: "draft-1",
+      template: { isLoading: false, data: mock<TemplateOutput>({ deploy: "version: '2.0'" }) }
+    });
+
+    expect(usePublicTemplate).toHaveBeenCalledWith("tpl-1");
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialSdl: "version: '2.0'" }), expect.anything());
+  });
+
   function setup(input: {
-    templateId: string | null;
+    templateId?: string | null;
+    urlDraftId?: string | null;
     template?: { isLoading?: boolean; isError?: boolean; data?: TemplateOutput };
     deploySdl?: TemplateCreation | null;
+    persistedSdl?: string;
+    mintedDraftId?: string;
   }) {
     const ConfigureDeploymentForm = vi.fn(() => <div data-testid="form-mock" />);
     const enqueueSnackbar = vi.fn();
     const usePublicTemplate = vi.fn(() => mock<ReturnType<typeof DEPENDENCIES.usePublicTemplate>>(input.template as never));
-    const params = new URLSearchParams(input.templateId ? { templateId: input.templateId } : {});
+    const replace = vi.fn();
+    const read = vi.fn(() => input.persistedSdl);
+    const save = vi.fn();
+    const clear = vi.fn();
+    const useConfigureDraft = vi.fn(() => mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({ read, save, clear }));
+    const mintDraftId = vi.fn(() => input.mintedDraftId ?? "minted-id");
+
+    const query: Record<string, string> = {};
+    if (input.templateId) query.templateId = input.templateId;
+    if (input.urlDraftId) query.draftId = input.urlDraftId;
+    const params = new URLSearchParams(query);
 
     const dependencies: typeof DEPENDENCIES = {
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
       ConfigureDeploymentForm: ConfigureDeploymentForm as never,
       usePublicTemplate: usePublicTemplate as never,
+      useConfigureDraft: useConfigureDraft as never,
       useSearchParams: () => params as unknown as ReadonlyURLSearchParams,
       useParams: (() => ({})) as never,
+      useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace })) as never,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
-      Snackbar: vi.fn(() => null) as never
+      Snackbar: vi.fn(() => null) as never,
+      mintDraftId: mintDraftId as never
     };
 
     const store = createStore();
@@ -85,6 +134,6 @@ describe(ConfigureDeployment.name, () => {
       </JotaiStoreProvider>
     );
 
-    return { ConfigureDeploymentForm, usePublicTemplate, enqueueSnackbar };
+    return { ConfigureDeploymentForm, usePublicTemplate, useConfigureDraft, enqueueSnackbar, replace, read, save, mintDraftId };
   }
 });

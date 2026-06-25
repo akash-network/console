@@ -41,3 +41,22 @@ test.describe("Configure deployment — request quotes flow", () => {
     });
   });
 });
+
+test.describe("Configure deployment — draft persistence", () => {
+  test.use({ userType: "existing" });
+
+  test("restores edits to the deployment spec after a reload", async ({ page }) => {
+    const configure = new ConfigureDeploymentPage(page);
+
+    await configure.goto();
+    await configure.fillImageName("nginx:1.2.3-draft");
+
+    // a minted draft id is mirrored into the URL, and the working SDL is persisted (debounced) under it
+    await page.waitForURL(/draftId=/, { timeout: 15_000 });
+    await expect.poll(() => configure.getPersistedDraft(), { timeout: 15_000 }).toContain("nginx:1.2.3-draft");
+
+    await configure.reload();
+
+    await expect(configure.dockerImageInput()).toHaveValue("nginx:1.2.3-draft");
+  });
+});

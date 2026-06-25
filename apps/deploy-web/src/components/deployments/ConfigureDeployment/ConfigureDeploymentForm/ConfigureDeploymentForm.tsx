@@ -17,10 +17,11 @@ import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { applyImportedSshState } from "@src/utils/sdl/sshKey";
 import { ConfigureDeploymentHeader } from "../ConfigureDeploymentHeader/ConfigureDeploymentHeader";
 import { ConfigureDeploymentPanes } from "../ConfigureDeploymentPanes/ConfigureDeploymentPanes";
+import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import { useDeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 
-export const DEPENDENCIES = { Layout, NextSeo, ConfigureDeploymentHeader, ConfigureDeploymentPanes, useDeploymentFlow, useSnackbar, Snackbar };
+export const DEPENDENCIES = { Layout, NextSeo, ConfigureDeploymentHeader, ConfigureDeploymentPanes, useConfigureDraft, useDeploymentFlow, useSnackbar, Snackbar };
 
 /** Delay between a form edit and updating the debounced SDL preview. */
 const SDL_SYNC_DEBOUNCE_MS = 300;
@@ -37,6 +38,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, intent, depende
   const [previewSdl, setPreviewSdl] = useState(initialState.sdl);
   const [selectedServiceId, setSelectedServiceId] = useState<string>(initialState.selectedServiceId);
   const { enqueueSnackbar } = d.useSnackbar();
+  const draft = d.useConfigureDraft(intent.draftId);
   const form = useForm<SdlBuilderFormValuesType>({
     defaultValues: initialState.values,
     mode: "onSubmit",
@@ -69,12 +71,15 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, intent, depende
 
   useEffect(
     function debouncePreviewSdl() {
-      const timeout = setTimeout(() => setPreviewSdl(liveSdl), SDL_SYNC_DEBOUNCE_MS);
+      const timeout = setTimeout(function commitDebouncedSdl() {
+        setPreviewSdl(liveSdl);
+        draft.save(liveSdl);
+      }, SDL_SYNC_DEBOUNCE_MS);
       return function cancelPreviewDebounce() {
         clearTimeout(timeout);
       };
     },
-    [liveSdl]
+    [liveSdl, draft]
   );
 
   useEffect(

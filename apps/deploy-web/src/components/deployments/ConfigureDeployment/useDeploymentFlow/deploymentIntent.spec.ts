@@ -13,7 +13,20 @@ describe(parseDeploymentIntent.name, () => {
       dseqSegment: undefined,
       searchParams: new URLSearchParams("templateId=abc&sdl-strategy=default&bid-strategy=auto")
     });
-    expect(intent).toEqual({ templateId: "abc", sdlStrategy: "default", bidStrategy: "auto", dseq: undefined });
+    expect(intent).toEqual({ templateId: "abc", sdlStrategy: "default", bidStrategy: "auto", dseq: undefined, draftId: undefined });
+  });
+
+  it("reads the draft id alongside the other params", () => {
+    const intent = parseDeploymentIntent({
+      dseqSegment: "12345",
+      searchParams: new URLSearchParams("templateId=abc&draftId=draft-1")
+    });
+    expect(intent).toEqual({ templateId: "abc", sdlStrategy: "edit", bidStrategy: "select", dseq: "12345", draftId: "draft-1" });
+  });
+
+  it("leaves the draft id undefined when absent", () => {
+    const intent = parseDeploymentIntent({ dseqSegment: undefined, searchParams: new URLSearchParams() });
+    expect(intent.draftId).toBeUndefined();
   });
 
   it("ignores sdl-strategy when no templateId is present", () => {

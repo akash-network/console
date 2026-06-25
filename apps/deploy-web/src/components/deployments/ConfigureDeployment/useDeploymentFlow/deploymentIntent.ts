@@ -6,6 +6,8 @@ export interface DeploymentIntent {
   sdlStrategy: SdlStrategy;
   bidStrategy: BidStrategy;
   dseq?: string;
+  /** Identifies the persisted working draft. Present once a configure session has started; absent on a fresh entry. */
+  draftId?: string;
 }
 
 interface ParseInput {
@@ -23,7 +25,8 @@ export function parseDeploymentIntent({ dseqSegment, searchParams }: ParseInput)
   const templateId = searchParams.get("templateId") ?? undefined;
   const sdlStrategy = templateId ? toSdlStrategy(searchParams.get("sdl-strategy")) : "edit";
   const bidStrategy = toBidStrategy(searchParams.get("bid-strategy"));
-  return { templateId, sdlStrategy, bidStrategy, dseq: dseqSegment || undefined };
+  const draftId = searchParams.get("draftId") ?? undefined;
+  return { templateId, sdlStrategy, bidStrategy, dseq: dseqSegment || undefined, draftId };
 }
 
 /** Narrows the raw `sdl-strategy` param to the union, defaulting to `edit`. */

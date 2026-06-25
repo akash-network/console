@@ -30,4 +30,14 @@ describe(UrlService.configureDeployment.name, () => {
   it("omits absent params", () => {
     expect(UrlService.configureDeployment({})).toBe("/new-deployment/configure");
   });
+
+  it("includes the draft id when present", () => {
+    expect(UrlService.configureDeployment({ draftId: "draft-1", bidStrategy: "select" })).toBe(
+      "/new-deployment/configure?bid-strategy=select&draftId=draft-1"
+    );
+  });
+
+  it("keeps the draft id alongside the dseq path segment", () => {
+    expect(UrlService.configureDeployment({ dseq: "12345", draftId: "draft-1" })).toBe("/new-deployment/configure/12345?draftId=draft-1");
+  });
 });

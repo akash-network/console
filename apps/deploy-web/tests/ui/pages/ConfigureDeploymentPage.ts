@@ -15,8 +15,21 @@ export class ConfigureDeploymentPage {
     await this.page.getByRole("heading", { name: "Configure your deployment" }).waitFor({ state: "visible", timeout: 15_000 });
   }
 
+  async reload() {
+    await this.page.reload();
+    await this.page.getByRole("heading", { name: "Configure your deployment" }).waitFor({ state: "visible", timeout: 15_000 });
+  }
+
   async fillImageName(image: string) {
     await this.dockerImageInput().fill(image);
+  }
+
+  /** The SDL persisted for the active configure draft, or null when none has been written yet. */
+  getPersistedDraft() {
+    return this.page.evaluate(() => {
+      const key = Object.keys(window.localStorage).find(item => item.startsWith("configure-draft:"));
+      return key ? window.localStorage.getItem(key) : null;
+    });
   }
 
   async requestQuotes() {

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DEPENDENCIES } from "./useDeploymentFlow";
-import { useDeploymentFlow } from "./useDeploymentFlow";
+import { buildConfigureUrl, useDeploymentFlow } from "./useDeploymentFlow";
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 
@@ -66,8 +66,18 @@ describe(useDeploymentFlow.name, () => {
     expect(replace).toHaveBeenCalledWith(expect.stringContaining("bid-strategy=auto"), undefined, { shallow: true });
   });
 
+  it("preserves the draft id in the URL when creating a deployment", async () => {
+    const replace = vi.fn();
+    const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+    const { result } = setup({ replace, createMutate, intent: { sdlStrategy: "edit", bidStrategy: "select", draftId: "draft-1" } });
+
+    act(() => result.current.actions.requestQuotes());
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith(expect.stringContaining("draftId=draft-1"), undefined, { shallow: true }));
+  });
+
   function setup(input: {
-    intent?: { sdlStrategy: "default" | "edit"; bidStrategy: "auto" | "select"; dseq?: string; templateId?: string };
+    intent?: { sdlStrategy: "default" | "edit"; bidStrategy: "auto" | "select"; dseq?: string; templateId?: string; draftId?: string };
     sdl?: string;
     replace?: ReturnType<typeof vi.fn>;
     createMutate?: ReturnType<typeof vi.fn>;
@@ -81,4 +91,20 @@ describe(useDeploymentFlow.name, () => {
     };
     return renderHook(() => useDeploymentFlow({ intent, sdl: input.sdl ?? "sdl-content" }, dependencies));
   }
+});
+
+describe(buildConfigureUrl.name, () => {
+  it("preserves the draft id alongside the dseq and bid strategy", () => {
+    const url = buildConfigureUrl({ sdlStrategy: "edit", bidStrategy: "select", templateId: "tpl", draftId: "draft-1" }, "999", "auto");
+
+    expect(url).toContain("/new-deployment/configure/999");
+    expect(url).toContain("bid-strategy=auto");
+    expect(url).toContain("draftId=draft-1");
+  });
+
+  it("omits the draft id when the intent carries none", () => {
+    const url = buildConfigureUrl({ sdlStrategy: "edit", bidStrategy: "select" }, undefined, "select");
+
+    expect(url).not.toContain("draftId");
+  });
 });

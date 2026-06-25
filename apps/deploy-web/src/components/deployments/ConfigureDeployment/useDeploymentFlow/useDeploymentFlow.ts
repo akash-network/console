@@ -133,7 +133,13 @@ export function useDeploymentFlow({ intent, sdl }: UseDeploymentFlowInput, depen
   return { phase, dseq, bidStrategy, error, actions: { requestQuotes, cancelAndEdit, setBidStrategy, refreshQuotes, retry } };
 }
 
-/** Builds the canonical configure URL preserving templateId/sdl-strategy and the current dseq + bid-strategy. */
-function buildConfigureUrl(intent: DeploymentIntent, dseq: string | undefined, bidStrategy: BidStrategy): string {
-  return UrlService.configureDeployment({ dseq, templateId: intent.templateId, sdlStrategy: intent.templateId ? intent.sdlStrategy : undefined, bidStrategy });
+/** Builds the canonical configure URL preserving templateId/sdl-strategy/draftId and the current dseq + bid-strategy. */
+export function buildConfigureUrl(intent: DeploymentIntent, dseq: string | undefined, bidStrategy: BidStrategy): string {
+  return UrlService.configureDeployment({
+    dseq,
+    templateId: intent.templateId,
+    sdlStrategy: intent.templateId ? intent.sdlStrategy : undefined,
+    bidStrategy,
+    draftId: intent.draftId
+  });
 }
