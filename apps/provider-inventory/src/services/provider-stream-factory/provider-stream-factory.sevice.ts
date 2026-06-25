@@ -1,4 +1,5 @@
 import { createProviderSDK } from "@akashnetwork/chain-sdk";
+import type { Status as ProviderStatus } from "@akashnetwork/chain-sdk/private-types/provider.akash.v1";
 import { inject, singleton } from "tsyringe";
 
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
@@ -16,7 +17,7 @@ export class ProviderStreamFactory {
     this.#logger = loggerFactory({ context: "ProviderStreamFactory" });
   }
 
-  async *openStatusStream(provider: ChainProvider, signal: AbortSignal): AsyncIterable<ClusterState> {
+  async openStatusStream(provider: ChainProvider, signal: AbortSignal): Promise<AsyncIterable<ClusterState>> {
     const url = new URL(provider.hostUri);
     url.port = "8444";
     let sdk = this.#sdks.get(provider.hostUri);
@@ -32,9 +33,13 @@ export class ProviderStreamFactory {
     }
 
     const openedAt = Date.now();
-    const stream = await sdk.akash.provider.v1.streamStatus({}, { signal });
+    const stream = await sdk.akash.provider.v1.streamStatus(undefined, { signal });
     this.#logger.debug({ event: "STREAM_OPENED", owner: provider.owner, msSinceCreate: Date.now() - openedAt });
 
+    return this.#mapInventory(stream, provider, openedAt);
+  }
+
+  async *#mapInventory(stream: AsyncIterable<ProviderStatus>, provider: ChainProvider, openedAt: number): AsyncIterable<ClusterState> {
     let isFirstMessage = true;
     for await (const status of stream) {
       if (isFirstMessage) {

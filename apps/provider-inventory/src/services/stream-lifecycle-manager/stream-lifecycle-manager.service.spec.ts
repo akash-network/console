@@ -113,7 +113,7 @@ describe(StreamLifecycleManagerService.name, () => {
       const removeSpy = vi.spyOn(parent.signal, "removeEventListener");
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
-      streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
+      streamFactory.openStatusStream.mockImplementation(async () => throwingStream(new Error("connection lost")));
       const { manager } = setup({ streamFactory });
 
       manager.start(createProvider(), parent.signal);
@@ -273,7 +273,7 @@ describe(StreamLifecycleManagerService.name, () => {
       let attempt = 0;
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
-      streamFactory.openStatusStream.mockImplementation(() => {
+      streamFactory.openStatusStream.mockImplementation(async () => {
         attempt++;
         if (attempt === 1) return throwingStream(new Error("connection lost"));
         return msgsThenHang([createCluster()]);
@@ -291,7 +291,7 @@ describe(StreamLifecycleManagerService.name, () => {
     it("marks offline only once across consecutive failed attempts", async () => {
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
-      streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
+      streamFactory.openStatusStream.mockImplementation(async () => throwingStream(new Error("connection lost")));
       const { manager, writer, logger } = setup({ streamFactory });
       const countFailures = () => logger.warn.mock.calls.filter(([arg]) => (arg as { event?: string })?.event === "STREAM_ATTEMPT_FAILED").length;
 
@@ -307,7 +307,7 @@ describe(StreamLifecycleManagerService.name, () => {
       let attempt = 0;
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
-      streamFactory.openStatusStream.mockImplementation(() => {
+      streamFactory.openStatusStream.mockImplementation(async () => {
         attempt++;
         if (attempt === 1) return throwingStream(new Error("initial failure"));
         if (attempt === 2) return msgsThenThrow([createCluster()], new Error("dropped"));
@@ -336,7 +336,7 @@ describe(StreamLifecycleManagerService.name, () => {
     it("opens an incident after all retries are exhausted", async () => {
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
-      streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
+      streamFactory.openStatusStream.mockImplementation(async () => throwingStream(new Error("connection lost")));
       const { manager, incidents, logger } = setup({ streamFactory });
 
       manager.start(createProvider());
@@ -351,7 +351,7 @@ describe(StreamLifecycleManagerService.name, () => {
     it("does not open an incident when the stream is aborted intentionally", async () => {
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
-      streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
+      streamFactory.openStatusStream.mockImplementation(async () => throwingStream(new Error("connection lost")));
       const { manager, incidents } = setup({ streamFactory });
 
       manager.start(createProvider());
@@ -365,7 +365,7 @@ describe(StreamLifecycleManagerService.name, () => {
       let attempt = 0;
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
-      streamFactory.openStatusStream.mockImplementation(() => {
+      streamFactory.openStatusStream.mockImplementation(async () => {
         attempt++;
         if (attempt === 1) return throwingStream(new Error("initial failure"));
         return msgsThenHang([createCluster()]);
@@ -396,7 +396,7 @@ describe(StreamLifecycleManagerService.name, () => {
     it("attempts a provider with an open incident at most twice before giving up", async () => {
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
-      streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
+      streamFactory.openStatusStream.mockImplementation(async () => throwingStream(new Error("connection lost")));
       const { manager, incidents, logger } = setup({ streamFactory });
       const offline = createProvider({ offlineSince: new Date(Date.now() - 10_000) });
 
@@ -412,7 +412,7 @@ describe(StreamLifecycleManagerService.name, () => {
     it("logs STREAM_RECONNECTING only once for a provider with an open incident", async () => {
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
-      streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
+      streamFactory.openStatusStream.mockImplementation(async () => throwingStream(new Error("connection lost")));
       const { manager, logger } = setup({ streamFactory });
       const countReconnects = () => logger.warn.mock.calls.filter(([arg]) => (arg as { event?: string })?.event === "STREAM_RECONNECTING").length;
 
@@ -425,7 +425,7 @@ describe(StreamLifecycleManagerService.name, () => {
     it("uses the reduced retry budget even for a provider that just went offline", async () => {
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
-      streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
+      streamFactory.openStatusStream.mockImplementation(async () => throwingStream(new Error("connection lost")));
       const { manager, logger } = setup({ streamFactory });
 
       manager.start(createProvider({ offlineSince: new Date(Date.now() - 100) }));
@@ -437,7 +437,7 @@ describe(StreamLifecycleManagerService.name, () => {
     it("uses the full retry budget for a healthy provider with no open incident", async () => {
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
-      streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
+      streamFactory.openStatusStream.mockImplementation(async () => throwingStream(new Error("connection lost")));
       const { manager, logger } = setup({ streamFactory });
 
       manager.start(createProvider({ offlineSince: null }));
@@ -450,7 +450,7 @@ describe(StreamLifecycleManagerService.name, () => {
       let attempt = 0;
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
-      streamFactory.openStatusStream.mockImplementation(() => {
+      streamFactory.openStatusStream.mockImplementation(async () => {
         attempt++;
         if (attempt === 1) return throwingStream(new Error("initial failure"));
         return msgsThenHang([createCluster()]);
@@ -466,7 +466,7 @@ describe(StreamLifecycleManagerService.name, () => {
       let attempt = 0;
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
-      streamFactory.openStatusStream.mockImplementation(() => {
+      streamFactory.openStatusStream.mockImplementation(async () => {
         attempt++;
         // First attempt comes online (delivers inventory) and then drops; every later attempt fails.
         if (attempt === 1) return msgsThenThrow([createCluster()], new Error("dropped after coming online"));
@@ -494,7 +494,7 @@ describe(StreamLifecycleManagerService.name, () => {
       streamFactory.disposeProvider.mockResolvedValue();
       let callCount = 0;
       let oldStreamDelivered = false;
-      streamFactory.openStatusStream.mockImplementation(() => {
+      streamFactory.openStatusStream.mockImplementation(async () => {
         callCount++;
         if (callCount === 1) {
           // The old stream emits an initial snapshot (so it stays open past the first-message timeout)
@@ -561,7 +561,7 @@ describe(StreamLifecycleManagerService.name, () => {
     it("does not log STREAM_RECONNECTING after shutdown when a scheduled retry timer fires", async () => {
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
-      streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
+      streamFactory.openStatusStream.mockImplementation(async () => throwingStream(new Error("connection lost")));
       const { manager, logger } = setup({ streamFactory });
       const countReconnects = () => logger.warn.mock.calls.filter(([arg]) => (arg as { event?: string })?.event === "STREAM_RECONNECTING").length;
 
@@ -582,7 +582,7 @@ describe(StreamLifecycleManagerService.name, () => {
       await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(1));
 
       manager.shutdown();
-      streamFactory.openStatusStream.mockReturnValue(msgsThenHang([createCluster({ cpu: 1000n })]));
+      streamFactory.openStatusStream.mockResolvedValue(msgsThenHang([createCluster({ cpu: 1000n })]));
       manager.start(createProvider());
 
       await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(2));
@@ -599,7 +599,7 @@ describe(StreamLifecycleManagerService.name, () => {
       const parent = new AbortController();
       const streamFactory = mock<ProviderStreamFactory>();
       streamFactory.disposeProvider.mockResolvedValue();
-      streamFactory.openStatusStream.mockImplementation(() => throwingStream(new Error("connection lost")));
+      streamFactory.openStatusStream.mockImplementation(async () => throwingStream(new Error("connection lost")));
       const { manager, logger } = setup({ streamFactory });
       const giveUps = () => logger.error.mock.calls.filter(([arg]) => (arg as { event?: string })?.event === "STREAM_GAVE_UP").length;
       const providers = [
@@ -673,12 +673,13 @@ describe(StreamLifecycleManagerService.name, () => {
       STREAM_RECONNECT_MAX_DELAY_MS: 50,
       STREAM_FIRST_MESSAGE_TIMEOUT_MS: 80,
       STREAM_UPDATE_THROTTLE_MS: input?.throttleMs ?? 0,
-      DEAD_PROVIDER_UPDATED_THRESHOLD_MS: 1000
+      DEAD_PROVIDER_UPDATED_THRESHOLD_MS: 1000,
+      OFFLINE_PROVIDER_RETRY_MAX_ATTEMPTS: 2
     });
 
     if (!input?.streamFactory) {
       const streams = input?.streams ?? {};
-      streamFactory.openStatusStream.mockImplementation((provider: ChainProvider, signal: AbortSignal) => {
+      streamFactory.openStatusStream.mockImplementation(async (provider: ChainProvider, signal: AbortSignal) => {
         const value = streams[provider.hostUri];
         if (value === "hang") return hangingStream(signal);
         if (value) return value;
