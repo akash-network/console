@@ -49,6 +49,8 @@ export const DEPENDENCIES = { CollapsibleCard, QuantityStepper, CodeSnippet, gen
 
 type Props = {
   serviceIndex: number;
+  /** While the pane is locked every input in the card body is disabled so configured values stay viewable but read-only. */
+  locked?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -80,19 +82,21 @@ const defaultCredentials = { host: "docker.io", username: "", password: "" };
  * appears in the Environment Variables card and the generated SDL); unchecking
  * "Expose SSH" clears both the key and that env var from every service.
  */
-export const ImageRuntimeCard: FC<Props> = ({ serviceIndex, dependencies: d = DEPENDENCIES }) => {
+export const ImageRuntimeCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const hasCredentials = useController({ control, name: `services.${serviceIndex}.hasCredentials` });
 
   return (
     <d.CollapsibleCard title="Image & Runtime" icon={<BoxIcon className="h-4 w-4" />} infoTooltip={imageRuntimeTooltip}>
-      <ImageField serviceIndex={serviceIndex} hasCredentials={!!hasCredentials.field.value} onToggleCredentials={hasCredentials.field.onChange} />
+      <fieldset disabled={locked} className="flex min-w-0 flex-col gap-4 border-0 p-0">
+        <ImageField serviceIndex={serviceIndex} hasCredentials={!!hasCredentials.field.value} onToggleCredentials={hasCredentials.field.onChange} />
 
-      {hasCredentials.field.value && <CredentialsFields serviceIndex={serviceIndex} />}
+        {hasCredentials.field.value && <CredentialsFields serviceIndex={serviceIndex} />}
 
-      <ReplicasField serviceIndex={serviceIndex} dependencies={d} />
+        <ReplicasField serviceIndex={serviceIndex} dependencies={d} />
 
-      <SshKeyField serviceIndex={serviceIndex} dependencies={d} />
+        <SshKeyField serviceIndex={serviceIndex} dependencies={d} />
+      </fieldset>
     </d.CollapsibleCard>
   );
 };
@@ -240,7 +244,7 @@ const CredentialsFields: FC<{ serviceIndex: number }> = ({ serviceIndex }) => {
   );
 };
 
-const ReplicasField: FC<Required<Props>> = ({ serviceIndex, dependencies: d }) => {
+const ReplicasField: FC<Required<Omit<Props, "locked">>> = ({ serviceIndex, dependencies: d }) => {
   const { control, trigger } = useFormContext<SdlBuilderFormValuesType>();
   const count = useController({ control, name: `services.${serviceIndex}.count` });
 
@@ -273,7 +277,7 @@ const ReplicasField: FC<Required<Props>> = ({ serviceIndex, dependencies: d }) =
   );
 };
 
-const SshKeyField: FC<Required<Props>> = ({ serviceIndex, dependencies: d }) => {
+const SshKeyField: FC<Required<Omit<Props, "locked">>> = ({ serviceIndex, dependencies: d }) => {
   const { control, setValue, getValues } = useFormContext<SdlBuilderFormValuesType>();
   const { enqueueSnackbar } = d.useSnackbar();
   const hasSSHKey = useController({ control, name: "hasSSHKey" });

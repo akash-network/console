@@ -164,6 +164,77 @@ describe(CollapsibleCard.name, () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it("disables the enable switch while toggleDisabled", async () => {
+    const onToggle = vi.fn();
+    setup({ isToggled: true, toggleAriaLabel: "Enable GPU", onToggle, toggleDisabled: true });
+
+    expect(screen.getByRole("switch", { name: "Enable GPU" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("switch", { name: "Enable GPU" }));
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
+  it("expands an off card via the chevron without enabling it while toggleDisabled", async () => {
+    const onToggle = vi.fn();
+    setup({ isToggled: false, toggleAriaLabel: "Enable GPU", onToggle, toggleDisabled: true });
+
+    expect(screen.queryByText("card body")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Expand GPU" }));
+
+    expect(onToggle).not.toHaveBeenCalled();
+    expect(screen.getByText("card body")).toBeVisible();
+  });
+
+  it("still lets an enabled card collapse while toggleDisabled", async () => {
+    setup({ isToggled: true, toggleAriaLabel: "Enable GPU", toggleDisabled: true });
+
+    expect(screen.getByText("card body")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Collapse GPU" }));
+    expect(screen.queryByText("card body")).not.toBeInTheDocument();
+  });
+
+  it("expands a collapsed enabled card when the chevron is clicked", async () => {
+    setup({ isToggled: true, toggleAriaLabel: "Enable GPU", defaultOpen: false });
+
+    expect(screen.queryByText("card body")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Expand GPU" }));
+    expect(screen.getByText("card body")).toBeVisible();
+  });
+
+  it("disables a collapsed enabled card when the switch is turned off", async () => {
+    const onToggle = vi.fn();
+    setup({ isToggled: true, toggleAriaLabel: "Enable GPU", onToggle, defaultOpen: false });
+
+    await userEvent.click(screen.getByRole("switch", { name: "Enable GPU" }));
+    expect(onToggle).toHaveBeenCalledWith(false);
+  });
+
+  it("keeps the switch disabled on an off card while toggleDisabled", async () => {
+    const onToggle = vi.fn();
+    setup({ isToggled: false, toggleAriaLabel: "Enable GPU", onToggle, toggleDisabled: true });
+
+    expect(screen.getByRole("switch", { name: "Enable GPU" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("switch", { name: "Enable GPU" }));
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
+  it("collapses an opened off card via the chevron while toggleDisabled", async () => {
+    setup({ isToggled: false, toggleAriaLabel: "Enable GPU", toggleDisabled: true });
+
+    await userEvent.click(screen.getByRole("button", { name: "Expand GPU" }));
+    expect(screen.getByText("card body")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Collapse GPU" }));
+    expect(screen.queryByText("card body")).not.toBeInTheDocument();
+  });
+
+  it("expands a collapsed enabled card via the chevron while toggleDisabled", async () => {
+    setup({ isToggled: true, toggleAriaLabel: "Enable GPU", toggleDisabled: true, defaultOpen: false });
+
+    expect(screen.queryByText("card body")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Expand GPU" }));
+    expect(screen.getByText("card body")).toBeVisible();
+  });
+
   describe("when onHeaderClick is provided", () => {
     it("fires onHeaderClick when the header is clicked", async () => {
       const onHeaderClick = vi.fn();
@@ -212,6 +283,8 @@ describe(CollapsibleCard.name, () => {
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
     onHeaderClick?: () => void;
+    toggleDisabled?: boolean;
+    defaultOpen?: boolean;
   }) {
     const card = (overrides: Partial<typeof input>) => (
       <CollapsibleCard
@@ -226,6 +299,8 @@ describe(CollapsibleCard.name, () => {
         open={input.open}
         onOpenChange={input.onOpenChange}
         onHeaderClick={input.onHeaderClick}
+        toggleDisabled={input.toggleDisabled}
+        defaultOpen={input.defaultOpen}
         {...overrides}
       >
         <p>card body</p>

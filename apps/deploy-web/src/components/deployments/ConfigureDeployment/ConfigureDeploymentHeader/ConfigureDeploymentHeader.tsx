@@ -2,20 +2,24 @@ import type { FC } from "react";
 import { useFormContext } from "react-hook-form";
 import { Button } from "@akashnetwork/ui/components";
 import { Send } from "iconoir-react";
+import { LoaderCircle } from "lucide-react";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { useDeploymentResourceSummary } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
+import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 
-export const ConfigureDeploymentHeader: FC = () => {
-  const deploymentSummary = useDeploymentResourceSummary();
+export const DEPENDENCIES = { useDeploymentResourceSummary };
+
+type Props = { flow: DeploymentFlow; dependencies?: typeof DEPENDENCIES };
+
+export const ConfigureDeploymentHeader: FC<Props> = ({ flow, dependencies: d = DEPENDENCIES }) => {
+  const deploymentSummary = d.useDeploymentResourceSummary();
   const { handleSubmit } = useFormContext<SdlBuilderFormValuesType>();
 
-  /**
-   * "Request quotes" submits the form solely to run validation: an invalid form
-   * surfaces its field errors, a valid one has no follow-up action yet (the quotes
-   * request is a separate, not-yet-built step).
-   */
-  const requestQuotes = handleSubmit(() => undefined);
+  const isEditable = flow.phase === "configuring" || flow.phase === "error";
+
+  /** Request quotes validates the form first; only a valid spec proceeds to create the deployment. */
+  const onRequestQuotes = handleSubmit(() => flow.actions.requestQuotes());
 
   return (
     <header className="flex flex-row items-center justify-between gap-3 md:items-end">
@@ -30,10 +34,17 @@ export const ConfigureDeploymentHeader: FC = () => {
         <DeploymentSummaryBlock label="Your deployment" value={deploymentSummary} />
         <div className="hidden h-12 w-px self-stretch bg-border md:block" aria-hidden="true" />
         <DeploymentSummaryBlock label="Cost" value="—" suffix="/hr" />
-        <Button type="button" onClick={requestQuotes} className="h-9 shrink-0 px-3 md:h-10 md:px-8">
-          <Send className="h-4 w-4 md:hidden" aria-label="Request quotes" />
-          <span className="hidden md:inline">Request quotes</span>
-        </Button>
+        {isEditable ? (
+          <Button type="button" onClick={onRequestQuotes} className="h-9 shrink-0 px-3 md:h-10 md:px-8">
+            <Send className="h-4 w-4 md:hidden" aria-label="Request quotes" />
+            <span className="hidden md:inline">Request quotes</span>
+          </Button>
+        ) : (
+          <Button type="button" disabled aria-label="Requesting" className="h-9 shrink-0 gap-2 px-3 md:h-10 md:px-8">
+            <LoaderCircle className="h-4 w-4 animate-spin text-current" aria-hidden="true" />
+            <span className="hidden md:inline">Requesting…</span>
+          </Button>
+        )}
       </div>
     </header>
   );

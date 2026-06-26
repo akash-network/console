@@ -43,6 +43,8 @@ export interface CollapsibleCardProps {
   onToggle?: (toggled: boolean) => void;
   /** Accessible label for the built-in enable switch. */
   toggleAriaLabel?: string;
+  /** Disables only the built-in enable switch (and enabling via the header); the body and chevron stay interactive. */
+  toggleDisabled?: boolean;
   className?: string;
   contentClassName?: string;
   /** The card body. Required for collapsible cards; omitted for `onHeaderClick` action cards. */
@@ -94,6 +96,7 @@ const CollapsibleCardBody = React.forwardRef<HTMLDivElement, Omit<CollapsibleCar
       isToggled,
       onToggle,
       toggleAriaLabel,
+      toggleDisabled = false,
       className,
       contentClassName,
       children
@@ -101,12 +104,13 @@ const CollapsibleCardBody = React.forwardRef<HTMLDivElement, Omit<CollapsibleCar
     ref
   ) => {
     const hasToggle = isToggled !== undefined;
-    const [uncontrolledExpanded, setUncontrolledExpanded] = useState(defaultOpen);
+    const [uncontrolledExpanded, setUncontrolledExpanded] = useState(hasToggle ? !!isToggled && defaultOpen : defaultOpen);
     const expanded = openProp ?? uncontrolledExpanded;
-    // A toggle card's body shows only while enabled and expanded; disabled always reads as collapsed.
-    const open = hasToggle ? !!isToggled && expanded : expanded;
-
+    // Normally a toggle card's body is gated by its enabled state. While `toggleDisabled` the switch
+    // can't change that state, so the chevron drives the body directly — collapse always stays usable.
+    const open = hasToggle && !toggleDisabled ? !!isToggled && expanded : expanded;
     const wasToggled = useRef(isToggled);
+
     useEffect(() => {
       if (isToggled && !wasToggled.current) {
         setUncontrolledExpanded(true);
@@ -121,7 +125,7 @@ const CollapsibleCardBody = React.forwardRef<HTMLDivElement, Omit<CollapsibleCar
     };
 
     const handleHeaderToggle = (nextOpen: boolean) => {
-      if (hasToggle && !isToggled) {
+      if (hasToggle && !isToggled && !toggleDisabled) {
         onToggle?.(true);
         return;
       }
@@ -129,6 +133,7 @@ const CollapsibleCardBody = React.forwardRef<HTMLDivElement, Omit<CollapsibleCar
     };
 
     const handleEnableToggle = (checked: boolean) => {
+      if (toggleDisabled) return;
       onToggle?.(checked);
       if (!checked) {
         setExpanded(false);
@@ -136,7 +141,11 @@ const CollapsibleCardBody = React.forwardRef<HTMLDivElement, Omit<CollapsibleCar
     };
 
     const triggerLabel = open ? `Collapse ${title}` : `Expand ${title}`;
-    const control = hasToggle ? <Switch size="sm" aria-label={toggleAriaLabel} checked={isToggled} onCheckedChange={handleEnableToggle} /> : headerControl;
+    const control = hasToggle ? (
+      <Switch size="sm" aria-label={toggleAriaLabel} checked={isToggled} onCheckedChange={handleEnableToggle} disabled={toggleDisabled} />
+    ) : (
+      headerControl
+    );
 
     return (
       <Collapsible

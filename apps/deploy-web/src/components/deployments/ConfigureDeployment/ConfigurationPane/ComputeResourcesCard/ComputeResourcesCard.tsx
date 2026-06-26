@@ -20,6 +20,8 @@ export const DEPENDENCIES = { NumberUnitInput, useFieldError };
 
 type Props = {
   serviceIndex: number;
+  /** While the pane is locked the compute inputs are disabled so configured values stay viewable but read-only. */
+  locked?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -29,7 +31,7 @@ type Props = {
  * (`profile.cpu`, `profile.ram`/`ramUnit`, `profile.storage[0].size`/`unit`)
  * and surfaces the existing schema validation inline on each field.
  */
-export const ComputeResourcesCard: FC<Props> = ({ serviceIndex, dependencies: d = DEPENDENCIES }) => {
+export const ComputeResourcesCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
 
   const ram = useController({ control, name: `services.${serviceIndex}.profile.ram` });
@@ -59,6 +61,7 @@ export const ComputeResourcesCard: FC<Props> = ({ serviceIndex, dependencies: d 
               min={0.1}
               step={0.1}
               max={validationConfig.maxCpuAmount}
+              disabled={locked}
               onChange={event => {
                 const next = parseFloat(event.target.value);
                 field.onChange(Number.isFinite(next) ? next : null);
@@ -83,6 +86,7 @@ export const ComputeResourcesCard: FC<Props> = ({ serviceIndex, dependencies: d 
               onUnitChange={ramUnit.field.onChange}
               error={ramError}
               errorClassName="text-muted-foreground"
+              disabled={locked}
             />
           </FieldContent>
         </Field>
@@ -98,6 +102,7 @@ export const ComputeResourcesCard: FC<Props> = ({ serviceIndex, dependencies: d 
               onUnitChange={storageUnit.field.onChange}
               error={storageError}
               errorClassName="text-muted-foreground"
+              disabled={locked}
             />
           </FieldContent>
         </Field>

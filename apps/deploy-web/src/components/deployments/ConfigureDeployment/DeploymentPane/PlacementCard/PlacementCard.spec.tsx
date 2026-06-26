@@ -82,7 +82,44 @@ describe("PlacementCard", () => {
     expect(onSelectService).not.toHaveBeenCalledWith(services[0].service.id);
   });
 
-  function setup(input: { serviceTitles: string[]; canRemove?: boolean; status?: ConfigStatus; error?: string; dependencies?: Partial<typeof DEPENDENCIES> }) {
+  it("disables adding a service but keeps the placement selectable while locked", async () => {
+    const { onSelectService, services, container } = setup({ serviceTitles: ["web"], locked: true });
+
+    expect(screen.getByRole("button", { name: "Add service" })).toBeDisabled();
+    await userEvent.click(container.firstChild as Element);
+    expect(onSelectService).toHaveBeenCalledWith(services[0].service.id);
+  });
+
+  it("disables the placement name and region controls while locked", () => {
+    setup({ serviceTitles: ["web"], locked: true });
+
+    const groups = screen.getAllByRole("group");
+    expect(groups).toHaveLength(2);
+    groups.forEach(group => expect(group).toBeDisabled());
+  });
+
+  it("keeps the placement name and region controls enabled while unlocked", () => {
+    setup({ serviceTitles: ["web"] });
+
+    screen.getAllByRole("group").forEach(group => expect(group).toBeEnabled());
+  });
+
+  it("disables the region select while locked", () => {
+    const RegionSelect = vi.fn<typeof DEPENDENCIES.RegionSelect>(() => null);
+    setup({ serviceTitles: ["web"], locked: true, dependencies: { RegionSelect } });
+
+    expect(RegionSelect).toHaveBeenCalled();
+    expect(RegionSelect.mock.calls[0][0]).toEqual(expect.objectContaining({ disabled: true }));
+  });
+
+  function setup(input: {
+    serviceTitles: string[];
+    canRemove?: boolean;
+    status?: ConfigStatus;
+    error?: string;
+    locked?: boolean;
+    dependencies?: Partial<typeof DEPENDENCIES>;
+  }) {
     const placement = defaultPlacement({ name: "placement-1" });
     const services = input.serviceTitles.map((title, index) => ({
       service: defaultService(placement.id, { title }),
@@ -107,6 +144,7 @@ describe("PlacementCard", () => {
           selectedServiceId=""
           canRemove={input.canRemove ?? true}
           canRemoveService={true}
+          locked={input.locked}
           onSelectService={onSelectService}
           onAddService={onAddService}
           onRemoveService={onRemoveService}

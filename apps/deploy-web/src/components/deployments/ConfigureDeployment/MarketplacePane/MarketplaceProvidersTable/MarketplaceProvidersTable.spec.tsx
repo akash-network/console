@@ -84,6 +84,12 @@ describe("MarketplaceProvidersTable", () => {
     expect(screen.getByText("a.example")).toBeInTheDocument();
   });
 
+  it("falls back to the provider address when it has no host or organization (bid-sourced offer)", () => {
+    setup({ providers: [buildScreenedProvider({ organization: null, hostUri: "", owner: "akash1bidder" })] });
+
+    expect(screen.getByText("akash1bidder")).toBeInTheDocument();
+  });
+
   it("shows a search empty state with a clear action when a search excludes all rows", async () => {
     const onClearSearch = vi.fn();
     setup({ providers: [], isSearchActive: true, onClearSearch });
