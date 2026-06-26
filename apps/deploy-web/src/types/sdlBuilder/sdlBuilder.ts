@@ -452,11 +452,22 @@ const logProviderVars = z.discriminatedUnion("PROVIDER", [
   })
 ]);
 
+/**
+ * Allowed `reclamation.min_window` durations exposed by the builder. The user picks a friendly label
+ * (1hr / 4hrs / 1day / 3days) and "Any"; "Any" means no requirement and is represented as an absent
+ * field, so it is intentionally not part of this enum.
+ */
+export const RECLAMATION_MIN_WINDOW_VALUES = ["1h", "4h", "24h", "72h"] as const;
+export const ReclamationMinWindowSchema = z.enum(RECLAMATION_MIN_WINDOW_VALUES);
+export type ReclamationMinWindow = z.infer<typeof ReclamationMinWindowSchema>;
+
 export const SdlBuilderFormValuesSchema = z
   .object({
     placements: z.array(PlacementSchema).min(1, { message: "At least one placement is required." }),
     services: z.array(ServiceSchema).min(1, { message: "At least one service is required." }),
-    endpoints: z.array(EndpointSchema).optional().default([])
+    endpoints: z.array(EndpointSchema).optional().default([]),
+    // Optional deployment-level reclamation requirement; maps to `reclamation.min_window` in the SDL.
+    reclamationMinWindow: ReclamationMinWindowSchema.optional()
   })
   .merge(ImageList)
   .merge(SSHKey)

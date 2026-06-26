@@ -6,9 +6,10 @@ import { InfoCircle, Plus, SidebarCollapse, SidebarExpand } from "iconoir-react"
 import { PaneLockBanner } from "../PaneLockBanner/PaneLockBanner";
 import { IpEndpointsSection } from "./IpEndpointsSection/IpEndpointsSection";
 import { PlacementCard } from "./PlacementCard/PlacementCard";
+import { ReclamationSection } from "./ReclamationSection/ReclamationSection";
 import { usePlacementManager } from "./usePlacementManager/usePlacementManager";
 
-export const DEPENDENCIES = { PlacementCard, usePlacementManager, IpEndpointsSection };
+export const DEPENDENCIES = { PlacementCard, usePlacementManager, IpEndpointsSection, ReclamationSection };
 
 type Props = {
   selectedServiceId: string;
@@ -54,6 +55,7 @@ export const DeploymentPane: FC<Props> = ({
       </header>
       {locked ? <PaneLockBanner onCancelAndEdit={onCancelAndEdit ?? noop} isClosing={isClosing} /> : null}
       <div className="flex-1 space-y-6 overflow-y-auto p-4">
+        <d.ReclamationSection locked={locked} />
         <div className="space-y-2">
           <div className="flex items-center gap-2 px-1 font-mono text-xs uppercase text-muted-foreground">
             Placement

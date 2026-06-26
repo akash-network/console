@@ -8670,6 +8670,11 @@ export interface operations {
            * @example America/Chicago
            */
           timezone: string;
+          /**
+           * @description Optional reclamation window in seconds; if provided, only providers with a reclamationWindow greater than or equal to this value will be considered
+           * @example 3600
+           */
+          reclamationWindow?: number;
         };
       };
     };

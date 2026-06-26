@@ -2,7 +2,7 @@ import yaml from "js-yaml";
 import { nanoid } from "nanoid";
 
 import type { EndpointType, ExposeType, PlacementAttributeType, PlacementType, ProfileGpuModelType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { RESERVED_ENV_KEYS } from "@src/types/sdlBuilder/sdlBuilder";
+import { ReclamationMinWindowSchema, RESERVED_ENV_KEYS } from "@src/types/sdlBuilder/sdlBuilder";
 import { CustomValidationError } from "../deploymentData";
 import { capitalizeFirstLetter } from "../stringUtils";
 import { defaultHttpOptions } from "./data";
@@ -42,7 +42,12 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
         ? Object.keys(yamlJson.endpoints).map(name => ({ id: nanoid(), name }))
         : [];
 
-    if (!yamlJson.services) return { placements, services, endpoints };
+    // Only round-trip a reclamation window the builder can represent in its dropdown; any other
+    // value falls back to "Any" (omitted) rather than producing an invalid form state.
+    const reclamationParse = ReclamationMinWindowSchema.safeParse(yamlJson.reclamation?.min_window);
+    const reclamationMinWindow = reclamationParse.success ? reclamationParse.data : undefined;
+
+    if (!yamlJson.services) return { placements, services, endpoints, reclamationMinWindow };
 
     Object.keys(yamlJson.services).forEach(svcName => {
       const svc = yamlJson.services[svcName];
@@ -179,7 +184,7 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
       services.push(service as ServiceType);
     });
 
-    return { placements, services, endpoints };
+    return { placements, services, endpoints, reclamationMinWindow };
   } catch (error) {
     console.error(error);
     throw error;
