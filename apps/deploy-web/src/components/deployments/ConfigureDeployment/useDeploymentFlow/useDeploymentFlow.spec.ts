@@ -23,7 +23,7 @@ describe(useDeploymentFlow.name, () => {
     const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
     const { result } = setup({ replace, createMutate });
 
-    act(() => result.current.actions.requestQuotes());
+    act(() => result.current.actions.requestQuotes("sdl-content"));
 
     await waitFor(() => expect(result.current.phase).toBe("quoting"));
     expect(result.current.dseq).toBe("999");
@@ -34,7 +34,7 @@ describe(useDeploymentFlow.name, () => {
   it("surfaces a retryable error when create fails", async () => {
     const createMutate = vi.fn((_args, { onError }) => onError(new Error("boom")));
     const { result } = setup({ createMutate });
-    act(() => result.current.actions.requestQuotes());
+    act(() => result.current.actions.requestQuotes("sdl-content"));
     await waitFor(() => expect(result.current.phase).toBe("error"));
   });
 
@@ -71,14 +71,13 @@ describe(useDeploymentFlow.name, () => {
     const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
     const { result } = setup({ replace, createMutate, intent: { sdlStrategy: "edit", bidStrategy: "select", draftId: "draft-1" } });
 
-    act(() => result.current.actions.requestQuotes());
+    act(() => result.current.actions.requestQuotes("sdl-content"));
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith(expect.stringContaining("draftId=draft-1"), undefined, { shallow: true }));
   });
 
   function setup(input: {
     intent?: { sdlStrategy: "default" | "edit"; bidStrategy: "auto" | "select"; dseq?: string; templateId?: string; draftId?: string };
-    sdl?: string;
     replace?: ReturnType<typeof vi.fn>;
     createMutate?: ReturnType<typeof vi.fn>;
     closeMutate?: ReturnType<typeof vi.fn>;
@@ -89,7 +88,7 @@ describe(useDeploymentFlow.name, () => {
       useCloseDeployment: (() => mock<ReturnType<typeof DEPENDENCIES.useCloseDeployment>>({ mutate: (input.closeMutate ?? vi.fn()) as never })) as never,
       useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: (input.replace ?? vi.fn()) as never })) as never
     };
-    return renderHook(() => useDeploymentFlow({ intent, sdl: input.sdl ?? "sdl-content" }, dependencies));
+    return renderHook(() => useDeploymentFlow({ intent }, dependencies));
   }
 });
 

@@ -1,25 +1,57 @@
 import type { FC } from "react";
 import { useFormContext } from "react-hook-form";
-import { Button } from "@akashnetwork/ui/components";
+import { Button, Snackbar } from "@akashnetwork/ui/components";
 import { Send } from "iconoir-react";
 import { LoaderCircle } from "lucide-react";
+import { useSnackbar } from "notistack";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
+import { generateSdl } from "@src/utils/sdl/sdlGenerator";
+import { validateGeneratedSdl } from "@src/utils/sdl/validateGeneratedSdl";
 import { useDeploymentResourceSummary } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 
-export const DEPENDENCIES = { useDeploymentResourceSummary };
+export const DEPENDENCIES = { useDeploymentResourceSummary, useSnackbar, Snackbar, generateSdl, validateGeneratedSdl };
 
 type Props = { flow: DeploymentFlow; dependencies?: typeof DEPENDENCIES };
 
 export const ConfigureDeploymentHeader: FC<Props> = ({ flow, dependencies: d = DEPENDENCIES }) => {
   const deploymentSummary = d.useDeploymentResourceSummary();
   const { handleSubmit } = useFormContext<SdlBuilderFormValuesType>();
+  const { enqueueSnackbar } = d.useSnackbar();
 
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
 
-  /** Request quotes validates the form first; only a valid spec proceeds to create the deployment. */
-  const onRequestQuotes = handleSubmit(() => flow.actions.requestQuotes());
+  /**
+   * Request quotes runs the zod form validation first, then regenerates the SDL from the values
+   * `handleSubmit` just accepted — not a prop snapshot, which lags behind in-flight edits — and runs the
+   * chain-sdk SDL validator on it. That validator catches semantic rules the form can't, such as a `cpu-gpu`
+   * confidential-compute service missing GPU resources or conflicting TEE types across a placement group.
+   * Either failure surfaces the errors to the user; otherwise the same freshly generated SDL is what gets
+   * submitted, so validation and creation can never disagree about which spec they acted on.
+   */
+  const onRequestQuotes = handleSubmit(values => {
+    const sdl = d.generateSdl(values);
+    const errors = d.validateGeneratedSdl(sdl);
+    if (errors.length > 0) {
+      enqueueSnackbar(
+        <d.Snackbar
+          title="Your deployment can't be submitted yet"
+          subTitle={
+            <ul className="list-disc pl-4">
+              {errors.map(error => (
+                <li key={error}>{error}</li>
+              ))}
+            </ul>
+          }
+          iconVariant="error"
+        />,
+        { variant: "error" }
+      );
+      return;
+    }
+    flow.actions.requestQuotes(sdl);
+  });
 
   return (
     <header className="flex flex-row items-center justify-between gap-3 md:items-end">

@@ -5,6 +5,7 @@ import { CpuIcon, PackageOpenIcon } from "lucide-react";
 import { useRevalidateUniqueness } from "../../DeploymentPane/useRevalidateUniqueness/useRevalidateUniqueness";
 import { computeResourcesTooltip, presetsTooltip } from "../cardTooltips";
 import { ComputeResourcesCard } from "../ComputeResourcesCard/ComputeResourcesCard";
+import { ConfidentialComputeCard } from "../ConfidentialComputeCard/ConfidentialComputeCard";
 import { GpuCard } from "../GpuCard/GpuCard";
 import { PersistentStorageCard } from "../PersistentStorageCard/PersistentStorageCard";
 import { PresetsCard } from "../PresetsCard/PresetsCard";
@@ -28,6 +29,7 @@ export const DEPENDENCIES = {
   ComputeResourcesCard,
   RamStorageCard,
   PersistentStorageCard,
+  ConfidentialComputeCard,
   useRevalidateUniqueness
 };
 
@@ -66,6 +68,8 @@ export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, depen
         <d.CollapsibleCard title="Compute Resources" icon={<CpuIcon className="h-4 w-4" />} infoTooltip={computeResourcesTooltip}>
           <d.ComputeResourcesCard serviceIndex={serviceIndex} locked={locked} />
         </d.CollapsibleCard>
+
+        <d.ConfidentialComputeCard serviceIndex={serviceIndex} locked={locked} />
 
         <d.RamStorageCard serviceIndex={serviceIndex} locked={locked} />
 

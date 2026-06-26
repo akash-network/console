@@ -24,6 +24,7 @@ import type { SdlBuilderFormValuesType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
 import { gpuVendors as fallbackVendors } from "@src/utils/akash/gpu";
 import { validationConfig } from "@src/utils/akash/units";
+import { defaultGpuModel } from "@src/utils/sdl/data";
 import { gpuTooltip } from "../cardTooltips";
 import { SELECT_TRUNCATE_VALUE } from "../selectStyles";
 
@@ -35,9 +36,6 @@ type Props = {
   locked?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
-
-/** The defaults applied to a freshly added GPU collection. */
-const newGpuModel = { vendor: "nvidia", name: "", memory: "", interface: "" };
 
 /**
  * Hardware "GPU" card. A header switch toggles `profile.hasGpu` (the SDL emits a
@@ -63,7 +61,7 @@ export const GpuCard: FC<Props> = ({ serviceIndex, locked = false, dependencies:
           setValue(`services.${serviceIndex}.profile.gpu`, 1, { shouldValidate: true, shouldDirty: true });
         }
         if (fields.length === 0) {
-          append({ ...newGpuModel }, { shouldFocus: false });
+          append({ ...defaultGpuModel }, { shouldFocus: false });
         }
       } else {
         setValue(`services.${serviceIndex}.profile.gpu`, 0, { shouldValidate: true, shouldDirty: true });
@@ -75,7 +73,7 @@ export const GpuCard: FC<Props> = ({ serviceIndex, locked = false, dependencies:
   const hasReachedGpuLimit = fields.length >= validationConfig.maxGpuAmount;
   const addGpuModel = useCallback(() => {
     if (fields.length >= validationConfig.maxGpuAmount) return;
-    append({ ...newGpuModel }, { shouldFocus: false });
+    append({ ...defaultGpuModel }, { shouldFocus: false });
   }, [append, fields.length]);
 
   return (

@@ -66,6 +66,19 @@ export const persistentStorageTooltip = (
   </>
 );
 
+export const confidentialComputeTooltip = (
+  <>
+    Run this service inside a Trusted Execution Environment (TEE) so its memory stays encrypted and isolated from the provider.
+    <br />
+    <br />
+    Choose <strong>CPU</strong> for a CPU-only enclave, or <strong>CPU-GPU</strong> to additionally attest the GPU — which requires GPU resources on the
+    service.
+    <br />
+    <br />
+    All services in the same placement group must agree on their confidential compute type; conflicting types are rejected when the deployment is validated.
+  </>
+);
+
 export const imageRuntimeTooltip = (
   <>
     Docker image of the container.

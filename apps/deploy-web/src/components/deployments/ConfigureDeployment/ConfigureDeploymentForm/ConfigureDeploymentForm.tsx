@@ -103,7 +103,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, intent, depende
     [form]
   );
 
-  const flow = d.useDeploymentFlow({ intent, sdl: liveSdl });
+  const flow = d.useDeploymentFlow({ intent });
 
   return (
     <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col dark:bg-card">
