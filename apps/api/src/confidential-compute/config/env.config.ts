@@ -23,7 +23,9 @@ export const envSchema = z.object({
   /** Intel Trust Authority — verifies TDX quotes. Requires an account-scoped API key. */
   INTEL_ITA_BASE_URL: z.string().url().default("https://api.trustauthority.intel.com"),
   /** Intel Trust Authority API key. Absent in most environments → the Intel TDX path reports `unverifiable`. */
-  INTEL_ITA_API_KEY: z.string().optional()
+  // Normalize whitespace-only input to `undefined` so a blank key is treated as "not configured" rather than
+  // sent as an invalid `x-api-key` header.
+  INTEL_ITA_API_KEY: z.preprocess(value => (typeof value === "string" && value.trim() === "" ? undefined : value), z.string().optional())
 });
 
 export type ConfidentialComputeConfig = z.infer<typeof envSchema>;

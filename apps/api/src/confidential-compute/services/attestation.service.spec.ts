@@ -49,7 +49,7 @@ describe(AttestationService.name, () => {
   });
 
   it("isolates a failing vendor: a thrown GPU error becomes that report's unverifiable verdict while the CPU verdict stands", async () => {
-    const { service, amdSnpService, nvidiaGpuService } = setup();
+    const { service, amdSnpService, nvidiaGpuService, logger } = setup();
     amdSnpService.verify.mockResolvedValue(cpu("valid"));
     nvidiaGpuService.verify.mockRejectedValue(new Error("NRAS unreachable"));
 
@@ -57,7 +57,9 @@ describe(AttestationService.name, () => {
 
     expect(result.reports[0]).toEqual(cpu("valid"));
     expect(result.reports[1]).toMatchObject({ kind: "gpu", device_index: 0, status: "unverifiable" });
-    expect(result.reports[1].detail).toMatch(/NRAS unreachable/);
+    // The raw upstream error is logged but kept out of the client-facing detail.
+    expect(result.reports[1].detail).not.toMatch(/NRAS unreachable/);
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "ATTESTATION_VERIFY_ERROR" }));
     expect(result.overall).toBe("unverifiable");
   });
 
@@ -84,8 +86,9 @@ describe(AttestationService.name, () => {
     const amdSnpService = mock<AmdSnpService>();
     const intelTdxService = mock<IntelTdxService>();
     const nvidiaGpuService = mock<NvidiaGpuService>();
-    const service = new AttestationService(amdSnpService, intelTdxService, nvidiaGpuService, mock<LoggerService>());
-    return { service, amdSnpService, intelTdxService, nvidiaGpuService };
+    const logger = mock<LoggerService>();
+    const service = new AttestationService(amdSnpService, intelTdxService, nvidiaGpuService, logger);
+    return { service, amdSnpService, intelTdxService, nvidiaGpuService, logger };
   }
 });
 

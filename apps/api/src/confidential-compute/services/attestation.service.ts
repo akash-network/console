@@ -61,9 +61,10 @@ export class AttestationService {
     try {
       return await verify();
     } catch (error) {
+      // Log the raw exception, but keep its text out of the client-facing verdict: vendor URLs, transport
+      // details, and library internals must not leak to API clients.
       this.logger.error({ event: "ATTESTATION_VERIFY_ERROR", error });
-      const detail = error instanceof Error ? error.message : "verification could not be completed";
-      return toUnverifiable(`Verification could not be completed: ${detail}`);
+      return toUnverifiable("Verification could not be completed due to an upstream verification error");
     }
   }
 }

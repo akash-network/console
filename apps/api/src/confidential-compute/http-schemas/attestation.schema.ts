@@ -13,6 +13,15 @@ import { z } from "@hono/zod-openapi";
 
 const Base64String = z.string().openapi({ description: "Base64-encoded binary", example: "BQAAAAAA..." });
 
+/** The freshness challenge is a fixed 64-byte value (it lands in the SNP report's `report_data`, AEP-83 §5). */
+const NONCE_BYTES = 64;
+
+/** True when `value` is canonical base64 that decodes to exactly `NONCE_BYTES` bytes. */
+function isNonce(value: string): boolean {
+  const decoded = Buffer.from(value, "base64");
+  return decoded.length === NONCE_BYTES && decoded.toString("base64") === value;
+}
+
 export const TeePlatformSchema = z.enum(["snp", "tdx", "snp-gpu", "tdx-gpu"]);
 export type TeePlatform = z.infer<typeof TeePlatformSchema>;
 
@@ -21,16 +30,28 @@ const GpuReportSchema = z.object({
   report: Base64String.openapi({ description: "Hardware-signed GPU attestation report (embeds the device cert chain), base64" })
 });
 
-export const VerifyAttestationRequestSchema = z.object({
-  nonce: z.string().min(1).openapi({ description: "Per-request freshness challenge sent to the hardware, base64 (64 bytes, AEP-83 §5)" }),
-  report: Base64String.openapi({ description: "CPU attestation report (AMD SEV-SNP or Intel TDX quote), base64" }),
-  tee_platform: TeePlatformSchema.openapi({ description: "TEE platform that produced the evidence" }),
-  // Lenient (no decode/length refinement) on purpose: a malformed blob must surface as a per-report `invalid`
-  // verdict, never a 400 that hides the other reports' verdicts.
-  cert_chain: Base64String.optional().default("").openapi({ description: "CPU vendor cert chain, base64; may be empty (e.g. AMD VCEK fetched from KDS)" }),
-  auxblob: Base64String.optional().default("").openapi({ description: "Platform auxiliary blob (e.g. TDX collateral), base64; may be empty" }),
-  gpu_reports: z.array(GpuReportSchema).optional().default([]).openapi({ description: "Per-GPU attestation reports; empty for CPU-only platforms" })
-});
+export const VerifyAttestationRequestSchema = z
+  .object({
+    // The nonce can never match a malformed value, so reject it at the boundary (a 400) instead of making
+    // metered vendor calls just to return `invalid`. The evidence blobs below stay lenient on purpose.
+    nonce: z
+      .string()
+      .refine(isNonce, { message: `nonce must be ${NONCE_BYTES} bytes of base64-encoded data` })
+      .openapi({ description: "Per-request freshness challenge sent to the hardware, base64 (64 bytes, AEP-83 §5)" }),
+    report: Base64String.openapi({ description: "CPU attestation report (AMD SEV-SNP or Intel TDX quote), base64" }),
+    tee_platform: TeePlatformSchema.openapi({ description: "TEE platform that produced the evidence" }),
+    // Lenient (no decode/length refinement) on purpose: a malformed blob must surface as a per-report `invalid`
+    // verdict, never a 400 that hides the other reports' verdicts.
+    cert_chain: Base64String.optional().default("").openapi({ description: "CPU vendor cert chain, base64; may be empty (e.g. AMD VCEK fetched from KDS)" }),
+    auxblob: Base64String.optional().default("").openapi({ description: "Platform auxiliary blob (e.g. TDX collateral), base64; may be empty" }),
+    gpu_reports: z.array(GpuReportSchema).optional().default([]).openapi({ description: "Per-GPU attestation reports; empty for CPU-only platforms" })
+  })
+  // GPU reports are only verified on `*-gpu` platforms; allowing them on a CPU-only platform would silently drop
+  // them and produce a misleading `overall` verdict, so reject the combination at the boundary.
+  .refine(value => value.tee_platform.endsWith("-gpu") || value.gpu_reports.length === 0, {
+    path: ["gpu_reports"],
+    message: "gpu_reports is not allowed for a CPU-only tee_platform (snp, tdx)"
+  });
 export type VerifyAttestationRequest = z.infer<typeof VerifyAttestationRequestSchema>;
 
 export const ReportStatusSchema = z.enum(["valid", "invalid", "unverifiable"]).openapi({
