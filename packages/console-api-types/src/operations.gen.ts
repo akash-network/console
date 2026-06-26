@@ -103,6 +103,14 @@ export const operations = {
     listBids: { path: "/v1/bids", method: "get", operationId: "listBids", pathParams: [], queryParams: ["dseq"], hasBody: false },
     listGpuPrices: { path: "/v1/gpu-prices", method: "get", operationId: "listGpuPrices", pathParams: [], queryParams: [], hasBody: false },
     screenProviders: { path: "/v1/bid-screening", method: "post", operationId: "screenProviders", pathParams: [], queryParams: [], hasBody: true },
+    validateConfidentialComputeAttestation: {
+      path: "/v1/confidential-compute/attestation/validate",
+      method: "post",
+      operationId: "validateConfidentialComputeAttestation",
+      pathParams: [],
+      queryParams: [],
+      hasBody: true
+    },
     createAlert: { path: "/v1/alerts", method: "post", operationId: "createAlert", pathParams: [], queryParams: [], hasBody: true },
     listAlerts: {
       path: "/v1/alerts",

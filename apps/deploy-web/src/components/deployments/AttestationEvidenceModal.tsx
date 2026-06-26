@@ -1,19 +1,23 @@
 "use client";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
+import type { paths } from "@akashnetwork/console-api-types";
 import { Alert, Badge, Popup, Spinner } from "@akashnetwork/ui/components";
 import saveFileInBrowser from "file-saver";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { useAttestationQuoteMutation } from "@src/queries/useAttestationQuoteMutation";
-import type { AttestationReportStatus, AttestationReportVerdict } from "@src/queries/useAttestationValidationMutation";
-import { useAttestationValidationMutation } from "@src/queries/useAttestationValidationMutation";
 import type { ProviderIdentity } from "@src/services/provider-proxy/provider-proxy.service";
 import type { LeaseDto } from "@src/types/deployment";
 import type { AttestationEvidence } from "@src/utils/confidentialCompute";
 
+/** Per-report verdict shapes are sourced from the generated Console API schema (validateConfidentialComputeAttestation). */
+type AttestationValidationResult = paths["/v1/confidential-compute/attestation/validate"]["post"]["responses"][200]["content"]["application/json"];
+type AttestationReportVerdict = AttestationValidationResult["reports"][number];
+type AttestationReportStatus = AttestationReportVerdict["status"];
+
 export const DEPENDENCIES = {
   useAttestationQuoteMutation,
-  useAttestationValidationMutation,
   saveFile: saveFileInBrowser as (data: Blob, filename?: string) => void
 };
 
@@ -52,28 +56,36 @@ function ReportBlock({ label, report, verdict }: { label: string; report: string
   );
 }
 
-function buildBundle(lease: Pick<LeaseDto, "dseq" | "gseq" | "oseq">, evidence: AttestationEvidence) {
+/** The evidence fields posted to the Console API for validation (vendor-name wire shape, no lease metadata). */
+function toValidationRequest(evidence: AttestationEvidence) {
   return {
-    lease: { dseq: lease.dseq, gseq: lease.gseq, oseq: lease.oseq },
     nonce: evidence.nonce,
-    tee_platform: evidence.quote.tee_platform,
     report: evidence.quote.report,
-    // Cert material is required to verify the CPU report independently (e.g. AMD VCEK chain); keep it in the
-    // downloaded bundle even when empty so the JSON is self-describing.
+    tee_platform: evidence.quote.tee_platform,
     cert_chain: evidence.quote.cert_chain ?? "",
     auxblob: evidence.quote.auxblob ?? "",
     gpu_reports: evidence.quote.gpu_reports ?? []
   };
 }
 
+function buildBundle(lease: Pick<LeaseDto, "dseq" | "gseq" | "oseq">, evidence: AttestationEvidence) {
+  return {
+    lease: { dseq: lease.dseq, gseq: lease.gseq, oseq: lease.oseq },
+    // Cert material is required to verify the CPU report independently (e.g. AMD VCEK chain); keep it in the
+    // downloaded bundle even when empty so the JSON is self-describing.
+    ...toValidationRequest(evidence)
+  };
+}
+
 export function AttestationEvidenceModal({ provider, lease, onClose, dependencies: d = DEPENDENCIES }: Props) {
+  const { api } = useServices();
   const { mutate, data, error, isPending } = d.useAttestationQuoteMutation({
     provider,
     dseq: lease.dseq,
     gseq: lease.gseq,
     oseq: lease.oseq
   });
-  const validation = d.useAttestationValidationMutation();
+  const validation = api.v1.validateConfidentialComputeAttestation.useMutation();
 
   useEffect(() => {
     mutate();
@@ -86,7 +98,7 @@ export function AttestationEvidenceModal({ provider, lease, onClose, dependencie
   };
 
   const onValidate = () => {
-    if (data) validation.mutate({ evidence: data });
+    if (data) validation.mutate(toValidationRequest(data));
   };
 
   const quote = data?.quote;
