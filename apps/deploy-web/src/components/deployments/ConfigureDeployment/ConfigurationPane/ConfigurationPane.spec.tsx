@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { defaultPlacement, defaultService } from "@src/utils/sdl/data";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
-import { HardwareSection } from "./HardwareSection/HardwareSection";
+import { DEPENDENCIES as HARDWARE_DEPENDENCIES, HardwareSection } from "./HardwareSection/HardwareSection";
 import { ConfigurationPane, DEPENDENCIES } from "./ConfigurationPane";
 
 import { render, screen } from "@testing-library/react";
@@ -72,7 +72,12 @@ describe(ConfigurationPane.name, () => {
       }
     });
     const values: SdlBuilderFormValuesType = { placements: [placement], services: [serviceA, serviceB], endpoints: [] };
-    const dependencies = { ...DEPENDENCIES, HardwareSection, AdditionalSection: () => null };
+
+    /** GpuCard fetches GPU models via React Query; stub it so this pane test stays provider-free and asserts only the Memory/Storage values. */
+    const HardwareSectionWithStubbedGpu: typeof HardwareSection = props => (
+      <HardwareSection {...props} dependencies={{ ...HARDWARE_DEPENDENCIES, GpuCard: () => null }} />
+    );
+    const dependencies = { ...DEPENDENCIES, HardwareSection: HardwareSectionWithStubbedGpu, AdditionalSection: () => null };
 
     const Tree = ({ selectedServiceId }: { selectedServiceId: string }) => {
       const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values });

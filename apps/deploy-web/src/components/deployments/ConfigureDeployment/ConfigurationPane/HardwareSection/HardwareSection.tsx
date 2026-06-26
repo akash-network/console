@@ -1,11 +1,13 @@
 import type { FC } from "react";
 import { CollapsibleCard } from "@akashnetwork/ui/components";
-import { CpuIcon } from "lucide-react";
+import { CpuIcon, PackageOpenIcon } from "lucide-react";
 
 import { useRevalidateUniqueness } from "../../DeploymentPane/useRevalidateUniqueness/useRevalidateUniqueness";
-import { computeResourcesTooltip } from "../cardTooltips";
+import { computeResourcesTooltip, presetsTooltip } from "../cardTooltips";
 import { ComputeResourcesCard } from "../ComputeResourcesCard/ComputeResourcesCard";
+import { GpuCard } from "../GpuCard/GpuCard";
 import { PersistentStorageCard } from "../PersistentStorageCard/PersistentStorageCard";
+import { PresetsCard } from "../PresetsCard/PresetsCard";
 import { RamStorageCard } from "../RamStorageCard/RamStorageCard";
 
 type StorageVolume = { name?: string; mount?: string };
@@ -21,6 +23,8 @@ export const storageUniquenessKey = (storage: StorageVolume) => `${storage.name 
 
 export const DEPENDENCIES = {
   CollapsibleCard,
+  PresetsCard,
+  GpuCard,
   ComputeResourcesCard,
   RamStorageCard,
   PersistentStorageCard,
@@ -36,10 +40,10 @@ type Props = {
 
 /**
  * The "HARDWARE" section of the Configuration pane for the selected service:
- * CPU (with memory & ephemeral storage), RAM-backed storage and Persistent
- * Storage cards. Each card edits `services.${serviceIndex}.profile.*` on the
- * shared deployment model. The RAM and Persistent Storage cards own their own
- * card shell because they carry a header switch.
+ * Presets, GPU, CPU (with memory & storage) and Persistent Storage cards. Each
+ * card edits `services.${serviceIndex}.profile.*` on the shared deployment
+ * model. The GPU and Persistent Storage cards own their own card shell because
+ * they carry a header switch.
  *
  * Persistent and RAM volumes share `profile.storage` and must each have a unique
  * name and mount; re-validating the whole array on any name or mount change keeps
@@ -53,6 +57,12 @@ export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, depen
     <div className="flex flex-col gap-2 px-4">
       <p className="font-mono text-xs uppercase text-muted-foreground">Hardware</p>
       <div className="flex flex-col gap-4">
+        <d.CollapsibleCard title="Presets" icon={<PackageOpenIcon className="h-4 w-4" />} infoTooltip={presetsTooltip}>
+          <d.PresetsCard serviceIndex={serviceIndex} locked={locked} />
+        </d.CollapsibleCard>
+
+        <d.GpuCard serviceIndex={serviceIndex} locked={locked} />
+
         <d.CollapsibleCard title="Compute Resources" icon={<CpuIcon className="h-4 w-4" />} infoTooltip={computeResourcesTooltip}>
           <d.ComputeResourcesCard serviceIndex={serviceIndex} locked={locked} />
         </d.CollapsibleCard>

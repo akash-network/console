@@ -6,6 +6,29 @@
  * so stating them here would only risk drifting out of sync.
  */
 
+export const presetsTooltip = (
+  <>
+    Apply a starting point for this service's compute resources.
+    <br />
+    <br />
+    Picking a preset overwrites the CPU, memory, storage and GPU values below. You can fine-tune them afterwards.
+  </>
+);
+
+export const gpuTooltip = (
+  <>
+    The amount of GPUs required for this workload.
+    <br />
+    <br />
+    You can also specify the GPU vendor and model you want specifically. If you don't specify any model, providers with any GPU model will bid on your workload.
+    <br />
+    <br />
+    <a href="https://akash.network/docs/developers/deployment/akash-sdl/advanced-features/#gpu-configuration" target="_blank" rel="noopener">
+      View official documentation
+    </a>
+  </>
+);
+
 export const computeResourcesTooltip = (
   <>
     The compute resources required for this workload.
@@ -52,6 +75,20 @@ export const imageRuntimeTooltip = (
     <br />
     <br />
     <a href="https://akash.network/docs/developers/deployment/akash-sdl/advanced-features/#environment-variables" target="_blank" rel="noopener">
+      View official documentation
+    </a>
+  </>
+);
+
+export const commandsTooltip = (
+  <>
+    Custom command used when executing container.
+    <br />
+    <br />
+    An example and popular use case is to run a bash script to install packages or run specific commands.
+    <br />
+    <br />
+    <a href="https://akash.network/docs/developers/deployment/akash-sdl/advanced-features/#command-and-args-override" target="_blank" rel="noopener">
       View official documentation
     </a>
   </>
