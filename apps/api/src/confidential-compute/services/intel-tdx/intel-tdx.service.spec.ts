@@ -8,7 +8,7 @@ import { mock } from "vitest-mock-extended";
 import type { ConfidentialComputeConfig } from "../../config/env.config";
 import { envSchema } from "../../config/env.config";
 import type { Jwks } from "../jwt-verify";
-import { extractTdxResult, IntelTdxService } from "./intel-tdx.service";
+import { extractTdxResult, IntelTdxService, nonceBindingHolds } from "./intel-tdx.service";
 
 describe(IntelTdxService.name, () => {
   it("returns unverifiable and makes no call when ITA is not configured", async () => {
@@ -41,6 +41,15 @@ describe(IntelTdxService.name, () => {
     expect(verdict.status).toBe("invalid");
   });
 
+  it("returns invalid when the token's runtime_data is not bound to the request nonce", async () => {
+    const { token, jwks } = await signToken({ attester_tcb_status: "UpToDate", runtime_data: "not-the-nonce" });
+    const { service } = setup({ apiKey: "ita-key", token, jwks });
+
+    const verdict = await service.verify({ report: report(), nonce: nonce() });
+
+    expect(verdict).toMatchObject({ status: "invalid", checks: { nonceMatch: false } });
+  });
+
   it("returns unverifiable when the ITA token signature cannot be verified", async () => {
     const { token } = await signToken({ attester_tcb_status: "UpToDate" });
     const { jwks: otherJwks } = await signToken({});
@@ -63,6 +72,20 @@ describe(IntelTdxService.name, () => {
       expect(extractTdxResult({ attester_tcb_status: "UpToDate" })).toBe(true);
       expect(extractTdxResult({ attester_tcb_status: "OutOfDate" })).toBe(false);
       expect(extractTdxResult({ unrelated: 1 })).toBeUndefined();
+    });
+  });
+
+  describe(nonceBindingHolds.name, () => {
+    it("holds when the claim is absent, matches the base64 nonce, or matches its hex", () => {
+      const nonceB64 = nonce();
+      const nonceHex = Buffer.from(nonceB64, "base64").toString("hex");
+      expect(nonceBindingHolds({ attester_tcb_status: "UpToDate" }, nonceB64)).toBe(true);
+      expect(nonceBindingHolds({ runtime_data: nonceB64 }, nonceB64)).toBe(true);
+      expect(nonceBindingHolds({ nonce: nonceHex }, nonceB64)).toBe(true);
+    });
+
+    it("fails when a surfaced claim disagrees with the request nonce", () => {
+      expect(nonceBindingHolds({ runtime_data: "not-the-nonce" }, nonce())).toBe(false);
     });
   });
 

@@ -46,7 +46,7 @@ export class AmdSnpService {
 
     const chain = await this.#resolveChain(parsed, input.certChain);
     if (!chain) {
-      return this.#verdict("unverifiable", "Could not obtain the AMD VCEK certificate chain (unknown product or AMD KDS unavailable)");
+      return this.#verdict("unverifiable", "Could not anchor the VCEK to an AMD root (unknown product, evidence not issued by AMD, or AMD KDS unavailable)");
     }
 
     const certChainValid = this.#verifyChain(chain);
@@ -69,40 +69,46 @@ export class AmdSnpService {
     return this.#verdict("invalid", `SEV-SNP verification failed: ${reasons.join("; ")}.`, checks);
   }
 
+  /**
+   * Resolves a VCEK anchored to AMD's real root. Trust always comes from AMD KDS: we probe candidate products for
+   * the genuine ARK/ASK and accept the VCEK — whether embedded in the evidence or fetched from KDS — only once it
+   * verifies against that AMD-issued ASK. A caller-supplied embedded ARK/ASK is never trusted on its own, so a
+   * self-consistent forged chain (e.g. an attacker's own self-signed ARK) can no longer read `valid`.
+   */
   async #resolveChain(parsed: ParsedSnpReport, certChainB64: string): Promise<SnpCertChain | null> {
-    if (certChainB64) {
-      const pem = Buffer.from(certChainB64, "base64").toString("utf-8");
-      return this.#orderEmbeddedChain(splitPemChain(pem));
-    }
+    const embeddedCerts = this.#parseEmbeddedCerts(certChainB64);
 
-    // No embedded chain: probe KDS for each candidate product until one resolves both the CA chain and the VCEK.
     for (const product of this.config.AMD_SNP_PRODUCTS) {
       const caChain = await this.kdsClient.getCaChain(product);
       if (!caChain) continue;
-      const vcekDer = await this.kdsClient.getVcek(product, parsed);
-      if (!vcekDer) continue;
-      return {
-        vcek: new crypto.X509Certificate(vcekDer),
-        ask: new crypto.X509Certificate(caChain.ask),
-        ark: new crypto.X509Certificate(caChain.ark)
-      };
+      const ark = new crypto.X509Certificate(caChain.ark);
+      const ask = new crypto.X509Certificate(caChain.ask);
+
+      // Prefer an embedded VCEK (saves a KDS round-trip) but accept it only if it is signed by this product's AMD
+      // ASK; otherwise fetch the per-chip VCEK from KDS for this product. Either way the trust anchor is AMD's.
+      const vcek = embeddedCerts.length ? embeddedCerts.find(cert => safeVerify(cert, ask.publicKey)) : await this.#fetchVcek(product, parsed);
+      if (!vcek) continue;
+
+      return { vcek, ask, ark };
     }
     return null;
   }
 
-  /** Identifies ARK (self-signed root), ASK (signed by ARK) and VCEK (leaf) from an unordered embedded PEM chain. */
-  #orderEmbeddedChain(pems: string[]): SnpCertChain | null {
+  /** Parses the caller-supplied embedded PEM chain into VCEK candidates (never trusted as an anchor — see `#resolveChain`). */
+  #parseEmbeddedCerts(certChainB64: string): crypto.X509Certificate[] {
+    if (!certChainB64) return [];
     try {
-      const certs = pems.map(pem => new crypto.X509Certificate(pem));
-      const ark = certs.find(cert => cert.verify(cert.publicKey));
-      const ask = ark && certs.find(cert => cert !== ark && safeVerify(cert, ark.publicKey));
-      const vcek = ask && certs.find(cert => cert !== ark && cert !== ask && safeVerify(cert, ask.publicKey));
-      if (!ark || !ask || !vcek) return null;
-      return { vcek, ask, ark };
+      const pem = Buffer.from(certChainB64, "base64").toString("utf-8");
+      return splitPemChain(pem).map(block => new crypto.X509Certificate(block));
     } catch (error) {
       this.logger.error({ event: "AMD_SNP_EMBEDDED_CHAIN_PARSE_FAILED", error });
-      return null;
+      return [];
     }
+  }
+
+  async #fetchVcek(product: string, parsed: ParsedSnpReport): Promise<crypto.X509Certificate | null> {
+    const der = await this.kdsClient.getVcek(product, parsed);
+    return der ? new crypto.X509Certificate(der) : null;
   }
 
   #verifyChain({ vcek, ask, ark }: SnpCertChain): boolean {

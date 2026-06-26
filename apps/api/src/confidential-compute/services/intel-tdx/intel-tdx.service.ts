@@ -61,6 +61,16 @@ export class IntelTdxService {
       return this.#verdict("unverifiable", "Could not verify the Intel Trust Authority token signature against ITA's JWKS");
     }
 
+    // ITA echoes the `runtime_data` we submit (our base64 nonce). When the token surfaces it, require it to match
+    // so a replayed or mis-bound token can't read `valid`. Absent in some token variants — only enforce it then.
+    if (!nonceBindingHolds(payload, input.nonce)) {
+      return this.#verdict("invalid", "Intel Trust Authority token is not bound to the request nonce.", {
+        certChainValid: true,
+        signatureValid: true,
+        nonceMatch: false
+      });
+    }
+
     const passed = extractTdxResult(payload);
     if (passed === undefined) {
       return this.#verdict("unverifiable", "Intel Trust Authority token did not carry a recognizable quote-status claim");
@@ -87,4 +97,19 @@ export function extractTdxResult(payload: JwtPayload): boolean | undefined {
   const status = payload["attester_tcb_status"] ?? payload["tdx_tcb_status"] ?? payload["quote_status"];
   if (typeof status === "string") return status === "OK" || status === "UpToDate";
   return undefined;
+}
+
+/**
+ * Returns true unless the token surfaces a runtime-data / nonce claim that disagrees with the submitted nonce.
+ * The submitted `runtime_data` is the base64 nonce; ITA may echo it verbatim or as its hex. When no such claim is
+ * present we cannot enforce binding (mirrors the NVIDIA path), so we do not fail on its absence.
+ */
+export function nonceBindingHolds(payload: JwtPayload, nonceB64: string): boolean {
+  const claims = [payload["runtime_data"], payload["attester_runtime_data"], payload["nonce"]].filter((value): value is string => typeof value === "string");
+  if (claims.length === 0) return true;
+  const nonceHex = Buffer.from(nonceB64, "base64").toString("hex").toLowerCase();
+  return claims.some(value => {
+    const normalized = value.toLowerCase();
+    return normalized === nonceB64.toLowerCase() || normalized === nonceHex;
+  });
 }

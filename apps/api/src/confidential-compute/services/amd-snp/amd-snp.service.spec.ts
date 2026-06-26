@@ -13,15 +13,19 @@ import { AmdSnpService } from "./amd-snp.service";
 import { SNP_REPORT_MIN_LENGTH } from "./snp-report.parser";
 
 // A real P-384 ARK→ASK→VCEK chain generated once via openssl, plus the VCEK private key used to sign reports.
-// Generating it at test time keeps the suite hermetic (no committed keys, no network).
+// Generating it at test time keeps the suite hermetic (no committed keys, no network). `chain` stands in for the
+// AMD-issued chain (the mocked KDS vouches for it); `forgedChain` is an attacker-controlled self-signed chain.
 let chain: ReturnType<typeof generateP384Chain>;
+let forgedChain: ReturnType<typeof generateP384Chain>;
 
 beforeAll(() => {
   chain = generateP384Chain();
+  forgedChain = generateP384Chain();
 });
 
 afterAll(() => {
   if (chain) rmSync(chain.dir, { recursive: true, force: true });
+  if (forgedChain) rmSync(forgedChain.dir, { recursive: true, force: true });
 });
 
 describe(AmdSnpService.name, () => {
@@ -90,7 +94,7 @@ describe(AmdSnpService.name, () => {
     expect(verdict.detail).toMatch(/too short/i);
   });
 
-  it("verifies a chain embedded in the evidence without calling KDS", async () => {
+  it("anchors an embedded VCEK to AMD KDS and skips the per-chip VCEK fetch", async () => {
     const nonce = crypto.randomBytes(64);
     const report = buildSignedReport(nonce);
     const embedded = Buffer.from([chain.vcekPem, chain.askPem, chain.arkPem].join("\n")).toString("base64");
@@ -99,7 +103,22 @@ describe(AmdSnpService.name, () => {
     const verdict = await service.verify({ report: report.toString("base64"), certChain: embedded, nonce: nonce.toString("base64") });
 
     expect(verdict.status).toBe("valid");
-    expect(kdsClient.getCaChain).not.toHaveBeenCalled();
+    // The trust anchor (ARK/ASK) still comes from AMD KDS; only the per-chip VCEK fetch is skipped.
+    expect(kdsClient.getCaChain).toHaveBeenCalled();
+    expect(kdsClient.getVcek).not.toHaveBeenCalled();
+  });
+
+  it("returns unverifiable for a self-consistent forged chain that does not anchor to the AMD KDS root", async () => {
+    const nonce = crypto.randomBytes(64);
+    // Report signed by the attacker's own VCEK, presented with the attacker's full self-signed ARK→ASK→VCEK chain.
+    const report = buildSignedReport(nonce, forgedChain);
+    const embedded = Buffer.from([forgedChain.vcekPem, forgedChain.askPem, forgedChain.arkPem].join("\n")).toString("base64");
+    const { service } = setup({ withKds: true }); // KDS vouches only for the genuine `chain`, not the forged one
+
+    const verdict = await service.verify({ report: report.toString("base64"), certChain: embedded, nonce: nonce.toString("base64") });
+
+    expect(verdict.status).toBe("unverifiable");
+    expect(verdict.detail).toMatch(/anchor/i);
   });
 
   function setup(input: { withKds: boolean; products?: string[]; resolvingProduct?: string }) {
@@ -115,7 +134,7 @@ describe(AmdSnpService.name, () => {
 });
 
 /** Builds a 1184-byte SNP report whose report_data is `nonce`, signed over its signed region by the VCEK key. */
-function buildSignedReport(nonce: Buffer): Buffer {
+function buildSignedReport(nonce: Buffer, signingChain = chain): Buffer {
   const report = Buffer.alloc(SNP_REPORT_MIN_LENGTH);
   report.writeUInt32LE(2, 0x00); // version
   report.writeUInt32LE(1, 0x34); // signature_algo = ECDSA P-384/SHA-384
@@ -123,7 +142,7 @@ function buildSignedReport(nonce: Buffer): Buffer {
   Buffer.from("0123456789abcdef".repeat(4), "hex").copy(report, 0x1a0); // chip_id (arbitrary)
 
   const signedData = report.subarray(0, 0x2a0);
-  const sig = crypto.sign("sha384", signedData, { key: chain.vcekKeyPem, dsaEncoding: "ieee-p1363" }); // 96 bytes BE (r||s)
+  const sig = crypto.sign("sha384", signedData, { key: signingChain.vcekKeyPem, dsaEncoding: "ieee-p1363" }); // 96 bytes BE (r||s)
   Buffer.from(sig.subarray(0, 48)).reverse().copy(report, 0x2a0); // r, little-endian
   Buffer.from(sig.subarray(48, 96))
     .reverse()

@@ -7,7 +7,7 @@ import { mock } from "vitest-mock-extended";
 
 import { envSchema } from "../../config/env.config";
 import type { Jwks } from "../jwt-verify";
-import { detectGpuArch, extractAttestationResult, extractEat, NvidiaGpuService, splitGpuReport } from "./nvidia-gpu.service";
+import { detectGpuArch, extractAttestationResult, extractDeviceTokens, extractEat, NvidiaGpuService, splitGpuReport } from "./nvidia-gpu.service";
 
 const FAKE_CERT_PEM = "-----BEGIN CERTIFICATE-----\nMIIBfakecert\n-----END CERTIFICATE-----\n";
 
@@ -43,6 +43,21 @@ describe(NvidiaGpuService.name, () => {
       expect(extractEat("jwt-token")).toBe("jwt-token");
       expect(extractEat(["overall-token", { "GPU-0": "x" }])).toBe("overall-token");
       expect(extractEat({ unexpected: true })).toBeNull();
+    });
+
+    it('reads the token from the live `["JWT", token]`-tagged tuple form', () => {
+      expect(extractEat([["JWT", "overall-token"], { "GPU-0": "device-token" }])).toBe("overall-token");
+    });
+  });
+
+  describe(extractDeviceTokens.name, () => {
+    it("extracts the per-device EAT strings from the GPU map", () => {
+      expect(extractDeviceTokens([["JWT", "overall"], { "GPU-0": "d0", "GPU-1": "d1" }])).toEqual(["d0", "d1"]);
+    });
+
+    it("returns an empty list for shapes without a device map", () => {
+      expect(extractDeviceTokens("just-a-string")).toEqual([]);
+      expect(extractDeviceTokens(["overall"])).toEqual([]);
     });
   });
 
@@ -112,16 +127,59 @@ describe(NvidiaGpuService.name, () => {
 
       await expect(service.verify({ deviceIndex: 0, report: gpuReport(), nonce: nonce64() })).rejects.toThrow("NRAS unreachable");
     });
+
+    it('reads the verdict from the live `[["JWT", overall], { "GPU-0": ... }]` response shape', async () => {
+      const { data, jwks } = signResponse({ overall: { "x-nvidia-overall-att-result": true } });
+      const { service } = setup({ data, jwks });
+
+      const verdict = await service.verify({ deviceIndex: 0, report: gpuReport(), nonce: nonce64() });
+
+      expect(verdict.status).toBe("valid");
+    });
+
+    it("returns unverifiable (not invalid) when NRAS rejects the submission via a per-device error token", async () => {
+      // Mirrors the real INVALID_CERTIFICATE_CHAIN case: overall result false + a structured device error.
+      const { data, jwks } = signResponse({
+        overall: { "x-nvidia-overall-att-result": false },
+        device: { "x-nvidia-error-details": { code: 4007, message: "INVALID_CERTIFICATE_CHAIN", description: "Invalid Certificate" } }
+      });
+      const { service } = setup({ data, jwks });
+
+      const verdict = await service.verify({ deviceIndex: 0, report: gpuReport(), nonce: nonce64() });
+
+      expect(verdict.status).toBe("unverifiable");
+      expect(verdict.detail).toMatch(/INVALID_CERTIFICATE_CHAIN/);
+    });
+
+    it("returns invalid when the EAT nonce is not bound to the request nonce", async () => {
+      const { data, jwks } = signResponse({ overall: { "x-nvidia-overall-att-result": true, eat_nonce: "deadbeef" } });
+      const { service } = setup({ data, jwks });
+
+      const verdict = await service.verify({ deviceIndex: 0, report: gpuReport(), nonce: nonce64() });
+
+      expect(verdict).toMatchObject({ status: "invalid", checks: { nonceMatch: false } });
+    });
   });
 
-  function setup(input: { eat?: string; jwks?: Jwks }) {
+  function setup(input: { eat?: string; jwks?: Jwks; data?: unknown }) {
     const httpClient = mock<HttpClient>();
-    if (input.eat) httpClient.post.mockResolvedValue({ data: input.eat });
+    if (input.data !== undefined) httpClient.post.mockResolvedValue({ data: input.data });
+    else if (input.eat) httpClient.post.mockResolvedValue({ data: input.eat });
     if (input.jwks) httpClient.get.mockResolvedValue({ data: input.jwks });
     const service = new NvidiaGpuService(httpClient, envSchema.parse({}), mock<LoggerService>());
     return { service, httpClient };
   }
 });
+
+/** Builds a live-shaped NRAS response `[["JWT", overall], { "GPU-0": device }]` with both tokens under one JWKS. */
+function signResponse(claims: { overall: Record<string, unknown>; device?: Record<string, unknown> }): { data: unknown; jwks: Jwks } {
+  const { publicKey, privateKey } = crypto.generateKeyPairSync("ec", { namedCurve: "P-384" });
+  const pem = privateKey.export({ type: "pkcs8", format: "pem" });
+  const sign = (payload: Record<string, unknown>) => jwt.sign(payload, pem, { algorithm: "ES384", keyid: "nras-test" });
+  const map: Record<string, string> = { "GPU-0": sign(claims.device ?? { measurements: "ok" }) };
+  const jwk = publicKey.export({ format: "jwk" });
+  return { data: [["JWT", sign(claims.overall)], map], jwks: { keys: [{ ...jwk, kid: "nras-test", alg: "ES384" }] } };
+}
 
 function gpuReport(): string {
   return Buffer.concat([Buffer.from("GB202-spdm-evidence"), Buffer.from(FAKE_CERT_PEM)]).toString("base64");
