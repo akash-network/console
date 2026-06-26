@@ -80,9 +80,16 @@ export class NvidiaGpuService {
       return this.#verdict(input.deviceIndex, "unverifiable", `NVIDIA NRAS could not validate the evidence: ${nrasError}`);
     }
 
-    // The verified EAT echoes our challenge as `eat_nonce`; a mismatch means the evidence is not bound to this
-    // request. (Absent in some token variants — only enforce it when present.)
-    if (typeof payload.eat_nonce === "string" && payload.eat_nonce.toLowerCase() !== gpuNonceHex.toLowerCase()) {
+    // The verified EAT echoes our challenge as `eat_nonce`. A mismatch means the evidence is not bound to this
+    // request (`invalid`); an absent claim means we cannot confirm freshness, so we must not assert `valid`.
+    if (typeof payload.eat_nonce !== "string") {
+      return this.#verdict(
+        input.deviceIndex,
+        "unverifiable",
+        "NVIDIA attestation token carried no nonce binding (eat_nonce); cannot confirm the GPU evidence is bound to this request"
+      );
+    }
+    if (payload.eat_nonce.toLowerCase() !== gpuNonceHex.toLowerCase()) {
       return this.#verdict(input.deviceIndex, "invalid", "NVIDIA attestation token is not bound to the request nonce.", {
         certChainValid: true,
         signatureValid: true,
@@ -146,9 +153,11 @@ export function detectGpuArch(evidence: Buffer): "HOPPER" | "BLACKWELL" {
 export function extractEat(data: unknown): string | null {
   if (typeof data === "string") return data;
   if (Array.isArray(data)) {
+    // A bare media-type-tagged tuple `["JWT", "<token>"]` — return the token, not the "JWT" tag.
+    if (data[0] === "JWT" && typeof data[1] === "string") return data[1];
     const first = data[0];
     if (typeof first === "string") return first;
-    // ["JWT", "<token>"] — the media-type-tagged form NRAS actually returns.
+    // `[["JWT", "<token>"], { "GPU-0": ... }]` — the media-type-tagged form NRAS actually returns.
     if (Array.isArray(first) && first[0] === "JWT" && typeof first[1] === "string") return first[1];
   }
   return null;

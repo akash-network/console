@@ -8,7 +8,7 @@ import { mock } from "vitest-mock-extended";
 import type { ConfidentialComputeConfig } from "../../config/env.config";
 import { envSchema } from "../../config/env.config";
 import type { Jwks } from "../jwt-verify";
-import { extractTdxResult, IntelTdxService, nonceBindingHolds } from "./intel-tdx.service";
+import { extractTdxResult, IntelTdxService, nonceBinding } from "./intel-tdx.service";
 
 describe(IntelTdxService.name, () => {
   it("returns unverifiable and makes no call when ITA is not configured", async () => {
@@ -22,7 +22,7 @@ describe(IntelTdxService.name, () => {
   });
 
   it("returns valid when ITA attests the quote as up-to-date", async () => {
-    const { token, jwks } = await signToken({ attester_tcb_status: "UpToDate" });
+    const { token, jwks } = await signToken({ attester_tcb_status: "UpToDate", runtime_data: nonce() });
     const { service, httpClient } = setup({ apiKey: "ita-key", token, jwks });
 
     const verdict = await service.verify({ report: report(), nonce: nonce() });
@@ -33,12 +33,22 @@ describe(IntelTdxService.name, () => {
   });
 
   it("returns invalid when ITA reports a bad TCB status", async () => {
-    const { token, jwks } = await signToken({ attester_tcb_status: "OutOfDate" });
+    const { token, jwks } = await signToken({ attester_tcb_status: "OutOfDate", runtime_data: nonce() });
     const { service } = setup({ apiKey: "ita-key", token, jwks });
 
     const verdict = await service.verify({ report: report(), nonce: nonce() });
 
     expect(verdict.status).toBe("invalid");
+  });
+
+  it("returns unverifiable when the token carries no nonce binding", async () => {
+    const { token, jwks } = await signToken({ attester_tcb_status: "UpToDate" }); // no runtime_data/nonce claim
+    const { service } = setup({ apiKey: "ita-key", token, jwks });
+
+    const verdict = await service.verify({ report: report(), nonce: nonce() });
+
+    expect(verdict.status).toBe("unverifiable");
+    expect(verdict.detail).toMatch(/nonce binding/i);
   });
 
   it("returns invalid when the token's runtime_data is not bound to the request nonce", async () => {
@@ -75,17 +85,17 @@ describe(IntelTdxService.name, () => {
     });
   });
 
-  describe(nonceBindingHolds.name, () => {
-    it("holds when the claim is absent, matches the base64 nonce, or matches its hex", () => {
+  describe(nonceBinding.name, () => {
+    it("matches the base64 nonce or its hex, and is absent when no claim is present", () => {
       const nonceB64 = nonce();
       const nonceHex = Buffer.from(nonceB64, "base64").toString("hex");
-      expect(nonceBindingHolds({ attester_tcb_status: "UpToDate" }, nonceB64)).toBe(true);
-      expect(nonceBindingHolds({ runtime_data: nonceB64 }, nonceB64)).toBe(true);
-      expect(nonceBindingHolds({ nonce: nonceHex }, nonceB64)).toBe(true);
+      expect(nonceBinding({ runtime_data: nonceB64 }, nonceB64)).toBe("match");
+      expect(nonceBinding({ nonce: nonceHex }, nonceB64)).toBe("match");
+      expect(nonceBinding({ attester_tcb_status: "UpToDate" }, nonceB64)).toBe("absent");
     });
 
-    it("fails when a surfaced claim disagrees with the request nonce", () => {
-      expect(nonceBindingHolds({ runtime_data: "not-the-nonce" }, nonce())).toBe(false);
+    it("is a mismatch when a surfaced claim disagrees with the request nonce", () => {
+      expect(nonceBinding({ runtime_data: "not-the-nonce" }, nonce())).toBe("mismatch");
     });
   });
 

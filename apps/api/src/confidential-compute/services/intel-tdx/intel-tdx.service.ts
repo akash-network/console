@@ -61,14 +61,19 @@ export class IntelTdxService {
       return this.#verdict("unverifiable", "Could not verify the Intel Trust Authority token signature against ITA's JWKS");
     }
 
-    // ITA echoes the `runtime_data` we submit (our base64 nonce). When the token surfaces it, require it to match
-    // so a replayed or mis-bound token can't read `valid`. Absent in some token variants — only enforce it then.
-    if (!nonceBindingHolds(payload, input.nonce)) {
+    // ITA echoes the `runtime_data` we submit (our base64 nonce). Require it to match: a mismatch is a replayed or
+    // mis-bound token (`invalid`), and an absent claim means we cannot confirm freshness — so we must not assert
+    // `valid` (degrade to `unverifiable`).
+    const binding = nonceBinding(payload, input.nonce);
+    if (binding === "mismatch") {
       return this.#verdict("invalid", "Intel Trust Authority token is not bound to the request nonce.", {
         certChainValid: true,
         signatureValid: true,
         nonceMatch: false
       });
+    }
+    if (binding === "absent") {
+      return this.#verdict("unverifiable", "Intel Trust Authority token carried no nonce binding; cannot confirm the quote is bound to this request");
     }
 
     const passed = extractTdxResult(payload);
@@ -100,16 +105,17 @@ export function extractTdxResult(payload: JwtPayload): boolean | undefined {
 }
 
 /**
- * Returns true unless the token surfaces a runtime-data / nonce claim that disagrees with the submitted nonce.
- * The submitted `runtime_data` is the base64 nonce; ITA may echo it verbatim or as its hex. When no such claim is
- * present we cannot enforce binding (mirrors the NVIDIA path), so we do not fail on its absence.
+ * Compares the token's runtime-data / nonce claim against the submitted nonce. The submitted `runtime_data` is the
+ * base64 nonce; ITA may echo it verbatim or as its hex. Returns `"absent"` when the token carries no comparable
+ * claim, so the caller can degrade to `unverifiable` rather than assert a freshness it cannot confirm.
  */
-export function nonceBindingHolds(payload: JwtPayload, nonceB64: string): boolean {
+export function nonceBinding(payload: JwtPayload, nonceB64: string): "match" | "mismatch" | "absent" {
   const claims = [payload["runtime_data"], payload["attester_runtime_data"], payload["nonce"]].filter((value): value is string => typeof value === "string");
-  if (claims.length === 0) return true;
+  if (claims.length === 0) return "absent";
   const nonceHex = Buffer.from(nonceB64, "base64").toString("hex").toLowerCase();
-  return claims.some(value => {
+  const matches = claims.some(value => {
     const normalized = value.toLowerCase();
     return normalized === nonceB64.toLowerCase() || normalized === nonceHex;
   });
+  return matches ? "match" : "mismatch";
 }

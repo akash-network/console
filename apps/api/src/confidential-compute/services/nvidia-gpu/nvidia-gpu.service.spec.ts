@@ -48,6 +48,10 @@ describe(NvidiaGpuService.name, () => {
     it('reads the token from the live `["JWT", token]`-tagged tuple form', () => {
       expect(extractEat([["JWT", "overall-token"], { "GPU-0": "device-token" }])).toBe("overall-token");
     });
+
+    it('reads the token from a bare `["JWT", token]` tuple (not the tag)', () => {
+      expect(extractEat(["JWT", "bare-token"])).toBe("bare-token");
+    });
   });
 
   describe(extractDeviceTokens.name, () => {
@@ -72,7 +76,7 @@ describe(NvidiaGpuService.name, () => {
 
   describe("verify", () => {
     it("returns valid when NRAS attests the GPU and the EAT verifies", async () => {
-      const { token, jwks } = await signEat({ "x-nvidia-overall-att-result": true });
+      const { token, jwks } = await signEat({ "x-nvidia-overall-att-result": true, eat_nonce: gpuNonceHex() });
       const { service, httpClient } = setup({ eat: token, jwks });
 
       const verdict = await service.verify({ deviceIndex: 0, report: gpuReport(), nonce: nonce64() });
@@ -85,7 +89,7 @@ describe(NvidiaGpuService.name, () => {
     });
 
     it("returns invalid when NRAS rejects the GPU evidence", async () => {
-      const { token, jwks } = await signEat({ "x-nvidia-overall-att-result": false });
+      const { token, jwks } = await signEat({ "x-nvidia-overall-att-result": false, eat_nonce: gpuNonceHex() });
       const { service } = setup({ eat: token, jwks });
 
       const verdict = await service.verify({ deviceIndex: 1, report: gpuReport(), nonce: nonce64() });
@@ -113,12 +117,22 @@ describe(NvidiaGpuService.name, () => {
     });
 
     it("returns unverifiable when the EAT carries no recognizable result claim", async () => {
-      const { token, jwks } = await signEat({ "x-nvidia-ver": "3.0" });
+      const { token, jwks } = await signEat({ "x-nvidia-ver": "3.0", eat_nonce: gpuNonceHex() });
       const { service } = setup({ eat: token, jwks });
 
       const verdict = await service.verify({ deviceIndex: 0, report: gpuReport(), nonce: nonce64() });
 
       expect(verdict.status).toBe("unverifiable");
+    });
+
+    it("returns unverifiable when the EAT omits the nonce binding", async () => {
+      const { token, jwks } = await signEat({ "x-nvidia-overall-att-result": true }); // no eat_nonce
+      const { service } = setup({ eat: token, jwks });
+
+      const verdict = await service.verify({ deviceIndex: 0, report: gpuReport(), nonce: nonce64() });
+
+      expect(verdict.status).toBe("unverifiable");
+      expect(verdict.detail).toMatch(/nonce binding|eat_nonce/i);
     });
 
     it("propagates NRAS transport errors so the orchestrator can mark the report unverifiable", async () => {
@@ -129,7 +143,7 @@ describe(NvidiaGpuService.name, () => {
     });
 
     it('reads the verdict from the live `[["JWT", overall], { "GPU-0": ... }]` response shape', async () => {
-      const { data, jwks } = signResponse({ overall: { "x-nvidia-overall-att-result": true } });
+      const { data, jwks } = signResponse({ overall: { "x-nvidia-overall-att-result": true, eat_nonce: gpuNonceHex() } });
       const { service } = setup({ data, jwks });
 
       const verdict = await service.verify({ deviceIndex: 0, report: gpuReport(), nonce: nonce64() });
@@ -187,6 +201,11 @@ function gpuReport(): string {
 
 function nonce64(): string {
   return Buffer.alloc(64, 0x5a).toString("base64");
+}
+
+/** The GPU challenge NRAS echoes as `eat_nonce`: the first 32 bytes of the tenant nonce, hex-encoded. */
+function gpuNonceHex(): string {
+  return Buffer.from(nonce64(), "base64").subarray(0, 32).toString("hex");
 }
 
 function signEat(claims: Record<string, unknown>): { token: string; jwks: Jwks } {

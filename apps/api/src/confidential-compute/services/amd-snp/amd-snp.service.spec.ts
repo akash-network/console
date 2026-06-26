@@ -113,7 +113,8 @@ describe(AmdSnpService.name, () => {
     // Report signed by the attacker's own VCEK, presented with the attacker's full self-signed ARK→ASK→VCEK chain.
     const report = buildSignedReport(nonce, forgedChain);
     const embedded = Buffer.from([forgedChain.vcekPem, forgedChain.askPem, forgedChain.arkPem].join("\n")).toString("base64");
-    const { service } = setup({ withKds: true }); // KDS vouches only for the genuine `chain`, not the forged one
+    // KDS vouches only for the genuine `chain`; the forged chip is not AMD-issued, so KDS has no VCEK for it either.
+    const { service } = setup({ withKds: true, vcekInKds: false });
 
     const verdict = await service.verify({ report: report.toString("base64"), certChain: embedded, nonce: nonce.toString("base64") });
 
@@ -121,11 +122,12 @@ describe(AmdSnpService.name, () => {
     expect(verdict.detail).toMatch(/anchor/i);
   });
 
-  function setup(input: { withKds: boolean; products?: string[]; resolvingProduct?: string }) {
+  function setup(input: { withKds: boolean; products?: string[]; resolvingProduct?: string; vcekInKds?: boolean }) {
     const kdsClient = mock<AmdKdsClient>();
     const resolving = input.resolvingProduct ?? "Genoa";
+    const vcekInKds = input.vcekInKds ?? true;
     kdsClient.getCaChain.mockImplementation(async product => (input.withKds && product === resolving ? { ask: chain.askPem, ark: chain.arkPem } : null));
-    kdsClient.getVcek.mockImplementation(async product => (input.withKds && product === resolving ? chain.vcekDer : null));
+    kdsClient.getVcek.mockImplementation(async product => (input.withKds && vcekInKds && product === resolving ? chain.vcekDer : null));
 
     const config = { ...envSchema.parse({}), AMD_SNP_PRODUCTS: input.products ?? [resolving] };
     const service = new AmdSnpService(kdsClient, config, mock<LoggerService>());

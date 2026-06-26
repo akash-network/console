@@ -85,8 +85,9 @@ export class AmdSnpService {
       const ask = new crypto.X509Certificate(caChain.ask);
 
       // Prefer an embedded VCEK (saves a KDS round-trip) but accept it only if it is signed by this product's AMD
-      // ASK; otherwise fetch the per-chip VCEK from KDS for this product. Either way the trust anchor is AMD's.
-      const vcek = embeddedCerts.length ? embeddedCerts.find(cert => safeVerify(cert, ask.publicKey)) : await this.#fetchVcek(product, parsed);
+      // ASK; otherwise fall back to the per-chip VCEK from KDS. A present-but-wrong embedded chain must not block
+      // that fallback. Either way the trust anchor is AMD's.
+      const vcek = embeddedCerts.find(cert => safeVerify(cert, ask.publicKey)) ?? (await this.#fetchVcek(product, parsed));
       if (!vcek) continue;
 
       return { vcek, ask, ark };
