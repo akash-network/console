@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useEffect, useRef, useState } from "react";
 import { InfoCircle } from "iconoir-react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
 
 import { cn } from "../utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./collapsible";
@@ -74,8 +74,21 @@ export interface CollapsibleCardProps {
  */
 const CollapsibleCard = React.forwardRef<HTMLDivElement, CollapsibleCardProps>(({ onHeaderClick, ...props }, ref) => {
   if (onHeaderClick) {
-    const { title, icon, infoTooltip, summary, className } = props;
-    return <ActionCard title={title} icon={icon} infoTooltip={infoTooltip} summary={summary} onHeaderClick={onHeaderClick} className={className} />;
+    const { title, icon, infoTooltip, summary, className, isToggled, onToggle, toggleAriaLabel, toggleDisabled } = props;
+    return (
+      <ActionCard
+        title={title}
+        icon={icon}
+        infoTooltip={infoTooltip}
+        summary={summary}
+        onHeaderClick={onHeaderClick}
+        className={className}
+        isToggled={isToggled}
+        onToggle={onToggle}
+        toggleAriaLabel={toggleAriaLabel}
+        toggleDisabled={toggleDisabled}
+      />
+    );
   }
 
   return <CollapsibleCardBody ref={ref} {...props} />;
@@ -176,31 +189,63 @@ const CollapsibleCardBody = React.forwardRef<HTMLDivElement, Omit<CollapsibleCar
 CollapsibleCardBody.displayName = "CollapsibleCardBody";
 
 /**
- * Non-collapsible variant: the whole header row is a button that fires
- * `onHeaderClick` (e.g. to open a modal). No chevron, no body. The optional
- * info tooltip stops event propagation, so opening it doesn't fire the handler.
+ * Non-collapsible variant: the header row fires `onHeaderClick` (e.g. to open a
+ * modal) instead of expanding a body. The optional info tooltip stops event
+ * propagation, so opening it doesn't fire the handler.
+ *
+ * Pass `isToggled`/`onToggle` to add a header enable switch (same control the
+ * collapsible variant uses). The switch sits as a sibling of the clickable
+ * region, so it toggles independently without firing `onHeaderClick`.
  */
-const ActionCard: React.FC<Pick<CollapsibleCardProps, "title" | "icon" | "infoTooltip" | "summary" | "className"> & { onHeaderClick: () => void }> = ({
-  title,
-  icon,
-  infoTooltip,
-  summary,
-  onHeaderClick,
-  className
-}) => (
-  <button
-    type="button"
-    onClick={onHeaderClick}
-    className={cn(
-      "bg-card focus-visible:ring-ring flex h-12 w-full items-center gap-2 rounded-lg border border-zinc-300 px-4 text-left outline-none focus-visible:ring-1 dark:border-zinc-700",
-      className
-    )}
-  >
-    <CardIcon icon={icon} />
-    <CardTitle title={title} infoTooltip={infoTooltip} />
-    {summary && <CardSummary summary={summary} />}
-  </button>
-);
+const ActionCard: React.FC<
+  Pick<CollapsibleCardProps, "title" | "icon" | "infoTooltip" | "summary" | "className" | "isToggled" | "onToggle" | "toggleAriaLabel" | "toggleDisabled"> & {
+    onHeaderClick: () => void;
+  }
+> = ({ title, icon, infoTooltip, summary, onHeaderClick, className, isToggled, onToggle, toggleAriaLabel, toggleDisabled = false }) => {
+  const content = (
+    <>
+      <CardIcon icon={icon} />
+      <CardTitle title={title} infoTooltip={infoTooltip} />
+      {summary && <CardSummary summary={summary} />}
+    </>
+  );
+
+  if (isToggled === undefined) {
+    return (
+      <button
+        type="button"
+        onClick={onHeaderClick}
+        className={cn(
+          "bg-card focus-visible:ring-ring flex h-12 w-full items-center gap-2 rounded-lg border border-zinc-300 px-4 text-left outline-none focus-visible:ring-1 dark:border-zinc-700",
+          className
+        )}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className={cn("bg-card flex h-12 w-full items-center gap-2 rounded-lg border border-zinc-300 px-4 dark:border-zinc-700", className)}>
+      <button
+        type="button"
+        onClick={onHeaderClick}
+        className="focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-2 self-stretch rounded text-left outline-none focus-visible:ring-1"
+      >
+        {content}
+      </button>
+      <Switch size="sm" aria-label={toggleAriaLabel} checked={isToggled} onCheckedChange={onToggle} disabled={toggleDisabled} />
+      <button
+        type="button"
+        onClick={onHeaderClick}
+        aria-label="Open settings"
+        className="text-foreground focus-visible:ring-ring flex h-6 w-6 shrink-0 items-center justify-center rounded outline-none focus-visible:ring-1"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+  );
+};
 
 const CardIcon: React.FC<{ icon: React.ReactNode }> = ({ icon }) => (
   <span className="text-foreground flex h-4 w-4 shrink-0 items-center justify-center" aria-hidden>
