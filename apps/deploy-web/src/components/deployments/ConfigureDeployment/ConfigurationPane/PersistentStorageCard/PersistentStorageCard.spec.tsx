@@ -231,6 +231,31 @@ describe(PersistentStorageCard.name, () => {
     expect(screen.getByLabelText("Storage name")).toBeInTheDocument();
   });
 
+  it("shows an off-state hint instead of fields when opened while off and locked", async () => {
+    const { getValues } = setup({ count: 0, locked: true });
+
+    await userEvent.click(screen.getByRole("button", { name: "Expand Persistent Storage" }));
+
+    expect(screen.getByText("Persistent storage is off.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Storage name")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add persistent storage" })).not.toBeInTheDocument();
+    expect(getValues().services[0].profile.storage).toHaveLength(1);
+  });
+
+  it("disables every persistent field and the add and remove controls while locked", () => {
+    setup({ count: 2, locked: true });
+
+    expect(screen.getByRole("switch", { name: "Enable persistent storage" })).toBeDisabled();
+    const group = screen.getByRole("group", { name: "Persistent Storage 1" });
+    expect(within(group).getByLabelText("Storage name")).toBeDisabled();
+    expect(within(group).getByLabelText("Storage mount")).toBeDisabled();
+    expect(within(group).getByLabelText("Persistent storage")).toBeDisabled();
+    expect(within(group).getByRole("combobox", { name: "Storage type" })).toBeDisabled();
+    expect(within(group).getByRole("checkbox", { name: "Read only" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add persistent storage" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Remove Persistent Storage 1" })).toBeDisabled();
+  });
+
   it("shows a uniqueness error under the name input when two persistent names collide", async () => {
     const { trigger } = setupValidated([EPHEMERAL, { ...PERSISTENT, name: "data", mount: "/mnt/a" }, { ...PERSISTENT, name: "data", mount: "/mnt/b" }]);
 
@@ -279,7 +304,7 @@ describe(PersistentStorageCard.name, () => {
     });
   });
 
-  function setup(input: { count?: number; storage?: SdlBuilderFormValuesType["services"][number]["profile"]["storage"] }) {
+  function setup(input: { count?: number; locked?: boolean; storage?: SdlBuilderFormValuesType["services"][number]["profile"]["storage"] }) {
     const storage = input.storage ?? [EPHEMERAL, ...Array.from({ length: input.count ?? 0 }, () => ({ ...PERSISTENT }))];
 
     const values = defaultServiceWithPlacement({
@@ -295,7 +320,7 @@ describe(PersistentStorageCard.name, () => {
 
     render(
       <Wrapper>
-        <PersistentStorageCard serviceIndex={0} dependencies={{ ...DEPENDENCIES }} />
+        <PersistentStorageCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES }} />
       </Wrapper>
     );
 

@@ -19,6 +19,14 @@ export type NewDeploymentParams = {
   nodeVersion?: string;
 };
 
+export type ConfigureDeploymentParams = {
+  dseq?: string | number;
+  templateId?: string;
+  sdlStrategy?: "default" | "edit";
+  bidStrategy?: "auto" | "select";
+  draftId?: string;
+};
+
 export const domainName = "https://console.akash.network";
 export function getBaseUrl(): string {
   if (typeof window !== "undefined") {
@@ -80,7 +88,7 @@ export const UrlService = {
   template: (id: string) => `/template/${id}`,
 
   // Deploy
-deploymentList: () => `/deployments`,
+  deploymentList: () => `/deployments`,
   deploymentDetails: (dseq: string, tab?: string, logsMode?: string) => `/deployments/${dseq}${appendSearchParams({ tab, logsMode })}`,
   templates: (category?: string | null, search?: string) => `/templates${appendSearchParams({ category, search })}`,
   templateDetails: (templateId: string) => `/templates/${templateId}`,
@@ -112,6 +120,12 @@ deploymentList: () => `/deployments`,
     } = params;
     const page = params.page || "new-deployment";
     return `/${page}${appendSearchParams({ dseq, step, templateId, redeploy, gitProvider, code: gitProviderCode, repoUrl, branch, buildCommand, startCommand, installCommand, buildDirectory, nodeVersion })}`;
+  },
+
+  configureDeployment: (params: ConfigureDeploymentParams = {}) => {
+    const { dseq, templateId, sdlStrategy, bidStrategy, draftId } = params;
+    const base = dseq ? `/new-deployment/configure/${dseq}` : "/new-deployment/configure";
+    return `${base}${appendSearchParams({ templateId, "sdl-strategy": sdlStrategy, "bid-strategy": bidStrategy, draftId })}`;
   }
 };
 

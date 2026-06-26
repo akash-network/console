@@ -32,6 +32,18 @@ describe("ServiceRow", () => {
     expect(onSelect).toHaveBeenCalled();
   });
 
+  it("disables the service name while locked", () => {
+    setup({ locked: true });
+
+    expect(screen.getByRole("textbox", { name: "Service name" })).toBeDisabled();
+  });
+
+  it("keeps the service name editable while unlocked", () => {
+    setup({});
+
+    expect(screen.getByRole("textbox", { name: "Service name" })).toBeEnabled();
+  });
+
   it("does not select the service when the remove button is clicked", async () => {
     const { onSelect, onRemove } = setup({ canRemove: true });
 
@@ -79,7 +91,7 @@ describe("ServiceRow", () => {
     expect(screen.queryByText("Names must start with a lower case letter.")).not.toBeInTheDocument();
   });
 
-  function setup(input: { isSelected?: boolean; canRemove?: boolean; image?: string; error?: string }) {
+  function setup(input: { isSelected?: boolean; canRemove?: boolean; image?: string; error?: string; locked?: boolean }) {
     const values = defaultServiceWithPlacement({ title: "service-1", image: input.image ?? "" });
     const onSelect = vi.fn();
     const onRemove = vi.fn();
@@ -96,6 +108,7 @@ describe("ServiceRow", () => {
             serviceIndex={0}
             isSelected={input.isSelected ?? false}
             canRemove={input.canRemove ?? true}
+            locked={input.locked}
             onSelect={onSelect}
             onRemove={onRemove}
             dependencies={{ ...DEPENDENCIES, useFieldError: () => ({ error: input.error }) }}

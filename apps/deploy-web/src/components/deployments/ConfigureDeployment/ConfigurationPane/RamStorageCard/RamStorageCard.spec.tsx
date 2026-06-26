@@ -114,7 +114,46 @@ describe(RamStorageCard.name, () => {
     });
   });
 
-  function setup(input: { ram?: boolean; storage?: SdlBuilderFormValuesType["services"][number]["profile"]["storage"] }) {
+  it("shows an off-state hint instead of fields when opened while off and locked", async () => {
+    setup({ ram: false, locked: true });
+
+    await userEvent.click(screen.getByRole("button", { name: "Expand RAM Storage" }));
+
+    expect(screen.getByText("RAM storage is off.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("RAM storage name")).not.toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Enable RAM storage" })).toBeDisabled();
+  });
+
+  it("does not add a RAM volume when an off card is opened", async () => {
+    const { getValues } = setup({ ram: false, locked: true });
+
+    await userEvent.click(screen.getByRole("button", { name: "Expand RAM Storage" }));
+
+    expect(getValues().services[0].profile.storage).toHaveLength(1);
+    expect(getValues().services[0].profile.storage.some(s => s.type === "ram")).toBe(false);
+  });
+
+  it("disables the RAM fields while the pane is locked", () => {
+    setup({ ram: true, locked: true });
+
+    expect(screen.getByRole("switch", { name: "Enable RAM storage" })).toBeDisabled();
+    expect(screen.getByLabelText("RAM storage name")).toBeDisabled();
+    expect(screen.getByLabelText("RAM storage mount")).toBeDisabled();
+    expect(screen.getByLabelText("RAM storage")).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "RAM storage unit" })).toBeDisabled();
+  });
+
+  it("keeps the RAM fields editable while unlocked", async () => {
+    const { getValues } = setup({ ram: true });
+
+    const input = screen.getByLabelText("RAM storage name");
+    expect(input).toBeEnabled();
+    await userEvent.clear(input);
+    await userEvent.type(input, "cache");
+    expect(getValues().services[0].profile.storage.find(s => s.type === "ram")?.name).toBe("cache");
+  });
+
+  function setup(input: { ram?: boolean; locked?: boolean; storage?: SdlBuilderFormValuesType["services"][number]["profile"]["storage"] }) {
     const storage = input.storage ?? (input.ram ? [EPHEMERAL, { ...RAM }] : [EPHEMERAL]);
 
     const values = defaultServiceWithPlacement({
@@ -130,7 +169,7 @@ describe(RamStorageCard.name, () => {
 
     render(
       <Wrapper>
-        <RamStorageCard serviceIndex={0} dependencies={{ ...DEPENDENCIES }} />
+        <RamStorageCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES }} />
       </Wrapper>
     );
 

@@ -23,6 +23,8 @@ export interface NumberUnitInputProps {
   placeholder?: string;
   error?: string;
   errorClassName?: string;
+  /** Greys out and blocks both halves — e.g. when previewing default values the consumer can't yet edit. */
+  disabled?: boolean;
 }
 
 /**
@@ -35,7 +37,7 @@ export interface NumberUnitInputProps {
  * its focus ring isn't hidden behind the neighbouring control.
  */
 const NumberUnitInput = React.forwardRef<HTMLInputElement, NumberUnitInputProps>(
-  ({ label, value, unit, units, onValueChange, onUnitChange, min = 1, step = 1, placeholder, error, errorClassName }, ref) => {
+  ({ label, value, unit, units, onValueChange, onUnitChange, min = 1, step = 1, placeholder, error, errorClassName, disabled = false }, ref) => {
     const errorId = useId();
     const hasError = !!error;
 
@@ -61,11 +63,12 @@ const NumberUnitInput = React.forwardRef<HTMLInputElement, NumberUnitInputProps>
             step={step}
             placeholder={placeholder}
             error={hasError}
+            disabled={disabled}
             onChange={updateValue}
             className="min-w-0 flex-1 space-y-0"
             inputClassName="h-9 rounded-r-none focus-visible:relative focus-visible:z-10"
           />
-          <Select value={unit} onValueChange={onUnitChange}>
+          <Select value={unit} onValueChange={onUnitChange} disabled={disabled}>
             <SelectTrigger
               aria-label={`${label} unit`}
               className={cn("h-9 w-auto shrink-0 gap-2 rounded-l-none border-l-0 px-2 focus:relative focus:z-10", {

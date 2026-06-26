@@ -9,6 +9,7 @@ import { ConfigurationPane } from "../ConfigurationPane/ConfigurationPane";
 import { DeploymentPane } from "../DeploymentPane/DeploymentPane";
 import { MarketplacePane } from "../MarketplacePane/MarketplacePane";
 import { SdlPreviewPane } from "../SdlPreviewPane/SdlPreviewPane";
+import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
 
 type ActivePane = "deployment" | "configuration" | "marketplace";
 
@@ -21,6 +22,9 @@ type Props = {
   selectedPlacementName: string;
   selectedPlacementRegion?: string;
   onSelectService: (serviceId: string) => void;
+  phase: DeploymentFlowPhase;
+  dseq: string | null;
+  onCancelAndEdit: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -31,23 +35,36 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
   selectedPlacementName,
   selectedPlacementRegion,
   onSelectService,
+  phase,
+  dseq,
+  onCancelAndEdit,
   dependencies: d = DEPENDENCIES
 }) => {
   const [activePane, setActivePane] = useState<ActivePane>("deployment");
   const [isSdlPreviewOpen, setIsSdlPreviewOpen] = useAtom(sdlStore.sdlPreviewOpen);
   const isSdlPreviewEnabled = d.useFlag("ui_sdl_preview_panel");
+  const isLocked = phase === "creating" || phase === "quoting" || phase === "closing";
+  const isClosing = phase === "closing";
 
   return (
     <div className="flex h-full w-full flex-col">
-      <div className="grid min-h-0 flex-1 grid-rows-1 md:auto-cols-fr md:grid-flow-col md:grid-cols-[auto_320px_1fr] md:divide-x md:divide-zinc-300 md:border-t md:border-zinc-300 md:dark:divide-zinc-700 md:dark:border-zinc-700">
-        <div className={cn("min-h-0 md:block", { hidden: activePane !== "deployment" })}>
-          <d.DeploymentPane selectedServiceId={selectedServiceId} onSelectService={onSelectService} />
+      <div className="grid min-h-0 flex-1 grid-rows-1 md:auto-cols-fr md:grid-flow-col md:grid-cols-[auto_1fr] md:border-t md:border-zinc-300 md:dark:border-zinc-700">
+        <div className="grid min-h-0 grid-rows-1 md:grid-flow-col md:grid-cols-[auto_352px] md:divide-x md:divide-zinc-300 md:dark:divide-zinc-700">
+          <div className={cn("min-h-0 md:block", { hidden: activePane !== "deployment" })}>
+            <d.DeploymentPane
+              selectedServiceId={selectedServiceId}
+              onSelectService={onSelectService}
+              locked={isLocked}
+              isClosing={isClosing}
+              onCancelAndEdit={onCancelAndEdit}
+            />
+          </div>
+          <div className={cn("min-h-0 md:block", { hidden: activePane !== "configuration" })}>
+            <d.ConfigurationPane selectedServiceId={selectedServiceId} locked={isLocked} isClosing={isClosing} onCancelAndEdit={onCancelAndEdit} />
+          </div>
         </div>
-        <div className={cn("min-h-0 md:block", { hidden: activePane !== "configuration" })}>
-          <d.ConfigurationPane selectedServiceId={selectedServiceId} />
-        </div>
-        <div className={cn("min-h-0 md:block", { hidden: activePane !== "marketplace" })}>
-          <d.MarketplacePane sdl={sdl} placementName={selectedPlacementName} region={selectedPlacementRegion} />
+        <div className={cn("min-h-0 md:block md:border-l md:border-zinc-300 md:dark:border-zinc-700", { hidden: activePane !== "marketplace" })}>
+          <d.MarketplacePane sdl={sdl} placementName={selectedPlacementName} region={selectedPlacementRegion} phase={phase} dseq={dseq} />
         </div>
         {isSdlPreviewEnabled && (
           <d.SdlPreviewPane sdl={previewSdl} isOpen={isSdlPreviewOpen} onOpen={() => setIsSdlPreviewOpen(true)} onClose={() => setIsSdlPreviewOpen(false)} />

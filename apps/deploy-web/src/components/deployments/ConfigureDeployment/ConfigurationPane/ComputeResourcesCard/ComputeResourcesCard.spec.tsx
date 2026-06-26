@@ -39,6 +39,16 @@ describe(ComputeResourcesCard.name, () => {
     expect(screen.getByLabelText("Storage")).toHaveValue(10);
   });
 
+  it("disables every compute input while locked", () => {
+    setup({ locked: true });
+
+    expect(screen.getByLabelText("CPU Count")).toBeDisabled();
+    expect(screen.getByLabelText("Memory")).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Memory unit" })).toBeDisabled();
+    expect(screen.getByLabelText("Storage")).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Storage unit" })).toBeDisabled();
+  });
+
   it("updates memory through the number+unit input", async () => {
     const { getValues } = setup({ ram: 512, ramUnit: "Mi" });
 
@@ -119,6 +129,7 @@ describe(ComputeResourcesCard.name, () => {
     storageSize?: number;
     storageUnit?: string;
     cpuError?: string;
+    locked?: boolean;
     resolver?: Resolver<SdlBuilderFormValuesType>;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
@@ -149,7 +160,7 @@ describe(ComputeResourcesCard.name, () => {
 
     render(
       <Wrapper>
-        <ComputeResourcesCard serviceIndex={0} dependencies={{ ...DEPENDENCIES, ...input.dependencies }} />
+        <ComputeResourcesCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES, ...input.dependencies }} />
       </Wrapper>
     );
 

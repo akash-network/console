@@ -9,6 +9,7 @@ import { HardwareSection } from "./HardwareSection/HardwareSection";
 import { ConfigurationPane, DEPENDENCIES } from "./ConfigurationPane";
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(ConfigurationPane.name, () => {
@@ -16,7 +17,7 @@ describe(ConfigurationPane.name, () => {
     const values = defaultServiceWithPlacement({ title: "api" });
     setup({ values, selectedServiceId: values.services[0].id });
 
-    expect(screen.getByText("api")).toBeInTheDocument();
+    expect(screen.getByText(/api/)).toBeInTheDocument();
   });
 
   it("shows no target when the selection matches no service", () => {
@@ -91,14 +92,35 @@ describe(ConfigurationPane.name, () => {
     expect(screen.getByLabelText("Storage")).toHaveValue(9);
   });
 
-  function setup(input: { values: SdlBuilderFormValuesType; selectedServiceId: string; dependencies?: Partial<typeof DEPENDENCIES> }) {
+  it("shows the lock banner with cancel-and-edit while locked", async () => {
+    const onCancelAndEdit = vi.fn();
+    const values = defaultServiceWithPlacement({ title: "api" });
+    setup({ values, selectedServiceId: values.services[0].id, locked: true, onCancelAndEdit });
+
+    await userEvent.click(screen.getByRole("button", { name: /cancel and edit/i }));
+
+    expect(onCancelAndEdit).toHaveBeenCalled();
+  });
+
+  function setup(input: {
+    values: SdlBuilderFormValuesType;
+    selectedServiceId: string;
+    locked?: boolean;
+    onCancelAndEdit?: () => void;
+    dependencies?: Partial<typeof DEPENDENCIES>;
+  }) {
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({ defaultValues: input.values });
       return <FormProvider {...form}>{children}</FormProvider>;
     };
     return render(
       <Wrapper>
-        <ConfigurationPane selectedServiceId={input.selectedServiceId} dependencies={MockComponents(DEPENDENCIES, input.dependencies)} />
+        <ConfigurationPane
+          selectedServiceId={input.selectedServiceId}
+          locked={input.locked}
+          onCancelAndEdit={input.onCancelAndEdit}
+          dependencies={MockComponents(DEPENDENCIES, input.dependencies)}
+        />
       </Wrapper>
     );
   }

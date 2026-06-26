@@ -55,22 +55,61 @@ describe(ConfigureDeployment.name, () => {
     expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialSdl: helloWorldTemplate.content }), expect.anything());
   });
 
+  it("forwards the draft session's resolved id into the form's intent", () => {
+    const { ConfigureDeploymentForm, useConfigureDraft } = setup({ templateId: null, draftId: "resolved-1" });
+
+    expect(useConfigureDraft).toHaveBeenCalledWith(expect.objectContaining({ sdlStrategy: "edit", bidStrategy: "select" }));
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(
+      expect.objectContaining({ intent: expect.objectContaining({ draftId: "resolved-1" }) }),
+      expect.anything()
+    );
+  });
+
+  it("restores the draft's persisted SDL and skips the template fetch", () => {
+    const { ConfigureDeploymentForm, usePublicTemplate } = setup({ templateId: "tpl-1", persistedSdl: "restored: sdl" });
+
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialSdl: "restored: sdl" }), expect.anything());
+    expect(usePublicTemplate).toHaveBeenCalledWith(undefined);
+  });
+
+  it("falls back to the template when the draft has nothing persisted", () => {
+    const { ConfigureDeploymentForm, usePublicTemplate } = setup({
+      templateId: "tpl-1",
+      template: { isLoading: false, data: mock<TemplateOutput>({ deploy: "version: '2.0'" }) }
+    });
+
+    expect(usePublicTemplate).toHaveBeenCalledWith("tpl-1");
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialSdl: "version: '2.0'" }), expect.anything());
+  });
+
   function setup(input: {
-    templateId: string | null;
+    templateId?: string | null;
+    draftId?: string;
+    persistedSdl?: string;
     template?: { isLoading?: boolean; isError?: boolean; data?: TemplateOutput };
     deploySdl?: TemplateCreation | null;
   }) {
     const ConfigureDeploymentForm = vi.fn(() => <div data-testid="form-mock" />);
     const enqueueSnackbar = vi.fn();
     const usePublicTemplate = vi.fn(() => mock<ReturnType<typeof DEPENDENCIES.usePublicTemplate>>(input.template as never));
-    const params = new URLSearchParams(input.templateId ? { templateId: input.templateId } : {});
+    const save = vi.fn();
+    const clear = vi.fn();
+    const useConfigureDraft = vi.fn(() =>
+      mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({ draftId: input.draftId ?? "minted-id", persistedSdl: input.persistedSdl, save, clear })
+    );
+
+    const query: Record<string, string> = {};
+    if (input.templateId) query.templateId = input.templateId;
+    const params = new URLSearchParams(query);
 
     const dependencies: typeof DEPENDENCIES = {
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
       ConfigureDeploymentForm: ConfigureDeploymentForm as never,
       usePublicTemplate: usePublicTemplate as never,
+      useConfigureDraft: useConfigureDraft as never,
       useSearchParams: () => params as unknown as ReadonlyURLSearchParams,
+      useParams: (() => ({})) as never,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       Snackbar: vi.fn(() => null) as never
     };
@@ -84,6 +123,6 @@ describe(ConfigureDeployment.name, () => {
       </JotaiStoreProvider>
     );
 
-    return { ConfigureDeploymentForm, usePublicTemplate, enqueueSnackbar };
+    return { ConfigureDeploymentForm, usePublicTemplate, useConfigureDraft, enqueueSnackbar };
   }
 });

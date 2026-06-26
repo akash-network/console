@@ -97,13 +97,40 @@ describe("ConfigureDeploymentPanes", () => {
     expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ selectedServiceId: "svc-1" }), expect.anything());
   });
 
-  it("threads the sdl, selected placement, and its region into the marketplace pane", () => {
-    const { MarketplacePane } = setup({ sdl: 'version: "2.0"', selectedPlacementName: "dcloud", selectedPlacementRegion: "na-us-west" });
+  it("threads the sdl, selected placement, its region, and the lifecycle phase into the marketplace pane", () => {
+    const { MarketplacePane } = setup({
+      sdl: 'version: "2.0"',
+      selectedPlacementName: "dcloud",
+      selectedPlacementRegion: "na-us-west",
+      phase: "quoting",
+      dseq: "100"
+    });
 
     expect(MarketplacePane).toHaveBeenCalledWith(
-      expect.objectContaining({ sdl: 'version: "2.0"', placementName: "dcloud", region: "na-us-west" }),
+      expect.objectContaining({ sdl: 'version: "2.0"', placementName: "dcloud", region: "na-us-west", phase: "quoting", dseq: "100" }),
       expect.anything()
     );
+  });
+
+  it("locks both spec panes and supplies cancel-and-edit while not configuring", () => {
+    const { DeploymentPane, ConfigurationPane } = setup({ phase: "quoting" });
+
+    expect(DeploymentPane).toHaveBeenCalledWith(expect.objectContaining({ locked: true, onCancelAndEdit: expect.any(Function) }), expect.anything());
+    expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ locked: true, onCancelAndEdit: expect.any(Function) }), expect.anything());
+  });
+
+  it("flags close progress to both spec panes while closing", () => {
+    const { DeploymentPane, ConfigurationPane } = setup({ phase: "closing" });
+
+    expect(DeploymentPane).toHaveBeenCalledWith(expect.objectContaining({ locked: true, isClosing: true }), expect.anything());
+    expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ locked: true, isClosing: true }), expect.anything());
+  });
+
+  it("leaves both spec panes unlocked while configuring", () => {
+    const { DeploymentPane, ConfigurationPane } = setup({ phase: "configuring" });
+
+    expect(DeploymentPane).toHaveBeenCalledWith(expect.objectContaining({ locked: false }), expect.anything());
+    expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ locked: false }), expect.anything());
   });
 
   function setup(
@@ -116,6 +143,9 @@ describe("ConfigureDeploymentPanes", () => {
       selectedPlacementName?: string;
       selectedPlacementRegion?: string;
       onSelectService?: (serviceId: string) => void;
+      phase?: "configuring" | "creating" | "quoting" | "closing" | "error";
+      dseq?: string | null;
+      onCancelAndEdit?: () => void;
     } = {}
   ) {
     const SdlPreviewPane = vi.fn(({ isOpen, onOpen, onClose }: { isOpen: boolean; onOpen: () => void; onClose: () => void }) => (
@@ -148,6 +178,9 @@ describe("ConfigureDeploymentPanes", () => {
           selectedPlacementName={input.selectedPlacementName ?? "dcloud"}
           selectedPlacementRegion={input.selectedPlacementRegion}
           onSelectService={input.onSelectService ?? vi.fn()}
+          phase={input.phase ?? "configuring"}
+          dseq={input.dseq ?? null}
+          onCancelAndEdit={input.onCancelAndEdit ?? vi.fn()}
           dependencies={dependencies}
         />
       </JotaiStoreProvider>

@@ -20,6 +20,8 @@ type Props = {
   selectedServiceId: string;
   canRemove: boolean;
   canRemoveService: boolean;
+  /** While locked the card stays selectable, but the SDL-mutating controls (name, region, add service) are disabled. */
+  locked?: boolean;
   onSelectService: (serviceId: string) => void;
   onAddService: () => void;
   onRemoveService: (serviceId: string) => void;
@@ -34,6 +36,7 @@ export const PlacementCard: FC<Props> = ({
   selectedServiceId,
   canRemove,
   canRemoveService,
+  locked = false,
   onSelectService,
   onAddService,
   onRemoveService,
@@ -72,7 +75,9 @@ export const PlacementCard: FC<Props> = ({
       <div className="flex flex-col gap-1 px-1 pb-2">
         <div className="flex items-center gap-2">
           <ConfigStatusIcon status={status} />
-          <d.InlineEditInput name={`placements.${placementIndex}.name`} label="Placement name" suppressErrorMessage errorMessageId={errorId} />
+          <fieldset disabled={locked} className="m-0 min-w-0 flex-1 border-0 p-0 disabled:pointer-events-none">
+            <d.InlineEditInput name={`placements.${placementIndex}.name`} label="Placement name" suppressErrorMessage errorMessageId={errorId} />
+          </fieldset>
           {canRemove && (
             <button type="button" aria-label="Remove placement" onClick={removePlacement} className="shrink-0 text-muted-foreground hover:text-foreground">
               <Trash className="h-3.5 w-3.5" />
@@ -81,7 +86,9 @@ export const PlacementCard: FC<Props> = ({
         </div>
         {error && <FieldErrorMessage id={errorId}>{error}</FieldErrorMessage>}
       </div>
-      <d.RegionSelect placementIndex={placementIndex} />
+      <fieldset disabled={locked} className="m-0 min-w-0 border-0 p-0 disabled:pointer-events-none">
+        <d.RegionSelect placementIndex={placementIndex} disabled={locked} />
+      </fieldset>
       <ul aria-label={`${placement.name} services`} className="mt-2 space-y-2">
         {services.map(({ service, index }) => (
           <d.ServiceRow
@@ -90,6 +97,7 @@ export const PlacementCard: FC<Props> = ({
             serviceIndex={index}
             isSelected={service.id === selectedServiceId}
             canRemove={canRemoveService}
+            locked={locked}
             onSelect={() => onSelectService(service.id as string)}
             onRemove={() => onRemoveService(service.id as string)}
           />
@@ -99,7 +107,8 @@ export const PlacementCard: FC<Props> = ({
         type="button"
         aria-label="Add service"
         onClick={addService}
-        className="mt-2 flex w-full items-center justify-center rounded-md py-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+        disabled={locked}
+        className="mt-2 flex w-full items-center justify-center rounded-md py-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
       >
         <Plus className="h-4 w-4" />
       </button>
