@@ -225,6 +225,116 @@ describe(EnvironmentVariablesCard.name, () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
+  describe("pasting dotenv content into a key field", () => {
+    it("creates a row per pasted KEY=value line and drops the empty row pasted into", async () => {
+      const { openCard } = setup({ env: [] });
+
+      await openCard();
+      await pasteIntoKey(1, "KEY1=value1\nKEY2=value2");
+
+      expect(keyValues()).toEqual(["KEY1", "KEY2"]);
+      expect(valueValues()).toEqual(["value1", "value2"]);
+    });
+
+    it("leaves the focused key untouched when the pasted text has no equals sign", async () => {
+      const { openCard } = setup({ env: [] });
+
+      await openCard();
+      await pasteIntoKey(1, "KEY1");
+
+      expect(keyValues()).toEqual(["KEY1"]);
+      expect(valueValues()).toEqual([""]);
+    });
+
+    it("skips reserved keys when pasting", async () => {
+      const { openCard } = setup({ env: [] });
+
+      await openCard();
+      await pasteIntoKey(1, "SSH_PUBKEY=abc123\nFOO=bar");
+
+      expect(keyValues()).toEqual(["FOO"]);
+      expect(valueValues()).toEqual(["bar"]);
+    });
+
+    it("does not leak the raw text into the key field when every pasted line is a reserved key", async () => {
+      const { openCard } = setup({ env: [] });
+
+      await openCard();
+      await pasteIntoKey(1, "SSH_PUBKEY=abc123");
+
+      expect(keyValues()).toEqual([""]);
+      expect(valueValues()).toEqual([""]);
+    });
+
+    it("updates an existing variable's value in place when its key is pasted again", async () => {
+      const { openCard } = setup({ env: [{ key: "KEY1", value: "value1" }] });
+
+      await openCard();
+      await pasteIntoKey(1, "KEY1=new_value\nKEY2=value2");
+
+      expect(keyValues()).toEqual(["KEY1", "KEY2"]);
+      expect(valueValues()).toEqual(["new_value", "value2"]);
+    });
+
+    it("keeps a non-empty focused key and appends the pasted rows below it", async () => {
+      const { openCard } = setup({ env: [{ key: "KEY1", value: "key1" }] });
+
+      await openCard();
+      await pasteIntoKey(1, "KEY2=key2\nKEY3=key3");
+
+      expect(keyValues()).toEqual(["KEY1", "KEY2", "KEY3"]);
+      expect(valueValues()).toEqual(["key1", "key2", "key3"]);
+    });
+
+    it("appends to previously pasted variables when pasting into a newly added row", async () => {
+      const { openCard } = setup({ env: [] });
+
+      await openCard();
+      await pasteIntoKey(1, "KEY1=value1\nKEY2=value2");
+      await userEvent.click(screen.getByRole("button", { name: "Add variable" }));
+      await pasteIntoKey(3, "KEY3=value3");
+
+      expect(keyValues()).toEqual(["KEY1", "KEY2", "KEY3"]);
+      expect(valueValues()).toEqual(["value1", "value2", "value3"]);
+    });
+
+    it("preserves a manually typed variable when pasting into another row", async () => {
+      const { openCard } = setup({ env: [] });
+
+      await openCard();
+      await userEvent.type(screen.getByLabelText("Environment variable 1 key"), "TYPED");
+      await userEvent.type(screen.getByLabelText("Environment variable 1 value"), "typed_value");
+      await userEvent.click(screen.getByRole("button", { name: "Add variable" }));
+      await pasteIntoKey(2, "PASTED=pasted_value");
+
+      expect(keyValues()).toEqual(["TYPED", "PASTED"]);
+      expect(valueValues()).toEqual(["typed_value", "pasted_value"]);
+    });
+
+    it("splits only on the first equals sign so values may contain equals signs", async () => {
+      const { openCard } = setup({ env: [] });
+
+      await openCard();
+      await pasteIntoKey(1, "URL=postgres://user:pass@host/db?ssl=true");
+
+      expect(keyValues()).toEqual(["URL"]);
+      expect(valueValues()).toEqual(["postgres://user:pass@host/db?ssl=true"]);
+    });
+
+    async function pasteIntoKey(visibleIndex: number, text: string) {
+      await userEvent.click(screen.getByLabelText(`Environment variable ${visibleIndex} key`));
+      await userEvent.paste(text);
+    }
+
+    function keyValues() {
+      return screen.getAllByLabelText<HTMLInputElement>(/^Environment variable \d+ key$/).map(el => el.value);
+    }
+
+    function valueValues() {
+      return screen.getAllByLabelText<HTMLInputElement>(/^Environment variable \d+ value$/).map(el => el.value);
+    }
+  });
+
   function setup(input: { env?: Array<Partial<EnvironmentVariableType>>; image?: string; locked?: boolean }) {
     const env = input.env?.map(e => ({ key: "", value: "", isSecret: false, ...e })) ?? [];
 
