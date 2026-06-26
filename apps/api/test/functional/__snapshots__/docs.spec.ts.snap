@@ -4566,6 +4566,260 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/confidential-compute/attestation/validate": {
+      "post": {
+        "operationId": "validateConfidentialComputeAttestation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "auxblob": {
+                    "default": "",
+                    "description": "Platform auxiliary blob (e.g. TDX collateral), base64; may be empty",
+                    "example": "BQAAAAAA...",
+                    "type": "string",
+                  },
+                  "cert_chain": {
+                    "default": "",
+                    "description": "CPU vendor cert chain, base64; may be empty (e.g. AMD VCEK fetched from KDS)",
+                    "example": "BQAAAAAA...",
+                    "type": "string",
+                  },
+                  "gpu_reports": {
+                    "default": [],
+                    "description": "Per-GPU attestation reports; empty for CPU-only platforms",
+                    "items": {
+                      "properties": {
+                        "device_index": {
+                          "description": "GPU device index this report attests",
+                          "example": 0,
+                          "minimum": 0,
+                          "type": "integer",
+                        },
+                        "report": {
+                          "description": "Hardware-signed GPU attestation report (embeds the device cert chain), base64",
+                          "example": "BQAAAAAA...",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "device_index",
+                        "report",
+                      ],
+                      "type": "object",
+                    },
+                    "type": "array",
+                  },
+                  "nonce": {
+                    "description": "Per-request freshness challenge sent to the hardware, base64 (64 bytes, AEP-83 §5)",
+                    "type": "string",
+                  },
+                  "report": {
+                    "description": "CPU attestation report (AMD SEV-SNP or Intel TDX quote), base64",
+                    "example": "BQAAAAAA...",
+                    "type": "string",
+                  },
+                  "tee_platform": {
+                    "description": "TEE platform that produced the evidence",
+                    "enum": [
+                      "snp",
+                      "tdx",
+                      "snp-gpu",
+                      "tdx-gpu",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "nonce",
+                  "report",
+                  "tee_platform",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "nonce": {
+                      "description": "Echo of the request nonce, for client correlation",
+                      "type": "string",
+                    },
+                    "overall": {
+                      "description": "Rollup: valid only if every report is valid; invalid if any report is invalid; otherwise unverifiable",
+                      "enum": [
+                        "valid",
+                        "invalid",
+                        "unverifiable",
+                      ],
+                      "type": "string",
+                    },
+                    "reports": {
+                      "items": {
+                        "oneOf": [
+                          {
+                            "properties": {
+                              "checks": {
+                                "description": "Granular sub-results behind the verdict; fields are omitted when not evaluated",
+                                "properties": {
+                                  "certChainValid": {
+                                    "description": "Evidence chains to the vendor root certificate",
+                                    "type": "boolean",
+                                  },
+                                  "nonceMatch": {
+                                    "description": "The evidence is bound to the request nonce",
+                                    "type": "boolean",
+                                  },
+                                  "notRevoked": {
+                                    "description": "Revocation status; omitted when revocation was not checked",
+                                    "type": "boolean",
+                                  },
+                                  "signatureValid": {
+                                    "description": "The report/EAT signature verified",
+                                    "type": "boolean",
+                                  },
+                                },
+                                "type": "object",
+                              },
+                              "detail": {
+                                "description": "Human-readable explanation of the verdict",
+                                "type": "string",
+                              },
+                              "kind": {
+                                "enum": [
+                                  "cpu",
+                                ],
+                                "type": "string",
+                              },
+                              "status": {
+                                "description": "valid = chained to the vendor root, signature/EAT verified, and bound to the request nonce; invalid = a check ran and failed (bad signature, untrusted chain, nonce mismatch); unverifiable = the check could not be completed (vendor service unreachable, not configured, missing material)",
+                                "enum": [
+                                  "valid",
+                                  "invalid",
+                                  "unverifiable",
+                                ],
+                                "type": "string",
+                              },
+                              "vendor": {
+                                "enum": [
+                                  "amd-sev-snp",
+                                  "intel-tdx",
+                                ],
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "kind",
+                              "vendor",
+                              "status",
+                              "detail",
+                            ],
+                            "type": "object",
+                          },
+                          {
+                            "properties": {
+                              "checks": {
+                                "description": "Granular sub-results behind the verdict; fields are omitted when not evaluated",
+                                "properties": {
+                                  "certChainValid": {
+                                    "description": "Evidence chains to the vendor root certificate",
+                                    "type": "boolean",
+                                  },
+                                  "nonceMatch": {
+                                    "description": "The evidence is bound to the request nonce",
+                                    "type": "boolean",
+                                  },
+                                  "notRevoked": {
+                                    "description": "Revocation status; omitted when revocation was not checked",
+                                    "type": "boolean",
+                                  },
+                                  "signatureValid": {
+                                    "description": "The report/EAT signature verified",
+                                    "type": "boolean",
+                                  },
+                                },
+                                "type": "object",
+                              },
+                              "detail": {
+                                "description": "Human-readable explanation of the verdict",
+                                "type": "string",
+                              },
+                              "device_index": {
+                                "minimum": 0,
+                                "type": "integer",
+                              },
+                              "kind": {
+                                "enum": [
+                                  "gpu",
+                                ],
+                                "type": "string",
+                              },
+                              "status": {
+                                "description": "valid = chained to the vendor root, signature/EAT verified, and bound to the request nonce; invalid = a check ran and failed (bad signature, untrusted chain, nonce mismatch); unverifiable = the check could not be completed (vendor service unreachable, not configured, missing material)",
+                                "enum": [
+                                  "valid",
+                                  "invalid",
+                                  "unverifiable",
+                                ],
+                                "type": "string",
+                              },
+                              "vendor": {
+                                "enum": [
+                                  "nvidia",
+                                ],
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "kind",
+                              "device_index",
+                              "vendor",
+                              "status",
+                              "detail",
+                            ],
+                            "type": "object",
+                          },
+                        ],
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "overall",
+                    "nonce",
+                    "reports",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Per-report attestation verdicts",
+          },
+          "400": {
+            "description": "Invalid request body",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Validate confidential compute attestation evidence against the hardware vendors (AMD SEV-SNP, Intel TDX, NVIDIA)",
+        "tags": [
+          "Confidential Compute",
+        ],
+      },
+    },
     "/v1/create-jwt-token": {
       "post": {
         "requestBody": {
