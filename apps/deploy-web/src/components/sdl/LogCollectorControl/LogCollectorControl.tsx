@@ -206,7 +206,7 @@ export const LogCollectorControl: FC<Props> = ({ serviceIndex, dependencies: d =
 };
 
 export function isLogCollectorService(service: ServiceType): boolean {
-  return service.title.endsWith("-log-collector") && service.image === LOG_COLLECTOR_IMAGE;
+  return !!service.title?.endsWith("-log-collector") && service.image === LOG_COLLECTOR_IMAGE;
 }
 
 export function findOwnLogCollectorServiceIndex(service: ServiceType, services: ServiceType[]): number {

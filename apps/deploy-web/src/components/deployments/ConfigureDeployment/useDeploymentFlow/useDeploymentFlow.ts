@@ -16,7 +16,9 @@ export interface DeploymentFlowState {
 }
 
 export interface DeploymentFlowActions {
-  requestQuotes: () => void;
+  /** Creates the deployment from the given SDL. The caller passes the SDL generated from the just-submitted
+   * form values so the request can never lag behind an in-flight edit. */
+  requestQuotes: (sdl: string) => void;
   cancelAndEdit: () => void;
   setBidStrategy: (strategy: BidStrategy) => void;
   refreshQuotes: () => void;
@@ -27,7 +29,6 @@ export type DeploymentFlow = DeploymentFlowState & { actions: DeploymentFlowActi
 
 interface UseDeploymentFlowInput {
   intent: DeploymentIntent;
-  sdl: string;
 }
 
 /** Default escrow deposit in USD (ACT maps 1:1 to USD). Matches `DEFAULT_DEPOSIT_USD` in the phased flow so a trial grant covers it. */
@@ -49,7 +50,7 @@ export const DEPENDENCIES = { useCreateDeployment, useCloseDeployment, useRouter
  * lives in react-query via `usePlacementOffers`. Resumes in `quoting` when the URL already carries
  * a dseq, so a reload picks up live bids rather than restarting.
  */
-export function useDeploymentFlow({ intent, sdl }: UseDeploymentFlowInput, dependencies: typeof DEPENDENCIES = DEPENDENCIES): DeploymentFlow {
+export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependencies: typeof DEPENDENCIES = DEPENDENCIES): DeploymentFlow {
   const router = dependencies.useRouter();
   const createDeployment = dependencies.useCreateDeployment();
   const closeDeployment = dependencies.useCloseDeployment();
@@ -63,7 +64,7 @@ export function useDeploymentFlow({ intent, sdl }: UseDeploymentFlowInput, depen
   intentRef.current = intent;
 
   const requestQuotes = useCallback(
-    function requestQuotes() {
+    function requestQuotes(sdl: string) {
       setPhase("creating");
       setError(undefined);
       createDeployment.mutate(
@@ -81,7 +82,7 @@ export function useDeploymentFlow({ intent, sdl }: UseDeploymentFlowInput, depen
         }
       );
     },
-    [createDeployment, router, sdl, bidStrategy]
+    [createDeployment, router, bidStrategy]
   );
 
   const cancelAndEdit = useCallback(

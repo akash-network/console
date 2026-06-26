@@ -2,10 +2,12 @@ import type { ValidationError as SchemaValidationError } from "@akashnetwork/cha
 import type { editor, MarkerSeverity } from "monaco-editor";
 import type { Document, ParsedNode } from "yaml";
 
+import { formatSdlValidationError } from "@src/utils/sdl/validateGeneratedSdl";
+
 export function getMonacoErrorMarkers(errors: SchemaValidationError[], doc: Document.Parsed, yamlText: string): editor.IMarkerData[] {
   return errors.map(error => {
     const node = findNodeAtPath(doc, error.instancePath);
-    const message = formatErrorMessage(error);
+    const message = formatSdlValidationError(error);
 
     let startPos = { line: 1, column: 1 };
     let endPos = { line: 1, column: 1 };
@@ -26,25 +28,6 @@ export function getMonacoErrorMarkers(errors: SchemaValidationError[], doc: Docu
       endColumn: endPos.column
     };
   });
-}
-
-function formatErrorMessage(error: SchemaValidationError): string {
-  const path = error.instancePath || "(root)";
-  const baseMessage = error.message || "Validation error";
-
-  if (error.keyword === "required" && error.params && "missingProperty" in error.params) {
-    return `${path}: missing required property '${error.params.missingProperty}'`;
-  }
-
-  if (error.keyword === "additionalProperties" && error.params && "additionalProperty" in error.params) {
-    return `${path}: unknown property '${error.params.additionalProperty}'`;
-  }
-
-  if (error.keyword === "type" && error.params && "type" in error.params) {
-    return `${path}: ${baseMessage} (expected ${error.params.type})`;
-  }
-
-  return `${path}: ${baseMessage}`;
 }
 
 function offsetToLineColumn(text: string, offset: number): { line: number; column: number } {

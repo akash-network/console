@@ -129,6 +129,9 @@ export const defaultRamStorage = {
   isReadOnly: false
 };
 
+/** The defaults applied to a freshly added GPU collection (vendor preset, model left for the user to pick). */
+export const defaultGpuModel = { vendor: "nvidia", name: "", memory: "", interface: "" };
+
 export const SSH_VM_IMAGES = {
   "Ubuntu 24.04": "ghcr.io/akash-network/ubuntu-2404-ssh:2",
   "CentOS Stream 9": "ghcr.io/akash-network/centos-stream9-ssh:2",
