@@ -83,10 +83,7 @@ export class IntelTdxService {
 
 /** Reads the TDX quote verdict from an ITA token, tolerant of the candidate claim names ITA may use. */
 export function extractTdxResult(payload: JwtPayload): boolean | undefined {
-  for (const claim of ["attestation_result", "tdx_is_debuggable"]) {
-    const value = payload[claim];
-    if (typeof value === "boolean" && claim === "attestation_result") return value;
-  }
+  if (typeof payload["attestation_result"] === "boolean") return payload["attestation_result"];
   const status = payload["attester_tcb_status"] ?? payload["tdx_tcb_status"] ?? payload["quote_status"];
   if (typeof status === "string") return status === "OK" || status === "UpToDate";
   return undefined;

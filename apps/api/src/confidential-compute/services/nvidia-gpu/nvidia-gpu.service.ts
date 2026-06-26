@@ -76,7 +76,7 @@ export class NvidiaGpuService {
     const checks = { certChainValid: true, signatureValid: true, nonceMatch: true };
     return attestationPassed
       ? this.#verdict(input.deviceIndex, "valid", "NVIDIA NRAS attested the GPU as genuine and the evidence is bound to the request nonce.", checks)
-      : this.#verdict(input.deviceIndex, "invalid", "NVIDIA NRAS rejected the GPU attestation evidence.", { ...checks, signatureValid: true });
+      : this.#verdict(input.deviceIndex, "invalid", "NVIDIA NRAS rejected the GPU attestation evidence.", checks);
   }
 
   // The JWKS lives on the NRAS host by default; an absolute URL overrides the client baseURL.

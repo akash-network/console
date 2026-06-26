@@ -61,7 +61,10 @@ export class AmdKdsClient {
   }
 }
 
+/** Matches each individual PEM certificate block within a concatenated chain. */
+const PEM_CERT_PATTERN = /-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g;
+
 /** Splits a concatenated PEM blob into individual `-----BEGIN CERTIFICATE-----...` strings. */
 export function splitPemChain(pem: string): string[] {
-  return pem.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g) ?? [];
+  return pem.match(PEM_CERT_PATTERN) ?? [];
 }
