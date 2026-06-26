@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import { generateManifest, type SDLInput, yaml } from "@akashnetwork/chain-sdk/web";
 import type { paths } from "@akashnetwork/console-api-types";
 import { keepPreviousData } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { usePacedValue } from "@src/hooks/usePacedValue/usePacedValue";
-import { DeploymentGroups } from "@src/utils/deploymentData/helpers";
 import { AUDITOR } from "@src/utils/deploymentData/v1beta3";
 
 type ScreeningRequest = NonNullable<paths["/v1/bid-screening"]["post"]["requestBody"]>["content"]["application/json"];
@@ -50,7 +50,8 @@ export function useScreenedProviders({ sdl, placementName, region, enabled = tru
   const { api } = useServices();
   const request = useMemo(() => {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return { ...(buildPlacementScreeningRequest(sdl, placementName) ?? buildCatalogScreeningRequest(region)), timezone };
+    const req = buildPlacementScreeningRequest(sdl, placementName) ?? buildCatalogScreeningRequest(region);
+    return { ...req, timezone };
   }, [sdl, placementName, region]);
   const pacedRequest = usePacedValue(request, { wait: SCREENING_DEBOUNCE_MS, maxWait: SCREENING_MAX_WAIT_MS });
   const query = api.v1.screenProviders.useQuery(pacedRequest, { enabled, placeholderData: keepPreviousData });
@@ -69,31 +70,35 @@ export function useScreenedProviders({ sdl, placementName, region, enabled = tru
  * from the placement and carry the `location-region` filter (and any other declared attribute). The proto
  * JSON encodes resource values as base64 integer strings, which the screening endpoint accepts.
  */
-export function buildPlacementScreeningRequest(sdl: string, placementName: string): ScreeningRequestBody | null {
-  if (!sdl) return null;
+export function buildPlacementScreeningRequest(rawSdl: string, placementName: string): ScreeningRequestBody | null {
+  if (!rawSdl) return null;
 
-  let groups: ReturnType<typeof DeploymentGroups>;
   try {
-    groups = DeploymentGroups(sdl);
+    // `yaml.raw` throws on malformed YAML (e.g. mid-edit), so the whole conversion is guarded: any
+    // parse/manifest failure returns null, letting the caller fall back to the full catalog.
+    const manifestResult = generateManifest(yaml.raw(rawSdl) as SDLInput);
+    if (!manifestResult.ok) return null;
+
+    const manifest = manifestResult.value;
+    const group = manifest.groupSpecs.find(candidate => candidate.name === placementName);
+    if (!group) return null;
+
+    const groupJson = GroupSpec.toJSON(group) as {
+      resources: ScreeningRequest["resources"];
+      requirements?: { attributes?: Array<{ key: string; value: string }> };
+    };
+
+    return {
+      requirements: {
+        signedBy: { allOf: [AUDITOR] },
+        attributes: groupJson.requirements?.attributes ?? []
+      },
+      resources: groupJson.resources,
+      reclamationWindow: manifest.reclamation?.minWindow?.seconds.toInt()
+    };
   } catch {
     return null;
   }
-
-  const group = groups.find(candidate => candidate.name === placementName);
-  if (!group) return null;
-
-  const groupJson = GroupSpec.toJSON(group) as {
-    resources: ScreeningRequest["resources"];
-    requirements?: { attributes?: Array<{ key: string; value: string }> };
-  };
-
-  return {
-    requirements: {
-      signedBy: { allOf: [AUDITOR] },
-      attributes: groupJson.requirements?.attributes ?? []
-    },
-    resources: groupJson.resources
-  };
 }
 
 /**

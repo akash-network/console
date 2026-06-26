@@ -1970,7 +1970,7 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "default": "2026-06-17",
+              "default": "2026-06-26",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -2096,7 +2096,7 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "default": "2026-06-17",
+              "default": "2026-06-26",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -16769,6 +16769,13 @@
                     "type": "string",
                     "description": "Client timezone, validated against supported Node.js Intl timezones",
                     "example": "America/Chicago"
+                  },
+                  "reclamationWindow": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "description": "Optional reclamation window in seconds; if provided, only providers with a reclamationWindow greater than or equal to this value will be considered",
+                    "example": 3600
                   }
                 },
                 "required": [

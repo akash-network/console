@@ -338,3 +338,62 @@ describe("importSimpleSdl endpoints", () => {
     expect(imported.endpoints?.map(endpoint => endpoint.name)).toEqual(["endpoint-1"]);
   });
 });
+
+const reclamationSdl = (minWindow: string) =>
+  [
+    "version: '2.0'",
+    "reclamation:",
+    `  min_window: ${minWindow}`,
+    "services:",
+    "  web:",
+    "    image: nginx:latest",
+    "    expose:",
+    "      - port: 80",
+    "        as: 80",
+    "        to:",
+    "          - global: true",
+    "profiles:",
+    "  compute:",
+    "    web:",
+    "      resources:",
+    "        cpu:",
+    "          units: 0.5",
+    "        memory:",
+    "          size: 512Mi",
+    "        storage:",
+    "          - size: 512Mi",
+    "  placement:",
+    "    dcloud:",
+    "      pricing:",
+    "        web:",
+    "          denom: uakt",
+    "          amount: 1000",
+    "deployment:",
+    "  web:",
+    "    dcloud:",
+    "      profile: web",
+    "      count: 1"
+  ].join("\n");
+
+describe("importSimpleSdl reclamation", () => {
+  it.each([["1h"], ["4h"], ["24h"], ["72h"]] as const)("imports reclamation.min_window %s into reclamationMinWindow", minWindow => {
+    expect(importSimpleSdl(reclamationSdl(minWindow)).reclamationMinWindow).toBe(minWindow);
+  });
+
+  it("leaves reclamationMinWindow undefined when there is no reclamation block", () => {
+    const yml = fs.readFileSync(path.resolve(__dirname, "../../../tests/mocks/two-services-sdl.yml"), "utf8");
+
+    expect(importSimpleSdl(yml).reclamationMinWindow).toBeUndefined();
+  });
+
+  it("ignores a reclamation window the builder cannot represent", () => {
+    expect(importSimpleSdl(reclamationSdl("30m")).reclamationMinWindow).toBeUndefined();
+  });
+
+  it.each([["1h"], ["24h"]] as const)("round-trips reclamation.min_window %s through import then regeneration", minWindow => {
+    const regenerated = generateSdl(importSimpleSdl(reclamationSdl(minWindow)));
+    const parsed = yaml.load(regenerated) as { reclamation?: { min_window?: string } };
+
+    expect(parsed.reclamation).toEqual({ min_window: minWindow });
+  });
+});

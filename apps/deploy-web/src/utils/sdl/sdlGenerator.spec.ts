@@ -105,6 +105,22 @@ describe("sdlGenerator", () => {
       expect(parsed.endpoints).toEqual({ "endpoint-1": { kind: "ip" } });
     });
 
+    it("omits reclamation when reclamationMinWindow is unset", () => {
+      const result = generateSdl(buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" })));
+      const parsed = yaml.load(result) as { reclamation?: unknown };
+
+      expect(parsed.reclamation).toBeUndefined();
+    });
+
+    it.each([["1h"], ["4h"], ["24h"], ["72h"]] as const)("emits reclamation.min_window %s when reclamationMinWindow is set", minWindow => {
+      const formValues = buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" }));
+      formValues.reclamationMinWindow = minWindow;
+      const result = generateSdl(formValues);
+      const parsed = yaml.load(result) as { reclamation?: { min_window?: string } };
+
+      expect(parsed.reclamation).toEqual({ min_window: minWindow });
+    });
+
     function buildLogCollectorService(overrides?: Partial<ServiceType>): ServiceType {
       return {
         id: overrides?.title ? `${overrides.title}-id` : "web-log-collector",
