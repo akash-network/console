@@ -3,19 +3,32 @@ import { useState } from "react";
 import { Button, CustomTooltip } from "@akashnetwork/ui/components";
 import { InfoCircle, Plus, SidebarCollapse, SidebarExpand } from "iconoir-react";
 
+import { PaneLockBanner } from "../PaneLockBanner/PaneLockBanner";
 import { IpEndpointsSection } from "./IpEndpointsSection/IpEndpointsSection";
 import { PlacementCard } from "./PlacementCard/PlacementCard";
+import { ReclamationSection } from "./ReclamationSection/ReclamationSection";
 import { usePlacementManager } from "./usePlacementManager/usePlacementManager";
 
-export const DEPENDENCIES = { PlacementCard, usePlacementManager, IpEndpointsSection };
+export const DEPENDENCIES = { PlacementCard, usePlacementManager, IpEndpointsSection, ReclamationSection };
 
 type Props = {
   selectedServiceId: string;
   onSelectService: (serviceId: string) => void;
+  /** While quotes are active the pane is locked: placements/services stay selectable, but SDL-mutating controls are disabled and a lock banner is shown. */
+  locked?: boolean;
+  isClosing?: boolean;
+  onCancelAndEdit?: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const DeploymentPane: FC<Props> = ({ selectedServiceId, onSelectService, dependencies: d = DEPENDENCIES }) => {
+export const DeploymentPane: FC<Props> = ({
+  selectedServiceId,
+  onSelectService,
+  locked = false,
+  isClosing = false,
+  onCancelAndEdit,
+  dependencies: d = DEPENDENCIES
+}) => {
   const [minimized, setMinimized] = useState(false);
   const manager = d.usePlacementManager();
   const toggle = () => setMinimized(prev => !prev);
@@ -40,7 +53,9 @@ export const DeploymentPane: FC<Props> = ({ selectedServiceId, onSelectService, 
           <SidebarCollapse className="h-5 w-5" />
         </Button>
       </header>
+      {locked ? <PaneLockBanner onCancelAndEdit={onCancelAndEdit ?? noop} isClosing={isClosing} /> : null}
       <div className="flex-1 space-y-6 overflow-y-auto p-4">
+        <d.ReclamationSection locked={locked} />
         <div className="space-y-2">
           <div className="flex items-center gap-2 px-1 font-mono text-xs uppercase text-muted-foreground">
             Placement
@@ -59,8 +74,9 @@ export const DeploymentPane: FC<Props> = ({ selectedServiceId, onSelectService, 
                 placementIndex={index}
                 services={manager.getPlacementServices(placement.id)}
                 selectedServiceId={selectedServiceId}
-                canRemove={manager.canRemovePlacement}
-                canRemoveService={manager.canRemoveService}
+                canRemove={manager.canRemovePlacement && !locked}
+                canRemoveService={manager.canRemoveService && !locked}
+                locked={locked}
                 onSelectService={onSelectService}
                 onAddService={() => onSelectService(manager.addService(placement.id))}
                 onRemoveService={manager.removeService}
@@ -70,6 +86,7 @@ export const DeploymentPane: FC<Props> = ({ selectedServiceId, onSelectService, 
             <Button
               type="button"
               variant="ghost"
+              disabled={locked}
               onClick={() => onSelectService(manager.addPlacement())}
               className="w-full gap-1.5 rounded-lg border border-zinc-300 py-2 text-foreground dark:border-zinc-700"
             >
@@ -78,8 +95,11 @@ export const DeploymentPane: FC<Props> = ({ selectedServiceId, onSelectService, 
             </Button>
           </div>
         </div>
-        <d.IpEndpointsSection />
+        <d.IpEndpointsSection locked={locked} />
       </div>
     </section>
   );
 };
+
+/** Fallback when the pane is locked without a cancel handler (defensive; the parent always supplies one while locked). */
+function noop() {}

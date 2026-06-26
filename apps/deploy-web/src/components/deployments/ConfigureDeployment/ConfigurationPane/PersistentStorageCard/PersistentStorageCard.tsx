@@ -30,6 +30,7 @@ export const DEPENDENCIES = { CollapsibleCard, NumberUnitInput };
 
 type Props = {
   serviceIndex: number;
+  locked?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -42,8 +43,13 @@ type Props = {
  * flag — plus an "Add more" button. Every block has its own remove control while
  * more than one exists; the last remaining block hides it (removing the only
  * persistent volume is done by toggling the switch off).
+ *
+ * When open with no persistent entry the body shows a short off-state hint instead.
+ * An open, switched-off card is only reachable while the pane is locked (the chevron
+ * expands it but the switch can't add the volume), so the hint just tells the viewer no
+ * volume is configured; the switch alone adds the first volume.
  */
-export const PersistentStorageCard: FC<Props> = ({ serviceIndex, dependencies: d = DEPENDENCIES }) => {
+export const PersistentStorageCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   const { control, getValues } = useFormContext<SdlBuilderFormValuesType>();
   const { fields, append, remove } = useFieldArray({ control, name: `services.${serviceIndex}.profile.storage`, keyName: "key" });
 
@@ -83,8 +89,9 @@ export const PersistentStorageCard: FC<Props> = ({ serviceIndex, dependencies: d
       isToggled={isEnabled}
       onToggle={togglePersistentStorage}
       toggleAriaLabel="Enable persistent storage"
+      toggleDisabled={locked}
     >
-      {isEnabled && (
+      {isEnabled ? (
         <>
           {persistentFields.map(({ field, index }, position) => (
             <PersistentStorageFields
@@ -93,6 +100,7 @@ export const PersistentStorageCard: FC<Props> = ({ serviceIndex, dependencies: d
               storageIndex={index}
               label={position + 1}
               dependencies={d}
+              disabled={locked}
               onRemove={persistentFields.length > 1 ? () => remove(index) : undefined}
             />
           ))}
@@ -102,12 +110,15 @@ export const PersistentStorageCard: FC<Props> = ({ serviceIndex, dependencies: d
               type="button"
               aria-label="Add persistent storage"
               onClick={appendPersistentStorage}
-              className="flex w-full items-center justify-center rounded-md py-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+              disabled={locked}
+              className="flex w-full items-center justify-center rounded-md py-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
             >
               <PlusIcon className="h-4 w-4" />
             </button>
           </div>
         </>
+      ) : (
+        <p className="text-sm text-muted-foreground">Persistent storage is off.</p>
       )}
     </d.CollapsibleCard>
   );
@@ -118,10 +129,12 @@ type PersistentStorageFieldsProps = {
   storageIndex: number;
   label: number;
   dependencies: typeof DEPENDENCIES;
+  /** Greys out every input and the remove control — set while the pane is locked so configured values stay viewable but read-only. */
+  disabled?: boolean;
   onRemove?: () => void;
 };
 
-const PersistentStorageFields: FC<PersistentStorageFieldsProps> = ({ serviceIndex, storageIndex, label, dependencies: d, onRemove }) => {
+const PersistentStorageFields: FC<PersistentStorageFieldsProps> = ({ serviceIndex, storageIndex, label, dependencies: d, disabled = false, onRemove }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const basePath = `services.${serviceIndex}.profile.storage.${storageIndex}` as const;
 
@@ -137,7 +150,15 @@ const PersistentStorageFields: FC<PersistentStorageFieldsProps> = ({ serviceInde
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium uppercase text-muted-foreground">Persistent Storage {label}</span>
         {onRemove && (
-          <Button size="icon" type="button" variant="ghost" className="h-6 w-6" aria-label={`Remove Persistent Storage ${label}`} onClick={onRemove}>
+          <Button
+            size="icon"
+            type="button"
+            variant="ghost"
+            className="h-6 w-6"
+            aria-label={`Remove Persistent Storage ${label}`}
+            onClick={onRemove}
+            disabled={disabled}
+          >
             <TrashIcon className="h-4 w-4" />
           </Button>
         )}
@@ -146,7 +167,7 @@ const PersistentStorageFields: FC<PersistentStorageFieldsProps> = ({ serviceInde
       <Field className="gap-2">
         <FieldLabel>Type</FieldLabel>
         <FieldContent>
-          <Select value={type.field.value ?? ""} onValueChange={type.field.onChange}>
+          <Select value={type.field.value ?? ""} onValueChange={type.field.onChange} disabled={disabled}>
             <SelectTrigger aria-label="Storage type" className={`h-9 ${SELECT_TRUNCATE_VALUE}`}>
               <SelectValue placeholder="Select" />
             </SelectTrigger>
@@ -173,6 +194,7 @@ const PersistentStorageFields: FC<PersistentStorageFieldsProps> = ({ serviceInde
             onValueChange={value => size.field.onChange(value ?? null)}
             onUnitChange={unit.field.onChange}
             error={size.fieldState.error?.message ?? unit.fieldState.error?.message}
+            disabled={disabled}
           />
         </FieldContent>
       </Field>
@@ -185,6 +207,7 @@ const PersistentStorageFields: FC<PersistentStorageFieldsProps> = ({ serviceInde
             aria-label="Storage name"
             value={name.field.value ?? ""}
             onChange={name.field.onChange}
+            disabled={disabled}
             inputClassName="h-9"
           />
           {name.fieldState.error && <p className="pl-1 text-xs text-destructive">{name.fieldState.error.message}</p>}
@@ -199,6 +222,7 @@ const PersistentStorageFields: FC<PersistentStorageFieldsProps> = ({ serviceInde
             aria-label="Storage mount"
             value={mount.field.value ?? ""}
             onChange={mount.field.onChange}
+            disabled={disabled}
             inputClassName="h-9"
           />
           {mount.fieldState.error && <p className="pl-1 text-xs text-destructive">{mount.fieldState.error.message}</p>}
@@ -206,7 +230,12 @@ const PersistentStorageFields: FC<PersistentStorageFieldsProps> = ({ serviceInde
       </Field>
 
       <div className="flex items-center gap-2">
-        <Checkbox id={`storage-${serviceIndex}-${storageIndex}-readonly`} checked={!!isReadOnly.field.value} onCheckedChange={isReadOnly.field.onChange} />
+        <Checkbox
+          id={`storage-${serviceIndex}-${storageIndex}-readonly`}
+          checked={!!isReadOnly.field.value}
+          onCheckedChange={isReadOnly.field.onChange}
+          disabled={disabled}
+        />
         <Label htmlFor={`storage-${serviceIndex}-${storageIndex}-readonly`}>Read only</Label>
       </div>
     </div>

@@ -13,10 +13,12 @@ const ANY_REGION_VALUE = "any";
 
 type Props = {
   placementIndex: number;
+  /** Disables the trigger while the pane is locked so the region can't be changed. */
+  disabled?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const RegionSelect: FC<Props> = ({ placementIndex, dependencies: d = DEPENDENCIES }) => {
+export const RegionSelect: FC<Props> = ({ placementIndex, disabled, dependencies: d = DEPENDENCIES }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const { data: regions } = d.useProviderRegions();
 
@@ -25,7 +27,11 @@ export const RegionSelect: FC<Props> = ({ placementIndex, dependencies: d = DEPE
       control={control}
       name={`placements.${placementIndex}.region`}
       render={({ field }) => (
-        <Select value={field.value || ANY_REGION_VALUE} onValueChange={value => field.onChange(value === ANY_REGION_VALUE ? undefined : value)}>
+        <Select
+          disabled={disabled}
+          value={field.value || ANY_REGION_VALUE}
+          onValueChange={value => field.onChange(value === ANY_REGION_VALUE ? undefined : value)}
+        >
           <SelectTrigger aria-label="Region" className="h-8 w-full text-xs">
             <div className="flex min-w-0 items-center gap-1.5 truncate">
               <MapPin aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

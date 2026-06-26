@@ -13,6 +13,7 @@ export const DEPENDENCIES = { CollapsibleCard, NumberUnitInput };
 
 type Props = {
   serviceIndex: number;
+  locked?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -23,8 +24,14 @@ type Props = {
  * RAM volumes. Unlike persistent storage there is at most one RAM entry, its type
  * is fixed, and it carries no read-only flag — so the body just edits the volume's
  * size, name and mount.
+ *
+ * The body renders whenever the card is open: when a RAM volume exists it edits that
+ * volume; when off it shows a short off-state hint. An open, switched-off card is only
+ * reachable while the pane is locked (the chevron expands it but the switch can't flip
+ * the volume in or out), so the hint just tells the viewer no volume is configured; the
+ * switch alone adds or removes the volume.
  */
-export const RamStorageCard: FC<Props> = ({ serviceIndex, dependencies: d = DEPENDENCIES }) => {
+export const RamStorageCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const { fields, append, remove } = useFieldArray({ control, name: `services.${serviceIndex}.profile.storage`, keyName: "key" });
 
@@ -50,8 +57,13 @@ export const RamStorageCard: FC<Props> = ({ serviceIndex, dependencies: d = DEPE
       isToggled={isEnabled}
       onToggle={toggleRamStorage}
       toggleAriaLabel="Enable RAM storage"
+      toggleDisabled={locked}
     >
-      {isEnabled && <RamStorageFields serviceIndex={serviceIndex} storageIndex={ramIndex} dependencies={d} />}
+      {isEnabled ? (
+        <RamStorageFields serviceIndex={serviceIndex} storageIndex={ramIndex} dependencies={d} disabled={locked} />
+      ) : (
+        <p className="text-sm text-muted-foreground">RAM storage is off.</p>
+      )}
     </d.CollapsibleCard>
   );
 };
@@ -60,9 +72,11 @@ type RamStorageFieldsProps = {
   serviceIndex: number;
   storageIndex: number;
   dependencies: typeof DEPENDENCIES;
+  /** Greys out every input — set while the pane is locked so configured values stay viewable but read-only. */
+  disabled?: boolean;
 };
 
-const RamStorageFields: FC<RamStorageFieldsProps> = ({ serviceIndex, storageIndex, dependencies: d }) => {
+const RamStorageFields: FC<RamStorageFieldsProps> = ({ serviceIndex, storageIndex, dependencies: d, disabled = false }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const basePath = `services.${serviceIndex}.profile.storage.${storageIndex}` as const;
 
@@ -84,6 +98,7 @@ const RamStorageFields: FC<RamStorageFieldsProps> = ({ serviceIndex, storageInde
             onValueChange={value => size.field.onChange(value ?? null)}
             onUnitChange={unit.field.onChange}
             error={size.fieldState.error?.message ?? unit.fieldState.error?.message}
+            disabled={disabled}
           />
         </FieldContent>
       </Field>
@@ -96,6 +111,7 @@ const RamStorageFields: FC<RamStorageFieldsProps> = ({ serviceIndex, storageInde
             aria-label="RAM storage name"
             value={name.field.value ?? ""}
             onChange={name.field.onChange}
+            disabled={disabled}
             inputClassName="h-9"
           />
           {name.fieldState.error && <p className="pl-1 text-xs text-destructive">{name.fieldState.error.message}</p>}
@@ -110,6 +126,7 @@ const RamStorageFields: FC<RamStorageFieldsProps> = ({ serviceIndex, storageInde
             aria-label="RAM storage mount"
             value={mount.field.value ?? ""}
             onChange={mount.field.onChange}
+            disabled={disabled}
             inputClassName="h-9"
           />
           {mount.fieldState.error && <p className="pl-1 text-xs text-destructive">{mount.fieldState.error.message}</p>}

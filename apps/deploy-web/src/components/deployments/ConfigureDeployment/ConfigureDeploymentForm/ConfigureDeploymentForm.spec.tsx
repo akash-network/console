@@ -197,22 +197,42 @@ describe(ConfigureDeploymentForm.name, () => {
     });
   });
 
-  function setup(input: { initialSdl: string | undefined; Panes?: typeof SdlProbePanes }) {
+  it("persists the regenerated sdl to the draft after an edit settles", async () => {
+    const { save } = setup({ initialSdl: undefined, Panes: SdlProbePanes, draftId: "draft-1" });
+
+    await userEvent.click(screen.getByRole("button", { name: "change image" }));
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest")));
+  });
+
+  function setup(input: { initialSdl: string | undefined; Panes?: typeof SdlProbePanes; draftId?: string }) {
     const ConfigureDeploymentPanes = vi.fn(input.Panes ?? (() => <div data-testid="panes-mock" />));
     const enqueueSnackbar = vi.fn();
     const Snackbar = vi.fn(() => null);
+    const save = vi.fn<(sdl: string) => void>();
+    const useConfigureDraft = vi.fn(() =>
+      mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({ draftId: input.draftId ?? "draft-1", persistedSdl: undefined, save, clear: vi.fn() })
+    );
     const dependencies: typeof DEPENDENCIES = {
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
       ConfigureDeploymentHeader: vi.fn(() => <div data-testid="header-mock" />),
       ConfigureDeploymentPanes: ConfigureDeploymentPanes as never,
+      useConfigureDraft: useConfigureDraft as never,
+      useDeploymentFlow: (() => mock<ReturnType<typeof DEPENDENCIES.useDeploymentFlow>>({ phase: "configuring", dseq: null, bidStrategy: "select" })) as never,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       Snackbar: Snackbar as never
     };
 
-    render(<ConfigureDeploymentForm initialSdl={input.initialSdl} dependencies={dependencies} />);
+    render(
+      <ConfigureDeploymentForm
+        initialSdl={input.initialSdl}
+        intent={{ sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, draftId: input.draftId }}
+        dependencies={dependencies}
+      />
+    );
 
-    return { ConfigureDeploymentPanes, enqueueSnackbar };
+    return { ConfigureDeploymentPanes, enqueueSnackbar, save };
   }
 });
 

@@ -22,6 +22,19 @@ describe(ImageRuntimeCard.name, () => {
     expect(getValues().services[0].image).toBe("myimage:1.0");
   });
 
+  it("disables every input in the card body while locked", () => {
+    setup({ locked: true, hasCredentials: true, hasSSHKey: true, sshPubKey: "ssh-rsa AAAATESTKEY user@host" });
+
+    expect(screen.getByRole("textbox", { name: "Docker image" })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: "Private registry" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Registry host" })).toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "Registry username" })).toBeDisabled();
+    expect(screen.getByRole("spinbutton", { name: "Replicas" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Increase Replicas" })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: "Expose SSH" })).toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "SSH public key" })).toBeDisabled();
+  });
+
   it("reveals credentials fields and seeds defaults when private registry is checked", async () => {
     const { getValues } = setup({});
 
@@ -272,6 +285,7 @@ describe(ImageRuntimeCard.name, () => {
     sshPubKey?: string;
     env?: Array<{ key: string; value?: string }>;
     extraServices?: number;
+    locked?: boolean;
     resolver?: Resolver<SdlBuilderFormValuesType>;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
@@ -330,7 +344,7 @@ describe(ImageRuntimeCard.name, () => {
 
     render(
       <Wrapper>
-        <ImageRuntimeCard serviceIndex={0} dependencies={dependencies} />
+        <ImageRuntimeCard serviceIndex={0} locked={input.locked} dependencies={dependencies} />
       </Wrapper>
     );
 

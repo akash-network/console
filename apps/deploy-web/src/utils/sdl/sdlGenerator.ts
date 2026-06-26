@@ -18,6 +18,13 @@ export const buildCommand = (command: string): string[] => {
 
 export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
   const sdl: Record<string, any> = { version: "2.0", services: {}, profiles: { compute: {}, placement: {} }, deployment: {} };
+
+  // Optional deployment-level reclamation requirement. Omitted entirely when unset ("Any"), which
+  // signals the user has no minimum-window requirement.
+  if (formValues.reclamationMinWindow) {
+    sdl.reclamation = { min_window: formValues.reclamationMinWindow };
+  }
+
   const placementById = new Map<string, PlacementType>(formValues.placements.map(p => [p.id, p]));
 
   formValues.placements.forEach(placement => {

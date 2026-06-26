@@ -1,21 +1,57 @@
 import type { FC } from "react";
 import { useFormContext } from "react-hook-form";
-import { Button } from "@akashnetwork/ui/components";
+import { Button, Snackbar } from "@akashnetwork/ui/components";
 import { Send } from "iconoir-react";
+import { LoaderCircle } from "lucide-react";
+import { useSnackbar } from "notistack";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
+import { generateSdl } from "@src/utils/sdl/sdlGenerator";
+import { validateGeneratedSdl } from "@src/utils/sdl/validateGeneratedSdl";
 import { useDeploymentResourceSummary } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
+import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 
-export const ConfigureDeploymentHeader: FC = () => {
-  const deploymentSummary = useDeploymentResourceSummary();
+export const DEPENDENCIES = { useDeploymentResourceSummary, useSnackbar, Snackbar, generateSdl, validateGeneratedSdl };
+
+type Props = { flow: DeploymentFlow; dependencies?: typeof DEPENDENCIES };
+
+export const ConfigureDeploymentHeader: FC<Props> = ({ flow, dependencies: d = DEPENDENCIES }) => {
+  const deploymentSummary = d.useDeploymentResourceSummary();
   const { handleSubmit } = useFormContext<SdlBuilderFormValuesType>();
+  const { enqueueSnackbar } = d.useSnackbar();
+
+  const isEditable = flow.phase === "configuring" || flow.phase === "error";
 
   /**
-   * "Request quotes" submits the form solely to run validation: an invalid form
-   * surfaces its field errors, a valid one has no follow-up action yet (the quotes
-   * request is a separate, not-yet-built step).
+   * Request quotes runs the zod form validation first, then regenerates the SDL from the values
+   * `handleSubmit` just accepted — not a prop snapshot, which lags behind in-flight edits — and runs the
+   * chain-sdk SDL validator on it. That validator catches semantic rules the form can't, such as a `cpu-gpu`
+   * confidential-compute service missing GPU resources or conflicting TEE types across a placement group.
+   * Either failure surfaces the errors to the user; otherwise the same freshly generated SDL is what gets
+   * submitted, so validation and creation can never disagree about which spec they acted on.
    */
-  const requestQuotes = handleSubmit(() => undefined);
+  const onRequestQuotes = handleSubmit(values => {
+    const sdl = d.generateSdl(values);
+    const errors = d.validateGeneratedSdl(sdl);
+    if (errors.length > 0) {
+      enqueueSnackbar(
+        <d.Snackbar
+          title="Your deployment can't be submitted yet"
+          subTitle={
+            <ul className="list-disc pl-4">
+              {errors.map(error => (
+                <li key={error}>{error}</li>
+              ))}
+            </ul>
+          }
+          iconVariant="error"
+        />,
+        { variant: "error" }
+      );
+      return;
+    }
+    flow.actions.requestQuotes(sdl);
+  });
 
   return (
     <header className="flex flex-row items-center justify-between gap-3 md:items-end">
@@ -30,10 +66,17 @@ export const ConfigureDeploymentHeader: FC = () => {
         <DeploymentSummaryBlock label="Your deployment" value={deploymentSummary} />
         <div className="hidden h-12 w-px self-stretch bg-border md:block" aria-hidden="true" />
         <DeploymentSummaryBlock label="Cost" value="—" suffix="/hr" />
-        <Button type="button" onClick={requestQuotes} className="h-9 shrink-0 px-3 md:h-10 md:px-8">
-          <Send className="h-4 w-4 md:hidden" aria-label="Request quotes" />
-          <span className="hidden md:inline">Request quotes</span>
-        </Button>
+        {isEditable ? (
+          <Button type="button" onClick={onRequestQuotes} className="h-9 shrink-0 px-3 md:h-10 md:px-8">
+            <Send className="h-4 w-4 md:hidden" aria-label="Request quotes" />
+            <span className="hidden md:inline">Request quotes</span>
+          </Button>
+        ) : (
+          <Button type="button" disabled aria-label="Requesting" className="h-9 shrink-0 gap-2 px-3 md:h-10 md:px-8">
+            <LoaderCircle className="h-4 w-4 animate-spin text-current" aria-hidden="true" />
+            <span className="hidden md:inline">Requesting…</span>
+          </Button>
+        )}
       </div>
     </header>
   );

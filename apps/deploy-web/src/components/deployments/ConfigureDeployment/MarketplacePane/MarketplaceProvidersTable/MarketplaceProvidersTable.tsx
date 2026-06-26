@@ -117,10 +117,21 @@ function SortableHeader({ column, title }: { column: Column<ScreenedProvider, un
   );
 }
 
+/**
+ * Display name for a provider: its organization, else the host parsed from its URI, else its on-chain
+ * address. The address fallback covers bid-sourced offers, which carry no screened host/organization —
+ * `getProviderNameFromUri` would throw on their empty `hostUri`.
+ */
+function providerLabel(provider: ScreenedProvider): string {
+  const organization = provider.organization?.trim();
+  if (organization) return organization;
+  return provider.hostUri ? getProviderNameFromUri(provider.hostUri) : provider.owner;
+}
+
 /** Builds the table columns, closing over the per-provider uptime derived once in the component. */
 function buildColumns(uptimeByOwner: Map<string, ProviderUptime>) {
   return [
-    columnHelper.accessor(provider => provider.organization?.trim() || getProviderNameFromUri(provider.hostUri), {
+    columnHelper.accessor(providerLabel, {
       id: "hostUri",
       header: ({ column }) => <SortableHeader column={column} title="Provider" />,
       cell: info => <ShortenedValue value={info.getValue()} maxLength={40} headLength={14} />

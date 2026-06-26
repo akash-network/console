@@ -45,7 +45,13 @@ describe("IpEndpointsSection", () => {
     expect(manager.removeEndpoint).toHaveBeenCalledWith("e-1");
   });
 
-  function setup(input: { endpoints: { id: string; name: string }[]; dependencies?: Partial<typeof DEPENDENCIES> }) {
+  it("disables the endpoint controls while locked", () => {
+    setup({ endpoints: [], locked: true });
+
+    expect(screen.getByRole("button", { name: "Add endpoint" })).toBeDisabled();
+  });
+
+  function setup(input: { endpoints: { id: string; name: string }[]; locked?: boolean; dependencies?: Partial<typeof DEPENDENCIES> }) {
     const manager = mock<ReturnType<typeof DEPENDENCIES.useEndpointManager>>({
       endpoints: input.endpoints,
       addEndpoint: vi.fn(),
@@ -55,7 +61,7 @@ describe("IpEndpointsSection", () => {
 
     render(
       <TooltipProvider>
-        <IpEndpointsSection dependencies={MockComponents(DEPENDENCIES, { useEndpointManager, ...input.dependencies })} />
+        <IpEndpointsSection locked={input.locked} dependencies={MockComponents(DEPENDENCIES, { useEndpointManager, ...input.dependencies })} />
       </TooltipProvider>
     );
 

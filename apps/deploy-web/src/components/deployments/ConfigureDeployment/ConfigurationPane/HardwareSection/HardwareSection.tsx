@@ -1,11 +1,14 @@
 import type { FC } from "react";
 import { CollapsibleCard } from "@akashnetwork/ui/components";
-import { CpuIcon } from "lucide-react";
+import { CpuIcon, PackageOpenIcon } from "lucide-react";
 
 import { useRevalidateUniqueness } from "../../DeploymentPane/useRevalidateUniqueness/useRevalidateUniqueness";
-import { computeResourcesTooltip } from "../cardTooltips";
+import { computeResourcesTooltip, presetsTooltip } from "../cardTooltips";
 import { ComputeResourcesCard } from "../ComputeResourcesCard/ComputeResourcesCard";
+import { ConfidentialComputeCard } from "../ConfidentialComputeCard/ConfidentialComputeCard";
+import { GpuCard } from "../GpuCard/GpuCard";
 import { PersistentStorageCard } from "../PersistentStorageCard/PersistentStorageCard";
+import { PresetsCard } from "../PresetsCard/PresetsCard";
 import { RamStorageCard } from "../RamStorageCard/RamStorageCard";
 
 type StorageVolume = { name?: string; mount?: string };
@@ -21,43 +24,56 @@ export const storageUniquenessKey = (storage: StorageVolume) => `${storage.name 
 
 export const DEPENDENCIES = {
   CollapsibleCard,
+  PresetsCard,
+  GpuCard,
   ComputeResourcesCard,
   RamStorageCard,
   PersistentStorageCard,
+  ConfidentialComputeCard,
   useRevalidateUniqueness
 };
 
 type Props = {
   serviceIndex: number;
+  /** While locked the hardware controls are disabled (cards stay expandable for viewing). */
+  locked?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
 /**
  * The "HARDWARE" section of the Configuration pane for the selected service:
- * CPU (with memory & ephemeral storage), RAM-backed storage and Persistent
- * Storage cards. Each card edits `services.${serviceIndex}.profile.*` on the
- * shared deployment model. The RAM and Persistent Storage cards own their own
- * card shell because they carry a header switch.
+ * Presets, GPU, CPU (with memory & storage) and Persistent Storage cards. Each
+ * card edits `services.${serviceIndex}.profile.*` on the shared deployment
+ * model. The GPU and Persistent Storage cards own their own card shell because
+ * they carry a header switch.
  *
  * Persistent and RAM volumes share `profile.storage` and must each have a unique
  * name and mount; re-validating the whole array on any name or mount change keeps
  * the "must be unique" error in sync across every conflicting row, not just the
  * edited one.
  */
-export const HardwareSection: FC<Props> = ({ serviceIndex, dependencies: d = DEPENDENCIES }) => {
+export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   d.useRevalidateUniqueness(`services.${serviceIndex}.profile.storage`, storageUniquenessKey);
 
   return (
     <div className="flex flex-col gap-2 px-4">
       <p className="font-mono text-xs uppercase text-muted-foreground">Hardware</p>
       <div className="flex flex-col gap-4">
-        <d.CollapsibleCard title="Compute Resources" icon={<CpuIcon className="h-4 w-4" />} infoTooltip={computeResourcesTooltip}>
-          <d.ComputeResourcesCard serviceIndex={serviceIndex} />
+        <d.CollapsibleCard title="Presets" icon={<PackageOpenIcon className="h-4 w-4" />} infoTooltip={presetsTooltip}>
+          <d.PresetsCard serviceIndex={serviceIndex} locked={locked} />
         </d.CollapsibleCard>
 
-        <d.RamStorageCard serviceIndex={serviceIndex} />
+        <d.GpuCard serviceIndex={serviceIndex} locked={locked} />
 
-        <d.PersistentStorageCard serviceIndex={serviceIndex} />
+        <d.CollapsibleCard title="Compute Resources" icon={<CpuIcon className="h-4 w-4" />} infoTooltip={computeResourcesTooltip}>
+          <d.ComputeResourcesCard serviceIndex={serviceIndex} locked={locked} />
+        </d.CollapsibleCard>
+
+        <d.ConfidentialComputeCard serviceIndex={serviceIndex} locked={locked} />
+
+        <d.RamStorageCard serviceIndex={serviceIndex} locked={locked} />
+
+        <d.PersistentStorageCard serviceIndex={serviceIndex} locked={locked} />
       </div>
     </div>
   );

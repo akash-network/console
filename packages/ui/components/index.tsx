@@ -10,6 +10,7 @@ export * from "./collapsible";
 export * from "./collapsible-card";
 export * from "./command";
 export * from "./dialog";
+export * from "./dialog-v2";
 export * from "./multiple-selector";
 export * from "./drawer";
 export * from "./dropdown-menu";
