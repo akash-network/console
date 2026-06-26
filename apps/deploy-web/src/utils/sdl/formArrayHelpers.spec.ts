@@ -47,8 +47,29 @@ describe("serviceRemovalIndexes", () => {
   });
 
   it("includes the paired log collector index sorted descending", () => {
-    const web = buildSDLService({ title: "web" });
-    const collector = buildSDLService({ title: `${web.title}-log-collector`, image: LOG_COLLECTOR_IMAGE });
+    const web = buildSDLService({ id: "web-id", title: "web" });
+    const collector = buildSDLService({ id: `${web.id}-log-collector`, title: `${web.title}-log-collector`, image: LOG_COLLECTOR_IMAGE });
+    const services = [web, collector];
+
+    const indexes = serviceRemovalIndexes(services, 0);
+
+    expect(indexes).toEqual([1, 0]);
+  });
+
+  it("still pairs the collector after the parent is renamed, since pairing is by id not title", () => {
+    const web = buildSDLService({ id: "web-id", title: "web" });
+    const collector = buildSDLService({ id: `${web.id}-log-collector`, title: "web-log-collector", image: LOG_COLLECTOR_IMAGE });
+    const renamed = { ...web, title: "api" };
+    const services = [renamed, collector];
+
+    const indexes = serviceRemovalIndexes(services, 0);
+
+    expect(indexes).toEqual([1, 0]);
+  });
+
+  it("pairs an imported collector by title when its id was reassigned on import", () => {
+    const web = buildSDLService({ id: "web-id", title: "web" });
+    const collector = buildSDLService({ id: "imported-random-id", title: `${web.title}-log-collector`, image: LOG_COLLECTOR_IMAGE });
     const services = [web, collector];
 
     const indexes = serviceRemovalIndexes(services, 0);
