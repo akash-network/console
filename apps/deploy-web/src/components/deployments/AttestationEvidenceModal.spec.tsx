@@ -24,13 +24,17 @@ describe(AttestationEvidenceModal.name, () => {
     expect(mutate).toHaveBeenCalled();
   });
 
-  it("renders the platform and CPU report on success", () => {
+  it("keeps each report row collapsed until it is expanded", async () => {
     setup({ quote: { report: "cpu-report-base64", tee_platform: "snp" } });
-    expect(screen.getByText("snp")).toBeInTheDocument();
+
+    expect(screen.queryByText("cpu-report-base64")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /CPU/ }));
+
     expect(screen.getByText("cpu-report-base64")).toBeInTheDocument();
   });
 
-  it("lists one report per GPU for a cpu-gpu platform", () => {
+  it("lists one collapsible row per GPU with 1-based labels for a cpu-gpu platform", async () => {
     setup({
       quote: {
         report: "cpu-report",
@@ -41,16 +45,21 @@ describe(AttestationEvidenceModal.name, () => {
         ]
       }
     });
-    expect(screen.getByText("GPU reports (2)")).toBeInTheDocument();
-    expect(screen.getByText("GPU 0")).toBeInTheDocument();
-    expect(screen.getByText("GPU 1")).toBeInTheDocument();
+
+    expect(screen.getByRole("button", { name: /GPU 1/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /GPU 2/ })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /GPU 1/ }));
+    await userEvent.click(screen.getByRole("button", { name: /GPU 2/ }));
+
+    // device_index 0 is labelled "GPU 1", so its report shows when that row is expanded.
     expect(screen.getByText("gpu-0-report")).toBeInTheDocument();
     expect(screen.getByText("gpu-1-report")).toBeInTheDocument();
   });
 
-  it("does not render a GPU section for a CPU-only platform", () => {
+  it("does not render any GPU rows for a CPU-only platform", () => {
     setup({ quote: { report: "cpu-report", tee_platform: "snp" } });
-    expect(screen.queryByText(/GPU reports/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /GPU/ })).not.toBeInTheDocument();
   });
 
   it("downloads the full bundle including the nonce and cert material as JSON when the download action is clicked", async () => {
@@ -110,9 +119,14 @@ describe(AttestationEvidenceModal.name, () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Validate" }));
 
-    // Per-report isolation: the CPU verdict stands even though the GPU report is unverifiable.
+    // Badges live in the always-visible row header, so they show without expanding.
     expect(await screen.findByText("Valid")).toBeInTheDocument();
     expect(screen.getByText("Unverifiable")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /CPU/ }));
+    await userEvent.click(screen.getByRole("button", { name: /GPU 1/ }));
+
+    // Per-report isolation: the CPU verdict detail stands even though the GPU report is unverifiable.
     expect(screen.getByText("Genuine AMD SEV-SNP hardware")).toBeInTheDocument();
     expect(screen.getByText("NVIDIA NRAS unreachable")).toBeInTheDocument();
   });
@@ -130,6 +144,9 @@ describe(AttestationEvidenceModal.name, () => {
     await userEvent.click(screen.getByRole("button", { name: "Validate" }));
 
     expect(await screen.findByText("Invalid")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /CPU/ }));
+
     expect(screen.getByText("signature did not verify")).toBeInTheDocument();
   });
 
@@ -142,9 +159,11 @@ describe(AttestationEvidenceModal.name, () => {
     await userEvent.click(screen.getByRole("button", { name: "Validate" }));
 
     expect(await screen.findByText(/validation service unavailable/)).toBeInTheDocument();
-    // The raw report still renders, so the rest of the view is intact.
-    expect(screen.getByText("cpu-report")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Validate" })).toBeEnabled();
+
+    // The raw report still renders once its row is expanded, so the rest of the view is intact.
+    await userEvent.click(screen.getByRole("button", { name: /CPU/ }));
+    expect(screen.getByText("cpu-report")).toBeInTheDocument();
   });
 
   function setup(input: { nonce?: string; quote?: AttestationQuote; error?: Error; validationResponse?: ValidationResult; validationError?: Error }) {
