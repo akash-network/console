@@ -32,9 +32,7 @@ describe(UrlService.configureDeployment.name, () => {
   });
 
   it("includes the draft id when present", () => {
-    expect(UrlService.configureDeployment({ draftId: "draft-1", bidStrategy: "select" })).toBe(
-      "/new-deployment/configure?bid-strategy=select&draftId=draft-1"
-    );
+    expect(UrlService.configureDeployment({ draftId: "draft-1", bidStrategy: "select" })).toBe("/new-deployment/configure?bid-strategy=select&draftId=draft-1");
   });
 
   it("keeps the draft id alongside the dseq path segment", () => {

@@ -20,6 +20,7 @@ import {
 import { blockPredictionRouter, blocksRouter } from "@src/block";
 import { certificateRouter } from "@src/certificate/routes/certificate.router";
 import { blockchainStatusRouter } from "@src/chain/routes/blockchain-status/blockchain-status.router";
+import { attestationRouter } from "@src/confidential-compute";
 import type { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import {
   bmeDashboardDataRouter,
@@ -108,5 +109,6 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   leasesDurationRouter,
   addressRouter,
   blockchainStatusRouter,
-  bidScreeningRouter
+  bidScreeningRouter,
+  attestationRouter
 ];

@@ -6345,6 +6345,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/confidential-compute/attestation/validate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Validate confidential compute attestation evidence against the hardware vendors (AMD SEV-SNP, Intel TDX, NVIDIA) */
+    post: operations["validateConfidentialComputeAttestation"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/alerts": {
     parameters: {
       query?: never;
@@ -8730,6 +8747,137 @@ export interface operations {
                 downtimeSeconds: number;
               }[];
             }[];
+          };
+        };
+      };
+      /** @description Invalid request body */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  validateConfidentialComputeAttestation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          /** @description Per-request freshness challenge sent to the hardware, base64 (64 bytes, AEP-83 §5) */
+          nonce: string;
+          /**
+           * @description CPU attestation report (AMD SEV-SNP or Intel TDX quote), base64
+           * @example BQAAAAAA...
+           */
+          report: string;
+          /**
+           * @description TEE platform that produced the evidence
+           * @enum {string}
+           */
+          tee_platform: "snp" | "tdx" | "snp-gpu" | "tdx-gpu";
+          /**
+           * @description CPU vendor cert chain, base64; may be empty (e.g. AMD VCEK fetched from KDS)
+           * @default
+           * @example BQAAAAAA...
+           */
+          cert_chain?: string;
+          /**
+           * @description Platform auxiliary blob (e.g. TDX collateral), base64; may be empty
+           * @default
+           * @example BQAAAAAA...
+           */
+          auxblob?: string;
+          /**
+           * @description Per-GPU attestation reports; empty for CPU-only platforms
+           * @default []
+           */
+          gpu_reports?: {
+            /**
+             * @description GPU device index this report attests
+             * @example 0
+             */
+            device_index: number;
+            /**
+             * @description Hardware-signed GPU attestation report (embeds the device cert chain), base64
+             * @example BQAAAAAA...
+             */
+            report: string;
+          }[];
+        };
+      };
+    };
+    responses: {
+      /** @description Per-report attestation verdicts */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /**
+             * @description Rollup: valid only if every report is valid; invalid if any report is invalid; otherwise unverifiable
+             * @enum {string}
+             */
+            overall: "valid" | "invalid" | "unverifiable";
+            /** @description Echo of the request nonce, for client correlation */
+            nonce: string;
+            reports: (
+              | {
+                  /** @enum {string} */
+                  kind: "cpu";
+                  /** @enum {string} */
+                  vendor: "amd-sev-snp" | "intel-tdx";
+                  /**
+                   * @description valid = chained to the vendor root, signature/EAT verified, and bound to the request nonce; invalid = a check ran and failed (bad signature, untrusted chain, nonce mismatch); unverifiable = the check could not be completed (vendor service unreachable, not configured, missing material)
+                   * @enum {string}
+                   */
+                  status: "valid" | "invalid" | "unverifiable";
+                  /** @description Human-readable explanation of the verdict */
+                  detail: string;
+                  /** @description Granular sub-results behind the verdict; fields are omitted when not evaluated */
+                  checks?: {
+                    /** @description Evidence chains to the vendor root certificate */
+                    certChainValid?: boolean;
+                    /** @description The report/EAT signature verified */
+                    signatureValid?: boolean;
+                    /** @description The evidence is bound to the request nonce */
+                    nonceMatch?: boolean;
+                    /** @description Revocation status; omitted when revocation was not checked */
+                    notRevoked?: boolean;
+                  };
+                }
+              | {
+                  /** @enum {string} */
+                  kind: "gpu";
+                  device_index: number;
+                  /** @enum {string} */
+                  vendor: "nvidia";
+                  /**
+                   * @description valid = chained to the vendor root, signature/EAT verified, and bound to the request nonce; invalid = a check ran and failed (bad signature, untrusted chain, nonce mismatch); unverifiable = the check could not be completed (vendor service unreachable, not configured, missing material)
+                   * @enum {string}
+                   */
+                  status: "valid" | "invalid" | "unverifiable";
+                  /** @description Human-readable explanation of the verdict */
+                  detail: string;
+                  /** @description Granular sub-results behind the verdict; fields are omitted when not evaluated */
+                  checks?: {
+                    /** @description Evidence chains to the vendor root certificate */
+                    certChainValid?: boolean;
+                    /** @description The report/EAT signature verified */
+                    signatureValid?: boolean;
+                    /** @description The evidence is bound to the request nonce */
+                    nonceMatch?: boolean;
+                    /** @description Revocation status; omitted when revocation was not checked */
+                    notRevoked?: boolean;
+                  };
+                }
+            )[];
           };
         };
       };

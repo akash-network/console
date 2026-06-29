@@ -27,7 +27,11 @@ export const RegionSelect: FC<Props> = ({ placementIndex, disabled, dependencies
       control={control}
       name={`placements.${placementIndex}.region`}
       render={({ field }) => (
-        <Select disabled={disabled} value={field.value || ANY_REGION_VALUE} onValueChange={value => field.onChange(value === ANY_REGION_VALUE ? undefined : value)}>
+        <Select
+          disabled={disabled}
+          value={field.value || ANY_REGION_VALUE}
+          onValueChange={value => field.onChange(value === ANY_REGION_VALUE ? undefined : value)}
+        >
           <SelectTrigger aria-label="Region" className="h-8 w-full text-xs">
             <div className="flex min-w-0 items-center gap-1.5 truncate">
               <MapPin aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

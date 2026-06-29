@@ -196,9 +196,13 @@ export function formatTeeTypeLabel(teeType: TeeType): string {
 export type TeePlatform = "snp" | "tdx" | "snp-gpu" | "tdx-gpu";
 
 export interface GpuAttestationReport {
-  /** Device index of the GPU this report attests, used to disambiguate multiple GPUs. */
+  /**
+   * Device index of the GPU this report attests, used to disambiguate multiple GPUs. The provider gateway
+   * forwards the sidecar payload verbatim, whose wire field is `device_index` (AEP-83 §5 / chain-sdk
+   * `AttestationGPUReport`) — so this must match that key, not a renamed `index`.
+   */
   device_index: number;
-  /** Hardware-signed GPU attestation report, base64. */
+  /** Hardware-signed GPU attestation report, base64. On GPU platforms this embeds the device cert chain. */
   report: string;
 }
 
@@ -206,6 +210,13 @@ export interface AttestationQuote {
   /** CPU attestation report (one per quote), base64. */
   report: string;
   tee_platform: TeePlatform;
+  /**
+   * Vendor certificate chain for the CPU report, base64. May be empty when the platform expects the verifier
+   * to fetch it out-of-band (e.g. the AMD VCEK chain from AMD KDS). Carried through for independent verification.
+   */
+  cert_chain?: string;
+  /** Platform auxiliary blob (e.g. TDX quote collateral), base64. May be empty. Carried through for verification. */
+  auxblob?: string;
   /** Per-GPU attestation reports; absent/empty for CPU-only platforms. */
   gpu_reports?: GpuAttestationReport[];
 }
