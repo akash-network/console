@@ -33,12 +33,15 @@ describe(IntelTdxService.name, () => {
   });
 
   it("returns invalid when ITA reports a bad TCB status", async () => {
-    const { token, jwks } = await signToken({ attester_tcb_status: "OutOfDate", runtime_data: nonce() });
+    const requestNonce = nonce();
+    const { token, jwks } = await signToken({ attester_tcb_status: "OutOfDate", runtime_data: requestNonce });
     const { service } = setup({ apiKey: "ita-key", token, jwks });
 
-    const verdict = await service.verify({ report: report(), nonce: nonce() });
+    const verdict = await service.verify({ report: report(), nonce: requestNonce });
 
+    // The invalid verdict is from the TCB status, not a nonce mismatch (which also yields invalid).
     expect(verdict.status).toBe("invalid");
+    expect(verdict.checks?.nonceMatch).toBe(true);
   });
 
   it("returns unverifiable when the token carries no nonce binding", async () => {

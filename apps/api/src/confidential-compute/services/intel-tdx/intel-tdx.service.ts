@@ -114,8 +114,9 @@ export function nonceBinding(payload: JwtPayload, nonceB64: string): "match" | "
   if (claims.length === 0) return "absent";
   const nonceHex = Buffer.from(nonceB64, "base64").toString("hex").toLowerCase();
   const matches = claims.some(value => {
-    const normalized = value.toLowerCase();
-    return normalized === nonceB64.toLowerCase() || normalized === nonceHex;
+    // base64 is case-sensitive (distinct strings differ by case), so compare it exactly; only the hex form,
+    // whose casing is not significant, is compared case-insensitively.
+    return value === nonceB64 || value.toLowerCase() === nonceHex;
   });
   return matches ? "match" : "mismatch";
 }
