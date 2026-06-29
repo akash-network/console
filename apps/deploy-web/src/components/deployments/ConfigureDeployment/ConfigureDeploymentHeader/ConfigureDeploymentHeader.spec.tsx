@@ -4,11 +4,12 @@ import { Snackbar } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
+import type { DeploymentFlow, DeploymentFlowActions } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./ConfigureDeploymentHeader";
 import { ConfigureDeploymentHeader } from "./ConfigureDeploymentHeader";
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 /** Stand-in for the SDL the header regenerates from the submitted form values. */
 const GENERATED_SDL = 'version: "2.0" # generated';
@@ -49,9 +50,9 @@ describe(ConfigureDeploymentHeader.name, () => {
     expect(screen.queryByRole("button", { name: /request quotes/i })).not.toBeInTheDocument();
   });
 
-  it("keeps the Requesting CTA while quoting", () => {
-    setup({ phase: "quoting" });
-    expect(screen.getByRole("button", { name: /requesting/i })).toBeInTheDocument();
+  it("shows Request quotes while configuring", () => {
+    setup({ phase: "configuring" });
+    expect(screen.getByRole("button", { name: /request quotes/i })).toBeInTheDocument();
   });
 
   it("keeps the Requesting CTA while closing", () => {
@@ -64,11 +65,59 @@ describe(ConfigureDeploymentHeader.name, () => {
     expect(screen.getByRole("button", { name: /request quotes/i })).toBeInTheDocument();
   });
 
-  function setup(input: { phase: DeploymentFlow["phase"]; requestQuotes?: (sdl: string) => void; validationErrors?: string[] }) {
+  it("keeps the Requesting CTA while quoting until the first bid arrives", () => {
+    setup({ phase: "quoting", allPlacementsHaveBids: false, placements: [{ id: "p1" }], selections: {} });
+    expect(screen.getByRole("button", { name: /requesting/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Deploy" })).not.toBeInTheDocument();
+  });
+
+  it("shows Deploy disabled until every placement has a selection", () => {
+    setup({ phase: "quoting", allPlacementsHaveBids: true, placements: [{ id: "p1" }, { id: "p2" }], selections: { p1: "akash1a/1/1/1" } });
+    expect(screen.getByRole("button", { name: "Deploy" })).toBeDisabled();
+  });
+
+  it("enables Deploy when all placements are selected and calls onDeploy", async () => {
+    const onDeploy = vi.fn();
+    setup({ phase: "quoting", allPlacementsHaveBids: true, placements: [{ id: "p1" }], selections: { p1: "akash1a/1/1/1" }, onDeploy });
+    const deploy = screen.getByRole("button", { name: "Deploy" });
+    expect(deploy).toBeEnabled();
+    await userEvent.click(deploy);
+    expect(onDeploy).toHaveBeenCalled();
+  });
+
+  it("shows Retry instead of Deploy after a failed deploy and re-fires the deploy request", async () => {
+    const deploy = vi.fn();
+    setup({
+      phase: "quoting",
+      allPlacementsHaveBids: true,
+      placements: [{ id: "p1" }],
+      selections: { p1: "akash1a/1/1/1" },
+      deployError: { message: "boom" },
+      deploy
+    });
+    expect(screen.queryByRole("button", { name: "Deploy" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(deploy).toHaveBeenCalled();
+  });
+
+  function setup(input: {
+    phase: DeploymentFlow["phase"];
+    requestQuotes?: (sdl: string) => void;
+    validationErrors?: string[];
+    placements?: { id: string }[];
+    selections?: Record<string, string>;
+    onDeploy?: () => void;
+    allPlacementsHaveBids?: boolean;
+    deployError?: { message?: string };
+    deploy?: () => void;
+  }) {
     const flow = mock<DeploymentFlow>({
       phase: input.phase,
-      actions: mock<DeploymentFlow["actions"]>({ requestQuotes: input.requestQuotes ?? vi.fn() })
+      dseq: null,
+      deployError: input.deployError,
+      actions: mock<DeploymentFlowActions>({ requestQuotes: input.requestQuotes ?? vi.fn(), deploy: input.deploy ?? vi.fn() })
     });
+    flow.selections = input.selections ?? {};
     const enqueueSnackbar = vi.fn();
     const dependencies: typeof DEPENDENCIES = {
       useDeploymentResourceSummary: (() => "1 vCPU") as never,
@@ -78,15 +127,20 @@ describe(ConfigureDeploymentHeader.name, () => {
       validateGeneratedSdl: () => input.validationErrors ?? []
     };
     render(
-      <Wrapper>
-        <ConfigureDeploymentHeader flow={flow} dependencies={dependencies} />
+      <Wrapper placements={input.placements}>
+        <ConfigureDeploymentHeader
+          flow={flow}
+          onDeploy={input.onDeploy ?? vi.fn()}
+          allPlacementsHaveBids={input.allPlacementsHaveBids ?? false}
+          dependencies={dependencies}
+        />
       </Wrapper>
     );
     return { enqueueSnackbar };
   }
 
-  function Wrapper({ children }: { children: ReactNode }) {
-    const form = useForm();
+  function Wrapper({ children, placements }: { children: ReactNode; placements?: { id: string }[] }) {
+    const form = useForm({ defaultValues: { placements: placements ?? [] } });
     return <FormProvider {...form}>{children}</FormProvider>;
   }
 });

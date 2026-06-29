@@ -8,7 +8,7 @@ import { mock } from "vitest-mock-extended";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { defaultPlacement, defaultService, defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { DEPENDENCIES as PLACEMENT_CARD_DEPENDENCIES, PlacementCard } from "./PlacementCard/PlacementCard";
-import { DEPENDENCIES, DeploymentPane } from "./DeploymentPane";
+import { DEPENDENCIES, DeploymentPane, placementSelectionState } from "./DeploymentPane";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -121,7 +121,12 @@ describe("DeploymentPane", () => {
           onSelectService={input.onSelectService ?? vi.fn()}
           locked={input.locked}
           onCancelAndEdit={input.onCancelAndEdit}
-          dependencies={MockComponents(DEPENDENCIES, { usePlacementManager, ...input.dependencies })}
+          phase="configuring"
+          selections={{}}
+          selectedPlacementId=""
+          sdl=""
+          dseq={null}
+          dependencies={MockComponents(DEPENDENCIES, { usePlacementManager, usePlacementsWithBids: () => new Set<string>(), ...input.dependencies })}
         />
       </TooltipProvider>
     );
@@ -165,10 +170,47 @@ describe("DeploymentPane placement management", () => {
 
     render(
       <Wrapper>
-        <DeploymentPane selectedServiceId="" onSelectService={vi.fn()} dependencies={{ ...DEPENDENCIES, PlacementCard: PlacementCardWithStubbedRegion }} />
+        <DeploymentPane
+          selectedServiceId=""
+          onSelectService={vi.fn()}
+          phase="configuring"
+          selections={{}}
+          selectedPlacementId=""
+          sdl=""
+          dseq={null}
+          dependencies={{ ...DEPENDENCIES, PlacementCard: PlacementCardWithStubbedRegion, usePlacementsWithBids: () => new Set<string>() }}
+        />
       </Wrapper>
     );
 
     return { getForm: () => form };
   }
+});
+
+describe(placementSelectionState.name, () => {
+  it("is idle while configuring, and while closing or errored even with a selection", () => {
+    expect(placementSelectionState({ phase: "configuring", placementId: "p1", selectedPlacementId: "p1", selections: {}, hasBids: true })).toBe("idle");
+    expect(placementSelectionState({ phase: "closing", placementId: "p1", selectedPlacementId: "p1", selections: { p1: "bid" }, hasBids: true })).toBe("idle");
+    expect(placementSelectionState({ phase: "error", placementId: "p1", selectedPlacementId: "p1", selections: { p1: "bid" }, hasBids: true })).toBe("idle");
+  });
+
+  it("is awaiting from the creating phase, so there's no badge-less gap after Request quotes", () => {
+    expect(placementSelectionState({ phase: "creating", placementId: "p1", selectedPlacementId: "p1", selections: {}, hasBids: false })).toBe("awaiting");
+  });
+
+  it("is awaiting while the placement has no bids yet", () => {
+    expect(placementSelectionState({ phase: "quoting", placementId: "p1", selectedPlacementId: "p1", selections: {}, hasBids: false })).toBe("awaiting");
+  });
+
+  it("is selecting for the focused placement once its bids arrive", () => {
+    expect(placementSelectionState({ phase: "quoting", placementId: "p1", selectedPlacementId: "p1", selections: {}, hasBids: true })).toBe("selecting");
+  });
+
+  it("is idle for a non-focused placement that has bids but no selection", () => {
+    expect(placementSelectionState({ phase: "quoting", placementId: "p1", selectedPlacementId: "p2", selections: {}, hasBids: true })).toBe("idle");
+  });
+
+  it("is done once the placement has a selection, regardless of bids", () => {
+    expect(placementSelectionState({ phase: "quoting", placementId: "p1", selectedPlacementId: "p2", selections: { p1: "bid" }, hasBids: false })).toBe("done");
+  });
 });

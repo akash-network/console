@@ -140,14 +140,16 @@ function DeployProgressPanel({ templateName, progressPercent, phases, onChoosePr
         </div>
       </div>
 
-      <div className="flex w-full flex-col items-start gap-3 rounded-xl border border-border p-4 sm:flex-row sm:items-center">
-        <p className="flex-1 text-sm leading-5 text-muted-foreground">Want to choose the provider yourself?</p>
+      {onChooseProvider && (
+        <div className="flex w-full flex-col items-start gap-3 rounded-xl border border-border p-4 sm:flex-row sm:items-center">
+          <p className="flex-1 text-sm leading-5 text-muted-foreground">Want to choose the provider yourself?</p>
 
-        <Button variant="outline" size="sm" className="w-full gap-2 px-3 text-xs sm:w-auto" onClick={onChooseProvider}>
-          <span>Choose my provider</span>
-          <ArrowRight className="h-4 w-4" />
-        </Button>
-      </div>
+          <Button variant="outline" size="sm" className="w-full gap-2 px-3 text-xs sm:w-auto" onClick={onChooseProvider}>
+            <span>Choose my provider</span>
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

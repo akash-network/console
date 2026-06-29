@@ -5,14 +5,16 @@ import type { Column, SortingState } from "@tanstack/react-table";
 import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 
+import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
 import { ShortenedValue } from "@src/components/shared/ShortenedValue";
-import type { ScreenedProvider } from "@src/queries/useScreenedProviders";
-import { getProviderNameFromUri } from "@src/utils/providerUtils";
+import type { PlacementOffer } from "@src/queries/usePlacementOffers";
+import { PRICE_DISPLAY_PRECISION, udenomToDenom } from "@src/utils/mathHelpers";
+import { providerDisplayName } from "@src/utils/providerUtils";
 import type { ProviderUptime } from "./ProviderUptimeCell/deriveProviderUptime";
 import { useProvidersUptime } from "./ProviderUptimeCell/deriveProviderUptime";
 import { ProviderUptimeCell } from "./ProviderUptimeCell/ProviderUptimeCell";
 
-const columnHelper = createColumnHelper<ScreenedProvider>();
+const columnHelper = createColumnHelper<PlacementOffer>();
 
 /** Shown when a provider has no region attribute. */
 const NO_REGION = "—";
@@ -21,17 +23,26 @@ const NO_REGION = "—";
 const HEALTHY_UPTIME: ProviderUptime = { percent: 1, buckets: [] };
 
 interface Props {
-  providers: ScreenedProvider[];
+  providers: PlacementOffer[];
   isLoading?: boolean;
   isSearchActive?: boolean;
   onClearSearch?: () => void;
+  selectedBidId?: string;
+  onSelect?: (bidId: string) => void;
 }
 
-export const MarketplaceProvidersTable: FC<Props> = ({ providers, isLoading, isSearchActive, onClearSearch }) => {
+export const MarketplaceProvidersTable: FC<Props> = ({ providers, isLoading, isSearchActive, onClearSearch, selectedBidId, onSelect }) => {
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const uptimeByOwner = useProvidersUptime(providers);
-  const columns = useMemo(() => buildColumns(uptimeByOwner), [uptimeByOwner]);
+  /** Cost only makes sense once firm bids arrive; until then the marketplace lists screened candidates with no price. */
+  const hasBids = providers.some(provider => provider.offerState === "submitted");
+  /** The Select column is only useful when a visible offer can actually be picked; otherwise it's an empty trailing column. */
+  const hasSelectableOffers = providers.some(provider => provider.offerState === "submitted" && !!provider.bidId);
+  const columns = useMemo(
+    () => buildColumns(uptimeByOwner, { selectedBidId, onSelect, showCost: hasBids, showSelect: hasSelectableOffers }),
+    [uptimeByOwner, selectedBidId, onSelect, hasBids, hasSelectableOffers]
+  );
 
   const table = useReactTable({
     data: providers,
@@ -97,7 +108,7 @@ export const MarketplaceProvidersTable: FC<Props> = ({ providers, isLoading, isS
 };
 
 /** Design-system column header: an uppercase mono label that toggles sort on click. */
-function SortableHeader({ column, title }: { column: Column<ScreenedProvider, unknown>; title: string }) {
+function SortableHeader({ column, title }: { column: Column<PlacementOffer, unknown>; title: string }) {
   const sorted = column.getIsSorted();
   return (
     <button
@@ -117,21 +128,13 @@ function SortableHeader({ column, title }: { column: Column<ScreenedProvider, un
   );
 }
 
-/**
- * Display name for a provider: its organization, else the host parsed from its URI, else its on-chain
- * address. The address fallback covers bid-sourced offers, which carry no screened host/organization —
- * `getProviderNameFromUri` would throw on their empty `hostUri`.
- */
-function providerLabel(provider: ScreenedProvider): string {
-  const organization = provider.organization?.trim();
-  if (organization) return organization;
-  return provider.hostUri ? getProviderNameFromUri(provider.hostUri) : provider.owner;
-}
-
 /** Builds the table columns, closing over the per-provider uptime derived once in the component. */
-function buildColumns(uptimeByOwner: Map<string, ProviderUptime>) {
+function buildColumns(
+  uptimeByOwner: Map<string, ProviderUptime>,
+  selection: { selectedBidId?: string; onSelect?: (bidId: string) => void; showCost: boolean; showSelect: boolean }
+) {
   return [
-    columnHelper.accessor(providerLabel, {
+    columnHelper.accessor(providerDisplayName, {
       id: "hostUri",
       header: ({ column }) => <SortableHeader column={column} title="Provider" />,
       cell: info => <ShortenedValue value={info.getValue()} maxLength={40} headLength={14} />
@@ -144,6 +147,44 @@ function buildColumns(uptimeByOwner: Map<string, ProviderUptime>) {
       id: "uptime",
       header: ({ column }) => <SortableHeader column={column} title="Uptime (7D)" />,
       cell: info => <ProviderUptimeCell uptime={uptimeByOwner.get(info.row.original.owner) ?? HEALTHY_UPTIME} />
-    })
+    }),
+    ...(selection.showCost
+      ? [
+          columnHelper.display({
+            id: "cost",
+            header: () => <span className="font-mono text-sm font-normal uppercase text-muted-foreground">Cost</span>,
+            cell: ({ row }) => {
+              const { price } = row.original;
+              if (!price) return <span className="text-muted-foreground">—</span>;
+              return <PricePerTimeUnit denom={price.denom} perBlockValue={udenomToDenom(price.amount, PRICE_DISPLAY_PRECISION)} showAsHourly abbreviated />;
+            }
+          })
+        ]
+      : []),
+    ...(selection.showSelect
+      ? [
+          columnHelper.display({
+            id: "select",
+            header: () => null,
+            cell: ({ row }) => {
+              const offer = row.original;
+              if (offer.offerState !== "submitted" || !offer.bidId) return null;
+              const isSelected = offer.bidId === selection.selectedBidId;
+              return (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={isSelected ? "default" : "outline"}
+                  disabled={isSelected}
+                  aria-label={isSelected ? `Selected ${providerDisplayName(offer)}` : `Select ${providerDisplayName(offer)}`}
+                  onClick={() => selection.onSelect?.(offer.bidId!)}
+                >
+                  {isSelected ? "Selected" : "Select"}
+                </Button>
+              );
+            }
+          })
+        ]
+      : [])
   ];
 }

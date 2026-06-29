@@ -60,4 +60,23 @@ export class ConfigureDeploymentPage {
   marketplaceHeading() {
     return this.page.getByRole("heading", { name: /Compute Marketplace/i });
   }
+
+  /** The marketplace pane region — used to scope provider rows away from the deployment pane's "Select service-N" buttons. */
+  marketplace() {
+    return this.page.getByRole("region", { name: /Compute Marketplace/i });
+  }
+
+  /** Waits for the first submitted bid's Select button in the marketplace, then picks it. */
+  async selectFirstAvailableProvider() {
+    const select = this.marketplace().getByRole("button", { name: /^Select / }).first();
+    await select.click({ timeout: 90_000 });
+  }
+
+  reviewDialog() {
+    return this.page.getByRole("dialog");
+  }
+
+  async confirmAndDeploy() {
+    await this.reviewDialog().getByRole("button", { name: /confirm and deploy/i }).click();
+  }
 }

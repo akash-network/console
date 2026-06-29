@@ -1,6 +1,6 @@
 "use client";
 import type { FC } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,14 +9,18 @@ import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
+import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
+import { parseBidId } from "@src/utils/bids/bidId";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { applyImportedSshState } from "@src/utils/sdl/sshKey";
 import { ConfigureDeploymentHeader } from "../ConfigureDeploymentHeader/ConfigureDeploymentHeader";
 import { ConfigureDeploymentPanes } from "../ConfigureDeploymentPanes/ConfigureDeploymentPanes";
+import { DeployProgressOverlay } from "../DeployProgressOverlay/DeployProgressOverlay";
+import { ReviewAndDeployModal } from "../ReviewAndDeployModal/ReviewAndDeployModal";
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import { useDeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
@@ -26,8 +30,10 @@ export const DEPENDENCIES = {
   NextSeo,
   ConfigureDeploymentHeader,
   ConfigureDeploymentPanes,
+  ReviewAndDeployModal,
   useConfigureDraft,
   useDeploymentFlow,
+  usePlacementsWithBids,
   useSnackbar,
   Snackbar
 };
@@ -104,27 +110,100 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, intent, depende
   );
 
   const flow = d.useDeploymentFlow({ intent });
+  const placementsWithBids = d.usePlacementsWithBids({ enabled: flow.phase === "quoting", dseq: flow.dseq, sdl: liveSdl, placements });
+  const [isReviewOpen, setReviewOpen] = useState(false);
+  const allPlacementsHaveBids = placements.length > 0 && placements.every(placement => placementsWithBids.has(placement.id));
+  const lastToastedDeployError = useRef(flow.deployError);
+  const hasAutoFocusedFirstBids = useRef(false);
+
+  useEffect(
+    function toastDeployFailure() {
+      if (flow.deployError && flow.deployError !== lastToastedDeployError.current) {
+        enqueueSnackbar(
+          <d.Snackbar
+            title="Couldn't deploy"
+            subTitle={flow.deployError.message ?? "Something went wrong while deploying. Please try again."}
+            iconVariant="error"
+          />,
+          { variant: "error" }
+        );
+      }
+      lastToastedDeployError.current = flow.deployError;
+    },
+    [flow.deployError, enqueueSnackbar, d]
+  );
+
+  useEffect(
+    function focusFirstBidReadyPlacement() {
+      if (flow.phase !== "quoting") {
+        hasAutoFocusedFirstBids.current = false;
+        return;
+      }
+      if (hasAutoFocusedFirstBids.current || placementsWithBids.size === 0) return;
+      hasAutoFocusedFirstBids.current = true;
+      const activePlacementId = selectedPlacement.id;
+      if (placementsWithBids.has(activePlacementId) || flow.selections[activePlacementId]) return;
+      const targetServiceId = firstBidReadyServiceId(placements, services, flow.selections, placementsWithBids);
+      if (targetServiceId) setSelectedServiceId(targetServiceId);
+    },
+    [flow.phase, flow.selections, placementsWithBids, selectedPlacement.id, placements, services]
+  );
+
+  /**
+   * Records the provider chosen for a placement, then advances: focuses the next placement still missing a
+   * selection, or — when that was the last one — opens the review modal so the user confirms without hunting
+   * for the Deploy button.
+   */
+  function selectProviderAndAdvance(placementId: string, bidId: string) {
+    flow.actions.selectProvider(placementId, bidId);
+    const nextServiceId = nextUndoneServiceId(placements, services, { ...flow.selections, [placementId]: bidId }, placementsWithBids);
+    if (nextServiceId) {
+      setSelectedServiceId(nextServiceId);
+    } else {
+      setReviewOpen(true);
+    }
+  }
 
   return (
     <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col dark:bg-card">
       <d.NextSeo title="Configure your deployment" />
       <FormProvider {...form}>
         <div className="px-6 pt-6">
-          <d.ConfigureDeploymentHeader flow={flow} />
+          <d.ConfigureDeploymentHeader flow={flow} onDeploy={() => setReviewOpen(true)} allPlacementsHaveBids={allPlacementsHaveBids} />
         </div>
-        <div className="mt-6 flex min-h-0 flex-1">
+        <div className="relative mt-6 flex min-h-0 flex-1">
           <d.ConfigureDeploymentPanes
             sdl={liveSdl}
             previewSdl={previewSdl}
             selectedServiceId={selectedServiceId}
             selectedPlacementName={selectedPlacement.name}
             selectedPlacementRegion={selectedPlacement.region}
+            selectedPlacementId={selectedPlacement.id}
             onSelectService={setSelectedServiceId}
             phase={flow.phase}
             dseq={flow.dseq}
+            selections={flow.selections}
+            onSelectProvider={selectProviderAndAdvance}
             onCancelAndEdit={flow.actions.cancelAndEdit}
           />
+          {flow.phase === "deploying" && (
+            <DeployProgressOverlay
+              providerAddress={firstSelectedProviderAddress(flow.selections)}
+              activePhase={flow.deploySucceeded ? "success" : "preparing"}
+            />
+          )}
         </div>
+        <d.ReviewAndDeployModal
+          open={isReviewOpen}
+          dseq={flow.dseq}
+          placements={placements}
+          selections={flow.selections}
+          onBack={() => setReviewOpen(false)}
+          onConfirm={() => {
+            setReviewOpen(false);
+            flow.actions.deploy(liveSdl);
+          }}
+        />
       </FormProvider>
     </d.Layout>
   );
@@ -220,4 +299,53 @@ function nextSelectedServiceId(values: SdlBuilderFormValuesType, previous: strin
   }
   const visible = services.find(candidate => candidate && !isLogCollectorService(candidate as ServiceType)) ?? services[0];
   return visible.id;
+}
+
+/** The provider chosen for the first placement, focused on the deploy-progress globe while deploying. */
+function firstSelectedProviderAddress(selections: Record<string, string>): string | null {
+  const first = Object.values(selections)[0];
+  return first ? parseBidId(first).provider : null;
+}
+
+/** The first unselected placement that already has bids, as its first service id — used to focus where the first bids land. */
+export function firstBidReadyServiceId(
+  placements: SdlBuilderFormValuesType["placements"],
+  services: SdlBuilderFormValuesType["services"],
+  selections: Record<string, string>,
+  placementsWithBids: Set<string>
+): string | null {
+  return serviceIdOfPlacement(
+    services,
+    placements.find(placement => !selections[placement.id] && placementsWithBids.has(placement.id))
+  );
+}
+
+/**
+ * After a provider is chosen, the service to focus next: the first unselected placement that already has bids,
+ * else the first unselected placement at all (so focus still advances while its bids are pending). Null when
+ * every placement is selected — the cue to open the review modal.
+ */
+export function nextUndoneServiceId(
+  placements: SdlBuilderFormValuesType["placements"],
+  services: SdlBuilderFormValuesType["services"],
+  selections: Record<string, string>,
+  placementsWithBids: Set<string>
+): string | null {
+  return (
+    firstBidReadyServiceId(placements, services, selections, placementsWithBids) ??
+    serviceIdOfPlacement(
+      services,
+      placements.find(placement => !selections[placement.id])
+    )
+  );
+}
+
+/** The first non-log-collector service of a placement (or null), used to make that placement the active one. */
+function serviceIdOfPlacement(
+  services: SdlBuilderFormValuesType["services"],
+  placement: SdlBuilderFormValuesType["placements"][number] | undefined
+): string | null {
+  if (!placement) return null;
+  const service = services.find(candidate => candidate.placementId === placement.id && !isLogCollectorService(candidate));
+  return service?.id ?? null;
 }

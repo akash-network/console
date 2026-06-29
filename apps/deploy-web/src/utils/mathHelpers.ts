@@ -25,6 +25,9 @@ export function udenomToDenom(_amount: string | number, precision = 6, decimals:
   return roundDecimal(amount / decimals, precision);
 }
 
+/** Decimal precision for rendering marketplace/review prices (overrides `udenomToDenom`'s default of 6). */
+export const PRICE_DISPLAY_PRECISION = 10;
+
 /**
  * @deprecated don't use JS floating point number to represent a denom amount.
  * use the string representation instead and use `Decimal` from `@cosmjs/math` to do manipulation on amounts.

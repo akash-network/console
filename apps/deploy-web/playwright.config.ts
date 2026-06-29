@@ -8,6 +8,10 @@ dotenv.config({ path: path.resolve(__dirname, "env/.env.test.local") });
 dotenv.config({ path: path.resolve(__dirname, "env/.env.test") });
 
 const slowMo = Number(process.env.PW_SLOW_MO) || 0;
+/** Capture a high-quality, Mac-sized video of the run. Opt-in via PW_RECORD=1, or implied when slow-mo is on. */
+const isRecording = process.env.PW_RECORD === "1" || slowMo > 0;
+/** ~16" MacBook Pro logical viewport (16:10). Use { width: 1512, height: 945 } for a 14"/15" feel. */
+const RECORDING_VIEWPORT = { width: 1728, height: 1080 };
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -42,7 +46,8 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         channel: "chromium", // https://github.com/microsoft/playwright/issues/33566
-        userAgent: getUserAgent()
+        userAgent: getUserAgent(),
+        ...(isRecording ? { viewport: RECORDING_VIEWPORT, deviceScaleFactor: 2, video: { mode: "on" as const, size: RECORDING_VIEWPORT } } : {})
       }
     }
 

@@ -3,13 +3,16 @@ import { useState } from "react";
 import { Button, CustomTooltip } from "@akashnetwork/ui/components";
 import { InfoCircle, Plus, SidebarCollapse, SidebarExpand } from "iconoir-react";
 
+import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
 import { PaneLockBanner } from "../PaneLockBanner/PaneLockBanner";
+import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
 import { IpEndpointsSection } from "./IpEndpointsSection/IpEndpointsSection";
 import { PlacementCard } from "./PlacementCard/PlacementCard";
+import type { PlacementSelectionState } from "./PlacementSelectionBadge/PlacementSelectionBadge";
 import { ReclamationSection } from "./ReclamationSection/ReclamationSection";
 import { usePlacementManager } from "./usePlacementManager/usePlacementManager";
 
-export const DEPENDENCIES = { PlacementCard, usePlacementManager, IpEndpointsSection, ReclamationSection };
+export const DEPENDENCIES = { PlacementCard, usePlacementManager, usePlacementsWithBids, IpEndpointsSection, ReclamationSection };
 
 type Props = {
   selectedServiceId: string;
@@ -18,6 +21,11 @@ type Props = {
   locked?: boolean;
   isClosing?: boolean;
   onCancelAndEdit?: () => void;
+  phase: DeploymentFlowPhase;
+  selections: Record<string, string>;
+  selectedPlacementId: string;
+  sdl: string;
+  dseq: string | null;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -27,10 +35,16 @@ export const DeploymentPane: FC<Props> = ({
   locked = false,
   isClosing = false,
   onCancelAndEdit,
+  phase,
+  selections,
+  selectedPlacementId,
+  sdl,
+  dseq,
   dependencies: d = DEPENDENCIES
 }) => {
   const [minimized, setMinimized] = useState(false);
   const manager = d.usePlacementManager();
+  const placementsWithBids = d.usePlacementsWithBids({ enabled: phase === "quoting", dseq, sdl, placements: manager.placements });
   const toggle = () => setMinimized(prev => !prev);
 
   if (minimized) {
@@ -77,6 +91,13 @@ export const DeploymentPane: FC<Props> = ({
                 canRemove={manager.canRemovePlacement && !locked}
                 canRemoveService={manager.canRemoveService && !locked}
                 locked={locked}
+                selectionState={placementSelectionState({
+                  phase,
+                  placementId: placement.id as string,
+                  selectedPlacementId,
+                  selections,
+                  hasBids: placementsWithBids.has(placement.id as string)
+                })}
                 onSelectService={onSelectService}
                 onAddService={() => onSelectService(manager.addService(placement.id))}
                 onRemoveService={manager.removeService}
@@ -103,3 +124,23 @@ export const DeploymentPane: FC<Props> = ({
 
 /** Fallback when the pane is locked without a cancel handler (defensive; the parent always supplies one while locked). */
 function noop() {}
+
+/**
+ * Derives the selection badge state for a single placement chip. Badges run from the moment quotes are
+ * requested through deploy (creating/quoting/deploying) — to the user, "creating" is already a waiting-for-
+ * quotes state, so there's no badge-less gap after Request quotes: WAITING until the placement's bids arrive,
+ * SELECTING when it's the focused placement with its bids in, DONE once a provider is chosen. Idle otherwise
+ * (configuring, closing, error).
+ */
+export function placementSelectionState(args: {
+  phase: DeploymentFlowPhase;
+  placementId: string;
+  selectedPlacementId: string;
+  selections: Record<string, string>;
+  hasBids: boolean;
+}): PlacementSelectionState {
+  if (args.phase !== "creating" && args.phase !== "quoting" && args.phase !== "deploying") return "idle";
+  if (args.selections[args.placementId]) return "done";
+  if (!args.hasBids) return "awaiting";
+  return args.placementId === args.selectedPlacementId ? "selecting" : "idle";
+}

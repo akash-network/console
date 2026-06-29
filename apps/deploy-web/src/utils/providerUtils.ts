@@ -76,3 +76,22 @@ export const getProviderNameFromUri = (uri: string) => {
   const name = new URL(uri).hostname;
   return name;
 };
+
+/**
+ * Display name for a provider: its organization, else the host parsed from its URI, else its on-chain
+ * address. The address fallback covers bid-sourced offers, which carry no screened host/organization —
+ * `getProviderNameFromUri` would throw on their empty `hostUri`.
+ */
+export const providerDisplayName = (provider: { organization?: string | null; hostUri?: string | null; owner: string }): string => {
+  const organization = provider.organization?.trim();
+  if (organization) return organization;
+
+  const hostUri = provider.hostUri?.trim();
+  if (!hostUri) return provider.owner;
+
+  try {
+    return getProviderNameFromUri(hostUri);
+  } catch {
+    return provider.owner;
+  }
+};

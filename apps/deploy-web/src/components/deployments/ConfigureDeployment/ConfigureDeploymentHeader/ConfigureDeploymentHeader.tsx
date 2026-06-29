@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { useFormContext } from "react-hook-form";
+import { useFormContext, useWatch } from "react-hook-form";
 import { Button, Snackbar } from "@akashnetwork/ui/components";
 import { Send } from "iconoir-react";
 import { LoaderCircle } from "lucide-react";
@@ -13,14 +13,20 @@ import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 
 export const DEPENDENCIES = { useDeploymentResourceSummary, useSnackbar, Snackbar, generateSdl, validateGeneratedSdl };
 
-type Props = { flow: DeploymentFlow; dependencies?: typeof DEPENDENCIES };
+type Props = { flow: DeploymentFlow; onDeploy: () => void; allPlacementsHaveBids: boolean; dependencies?: typeof DEPENDENCIES };
 
-export const ConfigureDeploymentHeader: FC<Props> = ({ flow, dependencies: d = DEPENDENCIES }) => {
+export const ConfigureDeploymentHeader: FC<Props> = ({ flow, onDeploy, allPlacementsHaveBids, dependencies: d = DEPENDENCIES }) => {
   const deploymentSummary = d.useDeploymentResourceSummary();
-  const { handleSubmit } = useFormContext<SdlBuilderFormValuesType>();
+  const { control, handleSubmit, getValues } = useFormContext<SdlBuilderFormValuesType>();
   const { enqueueSnackbar } = d.useSnackbar();
+  const placements = useWatch({ control, name: "placements" });
 
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
+  /** Deploy only takes over from the loading CTA once every placement has bids; until then quoting still reads as "Requesting…". */
+  const showDeployCta = flow.phase === "quoting" && allPlacementsHaveBids;
+  const allPlacementsSelected = placements.length > 0 && placements.every(placement => !!flow.selections[placement.id]);
+  /** A failed deploy returns to quoting with the error set; the CTA then re-fires the same request rather than re-opening review. */
+  const hasDeployError = !!flow.deployError;
 
   /**
    * Request quotes runs the zod form validation first, then regenerates the SDL from the values
@@ -70,6 +76,16 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, dependencies: d = D
           <Button type="button" onClick={onRequestQuotes} className="h-9 shrink-0 px-3 md:h-10 md:px-8">
             <Send className="h-4 w-4 md:hidden" aria-label="Request quotes" />
             <span className="hidden md:inline">Request quotes</span>
+          </Button>
+        ) : showDeployCta ? (
+          <Button
+            type="button"
+            disabled={!allPlacementsSelected}
+            onClick={hasDeployError ? () => flow.actions.deploy(d.generateSdl(getValues())) : onDeploy}
+            aria-label={hasDeployError ? "Retry" : "Deploy"}
+            className="h-9 shrink-0 px-3 md:h-10 md:px-8"
+          >
+            {hasDeployError ? "Retry" : "Deploy"}
           </Button>
         ) : (
           <Button type="button" disabled aria-label="Requesting" className="h-9 shrink-0 gap-2 px-3 md:h-10 md:px-8">

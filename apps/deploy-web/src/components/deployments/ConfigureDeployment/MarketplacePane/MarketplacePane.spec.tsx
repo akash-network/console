@@ -6,6 +6,7 @@ import type { DEPENDENCIES } from "./MarketplacePane";
 import { MarketplacePane } from "./MarketplacePane";
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { buildScreenedProvider } from "@tests/seeders/screenedProvider";
 
 describe(MarketplacePane.name, () => {
@@ -60,6 +61,13 @@ describe(MarketplacePane.name, () => {
     );
   });
 
+  it("passes the active placement's selection and an onSelect bound to that placement to the table", async () => {
+    const onSelectProvider = vi.fn();
+    const { user } = setup({ selectedPlacementId: "placement-1", selectedBidId: "akash1a/1/1/1", onSelectProvider });
+    await user.click(screen.getByRole("button", { name: "selected" }));
+    expect(onSelectProvider).toHaveBeenCalledWith("placement-1", "NEW");
+  });
+
   function buildOffer(overrides: Partial<PlacementOffer> = {}): PlacementOffer {
     return { ...buildScreenedProvider(), offerState: "searching", ...overrides };
   }
@@ -76,6 +84,9 @@ describe(MarketplacePane.name, () => {
       isLoading?: boolean;
       isError?: boolean;
       isSearchActive?: boolean;
+      selectedPlacementId?: string;
+      selectedBidId?: string;
+      onSelectProvider?: (placementId: string, bidId: string) => void;
     } = {}
   ) {
     const usePlacementOffers = vi.fn(() => ({
@@ -90,13 +101,18 @@ describe(MarketplacePane.name, () => {
       filteredProviders: input.filteredProviders ?? offers,
       isSearchActive: input.isSearchActive ?? false
     }));
-    const MarketplaceProvidersTable = vi.fn(() => <div data-testid="marketplace-table-mock" />);
+    const MarketplaceProvidersTable = vi.fn(({ selectedBidId, onSelect }: Parameters<typeof DEPENDENCIES.MarketplaceProvidersTable>[0]) => (
+      <button type="button" onClick={() => onSelect?.("NEW")}>
+        {selectedBidId ? "selected" : "select"}
+      </button>
+    ));
     const dependencies: typeof DEPENDENCIES = {
       usePlacementOffers: usePlacementOffers as never,
       useProviderSearch: useProviderSearch as never,
       MarketplaceProvidersTable: MarketplaceProvidersTable as never,
       ProviderSearchInput
     };
+    const user = userEvent.setup();
 
     render(
       <MarketplacePane
@@ -105,9 +121,12 @@ describe(MarketplacePane.name, () => {
         region={input.region}
         phase={input.phase ?? "configuring"}
         dseq={input.dseq ?? null}
+        selectedPlacementId={input.selectedPlacementId ?? "placement-1"}
+        selectedBidId={input.selectedBidId}
+        onSelectProvider={input.onSelectProvider ?? vi.fn()}
         dependencies={dependencies}
       />
     );
-    return { usePlacementOffers, useProviderSearch, MarketplaceProvidersTable };
+    return { usePlacementOffers, useProviderSearch, MarketplaceProvidersTable, user };
   }
 });
