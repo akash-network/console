@@ -2,9 +2,11 @@ import type { FC } from "react";
 
 import { CommandsCard } from "../CommandsCard/CommandsCard";
 import { EnvironmentVariablesCard } from "../EnvironmentVariablesCard/EnvironmentVariablesCard";
+import { ExposePortsCard } from "../ExposePortsCard/ExposePortsCard";
 import { ImageRuntimeCard } from "../ImageRuntimeCard/ImageRuntimeCard";
+import { LogsCard } from "../LogsCard/LogsCard";
 
-export const DEPENDENCIES = { ImageRuntimeCard, EnvironmentVariablesCard, CommandsCard };
+export const DEPENDENCIES = { ImageRuntimeCard, EnvironmentVariablesCard, CommandsCard, ExposePortsCard, LogsCard };
 
 type Props = {
   serviceIndex: number;
@@ -28,6 +30,10 @@ export const AdditionalSection: FC<Props> = ({ serviceIndex, locked = false, dep
         <d.EnvironmentVariablesCard serviceIndex={serviceIndex} locked={locked} />
 
         <d.CommandsCard serviceIndex={serviceIndex} locked={locked} />
+
+        <d.ExposePortsCard serviceIndex={serviceIndex} locked={locked} />
+
+        <d.LogsCard serviceIndex={serviceIndex} locked={locked} />
       </div>
     </div>
   );

@@ -101,9 +101,9 @@ export const LogCollectorControl: FC<Props> = ({ serviceIndex, dependencies: d =
   );
 
   useThrottledEffect(() => {
-    const nextTitle = `akash.network/manifest-service=${targetService.title}`;
-    if (env.values.POD_LABEL_SELECTOR !== nextTitle) {
-      env.setValue("POD_LABEL_SELECTOR", nextTitle);
+    const nextSelector = toPodLabelSelector(targetService);
+    if (env.values.POD_LABEL_SELECTOR !== nextSelector) {
+      env.setValue("POD_LABEL_SELECTOR", nextSelector);
     }
   }, [env, targetService.title]);
 
@@ -209,11 +209,24 @@ export function isLogCollectorService(service: ServiceType): boolean {
   return !!service.title?.endsWith("-log-collector") && service.image === LOG_COLLECTOR_IMAGE;
 }
 
+/**
+ * Locates the log-collector paired with `service`. Matches first on the stable id
+ * (`<service.id>-log-collector`): the parent title is editable, so an id pairing
+ * survives renames where a title pairing would orphan the collector. As a fallback
+ * it matches a real collector (by image) whose title is `<service.title>-log-collector`,
+ * which covers collectors loaded from an imported SDL — import assigns fresh ids, so
+ * the deterministic id no longer matches but the title pairing still holds.
+ */
 export function findOwnLogCollectorServiceIndex(service: ServiceType, services: ServiceType[]): number {
-  return services.findIndex(s => s.title === toLogCollectorTitle(service));
+  return services.findIndex(s => s.id === toLogCollectorId(service) || (isLogCollectorService(s) && s.title === toLogCollectorTitle(service)));
 }
 
-function generateLogCollectorService<T extends ServiceType>(
+/** Builds the `POD_LABEL_SELECTOR` env value that points the collector at the parent service's pods. */
+export function toPodLabelSelector(service: ServiceType): string {
+  return `akash.network/manifest-service=${service.title}`;
+}
+
+export function generateLogCollectorService<T extends ServiceType>(
   targetService: T
 ): Pick<T, "placementId" | "pricing"> & Omit<ServiceType, "placementId" | "pricing"> {
   return {
@@ -224,7 +237,7 @@ function generateLogCollectorService<T extends ServiceType>(
     pricing: targetService.pricing,
     env: [
       { key: "PROVIDER", value: "DATADOG" },
-      { key: "POD_LABEL_SELECTOR", value: `akash.network/manifest-service=${targetService.title}` },
+      { key: "POD_LABEL_SELECTOR", value: toPodLabelSelector(targetService) },
       { key: "DD_API_KEY", value: "" },
       { key: "DD_SITE", value: "" }
     ],
@@ -247,10 +260,10 @@ function generateLogCollectorService<T extends ServiceType>(
   };
 }
 
-function toLogCollectorTitle(service: ServiceType): string {
+export function toLogCollectorTitle(service: ServiceType): string {
   return `${service.title}-log-collector`;
 }
 
-function toLogCollectorId(service: ServiceType): string {
+export function toLogCollectorId(service: ServiceType): string {
   return `${service.id}-log-collector`;
 }

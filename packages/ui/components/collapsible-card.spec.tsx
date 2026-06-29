@@ -271,6 +271,54 @@ describe(CollapsibleCard.name, () => {
 
       expect(onHeaderClick).not.toHaveBeenCalled();
     });
+
+    it("renders an enable switch when isToggled is provided", () => {
+      setup({ onHeaderClick: vi.fn(), isToggled: false, toggleAriaLabel: "Enable GPU" });
+
+      expect(screen.getByRole("switch", { name: "Enable GPU" })).not.toBeChecked();
+    });
+
+    it("fires onToggle from the header switch without firing onHeaderClick", async () => {
+      const onToggle = vi.fn();
+      const onHeaderClick = vi.fn();
+      setup({ onHeaderClick, onToggle, isToggled: false, toggleAriaLabel: "Enable GPU" });
+
+      await userEvent.click(screen.getByRole("switch", { name: "Enable GPU" }));
+
+      expect(onToggle).toHaveBeenCalledWith(true);
+      expect(onHeaderClick).not.toHaveBeenCalled();
+    });
+
+    it("fires onHeaderClick when the title is clicked without toggling", async () => {
+      const onToggle = vi.fn();
+      const onHeaderClick = vi.fn();
+      setup({ onHeaderClick, onToggle, isToggled: true, toggleAriaLabel: "Enable GPU" });
+
+      await userEvent.click(screen.getByText("GPU"));
+
+      expect(onHeaderClick).toHaveBeenCalledTimes(1);
+      expect(onToggle).not.toHaveBeenCalled();
+    });
+
+    it("disables the enable switch while toggleDisabled", async () => {
+      const onToggle = vi.fn();
+      setup({ onHeaderClick: vi.fn(), onToggle, isToggled: true, toggleAriaLabel: "Enable GPU", toggleDisabled: true });
+
+      expect(screen.getByRole("switch", { name: "Enable GPU" })).toBeDisabled();
+      await userEvent.click(screen.getByRole("switch", { name: "Enable GPU" }));
+      expect(onToggle).not.toHaveBeenCalled();
+    });
+
+    it("fires onHeaderClick from the chevron without toggling", async () => {
+      const onToggle = vi.fn();
+      const onHeaderClick = vi.fn();
+      setup({ onHeaderClick, onToggle, isToggled: true, toggleAriaLabel: "Enable GPU" });
+
+      await userEvent.click(screen.getByRole("button", { name: "Open settings" }));
+
+      expect(onHeaderClick).toHaveBeenCalledTimes(1);
+      expect(onToggle).not.toHaveBeenCalled();
+    });
   });
 
   function setup(input: {

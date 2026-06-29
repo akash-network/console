@@ -106,3 +106,32 @@ export const commandsTooltip = (
     </a>
   </>
 );
+
+export const exposePortsTooltip = (
+  <>
+    Map a container port to an externally reachable port and choose how it is routed.
+    <br />
+    <br />
+    Public routing accepts connections from any IP; internal routing keeps the port reachable only from other services in the deployment. Accepted hostnames
+    apply to HTTP traffic and only when the port isn&apos;t internal.
+    <br />
+    <br />
+    <a href="https://akash.network/docs/developers/deployment/akash-sdl/syntax-reference/#expose" target="_blank" rel="noopener">
+      View official documentation
+    </a>
+  </>
+);
+
+export const logsTooltip = (
+  <>
+    Forward this service's logs to a third-party monitoring provider.
+    <br />
+    <br />
+    Enabling log forwarding adds a separate collector service to your deployment that ships the primary service's logs (currently to Datadog).
+    <br />
+    <br />
+    <a href="https://akash.network/docs/developers/deployment/akash-sdl/advanced-features/#log-forwarding" target="_blank" rel="noopener">
+      View official documentation
+    </a>
+  </>
+);
