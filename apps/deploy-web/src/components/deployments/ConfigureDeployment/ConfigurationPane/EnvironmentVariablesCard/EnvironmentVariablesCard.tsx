@@ -1,5 +1,5 @@
 "use client";
-import { type FC, useCallback, useEffect, useState } from "react";
+import { type ClipboardEvent, type FC, useCallback, useEffect, useState } from "react";
 import { useController, useFieldArray, useFormContext, useWatch } from "react-hook-form";
 import {
   Button,
@@ -126,8 +126,8 @@ type EnvironmentVariablesListProps = {
 };
 
 const EnvironmentVariablesList: FC<EnvironmentVariablesListProps> = ({ serviceIndex, locked = false }) => {
-  const { control } = useFormContext<SdlBuilderFormValuesType>();
-  const { fields, append, remove } = useFieldArray({ control, name: `services.${serviceIndex}.env`, keyName: "fieldId" });
+  const { control, getValues } = useFormContext<SdlBuilderFormValuesType>();
+  const { fields, append, remove, replace } = useFieldArray({ control, name: `services.${serviceIndex}.env`, keyName: "fieldId" });
 
   const visibleFields = fields.filter(f => !RESERVED_ENV_KEYS.has(f.key));
 
@@ -142,6 +142,46 @@ const EnvironmentVariablesList: FC<EnvironmentVariablesListProps> = ({ serviceIn
     append({ id: nanoid(), key: "", value: "", isSecret: false });
   }, [append]);
 
+  /**
+   * Merges pasted `KEY=value` lines into the variables read live from the form: new keys are appended,
+   * existing keys (including ones just typed or added) are updated in place, and the empty row pasted
+   * into is dropped. Reading the live values is what makes a later paste append rather than overwrite.
+   */
+  const insertPastedEnvVars = useCallback(
+    (event: ClipboardEvent<HTMLInputElement>, focusedEnvIndex: number) => {
+      const pastedText = event.clipboardData.getData("text")?.trim();
+      if (!pastedText || !pastedText.includes("=")) return;
+
+      event.preventDefault();
+
+      const nextEnv = [...(getValues(`services.${serviceIndex}.env`) ?? [])];
+      let didUpdate = false;
+      pastedText.split("\n").forEach(line => {
+        const equalsIndex = line.indexOf("=");
+        if (equalsIndex === -1) return;
+
+        const key = line.slice(0, equalsIndex).trim();
+        const value = line.slice(equalsIndex + 1).trim();
+        if (!key || RESERVED_ENV_KEYS.has(key)) return;
+        didUpdate = true;
+
+        const existingEnvIndex = nextEnv.findIndex(env => env.key === key);
+        if (existingEnvIndex === -1) {
+          nextEnv.push({ id: nanoid(), key, value, isSecret: false });
+        } else {
+          nextEnv[existingEnvIndex] = { ...nextEnv[existingEnvIndex], value };
+        }
+      });
+
+      if (!didUpdate) return;
+      if (!nextEnv[focusedEnvIndex]?.key.trim()) {
+        nextEnv.splice(focusedEnvIndex, 1);
+      }
+      replace(nextEnv);
+    },
+    [getValues, replace, serviceIndex]
+  );
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-2">
@@ -151,6 +191,7 @@ const EnvironmentVariablesList: FC<EnvironmentVariablesListProps> = ({ serviceIn
             serviceIndex={serviceIndex}
             envIndex={fields.indexOf(field)}
             visibleIndex={visibleIndex}
+            onPasteKey={insertPastedEnvVars}
             onRemove={() => {
               const arrayIndex = fields.indexOf(field);
               remove(arrayIndex);
@@ -177,9 +218,11 @@ type EnvironmentVariableFieldsProps = {
   envIndex: number;
   visibleIndex: number;
   onRemove: () => void;
+  /** Parses pasted `KEY=value` lines into rows; `envIndex` is the row pasted into so an empty one can be dropped. */
+  onPasteKey: (event: ClipboardEvent<HTMLInputElement>, envIndex: number) => void;
 };
 
-const EnvironmentVariableFields: FC<EnvironmentVariableFieldsProps> = ({ serviceIndex, envIndex, visibleIndex, onRemove }) => {
+const EnvironmentVariableFields: FC<EnvironmentVariableFieldsProps> = ({ serviceIndex, envIndex, visibleIndex, onRemove, onPasteKey }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const basePath = `services.${serviceIndex}.env.${envIndex}` as const;
 
@@ -194,6 +237,7 @@ const EnvironmentVariableFields: FC<EnvironmentVariableFieldsProps> = ({ service
           placeholder="KEY"
           value={key.field.value ?? ""}
           onChange={key.field.onChange}
+          onPaste={event => onPasteKey(event, envIndex)}
           inputClassName="h-9"
           className="flex-1"
         />
