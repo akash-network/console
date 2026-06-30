@@ -6,6 +6,7 @@ import { DepositDeploymentMsgOptions, RpcMessageService } from "@src/billing/ser
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
+import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import type { DryRunOptions } from "@src/core/types/console";
 import { DrainingDeployment } from "@src/deployment/services/draining-deployment/draining-deployment.service";
@@ -29,7 +30,8 @@ export class TopUpManagedDeploymentsService {
     private readonly cachedBalanceService: CachedBalanceService,
     private readonly blockHttpService: BlockHttpService,
     private readonly chainErrorService: ChainErrorService,
-    private readonly instrumentation: TopUpManagedDeploymentsInstrumentationService
+    private readonly instrumentation: TopUpManagedDeploymentsInstrumentationService,
+    private readonly walletReloadService: WalletReloadJobService
   ) {}
 
   async topUpDeployments(options: DryRunOptions): Promise<Result<void, unknown[]>> {
@@ -37,11 +39,14 @@ export class TopUpManagedDeploymentsService {
     const errors: unknown[] = [];
 
     try {
-      for await (const { address, deployments } of this.drainingDeploymentService.findDrainingDeploymentsByOwner()) {
+      for await (const { address, walletId, deployments } of this.drainingDeploymentService.findDrainingDeploymentsByOwner()) {
         try {
           const messageInputs = await this.collectMessages(deployments);
           if (messageInputs.length) {
             await this.topUpForOwner(address, messageInputs, options);
+            if (!options.dryRun) {
+              await this.walletReloadService.scheduleImmediate({ walletId });
+            }
           } else {
             this.instrumentation.recordSkipped({
               owner: address,

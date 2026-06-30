@@ -75,7 +75,7 @@ describe(DrainingDeploymentService.name, () => {
       deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
         (async function* () {
           for (const [address, settings] of Object.entries(deploymentSettingsByAddress)) {
-            yield { address, deploymentSettings: settings };
+            yield { address, walletId: settings[0].walletId, deploymentSettings: settings };
           }
         })()
       );

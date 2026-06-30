@@ -40,11 +40,11 @@ export class DrainingDeploymentService {
    *
    * @yields Object with owner address and array of draining deployments
    */
-  async *findDrainingDeploymentsByOwner(): AsyncGenerator<{ address: string; deployments: DrainingDeployment[] }> {
+  async *findDrainingDeploymentsByOwner(): AsyncGenerator<{ address: string; walletId: number; deployments: DrainingDeployment[] }> {
     const currentHeight = await this.blockHttpService.getCurrentHeight();
     const expectedClosureHeight = Math.floor(currentHeight + averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H"));
 
-    for await (const { address, deploymentSettings } of this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively()) {
+    for await (const { address, walletId, deploymentSettings } of this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively()) {
       if (deploymentSettings.length === 0) {
         continue;
       }
@@ -82,7 +82,7 @@ export class DrainingDeploymentService {
         }
 
         if (active.length) {
-          yield { address, deployments: active };
+          yield { address, walletId, deployments: active };
         }
       }
     }

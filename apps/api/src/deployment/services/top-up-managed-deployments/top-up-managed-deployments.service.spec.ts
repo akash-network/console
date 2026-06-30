@@ -9,6 +9,7 @@ import { RpcMessageService } from "@src/billing/services";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
+import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import type { DrainingDeployment, DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { mockConfigService } from "../../../../test/mocks/config-service.mock";
@@ -33,7 +34,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
   describe("topUpDeployments", () => {
     it("should top up draining deployments", async () => {
-      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, instrumentation } = setup();
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, instrumentation, walletReloadService } = setup();
       const deployments = createManyAutoTopUpDeployments(2);
       const desiredAmount = faker.number.int({ min: 3500000, max: 4000000 });
       const sufficientAmount = faker.number.int({ min: 1000000, max: 2000000 });
@@ -63,7 +64,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
           );
 
           for (const [address, items] of Object.entries(byAddress)) {
-            yield { address, deployments: items };
+            yield { address, walletId: items[0].walletId, deployments: items };
           }
         })()
       );
@@ -124,6 +125,9 @@ describe(TopUpManagedDeploymentsService.name, () => {
       });
 
       expect(instrumentation.finish).toHaveBeenCalledWith("success", CURRENT_BLOCK_HEIGHT);
+      deployments.forEach(deployment => {
+        expect(walletReloadService.scheduleImmediate).toHaveBeenCalledWith({ walletId: deployment.walletId });
+      });
     });
 
     it("should handle errors and continue processing", async () => {
@@ -153,7 +157,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
           );
 
           for (const [address, items] of Object.entries(byAddress)) {
-            yield { address, deployments: items };
+            yield { address, walletId: items[0].walletId, deployments: items };
           }
         })()
       );
@@ -168,7 +172,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     });
 
     it("should not execute transactions in dry run mode", async () => {
-      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService } = setup();
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, walletReloadService } = setup();
       const deployments = createManyAutoTopUpDeployments(2);
       const predictedClosedHeight = CURRENT_BLOCK_HEIGHT + 1500;
 
@@ -194,7 +198,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
           );
 
           for (const [address, items] of Object.entries(byAddress)) {
-            yield { address, deployments: items };
+            yield { address, walletId: items[0].walletId, deployments: items };
           }
         })()
       );
@@ -204,6 +208,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       await service.topUpDeployments({ dryRun: true });
 
       expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+      expect(walletReloadService.scheduleImmediate).not.toHaveBeenCalled();
     });
 
     it("should not execute transactions if no draining deployments", async () => {
@@ -246,7 +251,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
           );
 
           for (const [address, items] of Object.entries(byAddress)) {
-            yield { address, deployments: items };
+            yield { address, walletId: items[0].walletId, deployments: items };
           }
         })()
       );
@@ -313,7 +318,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
               dseq: deployment.dseq
             } as DrainingDeployment
           ];
-          yield { address: deployment.address, deployments: items };
+          yield { address: deployment.address, walletId: deployment.walletId, deployments: items };
         })()
       );
 
@@ -366,7 +371,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
           );
 
           for (const [address, items] of Object.entries(byAddress)) {
-            yield { address, deployments: items };
+            yield { address, walletId: items[0].walletId, deployments: items };
           }
         })()
       );
@@ -422,7 +427,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
           );
 
           for (const [address, items] of Object.entries(byAddress)) {
-            yield { address, deployments: items };
+            yield { address, walletId: items[0].walletId, deployments: items };
           }
         })()
       );
@@ -444,6 +449,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
         (async function* () {
           yield {
             address: deployment.address,
+            walletId: deployment.walletId,
             deployments: [
               {
                 ...deployment,
@@ -476,6 +482,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
         (async function* () {
           yield {
             address: deployment.address,
+            walletId: deployment.walletId,
             deployments: [
               {
                 ...deployment,
@@ -509,6 +516,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
         (async function* () {
           yield {
             address: deployment.address,
+            walletId: deployment.walletId,
             deployments: [
               {
                 ...deployment,
@@ -550,6 +558,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     const chainErrorService = mock<ChainErrorService>();
     chainErrorService.isMasterWalletInsufficientFundsError.mockResolvedValue(false);
     const instrumentation = mock<TopUpManagedDeploymentsInstrumentationService>();
+    const walletReloadService = mock<WalletReloadJobService>();
 
     const service = new TopUpManagedDeploymentsService(
       managedSignerService,
@@ -559,7 +568,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
       cachedBalanceService,
       blockHttpService,
       chainErrorService,
-      instrumentation
+      instrumentation,
+      walletReloadService
     );
 
     return {
@@ -571,7 +581,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
       cachedBalanceService,
       blockHttpService,
       chainErrorService,
-      instrumentation
+      instrumentation,
+      walletReloadService
     };
   }
 });

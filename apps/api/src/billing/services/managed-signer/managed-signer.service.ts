@@ -165,7 +165,7 @@ export class ManagedSignerService {
     const hasSpendingTx = messages.some(message => SPENDING_TXS.some(msg => message.typeUrl.endsWith(msg.$type)));
 
     if (hasSpendingTx) {
-      await this.walletReloadJobService.scheduleImmediate(userId);
+      await this.walletReloadJobService.scheduleImmediate({ userId });
     }
   }
 

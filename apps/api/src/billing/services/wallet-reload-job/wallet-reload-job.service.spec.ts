@@ -16,8 +16,9 @@ describe(WalletReloadJobService.name, () => {
       const userId = faker.string.uuid();
       walletSettingRepository.findByUserId.mockResolvedValue(undefined);
 
-      await service.scheduleImmediate(userId);
+      const result = await service.scheduleImmediate({ userId });
 
+      expect(result).toBe(false);
       expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(userId);
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
@@ -28,8 +29,9 @@ describe(WalletReloadJobService.name, () => {
       const walletSetting = generateWalletSetting({ autoReloadEnabled: false });
       walletSettingRepository.findByUserId.mockResolvedValue(walletSetting);
 
-      await service.scheduleImmediate(userId);
+      const result = await service.scheduleImmediate({ userId });
 
+      expect(result).toBe(false);
       expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(userId);
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
@@ -42,8 +44,9 @@ describe(WalletReloadJobService.name, () => {
       const jobId = faker.string.uuid();
       jobQueueService.enqueue.mockResolvedValue(jobId);
 
-      await service.scheduleImmediate(userId);
+      const result = await service.scheduleImmediate({ userId });
 
+      expect(result).toBe(true);
       expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(userId);
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(
         expect.any(WalletBalanceReloadCheck),
@@ -51,6 +54,38 @@ describe(WalletReloadJobService.name, () => {
           singletonKey: `${WalletBalanceReloadCheck.name}.${walletSetting.userId}`
         })
       );
+    });
+
+    it("looks up the wallet setting by walletId when given a walletId", async () => {
+      const { service, walletSettingRepository, jobQueueService } = setup();
+      const walletId = faker.number.int({ min: 1, max: 1000000 });
+      const walletSetting = generateWalletSetting({ walletId, autoReloadEnabled: true });
+      walletSettingRepository.findOneBy.mockResolvedValue(walletSetting);
+      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+
+      const result = await service.scheduleImmediate({ walletId });
+
+      expect(result).toBe(true);
+      expect(walletSettingRepository.findOneBy).toHaveBeenCalledWith({ walletId });
+      expect(walletSettingRepository.findByUserId).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        expect.any(WalletBalanceReloadCheck),
+        expect.objectContaining({
+          singletonKey: `${WalletBalanceReloadCheck.name}.${walletSetting.userId}`
+        })
+      );
+    });
+
+    it("returns false when no wallet setting is found by walletId", async () => {
+      const { service, walletSettingRepository, jobQueueService } = setup();
+      const walletId = faker.number.int({ min: 1, max: 1000000 });
+      walletSettingRepository.findOneBy.mockResolvedValue(undefined);
+
+      const result = await service.scheduleImmediate({ walletId });
+
+      expect(result).toBe(false);
+      expect(walletSettingRepository.findOneBy).toHaveBeenCalledWith({ walletId });
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
   });
 

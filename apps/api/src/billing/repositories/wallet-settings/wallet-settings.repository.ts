@@ -36,13 +36,7 @@ export class WalletSettingRepository extends BaseRepository<Table, WalletSetting
   }
 
   async findByUserId(userId: WalletSettingOutput["userId"]): Promise<WalletSettingOutput | undefined> {
-    const walletSetting = await this.cursor.query.WalletSetting.findFirst({
-      where: this.whereAccessibleBy(eq(this.table.userId, userId))
-    });
-
-    if (!walletSetting) return undefined;
-
-    return this.toOutput(walletSetting);
+    return this.findOneBy({ userId });
   }
 
   async findInternalByUserIdWithRelations(userId: WalletSettingOutput["userId"]) {
