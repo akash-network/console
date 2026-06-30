@@ -1,5 +1,6 @@
 import type { PropsWithChildren } from "react";
 import { FormProvider, useForm } from "react-hook-form";
+import { TooltipProvider } from "@akashnetwork/ui/components";
 import { describe, expect, it } from "vitest";
 
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
@@ -118,6 +119,38 @@ describe(ConfidentialComputeCard.name, () => {
     expect(screen.queryByRole("radiogroup", { name: "Confidential compute type" })).not.toBeInTheDocument();
   });
 
+  it("previews the attestation-sidecar resource carve-out when enabled", () => {
+    setup({ tee: "cpu" });
+
+    expect(screen.getByText("Requested")).toBeInTheDocument();
+    expect(screen.getByText("Attestation sidecar")).toBeInTheDocument();
+    expect(screen.getByText("Available to your container")).toBeInTheDocument();
+  });
+
+  it("hides the resource carve-out while confidential compute is off", () => {
+    setup({});
+
+    expect(screen.queryByText("Attestation sidecar")).not.toBeInTheDocument();
+  });
+
+  it("warns when cpu-gpu is selected but the service has no GPU resources", () => {
+    setup({ tee: "cpu-gpu", profile: { hasGpu: false, gpu: 0, gpuModels: [] } });
+
+    expect(screen.getByText(/needs GPU resources/i)).toBeInTheDocument();
+  });
+
+  it("does not warn when cpu-gpu is selected and GPU was enabled by the selection", async () => {
+    const { getValues } = setup({ tee: "cpu", profile: { hasGpu: false, gpu: 0, gpuModels: [] } });
+
+    await userEvent.click(screen.getByRole("radio", { name: "CPU-GPU" }));
+
+    const profile = getValues().services[0].profile;
+    expect(profile.hasGpu).toBe(true);
+    expect(profile.gpu).toBeGreaterThanOrEqual(1);
+    expect((profile.gpuModels ?? []).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/needs GPU resources/i)).not.toBeInTheDocument();
+  });
+
   function setup(input: { tee?: "cpu" | "cpu-gpu"; params?: ServiceType["params"]; profile?: Partial<ServiceType["profile"]>; locked?: boolean }) {
     const params = input.params ?? (input.tee ? { tee: input.tee } : undefined);
     const base = defaultServiceWithPlacement({ params });
@@ -135,7 +168,9 @@ describe(ConfidentialComputeCard.name, () => {
 
     render(
       <Wrapper>
-        <ConfidentialComputeCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES }} />
+        <TooltipProvider>
+          <ConfidentialComputeCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES }} />
+        </TooltipProvider>
       </Wrapper>
     );
 

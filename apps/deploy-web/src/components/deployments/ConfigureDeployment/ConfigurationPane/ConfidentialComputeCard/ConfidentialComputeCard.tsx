@@ -1,14 +1,16 @@
 import type { FC } from "react";
 import { useCallback } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
-import { CollapsibleCard, Label, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
+import { Alert, CollapsibleCard, Label, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
 import { ShieldCheckIcon } from "lucide-react";
 
+import { ConfidentialComputeResources } from "@src/components/deployments/ConfidentialComputeResources";
 import type { SdlBuilderFormValuesType } from "@src/types";
+import { buildFormTeeCarveout } from "@src/utils/confidentialCompute";
 import { defaultGpuModel } from "@src/utils/sdl/data";
 import { confidentialComputeTooltip } from "../cardTooltips";
 
-export const DEPENDENCIES = { CollapsibleCard, RadioGroup, RadioGroupItem, Label };
+export const DEPENDENCIES = { CollapsibleCard, RadioGroup, RadioGroupItem, Label, Alert, ConfidentialComputeResources };
 
 type ServiceParams = NonNullable<SdlBuilderFormValuesType["services"][number]["params"]>;
 type TeeType = NonNullable<ServiceParams["tee"]>;
@@ -49,6 +51,27 @@ export const ConfidentialComputeCard: FC<Props> = ({ serviceIndex, locked = fals
   const { control, getValues, setValue } = useFormContext<SdlBuilderFormValuesType>();
   const tee = useWatch({ control, name: `services.${serviceIndex}.params.tee` });
   const isEnabled = tee === "cpu" || tee === "cpu-gpu";
+
+  // Watch the declared resources so the attestation-sidecar preview recomputes as the user edits CPU/RAM.
+  const serviceProfile = useWatch({ control, name: `services.${serviceIndex}.profile` });
+  const count = useWatch({ control, name: `services.${serviceIndex}.count` });
+
+  // Picking cpu-gpu enables the GPU card, but the user can still turn GPU back off afterwards — surface the
+  // resulting mismatch since a cpu-gpu enclave attests a GPU and the SDL validator rejects it without one.
+  const gpuMismatch = tee === "cpu-gpu" && !serviceProfile?.hasGpu;
+
+  const carveout =
+    isEnabled && tee && serviceProfile
+      ? buildFormTeeCarveout({
+          id: getValues(`services.${serviceIndex}.id`) ?? getValues(`services.${serviceIndex}.title`),
+          cpu: serviceProfile.cpu,
+          ram: serviceProfile.ram,
+          ramUnit: serviceProfile.ramUnit,
+          count,
+          gpu: serviceProfile.gpu,
+          teeType: tee
+        })
+      : undefined;
 
   /**
    * Brings the GPU card to its enabled state — `profile.hasGpu` on, a count of at least one, and at least
@@ -103,24 +126,39 @@ export const ConfidentialComputeCard: FC<Props> = ({ serviceIndex, locked = fals
       toggleDisabled={locked}
     >
       {isEnabled ? (
-        <d.RadioGroup aria-label="Confidential compute type" value={tee} onValueChange={value => setTee(value as TeeType)} className="gap-3" disabled={locked}>
-          {TEE_OPTIONS.map(option => {
-            const id = `tee-${serviceIndex}-${option.value}`;
-            return (
-              <d.Label
-                key={option.value}
-                htmlFor={id}
-                className="flex items-start gap-3 rounded-md border border-zinc-200 p-3 font-normal dark:border-zinc-800"
-              >
-                <d.RadioGroupItem id={id} value={option.value} aria-label={option.label} disabled={locked} className="mt-0.5" />
-                <span className="flex flex-col gap-0.5">
-                  <span className="text-sm font-medium">{option.label}</span>
-                  <span className="text-xs text-muted-foreground">{option.description}</span>
-                </span>
-              </d.Label>
-            );
-          })}
-        </d.RadioGroup>
+        <div className="space-y-4">
+          <d.RadioGroup
+            aria-label="Confidential compute type"
+            value={tee}
+            onValueChange={value => setTee(value as TeeType)}
+            className="gap-3"
+            disabled={locked}
+          >
+            {TEE_OPTIONS.map(option => {
+              const id = `tee-${serviceIndex}-${option.value}`;
+              return (
+                <d.Label
+                  key={option.value}
+                  htmlFor={id}
+                  className="flex items-start gap-3 rounded-md border border-zinc-200 p-3 font-normal dark:border-zinc-800"
+                >
+                  <d.RadioGroupItem id={id} value={option.value} aria-label={option.label} disabled={locked} className="mt-0.5" />
+                  <span className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium">{option.label}</span>
+                    <span className="text-xs text-muted-foreground">{option.description}</span>
+                  </span>
+                </d.Label>
+              );
+            })}
+          </d.RadioGroup>
+          {gpuMismatch && (
+            <d.Alert variant="warning">
+              CPU-GPU confidential compute attests a GPU, so this service needs GPU resources. Enable the GPU card above so providers with confidential-compute
+              GPUs can bid.
+            </d.Alert>
+          )}
+          {carveout && <d.ConfidentialComputeResources carveouts={[carveout]} />}
+        </div>
       ) : (
         <p className="text-sm text-muted-foreground">Confidential compute is off.</p>
       )}
