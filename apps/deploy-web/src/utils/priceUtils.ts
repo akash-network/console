@@ -9,6 +9,11 @@ import { denomToUdenom, udenomToDenom } from "./mathHelpers";
 
 export const averageBlockTime = 6.098;
 
+/** Converts a per-block price to its hourly rate. Block time is in seconds, so there are `3600 / averageBlockTime` blocks per hour. */
+export function perBlockToHourly(perBlockValue: number): number {
+  return perBlockValue * (60 / averageBlockTime) * 60;
+}
+
 export const getUsdcDenom = (networkId?: NetworkId): string => {
   return USDC_IBC_DENOMS[networkId ?? (networkStore.selectedNetworkId as keyof typeof USDC_IBC_DENOMS)] as string;
 };

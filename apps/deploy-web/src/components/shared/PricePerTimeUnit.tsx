@@ -2,7 +2,7 @@
 import type { ReactNode } from "react";
 
 import { averageDaysInMonth } from "@src/utils/dateUtils";
-import { averageBlockTime } from "@src/utils/priceUtils";
+import { perBlockToHourly } from "@src/utils/priceUtils";
 import { PriceValue } from "./PriceValue";
 
 interface IProps {
@@ -16,7 +16,7 @@ interface IProps {
 }
 
 export const PricePerTimeUnit: React.FunctionComponent<IProps> = ({ perBlockValue, denom, className, showAsHourly = false, abbreviated = false, ...rest }) => {
-  const hourlyValue = perBlockValue * (60 / averageBlockTime) * 60;
+  const hourlyValue = perBlockToHourly(perBlockValue);
   const monthlyValue = hourlyValue * 24 * averageDaysInMonth;
   const value = showAsHourly ? hourlyValue : monthlyValue;
   const unitLabel = showAsHourly ? (abbreviated ? "hr" : "hour") : "month";

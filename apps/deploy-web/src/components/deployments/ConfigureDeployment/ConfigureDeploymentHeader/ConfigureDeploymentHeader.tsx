@@ -1,25 +1,30 @@
-import type { FC } from "react";
+import type { FC, ReactNode } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Button, Snackbar } from "@akashnetwork/ui/components";
 import { Send } from "iconoir-react";
 import { LoaderCircle } from "lucide-react";
 import { useSnackbar } from "notistack";
 
+import { PriceValue } from "@src/components/shared/PriceValue";
 import type { SdlBuilderFormValuesType } from "@src/types";
+import { perBlockToHourly } from "@src/utils/priceUtils";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { validateGeneratedSdl } from "@src/utils/sdl/validateGeneratedSdl";
 import { useDeploymentResourceSummary } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
+import type { DeploymentCost } from "../useDeploymentCost/useDeploymentCost";
+import { useDeploymentCost } from "../useDeploymentCost/useDeploymentCost";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 
-export const DEPENDENCIES = { useDeploymentResourceSummary, useSnackbar, Snackbar, generateSdl, validateGeneratedSdl };
+export const DEPENDENCIES = { useDeploymentResourceSummary, useSnackbar, Snackbar, generateSdl, validateGeneratedSdl, useDeploymentCost, PriceValue };
 
-type Props = { flow: DeploymentFlow; onDeploy: () => void; allPlacementsHaveBids: boolean; dependencies?: typeof DEPENDENCIES };
+type Props = { flow: DeploymentFlow; sdl: string; onDeploy: () => void; allPlacementsHaveBids: boolean; dependencies?: typeof DEPENDENCIES };
 
-export const ConfigureDeploymentHeader: FC<Props> = ({ flow, onDeploy, allPlacementsHaveBids, dependencies: d = DEPENDENCIES }) => {
+export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, onDeploy, allPlacementsHaveBids, dependencies: d = DEPENDENCIES }) => {
   const deploymentSummary = d.useDeploymentResourceSummary();
   const { control, handleSubmit, getValues } = useFormContext<SdlBuilderFormValuesType>();
   const { enqueueSnackbar } = d.useSnackbar();
   const placements = useWatch({ control, name: "placements" });
+  const cost = d.useDeploymentCost({ dseq: flow.dseq, sdl, placements, selections: flow.selections });
 
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
   /** Deploy only takes over from the loading CTA once every placement has bids; until then quoting still reads as "Requesting…". */
@@ -71,7 +76,7 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, onDeploy, allPlacem
       <div className="flex shrink-0 items-center gap-3 md:gap-6">
         <DeploymentSummaryBlock label="Your deployment" value={deploymentSummary} />
         <div className="hidden h-12 w-px self-stretch bg-border md:block" aria-hidden="true" />
-        <DeploymentSummaryBlock label="Cost" value="—" suffix="/hr" />
+        <DeploymentSummaryBlock label="Deployment cost" value={<CostValue cost={cost} PriceValue={d.PriceValue} />} suffix={cost ? "/hr" : undefined} />
         {isEditable ? (
           <Button type="button" onClick={onRequestQuotes} className="h-9 shrink-0 px-3 md:h-10 md:px-8">
             <Send className="h-4 w-4 md:hidden" aria-label="Request quotes" />
@@ -100,7 +105,7 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, onDeploy, allPlacem
 
 interface DeploymentSummaryBlockProps {
   label: string;
-  value: string;
+  value: ReactNode;
   suffix?: string;
 }
 
@@ -113,5 +118,24 @@ function DeploymentSummaryBlock({ label, value, suffix }: DeploymentSummaryBlock
         {suffix ? <span className="font-mono text-xs text-muted-foreground md:text-base">{suffix}</span> : null}
       </div>
     </div>
+  );
+}
+
+interface CostValueProps {
+  cost: DeploymentCost | null;
+  PriceValue: typeof DEPENDENCIES.PriceValue;
+}
+
+/** The header cost value: a dash before bids, a single hourly USD price when the bounds are equal, otherwise a min–max range. */
+function CostValue({ cost, PriceValue }: CostValueProps) {
+  if (!cost) return <>—</>;
+  if (cost.minPerBlock === cost.maxPerBlock) {
+    return <PriceValue denom={cost.denom} value={perBlockToHourly(cost.minPerBlock)} />;
+  }
+  return (
+    <>
+      <PriceValue denom={cost.denom} value={perBlockToHourly(cost.minPerBlock)} /> -{" "}
+      <PriceValue denom={cost.denom} value={perBlockToHourly(cost.maxPerBlock)} />
+    </>
   );
 }
