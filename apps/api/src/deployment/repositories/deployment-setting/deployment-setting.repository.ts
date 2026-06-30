@@ -39,11 +39,16 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return new DeploymentSettingRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
-  async *findAutoTopUpDeploymentsByOwnerIteratively(): AsyncGenerator<{ address: string; deploymentSettings: AutoTopUpDeployment[] }> {
+  async *findAutoTopUpDeploymentsByOwnerIteratively(): AsyncGenerator<{
+    address: string;
+    walletId: number;
+    deploymentSettings: AutoTopUpDeployment[];
+  }> {
     const baseClauses = [eq(this.table.autoTopUpEnabled, true), eq(this.table.closed, false)];
 
     const distinctOwnersQuery = this.pg
-      .selectDistinct({
+      .selectDistinctOn([UserWallets.address], {
+        walletId: UserWallets.id,
         address: UserWallets.address
       })
       .from(this.table)
@@ -54,15 +59,15 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
 
     const distinctOwners = await distinctOwnersQuery.where(and(...distinctClauses));
 
-    for (const { address } of distinctOwners) {
-      if (!address) {
+    for (const { address, walletId } of distinctOwners) {
+      if (!address || !walletId) {
         continue;
       }
 
       const deployments = await this.findAutoTopUpDeploymentsByOwner(address);
 
       if (deployments.length > 0) {
-        yield { address, deploymentSettings: deployments as AutoTopUpDeployment[] };
+        yield { address, walletId, deploymentSettings: deployments as AutoTopUpDeployment[] };
       }
     }
   }

@@ -15,12 +15,18 @@ export class WalletReloadJobService {
     this.logger.setContext(WalletReloadJobService.name);
   }
 
-  async scheduleImmediate(userId: string): Promise<void> {
-    const walletSetting = await this.walletSettingRepository.findByUserId(userId);
+  async scheduleImmediate(input: WalletReloadImmediateInput): Promise<boolean> {
+    const walletSetting =
+      "userId" in input
+        ? await this.walletSettingRepository.findByUserId(input.userId)
+        : await this.walletSettingRepository.findOneBy({ walletId: input.walletId });
 
     if (walletSetting?.autoReloadEnabled) {
       await this.scheduleForWalletSetting(walletSetting);
+      return true;
     }
+
+    return false;
   }
 
   async scheduleForWalletSetting(
@@ -31,10 +37,15 @@ export class WalletReloadJobService {
       await this.cancelCreatedByUserId(walletSetting.userId);
     }
 
-    const createdJobId = await this.jobQueueService.enqueue(new WalletBalanceReloadCheck({ userId: walletSetting.userId }), {
-      singletonKey: `${WalletBalanceReloadCheck.name}.${walletSetting.userId}`,
-      ...(options?.startAfter && { startAfter: options.startAfter })
-    });
+    const createdJobId = await this.jobQueueService.enqueue(
+      new WalletBalanceReloadCheck({
+        userId: walletSetting.userId
+      }),
+      {
+        singletonKey: `${WalletBalanceReloadCheck.name}.${walletSetting.userId}`,
+        ...(options?.startAfter && { startAfter: options.startAfter })
+      }
+    );
 
     if (!createdJobId) {
       this.logger.error({
@@ -51,3 +62,5 @@ export class WalletReloadJobService {
     await this.jobQueueService.cancelCreatedBy({ name: WalletBalanceReloadCheck.name, singletonKey: `${WalletBalanceReloadCheck.name}.${userId}` });
   }
 }
+
+export type WalletReloadImmediateInput = { userId: string } | { walletId: number };

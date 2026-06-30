@@ -57,7 +57,7 @@ export class DeploymentSettingService {
     const result = await this.withEstimatedTopUpAmount(await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "create").create(input));
 
     if (result.autoTopUpEnabled) {
-      await this.walletReloadJobService.scheduleImmediate(result.userId);
+      await this.walletReloadJobService.scheduleImmediate({ userId: result.userId });
     }
 
     return result;

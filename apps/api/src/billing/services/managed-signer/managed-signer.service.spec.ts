@@ -424,7 +424,7 @@ describe(ManagedSignerService.name, () => {
 
       await service.executeDerivedEncodedTxByUserId("user-123", [deploymentMessage]);
 
-      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith("user-123");
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ userId: "user-123" });
     });
 
     it("executes transaction and calls scheduleImmediate when transaction contains MsgAccountDeposit", async () => {
@@ -452,7 +452,7 @@ describe(ManagedSignerService.name, () => {
 
       await service.executeDerivedEncodedTxByUserId("user-123", [depositMessage]);
 
-      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith("user-123");
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ userId: "user-123" });
     });
 
     it("executes transaction and does not call scheduleImmediate when transaction does not contain spending messages", async () => {
