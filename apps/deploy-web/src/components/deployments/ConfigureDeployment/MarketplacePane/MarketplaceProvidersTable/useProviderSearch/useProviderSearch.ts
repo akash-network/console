@@ -5,11 +5,11 @@ import type { ScreenedProvider } from "@src/queries/useScreenedProviders";
 /** Delay before a typed query is applied; clearing bypasses it. Matches the SDL-sync precedent. */
 const SEARCH_DEBOUNCE_MS = 300;
 
-interface UseProviderSearchResult {
+interface UseProviderSearchResult<T extends ScreenedProvider> {
   query: string;
   setQuery: (value: string) => void;
   clear: () => void;
-  filteredProviders: ScreenedProvider[];
+  filteredProviders: T[];
   isSearchActive: boolean;
 }
 
@@ -17,7 +17,7 @@ interface UseProviderSearchResult {
  * Presentation-only narrowing of the screened list by organization name and host URI. The typed
  * query is debounced; an empty query applies immediately so clearing snaps the full list back.
  */
-export function useProviderSearch(providers: ScreenedProvider[]): UseProviderSearchResult {
+export function useProviderSearch<T extends ScreenedProvider>(providers: T[]): UseProviderSearchResult<T> {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
 

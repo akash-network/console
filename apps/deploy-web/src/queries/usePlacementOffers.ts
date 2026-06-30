@@ -1,11 +1,12 @@
 import { useMemo } from "react";
 
-import { useServices } from "@src/context/ServicesProvider";
+import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import type { ScreenedProvider } from "@src/queries/useScreenedProviders";
 import { useScreenedProviders } from "@src/queries/useScreenedProviders";
 import type { ApiProviderList } from "@src/types/provider";
-import { DeploymentGroups } from "@src/utils/deploymentData/helpers";
+import { formatBidId } from "@src/utils/bids/bidId";
+import { getPlacementGseq } from "@src/utils/sdl/placementGseq";
 
 export type OfferState = "searching" | "submitted" | "unavailable";
 
@@ -17,7 +18,7 @@ export interface PlacementOffer extends ScreenedProvider {
 }
 
 interface UsePlacementOffersInput {
-  phase: "configuring" | "creating" | "quoting" | "closing" | "error";
+  phase: "configuring" | "creating" | "quoting" | "closing" | "deploying" | "error";
   dseq?: string;
   sdl: string;
   placementName: string;
@@ -28,37 +29,6 @@ interface UsePlacementOffersResult {
   offers: PlacementOffer[];
   isLoading: boolean;
   isError: boolean;
-}
-
-/** Poll cadence for live bids while quoting; matches the existing phased flow. */
-const BID_POLL_INTERVAL = 2000;
-
-/** `listBids` bound to a dseq, enabled only while quoting. Wrapped in DEPENDENCIES so the selector is unit-testable. */
-function useListBids(dseq: string | undefined, enabled: boolean) {
-  const { api } = useServices();
-  return api.v1.listBids.useQuery({ dseq: dseq ?? "" }, { enabled: enabled && !!dseq, refetchInterval: BID_POLL_INTERVAL });
-}
-
-/**
- * Resolves a placement's on-chain group sequence (gseq) from the SDL. The chain numbers groups in the order
- * they are submitted in the create-deployment message, which is the order `DeploymentGroups` returns them
- * (both derive from chain-sdk's `buildManifest`), so the gseq is the 1-based index of the group whose name
- * matches the placement. Returns undefined when the SDL is absent/invalid (e.g. mid-edit) or the placement
- * isn't in it, so the caller skips gseq filtering rather than hiding every bid. Wrapped in DEPENDENCIES so the
- * selector is unit-testable without parsing a real SDL.
- */
-function getPlacementGseq(sdl: string, placementName: string): number | undefined {
-  if (!sdl) return undefined;
-
-  let groups: ReturnType<typeof DeploymentGroups>;
-  try {
-    groups = DeploymentGroups(sdl);
-  } catch {
-    return undefined;
-  }
-
-  const index = groups.findIndex(group => group.name === placementName);
-  return index === -1 ? undefined : index + 1;
 }
 
 export const DEPENDENCIES = { useScreenedProviders, useListBids, useProviderList, getPlacementGseq };
@@ -90,10 +60,10 @@ export function usePlacementOffers(
   { phase, dseq, sdl, placementName, region }: UsePlacementOffersInput,
   dependencies: typeof DEPENDENCIES = DEPENDENCIES
 ): UsePlacementOffersResult {
-  const isLocked = phase === "creating" || phase === "quoting" || phase === "closing";
+  const isLocked = phase === "creating" || phase === "quoting" || phase === "closing" || phase === "deploying";
   const isScreening = phase === "configuring" || phase === "creating";
   const screened = dependencies.useScreenedProviders({ sdl, placementName, region, enabled: !isLocked });
-  const bidsQuery = dependencies.useListBids(dseq, phase === "quoting");
+  const bidsQuery = dependencies.useListBids(dseq, { enabled: phase === "quoting", refetchInterval: BID_POLL_INTERVAL });
   const providerListQuery = dependencies.useProviderList({ enabled: !isScreening });
   const gseq = useMemo(() => dependencies.getPlacementGseq(sdl, placementName), [dependencies, sdl, placementName]);
   const providersByOwner = useMemo(() => new Map((providerListQuery.data ?? []).map(provider => [provider.owner, provider])), [providerListQuery.data]);
@@ -143,12 +113,7 @@ function toBidOffer(
     organization: provider?.organization || null,
     incidents: [],
     offerState: "submitted",
-    bidId: toBidId(entry.bid.id),
+    bidId: formatBidId(entry.bid.id),
     price: entry.bid.price
   };
-}
-
-/** Stable identifier for a bid across renders, built from its on-chain composite key. */
-function toBidId(id: { provider: string; dseq: string; gseq: number; oseq: number }): string {
-  return `${id.provider}/${id.dseq}/${id.gseq}/${id.oseq}`;
 }

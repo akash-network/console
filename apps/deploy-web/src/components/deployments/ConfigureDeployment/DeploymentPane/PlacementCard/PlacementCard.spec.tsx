@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { defaultPlacement, defaultService } from "@src/utils/sdl/data";
 import type { ConfigStatus } from "../ConfigStatusIcon/ConfigStatusIcon";
+import type { PlacementSelectionState } from "../PlacementSelectionBadge/PlacementSelectionBadge";
 import { DEPENDENCIES, PlacementCard } from "./PlacementCard";
 
 import { render, screen } from "@testing-library/react";
@@ -112,12 +113,18 @@ describe("PlacementCard", () => {
     expect(RegionSelect.mock.calls[0][0]).toEqual(expect.objectContaining({ disabled: true }));
   });
 
+  it("shows the DONE badge when the placement has a selection", () => {
+    setup({ serviceTitles: ["web"], selectionState: "done" });
+    expect(screen.getByText("DONE")).toBeInTheDocument();
+  });
+
   function setup(input: {
     serviceTitles: string[];
     canRemove?: boolean;
     status?: ConfigStatus;
     error?: string;
     locked?: boolean;
+    selectionState?: PlacementSelectionState;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const placement = defaultPlacement({ name: "placement-1" });
@@ -145,6 +152,7 @@ describe("PlacementCard", () => {
           canRemove={input.canRemove ?? true}
           canRemoveService={true}
           locked={input.locked}
+          selectionState={input.selectionState}
           onSelectService={onSelectService}
           onAddService={onAddService}
           onRemoveService={onRemoveService}

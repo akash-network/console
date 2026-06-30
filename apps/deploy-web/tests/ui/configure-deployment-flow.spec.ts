@@ -40,6 +40,38 @@ test.describe("Configure deployment — request quotes flow", () => {
       await expect(configure.requestQuotesButton()).toBeVisible();
     });
   });
+
+  test("selects a provider, reviews, and deploys", async ({ page }) => {
+    test.setTimeout(5 * 60 * 1000);
+
+    const configure = new ConfigureDeploymentPage(page);
+    let dseq: string | undefined;
+
+    await test.step("request quotes to create the deployment and surface bids", async () => {
+      await configure.goto();
+      await configure.fillImageName("nginx:latest");
+      await configure.requestQuotes();
+
+      await page.waitForURL(/\/new-deployment\/configure\/\d+/, { timeout: 90_000 });
+      dseq = new URL(page.url()).pathname.match(/\/new-deployment\/configure\/(\d+)/)?.[1];
+      expect(dseq).toBeTruthy();
+      await expect(configure.marketplaceHeading()).toBeVisible({ timeout: 30_000 });
+    });
+
+    await test.step("selecting the only placement's provider auto-opens the review", async () => {
+      // waits for the first submitted bid's Select button, then picks it
+      await configure.selectFirstAvailableProvider();
+
+      // the last selection completes every placement, so the review modal opens on its own
+      await expect(configure.reviewDialog()).toBeVisible({ timeout: 30_000 });
+      await expect(configure.reviewDialog().getByText(/total deployment cost/i)).toBeVisible();
+    });
+
+    await test.step("confirming creates the lease and redirects to the deployment created in this run", async () => {
+      await configure.confirmAndDeploy();
+      await page.waitForURL(new RegExp(`/deployments/${dseq}(?:[/?]|$)`), { timeout: 180_000 });
+    });
+  });
 });
 
 test.describe("Configure deployment — draft persistence", () => {

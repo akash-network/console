@@ -7,6 +7,8 @@ import { Plus, Trash } from "iconoir-react";
 import { RegionSelect } from "@src/components/sdl/RegionSelect/RegionSelect";
 import type { PlacementType } from "@src/types";
 import { ConfigStatusIcon } from "../ConfigStatusIcon/ConfigStatusIcon";
+import type { PlacementSelectionState } from "../PlacementSelectionBadge/PlacementSelectionBadge";
+import { PlacementSelectionBadge } from "../PlacementSelectionBadge/PlacementSelectionBadge";
 import { ServiceRow } from "../ServiceRow/ServiceRow";
 import type { IndexedService } from "../usePlacementManager/usePlacementManager";
 import { usePlacementStatus } from "../usePlacementStatus/usePlacementStatus";
@@ -22,6 +24,7 @@ type Props = {
   canRemoveService: boolean;
   /** While locked the card stays selectable, but the SDL-mutating controls (name, region, add service) are disabled. */
   locked?: boolean;
+  selectionState?: PlacementSelectionState;
   onSelectService: (serviceId: string) => void;
   onAddService: () => void;
   onRemoveService: (serviceId: string) => void;
@@ -37,6 +40,7 @@ export const PlacementCard: FC<Props> = ({
   canRemove,
   canRemoveService,
   locked = false,
+  selectionState = "idle",
   onSelectService,
   onAddService,
   onRemoveService,
@@ -68,8 +72,11 @@ export const PlacementCard: FC<Props> = ({
     <div
       onClick={selectPlacement}
       className={cn("cursor-pointer rounded-lg border p-2", {
-        "border-foreground ring-[3px] ring-blue-500/25": isSelected,
-        "border-zinc-300 dark:border-zinc-700": !isSelected
+        "border-green-500/60 bg-green-50 dark:border-green-500/40 dark:bg-green-950/30": selectionState === "done",
+        "ring-[3px] ring-blue-500/20": selectionState === "done" && isSelected,
+        "border-blue-500 ring-[3px] ring-blue-500/20": selectionState === "selecting",
+        "border-foreground ring-[3px] ring-blue-500/25": selectionState === "idle" && isSelected,
+        "border-zinc-300 dark:border-zinc-700": selectionState === "idle" && !isSelected
       })}
     >
       <div className="flex flex-col gap-1 px-1 pb-2">
@@ -78,6 +85,7 @@ export const PlacementCard: FC<Props> = ({
           <fieldset disabled={locked} className="m-0 min-w-0 flex-1 border-0 p-0 disabled:pointer-events-none">
             <d.InlineEditInput name={`placements.${placementIndex}.name`} label="Placement name" suppressErrorMessage errorMessageId={errorId} />
           </fieldset>
+          <PlacementSelectionBadge state={selectionState} />
           {canRemove && (
             <button type="button" aria-label="Remove placement" onClick={removePlacement} className="shrink-0 text-muted-foreground hover:text-foreground">
               <Trash className="h-3.5 w-3.5" />

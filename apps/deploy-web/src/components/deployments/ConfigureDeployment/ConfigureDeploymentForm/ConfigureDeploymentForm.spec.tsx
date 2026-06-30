@@ -2,11 +2,11 @@ import { useFormContext, useWatch } from "react-hook-form";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { SdlBuilderFormValuesType } from "@src/types";
+import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultService } from "@src/utils/sdl/data";
 import { usePlacementManager } from "../DeploymentPane/usePlacementManager/usePlacementManager";
 import type { DEPENDENCIES } from "./ConfigureDeploymentForm";
-import { ConfigureDeploymentForm } from "./ConfigureDeploymentForm";
+import { ConfigureDeploymentForm, firstBidReadyServiceId, nextUndoneServiceId } from "./ConfigureDeploymentForm";
 
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -221,7 +221,9 @@ describe(ConfigureDeploymentForm.name, () => {
       useConfigureDraft: useConfigureDraft as never,
       useDeploymentFlow: (() => mock<ReturnType<typeof DEPENDENCIES.useDeploymentFlow>>({ phase: "configuring", dseq: null, bidStrategy: "select" })) as never,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
-      Snackbar: Snackbar as never
+      Snackbar: Snackbar as never,
+      ReviewAndDeployModal: () => null,
+      usePlacementsWithBids: () => new Set<string>()
     };
 
     render(
@@ -233,6 +235,54 @@ describe(ConfigureDeploymentForm.name, () => {
     );
 
     return { ConfigureDeploymentPanes, enqueueSnackbar, save };
+  }
+});
+
+describe(nextUndoneServiceId.name, () => {
+  it("falls back to the first undone placement's service when none have bids yet", () => {
+    const placements = [placement("p1"), placement("p2")];
+    const services = [service("s1", "p1"), service("s2", "p2")];
+    expect(nextUndoneServiceId(placements, services, { p1: "bid" }, new Set())).toBe("s2");
+  });
+
+  it("prefers the first undone placement that already has bids", () => {
+    const placements = [placement("p1"), placement("p2"), placement("p3")];
+    const services = [service("s1", "p1"), service("s2", "p2"), service("s3", "p3")];
+    expect(nextUndoneServiceId(placements, services, { p1: "bid" }, new Set(["p3"]))).toBe("s3");
+  });
+
+  it("returns null once every placement has a selection", () => {
+    const placements = [placement("p1"), placement("p2")];
+    const services = [service("s1", "p1"), service("s2", "p2")];
+    expect(nextUndoneServiceId(placements, services, { p1: "b1", p2: "b2" }, new Set(["p1", "p2"]))).toBeNull();
+  });
+
+  function placement(id: string): PlacementType {
+    return mock<PlacementType>({ id });
+  }
+  function service(id: string, placementId: string): ServiceType {
+    return mock<ServiceType>({ id, placementId, title: id });
+  }
+});
+
+describe(firstBidReadyServiceId.name, () => {
+  it("returns the first unselected placement that has bids", () => {
+    const placements = [placement("p1"), placement("p2")];
+    const services = [service("s1", "p1"), service("s2", "p2")];
+    expect(firstBidReadyServiceId(placements, services, {}, new Set(["p2"]))).toBe("s2");
+  });
+
+  it("returns null when no unselected placement has bids", () => {
+    const placements = [placement("p1")];
+    const services = [service("s1", "p1")];
+    expect(firstBidReadyServiceId(placements, services, {}, new Set())).toBeNull();
+  });
+
+  function placement(id: string): PlacementType {
+    return mock<PlacementType>({ id });
+  }
+  function service(id: string, placementId: string): ServiceType {
+    return mock<ServiceType>({ id, placementId, title: id });
   }
 });
 

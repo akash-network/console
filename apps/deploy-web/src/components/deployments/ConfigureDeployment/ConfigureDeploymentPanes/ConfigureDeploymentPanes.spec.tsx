@@ -1,6 +1,7 @@
 import { createStore, Provider as JotaiStoreProvider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 
+import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./ConfigureDeploymentPanes";
 import { ConfigureDeploymentPanes } from "./ConfigureDeploymentPanes";
 
@@ -142,9 +143,12 @@ describe("ConfigureDeploymentPanes", () => {
       selectedServiceId?: string;
       selectedPlacementName?: string;
       selectedPlacementRegion?: string;
+      selectedPlacementId?: string;
       onSelectService?: (serviceId: string) => void;
-      phase?: "configuring" | "creating" | "quoting" | "closing" | "error";
+      phase?: DeploymentFlowPhase;
       dseq?: string | null;
+      selections?: Record<string, string>;
+      onSelectProvider?: (placementId: string, bidId: string) => void;
       onCancelAndEdit?: () => void;
     } = {}
   ) {
@@ -177,9 +181,12 @@ describe("ConfigureDeploymentPanes", () => {
           selectedServiceId={input.selectedServiceId ?? ""}
           selectedPlacementName={input.selectedPlacementName ?? "dcloud"}
           selectedPlacementRegion={input.selectedPlacementRegion}
+          selectedPlacementId={input.selectedPlacementId ?? ""}
           onSelectService={input.onSelectService ?? vi.fn()}
           phase={input.phase ?? "configuring"}
           dseq={input.dseq ?? null}
+          selections={input.selections ?? {}}
+          onSelectProvider={input.onSelectProvider ?? vi.fn()}
           onCancelAndEdit={input.onCancelAndEdit ?? vi.fn()}
           dependencies={dependencies}
         />

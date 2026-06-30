@@ -14,10 +14,23 @@ interface Props {
   region?: string;
   phase: DeploymentFlowPhase;
   dseq: string | null;
+  selectedPlacementId: string;
+  selectedBidId?: string;
+  onSelectProvider: (placementId: string, bidId: string) => void;
   dependencies?: typeof DEPENDENCIES;
 }
 
-export const MarketplacePane: FC<Props> = ({ sdl, placementName, region, phase, dseq, dependencies: d = DEPENDENCIES }) => {
+export const MarketplacePane: FC<Props> = ({
+  sdl,
+  placementName,
+  region,
+  phase,
+  dseq,
+  selectedPlacementId,
+  selectedBidId,
+  onSelectProvider,
+  dependencies: d = DEPENDENCIES
+}) => {
   const { offers, isLoading, isError } = d.usePlacementOffers({ phase, dseq: dseq ?? undefined, sdl, placementName, region });
   const { query, setQuery, clear, filteredProviders, isSearchActive } = d.useProviderSearch(offers);
   const hasFailedWithoutData = isError && offers.length === 0;
@@ -39,7 +52,14 @@ export const MarketplacePane: FC<Props> = ({ sdl, placementName, region, phase, 
             Failed to load providers. Please try again.
           </p>
         ) : (
-          <d.MarketplaceProvidersTable providers={filteredProviders} isLoading={isLoading} isSearchActive={isSearchActive} onClearSearch={clear} />
+          <d.MarketplaceProvidersTable
+            providers={filteredProviders}
+            isLoading={isLoading}
+            isSearchActive={isSearchActive}
+            onClearSearch={clear}
+            selectedBidId={selectedBidId}
+            onSelect={bidId => onSelectProvider(selectedPlacementId, bidId)}
+          />
         )}
       </div>
     </section>

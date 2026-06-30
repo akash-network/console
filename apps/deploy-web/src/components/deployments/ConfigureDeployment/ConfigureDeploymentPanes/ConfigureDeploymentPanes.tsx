@@ -21,9 +21,12 @@ type Props = {
   selectedServiceId: string;
   selectedPlacementName: string;
   selectedPlacementRegion?: string;
+  selectedPlacementId: string;
   onSelectService: (serviceId: string) => void;
   phase: DeploymentFlowPhase;
   dseq: string | null;
+  selections: Record<string, string>;
+  onSelectProvider: (placementId: string, bidId: string) => void;
   onCancelAndEdit: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
@@ -34,16 +37,19 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
   selectedServiceId,
   selectedPlacementName,
   selectedPlacementRegion,
+  selectedPlacementId,
   onSelectService,
   phase,
   dseq,
+  selections,
+  onSelectProvider,
   onCancelAndEdit,
   dependencies: d = DEPENDENCIES
 }) => {
   const [activePane, setActivePane] = useState<ActivePane>("deployment");
   const [isSdlPreviewOpen, setIsSdlPreviewOpen] = useAtom(sdlStore.sdlPreviewOpen);
   const isSdlPreviewEnabled = d.useFlag("ui_sdl_preview_panel");
-  const isLocked = phase === "creating" || phase === "quoting" || phase === "closing";
+  const isLocked = phase === "creating" || phase === "quoting" || phase === "closing" || phase === "deploying";
   const isClosing = phase === "closing";
 
   return (
@@ -57,6 +63,11 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
               locked={isLocked}
               isClosing={isClosing}
               onCancelAndEdit={onCancelAndEdit}
+              phase={phase}
+              selections={selections}
+              selectedPlacementId={selectedPlacementId}
+              sdl={sdl}
+              dseq={dseq}
             />
           </div>
           <div className={cn("min-h-0 md:block", { hidden: activePane !== "configuration" })}>
@@ -64,7 +75,16 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
           </div>
         </div>
         <div className={cn("min-h-0 md:block md:border-l md:border-zinc-300 md:dark:border-zinc-700", { hidden: activePane !== "marketplace" })}>
-          <d.MarketplacePane sdl={sdl} placementName={selectedPlacementName} region={selectedPlacementRegion} phase={phase} dseq={dseq} />
+          <d.MarketplacePane
+            sdl={sdl}
+            placementName={selectedPlacementName}
+            region={selectedPlacementRegion}
+            phase={phase}
+            dseq={dseq}
+            selectedPlacementId={selectedPlacementId}
+            selectedBidId={selections[selectedPlacementId]}
+            onSelectProvider={onSelectProvider}
+          />
         </div>
         {isSdlPreviewEnabled && (
           <d.SdlPreviewPane sdl={previewSdl} isOpen={isSdlPreviewOpen} onOpen={() => setIsSdlPreviewOpen(true)} onClose={() => setIsSdlPreviewOpen(false)} />
