@@ -31,9 +31,10 @@ const formatUnitLabel = (carveout: TeeResourceCarveout) => {
 
 function ResourceLine({ label, cpu, memory }: { label: string; cpu: number; memory: number }) {
   return (
-    <div className="flex items-center justify-between gap-4 text-sm">
+    <div className="flex items-start justify-between gap-3 text-sm">
       <span className="text-muted-foreground">{label}</span>
-      <span className="flex items-center gap-2 font-medium">
+      {/* Keep each value intact (e.g. "0.01 CPU") and pinned right so a wrapping label can't break the numbers across lines. */}
+      <span className="flex shrink-0 items-center gap-3 whitespace-nowrap text-right font-medium tabular-nums">
         <span>{formatCpu(cpu)}</span>
         <span>{formatMemory(memory)}</span>
       </span>
@@ -50,7 +51,10 @@ export function ConfidentialComputeResources({ carveouts, dependencies: d = DEPE
     <div className="space-y-3">
       <div className="flex items-center gap-1 text-sm font-medium">
         <span>Confidential compute resources</span>
-        <d.CustomTooltip title="The provider injects an attestation sidecar that reserves part of the resources you declared. You still pay for the full declared amount — the reserved slice is taken from what your container can use, not from your bill.">
+        <d.CustomTooltip
+          className="max-w-[260px] p-3 text-left font-sans text-xs normal-case text-muted-foreground"
+          title="The provider injects an attestation sidecar that reserves part of the resources you declared. You still pay for the full declared amount — the reserved slice is taken from what your container can use, not from your bill."
+        >
           <Info className="h-3 w-3 cursor-help text-muted-foreground" />
         </d.CustomTooltip>
       </div>

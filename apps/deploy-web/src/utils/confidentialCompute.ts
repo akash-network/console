@@ -1,4 +1,5 @@
 import type { DeploymentGroup } from "@src/types/deployment";
+import { memoryUnits } from "@src/utils/akash/units";
 import { toBase64 } from "@src/utils/encoding";
 
 /**
@@ -16,6 +17,12 @@ export type TeeType = "cpu" | "cpu-gpu";
 
 /** On-chain group placement attribute key carrying the declared TEE type. */
 export const TEE_TYPE_ATTRIBUTE_KEY = "tee/type";
+
+/**
+ * Help link surfaced from the Confidential Compute builder section. Published by akash-network/website
+ * PR #1245 (docs: confidential compute); live once that PR merges.
+ */
+export const CONFIDENTIAL_COMPUTE_DOCS_URL = "https://akash.network/docs/learn/core-concepts/confidential-compute";
 
 /** Exact container name the provider injects (akash-network/provider, webhook/sidecar.go). */
 export const ATTESTATION_SIDECAR_SERVICE_NAME = "akash-attestation-sidecar";
@@ -142,6 +149,46 @@ export function getTeeResourceCarveouts(group: DeploymentGroup | undefined | nul
   });
 
   return carveouts;
+}
+
+/** Bytes-per-unit for the builder's memory unit suffixes (Mi/Gi/MB/GB). Unknown suffixes fall back to Mi. */
+const MEMORY_UNIT_BYTES: Record<string, number> = memoryUnits.reduce<Record<string, number>>((acc, unit) => {
+  acc[unit.suffix] = unit.value;
+  return acc;
+}, {});
+
+function memoryUnitBytes(unit: string): number {
+  return MEMORY_UNIT_BYTES[unit] ?? MEGABYTES;
+}
+
+/**
+ * Builds a single per-pod resource carve-out from the deployment builder's form state, so the builder can
+ * preview the attestation-sidecar reservation before a lease exists. CPU is declared in whole cores and
+ * memory as a value + unit suffix, so both are converted to the millicores/bytes that `computeSidecarCarveout`
+ * expects. Mirrors `getTeeResourceCarveouts` for the on-chain path.
+ */
+export function buildFormTeeCarveout(input: {
+  id: string;
+  cpu: number;
+  ram: number;
+  ramUnit: string;
+  count: number;
+  gpu?: number;
+  teeType: TeeType;
+}): TeeResourceCarveout {
+  const cpuMillicores = Math.round(input.cpu * 1000);
+  const memoryBytes = Math.round(input.ram * memoryUnitBytes(input.ramUnit));
+  const { reserved, container } = computeSidecarCarveout({ cpuMillicores, memoryBytes, teeType: input.teeType });
+
+  return {
+    id: input.id,
+    teeType: input.teeType,
+    count: input.count,
+    gpuUnits: input.gpu ?? 0,
+    requested: { cpu: cpuMillicores, memory: memoryBytes },
+    reserved,
+    container
+  };
 }
 
 interface LeaseStatusLike {

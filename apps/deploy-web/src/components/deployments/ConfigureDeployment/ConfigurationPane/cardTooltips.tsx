@@ -6,6 +6,8 @@
  * so stating them here would only risk drifting out of sync.
  */
 
+import { CONFIDENTIAL_COMPUTE_DOCS_URL } from "@src/utils/confidentialCompute";
+
 export const presetsTooltip = (
   <>
     Apply a starting point for this service's compute resources.
@@ -76,6 +78,11 @@ export const confidentialComputeTooltip = (
     <br />
     <br />
     All services in the same placement group must agree on their confidential compute type; conflicting types are rejected when the deployment is validated.
+    <br />
+    <br />
+    <a href={CONFIDENTIAL_COMPUTE_DOCS_URL} target="_blank" rel="noopener">
+      View official documentation
+    </a>
   </>
 );
 
