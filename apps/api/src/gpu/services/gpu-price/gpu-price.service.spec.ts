@@ -5,6 +5,7 @@ import type { Day } from "@akashnetwork/database/dbSchemas/base";
 import { faker } from "@faker-js/faker";
 import { subDays } from "date-fns";
 import { container } from "tsyringe";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { Registry } from "@src/billing/providers/type-registry.provider";

@@ -1,6 +1,7 @@
 import type { JwtTokenManager, JwtTokenPayload } from "@akashnetwork/chain-sdk";
 import type { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { Wallet } from "../../../billing/lib/wallet/wallet";

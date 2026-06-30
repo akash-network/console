@@ -5,7 +5,7 @@ import type { LeaseHttpService } from "@akashnetwork/http-sdk";
 import type { MongoAbility } from "@casl/ability";
 import { createMongoAbility } from "@casl/ability";
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
-import { vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
@@ -46,7 +46,7 @@ describe(ManagedSignerService.name, () => {
 
     it("throws 404 error when userWallet is not found", async () => {
       const { service, userWalletRepository, authService } = setup({
-        findOneByUserId: jest.fn().mockResolvedValue(null)
+        findOneByUserId: vi.fn().mockResolvedValue(null)
       });
 
       await expect(service.executeDerivedDecodedTxByUserId("user-123", [])).rejects.toThrow("UserWallet Not Found");
@@ -59,9 +59,9 @@ describe(ManagedSignerService.name, () => {
       const user = createUser({ userId: "user-123" });
       const wallet = createUserWallet({ userId: "user-123", feeAllowance: 0 });
       const { service } = setup({
-        findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user),
-        retrieveAndCalcFeeLimit: jest.fn().mockResolvedValue(0)
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        retrieveAndCalcFeeLimit: vi.fn().mockResolvedValue(0)
       });
 
       await expect(service.executeDerivedDecodedTxByUserId("user-123", [])).rejects.toThrow("Not enough funds to cover the transaction fee");
@@ -80,9 +80,9 @@ describe(ManagedSignerService.name, () => {
       };
 
       const { service } = setup({
-        findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user),
-        retrieveDeploymentLimit: jest.fn().mockResolvedValue(0)
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        retrieveDeploymentLimit: vi.fn().mockResolvedValue(0)
       });
 
       await expect(service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage])).rejects.toThrow("Not enough funds to cover the deployment costs");
@@ -107,15 +107,15 @@ describe(ManagedSignerService.name, () => {
       ];
 
       const { service, anonymousValidateService } = setup({
-        findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user),
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
         enabledFeatures: [],
-        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
         }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined)
       });
 
       await service.executeDerivedDecodedTxByUserId("user-123", messages);
@@ -149,10 +149,10 @@ describe(ManagedSignerService.name, () => {
       };
 
       const { service, txManagerService, balancesService } = setup({
-        findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user),
-        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue(txResult),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue(txResult),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined)
       });
 
       const result = await service.executeDerivedDecodedTxByUserId("user-123", messages);
@@ -188,18 +188,18 @@ describe(ManagedSignerService.name, () => {
         })
       };
 
-      const hasLeases = jest.fn();
+      const hasLeases = vi.fn();
       const { service, domainEvents } = setup({
-        findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user),
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
         enabledFeatures: [],
-        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
         }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined),
-        publish: jest.fn().mockResolvedValue(undefined),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
+        publish: vi.fn().mockResolvedValue(undefined),
         hasLeases
       });
 
@@ -242,15 +242,15 @@ describe(ManagedSignerService.name, () => {
       };
 
       const { service, domainEvents, balancesService, walletReloadJobService, chainErrorService } = setup({
-        findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user),
-        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
           code: 17,
           hash: "tx-hash",
           rawLog: "deployment exists"
         }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined),
-        transformChainError: jest.fn().mockResolvedValue(new Error("Deployment with provided dseq and owner already exists"))
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
+        transformChainError: vi.fn().mockResolvedValue(new Error("Deployment with provided dseq and owner already exists"))
       });
 
       await expect(service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage])).rejects.toThrow("Deployment with provided dseq");
@@ -281,10 +281,10 @@ describe(ManagedSignerService.name, () => {
       const chainError = new Error("Chain test error");
 
       const { service, chainErrorService } = setup({
-        findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user),
-        signAndBroadcastWithDerivedWallet: jest.fn().mockRejectedValue(chainError),
-        transformChainError: jest.fn().mockResolvedValue(new Error("App error"))
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockRejectedValue(chainError),
+        transformChainError: vi.fn().mockResolvedValue(new Error("App error"))
       });
 
       await expect(service.executeDerivedDecodedTxByUserId("user-123", messages)).rejects.toThrow("App error");
@@ -307,14 +307,14 @@ describe(ManagedSignerService.name, () => {
       ];
 
       const { service, userRepository } = setup({
-        findOneByUserId: jest.fn().mockResolvedValue(wallet),
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
         currentUser,
-        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
         }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined)
       });
 
       await service.executeDerivedDecodedTxByUserId("user-123", messages);
@@ -343,15 +343,15 @@ describe(ManagedSignerService.name, () => {
       ];
 
       const { service, anonymousValidateService } = setup({
-        findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user),
-        validateLeaseProvidersAuditors: jest.fn().mockResolvedValue(undefined),
-        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        validateLeaseProvidersAuditors: vi.fn().mockResolvedValue(undefined),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
         }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined)
       });
 
       await service.executeDerivedDecodedTxByUserId("user-123", messages);
@@ -380,15 +380,15 @@ describe(ManagedSignerService.name, () => {
       ];
 
       const { service, anonymousValidateService } = setup({
-        findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user),
-        validateLeaseProvidersAuditors: jest.fn().mockResolvedValue(undefined),
-        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        validateLeaseProvidersAuditors: vi.fn().mockResolvedValue(undefined),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
         }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined)
       });
 
       await service.executeDerivedDecodedTxByUserId("user-123", messages);
@@ -411,15 +411,15 @@ describe(ManagedSignerService.name, () => {
       };
 
       const { service, walletReloadJobService } = setup({
-        findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user),
-        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
         }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined),
-        decode: jest.fn().mockReturnValue({ id: { dseq: "123", owner: wallet.address } })
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
+        decode: vi.fn().mockReturnValue({ id: { dseq: "123", owner: wallet.address } })
       });
 
       await service.executeDerivedEncodedTxByUserId("user-123", [deploymentMessage]);
@@ -439,15 +439,15 @@ describe(ManagedSignerService.name, () => {
       };
 
       const { service, walletReloadJobService } = setup({
-        findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user),
-        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
         }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined),
-        decode: jest.fn().mockReturnValue({ owner: wallet.address, amount: "1000" })
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
+        decode: vi.fn().mockReturnValue({ owner: wallet.address, amount: "1000" })
       });
 
       await service.executeDerivedEncodedTxByUserId("user-123", [depositMessage]);
@@ -468,15 +468,15 @@ describe(ManagedSignerService.name, () => {
       };
 
       const { service, walletReloadJobService } = setup({
-        findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user),
-        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
         }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined),
-        decode: jest.fn().mockReturnValue({ bidId: { dseq: "123" } })
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
+        decode: vi.fn().mockReturnValue({ bidId: { dseq: "123" } })
       });
 
       await service.executeDerivedEncodedTxByUserId("user-123", [leaseMessage]);
@@ -492,7 +492,7 @@ describe(ManagedSignerService.name, () => {
       };
 
       const { service, logger } = setup({
-        decode: jest.fn().mockImplementation(() => {
+        decode: vi.fn().mockImplementation(() => {
           throw decodeError;
         })
       });
@@ -519,7 +519,7 @@ describe(ManagedSignerService.name, () => {
       const txResult = { code: 0, hash: "tx-hash", rawLog: "success" };
 
       const { service, txManagerService } = setup({
-        signAndBroadcastWithFundingWallet: jest.fn().mockResolvedValue(txResult)
+        signAndBroadcastWithFundingWallet: vi.fn().mockResolvedValue(txResult)
       });
 
       const result = await service.executeFundingTx(messages);
@@ -533,8 +533,8 @@ describe(ManagedSignerService.name, () => {
       const chainError = new Error("Chain funding error");
 
       const { service, chainErrorService } = setup({
-        signAndBroadcastWithFundingWallet: jest.fn().mockRejectedValue(chainError),
-        transformChainError: jest.fn().mockResolvedValue(new Error("Funding app error"))
+        signAndBroadcastWithFundingWallet: vi.fn().mockRejectedValue(chainError),
+        transformChainError: vi.fn().mockResolvedValue(new Error("Funding app error"))
       });
 
       await expect(service.executeFundingTx(messages)).rejects.toThrow("Funding app error");
@@ -549,14 +549,14 @@ describe(ManagedSignerService.name, () => {
       const messages: EncodeObject[] = [{ typeUrl: MsgCreateLease.$type, value: MsgCreateLease.fromPartial({ bidId: { dseq: 123 } }) }];
 
       const { service } = setup({
-        findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user),
-        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
           code: 0,
           hash: "",
           rawLog: "empty hash"
         }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined)
       });
 
       const result = await service.executeDerivedDecodedTxByUserId("user-123", messages);
@@ -584,40 +584,40 @@ describe(ManagedSignerService.name, () => {
   }) {
     const mocks = {
       userWalletRepository: mock<UserWalletRepository>({
-        accessibleBy: jest.fn().mockReturnThis(),
-        findOneByUserId: input?.findOneByUserId ?? jest.fn()
+        accessibleBy: vi.fn().mockReturnThis(),
+        findOneByUserId: input?.findOneByUserId ?? vi.fn()
       }),
       userRepository: mock<UserRepository>({
-        findById: input?.findById ?? jest.fn()
+        findById: input?.findById ?? vi.fn()
       }),
       balancesService: mock<BalancesService>({
-        refreshUserWalletLimits: input?.refreshUserWalletLimits ?? jest.fn(),
-        retrieveAndCalcFeeLimit: input?.retrieveAndCalcFeeLimit ?? jest.fn().mockResolvedValue(1000000),
-        retrieveDeploymentLimit: input?.retrieveDeploymentLimit ?? jest.fn().mockResolvedValue(5000000)
+        refreshUserWalletLimits: input?.refreshUserWalletLimits ?? vi.fn(),
+        retrieveAndCalcFeeLimit: input?.retrieveAndCalcFeeLimit ?? vi.fn().mockResolvedValue(1000000),
+        retrieveDeploymentLimit: input?.retrieveDeploymentLimit ?? vi.fn().mockResolvedValue(5000000)
       }),
       authService: mock<AuthService>({
         currentUser: input?.currentUser ?? createUser({ userId: "current-user" }),
         ability: createMongoAbility<MongoAbility>()
       }),
       chainErrorService: mock<ChainErrorService>({
-        toAppError: input?.transformChainError ?? jest.fn(async e => e)
+        toAppError: input?.transformChainError ?? vi.fn(async e => e)
       }),
       anonymousValidateService: mock<TrialValidationService>({
-        validateLeaseProvidersAuditors: input?.validateLeaseProvidersAuditors ?? jest.fn()
+        validateLeaseProvidersAuditors: input?.validateLeaseProvidersAuditors ?? vi.fn()
       }),
       txManagerService: mock<TxManagerService>({
-        signAndBroadcastWithDerivedWallet: input?.signAndBroadcastWithDerivedWallet ?? jest.fn(),
-        signAndBroadcastWithFundingWallet: input?.signAndBroadcastWithFundingWallet ?? jest.fn(),
-        getFundingWalletAddress: jest.fn().mockResolvedValue(createAkashAddress())
+        signAndBroadcastWithDerivedWallet: input?.signAndBroadcastWithDerivedWallet ?? vi.fn(),
+        signAndBroadcastWithFundingWallet: input?.signAndBroadcastWithFundingWallet ?? vi.fn(),
+        getFundingWalletAddress: vi.fn().mockResolvedValue(createAkashAddress())
       }),
       domainEvents: mock<DomainEventsService>({
-        publish: input?.publish ?? jest.fn()
+        publish: input?.publish ?? vi.fn()
       }),
       leaseHttpService: mock<LeaseHttpService>({
-        hasLeases: input?.hasLeases ?? jest.fn(async () => false)
+        hasLeases: input?.hasLeases ?? vi.fn(async () => false)
       }),
       walletReloadJobService: mock<WalletReloadJobService>({
-        scheduleImmediate: jest.fn()
+        scheduleImmediate: vi.fn()
       }),
       billingConfigService: mockConfigService<BillingConfigService>({
         FEE_ALLOWANCE_REFILL_AMOUNT: 1000000,
@@ -625,16 +625,16 @@ describe(ManagedSignerService.name, () => {
         TRIAL_ALLOWANCE_EXPIRATION_DAYS: 30
       }),
       managedUserWalletService: mock<ManagedUserWalletService>({
-        refillWalletFees: jest.fn()
+        refillWalletFees: vi.fn()
       }),
       logger: mock<LoggerService>({
-        setContext: jest.fn(),
-        error: jest.fn()
+        setContext: vi.fn(),
+        error: vi.fn()
       })
     };
 
     const registryMock = mock<Registry>({
-      decode: input?.decode ?? jest.fn()
+      decode: input?.decode ?? vi.fn()
     });
 
     const service = new ManagedSignerService(

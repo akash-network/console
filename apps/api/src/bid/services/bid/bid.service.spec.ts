@@ -1,6 +1,7 @@
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import type { BidHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
@@ -26,7 +27,7 @@ describe(BidService.name, () => {
 
       authService.ability = {} as unknown as AuthService["ability"];
       userWalletRepository.accessibleBy.mockReturnValue({
-        findFirst: jest.fn().mockResolvedValue(userWallet)
+        findFirst: vi.fn().mockResolvedValue(userWallet)
       } as unknown as ReturnType<UserWalletRepository["accessibleBy"]>);
       bidHttpService.list.mockResolvedValue(mockBids);
 
@@ -48,7 +49,7 @@ describe(BidService.name, () => {
 
       authService.ability = {} as unknown as AuthService["ability"];
       userWalletRepository.accessibleBy.mockReturnValue({
-        findFirst: jest.fn().mockResolvedValue(userWallet)
+        findFirst: vi.fn().mockResolvedValue(userWallet)
       } as unknown as ReturnType<UserWalletRepository["accessibleBy"]>);
       bidHttpService.list.mockResolvedValue([blockedBid, allowedBid]);
 
@@ -69,7 +70,7 @@ describe(BidService.name, () => {
 
       authService.ability = {} as unknown as AuthService["ability"];
       userWalletRepository.accessibleBy.mockReturnValue({
-        findFirst: jest.fn().mockResolvedValue(userWallet)
+        findFirst: vi.fn().mockResolvedValue(userWallet)
       } as unknown as ReturnType<UserWalletRepository["accessibleBy"]>);
       bidHttpService.list.mockResolvedValue([blockedBid]);
 
@@ -101,7 +102,7 @@ describe(BidService.name, () => {
 
       authService.ability = {} as unknown as AuthService["ability"];
       userWalletRepository.accessibleBy.mockReturnValue({
-        findFirst: jest.fn().mockResolvedValue(userWallet)
+        findFirst: vi.fn().mockResolvedValue(userWallet)
       } as unknown as ReturnType<UserWalletRepository["accessibleBy"]>);
       bidHttpService.list.mockResolvedValue(mockBids);
       providerRepository.getProvidersByAddressesWithAttributes.mockResolvedValue([auditedProvider1, auditedProvider2, unauditedProvider]);
@@ -139,7 +140,7 @@ describe(BidService.name, () => {
 
       authService.ability = {} as unknown as AuthService["ability"];
       userWalletRepository.accessibleBy.mockReturnValue({
-        findFirst: jest.fn().mockResolvedValue(userWallet)
+        findFirst: vi.fn().mockResolvedValue(userWallet)
       } as unknown as ReturnType<UserWalletRepository["accessibleBy"]>);
       bidHttpService.list.mockResolvedValue(mockBids);
       providerRepository.getProvidersByAddressesWithAttributes.mockResolvedValue([unauditedProvider1, unauditedProvider2]);
@@ -154,7 +155,7 @@ describe(BidService.name, () => {
 
       authService.ability = {} as unknown as AuthService["ability"];
       userWalletRepository.accessibleBy.mockReturnValue({
-        findFirst: jest.fn().mockResolvedValue(null)
+        findFirst: vi.fn().mockResolvedValue(null)
       } as unknown as ReturnType<UserWalletRepository["accessibleBy"]>);
 
       await expect(service.list("123456")).rejects.toMatchObject({
@@ -173,7 +174,7 @@ describe(BidService.name, () => {
 
       authService.ability = {} as unknown as AuthService["ability"];
       userWalletRepository.accessibleBy.mockReturnValue({
-        findFirst: jest.fn().mockResolvedValue(userWallet)
+        findFirst: vi.fn().mockResolvedValue(userWallet)
       } as unknown as ReturnType<UserWalletRepository["accessibleBy"]>);
       bidHttpService.list.mockResolvedValue([]);
 

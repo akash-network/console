@@ -1,4 +1,5 @@
 import type Stripe from "stripe";
+import { describe, expect, it } from "vitest";
 
 import { StripeErrorService } from "./stripe-error.service";
 

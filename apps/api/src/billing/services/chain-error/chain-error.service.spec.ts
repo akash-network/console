@@ -3,6 +3,7 @@ import type { EncodeObject } from "@cosmjs/proto-signing";
 import { AxiosError, AxiosHeaders } from "axios";
 import { BadGateway, BadRequest, PaymentRequired, ServiceUnavailable } from "http-errors";
 import type { Mock } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 

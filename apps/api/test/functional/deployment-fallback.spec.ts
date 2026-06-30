@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import { app, initDb } from "@src/rest-app";
 import type { RestAkashDeploymentListResponse } from "@src/types/rest/akashDeploymentListResponse";
 import { deploymentVersion } from "@src/utils/constants";

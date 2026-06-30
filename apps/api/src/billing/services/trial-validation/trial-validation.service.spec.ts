@@ -2,6 +2,7 @@ import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { BidHttpService } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";

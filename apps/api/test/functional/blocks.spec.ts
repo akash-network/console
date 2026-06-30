@@ -1,5 +1,6 @@
 import type { AkashBlock } from "@akashnetwork/database/dbSchemas/akash";
 import { addMinutes, addSeconds, getUnixTime, subSeconds } from "date-fns";
+import { describe, expect, it } from "vitest";
 
 import { app, initDb } from "@src/rest-app";
 

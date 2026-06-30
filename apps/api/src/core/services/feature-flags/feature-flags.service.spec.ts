@@ -1,4 +1,5 @@
 import type { Unleash, UnleashConfig } from "unleash-client";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { ClientInfoContextVariables } from "@src/middlewares/clientInfoMiddleware";
@@ -15,7 +16,7 @@ describe(FeatureFlagsService.name, () => {
       UNLEASH_SERVER_API_URL: "http://localhost:4242/api",
       UNLEASH_SERVER_API_TOKEN: "default:development"
     } as const;
-    const createClient = jest.fn(() => createUnleashMockClient());
+    const createClient = vi.fn(() => createUnleashMockClient());
     await setup({
       config,
       createClient
@@ -30,7 +31,7 @@ describe(FeatureFlagsService.name, () => {
   });
 
   it("skips initialization if FEATURE_FLAGS_ENABLE_ALL is true", async () => {
-    const createClient = jest.fn(() => createUnleashMockClient());
+    const createClient = vi.fn(() => createUnleashMockClient());
     const service = await setup({
       config: { FEATURE_FLAGS_ENABLE_ALL: true },
       skipInitialization: true,
@@ -50,7 +51,7 @@ describe(FeatureFlagsService.name, () => {
 
   it("calls onChanged callback when feature flag is changed", async () => {
     const client = createUnleashMockClient({
-      isEnabledFeatureFlag: jest.fn(() => false)
+      isEnabledFeatureFlag: vi.fn(() => false)
     });
     const service = await setup({ createClient: () => client });
 
@@ -74,9 +75,9 @@ describe(FeatureFlagsService.name, () => {
   describe("isEnabled", () => {
     it("passes user and environment specific context to Unleash", async () => {
       const client = createUnleashMockClient({
-        isEnabledFeatureFlag: jest.fn(() => false)
+        isEnabledFeatureFlag: vi.fn(() => false)
       });
-      const createClient = jest.fn(() => client);
+      const createClient = vi.fn(() => client);
       const currentUser = { id: "123" };
       const config = {
         DEPLOYMENT_ENV: "development",
@@ -104,9 +105,9 @@ describe(FeatureFlagsService.name, () => {
 
     it("includes sessionId from Unleash cookie in context", async () => {
       const client = createUnleashMockClient({
-        isEnabledFeatureFlag: jest.fn(() => false)
+        isEnabledFeatureFlag: vi.fn(() => false)
       });
-      const createClient = jest.fn(() => client);
+      const createClient = vi.fn(() => client);
       const currentUser = { id: "123" };
       const config = {
         DEPLOYMENT_ENV: "development",
@@ -134,7 +135,7 @@ describe(FeatureFlagsService.name, () => {
     });
 
     it("returns false when feature flag is disabled", async () => {
-      const createClient = jest.fn(() =>
+      const createClient = vi.fn(() =>
         createUnleashMockClient({
           isEnabledFeatureFlag: () => false
         })
@@ -146,7 +147,7 @@ describe(FeatureFlagsService.name, () => {
     });
 
     it("return true when feature flag is enabled", async () => {
-      const createClient = jest.fn(() =>
+      const createClient = vi.fn(() =>
         createUnleashMockClient({
           isEnabledFeatureFlag: () => true
         })

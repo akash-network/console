@@ -5,6 +5,7 @@ import nock from "nock";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { container } from "tsyringe";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.service";
@@ -51,7 +52,7 @@ describe("Deployments API", () => {
     allWallets = [];
     currentHeight = faker.number.int({ min: 1000000, max: 10000000 });
 
-    jest.spyOn(userRepository, "findById").mockImplementation(async (id: string) => {
+    vi.spyOn(userRepository, "findById").mockImplementation(async (id: string) => {
       return Promise.resolve(
         knownUsers[id]
           ? {
@@ -63,13 +64,13 @@ describe("Deployments API", () => {
       );
     });
 
-    jest.spyOn(apiKeyAuthService, "getAndValidateApiKeyFromHeader").mockImplementation(async (key: string | undefined) => {
+    vi.spyOn(apiKeyAuthService, "getAndValidateApiKeyFromHeader").mockImplementation(async (key: string | undefined) => {
       return knownApiKeys[key!];
     });
 
-    jest.spyOn(blockHttpService, "getCurrentHeight").mockResolvedValue(currentHeight);
+    vi.spyOn(blockHttpService, "getCurrentHeight").mockResolvedValue(currentHeight);
 
-    jest.spyOn(userWalletRepository, "findOneBy").mockImplementation(async (query: Partial<UserWalletOutput> | undefined) => {
+    vi.spyOn(userWalletRepository, "findOneBy").mockImplementation(async (query: Partial<UserWalletOutput> | undefined) => {
       return Promise.resolve(allWallets.find(wallet => wallet.address === query?.address));
     });
 
@@ -85,27 +86,27 @@ describe("Deployments API", () => {
       }
     } as unknown as UserWalletRepository;
 
-    jest.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(fakeWalletRepository);
+    vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(fakeWalletRepository);
 
-    jest.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValue({
+    vi.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValue({
       code: 200,
       transactionHash: "fake-transaction-hash",
       hash: "fake-transaction-hash",
       rawLog: "fake-raw-log"
     });
 
-    jest.spyOn(providerService, "sendManifest").mockResolvedValue(true);
-    jest.spyOn(providerService, "getLeaseStatus").mockResolvedValue(createLeaseStatus());
+    vi.spyOn(providerService, "sendManifest").mockResolvedValue(true);
+    vi.spyOn(providerService, "getLeaseStatus").mockResolvedValue(createLeaseStatus());
   });
 
   afterEach(async () => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
     nock.cleanAll();
   });
 
   afterAll(async () => {
     await container.dispose();
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
     nock.cleanAll();
   });
 
@@ -573,7 +574,7 @@ describe("Deployments API", () => {
         rawLog: "success"
       };
 
-      jest.spyOn(signerService, "executeDecodedTxByUserWallet").mockResolvedValueOnce(mockTxResult);
+      vi.spyOn(signerService, "executeDecodedTxByUserWallet").mockResolvedValueOnce(mockTxResult);
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "DELETE",
@@ -593,7 +594,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret } = await mockUser();
       const dseq = "1234";
 
-      jest.spyOn(deploymentReaderService, "findByWalletAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
+      vi.spyOn(deploymentReaderService, "findByWalletAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "DELETE",
@@ -680,7 +681,7 @@ describe("Deployments API", () => {
         rawLog: "success"
       };
 
-      jest.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
+      vi.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
 
       const response = await app.request(`/v1/deposit-deployment`, {
         method: "POST",
@@ -700,7 +701,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret } = await mockUser();
       const dseq = "1234";
 
-      jest.spyOn(deploymentReaderService, "findByWalletAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
+      vi.spyOn(deploymentReaderService, "findByWalletAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
 
       const response = await app.request(`/v1/deposit-deployment`, {
         method: "POST",
@@ -776,7 +777,7 @@ describe("Deployments API", () => {
         rawLog: "success"
       };
 
-      jest.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
+      vi.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
 
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
@@ -803,7 +804,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret } = await mockUser();
       const dseq = "1234";
 
-      jest.spyOn(deploymentReaderService, "findByWalletAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
+      vi.spyOn(deploymentReaderService, "findByWalletAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
 
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 

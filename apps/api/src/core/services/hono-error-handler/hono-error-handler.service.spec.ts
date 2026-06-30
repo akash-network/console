@@ -1,5 +1,6 @@
 import { HTTPException } from "hono/http-exception";
 import createHttpError from "http-errors";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 import { z } from "zod";
 
@@ -112,7 +113,7 @@ describe(HonoErrorHandlerService.name, () => {
   function setup() {
     const service = new HonoErrorHandlerService();
     const mockContext = mock<AppContext>({
-      body: jest.fn(() => new Response())
+      body: vi.fn(() => new Response())
     });
 
     mockContext.json.mockImplementation(((data: unknown, options?: { status?: number }) => {

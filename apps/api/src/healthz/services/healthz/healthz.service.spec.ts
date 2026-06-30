@@ -1,5 +1,6 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import { millisecondsInMinute } from "date-fns";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DbHealthcheck, JobQueueHealthcheck } from "@src/core";
@@ -106,7 +107,7 @@ describe(HealthzService.name, () => {
     });
 
     it("caches liveness results and retries after TTL expires", async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const { service, dbHealthcheck, jobQueueHealthcheck } = setup();
 
       // First call - both should be called
@@ -120,14 +121,14 @@ describe(HealthzService.name, () => {
       expect(jobQueueHealthcheck.ping).toHaveBeenCalledTimes(1);
 
       // Advance time beyond TTL
-      jest.advanceTimersByTime(millisecondsInMinute + 1);
+      vi.advanceTimersByTime(millisecondsInMinute + 1);
 
       // Call after TTL - should make new calls
       await service.getLivenessStatus();
       expect(dbHealthcheck.ping).toHaveBeenCalledTimes(2);
       expect(jobQueueHealthcheck.ping).toHaveBeenCalledTimes(2);
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it("does not tolerate failure if has not succeeded at least once", async () => {
@@ -146,13 +147,13 @@ describe(HealthzService.name, () => {
     });
 
     it("tolerates failure for the 1st time and waits for the cache to expire until the next check", async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const { service, dbHealthcheck, jobQueueHealthcheck } = setup();
 
       await service.getLivenessStatus();
 
       // wait for TTL to expire
-      jest.advanceTimersByTime(millisecondsInMinute + 1);
+      vi.advanceTimersByTime(millisecondsInMinute + 1);
       dbHealthcheck.ping.mockRejectedValue(new Error("Postgres is not ready"));
 
       expect(await service.getLivenessStatus()).toEqual({
@@ -177,7 +178,7 @@ describe(HealthzService.name, () => {
       expect(jobQueueHealthcheck.ping).toHaveBeenCalledTimes(2);
 
       // wait for TTL to expire
-      jest.advanceTimersByTime(millisecondsInMinute + 1);
+      vi.advanceTimersByTime(millisecondsInMinute + 1);
 
       expect(await service.getLivenessStatus()).toEqual({
         status: "error",
@@ -189,14 +190,14 @@ describe(HealthzService.name, () => {
       expect(dbHealthcheck.ping).toHaveBeenCalledTimes(3);
       expect(jobQueueHealthcheck.ping).toHaveBeenCalledTimes(3);
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
   });
 
   function setup() {
     const logger = mock<LoggerService>();
-    const dbHealthcheck = mock<DbHealthcheck>({ ping: jest.fn().mockResolvedValue(undefined) });
-    const jobQueueHealthcheck = mock<JobQueueHealthcheck>({ ping: jest.fn().mockResolvedValue(undefined) });
+    const dbHealthcheck = mock<DbHealthcheck>({ ping: vi.fn().mockResolvedValue(undefined) });
+    const jobQueueHealthcheck = mock<JobQueueHealthcheck>({ ping: vi.fn().mockResolvedValue(undefined) });
     const healthzService = new HealthzService(dbHealthcheck, jobQueueHealthcheck, logger);
 
     return {

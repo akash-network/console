@@ -1,5 +1,6 @@
 import { faker } from "@faker-js/faker";
 import { Ok } from "ts-results";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { createUser } from "../../../../test/seeders/user.seeder";

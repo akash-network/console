@@ -2,6 +2,7 @@ import "@test/mocks/logger-service.mock";
 
 import type { BlockHttpService as BlockHttpServiceCommon } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { BlockHttpService } from "./block-http.service";

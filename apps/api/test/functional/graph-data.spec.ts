@@ -1,6 +1,7 @@
 import type { Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import { subDays } from "date-fns";
 import { container } from "tsyringe";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { AuthorizedGraphDataNames } from "@src/dashboard/services/stats/stats.types";
 import { app, initDb } from "@src/rest-app";

@@ -2,6 +2,7 @@ import "@test/mocks/logger-service.mock";
 
 import { ForbiddenError } from "@casl/ability";
 import { faker } from "@faker-js/faker";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";

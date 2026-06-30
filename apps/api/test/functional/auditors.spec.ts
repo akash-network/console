@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import type { AuditorListResponse } from "@src/provider/http-schemas/auditor.schema";
 import { app } from "@src/rest-app";
 

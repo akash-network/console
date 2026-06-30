@@ -1,4 +1,5 @@
 import { container } from "tsyringe";
+import { describe, expect, it } from "vitest";
 
 import { TransactionRepository } from "./transaction.repository";
 

@@ -2,6 +2,7 @@ import "@test/mocks/logger-service.mock";
 
 import { faker } from "@faker-js/faker";
 import { createHash } from "crypto";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type {

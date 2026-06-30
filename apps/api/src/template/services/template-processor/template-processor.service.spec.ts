@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import type { Category, TemplateSource } from "../../types/template";
 import { TemplateProcessorService } from "./template-processor.service";
 

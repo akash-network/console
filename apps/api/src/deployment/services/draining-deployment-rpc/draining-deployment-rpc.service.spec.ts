@@ -2,6 +2,7 @@ import "@test/mocks/logger-service.mock";
 
 import type { DeploymentHttpService, DeploymentListResponse, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { LoggerService } from "@src/core";

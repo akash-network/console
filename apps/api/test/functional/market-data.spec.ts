@@ -1,5 +1,6 @@
 import nock from "nock";
 import { container } from "tsyringe";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { CORE_CONFIG } from "@src/core";
 import { app } from "@src/rest-app";

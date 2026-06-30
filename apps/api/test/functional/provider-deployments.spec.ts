@@ -2,6 +2,7 @@ import type { Deployment, Provider } from "@akashnetwork/database/dbSchemas/akas
 import map from "lodash/map";
 import nock from "nock";
 import { container } from "tsyringe";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { cacheEngine } from "@src/caching/helpers";
 import { app, initDb } from "@src/rest-app";

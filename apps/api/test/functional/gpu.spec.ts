@@ -6,6 +6,7 @@ import type { ProviderSnapshot, ProviderSnapshotNode } from "@akashnetwork/datab
 import type { Day, Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { faker } from "@faker-js/faker";
 import nock from "nock";
+import { afterAll, describe, expect, it } from "vitest";
 
 import type { ListGpuResponse } from "@src/gpu/http-schemas/gpu.schema";
 import { app, initDb } from "@src/rest-app";

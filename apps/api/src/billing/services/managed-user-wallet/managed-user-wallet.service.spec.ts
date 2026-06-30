@@ -3,6 +3,7 @@ import type { EncodeObject } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
 import addDays from "date-fns/addDays";
 import subDays from "date-fns/subDays";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { BillingConfig } from "@src/billing/providers";

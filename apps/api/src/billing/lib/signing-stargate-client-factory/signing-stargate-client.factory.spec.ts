@@ -2,6 +2,7 @@ import type { SigningStargateClient } from "@cosmjs/stargate";
 import type { HttpClient } from "@cosmjs/tendermint-rpc";
 import type { Comet38Client } from "@cosmjs/tendermint-rpc";
 import { faker } from "@faker-js/faker";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { Wallet } from "../wallet/wallet";

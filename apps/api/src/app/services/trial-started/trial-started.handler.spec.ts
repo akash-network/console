@@ -1,5 +1,6 @@
 import { faker } from "@faker-js/faker";
 import { addDays, subDays } from "date-fns";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
@@ -18,7 +19,7 @@ describe(TrialStartedHandler.name, () => {
   describe("handle", () => {
     it("returns early when user is not found", async () => {
       const { handler, userRepository, notificationService, jobQueueManager, logger } = setup({
-        findUserById: jest.fn().mockResolvedValue(null)
+        findUserById: vi.fn().mockResolvedValue(null)
       });
 
       await handler.handle({ userId: "non-existent-user", version: 1 });
@@ -38,7 +39,7 @@ describe(TrialStartedHandler.name, () => {
       });
 
       const { handler, userRepository, notificationService, jobQueueManager, logger } = setup({
-        findUserById: jest.fn().mockResolvedValue(user),
+        findUserById: vi.fn().mockResolvedValue(user),
         trialExpirationDays: 30
       });
 
@@ -64,7 +65,7 @@ describe(TrialStartedHandler.name, () => {
       const deploymentLifetimeInHours = faker.number.int({ min: 1, max: 24 });
 
       const { handler, userRepository, notificationService, jobQueueManager, logger } = setup({
-        findUserById: jest.fn().mockResolvedValue(user),
+        findUserById: vi.fn().mockResolvedValue(user),
         trialExpirationDays: 30,
         initialCredits,
         deploymentLifetimeInHours
@@ -104,7 +105,7 @@ describe(TrialStartedHandler.name, () => {
       const trialEndsAt = addDays(user.createdAt!, trialDays);
 
       const { handler, jobQueueManager, paymentLink } = setup({
-        findUserById: jest.fn().mockResolvedValue(user),
+        findUserById: vi.fn().mockResolvedValue(user),
         trialExpirationDays: trialDays
       });
 
@@ -180,7 +181,7 @@ describe(TrialStartedHandler.name, () => {
       const trialEndsAt = addDays(user.createdAt!, trialDays);
 
       const { handler, jobQueueManager } = setup({
-        findUserById: jest.fn().mockResolvedValue(user),
+        findUserById: vi.fn().mockResolvedValue(user),
         trialExpirationDays: trialDays
       });
 
@@ -216,13 +217,13 @@ describe(TrialStartedHandler.name, () => {
     const paymentLink = "https://console.akash.network/billing?openPayment=true";
     const mocks = {
       notificationService: mock<NotificationService>({
-        createNotification: input?.createNotification ?? jest.fn().mockResolvedValue(undefined)
+        createNotification: input?.createNotification ?? vi.fn().mockResolvedValue(undefined)
       }),
       jobQueueManager: mock<JobQueueService>({
-        enqueue: input?.enqueueJob ?? jest.fn().mockResolvedValue(undefined)
+        enqueue: input?.enqueueJob ?? vi.fn().mockResolvedValue(undefined)
       }),
       userRepository: mock<UserRepository>({
-        findById: input?.findUserById ?? jest.fn()
+        findById: input?.findUserById ?? vi.fn()
       }),
       logger: mock<LoggerService>(),
       coreConfig: mockConfig<BillingConfigService>({

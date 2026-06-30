@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";

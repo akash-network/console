@@ -1,5 +1,6 @@
 import type { AkashBlock, Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import { subHours } from "date-fns";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { app, initDb } from "@src/rest-app";
 

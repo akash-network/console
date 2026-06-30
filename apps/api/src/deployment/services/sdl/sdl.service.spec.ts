@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import type { BillingConfig } from "@src/billing/providers";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";

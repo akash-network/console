@@ -1,5 +1,6 @@
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { container } from "tsyringe";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { CHAIN_DB } from "@src/chain";
 import { PROVIDER_CONFIG } from "@src/provider/providers/config.provider";

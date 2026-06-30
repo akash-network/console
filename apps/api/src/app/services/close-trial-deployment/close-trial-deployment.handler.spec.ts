@@ -1,5 +1,5 @@
 import type { DeploymentHttpService } from "@akashnetwork/http-sdk";
-import { describe, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";

@@ -1,6 +1,7 @@
 import type { Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import { subDays } from "date-fns";
 import { container } from "tsyringe";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { app, initDb } from "@src/rest-app";
 
@@ -246,8 +247,8 @@ describe("Provider Graph Data", () => {
       const testYesterday = subDays(today, 1);
 
       // Mock the current time to match the snapshot time
-      jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] });
-      jest.setSystemTime(today);
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "Date"] });
+      vi.setSystemTime(today);
 
       try {
         await createProviderSnapshot({
@@ -292,7 +293,7 @@ describe("Provider Graph Data", () => {
         expect(data.snapshots[data.snapshots.length - 1].date).toBe(formatUTCDate(testYesterday) + "T00:00:00.000Z");
       } finally {
         // Restore real timers
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
   });

@@ -1,5 +1,6 @@
 import { faker } from "@faker-js/faker";
 import { addMilliseconds, millisecondsInHour } from "date-fns";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
@@ -373,18 +374,18 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
     const walletSettingRepository = mock<WalletSettingRepository>();
     const balancesService = mock<BalancesService>({
-      ensure2floatingDigits: jest.fn().mockImplementation((amount: number) => amount)
+      ensure2floatingDigits: vi.fn().mockImplementation((amount: number) => amount)
     });
     const walletReloadJobService = mock<WalletReloadJobService>();
     const drainingDeploymentService = mock<DrainingDeploymentService>();
     const stripeService = mock<StripeService>();
     const instrumentationService = mock<WalletBalanceReloadCheckInstrumentationService>({
-      recordJobExecution: jest.fn(),
-      recordReloadTriggered: jest.fn(),
-      recordReloadSkipped: jest.fn(),
-      recordReloadFailed: jest.fn(),
-      recordValidationError: jest.fn(),
-      recordSchedulingError: jest.fn()
+      recordJobExecution: vi.fn(),
+      recordReloadTriggered: vi.fn(),
+      recordReloadSkipped: vi.fn(),
+      recordReloadFailed: vi.fn(),
+      recordValidationError: vi.fn(),
+      recordSchedulingError: vi.fn()
     });
 
     const balance = input?.balance ?? 50.0;

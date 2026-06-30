@@ -1,6 +1,7 @@
 import type { Validator } from "@akashnetwork/database/dbSchemas/base";
 import nock from "nock";
 import { container } from "tsyringe";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { CORE_CONFIG } from "@src/core";
 import { app, initDb } from "@src/rest-app";

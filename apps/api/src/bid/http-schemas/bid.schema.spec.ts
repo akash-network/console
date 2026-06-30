@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import { BidResponseSchema } from "./bid.schema";
 
 import { createBid } from "@test/seeders/bid.seeder";

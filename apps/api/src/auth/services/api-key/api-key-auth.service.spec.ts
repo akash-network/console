@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
 
 import type { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";

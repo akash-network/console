@@ -2,6 +2,7 @@ import "@test/mocks/logger-service.mock";
 
 import { faker } from "@faker-js/faker";
 import type { Counter } from "@opentelemetry/api";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { LoggerService, MetricsService } from "@src/core";

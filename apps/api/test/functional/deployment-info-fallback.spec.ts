@@ -1,6 +1,7 @@
 import type { Deployment } from "@akashnetwork/database/dbSchemas/akash";
 import type { DeploymentGroup } from "@akashnetwork/database/dbSchemas/akash";
 import type { DeploymentGroupResource } from "@akashnetwork/database/dbSchemas/akash";
+import { describe, expect, it } from "vitest";
 
 import { app, initDb } from "@src/rest-app";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest/akashDeploymentInfoResponse";

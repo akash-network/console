@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { BillingConfig } from "@src/billing/providers";

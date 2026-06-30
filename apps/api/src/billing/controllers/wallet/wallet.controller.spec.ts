@@ -2,6 +2,7 @@ import type { MongoAbility } from "@casl/ability";
 import { createMongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { container as rootContainer } from "tsyringe";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "@src/auth/services/auth.service";
@@ -117,7 +118,7 @@ describe("WalletController", () => {
     startTrialResult?: Awaited<ReturnType<WalletInitializerService["startTrial"]>>;
     startTrialError?: Error;
   }) {
-    const startTrial = jest.fn();
+    const startTrial = vi.fn();
     if (input?.startTrialError) {
       startTrial.mockRejectedValue(input.startTrialError);
     } else if (input?.startTrialResult) {
@@ -134,18 +135,18 @@ describe("WalletController", () => {
       useValue: mock<WalletInitializerService>({ startTrial })
     });
     rootContainer.register(BillingConfigService, {
-      useValue: mock<BillingConfigService>({ get: jest.fn().mockReturnValue("uakt") })
+      useValue: mock<BillingConfigService>({ get: vi.fn().mockReturnValue("uakt") })
     });
     rootContainer.register(ManagedSignerService, { useValue: mock<ManagedSignerService>() });
     rootContainer.register(RefillService, { useValue: mock<RefillService>() });
     rootContainer.register(WalletReaderService, {
-      useValue: mock<WalletReaderService>({ getWallets: jest.fn().mockResolvedValue(input?.wallets ?? []) })
+      useValue: mock<WalletReaderService>({ getWallets: vi.fn().mockResolvedValue(input?.wallets ?? []) })
     });
     rootContainer.register(BalancesService, { useValue: mock<BalancesService>() });
     rootContainer.register(UserWalletRepository, { useValue: mock<UserWalletRepository>() });
     rootContainer.register(TrialValidationService, {
       useValue: mock<TrialValidationService>({
-        getTopUpMinAmountUsd: jest.fn(wallet => (wallet?.isTrialing ? 100 : 20))
+        getTopUpMinAmountUsd: vi.fn(wallet => (wallet?.isTrialing ? 100 : 20))
       })
     });
 

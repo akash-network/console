@@ -118,7 +118,6 @@
     "@types/blocked-at": "^1.0.4",
     "@types/http-assert": "^1.5.5",
     "@types/http-errors": "^2.0.4",
-    "@types/jest": "^29.5.12",
     "@types/js-yaml": "^4.0.9",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/lodash": "^4.17.0",

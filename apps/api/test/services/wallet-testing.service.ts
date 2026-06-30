@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker";
 import type { Hono } from "hono";
 import { decode } from "jsonwebtoken";
 import { container } from "tsyringe";
+import { vi } from "vitest";
 
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { AuthService } from "@src/auth/services/auth.service";
@@ -29,7 +30,7 @@ export class WalletTestingService<T extends Hono<any>> {
   }
 
   private async createWallet(user: UserOutput) {
-    jest.spyOn(container.resolve(DomainEventsService), "publish").mockResolvedValue(null);
+    vi.spyOn(container.resolve(DomainEventsService), "publish").mockResolvedValue(null);
 
     return container.resolve(ExecutionContextService).runWithContext(async () => {
       container.resolve(AuthService).currentUser = user;
@@ -115,7 +116,7 @@ export class WalletTestingService<T extends Hono<any>> {
 
     const decoded = decode(access_token) as { sub: string; email: string; nickname: string; email_verified: boolean };
 
-    jest.spyOn(container.resolve(NotificationService), "createDefaultChannel").mockResolvedValue(undefined);
+    vi.spyOn(container.resolve(NotificationService), "createDefaultChannel").mockResolvedValue(undefined);
     const userResponse = await this.app.request(`/v1/register-user`, {
       method: "POST",
       headers: new Headers({

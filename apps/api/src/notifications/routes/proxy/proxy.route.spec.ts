@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
@@ -71,7 +72,7 @@ describe("createProxy", () => {
 
     const authService = mock<AuthService>({
       currentUser: { id: userId },
-      throwUnlessCan: jest.fn().mockReturnValue(undefined)
+      throwUnlessCan: vi.fn().mockReturnValue(undefined)
     });
     const owner = createAkashAddress();
 
@@ -87,7 +88,7 @@ describe("createProxy", () => {
       NOTIFICATIONS_API_BASE_URL: "https://proxy.example"
     };
 
-    const fetchMock = jest.fn().mockResolvedValue(new Response(null, { status: method === "GET" ? 204 : 200 }));
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: method === "GET" ? 204 : 200 }));
 
     const handler = createProxy(authService, userWalletRepository, config, fetchMock);
 
@@ -100,7 +101,7 @@ describe("createProxy", () => {
         },
         text: async () => JSON.stringify(body)
       },
-      get: jest.fn().mockReturnValue(undefined)
+      get: vi.fn().mockReturnValue(undefined)
     } as unknown as AppContext;
 
     return {

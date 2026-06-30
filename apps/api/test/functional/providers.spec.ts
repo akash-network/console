@@ -4,6 +4,7 @@ import subDays from "date-fns/subDays";
 import map from "lodash/map";
 import nock from "nock";
 import { container } from "tsyringe";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { cacheEngine } from "@src/caching/helpers";
 import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";

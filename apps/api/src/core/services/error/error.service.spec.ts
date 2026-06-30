@@ -2,6 +2,7 @@ import "@test/mocks/logger-service.mock";
 
 import type { LoggerService } from "@akashnetwork/logging";
 import { faker } from "@faker-js/faker";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { ErrorService } from "./error.service";
@@ -10,7 +11,7 @@ describe(ErrorService.name, () => {
   it("should execute callback and return its result", async () => {
     const { service } = setup();
     const result = faker.lorem.sentence();
-    const cb = jest.fn().mockResolvedValue(result);
+    const cb = vi.fn().mockResolvedValue(result);
     const extraLog = { test: "test" };
 
     const actual = await service.execWithErrorHandler(extraLog, cb);
@@ -22,9 +23,9 @@ describe(ErrorService.name, () => {
   it("should handle errors and call onError handler", async () => {
     const { service, logger } = setup();
     const error = new Error("test");
-    const cb = jest.fn().mockRejectedValue(error);
+    const cb = vi.fn().mockRejectedValue(error);
     const extraLog = { test: "test" };
-    const onError = jest.fn();
+    const onError = vi.fn();
 
     const actual = await service.execWithErrorHandler(extraLog, cb, onError);
 
@@ -37,7 +38,7 @@ describe(ErrorService.name, () => {
   it("should handle errors without onError handler", async () => {
     const { service, logger } = setup();
     const error = new Error("test");
-    const cb = jest.fn().mockRejectedValue(error);
+    const cb = vi.fn().mockRejectedValue(error);
     const extraLog = { test: "test" };
 
     const actual = await service.execWithErrorHandler(extraLog, cb);

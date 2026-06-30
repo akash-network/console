@@ -1,6 +1,7 @@
 import { faker } from "@faker-js/faker";
 import type Stripe from "stripe";
 import { container } from "tsyringe";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "@src/auth/services/auth.service";
