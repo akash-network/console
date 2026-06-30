@@ -1,5 +1,6 @@
 import type { SDLInput } from "@akashnetwork/chain-sdk";
 import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import { describe, expect, it } from "vitest";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { BlockedGpuService } from "./blocked-gpu.service";

@@ -1,4 +1,5 @@
 import { setTimeout as wait } from "node:timers/promises";
+import { describe, expect, it, vi } from "vitest";
 
 import { createFilterUnique, forEachInChunks } from "./array";
 
@@ -22,7 +23,7 @@ describe("array helpers", () => {
   describe(forEachInChunks.name, () => {
     it("iterates over the array in chunks with specified time limit per chunk", async () => {
       const array = Array.from({ length: 100_000 }, (_, i) => i);
-      const anotherTask = jest.fn();
+      const anotherTask = vi.fn();
       let currentIndex = 0;
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars

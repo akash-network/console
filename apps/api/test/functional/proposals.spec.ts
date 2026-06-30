@@ -1,5 +1,6 @@
 import nock from "nock";
 import { container } from "tsyringe";
+import { afterAll, describe, expect, it } from "vitest";
 
 import { CORE_CONFIG } from "@src/core";
 import type { GetProposalByIdResponse, GetProposalListResponse } from "@src/proposal/http-schemas/proposal.schema";

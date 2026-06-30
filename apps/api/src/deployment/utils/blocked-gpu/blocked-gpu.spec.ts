@@ -1,5 +1,6 @@
 import type { SDLInput } from "@akashnetwork/chain-sdk";
 import type { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import { describe, expect, it } from "vitest";
 
 import { extractRequestedGpusFromGroupSpecs, extractRequestedGpusFromSdl, findBlockedGpus, formatGpuLabel, toBlockedGpuSet } from "./blocked-gpu";
 

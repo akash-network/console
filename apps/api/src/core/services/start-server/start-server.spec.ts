@@ -4,6 +4,7 @@ import EventEmitter from "events";
 import type { Hono } from "hono";
 import { setTimeout as delay } from "timers/promises";
 import type { DependencyContainer } from "tsyringe";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AppInitializer } from "@src/core/providers/app-initializer";
@@ -31,7 +32,7 @@ describe("startServer", () => {
   });
 
   it("call beforeStart callback before running APP_INITIALIZERs", async () => {
-    const beforeStart = jest.fn().mockResolvedValue(undefined);
+    const beforeStart = vi.fn().mockResolvedValue(undefined);
     const { start, container } = setup({ beforeStart });
 
     await start();
@@ -40,10 +41,7 @@ describe("startServer", () => {
   });
 
   it("resolves all APP_INITIALIZER services and call their ON_APP_START methods", async () => {
-    const initializers: AppInitializer[] = [
-      { [ON_APP_START]: jest.fn().mockResolvedValue(undefined) },
-      { [ON_APP_START]: jest.fn().mockResolvedValue(undefined) }
-    ];
+    const initializers: AppInitializer[] = [{ [ON_APP_START]: vi.fn().mockResolvedValue(undefined) }, { [ON_APP_START]: vi.fn().mockResolvedValue(undefined) }];
     const { start, container } = setup({ initializers });
 
     await start();
@@ -56,7 +54,7 @@ describe("startServer", () => {
   it("registers shutdown handlers for process events", async () => {
     const { start, processEvents } = setup({});
 
-    jest.spyOn(processEvents, "on");
+    vi.spyOn(processEvents, "on");
     await start();
 
     expect(processEvents.on).toHaveBeenCalledWith("SIGTERM", expect.any(Function));
@@ -78,7 +76,7 @@ describe("startServer", () => {
     const { start, container, processEvents } = setup();
 
     const server = await start();
-    const closeServer = jest.spyOn(server!, "close");
+    const closeServer = vi.spyOn(server!, "close");
     processEvents.emit("SIGTERM");
     await delay(10);
 
@@ -90,7 +88,7 @@ describe("startServer", () => {
     const { start, container, processEvents } = setup();
 
     const server = await start();
-    const closeServer = jest.spyOn(server!, "close");
+    const closeServer = vi.spyOn(server!, "close");
     processEvents.emit("SIGINT");
     await delay(10);
 
@@ -102,7 +100,7 @@ describe("startServer", () => {
     const { start, container, processEvents } = setup();
 
     const server = await start();
-    const closeServer = jest.spyOn(server!, "close");
+    const closeServer = vi.spyOn(server!, "close");
     processEvents.emit("exit");
     await delay(10);
 
@@ -114,7 +112,7 @@ describe("startServer", () => {
     const { start, container, processEvents } = setup();
 
     const server = await start();
-    const closeServer = jest.spyOn(server!, "close");
+    const closeServer = vi.spyOn(server!, "close");
     processEvents.emit("exit");
     processEvents.emit("SIGINT");
     processEvents.emit("SIGTERM");
@@ -144,7 +142,7 @@ describe("startServer", () => {
   });
 
   it("disposes container when `beforeStart` throws an error", async () => {
-    const { start, container } = setup({ beforeStart: jest.fn().mockRejectedValue(new Error("Failed to start server")) });
+    const { start, container } = setup({ beforeStart: vi.fn().mockRejectedValue(new Error("Failed to start server")) });
 
     await start();
     await delay(10);
@@ -153,7 +151,7 @@ describe("startServer", () => {
   });
 
   it("disposes container when `APP_INITIALIZER` throws an error", async () => {
-    const { start, container } = setup({ initializers: [{ [ON_APP_START]: jest.fn().mockRejectedValue(new Error("Failed to start server")) }] });
+    const { start, container } = setup({ initializers: [{ [ON_APP_START]: vi.fn().mockRejectedValue(new Error("Failed to start server")) }] });
 
     await start();
     await delay(10);
@@ -167,7 +165,7 @@ describe("startServer", () => {
     const logger = mock<LoggerService>();
     const processEvents = new EventEmitter();
     const container = mock<DependencyContainer>({
-      resolveAll: jest.fn().mockReturnValue(input?.initializers ?? [])
+      resolveAll: vi.fn().mockReturnValue(input?.initializers ?? [])
     });
 
     const options = {

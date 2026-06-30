@@ -1,3 +1,4 @@
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
@@ -28,7 +29,7 @@ describe(EnableDeploymentAlertHandler.name, () => {
 
   function setup(params?: { notificationService?: Partial<NotificationService>; logger?: Partial<LoggerService> }) {
     const notificationService = mock<NotificationService>({
-      autoEnableDeploymentAlert: jest.fn().mockResolvedValue(undefined),
+      autoEnableDeploymentAlert: vi.fn().mockResolvedValue(undefined),
       ...params?.notificationService
     });
     const logger = mock<LoggerService>({

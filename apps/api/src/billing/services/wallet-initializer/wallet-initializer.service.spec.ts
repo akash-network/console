@@ -1,6 +1,7 @@
 import { Registry } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
+import { describe, expect, it, vi } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 
@@ -77,8 +78,8 @@ describe(WalletInitializerService.name, () => {
         const di = setup({
           user,
           hasPaymentMethods: true,
-          getOrCreateWallet: jest.fn().mockResolvedValue({ wallet: newWallet, isNew: true }),
-          updateWalletById: jest.fn().mockResolvedValue(newWallet)
+          getOrCreateWallet: vi.fn().mockResolvedValue({ wallet: newWallet, isNew: true }),
+          updateWalletById: vi.fn().mockResolvedValue(newWallet)
         });
         const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
         managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(createChainWallet());
@@ -98,8 +99,8 @@ describe(WalletInitializerService.name, () => {
           user,
           consoleOnboardingRedesign: true,
           hasPaymentMethods: false,
-          getOrCreateWallet: jest.fn().mockResolvedValue({ wallet: newWallet, isNew: true }),
-          updateWalletById: jest.fn().mockResolvedValue(newWallet)
+          getOrCreateWallet: vi.fn().mockResolvedValue({ wallet: newWallet, isNew: true }),
+          updateWalletById: vi.fn().mockResolvedValue(newWallet)
         });
         const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
         managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(createChainWallet());
@@ -124,8 +125,8 @@ describe(WalletInitializerService.name, () => {
         const di = setup({
           user,
           consoleOnboardingRedesign: true,
-          getOrCreateWallet: jest.fn().mockResolvedValue({ wallet: newWallet, isNew: true }),
-          updateWalletById: jest.fn().mockResolvedValue(newWallet)
+          getOrCreateWallet: vi.fn().mockResolvedValue({ wallet: newWallet, isNew: true }),
+          updateWalletById: vi.fn().mockResolvedValue(newWallet)
         });
         const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
         managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(createChainWallet());
@@ -141,8 +142,8 @@ describe(WalletInitializerService.name, () => {
       const userId = "test-user-id";
       const newWallet = createUserWallet({ userId });
       const chainWallet = createChainWallet();
-      const getOrCreateWallet = jest.fn().mockImplementation(async () => ({ wallet: newWallet, isNew: true }));
-      const updateWalletById = jest.fn().mockImplementation(async () => newWallet);
+      const getOrCreateWallet = vi.fn().mockImplementation(async () => ({ wallet: newWallet, isNew: true }));
+      const updateWalletById = vi.fn().mockImplementation(async () => newWallet);
 
       const di = setup({
         getOrCreateWallet,
@@ -169,7 +170,7 @@ describe(WalletInitializerService.name, () => {
     it("does not authorizes trial spending for existing wallet", async () => {
       const userId = "test-user-id";
       const existingWallet = createUserWallet({ userId });
-      const getOrCreateWallet = jest.fn().mockResolvedValue({ wallet: existingWallet, isNew: false });
+      const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet: existingWallet, isNew: false });
 
       const di = setup({
         getOrCreateWallet
@@ -185,8 +186,8 @@ describe(WalletInitializerService.name, () => {
     it("throws an error when cannot authorize trial spending and deletes user wallet", async () => {
       const userId = "test-user-id";
       const newWallet = createUserWallet({ userId });
-      const getOrCreateWallet = jest.fn().mockImplementation(async () => ({ wallet: newWallet, isNew: true }));
-      const deleteWalletById = jest.fn().mockImplementation(async () => null);
+      const getOrCreateWallet = vi.fn().mockImplementation(async () => ({ wallet: newWallet, isNew: true }));
+      const deleteWalletById = vi.fn().mockImplementation(async () => null);
 
       const di = setup({
         getOrCreateWallet,
@@ -205,8 +206,8 @@ describe(WalletInitializerService.name, () => {
       const userId = "test-user-id";
       const newWallet = createUserWallet({ userId });
       const chainWallet = createChainWallet();
-      const getOrCreateWallet = jest.fn().mockImplementation(async () => ({ wallet: newWallet, isNew: true }));
-      const updateWalletById = jest.fn().mockImplementation(async () => newWallet);
+      const getOrCreateWallet = vi.fn().mockImplementation(async () => ({ wallet: newWallet, isNew: true }));
+      const updateWalletById = vi.fn().mockImplementation(async () => newWallet);
 
       const di = setup({
         userId,
@@ -243,7 +244,7 @@ describe(WalletInitializerService.name, () => {
       mock<UserWalletRepository>({
         getOrCreate: input?.getOrCreateWallet,
         updateById: input?.updateWalletById,
-        deleteById: input?.deleteWalletById ?? jest.fn(),
+        deleteById: input?.deleteWalletById ?? vi.fn(),
         accessibleBy() {
           return this as unknown as UserWalletRepository;
         },
@@ -264,7 +265,7 @@ describe(WalletInitializerService.name, () => {
     di.registerInstance(
       ProviderJwtTokenService,
       mock<ProviderJwtTokenService>({
-        generateJwtToken: jest.fn().mockResolvedValue("mock-jwt-token")
+        generateJwtToken: vi.fn().mockResolvedValue("mock-jwt-token")
       })
     );
     di.registerInstance(ManagedSignerService, mock<ManagedSignerService>());
@@ -272,7 +273,7 @@ describe(WalletInitializerService.name, () => {
     di.registerInstance(
       FeatureFlagsService,
       mock<FeatureFlagsService>({
-        isEnabled: jest.fn(flag => {
+        isEnabled: vi.fn(flag => {
           if (flag === FeatureFlags.CONSOLE_ONBOARDING_REDESIGN) return input?.consoleOnboardingRedesign ?? false;
           return true;
         })
@@ -282,12 +283,12 @@ describe(WalletInitializerService.name, () => {
       StripeService,
       mock<StripeService>({
         isProduction: input?.isProduction ?? false,
-        getPaymentMethods: jest.fn(async () => {
+        getPaymentMethods: vi.fn(async () => {
           if (!input?.hasPaymentMethods) return [];
           return [{ ...generatePaymentMethod(), validated: true, isDefault: false }];
         }),
-        hasDuplicateTrialAccount: jest.fn().mockResolvedValue(input?.hasDuplicateTrialAccount ?? false),
-        validatePaymentMethodForTrial: jest
+        hasDuplicateTrialAccount: vi.fn().mockResolvedValue(input?.hasDuplicateTrialAccount ?? false),
+        validatePaymentMethodForTrial: vi
           .fn()
           .mockResolvedValue(
             input?.requires3DS
@@ -296,11 +297,11 @@ describe(WalletInitializerService.name, () => {
           )
       })
     );
-    di.registerInstance(StripeErrorService, mock<StripeErrorService>({ isKnownError: jest.fn().mockReturnValue(false) }));
+    di.registerInstance(StripeErrorService, mock<StripeErrorService>({ isKnownError: vi.fn().mockReturnValue(false) }));
     di.registerInstance(
       UserRepository,
       mock<UserRepository>({
-        findTrialUsersByFingerprint: jest.fn().mockResolvedValue(input?.hasDuplicateFingerprint ? [{ id: faker.string.uuid() }] : [])
+        findTrialUsersByFingerprint: vi.fn().mockResolvedValue(input?.hasDuplicateFingerprint ? [{ id: faker.string.uuid() }] : [])
       })
     );
 

@@ -4,6 +4,7 @@ import type { GitHubHttpService } from "@akashnetwork/http-sdk";
 import fs from "fs/promises";
 import path from "path";
 import { container } from "tsyringe";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { CHAIN_DB } from "@src/chain";
 import { ProviderAttributesSchemaService } from "../provider-attributes-schema/provider-attributes-schema.service";

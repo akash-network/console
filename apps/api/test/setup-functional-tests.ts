@@ -1,6 +1,7 @@
 import "reflect-metadata";
 
 import { container } from "tsyringe";
+import { afterAll, afterEach, beforeAll, beforeEach, expect } from "vitest";
 
 import { cacheEngine } from "@src/caching/helpers";
 import { RAW_APP_CONFIG } from "@src/core/providers/raw-app-config.provider";

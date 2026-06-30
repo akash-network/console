@@ -2,7 +2,7 @@ import type { Context, Next } from "hono";
 import type { MiddlewareHandler } from "hono";
 import { container } from "tsyringe";
 import type { Mock } from "vitest";
-import { vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "../../../auth/services/auth.service";

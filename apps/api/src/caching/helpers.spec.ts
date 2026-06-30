@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from "vitest";
+
 import { cacheEngine, cacheResponse, Memoize, memoizeAsync } from "./helpers";
 
 describe("Memoize Function", () => {
@@ -10,7 +12,7 @@ describe("Memoize Function", () => {
 
       cacheEngine.storeInCache("test-key", cachedObject);
 
-      const refreshRequest = jest.fn().mockResolvedValue({ new: "data" });
+      const refreshRequest = vi.fn().mockResolvedValue({ new: "data" });
 
       const result = await cacheResponse(120, "test-key", refreshRequest);
 
@@ -27,7 +29,7 @@ describe("Memoize Function", () => {
 
       cacheEngine.storeInCache("test-key", cachedObject);
 
-      const refreshRequest = jest.fn().mockResolvedValue({ new: "data" });
+      const refreshRequest = vi.fn().mockResolvedValue({ new: "data" });
 
       const result = await cacheResponse(120, "test-key", refreshRequest);
 
@@ -51,7 +53,7 @@ describe("Memoize Function", () => {
 
       cacheEngine.storeInCache("test-key", cachedObject);
 
-      const refreshRequest = jest.fn().mockResolvedValue({ new: "data" });
+      const refreshRequest = vi.fn().mockResolvedValue({ new: "data" });
 
       // Make multiple concurrent calls
       const promises = [
@@ -70,7 +72,7 @@ describe("Memoize Function", () => {
       setup();
 
       const newData = { fresh: "data" };
-      const refreshRequest = jest.fn().mockResolvedValue(newData);
+      const refreshRequest = vi.fn().mockResolvedValue(newData);
 
       const result = await cacheResponse(120, "test-key", refreshRequest);
 
@@ -91,7 +93,7 @@ describe("Memoize Function", () => {
 
       cacheEngine.storeInCache("test-key", cachedObject);
 
-      const refreshRequest = jest.fn().mockRejectedValue(new Error("Background refresh failed"));
+      const refreshRequest = vi.fn().mockRejectedValue(new Error("Background refresh failed"));
 
       const result = await cacheResponse(120, "test-key", refreshRequest);
 
@@ -110,7 +112,7 @@ describe("Memoize Function", () => {
       setup();
 
       const error = new Error("Request failed");
-      const refreshRequest = jest.fn().mockRejectedValue(error);
+      const refreshRequest = vi.fn().mockRejectedValue(error);
 
       await expect(cacheResponse(120, "test-key", refreshRequest)).rejects.toThrow("Request failed");
     });
@@ -124,7 +126,7 @@ describe("Memoize Function", () => {
 
       cacheEngine.storeInCache("test-key", cachedObject);
 
-      const refreshRequest = jest.fn().mockResolvedValue(undefined);
+      const refreshRequest = vi.fn().mockResolvedValue(undefined);
 
       const result = await cacheResponse(120, "test-key", refreshRequest);
 
@@ -146,7 +148,7 @@ describe("Memoize Function", () => {
       let resolveRequest: (value: any) => void;
       let requestCount = 0;
 
-      const refreshRequest = jest.fn().mockImplementation(() => {
+      const refreshRequest = vi.fn().mockImplementation(() => {
         requestCount++;
         return new Promise(resolve => {
           resolveRequest = resolve;
@@ -247,7 +249,7 @@ describe("Memoize Function", () => {
 
   describe(memoizeAsync.name, () => {
     it("should cache successful results and return the same promise", async () => {
-      const fn = jest.fn().mockResolvedValue("result");
+      const fn = vi.fn().mockResolvedValue("result");
       const memoized = memoizeAsync(fn);
 
       const result1 = await memoized();
@@ -264,7 +266,7 @@ describe("Memoize Function", () => {
         resolvePromise = resolve;
       });
 
-      const fn = jest.fn().mockReturnValue(promise);
+      const fn = vi.fn().mockReturnValue(promise);
       const memoized = memoizeAsync(fn);
 
       const call1 = memoized();
@@ -282,7 +284,7 @@ describe("Memoize Function", () => {
 
     it("should not cache rejected promises", async () => {
       const error = new Error("Test error");
-      const fn = jest.fn().mockRejectedValue(error);
+      const fn = vi.fn().mockRejectedValue(error);
       const memoized = memoizeAsync(fn);
 
       await expect(memoized()).rejects.toThrow("Test error");
@@ -293,7 +295,7 @@ describe("Memoize Function", () => {
 
     it("should make new requests after a rejection", async () => {
       const error = new Error("Test error");
-      const fn = jest.fn().mockRejectedValueOnce(error).mockResolvedValue("success");
+      const fn = vi.fn().mockRejectedValueOnce(error).mockResolvedValue("success");
       const memoized = memoizeAsync(fn);
 
       await expect(memoized()).rejects.toThrow("Test error");
@@ -304,7 +306,7 @@ describe("Memoize Function", () => {
     });
 
     it("should cache results for different arguments separately", async () => {
-      const fn = jest.fn((arg: string) => Promise.resolve(`result-${arg}`));
+      const fn = vi.fn((arg: string) => Promise.resolve(`result-${arg}`));
       const memoized = memoizeAsync(fn as unknown as (...args: unknown[]) => Promise<unknown>) as (arg: string) => Promise<string>;
 
       const result1 = await memoized("a");
@@ -318,7 +320,7 @@ describe("Memoize Function", () => {
     });
 
     it("should handle complex arguments correctly", async () => {
-      const fn = jest.fn((arg1: string, arg2: number) => Promise.resolve(`${arg1}-${arg2}`));
+      const fn = vi.fn((arg1: string, arg2: number) => Promise.resolve(`${arg1}-${arg2}`));
       const memoized = memoizeAsync(fn as unknown as (...args: unknown[]) => Promise<unknown>) as (arg1: string, arg2: number) => Promise<string>;
 
       const result1 = await memoized("test", 123);
@@ -333,7 +335,7 @@ describe("Memoize Function", () => {
 
     it("should handle concurrent calls with rejection correctly", async () => {
       const error = new Error("Concurrent error");
-      const fn = jest.fn().mockRejectedValue(error);
+      const fn = vi.fn().mockRejectedValue(error);
       const memoized = memoizeAsync(fn);
 
       const call1 = memoized();
@@ -346,7 +348,7 @@ describe("Memoize Function", () => {
     });
 
     it("should return cached result immediately on subsequent calls", async () => {
-      const fn = jest.fn().mockResolvedValue("cached");
+      const fn = vi.fn().mockResolvedValue("cached");
       const memoized = memoizeAsync(fn);
 
       await memoized();
@@ -368,7 +370,7 @@ describe("Memoize Function", () => {
   });
 
   function setup() {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     cacheEngine.clearAllKeyInCache();
   }
 });

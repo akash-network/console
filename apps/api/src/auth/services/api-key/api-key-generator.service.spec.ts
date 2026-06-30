@@ -1,4 +1,5 @@
 import { container } from "tsyringe";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
 
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
@@ -15,7 +16,7 @@ describe("ApiKeyGeneratorService", () => {
 
   beforeEach(() => {
     originalEnv = process.env.NODE_ENV;
-    config = mock<CoreConfigService>({ get: jest.fn() });
+    config = mock<CoreConfigService>({ get: vi.fn() });
     config.get.mockReturnValue("test");
     service = new ApiKeyGeneratorService(config);
   });

@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 import type { Mock } from "vitest";
-import { vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { LoggerService } from "@src/core/providers/logging.provider";

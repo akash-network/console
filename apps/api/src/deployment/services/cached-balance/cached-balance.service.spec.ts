@@ -1,5 +1,5 @@
 import type { Mocked } from "vitest";
-import { vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import { CachedBalanceService } from "./cached-balance.service";

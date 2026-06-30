@@ -4,6 +4,7 @@ import type { AnyAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { addWeeks } from "date-fns";
 import { groupBy } from "lodash";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
@@ -64,8 +65,7 @@ describe(DrainingDeploymentService.name, () => {
         }
       ];
 
-      jest
-        .spyOn(service, "findLeases")
+      vi.spyOn(service, "findLeases")
         .mockResolvedValueOnce(activeBatches[0])
         .mockResolvedValueOnce(closedBatch)
         .mockResolvedValueOnce([])
@@ -80,7 +80,7 @@ describe(DrainingDeploymentService.name, () => {
         })()
       );
 
-      const callback = jest.fn();
+      const callback = vi.fn();
       for await (const result of service.findDrainingDeploymentsByOwner()) {
         callback(result);
       }
@@ -194,7 +194,7 @@ describe(DrainingDeploymentService.name, () => {
       const { service, userWalletRepository, leaseRepository } = setup();
       userWalletRepository.findOneByUserId.mockResolvedValue(userWallet);
       leaseRepository.findOneByDseqAndOwner.mockResolvedValue(deployment);
-      jest.spyOn(service, "calculateTopUpAmount").mockResolvedValue(expectedTopUpAmount);
+      vi.spyOn(service, "calculateTopUpAmount").mockResolvedValue(expectedTopUpAmount);
 
       const amount = await service.calculateTopUpAmountForDseqAndUserId(dseq, userId);
 
@@ -393,8 +393,8 @@ describe(DrainingDeploymentService.name, () => {
 
   describe("calculateAllDeploymentCostUntilDate", () => {
     it("calculates total cost for deployments closing within target date", async () => {
-      jest.useFakeTimers();
-      jest.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
 
       try {
         const blockRate1 = 50;
@@ -419,7 +419,7 @@ describe(DrainingDeploymentService.name, () => {
         expect(result).toBe(expectedTotal);
         expect(leaseRepository.findManyByDseqAndOwner).toHaveBeenCalledWith(expectedTargetHeight, address, expect.any(Array));
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 

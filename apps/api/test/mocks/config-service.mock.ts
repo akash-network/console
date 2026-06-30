@@ -1,3 +1,4 @@
+import type { MockedFunction } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 import type { z } from "zod";
@@ -16,7 +17,7 @@ type ConfigOf<T> = EnvOf<T> & AppCfgOf<T>;
 export const mockConfigService = <T extends ConfigService<any, any>>(values: Partial<ConfigOf<T>> = {}): MockProxy<T> => {
   const svc = mock<T>();
 
-  (svc.get as unknown as jest.MockedFunction<(key: keyof ConfigOf<T>) => any>).mockImplementation(key => {
+  (svc.get as unknown as MockedFunction<(key: keyof ConfigOf<T>) => any>).mockImplementation(key => {
     if (key in values) return (values as ConfigOf<T>)[key];
     throw new Error(`Missing mock for config key "${String(key)}" in ${svc.constructor?.name ?? "ConfigService"}`);
   });

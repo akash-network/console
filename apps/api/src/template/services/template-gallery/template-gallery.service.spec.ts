@@ -1,3 +1,4 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 import { z } from "zod";
 
@@ -340,7 +341,7 @@ describe(TemplateGalleryService.name, () => {
   function setup(input?: { getTagsConfig?: () => TemplateTagsConfig }) {
     const logger = mock<LoggerService>();
     const fsMock = mock<FileSystemApi>({
-      access: jest.fn(() => Promise.reject(new Error("File not found")))
+      access: vi.fn(() => Promise.reject(new Error("File not found")))
     });
     const dataFolderPath = "/data";
 
@@ -351,10 +352,10 @@ describe(TemplateGalleryService.name, () => {
     });
 
     const templateFetcher = mock<TemplateFetcherService>({
-      fetchLatestCommitSha: jest.fn(() => Promise.resolve("abc123")),
-      fetchAwesomeAkashTemplates: jest.fn(() => Promise.resolve([])),
-      fetchOmnibusTemplates: jest.fn(() => Promise.resolve([])),
-      clearArchiveCache: jest.fn()
+      fetchLatestCommitSha: vi.fn(() => Promise.resolve("abc123")),
+      fetchAwesomeAkashTemplates: vi.fn(() => Promise.resolve([])),
+      fetchOmnibusTemplates: vi.fn(() => Promise.resolve([])),
+      clearArchiveCache: vi.fn()
     });
 
     Object.assign(service, { templateFetcher });

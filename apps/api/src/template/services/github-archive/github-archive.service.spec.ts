@@ -1,5 +1,6 @@
 import { gzipSync } from "node:zlib";
 import tar from "tar";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { LoggerService } from "@src/core";
@@ -88,7 +89,7 @@ describe(GitHubArchiveService.name, () => {
     async function installArchive(files: Record<string, string>) {
       const tarGzBuffer = createTarGzBuffer(files);
 
-      jest.spyOn(globalThis, "fetch").mockResolvedValue(
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
         new Response(new Uint8Array(tarGzBuffer), {
           status: 200,
           headers: { "Content-Type": "application/gzip" }

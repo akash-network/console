@@ -3,6 +3,8 @@ import type { Block, Day } from "@akashnetwork/database/dbSchemas/base";
 import type { CreationAttributes } from "sequelize";
 import { Op } from "sequelize";
 import { container } from "tsyringe";
+import type { Mock } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
@@ -276,12 +278,12 @@ describe(UsageRepository.name, () => {
       const startDate = "2023-01-01";
       const endDate = "2023-01-01";
 
-      (userWalletRepository.findOneByAddress as jest.Mock).mockResolvedValue({
+      (userWalletRepository.findOneByAddress as Mock).mockResolvedValue({
         id: 1,
         address: testAddress,
         createdAt: new Date("2024-11-01")
       });
-      (txManagerService.getDerivedWalletAddress as jest.Mock).mockResolvedValue(oldAddress);
+      (txManagerService.getDerivedWalletAddress as Mock).mockResolvedValue(oldAddress);
 
       await createTestDay({
         date: new Date("2023-01-01"),
@@ -324,7 +326,7 @@ describe(UsageRepository.name, () => {
       const startDate = "2023-01-01";
       const endDate = "2023-01-01";
 
-      (userWalletRepository.findOneByAddress as jest.Mock).mockResolvedValue({
+      (userWalletRepository.findOneByAddress as Mock).mockResolvedValue({
         id: 1,
         address: testAddress,
         createdAt: new Date("2025-12-01")
@@ -416,11 +418,11 @@ describe(UsageRepository.name, () => {
 
   function setup() {
     const userWalletRepository = {
-      findOneByAddress: jest.fn().mockResolvedValue(undefined)
+      findOneByAddress: vi.fn().mockResolvedValue(undefined)
     } as unknown as UserWalletRepository;
 
     const txManagerService = {
-      getDerivedWalletAddress: jest.fn().mockResolvedValue("")
+      getDerivedWalletAddress: vi.fn().mockResolvedValue("")
     } as unknown as TxManagerService;
 
     const usageRepository = new UsageRepository(container.resolve(CHAIN_DB), userWalletRepository, txManagerService);

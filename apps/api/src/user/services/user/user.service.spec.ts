@@ -1,6 +1,7 @@
 import "@test/mocks/logger-service.mock";
 
 import { faker } from "@faker-js/faker";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";

@@ -1,4 +1,5 @@
 import type { Octokit } from "@octokit/rest";
+import { describe, expect, it } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { LoggerService } from "@src/core";

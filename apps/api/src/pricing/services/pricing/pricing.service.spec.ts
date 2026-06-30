@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import type { PricingBody } from "@src/pricing/http-schemas/pricing.schema";
 import { PricingService } from "./pricing.service";
 

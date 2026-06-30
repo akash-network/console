@@ -1,7 +1,7 @@
 import { faker } from "@faker-js/faker";
 import type { GetUsers200ResponseOneOfInner, ManagementClient } from "auth0";
 import type { Mock } from "vitest";
-import { vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { Auth0Service } from "./auth0.service";

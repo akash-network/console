@@ -1,5 +1,3 @@
-import { vi } from "vitest";
-
 const mockLogger = vi.hoisted(() => ({
   info: vi.fn(),
   error: vi.fn(),
@@ -13,6 +11,7 @@ vi.mock("@akashnetwork/logging/otel", () => ({
 
 import { faker } from "@faker-js/faker";
 import type { Counter, Histogram } from "@opentelemetry/api";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { MetricsService } from "@src/core";

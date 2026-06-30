@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
@@ -16,8 +17,8 @@ describe(ActiveDeploymentsCountService.name, () => {
 
     const userWallet = createUserWallet();
     const { service, userWalletRepository, deploymentRepository } = setup({
-      findOneByUserId: jest.fn().mockResolvedValue(userWallet),
-      countActiveByOwner: jest.fn().mockResolvedValue(activeCount)
+      findOneByUserId: vi.fn().mockResolvedValue(userWallet),
+      countActiveByOwner: vi.fn().mockResolvedValue(activeCount)
     });
 
     const result = await service.resolve(user);
@@ -31,7 +32,7 @@ describe(ActiveDeploymentsCountService.name, () => {
     const user = createUser();
 
     const { service, userWalletRepository, logger } = setup({
-      findOneByUserId: jest.fn().mockResolvedValue(null)
+      findOneByUserId: vi.fn().mockResolvedValue(null)
     });
 
     await expect(service.resolve(user)).rejects.toThrow("User wallet not found");
@@ -48,7 +49,7 @@ describe(ActiveDeploymentsCountService.name, () => {
 
     const userWallet = createUserWallet({ address: null });
     const { service, userWalletRepository, logger } = setup({
-      findOneByUserId: jest.fn().mockResolvedValue(userWallet)
+      findOneByUserId: vi.fn().mockResolvedValue(userWallet)
     });
 
     await expect(service.resolve(user)).rejects.toThrow("User wallet not found");
@@ -63,10 +64,10 @@ describe(ActiveDeploymentsCountService.name, () => {
   function setup(input?: { findOneByUserId?: UserWalletRepository["findOneByUserId"]; countActiveByOwner?: DeploymentRepository["countActiveByOwner"] }) {
     const mocks = {
       userWalletRepository: mock<UserWalletRepository>({
-        findOneByUserId: input?.findOneByUserId ?? jest.fn()
+        findOneByUserId: input?.findOneByUserId ?? vi.fn()
       }),
       deploymentRepository: mock<DeploymentRepository>({
-        countActiveByOwner: input?.countActiveByOwner ?? jest.fn()
+        countActiveByOwner: input?.countActiveByOwner ?? vi.fn()
       }),
       logger: mock<LoggerService>()
     };

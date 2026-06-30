@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { LoggerService } from "@src/core/providers/logging.provider";
@@ -34,7 +35,7 @@ describe(NotificationHandler.name, () => {
 
   it("logs warning and returns early when user is not found", async () => {
     const { handler, userRepository, logger, notificationService } = setup({
-      findUserById: jest.fn().mockResolvedValue(null)
+      findUserById: vi.fn().mockResolvedValue(null)
     });
 
     await handler.handle({
@@ -62,7 +63,7 @@ describe(NotificationHandler.name, () => {
     });
 
     const { handler, userRepository, logger, notificationService } = setup({
-      findUserById: jest.fn().mockResolvedValue(user)
+      findUserById: vi.fn().mockResolvedValue(user)
     });
 
     await handler.handle({
@@ -91,7 +92,7 @@ describe(NotificationHandler.name, () => {
     });
 
     const { handler, userRepository, notificationService } = setup({
-      findUserById: jest.fn().mockResolvedValue(user)
+      findUserById: vi.fn().mockResolvedValue(user)
     });
 
     await handler.handle({
@@ -116,7 +117,7 @@ describe(NotificationHandler.name, () => {
     });
 
     const { handler, userRepository, notificationService } = setup({
-      findUserById: jest.fn().mockResolvedValue(user)
+      findUserById: vi.fn().mockResolvedValue(user)
     });
     const vars = {
       paymentLink: faker.internet.url()
@@ -141,7 +142,7 @@ describe(NotificationHandler.name, () => {
     });
 
     const { handler, userRepository, notificationService } = setup({
-      findUserById: jest.fn().mockResolvedValue(user)
+      findUserById: vi.fn().mockResolvedValue(user)
     });
 
     const initialCredits = faker.number.int({ min: 5_000_000, max: 10_000_000 });
@@ -170,7 +171,7 @@ describe(NotificationHandler.name, () => {
     const createdDate = new Date("2023-10-01T12:00:00Z");
     const currentDate = new Date("2023-10-15T12:00:00Z");
 
-    jest.useFakeTimers({ now: currentDate });
+    vi.useFakeTimers({ now: currentDate });
 
     const user = createUser({
       id: "user-123",
@@ -179,13 +180,13 @@ describe(NotificationHandler.name, () => {
       trial: true
     });
     const resolvedVars = { remainingCredits: faker.number.int({ min: 1000, max: 10000 }), activeDeployments: faker.number.int({ min: 0, max: 10 }) };
-    const resolveVars = jest.fn().mockImplementation(async (user, vars) => ({
+    const resolveVars = vi.fn().mockImplementation(async (user, vars) => ({
       ...vars,
       ...resolvedVars
     }));
 
     const { handler, userRepository, notificationService } = setup({
-      findUserById: jest.fn().mockResolvedValue(user),
+      findUserById: vi.fn().mockResolvedValue(user),
       resolveVars
     });
 
@@ -202,7 +203,7 @@ describe(NotificationHandler.name, () => {
     expect(userRepository.findById).toHaveBeenCalledWith(user.id);
     expect(notificationService.createNotification).toHaveBeenCalledWith(beforeTrialEndsNotification(user, { trialEndsAt, paymentLink, ...resolvedVars }));
 
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it("creates afterTrialEnds notification", async () => {
@@ -213,7 +214,7 @@ describe(NotificationHandler.name, () => {
     });
 
     const { handler, userRepository, notificationService } = setup({
-      findUserById: jest.fn().mockResolvedValue(user)
+      findUserById: vi.fn().mockResolvedValue(user)
     });
 
     const vars = {
@@ -240,7 +241,7 @@ describe(NotificationHandler.name, () => {
     });
 
     const { handler, userRepository, notificationService } = setup({
-      findUserById: jest.fn().mockResolvedValue(user)
+      findUserById: vi.fn().mockResolvedValue(user)
     });
 
     const vars = {
@@ -271,7 +272,7 @@ describe(NotificationHandler.name, () => {
     });
 
     const { handler, userRepository, notificationService } = setup({
-      findUserById: jest.fn().mockResolvedValue(user)
+      findUserById: vi.fn().mockResolvedValue(user)
     });
 
     await handler.handle({
@@ -298,13 +299,13 @@ describe(NotificationHandler.name, () => {
   }) {
     const mocks = {
       notificationService: mock<NotificationService>({
-        createNotification: input?.createNotification ?? jest.fn().mockResolvedValue(undefined)
+        createNotification: input?.createNotification ?? vi.fn().mockResolvedValue(undefined)
       }),
       userRepository: mock<UserRepository>({
-        findById: input?.findUserById ?? jest.fn()
+        findById: input?.findUserById ?? vi.fn()
       }),
       notificationDataResolverService: mock<NotificationDataResolverService>({
-        resolve: input?.resolveVars ?? jest.fn().mockImplementation(async (user, vars) => vars)
+        resolve: input?.resolveVars ?? vi.fn().mockImplementation(async (user, vars) => vars)
       }),
       logger: mock<LoggerService>()
     };

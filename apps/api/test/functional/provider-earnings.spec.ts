@@ -2,6 +2,7 @@ import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { subDays } from "date-fns";
 import nock from "nock";
 import { container } from "tsyringe";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { cacheEngine } from "@src/caching/helpers";
 import type { ProviderEarningsResponse } from "@src/provider/http-schemas/provider-earnings.schema";

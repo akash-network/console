@@ -2,6 +2,7 @@ import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import type { Block } from "@akashnetwork/database/dbSchemas/base";
 import { subDays } from "date-fns";
 import { container } from "tsyringe";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { CHAIN_DB } from "@src/chain";
 import { ProviderDashboardService } from "./provider-dashboard.service";

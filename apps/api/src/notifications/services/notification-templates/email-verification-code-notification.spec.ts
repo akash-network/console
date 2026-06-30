@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import { emailVerificationCodeNotification } from "./email-verification-code-notification";
 
 describe(emailVerificationCodeNotification.name, () => {

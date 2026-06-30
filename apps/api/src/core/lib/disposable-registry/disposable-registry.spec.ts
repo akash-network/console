@@ -1,4 +1,5 @@
 import { container } from "tsyringe";
+import { describe, expect, it, vi } from "vitest";
 
 import { DisposableRegistry } from "./disposable-registry";
 
@@ -6,8 +7,8 @@ describe(DisposableRegistry.name, () => {
   describe("registerFromFactory", () => {
     it("should resolve registry from container and call instance method", () => {
       const registry = setup();
-      const instanceMethodSpy = jest.spyOn(registry, "registerFromFactory");
-      const factory = jest.fn().mockReturnValue({});
+      const instanceMethodSpy = vi.spyOn(registry, "registerFromFactory");
+      const factory = vi.fn().mockReturnValue({});
 
       DisposableRegistry.registerFromFactory(factory);
 
@@ -19,8 +20,8 @@ describe(DisposableRegistry.name, () => {
   describe("prototype.registerFromFactory", () => {
     it("should return wrapped factory that calls original factory and returns its value", () => {
       const registry = setup();
-      const disposable = { dispose: jest.fn() };
-      const factory = jest.fn().mockReturnValue(disposable);
+      const disposable = { dispose: vi.fn() };
+      const factory = vi.fn().mockReturnValue(disposable);
 
       const wrappedFactory = registry.registerFromFactory(factory);
       const result = wrappedFactory(container);
@@ -31,7 +32,7 @@ describe(DisposableRegistry.name, () => {
 
     it("should return wrapped factory that handles null values", () => {
       const registry = setup();
-      const factory = jest.fn().mockReturnValue(null);
+      const factory = vi.fn().mockReturnValue(null);
 
       const wrappedFactory = registry.registerFromFactory(factory);
       const result = wrappedFactory(container);
@@ -42,7 +43,7 @@ describe(DisposableRegistry.name, () => {
 
     it("should return wrapped factory that handles undefined values", () => {
       const registry = setup();
-      const factory = jest.fn().mockReturnValue(undefined);
+      const factory = vi.fn().mockReturnValue(undefined);
 
       const wrappedFactory = registry.registerFromFactory(factory);
       const result = wrappedFactory(container);
@@ -53,7 +54,7 @@ describe(DisposableRegistry.name, () => {
 
     it("should return wrapped factory that handles primitive values", () => {
       const registry = setup();
-      const factory = jest.fn().mockReturnValue("string");
+      const factory = vi.fn().mockReturnValue("string");
 
       const wrappedFactory = registry.registerFromFactory(factory);
       const result = wrappedFactory(container);
@@ -65,7 +66,7 @@ describe(DisposableRegistry.name, () => {
     it("should return wrapped factory that handles values with dispose property that is not a function", () => {
       const registry = setup();
       const valueWithDispose = { dispose: "not a function" };
-      const factory = jest.fn().mockReturnValue(valueWithDispose);
+      const factory = vi.fn().mockReturnValue(valueWithDispose);
 
       const wrappedFactory = registry.registerFromFactory(factory);
       const result = wrappedFactory(container);
@@ -83,9 +84,9 @@ describe(DisposableRegistry.name, () => {
 
     it("should dispose registered disposable values", async () => {
       const registry = setup();
-      const dispose = jest.fn().mockResolvedValue(undefined);
+      const dispose = vi.fn().mockResolvedValue(undefined);
       const disposable = { dispose };
-      const factory = jest.fn().mockReturnValue(disposable);
+      const factory = vi.fn().mockReturnValue(disposable);
 
       registry.registerFromFactory(factory)(container);
 
@@ -96,17 +97,17 @@ describe(DisposableRegistry.name, () => {
 
     it("should dispose multiple disposables", async () => {
       const registry = setup();
-      const dispose1 = jest.fn().mockResolvedValue(undefined);
-      const dispose2 = jest.fn();
-      const dispose3 = jest.fn().mockResolvedValue(undefined);
+      const dispose1 = vi.fn().mockResolvedValue(undefined);
+      const dispose2 = vi.fn();
+      const dispose3 = vi.fn().mockResolvedValue(undefined);
 
       const disposable1 = { dispose: dispose1 };
       const disposable2 = { dispose: dispose2 };
       const disposable3 = { dispose: dispose3 };
 
-      const factory1 = jest.fn().mockReturnValue(disposable1);
-      const factory2 = jest.fn().mockReturnValue(disposable2);
-      const factory3 = jest.fn().mockReturnValue(disposable3);
+      const factory1 = vi.fn().mockReturnValue(disposable1);
+      const factory2 = vi.fn().mockReturnValue(disposable2);
+      const factory3 = vi.fn().mockReturnValue(disposable3);
 
       registry.registerFromFactory(factory1)(container);
       registry.registerFromFactory(factory2)(container);
@@ -123,17 +124,17 @@ describe(DisposableRegistry.name, () => {
       const registry = setup();
       const error1 = new Error("Error 1");
       const error3 = new Error("Error 3");
-      const dispose1 = jest.fn().mockRejectedValue(error1);
-      const dispose2 = jest.fn().mockResolvedValue(undefined);
-      const dispose3 = jest.fn().mockRejectedValue(error3);
+      const dispose1 = vi.fn().mockRejectedValue(error1);
+      const dispose2 = vi.fn().mockResolvedValue(undefined);
+      const dispose3 = vi.fn().mockRejectedValue(error3);
 
       const disposable1 = { dispose: dispose1 };
       const disposable2 = { dispose: dispose2 };
       const disposable3 = { dispose: dispose3 };
 
-      const factory1 = jest.fn().mockReturnValue(disposable1);
-      const factory2 = jest.fn().mockReturnValue(disposable2);
-      const factory3 = jest.fn().mockReturnValue(disposable3);
+      const factory1 = vi.fn().mockReturnValue(disposable1);
+      const factory2 = vi.fn().mockReturnValue(disposable2);
+      const factory3 = vi.fn().mockReturnValue(disposable3);
 
       registry.registerFromFactory(factory1)(container);
       registry.registerFromFactory(factory2)(container);
@@ -148,14 +149,14 @@ describe(DisposableRegistry.name, () => {
 
     it("should be idempotent and not dispose twice when called multiple times", async () => {
       const registry = setup();
-      const dispose1 = jest.fn().mockResolvedValue(undefined);
-      const dispose2 = jest.fn().mockResolvedValue(undefined);
+      const dispose1 = vi.fn().mockResolvedValue(undefined);
+      const dispose2 = vi.fn().mockResolvedValue(undefined);
 
       const disposable1 = { dispose: dispose1 };
       const disposable2 = { dispose: dispose2 };
 
-      const factory1 = jest.fn().mockReturnValue(disposable1);
-      const factory2 = jest.fn().mockReturnValue(disposable2);
+      const factory1 = vi.fn().mockReturnValue(disposable1);
+      const factory2 = vi.fn().mockReturnValue(disposable2);
 
       registry.registerFromFactory(factory1)(container);
       registry.registerFromFactory(factory2)(container);
@@ -170,7 +171,7 @@ describe(DisposableRegistry.name, () => {
 
   function setup() {
     const registry = new DisposableRegistry();
-    jest.spyOn(container, "resolve").mockReturnValue(registry);
+    vi.spyOn(container, "resolve").mockReturnValue(registry);
     return registry;
   }
 });

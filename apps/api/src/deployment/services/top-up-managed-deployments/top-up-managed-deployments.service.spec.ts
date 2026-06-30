@@ -3,6 +3,7 @@ import "@test/mocks/logger-service.mock";
 import { Scope, Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { IndexedTx } from "@cosmjs/stargate";
 import { faker } from "@faker-js/faker";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { RpcMessageService } from "@src/billing/services";

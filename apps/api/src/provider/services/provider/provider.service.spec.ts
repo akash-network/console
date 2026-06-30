@@ -4,7 +4,7 @@ import type { ProviderAttributesSchema } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { AxiosError } from "axios";
 import { Ok } from "ts-results";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { cacheEngine } from "@src/caching/helpers";
@@ -514,7 +514,7 @@ describe(ProviderService.name, () => {
     const providerAttributesSchemaService = mock<ProviderAttributesSchemaService>();
     const auditorsService = mock<AuditorService>();
     const jwtTokenService = mock<ProviderJwtTokenService>({
-      generateJwtToken: jest.fn().mockResolvedValue(Ok("mock-jwt-token"))
+      generateJwtToken: vi.fn().mockResolvedValue(Ok("mock-jwt-token"))
     });
 
     const service = new ProviderService(providerProxyService, providerRepository, providerAttributesSchemaService, auditorsService, jwtTokenService);

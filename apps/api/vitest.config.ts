@@ -31,7 +31,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    globals: true,
+    globals: false,
     outputFile: {
       junit: "junit.xml"
     },
@@ -62,7 +62,7 @@ export default defineConfig({
         test: {
           name: "unit",
           include: ["src/**/*.spec.ts"],
-          setupFiles: ["./test/vitest-jest-compat.ts", "./test/setup-unit-env.ts", "./test/setup-unit-tests.ts"]
+          setupFiles: ["./test/setup-unit-env.ts", "./test/setup-unit-tests.ts"]
         }
       },
       {
@@ -70,7 +70,7 @@ export default defineConfig({
         test: {
           name: "integration",
           include: ["src/**/*.integration.ts"],
-          setupFiles: ["./test/vitest-jest-compat.ts", "./test/setup-integration-env.ts", "./test/setup-integration-tests.ts"],
+          setupFiles: ["./test/setup-integration-env.ts", "./test/setup-integration-tests.ts"],
           testTimeout: 60_000,
           hookTimeout: 30_000
         }
@@ -80,7 +80,7 @@ export default defineConfig({
         test: {
           name: "functional",
           include: ["test/functional/**/*.spec.ts"],
-          setupFiles: ["./test/vitest-jest-compat.ts", "./test/setup-functional-env.ts", "./test/setup-functional-tests.ts"],
+          setupFiles: ["./test/setup-functional-env.ts", "./test/setup-functional-tests.ts"],
           testTimeout: 30_000,
           hookTimeout: 15_000,
           pool: "threads",
@@ -92,7 +92,7 @@ export default defineConfig({
         test: {
           name: "e2e",
           include: ["test/e2e/**/*.spec.ts"],
-          setupFiles: ["./test/vitest-jest-compat.ts", "./test/setup-e2e-env.ts"]
+          setupFiles: ["./test/setup-e2e-env.ts"]
         }
       }
     ]

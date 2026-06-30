@@ -1,4 +1,5 @@
 import { addHours } from "date-fns";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
@@ -17,7 +18,7 @@ import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 describe(TrialDeploymentLeaseCreatedHandler.name, () => {
   it("logs a warning when wallet is not found", async () => {
     const { handler, userWalletRepository, jobQueueService, logger } = setup({
-      findWalletById: jest.fn().mockResolvedValue(null)
+      findWalletById: vi.fn().mockResolvedValue(null)
     });
 
     const payload: EventPayload<TrialDeploymentLeaseCreated> = {
@@ -49,7 +50,7 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
     });
 
     const { handler, userWalletRepository, jobQueueService, logger } = setup({
-      findWalletById: jest.fn().mockResolvedValue(wallet)
+      findWalletById: vi.fn().mockResolvedValue(wallet)
     });
 
     const payload: EventPayload<TrialDeploymentLeaseCreated> = {
@@ -86,7 +87,7 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
     const trialDeploymentLifetimeInHours = 24;
 
     const { handler, userWalletRepository, jobQueueService, billingConfig } = setup({
-      findWalletById: jest.fn().mockResolvedValue(wallet)
+      findWalletById: vi.fn().mockResolvedValue(wallet)
     });
 
     const payload: EventPayload<TrialDeploymentLeaseCreated> = {
@@ -140,7 +141,7 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
     });
 
     const { handler, jobQueueService, logger } = setup({
-      findWalletById: jest.fn().mockResolvedValue(wallet)
+      findWalletById: vi.fn().mockResolvedValue(wallet)
     });
 
     const payload: EventPayload<TrialDeploymentLeaseCreated> = {
@@ -173,7 +174,7 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
     });
 
     const { handler, jobQueueService } = setup({
-      findWalletById: jest.fn().mockResolvedValue(wallet)
+      findWalletById: vi.fn().mockResolvedValue(wallet)
     });
 
     const payload: EventPayload<TrialDeploymentLeaseCreated> = {
@@ -209,14 +210,14 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
   }) {
     const mocks = {
       userWalletRepository: mock<UserWalletRepository>({
-        findById: input?.findWalletById ?? jest.fn()
+        findById: input?.findWalletById ?? vi.fn()
       }),
       logger: mock<LoggerService>(),
       jobQueueService: mock<JobQueueService>({
-        enqueue: input?.enqueueJob ?? jest.fn().mockResolvedValue(undefined)
+        enqueue: input?.enqueueJob ?? vi.fn().mockResolvedValue(undefined)
       }),
       billingConfig: mock<BillingConfigService>({
-        get: jest.fn().mockReturnValue(input?.trialDeploymentLifetimeInHours ?? 24)
+        get: vi.fn().mockReturnValue(input?.trialDeploymentLifetimeInHours ?? 24)
       })
     };
 

@@ -1,5 +1,6 @@
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { SignAndBroadcastOptions } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
@@ -89,14 +90,14 @@ describe(TxManagerService.name, () => {
     externalDerivedResult?: IndexedTx;
   }) {
     const fundingWallet = mock<Wallet>({
-      getFirstAddress: jest.fn().mockResolvedValue(input?.fundingWalletAddress ?? createAkashAddress())
+      getFirstAddress: vi.fn().mockResolvedValue(input?.fundingWalletAddress ?? createAkashAddress())
     });
 
     const derivedWallet = mock<Wallet>({
-      getFirstAddress: jest.fn().mockResolvedValue(input?.derivedWalletAddress ?? createAkashAddress())
+      getFirstAddress: vi.fn().mockResolvedValue(input?.derivedWalletAddress ?? createAkashAddress())
     });
 
-    const walletFactory = jest.fn().mockReturnValue(derivedWallet);
+    const walletFactory = vi.fn().mockReturnValue(derivedWallet);
 
     const walletResources = {
       v1: {
@@ -111,10 +112,10 @@ describe(TxManagerService.name, () => {
 
     const logger = mock<LoggerService>();
     const externalSignerHttpSdkService = mock<ExternalSignerHttpSdkService>({
-      signAndBroadcastWithFundingWallet: jest
+      signAndBroadcastWithFundingWallet: vi
         .fn()
         .mockResolvedValue(input?.externalFundingResult ?? mock<IndexedTx>({ code: 0, hash: "default-hash", rawLog: "success" })),
-      signAndBroadcastWithDerivedWallet: jest
+      signAndBroadcastWithDerivedWallet: vi
         .fn()
         .mockResolvedValue(input?.externalDerivedResult ?? mock<IndexedTx>({ code: 0, hash: "default-hash", rawLog: "success" }))
     });

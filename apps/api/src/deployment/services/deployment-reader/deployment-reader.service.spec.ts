@@ -2,6 +2,7 @@ import "@test/mocks/logger-service.mock";
 
 import type { DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { AxiosError } from "axios";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { WalletInitialized, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
@@ -178,29 +179,29 @@ describe(DeploymentReaderService.name, () => {
 
     const mocks = {
       providerService: mock<ProviderService>({
-        getLeaseStatus: jest.fn().mockResolvedValue(null),
-        toProviderAuth: jest.fn().mockResolvedValue({ type: "jwt", token: "test" })
+        getLeaseStatus: vi.fn().mockResolvedValue(null),
+        toProviderAuth: vi.fn().mockResolvedValue({ type: "jwt", token: "test" })
       }),
       deploymentHttpService: mock<DeploymentHttpService>({
-        findByOwnerAndDseq: jest.fn().mockResolvedValue(defaultDeploymentInfo),
-        findAll: jest.fn().mockResolvedValue(defaultDeploymentList)
+        findByOwnerAndDseq: vi.fn().mockResolvedValue(defaultDeploymentInfo),
+        findAll: vi.fn().mockResolvedValue(defaultDeploymentList)
       }),
       fallbackDeploymentReaderService: mock<FallbackDeploymentReaderService>({
-        findByOwnerAndDseq: jest.fn().mockResolvedValue(input.fallbackDeploymentInfo ?? defaultDeploymentInfo),
-        findAll: jest.fn().mockResolvedValue(input.fallbackDeploymentList ?? defaultDeploymentList)
+        findByOwnerAndDseq: vi.fn().mockResolvedValue(input.fallbackDeploymentInfo ?? defaultDeploymentInfo),
+        findAll: vi.fn().mockResolvedValue(input.fallbackDeploymentList ?? defaultDeploymentList)
       }),
       leaseHttpService: mock<LeaseHttpService>({
-        list: jest.fn().mockResolvedValue({ leases: [], pagination: { next_key: null, total: "0" } })
+        list: vi.fn().mockResolvedValue({ leases: [], pagination: { next_key: null, total: "0" } })
       }),
       fallbackLeaseReaderService: mock<FallbackLeaseReaderService>({
-        list: jest.fn().mockResolvedValue({
+        list: vi.fn().mockResolvedValue({
           leases: input.fallbackLeases ?? [],
           pagination: { next_key: null, total: "0" }
         })
       }),
       messageService: mock<MessageService>(),
       walletReaderService: mock<WalletReaderService>({
-        getWalletByUserId: jest.fn().mockResolvedValue(wallet)
+        getWalletByUserId: vi.fn().mockResolvedValue(wallet)
       }),
       logger: mock<LoggerService>()
     };

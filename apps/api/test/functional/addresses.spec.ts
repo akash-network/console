@@ -3,6 +3,7 @@ import { AddressReference, Day, Transaction, Validator } from "@akashnetwork/dat
 import { faker } from "@faker-js/faker";
 import nock from "nock";
 import { container } from "tsyringe";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import type { GetAddressTransactionsResponse } from "@src/address/http-schemas/address.schema";
 import { CORE_CONFIG } from "@src/core";
@@ -38,7 +39,7 @@ describe("Addresses API", () => {
   });
 
   afterAll(async () => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
     nock.cleanAll();
   });
 

@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import { app, initDb } from "@src/rest-app";
 
 describe("Templates", () => {

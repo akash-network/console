@@ -1,5 +1,6 @@
 import { faker } from "@faker-js/faker";
 import { addDays, format } from "date-fns";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { BillingUsageRawResult, UsageRepository } from "@src/billing/repositories/usage/usage.repository";
@@ -228,11 +229,11 @@ describe(UsageService.name, () => {
     ];
 
     const usageRepository = mock<UsageRepository>({
-      getHistory: jest.fn().mockResolvedValue(mockUsageData)
+      getHistory: vi.fn().mockResolvedValue(mockUsageData)
     });
 
     const deploymentRepository = mock<DeploymentRepository>({
-      countActiveByOwner: jest.fn().mockResolvedValue(totalDeployments)
+      countActiveByOwner: vi.fn().mockResolvedValue(totalDeployments)
     });
 
     const service = new UsageService(usageRepository, deploymentRepository);

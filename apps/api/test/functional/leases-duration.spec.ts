@@ -1,5 +1,6 @@
 import type { AkashBlock, Deployment, DeploymentGroup, Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { faker } from "@faker-js/faker";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { app, initDb } from "@src/rest-app";
 

@@ -1,5 +1,6 @@
 import { ResponseError } from "auth0";
 import { container as rootContainer } from "tsyringe";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "@src/auth/services/auth.service";

@@ -3,6 +3,7 @@ import type { Block } from "@akashnetwork/database/dbSchemas/base";
 import { faker } from "@faker-js/faker";
 import type { CreationAttributes } from "sequelize";
 import { container } from "tsyringe";
+import { describe, expect, it } from "vitest";
 
 import { CHAIN_DB } from "@src/chain";
 import { ProviderDeploymentsService } from "./provider-deployments.service";

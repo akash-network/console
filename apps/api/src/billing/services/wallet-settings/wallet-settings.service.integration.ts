@@ -1,6 +1,7 @@
 import { createMongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { PostgresError } from "postgres";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
@@ -181,7 +182,7 @@ describe(WalletSettingService.name, () => {
     userRepository.findById.mockResolvedValue(userWithStripe);
     const paymentMethod = { ...generatePaymentMethod(), validated: true };
     const stripeService = mock<StripeService>({
-      getDefaultPaymentMethod: jest.fn().mockResolvedValue(paymentMethod as PaymentMethod)
+      getDefaultPaymentMethod: vi.fn().mockResolvedValue(paymentMethod as PaymentMethod)
     });
     const walletSetting = generateWalletSetting({ userId: user.id });
     walletSettingRepository.findByUserId.mockResolvedValue(walletSetting);
@@ -192,7 +193,7 @@ describe(WalletSettingService.name, () => {
     });
     const jobId = faker.string.uuid();
     const walletReloadJobService = mock<WalletReloadJobService>({
-      scheduleForWalletSetting: jest.fn().mockResolvedValue(jobId)
+      scheduleForWalletSetting: vi.fn().mockResolvedValue(jobId)
     });
     const service = new WalletSettingService(walletSettingRepository, userWalletRepository, userRepository, stripeService, authService, walletReloadJobService);
 

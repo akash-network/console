@@ -1,4 +1,6 @@
 import type Stripe from "stripe";
+import type { Mock } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { PaymentMethodRepository, StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
@@ -25,7 +27,7 @@ describe(StripeWebhookService.name, () => {
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
       stripeTransactionRepository.updateById.mockResolvedValue(undefined);
       refillService.topUpWallet.mockResolvedValue();
-      (stripeService.charges.retrieve as jest.Mock).mockResolvedValue({
+      (stripeService.charges.retrieve as Mock).mockResolvedValue({
         id: chargeId,
         payment_method_details: { card: { brand: "visa", last4: "4242" } },
         receipt_url: "https://receipt.url"
@@ -179,7 +181,7 @@ describe(StripeWebhookService.name, () => {
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
       stripeTransactionRepository.updateById.mockResolvedValue(undefined);
       refillService.topUpWallet.mockResolvedValue();
-      (stripeService.charges.retrieve as jest.Mock).mockResolvedValue({
+      (stripeService.charges.retrieve as Mock).mockResolvedValue({
         id: chargeId,
         payment_method_details: { card: { brand: "mastercard", last4: "5555" } },
         receipt_url: "https://receipt.stripe.com/inv"
@@ -786,7 +788,7 @@ describe(StripeWebhookService.name, () => {
 
     // Mock Stripe charges API
     stripeService.charges = {
-      retrieve: jest.fn()
+      retrieve: vi.fn()
     } as unknown as Stripe.ChargesResource;
 
     const service = new StripeWebhookService(stripeService, refillService, billingConfig, userRepository, paymentMethodRepository, stripeTransactionRepository);

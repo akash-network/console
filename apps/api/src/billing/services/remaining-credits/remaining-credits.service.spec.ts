@@ -1,3 +1,4 @@
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
@@ -16,8 +17,8 @@ describe(RemainingCreditsService.name, () => {
 
     const userWallet = createUserWallet();
     const { service, userWalletRepository, balanceService } = setup({
-      findOneByUserId: jest.fn().mockResolvedValue(userWallet),
-      retrieveDeploymentLimit: jest.fn().mockResolvedValue(remainingCreditsInUusdc)
+      findOneByUserId: vi.fn().mockResolvedValue(userWallet),
+      retrieveDeploymentLimit: vi.fn().mockResolvedValue(remainingCreditsInUusdc)
     });
 
     const result = await service.resolve(user);
@@ -31,7 +32,7 @@ describe(RemainingCreditsService.name, () => {
     const user = createUser();
 
     const { service, userWalletRepository, logger } = setup({
-      findOneByUserId: jest.fn().mockResolvedValue(null)
+      findOneByUserId: vi.fn().mockResolvedValue(null)
     });
 
     await expect(service.resolve(user)).rejects.toThrow("User wallet not found");
@@ -48,7 +49,7 @@ describe(RemainingCreditsService.name, () => {
 
     const userWallet = createUserWallet({ address: null });
     const { service, userWalletRepository, logger } = setup({
-      findOneByUserId: jest.fn().mockResolvedValue(userWallet)
+      findOneByUserId: vi.fn().mockResolvedValue(userWallet)
     });
 
     await expect(service.resolve(user)).rejects.toThrow("User wallet not found");
@@ -63,10 +64,10 @@ describe(RemainingCreditsService.name, () => {
   function setup(input?: { findOneByUserId?: UserWalletRepository["findOneByUserId"]; retrieveDeploymentLimit?: BalancesService["retrieveDeploymentLimit"] }) {
     const mocks = {
       userWalletRepository: mock<UserWalletRepository>({
-        findOneByUserId: input?.findOneByUserId ?? jest.fn()
+        findOneByUserId: input?.findOneByUserId ?? vi.fn()
       }),
       balanceService: mock<BalancesService>({
-        retrieveDeploymentLimit: input?.retrieveDeploymentLimit ?? jest.fn()
+        retrieveDeploymentLimit: input?.retrieveDeploymentLimit ?? vi.fn()
       }),
       logger: mock<LoggerService>()
     };

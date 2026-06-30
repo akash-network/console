@@ -1,7 +1,7 @@
 import type { Logger } from "@akashnetwork/logging";
 import type { ServerType } from "@hono/node-server";
 import type { Mock } from "vitest";
-import { vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { shutdownServer } from "./shutdown-server";
