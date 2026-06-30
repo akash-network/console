@@ -1,3 +1,4 @@
+import { LeaseHttpService } from "@akashnetwork/http-sdk";
 import { Trace } from "@akashnetwork/instrumentation";
 import { singleton } from "tsyringe";
 
@@ -15,24 +16,30 @@ export class LeaseService {
     private readonly rpcMessageService: RpcMessageService,
     private readonly providerService: ProviderService,
     private readonly deploymentReaderService: DeploymentReaderService,
-    private readonly walletReaderService: WalletReaderService
+    private readonly walletReaderService: WalletReaderService,
+    private readonly leaseHttpService: LeaseHttpService
   ) {}
 
   @Trace()
   public async createLeasesAndSendManifest({ leases, manifest, userId }: CreateLeaseRequest & { userId: string }): Promise<GetDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
+    const dseq = leases[0].dseq;
 
-    const leaseMessages = leases.map(lease =>
-      this.rpcMessageService.getCreateLeaseMsg({
-        owner: wallet.address!,
-        dseq: lease.dseq,
-        gseq: lease.gseq,
-        oseq: lease.oseq,
-        provider: lease.provider
-      })
-    );
+    // Leases for all groups are created in one tx, so one existing lease means all exist:
+    // skip creation when already on-chain to keep retries idempotent.
+    if (!(await this.#hasActiveLease(wallet.address!, dseq))) {
+      const leaseMessages = leases.map(lease =>
+        this.rpcMessageService.getCreateLeaseMsg({
+          owner: wallet.address!,
+          dseq: lease.dseq,
+          gseq: lease.gseq,
+          oseq: lease.oseq,
+          provider: lease.provider
+        })
+      );
 
-    await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, leaseMessages);
+      await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, leaseMessages);
+    }
 
     for (const lease of leases) {
       const commonParams = {
@@ -46,6 +53,11 @@ export class LeaseService {
       });
     }
 
-    return await this.deploymentReaderService.findByWalletAndDseq(wallet, leases[0].dseq);
+    return await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+  }
+
+  async #hasActiveLease(owner: string, dseq: string): Promise<boolean> {
+    const { leases } = await this.leaseHttpService.list({ owner, dseq });
+    return leases.some(({ lease }) => lease.state !== "closed");
   }
 }
