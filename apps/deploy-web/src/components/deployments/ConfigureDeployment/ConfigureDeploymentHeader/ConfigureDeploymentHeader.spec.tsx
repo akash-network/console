@@ -4,6 +4,7 @@ import { Snackbar } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { DeploymentCost } from "../useDeploymentCost/useDeploymentCost";
 import type { DeploymentFlow, DeploymentFlowActions } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./ConfigureDeploymentHeader";
 import { ConfigureDeploymentHeader } from "./ConfigureDeploymentHeader";
@@ -100,6 +101,35 @@ describe(ConfigureDeploymentHeader.name, () => {
     expect(deploy).toHaveBeenCalled();
   });
 
+  it("shows a dash for the cost before any bids arrive", () => {
+    setup({ phase: "quoting", cost: null });
+    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.queryByTestId("price")).not.toBeInTheDocument();
+    expect(screen.queryByText("/hr")).not.toBeInTheDocument();
+  });
+
+  it("shows a single hourly price when the cost bounds are equal", () => {
+    setup({ phase: "quoting", cost: { minPerBlock: 5, maxPerBlock: 5, denom: "uakt" } });
+    expect(screen.getAllByTestId("price")).toHaveLength(1);
+    expect(screen.getByText("/hr")).toBeInTheDocument();
+  });
+
+  it("shows a min–max range when the cost bounds differ", () => {
+    setup({ phase: "quoting", cost: { minPerBlock: 5, maxPerBlock: 8, denom: "uakt" } });
+    expect(screen.getAllByTestId("price")).toHaveLength(2);
+    expect(screen.getByText("/hr")).toBeInTheDocument();
+  });
+
+  it("passes the sdl and current selections through to the cost hook", () => {
+    const { useDeploymentCost } = setup({
+      phase: "quoting",
+      sdl: "the-sdl",
+      selections: { p1: "akash1a/1/1/1" },
+      placements: [{ id: "p1" }]
+    });
+    expect(useDeploymentCost).toHaveBeenCalledWith(expect.objectContaining({ sdl: "the-sdl", selections: { p1: "akash1a/1/1/1" } }));
+  });
+
   function setup(input: {
     phase: DeploymentFlow["phase"];
     requestQuotes?: (sdl: string) => void;
@@ -110,6 +140,8 @@ describe(ConfigureDeploymentHeader.name, () => {
     allPlacementsHaveBids?: boolean;
     deployError?: { message?: string };
     deploy?: () => void;
+    cost?: DeploymentCost | null;
+    sdl?: string;
   }) {
     const flow = mock<DeploymentFlow>({
       phase: input.phase,
@@ -119,24 +151,28 @@ describe(ConfigureDeploymentHeader.name, () => {
     });
     flow.selections = input.selections ?? {};
     const enqueueSnackbar = vi.fn();
+    const useDeploymentCost = vi.fn(() => input.cost ?? null);
     const dependencies: typeof DEPENDENCIES = {
       useDeploymentResourceSummary: (() => "1 vCPU") as never,
       useSnackbar: () => mock<ReturnType<(typeof DEPENDENCIES)["useSnackbar"]>>({ enqueueSnackbar }),
       Snackbar,
       generateSdl: () => GENERATED_SDL,
-      validateGeneratedSdl: () => input.validationErrors ?? []
+      validateGeneratedSdl: () => input.validationErrors ?? [],
+      useDeploymentCost: useDeploymentCost as typeof DEPENDENCIES.useDeploymentCost,
+      PriceValue: ({ value }) => <span data-testid="price">{String(value)}</span>
     };
     render(
       <Wrapper placements={input.placements}>
         <ConfigureDeploymentHeader
           flow={flow}
+          sdl={input.sdl ?? ""}
           onDeploy={input.onDeploy ?? vi.fn()}
           allPlacementsHaveBids={input.allPlacementsHaveBids ?? false}
           dependencies={dependencies}
         />
       </Wrapper>
     );
-    return { enqueueSnackbar };
+    return { enqueueSnackbar, useDeploymentCost };
   }
 
   function Wrapper({ children, placements }: { children: ReactNode; placements?: { id: string }[] }) {

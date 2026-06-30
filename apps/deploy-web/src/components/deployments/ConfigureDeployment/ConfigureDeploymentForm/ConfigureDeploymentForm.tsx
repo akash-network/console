@@ -169,7 +169,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, intent, depende
       <d.NextSeo title="Configure your deployment" />
       <FormProvider {...form}>
         <div className="px-6 pt-6">
-          <d.ConfigureDeploymentHeader flow={flow} onDeploy={() => setReviewOpen(true)} allPlacementsHaveBids={allPlacementsHaveBids} />
+          <d.ConfigureDeploymentHeader flow={flow} sdl={liveSdl} onDeploy={() => setReviewOpen(true)} allPlacementsHaveBids={allPlacementsHaveBids} />
         </div>
         <div className="relative mt-6 flex min-h-0 flex-1">
           <d.ConfigureDeploymentPanes
