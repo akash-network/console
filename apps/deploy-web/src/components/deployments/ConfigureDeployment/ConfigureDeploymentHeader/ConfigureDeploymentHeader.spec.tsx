@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { DeploymentCost } from "../useDeploymentCost/useDeploymentCost";
 import type { DeploymentFlow, DeploymentFlowActions } from "../useDeploymentFlow/useDeploymentFlow";
+import type { QuoteExpiry } from "../useQuoteExpiry/useQuoteExpiry";
 import type { DEPENDENCIES } from "./ConfigureDeploymentHeader";
 import { ConfigureDeploymentHeader } from "./ConfigureDeploymentHeader";
 
@@ -56,9 +57,10 @@ describe(ConfigureDeploymentHeader.name, () => {
     expect(screen.getByRole("button", { name: /request quotes/i })).toBeInTheDocument();
   });
 
-  it("keeps the Requesting CTA while closing", () => {
+  it("shows a Cancelling CTA while closing", () => {
     setup({ phase: "closing" });
-    expect(screen.getByRole("button", { name: /requesting/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /cancelling/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /requesting/i })).not.toBeInTheDocument();
   });
 
   it("restores Request quotes after an error so the spec can be retried", () => {
@@ -130,6 +132,52 @@ describe(ConfigureDeploymentHeader.name, () => {
     expect(useDeploymentCost).toHaveBeenCalledWith(expect.objectContaining({ sdl: "the-sdl", selections: { p1: "akash1a/1/1/1" } }));
   });
 
+  it("shows the quote-expiry countdown once bids arrive", () => {
+    setup({ phase: "quoting", cost: { minPerBlock: 5, maxPerBlock: 5, denom: "uakt" }, expiry: { secondsLeft: 165, isExpired: false } });
+    expect(screen.getByTestId("quote-expiry")).toHaveTextContent("expires in 2:45");
+    expect(screen.getByTestId("quote-expiry")).toHaveClass("text-muted-foreground");
+  });
+
+  it("marks the countdown red in the final minute", () => {
+    setup({ phase: "quoting", cost: { minPerBlock: 5, maxPerBlock: 5, denom: "uakt" }, expiry: { secondsLeft: 45, isExpired: false } });
+    expect(screen.getByTestId("quote-expiry")).toHaveTextContent("expires in 0:45");
+    expect(screen.getByTestId("quote-expiry")).toHaveClass("text-destructive");
+  });
+
+  it("hides the countdown until the first bid arrives", () => {
+    setup({ phase: "quoting", expiry: null });
+    expect(screen.queryByTestId("quote-expiry")).not.toBeInTheDocument();
+  });
+
+  it('keeps the expiry line as "expired" once the window elapses rather than hiding it or showing 0:00', () => {
+    setup({ phase: "quoting", cost: null, expiry: { secondsLeft: 0, isExpired: true } });
+    const line = screen.getByTestId("quote-expiry");
+    expect(line).toHaveTextContent("expired");
+    expect(line).not.toHaveTextContent("0:00");
+    expect(line).toHaveClass("text-destructive");
+  });
+
+  it("does not offer Close and Edit while open bids remain, even after the indicative timer elapses", () => {
+    setup({
+      phase: "quoting",
+      allPlacementsHaveBids: true,
+      placements: [{ id: "p1" }],
+      selections: { p1: "akash1a/1/1/1" },
+      cost: { minPerBlock: 5, maxPerBlock: 5, denom: "uakt" },
+      expiry: { secondsLeft: 0, isExpired: true }
+    });
+    expect(screen.queryByRole("button", { name: "Close and Edit" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Deploy" })).toBeInTheDocument();
+  });
+
+  it("flips the CTA to Close and Edit once the window elapses and no open bids remain, and runs cancelAndEdit", async () => {
+    const cancelAndEdit = vi.fn();
+    setup({ phase: "quoting", cost: null, expiry: { secondsLeft: 0, isExpired: true }, cancelAndEdit });
+    expect(screen.queryByRole("button", { name: /requesting/i })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Close and Edit" }));
+    expect(cancelAndEdit).toHaveBeenCalled();
+  });
+
   function setup(input: {
     phase: DeploymentFlow["phase"];
     requestQuotes?: (sdl: string) => void;
@@ -142,12 +190,18 @@ describe(ConfigureDeploymentHeader.name, () => {
     deploy?: () => void;
     cost?: DeploymentCost | null;
     sdl?: string;
+    expiry?: QuoteExpiry | null;
+    cancelAndEdit?: () => void;
   }) {
     const flow = mock<DeploymentFlow>({
       phase: input.phase,
       dseq: null,
       deployError: input.deployError,
-      actions: mock<DeploymentFlowActions>({ requestQuotes: input.requestQuotes ?? vi.fn(), deploy: input.deploy ?? vi.fn() })
+      actions: mock<DeploymentFlowActions>({
+        requestQuotes: input.requestQuotes ?? vi.fn(),
+        deploy: input.deploy ?? vi.fn(),
+        cancelAndEdit: input.cancelAndEdit ?? vi.fn()
+      })
     });
     flow.selections = input.selections ?? {};
     const enqueueSnackbar = vi.fn();
@@ -159,7 +213,9 @@ describe(ConfigureDeploymentHeader.name, () => {
       generateSdl: () => GENERATED_SDL,
       validateGeneratedSdl: () => input.validationErrors ?? [],
       useDeploymentCost: useDeploymentCost as typeof DEPENDENCIES.useDeploymentCost,
-      PriceValue: ({ value }) => <span data-testid="price">{String(value)}</span>
+      PriceValue: ({ value }) => <span data-testid="price">{String(value)}</span>,
+      useQuoteExpiry: () => input.expiry ?? null,
+      CustomTooltip: ({ children }) => <>{children}</>
     };
     render(
       <Wrapper placements={input.placements}>
