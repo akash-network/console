@@ -168,24 +168,26 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, intent, depende
     <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col dark:bg-card">
       <d.NextSeo title="Configure your deployment" />
       <FormProvider {...form}>
-        <div className="px-6 pt-6">
-          <d.ConfigureDeploymentHeader flow={flow} sdl={liveSdl} onDeploy={() => setReviewOpen(true)} allPlacementsHaveBids={allPlacementsHaveBids} />
-        </div>
-        <div className="relative mt-6 flex min-h-0 flex-1">
-          <d.ConfigureDeploymentPanes
-            sdl={liveSdl}
-            previewSdl={previewSdl}
-            selectedServiceId={selectedServiceId}
-            selectedPlacementName={selectedPlacement.name}
-            selectedPlacementRegion={selectedPlacement.region}
-            selectedPlacementId={selectedPlacement.id}
-            onSelectService={setSelectedServiceId}
-            phase={flow.phase}
-            dseq={flow.dseq}
-            selections={flow.selections}
-            onSelectProvider={selectProviderAndAdvance}
-            onCancelAndEdit={flow.actions.cancelAndEdit}
-          />
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <div className="px-6 pt-6">
+            <d.ConfigureDeploymentHeader flow={flow} sdl={liveSdl} onDeploy={() => setReviewOpen(true)} allPlacementsHaveBids={allPlacementsHaveBids} />
+          </div>
+          <div className="relative mt-6 flex min-h-0 flex-1">
+            <d.ConfigureDeploymentPanes
+              sdl={liveSdl}
+              previewSdl={previewSdl}
+              selectedServiceId={selectedServiceId}
+              selectedPlacementName={selectedPlacement.name}
+              selectedPlacementRegion={selectedPlacement.region}
+              selectedPlacementId={selectedPlacement.id}
+              onSelectService={setSelectedServiceId}
+              phase={flow.phase}
+              dseq={flow.dseq}
+              selections={flow.selections}
+              onSelectProvider={selectProviderAndAdvance}
+              onCancelAndEdit={flow.actions.cancelAndEdit}
+            />
+          </div>
           {flow.phase === "deploying" && (
             <DeployProgressOverlay
               providerAddress={firstSelectedProviderAddress(flow.selections)}
