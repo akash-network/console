@@ -1,7 +1,8 @@
 import type { FC } from "react";
 import { useMemo, useState } from "react";
-import { Button, Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
-import type { Column, SortingState } from "@tanstack/react-table";
+import { Badge, Button, Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
+import type { Column, Row, SortingState } from "@tanstack/react-table";
 import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 
@@ -16,7 +17,7 @@ import { ProviderUptimeCell } from "./ProviderUptimeCell/ProviderUptimeCell";
 
 const columnHelper = createColumnHelper<PlacementOffer>();
 
-/** Shown when a provider has no region attribute. */
+/** Shown when a provider has no region attribute, and as the cost placeholder for a row with no price. */
 const NO_REGION = "—";
 
 /** Fallback uptime for a provider missing from the derived map; treated as fully healthy. */
@@ -35,13 +36,13 @@ export const MarketplaceProvidersTable: FC<Props> = ({ providers, isLoading, isS
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const uptimeByOwner = useProvidersUptime(providers);
-  /** Cost only makes sense once firm bids arrive; until then the marketplace lists screened candidates with no price. */
-  const hasBids = providers.some(provider => provider.offerState === "submitted");
-  /** The Select column is only useful when a visible offer can actually be picked; otherwise it's an empty trailing column. */
-  const hasSelectableOffers = providers.some(provider => provider.offerState === "submitted" && !!provider.bidId);
+  /** The status column and the "didn't bid" split appear once real bid outcomes exist; before that the marketplace lists screened candidates as `searching`. */
+  const isMerged = providers.some(provider => provider.offerState !== "searching");
+  /** Cost only makes sense once bids arrive: a submitted bid is priced and a closed/expired one keeps its last price, but a screened-only candidate has none. */
+  const showCost = providers.some(provider => !!provider.price);
   const columns = useMemo(
-    () => buildColumns(uptimeByOwner, { selectedBidId, onSelect, showCost: hasBids, showSelect: hasSelectableOffers }),
-    [uptimeByOwner, selectedBidId, onSelect, hasBids, hasSelectableOffers]
+    () => buildColumns(uptimeByOwner, { selectedBidId, onSelect, showCost, showStatus: isMerged }),
+    [uptimeByOwner, selectedBidId, onSelect, showCost, isMerged]
   );
 
   const table = useReactTable({
@@ -77,6 +78,16 @@ export const MarketplaceProvidersTable: FC<Props> = ({ providers, isLoading, isS
     return <p className="p-4 text-sm text-muted-foreground">No providers found.</p>;
   }
 
+  const sortedRows = table.getRowModel().rows;
+  /**
+   * Sorting applies across the whole table, but screened providers that never bid are pinned into a group at
+   * the bottom: partitioning the already-sorted rows keeps the active column sort inside each group. Bidders
+   * and closed/expired bids stay together up top (they did bid); only never-bid providers drop below.
+   */
+  const biddableRows = sortedRows.filter(row => !isPinnedBelow(row.original.offerState));
+  const noBidRows = sortedRows.filter(row => isPinnedBelow(row.original.offerState));
+  const columnCount = table.getVisibleFlatColumns().length;
+
   return (
     <div className="overflow-hidden rounded-[14px] border shadow-sm">
       <Table>
@@ -92,20 +103,48 @@ export const MarketplaceProvidersTable: FC<Props> = ({ providers, isLoading, isS
           ))}
         </TableHeader>
         <TableBody>
-          {table.getRowModel().rows.map(row => (
-            <TableRow key={row.id} className="h-[52px]">
-              {row.getVisibleCells().map(cell => (
-                <TableCell key={cell.id} className="py-2 pl-4 pr-2 text-sm font-medium text-foreground">
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </TableCell>
-              ))}
+          {biddableRows.map(row => (
+            <OfferRow key={row.id} row={row} />
+          ))}
+          {noBidRows.length > 0 && biddableRows.length > 0 && (
+            <TableRow key="didnt-bid-divider" className="hover:bg-transparent">
+              <TableCell colSpan={columnCount} className="h-8 bg-muted/30 py-1 pl-4 font-mono text-xs uppercase tracking-wide text-muted-foreground">
+                didn&apos;t bid
+              </TableCell>
             </TableRow>
+          )}
+          {noBidRows.map(row => (
+            <OfferRow key={row.id} row={row} />
           ))}
         </TableBody>
       </Table>
     </div>
   );
 };
+
+/** Only never-bid providers are pinned into the bottom group; a closed/expired bid stays up with the bidders (it did bid) — just muted and unselectable. */
+function isPinnedBelow(state: PlacementOffer["offerState"]): boolean {
+  return state === "unavailable";
+}
+
+/** Neither a closed/expired bid nor a never-bid provider can be picked, so both read muted with a status badge in place of a Select button. */
+function isNonSelectable(state: PlacementOffer["offerState"]): boolean {
+  return state === "closed" || state === "unavailable";
+}
+
+/** One marketplace row. Selectable rows read normally; closed/expired and never-bid rows are muted (which also greys their price). Cell content (price vs "—", Select vs status badge) comes from the column defs. */
+function OfferRow({ row }: { row: Row<PlacementOffer> }) {
+  const isDisabled = isNonSelectable(row.original.offerState);
+  return (
+    <TableRow className={cn("h-[52px]", isDisabled && "text-muted-foreground hover:bg-transparent")}>
+      {row.getVisibleCells().map(cell => (
+        <TableCell key={cell.id} className={cn("py-2 pl-4 pr-2 text-sm", !isDisabled && "font-medium text-foreground")}>
+          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+        </TableCell>
+      ))}
+    </TableRow>
+  );
+}
 
 /** Design-system column header: an uppercase mono label that toggles sort on click. */
 function SortableHeader({ column, title }: { column: Column<PlacementOffer, unknown>; title: string }) {
@@ -128,10 +167,10 @@ function SortableHeader({ column, title }: { column: Column<PlacementOffer, unkn
   );
 }
 
-/** Builds the table columns, closing over the per-provider uptime derived once in the component. */
+/** Builds the columns, closing over the per-provider uptime derived once in the component. Every column is an accessor so it sorts; the trailing status column is display-only. */
 function buildColumns(
   uptimeByOwner: Map<string, ProviderUptime>,
-  selection: { selectedBidId?: string; onSelect?: (bidId: string) => void; showCost: boolean; showSelect: boolean }
+  selection: { selectedBidId?: string; onSelect?: (bidId: string) => void; showCost: boolean; showStatus: boolean }
 ) {
   return [
     columnHelper.accessor(providerDisplayName, {
@@ -150,24 +189,26 @@ function buildColumns(
     }),
     ...(selection.showCost
       ? [
-          columnHelper.display({
+          columnHelper.accessor(provider => (provider.price ? Number(provider.price.amount) : 0), {
             id: "cost",
-            header: () => <span className="font-mono text-sm font-normal uppercase text-muted-foreground">Cost</span>,
+            header: ({ column }) => <SortableHeader column={column} title="Cost" />,
             cell: ({ row }) => {
               const { price } = row.original;
-              if (!price) return <span className="text-muted-foreground">—</span>;
+              if (!price) return <span className="text-muted-foreground">{NO_REGION}</span>;
               return <PricePerTimeUnit denom={price.denom} perBlockValue={udenomToDenom(price.amount, PRICE_DISPLAY_PRECISION)} showAsHourly abbreviated />;
             }
           })
         ]
       : []),
-    ...(selection.showSelect
+    ...(selection.showStatus
       ? [
           columnHelper.display({
-            id: "select",
+            id: "status",
             header: () => null,
             cell: ({ row }) => {
               const offer = row.original;
+              if (offer.offerState === "closed") return <Badge variant="secondary">Expired</Badge>;
+              if (offer.offerState === "unavailable") return <Badge variant="outline">No bid</Badge>;
               if (offer.offerState !== "submitted" || !offer.bidId) return null;
               const isSelected = offer.bidId === selection.selectedBidId;
               return (

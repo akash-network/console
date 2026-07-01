@@ -3,7 +3,8 @@ import { extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
 import { useRouter } from "next/router";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { parseBidId } from "@src/utils/bids/bidId";
+import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
+import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
 import { ManifestYaml } from "@src/utils/deploymentData/helpers";
 import { UrlService } from "@src/utils/urlUtils";
 import type { BidStrategy, DeploymentIntent } from "./deploymentIntent";
@@ -61,7 +62,7 @@ function useCreateLease() {
   return useServices().api.v1.createLease.useMutation();
 }
 
-export const DEPENDENCIES = { useCreateDeployment, useCloseDeployment, useCreateLease, useRouter, manifestFromSdl };
+export const DEPENDENCIES = { useCreateDeployment, useCloseDeployment, useCreateLease, useListBids, useRouter, manifestFromSdl };
 
 /**
  * Controlled lifecycle state machine for the configure flow. Owns interaction state (phase, dseq,
@@ -87,12 +88,27 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const intentRef = useRef(intent);
   intentRef.current = intent;
 
+  const bidsQuery = dependencies.useListBids(dseq, { enabled: phase === "quoting", refetchInterval: BID_POLL_INTERVAL });
+
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout>>();
   useEffect(function clearRedirectTimerOnUnmount() {
     return function cancelPendingRedirect() {
       if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
     };
   }, []);
+
+  useEffect(
+    function pruneStaleSelections() {
+      const bids = bidsQuery.data?.data;
+      if (!bids || bids.length === 0) return;
+      const openBidIds = new Set(bids.filter(entry => entry.bid.state === "open").map(entry => formatBidId(entry.bid.id)));
+      setSelections(function dropClosedSelections(previous) {
+        const survivors = Object.entries(previous).filter(([, bidId]) => openBidIds.has(bidId));
+        return survivors.length === Object.keys(previous).length ? previous : Object.fromEntries(survivors);
+      });
+    },
+    [bidsQuery.data]
+  );
 
   const requestQuotes = useCallback(
     function requestQuotes(sdl: string) {

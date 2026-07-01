@@ -125,7 +125,12 @@ describe(MarketplaceProvidersTable.name, () => {
     expect(screen.getByText("Cost")).toBeInTheDocument();
   });
 
-  it("drops the empty Select column when no offer is selectable, leaving only Provider, Region, and Uptime", () => {
+  it("shows the Cost column when the only bids have expired", () => {
+    setup({ providers: [closedOffer({ owner: "akash1c", hostUri: "https://c.example:8443" })] });
+    expect(screen.getByText("Cost")).toBeInTheDocument();
+  });
+
+  it("shows only Provider, Region, and Uptime while every offer is still searching", () => {
     setup({ providers: [searchingOffer({ owner: "akash1a" })] });
     expect(screen.getAllByRole("columnheader")).toHaveLength(3);
   });
@@ -145,6 +150,94 @@ describe(MarketplaceProvidersTable.name, () => {
   it("marks the selected offer's row and makes its button non-clickable", () => {
     setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" })], selectedBidId: "akash1a/1/1/1" });
     expect(screen.getByRole("button", { name: /selected/i })).toBeDisabled();
+  });
+
+  it("renders a non-bidding screened provider with a No bid indicator and no Select button", () => {
+    setup({
+      providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" }), unavailableOffer({ owner: "akash1b", hostUri: "https://b.example:8443" })]
+    });
+    expect(screen.getByText("No bid")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Select akash1b" })).not.toBeInTheDocument();
+  });
+
+  it("marks a provider whose bid expired with an Expired indicator", () => {
+    setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" }), closedOffer({ owner: "akash1c", hostUri: "https://c.example:8443" })] });
+    expect(screen.getByText("Expired")).toBeInTheDocument();
+  });
+
+  it("pins non-bidding rows below the bidding rows", () => {
+    setup({
+      providers: [
+        unavailableOffer({ owner: "akash1b", hostUri: "https://nobid.example:8443" }),
+        submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1", hostUri: "https://bidder.example:8443" })
+      ]
+    });
+    const rows = screen.getAllByRole("row");
+    expect(within(rows[1]).getByText("bidder.example")).toBeInTheDocument();
+    expect(within(rows[rows.length - 1]).getByText("nobid.example")).toBeInTheDocument();
+  });
+
+  it("keeps an expired bid in the bidding group above the divider, not selectable", () => {
+    setup({
+      providers: [
+        unavailableOffer({ owner: "akash1n", hostUri: "https://never.example:8443" }),
+        submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1", hostUri: "https://bidder.example:8443" }),
+        closedOffer({ owner: "akash1c", hostUri: "https://closed.example:8443" })
+      ]
+    });
+    const rowTexts = screen.getAllByRole("row").map(row => row.textContent ?? "");
+    const closedIndex = rowTexts.findIndex(text => text.includes("closed.example"));
+    const dividerIndex = rowTexts.findIndex(text => /didn't bid/i.test(text));
+    const neverIndex = rowTexts.findIndex(text => text.includes("never.example"));
+    expect(closedIndex).toBeGreaterThan(-1);
+    expect(closedIndex).toBeLessThan(dividerIndex);
+    expect(dividerIndex).toBeLessThan(neverIndex);
+    expect(screen.getByText("Expired")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Select closed.example" })).not.toBeInTheDocument();
+  });
+
+  it("sorts the bidding rows by cost when the Cost header is toggled ascending", async () => {
+    setup({
+      providers: [
+        submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1", hostUri: "https://pricey.example:8443", price: { amount: "5000", denom: "uakt" } }),
+        submittedOffer({ owner: "akash1b", bidId: "akash1b/1/1/1", hostUri: "https://cheap.example:8443", price: { amount: "1000", denom: "uakt" } })
+      ]
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Cost/ }));
+
+    const rows = screen.getAllByRole("row");
+    expect(within(rows[1]).getByText("cheap.example")).toBeInTheDocument();
+    expect(within(rows[2]).getByText("pricey.example")).toBeInTheDocument();
+  });
+
+  it("keeps bidding rows on top while sorting the non-bidding rows by the active column", async () => {
+    setup({
+      providers: [
+        unavailableOffer({ owner: "akash1m", hostUri: "https://mmm.example:8443" }),
+        submittedOffer({ owner: "akash1z", bidId: "akash1z/1/1/1", hostUri: "https://zzz.example:8443" }),
+        unavailableOffer({ owner: "akash1a", hostUri: "https://aaa.example:8443" })
+      ]
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Provider/ }));
+
+    const rowTexts = screen.getAllByRole("row").map(row => row.textContent ?? "");
+    const biddingIndex = rowTexts.findIndex(text => text.includes("zzz.example"));
+    const firstNoBidIndex = rowTexts.findIndex(text => text.includes("aaa.example"));
+    const secondNoBidIndex = rowTexts.findIndex(text => text.includes("mmm.example"));
+    expect(biddingIndex).toBeLessThan(firstNoBidIndex);
+    expect(firstNoBidIndex).toBeLessThan(secondNoBidIndex);
+  });
+
+  it("shows the didn't-bid divider when both bidding and non-bidding rows are present", () => {
+    setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" }), unavailableOffer({ owner: "akash1b" })] });
+    expect(screen.getByText(/didn't bid/i)).toBeInTheDocument();
+  });
+
+  it("omits the didn't-bid divider when only bidding rows are present", () => {
+    setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" })] });
+    expect(screen.queryByText(/didn't bid/i)).not.toBeInTheDocument();
   });
 
   /** A screened provider promoted to a (not-yet-bid) offer, so the display/sort tests keep using the realistic seeder without casting. */
@@ -167,6 +260,32 @@ describe(MarketplaceProvidersTable.name, () => {
   function searchingOffer(overrides: Partial<PlacementOffer>): PlacementOffer {
     return mock<PlacementOffer>({
       offerState: "searching",
+      bidId: undefined,
+      price: undefined,
+      organization: null,
+      hostUri: "",
+      location: null,
+      incidents: [],
+      ...overrides
+    });
+  }
+
+  function closedOffer(overrides: Partial<PlacementOffer>): PlacementOffer {
+    return mock<PlacementOffer>({
+      offerState: "closed",
+      bidId: undefined,
+      price: { amount: "100", denom: "uakt" },
+      organization: null,
+      hostUri: "",
+      location: null,
+      incidents: [],
+      ...overrides
+    });
+  }
+
+  function unavailableOffer(overrides: Partial<PlacementOffer>): PlacementOffer {
+    return mock<PlacementOffer>({
+      offerState: "unavailable",
       bidId: undefined,
       price: undefined,
       organization: null,
