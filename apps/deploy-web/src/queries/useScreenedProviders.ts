@@ -20,6 +20,11 @@ export type ScreenedProvider = ScreenedProvidersResponse["providers"][number];
 interface UseScreenedProvidersInput {
   sdl: string;
   placementName: string;
+  /**
+   * Kept for the call-site contract. A selected region now travels inside the SDL (the placement's
+   * `location-region` attribute), so a valid spec already screens by region and an invalid spec shows no
+   * providers regardless — screening no longer needs the region threaded in separately.
+   */
   region?: string;
   /**
    * Gates the screening query. Defaults to true. Set false once the deployment is locked (quoting/creating/closing):
@@ -33,33 +38,55 @@ interface UseScreenedProvidersResult {
   providers: ScreenedProvider[];
   isLoading: boolean;
   isError: boolean;
+  /**
+   * True when the current SDL can't be turned into a screening request (invalid or incomplete spec). No
+   * provider would bid on an unusable spec, so the marketplace shows a message instead of a list — screening
+   * does NOT fall back to the full catalog.
+   */
+  isInvalid: boolean;
 }
 
 /** Quiet period after the last spec edit before the current spec is screened. */
 export const SCREENING_DEBOUNCE_MS = 400;
 /** Hard ceiling so continuous editing still screens the spec at most ~once per this window. */
 export const SCREENING_MAX_WAIT_MS = 2000;
+/**
+ * Image substituted into image-less services when screening (only). `generateManifest` rejects a spec
+ * whose service has no image, which would drop a still-being-configured deployment to the empty-resource
+ * catalog; the placeholder lets the current spec's resources drive the first screening list instead. The
+ * screening request carries resources, not the image, so this value never leaves the client.
+ */
+export const SCREENING_PLACEHOLDER_IMAGE = "placeholder";
+
+/** A stable, never-fetched request used as the query key while screening is skipped (invalid spec), so the key doesn't churn. */
+const SKIPPED_SCREENING_REQUEST: ScreeningRequest = { ...buildCatalogScreeningRequest(), timezone: "UTC" };
 
 /**
  * Screens providers for the given placement's group spec. The marketplace is placement-scoped: it converts
- * the current SDL to group specs and queries the one matching `placementName`. While the SDL is mid-edit or
- * invalid it falls back to the full audited catalog (empty resource spec). The selected `region` lives outside
- * the SDL, so it is threaded in explicitly and still constrains the catalog fallback. Audited-only via signedBy.
+ * the current SDL to group specs and queries the one matching `placementName`. When the SDL can't be turned
+ * into a screening request (invalid or incomplete spec) it does NOT fall back to the full catalog — no
+ * provider would bid on an unusable spec — instead it reports `isInvalid` so the marketplace shows a message.
+ * A selected region travels in the SDL, so a valid spec already screens by region. Audited-only via signedBy.
  */
-export function useScreenedProviders({ sdl, placementName, region, enabled = true }: UseScreenedProvidersInput): UseScreenedProvidersResult {
+export function useScreenedProviders({ sdl, placementName, enabled = true }: UseScreenedProvidersInput): UseScreenedProvidersResult {
   const { api } = useServices();
   const request = useMemo(() => {
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const req = buildPlacementScreeningRequest(sdl, placementName) ?? buildCatalogScreeningRequest(region);
-    return { ...req, timezone };
-  }, [sdl, placementName, region]);
+    const placementRequest = buildPlacementScreeningRequest(sdl, placementName);
+    if (!placementRequest) return null;
+    return { ...placementRequest, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
+  }, [sdl, placementName]);
   const pacedRequest = usePacedValue(request, { wait: SCREENING_DEBOUNCE_MS, maxWait: SCREENING_MAX_WAIT_MS });
-  const query = api.v1.screenProviders.useQuery(pacedRequest, { enabled, placeholderData: keepPreviousData });
+  const isInvalid = pacedRequest === null;
+  const query = api.v1.screenProviders.useQuery(pacedRequest ?? SKIPPED_SCREENING_REQUEST, {
+    enabled: enabled && !isInvalid,
+    placeholderData: keepPreviousData
+  });
 
   return {
-    providers: query.data?.providers ?? [],
-    isLoading: query.isLoading,
-    isError: query.isError
+    providers: isInvalid ? [] : query.data?.providers ?? [],
+    isLoading: !isInvalid && query.isLoading,
+    isError: !isInvalid && query.isError,
+    isInvalid
   };
 }
 
@@ -76,7 +103,9 @@ export function buildPlacementScreeningRequest(rawSdl: string, placementName: st
   try {
     // `yaml.raw` throws on malformed YAML (e.g. mid-edit), so the whole conversion is guarded: any
     // parse/manifest failure returns null, letting the caller fall back to the full catalog.
-    const manifestResult = generateManifest(yaml.raw(rawSdl) as SDLInput);
+    const parsedSdl = yaml.raw(rawSdl) as SDLInput;
+    fillPlaceholderImages(parsedSdl);
+    const manifestResult = generateManifest(parsedSdl);
     if (!manifestResult.ok) return null;
 
     const manifest = manifestResult.value;
@@ -117,4 +146,20 @@ export function buildCatalogScreeningRequest(region?: string): ScreeningRequestB
     },
     resources: []
   };
+}
+
+/**
+ * Fills a placeholder image into every service still missing one so a mid-configuration spec passes
+ * manifest generation for screening. Mutates the throwaway parsed SDL built inside
+ * {@link buildPlacementScreeningRequest} — never the deployment SDL, so the real deployment still
+ * requires a real image.
+ */
+function fillPlaceholderImages(parsedSdl: SDLInput): void {
+  const services = (parsedSdl as { services?: Record<string, { image?: string }> }).services;
+  if (!services) return;
+  for (const service of Object.values(services)) {
+    if (!service.image) {
+      service.image = SCREENING_PLACEHOLDER_IMAGE;
+    }
+  }
 }

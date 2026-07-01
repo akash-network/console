@@ -27,6 +27,15 @@ describe(ConfigurationPane.name, () => {
     expect(screen.queryByText("api")).not.toBeInTheDocument();
   });
 
+  it("renders the image section for the selected service index", () => {
+    const ImageSection = vi.fn(() => null);
+    const values = defaultServiceWithPlacement({ title: "api" });
+
+    setup({ values, selectedServiceId: values.services[0].id, dependencies: { ImageSection } });
+
+    expect(ImageSection).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 0 }), expect.anything());
+  });
+
   it("renders the hardware section for the selected service index", () => {
     const HardwareSection = vi.fn(() => null);
     const values = defaultServiceWithPlacement({ title: "api" });

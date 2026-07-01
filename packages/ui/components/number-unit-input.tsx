@@ -18,6 +18,8 @@ export interface NumberUnitInputProps {
   units: NumberUnitOption[];
   onValueChange: (value: number | undefined) => void;
   onUnitChange: (unit: string) => void;
+  /** Fires when the numeric half loses focus — bind to a form field's `onBlur` so `onTouched` validation runs. */
+  onBlur?: () => void;
   min?: number;
   step?: number;
   placeholder?: string;
@@ -37,7 +39,7 @@ export interface NumberUnitInputProps {
  * its focus ring isn't hidden behind the neighbouring control.
  */
 const NumberUnitInput = React.forwardRef<HTMLInputElement, NumberUnitInputProps>(
-  ({ label, value, unit, units, onValueChange, onUnitChange, min = 1, step = 1, placeholder, error, errorClassName, disabled = false }, ref) => {
+  ({ label, value, unit, units, onValueChange, onUnitChange, onBlur, min = 1, step = 1, placeholder, error, errorClassName, disabled = false }, ref) => {
     const errorId = useId();
     const hasError = !!error;
 
@@ -65,6 +67,7 @@ const NumberUnitInput = React.forwardRef<HTMLInputElement, NumberUnitInputProps>
             error={hasError}
             disabled={disabled}
             onChange={updateValue}
+            onBlur={onBlur}
             className="min-w-0 flex-1 space-y-0"
             inputClassName="h-9 rounded-r-none focus-visible:relative focus-visible:z-10"
           />

@@ -17,6 +17,7 @@ import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { applyImportedSshState } from "@src/utils/sdl/sshKey";
+import { applyPresetToProfile, DEFAULT_HARDWARE_PRESET } from "../ConfigurationPane/PresetsCard/hardwarePresets";
 import { ConfigureDeploymentHeader } from "../ConfigureDeploymentHeader/ConfigureDeploymentHeader";
 import { ConfigureDeploymentPanes } from "../ConfigureDeploymentPanes/ConfigureDeploymentPanes";
 import { DeployProgressOverlay } from "../DeployProgressOverlay/DeployProgressOverlay";
@@ -56,7 +57,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, intent, depende
   const draft = d.useConfigureDraft(intent);
   const form = useForm<SdlBuilderFormValuesType>({
     defaultValues: initialState.values,
-    mode: "onSubmit",
+    mode: "onTouched",
     reValidateMode: "onChange",
     resolver: zodResolver(SdlBuilderFormValuesSchema)
   });
@@ -240,8 +241,14 @@ function getInitialState(carriedInSdl: string | undefined): InitialState {
 
 /** A fresh default deployment, optionally annotated with the error that made an import unusable. */
 function defaultInitialState(importError?: string): InitialState {
-  const values = defaultServiceWithPlacement();
+  const values = withDefaultPreset(defaultServiceWithPlacement());
   return { values, sdl: regenerateSdl(values, ""), selectedServiceId: seedSelectedServiceId(values), importError };
+}
+
+/** Seeds the fresh deployment's service on the default (small) hardware preset so the screen opens deployable. */
+function withDefaultPreset(values: SdlBuilderFormValuesType): SdlBuilderFormValuesType {
+  const [service, ...rest] = values.services;
+  return { ...values, services: [{ ...service, profile: applyPresetToProfile(service.profile, DEFAULT_HARDWARE_PRESET) }, ...rest] };
 }
 
 /** A usable deployment has at least one service the user can configure (log collectors don't count). */

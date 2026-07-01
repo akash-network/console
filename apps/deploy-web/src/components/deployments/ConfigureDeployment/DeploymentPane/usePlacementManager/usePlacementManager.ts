@@ -6,6 +6,7 @@ import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultPlacement, defaultService } from "@src/utils/sdl/data";
 import { mergeFieldValues, nextPlacementName, nextServiceTitle, serviceRemovalIndexes } from "@src/utils/sdl/formArrayHelpers";
 import { readServiceSshKey, withServiceSshKey } from "@src/utils/sdl/sshKey";
+import { applyPresetToProfile, DEFAULT_HARDWARE_PRESET } from "../../ConfigurationPane/PresetsCard/hardwarePresets";
 import { useRevalidateUniqueness } from "../useRevalidateUniqueness/useRevalidateUniqueness";
 
 export type IndexedService = { service: ServiceType; index: number };
@@ -48,7 +49,7 @@ export const usePlacementManager = () => {
 
   const addPlacement = useCallback(() => {
     const placement = defaultPlacement({ name: nextPlacementName(getValues("placements")) });
-    const service = withSeededSshKey(defaultService(placement.id as string, { title: nextServiceTitle(getValues("services")) }), getValues());
+    const service = newConfigureService(placement.id as string, getValues());
     appendPlacement(placement);
     appendService(service);
     return service.id as string;
@@ -74,7 +75,7 @@ export const usePlacementManager = () => {
 
   const addService = useCallback(
     (placementId: string) => {
-      const service = withSeededSshKey(defaultService(placementId, { title: nextServiceTitle(getValues("services")) }), getValues());
+      const service = newConfigureService(placementId, getValues());
       appendService(service);
       return service.id as string;
     },
@@ -109,6 +110,17 @@ export const usePlacementManager = () => {
     [placements, getPlacementServices, addPlacement, canRemovePlacement, removePlacement, addService, canRemoveService, removeService]
   );
 };
+
+/**
+ * Builds a fresh service for the configure screen: the shared default seeded onto the default (small)
+ * hardware preset — so an added service opens deployable, matching the screen's first service — plus
+ * the deployment-wide SSH key.
+ */
+function newConfigureService(placementId: string, values: SdlBuilderFormValuesType): ServiceType {
+  const base = defaultService(placementId, { title: nextServiceTitle(values.services) });
+  const seeded = { ...base, profile: applyPresetToProfile(base.profile, DEFAULT_HARDWARE_PRESET) };
+  return withSeededSshKey(seeded, values);
+}
 
 /**
  * Seeds the deployment-wide SSH key onto a freshly added service so it isn't left

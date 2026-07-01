@@ -137,6 +137,16 @@ describe(usePlacementOffers.name, () => {
     ]);
   });
 
+  it("reports the spec invalid while configuring when screening can't build a request", () => {
+    const { result } = setup({ phase: "configuring", screened: [], screenedInvalid: true });
+    expect(result.current.isInvalid).toBe(true);
+  });
+
+  it("never reports invalid once the deployment is locked", () => {
+    const { result } = setup({ phase: "quoting", dseq: "100", screened: [], bids: [], screenedInvalid: true });
+    expect(result.current.isInvalid).toBe(false);
+  });
+
   function polaris() {
     return mock<ScreenedProvider>({ owner: "akash1aaa", organization: "Polaris", location: "us-east" });
   }
@@ -145,13 +155,14 @@ describe(usePlacementOffers.name, () => {
     phase: "configuring" | "quoting";
     dseq?: string;
     screened: ScreenedProvider[];
+    screenedInvalid?: boolean;
     placementGseq?: number;
     providerList?: Array<Partial<ApiProviderList> & { owner: string }>;
     bidsLoading?: boolean;
     bidsError?: boolean;
     bids?: Array<{ bid: { state: string; price: { amount: string; denom: string }; id: { provider: string; dseq: string; gseq: number; oseq: number } } }>;
   }) {
-    const useScreenedProviders = vi.fn(() => ({ providers: input.screened, isLoading: false, isError: false }));
+    const useScreenedProviders = vi.fn(() => ({ providers: input.screened, isLoading: false, isError: false, isInvalid: input.screenedInvalid ?? false }));
     const useProviderList = vi.fn(() => ({ data: input.providerList ?? [], isLoading: false, isError: false }));
     const dependencies: typeof DEPENDENCIES = {
       useScreenedProviders: useScreenedProviders as never,
