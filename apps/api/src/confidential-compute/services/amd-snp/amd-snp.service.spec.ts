@@ -1,29 +1,31 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import { execFileSync } from "node:child_process";
 import crypto, { X509Certificate } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { envSchema } from "../../config/env.config";
+import { generateCrl } from "./amd-crl.test-fixtures";
 import type { AmdKdsClient } from "./amd-kds.client";
 import { AmdSnpService } from "./amd-snp.service";
 import { SNP_REPORT_MIN_LENGTH } from "./snp-report.parser";
 
-// A real P-384 ARK→ASK→VCEK chain generated once via openssl, plus the VCEK private key used to sign reports.
-// Generating it at test time keeps the suite hermetic (no committed keys, no network). `chain` stands in for the
-// AMD-issued chain (the mocked KDS vouches for it); `forgedChain` is an attacker-controlled self-signed chain.
-let chain: ReturnType<typeof generateP384Chain>;
-let forgedChain: ReturnType<typeof generateP384Chain>;
+// A real ARK→ASK→VCEK chain generated once via openssl (RSA ARK/ASK as AMD issues them, P-384 VCEK that
+// signs the report), plus the VCEK private key used to sign reports. Generating it at test time keeps the
+// suite hermetic (no committed keys, no network). `chain` stands in for the AMD-issued chain (the mocked KDS
+// vouches for it); `forgedChain` is an attacker-controlled self-signed chain.
+let chain: ReturnType<typeof generateChain>;
+let forgedChain: ReturnType<typeof generateChain>;
 // CRLs signed by the chain's ARK: one clean, one revoking the ASK. Drive the revocation-check paths.
 let cleanCrlDer: Buffer;
 let revokedCrlDer: Buffer;
 
 beforeAll(() => {
-  chain = generateP384Chain();
-  forgedChain = generateP384Chain();
+  chain = generateChain();
+  forgedChain = generateChain();
   const askSerial = new X509Certificate(chain.askPem).serialNumber;
   cleanCrlDer = generateCrl(chain.dir, []);
   revokedCrlDer = generateCrl(chain.dir, [askSerial]);
@@ -202,10 +204,11 @@ function buildSignedReport(nonce: Buffer, signingChain = chain): Buffer {
   return report;
 }
 
-function generateP384Chain() {
+function generateChain() {
   const dir = mkdtempSync(join(tmpdir(), "snp-chain-"));
   const ossl = (args: string[]) => execFileSync("openssl", args, { cwd: dir });
-  const genKey = (name: string) => ossl(["ecparam", "-name", "secp384r1", "-genkey", "-noout", "-out", `${name}.key`]);
+  const genRsaKey = (name: string) => ossl(["genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048", "-out", `${name}.key`]);
+  const genEcKey = (name: string) => ossl(["ecparam", "-name", "secp384r1", "-genkey", "-noout", "-out", `${name}.key`]);
   const selfSign = (name: string, cn: string) =>
     ossl(["req", "-new", "-x509", "-key", `${name}.key`, "-out", `${name}.pem`, "-days", "2", "-subj", `/CN=${cn}`, "-sha384"]);
   const caSign = (name: string, cn: string, ca: string) => {
@@ -214,11 +217,12 @@ function generateP384Chain() {
   };
   const read = (name: string) => readFileSync(join(dir, name), "utf-8");
 
-  genKey("ark");
+  // ARK/ASK are RSA (as AMD issues them) so the ARK can sign an RSA-PSS CRL; the VCEK is P-384 because it signs the report.
+  genRsaKey("ark");
   selfSign("ark", "ARK");
-  genKey("ask");
+  genRsaKey("ask");
   caSign("ask", "ASK", "ark");
-  genKey("vcek");
+  genEcKey("vcek");
   caSign("vcek", "VCEK", "ask");
 
   return {
@@ -229,34 +233,4 @@ function generateP384Chain() {
     vcekKeyPem: read("vcek.key"),
     vcekDer: Buffer.from(new X509Certificate(read("vcek.pem")).raw)
   };
-}
-
-/** Generates a DER CRL signed by the chain's ARK (in `chainDir`), revoking the given serials (empty = clean). */
-function generateCrl(chainDir: string, revokedSerials: string[]): Buffer {
-  const dir = mkdtempSync(join(tmpdir(), "amd-crl-"));
-  const ossl = (args: string[]) => execFileSync("openssl", args, { cwd: dir, stdio: ["ignore", "ignore", "pipe"] });
-
-  const entries = revokedSerials.map(serial => `R\t350101000000Z\t240101000000Z\t${serial}\tunknown\t/CN=SEV-Milan\n`).join("");
-  writeFileSync(join(dir, "index.txt"), entries);
-  writeFileSync(join(dir, "crlnumber"), "1000\n");
-  writeFileSync(
-    join(dir, "ca.cnf"),
-    [
-      "[ca]",
-      "default_ca = myca",
-      "[myca]",
-      `database = ${join(dir, "index.txt")}`,
-      `crlnumber = ${join(dir, "crlnumber")}`,
-      `certificate = ${join(chainDir, "ark.pem")}`,
-      `private_key = ${join(chainDir, "ark.key")}`,
-      "default_md = sha384",
-      "default_crl_days = 30",
-      ""
-    ].join("\n")
-  );
-  ossl(["ca", "-config", "ca.cnf", "-gencrl", "-out", "crl.pem"]);
-  ossl(["crl", "-in", "crl.pem", "-outform", "DER", "-out", "crl.der"]);
-  const der = readFileSync(join(dir, "crl.der"));
-  rmSync(dir, { recursive: true, force: true });
-  return der;
 }

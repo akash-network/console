@@ -1,11 +1,12 @@
 import { execFileSync } from "node:child_process";
 import { X509Certificate } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { AmdCrlParseError, isCertRevoked, isCrlExpired, normalizeSerial, parseAmdCrl, verifyCrlSignature } from "./amd-crl.parser";
+import { generateCrl } from "./amd-crl.test-fixtures";
 
 // A real RSA ARK→ASK chain plus RSA-PSS CRLs (clean and one revoking the ASK), generated once via
 // openssl to mirror AMD KDS — which issues RSA-4096 ARKs and signs its CRLs with RSA-PSS/SHA-384.
@@ -37,6 +38,13 @@ describe(parseAmdCrl.name, () => {
 
   it("throws AmdCrlParseError for bytes that are not a CRL", () => {
     expect(() => parseAmdCrl(Buffer.from("clearly not a DER-encoded CRL"))).toThrow(AmdCrlParseError);
+  });
+
+  it("rejects an out-of-range time component instead of silently normalizing it", () => {
+    // Set nextUpdate's month to "13"; Date.UTC would roll it to next January without the round-trip guard.
+    const corrupted = withNextUpdateMonth(fixtures.cleanCrlDer, "13");
+
+    expect(() => parseAmdCrl(corrupted)).toThrow(AmdCrlParseError);
   });
 });
 
@@ -102,6 +110,12 @@ describe(isCrlExpired.name, () => {
 
     expect(isCrlExpired(crl, new Date((crl.nextUpdate as Date).getTime() - 1000))).toBe(false);
   });
+
+  it("treats a CRL with no freshness bound as expired (fails closed)", () => {
+    const crl = parseAmdCrl(fixtures.cleanCrlDer);
+
+    expect(isCrlExpired({ ...crl, nextUpdate: null }, new Date())).toBe(true);
+  });
 });
 
 function generateCrlFixtures() {
@@ -118,40 +132,26 @@ function generateCrlFixtures() {
   const arkCert = new X509Certificate(readFileSync(join(dir, "ark.pem")));
   const askCert = new X509Certificate(readFileSync(join(dir, "ask.pem")));
 
-  // Minimal CA scaffold so `openssl ca -gencrl` can emit a CRL signed by the ARK.
-  writeFileSync(
-    join(dir, "ca.cnf"),
-    [
-      "[ca]",
-      "default_ca = myca",
-      "[myca]",
-      "database = index.txt",
-      "crlnumber = crlnumber",
-      "certificate = ark.pem",
-      "private_key = ark.key",
-      "default_md = sha384",
-      "default_crl_days = 30",
-      ""
-    ].join("\n")
-  );
-  // AMD signs CRLs with RSA-PSS; force the same here so the parser is exercised against the real algorithm.
-  const gencrl = (out: string) =>
-    ossl(["ca", "-config", "ca.cnf", "-gencrl", "-out", out, "-sigopt", "rsa_padding_mode:pss", "-sigopt", "rsa_pss_saltlen:digest"]);
-  const toDer = (pem: string, der: string) => {
-    ossl(["crl", "-in", pem, "-outform", "DER", "-out", der]);
-    return readFileSync(join(dir, der));
-  };
-
-  writeFileSync(join(dir, "index.txt"), "");
-  writeFileSync(join(dir, "crlnumber"), "1000\n");
-  gencrl("crl_clean.pem");
-  const cleanCrlDer = toDer("crl_clean.pem", "crl_clean.der");
-
-  // An index entry marks the ASK serial revoked; openssl emits it into the regenerated CRL.
-  writeFileSync(join(dir, "index.txt"), `R\t350101000000Z\t240101000000Z\t${askCert.serialNumber}\tunknown\t/CN=SEV-Milan\n`);
-  writeFileSync(join(dir, "crlnumber"), "1001\n");
-  gencrl("crl_revoked.pem");
-  const revokedCrlDer = toDer("crl_revoked.pem", "crl_revoked.der");
+  const cleanCrlDer = generateCrl(dir, []);
+  const revokedCrlDer = generateCrl(dir, [askCert.serialNumber]);
 
   return { dir, arkCert, askCert, cleanCrlDer, revokedCrlDer };
+}
+
+/** Returns a copy of the CRL DER with nextUpdate's 2-digit month overwritten, to forge an invalid time. */
+function withNextUpdateMonth(der: Buffer, month: string): Buffer {
+  const copy = Buffer.from(der);
+  let seen = 0;
+  for (let i = 0; i + 15 <= copy.length; i++) {
+    // UTCTime = tag 0x17, length 0x0d, then 13 ASCII bytes ending in 'Z' (0x5a): YYMMDDHHMMSSZ.
+    if (copy[i] === 0x17 && copy[i + 1] === 0x0d && copy[i + 14] === 0x5a) {
+      seen += 1;
+      // The first UTCTime is thisUpdate (skipped by the parser); the second is nextUpdate.
+      if (seen === 2) {
+        copy.write(month, i + 4, "latin1"); // month occupies the 3rd–4th content bytes
+        return copy;
+      }
+    }
+  }
+  throw new Error("nextUpdate UTCTime not found in fixture");
 }
