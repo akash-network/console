@@ -216,6 +216,54 @@ describe(useDeploymentFlow.name, () => {
     );
   });
 
+  it("clears a placement's selection when its bid is no longer open", async () => {
+    const { result } = renderFlow({
+      intent: { dseq: "555" },
+      listBids: [
+        { bid: { state: "closed", price: { amount: "1", denom: "uakt" }, id: { provider: "akash1a", dseq: "555", gseq: 1, oseq: 3 } } },
+        { bid: { state: "open", price: { amount: "1", denom: "uakt" }, id: { provider: "akash1b", dseq: "555", gseq: 1, oseq: 3 } } }
+      ]
+    });
+
+    act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+
+    await waitFor(() => expect(result.current.selections).toEqual({}));
+  });
+
+  it("prunes only the placement whose bid closed, keeping other open selections", async () => {
+    const { result } = renderFlow({
+      intent: { dseq: "555" },
+      listBids: [
+        { bid: { state: "closed", price: { amount: "1", denom: "uakt" }, id: { provider: "akash1a", dseq: "555", gseq: 1, oseq: 3 } } },
+        { bid: { state: "open", price: { amount: "1", denom: "uakt" }, id: { provider: "akash1b", dseq: "555", gseq: 2, oseq: 4 } } }
+      ]
+    });
+
+    act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+    act(() => result.current.actions.selectProvider("placement-2", "akash1b/555/2/4"));
+
+    await waitFor(() => expect(result.current.selections).toEqual({ "placement-2": "akash1b/555/2/4" }));
+  });
+
+  it("keeps a selection whose bid is still open", () => {
+    const { result } = renderFlow({
+      intent: { dseq: "555" },
+      listBids: [{ bid: { state: "open", price: { amount: "1", denom: "uakt" }, id: { provider: "akash1a", dseq: "555", gseq: 1, oseq: 3 } } }]
+    });
+
+    act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+
+    expect(result.current.selections).toEqual({ "placement-1": "akash1a/555/1/3" });
+  });
+
+  it("does not prune selections while no bids have loaded", () => {
+    const { result } = renderFlow({ intent: { dseq: "555" }, listBids: [] });
+
+    act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+
+    expect(result.current.selections).toEqual({ "placement-1": "akash1a/555/1/3" });
+  });
+
   function setup(input: {
     intent?: { sdlStrategy: "default" | "edit"; bidStrategy: "auto" | "select"; dseq?: string; templateId?: string; draftId?: string };
     replace?: ReturnType<typeof vi.fn>;
@@ -227,6 +275,7 @@ describe(useDeploymentFlow.name, () => {
       useCreateDeployment: (() => mock<ReturnType<typeof DEPENDENCIES.useCreateDeployment>>({ mutate: (input.createMutate ?? vi.fn()) as never })) as never,
       useCloseDeployment: (() => mock<ReturnType<typeof DEPENDENCIES.useCloseDeployment>>({ mutate: (input.closeMutate ?? vi.fn()) as never })) as never,
       useCreateLease: (() => mock<ReturnType<typeof DEPENDENCIES.useCreateLease>>({ mutate: vi.fn() as never })) as never,
+      useListBids: (() => ({ data: { data: [] }, isLoading: false, isError: false })) as never,
       useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: (input.replace ?? vi.fn()) as never })) as never,
       manifestFromSdl: () => "manifest"
     };
@@ -239,6 +288,7 @@ describe(useDeploymentFlow.name, () => {
     createLease?: ReturnType<typeof mockMutation>;
     closeDeployment?: ReturnType<typeof mockMutation>;
     manifestFromSdl?: (sdl: string) => string | null;
+    listBids?: Array<{ bid: { state: string; price: { amount: string; denom: string }; id: { provider: string; dseq: string; gseq: number; oseq: number } } }>;
   }) {
     const intent: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, ...input?.intent };
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: vi.fn(), push: vi.fn() });
@@ -246,6 +296,7 @@ describe(useDeploymentFlow.name, () => {
       useCreateDeployment: (() => input?.createDeployment ?? mockMutation()) as never,
       useCloseDeployment: (() => input?.closeDeployment ?? mockMutation()) as never,
       useCreateLease: (() => input?.createLease ?? mockMutation()) as never,
+      useListBids: (() => ({ data: { data: input?.listBids ?? [] }, isLoading: false, isError: false })) as never,
       useRouter: () => router,
       manifestFromSdl: input?.manifestFromSdl ?? (() => "DERIVED_MANIFEST")
     };

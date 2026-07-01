@@ -8,7 +8,7 @@ import type { ApiProviderList } from "@src/types/provider";
 import { formatBidId } from "@src/utils/bids/bidId";
 import { getPlacementGseq } from "@src/utils/sdl/placementGseq";
 
-export type OfferState = "searching" | "submitted" | "unavailable";
+export type OfferState = "searching" | "submitted" | "closed" | "unavailable";
 
 /** A screened provider annotated with its on-chain bid status. Extends ScreenedProvider so the marketplace table keeps its existing columns/uptime/sorting. */
 export interface PlacementOffer extends ScreenedProvider {
@@ -16,6 +16,9 @@ export interface PlacementOffer extends ScreenedProvider {
   bidId?: string;
   price?: { amount: string; denom: string };
 }
+
+/** One deployment bid from listBids, derived from the query result so it can't drift from the SDK's bid shape (matches the sibling quote hooks). */
+type BidEntry = NonNullable<ReturnType<typeof useListBids>["data"]>["data"][number];
 
 interface UsePlacementOffersInput {
   phase: "configuring" | "creating" | "quoting" | "closing" | "deploying" | "error";
@@ -34,27 +37,22 @@ interface UsePlacementOffersResult {
 export const DEPENDENCIES = { useScreenedProviders, useListBids, useProviderList, getPlacementGseq };
 
 /**
- * The shared offers seam, read by both the marketplace pane and the lifecycle hook so they can never
- * disagree about which offers exist. It surfaces one source at a time, never a merge of the two:
+ * The shared offers seam, read by the marketplace pane so screening and bids can never disagree about which
+ * offers exist.
  *
- * - While screening (`configuring`/`creating`) it returns the screened providers as `searching` offers —
- *   the candidate pool for the current spec.
- * - Otherwise (`quoting`/`closing`/`error`) it returns the placement's open bids as `submitted` offers
- *   once any have arrived; until the first bid it keeps showing the screened candidates as `searching`,
- *   so the marketplace is never blank while bids are still coming in. Bids are shaped like a screened
- *   provider so the table renders them identically; the provider list supplies each bid's name
- *   (organization, else host), region and audited flag so a bid reads the same as a screened result.
+ * - While screening (`configuring`/`creating`) it returns the screened providers as `searching` offers.
+ * - Otherwise, until this placement's first bid arrives, it keeps showing the screened candidates as
+ *   `searching`, so the marketplace is never blank while bids are still coming in.
+ * - Once bids exist it returns a 1:1 merge of the screened pool with the bids, deduplicated by provider
+ *   address: an open bid is `submitted` (priced, selectable), a closed bid is `closed`, and a screened
+ *   provider that never bid is `unavailable`. A provider that bid without being screened is still included.
+ *   Screened metadata (name, region, audited flag, incident-derived uptime) is reused for any provider that
+ *   was screened; the provider list only fills in a bidder that was never screened.
  *
- * Once the deployment is locked (`creating`/`quoting`/`closing`) the spec is frozen, so screening is paused
- * (the CPU-heavy query stops re-running against an unchanging spec); the last screened set is kept as the
- * pre-bid fallback. `listBids` returns every bid for the deployment across all its groups, so bids are
- * scoped to this placement by its group sequence (`gseq`): only open bids whose `gseq` matches are kept,
- * so a provider that bid on a different placement's group is not surfaced here.
- *
- * `isLoading`/`isError` follow the source that's driving the view: the screened query normally, plus the
- * `listBids` query while quoting — so a failing or still-loading bids request surfaces instead of silently
- * sitting on stale offers. Bids loading only counts when there is nothing to show yet, so the screened
- * pre-bid fallback is never replaced by a spinner.
+ * Once the deployment is locked (`creating`/`quoting`/`closing`/`deploying`) screening is paused and the last
+ * screened set is kept (`keepPreviousData`) as both the pre-bid fallback and the metadata source. `listBids`
+ * returns every bid for the deployment across its groups, so bids are scoped to this placement by its group
+ * sequence (`gseq`).
  */
 export function usePlacementOffers(
   { phase, dseq, sdl, placementName, region }: UsePlacementOffersInput,
@@ -67,17 +65,25 @@ export function usePlacementOffers(
   const providerListQuery = dependencies.useProviderList({ enabled: !isScreening });
   const gseq = useMemo(() => dependencies.getPlacementGseq(sdl, placementName), [dependencies, sdl, placementName]);
   const providersByOwner = useMemo(() => new Map((providerListQuery.data ?? []).map(provider => [provider.owner, provider])), [providerListQuery.data]);
+  const screenedByOwner = useMemo(() => new Map(screened.providers.map(provider => [provider.owner, provider])), [screened.providers]);
 
   const offers = useMemo(
     function buildOffers(): PlacementOffer[] {
-      const openBids = isScreening
-        ? []
-        : (bidsQuery.data?.data ?? []).filter(entry => entry.bid.state === "open" && (gseq === undefined || entry.bid.id.gseq === gseq));
-      return openBids.length > 0
-        ? openBids.map(entry => toBidOffer(entry, providersByOwner.get(entry.bid.id.provider)))
-        : screened.providers.map(toSearchingOffer);
+      if (isScreening) return screened.providers.map(toSearchingOffer);
+
+      const placementBids = (bidsQuery.data?.data ?? []).filter(entry => gseq === undefined || entry.bid.id.gseq === gseq);
+      if (placementBids.length === 0) return screened.providers.map(toSearchingOffer);
+
+      const bidByOwner = pickBestBidPerOwner(placementBids);
+      return mergedOwners(screened.providers, bidByOwner).map(function toMergedOffer(owner): PlacementOffer {
+        const meta = screenedByOwner.get(owner) ?? providerListToOffer(owner, providersByOwner.get(owner));
+        const entry = bidByOwner.get(owner);
+        if (entry?.bid.state === "open") return { ...meta, offerState: "submitted", bidId: formatBidId(entry.bid.id), price: entry.bid.price };
+        if (entry) return { ...meta, offerState: "closed", bidId: undefined, price: entry.bid.price };
+        return { ...meta, offerState: "unavailable", bidId: undefined, price: undefined };
+      });
     },
-    [isScreening, screened.providers, bidsQuery.data, gseq, providersByOwner]
+    [isScreening, screened.providers, screenedByOwner, bidsQuery.data, gseq, providersByOwner]
   );
 
   const isQuoting = phase === "quoting";
@@ -88,32 +94,53 @@ export function usePlacementOffers(
   };
 }
 
-/** A screened provider as a not-yet-bid offer — the candidate pool shown while screening. */
+/** A screened provider as a not-yet-bid offer — shown while screening and before this placement's first bid. */
 function toSearchingOffer(provider: ScreenedProvider): PlacementOffer {
   return { ...provider, offerState: "searching", bidId: undefined, price: undefined };
 }
 
+/** The best bid per provider address: an open bid always wins over a closed one so a re-bidding provider stays selectable. */
+function pickBestBidPerOwner(entries: BidEntry[]): Map<string, BidEntry> {
+  const byOwner = new Map<string, BidEntry>();
+  for (const entry of entries) {
+    const existing = byOwner.get(entry.bid.id.provider);
+    if (!existing || (existing.bid.state !== "open" && entry.bid.state === "open")) byOwner.set(entry.bid.id.provider, entry);
+  }
+  return byOwner;
+}
+
+/** Screened owners first (deduped by address, first-seen order), then any bidder that was never screened, so the merge is a 1:1 superset of the screened pool with no repeated rows. */
+function mergedOwners(screened: ScreenedProvider[], bidByOwner: Map<string, BidEntry>): string[] {
+  const owners: string[] = [];
+  const seen = new Set<string>();
+  for (const provider of screened) {
+    if (!seen.has(provider.owner)) {
+      owners.push(provider.owner);
+      seen.add(provider.owner);
+    }
+  }
+  for (const owner of bidByOwner.keys()) {
+    if (!seen.has(owner)) {
+      owners.push(owner);
+      seen.add(owner);
+    }
+  }
+  return owners;
+}
+
 /**
- * An open bid as an offer, shaped like a screened provider so the marketplace table renders it the same
- * way. The bid carries only the provider address and price; the provider record (when loaded) supplies
- * the name (organization, else host), region and audited flag so a bid reads like a screened result.
- * Uptime is left to the table's neutral fallback — the provider record doesn't carry the per-day
- * incident history the screened uptime is derived from.
+ * A screened-provider-shaped record for a bidder that was never screened, so the table renders it identically.
+ * The provider list (when loaded) supplies the name (organization, else host), region and audited flag; uptime
+ * is left to the table's neutral fallback since the provider record carries no per-day incident history.
  */
-function toBidOffer(
-  entry: { bid: { id: { provider: string; dseq: string; gseq: number; oseq: number }; price: { amount: string; denom: string } } },
-  provider?: ApiProviderList
-): PlacementOffer {
+function providerListToOffer(owner: string, provider?: ApiProviderList): ScreenedProvider {
   return {
-    owner: entry.bid.id.provider,
+    owner,
     hostUri: provider?.hostUri ?? "",
     isAudited: provider?.isAudited ?? false,
     createdAt: "",
     location: provider?.locationRegion || null,
     organization: provider?.organization || null,
-    incidents: [],
-    offerState: "submitted",
-    bidId: formatBidId(entry.bid.id),
-    price: entry.bid.price
+    incidents: []
   };
 }
