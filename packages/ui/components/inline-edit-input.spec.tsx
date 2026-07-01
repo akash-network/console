@@ -1,11 +1,11 @@
 import type { PropsWithChildren } from "react";
-import type { UseFormReturn } from "react-hook-form";
+import type { Resolver, UseFormReturn } from "react-hook-form";
 import { FormProvider, useForm } from "react-hook-form";
 import { describe, expect, it, vi } from "vitest";
 
 import { InlineEditInput } from "./inline-edit-input";
 
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 interface FormValues {
@@ -91,11 +91,23 @@ describe("InlineEditInput", () => {
     expect(screen.queryByText("Invalid name.")).not.toBeInTheDocument();
   });
 
-  function setup(input: { initialValue: string; suppressErrorMessage?: boolean; errorMessageId?: string }) {
+  it("signals the field blur so onTouched validation runs when the field is left", async () => {
+    const resolver: Resolver<FormValues> = async values => ({ values, errors: { title: { type: "manual", message: "Invalid name." } } });
+    const { getInput } = setup({ initialValue: "service-1", mode: "onTouched", resolver });
+
+    expect(getInput()).not.toHaveClass("text-destructive");
+
+    await userEvent.click(getInput());
+    await userEvent.tab();
+
+    await waitFor(() => expect(getInput()).toHaveClass("text-destructive"));
+  });
+
+  function setup(input: { initialValue: string; suppressErrorMessage?: boolean; errorMessageId?: string; mode?: "onChange" | "onTouched"; resolver?: Resolver<FormValues> }) {
     let values: FormValues = { title: input.initialValue };
     const formRef: { current?: UseFormReturn<FormValues> } = {};
     const Wrapper = ({ children }: PropsWithChildren) => {
-      const form = useForm<FormValues>({ defaultValues: { title: input.initialValue }, mode: "onChange" });
+      const form = useForm<FormValues>({ defaultValues: { title: input.initialValue }, mode: input.mode ?? "onChange", resolver: input.resolver });
       values = form.watch();
       formRef.current = form;
       return <FormProvider {...form}>{children}</FormProvider>;

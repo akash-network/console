@@ -1,10 +1,11 @@
 import type { FC, MouseEvent } from "react";
 import { useId } from "react";
+import { useFormState } from "react-hook-form";
 import { FieldErrorMessage, InlineEditInput, useFieldError } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { Trash } from "iconoir-react";
 
-import type { ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { ConfigStatusIcon } from "../ConfigStatusIcon/ConfigStatusIcon";
 import { useServiceStatus } from "../useServiceStatus/useServiceStatus";
 
@@ -25,6 +26,9 @@ type Props = {
 export const ServiceRow: FC<Props> = ({ service, serviceIndex, isSelected, canRemove, locked = false, onSelect, onRemove, dependencies: d = DEPENDENCIES }) => {
   const isConfigured = d.useServiceStatus(serviceIndex);
   const { error } = d.useFieldError(`services.${serviceIndex}.title`);
+  const { errors } = useFormState<SdlBuilderFormValuesType>({ name: `services.${serviceIndex}` });
+  /** Any invalid field on this service reddens its row, so the error points straight at the service that needs fixing — not its placement. */
+  const hasError = !!error || !!errors.services?.[serviceIndex];
   const errorId = useId();
 
   function removeWithoutSelecting(event: MouseEvent<HTMLButtonElement>) {
@@ -41,9 +45,9 @@ export const ServiceRow: FC<Props> = ({ service, serviceIndex, isSelected, canRe
     <li onClick={selectWithoutSelectingPlacement} className="group flex cursor-pointer flex-col gap-1">
       <div
         className={cn("flex items-start gap-2 rounded-md border px-2.5 py-2", {
-          "border-destructive": !!error,
-          "border-foreground bg-accent": isSelected && !error,
-          "border-zinc-300 hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-600": !isSelected && !error
+          "border-destructive": hasError,
+          "border-foreground bg-accent": isSelected && !hasError,
+          "border-zinc-300 hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-600": !isSelected && !hasError
         })}
       >
         <button

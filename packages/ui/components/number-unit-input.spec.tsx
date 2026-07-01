@@ -57,9 +57,19 @@ describe(NumberUnitInput.name, () => {
     expect(screen.getByRole("combobox", { name: "Memory unit" })).toBeDisabled();
   });
 
+  it("calls onBlur when the numeric input loses focus", async () => {
+    const { onBlur } = setup({ value: 256, unit: "MB" });
+
+    await userEvent.click(screen.getByLabelText("Memory"));
+    await userEvent.tab();
+
+    expect(onBlur).toHaveBeenCalled();
+  });
+
   function setup(input: { value: number; unit: string; error?: string; disabled?: boolean }) {
     const onValueChange = vi.fn();
     const onUnitChange = vi.fn();
+    const onBlur = vi.fn();
     function Harness() {
       const [value, setValue] = useState<number | undefined>(input.value);
       const [unit, setUnit] = useState(input.unit);
@@ -71,6 +81,7 @@ describe(NumberUnitInput.name, () => {
           unit={unit}
           error={input.error}
           disabled={input.disabled}
+          onBlur={onBlur}
           onValueChange={next => {
             onValueChange(next);
             setValue(next);
@@ -83,6 +94,6 @@ describe(NumberUnitInput.name, () => {
       );
     }
     render(<Harness />);
-    return { onValueChange, onUnitChange };
+    return { onValueChange, onUnitChange, onBlur };
   }
 });

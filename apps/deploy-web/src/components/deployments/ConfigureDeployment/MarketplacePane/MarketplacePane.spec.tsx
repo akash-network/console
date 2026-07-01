@@ -44,6 +44,13 @@ describe(MarketplacePane.name, () => {
     expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ providers: offers }), expect.anything());
   });
 
+  it("shows a message and no table when the spec is invalid", () => {
+    const { MarketplaceProvidersTable } = setup({ isInvalid: true });
+
+    expect(screen.getByText(/no provider could bid on it/i)).toBeInTheDocument();
+    expect(MarketplaceProvidersTable).not.toHaveBeenCalled();
+  });
+
   it("renders the provider search input in the header", () => {
     setup({ offers: [buildOffer()] });
 
@@ -83,6 +90,7 @@ describe(MarketplacePane.name, () => {
       filteredProviders?: PlacementOffer[];
       isLoading?: boolean;
       isError?: boolean;
+      isInvalid?: boolean;
       isSearchActive?: boolean;
       selectedPlacementId?: string;
       selectedBidId?: string;
@@ -92,7 +100,8 @@ describe(MarketplacePane.name, () => {
     const usePlacementOffers = vi.fn(() => ({
       offers: input.offers ?? [],
       isLoading: input.isLoading ?? false,
-      isError: input.isError ?? false
+      isError: input.isError ?? false,
+      isInvalid: input.isInvalid ?? false
     }));
     const useProviderSearch = vi.fn((offers: PlacementOffer[]) => ({
       query: "",

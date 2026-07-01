@@ -29,6 +29,8 @@ interface UsePlacementOffersResult {
   offers: PlacementOffer[];
   isLoading: boolean;
   isError: boolean;
+  /** True while still configuring a spec that can't be screened — the marketplace shows a message instead of a list. */
+  isInvalid: boolean;
 }
 
 export const DEPENDENCIES = { useScreenedProviders, useListBids, useProviderList, getPlacementGseq };
@@ -84,7 +86,8 @@ export function usePlacementOffers(
   return {
     offers,
     isLoading: screened.isLoading || (isQuoting && offers.length === 0 && bidsQuery.isLoading),
-    isError: screened.isError || (isQuoting && bidsQuery.isError)
+    isError: screened.isError || (isQuoting && bidsQuery.isError),
+    isInvalid: !isLocked && screened.isInvalid
   };
 }
 

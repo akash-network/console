@@ -86,7 +86,7 @@ export const confidentialComputeTooltip = (
   </>
 );
 
-export const imageRuntimeTooltip = (
+export const dockerImageTooltip = (
   <>
     Docker image of the container.
     <br />
@@ -97,6 +97,13 @@ export const imageRuntimeTooltip = (
     <a href="https://akash.network/docs/developers/deployment/akash-sdl/advanced-features/#environment-variables" target="_blank" rel="noopener">
       View official documentation
     </a>
+  </>
+);
+
+export const runtimeTooltip = (
+  <>
+    Runtime options for the service: how many replicas to run and an optional SSH public key for shell access to the
+    container.
   </>
 );
 

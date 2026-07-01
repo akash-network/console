@@ -8,106 +8,19 @@ import { describe, expect, it, vi } from "vitest";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
 import { defaultService, defaultServiceWithPlacement } from "@src/utils/sdl/data";
-import { DEPENDENCIES, ImageRuntimeCard } from "./ImageRuntimeCard";
+import { DEPENDENCIES, RuntimeCard } from "./RuntimeCard";
 
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-describe(ImageRuntimeCard.name, () => {
-  it("edits the docker image and lowercases input", async () => {
-    const { getValues } = setup({});
+describe(RuntimeCard.name, () => {
+  it("disables the replica and ssh inputs while locked", () => {
+    setup({ locked: true, hasSSHKey: true, sshPubKey: "ssh-rsa AAAATESTKEY user@host" });
 
-    await userEvent.type(screen.getByLabelText("Docker image"), "MyImage:1.0");
-
-    expect(getValues().services[0].image).toBe("myimage:1.0");
-  });
-
-  it("disables every input in the card body while locked", () => {
-    setup({ locked: true, hasCredentials: true, hasSSHKey: true, sshPubKey: "ssh-rsa AAAATESTKEY user@host" });
-
-    expect(screen.getByRole("textbox", { name: "Docker image" })).toBeDisabled();
-    expect(screen.getByRole("checkbox", { name: "Private registry" })).toBeDisabled();
-    expect(screen.getByRole("combobox", { name: "Registry host" })).toBeDisabled();
-    expect(screen.getByRole("textbox", { name: "Registry username" })).toBeDisabled();
     expect(screen.getByRole("spinbutton", { name: "Replicas" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Increase Replicas" })).toBeDisabled();
     expect(screen.getByRole("checkbox", { name: "Expose SSH" })).toBeDisabled();
     expect(screen.getByRole("textbox", { name: "SSH public key" })).toBeDisabled();
-  });
-
-  it("reveals credentials fields and seeds defaults when private registry is checked", async () => {
-    const { getValues } = setup({});
-
-    expect(screen.queryByLabelText("Registry username")).not.toBeInTheDocument();
-
-    await userEvent.click(screen.getByLabelText("Private registry"));
-
-    expect(screen.getByLabelText("Registry username")).toBeInTheDocument();
-    expect(getValues().services[0].hasCredentials).toBe(true);
-    expect(getValues().services[0].credentials).toMatchObject({ host: "docker.io", username: "", password: "" });
-  });
-
-  it("clears credentials when private registry is unchecked", async () => {
-    const { getValues } = setup({ hasCredentials: true });
-
-    await userEvent.click(screen.getByLabelText("Private registry"));
-
-    expect(screen.queryByLabelText("Registry username")).not.toBeInTheDocument();
-    expect(getValues().services[0].hasCredentials).toBe(false);
-    expect(getValues().services[0].credentials).toBeUndefined();
-  });
-
-  it("edits the registry username", async () => {
-    const { getValues } = setup({ hasCredentials: true });
-
-    await userEvent.type(screen.getByLabelText("Registry username"), "alice");
-
-    expect(getValues().services[0].credentials?.username).toBe("alice");
-  });
-
-  it("shows a custom registry URL field for a custom host", async () => {
-    setup({ hasCredentials: true });
-
-    await userEvent.click(screen.getByRole("combobox", { name: "Registry host" }));
-    await userEvent.click(screen.getByRole("option", { name: "Custom Registry" }));
-
-    expect(screen.getByLabelText("Custom registry URL")).toBeInTheDocument();
-  });
-
-  it("does not show a password error before the user edits the credentials", async () => {
-    setup({ resolver: zodResolver(SdlBuilderFormValuesSchema) });
-
-    await userEvent.click(screen.getByLabelText("Private registry"));
-
-    expect(screen.queryByText(/at least 6 characters/i)).not.toBeInTheDocument();
-  });
-
-  it("does not show the password error before submitting", async () => {
-    setup({ resolver: zodResolver(SdlBuilderFormValuesSchema) });
-
-    await userEvent.click(screen.getByLabelText("Private registry"));
-    await userEvent.type(screen.getByLabelText("Registry password"), "abc");
-
-    expect(screen.queryByText(/at least 6 characters/i)).not.toBeInTheDocument();
-  });
-
-  it("shows the password error after submitting", async () => {
-    setup({ resolver: zodResolver(SdlBuilderFormValuesSchema) });
-
-    await userEvent.click(screen.getByLabelText("Private registry"));
-    await userEvent.type(screen.getByLabelText("Registry password"), "abc");
-    await userEvent.click(screen.getByRole("button", { name: "Request quotes" }));
-
-    await waitFor(() => expect(screen.getByText(/at least 6 characters/i)).toBeInTheDocument());
-  });
-
-  it("stores an empty host, not the custom sentinel, when Custom Registry is selected", async () => {
-    const { getValues } = setup({ hasCredentials: true });
-
-    await userEvent.click(screen.getByRole("combobox", { name: "Registry host" }));
-    await userEvent.click(screen.getByRole("option", { name: "Custom Registry" }));
-
-    expect(getValues().services[0].credentials?.host).toBe("");
   });
 
   it("increments the replica count", async () => {
@@ -236,16 +149,6 @@ describe(ImageRuntimeCard.name, () => {
     expect(screen.getByRole("button", { name: "How to use the SSH key" })).toBeInTheDocument();
   });
 
-  it("shows a host error under the credentials fields when the custom host is not a valid URL", async () => {
-    const { trigger } = setupValidated({ credentials: { host: "not a url", username: "alice", password: "secret" } });
-
-    await trigger();
-
-    await waitFor(() => {
-      expect(screen.getByText("Host is not a valid registry URL")).toBeInTheDocument();
-    });
-  });
-
   it("re-validates the CPU group limit when the replica count changes", async () => {
     const resolver: Resolver<SdlBuilderFormValuesType> = async values => {
       const errors = values.services[0].count > 1 ? { services: { 0: { profile: { cpu: { type: "max", message: "CPU group limit exceeded" } } } } } : {};
@@ -279,7 +182,6 @@ describe(ImageRuntimeCard.name, () => {
   });
 
   function setup(input: {
-    hasCredentials?: boolean;
     count?: number;
     hasSSHKey?: boolean;
     sshPubKey?: string;
@@ -292,8 +194,6 @@ describe(ImageRuntimeCard.name, () => {
     const base = defaultServiceWithPlacement({
       image: "",
       count: input.count ?? 1,
-      hasCredentials: input.hasCredentials ?? false,
-      credentials: input.hasCredentials ? { host: "docker.io", username: "", password: "" } : undefined,
       sshPubKey: input.sshPubKey ?? "",
       env: input.env?.map(e => ({ value: "", isSecret: false, ...e })) ?? []
     });
@@ -344,7 +244,7 @@ describe(ImageRuntimeCard.name, () => {
 
     render(
       <Wrapper>
-        <ImageRuntimeCard serviceIndex={0} locked={input.locked} dependencies={dependencies} />
+        <RuntimeCard serviceIndex={0} locked={input.locked} dependencies={dependencies} />
       </Wrapper>
     );
 
@@ -352,43 +252,32 @@ describe(ImageRuntimeCard.name, () => {
   }
 
   /**
-   * Renders the card under a real (or supplied) resolver so validation errors
-   * flow through to the field state. The CPU/GPU group errors live on
-   * `profile.cpu`/`profile.gpu`, which the sibling Compute Resources and GPU cards
-   * own, so a small probe surfaces them here to verify the replica-count
-   * re-validation wiring without pulling in those cards.
+   * Renders the card under a supplied resolver so validation errors flow through to the field state.
+   * The CPU/GPU group errors live on `profile.cpu`/`profile.gpu`, which the sibling Compute Resources
+   * and GPU cards own, so a small probe surfaces them here to verify the replica-count re-validation
+   * wiring in isolation.
    */
-  function setupValidated(input: {
-    count?: number;
-    credentials?: { host: string; username: string; password: string };
-    resolver?: Resolver<SdlBuilderFormValuesType>;
-  }) {
-    const values = defaultServiceWithPlacement({
-      image: "nginx:latest",
-      count: input.count ?? 1,
-      hasCredentials: !!input.credentials,
-      credentials: input.credentials
-    });
+  function setupValidated(input: { count?: number; resolver?: Resolver<SdlBuilderFormValuesType> }) {
+    const values = defaultServiceWithPlacement({ image: "nginx:latest", count: input.count ?? 1 });
 
-    let trigger: () => Promise<boolean> = async () => true;
-    const ProfileErrorProbe = () => {
+    const GroupLimitProbe = () => {
       const { errors } = useFormState<SdlBuilderFormValuesType>();
       const profile = errors.services?.[0]?.profile;
       const message = profile?.cpu?.message ?? profile?.gpu?.message;
       return message ? <span>{message}</span> : null;
     };
+
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({
         defaultValues: values,
         mode: "onChange",
         resolver: input.resolver ?? zodResolver(SdlBuilderFormValuesSchema)
       });
-      trigger = () => form.trigger();
       return (
         <SnackbarProvider>
           <FormProvider {...form}>
             {children}
-            <ProfileErrorProbe />
+            <GroupLimitProbe />
           </FormProvider>
         </SnackbarProvider>
       );
@@ -396,10 +285,8 @@ describe(ImageRuntimeCard.name, () => {
 
     render(
       <Wrapper>
-        <ImageRuntimeCard serviceIndex={0} dependencies={{ ...DEPENDENCIES, saveAs: vi.fn(), loadJSZip: vi.fn() }} />
+        <RuntimeCard serviceIndex={0} dependencies={{ ...DEPENDENCIES, saveAs: vi.fn(), loadJSZip: vi.fn() }} />
       </Wrapper>
     );
-
-    return { trigger: () => trigger() };
   }
 });
