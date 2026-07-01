@@ -8,19 +8,27 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { envSchema } from "../../config/env.config";
+import { generateCrl } from "./amd-crl.test-fixtures";
 import type { AmdKdsClient } from "./amd-kds.client";
 import { AmdSnpService } from "./amd-snp.service";
 import { SNP_REPORT_MIN_LENGTH } from "./snp-report.parser";
 
-// A real P-384 ARK→ASK→VCEK chain generated once via openssl, plus the VCEK private key used to sign reports.
-// Generating it at test time keeps the suite hermetic (no committed keys, no network). `chain` stands in for the
-// AMD-issued chain (the mocked KDS vouches for it); `forgedChain` is an attacker-controlled self-signed chain.
-let chain: ReturnType<typeof generateP384Chain>;
-let forgedChain: ReturnType<typeof generateP384Chain>;
+// A real ARK→ASK→VCEK chain generated once via openssl (RSA ARK/ASK as AMD issues them, P-384 VCEK that
+// signs the report), plus the VCEK private key used to sign reports. Generating it at test time keeps the
+// suite hermetic (no committed keys, no network). `chain` stands in for the AMD-issued chain (the mocked KDS
+// vouches for it); `forgedChain` is an attacker-controlled self-signed chain.
+let chain: ReturnType<typeof generateChain>;
+let forgedChain: ReturnType<typeof generateChain>;
+// CRLs signed by the chain's ARK: one clean, one revoking the ASK. Drive the revocation-check paths.
+let cleanCrlDer: Buffer;
+let revokedCrlDer: Buffer;
 
 beforeAll(() => {
-  chain = generateP384Chain();
-  forgedChain = generateP384Chain();
+  chain = generateChain();
+  forgedChain = generateChain();
+  const askSerial = new X509Certificate(chain.askPem).serialNumber;
+  cleanCrlDer = generateCrl(chain.dir, []);
+  revokedCrlDer = generateCrl(chain.dir, [askSerial]);
 });
 
 afterAll(() => {
@@ -37,7 +45,8 @@ describe(AmdSnpService.name, () => {
     const verdict = await service.verify({ report: report.toString("base64"), certChain: "", nonce: nonce.toString("base64") });
 
     expect(verdict).toMatchObject({ kind: "cpu", vendor: "amd-sev-snp", status: "valid" });
-    expect(verdict.checks).toEqual({ certChainValid: true, signatureValid: true, nonceMatch: true });
+    expect(verdict.checks).toEqual({ certChainValid: true, signatureValid: true, nonceMatch: true, notRevoked: true });
+    expect(verdict.detail).not.toMatch(/revocation not checked/i);
   });
 
   it("returns invalid when the report signature does not verify", async () => {
@@ -122,12 +131,55 @@ describe(AmdSnpService.name, () => {
     expect(verdict.detail).toMatch(/anchor/i);
   });
 
-  function setup(input: { withKds: boolean; products?: string[]; resolvingProduct?: string; vcekInKds?: boolean }) {
+  it("returns invalid when AMD has revoked the signing key in the chain", async () => {
+    const nonce = crypto.randomBytes(64);
+    const report = buildSignedReport(nonce);
+    const { service } = setup({ withKds: true, crl: "revoked" });
+
+    const verdict = await service.verify({ report: report.toString("base64"), certChain: "", nonce: nonce.toString("base64") });
+
+    expect(verdict.status).toBe("invalid");
+    expect(verdict.checks?.notRevoked).toBe(false);
+  });
+
+  it("returns unverifiable when the AMD CRL cannot be retrieved", async () => {
+    const nonce = crypto.randomBytes(64);
+    const report = buildSignedReport(nonce);
+    const { service } = setup({ withKds: true, crl: "missing" });
+
+    const verdict = await service.verify({ report: report.toString("base64"), certChain: "", nonce: nonce.toString("base64") });
+
+    expect(verdict.status).toBe("unverifiable");
+    expect(verdict.checks?.notRevoked).toBeUndefined();
+  });
+
+  it("returns unverifiable when fetching the AMD CRL throws", async () => {
+    const nonce = crypto.randomBytes(64);
+    const report = buildSignedReport(nonce);
+    const { service } = setup({ withKds: true, crl: "error" });
+
+    const verdict = await service.verify({ report: report.toString("base64"), certChain: "", nonce: nonce.toString("base64") });
+
+    expect(verdict.status).toBe("unverifiable");
+  });
+
+  function setup(input: {
+    withKds: boolean;
+    products?: string[];
+    resolvingProduct?: string;
+    vcekInKds?: boolean;
+    crl?: "clean" | "revoked" | "missing" | "error";
+  }) {
     const kdsClient = mock<AmdKdsClient>();
     const resolving = input.resolvingProduct ?? "Genoa";
     const vcekInKds = input.vcekInKds ?? true;
     kdsClient.getCaChain.mockImplementation(async product => (input.withKds && product === resolving ? { ask: chain.askPem, ark: chain.arkPem } : null));
     kdsClient.getVcek.mockImplementation(async product => (input.withKds && vcekInKds && product === resolving ? chain.vcekDer : null));
+    kdsClient.getCrl.mockImplementation(async () => {
+      if (input.crl === "missing") return null;
+      if (input.crl === "error") throw new Error("AMD KDS unavailable");
+      return input.crl === "revoked" ? revokedCrlDer : cleanCrlDer;
+    });
 
     const config = { ...envSchema.parse({}), AMD_SNP_PRODUCTS: input.products ?? [resolving] };
     const service = new AmdSnpService(kdsClient, config, mock<LoggerService>());
@@ -152,10 +204,11 @@ function buildSignedReport(nonce: Buffer, signingChain = chain): Buffer {
   return report;
 }
 
-function generateP384Chain() {
+function generateChain() {
   const dir = mkdtempSync(join(tmpdir(), "snp-chain-"));
   const ossl = (args: string[]) => execFileSync("openssl", args, { cwd: dir });
-  const genKey = (name: string) => ossl(["ecparam", "-name", "secp384r1", "-genkey", "-noout", "-out", `${name}.key`]);
+  const genRsaKey = (name: string) => ossl(["genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048", "-out", `${name}.key`]);
+  const genEcKey = (name: string) => ossl(["ecparam", "-name", "secp384r1", "-genkey", "-noout", "-out", `${name}.key`]);
   const selfSign = (name: string, cn: string) =>
     ossl(["req", "-new", "-x509", "-key", `${name}.key`, "-out", `${name}.pem`, "-days", "2", "-subj", `/CN=${cn}`, "-sha384"]);
   const caSign = (name: string, cn: string, ca: string) => {
@@ -164,11 +217,12 @@ function generateP384Chain() {
   };
   const read = (name: string) => readFileSync(join(dir, name), "utf-8");
 
-  genKey("ark");
+  // ARK/ASK are RSA (as AMD issues them) so the ARK can sign an RSA-PSS CRL; the VCEK is P-384 because it signs the report.
+  genRsaKey("ark");
   selfSign("ark", "ARK");
-  genKey("ask");
+  genRsaKey("ask");
   caSign("ask", "ASK", "ark");
-  genKey("vcek");
+  genEcKey("vcek");
   caSign("vcek", "VCEK", "ask");
 
   return {
