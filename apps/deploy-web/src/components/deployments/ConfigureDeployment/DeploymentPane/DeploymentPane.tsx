@@ -6,13 +6,12 @@ import { InfoCircle, Plus, SidebarCollapse, SidebarExpand } from "iconoir-react"
 import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
 import { PaneLockBanner } from "../PaneLockBanner/PaneLockBanner";
 import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
-import { IpEndpointsSection } from "./IpEndpointsSection/IpEndpointsSection";
 import { PlacementCard } from "./PlacementCard/PlacementCard";
 import type { PlacementSelectionState } from "./PlacementSelectionBadge/PlacementSelectionBadge";
 import { ReclamationSection } from "./ReclamationSection/ReclamationSection";
 import { usePlacementManager } from "./usePlacementManager/usePlacementManager";
 
-export const DEPENDENCIES = { PlacementCard, usePlacementManager, usePlacementsWithBids, IpEndpointsSection, ReclamationSection };
+export const DEPENDENCIES = { PlacementCard, usePlacementManager, usePlacementsWithBids, ReclamationSection };
 
 type Props = {
   selectedServiceId: string;
@@ -116,7 +115,6 @@ export const DeploymentPane: FC<Props> = ({
             </Button>
           </div>
         </div>
-        <d.IpEndpointsSection locked={locked} />
       </div>
     </section>
   );
