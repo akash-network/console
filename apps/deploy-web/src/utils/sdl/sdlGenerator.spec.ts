@@ -96,8 +96,19 @@ describe("sdlGenerator", () => {
       expect(Object.keys(parsed.profiles.placement["dcloud"].pricing)).toEqual(["web", "api"]);
     });
 
-    it("emits a declared endpoint with kind ip even when no port references it", () => {
+    it("drops a declared endpoint that no port references", () => {
       const formValues = buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" }));
+      formValues.endpoints = [{ id: "e-1", name: "endpoint-1" }];
+      const result = generateSdl(formValues);
+      const parsed = yaml.load(result) as { endpoints?: Record<string, { kind: string }> };
+
+      expect(parsed.endpoints).toBeUndefined();
+    });
+
+    it("emits an endpoint referenced by a port's ipName with kind ip", () => {
+      const service = buildLogCollectorService({ title: "web", image: "nginx:latest" });
+      service.expose[0].ipName = "endpoint-1";
+      const formValues = buildFormValues(service);
       formValues.endpoints = [{ id: "e-1", name: "endpoint-1" }];
       const result = generateSdl(formValues);
       const parsed = yaml.load(result) as { endpoints?: Record<string, { kind: string }> };

@@ -15,7 +15,8 @@ import {
   INTERNAL_ROUTING,
   PUBLIC_ROUTING,
   routingToModel,
-  routingValueOf
+  routingValueOf,
+  validateEndpointName
 } from "./ExposePortsCard";
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -402,6 +403,24 @@ describe(ExposePortsCard.name, () => {
 
     it("binds any other value to that named IP endpoint", () => {
       expect(routingToModel("endpoint-1")).toEqual({ global: true, ipName: "endpoint-1" });
+    });
+  });
+
+  describe("validateEndpointName", () => {
+    it("returns null for a valid, unique name", () => {
+      expect(validateEndpointName("endpoint-2", ["endpoint-1"])).toBeNull();
+    });
+
+    it("returns the schema message for an invalid name", () => {
+      expect(validateEndpointName("Bad_Name!", [])).toBe("Invalid endpoint name. It must only be lower case letters, numbers and dashes.");
+    });
+
+    it("returns a required message for a blank name", () => {
+      expect(validateEndpointName("", [])).toBe("Endpoint name is required.");
+    });
+
+    it("returns a uniqueness message for a duplicate name", () => {
+      expect(validateEndpointName("endpoint-1", ["endpoint-1"])).toBe("Endpoint name must be unique.");
     });
   });
 

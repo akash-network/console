@@ -329,13 +329,16 @@ const teeSdl = (tee: "cpu" | "cpu-gpu") =>
   ].join("\n");
 
 describe("importSimpleSdl endpoints", () => {
-  it("round-trips a declared endpoint back into the form model", () => {
-    const formValues = { ...defaultServiceWithPlacement({ image: "nginx:latest" }), endpoints: [{ id: "e-1", name: "endpoint-1" }] };
+  it("round-trips an endpoint referenced by a service back into the form model", () => {
+    const formValues = defaultServiceWithPlacement({ image: "nginx:latest" });
+    formValues.endpoints = [{ id: "e-1", name: "endpoint-1" }];
+    formValues.services[0].expose[0].ipName = "endpoint-1";
     const sdl = generateSdl(formValues);
 
     const imported = importSimpleSdl(sdl);
 
     expect(imported.endpoints?.map(endpoint => endpoint.name)).toEqual(["endpoint-1"]);
+    expect(imported.services[0].expose[0].ipName).toBe("endpoint-1");
   });
 });
 

@@ -72,13 +72,6 @@ describe("DeploymentPane", () => {
     expect(onSelectService).toHaveBeenCalledWith("new-service-id");
   });
 
-  it("renders the IP endpoints section", () => {
-    const IpEndpointsSection = vi.fn(() => null);
-    setup({ dependencies: { IpEndpointsSection } });
-
-    expect(IpEndpointsSection).toHaveBeenCalled();
-  });
-
   it("shows the lock banner and disables adding placements while locked", async () => {
     const onCancelAndEdit = vi.fn();
     setup({ locked: true, onCancelAndEdit });

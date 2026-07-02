@@ -1,5 +1,5 @@
 "use client";
-import { type FC, useCallback, useId, useMemo, useState } from "react";
+import { type FC, type MutableRefObject, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useController, useFieldArray, useFormContext, useWatch } from "react-hook-form";
 import {
   Button,
@@ -30,7 +30,8 @@ import { ChevronRightIcon, GlobeIcon, PlusIcon, SaveIcon, XIcon } from "lucide-r
 import { nanoid } from "nanoid";
 
 import type { ExposeType, SdlBuilderFormValuesType } from "@src/types";
-import { defaultHttpOptions, nextCases as nextCaseOptions, protoTypes } from "@src/utils/sdl/data";
+import { EndpointSchema } from "@src/types/sdlBuilder/sdlBuilder";
+import { defaultEndpoint, defaultHttpOptions, nextCases as nextCaseOptions, protoTypes } from "@src/utils/sdl/data";
 import { exposePortsTooltip } from "../cardTooltips";
 
 export const DEPENDENCIES = { CollapsibleCard, DialogV2, DialogV2Content, DialogV2Header, DialogV2Title, DialogV2Description, DialogV2Body, DialogV2Footer };
@@ -45,6 +46,12 @@ type Props = {
 /** Routing values stored as the `global`/`ipName` pair on the model. */
 export const PUBLIC_ROUTING = "public" as const;
 export const INTERNAL_ROUTING = "internal" as const;
+
+/** Sentinel routing value that opens the inline "create IP endpoint" input instead of selecting a routing target. */
+export const NEW_IP_ENDPOINT = "__new_ip_endpoint__" as const;
+
+/** Registry the modal Save calls to commit each port's pending new IP endpoint; a commit returns false when its name is invalid. */
+type EndpointCommitRegistry = MutableRefObject<Map<string, () => boolean>>;
 
 /** The `global`/`ipName` subset of an expose entry that routing derives from and writes back. */
 export type RoutingModel = Pick<ExposeType, "global" | "ipName">;
@@ -69,6 +76,14 @@ export const routingToModel = (value: string): RoutingModel => {
   if (value === INTERNAL_ROUTING) return { global: false, ipName: "" };
   return { global: true, ipName: value };
 };
+
+/** Validates a typed IP-endpoint name against the schema rules and catalog uniqueness; returns an error message or null. */
+export function validateEndpointName(name: string, existingNames: string[]): string | null {
+  const parsed = EndpointSchema.safeParse({ id: "new", name });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid endpoint name.";
+  if (existingNames.includes(name)) return "Endpoint name must be unique.";
+  return null;
+}
 
 /** Serializes the accept-hostname list into the comma-separated value the input shows. */
 export const hostnamesToInput = (accept: ExposeType["accept"]): string => (accept ?? []).map(entry => entry.value).join(", ");
@@ -113,6 +128,7 @@ export const ExposePortsCard: FC<Props> = ({ serviceIndex, locked = false, depen
   const hasErrors = isSubmitted && !!formState.errors.services?.[serviceIndex]?.expose;
   const [open, setOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<SdlBuilderFormValuesType | null>(null);
+  const endpointCommits: EndpointCommitRegistry = useRef(new Map<string, () => boolean>());
 
   const openModal = useCallback(() => {
     setSnapshot(structuredClone(getValues()));
@@ -128,6 +144,10 @@ export const ExposePortsCard: FC<Props> = ({ serviceIndex, locked = false, depen
   }, [reset, trigger, snapshot, serviceIndex, isSubmitted]);
 
   const handleSave = useCallback(() => {
+    const committed = [...endpointCommits.current.values()].map(commit => commit());
+    if (committed.some(ok => !ok)) {
+      return;
+    }
     reset(getValues(), { keepDirty: true, keepErrors: true });
     if (isSubmitted) void trigger(`services.${serviceIndex}.expose`);
     setOpen(false);
@@ -165,7 +185,7 @@ export const ExposePortsCard: FC<Props> = ({ serviceIndex, locked = false, depen
 
           <d.DialogV2Body>
             <fieldset disabled={locked} className="contents">
-              <ExposePortsList serviceIndex={serviceIndex} />
+              <ExposePortsList serviceIndex={serviceIndex} commitsRef={endpointCommits} />
             </fieldset>
           </d.DialogV2Body>
 
@@ -207,9 +227,10 @@ const keepFocusInDialog = (event: Event) => event.preventDefault();
 
 type ExposePortsListProps = {
   serviceIndex: number;
+  commitsRef: EndpointCommitRegistry;
 };
 
-const ExposePortsList: FC<ExposePortsListProps> = ({ serviceIndex }) => {
+const ExposePortsList: FC<ExposePortsListProps> = ({ serviceIndex, commitsRef }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const { fields, append, remove } = useFieldArray({ control, name: `services.${serviceIndex}.expose`, keyName: "fieldId" });
 
@@ -224,6 +245,7 @@ const ExposePortsList: FC<ExposePortsListProps> = ({ serviceIndex }) => {
           key={field.fieldId}
           serviceIndex={serviceIndex}
           exposeIndex={exposeIndex}
+          commitsRef={commitsRef}
           onRemove={fields.length > 1 ? () => remove(exposeIndex) : undefined}
         />
       ))}
@@ -239,16 +261,21 @@ const ExposePortsList: FC<ExposePortsListProps> = ({ serviceIndex }) => {
 type ExposePortFieldsProps = {
   serviceIndex: number;
   exposeIndex: number;
+  commitsRef: EndpointCommitRegistry;
   onRemove?: () => void;
 };
 
-const ExposePortFields: FC<ExposePortFieldsProps> = ({ serviceIndex, exposeIndex, onRemove }) => {
-  const { control, setValue } = useFormContext<SdlBuilderFormValuesType>();
+const ExposePortFields: FC<ExposePortFieldsProps> = ({ serviceIndex, exposeIndex, commitsRef, onRemove }) => {
+  const { control, getValues, setValue } = useFormContext<SdlBuilderFormValuesType>();
   const basePath = `services.${serviceIndex}.expose.${exposeIndex}` as const;
   const endpoints = useWatch({ control, name: "endpoints" }) ?? [];
   const watchedServices = useWatch({ control, name: "services" });
   const services = useMemo(() => watchedServices ?? [], [watchedServices]);
   const fieldId = useId();
+
+  const [isAddingEndpoint, setIsAddingEndpoint] = useState(false);
+  const [newEndpointName, setNewEndpointName] = useState("");
+  const [addEndpointError, setAddEndpointError] = useState<string | null>(null);
 
   const port = useController({ control, name: `${basePath}.port` });
   const as = useController({ control, name: `${basePath}.as` });
@@ -258,7 +285,10 @@ const ExposePortFields: FC<ExposePortFieldsProps> = ({ serviceIndex, exposeIndex
   const accept = useController({ control, name: `${basePath}.accept` });
   const to = useController({ control, name: `${basePath}.to` });
 
-  const routingValue = useMemo(() => routingValueOf({ global: global.field.value, ipName: ipName.field.value }), [global.field.value, ipName.field.value]);
+  const routingValue = useMemo(
+    () => (isAddingEndpoint ? NEW_IP_ENDPOINT : routingValueOf({ global: global.field.value, ipName: ipName.field.value })),
+    [isAddingEndpoint, global.field.value, ipName.field.value]
+  );
 
   const isInternal = routingValue === INTERNAL_ROUTING;
   const isHttp = (proto.field.value ?? "http") === "http";
@@ -282,11 +312,59 @@ const ExposePortFields: FC<ExposePortFieldsProps> = ({ serviceIndex, exposeIndex
 
   const changeRouting = useCallback(
     (value: string) => {
+      if (value === NEW_IP_ENDPOINT) {
+        setNewEndpointName("");
+        setAddEndpointError(null);
+        setIsAddingEndpoint(true);
+        return;
+      }
+      setIsAddingEndpoint(false);
+      setAddEndpointError(null);
       const next = routingToModel(value);
       global.field.onChange(next.global);
       ipName.field.onChange(next.ipName);
     },
     [global.field, ipName.field]
+  );
+
+  /**
+   * Commits this port's in-progress new IP endpoint when the modal is saved: validates the typed name,
+   * appends it to the shared catalog, and binds the port to it. Returns false (surfacing an inline error)
+   * when the name is empty, malformed, or already taken, so Save can keep the modal open.
+   */
+  const commitNewEndpoint = useCallback(() => {
+    if (!isAddingEndpoint) {
+      return true;
+    }
+    const name = newEndpointName.trim();
+    const existing = getValues("endpoints") ?? [];
+    const error = validateEndpointName(
+      name,
+      existing.map(endpoint => endpoint.name)
+    );
+    if (error) {
+      setAddEndpointError(error);
+      return false;
+    }
+    setValue("endpoints", [...existing, defaultEndpoint({ name })], { shouldDirty: true });
+    const routing = routingToModel(name);
+    global.field.onChange(routing.global);
+    ipName.field.onChange(routing.ipName);
+    setIsAddingEndpoint(false);
+    setNewEndpointName("");
+    setAddEndpointError(null);
+    return true;
+  }, [isAddingEndpoint, newEndpointName, getValues, setValue, global.field, ipName.field]);
+
+  useEffect(
+    function registerEndpointCommit() {
+      const commits = commitsRef.current;
+      commits.set(fieldId, commitNewEndpoint);
+      return function unregisterEndpointCommit() {
+        commits.delete(fieldId);
+      };
+    },
+    [commitsRef, fieldId, commitNewEndpoint]
   );
 
   const hostnamesValue = useMemo(() => hostnamesToInput(accept.field.value), [accept.field.value]);
@@ -405,11 +483,33 @@ const ExposePortFields: FC<ExposePortFieldsProps> = ({ serviceIndex, exposeIndex
                     IP endpoint: {endpoint.name}
                   </SelectItem>
                 ))}
+                <SelectItem value={NEW_IP_ENDPOINT}>+ New IP endpoint</SelectItem>
               </SelectContent>
             </Select>
           </FieldContent>
         </Field>
       </div>
+
+      {isAddingEndpoint && (
+        <Field className="gap-2">
+          <FieldLabel htmlFor={`${fieldId}-new-endpoint`}>New IP endpoint name</FieldLabel>
+          <FieldContent>
+            <Input
+              id={`${fieldId}-new-endpoint`}
+              aria-label="New IP endpoint name"
+              placeholder="e.g. web-ip"
+              value={newEndpointName}
+              onChange={event => {
+                setNewEndpointName(event.target.value);
+                setAddEndpointError(null);
+              }}
+              error={!!addEndpointError}
+              inputClassName="h-9"
+            />
+            <FieldError>{addEndpointError}</FieldError>
+          </FieldContent>
+        </Field>
+      )}
 
       {isHttp && !isInternal && (
         <Field className="gap-2">
