@@ -74,14 +74,101 @@ describe(usePlacementOffers.name, () => {
     expect(useProviderList).toHaveBeenCalledWith(expect.objectContaining({ enabled: true }));
   });
 
-  it("drops the non-bidding screened candidates once bids arrive", () => {
+  it("keeps a non-bidding screened candidate as an unavailable offer once bids arrive", () => {
     const { result } = setup({
       phase: "quoting",
       dseq: "100",
-      screened: [polaris(), mock<ScreenedProvider>({ owner: "akash1bbb" })],
+      screened: [polaris(), mock<ScreenedProvider>({ owner: "akash1bbb", organization: "Beta", location: "eu-west" })],
+      bids: [{ bid: { state: "open", price: { amount: "1900", denom: "uakt" }, id: { provider: "akash1aaa", dseq: "100", gseq: 1, oseq: 1 } } }]
+    });
+    expect(result.current.offers).toEqual([
+      expect.objectContaining({ owner: "akash1aaa", offerState: "submitted" }),
+      expect.objectContaining({ owner: "akash1bbb", offerState: "unavailable", bidId: undefined, price: undefined })
+    ]);
+  });
+
+  it("marks a provider whose only bid is closed as a closed offer that keeps its last price", () => {
+    const { result } = setup({
+      phase: "quoting",
+      dseq: "100",
+      screened: [polaris()],
+      bids: [{ bid: { state: "closed", price: { amount: "1900", denom: "uakt" }, id: { provider: "akash1aaa", dseq: "100", gseq: 1, oseq: 1 } } }]
+    });
+    expect(result.current.offers).toEqual([
+      expect.objectContaining({ owner: "akash1aaa", offerState: "closed", bidId: undefined, price: { amount: "1900", denom: "uakt" } })
+    ]);
+  });
+
+  it("deduplicates a provider that appears twice in the screened list", () => {
+    const { result } = setup({
+      phase: "quoting",
+      dseq: "100",
+      screened: [polaris(), polaris()],
       bids: [{ bid: { state: "open", price: { amount: "1900", denom: "uakt" }, id: { provider: "akash1aaa", dseq: "100", gseq: 1, oseq: 1 } } }]
     });
     expect(result.current.offers).toEqual([expect.objectContaining({ owner: "akash1aaa", offerState: "submitted" })]);
+  });
+
+  it("prefers the open bid when a provider has both an open and a closed bid", () => {
+    const { result } = setup({
+      phase: "quoting",
+      dseq: "100",
+      screened: [polaris()],
+      bids: [
+        { bid: { state: "closed", price: { amount: "10", denom: "uakt" }, id: { provider: "akash1aaa", dseq: "100", gseq: 1, oseq: 1 } } },
+        { bid: { state: "open", price: { amount: "20", denom: "uakt" }, id: { provider: "akash1aaa", dseq: "100", gseq: 1, oseq: 2 } } }
+      ]
+    });
+    expect(result.current.offers).toEqual([
+      expect.objectContaining({ owner: "akash1aaa", offerState: "submitted", price: { amount: "20", denom: "uakt" }, bidId: "akash1aaa/100/1/2" })
+    ]);
+  });
+
+  it("prefers the open bid regardless of the order bids are returned in", () => {
+    const { result } = setup({
+      phase: "quoting",
+      dseq: "100",
+      screened: [polaris()],
+      bids: [
+        { bid: { state: "open", price: { amount: "20", denom: "uakt" }, id: { provider: "akash1aaa", dseq: "100", gseq: 1, oseq: 2 } } },
+        { bid: { state: "closed", price: { amount: "10", denom: "uakt" }, id: { provider: "akash1aaa", dseq: "100", gseq: 1, oseq: 1 } } }
+      ]
+    });
+    expect(result.current.offers).toEqual([
+      expect.objectContaining({ owner: "akash1aaa", offerState: "submitted", price: { amount: "20", denom: "uakt" }, bidId: "akash1aaa/100/1/2" })
+    ]);
+  });
+
+  it("includes a provider that bid without being screened", () => {
+    const { result } = setup({
+      phase: "quoting",
+      dseq: "100",
+      screened: [polaris()],
+      providerList: [{ owner: "akash1new", organization: "Newcomer", hostUri: "https://new.example:8443", locationRegion: "ap-south", isAudited: false }],
+      bids: [
+        { bid: { state: "open", price: { amount: "1900", denom: "uakt" }, id: { provider: "akash1aaa", dseq: "100", gseq: 1, oseq: 1 } } },
+        { bid: { state: "open", price: { amount: "2500", denom: "uakt" }, id: { provider: "akash1new", dseq: "100", gseq: 1, oseq: 1 } } }
+      ]
+    });
+    expect(result.current.offers).toEqual([
+      expect.objectContaining({ owner: "akash1aaa", offerState: "submitted" }),
+      expect.objectContaining({ owner: "akash1new", organization: "Newcomer", location: "ap-south", offerState: "submitted" })
+    ]);
+  });
+
+  it("reuses screened metadata for a bidder instead of the provider list", () => {
+    const { result } = setup({
+      phase: "quoting",
+      dseq: "100",
+      screened: [polaris()],
+      providerList: [
+        { owner: "akash1aaa", organization: "Stale Name", locationRegion: "wrong-region", hostUri: "https://stale.example:8443", isAudited: false }
+      ],
+      bids: [{ bid: { state: "open", price: { amount: "1900", denom: "uakt" }, id: { provider: "akash1aaa", dseq: "100", gseq: 1, oseq: 1 } } }]
+    });
+    expect(result.current.offers).toEqual([
+      expect.objectContaining({ owner: "akash1aaa", organization: "Polaris", location: "us-east", offerState: "submitted" })
+    ]);
   });
 
   it("surfaces a listBids failure while quoting", () => {
