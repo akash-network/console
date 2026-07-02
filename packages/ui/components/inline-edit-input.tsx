@@ -41,6 +41,7 @@ export const InlineEditInput: FC<Props> = ({ name, label, className, suppressErr
           label={label}
           value={field.value}
           onCommit={field.onChange}
+          onBlur={field.onBlur}
           error={fieldState.error?.message}
           suppressErrorMessage={suppressErrorMessage}
           errorMessageId={errorMessageId}
@@ -55,13 +56,15 @@ interface EditableTextProps {
   label: string;
   value: string;
   onCommit: (value: string) => void;
+  /** Signals the bound form field's blur so `onTouched` validation runs when the field is left. */
+  onBlur?: () => void;
   error?: string;
   suppressErrorMessage?: boolean;
   errorMessageId?: string;
   className?: string;
 }
 
-function EditableText({ label, value, onCommit, error, suppressErrorMessage, errorMessageId, className }: EditableTextProps) {
+function EditableText({ label, value, onCommit, onBlur, error, suppressErrorMessage, errorMessageId, className }: EditableTextProps) {
   const [draft, setDraft] = useState<string | null>(null);
   const isCancelling = useRef(false);
   const internalErrorId = useId();
@@ -95,6 +98,7 @@ function EditableText({ label, value, onCommit, error, suppressErrorMessage, err
       return;
     }
     commitDraft();
+    onBlur?.();
   }
 
   return (

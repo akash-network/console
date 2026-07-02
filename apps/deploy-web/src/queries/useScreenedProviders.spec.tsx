@@ -57,30 +57,18 @@ describe("useScreenedProviders", () => {
     );
   });
 
-  it("falls back to the full audited catalog (empty resources) when the SDL is invalid", () => {
-    const { useQuery } = setup({ sdl: "foo: [unclosed", placementName: "dcloud" });
+  it("flags the spec invalid and returns no providers when the SDL can't be screened (no catalog fallback)", () => {
+    const { result, useQuery } = setup({ sdl: "foo: [unclosed", placementName: "dcloud" });
 
-    expect(useQuery).toHaveBeenCalledWith(
-      {
-        requirements: { signedBy: { allOf: [AUDITOR] }, attributes: [] },
-        resources: [],
-        timezone: expect.any(String)
-      },
-      expect.anything()
-    );
+    expect(result.current.isInvalid).toBe(true);
+    expect(result.current.providers).toEqual([]);
+    expect(useQuery.mock.lastCall![1]).toEqual(expect.objectContaining({ enabled: false }));
   });
 
-  it("keeps the selected region as a location-region filter on the catalog fallback when the SDL is invalid", () => {
-    const { useQuery } = setup({ sdl: "foo: [unclosed", placementName: "dcloud", region: "na-us-west" });
+  it("does not flag a valid spec invalid", () => {
+    const { result } = setup({ placementName: "dcloud" });
 
-    expect(useQuery).toHaveBeenCalledWith(
-      {
-        requirements: { signedBy: { allOf: [AUDITOR] }, attributes: [{ key: "location-region", value: "na-us-west" }] },
-        resources: [],
-        timezone: expect.any(String)
-      },
-      expect.anything()
-    );
+    expect(result.current.isInvalid).toBe(false);
   });
 
   it("returns the screened providers from the query result", () => {
@@ -118,10 +106,10 @@ describe("useScreenedProviders", () => {
   it("paces input changes so rapid edits do not change the screening request until they settle", () => {
     vi.useFakeTimers();
     try {
-      const { useQuery, rerender } = setup({ sdl: "foo: [unclosed", placementName: "dcloud", region: "old" });
+      const { useQuery, rerender } = setup({ sdl: sdlForRegion("old"), placementName: "dcloud" });
       expect(regionOf(lastRequest(useQuery))).toBe("old");
 
-      rerender({ region: "new" });
+      rerender({ sdl: sdlForRegion("new") });
       expect(regionOf(lastRequest(useQuery))).toBe("old");
 
       act(() => vi.advanceTimersByTime(SCREENING_DEBOUNCE_MS));
@@ -157,12 +145,52 @@ describe("useScreenedProviders", () => {
   }
 });
 
+const SMALL_PRESET_SDL_NO_IMAGE = `---
+version: "2.0"
+services:
+  web:
+    image: ""
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 1
+        memory:
+          size: 2Gi
+        storage:
+          size: 10Gi
+  placement:
+    dcloud:
+      pricing:
+        web:
+          denom: uact
+          amount: 1000
+deployment:
+  web:
+    dcloud:
+      profile: web
+      count: 1
+`;
+
 describe("buildPlacementScreeningRequest", () => {
   it("builds an audited request from the matching placement group spec", () => {
     const request = buildPlacementScreeningRequest(HELLO_WORLD_SDL, "dcloud");
 
     expect(request).toMatchObject({ requirements: { signedBy: { allOf: [AUDITOR] } } });
     expect(request?.resources[0].resource.cpu.units.val).toBeTruthy();
+  });
+
+  it("substitutes a placeholder image so an image-less spec still screens its own resources", () => {
+    const request = buildPlacementScreeningRequest(SMALL_PRESET_SDL_NO_IMAGE, "dcloud");
+
+    expect(request).not.toBeNull();
+    expect(atob(request?.resources[0].resource.cpu.units.val ?? "")).toBe("1000");
   });
 
   it("returns null when the placement is not in the SDL", () => {
@@ -224,7 +252,7 @@ describe("useScreenedProviders — newest result wins", () => {
     >;
 
     const current = { region: "old" };
-    const view = setupQuery(() => useScreenedProviders({ sdl: "foo: [unclosed", placementName: "dcloud", region: current.region }), {
+    const view = setupQuery(() => useScreenedProviders({ sdl: sdlForRegion(current.region), placementName: "dcloud" }), {
       services: { api: () => api }
     });
 
@@ -244,7 +272,45 @@ function lastRequest(useQuery: ReturnType<typeof vi.fn>) {
   return useQuery.mock.lastCall![0] as { resources: unknown[]; requirements: { attributes: Array<{ key: string; value: string }> } };
 }
 
-/** The selected region encoded on a catalog-fallback request, or undefined when unset. */
+/** The region encoded on a screening request (from the spec's `location-region` attribute), or undefined when unset. */
 function regionOf(request: ReturnType<typeof lastRequest>): string | undefined {
   return request.requirements.attributes.find(attribute => attribute.key === "location-region")?.value;
+}
+
+/** A valid single-service SDL pinned to `region` via the placement's `location-region` attribute, so its screening request carries that region. */
+function sdlForRegion(region: string): string {
+  return `---
+version: "2.0"
+services:
+  web:
+    image: nginx
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.1
+        memory:
+          size: 512Mi
+        storage:
+          size: 1Gi
+  placement:
+    dcloud:
+      attributes:
+        location-region: ${region}
+      pricing:
+        web:
+          denom: uact
+          amount: 1000
+deployment:
+  web:
+    dcloud:
+      profile: web
+      count: 1
+`;
 }

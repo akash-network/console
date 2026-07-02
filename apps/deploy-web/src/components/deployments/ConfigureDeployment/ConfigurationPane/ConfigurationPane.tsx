@@ -5,8 +5,9 @@ import type { SdlBuilderFormValuesType } from "@src/types";
 import { PaneLockBanner } from "../PaneLockBanner/PaneLockBanner";
 import { AdditionalSection } from "./AdditionalSection/AdditionalSection";
 import { HardwareSection } from "./HardwareSection/HardwareSection";
+import { ImageSection } from "./ImageSection/ImageSection";
 
-export const DEPENDENCIES = { HardwareSection, AdditionalSection };
+export const DEPENDENCIES = { ImageSection, HardwareSection, AdditionalSection };
 
 type Props = {
   selectedServiceId: string;
@@ -43,6 +44,7 @@ export const ConfigurationPane: FC<Props> = ({ selectedServiceId, locked = false
       <div className="flex-1 overflow-y-auto py-4">
         {selectedServiceIndex >= 0 && (
           <div key={selectedServiceId} className="flex flex-col gap-6">
+            <d.ImageSection serviceIndex={selectedServiceIndex} locked={locked} />
             <d.HardwareSection serviceIndex={selectedServiceIndex} locked={locked} />
             <d.AdditionalSection serviceIndex={selectedServiceIndex} locked={locked} />
           </div>

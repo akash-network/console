@@ -330,6 +330,7 @@ const ExposePortFields: FC<ExposePortFieldsProps> = ({ serviceIndex, exposeIndex
               max={65535}
               value={port.field.value ?? ""}
               onChange={event => port.field.onChange(parsePort(event.target.value))}
+              onBlur={port.field.onBlur}
               error={!!port.fieldState.error}
               inputClassName="h-9"
             />
@@ -348,6 +349,7 @@ const ExposePortFields: FC<ExposePortFieldsProps> = ({ serviceIndex, exposeIndex
               max={65535}
               value={as.field.value ?? ""}
               onChange={event => as.field.onChange(parsePort(event.target.value))}
+              onBlur={as.field.onBlur}
               error={!!as.fieldState.error}
               inputClassName="h-9"
             />

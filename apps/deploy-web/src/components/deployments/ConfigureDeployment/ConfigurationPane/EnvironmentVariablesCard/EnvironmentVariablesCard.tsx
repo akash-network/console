@@ -237,6 +237,7 @@ const EnvironmentVariableFields: FC<EnvironmentVariableFieldsProps> = ({ service
           placeholder="KEY"
           value={key.field.value ?? ""}
           onChange={key.field.onChange}
+          onBlur={key.field.onBlur}
           onPaste={event => onPasteKey(event, envIndex)}
           inputClassName="h-9"
           className="flex-1"
@@ -246,6 +247,7 @@ const EnvironmentVariableFields: FC<EnvironmentVariableFieldsProps> = ({ service
           placeholder="value"
           value={value.field.value ?? ""}
           onChange={value.field.onChange}
+          onBlur={value.field.onBlur}
           inputClassName="h-9"
           className="flex-1"
         />

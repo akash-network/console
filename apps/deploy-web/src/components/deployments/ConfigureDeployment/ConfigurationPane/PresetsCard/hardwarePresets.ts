@@ -65,6 +65,9 @@ export const hardwarePresets: HardwarePreset[] = [
   }
 ];
 
+/** The hardware preset a fresh configure screen starts on, so a new deployment is immediately deployable. */
+export const DEFAULT_HARDWARE_PRESET = hardwarePresets.find(preset => preset.id === "small") ?? hardwarePresets[0];
+
 /** Section headings shown above each group in the dropdown. */
 export const HARDWARE_PRESET_GROUP_LABELS: Record<HardwarePresetGroup, string> = {
   compute: "Compute",
@@ -148,4 +151,28 @@ export function applyPreset(setValue: UseFormSetValue<SdlBuilderFormValuesType>,
   } else {
     setValue(`services.${serviceIndex}.profile.gpuModels`, [], options);
   }
+}
+
+/** The compute portion of a service profile that a preset overwrites. */
+type ServiceProfile = SdlBuilderFormValuesType["services"][number]["profile"];
+
+/**
+ * Returns a copy of `profile` with the preset's compute values applied — the pure counterpart of
+ * {@link applyPreset} (which writes through react-hook-form's `setValue`). Used to seed fresh form
+ * values before a form instance exists. Non-compute fields (extra persistent volumes and the root
+ * volume's persistence flags) are preserved from `profile`.
+ */
+export function applyPresetToProfile(profile: ServiceProfile, preset: HardwarePreset): ServiceProfile {
+  const gpu = preset.gpu ?? 0;
+  const [rootStorage, ...extraStorage] = profile.storage;
+  return {
+    ...profile,
+    cpu: preset.cpu,
+    ram: preset.ram,
+    ramUnit: preset.ramUnit,
+    storage: [{ ...rootStorage, size: preset.storage, unit: preset.storageUnit }, ...extraStorage],
+    hasGpu: gpu > 0,
+    gpu,
+    gpuModels: gpu > 0 ? [{ vendor: preset.gpuVendor ?? "nvidia", name: preset.gpuModel ?? "" }] : []
+  };
 }

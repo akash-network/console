@@ -128,6 +128,14 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(ConfigureDeploymentPanes).toHaveBeenCalledWith(expect.objectContaining({ sdl: expect.stringContaining('version: "2.0"') }), expect.anything());
   });
 
+  it("seeds a fresh deployment on the small hardware preset (1 vCPU / 2Gi / 10Gi)", () => {
+    const { ConfigureDeploymentPanes } = setup({ initialSdl: undefined });
+
+    const sdl = ConfigureDeploymentPanes.mock.calls[0][0].sdl as string;
+    expect(sdl).toContain("2Gi");
+    expect(sdl).toContain("10Gi");
+  });
+
   it("selects the first service from the imported template", () => {
     const { ConfigureDeploymentPanes } = setup({ initialSdl: VALID_SDL });
 

@@ -42,6 +42,31 @@ describe("usePlacementManager", () => {
     expect(added[1].service.id).toBe(addedId);
   });
 
+  it("seeds a newly added service on the default (small) preset", () => {
+    const initial = defaultServiceWithPlacement({ title: "service-1" });
+    const { result } = setup({ values: initial });
+
+    act(() => {
+      result.current.addService(initial.placements[0].id);
+    });
+
+    const added = result.current.getPlacementServices(initial.placements[0].id)[1].service;
+    expect(added.profile).toMatchObject({ cpu: 1, ram: 2, ramUnit: "Gi" });
+    expect(added.profile.storage[0]).toMatchObject({ size: 10, unit: "Gi" });
+  });
+
+  it("seeds an added placement's first service on the default (small) preset", () => {
+    const { result } = setup({ values: defaultServiceWithPlacement() });
+
+    act(() => {
+      result.current.addPlacement();
+    });
+
+    const added = result.current.getPlacementServices(result.current.placements[1].id)[0].service;
+    expect(added.profile).toMatchObject({ cpu: 1, ram: 2, ramUnit: "Gi" });
+    expect(added.profile.storage[0]).toMatchObject({ size: 10, unit: "Gi" });
+  });
+
   it("cascade-removes a placement together with its services", () => {
     const placementA = defaultPlacement({ name: "placement-1" });
     const placementB = defaultPlacement({ name: "placement-2" });

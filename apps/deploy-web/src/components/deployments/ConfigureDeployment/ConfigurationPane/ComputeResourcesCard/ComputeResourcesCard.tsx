@@ -66,6 +66,7 @@ export const ComputeResourcesCard: FC<Props> = ({ serviceIndex, locked = false, 
                 const next = parseFloat(event.target.value);
                 field.onChange(Number.isFinite(next) ? next : null);
               }}
+              onBlur={field.onBlur}
               inputClassName="h-9"
             />
             <FormMessage className="text-muted-foreground" />
@@ -84,6 +85,7 @@ export const ComputeResourcesCard: FC<Props> = ({ serviceIndex, locked = false, 
               unit={ramUnit.field.value}
               onValueChange={value => ram.field.onChange(value ?? null)}
               onUnitChange={ramUnit.field.onChange}
+              onBlur={ram.field.onBlur}
               error={ramError}
               errorClassName="text-muted-foreground"
               disabled={locked}
@@ -100,6 +102,7 @@ export const ComputeResourcesCard: FC<Props> = ({ serviceIndex, locked = false, 
               unit={storageUnit.field.value}
               onValueChange={value => storageSize.field.onChange(value ?? null)}
               onUnitChange={storageUnit.field.onChange}
+              onBlur={storageSize.field.onBlur}
               error={storageError}
               errorClassName="text-muted-foreground"
               disabled={locked}

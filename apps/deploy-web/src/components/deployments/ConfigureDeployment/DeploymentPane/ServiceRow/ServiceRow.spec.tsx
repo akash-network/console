@@ -1,4 +1,6 @@
 import type { PropsWithChildren } from "react";
+import { useEffect } from "react";
+import type { FieldPath } from "react-hook-form";
 import { FormProvider, useForm } from "react-hook-form";
 import { describe, expect, it, vi } from "vitest";
 
@@ -91,16 +93,41 @@ describe("ServiceRow", () => {
     expect(screen.queryByText("Names must start with a lower case letter.")).not.toBeInTheDocument();
   });
 
-  function setup(input: { isSelected?: boolean; canRemove?: boolean; image?: string; error?: string; locked?: boolean }) {
+  it("marks the row destructive when the service has an error on a non-title field", () => {
+    const { container } = setup({ serviceError: { field: "services.0.image", message: "Docker image name is required." } });
+
+    expect(container.querySelector(".border-destructive")).not.toBeNull();
+  });
+
+  it("does not mark the row destructive when the service has no errors", () => {
+    const { container } = setup({});
+
+    expect(container.querySelector(".border-destructive")).toBeNull();
+  });
+
+  function setup(input: {
+    isSelected?: boolean;
+    canRemove?: boolean;
+    image?: string;
+    error?: string;
+    locked?: boolean;
+    serviceError?: { field: FieldPath<SdlBuilderFormValuesType>; message: string };
+  }) {
     const values = defaultServiceWithPlacement({ title: "service-1", image: input.image ?? "" });
     const onSelect = vi.fn();
     const onRemove = vi.fn();
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values });
+      useEffect(
+        function seedError() {
+          if (input.serviceError) form.setError(input.serviceError.field, { message: input.serviceError.message });
+        },
+        [form]
+      );
       return <FormProvider {...form}>{children}</FormProvider>;
     };
 
-    render(
+    const view = render(
       <Wrapper>
         <ul aria-label="services">
           <ServiceRow
@@ -117,6 +144,6 @@ describe("ServiceRow", () => {
       </Wrapper>
     );
 
-    return { onSelect, onRemove };
+    return { onSelect, onRemove, container: view.container };
   }
 });

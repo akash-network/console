@@ -31,7 +31,7 @@ export const MarketplacePane: FC<Props> = ({
   onSelectProvider,
   dependencies: d = DEPENDENCIES
 }) => {
-  const { offers, isLoading, isError } = d.usePlacementOffers({ phase, dseq: dseq ?? undefined, sdl, placementName, region });
+  const { offers, isLoading, isError, isInvalid } = d.usePlacementOffers({ phase, dseq: dseq ?? undefined, sdl, placementName, region });
   const { query, setQuery, clear, filteredProviders, isSearchActive } = d.useProviderSearch(offers);
   const hasFailedWithoutData = isError && offers.length === 0;
 
@@ -51,6 +51,13 @@ export const MarketplacePane: FC<Props> = ({
           <p role="alert" className="text-sm text-muted-foreground">
             Failed to load providers. Please try again.
           </p>
+        ) : isInvalid ? (
+          <div role="status" className="flex flex-col items-start gap-1">
+            <p className="text-sm font-medium">No providers to show yet</p>
+            <p className="text-sm text-muted-foreground">
+              This deployment spec isn&apos;t valid, so no provider could bid on it. Fix the highlighted fields to see matching providers.
+            </p>
+          </div>
         ) : (
           <d.MarketplaceProvidersTable
             providers={filteredProviders}
