@@ -208,6 +208,14 @@ describe("sdlImport", () => {
 
       expect(services[0].params).toBeUndefined();
     });
+
+    it("drops the auto-managed tee/type placement requirement so it is not a hand-editable attribute", () => {
+      const { placements } = importSimpleSdl(teeSdlWithPlacementRequirement("cpu"));
+
+      expect(placements[0].attributes?.some(a => a.key === "tee/type")).toBe(false);
+      // Genuinely declared attributes still import.
+      expect(placements[0].attributes?.some(a => a.key === "organization")).toBe(true);
+    });
   });
 
   describe("SDL roundtrip", () => {
@@ -216,6 +224,21 @@ describe("sdlImport", () => {
       const parsed = yaml.load(regenerated) as { services: Record<string, { params?: { tee?: string } }> };
 
       expect(parsed.services.web.params?.tee).toBe("cpu");
+    });
+
+    it.each([["cpu"], ["cpu-gpu"]] as const)("re-derives a single tee/type placement requirement from params.tee on regenerate (%s)", tee => {
+      const regenerated = generateSdl(importSimpleSdl(teeSdl(tee)));
+      const parsed = yaml.load(regenerated) as { profiles: { placement: Record<string, { attributes?: Record<string, string> }> } };
+
+      expect(parsed.profiles.placement["dcloud"].attributes).toEqual({ "tee/type": tee });
+    });
+
+    it("does not duplicate the tee/type requirement when re-importing an SDL that already declares it", () => {
+      const regenerated = generateSdl(importSimpleSdl(teeSdlWithPlacementRequirement("cpu")));
+      const parsed = yaml.load(regenerated) as { profiles: { placement: Record<string, { attributes?: Record<string, string> }> } };
+
+      // Exactly one tee/type, alongside the genuinely declared attribute — no duplicate/conflicting entry.
+      expect(parsed.profiles.placement["dcloud"].attributes).toEqual({ organization: "akash", "tee/type": "cpu" });
     });
 
     it("imports an SDL, regenerates it, and produces semantically equal output", () => {
@@ -317,6 +340,47 @@ const teeSdl = (tee: "cpu" | "cpu-gpu") =>
     "          - size: 512Mi",
     "  placement:",
     "    dcloud:",
+    "      pricing:",
+    "        web:",
+    "          denom: uakt",
+    "          amount: 1000",
+    "deployment:",
+    "  web:",
+    "    dcloud:",
+    "      profile: web",
+    "      count: 1"
+  ].join("\n");
+
+// Mirrors an SDL that already carries the auto-managed matching requirement on the placement (as an
+// exported/round-tripped deployment would), alongside a genuinely declared attribute.
+const teeSdlWithPlacementRequirement = (tee: "cpu" | "cpu-gpu") =>
+  [
+    "version: '2.1'",
+    "services:",
+    "  web:",
+    "    image: nginx:latest",
+    "    expose:",
+    "      - port: 80",
+    "        as: 80",
+    "        to:",
+    "          - global: true",
+    "    params:",
+    `      tee: ${tee}`,
+    "profiles:",
+    "  compute:",
+    "    web:",
+    "      resources:",
+    "        cpu:",
+    "          units: 0.5",
+    "        memory:",
+    "          size: 512Mi",
+    "        storage:",
+    "          - size: 512Mi",
+    "  placement:",
+    "    dcloud:",
+    "      attributes:",
+    "        organization: akash",
+    `        tee/type: ${tee}`,
     "      pricing:",
     "        web:",
     "          denom: uakt",

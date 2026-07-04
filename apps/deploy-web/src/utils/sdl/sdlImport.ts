@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 
 import type { EndpointType, ExposeType, PlacementAttributeType, PlacementType, ProfileGpuModelType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { ReclamationMinWindowSchema, RESERVED_ENV_KEYS } from "@src/types/sdlBuilder/sdlBuilder";
+import { TEE_TYPE_ATTRIBUTE_KEY } from "@src/utils/confidentialCompute";
 import { CustomValidationError } from "../deploymentData";
 import { capitalizeFirstLetter } from "../stringUtils";
 import { defaultHttpOptions } from "./data";
@@ -240,6 +241,11 @@ function hydratePlacement(id: string, name: string, profile: any): PlacementType
   for (const [key, value] of Object.entries(rawAttributes)) {
     if (key === "location-region") {
       region = value;
+      continue;
+    }
+    // Auto-managed provider-matching requirement re-derived from services' `params.tee` on export; drop
+    // it here so it never surfaces as a hand-editable attribute or duplicates on the next round-trip.
+    if (key === TEE_TYPE_ATTRIBUTE_KEY) {
       continue;
     }
     attributes.push({ id: nanoid(), key, value });

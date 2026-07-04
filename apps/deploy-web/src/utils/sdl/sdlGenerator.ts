@@ -2,6 +2,8 @@ import yaml from "js-yaml";
 
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import type { ExposeType, PlacementType, ProfileGpuModelType, SdlBuilderFormValuesType } from "@src/types";
+import type { TeeType } from "@src/utils/confidentialCompute";
+import { TEE_TYPE_ATTRIBUTE_KEY } from "@src/utils/confidentialCompute";
 import { defaultHttpOptions } from "./data";
 
 /**
@@ -26,6 +28,14 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
   }
 
   const placementById = new Map<string, PlacementType>(formValues.placements.map(p => [p.id, p]));
+
+  // Derive each placement's Confidential Compute type from its services' `params.tee`. The TEE choice is
+  // per-service, but the provider-matching requirement is per-placement/group; CON-449 guarantees all
+  // services sharing a placement use the same TEE type (or none), so a single value per placement is safe.
+  const teeTypeByPlacementId = new Map<string, TeeType>();
+  formValues.services.forEach(service => {
+    if (service.params?.tee) teeTypeByPlacementId.set(service.placementId, service.params.tee);
+  });
 
   formValues.placements.forEach(placement => {
     sdl.profiles.placement[placement.name] = { pricing: {} };
@@ -52,6 +62,17 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
       sdl.profiles.placement[placement.name].attributes = {
         ...(sdl.profiles.placement[placement.name].attributes || {}),
         "location-region": placement.region.toLowerCase()
+      };
+    }
+
+    // Auto-managed provider-matching requirement derived from the placement's TEE type, so only
+    // TEE-capable providers bid/match. Stripped back out on import so it never becomes a hand-editable
+    // attribute and can never duplicate on re-export.
+    const teeType = teeTypeByPlacementId.get(placement.id);
+    if (teeType) {
+      sdl.profiles.placement[placement.name].attributes = {
+        ...(sdl.profiles.placement[placement.name].attributes || {}),
+        [TEE_TYPE_ATTRIBUTE_KEY]: teeType
       };
     }
   });

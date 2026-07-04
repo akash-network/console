@@ -64,6 +64,46 @@ describe("sdlGenerator", () => {
       expect(parsedAny.profiles.placement["dcloud"].attributes?.["location-region"]).toBeUndefined();
     });
 
+    it.each([["cpu"], ["cpu-gpu"]] as const)("injects the tee/type placement requirement from a service's params.tee (%s)", tee => {
+      const result = generateSdl(buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest", params: { tee } })));
+      const parsed = yaml.load(result) as { profiles: { placement: Record<string, { attributes?: Record<string, string> }> } };
+
+      expect(parsed.profiles.placement["dcloud"].attributes).toMatchObject({ "tee/type": tee });
+    });
+
+    it("does not inject a tee/type placement requirement when no service requests confidential compute", () => {
+      const result = generateSdl(buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" })));
+      const parsed = yaml.load(result) as { profiles: { placement: Record<string, { attributes?: Record<string, string> }> } };
+
+      expect(parsed.profiles.placement["dcloud"].attributes?.["tee/type"]).toBeUndefined();
+    });
+
+    it("merges the tee/type requirement alongside location-region and other declared attributes", () => {
+      const formValues = buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest", params: { tee: "cpu-gpu" } }));
+      formValues.placements[0].region = "us-west";
+      formValues.placements[0].attributes = [{ id: "a-1", key: "organization", value: "akash" }];
+      const result = generateSdl(formValues);
+      const parsed = yaml.load(result) as { profiles: { placement: Record<string, { attributes?: Record<string, string> }> } };
+
+      expect(parsed.profiles.placement["dcloud"].attributes).toEqual({
+        organization: "akash",
+        "location-region": "us-west",
+        "tee/type": "cpu-gpu"
+      });
+    });
+
+    it("emits a single tee/type requirement when multiple services share a placement and TEE type", () => {
+      const result = generateSdl(
+        buildFormValues(
+          buildLogCollectorService({ title: "web", image: "nginx:latest", params: { tee: "cpu" } }),
+          buildLogCollectorService({ title: "api", image: "nginx:latest", params: { tee: "cpu" } })
+        )
+      );
+      const parsed = yaml.load(result) as { profiles: { placement: Record<string, { attributes?: Record<string, string> }> } };
+
+      expect(parsed.profiles.placement["dcloud"].attributes).toEqual({ "tee/type": "cpu" });
+    });
+
     it("throws when a service references a placementId that does not exist", () => {
       const formValues = {
         placements: [{ id: "p-1", name: "dcloud" }],
