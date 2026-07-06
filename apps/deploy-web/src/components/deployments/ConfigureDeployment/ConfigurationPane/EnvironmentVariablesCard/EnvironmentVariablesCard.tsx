@@ -25,8 +25,6 @@ const RESERVED_ENV_KEYS = new Set<string>(RESERVED_ENV_KEY_LIST);
 
 type Props = {
   serviceIndex: number;
-  /** While the pane is locked the dialog still opens for viewing but its inputs, Add/Remove and Save are disabled. */
-  locked?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -35,7 +33,7 @@ type Props = {
  * a Dialog where the user edits key/value pairs. Changes are committed on Save; cancelled on Close.
  * The header shows the count of user-set variables (reserved keys like SSH_PUBKEY are excluded).
  */
-export const EnvironmentVariablesCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
+export const EnvironmentVariablesCard: FC<Props> = ({ serviceIndex, dependencies: d = DEPENDENCIES }) => {
   const { control, getValues, reset, trigger, formState } = useFormContext<SdlBuilderFormValuesType>();
   const hasEnvErrors = !!formState.errors.services?.[serviceIndex]?.env;
   const env = useWatch({ control, name: `services.${serviceIndex}.env` });
@@ -94,8 +92,8 @@ export const EnvironmentVariablesCard: FC<Props> = ({ serviceIndex, locked = fal
           </d.DialogV2Header>
 
           <d.DialogV2Body>
-            <fieldset disabled={locked} className="contents">
-              <EnvironmentVariablesList serviceIndex={serviceIndex} locked={locked} />
+            <fieldset className="contents">
+              <EnvironmentVariablesList serviceIndex={serviceIndex} />
             </fieldset>
           </d.DialogV2Body>
 
@@ -107,7 +105,7 @@ export const EnvironmentVariablesCard: FC<Props> = ({ serviceIndex, locked = fal
               <Button type="button" variant="ghost" onClick={handleCancel}>
                 Cancel
               </Button>
-              <Button type="button" onClick={handleSave} disabled={hasEnvErrors || locked}>
+              <Button type="button" onClick={handleSave} disabled={hasEnvErrors}>
                 Save
                 <SaveIcon className="ml-2 size-4" />
               </Button>
@@ -121,18 +119,16 @@ export const EnvironmentVariablesCard: FC<Props> = ({ serviceIndex, locked = fal
 
 type EnvironmentVariablesListProps = {
   serviceIndex: number;
-  /** While locked the list is view-only: the seed-an-empty-row effect is skipped so opening the dialog can't mutate the form. */
-  locked?: boolean;
 };
 
-const EnvironmentVariablesList: FC<EnvironmentVariablesListProps> = ({ serviceIndex, locked = false }) => {
+const EnvironmentVariablesList: FC<EnvironmentVariablesListProps> = ({ serviceIndex }) => {
   const { control, getValues } = useFormContext<SdlBuilderFormValuesType>();
   const { fields, append, remove, replace } = useFieldArray({ control, name: `services.${serviceIndex}.env`, keyName: "fieldId" });
 
   const visibleFields = fields.filter(f => !RESERVED_ENV_KEYS.has(f.key));
 
   useEffect(() => {
-    if (visibleFields.length === 0 && !locked) {
+    if (visibleFields.length === 0) {
       append({ id: nanoid(), key: "", value: "", isSecret: false }, { shouldFocus: false });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

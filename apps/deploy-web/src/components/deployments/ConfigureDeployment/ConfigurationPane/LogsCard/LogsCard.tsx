@@ -207,6 +207,7 @@ export const LogsCard: FC<Props> = ({ serviceIndex, locked = false, dependencies
   return (
     <>
       <d.CollapsibleCard
+        locked={locked}
         title="Logs"
         icon={<ScrollTextIcon className="h-4 w-4" />}
         infoTooltip={logsTooltip}

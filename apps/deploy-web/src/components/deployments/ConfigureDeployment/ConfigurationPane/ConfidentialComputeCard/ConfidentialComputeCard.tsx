@@ -117,6 +117,7 @@ export const ConfidentialComputeCard: FC<Props> = ({ serviceIndex, locked = fals
 
   return (
     <d.CollapsibleCard
+      locked={locked}
       title="Confidential Compute"
       icon={<ShieldCheckIcon className="h-4 w-4" />}
       infoTooltip={confidentialComputeTooltip}

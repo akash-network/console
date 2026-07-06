@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useEffect, useRef, useState } from "react";
-import { InfoCircle } from "iconoir-react";
+import { InfoCircle, Lock } from "iconoir-react";
 import { ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
 
 import { cn } from "../utils";
@@ -13,6 +13,8 @@ import { CustomTooltip, TooltipProvider } from "./tooltip";
 export interface CollapsibleCardProps {
   title: string;
   icon: React.ReactNode;
+  /** Renders a lock glyph in the header to mark the card read-only (e.g. while quotes are active). */
+  locked?: boolean;
   /**
    * Optional help content shown in a tooltip behind an info icon next to the
    * title. Accepts plain text or JSX (e.g. multi-paragraph copy with links).
@@ -74,7 +76,7 @@ export interface CollapsibleCardProps {
  */
 const CollapsibleCard = React.forwardRef<HTMLDivElement, CollapsibleCardProps>(({ onHeaderClick, ...props }, ref) => {
   if (onHeaderClick) {
-    const { title, icon, infoTooltip, summary, className, isToggled, onToggle, toggleAriaLabel, toggleDisabled } = props;
+    const { title, icon, infoTooltip, summary, className, isToggled, onToggle, toggleAriaLabel, toggleDisabled, locked } = props;
     return (
       <ActionCard
         title={title}
@@ -87,6 +89,7 @@ const CollapsibleCard = React.forwardRef<HTMLDivElement, CollapsibleCardProps>((
         onToggle={onToggle}
         toggleAriaLabel={toggleAriaLabel}
         toggleDisabled={toggleDisabled}
+        locked={locked}
       />
     );
   }
@@ -100,6 +103,7 @@ const CollapsibleCardBody = React.forwardRef<HTMLDivElement, Omit<CollapsibleCar
     {
       title,
       icon,
+      locked,
       infoTooltip,
       summary,
       headerControl,
@@ -173,7 +177,7 @@ const CollapsibleCardBody = React.forwardRef<HTMLDivElement, Omit<CollapsibleCar
             className="focus-visible:ring-ring flex flex-1 items-center gap-2 self-stretch rounded outline-none focus-visible:ring-1"
           >
             <CardIcon icon={icon} />
-            <CardTitle title={title} infoTooltip={infoTooltip} />
+            <CardTitle title={title} infoTooltip={infoTooltip} locked={locked} />
             {!open && summary && <CardSummary summary={summary} />}
             <span className="text-foreground flex h-6 w-6 shrink-0 items-center justify-center" aria-hidden>
               {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -198,14 +202,17 @@ CollapsibleCardBody.displayName = "CollapsibleCardBody";
  * region, so it toggles independently without firing `onHeaderClick`.
  */
 const ActionCard: React.FC<
-  Pick<CollapsibleCardProps, "title" | "icon" | "infoTooltip" | "summary" | "className" | "isToggled" | "onToggle" | "toggleAriaLabel" | "toggleDisabled"> & {
+  Pick<
+    CollapsibleCardProps,
+    "title" | "icon" | "infoTooltip" | "summary" | "className" | "isToggled" | "onToggle" | "toggleAriaLabel" | "toggleDisabled" | "locked"
+  > & {
     onHeaderClick: () => void;
   }
-> = ({ title, icon, infoTooltip, summary, onHeaderClick, className, isToggled, onToggle, toggleAriaLabel, toggleDisabled = false }) => {
+> = ({ title, icon, infoTooltip, summary, onHeaderClick, className, isToggled, onToggle, toggleAriaLabel, toggleDisabled = false, locked }) => {
   const content = (
     <>
       <CardIcon icon={icon} />
-      <CardTitle title={title} infoTooltip={infoTooltip} />
+      <CardTitle title={title} infoTooltip={infoTooltip} locked={locked} />
       {summary && <CardSummary summary={summary} />}
     </>
   );
@@ -253,9 +260,10 @@ const CardIcon: React.FC<{ icon: React.ReactNode }> = ({ icon }) => (
   </span>
 );
 
-const CardTitle: React.FC<{ title: string; infoTooltip?: React.ReactNode }> = ({ title, infoTooltip }) => (
+const CardTitle: React.FC<{ title: string; infoTooltip?: React.ReactNode; locked?: boolean }> = ({ title, infoTooltip, locked }) => (
   <div className="flex flex-1 items-center gap-2">
     <span className="text-foreground truncate text-left text-base font-semibold">{title}</span>
+    {locked && <Lock className="text-muted-foreground h-3.5 w-3.5 shrink-0" aria-label="Locked" />}
     {infoTooltip && <CardInfoTooltip>{infoTooltip}</CardInfoTooltip>}
   </div>
 );

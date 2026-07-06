@@ -214,17 +214,6 @@ describe(EnvironmentVariablesCard.name, () => {
     expect(getValues().services[0].env).toContainEqual(expect.objectContaining({ id: "SSH_PUBKEY", key: "SSH_PUBKEY", value: "abc123" }));
   });
 
-  it("opens for viewing but disables the inputs, Add and Save while locked", async () => {
-    const { openCard } = setup({ env: [{ key: "FOO", value: "bar" }], locked: true });
-
-    await openCard();
-
-    expect(screen.getByLabelText("Environment variable 1 key")).toBeDisabled();
-    expect(screen.getByLabelText("Environment variable 1 value")).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Add variable" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-  });
-
   describe("pasting dotenv content into a key field", () => {
     it("creates a row per pasted KEY=value line and drops the empty row pasted into", async () => {
       const { openCard } = setup({ env: [] });
@@ -335,7 +324,7 @@ describe(EnvironmentVariablesCard.name, () => {
     }
   });
 
-  function setup(input: { env?: Array<Partial<EnvironmentVariableType>>; image?: string; locked?: boolean }) {
+  function setup(input: { env?: Array<Partial<EnvironmentVariableType>>; image?: string }) {
     const env = input.env?.map(e => ({ key: "", value: "", isSecret: false, ...e })) ?? [];
 
     const values = defaultServiceWithPlacement({ env, ...(input.image !== undefined ? { image: input.image } : {}) });
@@ -348,7 +337,7 @@ describe(EnvironmentVariablesCard.name, () => {
 
     render(
       <Wrapper>
-        <EnvironmentVariablesCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES }} />
+        <EnvironmentVariablesCard serviceIndex={0} dependencies={{ ...DEPENDENCIES }} />
         <ImageErrorProbe serviceIndex={0} />
       </Wrapper>
     );

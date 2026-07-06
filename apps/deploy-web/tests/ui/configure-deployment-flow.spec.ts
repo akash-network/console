@@ -20,10 +20,9 @@ test.describe("Configure deployment — request quotes flow", () => {
       // the created deployment's dseq is mirrored into the route segment
       await page.waitForURL(/\/new-deployment\/configure\/\d+/, { timeout: 90_000 });
 
-      // the spec panes lock: a banner is shown and the inputs are disabled
       await expect(configure.lockBannerText().first()).toBeVisible({ timeout: 30_000 });
       await expect(configure.cpuInput()).toBeDisabled();
-      await expect(configure.dockerImageInput()).toBeDisabled();
+      await expect(configure.dockerImageInput()).toBeEnabled();
 
       // the marketplace is scoped to the placement and lists offers
       await expect(configure.marketplaceHeading()).toBeVisible();

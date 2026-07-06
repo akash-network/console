@@ -54,7 +54,7 @@ export class ConfigureDeploymentPage {
 
   /** The lock banner copy shown in each spec pane while quotes are active. */
   lockBannerText() {
-    return this.page.getByText("Changes here invalidate the active quotes.");
+    return this.page.getByText("Changing a locked setting needs new quotes.");
   }
 
   marketplaceHeading() {
@@ -68,7 +68,9 @@ export class ConfigureDeploymentPage {
 
   /** Waits for the first submitted bid's Select button in the marketplace, then picks it. */
   async selectFirstAvailableProvider() {
-    const select = this.marketplace().getByRole("button", { name: /^Select / }).first();
+    const select = this.marketplace()
+      .getByRole("button", { name: /^Select / })
+      .first();
     await select.click({ timeout: 90_000 });
   }
 
@@ -77,6 +79,8 @@ export class ConfigureDeploymentPage {
   }
 
   async confirmAndDeploy() {
-    await this.reviewDialog().getByRole("button", { name: /confirm and deploy/i }).click();
+    await this.reviewDialog()
+      .getByRole("button", { name: /confirm and deploy/i })
+      .click();
   }
 }

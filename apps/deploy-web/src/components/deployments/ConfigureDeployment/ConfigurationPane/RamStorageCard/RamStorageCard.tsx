@@ -51,6 +51,7 @@ export const RamStorageCard: FC<Props> = ({ serviceIndex, locked = false, depend
 
   return (
     <d.CollapsibleCard
+      locked={locked}
       title="RAM Storage"
       icon={<MicrochipIcon className="h-4 w-4" />}
       infoTooltip={ramStorageTooltip}

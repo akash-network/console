@@ -156,6 +156,7 @@ export const ExposePortsCard: FC<Props> = ({ serviceIndex, locked = false, depen
   return (
     <>
       <d.CollapsibleCard
+        locked={locked}
         title="Expose Ports"
         icon={<GlobeIcon className="h-4 w-4" />}
         infoTooltip={exposePortsTooltip}

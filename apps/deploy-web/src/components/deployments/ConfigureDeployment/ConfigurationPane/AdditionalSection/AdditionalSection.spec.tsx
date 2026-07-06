@@ -22,7 +22,7 @@ describe(AdditionalSection.name, () => {
     expect(LogsCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
   });
 
-  it("forwards the locked state to every additional card", () => {
+  it("locks the runtime, ports and logs cards but never env vars or commands", () => {
     const RuntimeCard = vi.fn(() => null);
     const EnvironmentVariablesCard = vi.fn(() => null);
     const CommandsCard = vi.fn(() => null);
@@ -32,10 +32,10 @@ describe(AdditionalSection.name, () => {
     setup({ locked: true, dependencies: { RuntimeCard, EnvironmentVariablesCard, CommandsCard, ExposePortsCard, LogsCard } });
 
     expect(RuntimeCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
-    expect(EnvironmentVariablesCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
-    expect(CommandsCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
     expect(ExposePortsCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
     expect(LogsCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
+    expect(EnvironmentVariablesCard).not.toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
+    expect(CommandsCard).not.toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
   });
 
   function setup(input: { serviceIndex?: number; locked?: boolean; dependencies?: Partial<typeof DEPENDENCIES> }) {

@@ -11,7 +11,7 @@ export const DEPENDENCIES = { ImageSection, HardwareSection, AdditionalSection }
 
 type Props = {
   selectedServiceId: string;
-  /** While quotes are active the configuration controls are disabled and a lock banner is shown. */
+  /** Locks the fields that can't change once the deployment exists on-chain (resources, placement, ports, …). The image, env vars and commands cards stay editable and their changes are pushed via an update on deploy. */
   locked?: boolean;
   isClosing?: boolean;
   onCancelAndEdit?: () => void;
@@ -44,7 +44,7 @@ export const ConfigurationPane: FC<Props> = ({ selectedServiceId, locked = false
       <div className="flex-1 overflow-y-auto py-4">
         {selectedServiceIndex >= 0 && (
           <div key={selectedServiceId} className="flex flex-col gap-6">
-            <d.ImageSection serviceIndex={selectedServiceIndex} locked={locked} />
+            <d.ImageSection serviceIndex={selectedServiceIndex} />
             <d.HardwareSection serviceIndex={selectedServiceIndex} locked={locked} />
             <d.AdditionalSection serviceIndex={selectedServiceIndex} locked={locked} />
           </div>
