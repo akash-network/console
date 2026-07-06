@@ -123,7 +123,7 @@ export function buildPlacementScreeningRequest(rawSdl: string, placementName: st
         attributes: groupJson.requirements?.attributes ?? []
       },
       resources: groupJson.resources,
-      reclamationWindow: manifest.reclamation?.minWindow?.seconds.toInt()
+      reclamationWindow: manifest.reclamation?.minWindow?.seconds ? Number(manifest.reclamation?.minWindow?.seconds) : undefined
     };
   } catch {
     return null;
