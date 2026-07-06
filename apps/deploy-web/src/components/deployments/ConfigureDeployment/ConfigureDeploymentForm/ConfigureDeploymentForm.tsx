@@ -135,6 +135,15 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, intent, depende
   );
 
   useEffect(
+    function clearDraftOnceDeployed() {
+      if (flow.deploySucceeded) {
+        draft.clear();
+      }
+    },
+    [flow.deploySucceeded, draft]
+  );
+
+  useEffect(
     function focusFirstBidReadyPlacement() {
       if (flow.phase !== "quoting") {
         hasAutoFocusedFirstBids.current = false;
