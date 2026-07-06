@@ -28,6 +28,7 @@ export const DEPENDENCIES = {
 
 interface StoredDraft {
   sdl: string;
+  name?: string;
   updatedAt: number;
 }
 
@@ -36,8 +37,10 @@ export interface ConfigureDraft {
   draftId: string;
   /** The persisted SDL for the active draft, or undefined when none exists — a fresh session, an evicted draft, or a link opened in another browser. */
   persistedSdl: string | undefined;
-  /** Persists `sdl` as the working draft, then evicts the oldest drafts past the cap. */
-  save(sdl: string): void;
+  /** The persisted deployment name for the active draft, or undefined when none was saved. */
+  persistedName: string | undefined;
+  /** Persists `sdl` (and the optional deployment `name`) as the working draft, then evicts the oldest drafts past the cap. */
+  save(sdl: string, name?: string): void;
   /** Removes the persisted draft. */
   clear(): void;
 }
@@ -57,7 +60,9 @@ export function useConfigureDraft(intent: DeploymentIntent, dependencies: typeof
   const mintedDraftIdRef = useRef<string>();
   const draftId = intent.draftId ?? (mintedDraftIdRef.current ??= dependencies.mintDraftId());
 
-  const persistedSdl = useMemo(() => readDraft(storage, draftId), [storage, draftId]);
+  const storedDraft = useMemo(() => readStoredDraft(storage, draftId), [storage, draftId]);
+  const persistedSdl = typeof storedDraft?.sdl === "string" ? storedDraft.sdl : undefined;
+  const persistedName = typeof storedDraft?.name === "string" ? storedDraft.name : undefined;
 
   const persistedToUrlRef = useRef<string>();
   useEffect(
@@ -75,10 +80,11 @@ export function useConfigureDraft(intent: DeploymentIntent, dependencies: typeof
     () => ({
       draftId,
       persistedSdl,
-      save: (sdl: string) => saveDraft(storage, draftId, sdl),
+      persistedName,
+      save: (sdl: string, name?: string) => saveDraft(storage, draftId, sdl, name),
       clear: () => clearDraft(storage, draftId)
     }),
-    [draftId, persistedSdl, storage]
+    [draftId, persistedSdl, persistedName, storage]
   );
 }
 
@@ -91,28 +97,25 @@ function keyOf(draftId: string): string {
   return `${DRAFT_KEY_PREFIX}${draftId}`;
 }
 
-function readDraft(storage: Storage | undefined, draftId: string | undefined): string | undefined {
+/** Reads and parses the stored draft once; callers pluck `sdl`/`name` so a render reads and parses storage a single time. */
+function readStoredDraft(storage: Storage | undefined, draftId: string | undefined): StoredDraft | undefined {
   if (!storage || !draftId) {
     return undefined;
   }
   try {
     const raw = storage.getItem(keyOf(draftId));
-    if (!raw) {
-      return undefined;
-    }
-    const parsed = JSON.parse(raw) as StoredDraft;
-    return typeof parsed?.sdl === "string" ? parsed.sdl : undefined;
+    return raw ? (JSON.parse(raw) as StoredDraft) : undefined;
   } catch {
     return undefined;
   }
 }
 
-function saveDraft(storage: Storage | undefined, draftId: string | undefined, sdl: string): void {
+function saveDraft(storage: Storage | undefined, draftId: string | undefined, sdl: string, name?: string): void {
   if (!storage || !draftId) {
     return;
   }
   try {
-    const entry: StoredDraft = { sdl, updatedAt: Date.now() };
+    const entry: StoredDraft = { sdl, name, updatedAt: Date.now() };
     storage.setItem(keyOf(draftId), JSON.stringify(entry));
     evictStaleDrafts(storage);
   } catch {

@@ -10,6 +10,7 @@ import { useSnackbar } from "notistack";
 import Layout from "@src/components/layout/Layout";
 import { usePublicTemplate } from "@src/queries/useTemplateQuery";
 import sdlStore from "@src/store/sdlStore";
+import type { TemplateCreation } from "@src/types";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { ConfigureDeploymentForm } from "../ConfigureDeploymentForm/ConfigureDeploymentForm";
 import { RedirectIfLeased } from "../RedirectIfLeased/RedirectIfLeased";
@@ -56,7 +57,7 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
 
   const templateId = searchParams?.get("templateId") ?? undefined;
   const deploySdl = useAtomValue(sdlStore.deploySdl);
-  const hardcodedTemplate = templateId ? hardcodedTemplates.find(template => template.code === templateId) : undefined;
+  const hardcodedTemplate: TemplateCreation | undefined = templateId ? hardcodedTemplates.find(template => template.code === templateId) : undefined;
   const fetchedTemplateId = draft.persistedSdl === undefined && !hardcodedTemplate ? templateId : undefined;
   const templateQuery = d.usePublicTemplate(fetchedTemplateId);
   const { enqueueSnackbar } = d.useSnackbar();
@@ -74,6 +75,7 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   );
 
   const initialSdl = draft.persistedSdl ?? hardcodedTemplate?.content ?? (fetchedTemplateId ? templateQuery.data?.deploy : deploySdl?.content);
+  const initialName = draft.persistedName ?? hardcodedTemplate?.name ?? (fetchedTemplateId ? templateQuery.data?.name : undefined);
 
   return (
     <d.RedirectIfLeased dseq={intent.dseq}>
@@ -85,7 +87,7 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
           </div>
         </d.Layout>
       ) : (
-        <d.ConfigureDeploymentForm key={draft.draftId} initialSdl={initialSdl} intent={resolvedIntent} />
+        <d.ConfigureDeploymentForm key={draft.draftId} initialSdl={initialSdl} initialName={initialName} intent={resolvedIntent} />
       )}
     </d.RedirectIfLeased>
   );

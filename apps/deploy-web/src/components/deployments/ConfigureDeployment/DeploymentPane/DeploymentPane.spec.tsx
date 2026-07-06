@@ -91,11 +91,23 @@ describe("DeploymentPane", () => {
     );
   });
 
+  it("passes the deployment name and lock state to the name field", () => {
+    const DeploymentNameField = vi.fn(() => null);
+    setup({ deploymentName: "my-app", locked: true, dependencies: { DeploymentNameField } });
+
+    expect(DeploymentNameField).toHaveBeenCalledWith(
+      expect.objectContaining({ value: "my-app", disabled: true, onChange: expect.any(Function) }),
+      expect.anything()
+    );
+  });
+
   function setup(input: {
     placements?: ReturnType<typeof defaultPlacement>[];
     onSelectService?: (serviceId: string) => void;
     locked?: boolean;
     onCancelAndEdit?: () => void;
+    deploymentName?: string;
+    onDeploymentNameChange?: (value: string) => void;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const placements = input.placements ?? [defaultPlacement({ name: "placement-1" })];
@@ -119,6 +131,8 @@ describe("DeploymentPane", () => {
           selectedPlacementId=""
           sdl=""
           dseq={null}
+          deploymentName={input.deploymentName ?? ""}
+          onDeploymentNameChange={input.onDeploymentNameChange ?? vi.fn()}
           dependencies={MockComponents(DEPENDENCIES, { usePlacementManager, usePlacementsWithBids: () => new Set<string>(), ...input.dependencies })}
         />
       </TooltipProvider>
@@ -171,6 +185,8 @@ describe("DeploymentPane placement management", () => {
           selectedPlacementId=""
           sdl=""
           dseq={null}
+          deploymentName=""
+          onDeploymentNameChange={vi.fn()}
           dependencies={{ ...DEPENDENCIES, PlacementCard: PlacementCardWithStubbedRegion, usePlacementsWithBids: () => new Set<string>() }}
         />
       </Wrapper>

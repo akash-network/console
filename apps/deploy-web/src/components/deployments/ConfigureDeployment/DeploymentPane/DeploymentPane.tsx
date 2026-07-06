@@ -6,12 +6,13 @@ import { InfoCircle, Plus, SidebarCollapse, SidebarExpand } from "iconoir-react"
 import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
 import { PaneLockBanner } from "../PaneLockBanner/PaneLockBanner";
 import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
+import { DeploymentNameField } from "./DeploymentNameField/DeploymentNameField";
 import { PlacementCard } from "./PlacementCard/PlacementCard";
 import type { PlacementSelectionState } from "./PlacementSelectionBadge/PlacementSelectionBadge";
 import { ReclamationSection } from "./ReclamationSection/ReclamationSection";
 import { usePlacementManager } from "./usePlacementManager/usePlacementManager";
 
-export const DEPENDENCIES = { PlacementCard, usePlacementManager, usePlacementsWithBids, ReclamationSection };
+export const DEPENDENCIES = { PlacementCard, usePlacementManager, usePlacementsWithBids, ReclamationSection, DeploymentNameField };
 
 type Props = {
   selectedServiceId: string;
@@ -25,6 +26,8 @@ type Props = {
   selectedPlacementId: string;
   sdl: string;
   dseq: string | null;
+  deploymentName: string;
+  onDeploymentNameChange: (value: string) => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -39,6 +42,8 @@ export const DeploymentPane: FC<Props> = ({
   selectedPlacementId,
   sdl,
   dseq,
+  deploymentName,
+  onDeploymentNameChange,
   dependencies: d = DEPENDENCIES
 }) => {
   const [minimized, setMinimized] = useState(false);
@@ -68,6 +73,7 @@ export const DeploymentPane: FC<Props> = ({
       </header>
       {locked ? <PaneLockBanner onCancelAndEdit={onCancelAndEdit ?? noop} isClosing={isClosing} /> : null}
       <div className="flex-1 space-y-6 overflow-y-auto p-4">
+        <d.DeploymentNameField value={deploymentName} onChange={onDeploymentNameChange} disabled={locked} />
         <d.ReclamationSection locked={locked} />
         <div className="space-y-2">
           <div className="flex items-center gap-2 px-1 font-mono text-xs uppercase text-muted-foreground">

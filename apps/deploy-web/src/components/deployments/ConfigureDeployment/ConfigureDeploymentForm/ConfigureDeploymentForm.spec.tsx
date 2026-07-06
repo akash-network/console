@@ -210,7 +210,7 @@ describe(ConfigureDeploymentForm.name, () => {
 
     await userEvent.click(screen.getByRole("button", { name: "change image" }));
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest")));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), expect.any(String)));
   });
 
   it("clears the configure draft once the deployment is deployed", () => {
@@ -225,15 +225,31 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(clear).not.toHaveBeenCalled();
   });
 
-  function setup(input: { initialSdl: string | undefined; Panes?: typeof SdlProbePanes; draftId?: string; deploySucceeded?: boolean }) {
+  it("seeds the deployment name from initialName", () => {
+    const { ConfigureDeploymentPanes } = setup({ initialSdl: undefined, initialName: "my-app" });
+
+    expect(ConfigureDeploymentPanes).toHaveBeenCalledWith(expect.objectContaining({ deploymentName: "my-app" }), expect.anything());
+  });
+
+  it("persists the deployment name into the draft alongside the sdl", async () => {
+    const { save } = setup({ initialSdl: undefined, initialName: "my-app", Panes: SdlProbePanes });
+
+    await userEvent.click(screen.getByRole("button", { name: "change image" }));
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), "my-app"));
+  });
+
+  function setup(input: { initialSdl: string | undefined; initialName?: string; Panes?: typeof SdlProbePanes; draftId?: string; deploySucceeded?: boolean }) {
     const ConfigureDeploymentPanes = vi.fn(input.Panes ?? (() => <div data-testid="panes-mock" />));
     const enqueueSnackbar = vi.fn();
     const Snackbar = vi.fn(() => null);
-    const save = vi.fn<(sdl: string) => void>();
+    const save = vi.fn<(sdl: string, name?: string) => void>();
     const clear = vi.fn<() => void>();
+    const setDeploymentName = vi.fn();
     const useConfigureDraft = vi.fn(() =>
       mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({ draftId: input.draftId ?? "draft-1", persistedSdl: undefined, save, clear })
     );
+    const useDeploymentName = ((args: { initialName?: string }) => ({ name: args.initialName ?? "", setName: setDeploymentName })) as never;
     const dependencies: typeof DEPENDENCIES = {
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
@@ -247,6 +263,7 @@ describe(ConfigureDeploymentForm.name, () => {
           bidStrategy: "select",
           deploySucceeded: input.deploySucceeded ?? false
         })) as never,
+      useDeploymentName,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       Snackbar: Snackbar as never,
       ReviewAndDeployModal: () => null,
@@ -256,6 +273,7 @@ describe(ConfigureDeploymentForm.name, () => {
     render(
       <ConfigureDeploymentForm
         initialSdl={input.initialSdl}
+        initialName={input.initialName}
         intent={{ sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, draftId: input.draftId }}
         dependencies={dependencies}
       />

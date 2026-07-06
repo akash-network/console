@@ -28,6 +28,8 @@ type Props = {
   selections: Record<string, string>;
   onSelectProvider: (placementId: string, bidId: string) => void;
   onCancelAndEdit: () => void;
+  deploymentName: string;
+  onDeploymentNameChange: (value: string) => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -44,6 +46,8 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
   selections,
   onSelectProvider,
   onCancelAndEdit,
+  deploymentName,
+  onDeploymentNameChange,
   dependencies: d = DEPENDENCIES
 }) => {
   const [activePane, setActivePane] = useState<ActivePane>("deployment");
@@ -68,6 +72,8 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
               selectedPlacementId={selectedPlacementId}
               sdl={sdl}
               dseq={dseq}
+              deploymentName={deploymentName}
+              onDeploymentNameChange={onDeploymentNameChange}
             />
           </div>
           <div className={cn("min-h-0 md:block", { hidden: activePane !== "configuration" })}>

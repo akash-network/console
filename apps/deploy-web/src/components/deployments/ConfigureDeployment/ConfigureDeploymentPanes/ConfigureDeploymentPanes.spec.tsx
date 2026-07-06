@@ -188,6 +188,8 @@ describe("ConfigureDeploymentPanes", () => {
           selections={input.selections ?? {}}
           onSelectProvider={input.onSelectProvider ?? vi.fn()}
           onCancelAndEdit={input.onCancelAndEdit ?? vi.fn()}
+          deploymentName=""
+          onDeploymentNameChange={vi.fn()}
           dependencies={dependencies}
         />
       </JotaiStoreProvider>

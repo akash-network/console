@@ -82,10 +82,32 @@ describe(ConfigureDeployment.name, () => {
     expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialSdl: "version: '2.0'" }), expect.anything());
   });
 
+  it("defaults the deployment name to the fetched template's name", () => {
+    const { ConfigureDeploymentForm } = setup({
+      templateId: "tpl-1",
+      template: { isLoading: false, data: mock<TemplateOutput>({ deploy: "version: '2.0'", name: "My Template" }) }
+    });
+
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialName: "My Template" }), expect.anything());
+  });
+
+  it("defaults the deployment name to a hardcoded template's name", () => {
+    const { ConfigureDeploymentForm } = setup({ templateId: helloWorldTemplate.code });
+
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialName: helloWorldTemplate.name }), expect.anything());
+  });
+
+  it("prefers the persisted draft name over the template name", () => {
+    const { ConfigureDeploymentForm } = setup({ templateId: helloWorldTemplate.code, persistedName: "resumed-name" });
+
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialName: "resumed-name" }), expect.anything());
+  });
+
   function setup(input: {
     templateId?: string | null;
     draftId?: string;
     persistedSdl?: string;
+    persistedName?: string;
     template?: { isLoading?: boolean; isError?: boolean; data?: TemplateOutput };
     deploySdl?: TemplateCreation | null;
   }) {
@@ -95,7 +117,13 @@ describe(ConfigureDeployment.name, () => {
     const save = vi.fn();
     const clear = vi.fn();
     const useConfigureDraft = vi.fn(() =>
-      mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({ draftId: input.draftId ?? "minted-id", persistedSdl: input.persistedSdl, save, clear })
+      mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({
+        draftId: input.draftId ?? "minted-id",
+        persistedSdl: input.persistedSdl,
+        persistedName: input.persistedName,
+        save,
+        clear
+      })
     );
 
     const query: Record<string, string> = {};
