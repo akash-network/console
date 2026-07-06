@@ -56,6 +56,26 @@ describe(useConfigureDraft.name, () => {
     expect(storedSdl("draft-1")).toBe("version: '2.0'");
   });
 
+  it("exposes the persisted name for the active draft", () => {
+    const { result } = setup({ intent: { draftId: "draft-1" }, storedName: { "draft-1": "my-app" } });
+
+    expect(result.current.persistedName).toBe("my-app");
+  });
+
+  it("has no persisted name when the stored draft omits one", () => {
+    const { result } = setup({ intent: { draftId: "draft-1" }, stored: { "draft-1": "version: '2.0'" } });
+
+    expect(result.current.persistedName).toBeUndefined();
+  });
+
+  it("saves the name alongside the sdl for the active draft", () => {
+    const { result } = setup({ intent: { draftId: "draft-1" } });
+
+    result.current.save("version: '2.0'", "my-app");
+
+    expect(storedName("draft-1")).toBe("my-app");
+  });
+
   it("clears the persisted draft", () => {
     const { result } = setup({ intent: { draftId: "draft-1" }, stored: { "draft-1": "version: '2.0'" } });
 
@@ -126,6 +146,11 @@ describe(useConfigureDraft.name, () => {
     return raw ? (JSON.parse(raw) as { sdl: string }).sdl : undefined;
   }
 
+  function storedName(draftId: string) {
+    const raw = window.localStorage.getItem(`${DRAFT_KEY_PREFIX}${draftId}`);
+    return raw ? (JSON.parse(raw) as { name?: string }).name : undefined;
+  }
+
   function countDrafts() {
     return Object.keys(window.localStorage).filter(key => key.startsWith(DRAFT_KEY_PREFIX)).length;
   }
@@ -133,6 +158,7 @@ describe(useConfigureDraft.name, () => {
   function setup(input: {
     intent?: Partial<DeploymentIntent>;
     stored?: Record<string, string>;
+    storedName?: Record<string, string>;
     rawStored?: Record<string, string>;
     getStorage?: typeof DEPENDENCIES.getStorage;
     mintedDraftId?: string;
@@ -140,6 +166,9 @@ describe(useConfigureDraft.name, () => {
     window.localStorage.clear();
     Object.entries(input.stored ?? {}).forEach(([draftId, sdl]) =>
       window.localStorage.setItem(`${DRAFT_KEY_PREFIX}${draftId}`, JSON.stringify({ sdl, updatedAt: 1 }))
+    );
+    Object.entries(input.storedName ?? {}).forEach(([draftId, name]) =>
+      window.localStorage.setItem(`${DRAFT_KEY_PREFIX}${draftId}`, JSON.stringify({ sdl: "seeded", name, updatedAt: 1 }))
     );
     Object.entries(input.rawStored ?? {}).forEach(([draftId, raw]) => window.localStorage.setItem(`${DRAFT_KEY_PREFIX}${draftId}`, raw));
 

@@ -25,6 +25,7 @@ import { ReviewAndDeployModal } from "../ReviewAndDeployModal/ReviewAndDeployMod
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import { useDeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
+import { useDeploymentName } from "../useDeploymentName/useDeploymentName";
 
 export const DEPENDENCIES = {
   Layout,
@@ -34,6 +35,7 @@ export const DEPENDENCIES = {
   ReviewAndDeployModal,
   useConfigureDraft,
   useDeploymentFlow,
+  useDeploymentName,
   usePlacementsWithBids,
   useSnackbar,
   Snackbar
@@ -44,17 +46,20 @@ const SDL_SYNC_DEBOUNCE_MS = 300;
 
 type Props = {
   initialSdl?: string;
+  initialName?: string;
   intent: DeploymentIntent;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, intent, dependencies: d = DEPENDENCIES }) => {
+export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, intent, dependencies: d = DEPENDENCIES }) => {
   const [initialState] = useState(() => getInitialState(initialSdl));
   const [liveSdl, setLiveSdl] = useState(initialState.sdl);
   const [previewSdl, setPreviewSdl] = useState(initialState.sdl);
   const [selectedServiceId, setSelectedServiceId] = useState<string>(initialState.selectedServiceId);
   const { enqueueSnackbar } = d.useSnackbar();
   const draft = d.useConfigureDraft(intent);
+  const flow = d.useDeploymentFlow({ intent });
+  const { name: deploymentName, setName: setDeploymentName } = d.useDeploymentName({ initialName, dseq: flow.dseq });
   const form = useForm<SdlBuilderFormValuesType>({
     defaultValues: initialState.values,
     mode: "onTouched",
@@ -89,13 +94,13 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, intent, depende
     function debouncePreviewSdl() {
       const timeout = setTimeout(function commitDebouncedSdl() {
         setPreviewSdl(liveSdl);
-        draft.save(liveSdl);
+        draft.save(liveSdl, deploymentName);
       }, SDL_SYNC_DEBOUNCE_MS);
       return function cancelPreviewDebounce() {
         clearTimeout(timeout);
       };
     },
-    [liveSdl, draft]
+    [liveSdl, deploymentName, draft]
   );
 
   useEffect(
@@ -110,7 +115,6 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, intent, depende
     [form]
   );
 
-  const flow = d.useDeploymentFlow({ intent });
   const placementsWithBids = d.usePlacementsWithBids({ enabled: flow.phase === "quoting", dseq: flow.dseq, sdl: liveSdl, placements });
   const [isReviewOpen, setReviewOpen] = useState(false);
   const allPlacementsHaveBids = placements.length > 0 && placements.every(placement => placementsWithBids.has(placement.id));
@@ -196,12 +200,15 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, intent, depende
               selections={flow.selections}
               onSelectProvider={selectProviderAndAdvance}
               onCancelAndEdit={flow.actions.cancelAndEdit}
+              deploymentName={deploymentName}
+              onDeploymentNameChange={setDeploymentName}
             />
           </div>
           {flow.phase === "deploying" && (
             <DeployProgressOverlay
               providerAddress={firstSelectedProviderAddress(flow.selections)}
               activePhase={flow.deploySucceeded ? "success" : "preparing"}
+              deploymentName={deploymentName}
             />
           )}
         </div>
