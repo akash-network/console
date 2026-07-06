@@ -106,6 +106,7 @@ describe(ConfigureDeployment.name, () => {
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
       ConfigureDeploymentForm: ConfigureDeploymentForm as never,
+      RedirectIfLeased: vi.fn(({ children }) => <>{children}</>) as never,
       usePublicTemplate: usePublicTemplate as never,
       useConfigureDraft: useConfigureDraft as never,
       useSearchParams: () => params as unknown as ReadonlyURLSearchParams,

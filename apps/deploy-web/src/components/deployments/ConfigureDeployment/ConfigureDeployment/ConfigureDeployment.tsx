@@ -12,6 +12,7 @@ import { usePublicTemplate } from "@src/queries/useTemplateQuery";
 import sdlStore from "@src/store/sdlStore";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { ConfigureDeploymentForm } from "../ConfigureDeploymentForm/ConfigureDeploymentForm";
+import { RedirectIfLeased } from "../RedirectIfLeased/RedirectIfLeased";
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import { parseDeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
@@ -20,6 +21,7 @@ export const DEPENDENCIES = {
   Layout,
   NextSeo,
   ConfigureDeploymentForm,
+  RedirectIfLeased,
   usePublicTemplate,
   useConfigureDraft,
   useSearchParams,
@@ -71,18 +73,20 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
     [fetchedTemplateId, templateQuery.isError, enqueueSnackbar, d]
   );
 
-  if (fetchedTemplateId && templateQuery.isLoading) {
-    return (
-      <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col">
-        <d.NextSeo title="Configure your deployment" />
-        <div className="flex flex-1 items-center justify-center">
-          <Spinner size="large" />
-        </div>
-      </d.Layout>
-    );
-  }
-
   const initialSdl = draft.persistedSdl ?? hardcodedTemplate?.content ?? (fetchedTemplateId ? templateQuery.data?.deploy : deploySdl?.content);
 
-  return <d.ConfigureDeploymentForm key={draft.draftId} initialSdl={initialSdl} intent={resolvedIntent} />;
+  return (
+    <d.RedirectIfLeased dseq={intent.dseq}>
+      {fetchedTemplateId && templateQuery.isLoading ? (
+        <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col">
+          <d.NextSeo title="Configure your deployment" />
+          <div className="flex flex-1 items-center justify-center">
+            <Spinner size="large" />
+          </div>
+        </d.Layout>
+      ) : (
+        <d.ConfigureDeploymentForm key={draft.draftId} initialSdl={initialSdl} intent={resolvedIntent} />
+      )}
+    </d.RedirectIfLeased>
+  );
 };

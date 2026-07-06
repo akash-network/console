@@ -213,13 +213,26 @@ describe(ConfigureDeploymentForm.name, () => {
     await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest")));
   });
 
-  function setup(input: { initialSdl: string | undefined; Panes?: typeof SdlProbePanes; draftId?: string }) {
+  it("clears the configure draft once the deployment is deployed", () => {
+    const { clear } = setup({ initialSdl: undefined, deploySucceeded: true });
+
+    expect(clear).toHaveBeenCalled();
+  });
+
+  it("keeps the configure draft while the deployment has not been deployed", () => {
+    const { clear } = setup({ initialSdl: undefined, deploySucceeded: false });
+
+    expect(clear).not.toHaveBeenCalled();
+  });
+
+  function setup(input: { initialSdl: string | undefined; Panes?: typeof SdlProbePanes; draftId?: string; deploySucceeded?: boolean }) {
     const ConfigureDeploymentPanes = vi.fn(input.Panes ?? (() => <div data-testid="panes-mock" />));
     const enqueueSnackbar = vi.fn();
     const Snackbar = vi.fn(() => null);
     const save = vi.fn<(sdl: string) => void>();
+    const clear = vi.fn<() => void>();
     const useConfigureDraft = vi.fn(() =>
-      mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({ draftId: input.draftId ?? "draft-1", persistedSdl: undefined, save, clear: vi.fn() })
+      mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({ draftId: input.draftId ?? "draft-1", persistedSdl: undefined, save, clear })
     );
     const dependencies: typeof DEPENDENCIES = {
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
@@ -227,7 +240,13 @@ describe(ConfigureDeploymentForm.name, () => {
       ConfigureDeploymentHeader: vi.fn(() => <div data-testid="header-mock" />),
       ConfigureDeploymentPanes: ConfigureDeploymentPanes as never,
       useConfigureDraft: useConfigureDraft as never,
-      useDeploymentFlow: (() => mock<ReturnType<typeof DEPENDENCIES.useDeploymentFlow>>({ phase: "configuring", dseq: null, bidStrategy: "select" })) as never,
+      useDeploymentFlow: (() =>
+        mock<ReturnType<typeof DEPENDENCIES.useDeploymentFlow>>({
+          phase: "configuring",
+          dseq: null,
+          bidStrategy: "select",
+          deploySucceeded: input.deploySucceeded ?? false
+        })) as never,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       Snackbar: Snackbar as never,
       ReviewAndDeployModal: () => null,
@@ -242,7 +261,7 @@ describe(ConfigureDeploymentForm.name, () => {
       />
     );
 
-    return { ConfigureDeploymentPanes, enqueueSnackbar, save };
+    return { ConfigureDeploymentPanes, enqueueSnackbar, save, clear };
   }
 });
 

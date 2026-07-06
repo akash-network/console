@@ -62,7 +62,11 @@ function useCreateLease() {
   return useServices().api.v1.createLease.useMutation();
 }
 
-export const DEPENDENCIES = { useCreateDeployment, useCloseDeployment, useCreateLease, useListBids, useRouter, manifestFromSdl };
+function useDeploymentLocalStorage() {
+  return useServices().deploymentLocalStorage;
+}
+
+export const DEPENDENCIES = { useCreateDeployment, useCloseDeployment, useCreateLease, useListBids, useRouter, useDeploymentLocalStorage, manifestFromSdl };
 
 /**
  * Controlled lifecycle state machine for the configure flow. Owns interaction state (phase, dseq,
@@ -75,6 +79,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const createDeployment = dependencies.useCreateDeployment();
   const closeDeployment = dependencies.useCloseDeployment();
   const createLease = dependencies.useCreateLease();
+  const deploymentLocalStorage = dependencies.useDeploymentLocalStorage();
 
   const [phase, setPhase] = useState<DeploymentFlowPhase>(intent.dseq ? "quoting" : "configuring");
   const [dseq, setDseq] = useState<string | null>(intent.dseq ?? null);
@@ -204,6 +209,10 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
    * captured at create time is used when present; on a reload that resumed straight into `quoting` it was
    * never captured, so it is rederived from the passed SDL (identical to the server's create-deployment
    * manifest, both being `manifestToSortedJSON` of the SDL's groups) rather than leaving deploy a no-op.
+   * On success it persists the SDL under the deployment's dseq keyed by the owner the response carries (so it
+   * needs no wallet) — the same key the detail page reads — then replaces the configure entry with the
+   * deployment's events tab (matching the legacy builder), so Back lands on the new-deployment page rather than
+   * the just-deployed config.
    * On failure it drops back to `quoting` so the progress overlay unmounts and the user is returned to where
    * they took off; `deployError` is set to drive the error toast and the header's Retry CTA. Retry re-fires
    * this same request with the current selections — provider re-selection after a lease exists is out of
@@ -221,10 +230,11 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       createLease.mutate(
         { manifest: effectiveManifest, leases },
         {
-          onSuccess: function onDeployed() {
+          onSuccess: function onDeployed(result: { data: { deployment: { id: { owner: string } } } }) {
+            cacheDeployedSdl(deploymentLocalStorage, result.data.deployment.id.owner, dseq, sdl);
             setDeploySucceeded(true);
             redirectTimerRef.current = setTimeout(function redirectToDeployment() {
-              router.push(UrlService.deploymentDetails(dseq));
+              router.replace(UrlService.deploymentDetails(dseq, "EVENTS", "events"));
             }, DEPLOY_SUCCESS_DWELL_MS);
           },
           onError: function onDeployFailed(cause: unknown) {
@@ -234,7 +244,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         }
       );
     },
-    [createLease, dseq, manifest, selections, router, dependencies]
+    [createLease, dseq, manifest, selections, router, dependencies, deploymentLocalStorage]
   );
 
   return {
@@ -247,6 +257,19 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     error,
     actions: { requestQuotes, cancelAndEdit, setBidStrategy, refreshQuotes, retry, selectProvider, clearSelection, deploy }
   };
+}
+
+/**
+ * Best-effort cache of the deployed SDL under the deployment's owner + dseq — the key the detail page reads.
+ * Storage can be blocked, full, or hold corrupt data, so any failure is swallowed: caching must never keep the
+ * deploy-success UI or the redirect from running.
+ */
+function cacheDeployedSdl(storage: ReturnType<typeof useDeploymentLocalStorage>, owner: string, dseq: string, sdl: string): void {
+  try {
+    storage.update(owner, dseq, { manifest: sdl });
+  } catch {
+    return;
+  }
 }
 
 /**

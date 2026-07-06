@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { UrlService } from "@src/utils/urlUtils";
 import type { DeploymentIntent } from "./deploymentIntent";
 import type { DEPENDENCIES } from "./useDeploymentFlow";
 import { buildConfigureUrl, useDeploymentFlow } from "./useDeploymentFlow";
@@ -116,13 +117,13 @@ describe(useDeploymentFlow.name, () => {
     );
   });
 
-  it("marks the deploy succeeded, then redirects to the deployment detail after a brief dwell", () => {
+  it("marks the deploy succeeded, then replaces to the deployment's events tab after a brief dwell", () => {
     vi.useFakeTimers();
     try {
       const createDeployment = mockMutation();
       createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
       const createLease = mockMutation();
-      createLease.mutate.mockImplementation((_i, o) => o.onSuccess());
+      createLease.mutate.mockImplementation((_i, o) => o.onSuccess(deployedResult("akash1owner")));
       const { result, router } = renderFlow({ createDeployment, createLease });
 
       act(() => result.current.actions.requestQuotes("sdl"));
@@ -130,10 +131,54 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.deploy("sdl"));
 
       expect(result.current.deploySucceeded).toBe(true);
-      expect(router.push).not.toHaveBeenCalled();
+      expect(router.replace).not.toHaveBeenCalledWith(UrlService.deploymentDetails("555", "EVENTS", "events"));
 
       act(() => vi.runAllTimers());
-      expect(router.push).toHaveBeenCalledWith("/deployments/555");
+      expect(router.replace).toHaveBeenCalledWith(UrlService.deploymentDetails("555", "EVENTS", "events"));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("persists the deployment SDL keyed by the owner the lease response carries so the detail page can read it", () => {
+    vi.useFakeTimers();
+    try {
+      const createDeployment = mockMutation();
+      createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
+      const createLease = mockMutation();
+      createLease.mutate.mockImplementation((_i, o) => o.onSuccess(deployedResult("akash1owner")));
+      const { result, deploymentLocalStorage } = renderFlow({ createDeployment, createLease });
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.deploy("SDL_CONTENT"));
+
+      expect(deploymentLocalStorage.update).toHaveBeenCalledWith("akash1owner", "555", { manifest: "SDL_CONTENT" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still marks the deploy succeeded and redirects when caching the SDL throws", () => {
+    vi.useFakeTimers();
+    try {
+      const createDeployment = mockMutation();
+      createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
+      const createLease = mockMutation();
+      createLease.mutate.mockImplementation((_i, o) => o.onSuccess(deployedResult("akash1owner")));
+      const { result, router, deploymentLocalStorage } = renderFlow({ createDeployment, createLease });
+      deploymentLocalStorage.update.mockImplementation(() => {
+        throw new Error("storage unavailable");
+      });
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.deploy("sdl"));
+
+      expect(result.current.deploySucceeded).toBe(true);
+
+      act(() => vi.runAllTimers());
+      expect(router.replace).toHaveBeenCalledWith(UrlService.deploymentDetails("555", "EVENTS", "events"));
     } finally {
       vi.useRealTimers();
     }
@@ -277,6 +322,7 @@ describe(useDeploymentFlow.name, () => {
       useCreateLease: (() => mock<ReturnType<typeof DEPENDENCIES.useCreateLease>>({ mutate: vi.fn() as never })) as never,
       useListBids: (() => ({ data: { data: [] }, isLoading: false, isError: false })) as never,
       useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: (input.replace ?? vi.fn()) as never })) as never,
+      useDeploymentLocalStorage: (() => mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocalStorage>>()) as never,
       manifestFromSdl: () => "manifest"
     };
     return renderHook(() => useDeploymentFlow({ intent }, dependencies));
@@ -292,20 +338,27 @@ describe(useDeploymentFlow.name, () => {
   }) {
     const intent: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, ...input?.intent };
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: vi.fn(), push: vi.fn() });
+    const deploymentLocalStorage = mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocalStorage>>();
     const dependencies: typeof DEPENDENCIES = {
       useCreateDeployment: (() => input?.createDeployment ?? mockMutation()) as never,
       useCloseDeployment: (() => input?.closeDeployment ?? mockMutation()) as never,
       useCreateLease: (() => input?.createLease ?? mockMutation()) as never,
       useListBids: (() => ({ data: { data: input?.listBids ?? [] }, isLoading: false, isError: false })) as never,
       useRouter: () => router,
+      useDeploymentLocalStorage: (() => deploymentLocalStorage) as never,
       manifestFromSdl: input?.manifestFromSdl ?? (() => "DERIVED_MANIFEST")
     };
     const utils = renderHook(() => useDeploymentFlow({ intent }, dependencies));
-    return { ...utils, router };
+    return { ...utils, router, deploymentLocalStorage };
   }
 
   function mockMutation() {
     return mock<{ mutate: ReturnType<typeof vi.fn> }>({ mutate: vi.fn() });
+  }
+
+  /** The create-lease success payload shape the flow reads the owner from. */
+  function deployedResult(owner: string) {
+    return { data: { deployment: { id: { owner } } } };
   }
 });
 
