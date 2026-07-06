@@ -35,9 +35,7 @@ export class AmdKdsClient {
       const response = await this.httpClient.get<ArrayBuffer>(path, { responseType: "arraybuffer" });
       return Buffer.from(response.data);
     } catch (error) {
-      if (isAxiosError(error) && error.response?.status === 404) return null;
-      this.logger.error({ event: "AMD_KDS_VCEK_FETCH_FAILED", product, error });
-      throw error;
+      return this.#handleFetchError(error, "AMD_KDS_VCEK_FETCH_FAILED", product);
     }
   }
 
@@ -54,10 +52,30 @@ export class AmdKdsClient {
       }
       return { ask: certs[0], ark: certs[1] };
     } catch (error) {
-      if (isAxiosError(error) && error.response?.status === 404) return null;
-      this.logger.error({ event: "AMD_KDS_CHAIN_FETCH_FAILED", product, error });
-      throw error;
+      return this.#handleFetchError(error, "AMD_KDS_CHAIN_FETCH_FAILED", product);
     }
+  }
+
+  /**
+   * Fetches the DER-encoded CRL for a product (cached; CRLs rotate more often than the CA chain, and the
+   * verifier additionally enforces the CRL's own `nextUpdate`). Returns `null` when the product has no CRL
+   * (404); transport errors propagate so the verifier treats revocation status as unknown.
+   */
+  @Memoize({ ttlInSeconds: 6 * 60 * 60 })
+  async getCrl(product: string): Promise<Buffer | null> {
+    try {
+      const response = await this.httpClient.get<ArrayBuffer>(`/vcek/v1/${product}/crl`, { responseType: "arraybuffer" });
+      return Buffer.from(response.data);
+    } catch (error) {
+      return this.#handleFetchError(error, "AMD_KDS_CRL_FETCH_FAILED", product);
+    }
+  }
+
+  /** Maps a KDS transport failure to `null` on 404 (unknown product/chip) or logs and rethrows so the verifier reports `unverifiable`. */
+  #handleFetchError(error: unknown, event: string, product: string): null {
+    if (isAxiosError(error) && error.response?.status === 404) return null;
+    this.logger.error({ event, product, error });
+    throw error;
   }
 }
 
