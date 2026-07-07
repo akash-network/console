@@ -59,7 +59,7 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
   return (
     <div className="flex h-full w-full flex-col">
       <div className="grid min-h-0 flex-1 grid-rows-1 md:auto-cols-fr md:grid-flow-col md:grid-cols-[auto_1fr] md:border-t md:border-zinc-300 md:dark:border-zinc-700">
-        <div className="grid min-h-0 grid-rows-1 md:grid-flow-col md:grid-cols-[auto_352px] md:divide-x md:divide-zinc-300 md:dark:divide-zinc-700">
+        <div className="grid min-h-0 grid-rows-1 md:grid-flow-col md:grid-cols-[auto_360px] md:divide-x md:divide-zinc-300 md:dark:divide-zinc-700">
           <div className={cn("min-h-0 md:block", { hidden: activePane !== "deployment" })}>
             <d.DeploymentPane
               selectedServiceId={selectedServiceId}

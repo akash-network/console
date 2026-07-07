@@ -58,7 +58,7 @@ type Props = {
  */
 export const RuntimeCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   return (
-    <d.CollapsibleCard locked={locked} title="Runtime" icon={<SettingsIcon className="h-4 w-4" />} infoTooltip={runtimeTooltip}>
+    <d.CollapsibleCard defaultOpen={false} locked={locked} title="Runtime" icon={<SettingsIcon className="h-4 w-4" />} infoTooltip={runtimeTooltip}>
       <fieldset disabled={locked} className="flex min-w-0 flex-col gap-4 border-0 p-0">
         <ReplicasField serviceIndex={serviceIndex} dependencies={d} />
 

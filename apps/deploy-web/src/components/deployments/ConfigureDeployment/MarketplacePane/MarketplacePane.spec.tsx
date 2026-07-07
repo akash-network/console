@@ -29,6 +29,18 @@ describe(MarketplacePane.name, () => {
     expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ providers: offers, isLoading: false }), expect.anything());
   });
 
+  it("tells the table to show hourly cost when the spec uses a GPU", () => {
+    const { MarketplaceProvidersTable } = setup({ hasGpu: true, offers: [buildOffer()] });
+
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ showCostAsHourly: true }), expect.anything());
+  });
+
+  it("tells the table to show monthly cost for a CPU-only spec", () => {
+    const { MarketplaceProvidersTable } = setup({ hasGpu: false, offers: [buildOffer()] });
+
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ showCostAsHourly: false }), expect.anything());
+  });
+
   it("renders an error message and no table when offers fail to load with no data", () => {
     const { MarketplaceProvidersTable } = setup({ isError: true });
 
@@ -92,6 +104,7 @@ describe(MarketplacePane.name, () => {
       isError?: boolean;
       isInvalid?: boolean;
       isSearchActive?: boolean;
+      hasGpu?: boolean;
       selectedPlacementId?: string;
       selectedBidId?: string;
       onSelectProvider?: (placementId: string, bidId: string) => void;
@@ -119,7 +132,8 @@ describe(MarketplacePane.name, () => {
       usePlacementOffers: usePlacementOffers as never,
       useProviderSearch: useProviderSearch as never,
       MarketplaceProvidersTable: MarketplaceProvidersTable as never,
-      ProviderSearchInput
+      ProviderSearchInput,
+      useDeploymentHasGpu: vi.fn(() => input.hasGpu ?? false)
     };
     const user = userEvent.setup();
 
