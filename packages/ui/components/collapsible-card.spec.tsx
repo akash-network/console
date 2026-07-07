@@ -13,6 +13,18 @@ describe(CollapsibleCard.name, () => {
     expect(screen.getByText("card body")).toBeVisible();
   });
 
+  it("renders a lock indicator in the header when locked", () => {
+    setup({ locked: true });
+
+    expect(screen.getByLabelText("Locked")).toBeInTheDocument();
+  });
+
+  it("does not render a lock indicator when not locked", () => {
+    setup({});
+
+    expect(screen.queryByLabelText("Locked")).not.toBeInTheDocument();
+  });
+
   it("hides the body and shows the summary when collapsed", async () => {
     setup({ summary: "1 GPU" });
 
@@ -263,6 +275,12 @@ describe(CollapsibleCard.name, () => {
       expect(screen.getByText("None set")).toBeInTheDocument();
     });
 
+    it("renders a lock indicator in the header when locked", () => {
+      setup({ onHeaderClick: vi.fn(), locked: true });
+
+      expect(screen.getByLabelText("Locked")).toBeInTheDocument();
+    });
+
     it("does not fire onHeaderClick when the info icon is clicked", async () => {
       const onHeaderClick = vi.fn();
       setup({ onHeaderClick, infoTooltip: "helpful info" });
@@ -333,6 +351,7 @@ describe(CollapsibleCard.name, () => {
     onHeaderClick?: () => void;
     toggleDisabled?: boolean;
     defaultOpen?: boolean;
+    locked?: boolean;
   }) {
     const card = (overrides: Partial<typeof input>) => (
       <CollapsibleCard
@@ -349,6 +368,7 @@ describe(CollapsibleCard.name, () => {
         onHeaderClick={input.onHeaderClick}
         toggleDisabled={input.toggleDisabled}
         defaultOpen={input.defaultOpen}
+        locked={input.locked}
         {...overrides}
       >
         <p>card body</p>

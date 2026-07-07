@@ -14,15 +14,7 @@ describe(ImageSection.name, () => {
     expect(ImageCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
   });
 
-  it("forwards the locked state to the image card", () => {
-    const ImageCard = vi.fn(() => null);
-
-    setup({ locked: true, dependencies: { ImageCard } });
-
-    expect(ImageCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
-  });
-
-  function setup(input: { serviceIndex?: number; locked?: boolean; dependencies?: Partial<typeof DEPENDENCIES> }) {
-    render(<ImageSection serviceIndex={input.serviceIndex ?? 0} locked={input.locked} dependencies={MockComponents(DEPENDENCIES, input.dependencies)} />);
+  function setup(input: { serviceIndex?: number; dependencies?: Partial<typeof DEPENDENCIES> }) {
+    render(<ImageSection serviceIndex={input.serviceIndex ?? 0} dependencies={MockComponents(DEPENDENCIES, input.dependencies)} />);
   }
 });

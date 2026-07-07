@@ -83,6 +83,7 @@ export const PersistentStorageCard: FC<Props> = ({ serviceIndex, locked = false,
 
   return (
     <d.CollapsibleCard
+      locked={locked}
       title="Persistent Storage"
       icon={<HardDriveIcon className="h-4 w-4" />}
       infoTooltip={persistentStorageTooltip}

@@ -78,6 +78,7 @@ export const GpuCard: FC<Props> = ({ serviceIndex, locked = false, dependencies:
 
   return (
     <d.CollapsibleCard
+      locked={locked}
       title="GPU"
       icon={<GpuIcon className="h-4 w-4" />}
       infoTooltip={gpuTooltip}

@@ -116,6 +116,19 @@ describe(ConfigurationPane.name, () => {
     expect(onCancelAndEdit).toHaveBeenCalled();
   });
 
+  it("locks the hardware and additional sections but never the image section", () => {
+    const ImageSection = vi.fn(() => null);
+    const HardwareSection = vi.fn(() => null);
+    const AdditionalSection = vi.fn(() => null);
+    const values = defaultServiceWithPlacement({ title: "api" });
+
+    setup({ values, selectedServiceId: values.services[0].id, locked: true, dependencies: { ImageSection, HardwareSection, AdditionalSection } });
+
+    expect(HardwareSection).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
+    expect(AdditionalSection).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
+    expect(ImageSection).not.toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
+  });
+
   function setup(input: {
     values: SdlBuilderFormValuesType;
     selectedServiceId: string;

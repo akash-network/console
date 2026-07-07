@@ -59,13 +59,13 @@ export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, depen
     <div className="flex flex-col gap-2 px-4">
       <p className="font-mono text-xs uppercase text-muted-foreground">Hardware</p>
       <div className="flex flex-col gap-4">
-        <d.CollapsibleCard title="Presets" icon={<PackageOpenIcon className="h-4 w-4" />} infoTooltip={presetsTooltip}>
+        <d.CollapsibleCard locked={locked} title="Presets" icon={<PackageOpenIcon className="h-4 w-4" />} infoTooltip={presetsTooltip}>
           <d.PresetsCard serviceIndex={serviceIndex} locked={locked} />
         </d.CollapsibleCard>
 
         <d.GpuCard serviceIndex={serviceIndex} locked={locked} />
 
-        <d.CollapsibleCard title="Compute Resources" icon={<CpuIcon className="h-4 w-4" />} infoTooltip={computeResourcesTooltip}>
+        <d.CollapsibleCard locked={locked} title="Compute Resources" icon={<CpuIcon className="h-4 w-4" />} infoTooltip={computeResourcesTooltip}>
           <d.ComputeResourcesCard serviceIndex={serviceIndex} locked={locked} />
         </d.CollapsibleCard>
 

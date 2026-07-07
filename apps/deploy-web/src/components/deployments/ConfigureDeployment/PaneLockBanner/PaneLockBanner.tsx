@@ -20,7 +20,7 @@ export const PaneLockBanner: FC<Props> = ({ onCancelAndEdit, isClosing }) => {
         <Lock className="h-4 w-4 text-foreground" aria-hidden="true" />
         <span className="text-sm font-medium">Locked</span>
       </div>
-      <p className="min-h-10 text-sm text-muted-foreground">Changes here invalidate the active quotes.</p>
+      <p className="min-h-10 text-sm text-muted-foreground">Changing a locked setting needs new quotes.</p>
       <Button type="button" variant="link" onClick={onCancelAndEdit} disabled={isClosing} className="h-auto p-0 text-sm underline">
         {isClosing ? "Cancelling…" : "Cancel and edit"}
       </Button>

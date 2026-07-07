@@ -10,7 +10,7 @@ export const DEPENDENCIES = { RuntimeCard, EnvironmentVariablesCard, CommandsCar
 
 type Props = {
   serviceIndex: number;
-  /** While the pane is locked the additional cards are disabled (their chevrons stay expandable for viewing). */
+  /** Locks the runtime, ports and logs cards. The env vars and commands cards are manifest-only and stay editable. */
   locked?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
@@ -27,9 +27,9 @@ export const AdditionalSection: FC<Props> = ({ serviceIndex, locked = false, dep
       <div className="flex flex-col gap-4">
         <d.RuntimeCard serviceIndex={serviceIndex} locked={locked} />
 
-        <d.EnvironmentVariablesCard serviceIndex={serviceIndex} locked={locked} />
+        <d.EnvironmentVariablesCard serviceIndex={serviceIndex} />
 
-        <d.CommandsCard serviceIndex={serviceIndex} locked={locked} />
+        <d.CommandsCard serviceIndex={serviceIndex} />
 
         <d.ExposePortsCard serviceIndex={serviceIndex} locked={locked} />
 

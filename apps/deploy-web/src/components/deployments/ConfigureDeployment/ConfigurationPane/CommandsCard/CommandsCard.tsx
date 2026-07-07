@@ -25,8 +25,6 @@ export const DEPENDENCIES = { CollapsibleCard, DialogV2, DialogV2Content, Dialog
 
 type Props = {
   serviceIndex: number;
-  /** While the pane is locked the dialog still opens for viewing but its inputs and Save are disabled. */
-  locked?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -41,7 +39,7 @@ type Props = {
  * image default) and clicking it opens a Dialog for editing. Changes are committed on
  * Save and reverted on Cancel.
  */
-export const CommandsCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
+export const CommandsCard: FC<Props> = ({ serviceIndex, dependencies: d = DEPENDENCIES }) => {
   const { control, getValues, setValue } = useFormContext<SdlBuilderFormValuesType>();
   const command = useController({ control, name: `services.${serviceIndex}.command.command` });
   const arg = useController({ control, name: `services.${serviceIndex}.command.arg` });
@@ -93,7 +91,7 @@ export const CommandsCard: FC<Props> = ({ serviceIndex, locked = false, dependen
           </d.DialogV2Header>
 
           <d.DialogV2Body className="flex flex-col gap-4">
-            <fieldset disabled={locked} className="contents">
+            <fieldset className="contents">
               <Field className="gap-2">
                 <FieldLabel htmlFor={`command-${serviceIndex}`}>Command</FieldLabel>
                 <FieldContent>
@@ -130,7 +128,7 @@ export const CommandsCard: FC<Props> = ({ serviceIndex, locked = false, dependen
             <Button type="button" variant="ghost" onClick={handleCancel}>
               Cancel
             </Button>
-            <Button type="button" onClick={handleSave} disabled={locked}>
+            <Button type="button" onClick={handleSave}>
               Save
               <SaveIcon className="ml-2 size-4" />
             </Button>

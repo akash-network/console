@@ -62,11 +62,24 @@ function useCreateLease() {
   return useServices().api.v1.createLease.useMutation();
 }
 
+function useUpdateDeployment() {
+  return useServices().api.v1.updateDeployment.useMutation();
+}
+
 function useDeploymentLocalStorage() {
   return useServices().deploymentLocalStorage;
 }
 
-export const DEPENDENCIES = { useCreateDeployment, useCloseDeployment, useCreateLease, useListBids, useRouter, useDeploymentLocalStorage, manifestFromSdl };
+export const DEPENDENCIES = {
+  useCreateDeployment,
+  useCloseDeployment,
+  useCreateLease,
+  useUpdateDeployment,
+  useListBids,
+  useRouter,
+  useDeploymentLocalStorage,
+  manifestFromSdl
+};
 
 /**
  * Controlled lifecycle state machine for the configure flow. Owns interaction state (phase, dseq,
@@ -79,6 +92,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const createDeployment = dependencies.useCreateDeployment();
   const closeDeployment = dependencies.useCloseDeployment();
   const createLease = dependencies.useCreateLease();
+  const updateDeployment = dependencies.useUpdateDeployment();
   const deploymentLocalStorage = dependencies.useDeploymentLocalStorage();
 
   const [phase, setPhase] = useState<DeploymentFlowPhase>(intent.dseq ? "quoting" : "configuring");
@@ -205,46 +219,54 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   }, []);
 
   /**
-   * Creates the lease(s) and sends the manifest(s) via the combined create-lease request. The manifest
-   * captured at create time is used when present; on a reload that resumed straight into `quoting` it was
-   * never captured, so it is rederived from the passed SDL (identical to the server's create-deployment
-   * manifest, both being `manifestToSortedJSON` of the SDL's groups) rather than leaving deploy a no-op.
+   * Deploys the current selections. The manifest is always derived from the SDL being deployed, so a
+   * quoting-window edit is what gets leased — never a stale create-time manifest. When that manifest differs
+   * from the one captured at create — or none was captured, e.g. a reload that resumed straight into
+   * `quoting` — the deployment is updated first (MsgUpdateDeployment) so the on-chain manifest hash matches
+   * before the provider is sent the manifest at lease time; an unchanged manifest goes straight to the lease.
    * On success it persists the SDL under the deployment's dseq keyed by the owner the response carries (so it
    * needs no wallet) — the same key the detail page reads — then replaces the configure entry with the
    * deployment's events tab (matching the legacy builder), so Back lands on the new-deployment page rather than
    * the just-deployed config.
-   * On failure it drops back to `quoting` so the progress overlay unmounts and the user is returned to where
-   * they took off; `deployError` is set to drive the error toast and the header's Retry CTA. Retry re-fires
-   * this same request with the current selections — provider re-selection after a lease exists is out of
-   * scope here (a partial-failure-aware, idempotent retry is tracked separately).
+   * On any failure it drops back to `quoting` (unmounting the overlay) and sets `deployError` to drive the
+   * error toast and the header's Retry CTA; retry re-fires with the current selections. Provider re-selection
+   * after a lease exists is out of scope here.
    */
   const deploy = useCallback(
     function deploy(sdl: string) {
-      const effectiveManifest = manifest ?? dependencies.manifestFromSdl(sdl);
-      if (!dseq || !effectiveManifest) return;
+      const nextManifest = dependencies.manifestFromSdl(sdl);
+      if (!dseq || !nextManifest) return;
       const leases = Object.values(selections).map(parseBidId);
       if (leases.length === 0) return;
+      const activeDseq = dseq;
+      const activeManifest = nextManifest;
       setDeployError(undefined);
       setDeploySucceeded(false);
       setPhase("deploying");
-      createLease.mutate(
-        { manifest: effectiveManifest, leases },
-        {
-          onSuccess: function onDeployed(result: { data: { deployment: { id: { owner: string } } } }) {
-            cacheDeployedSdl(deploymentLocalStorage, result.data.deployment.id.owner, dseq, sdl);
-            setDeploySucceeded(true);
-            redirectTimerRef.current = setTimeout(function redirectToDeployment() {
-              router.replace(UrlService.deploymentDetails(dseq, "EVENTS", "events"));
-            }, DEPLOY_SUCCESS_DWELL_MS);
-          },
-          onError: function onDeployFailed(cause: unknown) {
-            setDeployError({ message: extractApiErrorMessage(cause) ?? undefined });
-            setPhase("quoting");
-          }
-        }
-      );
+      function completeDeploy(result: { data: { deployment: { id: { owner: string } } } }) {
+        cacheDeployedSdl(deploymentLocalStorage, result.data.deployment.id.owner, activeDseq, sdl);
+        setDeploySucceeded(true);
+        redirectTimerRef.current = setTimeout(function redirectToDeployment() {
+          router.replace(UrlService.deploymentDetails(activeDseq, "EVENTS", "events"));
+        }, DEPLOY_SUCCESS_DWELL_MS);
+      }
+
+      function failDeploy(cause: unknown) {
+        setDeployError({ message: extractApiErrorMessage(cause) ?? undefined });
+        setPhase("quoting");
+      }
+
+      function sendManifestAndLease() {
+        createLease.mutate({ manifest: activeManifest, leases }, { onSuccess: completeDeploy, onError: failDeploy });
+      }
+
+      if (activeManifest !== manifest) {
+        updateDeployment.mutate({ dseq: activeDseq, data: { sdl } }, { onSuccess: sendManifestAndLease, onError: failDeploy });
+      } else {
+        sendManifestAndLease();
+      }
     },
-    [createLease, dseq, manifest, selections, router, dependencies, deploymentLocalStorage]
+    [createLease, updateDeployment, dseq, manifest, selections, router, dependencies, deploymentLocalStorage]
   );
 
   return {

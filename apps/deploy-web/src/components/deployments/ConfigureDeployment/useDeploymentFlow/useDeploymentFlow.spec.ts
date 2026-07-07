@@ -104,7 +104,7 @@ describe(useDeploymentFlow.name, () => {
     const createDeployment = mockMutation();
     createDeployment.mutate.mockImplementation((_input, opts) => opts.onSuccess({ data: { dseq: "555", manifest: "MANIFEST_JSON" } }));
     const createLease = mockMutation();
-    const { result } = renderFlow({ createDeployment, createLease });
+    const { result } = renderFlow({ createDeployment, createLease, manifestFromSdl: () => "MANIFEST_JSON" });
 
     act(() => result.current.actions.requestQuotes("sdl"));
     act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
@@ -244,10 +244,12 @@ describe(useDeploymentFlow.name, () => {
     expect(result.current.selections).toEqual({});
   });
 
-  it("derives the manifest from the sdl when deploying after a reload that resumed straight into quoting", () => {
+  it("updates then leases with the sdl-derived manifest when deploying after a reload that resumed straight into quoting", () => {
+    const updateDeployment = mockMutation();
+    updateDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({}));
     const createLease = mockMutation();
     const manifestFromSdl = vi.fn(() => "DERIVED_MANIFEST");
-    const { result } = renderFlow({ createLease, manifestFromSdl, intent: { dseq: "555" } });
+    const { result } = renderFlow({ updateDeployment, createLease, manifestFromSdl, intent: { dseq: "555" } });
 
     expect(result.current.phase).toBe("quoting");
 
@@ -255,10 +257,74 @@ describe(useDeploymentFlow.name, () => {
     act(() => result.current.actions.deploy("SDL_CONTENT"));
 
     expect(manifestFromSdl).toHaveBeenCalledWith("SDL_CONTENT");
+    expect(updateDeployment.mutate).toHaveBeenCalledWith({ dseq: "555", data: { sdl: "SDL_CONTENT" } }, expect.anything());
     expect(createLease.mutate).toHaveBeenCalledWith(
       { manifest: "DERIVED_MANIFEST", leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] },
       expect.anything()
     );
+  });
+
+  it("updates the deployment before leasing when the manifest changed since create", () => {
+    const createDeployment = mockMutation();
+    createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M1" } }));
+    const updateDeployment = mockMutation();
+    updateDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({}));
+    const createLease = mockMutation();
+    const { result } = renderFlow({ createDeployment, updateDeployment, createLease, manifestFromSdl: () => "M2" });
+
+    act(() => result.current.actions.requestQuotes("sdl"));
+    act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+    act(() => result.current.actions.deploy("edited-sdl"));
+
+    expect(updateDeployment.mutate).toHaveBeenCalledWith({ dseq: "555", data: { sdl: "edited-sdl" } }, expect.anything());
+    expect(createLease.mutate).toHaveBeenCalledWith({ manifest: "M2", leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] }, expect.anything());
+  });
+
+  it("leases without updating when the manifest is unchanged since create", () => {
+    const createDeployment = mockMutation();
+    createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M1" } }));
+    const updateDeployment = mockMutation();
+    const createLease = mockMutation();
+    const { result } = renderFlow({ createDeployment, updateDeployment, createLease, manifestFromSdl: () => "M1" });
+
+    act(() => result.current.actions.requestQuotes("sdl"));
+    act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+    act(() => result.current.actions.deploy("sdl"));
+
+    expect(updateDeployment.mutate).not.toHaveBeenCalled();
+    expect(createLease.mutate).toHaveBeenCalledWith({ manifest: "M1", leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] }, expect.anything());
+  });
+
+  it("does not create the lease until the pre-lease update succeeds", () => {
+    const createDeployment = mockMutation();
+    createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M1" } }));
+    const updateDeployment = mockMutation();
+    const createLease = mockMutation();
+    const { result } = renderFlow({ createDeployment, updateDeployment, createLease, manifestFromSdl: () => "M2" });
+
+    act(() => result.current.actions.requestQuotes("sdl"));
+    act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+    act(() => result.current.actions.deploy("edited-sdl"));
+
+    expect(updateDeployment.mutate).toHaveBeenCalledTimes(1);
+    expect(createLease.mutate).not.toHaveBeenCalled();
+  });
+
+  it("returns to quoting with a retryable error when the pre-lease update fails", () => {
+    const createDeployment = mockMutation();
+    createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M1" } }));
+    const updateDeployment = mockMutation();
+    updateDeployment.mutate.mockImplementation((_i, o) => o.onError(new Error("boom")));
+    const createLease = mockMutation();
+    const { result } = renderFlow({ createDeployment, updateDeployment, createLease, manifestFromSdl: () => "M2" });
+
+    act(() => result.current.actions.requestQuotes("sdl"));
+    act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+    act(() => result.current.actions.deploy("edited-sdl"));
+
+    expect(createLease.mutate).not.toHaveBeenCalled();
+    expect(result.current.phase).toBe("quoting");
+    expect(result.current.deployError).toBeDefined();
   });
 
   it("clears a placement's selection when its bid is no longer open", async () => {
@@ -320,6 +386,7 @@ describe(useDeploymentFlow.name, () => {
       useCreateDeployment: (() => mock<ReturnType<typeof DEPENDENCIES.useCreateDeployment>>({ mutate: (input.createMutate ?? vi.fn()) as never })) as never,
       useCloseDeployment: (() => mock<ReturnType<typeof DEPENDENCIES.useCloseDeployment>>({ mutate: (input.closeMutate ?? vi.fn()) as never })) as never,
       useCreateLease: (() => mock<ReturnType<typeof DEPENDENCIES.useCreateLease>>({ mutate: vi.fn() as never })) as never,
+      useUpdateDeployment: (() => mock<ReturnType<typeof DEPENDENCIES.useUpdateDeployment>>({ mutate: vi.fn() as never })) as never,
       useListBids: (() => ({ data: { data: [] }, isLoading: false, isError: false })) as never,
       useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: (input.replace ?? vi.fn()) as never })) as never,
       useDeploymentLocalStorage: (() => mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocalStorage>>()) as never,
@@ -333,6 +400,7 @@ describe(useDeploymentFlow.name, () => {
     createDeployment?: ReturnType<typeof mockMutation>;
     createLease?: ReturnType<typeof mockMutation>;
     closeDeployment?: ReturnType<typeof mockMutation>;
+    updateDeployment?: ReturnType<typeof mockMutation>;
     manifestFromSdl?: (sdl: string) => string | null;
     listBids?: Array<{ bid: { state: string; price: { amount: string; denom: string }; id: { provider: string; dseq: string; gseq: number; oseq: number } } }>;
   }) {
@@ -343,10 +411,11 @@ describe(useDeploymentFlow.name, () => {
       useCreateDeployment: (() => input?.createDeployment ?? mockMutation()) as never,
       useCloseDeployment: (() => input?.closeDeployment ?? mockMutation()) as never,
       useCreateLease: (() => input?.createLease ?? mockMutation()) as never,
+      useUpdateDeployment: (() => input?.updateDeployment ?? mockMutation()) as never,
       useListBids: (() => ({ data: { data: input?.listBids ?? [] }, isLoading: false, isError: false })) as never,
       useRouter: () => router,
       useDeploymentLocalStorage: (() => deploymentLocalStorage) as never,
-      manifestFromSdl: input?.manifestFromSdl ?? (() => "DERIVED_MANIFEST")
+      manifestFromSdl: input?.manifestFromSdl ?? (() => "M")
     };
     const utils = renderHook(() => useDeploymentFlow({ intent }, dependencies));
     return { ...utils, router, deploymentLocalStorage };
