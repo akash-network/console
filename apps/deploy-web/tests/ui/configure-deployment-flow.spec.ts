@@ -1,8 +1,15 @@
+import { closeActiveDeployment } from "./actions/deploy";
 import { expect, test } from "./fixture/base-test";
 import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
 
 test.describe("Configure deployment — request quotes flow", () => {
   test.use({ userType: "existing" });
+
+  test.afterEach(async function closeDeploymentLeftByTest({ page }) {
+    if (/\/deployments\/\d+/.test(new URL(page.url()).pathname)) {
+      await closeActiveDeployment(page);
+    }
+  });
 
   test("requests quotes to create a deployment, locks the pane, then cancels and edits to close it", async ({ page }) => {
     test.setTimeout(3 * 60 * 1000);
