@@ -12,6 +12,7 @@ import { usePublicTemplate } from "@src/queries/useTemplateQuery";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
 import { hardcodedTemplates } from "@src/utils/templates";
+import { AutoDeployFlow } from "../AutoDeployFlow/AutoDeployFlow";
 import { ConfigureDeploymentForm } from "../ConfigureDeploymentForm/ConfigureDeploymentForm";
 import { RedirectIfLeased } from "../RedirectIfLeased/RedirectIfLeased";
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
@@ -21,6 +22,7 @@ import { parseDeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 export const DEPENDENCIES = {
   Layout,
   NextSeo,
+  AutoDeployFlow,
   ConfigureDeploymentForm,
   RedirectIfLeased,
   usePublicTemplate,
@@ -76,6 +78,23 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
 
   const initialSdl = draft.persistedSdl ?? hardcodedTemplate?.content ?? (fetchedTemplateId ? templateQuery.data?.deploy : deploySdl?.content);
   const initialName = draft.persistedName ?? hardcodedTemplate?.name ?? (fetchedTemplateId ? templateQuery.data?.name : undefined);
+
+  // A `sdl-strategy=default` + `bid-strategy=auto` intent deploys the resolved template automatically via the phased
+  // globe flow instead of opening the manual form. A dseq (present once the deployment exists) resumes that same flow
+  // on reload rather than starting a new one.
+  const isAutoDeploy = resolvedIntent.sdlStrategy === "default" && resolvedIntent.bidStrategy === "auto";
+  if (isAutoDeploy && initialSdl) {
+    const templateName = templateQuery.data?.name ?? hardcodedTemplate?.title ?? "your deployment";
+    return (
+      <d.AutoDeployFlow
+        templateId={resolvedIntent.templateId}
+        templateName={templateName}
+        sdl={initialSdl}
+        dseq={resolvedIntent.dseq}
+        draftId={resolvedIntent.draftId}
+      />
+    );
+  }
 
   return (
     <d.RedirectIfLeased dseq={intent.dseq}>

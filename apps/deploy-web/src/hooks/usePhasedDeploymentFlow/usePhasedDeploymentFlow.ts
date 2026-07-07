@@ -5,9 +5,13 @@ import { useServices } from "@src/context/ServicesProvider";
 import { usePhasedProgressBar } from "@src/hooks/useGradualProgress/usePhasedProgressBar";
 import { useFirstReachableProvider, useProviderList } from "@src/queries/useProvidersQuery";
 import type { ApiProviderList } from "@src/types/provider";
+import { ManifestYaml } from "@src/utils/deploymentData/helpers";
 
 type DeploymentPhaseId = "creating" | "matching" | "preparing";
 type DeploymentPhaseStatus = "pending" | "active" | "completed";
+
+/** The four coordinates that identify a lease/bid; the payload `createLease` needs to create a lease and send its manifest. */
+type LeaseId = { dseq: string; gseq: number; oseq: number; provider: string };
 
 type Options = {
   sdl: string;
@@ -22,6 +26,14 @@ type Options = {
   isWalletReady: boolean;
   /** If the trial-start mutation has terminally errored, the deploy step fails with this error instead of waiting forever. */
   trialError?: unknown;
+  /**
+   * A deployment's dseq carried in from the URL on a resumed session (a reload of the progress view). When present the
+   * flow skips `creating` — the deployment already exists on chain — and picks up at `matching`, then jumps straight to
+   * `preparing` if an active lease is already found for it. Absent on a fresh start.
+   */
+  initialDseq?: string;
+  /** Called once the deployment is created on chain so the caller can write its dseq into the URL, making the flow resumable across reloads. */
+  onDeploymentCreated?: (dseq: string) => void;
 };
 
 type DeploymentPhase = {
@@ -72,16 +84,25 @@ const PHASE_LABELS: Record<DeploymentPhaseId, { active: string; completed: strin
   preparing: { active: "Preparing deployment", completed: "Deployment prepared" }
 };
 
-export function usePhasedDeploymentFlow({ sdl, deposit, onSuccess, isWalletReady, trialError }: Options): Result {
+export function usePhasedDeploymentFlow({ sdl, deposit, onSuccess, isWalletReady, trialError, initialDseq, onDeploymentCreated }: Options): Result {
   const { api } = useServices();
-  const [phase, setPhase] = useState<InternalPhase>("creating");
-  const [dseq, setDseq] = useState<string | null>(null);
+  // Pinned to the mount-time value so writing the freshly-created dseq into the URL (which flows back in as `initialDseq`)
+  // can't retroactively flip a fresh start into resume mode. Only a genuine reload — mounted with a dseq — resumes.
+  const resumedDseqRef = useRef(initialDseq);
+  const resumedDseq = resumedDseqRef.current;
+  const [phase, setPhase] = useState<InternalPhase>(resumedDseq ? "matching" : "creating");
+  const [dseq, setDseq] = useState<string | null>(resumedDseq ?? null);
   const [manifest, setManifest] = useState<string | null>(null);
   const [matchedProviderAddress, setMatchedProviderAddress] = useState<string | null>(null);
+  const [leaseTarget, setLeaseTarget] = useState<LeaseId | null>(null);
   const [retryToken, setRetryToken] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
   const onSuccessRef = useRef(onSuccess);
   onSuccessRef.current = onSuccess;
+  const onDeploymentCreatedRef = useRef(onDeploymentCreated);
+  onDeploymentCreatedRef.current = onDeploymentCreated;
+  /** Guards the one-shot lease submission so a re-render can't fire a second create-lease request while the first is in flight. */
+  const submittedLeaseRef = useRef(false);
 
   const createDeployment = api.v1.createDeployment.useMutation();
   const createLease = api.v1.createLease.useMutation();
@@ -105,6 +126,7 @@ export function usePhasedDeploymentFlow({ sdl, deposit, onSuccess, isWalletReady
         setDseq(result.data.dseq);
         setManifest(result.data.manifest);
         setPhase("matching");
+        onDeploymentCreatedRef.current?.(result.data.dseq);
       }
 
       function onCreateDeploymentError(error: unknown) {
@@ -122,6 +144,13 @@ export function usePhasedDeploymentFlow({ sdl, deposit, onSuccess, isWalletReady
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [phase, retryToken, sdl, deposit, isWalletReady, trialError]
   );
+
+  // On a resumed session (dseq carried in from the URL) the deployment may already have a lease. Fetch it so we can
+  // skip matching entirely and jump to preparing; the query is disabled on a fresh start where no lease can exist yet.
+  const deploymentQuery = api.v1.getDeployment.useQuery({ dseq: dseq ?? "" }, { enabled: !!resumedDseq && !!dseq && phase === "matching" && isWalletReady });
+  const existingActiveLease = deploymentQuery.data?.data.leases.find(lease => lease.state !== "closed");
+  /** On a resume we must know whether a lease already exists before matching from bids; a fresh start needs no such wait. */
+  const resumeLeaseChecked = !resumedDseq || deploymentQuery.isFetched;
 
   const bidsQuery = api.v1.listBids.useQuery(
     { dseq: dseq ?? "" },
@@ -147,11 +176,51 @@ export function usePhasedDeploymentFlow({ sdl, deposit, onSuccess, isWalletReady
   const activeBid = reachableProvider ? openBids.find(bid => bid.bid.id.provider === reachableProvider.owner) : undefined;
 
   useEffect(
-    function broadcastCreateLease() {
-      if (phase !== "matching" || !activeBid || !dseq || !manifest) return;
-
-      setMatchedProviderAddress(activeBid.bid.id.provider);
+    function resumeFromExistingLease() {
+      if (phase !== "matching" || leaseTarget || !existingActiveLease) return;
+      setMatchedProviderAddress(existingActiveLease.id.provider);
+      setLeaseTarget({
+        dseq: existingActiveLease.id.dseq,
+        gseq: existingActiveLease.id.gseq,
+        oseq: existingActiveLease.id.oseq,
+        provider: existingActiveLease.id.provider
+      });
       setPhase("preparing");
+    },
+    [phase, leaseTarget, existingActiveLease]
+  );
+
+  useEffect(
+    function matchProviderFromBids() {
+      if (phase !== "matching" || leaseTarget || !dseq || !activeBid) return;
+      // On a resume, hold off until the lease check has settled so we never race a fresh lease against an existing one.
+      if (!resumeLeaseChecked || existingActiveLease) return;
+      setMatchedProviderAddress(activeBid.bid.id.provider);
+      setLeaseTarget({
+        dseq: activeBid.bid.id.dseq,
+        gseq: activeBid.bid.id.gseq,
+        oseq: activeBid.bid.id.oseq,
+        provider: activeBid.bid.id.provider
+      });
+      setPhase("preparing");
+    },
+    [phase, leaseTarget, activeBid, dseq, resumeLeaseChecked, existingActiveLease]
+  );
+
+  useEffect(
+    function submitLease() {
+      if (phase !== "preparing" || !leaseTarget || !dseq || submittedLeaseRef.current) return;
+
+      // The manifest captured at create time is used when present; on a resume that never captured it (a reload
+      // straight into preparing) it is rederived from the SDL, identical to the server's create-deployment manifest.
+      const manifestToSend = manifest ?? manifestFromSdl(sdl);
+      if (!manifestToSend) {
+        setErrorMessage(undefined);
+        setPhase("error");
+        return;
+      }
+
+      submittedLeaseRef.current = true;
 
       function onCreateLeaseSuccess() {
         setPhase("success");
@@ -159,27 +228,17 @@ export function usePhasedDeploymentFlow({ sdl, deposit, onSuccess, isWalletReady
       }
 
       function onCreateLeaseError(error: unknown) {
+        submittedLeaseRef.current = false;
         setErrorMessage(extractApiErrorMessage(error) ?? undefined);
         setPhase("error");
       }
 
-      createLease.mutate(
-        {
-          manifest,
-          leases: [
-            {
-              dseq: activeBid.bid.id.dseq,
-              gseq: activeBid.bid.id.gseq,
-              oseq: activeBid.bid.id.oseq,
-              provider: activeBid.bid.id.provider
-            }
-          ]
-        },
-        { onSuccess: onCreateLeaseSuccess, onError: onCreateLeaseError }
-      );
+      // Server-side create-lease is idempotent — it skips the on-chain tx when a lease already exists and only
+      // (re)sends the manifest — so resuming straight into preparing safely completes without duplicating the lease.
+      createLease.mutate({ manifest: manifestToSend, leases: [leaseTarget] }, { onSuccess: onCreateLeaseSuccess, onError: onCreateLeaseError });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [phase, activeBid, reachableProvider, dseq, manifest]
+    [phase, leaseTarget, manifest, sdl, dseq]
   );
 
   useEffect(
@@ -195,14 +254,19 @@ export function usePhasedDeploymentFlow({ sdl, deposit, onSuccess, isWalletReady
     [phase, dseq]
   );
 
-  const retry = useCallback(function retry() {
-    setDseq(null);
-    setManifest(null);
-    setMatchedProviderAddress(null);
-    setErrorMessage(undefined);
-    setPhase("creating");
-    setRetryToken(prev => prev + 1);
-  }, []);
+  const retry = useCallback(
+    function retry() {
+      setDseq(resumedDseq ?? null);
+      setManifest(null);
+      setMatchedProviderAddress(null);
+      setLeaseTarget(null);
+      submittedLeaseRef.current = false;
+      setErrorMessage(undefined);
+      setPhase(resumedDseq ? "matching" : "creating");
+      setRetryToken(prev => prev + 1);
+    },
+    [resumedDseq]
+  );
 
   const phaseIndex = getPhaseIndex(phase);
   const phases = buildPhases(phaseIndex, phase === "success");
@@ -222,6 +286,19 @@ export function usePhasedDeploymentFlow({ sdl, deposit, onSuccess, isWalletReady
     retry,
     startOver: retry
   };
+}
+
+/**
+ * The provider manifest for an SDL, or null when it can't be built (e.g. invalid/mid-edit). Matches the server's
+ * create-deployment manifest (both are `manifestToSortedJSON` of the SDL's groups), so a resumed session that lost the
+ * captured manifest can still submit the lease from the restored SDL.
+ */
+function manifestFromSdl(sdl: string): string | null {
+  try {
+    return ManifestYaml(sdl);
+  } catch {
+    return null;
+  }
 }
 
 /** Map the internal phase to an index into `PHASE_ORDER`: success advances past the last marker, error falls back to phase 0. */

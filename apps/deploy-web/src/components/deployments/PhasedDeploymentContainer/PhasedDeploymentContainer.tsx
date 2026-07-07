@@ -41,6 +41,10 @@ type PhasedDeploymentContainerProps = {
   deposit?: number;
   isWalletReady: boolean;
   trialError?: unknown;
+  /** A dseq carried in from the URL on a resumed session; the flow skips creating and resumes from matching/preparing. */
+  initialDseq?: string;
+  /** Notified once the deployment exists on chain so the caller can write its dseq into the URL for resumability. */
+  onDeploymentCreated?: (dseq: string) => void;
   onSuccess?: (dseq: string) => void;
   onCancel?: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -52,6 +56,8 @@ export function PhasedDeploymentContainer({
   deposit = DEFAULT_DEPOSIT_USD,
   isWalletReady,
   trialError,
+  initialDseq,
+  onDeploymentCreated,
   onSuccess,
   onCancel,
   dependencies: d = DEPENDENCIES
@@ -63,6 +69,8 @@ export function PhasedDeploymentContainer({
     deposit,
     isWalletReady,
     trialError,
+    initialDseq,
+    onDeploymentCreated,
     onSuccess: dseq => onSuccess?.(dseq)
   });
 
