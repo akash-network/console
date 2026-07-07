@@ -96,7 +96,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({
       <TopBanner />
 
       <div className="w-full flex-1" style={{ marginTop: `${ACCOUNT_BAR_HEIGHT + (hasBanner ? 40 : 0)}px` }}>
-        <div className="h-full">
+        <div className="h-full overflow-x-auto">
           <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} className={{ "top-[40px]": hasBanner }} />
 
           <div className="block h-full w-full flex-grow rounded-none md:flex">
@@ -109,7 +109,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({
             />
 
             <div
-              className={cn("ease ml-0 h-full flex-grow transition-[margin-left] duration-300", {
+              className={cn("ease ml-0 h-full flex-grow transition-[margin-left] duration-300 overflow-x-auto", {
                 ["md:ml-[240px]"]: isNavOpen,
                 ["md:ml-[57px]"]: !isNavOpen
               })}

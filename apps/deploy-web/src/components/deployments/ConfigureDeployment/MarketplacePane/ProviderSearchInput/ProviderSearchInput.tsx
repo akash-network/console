@@ -16,7 +16,7 @@ export const ProviderSearchInput: FC<Props> = ({ value, onChange, onClear }) => 
       placeholder="Search providers..."
       value={value}
       onChange={event => onChange(event.target.value)}
-      className="w-full md:w-64"
+      className="w-56 shrink-0"
       inputClassName="h-9 [&::-ms-clear]:hidden [&::-webkit-search-cancel-button]:appearance-none"
       startIcon={<Search className="ml-3 h-4 w-4 text-muted-foreground" />}
       endIcon={

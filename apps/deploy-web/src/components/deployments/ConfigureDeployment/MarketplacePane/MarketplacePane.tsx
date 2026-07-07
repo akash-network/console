@@ -39,12 +39,12 @@ export const MarketplacePane: FC<Props> = ({
 
   return (
     <section aria-labelledby="configure-marketplace-pane-heading" className="flex h-full min-h-0 flex-col">
-      <header className="flex h-[52px] shrink-0 items-center justify-between gap-4 px-4 md:border-b md:border-zinc-300 md:dark:border-zinc-700">
-        <div className="hidden items-center md:flex">
+      <header className="flex h-[52px] shrink-0 items-center justify-between gap-4 border-b border-zinc-300 px-4 dark:border-zinc-700">
+        <div className="flex min-w-0 items-center">
           <h2 id="configure-marketplace-pane-heading" className="shrink-0 font-mono text-sm font-medium uppercase text-muted-foreground">
             3. Compute Marketplace
           </h2>
-          <span className="ml-2 whitespace-nowrap font-mono text-sm font-semibold text-blue-500">• {placementName}</span>
+          <span className="ml-2 min-w-0 truncate font-mono text-sm font-semibold text-blue-500">• {placementName}</span>
         </div>
         <d.ProviderSearchInput value={query} onChange={setQuery} onClear={clear} />
       </header>

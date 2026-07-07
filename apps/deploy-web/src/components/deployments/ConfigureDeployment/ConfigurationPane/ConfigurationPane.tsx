@@ -34,7 +34,7 @@ export const ConfigurationPane: FC<Props> = ({ selectedServiceId, locked = false
 
   return (
     <section aria-labelledby="configure-configuration-pane-heading" className="flex h-full min-h-0 flex-col">
-      <header className="hidden h-[52px] shrink-0 items-center gap-2 border-b border-zinc-300 px-4 md:flex dark:border-zinc-700">
+      <header className="flex h-[52px] shrink-0 items-center gap-2 border-b border-zinc-300 px-4 dark:border-zinc-700">
         <h2 id="configure-configuration-pane-heading" className="shrink-0 font-mono text-sm font-medium uppercase text-muted-foreground">
           2. Configuration
         </h2>

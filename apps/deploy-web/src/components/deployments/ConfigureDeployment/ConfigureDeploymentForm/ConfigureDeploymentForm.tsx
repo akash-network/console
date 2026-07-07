@@ -186,7 +186,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
           <div className="px-6 pt-6">
             <d.ConfigureDeploymentHeader flow={flow} sdl={liveSdl} onDeploy={() => setReviewOpen(true)} allPlacementsHaveBids={allPlacementsHaveBids} />
           </div>
-          <div className="relative mt-6 flex min-h-0 flex-1">
+          <div className="relative mt-6 flex min-h-0 flex-1 overflow-x-auto">
             <d.ConfigureDeploymentPanes
               sdl={liveSdl}
               previewSdl={previewSdl}

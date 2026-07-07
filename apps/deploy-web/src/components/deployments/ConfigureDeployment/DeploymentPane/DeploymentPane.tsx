@@ -53,7 +53,7 @@ export const DeploymentPane: FC<Props> = ({
 
   if (minimized) {
     return (
-      <aside aria-label="Deployment pane (minimized)" className="hidden h-full min-h-0 md:flex md:w-[48px] md:flex-col md:items-center md:pt-2">
+      <aside aria-label="Deployment pane (minimized)" className="flex h-full min-h-0 w-[48px] flex-col items-center pt-2">
         <Button type="button" variant="ghost" onClick={toggle} aria-label="Show deployment pane" className="h-8 w-8 rounded p-0 text-foreground">
           <SidebarExpand className="h-5 w-5" />
         </Button>
@@ -62,8 +62,8 @@ export const DeploymentPane: FC<Props> = ({
   }
 
   return (
-    <section aria-labelledby="configure-deployment-pane-heading" className="flex h-full min-h-0 flex-col md:w-[231px]">
-      <header className="hidden h-[52px] shrink-0 items-center justify-between gap-2 border-b border-zinc-300 px-4 md:flex dark:border-zinc-700">
+    <section aria-labelledby="configure-deployment-pane-heading" className="flex h-full min-h-0 w-[231px] flex-col">
+      <header className="flex h-[52px] shrink-0 items-center justify-between gap-2 border-b border-zinc-300 px-4 dark:border-zinc-700">
         <h2 id="configure-deployment-pane-heading" className="font-mono text-sm font-medium uppercase text-muted-foreground">
           1. Deployment
         </h2>

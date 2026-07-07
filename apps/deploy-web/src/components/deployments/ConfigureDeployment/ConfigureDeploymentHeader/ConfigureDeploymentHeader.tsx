@@ -2,7 +2,6 @@ import type { FC, ReactNode } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Button, CustomTooltip, Snackbar } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Send } from "iconoir-react";
 import { Clock, LoaderCircle } from "lucide-react";
 import { useSnackbar } from "notistack";
 
@@ -88,27 +87,28 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, onDeploy, allP
   });
 
   return (
-    <header className="flex flex-row items-center justify-between gap-3 md:items-end">
-      <div className="flex min-w-0 flex-1 flex-col gap-1 md:gap-2">
+    <header className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+      <div className="flex min-w-0 flex-col gap-1 md:gap-2 xl:flex-1">
         <h1 className="text-xl font-bold leading-tight tracking-tight md:text-3xl md:leading-9">Configure your deployment</h1>
         <p className="hidden text-base text-muted-foreground md:block">
-          Adjust your deployment spec to refine available providers in the compute marketplace. Request official quotes when you&apos;re ready.
+          Adjust your deployment spec to refine available providers in the compute marketplace.
+          <br />
+          Request official quotes when you&apos;re ready.
         </p>
       </div>
 
-      <div className="flex shrink-0 items-center gap-3 md:gap-6">
+      <div className="flex items-center justify-between gap-3 md:gap-6 xl:shrink-0 xl:justify-start">
         <div className="flex items-start gap-3 md:gap-6">
           <DeploymentSummaryBlock label="Your deployment" value={deploymentSummary} />
           <div className="hidden h-12 w-px self-stretch bg-border md:block" aria-hidden="true" />
-          <div className="flex flex-col items-end gap-0.5">
+          <div className="flex flex-col items-start gap-0.5 xl:items-end">
             <DeploymentSummaryBlock label="Deployment cost" value={<CostValue cost={cost} PriceValue={d.PriceValue} />} suffix={cost ? "/hr" : undefined} />
             <div className="h-4">{expiry ? <QuoteExpiryLine expiry={expiry} CustomTooltip={d.CustomTooltip} /> : null}</div>
           </div>
         </div>
         {isEditable ? (
           <Button type="button" onClick={onRequestQuotes} className="h-9 shrink-0 px-3 md:h-10 md:px-8">
-            <Send className="h-4 w-4 md:hidden" aria-label="Request quotes" />
-            <span className="hidden md:inline">Request quotes</span>
+            Request quotes
           </Button>
         ) : quotesExpired && !hasOpenBids ? (
           <Button type="button" onClick={flow.actions.cancelAndEdit} className="h-9 shrink-0 px-3 md:h-10 md:px-8">
@@ -127,7 +127,7 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, onDeploy, allP
         ) : (
           <Button type="button" disabled aria-label={isClosing ? "Cancelling" : "Requesting"} className="h-9 shrink-0 gap-2 px-3 md:h-10 md:px-8">
             <LoaderCircle className="h-4 w-4 animate-spin text-current" aria-hidden="true" />
-            <span className="hidden md:inline">{isClosing ? "Cancelling…" : "Requesting…"}</span>
+            <span>{isClosing ? "Cancelling…" : "Requesting…"}</span>
           </Button>
         )}
       </div>
@@ -143,7 +143,7 @@ interface DeploymentSummaryBlockProps {
 
 function DeploymentSummaryBlock({ label, value, suffix }: DeploymentSummaryBlockProps) {
   return (
-    <div className="flex flex-col items-end">
+    <div className="flex flex-col items-start xl:items-end">
       <span className="font-mono text-[10px] uppercase text-muted-foreground md:text-sm">{label}</span>
       <div className="flex items-baseline gap-1">
         <span className="font-mono text-base font-semibold leading-tight md:text-xl md:leading-8">{value}</span>
