@@ -3,12 +3,11 @@ import { extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { usePhasedProgressBar } from "@src/hooks/useGradualProgress/usePhasedProgressBar";
+import type { DeployPhase, DeployPhaseId, DeployProgressState } from "@src/hooks/usePhasedDeploymentFlow/deployPhases";
+import { buildDeployPhases, PHASE_MARKERS, PHASE_ORDER, PHASE_TIME_CONSTANTS } from "@src/hooks/usePhasedDeploymentFlow/deployPhases";
 import { useFirstReachableProvider, useProviderList } from "@src/queries/useProvidersQuery";
 import type { ApiProviderList } from "@src/types/provider";
 import { ManifestYaml } from "@src/utils/deploymentData/helpers";
-
-type DeploymentPhaseId = "creating" | "matching" | "preparing";
-type DeploymentPhaseStatus = "pending" | "active" | "completed";
 
 /** The four coordinates that identify a lease/bid; the payload `createLease` needs to create a lease and send its manifest. */
 type LeaseId = { dseq: string; gseq: number; oseq: number; provider: string };
@@ -36,53 +35,22 @@ type Options = {
   onDeploymentCreated?: (dseq: string) => void;
 };
 
-type DeploymentPhase = {
-  id: DeploymentPhaseId;
-  label: string;
-  status: DeploymentPhaseStatus;
-};
-
-type State = { kind: "creating" | "matching" | "preparing" | "success" } | { kind: "error"; message?: string };
-
 type Result = {
-  state: State;
+  state: DeployProgressState;
   progressPercent: number;
-  phases: [DeploymentPhase, DeploymentPhase, DeploymentPhase];
+  phases: [DeployPhase, DeployPhase, DeployPhase];
   matchedProviderAddress: string | null;
   retry: () => void;
   startOver: () => void;
 };
 
-type InternalPhase = DeploymentPhaseId | "success" | "error";
+type InternalPhase = DeployPhaseId | "success" | "error";
 
 /** Poll cadence for `listBids` while we wait for the first active bid. The chain's bid-screening usually settles in <10s. */
 const BID_POLL_INTERVAL = 2000;
 
 /** Maximum bid-wait window. After this we fail the flow with an error overlay. */
 const BID_TIMEOUT_MS = 300_000;
-
-const PHASE_ORDER: ReadonlyArray<DeploymentPhaseId> = ["creating", "matching", "preparing"];
-
-/**
- * Where each phase *ends* on the bar (0–100). These mirror the checkpoint marker positions
- * in DeployPhasesCard (`(i + 1) / phases.length * 100`), so the fill lands exactly on a
- * marker when its phase completes. Phase `i` eases from `PHASE_MARKERS[i - 1]` toward
- * `PHASE_MARKERS[i]` while it's being worked on.
- */
-const PHASE_MARKERS: ReadonlyArray<number> = PHASE_ORDER.map((_, i) => ((i + 1) / PHASE_ORDER.length) * 100);
-
-/**
- * Per-phase easing time constant in ms — roughly how long that phase typically takes, which
- * sets how fast the bar creeps toward the next marker. `creating` is a quick tx broadcast;
- * `matching` is the long bid-poll/provider-probe wait; `preparing` is a medium lease step.
- */
-const PHASE_TIME_CONSTANTS: ReadonlyArray<number> = [3000, 12000, 6000];
-
-const PHASE_LABELS: Record<DeploymentPhaseId, { active: string; completed: string }> = {
-  creating: { active: "Creating deployment", completed: "Deployment created" },
-  matching: { active: "Matching with providers", completed: "Providers matched" },
-  preparing: { active: "Preparing deployment", completed: "Deployment prepared" }
-};
 
 export function usePhasedDeploymentFlow({ sdl, deposit, onSuccess, isWalletReady, trialError, initialDseq, onDeploymentCreated }: Options): Result {
   const { api } = useServices();
@@ -269,7 +237,7 @@ export function usePhasedDeploymentFlow({ sdl, deposit, onSuccess, isWalletReady
   );
 
   const phaseIndex = getPhaseIndex(phase);
-  const phases = buildPhases(phaseIndex, phase === "success");
+  const phases = buildDeployPhases(phaseIndex, phase === "success");
 
   const progressPercent = usePhasedProgressBar({
     markers: PHASE_MARKERS,
@@ -306,23 +274,4 @@ function getPhaseIndex(phase: InternalPhase): number {
   if (phase === "success") return PHASE_ORDER.length;
   if (phase === "error") return 0;
   return PHASE_ORDER.indexOf(phase);
-}
-
-function buildPhases(activeIndex: number, allCompleted = false): [DeploymentPhase, DeploymentPhase, DeploymentPhase] {
-  const phases = PHASE_ORDER.map((id, i): DeploymentPhase => {
-    let status: DeploymentPhaseStatus;
-    if (allCompleted || i < activeIndex) {
-      status = "completed";
-    } else if (i === activeIndex) {
-      status = "active";
-    } else {
-      status = "pending";
-    }
-    return {
-      id,
-      label: status === "completed" ? PHASE_LABELS[id].completed : PHASE_LABELS[id].active,
-      status
-    };
-  });
-  return phases as [DeploymentPhase, DeploymentPhase, DeploymentPhase];
 }

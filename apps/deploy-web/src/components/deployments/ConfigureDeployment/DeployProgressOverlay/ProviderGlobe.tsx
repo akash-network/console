@@ -26,13 +26,11 @@ interface Props {
 }
 
 /**
- * The provider globe behind the deploy-progress panel: every online provider while matching, narrowing to
- * the chosen provider once one is selected. The configure flow is the home for the deploy-progress surface;
- * onboarding's quick-deploy renders the same globe and will fold into this when it redirects here.
- * TODO(onboarding-merge): the globe constants, cobe options and marker mapping here are duplicated from
- * PhasedDeploymentContainer; consolidate into one shared globe when that fold-in happens.
+ * The shared provider globe behind the deploy-progress panel: every online provider while matching, narrowing
+ * to the chosen provider once one is selected. Rendered by both the onboarding-driven auto flow and the manual
+ * configure deploy via {@link PhasedDeployProgressScene}.
  */
-export const ProvidersGlobe: FC<Props> = ({ focusedProviderAddress, dependencies: d = DEPENDENCIES }) => {
+export const ProviderGlobe: FC<Props> = ({ focusedProviderAddress, dependencies: d = DEPENDENCIES }) => {
   const documentTheme = d.useTheme();
   const { data: providers } = d.useProviderList();
 
