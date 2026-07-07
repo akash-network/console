@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import type { ApiProviderList } from "@src/types/provider";
+import { helloWorldTemplate } from "@src/utils/templates";
 import { usePhasedDeploymentFlow } from "./usePhasedDeploymentFlow";
 
 import { act } from "@testing-library/react";
@@ -141,6 +142,43 @@ describe(usePhasedDeploymentFlow.name, () => {
     expect(createDeployment).not.toHaveBeenCalled();
   });
 
+  it("notifies onDeploymentCreated with the dseq once the deployment is created", async () => {
+    const onDeploymentCreated = vi.fn();
+    const { result } = setup({ onDeploymentCreated, providerProxyRequest: vi.fn().mockRejectedValue(new Error("unreachable")) });
+
+    await vi.waitFor(() => expect(result.current.state.kind).toBe("matching"));
+
+    expect(onDeploymentCreated).toHaveBeenCalledWith(DSEQ);
+  });
+
+  describe("when resuming with a dseq from the URL", () => {
+    it("starts in matching without creating a new deployment", async () => {
+      const { result, createDeployment } = setup({ initialDseq: DSEQ, listBids: vi.fn().mockResolvedValue({ data: [] }) });
+
+      expect(result.current.state.kind).toBe("matching");
+      expect(result.current.phases[0].status).toBe("completed");
+      expect(result.current.phases[1].status).toBe("active");
+
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      expect(result.current.state.kind).toBe("matching");
+      expect(createDeployment).not.toHaveBeenCalled();
+    });
+
+    it("resumes straight to preparing and submits the existing lease when one is already on chain", async () => {
+      const getDeployment = vi.fn().mockResolvedValue({
+        data: { leases: [{ id: { dseq: DSEQ, gseq: 2, oseq: 3, provider: PROVIDER_OWNER }, state: "active" }] }
+      });
+      const { result, createDeployment, createLease } = setup({ initialDseq: DSEQ, sdl: helloWorldTemplate.content, getDeployment });
+
+      await vi.waitFor(() => expect(result.current.state.kind).toBe("success"));
+
+      expect(createDeployment).not.toHaveBeenCalled();
+      expect(result.current.matchedProviderAddress).toBe(PROVIDER_OWNER);
+      expect(createLease).toHaveBeenCalledWith(expect.objectContaining({ leases: [{ dseq: DSEQ, gseq: 2, oseq: 3, provider: PROVIDER_OWNER }] }));
+    });
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -149,9 +187,12 @@ describe(usePhasedDeploymentFlow.name, () => {
     sdl?: string;
     deposit?: number;
     onSuccess?: (dseq: string) => void;
+    onDeploymentCreated?: (dseq: string) => void;
+    initialDseq?: string;
     createDeployment?: ReturnType<typeof vi.fn>;
     createLease?: ReturnType<typeof vi.fn>;
     listBids?: ReturnType<typeof vi.fn>;
+    getDeployment?: ReturnType<typeof vi.fn>;
     providerProxyRequest?: ReturnType<typeof vi.fn>;
     isWalletReady?: boolean;
     trialError?: unknown;
@@ -170,8 +211,9 @@ describe(usePhasedDeploymentFlow.name, () => {
     const createDeployment = input?.createDeployment ?? vi.fn().mockResolvedValue({ data: { dseq: DSEQ, manifest: MANIFEST } });
     const createLease = input?.createLease ?? vi.fn().mockResolvedValue({ data: {} });
     const listBids = input?.listBids ?? vi.fn().mockResolvedValue({ data: [bid] });
+    const getDeployment = input?.getDeployment ?? vi.fn().mockResolvedValue({ data: { leases: [] } });
 
-    const api = createProxy({ v1: { createDeployment, createLease, listBids } });
+    const api = createProxy({ v1: { createDeployment, createLease, listBids, getDeployment } });
 
     const providerProxy = mock<ProviderProxyService>();
     if (input?.providerProxyRequest) {
@@ -189,6 +231,8 @@ describe(usePhasedDeploymentFlow.name, () => {
           deposit: input?.deposit ?? 5000000,
           isWalletReady: input?.isWalletReady ?? true,
           trialError: input?.trialError,
+          initialDseq: input?.initialDseq,
+          onDeploymentCreated: input?.onDeploymentCreated,
           onSuccess: input?.onSuccess ?? vi.fn()
         }),
       {
@@ -200,6 +244,6 @@ describe(usePhasedDeploymentFlow.name, () => {
       }
     );
 
-    return { ...view, createDeployment, createLease, listBids, providerProxy };
+    return { ...view, createDeployment, createLease, listBids, getDeployment, providerProxy };
   }
 });

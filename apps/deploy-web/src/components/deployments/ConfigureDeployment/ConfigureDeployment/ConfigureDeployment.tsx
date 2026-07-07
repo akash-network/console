@@ -79,9 +79,6 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const initialSdl = draft.persistedSdl ?? hardcodedTemplate?.content ?? (fetchedTemplateId ? templateQuery.data?.deploy : deploySdl?.content);
   const initialName = draft.persistedName ?? hardcodedTemplate?.name ?? (fetchedTemplateId ? templateQuery.data?.name : undefined);
 
-  // A `sdl-strategy=default` + `bid-strategy=auto` intent deploys the resolved template automatically via the phased
-  // globe flow instead of opening the manual form. A dseq (present once the deployment exists) resumes that same flow
-  // on reload rather than starting a new one.
   const isAutoDeploy = resolvedIntent.sdlStrategy === "default" && resolvedIntent.bidStrategy === "auto";
   if (isAutoDeploy && initialSdl) {
     const templateName = templateQuery.data?.name ?? hardcodedTemplate?.title ?? "your deployment";

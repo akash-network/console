@@ -30,7 +30,7 @@ interface Props {
  * to the chosen provider once one is selected. Rendered by both the onboarding-driven auto flow and the manual
  * configure deploy via {@link PhasedDeployProgressScene}.
  */
-export const ProviderGlobe: FC<Props> = ({ focusedProviderAddress, dependencies: d = DEPENDENCIES }) => {
+export const ProvidersGlobe: FC<Props> = ({ focusedProviderAddress, dependencies: d = DEPENDENCIES }) => {
   const documentTheme = d.useTheme();
   const { data: providers } = d.useProviderList();
 

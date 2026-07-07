@@ -4,9 +4,9 @@ import { cn } from "@akashnetwork/ui/utils";
 
 import { PhasedDeploymentProgress } from "@src/components/deployments/PhasedDeploymentProgress/PhasedDeploymentProgress";
 import type { DeployPhase, DeployProgressState } from "@src/hooks/usePhasedDeploymentFlow/deployPhases";
-import { ProviderGlobe } from "./ProviderGlobe";
+import { ProvidersGlobe } from "./ProvidersGlobe";
 
-export const DEPENDENCIES = { PhasedDeploymentProgress, ProviderGlobe };
+export const DEPENDENCIES = { PhasedDeploymentProgress, ProviderGlobe: ProvidersGlobe };
 
 interface Props {
   templateName: string;
