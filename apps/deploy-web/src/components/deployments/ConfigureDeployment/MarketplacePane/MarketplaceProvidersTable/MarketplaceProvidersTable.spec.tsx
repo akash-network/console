@@ -130,6 +130,16 @@ describe(MarketplaceProvidersTable.name, () => {
     expect(screen.getByText("Cost")).toBeInTheDocument();
   });
 
+  it("shows the cost per hour when the spec uses a GPU", () => {
+    setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" })], showCostAsHourly: true });
+    expect(screen.getByText("/hr")).toBeInTheDocument();
+  });
+
+  it("shows the cost per month for a CPU-only spec so an inexpensive deployment doesn't read as $0.00/hr", () => {
+    setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" })], showCostAsHourly: false });
+    expect(screen.getByText("/month")).toBeInTheDocument();
+  });
+
   it("shows only Provider, Region, and Uptime while every offer is still searching", () => {
     setup({ providers: [searchingOffer({ owner: "akash1a" })] });
     expect(screen.getAllByRole("columnheader")).toHaveLength(3);
@@ -296,7 +306,14 @@ describe(MarketplaceProvidersTable.name, () => {
     });
   }
 
-  function setup(input: { providers: PlacementOffer[]; isLoading?: boolean; isSearchActive?: boolean; onClearSearch?: () => void; selectedBidId?: string }) {
+  function setup(input: {
+    providers: PlacementOffer[];
+    isLoading?: boolean;
+    isSearchActive?: boolean;
+    onClearSearch?: () => void;
+    selectedBidId?: string;
+    showCostAsHourly?: boolean;
+  }) {
     const onSelect = vi.fn();
     const user = userEvent.setup();
     render(
@@ -310,6 +327,7 @@ describe(MarketplaceProvidersTable.name, () => {
               onClearSearch={input.onClearSearch}
               selectedBidId={input.selectedBidId}
               onSelect={onSelect}
+              showCostAsHourly={input.showCostAsHourly}
             />
           </TooltipProvider>
         </IntlProvider>

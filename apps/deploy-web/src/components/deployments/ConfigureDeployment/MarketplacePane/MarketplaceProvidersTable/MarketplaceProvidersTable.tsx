@@ -30,9 +30,11 @@ interface Props {
   onClearSearch?: () => void;
   selectedBidId?: string;
   onSelect?: (bidId: string) => void;
+  /** When true the cost column renders an hourly rate (GPU specs); otherwise a monthly rate, so inexpensive CPU-only deployments don't round to `$0.00/hr`. */
+  showCostAsHourly?: boolean;
 }
 
-export const MarketplaceProvidersTable: FC<Props> = ({ providers, isLoading, isSearchActive, onClearSearch, selectedBidId, onSelect }) => {
+export const MarketplaceProvidersTable: FC<Props> = ({ providers, isLoading, isSearchActive, onClearSearch, selectedBidId, onSelect, showCostAsHourly = false }) => {
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const uptimeByOwner = useProvidersUptime(providers);
@@ -41,8 +43,8 @@ export const MarketplaceProvidersTable: FC<Props> = ({ providers, isLoading, isS
   /** Cost only makes sense once bids arrive: a submitted bid is priced and a closed/expired one keeps its last price, but a screened-only candidate has none. */
   const showCost = providers.some(provider => !!provider.price);
   const columns = useMemo(
-    () => buildColumns(uptimeByOwner, { selectedBidId, onSelect, showCost, showStatus: isMerged }),
-    [uptimeByOwner, selectedBidId, onSelect, showCost, isMerged]
+    () => buildColumns(uptimeByOwner, { selectedBidId, onSelect, showCost, showStatus: isMerged, showCostAsHourly }),
+    [uptimeByOwner, selectedBidId, onSelect, showCost, isMerged, showCostAsHourly]
   );
 
   const table = useReactTable({
@@ -170,7 +172,7 @@ function SortableHeader({ column, title }: { column: Column<PlacementOffer, unkn
 /** Builds the columns, closing over the per-provider uptime derived once in the component. Every column is an accessor so it sorts; the trailing status column is display-only. */
 function buildColumns(
   uptimeByOwner: Map<string, ProviderUptime>,
-  selection: { selectedBidId?: string; onSelect?: (bidId: string) => void; showCost: boolean; showStatus: boolean }
+  selection: { selectedBidId?: string; onSelect?: (bidId: string) => void; showCost: boolean; showStatus: boolean; showCostAsHourly: boolean }
 ) {
   return [
     columnHelper.accessor(providerDisplayName, {
@@ -195,7 +197,7 @@ function buildColumns(
             cell: ({ row }) => {
               const { price } = row.original;
               if (!price) return <span className="text-muted-foreground">{NO_REGION}</span>;
-              return <PricePerTimeUnit denom={price.denom} perBlockValue={udenomToDenom(price.amount, PRICE_DISPLAY_PRECISION)} showAsHourly abbreviated />;
+              return <PricePerTimeUnit denom={price.denom} perBlockValue={udenomToDenom(price.amount, PRICE_DISPLAY_PRECISION)} showAsHourly={selection.showCostAsHourly} abbreviated />;
             }
           })
         ]

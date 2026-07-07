@@ -10,10 +10,17 @@ import { SdlBuilderFormValuesSchema } from "@src/types";
 import { defaultService, defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { DEPENDENCIES, RuntimeCard } from "./RuntimeCard";
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(RuntimeCard.name, () => {
+  it("renders collapsed by default", () => {
+    setup({ expanded: false });
+
+    expect(screen.queryByRole("spinbutton", { name: "Replicas" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Expand Runtime" })).toBeInTheDocument();
+  });
+
   it("disables the replica and ssh inputs while locked", () => {
     setup({ locked: true, hasSSHKey: true, sshPubKey: "ssh-rsa AAAATESTKEY user@host" });
 
@@ -188,6 +195,7 @@ describe(RuntimeCard.name, () => {
     env?: Array<{ key: string; value?: string }>;
     extraServices?: number;
     locked?: boolean;
+    expanded?: boolean;
     resolver?: Resolver<SdlBuilderFormValuesType>;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
@@ -248,6 +256,10 @@ describe(RuntimeCard.name, () => {
       </Wrapper>
     );
 
+    if (input.expanded ?? true) {
+      fireEvent.click(screen.getByRole("button", { name: "Expand Runtime" }));
+    }
+
     return { getValues: () => getValues() };
   }
 
@@ -288,5 +300,7 @@ describe(RuntimeCard.name, () => {
         <RuntimeCard serviceIndex={0} dependencies={{ ...DEPENDENCIES, saveAs: vi.fn(), loadJSZip: vi.fn() }} />
       </Wrapper>
     );
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand Runtime" }));
   }
 });

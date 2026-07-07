@@ -10,3 +10,14 @@ export function useDeploymentResourceSummary(): string {
   const services = useWatch({ control, name: "services" });
   return useMemo(() => formatDeploymentResources(aggregateDeploymentResources(services ?? [])), [services]);
 }
+
+/**
+ * True when the current spec requests any GPU. Drives GPU-vs-CPU-only presentation choices — notably the
+ * marketplace cost unit, which shows hourly for GPU (meaningful at that scale) and monthly for CPU-only (so an
+ * inexpensive deployment reads as e.g. `$30/month` rather than rounding to `$0.00/hr`).
+ */
+export function useDeploymentHasGpu(): boolean {
+  const { control } = useFormContext<SdlBuilderFormValuesType>();
+  const services = useWatch({ control, name: "services" });
+  return useMemo(() => aggregateDeploymentResources(services ?? []).gpu > 0, [services]);
+}
