@@ -15,6 +15,7 @@ const LLM_ID = "akash-network-awesome-akash-Llama-3.1-8B";
 
 type PickerCardProps = Parameters<typeof DEPENDENCIES.DeploymentTemplatePickerCard>[0];
 type SheetProps = Parameters<typeof DEPENDENCIES.AddCreditsSheet>[0];
+type ButtonProps = Parameters<typeof DEPENDENCIES.Button>[0];
 
 describe(OnboardingPickerPage.name, () => {
   it("renders a card per template", () => {
@@ -135,7 +136,7 @@ describe(OnboardingPickerPage.name, () => {
     expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).isWalletReady).toBe(false);
   });
 
-  it("closes the verification sheet when onDone fires", () => {
+  it("closes the verification sheet when the sheet requests to close", () => {
     const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
     const AddCreditsSheet = vi.fn(ComponentMock);
     setup({ isTrialing: true, dependencies: { DeploymentTemplatePickerCard, AddCreditsSheet } });
@@ -143,9 +144,60 @@ describe(OnboardingPickerPage.name, () => {
     act(() => getCard(DeploymentTemplatePickerCard, "LLM Chatbot").onDeploy!());
     expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(true);
 
-    act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onDone(100, "Acme"));
+    act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onOpenChange(false));
 
     expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(false);
+  });
+
+  it("deploys the LLM template when the verification sheet completes after the gated LLM prompt", () => {
+    const push = vi.fn();
+    const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
+    const AddCreditsSheet = vi.fn(ComponentMock);
+    setup({ isTrialing: true, push, dependencies: { DeploymentTemplatePickerCard, AddCreditsSheet } });
+
+    act(() => getCard(DeploymentTemplatePickerCard, "LLM Chatbot").onDeploy!());
+    act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onDone(100, "Acme"));
+
+    expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: LLM_ID, sdlStrategy: "default", bidStrategy: "auto" }));
+  });
+
+  it("renders a button to skip the trial and unlock Console while trialing", () => {
+    setup({ isTrialing: true });
+
+    expect(screen.getByText(/Skip the trial - unlock Console/i)).toBeInTheDocument();
+  });
+
+  it("hides the skip-the-trial button once the user is no longer trialing", () => {
+    setup({ isTrialing: false });
+
+    expect(screen.queryByText(/Skip the trial - unlock Console/i)).not.toBeInTheDocument();
+  });
+
+  it("opens the verification sheet when the skip-the-trial button is clicked", () => {
+    const push = vi.fn();
+    // Button is a forwardRef component; a plain mock can't satisfy its ref type, so cast the override only.
+    const Button = vi.fn(ComponentMock);
+    const AddCreditsSheet = vi.fn(ComponentMock);
+    setup({ isTrialing: true, push, dependencies: { Button: Button as unknown as typeof DEPENDENCIES.Button, AddCreditsSheet } });
+
+    const skipButton = Button.mock.calls.at(-1)![0] as ButtonProps;
+    act(() => (skipButton.onClick as () => void)());
+
+    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(true);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("redirects to the configure view when the verification sheet completes after skipping the trial", () => {
+    const push = vi.fn();
+    const Button = vi.fn(ComponentMock);
+    const AddCreditsSheet = vi.fn(ComponentMock);
+    setup({ isTrialing: true, push, dependencies: { Button: Button as unknown as typeof DEPENDENCIES.Button, AddCreditsSheet } });
+
+    const skipButton = Button.mock.calls.at(-1)![0] as ButtonProps;
+    act(() => (skipButton.onClick as () => void)());
+    act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onDone(100, "Acme"));
+
+    expect(push).toHaveBeenCalledWith(UrlService.configureDeployment());
   });
 
   function getCard(DeploymentTemplatePickerCard: ReturnType<typeof vi.fn>, title: string) {

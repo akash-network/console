@@ -3,7 +3,7 @@
 import React from "react";
 import { useState } from "react";
 import { Alert, AlertDescription, Button } from "@akashnetwork/ui/components";
-import { ArrowRight } from "iconoir-react";
+import { ArrowRight } from "lucide-react";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -33,7 +33,8 @@ export const DEPENDENCIES = {
   useEnsureTrialStarted,
   useServices,
   DeploymentTemplatePickerCard,
-  AddCreditsSheet
+  AddCreditsSheet,
+  Button
 };
 
 type OnboardingPickerPageProps = {
@@ -45,7 +46,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   const { isTrialing } = d.useWallet();
   const { publicConfig, urlService } = d.useServices();
   const trialCreditsAmount = publicConfig.NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT;
-  const [isAddCreditsSheetOpen, setIsAddCreditsSheetOpen] = useState(false);
+  const [addCreditsSheetReason, setAddCreditsSheetReason] = useState<"unlock-gpu" | "skip-trial" | null>(null);
   const { isWalletReady, error: trialError } = d.useEnsureTrialStarted();
   const isLlmGated = isTrialing || !isWalletReady;
   const isLlmAvailable = !isLlmGated;
@@ -125,31 +126,48 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
                 ctaVariant="outline"
                 heroImageSrc="/images/onboarding/llm-chatbot.png"
                 heroImageAlt="LLM chatbot template"
-                onDeploy={() => (isLlmAvailable ? deployTemplate(TEMPLATE_IDS.llmChatbot) : setIsAddCreditsSheetOpen(true))}
+                onDeploy={() => (isLlmAvailable ? deployTemplate(TEMPLATE_IDS.llmChatbot) : setAddCreditsSheetReason("unlock-gpu"))}
               />
             </div>
 
-            <div className="mb-8 flex w-full flex-col items-start gap-3 rounded-xl border border-border bg-background p-4 sm:flex-row sm:items-center">
-              <div className="flex flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-                <p className="text-sm font-semibold leading-5 text-foreground">Already have a Docker Image?</p>
-                <p className="text-xs leading-4 text-muted-foreground">Recommended for experienced developers who want to get started right away.</p>
+            <div className="mb-8">
+              <div className="mb-6 flex w-full flex-col items-start gap-3 rounded-xl border border-border bg-background p-4 sm:flex-row sm:items-center">
+                <div className="flex flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                  <p className="text-sm font-semibold leading-5 text-foreground">Already have a Docker Image?</p>
+                  <p className="text-xs leading-4 text-muted-foreground">Recommended for experienced developers who want to get started right away.</p>
+                </div>
+
+                <Button variant="outline" className="w-full gap-2 no-underline hover:no-underline sm:w-auto" asChild>
+                  <Link href={urlService.configureDeployment()}>
+                    <span>Deploy image</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
               </div>
 
-              <Button variant="outline" className="w-full gap-2 no-underline hover:no-underline sm:w-auto" asChild>
-                <Link href={urlService.configureDeployment()}>
-                  <span>Deploy image</span>
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
+              {isTrialing && (
+                <div className="text-center">
+                  <d.Button onClick={() => setAddCreditsSheetReason("skip-trial")} variant="ghost">
+                    Skip the trial - unlock Console
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </d.Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         <d.AddCreditsSheet
-          open={isAddCreditsSheetOpen}
-          onOpenChange={setIsAddCreditsSheetOpen}
+          open={addCreditsSheetReason !== null}
+          onOpenChange={open => setAddCreditsSheetReason(open ? "unlock-gpu" : null)}
           isWalletReady={isWalletReady}
-          onDone={() => setIsAddCreditsSheetOpen(false)}
+          onDone={() => {
+            if (addCreditsSheetReason === "unlock-gpu") {
+              deployTemplate(TEMPLATE_IDS.llmChatbot);
+            } else if (addCreditsSheetReason === "skip-trial") {
+              router.push(urlService.configureDeployment());
+            }
+          }}
         />
       </div>
     </>
