@@ -23,6 +23,7 @@ export function useCreateManagedWalletMutation() {
   const { managedWalletService } = useServices();
   const queryClient = useQueryClient();
   return useMutation({
+    mutationKey: QueryKeys.getManagedWalletCreateMutationKey(),
     mutationFn: async (userId: string) => await managedWalletService.createWallet(userId),
     retry: failureCount => failureCount < 3,
     retryDelay: attempt => Math.min(1000 * 2 ** attempt, 30_000),
