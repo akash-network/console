@@ -166,6 +166,8 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
               deployTemplate(TEMPLATE_IDS.llmChatbot);
             } else if (addCreditsSheetReason === "skip-trial") {
               router.push(urlService.configureDeployment());
+            } else {
+              setAddCreditsSheetReason(null);
             }
           }}
         />

@@ -77,6 +77,13 @@ export class QueryKeys {
 
   static getManagedWalletKey = (userId?: string) => ["MANAGED_WALLET", userId || ""];
 
+  /**
+   * Mutation key for creating/starting a managed (trial) wallet. It tags the create mutation so an
+   * in-flight create is discoverable from any component via `useIsMutating`, regardless of which
+   * `useManagedWallet` instance fired it (e.g. the onboarding picker vs. the persistent WalletProvider).
+   */
+  static getManagedWalletCreateMutationKey = () => ["MANAGED_WALLET_CREATE"];
+
   static getPaymentTransactionsKey = (options?: {
     limit?: number;
     startingAfter?: string | null;
