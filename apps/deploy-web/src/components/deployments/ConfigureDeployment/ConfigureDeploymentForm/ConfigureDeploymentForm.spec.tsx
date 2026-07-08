@@ -239,7 +239,20 @@ describe(ConfigureDeploymentForm.name, () => {
     await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), "my-app"));
   });
 
-  function setup(input: { initialSdl: string | undefined; initialName?: string; Panes?: typeof SdlProbePanes; draftId?: string; deploySucceeded?: boolean }) {
+  it("toasts when the flow reports an error, such as the no-providers timeout", () => {
+    const { enqueueSnackbar } = setup({ initialSdl: undefined, flowError: { message: "No providers are available" } });
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" }));
+  });
+
+  function setup(input: {
+    initialSdl: string | undefined;
+    initialName?: string;
+    Panes?: typeof SdlProbePanes;
+    draftId?: string;
+    deploySucceeded?: boolean;
+    flowError?: { message?: string };
+  }) {
     const ConfigureDeploymentPanes = vi.fn(input.Panes ?? (() => <div data-testid="panes-mock" />));
     const enqueueSnackbar = vi.fn();
     const Snackbar = vi.fn(() => null);
@@ -261,7 +274,8 @@ describe(ConfigureDeploymentForm.name, () => {
           phase: "configuring",
           dseq: null,
           bidStrategy: "select",
-          deploySucceeded: input.deploySucceeded ?? false
+          deploySucceeded: input.deploySucceeded ?? false,
+          error: input.flowError
         })) as never,
       useDeploymentName,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),

@@ -40,6 +40,64 @@ describe(useDeploymentFlow.name, () => {
     await waitFor(() => expect(result.current.phase).toBe("error"));
   });
 
+  it("times out to an error when no providers bid within the window", () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" } });
+      expect(result.current.phase).toBe("quoting");
+
+      act(() => vi.advanceTimersByTime(60_000));
+
+      expect(result.current.phase).toBe("error");
+      expect(result.current.error?.message).toContain("No providers");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not time out once a provider has bid", () => {
+    vi.useFakeTimers();
+    try {
+      const openBid = { bid: { state: "open", price: { amount: "1", denom: "uakt" }, id: { provider: "p", dseq: "777", gseq: 1, oseq: 1 } } };
+      const { result } = renderFlow({ intent: { dseq: "777" }, listBids: [openBid] });
+      expect(result.current.phase).toBe("quoting");
+
+      act(() => vi.advanceTimersByTime(60_000));
+
+      expect(result.current.phase).toBe("quoting");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not re-arm the no-providers timeout after bids appear and then disappear", () => {
+    vi.useFakeTimers();
+    try {
+      const openBid = { bid: { state: "open", price: { amount: "1", denom: "uakt" }, id: { provider: "p", dseq: "777", gseq: 1, oseq: 1 } } };
+      let bids: Array<typeof openBid> = [openBid];
+      const dependencies: typeof DEPENDENCIES = {
+        useCreateDeployment: (() => mockMutation()) as never,
+        useCloseDeployment: (() => mockMutation()) as never,
+        useCreateLease: (() => mockMutation()) as never,
+        useUpdateDeployment: (() => mockMutation()) as never,
+        useListBids: (() => ({ data: { data: bids }, isLoading: false, isError: false })) as never,
+        useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: vi.fn(), push: vi.fn() })) as never,
+        useDeploymentLocalStorage: (() => mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocalStorage>>()) as never,
+        manifestFromSdl: () => "M"
+      };
+      const { result, rerender } = renderHook(() => useDeploymentFlow({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" } }, dependencies));
+      expect(result.current.phase).toBe("quoting");
+
+      bids = []; // every provider's quote disappears (e.g. expired) after having bid
+      rerender();
+      act(() => vi.advanceTimersByTime(60_000));
+
+      expect(result.current.phase).toBe("quoting");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("cancelAndEdit closes the deployment and returns to configuring", async () => {
     const closeMutate = vi.fn((_args, { onSuccess }) => onSuccess({}));
     const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
@@ -49,6 +107,19 @@ describe(useDeploymentFlow.name, () => {
     await waitFor(() => expect(result.current.phase).toBe("configuring"));
     expect(closeMutate).toHaveBeenCalledWith({ dseq: "777" }, expect.any(Object));
     expect(result.current.dseq).toBeNull();
+  });
+
+  it("clears the dseq from the URL as soon as cancel starts, before the close resolves", () => {
+    const replace = vi.fn();
+    const closeMutate = vi.fn(); // never resolves — proves the URL reset is optimistic, not tied to close-success
+    const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777", templateId: "tpl" }, replace, closeMutate });
+
+    act(() => result.current.actions.cancelAndEdit());
+
+    expect(result.current.phase).toBe("closing");
+    const url = replace.mock.calls.at(-1)?.[0] as string;
+    expect(url.startsWith("/new-deployment/configure?")).toBe(true);
+    expect(url).not.toContain("/configure/777");
   });
 
   it("enters the closing phase while the close mutation is in flight", () => {

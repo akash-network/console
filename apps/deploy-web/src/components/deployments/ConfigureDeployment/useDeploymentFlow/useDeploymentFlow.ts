@@ -11,12 +11,20 @@ import type { BidStrategy, DeploymentIntent } from "./deploymentIntent";
 
 export type DeploymentFlowPhase = "configuring" | "creating" | "quoting" | "closing" | "deploying" | "error";
 
+/** The live bids the flow polls while quoting (react-query-backed). Element shape derived from the shared `listBids` query. */
+export type DeploymentBids = NonNullable<ReturnType<typeof useListBids>["data"]>["data"];
+
 export interface DeploymentFlowState {
   phase: DeploymentFlowPhase;
   dseq: string | null;
   bidStrategy: BidStrategy;
   /** Provider chosen per placement, keyed by placement id; value is the offer's bid id (provider/dseq/gseq/oseq). Sibling state, not a form field. */
   selections: Record<string, string>;
+  /**
+   * Live bids for the current dseq while quoting, from the same react-query entry the flow polls. Empty otherwise.
+   * Surfaced so the auto flow can match a provider off the flow's own query rather than re-declaring `listBids`.
+   */
+  bids: DeploymentBids;
   /** True once the lease is created; the deploy overlay completes its progress before the brief redirect to the deployment. */
   deploySucceeded: boolean;
   deployError?: { message?: string };
@@ -49,6 +57,17 @@ const DEFAULT_DEPOSIT = 0.5;
 
 /** Hold after a successful lease so the deploy overlay's progress bar can fill to 100% and its final step turn green before redirecting. */
 const DEPLOY_SUCCESS_DWELL_MS = 1200;
+
+/**
+ * How long to wait for a *first* bid before giving up on a freshly quoted deployment. Some specs never draw a
+ * single bid (niche resources, tight region filters, or a quiet marketplace); rather than leave the user staring
+ * at "Requesting…" for the full ~5-minute bid window that only makes sense once bids exist, fail fast when none
+ * arrive at all. Reset the instant any open bid lands — from then on the normal quote-expiry window governs.
+ */
+const NO_BIDS_TIMEOUT_MS = 60 * 1000;
+
+/** Error surfaced when a deployment draws no provider bids at all within {@link NO_BIDS_TIMEOUT_MS}. */
+const NO_PROVIDERS_MESSAGE = "No providers are available for this deployment right now. Try adjusting your deployment and requesting quotes again.";
 
 function useCreateDeployment() {
   return useServices().api.v1.createDeployment.useMutation();
@@ -129,8 +148,33 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     [bidsQuery.data]
   );
 
+  const hasOpenBids = (bidsQuery.data?.data ?? []).some(entry => entry.bid.state === "open");
+
+  // Latches true once this deployment has drawn any open bid. Makes the no-providers timeout one-shot: after providers
+  // have bid, their later disappearance (e.g. quotes expiring) must not re-arm it — that's the quote-expiry path, not a
+  // "no providers" failure. Reset per deployment when a fresh quote request starts (see `requestQuotes`).
+  const providersEverBidRef = useRef(false);
+
+  useEffect(
+    function failWhenNoProvidersBid() {
+      if (hasOpenBids) providersEverBidRef.current = true;
+      // Arm only while quoting with nothing shown and no bid ever seen; once a bid has appeared it never re-arms.
+      if (phase !== "quoting" || providersEverBidRef.current) return;
+      const timer = setTimeout(function timeOutWithoutProviders() {
+        setError({ message: NO_PROVIDERS_MESSAGE });
+        setPhase("error");
+      }, NO_BIDS_TIMEOUT_MS);
+      return function cancelNoProvidersTimeout() {
+        clearTimeout(timer);
+      };
+    },
+    [phase, hasOpenBids]
+  );
+
   const requestQuotes = useCallback(
     function requestQuotes(sdl: string) {
+      // A fresh deployment reopens the no-providers window: re-arm the one-shot timeout for the new quoting session.
+      providersEverBidRef.current = false;
       setPhase("creating");
       setError(undefined);
       createDeployment.mutate(
@@ -157,6 +201,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
   const cancelAndEdit = useCallback(
     function cancelAndEdit() {
+      // Drop the dseq from the URL immediately — not on close-success — so returning to editing (and the auto flow's
+      // "Try again") never leaves the abandoned deployment in the address bar while the close request is in flight.
+      router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategy), undefined, { shallow: true });
       if (!dseq) {
         setPhase("configuring");
         return;
@@ -173,7 +220,6 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
             setDeployError(undefined);
             setDeploySucceeded(false);
             setPhase("configuring");
-            router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategy), undefined, { shallow: true });
           },
           onError: function onCloseFailed(cause: unknown) {
             setError({ message: extractApiErrorMessage(cause) ?? undefined });
@@ -274,6 +320,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     dseq,
     bidStrategy,
     selections,
+    bids: bidsQuery.data?.data ?? [],
     deploySucceeded,
     deployError,
     error,

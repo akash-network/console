@@ -133,6 +133,7 @@ describe(ConfigureDeployment.name, () => {
     const dependencies: typeof DEPENDENCIES = {
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
+      AutoDeployFlow: vi.fn(() => null) as never,
       ConfigureDeploymentForm: ConfigureDeploymentForm as never,
       RedirectIfLeased: vi.fn(({ children }) => <>{children}</>) as never,
       usePublicTemplate: usePublicTemplate as never,

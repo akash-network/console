@@ -39,6 +39,7 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_GTM_ID: z.string().optional(),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
   NEXT_PUBLIC_BASE_TEMPLATES_URL: z.string().url(),
+  NEXT_PUBLIC_CONTACT_SUPPORT_URL: z.string().url().default("https://discord.akash.network/"),
   NEXT_PUBLIC_MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: z
     .string()
     .default("nvidia/b300,nvidia/b200,nvidia/h200,nvidia/h100,nvidia/pro6000se,nvidia/pro6000we,nvidia/a100,nvidia/rtx5090,nvidia/rtx4090,nvidia/rtx3090")

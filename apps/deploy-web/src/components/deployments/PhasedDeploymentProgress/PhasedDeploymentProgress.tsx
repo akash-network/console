@@ -24,7 +24,7 @@ type DeployProgressOverlayProps = {
   progressPercent: number;
   phases: [DeploymentPhase, DeploymentPhase, DeploymentPhase];
   onChooseProvider?: () => void;
-  onStartOver?: () => void;
+  onTryAgain?: () => void;
   onContactSupport?: () => void;
 };
 
@@ -34,11 +34,11 @@ export function PhasedDeploymentProgress({
   progressPercent,
   phases,
   onChooseProvider,
-  onStartOver,
+  onTryAgain,
   onContactSupport
 }: DeployProgressOverlayProps) {
   if (state.kind === "error") {
-    return <DeployErrorPanel templateName={templateName} message={state.message} onStartOver={onStartOver} onContactSupport={onContactSupport} />;
+    return <DeployErrorPanel templateName={templateName} message={state.message} onTryAgain={onTryAgain} onContactSupport={onContactSupport} />;
   }
 
   return <DeployProgressPanel templateName={templateName} progressPercent={progressPercent} phases={phases} onChooseProvider={onChooseProvider} />;
@@ -47,11 +47,11 @@ export function PhasedDeploymentProgress({
 type DeployErrorPanelProps = {
   templateName: string;
   message?: string;
-  onStartOver?: () => void;
+  onTryAgain?: () => void;
   onContactSupport?: () => void;
 };
 
-function DeployErrorPanel({ templateName, message, onStartOver, onContactSupport }: DeployErrorPanelProps) {
+function DeployErrorPanel({ templateName, message, onTryAgain, onContactSupport }: DeployErrorPanelProps) {
   return (
     <div className="relative z-10 flex w-full flex-col gap-6">
       <div className="flex flex-col gap-6">
@@ -64,7 +64,7 @@ function DeployErrorPanel({ templateName, message, onStartOver, onContactSupport
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Button onClick={onStartOver}>Start over</Button>
+          <Button onClick={onTryAgain}>Try again</Button>
           <Button variant="outline" onClick={onContactSupport}>
             Contact support
           </Button>
