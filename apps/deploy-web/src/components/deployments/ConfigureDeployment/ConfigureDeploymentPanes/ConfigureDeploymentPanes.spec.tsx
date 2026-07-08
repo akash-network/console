@@ -9,50 +9,13 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe("ConfigureDeploymentPanes", () => {
-  it("marks the Deployment tab active by default", () => {
+  it("renders all three panes at once without a tabbed navigation", () => {
     setup();
 
-    expect(screen.getByRole("button", { name: "1. Deployment" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("button", { name: "2. Configuration" })).not.toHaveAttribute("aria-current");
-    expect(screen.getByRole("button", { name: "3. Marketplace" })).not.toHaveAttribute("aria-current");
-  });
-
-  it("activates Configuration when its tab is clicked", async () => {
-    setup();
-
-    await userEvent.click(screen.getByRole("button", { name: "2. Configuration" }));
-
-    expect(screen.getByRole("button", { name: "1. Deployment" })).not.toHaveAttribute("aria-current");
-    expect(screen.getByRole("button", { name: "2. Configuration" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("button", { name: "3. Marketplace" })).not.toHaveAttribute("aria-current");
-  });
-
-  it("activates Marketplace when its tab is clicked", async () => {
-    setup();
-
-    await userEvent.click(screen.getByRole("button", { name: "3. Marketplace" }));
-
-    expect(screen.getByRole("button", { name: "1. Deployment" })).not.toHaveAttribute("aria-current");
-    expect(screen.getByRole("button", { name: "2. Configuration" })).not.toHaveAttribute("aria-current");
-    expect(screen.getByRole("button", { name: "3. Marketplace" })).toHaveAttribute("aria-current", "page");
-  });
-
-  it("keeps only the active pane wrapper visible on mobile", async () => {
-    setup();
-
-    const deploymentRegion = screen.getByTestId("deployment-pane-mock").parentElement as HTMLElement;
-    const configurationRegion = screen.getByTestId("configuration-pane-mock").parentElement as HTMLElement;
-    const marketplaceRegion = screen.getByTestId("marketplace-pane-mock").parentElement as HTMLElement;
-
-    expect(deploymentRegion).not.toHaveClass("hidden");
-    expect(configurationRegion).toHaveClass("hidden");
-    expect(marketplaceRegion).toHaveClass("hidden");
-
-    await userEvent.click(screen.getByRole("button", { name: "3. Marketplace" }));
-
-    expect(deploymentRegion).toHaveClass("hidden");
-    expect(configurationRegion).toHaveClass("hidden");
-    expect(marketplaceRegion).not.toHaveClass("hidden");
+    expect(screen.getByTestId("deployment-pane-mock")).toBeInTheDocument();
+    expect(screen.getByTestId("configuration-pane-mock")).toBeInTheDocument();
+    expect(screen.getByTestId("marketplace-pane-mock")).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Pane navigation" })).not.toBeInTheDocument();
   });
 
   it("does not render the SDL preview pane when the flag is disabled", () => {

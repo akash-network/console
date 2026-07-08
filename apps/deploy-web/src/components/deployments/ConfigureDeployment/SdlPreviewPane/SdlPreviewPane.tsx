@@ -39,7 +39,7 @@ export const SdlPreviewPane: FC<Props> = ({ sdl, isOpen, onOpen, onClose, depend
   if (!isOpen) return null;
 
   return (
-    <section aria-labelledby="sdl-preview-pane-heading" className="hidden h-full min-h-0 flex-col border-l-4 border-l-amber-500 md:flex">
+    <section aria-labelledby="sdl-preview-pane-heading" className="flex h-full min-h-0 flex-col border-l-4 border-l-amber-500">
       <header className="flex h-[52px] shrink-0 items-center justify-between gap-2 border-b border-zinc-300 bg-amber-500/10 px-4 dark:border-zinc-700">
         <div className="flex items-center gap-2">
           <h2 id="sdl-preview-pane-heading" className="font-mono text-sm font-medium uppercase text-muted-foreground">
