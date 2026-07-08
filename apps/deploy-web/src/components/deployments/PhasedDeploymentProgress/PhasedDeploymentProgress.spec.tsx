@@ -39,13 +39,13 @@ describe(PhasedDeploymentProgress.name, () => {
       expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
     });
 
-    it("invokes onStartOver when Start over is clicked", () => {
-      const onStartOver = vi.fn();
-      setup({ state: { kind: "error" }, onStartOver });
+    it("invokes onTryAgain when Try again is clicked", () => {
+      const onTryAgain = vi.fn();
+      setup({ state: { kind: "error" }, onTryAgain });
 
-      fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+      fireEvent.click(screen.getByRole("button", { name: "Try again" }));
 
-      expect(onStartOver).toHaveBeenCalledTimes(1);
+      expect(onTryAgain).toHaveBeenCalledTimes(1);
     });
 
     it("invokes onContactSupport when Contact support is clicked", () => {
@@ -139,7 +139,7 @@ describe(PhasedDeploymentProgress.name, () => {
         progressPercent={input?.progressPercent ?? 0}
         phases={input?.phases ?? PHASES}
         onChooseProvider={input?.onChooseProvider}
-        onStartOver={input?.onStartOver}
+        onTryAgain={input?.onTryAgain}
         onContactSupport={input?.onContactSupport}
       />
     );

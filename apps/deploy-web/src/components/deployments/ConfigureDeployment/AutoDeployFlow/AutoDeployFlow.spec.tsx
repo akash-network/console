@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { UrlService } from "@src/utils/urlUtils";
 import type { DEPENDENCIES } from "./AutoDeployFlow";
 import { AutoDeployFlow } from "./AutoDeployFlow";
 
@@ -57,14 +56,13 @@ describe(AutoDeployFlow.name, () => {
     expect(PhasedDeployProgressScene).toHaveBeenCalledWith(expect.objectContaining({ focusedProviderAddress: "akash1provider" }), expect.anything());
   });
 
-  it("starts over and returns to manual configuration of the same template", () => {
-    const startOver = vi.fn();
-    const { sceneProps, router } = setup({ templateId: "hello-world", flow: { startOver } });
+  it("asks the flow to try again when the scene requests it", () => {
+    const tryAgain = vi.fn();
+    const { sceneProps } = setup({ flow: { tryAgain } });
 
-    sceneProps().onStartOver?.();
+    sceneProps().onTryAgain?.();
 
-    expect(startOver).toHaveBeenCalledTimes(1);
-    expect(router.replace).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: "hello-world", sdlStrategy: "default" }));
+    expect(tryAgain).toHaveBeenCalledTimes(1);
   });
 
   it("opens the configured contact-support URL when the scene requests support", () => {
@@ -86,8 +84,7 @@ describe(AutoDeployFlow.name, () => {
         { id: "preparing", label: "Preparing", status: "pending" }
       ],
       matchedProviderAddress: null,
-      retry: vi.fn(),
-      startOver: vi.fn(),
+      tryAgain: vi.fn(),
       ...overrides
     };
   }
@@ -109,9 +106,6 @@ describe(AutoDeployFlow.name, () => {
     const PhasedDeployProgressScene = input.dependencies?.PhasedDeployProgressScene ?? vi.fn(ComponentMock);
     const useAutoDeploymentFlow: typeof DEPENDENCIES.useAutoDeploymentFlow = input.useAutoDeploymentFlow ?? (() => buildFlow(input.flow));
 
-    // Let mock<T>() auto-provide `replace` (already a vi mock) rather than overriding a typed function prop with vi.fn().
-    const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
-    const useRouter: typeof DEPENDENCIES.useRouter = () => router;
     // Built as a plain object (not mock<T>) so the passed-through trialError stays referentially intact rather than deep-mocked.
     const useEnsureTrialStarted: typeof DEPENDENCIES.useEnsureTrialStarted = () =>
       ({ isWalletReady: input.trial?.isWalletReady ?? true, isLoading: false, error: input.trial?.error, refreshWallet: vi.fn() }) as ReturnType<
@@ -119,8 +113,7 @@ describe(AutoDeployFlow.name, () => {
       >;
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({
-        publicConfig: { NEXT_PUBLIC_CONTACT_SUPPORT_URL: input.contactSupportUrl ?? CONTACT_SUPPORT_URL },
-        urlService: UrlService
+        publicConfig: { NEXT_PUBLIC_CONTACT_SUPPORT_URL: input.contactSupportUrl ?? CONTACT_SUPPORT_URL }
       });
 
     render(
@@ -135,13 +128,12 @@ describe(AutoDeployFlow.name, () => {
           PhasedDeployProgressScene,
           useEnsureTrialStarted,
           useAutoDeploymentFlow,
-          useRouter,
           useServices,
           ...input.dependencies
         }}
       />
     );
 
-    return { sceneProps: () => (PhasedDeployProgressScene as ReturnType<typeof vi.fn>).mock.calls[0][0] as SceneProps, router };
+    return { sceneProps: () => (PhasedDeployProgressScene as ReturnType<typeof vi.fn>).mock.calls[0][0] as SceneProps };
   }
 });

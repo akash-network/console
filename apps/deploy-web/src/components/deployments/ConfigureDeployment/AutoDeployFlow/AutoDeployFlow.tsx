@@ -1,6 +1,5 @@
 "use client";
 import type { FC } from "react";
-import { useRouter } from "next/router";
 
 import Layout from "@src/components/layout/Layout";
 import { useServices } from "@src/context/ServicesProvider";
@@ -13,7 +12,6 @@ export const DEPENDENCIES = {
   PhasedDeployProgressScene,
   useEnsureTrialStarted,
   useAutoDeploymentFlow,
-  useRouter,
   useServices
 };
 
@@ -22,7 +20,7 @@ type Props = {
   templateName: string;
   /** The resolved SDL to deploy, already derived from the intent's template on the configure screen. */
   sdl: string;
-  /** The template the flow deploys; used to fall back to manual configuration if the user starts over. */
+  /** The template the flow deploys; mirrored into the flow's intent so a URL resume preserves it. */
   templateId?: string;
   /** The deployment's dseq when resuming (a reload of the progress view); absent on a fresh start. */
   dseq?: string;
@@ -45,10 +43,9 @@ type Props = {
  * by that flow's built-in redirect.
  */
 export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, templateId, dseq, draftId, dependencies: d = DEPENDENCIES }) => {
-  const router = d.useRouter();
   const { isWalletReady, error: trialError } = d.useEnsureTrialStarted();
-  const { publicConfig, urlService } = d.useServices();
-  const { state, progressPercent, phases, matchedProviderAddress, startOver } = d.useAutoDeploymentFlow({
+  const { publicConfig } = d.useServices();
+  const { state, progressPercent, phases, matchedProviderAddress, tryAgain } = d.useAutoDeploymentFlow({
     sdl,
     isWalletReady,
     trialError,
@@ -65,10 +62,7 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, templateId, dseq,
         progressPercent={progressPercent}
         phases={phases}
         focusedProviderAddress={matchedProviderAddress}
-        onStartOver={() => {
-          startOver();
-          router.replace(urlService.configureDeployment({ templateId, sdlStrategy: templateId ? "default" : undefined }));
-        }}
+        onTryAgain={tryAgain}
         onContactSupport={() => {
           window.open(publicConfig.NEXT_PUBLIC_CONTACT_SUPPORT_URL, "_blank", "noopener,noreferrer");
         }}

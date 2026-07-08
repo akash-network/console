@@ -119,6 +119,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const [isReviewOpen, setReviewOpen] = useState(false);
   const allPlacementsHaveBids = placements.length > 0 && placements.every(placement => placementsWithBids.has(placement.id));
   const lastToastedDeployError = useRef(flow.deployError);
+  const lastToastedFlowError = useRef<typeof flow.error>(undefined);
   const hasAutoFocusedFirstBids = useRef(false);
 
   useEffect(
@@ -136,6 +137,25 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
       lastToastedDeployError.current = flow.deployError;
     },
     [flow.deployError, enqueueSnackbar, d]
+  );
+
+  useEffect(
+    function toastFlowError() {
+      // Surfaces a failed quote request or the no-providers timeout, both of which flip the header/panes back to
+      // editable with no other cue. Guarded on identity so it fires once per new error, not on every re-render.
+      if (flow.error && flow.error !== lastToastedFlowError.current) {
+        enqueueSnackbar(
+          <d.Snackbar
+            title="Couldn't get provider quotes"
+            subTitle={flow.error.message ?? "Something went wrong. Please adjust your deployment and try again."}
+            iconVariant="error"
+          />,
+          { variant: "error" }
+        );
+      }
+      lastToastedFlowError.current = flow.error;
+    },
+    [flow.error, enqueueSnackbar, d]
   );
 
   useEffect(

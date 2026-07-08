@@ -58,6 +58,17 @@ const DEFAULT_DEPOSIT = 0.5;
 /** Hold after a successful lease so the deploy overlay's progress bar can fill to 100% and its final step turn green before redirecting. */
 const DEPLOY_SUCCESS_DWELL_MS = 1200;
 
+/**
+ * How long to wait for a *first* bid before giving up on a freshly quoted deployment. Some specs never draw a
+ * single bid (niche resources, tight region filters, or a quiet marketplace); rather than leave the user staring
+ * at "Requesting…" for the full ~5-minute bid window that only makes sense once bids exist, fail fast when none
+ * arrive at all. Reset the instant any open bid lands — from then on the normal quote-expiry window governs.
+ */
+const NO_BIDS_TIMEOUT_MS = 60 * 1000;
+
+/** Error surfaced when a deployment draws no provider bids at all within {@link NO_BIDS_TIMEOUT_MS}. */
+const NO_PROVIDERS_MESSAGE = "No providers are available for this deployment right now. Try adjusting your deployment and requesting quotes again.";
+
 function useCreateDeployment() {
   return useServices().api.v1.createDeployment.useMutation();
 }
@@ -137,6 +148,24 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     [bidsQuery.data]
   );
 
+  const hasOpenBids = (bidsQuery.data?.data ?? []).some(entry => entry.bid.state === "open");
+
+  useEffect(
+    function failWhenNoProvidersBid() {
+      // Only arm the timer while quoting with nothing to show. It's cleared (and never re-armed) the moment an open
+      // bid arrives, so a deployment that draws bids is never cut off — the quote-expiry window takes over from there.
+      if (phase !== "quoting" || hasOpenBids) return;
+      const timer = setTimeout(function timeOutWithoutProviders() {
+        setError({ message: NO_PROVIDERS_MESSAGE });
+        setPhase("error");
+      }, NO_BIDS_TIMEOUT_MS);
+      return function cancelNoProvidersTimeout() {
+        clearTimeout(timer);
+      };
+    },
+    [phase, hasOpenBids]
+  );
+
   const requestQuotes = useCallback(
     function requestQuotes(sdl: string) {
       setPhase("creating");
@@ -165,6 +194,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
   const cancelAndEdit = useCallback(
     function cancelAndEdit() {
+      // Drop the dseq from the URL immediately — not on close-success — so returning to editing (and the auto flow's
+      // "Try again") never leaves the abandoned deployment in the address bar while the close request is in flight.
+      router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategy), undefined, { shallow: true });
       if (!dseq) {
         setPhase("configuring");
         return;
@@ -181,7 +213,6 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
             setDeployError(undefined);
             setDeploySucceeded(false);
             setPhase("configuring");
-            router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategy), undefined, { shallow: true });
           },
           onError: function onCloseFailed(cause: unknown) {
             setError({ message: extractApiErrorMessage(cause) ?? undefined });

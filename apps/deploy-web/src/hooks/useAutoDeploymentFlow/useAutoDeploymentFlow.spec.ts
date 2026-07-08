@@ -135,23 +135,30 @@ describe(useAutoDeploymentFlow.name, () => {
     await vi.waitFor(() => expect(result.current.state).toEqual({ kind: "error", message: "lease failed" }));
   });
 
-  it("restarts the flow when retry is called after an error", async () => {
+  it("restarts progress at the create step while the old deployment is closing", async () => {
+    const { result, flow } = setup({ bids: [] });
+
+    await vi.waitFor(() => expect(result.current.state.kind).toBe("matching"));
+    act(() => flow.setClosing());
+
+    expect(result.current.state.kind).toBe("creating");
+    expect(result.current.phases[0].status).toBe("active");
+    expect(result.current.phases[1].status).toBe("pending");
+  });
+
+  it("closes the deployment and creates a fresh one when tryAgain is called after an error", async () => {
     const { result, flow } = setup();
 
     await vi.waitFor(() => expect(flow.actions.requestQuotes).toHaveBeenCalledTimes(1));
     act(() => flow.setPhaseError("broadcast failed"));
     await vi.waitFor(() => expect(result.current.state.kind).toBe("error"));
 
-    act(() => result.current.retry());
+    act(() => result.current.tryAgain());
 
+    // closing the deployment returns the flow to configuring, from which the autopilot broadcasts a brand-new create
+    await vi.waitFor(() => expect(flow.actions.cancelAndEdit).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(flow.actions.requestQuotes).toHaveBeenCalledTimes(2));
     await vi.waitFor(() => expect(result.current.state.kind).toBe("success"));
-    expect(flow.actions.retry).toHaveBeenCalled();
-  });
-
-  it("exposes startOver as an alias of retry", () => {
-    const { result } = setup({ isWalletReady: false });
-
-    expect(result.current.startOver).toBe(result.current.retry);
   });
 
   describe("when resuming with a dseq from the URL", () => {
@@ -227,9 +234,10 @@ describe(useAutoDeploymentFlow.name, () => {
 
     // A stateful stub state machine: it advances phase in response to the autopilot's action calls exactly as the real
     // `useDeploymentFlow` does, so the autopilot's effects fire against realistic transitions without the real chain logic.
-    const flowControls: { setPhaseError: (message?: string) => void; setDeployError: (message?: string) => void } = {
+    const flowControls: { setPhaseError: (message?: string) => void; setDeployError: (message?: string) => void; setClosing: () => void } = {
       setPhaseError: () => undefined,
-      setDeployError: () => undefined
+      setDeployError: () => undefined,
+      setClosing: () => undefined
     };
 
     const useDeploymentFlow = vi.fn(function useDeploymentFlowStub({ intent }: { intent: { dseq?: string } }): DeploymentFlow {
@@ -248,6 +256,7 @@ describe(useAutoDeploymentFlow.name, () => {
         setDeployError({ message });
         setPhase("quoting");
       };
+      flowControls.setClosing = () => setPhase("closing");
 
       const requestQuotes = useCallback((sdl: string) => {
         actions.requestQuotes(sdl);
@@ -271,6 +280,14 @@ describe(useAutoDeploymentFlow.name, () => {
         setSelections({});
         setPhase(intent.dseq ? "quoting" : "configuring");
       }, []);
+      const cancelAndEdit = useCallback(() => {
+        actions.cancelAndEdit();
+        setError(undefined);
+        setDeployError(undefined);
+        setSelections({});
+        setDeploySucceeded(false);
+        setPhase("configuring");
+      }, []);
 
       return {
         phase,
@@ -281,7 +298,7 @@ describe(useAutoDeploymentFlow.name, () => {
         deploySucceeded,
         deployError,
         error,
-        actions: { ...actions, requestQuotes, selectProvider, deploy, retry }
+        actions: { ...actions, requestQuotes, selectProvider, deploy, retry, cancelAndEdit }
       };
     });
 

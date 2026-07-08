@@ -17,7 +17,7 @@ interface Props {
   focusedProviderAddress?: string | null;
   /** Extra classes for the outer wrapper — e.g. the manual flow renders this as a full-screen absolute overlay. */
   className?: string;
-  onStartOver?: () => void;
+  onTryAgain?: () => void;
   onContactSupport?: () => void;
   onChooseProvider?: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -35,7 +35,7 @@ export const PhasedDeployProgressScene: FC<Props> = ({
   phases,
   focusedProviderAddress,
   className,
-  onStartOver,
+  onTryAgain,
   onContactSupport,
   onChooseProvider,
   dependencies: d = DEPENDENCIES
@@ -47,7 +47,7 @@ export const PhasedDeployProgressScene: FC<Props> = ({
         templateName={templateName}
         progressPercent={progressPercent}
         phases={phases}
-        onStartOver={onStartOver}
+        onTryAgain={onTryAgain}
         onContactSupport={onContactSupport}
         onChooseProvider={onChooseProvider}
       />

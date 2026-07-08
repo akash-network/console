@@ -39,8 +39,8 @@ type Result = {
   progressPercent: number;
   phases: [DeployPhase, DeployPhase, DeployPhase];
   matchedProviderAddress: string | null;
-  retry: () => void;
-  startOver: () => void;
+  /** Discards the failed attempt — closing the on-chain deployment when one exists — and restarts from creating a fresh one. */
+  tryAgain: () => void;
 };
 
 /** The four coordinates that identify a lease/bid. */
@@ -197,16 +197,15 @@ export function useAutoDeploymentFlow(
   const phaseIndex = getPhaseIndex(projected);
   const { progressPercent, phases } = useDeployPhaseProgress(phaseIndex, { succeeded: projected === "success", resetKey: retryToken });
 
-  function retry() {
+  function tryAgain() {
+    // Restart the progress animation, then discard the failed attempt entirely: `cancelAndEdit` closes the deployment
+    // on chain when one exists (a failed lease leaves the flow in `quoting` with a live dseq) and returns the flow to
+    // `configuring`; a create that never produced a dseq goes straight back to `configuring`. Either way the autopilot's
+    // `fireCreate` then broadcasts a brand-new deployment, so "Try again" always starts from scratch rather than
+    // re-leasing the same one. The selection guard is released so the fresh attempt can match a provider again.
     setRetryToken(previous => previous + 1);
-    // A failed deploy leaves the flow in `quoting` with a live selection and a `deployError`; re-firing `deploy`
-    // clears the error and re-attempts the lease without discarding the matched provider.
-    if (flow.phase === "quoting" && flow.deployError && hasSelection) {
-      flow.actions.deploy(sdlRef.current);
-      return;
-    }
     selectFiredRef.current = false;
-    flow.actions.retry();
+    flow.actions.cancelAndEdit();
   }
 
   return {
@@ -214,8 +213,7 @@ export function useAutoDeploymentFlow(
     progressPercent,
     phases,
     matchedProviderAddress,
-    retry,
-    startOver: retry
+    tryAgain
   };
 }
 
@@ -226,11 +224,13 @@ function projectPhase(phase: DeploymentFlowPhase, deploySucceeded: boolean, tria
   if (trialErrored || deployErrored || phase === "error") return "error";
   if (deploySucceeded) return "success";
   switch (phase) {
+    // `closing` in the auto flow only ever happens as the first step of "Try again" — tearing down the old deployment
+    // before a fresh create — so it restarts progress at "creating" rather than jumping back to matching.
     case "configuring":
     case "creating":
+    case "closing":
       return "creating";
     case "quoting":
-    case "closing":
       return "matching";
     case "deploying":
       return "preparing";

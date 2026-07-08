@@ -16,14 +16,14 @@ const PHASES: [DeployPhase, DeployPhase, DeployPhase] = [
 describe(PhasedDeployProgressScene.name, () => {
   it("forwards the progress state and callbacks to the progress panel", () => {
     const PhasedDeploymentProgress = vi.fn(ComponentMock);
-    const onStartOver = vi.fn();
+    const onTryAgain = vi.fn();
     const onContactSupport = vi.fn();
     const onChooseProvider = vi.fn();
     setup({
       templateName: "my-app",
       state: { kind: "preparing" },
       progressPercent: 67,
-      onStartOver,
+      onTryAgain,
       onContactSupport,
       onChooseProvider,
       dependencies: { PhasedDeploymentProgress }
@@ -35,7 +35,7 @@ describe(PhasedDeployProgressScene.name, () => {
         state: { kind: "preparing" },
         progressPercent: 67,
         phases: PHASES,
-        onStartOver,
+        onTryAgain,
         onContactSupport,
         onChooseProvider
       }),
@@ -63,7 +63,7 @@ describe(PhasedDeployProgressScene.name, () => {
       progressPercent?: number;
       focusedProviderAddress?: string | null;
       className?: string;
-      onStartOver?: () => void;
+      onTryAgain?: () => void;
       onContactSupport?: () => void;
       onChooseProvider?: () => void;
       dependencies?: Partial<typeof DEPENDENCIES>;
@@ -77,7 +77,7 @@ describe(PhasedDeployProgressScene.name, () => {
         phases={PHASES}
         focusedProviderAddress={input.focusedProviderAddress}
         className={input.className}
-        onStartOver={input.onStartOver}
+        onTryAgain={input.onTryAgain}
         onContactSupport={input.onContactSupport}
         onChooseProvider={input.onChooseProvider}
         dependencies={{ PhasedDeploymentProgress: vi.fn(ComponentMock), ProviderGlobe: vi.fn(ComponentMock), ...input.dependencies }}
