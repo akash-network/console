@@ -81,17 +81,16 @@ export function usePhasedDeploymentFlow(
     templateId,
     draftId
   });
-  const intent = intentRef.current;
 
-  const flow = dependencies.useDeploymentFlow({ intent });
+  const flow = dependencies.useDeploymentFlow({ intent: intentRef.current });
 
   const sdlRef = useRef(sdl);
   sdlRef.current = sdl;
 
-  // Pinned to the mount-time value so writing the freshly-created dseq into the URL can't retroactively flip a fresh
-  // start into resume mode. Only a genuine reload — mounted with a dseq — resumes.
-  const resumedDseqRef = useRef(initialDseq);
-  const resumedDseq = resumedDseqRef.current;
+  // The dseq a resumed session mounted with, read from the mount-pinned intent: only a genuine reload — mounted with a
+  // dseq — resumes. The dseq later written to the URL after a fresh create lives on `flow.dseq`, not here, so it can't
+  // retroactively flip a fresh start into resume mode.
+  const resumedDseq = intentRef.current.dseq;
 
   const [retryToken, setRetryToken] = useState(0);
 
