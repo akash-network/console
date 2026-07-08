@@ -3,7 +3,7 @@ import type { FC } from "react";
 import { cn } from "@akashnetwork/ui/utils";
 
 import { PhasedDeploymentProgress } from "@src/components/deployments/PhasedDeploymentProgress/PhasedDeploymentProgress";
-import type { DeployPhase, DeployProgressState } from "@src/hooks/usePhasedDeploymentFlow/deployPhases";
+import type { DeployPhase, DeployProgressState } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 import { ProvidersGlobe } from "./ProvidersGlobe";
 
 export const DEPENDENCIES = { PhasedDeploymentProgress, ProviderGlobe: ProvidersGlobe };
@@ -25,7 +25,7 @@ interface Props {
 
 /**
  * The shared deploy-progress surface: the phased progress panel over the provider globe. Both the
- * onboarding-driven auto flow ({@link PhasedDeploymentContainer}) and the manual configure deploy render this,
+ * onboarding-driven auto flow ({@link AutoDeployFlow}) and the manual configure deploy render this,
  * differing only in how they derive the progress state and how they position the wrapper.
  */
 export const PhasedDeployProgressScene: FC<Props> = ({

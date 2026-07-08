@@ -5,9 +5,8 @@ import type { BidStrategy, DeploymentIntent } from "@src/components/deployments/
 import type { DeploymentFlowPhase } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
 import { useDeploymentFlow } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
 import { useServices } from "@src/context/ServicesProvider";
-import { usePhasedProgressBar } from "@src/hooks/useGradualProgress/usePhasedProgressBar";
-import type { DeployPhase, DeployPhaseId, DeployProgressState } from "@src/hooks/usePhasedDeploymentFlow/deployPhases";
-import { buildDeployPhases, PHASE_MARKERS, PHASE_ORDER, PHASE_TIME_CONSTANTS } from "@src/hooks/usePhasedDeploymentFlow/deployPhases";
+import type { DeployPhase, DeployPhaseId, DeployProgressState } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
+import { PHASE_ORDER, useDeployPhaseProgress } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 import { BID_POLL_INTERVAL } from "@src/queries/useListBids";
 import { useFirstReachableProvider, useProviderList } from "@src/queries/useProvidersQuery";
 import type { ApiProviderList } from "@src/types/provider";
@@ -66,7 +65,7 @@ export const DEPENDENCIES = {
  * existing active lease so the idempotent server create-lease completes), the phased progress-bar animation, and the
  * matched-provider address. `flow.phase` is projected onto the three-step create → match → prepare progress UI.
  */
-export function usePhasedDeploymentFlow(
+export function useAutoDeploymentFlow(
   { sdl, isWalletReady, trialError, initialDseq, templateId, draftId }: Options,
   dependencies: typeof DEPENDENCIES = DEPENDENCIES
 ): Result {
@@ -92,19 +91,16 @@ export function usePhasedDeploymentFlow(
 
   const [retryToken, setRetryToken] = useState(0);
 
-  // One-shot guards so a re-render can't re-fire an action that's already in flight for the current attempt.
-  const createFiredRef = useRef(false);
+  // One-shot guard for the selection. Unlike create/deploy (which move the flow off their phase synchronously, so a
+  // phase check already prevents a re-fire), selectProvider keeps the flow in "quoting" — so without this a bid-poll
+  // refetch that changes the reachable bid could re-select a different provider. This pins us to the first match.
   const selectFiredRef = useRef(false);
-  const deployFiredRef = useRef(false);
 
   const dseq = flow.dseq;
 
   // On a resumed session the deployment may already have a lease. Fetch it so we can reconstruct the selection and let
   // the idempotent server create-lease finish, skipping the bid match entirely. Disabled on a fresh start.
-  const deploymentQuery = api.v1.getDeployment.useQuery(
-    { dseq: dseq ?? "" },
-    { enabled: isResuming && !!dseq && flow.phase === "quoting" && isWalletReady }
-  );
+  const deploymentQuery = api.v1.getDeployment.useQuery({ dseq: dseq ?? "" }, { enabled: isResuming && !!dseq && flow.phase === "quoting" && isWalletReady });
   const existingActiveLease = deploymentQuery.data?.data.leases.find(lease => lease.state !== "closed");
   /** On a resume we must know whether a lease already exists before matching from bids; a fresh start needs no such wait. */
   const resumeLeaseChecked = !isResuming || deploymentQuery.isFetched;
@@ -130,7 +126,12 @@ export function usePhasedDeploymentFlow(
   // an existing lease. Null until there's something to select.
   const selectionTarget = useMemo<LeaseId | null>(() => {
     if (existingActiveLease) {
-      return { dseq: existingActiveLease.id.dseq, gseq: existingActiveLease.id.gseq, oseq: existingActiveLease.id.oseq, provider: existingActiveLease.id.provider };
+      return {
+        dseq: existingActiveLease.id.dseq,
+        gseq: existingActiveLease.id.gseq,
+        oseq: existingActiveLease.id.oseq,
+        provider: existingActiveLease.id.provider
+      };
     }
     if (resumeLeaseChecked && activeBid) {
       return { dseq: activeBid.bid.id.dseq, gseq: activeBid.bid.id.gseq, oseq: activeBid.bid.id.oseq, provider: activeBid.bid.id.provider };
@@ -138,14 +139,12 @@ export function usePhasedDeploymentFlow(
     return null;
   }, [existingActiveLease, resumeLeaseChecked, activeBid]);
 
-  // Reset the one-shot guards whenever the flow returns to configuring (fresh start / after retry) so a new attempt
-  // can fire its actions again.
+  // Release the selection guard whenever the flow returns to configuring (fresh start / after retry) so a new attempt
+  // can match again.
   useEffect(
-    function resetGuardsOnConfiguring() {
+    function resetSelectionGuardOnConfiguring() {
       if (flow.phase === "configuring") {
-        createFiredRef.current = false;
         selectFiredRef.current = false;
-        deployFiredRef.current = false;
       }
     },
     [flow.phase]
@@ -153,9 +152,8 @@ export function usePhasedDeploymentFlow(
 
   useEffect(
     function fireCreate() {
-      if (flow.phase !== "configuring" || createFiredRef.current) return;
-      if (trialError || !isWalletReady) return;
-      createFiredRef.current = true;
+      // requestQuotes moves the flow off "configuring" synchronously, so the phase guard alone prevents a re-fire.
+      if (flow.phase !== "configuring" || trialError || !isWalletReady) return;
       flow.actions.requestQuotes(sdlRef.current);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -184,13 +182,12 @@ export function usePhasedDeploymentFlow(
 
   useEffect(
     function fireDeploy() {
-      // A deploy failure drops the flow back to quoting with a `deployError`; the auto flow surfaces that as a terminal
-      // error (there's no manual "pick another provider" step), so we never auto-re-fire deploy after it fails.
-      if (flow.phase !== "quoting" || deployFiredRef.current || !hasSelection || flow.deployError) return;
-      deployFiredRef.current = true;
+      // deploy moves the flow off "quoting" synchronously; a failure drops it back with a `deployError`, which this guard
+      // treats as terminal (the auto flow has no manual "pick another provider" step). Together they fire deploy exactly
+      // once per attempt, so no separate one-shot ref is needed.
+      if (flow.phase !== "quoting" || !hasSelection || flow.deployError) return;
       flow.actions.deploy(sdlRef.current);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [flow.phase, hasSelection, flow.deployError]
   );
 
@@ -198,27 +195,17 @@ export function usePhasedDeploymentFlow(
   const errorMessage = trialError ? extractApiErrorMessage(trialError) ?? undefined : flow.deployError?.message ?? flow.error?.message;
 
   const phaseIndex = getPhaseIndex(projected);
-  const phases = buildDeployPhases(phaseIndex, projected === "success");
-
-  const progressPercent = usePhasedProgressBar({
-    markers: PHASE_MARKERS,
-    activeIndex: projected === "success" ? PHASE_MARKERS.length : phaseIndex,
-    timeConstants: PHASE_TIME_CONSTANTS,
-    resetKey: retryToken
-  });
+  const { progressPercent, phases } = useDeployPhaseProgress(phaseIndex, { succeeded: projected === "success", resetKey: retryToken });
 
   function retry() {
     setRetryToken(previous => previous + 1);
     // A failed deploy leaves the flow in `quoting` with a live selection and a `deployError`; re-firing `deploy`
     // clears the error and re-attempts the lease without discarding the matched provider.
     if (flow.phase === "quoting" && flow.deployError && hasSelection) {
-      deployFiredRef.current = true;
       flow.actions.deploy(sdlRef.current);
       return;
     }
-    createFiredRef.current = false;
     selectFiredRef.current = false;
-    deployFiredRef.current = false;
     flow.actions.retry();
   }
 

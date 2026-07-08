@@ -2,16 +2,19 @@
 import type { FC } from "react";
 import { useRouter } from "next/router";
 
-import { PhasedDeploymentContainer } from "@src/components/deployments/PhasedDeploymentContainer/PhasedDeploymentContainer";
 import Layout from "@src/components/layout/Layout";
+import { useServices } from "@src/context/ServicesProvider";
+import { useAutoDeploymentFlow } from "@src/hooks/useAutoDeploymentFlow/useAutoDeploymentFlow";
 import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
-import { UrlService } from "@src/utils/urlUtils";
+import { PhasedDeployProgressScene } from "../DeployProgressOverlay/PhasedDeployProgressScene";
 
 export const DEPENDENCIES = {
   Layout,
-  PhasedDeploymentContainer,
+  PhasedDeployProgressScene,
   useEnsureTrialStarted,
-  useRouter
+  useAutoDeploymentFlow,
+  useRouter,
+  useServices
 };
 
 type Props = {
@@ -44,18 +47,31 @@ type Props = {
 export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, templateId, dseq, draftId, dependencies: d = DEPENDENCIES }) => {
   const router = d.useRouter();
   const { isWalletReady, error: trialError } = d.useEnsureTrialStarted();
+  const { publicConfig, urlService } = d.useServices();
+  const { state, progressPercent, phases, matchedProviderAddress, startOver } = d.useAutoDeploymentFlow({
+    sdl,
+    isWalletReady,
+    trialError,
+    initialDseq: dseq,
+    templateId,
+    draftId
+  });
 
   return (
     <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col dark:bg-card">
-      <d.PhasedDeploymentContainer
+      <d.PhasedDeployProgressScene
         templateName={templateName}
-        sdl={sdl}
-        isWalletReady={isWalletReady}
-        trialError={trialError}
-        initialDseq={dseq}
-        templateId={templateId}
-        draftId={draftId}
-        onCancel={() => router.replace(UrlService.configureDeployment({ templateId, sdlStrategy: templateId ? "default" : undefined }))}
+        state={state}
+        progressPercent={progressPercent}
+        phases={phases}
+        focusedProviderAddress={matchedProviderAddress}
+        onStartOver={() => {
+          startOver();
+          router.replace(urlService.configureDeployment({ templateId, sdlStrategy: templateId ? "default" : undefined }));
+        }}
+        onContactSupport={() => {
+          window.open(publicConfig.NEXT_PUBLIC_CONTACT_SUPPORT_URL, "_blank", "noopener,noreferrer");
+        }}
       />
     </d.Layout>
   );

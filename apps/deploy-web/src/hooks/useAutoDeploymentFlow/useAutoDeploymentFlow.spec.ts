@@ -9,8 +9,8 @@ import { useFirstReachableProvider } from "@src/queries/useProvidersQuery";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import type { ApiProviderList } from "@src/types/provider";
 import { formatBidId } from "@src/utils/bids/bidId";
-import type { DEPENDENCIES } from "./usePhasedDeploymentFlow";
-import { usePhasedDeploymentFlow } from "./usePhasedDeploymentFlow";
+import type { DEPENDENCIES } from "./useAutoDeploymentFlow";
+import { useAutoDeploymentFlow } from "./useAutoDeploymentFlow";
 
 import { act } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
@@ -19,7 +19,7 @@ const PROVIDER_OWNER = "akash1provider";
 const DSEQ = "12345";
 const BID_ID = `${PROVIDER_OWNER}/${DSEQ}/1/1`;
 
-describe(usePhasedDeploymentFlow.name, () => {
+describe(useAutoDeploymentFlow.name, () => {
   it("starts in the creating phase with the first phase active", () => {
     const { result } = setup({ isWalletReady: false });
 
@@ -293,7 +293,7 @@ describe(usePhasedDeploymentFlow.name, () => {
 
     const view = setupQuery(
       () =>
-        usePhasedDeploymentFlow(
+        useAutoDeploymentFlow(
           {
             sdl: input?.sdl ?? "sdl-content",
             isWalletReady: input?.isWalletReady ?? true,

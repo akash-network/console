@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { DeployPhase, DeployProgressState } from "@src/hooks/usePhasedDeploymentFlow/deployPhases";
+import type { DeployPhase, DeployProgressState } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 import type { DEPENDENCIES } from "./PhasedDeployProgressScene";
 import { PhasedDeployProgressScene } from "./PhasedDeployProgressScene";
 

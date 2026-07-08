@@ -8,44 +8,89 @@ import { AutoDeployFlow } from "./AutoDeployFlow";
 import { render } from "@testing-library/react";
 import { ComponentMock } from "@tests/unit/mocks";
 
-type ContainerProps = Parameters<typeof DEPENDENCIES.PhasedDeploymentContainer>[0];
+type SceneProps = Parameters<typeof DEPENDENCIES.PhasedDeployProgressScene>[0];
+type FlowResult = ReturnType<typeof DEPENDENCIES.useAutoDeploymentFlow>;
+
+const CONTACT_SUPPORT_URL = "https://akash.network/discord";
 
 describe(AutoDeployFlow.name, () => {
-  it("drives the phased container with trial readiness, the resolved SDL, the resumed dseq, and intent params", () => {
-    const PhasedDeploymentContainer = vi.fn(ComponentMock);
+  it("drives the phased flow with trial readiness, the resolved SDL, the resumed dseq, and intent params", () => {
+    const useAutoDeploymentFlow = vi.fn(() => buildFlow());
     const trialError = new Error("trial failed");
     setup({
-      templateName: "Hello World",
       sdl: "sdl-content",
       templateId: "hello-world",
       dseq: "555",
       draftId: "d1",
       trial: { isWalletReady: true, error: trialError },
-      dependencies: { PhasedDeploymentContainer }
+      useAutoDeploymentFlow
     });
 
-    expect(PhasedDeploymentContainer).toHaveBeenCalledWith(
-      expect.objectContaining({
-        templateName: "Hello World",
-        sdl: "sdl-content",
-        isWalletReady: true,
-        trialError,
-        initialDseq: "555",
-        templateId: "hello-world",
-        draftId: "d1"
-      }),
+    expect(useAutoDeploymentFlow).toHaveBeenCalledWith({
+      sdl: "sdl-content",
+      isWalletReady: true,
+      trialError,
+      initialDseq: "555",
+      templateId: "hello-world",
+      draftId: "d1"
+    });
+  });
+
+  it("passes the flow state and template name through to the progress scene", () => {
+    const PhasedDeployProgressScene = vi.fn(ComponentMock);
+    setup({
+      templateName: "my-app",
+      flow: { state: { kind: "matching" }, progressPercent: 42 },
+      dependencies: { PhasedDeployProgressScene }
+    });
+
+    expect(PhasedDeployProgressScene).toHaveBeenCalledWith(
+      expect.objectContaining({ state: { kind: "matching" }, templateName: "my-app", progressPercent: 42 }),
       expect.anything()
     );
   });
 
-  it("returns to manual configuration of the same template when the flow is cancelled", () => {
-    const replace = vi.fn();
-    const { containerProps } = setup({ templateId: "hello-world", router: { replace } });
+  it("focuses the scene on the matched provider address", () => {
+    const PhasedDeployProgressScene = vi.fn(ComponentMock);
+    setup({ flow: { matchedProviderAddress: "akash1provider" }, dependencies: { PhasedDeployProgressScene } });
 
-    containerProps().onCancel?.();
-
-    expect(replace).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: "hello-world", sdlStrategy: "default" }));
+    expect(PhasedDeployProgressScene).toHaveBeenCalledWith(expect.objectContaining({ focusedProviderAddress: "akash1provider" }), expect.anything());
   });
+
+  it("starts over and returns to manual configuration of the same template", () => {
+    const startOver = vi.fn();
+    const { sceneProps, router } = setup({ templateId: "hello-world", flow: { startOver } });
+
+    sceneProps().onStartOver?.();
+
+    expect(startOver).toHaveBeenCalledTimes(1);
+    expect(router.replace).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: "hello-world", sdlStrategy: "default" }));
+  });
+
+  it("opens the configured contact-support URL when the scene requests support", () => {
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    const { sceneProps } = setup({ contactSupportUrl: "https://support.example" });
+
+    sceneProps().onContactSupport?.();
+
+    expect(open).toHaveBeenCalledWith("https://support.example", "_blank", "noopener,noreferrer");
+  });
+
+  function buildFlow(overrides: Partial<FlowResult> = {}): FlowResult {
+    return {
+      state: { kind: "creating" },
+      progressPercent: 0,
+      phases: [
+        { id: "creating", label: "Creating", status: "active" },
+        { id: "matching", label: "Matching", status: "pending" },
+        { id: "preparing", label: "Preparing", status: "pending" }
+      ],
+      matchedProviderAddress: null,
+      retry: vi.fn(),
+      startOver: vi.fn(),
+      ...overrides
+    };
+  }
 
   function setup(
     input: {
@@ -55,18 +100,28 @@ describe(AutoDeployFlow.name, () => {
       dseq?: string;
       draftId?: string;
       trial?: { isWalletReady?: boolean; error?: unknown };
-      router?: { replace?: ReturnType<typeof vi.fn> };
+      contactSupportUrl?: string;
+      flow?: Partial<FlowResult>;
+      useAutoDeploymentFlow?: typeof DEPENDENCIES.useAutoDeploymentFlow;
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
-    const PhasedDeploymentContainer = input.dependencies?.PhasedDeploymentContainer ?? vi.fn(ComponentMock);
+    const PhasedDeployProgressScene = input.dependencies?.PhasedDeployProgressScene ?? vi.fn(ComponentMock);
+    const useAutoDeploymentFlow: typeof DEPENDENCIES.useAutoDeploymentFlow = input.useAutoDeploymentFlow ?? (() => buildFlow(input.flow));
 
-    const useRouter: typeof DEPENDENCIES.useRouter = () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: input.router?.replace ?? vi.fn() });
+    // Let mock<T>() auto-provide `replace` (already a vi mock) rather than overriding a typed function prop with vi.fn().
+    const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
+    const useRouter: typeof DEPENDENCIES.useRouter = () => router;
     // Built as a plain object (not mock<T>) so the passed-through trialError stays referentially intact rather than deep-mocked.
     const useEnsureTrialStarted: typeof DEPENDENCIES.useEnsureTrialStarted = () =>
       ({ isWalletReady: input.trial?.isWalletReady ?? true, isLoading: false, error: input.trial?.error, refreshWallet: vi.fn() }) as ReturnType<
         typeof DEPENDENCIES.useEnsureTrialStarted
       >;
+    const useServices: typeof DEPENDENCIES.useServices = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useServices>>({
+        publicConfig: { NEXT_PUBLIC_CONTACT_SUPPORT_URL: input.contactSupportUrl ?? CONTACT_SUPPORT_URL },
+        urlService: UrlService
+      });
 
     render(
       <AutoDeployFlow
@@ -77,14 +132,16 @@ describe(AutoDeployFlow.name, () => {
         draftId={input.draftId}
         dependencies={{
           Layout: ComponentMock,
-          PhasedDeploymentContainer,
-          useRouter,
+          PhasedDeployProgressScene,
           useEnsureTrialStarted,
+          useAutoDeploymentFlow,
+          useRouter,
+          useServices,
           ...input.dependencies
         }}
       />
     );
 
-    return { containerProps: () => (PhasedDeploymentContainer as ReturnType<typeof vi.fn>).mock.calls[0][0] as ContainerProps };
+    return { sceneProps: () => (PhasedDeployProgressScene as ReturnType<typeof vi.fn>).mock.calls[0][0] as SceneProps, router };
   }
 });

@@ -2,7 +2,7 @@
 import type { FC } from "react";
 
 import { PhasedDeployProgressScene } from "@src/components/deployments/ConfigureDeployment/DeployProgressOverlay/PhasedDeployProgressScene";
-import { type ManualDeployActivePhase, usePhasedDeployProgress } from "@src/hooks/usePhasedDeploymentFlow/deployPhases";
+import { type ManualDeployActivePhase, usePhasedDeployProgress } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 
 export const DEPENDENCIES = { PhasedDeployProgressScene, usePhasedDeployProgress };
 

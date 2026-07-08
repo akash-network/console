@@ -42,11 +42,33 @@ export function buildDeployPhases(activeIndex: number, allCompleted = false): [D
 }
 
 /**
+ * The shared progress projection both deploy scenes render from: animates the bar toward the active phase's marker
+ * (`creating` → `matching` → `preparing`) and builds the matching phase descriptors. Callers own only how they
+ * derive the active index and success flag — the manual overlay from `useDeploymentFlow`'s deploy step, the auto
+ * flow from the full `flow.phase` projection. On success the bar is pinned to 100% so the deploy visibly finishes
+ * before the redirect. `resetKey` restarts the animation (the auto flow bumps it on retry).
+ */
+export function useDeployPhaseProgress(
+  activeIndex: number,
+  { succeeded = false, resetKey = 0 }: { succeeded?: boolean; resetKey?: number } = {}
+): { progressPercent: number; phases: [DeployPhase, DeployPhase, DeployPhase] } {
+  const animatedPercent = usePhasedProgressBar({
+    markers: PHASE_MARKERS,
+    activeIndex: succeeded ? PHASE_MARKERS.length : activeIndex,
+    timeConstants: PHASE_TIME_CONSTANTS,
+    resetKey
+  });
+  return {
+    progressPercent: succeeded ? 100 : animatedPercent,
+    phases: buildDeployPhases(activeIndex, succeeded)
+  };
+}
+
+/**
  * Progress state for the *manual* configure deploy, driven by `useDeploymentFlow`'s deploy step. The scene only
  * mounts during `deploying`, by which point the deployment exists and the provider is chosen — so creating +
  * matching read as completed and the active step is the lease ("preparing"), reaching "success" once the lease
- * lands. On "success" the bar is pinned to 100% so the deploy visibly finishes before the redirect. Deploy
- * failures unmount the scene and surface a toast, so there is no error state here.
+ * lands. Deploy failures unmount the scene and surface a toast, so there is no error state here.
  */
 export function usePhasedDeployProgress(activePhase: ManualDeployActivePhase): {
   state: DeployProgressState;
@@ -55,10 +77,6 @@ export function usePhasedDeployProgress(activePhase: ManualDeployActivePhase): {
 } {
   const succeeded = activePhase === "success";
   const activeIndex = succeeded ? PHASE_ORDER.length : PHASE_ORDER.indexOf(activePhase);
-  const animatedPercent = usePhasedProgressBar({ markers: PHASE_MARKERS, activeIndex, timeConstants: PHASE_TIME_CONSTANTS, resetKey: 0 });
-  return {
-    state: { kind: activePhase },
-    progressPercent: succeeded ? 100 : animatedPercent,
-    phases: buildDeployPhases(activeIndex, succeeded)
-  };
+  const { progressPercent, phases } = useDeployPhaseProgress(activeIndex, { succeeded });
+  return { state: { kind: activePhase }, progressPercent, phases };
 }
