@@ -1,7 +1,7 @@
 {
   "name": "@akashnetwork/ui",
   "version": "1.0.0",
-  "description": "",
+  "description": "Shared React UI component library for Akash Console",
   "repository": {
     "type": "git",
     "url": "https://github.com/akash-network/console"

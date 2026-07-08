@@ -1,7 +1,7 @@
 {
   "name": "@akashnetwork/releaser",
   "version": "1.0.0",
-  "description": "Package containing console specific docker files and scripts",
+  "description": "Release and versioning helpers for console packages (conventional-commits based)",
   "keywords": [],
   "license": "Apache-2.0",
   "author": "Akash Network",

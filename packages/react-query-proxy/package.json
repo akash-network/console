@@ -1,7 +1,7 @@
 {
   "name": "@akashnetwork/react-query-proxy",
   "version": "1.0.0",
-  "description": "",
+  "description": "Wraps async services/SDKs into typed TanStack React Query hooks",
   "repository": {
     "type": "git",
     "url": "https://github.com/akash-network/console"
