@@ -4,7 +4,7 @@ This document describes the architecture of the Akash Console monorepo: its appl
 
 ## Overview
 
-Akash Console is a monorepo managed with npm workspaces. It powers the managed Console at [console.akash.network](https://console.akash.network), where users deploy Docker workloads on the [Akash Network](https://akash.network) using a managed wallet. The self-custody variant (Keplr / Leap / your own wallet) lives in a separate repository, [Akash Console Air](https://github.com/akash-network/console-air).
+Akash Console is a monorepo managed with npm workspaces. It powers the managed Console at [console.akash.network](https://console.akash.network), where users deploy Docker workloads on the [Akash Network](https://akash.network) using a managed wallet. The self-custody variant (Keplr / your own wallet) lives in a separate repository, [Akash Console Air](https://github.com/akash-network/console-air).
 
 The system is split into three frontends, six backend services, and a set of shared packages. Backend Node services use [tsyringe](https://github.com/microsoft/tsyringe) for dependency injection, except `notifications` (NestJS modules) and `indexer` (plain procedural code). Frontends are Next.js. All services are written in strict TypeScript and shipped as Docker images.
 

@@ -8,7 +8,7 @@
 
 **Akash Console** is a powerful application that allows you to deploy any [Docker container](https://www.docker.com/) on the [Akash Network](https://akash.network) with just a few clicks. 🚀
 
-> Looking for self-custody (Keplr / Leap / your own wallet)? See [Akash Console Air](https://github.com/akash-network/console-air). This repository powers the managed Console at [console.akash.network](https://console.akash.network).
+> Looking for self-custody (Keplr / your own wallet)? See [Akash Console Air](https://github.com/akash-network/console-air). This repository powers the managed Console at [console.akash.network](https://console.akash.network).
 
 For an in-depth understanding of the code: [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/akash-network/console)
 
