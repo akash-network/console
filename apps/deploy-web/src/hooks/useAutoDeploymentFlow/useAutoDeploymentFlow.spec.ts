@@ -186,6 +186,17 @@ describe(useAutoDeploymentFlow.name, () => {
       expect(flow.actions.selectProvider).toHaveBeenCalledWith(resumedBidId, resumedBidId);
       await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalled());
     });
+
+    it("does not match from bids when the lease fetch fails, avoiding a duplicate lease", async () => {
+      const getDeployment = vi.fn().mockRejectedValue(new Error("network"));
+      const { result, flow } = setup({ initialDseq: DSEQ, getDeployment });
+
+      await vi.waitFor(() => expect(getDeployment).toHaveBeenCalled());
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      expect(result.current.state.kind).toBe("matching");
+      expect(flow.actions.selectProvider).not.toHaveBeenCalled();
+    });
   });
 
   afterEach(() => {

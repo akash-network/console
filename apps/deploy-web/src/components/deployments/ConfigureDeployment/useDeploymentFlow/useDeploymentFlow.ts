@@ -150,11 +150,16 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
   const hasOpenBids = (bidsQuery.data?.data ?? []).some(entry => entry.bid.state === "open");
 
+  // Latches true once this deployment has drawn any open bid. Makes the no-providers timeout one-shot: after providers
+  // have bid, their later disappearance (e.g. quotes expiring) must not re-arm it — that's the quote-expiry path, not a
+  // "no providers" failure. Reset per deployment when a fresh quote request starts (see `requestQuotes`).
+  const providersEverBidRef = useRef(false);
+
   useEffect(
     function failWhenNoProvidersBid() {
-      // Only arm the timer while quoting with nothing to show. It's cleared (and never re-armed) the moment an open
-      // bid arrives, so a deployment that draws bids is never cut off — the quote-expiry window takes over from there.
-      if (phase !== "quoting" || hasOpenBids) return;
+      if (hasOpenBids) providersEverBidRef.current = true;
+      // Arm only while quoting with nothing shown and no bid ever seen; once a bid has appeared it never re-arms.
+      if (phase !== "quoting" || providersEverBidRef.current) return;
       const timer = setTimeout(function timeOutWithoutProviders() {
         setError({ message: NO_PROVIDERS_MESSAGE });
         setPhase("error");
@@ -168,6 +173,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
   const requestQuotes = useCallback(
     function requestQuotes(sdl: string) {
+      // A fresh deployment reopens the no-providers window: re-arm the one-shot timeout for the new quoting session.
+      providersEverBidRef.current = false;
       setPhase("creating");
       setError(undefined);
       createDeployment.mutate(

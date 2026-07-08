@@ -70,6 +70,34 @@ describe(useDeploymentFlow.name, () => {
     }
   });
 
+  it("does not re-arm the no-providers timeout after bids appear and then disappear", () => {
+    vi.useFakeTimers();
+    try {
+      const openBid = { bid: { state: "open", price: { amount: "1", denom: "uakt" }, id: { provider: "p", dseq: "777", gseq: 1, oseq: 1 } } };
+      let bids: Array<typeof openBid> = [openBid];
+      const dependencies: typeof DEPENDENCIES = {
+        useCreateDeployment: (() => mockMutation()) as never,
+        useCloseDeployment: (() => mockMutation()) as never,
+        useCreateLease: (() => mockMutation()) as never,
+        useUpdateDeployment: (() => mockMutation()) as never,
+        useListBids: (() => ({ data: { data: bids }, isLoading: false, isError: false })) as never,
+        useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: vi.fn(), push: vi.fn() })) as never,
+        useDeploymentLocalStorage: (() => mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocalStorage>>()) as never,
+        manifestFromSdl: () => "M"
+      };
+      const { result, rerender } = renderHook(() => useDeploymentFlow({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" } }, dependencies));
+      expect(result.current.phase).toBe("quoting");
+
+      bids = []; // every provider's quote disappears (e.g. expired) after having bid
+      rerender();
+      act(() => vi.advanceTimersByTime(60_000));
+
+      expect(result.current.phase).toBe("quoting");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("cancelAndEdit closes the deployment and returns to configuring", async () => {
     const closeMutate = vi.fn((_args, { onSuccess }) => onSuccess({}));
     const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });

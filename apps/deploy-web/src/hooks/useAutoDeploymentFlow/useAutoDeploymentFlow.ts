@@ -102,8 +102,12 @@ export function useAutoDeploymentFlow(
   // the idempotent server create-lease finish, skipping the bid match entirely. Disabled on a fresh start.
   const deploymentQuery = api.v1.getDeployment.useQuery({ dseq: dseq ?? "" }, { enabled: isResuming && !!dseq && flow.phase === "quoting" && isWalletReady });
   const existingActiveLease = deploymentQuery.data?.data.leases.find(lease => lease.state !== "closed");
-  /** On a resume we must know whether a lease already exists before matching from bids; a fresh start needs no such wait. */
-  const resumeLeaseChecked = !isResuming || deploymentQuery.isFetched;
+  /**
+   * On a resume we must know whether a lease already exists before matching from bids; a fresh start needs no such
+   * wait. Gated on `isSuccess` (not `isFetched`): a failed fetch also flips `isFetched`, which would unblock matching
+   * with `existingActiveLease` still unknown and risk creating a duplicate lease against the resumed deployment.
+   */
+  const resumeLeaseChecked = !isResuming || deploymentQuery.isSuccess;
 
   // Bids come straight off the flow's own query: the flow is the single owner of the bids subscription, the autopilot
   // only reads them to match a provider. No separate query, no reliance on react-query key dedup.
