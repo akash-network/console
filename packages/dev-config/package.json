@@ -1,7 +1,7 @@
 {
   "name": "@akashnetwork/dev-config",
   "version": "1.0.0",
-  "description": "",
+  "description": "Shared ESLint, Prettier, and TypeScript configs for console projects",
   "keywords": [],
   "repository": {
     "type": "git",

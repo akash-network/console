@@ -1,7 +1,7 @@
 {
   "name": "@akashnetwork/net",
   "version": "0.0.2",
-  "description": "",
+  "description": "Blockchain network configuration for Akash Network",
   "repository": {
     "type": "git",
     "url": "https://github.com/akash-network/console"
