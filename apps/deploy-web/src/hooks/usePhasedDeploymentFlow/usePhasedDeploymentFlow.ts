@@ -8,6 +8,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { usePhasedProgressBar } from "@src/hooks/useGradualProgress/usePhasedProgressBar";
 import type { DeployPhase, DeployPhaseId, DeployProgressState } from "@src/hooks/usePhasedDeploymentFlow/deployPhases";
 import { buildDeployPhases, PHASE_MARKERS, PHASE_ORDER, PHASE_TIME_CONSTANTS } from "@src/hooks/usePhasedDeploymentFlow/deployPhases";
+import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
 import { useFirstReachableProvider, useProviderList } from "@src/queries/useProvidersQuery";
 import type { ApiProviderList } from "@src/types/provider";
 import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
@@ -42,9 +43,6 @@ type Result = {
   retry: () => void;
   startOver: () => void;
 };
-
-/** Poll cadence for `listBids`/reachability probing while we wait for the first reachable bid. */
-const BID_POLL_INTERVAL = 2000;
 
 /** The four coordinates that identify a lease/bid. */
 type LeaseId = { dseq: string; gseq: number; oseq: number; provider: string };
@@ -111,10 +109,8 @@ export function usePhasedDeploymentFlow(
   /** On a resume we must know whether a lease already exists before matching from bids; a fresh start needs no such wait. */
   const resumeLeaseChecked = !isResuming || deploymentQuery.isFetched;
 
-  const bidsQuery = api.v1.listBids.useQuery(
-    { dseq: dseq ?? "" },
-    { enabled: flow.phase === "quoting" && !!dseq, refetchInterval: BID_POLL_INTERVAL }
-  );
+  // The same shared `listBids` query the manual flow subscribes to — one react-query cache entry, deduped by dseq.
+  const bidsQuery = useListBids(dseq, { enabled: flow.phase === "quoting", refetchInterval: BID_POLL_INTERVAL });
   const openBids = flow.phase === "quoting" ? bidsQuery.data?.data.filter(bid => bid.bid.state === "open") ?? [] : [];
 
   const { data: providers } = dependencies.useProviderList({ enabled: flow.phase === "quoting" });
