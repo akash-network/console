@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
 
 import type { BidStrategy, DeploymentIntent } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/deploymentIntent";
@@ -10,7 +10,7 @@ import type { DeployPhase, DeployPhaseId, DeployProgressState } from "@src/hooks
 import { buildDeployPhases, PHASE_MARKERS, PHASE_ORDER, PHASE_TIME_CONSTANTS } from "@src/hooks/usePhasedDeploymentFlow/deployPhases";
 import { useFirstReachableProvider, useProviderList } from "@src/queries/useProvidersQuery";
 import type { ApiProviderList } from "@src/types/provider";
-import { formatBidId } from "@src/utils/bids/bidId";
+import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
 
 type Options = {
   sdl: string;
@@ -93,7 +93,6 @@ export function usePhasedDeploymentFlow(
   const resumedDseqRef = useRef(initialDseq);
   const resumedDseq = resumedDseqRef.current;
 
-  const [matchedProviderAddress, setMatchedProviderAddress] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
 
   // One-shot guards so a re-render can't re-fire an action that's already in flight for the current attempt.
@@ -131,6 +130,19 @@ export function usePhasedDeploymentFlow(
   const reachableProvider = reachableProviderQuery.data;
   const activeBid = reachableProvider ? openBids.find(bid => bid.bid.id.provider === reachableProvider.owner) : undefined;
 
+  // The lease/bid to record as the flow's selection: an already-existing active lease on a resume takes precedence;
+  // otherwise the first reachable open bid, held until the resume lease-check has settled so a fresh match never races
+  // an existing lease. Null until there's something to select.
+  const selectionTarget = useMemo<LeaseId | null>(() => {
+    if (existingActiveLease) {
+      return { dseq: existingActiveLease.id.dseq, gseq: existingActiveLease.id.gseq, oseq: existingActiveLease.id.oseq, provider: existingActiveLease.id.provider };
+    }
+    if (resumeLeaseChecked && activeBid) {
+      return { dseq: activeBid.bid.id.dseq, gseq: activeBid.bid.id.gseq, oseq: activeBid.bid.id.oseq, provider: activeBid.bid.id.provider };
+    }
+    return null;
+  }, [existingActiveLease, resumeLeaseChecked, activeBid]);
+
   // Reset the one-shot guards whenever the flow returns to configuring (fresh start / after retry) so a new attempt
   // can fire its actions again.
   useEffect(
@@ -139,7 +151,6 @@ export function usePhasedDeploymentFlow(
         createFiredRef.current = false;
         selectFiredRef.current = false;
         deployFiredRef.current = false;
-        setMatchedProviderAddress(null);
       }
     },
     [flow.phase]
@@ -157,42 +168,24 @@ export function usePhasedDeploymentFlow(
   );
 
   useEffect(
-    function recordSelectionFromExistingLease() {
-      if (flow.phase !== "quoting" || selectFiredRef.current || !existingActiveLease) return;
-      const lease: LeaseId = {
-        dseq: existingActiveLease.id.dseq,
-        gseq: existingActiveLease.id.gseq,
-        oseq: existingActiveLease.id.oseq,
-        provider: existingActiveLease.id.provider
-      };
+    function recordSelection() {
+      if (flow.phase !== "quoting" || selectFiredRef.current || !selectionTarget) return;
       selectFiredRef.current = true;
-      setMatchedProviderAddress(lease.provider);
-      flow.actions.selectProvider(formatBidId(lease), formatBidId(lease));
+      const bidId = formatBidId(selectionTarget);
+      flow.actions.selectProvider(bidId, bidId);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [flow.phase, existingActiveLease]
-  );
-
-  useEffect(
-    function recordSelectionFromReachableBid() {
-      if (flow.phase !== "quoting" || selectFiredRef.current || !activeBid) return;
-      // On a resume, hold off until the lease check has settled so we never race a fresh match against an existing lease.
-      if (!resumeLeaseChecked || existingActiveLease) return;
-      const bidId = {
-        provider: activeBid.bid.id.provider,
-        dseq: activeBid.bid.id.dseq,
-        gseq: activeBid.bid.id.gseq,
-        oseq: activeBid.bid.id.oseq
-      };
-      selectFiredRef.current = true;
-      setMatchedProviderAddress(bidId.provider);
-      flow.actions.selectProvider(formatBidId(bidId), formatBidId(bidId));
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [flow.phase, activeBid, resumeLeaseChecked, existingActiveLease]
+    [flow.phase, selectionTarget]
   );
 
   const hasSelection = Object.keys(flow.selections).length > 0;
+
+  // The matched provider is a pure projection of the flow's own selection (bids/providers drop out of the queries once
+  // the lease exists, so we read it back from the selection the autopilot recorded rather than tracking it separately).
+  const matchedProviderAddress = useMemo(() => {
+    const selectedBidId = Object.values(flow.selections)[0];
+    return selectedBidId ? parseBidId(selectedBidId).provider : null;
+  }, [flow.selections]);
 
   useEffect(
     function fireDeploy() {
@@ -231,7 +224,6 @@ export function usePhasedDeploymentFlow(
     createFiredRef.current = false;
     selectFiredRef.current = false;
     deployFiredRef.current = false;
-    setMatchedProviderAddress(null);
     flow.actions.retry();
   }
 
