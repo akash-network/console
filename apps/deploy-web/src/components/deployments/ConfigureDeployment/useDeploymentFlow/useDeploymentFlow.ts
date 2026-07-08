@@ -11,12 +11,20 @@ import type { BidStrategy, DeploymentIntent } from "./deploymentIntent";
 
 export type DeploymentFlowPhase = "configuring" | "creating" | "quoting" | "closing" | "deploying" | "error";
 
+/** The live bids the flow polls while quoting (react-query-backed). Element shape derived from the shared `listBids` query. */
+export type DeploymentBids = NonNullable<ReturnType<typeof useListBids>["data"]>["data"];
+
 export interface DeploymentFlowState {
   phase: DeploymentFlowPhase;
   dseq: string | null;
   bidStrategy: BidStrategy;
   /** Provider chosen per placement, keyed by placement id; value is the offer's bid id (provider/dseq/gseq/oseq). Sibling state, not a form field. */
   selections: Record<string, string>;
+  /**
+   * Live bids for the current dseq while quoting, from the same react-query entry the flow polls. Empty otherwise.
+   * Surfaced so the auto flow can match a provider off the flow's own query rather than re-declaring `listBids`.
+   */
+  bids: DeploymentBids;
   /** True once the lease is created; the deploy overlay completes its progress before the brief redirect to the deployment. */
   deploySucceeded: boolean;
   deployError?: { message?: string };
@@ -274,6 +282,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     dseq,
     bidStrategy,
     selections,
+    bids: bidsQuery.data?.data ?? [],
     deploySucceeded,
     deployError,
     error,

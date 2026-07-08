@@ -8,7 +8,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { usePhasedProgressBar } from "@src/hooks/useGradualProgress/usePhasedProgressBar";
 import type { DeployPhase, DeployPhaseId, DeployProgressState } from "@src/hooks/usePhasedDeploymentFlow/deployPhases";
 import { buildDeployPhases, PHASE_MARKERS, PHASE_ORDER, PHASE_TIME_CONSTANTS } from "@src/hooks/usePhasedDeploymentFlow/deployPhases";
-import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
+import { BID_POLL_INTERVAL } from "@src/queries/useListBids";
 import { useFirstReachableProvider, useProviderList } from "@src/queries/useProvidersQuery";
 import type { ApiProviderList } from "@src/types/provider";
 import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
@@ -109,9 +109,9 @@ export function usePhasedDeploymentFlow(
   /** On a resume we must know whether a lease already exists before matching from bids; a fresh start needs no such wait. */
   const resumeLeaseChecked = !isResuming || deploymentQuery.isFetched;
 
-  // The same shared `listBids` query the manual flow subscribes to — one react-query cache entry, deduped by dseq.
-  const bidsQuery = useListBids(dseq, { enabled: flow.phase === "quoting", refetchInterval: BID_POLL_INTERVAL });
-  const openBids = flow.phase === "quoting" ? bidsQuery.data?.data.filter(bid => bid.bid.state === "open") ?? [] : [];
+  // Bids come straight off the flow's own query: the flow is the single owner of the bids subscription, the autopilot
+  // only reads them to match a provider. No separate query, no reliance on react-query key dedup.
+  const openBids = flow.phase === "quoting" ? flow.bids.filter(bid => bid.bid.state === "open") : [];
 
   const { data: providers } = dependencies.useProviderList({ enabled: flow.phase === "quoting" });
   const candidateProviders = openBids

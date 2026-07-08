@@ -4,7 +4,7 @@ import { createProxy } from "@akashnetwork/react-query-proxy";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { DeploymentFlow } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
+import type { DeploymentBids, DeploymentFlow } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
 import { useFirstReachableProvider } from "@src/queries/useProvidersQuery";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import type { ApiProviderList } from "@src/types/provider";
@@ -84,7 +84,7 @@ describe(usePhasedDeploymentFlow.name, () => {
   });
 
   it("stays in matching while no open bid is returned", async () => {
-    const { result, flow } = setup({ listBids: vi.fn().mockResolvedValue({ data: [] }) });
+    const { result, flow } = setup({ bids: [] });
 
     await vi.waitFor(() => expect(result.current.state.kind).toBe("matching"));
 
@@ -127,7 +127,7 @@ describe(usePhasedDeploymentFlow.name, () => {
   });
 
   it("projects to error when the underlying deploy fails", async () => {
-    const { result, flow } = setup({ createLease: vi.fn().mockRejectedValue(new Error("lease failed")) });
+    const { result, flow } = setup();
 
     await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalled());
     act(() => flow.setDeployError("lease failed"));
@@ -156,7 +156,7 @@ describe(usePhasedDeploymentFlow.name, () => {
 
   describe("when resuming with a dseq from the URL", () => {
     it("does not fire requestQuotes and starts in matching", async () => {
-      const { result, flow } = setup({ initialDseq: DSEQ, listBids: vi.fn().mockResolvedValue({ data: [] }) });
+      const { result, flow } = setup({ initialDseq: DSEQ, bids: [] });
 
       expect(result.current.state.kind).toBe("matching");
       expect(result.current.phases[0].status).toBe("completed");
@@ -190,8 +190,7 @@ describe(usePhasedDeploymentFlow.name, () => {
     initialDseq?: string;
     templateId?: string;
     draftId?: string;
-    createLease?: ReturnType<typeof vi.fn>;
-    listBids?: ReturnType<typeof vi.fn>;
+    bids?: DeploymentBids;
     getDeployment?: ReturnType<typeof vi.fn>;
     providerProxyRequest?: ReturnType<typeof vi.fn>;
     isWalletReady?: boolean;
@@ -201,13 +200,11 @@ describe(usePhasedDeploymentFlow.name, () => {
     vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => undefined);
 
     const provider = mock<ApiProviderList>({ owner: PROVIDER_OWNER, hostUri: "https://provider.example" });
-    const bid = { bid: { state: "open", id: { provider: PROVIDER_OWNER, dseq: DSEQ, gseq: 1, oseq: 1 } } };
+    const bid = mock<DeploymentBids[number]>({ bid: { state: "open", id: { provider: PROVIDER_OWNER, dseq: DSEQ, gseq: 1, oseq: 1 } } });
+    const bids = input?.bids ?? [bid];
 
-    const createLease = input?.createLease ?? vi.fn().mockResolvedValue({ data: { deployment: { id: { owner: "akash1owner" } } } });
-    const listBids = input?.listBids ?? vi.fn().mockResolvedValue({ data: [bid] });
     const getDeployment = input?.getDeployment ?? vi.fn().mockResolvedValue({ data: { leases: [] } });
-
-    const api = createProxy({ v1: { createLease, listBids, getDeployment } });
+    const api = createProxy({ v1: { getDeployment } });
 
     const providerProxy = mock<ProviderProxyService>();
     if (input?.providerProxyRequest) {
@@ -280,6 +277,7 @@ describe(usePhasedDeploymentFlow.name, () => {
         dseq,
         bidStrategy: "auto",
         selections,
+        bids: phase === "quoting" ? bids : [],
         deploySucceeded,
         deployError,
         error,
@@ -315,6 +313,6 @@ describe(usePhasedDeploymentFlow.name, () => {
       }
     );
 
-    return { ...view, useDeploymentFlow, actions, flow: { actions, ...flowControls }, createLease, listBids, getDeployment, providerProxy };
+    return { ...view, useDeploymentFlow, actions, flow: { actions, ...flowControls }, getDeployment, providerProxy };
   }
 });
