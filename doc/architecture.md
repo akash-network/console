@@ -104,7 +104,7 @@ flowchart LR
 
 | System | Used by | Purpose |
 |---|---|---|
-| Akash chain nodes (RPC / REST) | indexer, api, notifications, tx-signer | Block download, chain reads, tx broadcast, event listening |
+| Akash chain nodes (RPC / REST) | indexer, api, notifications, tx-signer, provider-proxy | Block download, chain reads, tx broadcast, event listening, certificate validation |
 | Akash providers | provider-proxy, provider-inventory | mTLS REST/WS bridge; gRPC `streamStatus` for capacity |
 | Auth0 | api, deploy-web | Authentication (M2M + user JWT); dev uses a mock OAuth server |
 | Stripe | api, deploy-web | Payments / billing and webhooks |
@@ -117,7 +117,8 @@ flowchart LR
 | GitHub / GitLab / Bitbucket | deploy-web, api | Repository import for CI-based deploys |
 | Sentry | most apps | Error tracking |
 | OpenTelemetry | all Node apps (via `packages/instrumentation`) | Traces and metrics |
-| Fluentd / Datadog | api, log-collector | Log forwarding |
+| Fluentd | api | Log forwarding (Pino logs) |
+| Fluent Bit / Datadog | log-collector | Pod log and K8s event forwarding |
 | CoinGecko / Keybase / IP geolocation | indexer | Price history, validator info, provider location |
 | Confidential-compute attestation (Intel / AMD / NVIDIA) | api | TEE / confidential-compute attestation |
 
@@ -149,7 +150,9 @@ flowchart TB
   A --- cron
   ENVS["Environments · prod / staging × mainnet / sandbox / testnet"]:::env
   k8s --- ENVS
-  LC["log-collector · deployed on Akash provider clusters"]:::svc
+  subgraph providers["Akash provider clusters"]
+    LC["log-collector"]:::svc
+  end
 ```
 
 The `api` release also runs scheduled CronJobs (defined inline in its values file), each invoking `dist/console.js <command>`. Not every service has its own Helm values file in this repo: `tx-signer`, `notifications`, `provider-proxy`, and `provider-console` are deployed through other pipelines, and `log-collector` runs on provider clusters. `provider-console`'s primary backend is a separate Go repository.
