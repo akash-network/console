@@ -1,6 +1,6 @@
 <div align="left">
 
-  <a href="https://aimeos.org/">
+  <a href="https://console.akash.network">
     <img src="./apps/deploy-web/public/android-chrome-192x192.png" alt="Akash logo" title="Akash Console" align="left" height="40" />
   </a>
 
@@ -10,7 +10,7 @@
 
 > Looking for self-custody (Keplr / Leap / your own wallet)? See [Akash Console Air](https://github.com/akash-network/console-air). This repository powers the managed Console at [console.akash.network](https://console.akash.network).
 
-For an indept understanding of the code [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/akash-network/console)
+For an in-depth understanding of the code: [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/akash-network/console)
 
 [![release](https://img.shields.io/github/v/release/akash-network/console.svg)](https://github.com/akash-network/console/releases)
 [![version](https://img.shields.io/github/stars/akash-network/console)](https://github.com/akash-network/console/stargazers)
@@ -24,15 +24,17 @@ For an indept understanding of the code [![Ask DeepWiki](https://deepwiki.com/ba
 ## Table of Contents
 
 - [Quick Start](#quick-start)
-- [Apps Configuration](./doc/apps-configuration.md)
-- [Auth](./doc/auth.md)
-- [Services](#services)
+- [Architecture](#architecture)
+- [Applications](#applications)
+- [Databases](#databases)
+- [Managed wallet API](#managed-wallet-api)
 - [Running the Application](#running-the-application)
 - [Manual Database Restoration](#manual-database-restoration)
-- [Database Structure](./doc/database-structure.md)
-- [Release Workflow](./doc/release-workflow.md)
+- [Shared Packages](#shared-packages)
 - [Contributing](#contributing)
 - [License](#license)
+
+Further reading: [Architecture deep dive](./doc/architecture.md) · [Apps Configuration](./doc/apps-configuration.md) · [Auth](./doc/auth.md) · [Database Structure](./doc/database-structure.md) · [Release Workflow](./doc/release-workflow.md)
 
 ## Quick Start
 
@@ -48,18 +50,98 @@ npm run dc:up:dev -- deploy-web
 
 This will start the deploy-web service in development mode with all the necessary dependencies (API, indexer, PostgreSQL). It will also import a backup of the sandbox database by default to speed up the process.
 
+## Architecture
+
+Akash Console is a monorepo (npm workspaces) of three frontends, six backend services, and a set of shared packages. Frontends are Next.js; backend services use Hono or NestJS. Data is served from our own PostgreSQL databases (populated by the indexer) and from the Akash chain and providers. All services are written in TypeScript and shipped as Docker images.
+
+```mermaid
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'Geist, Inter, system-ui, sans-serif','fontSize':'14px','background':'#171717','primaryColor':'#242422','primaryTextColor':'#e7e3da','primaryBorderColor':'#45423c','lineColor':'#8f8f8f','textColor':'#d9d5cd','clusterBkg':'#1a1a1a','clusterBorder':'#3a3a3a','titleColor':'#f5f2ec','edgeLabelBackground':'#1a1a1a'},'flowchart':{'curve':'basis','nodeSpacing':45,'rankSpacing':60}}}%%
+flowchart TB
+  classDef primary fill:#3a1a1d,stroke:#ff5a63,color:#ffb3b7;
+  classDef frontend fill:#362013,stroke:#ef9a5c,color:#f3c39a;
+  classDef svc fill:#262421,stroke:#47433c,color:#d9d3c8;
+  classDef signer fill:#14301c,stroke:#4fce74,color:#a7ecbb;
+  classDef chain fill:#1c1c1c,stroke:#5a5650,color:#d9d5cd;
+  classDef env fill:#201e1c,stroke:#45423c,color:#cfc9be;
+
+  U(["Users / Browser"]):::env
+
+  subgraph fe["Frontends · Next.js"]
+    DW["deploy-web<br/>console.akash.network"]:::frontend
+    SW["stats-web<br/>stats.akash.network"]:::frontend
+    PC["provider-console<br/>provider-console.akash.network"]:::frontend
+  end
+
+  subgraph backend["Backend services"]
+    API["api · Hono<br/>console-api.akash.network"]:::primary
+    NTF["notifications<br/>NestJS"]:::svc
+    PI["provider-inventory"]:::svc
+    TXS["tx-signer"]:::signer
+    PP["provider-proxy"]:::svc
+    IDX["indexer"]:::svc
+  end
+
+  subgraph data["PostgreSQL"]
+    USERDB[("console-users")]:::svc
+    CHAINDB[("chain / indexer")]:::svc
+    NTFDB[("notification_service")]:::svc
+    EVTDB[("events broker")]:::svc
+    PIDB[("provider_inventory")]:::svc
+  end
+
+  AKASH["Akash Network<br/>chain nodes · providers"]:::chain
+  EXT["External services<br/>Auth0 · Stripe · Novu · Amplitude<br/>Unleash · Turnstile · GCP · Git · Sentry"]:::env
+  GOAPI["provider-console-api<br/>Go · separate repo"]:::env
+
+  U --> fe
+  DW --> API
+  DW <-->|"REST + WS"| PP
+  SW --> API
+  PC --> GOAPI
+  PC -.->|"secondary"| API
+
+  API --> NTF & PI & TXS & PP
+  API --> USERDB
+  API -.->|"read"| CHAINDB
+  IDX --> CHAINDB
+  NTF --> NTFDB & EVTDB
+  PI --> PIDB
+
+  backend --> AKASH
+  fe --> EXT
+  backend --> EXT
+```
+
+See the [Architecture deep dive](./doc/architecture.md) for per-component detail, data flow, the indexer pipeline, external integrations, and deployment topology.
+
 ## Applications
 
-All services are Node.js applications written in TypeScript and deployed using Docker. Both databases are PostgreSQL.
+All services are Node.js applications written in TypeScript and deployed using Docker.
 
-- [Console](./apps/deploy-web/): The main website for deploying on Akash, built using the Next.js framework. Data is fetched from a combination of our API and Akash nodes (REST).
-  - [console.akash.network](https://console.akash.network)
-- [Stats](./apps/stats/): The stats website built using Next.js, displaying the usage data of the Akash Network from the Indexer database.
-  - [stats.akash.network](https://stats.akash.network)
-- [Api](./apps/api/): Provides data to the deploy website, fetching from our Indexer database.
-  - [console-api.akash.network](https://console-api.akash.network/v1/swagger)
-- [Indexer](./apps/indexer/): Fetches the latest blocks from RPC nodes and saves blocks & stats to our Indexer Database. For details on how the indexer works, see the [Indexer README](./indexer/README.md).
-- [Provider Proxy](./apps/provider-proxy/): Used in the deploy website to proxy requests to providers. This is necessary since it's not possible to use the cert authentication system from the browser.
+| App | Role | Stack | URL |
+|---|---|---|---|
+| [deploy-web](./apps/deploy-web) | Main deploy UI: build SDLs, deploy, and manage deployments | Next.js | [console.akash.network](https://console.akash.network) |
+| [stats-web](./apps/stats-web) | Public network-statistics site | Next.js | [stats.akash.network](https://stats.akash.network) |
+| [provider-console](./apps/provider-console) | UI to create and manage an Akash provider (backend is a separate Go repo) | Next.js | [provider-console.akash.network](https://provider-console.akash.network) |
+| [api](./apps/api) | Central REST/OpenAPI backend and background jobs | Hono + tsyringe | [console-api.akash.network](https://console-api.akash.network/v1/swagger) |
+| [indexer](./apps/indexer) | Downloads Akash chain blocks and indexes them into the chain DB | Node + Sequelize | internal |
+| [notifications](./apps/notifications) | Listens to chain events, evaluates alerts, sends email | NestJS + pg-boss | internal (via api) |
+| [provider-proxy](./apps/provider-proxy) | Bridges browser requests to providers (mTLS REST + WebSocket) | Hono + ws | [console-provider-proxy.akash.network](https://console-provider-proxy.akash.network) |
+| [provider-inventory](./apps/provider-inventory) | Tracks provider capacity for bid screening | Hono + tsyringe | internal (via api) |
+| [tx-signer](./apps/tx-signer) | Signs and broadcasts managed-wallet transactions | Hono + tsyringe | internal |
+| [log-collector](./apps/log-collector) | Forwards pod logs and K8s events to Datadog (runs on provider clusters) | Node + Fluent Bit | deployed on Akash |
+
+## Databases
+
+All databases are PostgreSQL. The platform uses five logical databases:
+
+- **`console-users`** - user, billing, and auth data owned by `api` (also hosts the pg-boss job queue).
+- **`console-akash-sandbox`** - on-chain data written by the `indexer` and read by `api` (the "chain" / "indexer" DB).
+- **`notification_service`** - the `notifications` service's own data.
+- **`events`** - the `notifications` pg-boss message broker.
+- **`provider_inventory`** - provider capacity for bid screening.
+
+There is no Redis: background jobs and the event broker both run on [pg-boss](https://github.com/timgit/pg-boss). The indexer also keeps an on-disk LevelDB block cache during syncing. See [database-structure.md](./doc/database-structure.md) and the [Architecture deep dive](./doc/architecture.md#data-stores) for detail.
 
 ## Managed wallet API
 
@@ -67,51 +149,49 @@ All services are Node.js applications written in TypeScript and deployed using D
 
 ## Running the Application
 
-This document provides instructions on how to set up and run the application, including steps for manual database restoration and using Docker Compose for ease of setup.
+This project's services are deployed using Docker and Docker Compose. All Dockerfiles use multi-stage builds to optimize the build process; the same files build both development and production images.
 
 ### Using Docker and Docker Compose
 
-This project's service are deployed using Docker and Docker Compose. The following sections provide instructions for setting up and running the application using Docker Compose.
-All the Dockerfiles are using multi-stage builds to optimize the image build processes. Same files are used to build both development and production images.
+The compose files live in [`packages/docker`](./packages/docker) and are merged by the `dc` wrapper ([`packages/docker/script/dc.sh`](./packages/docker/script/dc.sh)):
 
-There are 3 docker-compose files:
+- **`docker-compose.build.yml`** - image and build definitions for every service.
+- **`docker-compose.runtime.yml`** - runtime config: `restart`, `env_file`, ports, and `depends_on`.
+- **`docker-compose.prod-with-db.yml`** - adds the PostgreSQL `db` service and its data volume.
+- **`docker-compose.dev.yml`** - development overrides: hot-reload bind mounts and a mock OAuth server.
 
-- **docker-compose.build.yml:** Base file solely building production images for the services. It can be used to verify the same build process as in CICD.
-- **docker-compose.prod.yml:** This file is used to run the services in production mode. It also includes the database service which would fetch a remote backup and import it on init.
-- **docker-compose.yml:** The default file to run all the services in development mode with features like hot-reload.
-
-Some commands are added to package.json for convenience.
+Some commands are added to `package.json` for convenience:
 
 ```shell
-npm run dc:build # Build the production images
+npm run dc:build  # Build the production images
 npm run dc:up:dev # Run the services in development mode
-npm run dc:down # Stop the services referencing any possible service
+npm run dc:down   # Stop the services
 ```
 
-Note: you may pass any `docker compose` related arguments to the above commands. E.g. to only start `deploy-web` service in development mode:
+Note: you may pass any `docker compose` argument to the above commands. For example, to only start the `deploy-web` service (and its dependencies) in development mode:
 
 ```shell
 npm run dc:up:dev -- deploy-web
 ```
 
-This would also properly spin up all the dependencies like the `api`.
+Pass `--no-db` to drop the bundled PostgreSQL service if you already run Postgres yourself.
 
 ### Using Turbo Repo
 
-Another way to run apps in dev mode is using turbo repo setup. Some available commands are:
+Another way to run apps in dev mode is the Turbo setup. Some available commands are:
 
 ```shell
-npm run console:dev # run console ui in dev mode with dependencies
-npm run stats:dev # run stats ui in dev mode with dependencies
-npm run api:dev # run api in dev mode with dependencies
+npm run console:dev # run the console UI with its backend (api, provider-proxy, notifications, tx-signer)
+npm run stats:dev   # run stats UI in dev mode with dependencies
+npm run api:dev     # run api in dev mode with dependencies
 npm run indexer:dev # run indexer in dev mode with dependencies
 ```
 
-Note the above commands still depend on docker to run postgres database. If you need to run them without db you can use the following commands:
+The commands above still use Docker to run the PostgreSQL database. To run them without the containerized DB, use the `:no-db` variants:
 
 ```shell
-npm run console:dev:no-db # run console ui in dev mode with dependencies but without postgres in docker
-npm run stats:dev:no-db # run stats ui in dev mode with dependencies but without postgres in docker
+npm run console:dev:no-db # console UI with dependencies, no PostgreSQL in Docker
+npm run stats:dev:no-db   # stats UI with dependencies, no PostgreSQL in Docker
 ```
 
 ## Manual Database Restoration
@@ -138,24 +218,32 @@ gunzip -c /path/to/console-akash-sandbox.sql.gz | psql --host "localhost" --port
 
 After restoring the database, you can proceed with the specific project's README instructions for further setup and running the application.
 
-## Services
-
-This project is structured as a monorepo, allowing us to manage multiple related applications and shared packages in a single repository.
-
-![Dataflow between services](infra.drawio.png)
-
 ## Shared Packages
 
-We utilize a `/packages` folder to define reusable packages that can be shared between applications. This approach promotes code reuse, maintainability, and consistency across our services. Some examples of shared packages include:
+Reusable packages under [`packages/`](./packages) are shared across applications to promote code reuse, maintainability, and consistency.
 
-- Common utilities
-- Shared types and interfaces
-- Reusable UI components
-- Shared configuration files
+**Runtime libraries**
 
-By leveraging this monorepo structure with shared packages, we can efficiently manage dependencies, streamline development workflows, and ensure consistency across our various applications.
+- [`database`](./packages/database) - shared Drizzle schemas and DB code (chain + app).
+- [`net`](./packages/net) - blockchain network configuration.
+- [`http-sdk`](./packages/http-sdk) - shared HTTP client layer.
+- [`logging`](./packages/logging) - Pino-based `LoggerService`.
+- [`instrumentation`](./packages/instrumentation) - OpenTelemetry setup.
+- [`env-loader`](./packages/env-loader) - environment variable loading.
+- [`network-store`](./packages/network-store) - browser storage abstraction.
+- [`react-query-proxy`](./packages/react-query-proxy) - wraps async services into typed React Query hooks.
+- [`openapi-sdk`](./packages/openapi-sdk) - typed, codegen-free OpenAPI fetch client runtime.
+- [`console-api-types`](./packages/console-api-types) - generated OpenAPI types and operations table for the API.
 
-For more information on how to use or contribute to shared packages, please refer to the code within each package in the `/packages` directory.
+**UI**
+
+- [`ui`](./packages/ui) - shared React component library (MUI + Tailwind).
+
+**Dev / build tooling**
+
+- [`dev-config`](./packages/dev-config) - shared ESLint, Prettier, and TypeScript configs.
+- [`docker`](./packages/docker) - Dockerfiles, compose files, and the `dc` / `build` scripts.
+- [`releaser`](./packages/releaser) - release and versioning helpers.
 
 ## Contributing
 
