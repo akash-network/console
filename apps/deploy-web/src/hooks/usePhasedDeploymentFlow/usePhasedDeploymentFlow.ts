@@ -87,10 +87,10 @@ export function usePhasedDeploymentFlow(
   const sdlRef = useRef(sdl);
   sdlRef.current = sdl;
 
-  // The dseq a resumed session mounted with, read from the mount-pinned intent: only a genuine reload — mounted with a
-  // dseq — resumes. The dseq later written to the URL after a fresh create lives on `flow.dseq`, not here, so it can't
-  // retroactively flip a fresh start into resume mode.
-  const resumedDseq = intentRef.current.dseq;
+  // Whether this is a resumed session — a genuine reload that mounted already carrying a dseq (pinned in the intent).
+  // A fresh start acquires its dseq later on `flow.dseq`, so that can't retroactively flip it into resume mode. This is
+  // only ever a flag; `flow.dseq` stays the single source of the actual sequence for the queries below.
+  const isResuming = !!intentRef.current.dseq;
 
   const [retryToken, setRetryToken] = useState(0);
 
@@ -105,11 +105,11 @@ export function usePhasedDeploymentFlow(
   // the idempotent server create-lease finish, skipping the bid match entirely. Disabled on a fresh start.
   const deploymentQuery = api.v1.getDeployment.useQuery(
     { dseq: dseq ?? "" },
-    { enabled: !!resumedDseq && !!dseq && flow.phase === "quoting" && isWalletReady }
+    { enabled: isResuming && !!dseq && flow.phase === "quoting" && isWalletReady }
   );
   const existingActiveLease = deploymentQuery.data?.data.leases.find(lease => lease.state !== "closed");
   /** On a resume we must know whether a lease already exists before matching from bids; a fresh start needs no such wait. */
-  const resumeLeaseChecked = !resumedDseq || deploymentQuery.isFetched;
+  const resumeLeaseChecked = !isResuming || deploymentQuery.isFetched;
 
   const bidsQuery = api.v1.listBids.useQuery(
     { dseq: dseq ?? "" },
