@@ -1,11 +1,15 @@
+import { useCallback, useState } from "react";
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { createProxy } from "@akashnetwork/react-query-proxy";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { DeploymentFlow } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
+import { useFirstReachableProvider } from "@src/queries/useProvidersQuery";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import type { ApiProviderList } from "@src/types/provider";
-import { helloWorldTemplate } from "@src/utils/templates";
+import { formatBidId } from "@src/utils/bids/bidId";
+import type { DEPENDENCIES } from "./usePhasedDeploymentFlow";
 import { usePhasedDeploymentFlow } from "./usePhasedDeploymentFlow";
 
 import { act } from "@testing-library/react";
@@ -13,11 +17,11 @@ import { setupQuery } from "@tests/unit/query-client";
 
 const PROVIDER_OWNER = "akash1provider";
 const DSEQ = "12345";
-const MANIFEST = "manifest-yaml";
+const BID_ID = `${PROVIDER_OWNER}/${DSEQ}/1/1`;
 
 describe(usePhasedDeploymentFlow.name, () => {
   it("starts in the creating phase with the first phase active", () => {
-    const { result } = setup();
+    const { result } = setup({ isWalletReady: false });
 
     expect(result.current.state.kind).toBe("creating");
     expect(result.current.phases[0].status).toBe("active");
@@ -25,113 +29,31 @@ describe(usePhasedDeploymentFlow.name, () => {
     expect(result.current.phases[2].status).toBe("pending");
   });
 
-  it("advances past creating once createDeployment resolves", async () => {
-    const { result, createDeployment } = setup({ providerProxyRequest: vi.fn().mockRejectedValue(new Error("unreachable")) });
+  it("builds an auto intent seeded with the template, draft, and resumed dseq", () => {
+    const { useDeploymentFlow } = setup({ templateId: "hello-world", draftId: "draft-1", initialDseq: DSEQ });
 
-    await vi.waitFor(() => expect(result.current.state.kind).toBe("matching"));
-
-    expect(createDeployment).toHaveBeenCalledWith({ data: { sdl: "sdl-content", deposit: 5000000 } });
-    expect(result.current.phases[0].status).toBe("completed");
-    expect(result.current.phases[0].label).toBe("Deployment created");
-    expect(result.current.phases[1].status).toBe("active");
+    expect(useDeploymentFlow).toHaveBeenCalledWith(
+      expect.objectContaining({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: DSEQ, templateId: "hello-world", draftId: "draft-1" } })
+    );
   });
 
-  it("transitions to error when createDeployment rejects", async () => {
-    const { result } = setup({ createDeployment: vi.fn().mockRejectedValue(new Error("broadcast failed")) });
+  it("fires requestQuotes with the current SDL once the wallet is ready", async () => {
+    const { flow } = setup({ sdl: "sdl-content" });
 
-    await vi.waitFor(() => expect(result.current.state.kind).toBe("error"));
+    await vi.waitFor(() => expect(flow.actions.requestQuotes).toHaveBeenCalledWith("sdl-content"));
   });
 
-  it("surfaces the API error message on createDeployment failure", async () => {
-    const { result } = setup({
-      createDeployment: vi.fn().mockRejectedValue(new ApiError(500, { message: "Tx rejected by node" }, "POST /v1/deployments → 500"))
-    });
-
-    await vi.waitFor(() => expect(result.current.state.kind).toBe("error"));
-
-    expect(result.current.state).toEqual({ kind: "error", message: "Tx rejected by node" });
-  });
-
-  it("stays in matching while no open bid is returned", async () => {
-    const { result } = setup({ listBids: vi.fn().mockResolvedValue({ data: [] }) });
-
-    await vi.waitFor(() => expect(result.current.state.kind).toBe("matching"));
-
-    await new Promise(resolve => setTimeout(resolve, 50));
-    expect(result.current.state.kind).toBe("matching");
-  });
-
-  it("stays in matching while the matched provider is unreachable", async () => {
-    const { result } = setup({
-      providerProxyRequest: vi.fn().mockRejectedValue(new Error("unreachable"))
-    });
-
-    await vi.waitFor(() => expect(result.current.state.kind).toBe("matching"));
-
-    await new Promise(resolve => setTimeout(resolve, 50));
-    expect(result.current.state.kind).toBe("matching");
-    expect(result.current.matchedProviderAddress).toBeNull();
-  });
-
-  it("advances to preparing and creates a lease once a reachable bid is found", async () => {
-    const { result, createLease } = setup();
-
-    await vi.waitFor(() => expect(result.current.matchedProviderAddress).toBe(PROVIDER_OWNER));
-
-    expect(createLease).toHaveBeenCalledWith({
-      manifest: MANIFEST,
-      leases: [{ dseq: DSEQ, gseq: 1, oseq: 1, provider: PROVIDER_OWNER }]
-    });
-  });
-
-  it("reaches success and calls onSuccess with the dseq once the lease is created", async () => {
-    const onSuccess = vi.fn();
-    const { result } = setup({ onSuccess });
-
-    await vi.waitFor(() => expect(result.current.state.kind).toBe("success"));
-
-    expect(onSuccess).toHaveBeenCalledWith(DSEQ);
-    expect(result.current.phases.every(phase => phase.status === "completed")).toBe(true);
-  });
-
-  it("transitions to error when createLease rejects", async () => {
-    const { result } = setup({ createLease: vi.fn().mockRejectedValue(new Error("lease failed")) });
-
-    await vi.waitFor(() => expect(result.current.state.kind).toBe("error"));
-  });
-
-  it("restarts the flow from creating when retry is called after an error", async () => {
-    const createDeployment = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("broadcast failed"))
-      .mockResolvedValue({ data: { dseq: DSEQ, manifest: MANIFEST } });
-    const { result } = setup({ createDeployment });
-
-    await vi.waitFor(() => expect(result.current.state.kind).toBe("error"));
-
-    act(() => result.current.retry());
-
-    await vi.waitFor(() => expect(result.current.state.kind).toBe("success"));
-    expect(createDeployment).toHaveBeenCalledTimes(2);
-  });
-
-  it("exposes startOver as an alias of retry", () => {
-    const { result } = setup();
-
-    expect(result.current.startOver).toBe(result.current.retry);
-  });
-
-  it("stays in creating without broadcasting while the trial wallet is not yet ready", async () => {
-    const { result, createDeployment } = setup({ isWalletReady: false });
+  it("stays in creating without firing requestQuotes while the trial wallet is not yet ready", async () => {
+    const { result, flow } = setup({ isWalletReady: false });
 
     await new Promise(resolve => setTimeout(resolve, 50));
 
     expect(result.current.state.kind).toBe("creating");
-    expect(createDeployment).not.toHaveBeenCalled();
+    expect(flow.actions.requestQuotes).not.toHaveBeenCalled();
   });
 
-  it("fails the deploy when the trial-start mutation has terminally errored", async () => {
-    const { result, createDeployment } = setup({
+  it("projects to error without firing requestQuotes when the trial has terminally errored", async () => {
+    const { result, flow } = setup({
       isWalletReady: false,
       trialError: new ApiError(400, { message: "Email not verified" }, "POST /v1/wallets/start-trial → 400")
     });
@@ -139,21 +61,102 @@ describe(usePhasedDeploymentFlow.name, () => {
     await vi.waitFor(() => expect(result.current.state.kind).toBe("error"));
 
     expect(result.current.state).toEqual({ kind: "error", message: "Email not verified" });
-    expect(createDeployment).not.toHaveBeenCalled();
+    expect(flow.actions.requestQuotes).not.toHaveBeenCalled();
   });
 
-  it("notifies onDeploymentCreated with the dseq once the deployment is created", async () => {
-    const onDeploymentCreated = vi.fn();
-    const { result } = setup({ onDeploymentCreated, providerProxyRequest: vi.fn().mockRejectedValue(new Error("unreachable")) });
+  it("projects the underlying quoting phase to matching, with creating completed", async () => {
+    const { result } = setup({ providerProxyRequest: vi.fn().mockRejectedValue(new Error("unreachable")) });
 
     await vi.waitFor(() => expect(result.current.state.kind).toBe("matching"));
 
-    expect(onDeploymentCreated).toHaveBeenCalledWith(DSEQ);
+    expect(result.current.phases[0].status).toBe("completed");
+    expect(result.current.phases[0].label).toBe("Deployment created");
+    expect(result.current.phases[1].status).toBe("active");
+  });
+
+  it("projects to error when the underlying flow errors", async () => {
+    const { result, flow } = setup();
+
+    await vi.waitFor(() => expect(flow.actions.requestQuotes).toHaveBeenCalled());
+    act(() => flow.setPhaseError("Tx rejected by node"));
+
+    await vi.waitFor(() => expect(result.current.state).toEqual({ kind: "error", message: "Tx rejected by node" }));
+  });
+
+  it("stays in matching while no open bid is returned", async () => {
+    const { result, flow } = setup({ listBids: vi.fn().mockResolvedValue({ data: [] }) });
+
+    await vi.waitFor(() => expect(result.current.state.kind).toBe("matching"));
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(result.current.state.kind).toBe("matching");
+    expect(flow.actions.selectProvider).not.toHaveBeenCalled();
+  });
+
+  it("stays in matching without selecting while the matched provider is unreachable", async () => {
+    const { result, flow } = setup({ providerProxyRequest: vi.fn().mockRejectedValue(new Error("unreachable")) });
+
+    await vi.waitFor(() => expect(result.current.state.kind).toBe("matching"));
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(result.current.state.kind).toBe("matching");
+    expect(result.current.matchedProviderAddress).toBeNull();
+    expect(flow.actions.selectProvider).not.toHaveBeenCalled();
+  });
+
+  it("records the reachable provider as the flow's selection once found", async () => {
+    const { result, flow } = setup();
+
+    await vi.waitFor(() => expect(result.current.matchedProviderAddress).toBe(PROVIDER_OWNER));
+
+    expect(flow.actions.selectProvider).toHaveBeenCalledWith(BID_ID, BID_ID);
+  });
+
+  it("fires deploy with the current SDL once a selection exists", async () => {
+    const { flow } = setup({ sdl: "sdl-content" });
+
+    await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledWith("sdl-content"));
+  });
+
+  it("projects to success once the underlying deploy succeeds", async () => {
+    const { result } = setup();
+
+    await vi.waitFor(() => expect(result.current.state.kind).toBe("success"));
+
+    expect(result.current.phases.every(phase => phase.status === "completed")).toBe(true);
+  });
+
+  it("projects to error when the underlying deploy fails", async () => {
+    const { result, flow } = setup({ createLease: vi.fn().mockRejectedValue(new Error("lease failed")) });
+
+    await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalled());
+    act(() => flow.setDeployError("lease failed"));
+
+    await vi.waitFor(() => expect(result.current.state).toEqual({ kind: "error", message: "lease failed" }));
+  });
+
+  it("restarts the flow when retry is called after an error", async () => {
+    const { result, flow } = setup();
+
+    await vi.waitFor(() => expect(flow.actions.requestQuotes).toHaveBeenCalledTimes(1));
+    act(() => flow.setPhaseError("broadcast failed"));
+    await vi.waitFor(() => expect(result.current.state.kind).toBe("error"));
+
+    act(() => result.current.retry());
+
+    await vi.waitFor(() => expect(result.current.state.kind).toBe("success"));
+    expect(flow.actions.retry).toHaveBeenCalled();
+  });
+
+  it("exposes startOver as an alias of retry", () => {
+    const { result } = setup({ isWalletReady: false });
+
+    expect(result.current.startOver).toBe(result.current.retry);
   });
 
   describe("when resuming with a dseq from the URL", () => {
-    it("starts in matching without creating a new deployment", async () => {
-      const { result, createDeployment } = setup({ initialDseq: DSEQ, listBids: vi.fn().mockResolvedValue({ data: [] }) });
+    it("does not fire requestQuotes and starts in matching", async () => {
+      const { result, flow } = setup({ initialDseq: DSEQ, listBids: vi.fn().mockResolvedValue({ data: [] }) });
 
       expect(result.current.state.kind).toBe("matching");
       expect(result.current.phases[0].status).toBe("completed");
@@ -161,21 +164,20 @@ describe(usePhasedDeploymentFlow.name, () => {
 
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      expect(result.current.state.kind).toBe("matching");
-      expect(createDeployment).not.toHaveBeenCalled();
+      expect(flow.actions.requestQuotes).not.toHaveBeenCalled();
     });
 
-    it("resumes straight to preparing and submits the existing lease when one is already on chain", async () => {
+    it("reconstructs the selection from an existing active lease and lets deploy run", async () => {
       const getDeployment = vi.fn().mockResolvedValue({
         data: { leases: [{ id: { dseq: DSEQ, gseq: 2, oseq: 3, provider: PROVIDER_OWNER }, state: "active" }] }
       });
-      const { result, createDeployment, createLease } = setup({ initialDseq: DSEQ, sdl: helloWorldTemplate.content, getDeployment });
+      const { result, flow } = setup({ initialDseq: DSEQ, getDeployment });
 
-      await vi.waitFor(() => expect(result.current.state.kind).toBe("success"));
+      await vi.waitFor(() => expect(result.current.matchedProviderAddress).toBe(PROVIDER_OWNER));
 
-      expect(createDeployment).not.toHaveBeenCalled();
-      expect(result.current.matchedProviderAddress).toBe(PROVIDER_OWNER);
-      expect(createLease).toHaveBeenCalledWith(expect.objectContaining({ leases: [{ dseq: DSEQ, gseq: 2, oseq: 3, provider: PROVIDER_OWNER }] }));
+      const resumedBidId = formatBidId({ provider: PROVIDER_OWNER, dseq: DSEQ, gseq: 2, oseq: 3 });
+      expect(flow.actions.selectProvider).toHaveBeenCalledWith(resumedBidId, resumedBidId);
+      await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalled());
     });
   });
 
@@ -185,11 +187,9 @@ describe(usePhasedDeploymentFlow.name, () => {
 
   function setup(input?: {
     sdl?: string;
-    deposit?: number;
-    onSuccess?: (dseq: string) => void;
-    onDeploymentCreated?: (dseq: string) => void;
     initialDseq?: string;
-    createDeployment?: ReturnType<typeof vi.fn>;
+    templateId?: string;
+    draftId?: string;
     createLease?: ReturnType<typeof vi.fn>;
     listBids?: ReturnType<typeof vi.fn>;
     getDeployment?: ReturnType<typeof vi.fn>;
@@ -201,19 +201,13 @@ describe(usePhasedDeploymentFlow.name, () => {
     vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => undefined);
 
     const provider = mock<ApiProviderList>({ owner: PROVIDER_OWNER, hostUri: "https://provider.example" });
-    const bid = {
-      bid: {
-        state: "open",
-        id: { provider: PROVIDER_OWNER, dseq: DSEQ, gseq: 1, oseq: 1 }
-      }
-    };
+    const bid = { bid: { state: "open", id: { provider: PROVIDER_OWNER, dseq: DSEQ, gseq: 1, oseq: 1 } } };
 
-    const createDeployment = input?.createDeployment ?? vi.fn().mockResolvedValue({ data: { dseq: DSEQ, manifest: MANIFEST } });
-    const createLease = input?.createLease ?? vi.fn().mockResolvedValue({ data: {} });
+    const createLease = input?.createLease ?? vi.fn().mockResolvedValue({ data: { deployment: { id: { owner: "akash1owner" } } } });
     const listBids = input?.listBids ?? vi.fn().mockResolvedValue({ data: [bid] });
     const getDeployment = input?.getDeployment ?? vi.fn().mockResolvedValue({ data: { leases: [] } });
 
-    const api = createProxy({ v1: { createDeployment, createLease, listBids, getDeployment } });
+    const api = createProxy({ v1: { createLease, listBids, getDeployment } });
 
     const providerProxy = mock<ProviderProxyService>();
     if (input?.providerProxyRequest) {
@@ -222,19 +216,96 @@ describe(usePhasedDeploymentFlow.name, () => {
       providerProxy.request.mockResolvedValue({ data: {} } as never);
     }
 
+    // Captures the action calls the autopilot makes and exposes hooks to simulate the underlying flow's terminal states.
+    const actions = {
+      requestQuotes: vi.fn(),
+      selectProvider: vi.fn(),
+      deploy: vi.fn(),
+      cancelAndEdit: vi.fn(),
+      setBidStrategy: vi.fn(),
+      refreshQuotes: vi.fn(),
+      retry: vi.fn(),
+      clearSelection: vi.fn()
+    };
+
+    // A stateful stub state machine: it advances phase in response to the autopilot's action calls exactly as the real
+    // `useDeploymentFlow` does, so the autopilot's effects fire against realistic transitions without the real chain logic.
+    const flowControls: { setPhaseError: (message?: string) => void; setDeployError: (message?: string) => void } = {
+      setPhaseError: () => undefined,
+      setDeployError: () => undefined
+    };
+
+    const useDeploymentFlow = vi.fn(function useDeploymentFlowStub({ intent }: { intent: { dseq?: string } }): DeploymentFlow {
+      const [phase, setPhase] = useState<DeploymentFlow["phase"]>(intent.dseq ? "quoting" : "configuring");
+      const [dseq] = useState<string | null>(intent.dseq ?? DSEQ);
+      const [selections, setSelections] = useState<Record<string, string>>({});
+      const [deploySucceeded, setDeploySucceeded] = useState(false);
+      const [deployError, setDeployError] = useState<{ message?: string } | undefined>(undefined);
+      const [error, setError] = useState<{ message?: string } | undefined>(undefined);
+
+      flowControls.setPhaseError = (message?: string) => {
+        setError({ message });
+        setPhase("error");
+      };
+      flowControls.setDeployError = (message?: string) => {
+        setDeployError({ message });
+        setPhase("quoting");
+      };
+
+      const requestQuotes = useCallback((sdl: string) => {
+        actions.requestQuotes(sdl);
+        setPhase("quoting");
+      }, []);
+      const selectProvider = useCallback((placementId: string, bidId: string) => {
+        actions.selectProvider(placementId, bidId);
+        setDeployError(undefined);
+        setSelections(previous => ({ ...previous, [placementId]: bidId }));
+      }, []);
+      const deploy = useCallback((sdl: string) => {
+        actions.deploy(sdl);
+        setDeployError(undefined);
+        setPhase("deploying");
+        setDeploySucceeded(true);
+      }, []);
+      const retry = useCallback(() => {
+        actions.retry();
+        setError(undefined);
+        setDeployError(undefined);
+        setSelections({});
+        setPhase(intent.dseq ? "quoting" : "configuring");
+      }, []);
+
+      return {
+        phase,
+        dseq,
+        bidStrategy: "auto",
+        selections,
+        deploySucceeded,
+        deployError,
+        error,
+        actions: { ...actions, requestQuotes, selectProvider, deploy, retry }
+      };
+    });
+
     const publicConsoleApiHttpClient = { get: vi.fn().mockResolvedValue({ data: [provider] }) };
+
+    // `useProviderList` is stubbed to hand back the candidate provider directly; the real `useFirstReachableProvider` runs
+    // against the stubbed provider-proxy so reachability outcomes (reachable vs. unreachable) drive the autopilot for real.
+    const useProviderList: typeof DEPENDENCIES.useProviderList = (() => ({ data: [provider] })) as never;
 
     const view = setupQuery(
       () =>
-        usePhasedDeploymentFlow({
-          sdl: input?.sdl ?? "sdl-content",
-          deposit: input?.deposit ?? 5000000,
-          isWalletReady: input?.isWalletReady ?? true,
-          trialError: input?.trialError,
-          initialDseq: input?.initialDseq,
-          onDeploymentCreated: input?.onDeploymentCreated,
-          onSuccess: input?.onSuccess ?? vi.fn()
-        }),
+        usePhasedDeploymentFlow(
+          {
+            sdl: input?.sdl ?? "sdl-content",
+            isWalletReady: input?.isWalletReady ?? true,
+            trialError: input?.trialError,
+            initialDseq: input?.initialDseq,
+            templateId: input?.templateId,
+            draftId: input?.draftId
+          },
+          { useDeploymentFlow, useProviderList, useFirstReachableProvider }
+        ),
       {
         services: {
           api: () => api,
@@ -244,6 +315,6 @@ describe(usePhasedDeploymentFlow.name, () => {
       }
     );
 
-    return { ...view, createDeployment, createLease, listBids, getDeployment, providerProxy };
+    return { ...view, useDeploymentFlow, actions, flow: { actions, ...flowControls }, createLease, listBids, getDeployment, providerProxy };
   }
 });

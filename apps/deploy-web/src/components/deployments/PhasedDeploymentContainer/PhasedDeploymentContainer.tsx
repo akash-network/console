@@ -3,8 +3,6 @@
 import { usePhasedDeploymentFlow } from "@src/hooks/usePhasedDeploymentFlow/usePhasedDeploymentFlow";
 import { PhasedDeployProgressScene } from "../ConfigureDeployment/DeployProgressOverlay/PhasedDeployProgressScene";
 
-const DEFAULT_DEPOSIT_USD = 0.5;
-
 export const DEPENDENCIES = {
   usePhasedDeploymentFlow,
   PhasedDeployProgressScene
@@ -13,43 +11,42 @@ export const DEPENDENCIES = {
 type PhasedDeploymentContainerProps = {
   templateName: string;
   sdl: string;
-  deposit?: number;
   isWalletReady: boolean;
   trialError?: unknown;
   /** A dseq carried in from the URL on a resumed session; the flow skips creating and resumes from matching/preparing. */
   initialDseq?: string;
-  /** Notified once the deployment exists on chain so the caller can write its dseq into the URL for resumability. */
-  onDeploymentCreated?: (dseq: string) => void;
-  onSuccess?: (dseq: string) => void;
+  /** The template the flow deploys, mirrored into the deployment intent so URL resume preserves it. */
+  templateId?: string;
+  /** The active configure draft id, mirrored into the deployment intent so a reload resolves the same session. */
+  draftId?: string;
   onCancel?: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
 /**
- * The onboarding-driven auto deploy: orchestrates create → match → lease via {@link usePhasedDeploymentFlow} and
- * renders the shared {@link PhasedDeployProgressScene} (progress panel over the provider globe), which the manual
- * configure deploy also uses.
+ * The onboarding-driven auto deploy: drives {@link usePhasedDeploymentFlow} (an autopilot over the shared
+ * `useDeploymentFlow` state machine) and renders the shared {@link PhasedDeployProgressScene} (progress panel over
+ * the provider globe), which the manual configure deploy also uses. Creation, URL resume, and the deploy-success
+ * redirect are all owned by the underlying flow — this container only wires cancel back to manual configuration.
  */
 export function PhasedDeploymentContainer({
   templateName,
   sdl,
-  deposit = DEFAULT_DEPOSIT_USD,
   isWalletReady,
   trialError,
   initialDseq,
-  onDeploymentCreated,
-  onSuccess,
+  templateId,
+  draftId,
   onCancel,
   dependencies: d = DEPENDENCIES
 }: PhasedDeploymentContainerProps) {
   const { state, progressPercent, phases, matchedProviderAddress, startOver } = d.usePhasedDeploymentFlow({
     sdl,
-    deposit,
     isWalletReady,
     trialError,
     initialDseq,
-    onDeploymentCreated,
-    onSuccess: dseq => onSuccess?.(dseq)
+    templateId,
+    draftId
   });
 
   return (

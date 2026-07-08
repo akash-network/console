@@ -34,12 +34,11 @@ describe(PhasedDeploymentContainer.name, () => {
     expect(PhasedDeployProgressScene).toHaveBeenCalledWith(expect.objectContaining({ focusedProviderAddress: "akash1provider" }), expect.anything());
   });
 
-  it("resumes the flow with the initial dseq and forwards the created-dseq callback", () => {
+  it("resumes the flow with the initial dseq and forwards the intent params", () => {
     const usePhasedDeploymentFlow = vi.fn(() => buildFlow());
-    const onDeploymentCreated = vi.fn();
-    setup({ initialDseq: "999", onDeploymentCreated, usePhasedDeploymentFlow });
+    setup({ initialDseq: "999", templateId: "hello-world", draftId: "d1", usePhasedDeploymentFlow });
 
-    expect(usePhasedDeploymentFlow).toHaveBeenCalledWith(expect.objectContaining({ initialDseq: "999", onDeploymentCreated }));
+    expect(usePhasedDeploymentFlow).toHaveBeenCalledWith(expect.objectContaining({ initialDseq: "999", templateId: "hello-world", draftId: "d1" }));
   });
 
   it("invokes startOver and onCancel when the scene requests a start over", () => {
@@ -66,19 +65,6 @@ describe(PhasedDeploymentContainer.name, () => {
     expect(open).toHaveBeenCalledWith("https://akash.network/discord", "_blank", "noopener,noreferrer");
   });
 
-  it("forwards a successful deployment dseq to onSuccess", () => {
-    const onSuccess = vi.fn();
-    setup({
-      onSuccess,
-      usePhasedDeploymentFlow: options => {
-        options.onSuccess("dseq-123");
-        return buildFlow();
-      }
-    });
-
-    expect(onSuccess).toHaveBeenCalledWith("dseq-123");
-  });
-
   function buildFlow(overrides: Partial<FlowResult> = {}): FlowResult {
     return {
       state: { kind: "creating" },
@@ -101,8 +87,8 @@ describe(PhasedDeploymentContainer.name, () => {
       sdl?: string;
       isWalletReady?: boolean;
       initialDseq?: string;
-      onDeploymentCreated?: (dseq: string) => void;
-      onSuccess?: (dseq: string) => void;
+      templateId?: string;
+      draftId?: string;
       onCancel?: () => void;
       flow?: Partial<FlowResult>;
       usePhasedDeploymentFlow?: typeof DEPENDENCIES.usePhasedDeploymentFlow;
@@ -117,8 +103,8 @@ describe(PhasedDeploymentContainer.name, () => {
         sdl={input.sdl ?? "sdl-content"}
         isWalletReady={input.isWalletReady ?? true}
         initialDseq={input.initialDseq}
-        onDeploymentCreated={input.onDeploymentCreated}
-        onSuccess={input.onSuccess}
+        templateId={input.templateId}
+        draftId={input.draftId}
         onCancel={input.onCancel}
         dependencies={{ usePhasedDeploymentFlow, PhasedDeployProgressScene: vi.fn(ComponentMock), ...input.dependencies }}
       />
