@@ -15,6 +15,7 @@ import { AccountMenu } from "@src/components/layout/AccountMenu";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
+import { useFlag } from "@src/hooks/useFlag";
 
 /**
  * Template ids the picker cards deploy. Each card redirects to the bid-screening (configure) view carrying its
@@ -33,6 +34,7 @@ export const DEPENDENCIES = {
   useWallet,
   useEnsureTrialStarted,
   useServices,
+  useFlag,
   DeploymentTemplatePickerCard,
   AddCreditsSheet,
   AccountMenu,
@@ -48,8 +50,9 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   const { isTrialing } = d.useWallet();
   const { publicConfig, urlService } = d.useServices();
   const trialCreditsAmount = publicConfig.NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT;
-  const [addCreditsSheetReason, setAddCreditsSheetReason] = useState<"unlock-gpu" | "skip-trial" | null>(null);
+  const [addCreditsSheetReason, setAddCreditsSheetReason] = useState<"unlock-gpu" | "skip-trial" | "hackathon-coupon" | null>(null);
   const { isWalletReady, error: trialError, wallet } = d.useEnsureTrialStarted();
+  const isHackathonsEnabled = d.useFlag("hackathons");
   const isLlmGated = isTrialing || !isWalletReady;
   const isLlmAvailable = !isLlmGated;
 
@@ -149,11 +152,16 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
               </div>
 
               {(isTrialing || !wallet?.creditAmount) && (
-                <div className="text-center">
+                <div className="flex flex-col items-center gap-1 text-center">
                   <d.Button onClick={() => setAddCreditsSheetReason("skip-trial")} variant="ghost">
                     Skip the trial - unlock Console
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </d.Button>
+                  {isHackathonsEnabled && (
+                    <d.Button onClick={() => setAddCreditsSheetReason("hackathon-coupon")} variant="link" size="sm">
+                      Coming from a hackathon?
+                    </d.Button>
+                  )}
                 </div>
               )}
             </div>
@@ -165,6 +173,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
           onOpenChange={open => setAddCreditsSheetReason(open ? "unlock-gpu" : null)}
           isWalletReady={isWalletReady}
           onRedeemed={() => setAddCreditsSheetReason(null)}
+          initialTab={addCreditsSheetReason === "hackathon-coupon" ? "coupon" : "purchase"}
           onDone={() => {
             if (addCreditsSheetReason === "unlock-gpu") {
               deployTemplate(TEMPLATE_IDS.llmChatbot);

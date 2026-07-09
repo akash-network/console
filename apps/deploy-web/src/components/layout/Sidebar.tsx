@@ -42,6 +42,7 @@ import { useUser } from "@src/hooks/useUser";
 import sdlStore from "@src/store/sdlStore";
 import type { ISidebarGroupMenu, ISidebarRoute } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
+import { HackathonCouponSidebarEntry } from "./HackathonCouponSidebarEntry/HackathonCouponSidebarEntry";
 import { MobileSidebarUser } from "./MobileSidebarUser";
 import { ModeToggle } from "./ModeToggle";
 import { SidebarGroupMenu } from "./SidebarGroupMenu";
@@ -312,6 +313,8 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
       </div>
 
       <div className={cn("flex w-full flex-col items-center justify-between", { ["p-2"]: isNavOpen, ["pb-2 pt-2"]: !isNavOpen })}>
+        <HackathonCouponSidebarEntry isNavOpen={isNavOpen} />
+
         {extraRoutes.map((g, i) => (
           <SidebarGroupMenu key={i} group={g} hasDivider={g.hasDivider} isNavOpen={isNavOpen} />
         ))}

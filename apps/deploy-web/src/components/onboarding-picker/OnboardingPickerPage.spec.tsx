@@ -232,14 +232,62 @@ describe(OnboardingPickerPage.name, () => {
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment());
   });
 
+  it("renders a 'Coming from a hackathon?' link while trialing when the hackathons flag is on", () => {
+    setup({ isTrialing: true, isHackathonsEnabled: true });
+
+    expect(screen.getByText(/Coming from a hackathon/i)).toBeInTheDocument();
+  });
+
+  it("hides the hackathon link when the hackathons flag is off", () => {
+    setup({ isTrialing: true, isHackathonsEnabled: false });
+
+    expect(screen.queryByText(/Coming from a hackathon/i)).not.toBeInTheDocument();
+  });
+
+  it("hides the hackathon link when the user is no longer trialing", () => {
+    setup({ isTrialing: false, isHackathonsEnabled: true });
+
+    expect(screen.queryByText(/Coming from a hackathon/i)).not.toBeInTheDocument();
+  });
+
+  it("opens the add-credits sheet on the coupon tab when the hackathon link is clicked", () => {
+    const push = vi.fn();
+    const Button = vi.fn(ComponentMock);
+    const AddCreditsSheet = vi.fn(ComponentMock);
+    setup({
+      isTrialing: true,
+      isHackathonsEnabled: true,
+      push,
+      dependencies: { Button: Button as unknown as typeof DEPENDENCIES.Button, AddCreditsSheet }
+    });
+
+    const hackathonButton = getButtonByText(Button, "Coming from a hackathon?");
+    act(() => (hackathonButton.onClick as () => void)());
+
+    const sheetProps = AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps;
+    expect(sheetProps.open).toBe(true);
+    expect(sheetProps.initialTab).toBe("coupon");
+    expect(push).not.toHaveBeenCalled();
+  });
+
   function getCard(DeploymentTemplatePickerCard: ReturnType<typeof vi.fn>, title: string) {
     return DeploymentTemplatePickerCard.mock.calls.find(call => (call[0] as PickerCardProps).title === title)![0] as PickerCardProps;
+  }
+
+  function getButtonByText(Button: ReturnType<typeof vi.fn>, text: string) {
+    return Button.mock.calls
+      .map(call => call[0] as ButtonProps)
+      .find(props => {
+        const children = Array.isArray(props.children) ? props.children : [props.children];
+        return children.some(child => typeof child === "string" && child.includes(text));
+      })!;
   }
 
   function setup(
     input: {
       push?: () => void;
       isTrialing?: boolean;
+      isHackathonsEnabled?: boolean;
       trialCreditsAmount?: number;
       wallet?: EnsureTrialStartedResult["wallet"];
       dependencies?: Partial<typeof DEPENDENCIES>;
@@ -247,6 +295,7 @@ describe(OnboardingPickerPage.name, () => {
   ) {
     const push = input.push ?? vi.fn();
     const isTrialing = input.isTrialing ?? true;
+    const isHackathonsEnabled = input.isHackathonsEnabled ?? false;
     const trialCreditsAmount = input.trialCreditsAmount ?? 100;
     const wallet = "wallet" in input ? input.wallet : mock<ApiManagedWalletOutput>({ creditAmount: 100 });
 
@@ -260,11 +309,14 @@ describe(OnboardingPickerPage.name, () => {
       })
     );
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing });
+    const useFlag: typeof DEPENDENCIES.useFlag = () => isHackathonsEnabled;
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({ publicConfig: { NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT: trialCreditsAmount }, urlService: UrlService });
 
     return render(
-      <OnboardingPickerPage dependencies={MockComponents(DEPENDENCIES, { useRouter, useEnsureTrialStarted, useWallet, useServices, ...input.dependencies })} />
+      <OnboardingPickerPage
+        dependencies={MockComponents(DEPENDENCIES, { useRouter, useEnsureTrialStarted, useWallet, useFlag, useServices, ...input.dependencies })}
+      />
     );
   }
 });
