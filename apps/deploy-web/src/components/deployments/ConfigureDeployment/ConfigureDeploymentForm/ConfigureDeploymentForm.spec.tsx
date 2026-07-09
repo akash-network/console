@@ -1,9 +1,10 @@
-import { useFormContext, useWatch } from "react-hook-form";
+import { useController, useFormContext, useWatch } from "react-hook-form";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultService } from "@src/utils/sdl/data";
+import { ConfigurationPane } from "../ConfigurationPane/ConfigurationPane";
 import { usePlacementManager } from "../DeploymentPane/usePlacementManager/usePlacementManager";
 import type { DEPENDENCIES } from "./ConfigureDeploymentForm";
 import { ConfigureDeploymentForm, firstBidReadyServiceId, nextUndoneServiceId } from "./ConfigureDeploymentForm";
@@ -181,16 +182,38 @@ describe(ConfigureDeploymentForm.name, () => {
     await userEvent.click(screen.getByRole("button", { name: "remove service" }));
 
     await waitFor(() => expect(screen.getByTestId("sdl").textContent).not.toContain("service-2"));
+    expect(screen.getByTestId("ghost-free").textContent).toBe("true");
   });
 
-  it("keeps regenerating the preview after a placement is added then removed", async () => {
+  it("drops the removed placement and its service from the preview after it is added then removed", async () => {
     setup({ initialSdl: undefined, Panes: AddRemoveProbePanes });
 
     await userEvent.click(screen.getByRole("button", { name: "add placement" }));
-    await userEvent.click(screen.getByRole("button", { name: "remove placement" }));
-    await userEvent.click(screen.getByRole("button", { name: "change image" }));
+    await waitFor(() => expect(screen.getByTestId("sdl").textContent).toContain("placement-1"));
 
-    await waitFor(() => expect(screen.getByTestId("sdl").textContent).toContain("nginx:latest"));
+    await userEvent.click(screen.getByRole("button", { name: "remove placement" }));
+
+    await waitFor(() => {
+      const sdl = screen.getByTestId("sdl").textContent ?? "";
+      expect(sdl).not.toContain("placement-1");
+      expect(sdl).not.toContain("service-2");
+    });
+    expect(screen.getByTestId("ghost-free").textContent).toBe("true");
+  });
+
+  it("removes a non-selected service without a ghost and keeps the current selection", async () => {
+    setup({ initialSdl: undefined, Panes: AddRemoveProbePanes });
+
+    await userEvent.click(screen.getByRole("button", { name: "add service" }));
+    await userEvent.click(screen.getByRole("button", { name: "add service" }));
+    await waitFor(() => expect(screen.getByTestId("sdl").textContent).toContain("service-3"));
+    const selectedService3 = screen.getByTestId("selected").textContent;
+
+    await userEvent.click(screen.getByRole("button", { name: "remove first service" }));
+
+    await waitFor(() => expect(screen.getByTestId("sdl").textContent).not.toContain("service-1"));
+    expect(screen.getByTestId("ghost-free").textContent).toBe("true");
+    expect(screen.getByTestId("selected").textContent).toBe(selectedService3);
   });
 
   it("reselects the first remaining service when the selected one is removed", async () => {
@@ -375,6 +398,18 @@ describe(firstBidReadyServiceId.name, () => {
 interface ProbePanesProps {
   sdl: string;
   selectedServiceId: string;
+  onSelectService: (serviceId: string) => void;
+}
+
+/**
+ * Stand-in for a real configuration card: registers fields on its service index via `useController`, exactly
+ * like ImageCard/RuntimeCard/etc. This registration is what resurrected a removed service before the fix, so a
+ * regression test must mount something that registers.
+ */
+function FieldRegisteringSection({ serviceIndex }: { serviceIndex: number }) {
+  useController<SdlBuilderFormValuesType>({ name: `services.${serviceIndex}.image` as never });
+  useController<SdlBuilderFormValuesType>({ name: `services.${serviceIndex}.title` as never });
+  return null;
 }
 
 /** Panes stand-in that mutates the shared form to drive the SDL preview subscription. */
@@ -397,28 +432,45 @@ function ServiceListProbePanes() {
   return <div data-testid="service-titles">{titles.join(",")}</div>;
 }
 
-/** Panes stand-in that adds then removes a service via the real manager before editing, mirroring the UI flow. */
-function AddRemoveProbePanes({ sdl }: ProbePanesProps) {
-  const manager = usePlacementManager();
-  const { setValue, getValues } = useFormContext<SdlBuilderFormValuesType>();
+/**
+ * Panes stand-in that adds then removes a service/placement via the real manager, mirroring the UI flow —
+ * including selecting the newly added item and mounting the real ConfigurationPane, so its cards register
+ * fields on the selected service. That registration is what made a removed service linger in the SDL, so it
+ * must be present for the removal tests to guard the regression. `ghost-free` reports that every service in
+ * the form still carries an id and placementId (a resurrected partial entry would be missing them).
+ */
+function AddRemoveProbePanes({ sdl, selectedServiceId, onSelectService }: ProbePanesProps) {
+  const manager = usePlacementManager({ onSelectService });
+  const { getValues } = useFormContext<SdlBuilderFormValuesType>();
+  const services = (useWatch<SdlBuilderFormValuesType>({ name: "services" }) as SdlBuilderFormValuesType["services"]) ?? [];
   return (
     <div>
       <div data-testid="sdl">{sdl}</div>
-      <button type="button" onClick={() => manager.addService(getValues("placements")[0].id)}>
+      <div data-testid="selected">{selectedServiceId}</div>
+      <div data-testid="ghost-free">{String(services.every(service => !!service?.id && !!service?.placementId))}</div>
+      <button type="button" onClick={() => onSelectService(manager.addService(getValues("placements")[0].id))}>
         add service
       </button>
       <button type="button" onClick={() => manager.removeService(getValues("services")[1].id)}>
         remove service
       </button>
-      <button type="button" onClick={() => manager.addPlacement()}>
+      <button type="button" onClick={() => manager.removeService(getValues("services")[0].id)}>
+        remove first service
+      </button>
+      <button type="button" onClick={() => onSelectService(manager.addPlacement())}>
         add placement
       </button>
       <button type="button" onClick={() => manager.removePlacement(getValues("placements")[1].id)}>
         remove placement
       </button>
-      <button type="button" onClick={() => setValue("services.0.image", "nginx:latest")}>
-        change image
-      </button>
+      <ConfigurationPane
+        selectedServiceId={selectedServiceId}
+        dependencies={{
+          ImageSection: FieldRegisteringSection as never,
+          HardwareSection: FieldRegisteringSection as never,
+          AdditionalSection: FieldRegisteringSection as never
+        }}
+      />
     </div>
   );
 }

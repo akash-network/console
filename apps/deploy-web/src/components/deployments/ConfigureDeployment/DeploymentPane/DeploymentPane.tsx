@@ -47,7 +47,7 @@ export const DeploymentPane: FC<Props> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const [minimized, setMinimized] = useState(false);
-  const manager = d.usePlacementManager();
+  const manager = d.usePlacementManager({ onSelectService });
   const placementsWithBids = d.usePlacementsWithBids({ enabled: phase === "quoting", dseq, sdl, placements: manager.placements });
   const toggle = () => setMinimized(prev => !prev);
 

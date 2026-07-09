@@ -159,6 +159,24 @@ describe("DeploymentPane placement management", () => {
     expect(values.services.every(service => service.placementId === values.placements[0].id)).toBe(true);
   });
 
+  it("renders the surviving placements' service names correctly after a middle placement is removed", async () => {
+    setup();
+    const addServiceButtons = () => screen.getAllByRole("button", { name: "Add service" });
+
+    await userEvent.click(addServiceButtons()[0]);
+    await userEvent.click(addServiceButtons()[0]);
+    await userEvent.click(screen.getByRole("button", { name: "Add Placement" }));
+    await userEvent.click(addServiceButtons()[1]);
+    await userEvent.click(screen.getByRole("button", { name: "Add Placement" }));
+    await userEvent.click(addServiceButtons()[2]);
+    await userEvent.click(addServiceButtons()[2]);
+
+    await userEvent.click(screen.getAllByRole("button", { name: "Remove placement" })[1]);
+
+    const renderedNames = (screen.getAllByLabelText("Service name") as HTMLInputElement[]).map(input => input.value);
+    expect(renderedNames).toEqual(["service-1", "service-2", "service-3", "service-6", "service-7", "service-8"]);
+  });
+
   function setup() {
     const RegionSelectStub: typeof PLACEMENT_CARD_DEPENDENCIES.RegionSelect = () => null;
     const PlacementCardWithStubbedRegion: typeof PlacementCard = props => (
