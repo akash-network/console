@@ -185,17 +185,17 @@ describe(PasswordAuth.name, () => {
   });
 
   describe("$5 credit subtext", () => {
-    it("renders when console_onboarding_redesign is enabled and the login/signup view is active", () => {
+    it("renders when onboarding_redesign_v1 is enabled and the login/signup view is active", () => {
       setup({ isOnboardingRedesignEnabled: true });
       expect(screen.getByText(/\$5 credit to deploy your first container/i)).toBeInTheDocument();
     });
 
-    it("does not render when console_onboarding_redesign is disabled", () => {
+    it("does not render when onboarding_redesign_v1 is disabled", () => {
       setup({ isOnboardingRedesignEnabled: false });
       expect(screen.queryByText(/\$5 credit to deploy your first container/i)).not.toBeInTheDocument();
     });
 
-    it("does not render in the forgot-password view even when console_onboarding_redesign is enabled", () => {
+    it("does not render in the forgot-password view even when onboarding_redesign_v1 is enabled", () => {
       setup({ searchParams: { tab: "forgot-password" }, isOnboardingRedesignEnabled: true });
       expect(screen.queryByText(/\$5 credit to deploy your first container/i)).not.toBeInTheDocument();
     });

@@ -50,7 +50,7 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const searchParams = d.useSearchParams();
   const { checkSession } = d.useUser();
   const { navigateBack } = d.useReturnTo({ defaultReturnTo: "/" });
-  const isOnboardingRedesignEnabled = d.useFlag("console_onboarding_redesign");
+  const isOnboardingRedesignEnabled = d.useFlag("onboarding_redesign_v1");
   const [email, setEmail] = useState("");
   const turnstileRef = useRef<TurnstileRef | null>(null);
 

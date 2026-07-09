@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
+import { UrlService } from "@src/utils/urlUtils";
 import type { DEPENDENCIES } from "./TemplateList";
 import { TemplateList } from "./TemplateList";
 
@@ -36,7 +37,8 @@ describe(TemplateList.name, () => {
     const dependencies: typeof DEPENDENCIES = {
       useTemplates: () => templatesResult,
       useRouter: () => router,
-      useFlag: flagName => (flagName === "ui_build_and_deploy" && input.isBuildAndDeployEnabled) ?? false
+      useFlag: flagName => (flagName === "ui_build_and_deploy" && input.isBuildAndDeployEnabled) ?? false,
+      useNewDeploymentUrl: () => params => UrlService.newDeployment(params)
     };
 
     render(

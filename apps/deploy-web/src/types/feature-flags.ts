@@ -9,7 +9,6 @@ export type FeatureFlag =
   | "console_embedded_login"
   | "console_auth_passwordless"
   | "console_auth_password_escape_hatch"
-  | "console_onboarding_redesign"
-  | "bid_screening"
+  | "onboarding_redesign_v1"
   | "ui_sdl_preview_panel"
   | "ui_build_and_deploy";

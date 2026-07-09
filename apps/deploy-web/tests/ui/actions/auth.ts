@@ -12,7 +12,7 @@ import { OnboardingPage } from "@tests/ui/pages/OnboardingPage";
 /** Which credential mechanism a flow authenticates with. */
 export type AuthType = "passwordless" | "email-password";
 
-const DETECT_TIMEOUT_MS = 10_000;
+const DETECT_TIMEOUT_MS = 30_000;
 
 export function generateTestPassword(): string {
   return `E2e!${crypto.randomUUID()}`;
@@ -58,21 +58,13 @@ export async function detectAuthType(page: Page, options: { preferPassword?: boo
  */
 export async function loginExistingUser(page: Page): Promise<void> {
   const email = testEnvConfig.TEST_USER_EMAIL;
-  if (!email) {
-    throw new Error('TEST_USER_EMAIL env var is required for userType: "existing" tests');
+  const password = testEnvConfig.TEST_USER_PASSWORD;
+  if (!email || !password) {
+    throw new Error('TEST_USER_EMAIL and TEST_USER_PASSWORD are required for userType: "existing" tests — the existing user logs in with email + password');
   }
 
-  const authType = await detectAuthType(page, { preferPassword: true });
-
-  if (authType === "passwordless") {
-    await signInPasswordless(page, email);
-  } else {
-    const password = testEnvConfig.TEST_USER_PASSWORD;
-    if (!password) {
-      throw new Error("TEST_USER_PASSWORD env var is required when /login renders the email-password UI");
-    }
-    await signInWithPassword(page, { email, password });
-  }
+  await page.goto(`${testEnvConfig.BASE_URL}/login?auth=password`);
+  await signInWithPassword(page, { email, password });
 
   await page.waitForURL(url => !url.pathname.includes("/login"), { timeout: 15_000 });
   await page.getByLabel("Connected wallet name and balance").waitFor({ timeout: 30_000 });
@@ -87,7 +79,7 @@ export async function registerNewUser(
   page: Page,
   deps: { auth0: Auth0ManagementService; emailVerification: EmailVerificationStrategy }
 ): Promise<{ email: string; userId: string }> {
-  const authType = await detectAuthType(page, { preferPassword: true });
+  const authType = await detectAuthType(page);
   const email = authType === "passwordless" ? await registerPasswordless(page) : await registerWithEmailPassword(page, deps);
 
   const auth0User = await deps.auth0.getUserByEmail(email);

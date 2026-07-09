@@ -24,6 +24,11 @@ export class OnboardingPickerPage {
     await card.getByRole("button", { name: /deploy now/i }).click();
   }
 
+  /** Follows the "Deploy image" path — bringing your own Docker image — into the configure screen. */
+  async deployImage() {
+    await this.page.getByRole("link", { name: /deploy image/i }).click();
+  }
+
   getLlmChatbotCard(): Locator {
     const heading = this.page.getByRole("heading", { name: "LLM Chatbot", exact: true });
     return this.page

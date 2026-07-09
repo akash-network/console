@@ -1,12 +1,9 @@
 import { z } from "zod";
 
 import { DeploymentDetail } from "@src/components/deployments/DeploymentDetail";
-import OnboardingRedirect from "@src/components/onboarding/OnboardingRedirect/OnboardingRedirect";
-import { Guard } from "@src/hoc/guard/guard.hoc";
-import { useIsOnboarded } from "@src/hooks/useIsOnboarded";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 
-export default Guard(DeploymentDetail, useIsOnboarded, OnboardingRedirect);
+export default DeploymentDetail;
 
 export const getServerSideProps = defineServerSideProps({
   route: "/deployments/[dseq]",

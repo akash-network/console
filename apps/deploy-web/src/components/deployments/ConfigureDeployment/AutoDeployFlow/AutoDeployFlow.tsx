@@ -1,5 +1,6 @@
 "use client";
 import type { FC } from "react";
+import { useCallback } from "react";
 
 import Layout from "@src/components/layout/Layout";
 import { useServices } from "@src/context/ServicesProvider";
@@ -43,7 +44,7 @@ type Props = {
  * by that flow's built-in redirect.
  */
 export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, templateId, dseq, draftId, dependencies: d = DEPENDENCIES }) => {
-  const { isWalletReady, error: trialError } = d.useEnsureTrialStarted();
+  const { isWalletReady, error: trialError, retryTrial } = d.useEnsureTrialStarted();
   const { publicConfig } = d.useServices();
   const { state, progressPercent, phases, matchedProviderAddress, tryAgain } = d.useAutoDeploymentFlow({
     sdl,
@@ -54,6 +55,15 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, templateId, dseq,
     draftId
   });
 
+  /**
+   * A terminal start-trial error is sticky and would keep the autopilot pinned to the error state. Reset the
+   * trial first (re-attempting it), then restart the flow; the create waits for the fresh trial to provision.
+   */
+  const resetTrialAndRetryDeploy = useCallback(() => {
+    if (trialError) retryTrial();
+    tryAgain();
+  }, [trialError, retryTrial, tryAgain]);
+
   return (
     <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col dark:bg-card">
       <d.PhasedDeployProgressScene
@@ -62,7 +72,7 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, templateId, dseq,
         progressPercent={progressPercent}
         phases={phases}
         focusedProviderAddress={matchedProviderAddress}
-        onTryAgain={tryAgain}
+        onTryAgain={resetTrialAndRetryDeploy}
         onContactSupport={() => {
           window.open(publicConfig.NEXT_PUBLIC_CONTACT_SUPPORT_URL, "_blank", "noopener,noreferrer");
         }}

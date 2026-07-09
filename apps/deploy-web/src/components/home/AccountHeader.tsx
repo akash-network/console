@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import { AddFundsLink } from "@src/components/user/AddFundsLink";
 import { useServices } from "@src/context/ServicesProvider";
+import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 
 type Props = {
   isManagedWallet: boolean;
@@ -16,6 +17,7 @@ type Props = {
 
 export const AccountHeader: React.FC<Props> = ({ isManagedWallet, onDeployClick, isBlockchainDown }) => {
   const { urlService } = useServices();
+  const newDeploymentUrl = useNewDeploymentUrl();
 
   return (
     <div className="flex items-center justify-between">
@@ -31,7 +33,7 @@ export const AccountHeader: React.FC<Props> = ({ isManagedWallet, onDeployClick,
           </AddFundsLink>
         )}
         <Link
-          href={urlService.newDeployment()}
+          href={newDeploymentUrl()}
           className={cn(buttonVariants({ variant: "default", size: "sm" }), "flex items-center gap-2", isBlockchainDown && "pointer-events-none opacity-50")}
           onClick={onDeployClick}
           aria-disabled={isBlockchainDown}

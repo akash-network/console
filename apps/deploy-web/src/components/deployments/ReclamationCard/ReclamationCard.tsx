@@ -9,12 +9,13 @@ import { useRouter } from "next/navigation";
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
+import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 import type { LeaseDto } from "@src/types/deployment";
 import { getLeaseCloseReasonLabel } from "@src/utils/reclamationUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 
-export const DEPENDENCIES = { useWallet, useManagedDeploymentConfirm, useLocalNotes, useRouter };
+export const DEPENDENCIES = { useWallet, useManagedDeploymentConfirm, useLocalNotes, useRouter, useNewDeploymentUrl };
 
 type Props = {
   lease: LeaseDto;
@@ -29,11 +30,12 @@ type Props = {
  * deployment) + Redeploy. The live, still-running case is handled by ReclamationBanner.
  */
 export const ReclamationCard: React.FunctionComponent<Props> = ({ lease, dseq, onClosed, dependencies = DEPENDENCIES }) => {
-  const { useWallet, useManagedDeploymentConfirm, useLocalNotes, useRouter } = dependencies;
+  const { useWallet, useManagedDeploymentConfirm, useLocalNotes, useRouter, useNewDeploymentUrl } = dependencies;
   const { address, signAndBroadcastTx } = useWallet();
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
   const { getDeploymentData } = useLocalNotes();
   const router = useRouter();
+  const newDeploymentUrl = useNewDeploymentUrl();
   const [isClosing, setIsClosing] = useState(false);
 
   const reasonLabel = getLeaseCloseReasonLabel(lease.reclamation?.reason ?? lease.reason);
@@ -72,7 +74,7 @@ export const ReclamationCard: React.FunctionComponent<Props> = ({ lease, dseq, o
               Redeploy
             </Button>
           ) : (
-            <Link href={UrlService.newDeployment()} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "text-foreground")}>
+            <Link href={newDeploymentUrl()} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "text-foreground")}>
               Start a new deployment
             </Link>
           )}

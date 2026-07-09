@@ -79,7 +79,7 @@ export function useAutoDeploymentFlow(
     draftId
   });
 
-  const flow = dependencies.useDeploymentFlow({ intent: intentRef.current });
+  const flow = dependencies.useDeploymentFlow({ intent: intentRef.current, isWalletReady, trialError });
 
   const sdlRef = useRef(sdl);
   sdlRef.current = sdl;

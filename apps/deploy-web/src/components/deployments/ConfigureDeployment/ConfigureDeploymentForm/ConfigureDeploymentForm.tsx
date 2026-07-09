@@ -1,6 +1,6 @@
 "use client";
 import type { FC } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,6 +9,7 @@ import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
+import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
 import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
@@ -36,6 +37,7 @@ export const DEPENDENCIES = {
   useConfigureDraft,
   useDeploymentFlow,
   useDeploymentName,
+  useEnsureTrialStarted,
   usePlacementsWithBids,
   useSnackbar,
   Snackbar
@@ -58,7 +60,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const [selectedServiceId, setSelectedServiceId] = useState<string>(initialState.selectedServiceId);
   const { enqueueSnackbar } = d.useSnackbar();
   const draft = d.useConfigureDraft(intent);
-  const flow = d.useDeploymentFlow({ intent });
+  const { isWalletReady, error: trialError, retryTrial } = d.useEnsureTrialStarted();
+  const flow = d.useDeploymentFlow({ intent, isWalletReady, trialError });
   const { name: deploymentName, setName: setDeploymentName } = d.useDeploymentName({ initialName, dseq: flow.dseq });
   const form = useForm<SdlBuilderFormValuesType>({
     defaultValues: initialState.values,
@@ -198,13 +201,31 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     }
   }
 
+  const requestQuotes = flow.actions.requestQuotes;
+  /**
+   * A terminal start-trial error is sticky, so requesting quotes again after one would otherwise fail straight
+   * back to the error state. Reset the trial first (re-attempting it); the create is held until the fresh trial
+   * provisions, then flushed.
+   */
+  const requestQuotesAfterTrialRetry = useCallback(
+    (sdl: string) => {
+      if (trialError) retryTrial();
+      requestQuotes(sdl);
+    },
+    [trialError, retryTrial, requestQuotes]
+  );
+  const headerFlow = useMemo(
+    () => ({ ...flow, actions: { ...flow.actions, requestQuotes: requestQuotesAfterTrialRetry } }),
+    [flow, requestQuotesAfterTrialRetry]
+  );
+
   return (
     <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col dark:bg-card">
       <d.NextSeo title="Configure your deployment" />
       <FormProvider {...form}>
         <div className="relative flex min-h-0 flex-1 flex-col">
           <div className="px-6 pt-6">
-            <d.ConfigureDeploymentHeader flow={flow} sdl={liveSdl} onDeploy={() => setReviewOpen(true)} allPlacementsHaveBids={allPlacementsHaveBids} />
+            <d.ConfigureDeploymentHeader flow={headerFlow} sdl={liveSdl} onDeploy={() => setReviewOpen(true)} allPlacementsHaveBids={allPlacementsHaveBids} />
           </div>
           <div className="relative mt-6 flex min-h-0 flex-1 overflow-x-auto">
             <d.ConfigureDeploymentPanes

@@ -1,10 +1,20 @@
+import type { ComponentProps } from "react";
+
 import { NewDeploymentContainer } from "@src/components/new-deployment/NewDeploymentContainer/NewDeploymentContainer";
 import { createServerSideProps } from "@src/components/new-deployment/NewDeploymentPage/createServerSideProps";
-import OnboardingRedirect from "@src/components/onboarding/OnboardingRedirect/OnboardingRedirect";
+import { RedirectMappableBuilderToConfigure } from "@src/components/new-deployment/RedirectMappableBuilderToConfigure/RedirectMappableBuilderToConfigure";
 import { withSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
-import { Guard } from "@src/hoc/guard/guard.hoc";
-import { useIsOnboarded } from "@src/hooks/useIsOnboarded";
 
-export default Guard(withSdlBuilder()(NewDeploymentContainer), useIsOnboarded, OnboardingRedirect);
+const NewDeploymentWithSdl = withSdlBuilder()(NewDeploymentContainer);
+
+function NewDeploymentPage(props: ComponentProps<typeof NewDeploymentContainer>) {
+  return (
+    <RedirectMappableBuilderToConfigure>
+      <NewDeploymentWithSdl {...props} />
+    </RedirectMappableBuilderToConfigure>
+  );
+}
+
+export default NewDeploymentPage;
 
 export const getServerSideProps = createServerSideProps("/new-deployment");

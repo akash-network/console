@@ -1,8 +1,13 @@
+import { skipIfOnboardingRedesign } from "./actions/feature-flags";
 import { expect, test } from "./fixture/base-test";
 import { OnboardingPage } from "./pages/OnboardingPage";
 
 test.describe("Managed wallet onboarding", () => {
   test.use({ userType: "new" });
+
+  test.beforeEach(async ({ page }) => {
+    await skipIfOnboardingRedesign(page);
+  });
 
   test("completes full onboarding from free trial to welcome", async ({ page }) => {
     test.setTimeout(3 * 60 * 1000);
