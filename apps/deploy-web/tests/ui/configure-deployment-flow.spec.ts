@@ -25,9 +25,9 @@ test.describe("Configure deployment — request quotes flow", () => {
       await configure.requestQuotes();
 
       // the created deployment's dseq is mirrored into the route segment
-      await page.waitForURL(/\/new-deployment\/configure\/\d+/, { timeout: 90_000 });
+      await page.waitForURL(/\/new-deployment\/configure\/\d+/, { timeout: 15_000 });
 
-      await expect(configure.lockBannerText().first()).toBeVisible({ timeout: 30_000 });
+      await expect(configure.lockBannerText().first()).toBeVisible();
       await expect(configure.cpuInput()).toBeDisabled();
       await expect(configure.dockerImageInput()).toBeEnabled();
 
@@ -37,10 +37,9 @@ test.describe("Configure deployment — request quotes flow", () => {
 
     await test.step("cancel and edit closes the deployment and unlocks the pane", async () => {
       await configure.cancelAndEdit();
+      await expect(configure.cancellingButton()).toBeVisible();
 
-      // closing drops the dseq from the route
-      await page.waitForURL(url => !/\/new-deployment\/configure\/\d+/.test(url.pathname), { timeout: 90_000 });
-
+      await expect(configure.cancellingButton()).not.toBeVisible({ timeout: 15_000 });
       await expect(configure.lockBannerText()).toHaveCount(0);
       await expect(configure.cpuInput()).toBeEnabled();
       await expect(configure.requestQuotesButton()).toBeVisible();

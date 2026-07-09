@@ -51,9 +51,8 @@ test.describe("Onboarding picker — unlocking the gated LLM template via Add Cr
       await expect(addCreditsSheet.getDialog()).toBeHidden({ timeout: 30_000 });
     });
 
-    await test.step("the LLM template CTA unlocks to 'Deploy now'", async () => {
-      await expect(onboardingPickerPage.getLlmChatbotCta()).toHaveText(/deploy now/i, { timeout: 30_000 });
-      await expect(onboardingPickerPage.getLlmChatbotCta()).toBeEnabled();
+    await test.step("the LLM template starts deploying", async () => {
+      await expect(page.getByText("Deploying")).toBeVisible();
     });
   });
 });
