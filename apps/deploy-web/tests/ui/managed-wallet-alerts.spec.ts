@@ -1,7 +1,7 @@
-import { createManagedDeployment } from "./actions/deploy";
+import { skipUnlessOnboardingRedesign } from "./actions/feature-flags";
 import { expect, test } from "./fixture/base-test";
 import { AlertsPage } from "./pages/AlertsPage";
-import { BillingPage } from "./pages/BillingPage";
+import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
 import { DeploymentAlertsForm } from "./pages/DeploymentAlertsForm";
 import { DeployPage } from "./pages/DeployPage";
 import { Sidebar } from "./pages/Sidebar";
@@ -9,31 +9,31 @@ import { Sidebar } from "./pages/Sidebar";
 test.describe("Managed wallet alerts", () => {
   test.use({ userType: "existing" });
 
+  test.beforeEach(async ({ page }) => {
+    await skipUnlessOnboardingRedesign(page);
+  });
+
   test("configures deployment alerts and verifies on alerts page", async ({ context, page }) => {
-    test.setTimeout(4 * 60 * 1000);
+    test.setTimeout(8 * 60 * 1000);
 
     const sidebar = new Sidebar(page);
     const alertsPage = new AlertsPage(page);
     const alertsForm = new DeploymentAlertsForm(page);
-    const billingPage = new BillingPage(page);
     const deployPage = new DeployPage(context, page);
+    const configure = new ConfigureDeploymentPage(page);
 
     let dseq: string;
 
-    await test.step("deploy hello-world", async () => {
-      await createManagedDeployment(
-        page,
-        { sidebar, deployPage, billingPage, templateName: "Hello World" },
-        {
-          onPaymentSuccess: async () => {
-            await expect(page.getByText("Payment Successful!")).toBeVisible({ timeout: 60_000 });
-            await expect(page.getByText("Payment Successful!")).toBeHidden({ timeout: 30_000 });
-          },
-          onDepositEnabled: async () => {
-            await expect(deployPage.page.getByRole("button", { name: /^continue$/i })).toBeEnabled({ timeout: 30_000 });
-          }
-        }
-      );
+    await test.step("deploy a container through the configure flow", async () => {
+      await configure.open();
+      await configure.fillImageName("nginx:latest");
+      await configure.requestQuotes();
+      await page.waitForURL(/\/new-deployment\/configure\/\d+/, { timeout: 180_000 });
+
+      await configure.selectFirstAvailableProvider();
+      await expect(configure.reviewDialog()).toBeVisible({ timeout: 30_000 });
+      await configure.confirmAndDeploy();
+      await page.waitForURL(/\/deployments\/\d+/, { timeout: 180_000 });
 
       const match = page.url().match(/deployments\/(\d+)/);
       if (!match) throw new Error(`Could not extract DSEQ from URL: ${page.url()}`);

@@ -25,12 +25,12 @@ import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
+import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import sdlStore from "@src/store/sdlStore";
 import type { DeploymentDto, NamedDeploymentDto } from "@src/types/deployment";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { UrlService } from "@src/utils/urlUtils";
 import { NoDeploymentsState } from "../home/NoDeploymentsState";
 import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
@@ -57,6 +57,7 @@ export const DeploymentList: React.FunctionComponent = () => {
   const pageCount = Math.ceil(orderedDeployments.length / pageSize);
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
+  const newDeploymentUrl = useNewDeploymentUrl();
 
   const { selectedItemIds, selectItem, clearSelection } = useListSelection<string>({
     ids: currentPageDeployments.map(deployment => deployment.dseq)
@@ -174,7 +175,7 @@ export const DeploymentList: React.FunctionComponent = () => {
 
             {(filteredDeployments?.length || 0) > 0 && (
               <Link
-                href={UrlService.newDeployment()}
+                href={newDeploymentUrl()}
                 className={cn("ml-auto space-x-2", buttonVariants({ variant: "default", size: "sm" }))}
                 aria-disabled={settings.isBlockchainDown}
                 onClick={onDeployClick}

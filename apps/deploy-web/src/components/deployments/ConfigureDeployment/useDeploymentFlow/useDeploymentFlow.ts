@@ -7,6 +7,7 @@ import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
 import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
 import { ManifestYaml } from "@src/utils/deploymentData/helpers";
 import { UrlService } from "@src/utils/urlUtils";
+import { useCreateDeployment } from "../useCreateDeployment/useCreateDeployment";
 import type { BidStrategy, DeploymentIntent } from "./deploymentIntent";
 
 export type DeploymentFlowPhase = "configuring" | "creating" | "quoting" | "closing" | "deploying" | "error";
@@ -50,6 +51,13 @@ export type DeploymentFlow = DeploymentFlowState & { actions: DeploymentFlowActi
 
 interface UseDeploymentFlowInput {
   intent: DeploymentIntent;
+  /**
+   * Whether the trial wallet can broadcast. Threaded into the create step so requesting quotes waits for the trial
+   * to provision instead of failing; defaults to ready so callers with a real wallet (or tests) fire immediately.
+   */
+  isWalletReady?: boolean;
+  /** A terminal start-trial failure, surfaced so a held create fails instead of waiting forever. */
+  trialError?: unknown;
 }
 
 /** Default escrow deposit in USD (ACT maps 1:1 to USD). Matches `DEFAULT_DEPOSIT_USD` in the phased flow so a trial grant covers it. */
@@ -68,10 +76,6 @@ const NO_BIDS_TIMEOUT_MS = 60 * 1000;
 
 /** Error surfaced when a deployment draws no provider bids at all within {@link NO_BIDS_TIMEOUT_MS}. */
 const NO_PROVIDERS_MESSAGE = "No providers are available for this deployment right now. Try adjusting your deployment and requesting quotes again.";
-
-function useCreateDeployment() {
-  return useServices().api.v1.createDeployment.useMutation();
-}
 
 function useCloseDeployment() {
   return useServices().api.v1.closeDeployment.useMutation();
@@ -106,9 +110,12 @@ export const DEPENDENCIES = {
  * lives in react-query via `usePlacementOffers`. Resumes in `quoting` when the URL already carries
  * a dseq, so a reload picks up live bids rather than restarting.
  */
-export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependencies: typeof DEPENDENCIES = DEPENDENCIES): DeploymentFlow {
+export function useDeploymentFlow(
+  { intent, isWalletReady = true, trialError }: UseDeploymentFlowInput,
+  dependencies: typeof DEPENDENCIES = DEPENDENCIES
+): DeploymentFlow {
   const router = dependencies.useRouter();
-  const createDeployment = dependencies.useCreateDeployment();
+  const createDeployment = dependencies.useCreateDeployment({ isWalletReady, trialError });
   const closeDeployment = dependencies.useCloseDeployment();
   const createLease = dependencies.useCreateLease();
   const updateDeployment = dependencies.useUpdateDeployment();

@@ -52,6 +52,15 @@ describe(useEnsureTrialStarted.name, () => {
     expect(create).not.toHaveBeenCalled();
   });
 
+  it("does not fire while a trial start is already in flight from a previous page", () => {
+    const create = vi.fn();
+    const { dependencies } = setup({ wallet: undefined, isLoading: false, create, isStartingTrial: true });
+
+    renderHook(() => useEnsureTrialStarted(dependencies));
+
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it("does not fire twice across re-renders", () => {
     const create = vi.fn();
     const { dependencies } = setup({ wallet: undefined, isLoading: false, create });
@@ -61,6 +70,16 @@ describe(useEnsureTrialStarted.name, () => {
     rerender();
 
     expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("retryTrial resets the create mutation so a terminally-failed trial can be re-attempted", () => {
+    const resetCreate = vi.fn();
+    const { dependencies } = setup({ wallet: undefined, isLoading: false, create: vi.fn(), createError: new Error("boom"), resetCreate });
+
+    const { result } = renderHook(() => useEnsureTrialStarted(dependencies));
+    result.current.retryTrial();
+
+    expect(resetCreate).toHaveBeenCalledTimes(1);
   });
 
   it("exposes isWalletReady, isLoading and error", () => {
@@ -73,15 +92,24 @@ describe(useEnsureTrialStarted.name, () => {
     expect(result.current.error).toBeTruthy();
   });
 
-  function setup(input: { wallet: { address: string } | undefined; isLoading: boolean; create: () => void; createError?: unknown }) {
+  function setup(input: {
+    wallet: { address: string } | undefined;
+    isLoading: boolean;
+    create: () => void;
+    createError?: unknown;
+    resetCreate?: () => void;
+    isStartingTrial?: boolean;
+  }) {
     const useManagedWallet: typeof DEPENDENCIES.useManagedWallet = () =>
       mock<ReturnType<typeof DEPENDENCIES.useManagedWallet>>({
         wallet: input.wallet as ReturnType<typeof DEPENDENCIES.useManagedWallet>["wallet"],
         isLoading: input.isLoading,
         create: input.create,
-        createError: input.createError as ReturnType<typeof DEPENDENCIES.useManagedWallet>["createError"]
+        createError: input.createError as ReturnType<typeof DEPENDENCIES.useManagedWallet>["createError"],
+        resetCreate: input.resetCreate ?? vi.fn()
       });
+    const useIsMutating: typeof DEPENDENCIES.useIsMutating = () => (input.isStartingTrial ? 1 : 0);
 
-    return { dependencies: { useManagedWallet } };
+    return { dependencies: { useManagedWallet, useIsMutating } };
   }
 });

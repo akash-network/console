@@ -68,6 +68,7 @@ describe("ReclamationCard", () => {
     const useManagedDeploymentConfirm: typeof DEPENDENCIES.useManagedDeploymentConfirm = () => confirm;
     const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () => localNotes;
     const useRouter: typeof DEPENDENCIES.useRouter = () => router;
+    const useNewDeploymentUrl: typeof DEPENDENCIES.useNewDeploymentUrl = () => () => "/new-deployment";
 
     const lease = mock<LeaseDto>({
       id: "1",
@@ -86,7 +87,7 @@ describe("ReclamationCard", () => {
         lease={lease}
         dseq="123"
         onClosed={input.onClosed}
-        dependencies={MockComponents(DEPENDENCIES, { useWallet, useManagedDeploymentConfirm, useLocalNotes, useRouter })}
+        dependencies={MockComponents(DEPENDENCIES, { useWallet, useManagedDeploymentConfirm, useLocalNotes, useRouter, useNewDeploymentUrl })}
       />
     );
 

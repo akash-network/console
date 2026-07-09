@@ -57,7 +57,8 @@ describe(OnboardingPickerPage.name, () => {
       isWalletReady: false,
       isLoading: false,
       error: new Error("boom"),
-      refreshWallet: vi.fn()
+      refreshWallet: vi.fn(),
+      retryTrial: vi.fn()
     });
     setup({ dependencies: { useEnsureTrialStarted } });
 
@@ -92,7 +93,7 @@ describe(OnboardingPickerPage.name, () => {
       isTrialing: true,
       dependencies: {
         DeploymentTemplatePickerCard,
-        useEnsureTrialStarted: () => ({ isWalletReady: false, isLoading: true, error: null, refreshWallet: vi.fn() })
+        useEnsureTrialStarted: () => ({ isWalletReady: false, isLoading: true, error: null, refreshWallet: vi.fn(), retryTrial: vi.fn() })
       }
     });
 
@@ -129,7 +130,7 @@ describe(OnboardingPickerPage.name, () => {
       isTrialing: true,
       dependencies: {
         AddCreditsSheet,
-        useEnsureTrialStarted: () => ({ isWalletReady: false, isLoading: true, error: null, refreshWallet: vi.fn() })
+        useEnsureTrialStarted: () => ({ isWalletReady: false, isLoading: true, error: null, refreshWallet: vi.fn(), retryTrial: vi.fn() })
       }
     });
 
@@ -221,7 +222,8 @@ describe(OnboardingPickerPage.name, () => {
       isWalletReady: true,
       isLoading: false,
       error: null,
-      refreshWallet: vi.fn()
+      refreshWallet: vi.fn(),
+      retryTrial: vi.fn()
     }));
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing });
     const useServices: typeof DEPENDENCIES.useServices = () =>

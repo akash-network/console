@@ -1,4 +1,4 @@
-import { isOnboardingRedesignAvailable } from "./actions/feature-flags";
+import { skipUnlessOnboardingRedesign } from "./actions/feature-flags";
 import { expect, test } from "./fixture/base-test";
 import { AddCreditsSheetPage } from "./pages/AddCreditsSheetPage";
 import { OnboardingPickerPage } from "./pages/OnboardingPickerPage";
@@ -6,13 +6,17 @@ import { OnboardingPickerPage } from "./pages/OnboardingPickerPage";
 test.describe("Onboarding picker — unlocking the gated LLM template via Add Credits", () => {
   test.use({ userType: "new" });
 
+  test.beforeEach(async ({ page }) => {
+    await skipUnlessOnboardingRedesign(page);
+  });
+
   test("a fresh trialing user unlocks the LLM template by purchasing credits", async ({ page }) => {
     test.setTimeout(5 * 60 * 1000);
 
-    expect(await isOnboardingRedesignAvailable(page), "console_onboarding_redesign must be enabled in the test environment").toBe(true);
-
     const onboardingPickerPage = new OnboardingPickerPage(page);
     const addCreditsSheet = new AddCreditsSheetPage(page);
+
+    await onboardingPickerPage.goto();
 
     await test.step("the gated LLM template CTA reads 'Unlock full trial to deploy' once the trial is active", async () => {
       await expect(onboardingPickerPage.getLlmChatbotCta()).toHaveText(/unlock full trial to deploy/i, { timeout: 60_000 });
@@ -52,7 +56,7 @@ test.describe("Onboarding picker — unlocking the gated LLM template via Add Cr
     });
 
     await test.step("the LLM template starts deploying", async () => {
-      await expect(page.getByText("Deploying")).toBeVisible();
+      await expect(page.getByRole("heading", { name: /Deploying/i })).toBeVisible();
     });
   });
 });

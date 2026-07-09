@@ -47,7 +47,7 @@ const postBidScreeningRoute = createRoute({
 });
 
 bidScreeningRouter.openapi(postBidScreeningRoute, async function routePostBidScreening(c) {
-  if (!container.resolve(FeatureFlagsService).isEnabled(FeatureFlags.BID_SCREENING)) {
+  if (!container.resolve(FeatureFlagsService).isEnabled(FeatureFlags.ONBOARDING_REDESIGN_V1)) {
     return c.json({ providers: [] }, 200);
   }
 

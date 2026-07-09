@@ -48,7 +48,7 @@ export class WalletInitializerService {
     assert(currentUser.emailVerified, 400, "Email not verified");
     await this.#assertNoDuplicateFingerprint(currentUser);
 
-    if (!this.featureFlagsService.isEnabled(FeatureFlags.CONSOLE_ONBOARDING_REDESIGN)) {
+    if (!this.featureFlagsService.isEnabled(FeatureFlags.ONBOARDING_REDESIGN_V1)) {
       assert(currentUser.stripeCustomerId, 400, "Stripe customer ID not found");
       const threeDsResult = await this.#validatePaymentMethod(currentUser);
       if (threeDsResult) return threeDsResult;

@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
+import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 import type { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
 import { useTemplates } from "@src/queries/useTemplateQuery";
 import sdlStore from "@src/store/sdlStore";
@@ -40,7 +41,7 @@ const previewTemplateIds = [
   "akash-network-awesome-akash-FastChat"
 ];
 
-export const DEPENDENCIES = { useTemplates, useRouter, useFlag };
+export const DEPENDENCIES = { useTemplates, useRouter, useFlag, useNewDeploymentUrl };
 
 type Props = {
   onChangeGitProvider: (gh: boolean) => void;
@@ -58,6 +59,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({
   const { analyticsService } = useServices();
   const { templates } = d.useTemplates();
   const router = d.useRouter();
+  const newDeploymentUrl = d.useNewDeploymentUrl();
   const [previewTemplates, setPreviewTemplates] = useState<TemplateOutputSummaryWithCategory[]>([]);
   const [, setSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const isBuildAndDeployEnabled = d.useFlag("ui_build_and_deploy");
@@ -82,7 +84,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({
     setEditedManifest("");
     onTemplateSelected(null);
     setSdlEditMode("builder");
-    router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, page }));
+    router.push(newDeploymentUrl({ step: RouteStep.editDeployment, page }));
   }
 
   const onFileSelect = (file: File | null) => {
@@ -164,7 +166,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({
             <p className="text-sm text-muted-foreground">
               Browse through the marketplace of pre-made solutions with categories like AI & ML, Blockchain nodes and more!{" "}
               <Link
-                href={UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: helloWorldTemplate.code })}
+                href={newDeploymentUrl({ step: RouteStep.editDeployment, templateId: helloWorldTemplate.code })}
                 className="text-inherit underline"
                 prefetch={false}
                 aria-label="Hello World"
@@ -183,7 +185,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({
             <TemplateBox
               key={template.id}
               template={template}
-              linkHref={UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: template?.id })}
+              linkHref={newDeploymentUrl({ step: RouteStep.editDeployment, templateId: template?.id })}
             />
           ))}
         </CardContent>

@@ -1,4 +1,5 @@
 import { createManagedDeployment } from "./actions/deploy";
+import { skipIfOnboardingRedesign } from "./actions/feature-flags";
 import { expect, test } from "./fixture/base-test";
 import { BillingPage } from "./pages/BillingPage";
 import { DeployPage } from "./pages/DeployPage";
@@ -6,6 +7,10 @@ import { Sidebar } from "./pages/Sidebar";
 
 test.describe("Managed wallet deployment", () => {
   test.use({ userType: "existing" });
+
+  test.beforeEach(async ({ page }) => {
+    await skipIfOnboardingRedesign(page);
+  });
 
   test("creates and closes a hello-world deployment", async ({ context, page }) => {
     test.setTimeout(3 * 60 * 1000);

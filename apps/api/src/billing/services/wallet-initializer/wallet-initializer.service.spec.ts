@@ -49,7 +49,7 @@ describe(WalletInitializerService.name, () => {
       await expect(di.resolve(WalletInitializerService).startTrial(user.id)).rejects.toThrow(/Unable to start trial/i);
     });
 
-    describe("when console_onboarding_redesign is OFF", () => {
+    describe("when onboarding_redesign_v1 is OFF", () => {
       it("throws 400 when the user has no payment method", async () => {
         const user = createUser({ emailVerified: true, stripeCustomerId: faker.string.uuid() });
         const di = setup({ user, hasPaymentMethods: false });
@@ -91,7 +91,7 @@ describe(WalletInitializerService.name, () => {
       });
     });
 
-    describe("when console_onboarding_redesign is ON", () => {
+    describe("when onboarding_redesign_v1 is ON", () => {
       it("skips payment-method validation and goes straight to wallet init", async () => {
         const user = createUser({ emailVerified: true, stripeCustomerId: faker.string.uuid() });
         const newWallet = createUserWallet({ userId: user.id });
@@ -274,7 +274,7 @@ describe(WalletInitializerService.name, () => {
       FeatureFlagsService,
       mock<FeatureFlagsService>({
         isEnabled: vi.fn(flag => {
-          if (flag === FeatureFlags.CONSOLE_ONBOARDING_REDESIGN) return input?.consoleOnboardingRedesign ?? false;
+          if (flag === FeatureFlags.ONBOARDING_REDESIGN_V1) return input?.consoleOnboardingRedesign ?? false;
           return true;
         })
       })

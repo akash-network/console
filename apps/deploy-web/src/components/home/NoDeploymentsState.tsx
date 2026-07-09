@@ -8,6 +8,7 @@ import Link from "next/link";
 import { WalletConnectionButtons } from "@src/components/wallet/WalletConnectionButtons";
 import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
+import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 import walletStore from "@src/store/walletStore";
 
 type Props = {
@@ -19,6 +20,7 @@ type Props = {
 
 export const NoDeploymentsState: React.FC<Props> = ({ onDeployClick, hasDeployments = false, isWalletConnected = true, showTemplatesButton = true }) => {
   const { urlService } = useServices();
+  const newDeploymentUrl = useNewDeploymentUrl();
   const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
   const { user } = useCustomUser();
 
@@ -45,7 +47,7 @@ export const NoDeploymentsState: React.FC<Props> = ({ onDeployClick, hasDeployme
         {isWalletConnected ? (
           <div className="flex gap-4">
             <Button onClick={onDeployClick} asChild>
-              <Link href={urlService.newDeployment()}>
+              <Link href={newDeploymentUrl()}>
                 <Rocket className="mr-2 h-4 w-4 rotate-45" />
                 Create Deployment
               </Link>

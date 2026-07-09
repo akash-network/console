@@ -1,15 +1,14 @@
 import { testEnvConfig } from "../../fixture/test-env.config";
-import type { Auth0ManagementService } from "../auth0-management.service";
-import { Auth0TicketVerificationStrategy } from "./auth0-ticket.strategy";
 import type { EmailVerificationStrategy } from "./email-verification.strategy";
 import { MailsacCodeVerificationStrategy } from "./mailsac-code.strategy";
 
 export type { EmailVerificationStrategy } from "./email-verification.strategy";
 
-export function createEmailVerificationStrategy(auth0: Auth0ManagementService): EmailVerificationStrategy {
-  if (testEnvConfig.EMAIL_VERIFICATION_STRATEGY === "auth0-ticket") {
-    return new Auth0TicketVerificationStrategy(auth0);
-  }
-
+/**
+ * The onboarding user verifies email through the real Mailsac inbox (OTP code), matching the passwordless
+ * signup flow. The prior `auth0-ticket` bypass has been removed so the onboarding journey always exercises
+ * real email delivery end-to-end.
+ */
+export function createEmailVerificationStrategy(): EmailVerificationStrategy {
   return new MailsacCodeVerificationStrategy(testEnvConfig.MAILSAC_API_KEY);
 }

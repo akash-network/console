@@ -65,6 +65,26 @@ describe(AutoDeployFlow.name, () => {
     expect(tryAgain).toHaveBeenCalledTimes(1);
   });
 
+  it("resets the trial before restarting when the trial has errored, so the retry is not a dead-end", () => {
+    const tryAgain = vi.fn();
+    const retryTrial = vi.fn();
+    const { sceneProps } = setup({ flow: { tryAgain }, trial: { isWalletReady: false, error: new Error("trial failed"), retryTrial } });
+
+    sceneProps().onTryAgain?.();
+
+    expect(retryTrial).toHaveBeenCalledTimes(1);
+    expect(tryAgain).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not reset the trial on retry when there was no trial error", () => {
+    const retryTrial = vi.fn();
+    const { sceneProps } = setup({ flow: { tryAgain: vi.fn() }, trial: { isWalletReady: true, retryTrial } });
+
+    sceneProps().onTryAgain?.();
+
+    expect(retryTrial).not.toHaveBeenCalled();
+  });
+
   it("opens the configured contact-support URL when the scene requests support", () => {
     const open = vi.spyOn(window, "open").mockImplementation(() => null);
     const { sceneProps } = setup({ contactSupportUrl: "https://support.example" });
@@ -96,7 +116,7 @@ describe(AutoDeployFlow.name, () => {
       templateId?: string;
       dseq?: string;
       draftId?: string;
-      trial?: { isWalletReady?: boolean; error?: unknown };
+      trial?: { isWalletReady?: boolean; error?: unknown; retryTrial?: () => void };
       contactSupportUrl?: string;
       flow?: Partial<FlowResult>;
       useAutoDeploymentFlow?: typeof DEPENDENCIES.useAutoDeploymentFlow;
@@ -108,9 +128,13 @@ describe(AutoDeployFlow.name, () => {
 
     // Built as a plain object (not mock<T>) so the passed-through trialError stays referentially intact rather than deep-mocked.
     const useEnsureTrialStarted: typeof DEPENDENCIES.useEnsureTrialStarted = () =>
-      ({ isWalletReady: input.trial?.isWalletReady ?? true, isLoading: false, error: input.trial?.error, refreshWallet: vi.fn() }) as ReturnType<
-        typeof DEPENDENCIES.useEnsureTrialStarted
-      >;
+      ({
+        isWalletReady: input.trial?.isWalletReady ?? true,
+        isLoading: false,
+        error: input.trial?.error,
+        refreshWallet: vi.fn(),
+        retryTrial: input.trial?.retryTrial ?? vi.fn()
+      }) as ReturnType<typeof DEPENDENCIES.useEnsureTrialStarted>;
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({
         publicConfig: { NEXT_PUBLIC_CONTACT_SUPPORT_URL: input.contactSupportUrl ?? CONTACT_SUPPORT_URL }

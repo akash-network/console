@@ -1,6 +1,11 @@
 import { closeActiveDeployment } from "./actions/deploy";
+import { skipUnlessOnboardingRedesign } from "./actions/feature-flags";
 import { expect, test } from "./fixture/base-test";
 import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
+
+test.beforeEach(async ({ page }) => {
+  await skipUnlessOnboardingRedesign(page);
+});
 
 test.describe("Configure deployment — request quotes flow", () => {
   test.use({ userType: "existing" });
@@ -17,7 +22,7 @@ test.describe("Configure deployment — request quotes flow", () => {
     const configure = new ConfigureDeploymentPage(page);
 
     await test.step("configure a deployment", async () => {
-      await configure.goto();
+      await configure.open();
       await configure.fillImageName("nginx:latest");
     });
 
@@ -53,7 +58,7 @@ test.describe("Configure deployment — request quotes flow", () => {
     let dseq: string | undefined;
 
     await test.step("request quotes to create the deployment and surface bids", async () => {
-      await configure.goto();
+      await configure.open();
       await configure.fillImageName("nginx:latest");
       await configure.requestQuotes();
 
@@ -85,7 +90,7 @@ test.describe("Configure deployment — draft persistence", () => {
   test("restores edits to the deployment spec after a reload", async ({ page }) => {
     const configure = new ConfigureDeploymentPage(page);
 
-    await configure.goto();
+    await configure.open();
     await configure.fillImageName("nginx:1.2.3-draft");
 
     // a minted draft id is mirrored into the URL, and the working SDL is persisted (debounced) under it

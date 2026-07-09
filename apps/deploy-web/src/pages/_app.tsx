@@ -21,7 +21,7 @@ import NProgress from "nprogress";
 import { RequireAuth } from "@src/components/auth/RequireAuth/RequireAuth";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
-import { OnboardingRedirectEffect } from "@src/components/onboarding/OnboardingRedirectEffect/OnboardingRedirectEffect";
+import { RequireOnboarding } from "@src/components/onboarding/RequireOnboarding/RequireOnboarding";
 import { UserProviders } from "@src/components/user/UserProviders/UserProviders";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { FlagProvider } from "@src/context/FlagProvider/FlagProvider";
@@ -59,8 +59,9 @@ const App: React.FunctionComponent<Props> = props => {
               <WalletProvider>
                 <PaymentPollingProvider>
                   <NavigationGuardProvider>
-                    <OnboardingRedirectEffect />
-                    <Component {...pageProps} />
+                    <RequireOnboarding isPublic={isPublic}>
+                      <Component {...pageProps} />
+                    </RequireOnboarding>
                   </NavigationGuardProvider>
                 </PaymentPollingProvider>
               </WalletProvider>

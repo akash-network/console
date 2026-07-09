@@ -14,7 +14,14 @@ export const useManagedWallet = () => {
   const { user } = useUser();
   const { user: signedInUser } = useCustomUser();
   const { data: queried, isLoading: isInitialLoading, isFetching, refetch } = useManagedWalletQuery(user?.id);
-  const { mutate: create, data: created, isPending: isCreating, isSuccess: isCreated, error: createError } = useCreateManagedWalletMutation();
+  const {
+    mutate: create,
+    data: created,
+    isPending: isCreating,
+    isSuccess: isCreated,
+    error: createError,
+    reset: resetCreate
+  } = useCreateManagedWalletMutation();
   // A trial wallet is often created from a different `useManagedWallet` instance (the onboarding picker /
   // auto-deploy flow) than the one that reads loading state (the persistent WalletProvider). Observing the
   // mutation cache — not just this observer's `isCreating` — makes the loading signal reflect an in-flight
@@ -67,7 +74,8 @@ export const useManagedWallet = () => {
       isLoading,
       isFetching,
       createError,
+      resetCreate,
       refetch
     };
-  }, [wallet, isLoading, isFetching, createError, refetch, user?.id, create]);
+  }, [wallet, isLoading, isFetching, createError, resetCreate, refetch, user?.id, create]);
 };

@@ -16,7 +16,7 @@ export { getUserAgent } from "./user-agent";
 export type UserType = "existing" | "new";
 
 const auth0 = new Auth0ManagementService();
-const emailVerification = createEmailVerificationStrategy(auth0);
+const emailVerification = createEmailVerificationStrategy();
 
 type Fixtures = {
   /** Who the test runs as. Omit for no auth precondition. */

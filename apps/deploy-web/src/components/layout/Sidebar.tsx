@@ -37,6 +37,7 @@ import Link from "next/link";
 
 import { useSettings } from "@src/context/SettingsProvider";
 import { useFlag } from "@src/hooks/useFlag";
+import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 import { useUser } from "@src/hooks/useUser";
 import sdlStore from "@src/store/sdlStore";
 import type { ISidebarGroupMenu, ISidebarRoute } from "@src/types";
@@ -65,6 +66,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const { user } = useUser();
   const isAuthenticated = !!user?.userId;
   const isAlertsEnabled = useFlag("alerts");
+  const newDeploymentUrl = useNewDeploymentUrl();
 
   const mainRoutes = useMemo(() => {
     const routes: ISidebarRoute[] = isAuthenticated
@@ -293,7 +295,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
               className={cn(buttonVariants({ variant: "default", size: isNavOpen ? "lg" : "icon" }), "h-9 w-full leading-4", {
                 ["h-9 w-11 min-w-0 rounded-sm pb-2 pt-2"]: !isNavOpen
               })}
-              href={UrlService.newDeployment()}
+              href={newDeploymentUrl()}
               onClick={onDeployClick}
               data-testid="sidebar-deploy-button"
               aria-disabled={settings.isBlockchainDown}

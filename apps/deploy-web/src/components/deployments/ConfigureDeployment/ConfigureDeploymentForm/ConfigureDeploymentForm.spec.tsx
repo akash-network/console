@@ -245,6 +245,26 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" }));
   });
 
+  it("resets the trial before re-requesting quotes when a previous trial start terminally errored", () => {
+    const { ConfigureDeploymentHeader, requestQuotes, retryTrial } = setup({ initialSdl: undefined, trialError: new Error("trial boom") });
+    const headerFlow = (ConfigureDeploymentHeader as ReturnType<typeof vi.fn>).mock.calls[0][0].flow as ReturnType<typeof DEPENDENCIES.useDeploymentFlow>;
+
+    headerFlow.actions.requestQuotes("sdl-x");
+
+    expect(retryTrial).toHaveBeenCalledTimes(1);
+    expect(requestQuotes).toHaveBeenCalledWith("sdl-x");
+  });
+
+  it("does not reset the trial when re-requesting quotes without a prior trial error", () => {
+    const { ConfigureDeploymentHeader, requestQuotes, retryTrial } = setup({ initialSdl: undefined });
+    const headerFlow = (ConfigureDeploymentHeader as ReturnType<typeof vi.fn>).mock.calls[0][0].flow as ReturnType<typeof DEPENDENCIES.useDeploymentFlow>;
+
+    headerFlow.actions.requestQuotes("sdl-x");
+
+    expect(retryTrial).not.toHaveBeenCalled();
+    expect(requestQuotes).toHaveBeenCalledWith("sdl-x");
+  });
+
   function setup(input: {
     initialSdl: string | undefined;
     initialName?: string;
@@ -252,12 +272,16 @@ describe(ConfigureDeploymentForm.name, () => {
     draftId?: string;
     deploySucceeded?: boolean;
     flowError?: { message?: string };
+    trialError?: unknown;
   }) {
     const ConfigureDeploymentPanes = vi.fn(input.Panes ?? (() => <div data-testid="panes-mock" />));
+    const ConfigureDeploymentHeader = vi.fn(() => <div data-testid="header-mock" />);
     const enqueueSnackbar = vi.fn();
     const Snackbar = vi.fn(() => null);
     const save = vi.fn<(sdl: string, name?: string) => void>();
     const clear = vi.fn<() => void>();
+    const requestQuotes = vi.fn();
+    const retryTrial = vi.fn();
     const setDeploymentName = vi.fn();
     const useConfigureDraft = vi.fn(() =>
       mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({ draftId: input.draftId ?? "draft-1", persistedSdl: undefined, save, clear })
@@ -266,7 +290,7 @@ describe(ConfigureDeploymentForm.name, () => {
     const dependencies: typeof DEPENDENCIES = {
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
-      ConfigureDeploymentHeader: vi.fn(() => <div data-testid="header-mock" />),
+      ConfigureDeploymentHeader,
       ConfigureDeploymentPanes: ConfigureDeploymentPanes as never,
       useConfigureDraft: useConfigureDraft as never,
       useDeploymentFlow: (() =>
@@ -275,9 +299,12 @@ describe(ConfigureDeploymentForm.name, () => {
           dseq: null,
           bidStrategy: "select",
           deploySucceeded: input.deploySucceeded ?? false,
-          error: input.flowError
+          error: input.flowError,
+          actions: mock<ReturnType<typeof DEPENDENCIES.useDeploymentFlow>["actions"]>({ requestQuotes })
         })) as never,
       useDeploymentName,
+      useEnsureTrialStarted: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useEnsureTrialStarted>>({ isWalletReady: !input.trialError, error: input.trialError as never, retryTrial }),
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       Snackbar: Snackbar as never,
       ReviewAndDeployModal: () => null,
@@ -293,7 +320,7 @@ describe(ConfigureDeploymentForm.name, () => {
       />
     );
 
-    return { ConfigureDeploymentPanes, enqueueSnackbar, save, clear };
+    return { ConfigureDeploymentPanes, ConfigureDeploymentHeader, enqueueSnackbar, save, clear, requestQuotes, retryTrial };
   }
 });
 
