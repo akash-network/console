@@ -5,14 +5,13 @@ import { useCallback } from "react";
 import Layout from "@src/components/layout/Layout";
 import { useServices } from "@src/context/ServicesProvider";
 import { useAutoDeploymentFlow } from "@src/hooks/useAutoDeploymentFlow/useAutoDeploymentFlow";
-import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
 import { PhasedDeployProgressScene } from "../DeployProgressOverlay/PhasedDeployProgressScene";
 import type { ResumeResolution } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
+import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 
 export const DEPENDENCIES = {
   Layout,
   PhasedDeployProgressScene,
-  useEnsureTrialStarted,
   useAutoDeploymentFlow,
   useServices
 };
@@ -22,14 +21,16 @@ type Props = {
   templateName: string;
   /** The resolved SDL to deploy, already derived from the intent's template on the configure screen. */
   sdl: string;
-  /** The template the flow deploys; mirrored into the flow's intent so a URL resume preserves it. */
-  templateId?: string;
-  /** The deployment's dseq when resuming (a reload of the progress view); absent on a fresh start. */
-  dseq?: string;
-  /** The active configure draft id, preserved in the URL when the created dseq is written so a reload resolves the same session. */
-  draftId?: string;
   /** The resume resolution from the {@link ResumeDeploymentGuard}: any live leases to reconstruct so the manifest re-sends. */
   resume: ResumeResolution;
+  /** The shared base flow, created once by the `DeploymentFlowProvider` (seeded from the resolved intent, including a resumed dseq). */
+  flow: DeploymentFlow;
+  /** Whether the trial wallet can broadcast — gates the autopilot's create. */
+  isWalletReady: boolean;
+  /** A terminal start-trial failure, projected to the flow's error state so a held create fails instead of waiting forever. */
+  trialError: unknown;
+  /** Clears a terminal start-trial failure so "Try again" can re-attempt it. */
+  retryTrial: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -37,26 +38,23 @@ type Props = {
  * The auto-deploy experience of the bid-screening view: when the configure intent is `sdl-strategy=default` +
  * `bid-strategy=auto`, the screen skips the manual form and drives the deployment automatically through the
  * globe + phased progress panel (create deployment → matching providers → preparing), then redirects to the
- * deployment details. Trial readiness is ensured here (mirroring the onboarding picker) so the flow can wait
- * on the trial wallet spinning up before broadcasting. Rendered only in the auto branch so the trial is never
- * auto-started for manual configure visitors.
+ * deployment details. The base flow and trial readiness come from the `DeploymentFlowProvider` (shared with the
+ * manual branch), so this component only autopilots over the flow, waiting on the trial wallet spinning up before
+ * broadcasting.
  *
  * The created deployment's dseq is written into the URL by the underlying `useDeploymentFlow` state machine (the
  * phased flow autopilots over it), so a reload resumes the same deployment — picking up at matching, or at
  * preparing if a lease already exists — instead of creating a new one. Deploy-success navigation is likewise owned
  * by that flow's built-in redirect.
  */
-export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, templateId, dseq, draftId, resume, dependencies: d = DEPENDENCIES }) => {
-  const { isWalletReady, error: trialError, retryTrial } = d.useEnsureTrialStarted();
+export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, isWalletReady, trialError, retryTrial, dependencies: d = DEPENDENCIES }) => {
   const { publicConfig } = d.useServices();
-  const { state, progressPercent, phases, matchedProviderAddress, tryAgain } = d.useAutoDeploymentFlow({
+  const { state, progressPercent, phases, matchedProviderAddress, tryAgain, stopAutopilot } = d.useAutoDeploymentFlow({
     sdl,
     isWalletReady,
     trialError,
-    initialDseq: dseq,
-    templateId,
-    draftId,
-    resumeLeases: resume.activeLeases
+    resumeLeases: resume.activeLeases,
+    flow
   });
 
   /**
@@ -79,6 +77,12 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, templateId, dseq,
         onTryAgain={resetTrialAndRetryDeploy}
         onContactSupport={() => {
           window.open(publicConfig.NEXT_PUBLIC_CONTACT_SUPPORT_URL, "_blank", "noopener,noreferrer");
+        }}
+        onChooseProvider={() => {
+          // Halt the autopilot before flipping to manual: the bid-strategy change only unmounts this flow once the URL
+          // propagates, so stopping here keeps the autopilot from leasing the shared deployment during that window.
+          stopAutopilot();
+          flow.actions.setBidStrategy("select");
         }}
       />
     </d.Layout>

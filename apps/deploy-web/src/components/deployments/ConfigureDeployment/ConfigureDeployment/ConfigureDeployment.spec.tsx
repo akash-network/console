@@ -7,6 +7,7 @@ import { mock } from "vitest-mock-extended";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
 import { helloWorldTemplate } from "@src/utils/templates";
+import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./ConfigureDeployment";
 import { ConfigureDeployment } from "./ConfigureDeployment";
 
@@ -103,8 +104,25 @@ describe(ConfigureDeployment.name, () => {
     expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialName: "resumed-name" }), expect.anything());
   });
 
+  it("routes an auto-deploy intent to the auto flow with the shared flow, not the manual form", () => {
+    const { AutoDeployFlow, ConfigureDeploymentForm, DeploymentFlowProvider } = setup({
+      templateId: helloWorldTemplate.code,
+      sdlStrategy: "default",
+      bidStrategy: "auto"
+    });
+
+    expect(ConfigureDeploymentForm).not.toHaveBeenCalled();
+    expect(DeploymentFlowProvider).toHaveBeenCalledWith(
+      expect.objectContaining({ intent: expect.objectContaining({ sdlStrategy: "default", bidStrategy: "auto" }) }),
+      expect.anything()
+    );
+    expect(AutoDeployFlow).toHaveBeenCalledWith(expect.objectContaining({ sdl: helloWorldTemplate.content, flow: expect.anything() }), expect.anything());
+  });
+
   function setup(input: {
     templateId?: string | null;
+    sdlStrategy?: string;
+    bidStrategy?: string;
     draftId?: string;
     persistedSdl?: string;
     persistedName?: string;
@@ -112,6 +130,10 @@ describe(ConfigureDeployment.name, () => {
     deploySdl?: TemplateCreation | null;
   }) {
     const ConfigureDeploymentForm = vi.fn(() => <div data-testid="form-mock" />);
+    const AutoDeployFlow = vi.fn(() => <div data-testid="auto-mock" />);
+    const DeploymentFlowProvider = vi.fn(({ children }) => (
+      <>{children({ flow: mock<DeploymentFlow>(), isWalletReady: true, trialError: undefined, retryTrial: vi.fn() })}</>
+    ));
     const enqueueSnackbar = vi.fn();
     const usePublicTemplate = vi.fn(() => mock<ReturnType<typeof DEPENDENCIES.usePublicTemplate>>(input.template as never));
     const save = vi.fn();
@@ -128,13 +150,16 @@ describe(ConfigureDeployment.name, () => {
 
     const query: Record<string, string> = {};
     if (input.templateId) query.templateId = input.templateId;
+    if (input.sdlStrategy) query["sdl-strategy"] = input.sdlStrategy;
+    if (input.bidStrategy) query["bid-strategy"] = input.bidStrategy;
     const params = new URLSearchParams(query);
 
     const dependencies: typeof DEPENDENCIES = {
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
-      AutoDeployFlow: vi.fn(() => null) as never,
+      AutoDeployFlow: AutoDeployFlow as never,
       ConfigureDeploymentForm: ConfigureDeploymentForm as never,
+      DeploymentFlowProvider: DeploymentFlowProvider as never,
       ResumeDeploymentGuard: vi.fn(({ children }) => <>{children({ activeLeases: [] })}</>) as never,
       usePublicTemplate: usePublicTemplate as never,
       useConfigureDraft: useConfigureDraft as never,
@@ -153,6 +178,6 @@ describe(ConfigureDeployment.name, () => {
       </JotaiStoreProvider>
     );
 
-    return { ConfigureDeploymentForm, usePublicTemplate, useConfigureDraft, enqueueSnackbar };
+    return { ConfigureDeploymentForm, AutoDeployFlow, DeploymentFlowProvider, usePublicTemplate, useConfigureDraft, enqueueSnackbar };
   }
 });

@@ -14,6 +14,7 @@ import type { TemplateCreation } from "@src/types";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { AutoDeployFlow } from "../AutoDeployFlow/AutoDeployFlow";
 import { ConfigureDeploymentForm } from "../ConfigureDeploymentForm/ConfigureDeploymentForm";
+import { DeploymentFlowProvider } from "../DeploymentFlowProvider/DeploymentFlowProvider";
 import { ResumeDeploymentGuard } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
@@ -24,6 +25,7 @@ export const DEPENDENCIES = {
   NextSeo,
   AutoDeployFlow,
   ConfigureDeploymentForm,
+  DeploymentFlowProvider,
   ResumeDeploymentGuard,
   usePublicTemplate,
   useConfigureDraft,
@@ -83,23 +85,13 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const templateName = templateQuery.data?.name ?? hardcodedTemplate?.title ?? "your deployment";
 
   // Only the auto flow (with an SDL in hand) can finish an already-leased deployment by re-sending its manifest;
-  // a manual visitor or a cold resume with no SDL is sent to the detail page instead.
+  // a manual visitor or a cold resume with no SDL is sent to the detail page instead. The DeploymentFlowProvider owns
+  // the single flow both branches share — keyed by the draft so a draft change remounts a fresh flow, while an
+  // auto↔manual switch within one draft keeps it. It sits below the guard so the flow only mounts once the guard has
+  // settled the dseq. The template-loading spinner stays above the provider so the trial isn't started mid-fetch.
   return (
     <d.ResumeDeploymentGuard intent={resolvedIntent} canResume={isAutoDeploy && !!initialSdl}>
       {resume => {
-        if (isAutoDeploy && initialSdl) {
-          return (
-            <d.AutoDeployFlow
-              templateId={resolvedIntent.templateId}
-              templateName={templateName}
-              sdl={initialSdl}
-              dseq={resolvedIntent.dseq}
-              draftId={resolvedIntent.draftId}
-              resume={resume}
-            />
-          );
-        }
-
         if (fetchedTemplateId && templateQuery.isLoading) {
           return (
             <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col">
@@ -111,7 +103,32 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
           );
         }
 
-        return <d.ConfigureDeploymentForm key={draft.draftId} initialSdl={initialSdl} initialName={initialName} intent={resolvedIntent} />;
+        return (
+          <d.DeploymentFlowProvider key={draft.draftId} intent={resolvedIntent}>
+            {({ flow, isWalletReady, trialError, retryTrial }) =>
+              isAutoDeploy && initialSdl ? (
+                <d.AutoDeployFlow
+                  templateName={templateName}
+                  sdl={initialSdl}
+                  resume={resume}
+                  flow={flow}
+                  isWalletReady={isWalletReady}
+                  trialError={trialError}
+                  retryTrial={retryTrial}
+                />
+              ) : (
+                <d.ConfigureDeploymentForm
+                  initialSdl={initialSdl}
+                  initialName={initialName}
+                  intent={resolvedIntent}
+                  flow={flow}
+                  trialError={trialError}
+                  retryTrial={retryTrial}
+                />
+              )
+            }
+          </d.DeploymentFlowProvider>
+        );
       }}
     </d.ResumeDeploymentGuard>
   );

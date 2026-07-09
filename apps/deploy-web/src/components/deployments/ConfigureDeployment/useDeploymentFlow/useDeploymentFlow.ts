@@ -133,6 +133,13 @@ export function useDeploymentFlow(
   const intentRef = useRef(intent);
   intentRef.current = intent;
 
+  // Always-current bid strategy for the async create-success callback below. The auto autopilot fires the create as
+  // "auto", but the user can switch to "select" ("Choose my provider") while it's still in flight; reading the ref
+  // keeps the create-success URL on whatever strategy is current, so a late create doesn't bounce the user back to the
+  // auto page after they've moved to the manual one.
+  const bidStrategyRef = useRef(bidStrategy);
+  bidStrategyRef.current = bidStrategy;
+
   const bidsQuery = dependencies.useListBids(dseq, { enabled: phase === "quoting", refetchInterval: BID_POLL_INTERVAL });
 
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -194,7 +201,7 @@ export function useDeploymentFlow(
             setDeployError(undefined);
             setDeploySucceeded(false);
             setPhase("quoting");
-            router.replace(buildConfigureUrl(intentRef.current, result.data.dseq, bidStrategy), undefined, { shallow: true });
+            router.replace(buildConfigureUrl(intentRef.current, result.data.dseq, bidStrategyRef.current), undefined, { shallow: true });
           },
           onError: function onCreateFailed(cause: unknown) {
             setError({ message: extractApiErrorMessage(cause) ?? undefined });
@@ -203,7 +210,7 @@ export function useDeploymentFlow(
         }
       );
     },
-    [createDeployment, router, bidStrategy]
+    [createDeployment, router]
   );
 
   const cancelAndEdit = useCallback(

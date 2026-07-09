@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
 
-import type { BidStrategy, DeploymentIntent } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/deploymentIntent";
-import type { DeploymentFlowPhase } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
-import { useDeploymentFlow } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
+import type { DeploymentFlow, DeploymentFlowPhase } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
 import type { DeployPhase, DeployPhaseId, DeployProgressState } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 import { PHASE_ORDER, useDeployPhaseProgress } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 import { BID_POLL_INTERVAL } from "@src/queries/useListBids";
@@ -23,22 +21,19 @@ type Options = {
   /** If the trial-start mutation has terminally errored, the flow projects to the error state instead of waiting forever. */
   trialError?: unknown;
   /**
-   * A deployment's dseq carried in from the URL on a resumed session (a reload of the progress view). When present the
-   * underlying flow resumes in `quoting` — the deployment already exists on chain — and the autopilot jumps straight
-   * to the lease when an active lease is already found for it. Absent on a fresh start.
-   */
-  initialDseq?: string;
-  /** The template the flow deploys, mirrored into the intent so URL resume preserves it. */
-  templateId?: string;
-  /** The active configure draft id, mirrored into the intent so a reload resolves the same session. */
-  draftId?: string;
-  /**
    * Live (non-closed) leases already on chain for a resumed deployment, resolved once by the `ResumeDeploymentGuard`
    * and passed in so the flow reconstructs a selection per already-leased group and lets the idempotent server
    * create-lease re-send the manifest. Empty on a fresh start or when the deployment has no live leases (which
    * re-quotes from scratch).
    */
   resumeLeases?: LeaseId[];
+  /**
+   * The shared base flow state machine, created once by the `DeploymentFlowProvider` (which seeds it from the resolved
+   * intent — the resumed dseq included — and gates its create on trial readiness). This hook only autopilots over it and
+   * projects its phase onto the progress UI; it no longer owns the flow, so the auto and manual branches share one
+   * instance. When resuming a dseq, the provider seeds the flow in `quoting`, so the autopilot skips create.
+   */
+  flow: DeploymentFlow;
 };
 
 type Result = {
@@ -54,6 +49,14 @@ type Result = {
   dseq?: string;
   /** Discards the failed attempt — closing the on-chain deployment when one exists — and restarts from creating a fresh one. */
   tryAgain: () => void;
+  /**
+   * Stops the autopilot from matching a provider and deploying (creating leases). Called when the user takes over via
+   * "Choose my provider", so the deployment can be handed to the manual configure form (which shares the same flow)
+   * without the autopilot leasing it out from under them. The deployment creation is deliberately left to finish, so
+   * the hand-off always inherits a live, quoting deployment rather than a dangling one. Scoped to this auto session —
+   * a fresh attempt (a remount, or `tryAgain`) re-enables it.
+   */
+  stopAutopilot: () => void;
 };
 
 /** The four coordinates that identify a lease/bid. */
@@ -74,15 +77,15 @@ function getRequiredGseqs(sdl: string): number[] {
 }
 
 export const DEPENDENCIES = {
-  useDeploymentFlow,
   useProviderList,
   useFirstReachableProvider,
   getRequiredGseqs
 };
 
 /**
- * Autopilot + progress projection over {@link useDeploymentFlow}. There is exactly one real state machine — the
- * manual configure flow — and this hook drives it automatically for the auto-deploy (animated globe) experience:
+ * Autopilot + progress projection over the shared base {@link DeploymentFlow}. There is exactly one real state
+ * machine — the manual configure flow, created once by the `DeploymentFlowProvider` and passed in as `flow` — and this
+ * hook drives it automatically for the auto-deploy (animated globe) experience:
  * it fires `requestQuotes` once the trial wallet is ready, then — for each of the deployment's placements (groups) —
  * watches live bids for that group's first *reachable* provider and records it as the flow's selection, firing `deploy`
  * only once every placement has a provider. The underlying flow owns URL resume, multi-lease, the pre-lease
@@ -95,23 +98,18 @@ export const DEPENDENCIES = {
  * address. `flow.phase` is projected onto the three-step create → match → prepare progress UI.
  */
 export function useAutoDeploymentFlow(
-  { sdl, isWalletReady, trialError, initialDseq, templateId, draftId, resumeLeases = [] }: Options,
+  { sdl, isWalletReady, trialError, resumeLeases = [], flow }: Options,
   dependencies: typeof DEPENDENCIES = DEPENDENCIES
 ): Result {
-  const intentRef = useRef<DeploymentIntent>({
-    sdlStrategy: "default",
-    bidStrategy: "auto" as BidStrategy,
-    dseq: initialDseq,
-    templateId,
-    draftId
-  });
-
-  const flow = dependencies.useDeploymentFlow({ intent: intentRef.current, isWalletReady, trialError });
-
   const sdlRef = useRef(sdl);
   sdlRef.current = sdl;
 
   const [retryToken, setRetryToken] = useState(0);
+
+  // Latched on when the user takes manual control ("Choose my provider"): the autopilot stops matching a provider and
+  // deploying (creating leases), but still lets the deployment creation finish — so the manual form inherits a live,
+  // quoting deployment to drive rather than being handed a dangling one.
+  const [autopilotStopped, setAutopilotStopped] = useState(false);
 
   // One-shot guard per group. Unlike create/deploy (which move the flow off their phase synchronously, so a phase check
   // already prevents a re-fire), selectProvider keeps the flow in "quoting" — so without this a bid-poll refetch that
@@ -194,6 +192,8 @@ export function useAutoDeploymentFlow(
   useEffect(
     function fireCreate() {
       // requestQuotes moves the flow off "configuring" synchronously, so the phase guard alone prevents a re-fire.
+      // The flow lives in the parent provider now, so on mount this child effect runs before the flow's own effects;
+      // that's inert here — those effects early-return unless phase === "quoting", and the mount phase is "configuring".
       if (flow.phase !== "configuring" || trialError || !isWalletReady) return;
       flow.actions.requestQuotes(sdlRef.current);
     },
@@ -203,7 +203,7 @@ export function useAutoDeploymentFlow(
 
   useEffect(
     function recordSelections() {
-      if (flow.phase !== "quoting") return;
+      if (autopilotStopped || flow.phase !== "quoting") return;
       for (const target of selectionTargets) {
         if (firedGseqsRef.current.has(target.gseq)) continue;
         firedGseqsRef.current.add(target.gseq);
@@ -212,7 +212,7 @@ export function useAutoDeploymentFlow(
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [flow.phase, selectionTargets]
+    [flow.phase, selectionTargets, autopilotStopped]
   );
 
   // A multi-placement deployment leases all its groups together, so deploy waits until every required group has a
@@ -231,10 +231,10 @@ export function useAutoDeploymentFlow(
       // deploy moves the flow off "quoting" synchronously; a failure drops it back with a `deployError`, which this guard
       // treats as terminal (the auto flow has no manual "pick another provider" step). Together they fire deploy exactly
       // once per attempt, so no separate one-shot ref is needed.
-      if (flow.phase !== "quoting" || !allGroupsSelected || flow.deployError) return;
+      if (autopilotStopped || flow.phase !== "quoting" || !allGroupsSelected || flow.deployError) return;
       flow.actions.deploy(sdlRef.current);
     },
-    [flow.phase, allGroupsSelected, flow.deployError]
+    [flow.phase, allGroupsSelected, flow.deployError, autopilotStopped]
   );
 
   const projected = projectPhase(flow.phase, flow.deploySucceeded, !!trialError, !!flow.deployError);
@@ -251,7 +251,13 @@ export function useAutoDeploymentFlow(
     // re-leasing the same one. The selection guard is released so the fresh attempt can match a provider again.
     setRetryToken(previous => previous + 1);
     firedGseqsRef.current = new Set();
+    setAutopilotStopped(false);
     flow.actions.cancelAndEdit();
+  }
+
+  // Hand-off for "Choose my provider": stop the autopilot so the manual form can drive the shared flow instead.
+  function stopAutopilot() {
+    setAutopilotStopped(true);
   }
 
   return {
@@ -260,7 +266,8 @@ export function useAutoDeploymentFlow(
     phases,
     matchedProviderAddress,
     dseq: dseq ?? undefined,
-    tryAgain
+    tryAgain,
+    stopAutopilot
   };
 }
 

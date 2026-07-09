@@ -9,7 +9,6 @@ import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
-import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
 import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
@@ -25,7 +24,7 @@ import { DeployProgressOverlay } from "../DeployProgressOverlay/DeployProgressOv
 import { ReviewAndDeployModal } from "../ReviewAndDeployModal/ReviewAndDeployModal";
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
-import { useDeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
+import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import { useDeploymentName } from "../useDeploymentName/useDeploymentName";
 
 export const DEPENDENCIES = {
@@ -36,9 +35,7 @@ export const DEPENDENCIES = {
   ReviewAndDeployModal,
   DeployProgressOverlay,
   useConfigureDraft,
-  useDeploymentFlow,
   useDeploymentName,
-  useEnsureTrialStarted,
   usePlacementsWithBids,
   useSnackbar,
   Snackbar
@@ -51,10 +48,16 @@ type Props = {
   initialSdl?: string;
   initialName?: string;
   intent: DeploymentIntent;
+  /** The shared base flow, created once by the `DeploymentFlowProvider`; this form drives it via the header/panes. */
+  flow: DeploymentFlow;
+  /** A terminal start-trial failure, surfaced so a held quote request fails instead of waiting forever. */
+  trialError: unknown;
+  /** Clears a terminal start-trial failure so requesting quotes again re-attempts the trial first. */
+  retryTrial: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, intent, dependencies: d = DEPENDENCIES }) => {
+export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, intent, flow, trialError, retryTrial, dependencies: d = DEPENDENCIES }) => {
   const [initialState] = useState(() => getInitialState(initialSdl));
   const [liveSdl, setLiveSdl] = useState(initialState.sdl);
   const [previewSdl, setPreviewSdl] = useState(initialState.sdl);
@@ -67,8 +70,6 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const lastSelectedServiceId = useRef(selectedServiceId);
   const { enqueueSnackbar } = d.useSnackbar();
   const draft = d.useConfigureDraft(intent);
-  const { isWalletReady, error: trialError, retryTrial } = d.useEnsureTrialStarted();
-  const flow = d.useDeploymentFlow({ intent, isWalletReady, trialError });
   const { name: deploymentName, setName: setDeploymentName } = d.useDeploymentName({ initialName, dseq: flow.dseq });
   const form = useForm<SdlBuilderFormValuesType>({
     defaultValues: initialState.values,

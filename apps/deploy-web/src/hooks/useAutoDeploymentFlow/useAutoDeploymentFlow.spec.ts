@@ -28,14 +28,6 @@ describe(useAutoDeploymentFlow.name, () => {
     expect(result.current.phases[2].status).toBe("pending");
   });
 
-  it("builds an auto intent seeded with the template, draft, and resumed dseq", () => {
-    const { useDeploymentFlow } = setup({ templateId: "hello-world", draftId: "draft-1", initialDseq: DSEQ });
-
-    expect(useDeploymentFlow).toHaveBeenCalledWith(
-      expect.objectContaining({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: DSEQ, templateId: "hello-world", draftId: "draft-1" } })
-    );
-  });
-
   it("fires requestQuotes with the current SDL once the wallet is ready", async () => {
     const { flow } = setup({ sdl: "sdl-content" });
 
@@ -115,6 +107,21 @@ describe(useAutoDeploymentFlow.name, () => {
     const { flow } = setup({ sdl: "sdl-content" });
 
     await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledWith("sdl-content"));
+  });
+
+  it("stops matching a provider and deploying, but still lets the deployment creation finish, once the autopilot is stopped", async () => {
+    const { result, flow } = setup();
+
+    // Stop synchronously right after mount — before the async reachability check resolves a provider — mirroring the
+    // "Choose my provider" hand-off. The create has already fired (so the manual form inherits a live, quoting
+    // deployment rather than a dangling one), but no provider is matched and no lease is created afterwards.
+    act(() => result.current.stopAutopilot());
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    expect(flow.actions.requestQuotes).toHaveBeenCalledTimes(1);
+    expect(flow.actions.selectProvider).not.toHaveBeenCalled();
+    expect(flow.actions.deploy).not.toHaveBeenCalled();
   });
 
   it("projects to success once the underlying deploy succeeds", async () => {
@@ -248,8 +255,6 @@ describe(useAutoDeploymentFlow.name, () => {
   function setup(input?: {
     sdl?: string;
     initialDseq?: string;
-    templateId?: string;
-    draftId?: string;
     bids?: DeploymentBids;
     providers?: ApiProviderList[];
     requiredGseqs?: number[];
@@ -285,15 +290,16 @@ describe(useAutoDeploymentFlow.name, () => {
       clearSelection: vi.fn()
     };
 
-    // A stateful stub state machine: it advances phase in response to the autopilot's action calls exactly as the real
-    // `useDeploymentFlow` does, so the autopilot's effects fire against realistic transitions without the real chain logic.
     const flowControls: { setPhaseError: (message?: string) => void; setDeployError: (message?: string) => void; setClosing: () => void } = {
       setPhaseError: () => undefined,
       setDeployError: () => undefined,
       setClosing: () => undefined
     };
 
-    const useDeploymentFlow = vi.fn(function useDeploymentFlowStub({ intent }: { intent: { dseq?: string } }): DeploymentFlow {
+    // A live, stateful stub of the base flow: it advances phase in response to the autopilot's action calls exactly as
+    // the real `useDeploymentFlow` does, so the autopilot's effects fire against realistic transitions without the real
+    // chain logic. Called inside the harness below and passed to the autopilot as its `flow` input.
+    function useFlowStub({ intent }: { intent: { dseq?: string } }): DeploymentFlow {
       const [phase, setPhase] = useState<DeploymentFlow["phase"]>(intent.dseq ? "quoting" : "configuring");
       const [dseq] = useState<string | null>(intent.dseq ?? DSEQ);
       const [selections, setSelections] = useState<Record<string, string>>({});
@@ -353,7 +359,7 @@ describe(useAutoDeploymentFlow.name, () => {
         error,
         actions: { ...actions, requestQuotes, selectProvider, deploy, retry, cancelAndEdit }
       };
-    });
+    }
 
     const publicConsoleApiHttpClient = { get: vi.fn().mockResolvedValue({ data: providers }) };
 
@@ -365,19 +371,21 @@ describe(useAutoDeploymentFlow.name, () => {
     const getRequiredGseqs: typeof DEPENDENCIES.getRequiredGseqs = () => input?.requiredGseqs ?? [1];
 
     const view = setupQuery(
-      () =>
-        useAutoDeploymentFlow(
+      () => {
+        // The base flow lives outside the autopilot now, so the harness creates the live stub flow and passes it in —
+        // `initialDseq` seeds the stub in `quoting` (a resume) or `configuring` (a fresh start).
+        const flow = useFlowStub({ intent: { dseq: input?.initialDseq } });
+        return useAutoDeploymentFlow(
           {
             sdl: input?.sdl ?? "sdl-content",
             isWalletReady: input?.isWalletReady ?? true,
             trialError: input?.trialError,
-            initialDseq: input?.initialDseq,
-            templateId: input?.templateId,
-            draftId: input?.draftId,
-            resumeLeases: input?.resumeLeases
+            resumeLeases: input?.resumeLeases,
+            flow
           },
-          { useDeploymentFlow, useProviderList, useFirstReachableProvider, getRequiredGseqs }
-        ),
+          { useProviderList, useFirstReachableProvider, getRequiredGseqs }
+        );
+      },
       {
         services: {
           providerProxy: () => providerProxy,
@@ -386,6 +394,6 @@ describe(useAutoDeploymentFlow.name, () => {
       }
     );
 
-    return { ...view, useDeploymentFlow, actions, flow: { actions, ...flowControls }, providerProxy };
+    return { ...view, actions, flow: { actions, ...flowControls }, providerProxy };
   }
 });

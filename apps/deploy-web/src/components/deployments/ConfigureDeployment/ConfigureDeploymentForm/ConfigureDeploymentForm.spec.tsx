@@ -6,6 +6,7 @@ import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/
 import { defaultService } from "@src/utils/sdl/data";
 import { ConfigurationPane } from "../ConfigurationPane/ConfigurationPane";
 import { usePlacementManager } from "../DeploymentPane/usePlacementManager/usePlacementManager";
+import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./ConfigureDeploymentForm";
 import { ConfigureDeploymentForm, firstBidReadyServiceId, nextUndoneServiceId } from "./ConfigureDeploymentForm";
 
@@ -270,7 +271,7 @@ describe(ConfigureDeploymentForm.name, () => {
 
   it("resets the trial before re-requesting quotes when a previous trial start terminally errored", () => {
     const { ConfigureDeploymentHeader, requestQuotes, retryTrial } = setup({ initialSdl: undefined, trialError: new Error("trial boom") });
-    const headerFlow = (ConfigureDeploymentHeader as ReturnType<typeof vi.fn>).mock.calls[0][0].flow as ReturnType<typeof DEPENDENCIES.useDeploymentFlow>;
+    const headerFlow = (ConfigureDeploymentHeader as ReturnType<typeof vi.fn>).mock.calls[0][0].flow as DeploymentFlow;
 
     headerFlow.actions.requestQuotes("sdl-x");
 
@@ -280,7 +281,7 @@ describe(ConfigureDeploymentForm.name, () => {
 
   it("does not reset the trial when re-requesting quotes without a prior trial error", () => {
     const { ConfigureDeploymentHeader, requestQuotes, retryTrial } = setup({ initialSdl: undefined });
-    const headerFlow = (ConfigureDeploymentHeader as ReturnType<typeof vi.fn>).mock.calls[0][0].flow as ReturnType<typeof DEPENDENCIES.useDeploymentFlow>;
+    const headerFlow = (ConfigureDeploymentHeader as ReturnType<typeof vi.fn>).mock.calls[0][0].flow as DeploymentFlow;
 
     headerFlow.actions.requestQuotes("sdl-x");
 
@@ -310,27 +311,26 @@ describe(ConfigureDeploymentForm.name, () => {
       mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({ draftId: input.draftId ?? "draft-1", persistedSdl: undefined, save, clear })
     );
     const useDeploymentName = ((args: { initialName?: string }) => ({ name: args.initialName ?? "", setName: setDeploymentName })) as never;
+    // The base flow is created upstream by the DeploymentFlowProvider now, so it arrives as a prop rather than a hook.
+    const flow = mock<DeploymentFlow>({
+      phase: "configuring",
+      dseq: null,
+      bidStrategy: "select",
+      deploySucceeded: input.deploySucceeded ?? false,
+      error: input.flowError,
+      actions: mock<DeploymentFlow["actions"]>({ requestQuotes })
+    });
     const dependencies: typeof DEPENDENCIES = {
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
       ConfigureDeploymentHeader,
       ConfigureDeploymentPanes: ConfigureDeploymentPanes as never,
       useConfigureDraft: useConfigureDraft as never,
-      useDeploymentFlow: (() =>
-        mock<ReturnType<typeof DEPENDENCIES.useDeploymentFlow>>({
-          phase: "configuring",
-          dseq: null,
-          bidStrategy: "select",
-          deploySucceeded: input.deploySucceeded ?? false,
-          error: input.flowError,
-          actions: mock<ReturnType<typeof DEPENDENCIES.useDeploymentFlow>["actions"]>({ requestQuotes })
-        })) as never,
       useDeploymentName,
-      useEnsureTrialStarted: () =>
-        mock<ReturnType<typeof DEPENDENCIES.useEnsureTrialStarted>>({ isWalletReady: !input.trialError, error: input.trialError as never, retryTrial }),
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       Snackbar: Snackbar as never,
       ReviewAndDeployModal: () => null,
+      DeployProgressOverlay: () => null,
       usePlacementsWithBids: () => new Set<string>()
     };
 
@@ -339,6 +339,9 @@ describe(ConfigureDeploymentForm.name, () => {
         initialSdl={input.initialSdl}
         initialName={input.initialName}
         intent={{ sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, draftId: input.draftId }}
+        flow={flow}
+        trialError={input.trialError}
+        retryTrial={retryTrial}
         dependencies={dependencies}
       />
     );

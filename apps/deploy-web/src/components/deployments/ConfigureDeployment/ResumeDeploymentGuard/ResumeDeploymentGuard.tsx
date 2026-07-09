@@ -109,7 +109,7 @@ export const ResumeDeploymentGuard: FC<Props> = ({ intent, canResume, children, 
             notifiedRef.current = true;
             enqueueSnackbar(
               <d.Snackbar title="Deployment not found" subTitle="It may have been closed. Starting a new deployment instead." iconVariant="error" />,
-              { variant: "error" }
+              { variant: "warning" }
             );
             router.replace(buildConfigureUrl(intent, undefined, intent.bidStrategy));
           }
