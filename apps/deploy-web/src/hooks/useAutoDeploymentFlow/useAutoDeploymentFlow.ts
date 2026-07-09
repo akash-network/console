@@ -11,6 +11,7 @@ import { BID_POLL_INTERVAL } from "@src/queries/useListBids";
 import { useFirstReachableProvider, useProviderList } from "@src/queries/useProvidersQuery";
 import type { ApiProviderList } from "@src/types/provider";
 import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
+import { DeploymentGroups } from "@src/utils/deploymentData/helpers";
 
 type Options = {
   sdl: string;
@@ -39,6 +40,12 @@ type Result = {
   progressPercent: number;
   phases: [DeployPhase, DeployPhase, DeployPhase];
   matchedProviderAddress: string | null;
+  /**
+   * The live deployment dseq once the flow has created (or resumed) one; undefined until then. Lets the auto screen
+   * hand the in-progress deployment off to the manual configure form so "Choose my provider" resumes it rather than
+   * abandoning it.
+   */
+  dseq?: string;
   /** Discards the failed attempt — closing the on-chain deployment when one exists — and restarts from creating a fresh one. */
   tryAgain: () => void;
 };
@@ -46,22 +53,37 @@ type Result = {
 /** The four coordinates that identify a lease/bid. */
 type LeaseId = { dseq: string; gseq: number; oseq: number; provider: string };
 
+/**
+ * The 1-based group sequences (gseqs) the deployment must fill — one per SDL placement. The chain numbers groups in the
+ * order they're submitted in the create-deployment message, which is the order `DeploymentGroups` returns them, so the
+ * gseq is the group's 1-based index. Falls back to a single group when the SDL can't be parsed so matching still runs.
+ */
+function getRequiredGseqs(sdl: string): number[] {
+  try {
+    const count = DeploymentGroups(sdl).length;
+    return count > 0 ? Array.from({ length: count }, (_, index) => index + 1) : [1];
+  } catch {
+    return [1];
+  }
+}
+
 export const DEPENDENCIES = {
   useDeploymentFlow,
   useProviderList,
-  useFirstReachableProvider
+  useFirstReachableProvider,
+  getRequiredGseqs
 };
 
 /**
  * Autopilot + progress projection over {@link useDeploymentFlow}. There is exactly one real state machine — the
  * manual configure flow — and this hook drives it automatically for the auto-deploy (animated globe) experience:
- * it fires `requestQuotes` once the trial wallet is ready, watches live bids for the first *reachable* provider,
- * records that provider as the flow's selection, then fires `deploy`. The underlying flow owns URL resume,
- * multi-lease, the pre-lease `updateDeployment` reconcile, SDL caching, and the deploy-success redirect — the auto
- * flow inherits all of it for free.
+ * it fires `requestQuotes` once the trial wallet is ready, then — for each of the deployment's placements (groups) —
+ * watches live bids for that group's first *reachable* provider and records it as the flow's selection, firing `deploy`
+ * only once every placement has a provider. The underlying flow owns URL resume, multi-lease, the pre-lease
+ * `updateDeployment` reconcile, SDL caching, and the deploy-success redirect — the auto flow inherits all of it for free.
  *
- * On top of the flow it keeps the auto-only concerns: reachability selection (`listBids` + `useProviderList` +
- * `useFirstReachableProvider`), trial gating, the resume-after-lease pre-check (reconstructing the selection from an
+ * On top of the flow it keeps the auto-only concerns: per-group reachability selection (`listBids` + `useProviderList` +
+ * `useFirstReachableProvider`), trial gating, the resume-after-lease pre-check (reconstructing a selection from each
  * existing active lease so the idempotent server create-lease completes), the phased progress-bar animation, and the
  * matched-provider address. `flow.phase` is projected onto the three-step create → match → prepare progress UI.
  */
@@ -91,27 +113,57 @@ export function useAutoDeploymentFlow(
 
   const [retryToken, setRetryToken] = useState(0);
 
-  // One-shot guard for the selection. Unlike create/deploy (which move the flow off their phase synchronously, so a
-  // phase check already prevents a re-fire), selectProvider keeps the flow in "quoting" — so without this a bid-poll
-  // refetch that changes the reachable bid could re-select a different provider. This pins us to the first match.
-  const selectFiredRef = useRef(false);
+  // One-shot guard per group. Unlike create/deploy (which move the flow off their phase synchronously, so a phase check
+  // already prevents a re-fire), selectProvider keeps the flow in "quoting" — so without this a bid-poll refetch that
+  // changes a group's reachable bid could re-select it. Holding the set of already-matched gseqs pins each group to its
+  // first match.
+  const firedGseqsRef = useRef<Set<number>>(new Set());
 
   const dseq = flow.dseq;
 
-  // On a resumed session the deployment may already have a lease. Fetch it so we can reconstruct the selection and let
-  // the idempotent server create-lease finish, skipping the bid match entirely. Disabled on a fresh start.
+  // On a resumed session the deployment may already have leases. Fetch it so we can reconstruct a selection per
+  // already-leased group and let the idempotent server create-lease finish, matching only the groups that still need a
+  // provider. Disabled on a fresh start.
   const deploymentQuery = api.v1.getDeployment.useQuery({ dseq: dseq ?? "" }, { enabled: isResuming && !!dseq && flow.phase === "quoting" && isWalletReady });
-  const existingActiveLease = deploymentQuery.data?.data.leases.find(lease => lease.state !== "closed");
+
+  // The active (non-closed) leases keyed by group sequence, so a resumed multi-placement deployment restores the
+  // provider chosen for each already-leased group. Empty on a fresh start.
+  const leasesByGseq = useMemo(() => {
+    const byGseq = new Map<number, LeaseId>();
+    for (const lease of deploymentQuery.data?.data.leases ?? []) {
+      if (lease.state !== "closed") {
+        byGseq.set(lease.id.gseq, { dseq: lease.id.dseq, gseq: lease.id.gseq, oseq: lease.id.oseq, provider: lease.id.provider });
+      }
+    }
+    return byGseq;
+  }, [deploymentQuery.data]);
+
   /**
-   * On a resume we must know whether a lease already exists before matching from bids; a fresh start needs no such
+   * On a resume we must know whether the leases already exist before matching from bids; a fresh start needs no such
    * wait. Gated on `isSuccess` (not `isFetched`): a failed fetch also flips `isFetched`, which would unblock matching
-   * with `existingActiveLease` still unknown and risk creating a duplicate lease against the resumed deployment.
+   * with the leases still unknown and risk creating a duplicate lease against the resumed deployment.
    */
   const resumeLeaseChecked = !isResuming || deploymentQuery.isSuccess;
 
-  // Bids come straight off the flow's own query: the flow is the single owner of the bids subscription, the autopilot
-  // only reads them to match a provider. No separate query, no reliance on react-query key dedup.
-  const openBids = flow.phase === "quoting" ? flow.bids.filter(bid => bid.bid.state === "open") : [];
+  // Every group (gseq) the deployment must fill — one per SDL placement, unioned with any already-leased group so a
+  // resume restores every on-chain lease even when the SDL can't be parsed. A bid/lease's gseq identifies its group.
+  const requiredGseqs = useMemo(() => {
+    const gseqs = new Set(dependencies.getRequiredGseqs(sdl));
+    for (const gseq of leasesByGseq.keys()) gseqs.add(gseq);
+    return Array.from(gseqs).sort((a, b) => a - b);
+  }, [sdl, leasesByGseq, dependencies]);
+
+  // Groups already recorded as flow selections (a bid id embeds its gseq). Reactive, so matching advances group by group.
+  const selectedGseqs = useMemo(() => new Set(Object.values(flow.selections).map(bidId => parseBidId(bidId).gseq)), [flow.selections]);
+
+  // The one group we're actively matching a provider for: the first required group that has neither an existing lease nor
+  // a recorded selection. Groups resolve one at a time so each gets its own first reachable provider.
+  const matchingGseq = requiredGseqs.find(gseq => !leasesByGseq.has(gseq) && !selectedGseqs.has(gseq));
+
+  // Bids come straight off the flow's own query, scoped to the group currently being matched: the flow is the single
+  // owner of the bids subscription, the autopilot only reads them to match a provider for that group.
+  const openBids =
+    flow.phase === "quoting" && matchingGseq !== undefined ? flow.bids.filter(bid => bid.bid.state === "open" && bid.bid.id.gseq === matchingGseq) : [];
 
   const { data: providers } = dependencies.useProviderList({ enabled: flow.phase === "quoting" });
   const candidateProviders = openBids
@@ -125,30 +177,27 @@ export function useAutoDeploymentFlow(
   const reachableProvider = reachableProviderQuery.data;
   const activeBid = reachableProvider ? openBids.find(bid => bid.bid.id.provider === reachableProvider.owner) : undefined;
 
-  // The lease/bid to record as the flow's selection: an already-existing active lease on a resume takes precedence;
-  // otherwise the first reachable open bid, held until the resume lease-check has settled so a fresh match never races
-  // an existing lease. Null until there's something to select.
-  const selectionTarget = useMemo<LeaseId | null>(() => {
-    if (existingActiveLease) {
-      return {
-        dseq: existingActiveLease.id.dseq,
-        gseq: existingActiveLease.id.gseq,
-        oseq: existingActiveLease.id.oseq,
-        provider: existingActiveLease.id.provider
-      };
+  // Every selection ready to record now: one per already-leased group (a resume takes those verbatim), plus the first
+  // reachable open bid for the group currently being matched — held until the resume lease-check has settled so a fresh
+  // match never races an existing lease. Empty until there's something to select.
+  const selectionTargets = useMemo<LeaseId[]>(() => {
+    const targets: LeaseId[] = [];
+    for (const gseq of requiredGseqs) {
+      const lease = leasesByGseq.get(gseq);
+      if (lease) targets.push(lease);
     }
     if (resumeLeaseChecked && activeBid) {
-      return { dseq: activeBid.bid.id.dseq, gseq: activeBid.bid.id.gseq, oseq: activeBid.bid.id.oseq, provider: activeBid.bid.id.provider };
+      targets.push({ dseq: activeBid.bid.id.dseq, gseq: activeBid.bid.id.gseq, oseq: activeBid.bid.id.oseq, provider: activeBid.bid.id.provider });
     }
-    return null;
-  }, [existingActiveLease, resumeLeaseChecked, activeBid]);
+    return targets;
+  }, [requiredGseqs, leasesByGseq, resumeLeaseChecked, activeBid]);
 
   // Release the selection guard whenever the flow returns to configuring (fresh start / after retry) so a new attempt
-  // can match again.
+  // can match every group again.
   useEffect(
     function resetSelectionGuardOnConfiguring() {
       if (flow.phase === "configuring") {
-        selectFiredRef.current = false;
+        firedGseqsRef.current = new Set();
       }
     },
     [flow.phase]
@@ -165,20 +214,25 @@ export function useAutoDeploymentFlow(
   );
 
   useEffect(
-    function recordSelection() {
-      if (flow.phase !== "quoting" || selectFiredRef.current || !selectionTarget) return;
-      selectFiredRef.current = true;
-      const bidId = formatBidId(selectionTarget);
-      flow.actions.selectProvider(bidId, bidId);
+    function recordSelections() {
+      if (flow.phase !== "quoting") return;
+      for (const target of selectionTargets) {
+        if (firedGseqsRef.current.has(target.gseq)) continue;
+        firedGseqsRef.current.add(target.gseq);
+        const bidId = formatBidId(target);
+        flow.actions.selectProvider(bidId, bidId);
+      }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [flow.phase, selectionTarget]
+    [flow.phase, selectionTargets]
   );
 
-  const hasSelection = Object.keys(flow.selections).length > 0;
+  // A multi-placement deployment leases all its groups together, so deploy waits until every required group has a
+  // provider — not just the first.
+  const allGroupsSelected = requiredGseqs.length > 0 && requiredGseqs.every(gseq => selectedGseqs.has(gseq));
 
-  // The matched provider is a pure projection of the flow's own selection (bids/providers drop out of the queries once
-  // the lease exists, so we read it back from the selection the autopilot recorded rather than tracking it separately).
+  // The matched provider is a pure projection of the flow's own selections (bids/providers drop out of the queries once
+  // the leases exist, so we read it back from the selections the autopilot recorded rather than tracking it separately).
   const matchedProviderAddress = useMemo(() => {
     const selectedBidId = Object.values(flow.selections)[0];
     return selectedBidId ? parseBidId(selectedBidId).provider : null;
@@ -189,10 +243,10 @@ export function useAutoDeploymentFlow(
       // deploy moves the flow off "quoting" synchronously; a failure drops it back with a `deployError`, which this guard
       // treats as terminal (the auto flow has no manual "pick another provider" step). Together they fire deploy exactly
       // once per attempt, so no separate one-shot ref is needed.
-      if (flow.phase !== "quoting" || !hasSelection || flow.deployError) return;
+      if (flow.phase !== "quoting" || !allGroupsSelected || flow.deployError) return;
       flow.actions.deploy(sdlRef.current);
     },
-    [flow.phase, hasSelection, flow.deployError]
+    [flow.phase, allGroupsSelected, flow.deployError]
   );
 
   const projected = projectPhase(flow.phase, flow.deploySucceeded, !!trialError, !!flow.deployError);
@@ -208,7 +262,7 @@ export function useAutoDeploymentFlow(
     // `fireCreate` then broadcasts a brand-new deployment, so "Try again" always starts from scratch rather than
     // re-leasing the same one. The selection guard is released so the fresh attempt can match a provider again.
     setRetryToken(previous => previous + 1);
-    selectFiredRef.current = false;
+    firedGseqsRef.current = new Set();
     flow.actions.cancelAndEdit();
   }
 
@@ -217,6 +271,7 @@ export function useAutoDeploymentFlow(
     progressPercent,
     phases,
     matchedProviderAddress,
+    dseq: dseq ?? undefined,
     tryAgain
   };
 }

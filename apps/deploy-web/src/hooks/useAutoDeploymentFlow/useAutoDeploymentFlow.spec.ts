@@ -175,14 +175,16 @@ describe(useAutoDeploymentFlow.name, () => {
     });
 
     it("reconstructs the selection from an existing active lease and lets deploy run", async () => {
+      // The lease carries a distinct oseq from the open bid (oseq 1), proving the selection is rebuilt from the lease's
+      // own coordinates and that an existing lease takes precedence over matching from bids.
       const getDeployment = vi.fn().mockResolvedValue({
-        data: { leases: [{ id: { dseq: DSEQ, gseq: 2, oseq: 3, provider: PROVIDER_OWNER }, state: "active" }] }
+        data: { leases: [{ id: { dseq: DSEQ, gseq: 1, oseq: 3, provider: PROVIDER_OWNER }, state: "active" }] }
       });
       const { result, flow } = setup({ initialDseq: DSEQ, getDeployment });
 
       await vi.waitFor(() => expect(result.current.matchedProviderAddress).toBe(PROVIDER_OWNER));
 
-      const resumedBidId = formatBidId({ provider: PROVIDER_OWNER, dseq: DSEQ, gseq: 2, oseq: 3 });
+      const resumedBidId = formatBidId({ provider: PROVIDER_OWNER, dseq: DSEQ, gseq: 1, oseq: 3 });
       expect(flow.actions.selectProvider).toHaveBeenCalledWith(resumedBidId, resumedBidId);
       await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalled());
     });
@@ -199,6 +201,64 @@ describe(useAutoDeploymentFlow.name, () => {
     });
   });
 
+  describe("with multiple placements", () => {
+    const PROVIDER_A = "akash1providera";
+    const PROVIDER_B = "akash1providerb";
+
+    it("matches a reachable provider for each placement, recording a selection per group", async () => {
+      const { providerA, providerB, bidA, bidB } = multiPlacement();
+      const { flow } = setup({ providers: [providerA, providerB], bids: [bidA, bidB], requiredGseqs: [1, 2] });
+
+      const bidAId = formatBidId({ provider: PROVIDER_A, dseq: DSEQ, gseq: 1, oseq: 1 });
+      const bidBId = formatBidId({ provider: PROVIDER_B, dseq: DSEQ, gseq: 2, oseq: 1 });
+      await vi.waitFor(() => expect(flow.actions.selectProvider).toHaveBeenCalledWith(bidAId, bidAId));
+      await vi.waitFor(() => expect(flow.actions.selectProvider).toHaveBeenCalledWith(bidBId, bidBId));
+      await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalled());
+    });
+
+    it("waits for every placement to be matched before firing deploy", async () => {
+      const { providerA, providerB, bidA } = multiPlacement();
+      // Only the first group has drawn a bid; the second is still searching, so deploy must not fire yet.
+      const { result, flow } = setup({ providers: [providerA, providerB], bids: [bidA], requiredGseqs: [1, 2] });
+
+      const bidAId = formatBidId({ provider: PROVIDER_A, dseq: DSEQ, gseq: 1, oseq: 1 });
+      await vi.waitFor(() => expect(flow.actions.selectProvider).toHaveBeenCalledWith(bidAId, bidAId));
+
+      await new Promise(resolve => setTimeout(resolve, 50));
+      expect(flow.actions.selectProvider).toHaveBeenCalledTimes(1);
+      expect(flow.actions.deploy).not.toHaveBeenCalled();
+      expect(result.current.state.kind).toBe("matching");
+    });
+
+    it("reconstructs a selection from every existing active lease on resume", async () => {
+      const { providerA, providerB } = multiPlacement();
+      const getDeployment = vi.fn().mockResolvedValue({
+        data: {
+          leases: [
+            { id: { dseq: DSEQ, gseq: 1, oseq: 1, provider: PROVIDER_A }, state: "active" },
+            { id: { dseq: DSEQ, gseq: 2, oseq: 1, provider: PROVIDER_B }, state: "active" }
+          ]
+        }
+      });
+      const { flow } = setup({ initialDseq: DSEQ, providers: [providerA, providerB], bids: [], requiredGseqs: [1, 2], getDeployment });
+
+      const leaseAId = formatBidId({ provider: PROVIDER_A, dseq: DSEQ, gseq: 1, oseq: 1 });
+      const leaseBId = formatBidId({ provider: PROVIDER_B, dseq: DSEQ, gseq: 2, oseq: 1 });
+      await vi.waitFor(() => expect(flow.actions.selectProvider).toHaveBeenCalledWith(leaseAId, leaseAId));
+      await vi.waitFor(() => expect(flow.actions.selectProvider).toHaveBeenCalledWith(leaseBId, leaseBId));
+      await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalled());
+    });
+
+    // Two placements, each drawing a bid from its own reachable provider.
+    function multiPlacement() {
+      const providerA = mock<ApiProviderList>({ owner: PROVIDER_A, hostUri: "https://provider-a.example" });
+      const providerB = mock<ApiProviderList>({ owner: PROVIDER_B, hostUri: "https://provider-b.example" });
+      const bidA = mock<DeploymentBids[number]>({ bid: { state: "open", id: { provider: PROVIDER_A, dseq: DSEQ, gseq: 1, oseq: 1 } } });
+      const bidB = mock<DeploymentBids[number]>({ bid: { state: "open", id: { provider: PROVIDER_B, dseq: DSEQ, gseq: 2, oseq: 1 } } });
+      return { providerA, providerB, bidA, bidB };
+    }
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -209,6 +269,8 @@ describe(useAutoDeploymentFlow.name, () => {
     templateId?: string;
     draftId?: string;
     bids?: DeploymentBids;
+    providers?: ApiProviderList[];
+    requiredGseqs?: number[];
     getDeployment?: ReturnType<typeof vi.fn>;
     providerProxyRequest?: ReturnType<typeof vi.fn>;
     isWalletReady?: boolean;
@@ -218,6 +280,7 @@ describe(useAutoDeploymentFlow.name, () => {
     vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => undefined);
 
     const provider = mock<ApiProviderList>({ owner: PROVIDER_OWNER, hostUri: "https://provider.example" });
+    const providers = input?.providers ?? [provider];
     const bid = mock<DeploymentBids[number]>({ bid: { state: "open", id: { provider: PROVIDER_OWNER, dseq: DSEQ, gseq: 1, oseq: 1 } } });
     const bids = input?.bids ?? [bid];
 
@@ -313,11 +376,14 @@ describe(useAutoDeploymentFlow.name, () => {
       };
     });
 
-    const publicConsoleApiHttpClient = { get: vi.fn().mockResolvedValue({ data: [provider] }) };
+    const publicConsoleApiHttpClient = { get: vi.fn().mockResolvedValue({ data: providers }) };
 
-    // `useProviderList` is stubbed to hand back the candidate provider directly; the real `useFirstReachableProvider` runs
+    // `useProviderList` is stubbed to hand back the candidate providers directly; the real `useFirstReachableProvider` runs
     // against the stubbed provider-proxy so reachability outcomes (reachable vs. unreachable) drive the autopilot for real.
-    const useProviderList: typeof DEPENDENCIES.useProviderList = (() => ({ data: [provider] })) as never;
+    const useProviderList: typeof DEPENDENCIES.useProviderList = (() => ({ data: providers })) as never;
+
+    // Stubbed group resolution so tests declare the placement count directly rather than crafting valid multi-group SDL.
+    const getRequiredGseqs: typeof DEPENDENCIES.getRequiredGseqs = () => input?.requiredGseqs ?? [1];
 
     const view = setupQuery(
       () =>
@@ -330,7 +396,7 @@ describe(useAutoDeploymentFlow.name, () => {
             templateId: input?.templateId,
             draftId: input?.draftId
           },
-          { useDeploymentFlow, useProviderList, useFirstReachableProvider }
+          { useDeploymentFlow, useProviderList, useFirstReachableProvider, getRequiredGseqs }
         ),
       {
         services: {
