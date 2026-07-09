@@ -8,8 +8,8 @@ import type { AppError } from "@src/types";
 import { renderHook } from "@testing-library/react";
 
 describe(useOnboardingChrome.name, () => {
-  it("strips chrome when onboarding on the configure route with the flag on", () => {
-    const { dependencies } = setup({ isFlagEnabled: true, pathname: "/new-deployment/configure", isOnboarding: true });
+  it("strips chrome for a not-yet-onboarded user on the configure route with the flag on", () => {
+    const { dependencies } = setup({ isFlagEnabled: true, pathname: "/new-deployment/configure", leaseCount: 0 });
 
     const { result } = renderHook(() => useOnboardingChrome(dependencies));
 
@@ -17,15 +17,23 @@ describe(useOnboardingChrome.name, () => {
   });
 
   it("matches nested configure routes via startsWith", () => {
-    const { dependencies } = setup({ isFlagEnabled: true, pathname: "/new-deployment/configure/1234", isOnboarding: true });
+    const { dependencies } = setup({ isFlagEnabled: true, pathname: "/new-deployment/configure/1234", leaseCount: 0 });
 
     const { result } = renderHook(() => useOnboardingChrome(dependencies));
 
     expect(result.current.isStripped).toBe(true);
   });
 
+  it("shows full chrome for an already-onboarded user creating another deployment, even on a trial", () => {
+    const { dependencies } = setup({ isFlagEnabled: true, pathname: "/new-deployment/configure", leaseCount: 1 });
+
+    const { result } = renderHook(() => useOnboardingChrome(dependencies));
+
+    expect(result.current).toEqual({ isStripped: false, isResolving: false });
+  });
+
   it("does not strip on plain /new-deployment", () => {
-    const { dependencies } = setup({ isFlagEnabled: true, pathname: "/new-deployment", isOnboarding: true });
+    const { dependencies } = setup({ isFlagEnabled: true, pathname: "/new-deployment", leaseCount: 0 });
 
     const { result } = renderHook(() => useOnboardingChrome(dependencies));
 
@@ -33,7 +41,7 @@ describe(useOnboardingChrome.name, () => {
   });
 
   it("does nothing when the flag is off", () => {
-    const { dependencies } = setup({ isFlagEnabled: false, pathname: "/new-deployment/configure", isOnboarding: true });
+    const { dependencies } = setup({ isFlagEnabled: false, pathname: "/new-deployment/configure", leaseCount: 0 });
 
     const { result } = renderHook(() => useOnboardingChrome(dependencies));
 
@@ -41,7 +49,7 @@ describe(useOnboardingChrome.name, () => {
   });
 
   it("does nothing on an unrelated route", () => {
-    const { dependencies } = setup({ isFlagEnabled: true, pathname: "/deployments/1234", isOnboarding: true });
+    const { dependencies } = setup({ isFlagEnabled: true, pathname: "/deployments/1234", leaseCount: 0 });
 
     const { result } = renderHook(() => useOnboardingChrome(dependencies));
 
@@ -49,7 +57,7 @@ describe(useOnboardingChrome.name, () => {
   });
 
   it("resolves while the wallet query is loading", () => {
-    const { dependencies } = setup({ isFlagEnabled: true, pathname: "/new-deployment/configure", isOnboarding: false, isWalletLoading: true });
+    const { dependencies } = setup({ isFlagEnabled: true, pathname: "/new-deployment/configure", leaseCount: 0, isWalletLoading: true });
 
     const { result } = renderHook(() => useOnboardingChrome(dependencies));
 
@@ -57,32 +65,26 @@ describe(useOnboardingChrome.name, () => {
   });
 
   it("resolves while the trial wallet has not appeared yet", () => {
-    const { dependencies } = setup({ isFlagEnabled: true, pathname: "/new-deployment/configure", isOnboarding: false, hasManagedWallet: false });
+    const { dependencies } = setup({ isFlagEnabled: true, pathname: "/new-deployment/configure", leaseCount: 0, hasManagedWallet: false });
 
     const { result } = renderHook(() => useOnboardingChrome(dependencies));
 
     expect(result.current).toEqual({ isStripped: false, isResolving: true });
   });
 
-  it("stops resolving and shows full chrome for a converted user", () => {
-    const { dependencies } = setup({
-      isFlagEnabled: true,
-      pathname: "/new-deployment/configure",
-      isOnboarding: false,
-      isWalletLoading: false,
-      hasManagedWallet: true
-    });
+  it("resolves while the leases query is loading", () => {
+    const { dependencies } = setup({ isFlagEnabled: true, pathname: "/new-deployment/configure", isLeasesLoading: true });
 
     const { result } = renderHook(() => useOnboardingChrome(dependencies));
 
-    expect(result.current).toEqual({ isStripped: false, isResolving: false });
+    expect(result.current).toEqual({ isStripped: false, isResolving: true });
   });
 
-  it("stops resolving and shows full chrome when the wallet errors", () => {
+  it("shows full chrome when the wallet errors", () => {
     const { dependencies } = setup({
       isFlagEnabled: true,
       pathname: "/new-deployment/configure",
-      isOnboarding: false,
+      leaseCount: 0,
       hasManagedWallet: false,
       managedWalletError: mock<AppError>()
     });
@@ -95,21 +97,27 @@ describe(useOnboardingChrome.name, () => {
   function setup(input: {
     isFlagEnabled: boolean;
     pathname: string;
-    isOnboarding: boolean;
+    leaseCount?: number;
+    isLeasesLoading?: boolean;
     isWalletLoading?: boolean;
     hasManagedWallet?: boolean;
     managedWalletError?: AppError;
   }) {
     const useWallet: typeof DEPENDENCIES.useWallet = () =>
       mock<ReturnType<typeof DEPENDENCIES.useWallet>>({
-        isOnboarding: input.isOnboarding,
+        address: "akash1test",
         isWalletLoading: input.isWalletLoading ?? false,
         hasManagedWallet: input.hasManagedWallet ?? true,
         managedWalletError: input.managedWalletError
       });
     const usePathname: typeof DEPENDENCIES.usePathname = () => input.pathname;
     const useFlag: typeof DEPENDENCIES.useFlag = () => input.isFlagEnabled;
+    const useAllLeases = (() =>
+      mock<ReturnType<typeof DEPENDENCIES.useAllLeases>>({
+        isLoading: (input.isLeasesLoading ?? false) as never,
+        data: Array.from({ length: input.leaseCount ?? 0 }) as never
+      })) as typeof DEPENDENCIES.useAllLeases;
 
-    return { dependencies: { useWallet, usePathname, useFlag } };
+    return { dependencies: { useWallet, usePathname, useFlag, useAllLeases } };
   }
 });
