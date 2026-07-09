@@ -10,6 +10,7 @@ import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useOnboardingChrome } from "@src/hooks/useOnboardingChrome";
 import { useTopBanner } from "@src/hooks/useTopBanner";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { Nav } from "./Nav";
@@ -76,6 +77,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({
   const { isSettingsInit } = useSettings();
   const { isWalletLoaded } = useWallet();
   const { hasBanner } = useTopBanner();
+  const { isStripped, isResolving } = useOnboardingChrome();
 
   const onOpenMenuClick = () => {
     setIsNavOpen(prev => {
@@ -91,27 +93,38 @@ const LayoutApp: React.FunctionComponent<Props> = ({
     setIsMobileOpen(!isMobileOpen);
   };
 
+  // Onboarding chrome not yet resolved: hold with a neutral spinner (no Nav/Sidebar) to avoid a chrome flash either way.
+  if (isResolving) {
+    return (
+      <div className={cn("flex h-full min-h-screen items-center justify-center", { "bg-white text-foreground": background === "white" })}>
+        <Spinner size="large" />
+      </div>
+    );
+  }
+
   return (
     <div className={cn("flex h-full flex-col", { "min-h-screen bg-white text-foreground": background === "white" })}>
       <TopBanner />
 
       <div className="w-full flex-1" style={{ marginTop: `${ACCOUNT_BAR_HEIGHT + (hasBanner ? 40 : 0)}px` }}>
         <div className="h-full overflow-x-auto">
-          <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} className={{ "top-[40px]": hasBanner }} />
+          <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} className={{ "top-[40px]": hasBanner }} minimal={isStripped} />
 
           <div className="block h-full w-full flex-grow rounded-none md:flex">
-            <Sidebar
-              onOpenMenuClick={onOpenMenuClick}
-              isNavOpen={isNavOpen}
-              handleDrawerToggle={handleDrawerToggle}
-              isMobileOpen={isMobileOpen}
-              mdDrawerClassName={{ ["h-[calc(100%-40px)] mt-[97px]"]: hasBanner }}
-            />
+            {!isStripped && (
+              <Sidebar
+                onOpenMenuClick={onOpenMenuClick}
+                isNavOpen={isNavOpen}
+                handleDrawerToggle={handleDrawerToggle}
+                isMobileOpen={isMobileOpen}
+                mdDrawerClassName={{ ["h-[calc(100%-40px)] mt-[97px]"]: hasBanner }}
+              />
+            )}
 
             <div
-              className={cn("ease ml-0 h-full flex-grow transition-[margin-left] duration-300 overflow-x-auto", {
-                ["md:ml-[240px]"]: isNavOpen,
-                ["md:ml-[57px]"]: !isNavOpen
+              className={cn("ease ml-0 h-full flex-grow overflow-x-auto transition-[margin-left] duration-300", {
+                ["md:ml-[240px]"]: !isStripped && isNavOpen,
+                ["md:ml-[57px]"]: !isStripped && !isNavOpen
               })}
             >
               {isLoading !== undefined && <LinearLoadingSkeleton isLoading={isLoading} />}

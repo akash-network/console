@@ -14,11 +14,13 @@ import { WalletStatus } from "./WalletStatus";
 export const Nav = ({
   isMobileOpen,
   handleDrawerToggle,
-  className
+  className,
+  minimal = false
 }: React.PropsWithChildren<{
   isMobileOpen: boolean;
   handleDrawerToggle: () => void;
   className?: ClassValue;
+  minimal?: boolean;
 }>) => {
   const theme = useCookieTheme();
 
@@ -31,21 +33,30 @@ export const Nav = ({
           </Link>
         )}
 
-        <div>
-          <Button size="icon" className="rounded-full md:hidden" variant="ghost" onClick={handleDrawerToggle}>
-            {isMobileOpen ? <Xmark /> : <Menu />}
-          </Button>
-        </div>
-
-        <div style={{ height: `${ACCOUNT_BAR_HEIGHT}px` }} className={`hidden items-center md:flex`}>
-          <div className="flex items-center gap-2">
-            <div className="ml-4 flex items-center gap-2">
-              <WalletStatus />
-            </div>
-
-            <AccountMenu />
+        {!minimal && (
+          <div>
+            <Button size="icon" className="rounded-full md:hidden" variant="ghost" onClick={handleDrawerToggle}>
+              {isMobileOpen ? <Xmark /> : <Menu />}
+            </Button>
           </div>
-        </div>
+        )}
+
+        {minimal ? (
+          // Onboarding: no sidebar drawer, so the reduced menu is the only logout path and must show on mobile too.
+          <div style={{ height: `${ACCOUNT_BAR_HEIGHT}px` }} className="flex items-center">
+            <AccountMenu minimal />
+          </div>
+        ) : (
+          <div style={{ height: `${ACCOUNT_BAR_HEIGHT}px` }} className="hidden items-center md:flex">
+            <div className="flex items-center gap-2">
+              <div className="ml-4 flex items-center gap-2">
+                <WalletStatus />
+              </div>
+
+              <AccountMenu />
+            </div>
+          </div>
+        )}
       </div>
     </header>
   );

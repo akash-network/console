@@ -22,9 +22,11 @@ export const DEPENDENCIES = { useCustomUser, useRouter, useFlag };
 
 interface Props {
   dependencies?: typeof DEPENDENCIES;
+  /** During onboarding, reduce the signed-in menu to the Logout action only. */
+  minimal?: boolean;
 }
 
-export function AccountMenu({ dependencies: d = DEPENDENCIES }: Props = {}) {
+export function AccountMenu({ dependencies: d = DEPENDENCIES, minimal = false }: Props = {}) {
   const { user, isLoading } = d.useCustomUser();
   const username = user?.username;
   const router = d.useRouter();
@@ -52,39 +54,43 @@ export function AccountMenu({ dependencies: d = DEPENDENCIES }: Props = {}) {
                 <div className="flex w-full items-center justify-center">
                   {!isLoading && user ? (
                     <div className="w-full">
-                      {username && (
-                        <CustomDropdownLinkItem
-                          onClick={() => router.push(urlService.userProfile(username))}
-                          icon={
-                            <Avatar className="h-4 w-4">
-                              <AvatarFallback className="text-xs">{username ? username[0].toUpperCase() : <User />}</AvatarFallback>
-                            </Avatar>
-                          }
-                        >
-                          {username}
-                        </CustomDropdownLinkItem>
+                      {!minimal && (
+                        <>
+                          {username && (
+                            <CustomDropdownLinkItem
+                              onClick={() => router.push(urlService.userProfile(username))}
+                              icon={
+                                <Avatar className="h-4 w-4">
+                                  <AvatarFallback className="text-xs">{username ? username[0].toUpperCase() : <User />}</AvatarFallback>
+                                </Avatar>
+                              }
+                            >
+                              {username}
+                            </CustomDropdownLinkItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <CustomDropdownLinkItem onClick={() => router.push(urlService.userSettings())} icon={<Settings />}>
+                            Profile Settings
+                          </CustomDropdownLinkItem>
+                          <CustomDropdownLinkItem onClick={() => router.push(urlService.userApiKeys())} icon={<Key />}>
+                            API Keys
+                          </CustomDropdownLinkItem>
+                          {username && (
+                            <CustomDropdownLinkItem onClick={() => router.push(urlService.userProfile(username))} icon={<MultiplePages />}>
+                              Templates
+                            </CustomDropdownLinkItem>
+                          )}
+                          <CustomDropdownLinkItem onClick={() => router.push(urlService.userFavorites())} icon={<Star />}>
+                            Favorites
+                          </CustomDropdownLinkItem>
+                          {isBillingUsageEnabled && user?.userId && (
+                            <CustomDropdownLinkItem onClick={() => router.push(urlService.billing())} icon={<GraphUp />}>
+                              Billing & Usage
+                            </CustomDropdownLinkItem>
+                          )}
+                          <DropdownMenuSeparator />
+                        </>
                       )}
-                      <DropdownMenuSeparator />
-                      <CustomDropdownLinkItem onClick={() => router.push(urlService.userSettings())} icon={<Settings />}>
-                        Profile Settings
-                      </CustomDropdownLinkItem>
-                      <CustomDropdownLinkItem onClick={() => router.push(urlService.userApiKeys())} icon={<Key />}>
-                        API Keys
-                      </CustomDropdownLinkItem>
-                      {username && (
-                        <CustomDropdownLinkItem onClick={() => router.push(urlService.userProfile(username))} icon={<MultiplePages />}>
-                          Templates
-                        </CustomDropdownLinkItem>
-                      )}
-                      <CustomDropdownLinkItem onClick={() => router.push(urlService.userFavorites())} icon={<Star />}>
-                        Favorites
-                      </CustomDropdownLinkItem>
-                      {isBillingUsageEnabled && user?.userId && (
-                        <CustomDropdownLinkItem onClick={() => router.push(urlService.billing())} icon={<GraphUp />}>
-                          Billing & Usage
-                        </CustomDropdownLinkItem>
-                      )}
-                      <DropdownMenuSeparator />
                       <CustomDropdownLinkItem onClick={() => authService.logout()} icon={<LogOut />}>
                         Logout
                       </CustomDropdownLinkItem>

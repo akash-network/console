@@ -56,6 +56,28 @@ describe(AccountMenu.name, () => {
     expect(authService.logout).toHaveBeenCalledTimes(1);
   });
 
+  it("shows only Logout in the minimal variant when signed in", async () => {
+    setup({ username: "erin", userId: "user-1", isBillingUsageEnabled: true, minimal: true });
+
+    await userEvent.click(screen.getByRole("button", { name: /account menu/i }));
+
+    expect(await screen.findByText("Logout")).toBeInTheDocument();
+    expect(screen.queryByText("erin")).not.toBeInTheDocument();
+    expect(screen.queryByText("Profile Settings")).not.toBeInTheDocument();
+    expect(screen.queryByText("API Keys")).not.toBeInTheDocument();
+    expect(screen.queryByText("Favorites")).not.toBeInTheDocument();
+    expect(screen.queryByText("Billing & Usage")).not.toBeInTheDocument();
+  });
+
+  it("calls authService.logout from the minimal variant", async () => {
+    const { authService } = setup({ username: "frank", minimal: true });
+
+    await userEvent.click(screen.getByRole("button", { name: /account menu/i }));
+    await userEvent.click(await screen.findByText("Logout"));
+
+    expect(authService.logout).toHaveBeenCalledTimes(1);
+  });
+
   it("shows Billing & Usage when flag and userId are both present", async () => {
     setup({
       username: "carol",
@@ -81,7 +103,7 @@ describe(AccountMenu.name, () => {
     expect(screen.queryByText("Billing & Usage")).not.toBeInTheDocument();
   });
 
-  function setup(input: { isLoading?: boolean; username?: string; userId?: string; isBillingUsageEnabled?: boolean }) {
+  function setup(input: { isLoading?: boolean; username?: string; userId?: string; isBillingUsageEnabled?: boolean; minimal?: boolean }) {
     const push = vi.fn();
     const authService = mock<AuthService>();
 
@@ -97,7 +119,7 @@ describe(AccountMenu.name, () => {
 
     render(
       <TestContainerProvider services={{ authService: () => authService }}>
-        <AccountMenu dependencies={dependencies} />
+        <AccountMenu dependencies={dependencies} minimal={input.minimal} />
       </TestContainerProvider>
     );
 

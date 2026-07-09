@@ -26,6 +26,14 @@ describe(OnboardingPickerPage.name, () => {
     expect(titles).toEqual(["Hello world", "Image Generation", "LLM Chatbot"]);
   });
 
+  it("renders the account menu in its minimal variant", () => {
+    // AccountMenu's optional-props signature isn't assignable from the generic ComponentMock, so cast the override only.
+    const AccountMenu = vi.fn(ComponentMock);
+    setup({ dependencies: { AccountMenu: AccountMenu as unknown as typeof DEPENDENCIES.AccountMenu } });
+
+    expect((AccountMenu.mock.calls.at(-1)![0] as { minimal?: boolean }).minimal).toBe(true);
+  });
+
   it("renders the trial credit amount from public config", () => {
     setup({ trialCreditsAmount: 1 });
 
