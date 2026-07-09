@@ -52,6 +52,10 @@ export class ConfigureDeploymentPage {
     return this.page.getByRole("button", { name: "Request quotes" });
   }
 
+  cancellingButton() {
+    return this.page.getByRole("button", { name: "Cancelling", exact: true });
+  }
+
   /** The lock banner copy shown in each spec pane while quotes are active. */
   lockBannerText() {
     return this.page.getByText("Changing a locked setting needs new quotes.");
