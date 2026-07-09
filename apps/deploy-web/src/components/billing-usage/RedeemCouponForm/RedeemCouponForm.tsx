@@ -48,6 +48,7 @@ export function RedeemCouponForm({ isWalletReady = true, onProcessingChange, dep
   } = d.usePaymentMutations();
 
   const [successAmount, setSuccessAmount] = useState<number | null>(null);
+  const [appliedMessage, setAppliedMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorAction, setErrorAction] = useState<string | null>(null);
 
@@ -69,12 +70,14 @@ export function RedeemCouponForm({ isWalletReady = true, onProcessingChange, dep
 
   const clearMessages = () => {
     setSuccessAmount(null);
+    setAppliedMessage(null);
     setError(null);
     setErrorAction(null);
   };
 
   const finalizeError = (info: { message: string; userAction?: string }) => {
     setSuccessAmount(null);
+    setAppliedMessage(null);
     setError(info.message);
     setErrorAction(info.userAction ?? null);
   };
@@ -99,6 +102,8 @@ export function RedeemCouponForm({ isWalletReady = true, onProcessingChange, dep
         pollForPayment();
         setSuccessAmount(response.amountAdded);
         form.reset();
+      } else {
+        setAppliedMessage("Coupon applied. No credits were added to your balance.");
       }
     } catch (err) {
       finalizeError(d.handleStripeError(err));
@@ -130,6 +135,13 @@ export function RedeemCouponForm({ isWalletReady = true, onProcessingChange, dep
           <Alert variant="success">
             <AlertTitle className="text-sm font-medium">Coupon applied</AlertTitle>
             <AlertDescription>{successAmount} credits added to your balance.</AlertDescription>
+          </Alert>
+        )}
+
+        {appliedMessage && (
+          <Alert variant="success">
+            <AlertTitle className="text-sm font-medium">Coupon applied</AlertTitle>
+            <AlertDescription>{appliedMessage}</AlertDescription>
           </Alert>
         )}
 
