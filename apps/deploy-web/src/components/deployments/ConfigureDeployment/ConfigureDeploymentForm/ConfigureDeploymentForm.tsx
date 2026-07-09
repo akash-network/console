@@ -19,6 +19,7 @@ import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { applyImportedSshState } from "@src/utils/sdl/sshKey";
 import { applyPresetToProfile, DEFAULT_HARDWARE_PRESET } from "../ConfigurationPane/PresetsCard/hardwarePresets";
+import { ConfigureDeploymentBackButton } from "../ConfigureDeploymentBackButton/ConfigureDeploymentBackButton";
 import { ConfigureDeploymentHeader } from "../ConfigureDeploymentHeader/ConfigureDeploymentHeader";
 import { ConfigureDeploymentPanes } from "../ConfigureDeploymentPanes/ConfigureDeploymentPanes";
 import { DeployProgressOverlay } from "../DeployProgressOverlay/DeployProgressOverlay";
@@ -31,6 +32,7 @@ import { useDeploymentName } from "../useDeploymentName/useDeploymentName";
 export const DEPENDENCIES = {
   Layout,
   NextSeo,
+  ConfigureDeploymentBackButton,
   ConfigureDeploymentHeader,
   ConfigureDeploymentPanes,
   ReviewAndDeployModal,
@@ -238,7 +240,10 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
       <FormProvider {...form}>
         <div className="relative flex min-h-0 flex-1 flex-col">
           <div className="px-6 pt-6">
-            <d.ConfigureDeploymentHeader flow={headerFlow} sdl={liveSdl} onDeploy={() => setReviewOpen(true)} allPlacementsHaveBids={allPlacementsHaveBids} />
+            <d.ConfigureDeploymentBackButton />
+            <div className="mt-2">
+              <d.ConfigureDeploymentHeader flow={headerFlow} sdl={liveSdl} onDeploy={() => setReviewOpen(true)} allPlacementsHaveBids={allPlacementsHaveBids} />
+            </div>
           </div>
           <div className="relative mt-6 flex min-h-0 flex-1 overflow-x-auto">
             <d.ConfigureDeploymentPanes

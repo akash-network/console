@@ -88,6 +88,7 @@ export const UrlService = {
   template: (id: string) => `/template/${id}`,
 
   // Deploy
+  onboardingPicker: () => "/onboarding",
   deploymentList: () => `/deployments`,
   deploymentDetails: (dseq: string, tab?: string, logsMode?: string) => `/deployments/${dseq}${appendSearchParams({ tab, logsMode })}`,
   templates: (category?: string | null, search?: string) => `/templates${appendSearchParams({ category, search })}`,
