@@ -4,7 +4,6 @@ import { extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
 import type { BidStrategy, DeploymentIntent } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/deploymentIntent";
 import type { DeploymentFlowPhase } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
 import { useDeploymentFlow } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
-import { useServices } from "@src/context/ServicesProvider";
 import type { DeployPhase, DeployPhaseId, DeployProgressState } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 import { PHASE_ORDER, useDeployPhaseProgress } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 import { BID_POLL_INTERVAL } from "@src/queries/useListBids";
@@ -33,6 +32,13 @@ type Options = {
   templateId?: string;
   /** The active configure draft id, mirrored into the intent so a reload resolves the same session. */
   draftId?: string;
+  /**
+   * Live (non-closed) leases already on chain for a resumed deployment, resolved once by the `ResumeDeploymentGuard`
+   * and passed in so the flow reconstructs a selection per already-leased group and lets the idempotent server
+   * create-lease re-send the manifest. Empty on a fresh start or when the deployment has no live leases (which
+   * re-quotes from scratch).
+   */
+  resumeLeases?: LeaseId[];
 };
 
 type Result = {
@@ -83,16 +89,15 @@ export const DEPENDENCIES = {
  * `updateDeployment` reconcile, SDL caching, and the deploy-success redirect — the auto flow inherits all of it for free.
  *
  * On top of the flow it keeps the auto-only concerns: per-group reachability selection (`listBids` + `useProviderList` +
- * `useFirstReachableProvider`), trial gating, the resume-after-lease pre-check (reconstructing a selection from each
- * existing active lease so the idempotent server create-lease completes), the phased progress-bar animation, and the
- * matched-provider address. `flow.phase` is projected onto the three-step create → match → prepare progress UI.
+ * `useFirstReachableProvider`), trial gating, reconstructing a selection from each already-leased group (the
+ * `ResumeDeploymentGuard` resolves the deployment's leases upfront and passes them in via `resumeLeases`, so the
+ * idempotent server create-lease re-sends the manifest), the phased progress-bar animation, and the matched-provider
+ * address. `flow.phase` is projected onto the three-step create → match → prepare progress UI.
  */
 export function useAutoDeploymentFlow(
-  { sdl, isWalletReady, trialError, initialDseq, templateId, draftId }: Options,
+  { sdl, isWalletReady, trialError, initialDseq, templateId, draftId, resumeLeases = [] }: Options,
   dependencies: typeof DEPENDENCIES = DEPENDENCIES
 ): Result {
-  const { api } = useServices();
-
   const intentRef = useRef<DeploymentIntent>({
     sdlStrategy: "default",
     bidStrategy: "auto" as BidStrategy,
@@ -106,11 +111,6 @@ export function useAutoDeploymentFlow(
   const sdlRef = useRef(sdl);
   sdlRef.current = sdl;
 
-  // Whether this is a resumed session — a genuine reload that mounted already carrying a dseq (pinned in the intent).
-  // A fresh start acquires its dseq later on `flow.dseq`, so that can't retroactively flip it into resume mode. This is
-  // only ever a flag; `flow.dseq` stays the single source of the actual sequence for the queries below.
-  const isResuming = !!intentRef.current.dseq;
-
   const [retryToken, setRetryToken] = useState(0);
 
   // One-shot guard per group. Unlike create/deploy (which move the flow off their phase synchronously, so a phase check
@@ -121,29 +121,17 @@ export function useAutoDeploymentFlow(
 
   const dseq = flow.dseq;
 
-  // On a resumed session the deployment may already have leases. Fetch it so we can reconstruct a selection per
-  // already-leased group and let the idempotent server create-lease finish, matching only the groups that still need a
-  // provider. Disabled on a fresh start.
-  const deploymentQuery = api.v1.getDeployment.useQuery({ dseq: dseq ?? "" }, { enabled: isResuming && !!dseq && flow.phase === "quoting" && isWalletReady });
-
-  // The active (non-closed) leases keyed by group sequence, so a resumed multi-placement deployment restores the
-  // provider chosen for each already-leased group. Empty on a fresh start.
+  // The live (non-closed) leases keyed by group sequence, resolved upfront by the `ResumeDeploymentGuard` so a resumed
+  // multi-placement deployment restores the provider chosen for each already-leased group. Empty on a fresh start, or
+  // when the deployment had no live leases (the guard redirects an already-finished deployment away, so a rendered auto
+  // flow either has every group leased — reconstruct the selection and re-send the manifest — or none — match from bids).
   const leasesByGseq = useMemo(() => {
     const byGseq = new Map<number, LeaseId>();
-    for (const lease of deploymentQuery.data?.data.leases ?? []) {
-      if (lease.state !== "closed") {
-        byGseq.set(lease.id.gseq, { dseq: lease.id.dseq, gseq: lease.id.gseq, oseq: lease.id.oseq, provider: lease.id.provider });
-      }
+    for (const lease of resumeLeases) {
+      byGseq.set(lease.gseq, lease);
     }
     return byGseq;
-  }, [deploymentQuery.data]);
-
-  /**
-   * On a resume we must know whether the leases already exist before matching from bids; a fresh start needs no such
-   * wait. Gated on `isSuccess` (not `isFetched`): a failed fetch also flips `isFetched`, which would unblock matching
-   * with the leases still unknown and risk creating a duplicate lease against the resumed deployment.
-   */
-  const resumeLeaseChecked = !isResuming || deploymentQuery.isSuccess;
+  }, [resumeLeases]);
 
   // Every group (gseq) the deployment must fill — one per SDL placement, unioned with any already-leased group so a
   // resume restores every on-chain lease even when the SDL can't be parsed. A bid/lease's gseq identifies its group.
@@ -178,19 +166,19 @@ export function useAutoDeploymentFlow(
   const activeBid = reachableProvider ? openBids.find(bid => bid.bid.id.provider === reachableProvider.owner) : undefined;
 
   // Every selection ready to record now: one per already-leased group (a resume takes those verbatim), plus the first
-  // reachable open bid for the group currently being matched — held until the resume lease-check has settled so a fresh
-  // match never races an existing lease. Empty until there's something to select.
+  // reachable open bid for the group currently being matched. The guard resolves lease state before this flow mounts, so
+  // reconstruction and fresh matching never race an existing lease. Empty until there's something to select.
   const selectionTargets = useMemo<LeaseId[]>(() => {
     const targets: LeaseId[] = [];
     for (const gseq of requiredGseqs) {
       const lease = leasesByGseq.get(gseq);
       if (lease) targets.push(lease);
     }
-    if (resumeLeaseChecked && activeBid) {
+    if (activeBid) {
       targets.push({ dseq: activeBid.bid.id.dseq, gseq: activeBid.bid.id.gseq, oseq: activeBid.bid.id.oseq, provider: activeBid.bid.id.provider });
     }
     return targets;
-  }, [requiredGseqs, leasesByGseq, resumeLeaseChecked, activeBid]);
+  }, [requiredGseqs, leasesByGseq, activeBid]);
 
   // Release the selection guard whenever the flow returns to configuring (fresh start / after retry) so a new attempt
   // can match every group again.

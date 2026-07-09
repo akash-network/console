@@ -14,7 +14,7 @@ import type { TemplateCreation } from "@src/types";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { AutoDeployFlow } from "../AutoDeployFlow/AutoDeployFlow";
 import { ConfigureDeploymentForm } from "../ConfigureDeploymentForm/ConfigureDeploymentForm";
-import { RedirectIfLeased } from "../RedirectIfLeased/RedirectIfLeased";
+import { ResumeDeploymentGuard } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import { parseDeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
@@ -24,7 +24,7 @@ export const DEPENDENCIES = {
   NextSeo,
   AutoDeployFlow,
   ConfigureDeploymentForm,
-  RedirectIfLeased,
+  ResumeDeploymentGuard,
   usePublicTemplate,
   useConfigureDraft,
   useSearchParams,
@@ -80,31 +80,39 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const initialName = draft.persistedName ?? hardcodedTemplate?.name ?? (fetchedTemplateId ? templateQuery.data?.name : undefined);
 
   const isAutoDeploy = resolvedIntent.sdlStrategy === "default" && resolvedIntent.bidStrategy === "auto";
-  if (isAutoDeploy && initialSdl) {
-    const templateName = templateQuery.data?.name ?? hardcodedTemplate?.title ?? "your deployment";
-    return (
-      <d.AutoDeployFlow
-        templateId={resolvedIntent.templateId}
-        templateName={templateName}
-        sdl={initialSdl}
-        dseq={resolvedIntent.dseq}
-        draftId={resolvedIntent.draftId}
-      />
-    );
-  }
+  const templateName = templateQuery.data?.name ?? hardcodedTemplate?.title ?? "your deployment";
 
+  // Only the auto flow (with an SDL in hand) can finish an already-leased deployment by re-sending its manifest;
+  // a manual visitor or a cold resume with no SDL is sent to the detail page instead.
   return (
-    <d.RedirectIfLeased dseq={intent.dseq}>
-      {fetchedTemplateId && templateQuery.isLoading ? (
-        <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col">
-          <d.NextSeo title="Configure your deployment" />
-          <div className="flex flex-1 items-center justify-center">
-            <Spinner size="large" />
-          </div>
-        </d.Layout>
-      ) : (
-        <d.ConfigureDeploymentForm key={draft.draftId} initialSdl={initialSdl} initialName={initialName} intent={resolvedIntent} />
-      )}
-    </d.RedirectIfLeased>
+    <d.ResumeDeploymentGuard intent={resolvedIntent} canResume={isAutoDeploy && !!initialSdl}>
+      {resume => {
+        if (isAutoDeploy && initialSdl) {
+          return (
+            <d.AutoDeployFlow
+              templateId={resolvedIntent.templateId}
+              templateName={templateName}
+              sdl={initialSdl}
+              dseq={resolvedIntent.dseq}
+              draftId={resolvedIntent.draftId}
+              resume={resume}
+            />
+          );
+        }
+
+        if (fetchedTemplateId && templateQuery.isLoading) {
+          return (
+            <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col">
+              <d.NextSeo title="Configure your deployment" />
+              <div className="flex flex-1 items-center justify-center">
+                <Spinner size="large" />
+              </div>
+            </d.Layout>
+          );
+        }
+
+        return <d.ConfigureDeploymentForm key={draft.draftId} initialSdl={initialSdl} initialName={initialName} intent={resolvedIntent} />;
+      }}
+    </d.ResumeDeploymentGuard>
   );
 };

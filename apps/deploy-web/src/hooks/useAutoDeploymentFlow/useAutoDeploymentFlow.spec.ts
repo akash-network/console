@@ -1,6 +1,5 @@
 import { useCallback, useState } from "react";
 import { ApiError } from "@akashnetwork/openapi-sdk";
-import { createProxy } from "@akashnetwork/react-query-proxy";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -174,30 +173,17 @@ describe(useAutoDeploymentFlow.name, () => {
       expect(flow.actions.requestQuotes).not.toHaveBeenCalled();
     });
 
-    it("reconstructs the selection from an existing active lease and lets deploy run", async () => {
+    it("reconstructs the selection from a live lease the guard resolved and lets deploy run", async () => {
       // The lease carries a distinct oseq from the open bid (oseq 1), proving the selection is rebuilt from the lease's
       // own coordinates and that an existing lease takes precedence over matching from bids.
-      const getDeployment = vi.fn().mockResolvedValue({
-        data: { leases: [{ id: { dseq: DSEQ, gseq: 1, oseq: 3, provider: PROVIDER_OWNER }, state: "active" }] }
-      });
-      const { result, flow } = setup({ initialDseq: DSEQ, getDeployment });
+      const resumeLeases = [{ dseq: DSEQ, gseq: 1, oseq: 3, provider: PROVIDER_OWNER }];
+      const { result, flow } = setup({ initialDseq: DSEQ, resumeLeases });
 
       await vi.waitFor(() => expect(result.current.matchedProviderAddress).toBe(PROVIDER_OWNER));
 
       const resumedBidId = formatBidId({ provider: PROVIDER_OWNER, dseq: DSEQ, gseq: 1, oseq: 3 });
       expect(flow.actions.selectProvider).toHaveBeenCalledWith(resumedBidId, resumedBidId);
       await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalled());
-    });
-
-    it("does not match from bids when the lease fetch fails, avoiding a duplicate lease", async () => {
-      const getDeployment = vi.fn().mockRejectedValue(new Error("network"));
-      const { result, flow } = setup({ initialDseq: DSEQ, getDeployment });
-
-      await vi.waitFor(() => expect(getDeployment).toHaveBeenCalled());
-      await new Promise(resolve => setTimeout(resolve, 50));
-
-      expect(result.current.state.kind).toBe("matching");
-      expect(flow.actions.selectProvider).not.toHaveBeenCalled();
     });
   });
 
@@ -230,17 +216,13 @@ describe(useAutoDeploymentFlow.name, () => {
       expect(result.current.state.kind).toBe("matching");
     });
 
-    it("reconstructs a selection from every existing active lease on resume", async () => {
+    it("reconstructs a selection from every live lease the guard resolved on resume", async () => {
       const { providerA, providerB } = multiPlacement();
-      const getDeployment = vi.fn().mockResolvedValue({
-        data: {
-          leases: [
-            { id: { dseq: DSEQ, gseq: 1, oseq: 1, provider: PROVIDER_A }, state: "active" },
-            { id: { dseq: DSEQ, gseq: 2, oseq: 1, provider: PROVIDER_B }, state: "active" }
-          ]
-        }
-      });
-      const { flow } = setup({ initialDseq: DSEQ, providers: [providerA, providerB], bids: [], requiredGseqs: [1, 2], getDeployment });
+      const resumeLeases = [
+        { dseq: DSEQ, gseq: 1, oseq: 1, provider: PROVIDER_A },
+        { dseq: DSEQ, gseq: 2, oseq: 1, provider: PROVIDER_B }
+      ];
+      const { flow } = setup({ initialDseq: DSEQ, providers: [providerA, providerB], bids: [], requiredGseqs: [1, 2], resumeLeases });
 
       const leaseAId = formatBidId({ provider: PROVIDER_A, dseq: DSEQ, gseq: 1, oseq: 1 });
       const leaseBId = formatBidId({ provider: PROVIDER_B, dseq: DSEQ, gseq: 2, oseq: 1 });
@@ -271,7 +253,7 @@ describe(useAutoDeploymentFlow.name, () => {
     bids?: DeploymentBids;
     providers?: ApiProviderList[];
     requiredGseqs?: number[];
-    getDeployment?: ReturnType<typeof vi.fn>;
+    resumeLeases?: Array<{ dseq: string; gseq: number; oseq: number; provider: string }>;
     providerProxyRequest?: ReturnType<typeof vi.fn>;
     isWalletReady?: boolean;
     trialError?: unknown;
@@ -283,9 +265,6 @@ describe(useAutoDeploymentFlow.name, () => {
     const providers = input?.providers ?? [provider];
     const bid = mock<DeploymentBids[number]>({ bid: { state: "open", id: { provider: PROVIDER_OWNER, dseq: DSEQ, gseq: 1, oseq: 1 } } });
     const bids = input?.bids ?? [bid];
-
-    const getDeployment = input?.getDeployment ?? vi.fn().mockResolvedValue({ data: { leases: [] } });
-    const api = createProxy({ v1: { getDeployment } });
 
     const providerProxy = mock<ProviderProxyService>();
     if (input?.providerProxyRequest) {
@@ -394,19 +373,19 @@ describe(useAutoDeploymentFlow.name, () => {
             trialError: input?.trialError,
             initialDseq: input?.initialDseq,
             templateId: input?.templateId,
-            draftId: input?.draftId
+            draftId: input?.draftId,
+            resumeLeases: input?.resumeLeases
           },
           { useDeploymentFlow, useProviderList, useFirstReachableProvider, getRequiredGseqs }
         ),
       {
         services: {
-          api: () => api,
           providerProxy: () => providerProxy,
           publicConsoleApiHttpClient: () => publicConsoleApiHttpClient
         } as never
       }
     );
 
-    return { ...view, useDeploymentFlow, actions, flow: { actions, ...flowControls }, getDeployment, providerProxy };
+    return { ...view, useDeploymentFlow, actions, flow: { actions, ...flowControls }, providerProxy };
   }
 });
