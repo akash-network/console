@@ -58,6 +58,12 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const [liveSdl, setLiveSdl] = useState(initialState.sdl);
   const [previewSdl, setPreviewSdl] = useState(initialState.sdl);
   const [selectedServiceId, setSelectedServiceId] = useState<string>(initialState.selectedServiceId);
+  /**
+   * The last service the user actually had selected. A removal briefly blurs the selection to "" (so the
+   * ConfigurationPane cards unmount and can't resurrect a deleted service); this lets the reselect below
+   * restore that service if it survived, instead of jumping to the first one.
+   */
+  const lastSelectedServiceId = useRef(selectedServiceId);
   const { enqueueSnackbar } = d.useSnackbar();
   const draft = d.useConfigureDraft(intent);
   const { isWalletReady, error: trialError, retryTrial } = d.useEnsureTrialStarted();
@@ -107,9 +113,16 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   );
 
   useEffect(
+    function rememberLastSelection() {
+      if (selectedServiceId) lastSelectedServiceId.current = selectedServiceId;
+    },
+    [selectedServiceId]
+  );
+
+  useEffect(
     function reselectRemovedService() {
       const subscription = form.watch(values => {
-        setSelectedServiceId(previous => nextSelectedServiceId(values as SdlBuilderFormValuesType, previous));
+        setSelectedServiceId(previous => nextSelectedServiceId(values as SdlBuilderFormValuesType, previous || lastSelectedServiceId.current));
       });
       return function teardownReselect() {
         subscription.unsubscribe();

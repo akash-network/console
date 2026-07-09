@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import { flushSync } from "react-dom";
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form";
 
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
@@ -11,7 +12,16 @@ import { useRevalidateUniqueness } from "../useRevalidateUniqueness/useRevalidat
 
 export type IndexedService = { service: ServiceType; index: number };
 
-export const usePlacementManager = () => {
+type SelectionControls = {
+  /**
+   * Blurs the ConfigurationPane's selection (pass ""). Used to unmount every card around a structural
+   * removal so react-hook-form can't resurrect a "ghost" service; reselection is left to the caller's
+   * reselect effect, which runs after the splice commits.
+   */
+  onSelectService?: (serviceId: string) => void;
+};
+
+export const usePlacementManager = ({ onSelectService }: SelectionControls = {}) => {
   const { control, getValues } = useFormContext<SdlBuilderFormValuesType>();
 
   useRevalidateUniqueness("placements", placement => placement.name);
@@ -55,6 +65,30 @@ export const usePlacementManager = () => {
     return service.id as string;
   }, [appendPlacement, appendService, getValues]);
 
+  /**
+   * Runs a structural splice of the services array without leaving a resurrected "ghost" service behind.
+   *
+   * A ConfigurationPane card registers its service index via `useController`, and react-hook-form keeps
+   * registered values across unmounts (`shouldUnregister` is off). Splicing the array while a card is mounted
+   * — whether on the removed index or on one that shifts down — resurrects a partial entry there, which then
+   * keeps the deleted service in the generated SDL. Blurring the selection first unmounts every card so the
+   * splice is clean; `flushSync` makes that unmount commit before the splice instead of batching with it.
+   * Reselection is deliberately left to the consumer's reselect effect, which runs after the splice commits:
+   * reselecting synchronously here would re-mount a card mid-splice and bring the ghost back. No-op passthrough
+   * when there is no selection to manage (the splice is already safe).
+   */
+  const spliceServicesWithoutGhost = useCallback(
+    (mutate: () => void) => {
+      if (!onSelectService) {
+        mutate();
+        return;
+      }
+      flushSync(() => onSelectService(""));
+      mutate();
+    },
+    [onSelectService]
+  );
+
   const canRemovePlacement = placements.length > 1;
 
   const removePlacement = useCallback(
@@ -67,10 +101,12 @@ export const usePlacementManager = () => {
         .map((service, index) => ({ service, index }))
         .filter(({ service }) => service.placementId === placementId)
         .map(({ index }) => index);
-      removeServicesAt(serviceIndexes);
-      removePlacementsAt(placementIndex);
+      spliceServicesWithoutGhost(() => {
+        removeServicesAt(serviceIndexes);
+        removePlacementsAt(placementIndex);
+      });
     },
-    [getValues, removeServicesAt, removePlacementsAt]
+    [getValues, removeServicesAt, removePlacementsAt, spliceServicesWithoutGhost]
   );
 
   const addService = useCallback(
@@ -91,9 +127,9 @@ export const usePlacementManager = () => {
       if (index === -1) {
         return;
       }
-      removeServicesAt(serviceRemovalIndexes(currentServices, index));
+      spliceServicesWithoutGhost(() => removeServicesAt(serviceRemovalIndexes(currentServices, index)));
     },
-    [getValues, removeServicesAt]
+    [getValues, removeServicesAt, spliceServicesWithoutGhost]
   );
 
   return useMemo(
