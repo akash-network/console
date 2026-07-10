@@ -3,7 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import type { DEPENDENCIES } from "./useConfigureDraft";
-import { useConfigureDraft } from "./useConfigureDraft";
+import { createConfigureDraft, useConfigureDraft } from "./useConfigureDraft";
 
 import { renderHook } from "@testing-library/react";
 
@@ -186,5 +186,37 @@ describe(useConfigureDraft.name, () => {
       replace,
       mintDraftId
     };
+  }
+});
+
+describe(createConfigureDraft.name, () => {
+  it("persists the sdl under a freshly minted id and returns that id", () => {
+    const { create } = setup({ mintedDraftId: "fresh-1" });
+
+    const draftId = create("version: '2.0'");
+
+    expect(draftId).toBe("fresh-1");
+    expect(readSdl("fresh-1")).toBe("version: '2.0'");
+  });
+
+  it("returns the minted id without throwing when storage is unavailable", () => {
+    const { create } = setup({ mintedDraftId: "fresh-1", getStorage: () => undefined });
+
+    expect(create("version: '2.0'")).toBe("fresh-1");
+  });
+
+  function readSdl(draftId: string) {
+    const raw = window.localStorage.getItem(`${DRAFT_KEY_PREFIX}${draftId}`);
+    return raw ? (JSON.parse(raw) as { sdl: string }).sdl : undefined;
+  }
+
+  function setup(input: { mintedDraftId?: string; getStorage?: typeof DEPENDENCIES.getStorage }) {
+    window.localStorage.clear();
+    const dependencies: typeof DEPENDENCIES = {
+      getStorage: input.getStorage ?? (() => window.localStorage),
+      useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({}),
+      mintDraftId: vi.fn(() => input.mintedDraftId ?? "minted-id")
+    };
+    return { create: (sdl: string) => createConfigureDraft(sdl, dependencies) };
   }
 });
