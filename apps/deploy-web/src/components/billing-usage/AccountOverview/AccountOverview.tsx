@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSnackbar } from "notistack";
 
-import { PaymentPopup } from "@src/components/billing-usage/PaymentPopup/PaymentPopup";
+import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
 import { PaymentSuccessAnimation } from "@src/components/billing-usage/PaymentSuccessAnimation/PaymentSuccessAnimation";
 import { Title } from "@src/components/shared/Title";
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
@@ -26,7 +26,7 @@ export const DEPENDENCIES = {
   useSearchParams,
   useRouter,
   useServices,
-  PaymentPopup,
+  AddCreditsSheet,
   PaymentSuccessAnimation,
   Title,
   FormattedNumber,
@@ -43,7 +43,7 @@ export const DEPENDENCIES = {
 };
 
 export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
-  const [showPaymentPopup, setShowPaymentPopup] = useState(false);
+  const [showAddCredits, setShowAddCredits] = useState(false);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState<{ amount: string; show: boolean }>({ amount: "", show: false });
   const { enqueueSnackbar } = d.useSnackbar();
   const { data: defaultPaymentMethod, isLoading: isLoadingDefaultPaymentMethod } = d.useDefaultPaymentMethodQuery();
@@ -60,14 +60,10 @@ export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DE
 
   useEffect(() => {
     if (!isLoading && searchParams.get("openPayment") === "true") {
-      setShowPaymentPopup(true);
+      setShowAddCredits(true);
       router.replace(urlService.billing(), { scroll: false });
     }
   }, [isLoading, searchParams, router, urlService]);
-
-  const defaultPaymentMethodId = useMemo(() => {
-    return defaultPaymentMethod?.id;
-  }, [defaultPaymentMethod]);
 
   const toggleAutoReload = useCallback(
     async (autoReloadEnabled: boolean) => {
@@ -152,12 +148,10 @@ export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DE
     <div>
       <div className="flex items-center justify-between">
         <d.Title subTitle>Your account</d.Title>
-        <d.CustomTooltip title="Add a payment method first to add funds" disabled={hasPaymentMethod}>
-          <d.Button onClick={() => setShowPaymentPopup(true)} disabled={isWalletBalanceLoading || !hasPaymentMethod} size="sm">
-            <Plus className="h-4 w-4" />
-            Add Funds
-          </d.Button>
-        </d.CustomTooltip>
+        <d.Button onClick={() => setShowAddCredits(true)} disabled={isWalletBalanceLoading} size="sm">
+          <Plus className="h-4 w-4" />
+          Add Funds
+        </d.Button>
       </div>
 
       <div className="pt-6">
@@ -228,14 +222,16 @@ export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DE
         />
       </div>
 
-      {showPaymentPopup && (
-        <d.PaymentPopup
-          open={showPaymentPopup}
-          onClose={() => setShowPaymentPopup(false)}
-          selectedPaymentMethodId={defaultPaymentMethodId}
-          setShowPaymentSuccess={setShowPaymentSuccess}
-        />
-      )}
+      <d.AddCreditsSheet
+        open={showAddCredits}
+        onOpenChange={setShowAddCredits}
+        initialTab="purchase"
+        description="Buy credits or redeem a coupon to top up your balance."
+        onDone={amount => {
+          setShowPaymentSuccess({ amount: String(amount), show: true });
+          setShowAddCredits(false);
+        }}
+      />
     </div>
   );
 };

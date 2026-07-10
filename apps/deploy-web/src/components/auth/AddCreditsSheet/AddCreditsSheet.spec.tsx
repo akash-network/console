@@ -1,9 +1,9 @@
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { AddCreditsSheet, DEPENDENCIES } from "./AddCreditsSheet";
 
-import { act, render } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(AddCreditsSheet.name, () => {
@@ -11,6 +11,19 @@ describe(AddCreditsSheet.name, () => {
     const { dependencies } = setup({ open: true });
 
     expect(dependencies.AddCreditsTabs).toHaveBeenCalled();
+  });
+
+  it("renders the default description when none is provided", () => {
+    setup({ open: true });
+
+    expect(screen.getByText(/this template needs a top-tier gpu/i)).toBeInTheDocument();
+  });
+
+  it("renders a custom description instead of the default copy when provided", () => {
+    setup({ open: true, description: "Buy credits or redeem a coupon to top up your balance." });
+
+    expect(screen.getByText(/buy credits or redeem a coupon to top up your balance/i)).toBeInTheDocument();
+    expect(screen.queryByText(/this template needs a top-tier gpu/i)).not.toBeInTheDocument();
   });
 
   it("does not render the credits tabs while closed", () => {
@@ -83,6 +96,7 @@ describe(AddCreditsSheet.name, () => {
     onRedeemed?: () => void;
     isWalletReady?: boolean;
     initialTab?: "purchase" | "coupon";
+    description?: React.ReactNode;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const dependencies = MockComponents(DEPENDENCIES, input.dependencies);
@@ -95,6 +109,7 @@ describe(AddCreditsSheet.name, () => {
         onRedeemed={input.onRedeemed}
         isWalletReady={input.isWalletReady}
         initialTab={input.initialTab}
+        description={input.description}
         dependencies={dependencies}
       />
     );
