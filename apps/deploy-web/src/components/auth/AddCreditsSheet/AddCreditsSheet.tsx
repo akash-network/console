@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@akashnetwork/ui/components";
 
-import { AddCreditsTabs } from "@src/components/billing-usage/AddCreditsTabs/AddCreditsTabs";
+import { type AddCreditsTab, AddCreditsTabs } from "@src/components/billing-usage/AddCreditsTabs/AddCreditsTabs";
 
 export const DEPENDENCIES = {
   Sheet,
@@ -20,7 +20,7 @@ interface AddCreditsSheetProps {
   onDone: (amount: number, organization?: string) => void;
   onRedeemed?: () => void;
   isWalletReady?: boolean;
-  initialTab?: "purchase" | "coupon";
+  initialTab?: AddCreditsTab;
   dependencies?: typeof DEPENDENCIES;
 }
 
