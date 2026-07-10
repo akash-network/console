@@ -121,10 +121,10 @@ export function RedeemCouponForm({ isWalletReady = true, onProcessingChange, onR
       if (response.amountAdded && response.amountAdded > 0) {
         pollForPayment({ variant: "coupon" });
         setFeedback({ type: "success", amountAdded: response.amountAdded });
-        form.reset();
       } else {
         setFeedback({ type: "success", amountAdded: null });
       }
+      form.reset();
     } catch (err) {
       showError(d.handleStripeError(err));
     }
