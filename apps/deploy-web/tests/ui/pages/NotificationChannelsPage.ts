@@ -27,4 +27,13 @@ export class NotificationChannelsPage {
       .click();
     await this.page.getByRole("button", { name: /^confirm$/i }).click();
   }
+
+  async ensureOnTheLastPage() {
+    const pagination = this.page.getByRole("navigation", { name: "pagination" });
+    if (!(await pagination.isVisible())) {
+      return;
+    }
+
+    await pagination.getByRole("link", { name: /\d+/ }).last().click();
+  }
 }
