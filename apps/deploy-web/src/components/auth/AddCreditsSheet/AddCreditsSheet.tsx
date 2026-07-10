@@ -38,7 +38,8 @@ export function AddCreditsSheet({ open, onOpenChange, onDone, onRedeemed, isWall
         <d.SheetHeader className="space-y-2 text-left">
           <d.SheetTitle className="text-3xl font-medium leading-9">Add credits</d.SheetTitle>
           <d.SheetDescription className="text-sm leading-5 text-muted-foreground">
-            You&apos;re on the free plan — CPU deployments only. Unlock GPUs, unlimited runtime, and the full Console.
+            This template needs a top-tier GPU, which isn&apos;t covered by your free trial. Add credits to unlock high-end GPUs, longer runtimes, and the full
+            Console.
           </d.SheetDescription>
         </d.SheetHeader>
 
