@@ -6,6 +6,7 @@ import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/
 import { defaultService } from "@src/utils/sdl/data";
 import { ConfigurationPane } from "../ConfigurationPane/ConfigurationPane";
 import { usePlacementManager } from "../DeploymentPane/usePlacementManager/usePlacementManager";
+import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./ConfigureDeploymentForm";
 import { ConfigureDeploymentForm, firstBidReadyServiceId, nextUndoneServiceId } from "./ConfigureDeploymentForm";
 
@@ -270,7 +271,7 @@ describe(ConfigureDeploymentForm.name, () => {
 
   it("resets the trial before re-requesting quotes when a previous trial start terminally errored", () => {
     const { ConfigureDeploymentHeader, requestQuotes, retryTrial } = setup({ initialSdl: undefined, trialError: new Error("trial boom") });
-    const headerFlow = (ConfigureDeploymentHeader as ReturnType<typeof vi.fn>).mock.calls[0][0].flow as ReturnType<typeof DEPENDENCIES.useDeploymentFlow>;
+    const headerFlow = (ConfigureDeploymentHeader as ReturnType<typeof vi.fn>).mock.calls[0][0].flow as DeploymentFlow;
 
     headerFlow.actions.requestQuotes("sdl-x");
 
@@ -280,12 +281,31 @@ describe(ConfigureDeploymentForm.name, () => {
 
   it("does not reset the trial when re-requesting quotes without a prior trial error", () => {
     const { ConfigureDeploymentHeader, requestQuotes, retryTrial } = setup({ initialSdl: undefined });
-    const headerFlow = (ConfigureDeploymentHeader as ReturnType<typeof vi.fn>).mock.calls[0][0].flow as ReturnType<typeof DEPENDENCIES.useDeploymentFlow>;
+    const headerFlow = (ConfigureDeploymentHeader as ReturnType<typeof vi.fn>).mock.calls[0][0].flow as DeploymentFlow;
 
     headerFlow.actions.requestQuotes("sdl-x");
 
     expect(retryTrial).not.toHaveBeenCalled();
     expect(requestQuotes).toHaveBeenCalledWith("sdl-x");
+  });
+
+  it("deselects the focused placement's provider when the review modal is dismissed via Back", async () => {
+    const { flow } = setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes });
+    const focusedPlacementId = screen.getByTestId("focused-placement").textContent;
+
+    await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+    await userEvent.click(screen.getByRole("button", { name: "back to marketplace" }));
+
+    expect(flow.actions.clearSelection).toHaveBeenCalledWith(focusedPlacementId);
+  });
+
+  it("closes the review modal when it is dismissed via Back", async () => {
+    setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes });
+
+    await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+    await userEvent.click(screen.getByRole("button", { name: "back to marketplace" }));
+
+    expect(screen.queryByRole("button", { name: "back to marketplace" })).not.toBeInTheDocument();
   });
 
   function setup(input: {
@@ -306,31 +326,38 @@ describe(ConfigureDeploymentForm.name, () => {
     const requestQuotes = vi.fn();
     const retryTrial = vi.fn();
     const setDeploymentName = vi.fn();
+    const ReviewAndDeployModal = vi.fn((props: { open: boolean; onBack: () => void }) =>
+      props.open ? (
+        <button type="button" onClick={props.onBack}>
+          back to marketplace
+        </button>
+      ) : null
+    );
     const useConfigureDraft = vi.fn(() =>
       mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({ draftId: input.draftId ?? "draft-1", persistedSdl: undefined, save, clear })
     );
     const useDeploymentName = ((args: { initialName?: string }) => ({ name: args.initialName ?? "", setName: setDeploymentName })) as never;
+    // The base flow is created upstream by the DeploymentFlowProvider now, so it arrives as a prop rather than a hook.
+    const flow = mock<DeploymentFlow>({
+      phase: "configuring",
+      dseq: null,
+      bidStrategy: "select",
+      selections: {},
+      deploySucceeded: input.deploySucceeded ?? false,
+      error: input.flowError,
+      actions: mock<DeploymentFlow["actions"]>({ requestQuotes })
+    });
     const dependencies: typeof DEPENDENCIES = {
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
       ConfigureDeploymentHeader,
       ConfigureDeploymentPanes: ConfigureDeploymentPanes as never,
       useConfigureDraft: useConfigureDraft as never,
-      useDeploymentFlow: (() =>
-        mock<ReturnType<typeof DEPENDENCIES.useDeploymentFlow>>({
-          phase: "configuring",
-          dseq: null,
-          bidStrategy: "select",
-          deploySucceeded: input.deploySucceeded ?? false,
-          error: input.flowError,
-          actions: mock<ReturnType<typeof DEPENDENCIES.useDeploymentFlow>["actions"]>({ requestQuotes })
-        })) as never,
       useDeploymentName,
-      useEnsureTrialStarted: () =>
-        mock<ReturnType<typeof DEPENDENCIES.useEnsureTrialStarted>>({ isWalletReady: !input.trialError, error: input.trialError as never, retryTrial }),
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       Snackbar: Snackbar as never,
-      ReviewAndDeployModal: () => null,
+      ReviewAndDeployModal: ReviewAndDeployModal as never,
+      DeployProgressOverlay: () => null,
       usePlacementsWithBids: () => new Set<string>()
     };
 
@@ -339,11 +366,14 @@ describe(ConfigureDeploymentForm.name, () => {
         initialSdl={input.initialSdl}
         initialName={input.initialName}
         intent={{ sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, draftId: input.draftId }}
+        flow={flow}
+        trialError={input.trialError}
+        retryTrial={retryTrial}
         dependencies={dependencies}
       />
     );
 
-    return { ConfigureDeploymentPanes, ConfigureDeploymentHeader, enqueueSnackbar, save, clear, requestQuotes, retryTrial };
+    return { ConfigureDeploymentPanes, ConfigureDeploymentHeader, ReviewAndDeployModal, flow, enqueueSnackbar, save, clear, requestQuotes, retryTrial };
   }
 });
 
@@ -399,6 +429,24 @@ interface ProbePanesProps {
   sdl: string;
   selectedServiceId: string;
   onSelectService: (serviceId: string) => void;
+  selectedPlacementId: string;
+  onSelectProvider: (placementId: string, bidId: string) => void;
+}
+
+/**
+ * Panes stand-in that selects a provider for the focused placement, mirroring the marketplace click that
+ * auto-opens the review modal once every placement is chosen. Exposes the focused placement id so the
+ * deselect-on-back behavior can be asserted against the exact placement the modal was opened for.
+ */
+function ProviderSelectProbePanes({ selectedPlacementId, onSelectProvider }: ProbePanesProps) {
+  return (
+    <div>
+      <div data-testid="focused-placement">{selectedPlacementId}</div>
+      <button type="button" onClick={() => onSelectProvider(selectedPlacementId, "bid-1")}>
+        select provider
+      </button>
+    </div>
+  );
 }
 
 /**

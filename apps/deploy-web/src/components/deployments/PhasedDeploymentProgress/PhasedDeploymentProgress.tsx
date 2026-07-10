@@ -41,7 +41,15 @@ export function PhasedDeploymentProgress({
     return <DeployErrorPanel templateName={templateName} message={state.message} onTryAgain={onTryAgain} onContactSupport={onContactSupport} />;
   }
 
-  return <DeployProgressPanel templateName={templateName} progressPercent={progressPercent} phases={phases} onChooseProvider={onChooseProvider} />;
+  const canChooseProvider = state.kind === "matching" || state.kind === "creating";
+  return (
+    <DeployProgressPanel
+      templateName={templateName}
+      progressPercent={progressPercent}
+      phases={phases}
+      onChooseProvider={canChooseProvider ? onChooseProvider : undefined}
+    />
+  );
 }
 
 type DeployErrorPanelProps = {

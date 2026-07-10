@@ -33,6 +33,26 @@ describe(useDeploymentFlow.name, () => {
     expect(replace).toHaveBeenCalledWith("/new-deployment/configure/999?bid-strategy=select", undefined, { shallow: true });
   });
 
+  it("mirrors the strategy current when a create resolves, not the one it was fired with", () => {
+    const replace = vi.fn();
+    let resolveCreate: ((result: { data: { dseq: string; manifest: string } }) => void) | undefined;
+    const createMutate = vi.fn((_args, { onSuccess }) => {
+      resolveCreate = onSuccess;
+    });
+    const { result } = setup({ replace, createMutate, intent: { sdlStrategy: "default", bidStrategy: "auto" } });
+
+    // The auto autopilot fires the create as "auto"; the user then picks "Choose my provider" (switches to select) while
+    // it's still in flight. When the create finally resolves, the URL must land on select — not bounce back to auto and
+    // remount the auto flow.
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+    act(() => result.current.actions.setBidStrategy("select"));
+    act(() => resolveCreate?.({ data: { dseq: "999", manifest: "m" } }));
+
+    expect(result.current.bidStrategy).toBe("select");
+    expect(replace).toHaveBeenLastCalledWith(expect.stringContaining("bid-strategy=select"), undefined, { shallow: true });
+    expect(replace).not.toHaveBeenCalledWith(expect.stringContaining("bid-strategy=auto"), undefined, { shallow: true });
+  });
+
   it("surfaces a retryable error when create fails", async () => {
     const createMutate = vi.fn((_args, { onError }) => onError(new Error("boom")));
     const { result } = setup({ createMutate });

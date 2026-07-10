@@ -33,7 +33,7 @@ describe(ResumeDeploymentGuard.name, () => {
     const intent = intentFor("555");
     const { replace, enqueueSnackbar } = setup({ intent, query: { error: new ApiError(404, { message: "Deployment not found" }, "GET → 404") } });
 
-    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" }));
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "warning" }));
     expect(replace).toHaveBeenCalledWith(buildConfigureUrl(intent, undefined, intent.bidStrategy));
     expect(screen.queryByTestId("child")).not.toBeInTheDocument();
   });
