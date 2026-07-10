@@ -1,12 +1,14 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { buttonVariants, Card, CardContent, CardHeader, FileButton } from "@akashnetwork/ui/components";
+import { buttonVariants, Card, CardContent, CardHeader, FileButton, Snackbar } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { OpenNewWindow, Upload } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSnackbar } from "notistack";
 
+import { createConfigureDraft } from "@src/components/deployments/ConfigureDeployment/useConfigureDraft/useConfigureDraft";
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
@@ -16,6 +18,7 @@ import { useTemplates } from "@src/queries/useTemplateQuery";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
+import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { helloWorldTemplate } from "@src/utils/templates";
 import type { NewDeploymentParams } from "@src/utils/urlUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
@@ -41,7 +44,7 @@ const previewTemplateIds = [
   "akash-network-awesome-akash-FastChat"
 ];
 
-export const DEPENDENCIES = { useTemplates, useRouter, useFlag, useNewDeploymentUrl };
+export const DEPENDENCIES = { useTemplates, useRouter, useFlag, useNewDeploymentUrl, useSnackbar, Snackbar, importSimpleSdl, FileButton, createConfigureDraft };
 
 type Props = {
   onChangeGitProvider: (gh: boolean) => void;
@@ -60,9 +63,11 @@ export const TemplateList: React.FunctionComponent<Props> = ({
   const { templates } = d.useTemplates();
   const router = d.useRouter();
   const newDeploymentUrl = d.useNewDeploymentUrl();
+  const { enqueueSnackbar } = d.useSnackbar();
   const [previewTemplates, setPreviewTemplates] = useState<TemplateOutputSummaryWithCategory[]>([]);
   const [, setSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const isBuildAndDeployEnabled = d.useFlag("ui_build_and_deploy");
+  const isRedesignEnabled = d.useFlag("onboarding_redesign_v1");
 
   const handleGithubTemplate = async () => {
     analyticsService.track("build_n_deploy_btn_clk", "Amplitude");
@@ -92,15 +97,29 @@ export const TemplateList: React.FunctionComponent<Props> = ({
 
     const reader = new FileReader();
 
-    reader.onload = event => {
+    reader.onload = function loadUploadedSdl(event) {
+      const content = event.target?.result as string;
+
+      if (isRedesignEnabled) {
+        if (!canImportSdl(content, d.importSimpleSdl)) {
+          enqueueSnackbar(
+            <d.Snackbar title="Invalid SDL file" subTitle="This file couldn't be read as a deployment. Please upload a valid SDL." iconVariant="error" />,
+            { variant: "error" }
+          );
+          return;
+        }
+        router.push(UrlService.configureDeployment({ draftId: d.createConfigureDraft(content) }));
+        return;
+      }
+
       onTemplateSelected({
         title: "From file",
         code: "from-file",
         category: "General",
         description: "Custom uploaded file",
-        content: event.target?.result as string
+        content
       });
-      setEditedManifest(event.target?.result as string);
+      setEditedManifest(content);
       setSdlEditMode("yaml");
 
       router.push(UrlService.newDeployment({ step: RouteStep.editDeployment }));
@@ -120,10 +139,10 @@ export const TemplateList: React.FunctionComponent<Props> = ({
             <h3 className="text-xl font-bold tracking-tight">Build Your Own</h3>
             <p className="text-sm text-muted-foreground">Select a type or upload your own SDL.</p>
           </div>
-          <FileButton onFileSelect={onFileSelect} accept=".yml,.yaml,.txt" size="sm" variant="default" className="space-x-2">
+          <d.FileButton onFileSelect={onFileSelect} accept=".yml,.yaml,.txt" size="sm" variant="default" className="space-x-2">
             <Upload className="text-xs" />
             <span>Upload SDL</span>
-          </FileButton>
+          </d.FileButton>
         </CardHeader>
         <CardContent className={cn("grid grid-cols-1 gap-4", isBuildAndDeployEnabled ? "md:grid-cols-3" : "md:grid-cols-2")}>
           {isBuildAndDeployEnabled && (
@@ -193,3 +212,16 @@ export const TemplateList: React.FunctionComponent<Props> = ({
     </div>
   );
 };
+
+/**
+ * Whether an uploaded YAML imports as a deployment. A throw means the configure form's importer can't load it, so the
+ * picker rejects the file up front rather than routing to a screen that would silently fall back to an empty deployment.
+ */
+function canImportSdl(sdl: string, importSdl: typeof importSimpleSdl): boolean {
+  try {
+    importSdl(sdl);
+    return true;
+  } catch {
+    return false;
+  }
+}
