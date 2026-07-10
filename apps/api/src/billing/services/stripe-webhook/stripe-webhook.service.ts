@@ -88,8 +88,7 @@ export class StripeWebhookService {
         ? payment.payment_intent
         : payment.payment_intent.id
       : undefined;
-    const endTrial = transaction.type !== "coupon_claim";
-
+    // Invoice top-ups are coupon claims; redeeming a coupon ends the trial like a card purchase does.
     await this.topUpWalletFromTransaction({
       customerId,
       transaction,
@@ -97,8 +96,7 @@ export class StripeWebhookService {
       paymentMethodType: undefined,
       paymentAmount: transaction.amount,
       stripePaymentIntentId,
-      eventDescription: `invoice ${invoice.id}`,
-      endTrial
+      eventDescription: `invoice ${invoice.id}`
     });
   }
 

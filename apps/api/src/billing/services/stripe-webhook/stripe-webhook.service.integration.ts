@@ -221,7 +221,8 @@ describe(StripeWebhookService.name, () => {
         receiptUrl: "https://receipt.stripe.com/inv",
         stripePaymentIntentId: paymentIntentId
       });
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(transactionAmount, mockUser.id, { endTrial: false });
+      // Coupon invoices leave endTrial undefined so RefillService's default (true) ends the trial, like a card purchase.
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(transactionAmount, mockUser.id, { endTrial: undefined });
     });
 
     it("returns early when customer ID is missing", async () => {
@@ -329,7 +330,7 @@ describe(StripeWebhookService.name, () => {
         receiptUrl: undefined,
         stripePaymentIntentId: undefined
       });
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(transactionAmount, mockUser.id, { endTrial: false });
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(transactionAmount, mockUser.id, { endTrial: undefined });
     });
   });
 
