@@ -1,7 +1,10 @@
 import type { FC } from "react";
+import { useState } from "react";
 import { CollapsibleCard } from "@akashnetwork/ui/components";
 import { CpuIcon, PackageOpenIcon } from "lucide-react";
 
+import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
+import { isTrialBlockedGpuModel } from "@src/utils/deploymentData/v1beta3";
 import { useRevalidateUniqueness } from "../../DeploymentPane/useRevalidateUniqueness/useRevalidateUniqueness";
 import { computeResourcesTooltip, presetsTooltip } from "../cardTooltips";
 import { ComputeResourcesCard } from "../ComputeResourcesCard/ComputeResourcesCard";
@@ -10,6 +13,7 @@ import { GpuCard } from "../GpuCard/GpuCard";
 import { PersistentStorageCard } from "../PersistentStorageCard/PersistentStorageCard";
 import { PresetsCard } from "../PresetsCard/PresetsCard";
 import { RamStorageCard } from "../RamStorageCard/RamStorageCard";
+import { useTrialGate } from "./useTrialGate/useTrialGate";
 
 type StorageVolume = { name?: string; mount?: string };
 
@@ -30,7 +34,9 @@ export const DEPENDENCIES = {
   RamStorageCard,
   PersistentStorageCard,
   ConfidentialComputeCard,
-  useRevalidateUniqueness
+  AddCreditsSheet,
+  useRevalidateUniqueness,
+  useTrialGate
 };
 
 type Props = {
@@ -54,16 +60,24 @@ type Props = {
  */
 export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   d.useRevalidateUniqueness(`services.${serviceIndex}.profile.storage`, storageUniquenessKey);
+  const { isRestricted, isWalletReady } = d.useTrialGate();
+  const [isUnlockOpen, setIsUnlockOpen] = useState(false);
+
+  const openUnlock = () => setIsUnlockOpen(true);
+  const closeUnlock = () => setIsUnlockOpen(false);
+
+  /** True only for models the trial blocks and only while the pane is editable — so the lock never fights the quote-lock read-only state. */
+  const isBlockedModel = (vendor?: string | null, model?: string | null) => isRestricted && !locked && isTrialBlockedGpuModel(vendor, model);
 
   return (
     <div className="flex flex-col gap-2 px-4">
       <p className="font-mono text-xs uppercase text-muted-foreground">Hardware</p>
       <div className="flex flex-col gap-4">
         <d.CollapsibleCard locked={locked} title="Presets" icon={<PackageOpenIcon className="h-4 w-4" />} infoTooltip={presetsTooltip}>
-          <d.PresetsCard serviceIndex={serviceIndex} locked={locked} />
+          <d.PresetsCard serviceIndex={serviceIndex} locked={locked} isBlockedModel={isBlockedModel} onUnlock={openUnlock} />
         </d.CollapsibleCard>
 
-        <d.GpuCard serviceIndex={serviceIndex} locked={locked} />
+        <d.GpuCard serviceIndex={serviceIndex} locked={locked} isBlockedModel={isBlockedModel} onUnlock={openUnlock} />
 
         <d.CollapsibleCard locked={locked} title="Compute Resources" icon={<CpuIcon className="h-4 w-4" />} infoTooltip={computeResourcesTooltip}>
           <d.ComputeResourcesCard serviceIndex={serviceIndex} locked={locked} />
@@ -75,6 +89,8 @@ export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, depen
 
         <d.PersistentStorageCard serviceIndex={serviceIndex} locked={locked} />
       </div>
+
+      <d.AddCreditsSheet open={isUnlockOpen} onOpenChange={setIsUnlockOpen} isWalletReady={isWalletReady} onDone={closeUnlock} />
     </div>
   );
 };

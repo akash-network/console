@@ -2,7 +2,7 @@ import { DeploymentReclamation } from "@akashnetwork/chain-sdk/private-types/aka
 import yaml from "js-yaml";
 import { describe, expect, it } from "vitest";
 
-import { applyTrialGpuPolicy, NewDeploymentData, replaceSdlDenom } from "./v1beta3";
+import { applyTrialGpuPolicy, isTrialBlockedGpuModel, NewDeploymentData, replaceSdlDenom } from "./v1beta3";
 
 describe(replaceSdlDenom.name, () => {
   it("replaces denom in a single placement pricing entry", () => {
@@ -187,6 +187,28 @@ describe(applyTrialGpuPolicy.name, () => {
     const profile = Object.values(sdl.profiles.compute)[0];
     return profile.resources.gpu?.attributes?.vendor?.nvidia;
   }
+});
+
+describe(isTrialBlockedGpuModel.name, () => {
+  const BLOCKED = ["nvidia/h100", "nvidia/a100"];
+
+  it("blocks a listed vendor/model case-insensitively", () => {
+    expect(isTrialBlockedGpuModel("nvidia", "h100", BLOCKED)).toBe(true);
+    expect(isTrialBlockedGpuModel("NVIDIA", "H100", BLOCKED)).toBe(true);
+  });
+
+  it("allows a model that is not on the blocked list", () => {
+    expect(isTrialBlockedGpuModel("nvidia", "t4", BLOCKED)).toBe(false);
+  });
+
+  it("never blocks when the vendor or model is missing", () => {
+    expect(isTrialBlockedGpuModel(undefined, "h100", BLOCKED)).toBe(false);
+    expect(isTrialBlockedGpuModel("nvidia", "", BLOCKED)).toBe(false);
+  });
+
+  it("never blocks when the blocked list is empty", () => {
+    expect(isTrialBlockedGpuModel("nvidia", "h100", [])).toBe(false);
+  });
 });
 
 describe(NewDeploymentData.name, () => {

@@ -53,9 +53,9 @@ describe(ManifestUpdate.name, () => {
         get: vi.fn().mockReturnValue({ manifest: "version: '2.0'" })
       },
       dependencies: {
-        deploymentData: {
+        deploymentData: mock<typeof DEPENDENCIES.deploymentData>({
           getManifestVersion: vi.fn().mockResolvedValue("abc123")
-        }
+        })
       }
     });
 
@@ -70,9 +70,9 @@ describe(ManifestUpdate.name, () => {
         get: vi.fn().mockReturnValue({ manifest: "version: '2.0'" })
       },
       dependencies: {
-        deploymentData: {
+        deploymentData: mock<typeof DEPENDENCIES.deploymentData>({
           getManifestVersion: vi.fn().mockRejectedValue(new Error("parse error"))
-        }
+        })
       }
     });
 
@@ -167,13 +167,13 @@ describe(ManifestUpdate.name, () => {
       },
       dependencies: {
         Button: ButtonMock,
-        deploymentData: {
+        deploymentData: mock<typeof DEPENDENCIES.deploymentData>({
           NewDeploymentData: vi.fn().mockResolvedValue({
             hash: Buffer.from("new-hash"),
             deploymentId: { dseq: "123" }
           }),
           getManifest: vi.fn().mockReturnValue([])
-        },
+        }),
         TransactionMessageData: {
           getUpdateDeploymentMsg: vi.fn().mockReturnValue({ typeUrl: "/update", value: {} })
         }
@@ -222,14 +222,14 @@ describe(ManifestUpdate.name, () => {
       },
       dependencies: {
         Button: ButtonMock,
-        deploymentData: {
+        deploymentData: mock<typeof DEPENDENCIES.deploymentData>({
           NewDeploymentData: vi.fn().mockResolvedValue({
             hash: hashBytes,
             deploymentId: { dseq: "123" }
           }),
           getManifest: vi.fn().mockReturnValue([]),
           getManifestVersion: vi.fn().mockResolvedValue(base64Hash)
-        }
+        })
       }
     });
 
@@ -256,10 +256,10 @@ describe(ManifestUpdate.name, () => {
       editedManifest: "version: '2.0'",
       dependencies: {
         Button: ButtonMock,
-        deploymentData: {
+        deploymentData: mock<typeof DEPENDENCIES.deploymentData>({
           NewDeploymentData: vi.fn().mockRejectedValue(Object.assign(new Error("bad yaml"), { name: "YAMLException" })),
           getManifest: vi.fn()
-        }
+        })
       }
     });
 
@@ -281,9 +281,9 @@ describe(ManifestUpdate.name, () => {
       onManifestChange,
       dependencies: {
         SDLEditor: SDLEditorMock,
-        deploymentData: {
+        deploymentData: mock<typeof DEPENDENCIES.deploymentData>({
           getManifestVersion: vi.fn().mockResolvedValue("version123")
-        }
+        })
       },
       deploymentLocalStorage: {
         get: vi.fn().mockReturnValue({ manifest: "version: '2.0'" })
