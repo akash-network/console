@@ -1,7 +1,8 @@
 import React from "react";
 import { useForm } from "react-hook-form";
+import { IntlProvider } from "react-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { handleCouponError } from "@src/utils/stripeErrorHandler";
@@ -11,7 +12,11 @@ import { RedeemCouponForm } from "./RedeemCouponForm";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 
 describe(RedeemCouponForm.name, () => {
-  it("applies the coupon, refreshes the balance, shows inline success and resets the field", async () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("applies the coupon, refreshes the balance, shows the dollar amount inline and resets the field", async () => {
     const applyCoupon = vi.fn().mockResolvedValue({ coupon: null, amountAdded: 100 });
     const pollForPayment = vi.fn();
 
@@ -22,8 +27,8 @@ describe(RedeemCouponForm.name, () => {
     await submit();
 
     expect(applyCoupon).toHaveBeenCalledWith({ coupon: "AKASH-1234-5678", userId: "user_1" });
-    expect(pollForPayment).toHaveBeenCalledTimes(1);
-    expect(screen.getByText(/100 credits added/i)).toBeInTheDocument();
+    expect(pollForPayment).toHaveBeenCalledWith({ variant: "coupon" });
+    expect(screen.getByText(/added to your balance/i)).toHaveTextContent("$100.00");
     expect(couponInput().value).toBe("");
   });
 
@@ -52,7 +57,7 @@ describe(RedeemCouponForm.name, () => {
     await submit();
 
     expect(screen.getByText(/this coupon has expired or is no longer valid/i)).toBeInTheDocument();
-    expect(screen.queryByText(/credits added/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/added to your balance/i)).not.toBeInTheDocument();
   });
 
   it("keeps the redeem button disabled and does not submit while the code is empty", async () => {
@@ -84,6 +89,48 @@ describe(RedeemCouponForm.name, () => {
     expect(onProcessingChange).toHaveBeenCalledWith(true);
   });
 
+  it("closes the sheet shortly after a credit-adding redemption settles", async () => {
+    const onRedeemed = vi.fn();
+    const applyCoupon = vi.fn().mockResolvedValue({ coupon: null, amountAdded: 100 });
+
+    const { setPolling } = setup({ applyCoupon, onRedeemed });
+
+    typeCoupon("AKASH-1234-5678");
+    await submit();
+
+    // The balance poll runs (processing) then settles; only then does the auto-close fire.
+    act(() => setPolling(true));
+    vi.useFakeTimers();
+    act(() => setPolling(false));
+
+    expect(onRedeemed).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(onRedeemed).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not close the sheet when the coupon adds no credits", async () => {
+    const onRedeemed = vi.fn();
+    const applyCoupon = vi.fn().mockResolvedValue({ coupon: null, amountAdded: 0 });
+
+    const { setPolling } = setup({ applyCoupon, onRedeemed });
+
+    typeCoupon("AKASH-1234-5678");
+    await submit();
+
+    vi.useFakeTimers();
+    act(() => setPolling(true));
+    act(() => setPolling(false));
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(onRedeemed).not.toHaveBeenCalled();
+  });
+
   function couponInput() {
     return screen.getByLabelText(/coupon code/i) as HTMLInputElement;
   }
@@ -109,7 +156,10 @@ describe(RedeemCouponForm.name, () => {
     isPolling?: boolean;
     isWalletReady?: boolean;
     onProcessingChange?: (isProcessing: boolean) => void;
+    onRedeemed?: () => void;
   }) {
+    const pollingRef = { current: input.isPolling ?? false };
+
     const useUser: typeof DEPENDENCIES.useUser = () =>
       mock<ReturnType<typeof DEPENDENCIES.useUser>>({
         user: { userId: "user_1", id: "user_1" } as ReturnType<typeof DEPENDENCIES.useUser>["user"]
@@ -127,23 +177,39 @@ describe(RedeemCouponForm.name, () => {
       mock<ReturnType<typeof DEPENDENCIES.usePaymentPolling>>({
         pollForPayment: input.pollForPayment ?? vi.fn(),
         stopPolling: vi.fn(),
-        isPolling: input.isPolling ?? false
+        isPolling: pollingRef.current
       });
 
-    return render(
-      <RedeemCouponForm
-        isWalletReady={input.isWalletReady ?? true}
-        onProcessingChange={input.onProcessingChange}
-        dependencies={{
-          useForm,
-          zodResolver,
-          useUser,
-          usePaymentMutations,
-          usePaymentPolling,
-          handleCouponError,
-          handleStripeError: vi.fn().mockReturnValue({ message: "Something went wrong.", userAction: undefined })
-        }}
-      />
+    const dependencies = {
+      useForm,
+      zodResolver,
+      useUser,
+      usePaymentMutations,
+      usePaymentPolling,
+      handleCouponError,
+      handleStripeError: vi.fn().mockReturnValue({ message: "Something went wrong.", userAction: undefined })
+    };
+
+    // Build a fresh element each render so React does not bail out on an identical
+    // element reference; the mocked polling hook reads `pollingRef` at call time.
+    const build = () => (
+      <IntlProvider locale="en-US" defaultLocale="en-US">
+        <RedeemCouponForm
+          isWalletReady={input.isWalletReady ?? true}
+          onProcessingChange={input.onProcessingChange}
+          onRedeemed={input.onRedeemed}
+          dependencies={dependencies}
+        />
+      </IntlProvider>
     );
+
+    const utils = render(build());
+
+    const setPolling = (value: boolean) => {
+      pollingRef.current = value;
+      utils.rerender(build());
+    };
+
+    return { ...utils, setPolling };
   }
 });

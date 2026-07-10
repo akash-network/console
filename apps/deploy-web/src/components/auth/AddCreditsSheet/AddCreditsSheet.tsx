@@ -18,12 +18,13 @@ interface AddCreditsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDone: (amount: number, organization?: string) => void;
+  onRedeemed?: () => void;
   isWalletReady?: boolean;
   initialTab?: "purchase" | "coupon";
   dependencies?: typeof DEPENDENCIES;
 }
 
-export function AddCreditsSheet({ open, onOpenChange, onDone, isWalletReady, initialTab, dependencies: d = DEPENDENCIES }: AddCreditsSheetProps) {
+export function AddCreditsSheet({ open, onOpenChange, onDone, onRedeemed, isWalletReady, initialTab, dependencies: d = DEPENDENCIES }: AddCreditsSheetProps) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const requestOpenChange = (next: boolean) => {
@@ -41,7 +42,15 @@ export function AddCreditsSheet({ open, onOpenChange, onDone, isWalletReady, ini
           </d.SheetDescription>
         </d.SheetHeader>
 
-        {open && <d.AddCreditsTabs initialTab={initialTab} onDone={onDone} isWalletReady={isWalletReady} onProcessingChange={setIsProcessing} />}
+        {open && (
+          <d.AddCreditsTabs
+            initialTab={initialTab}
+            onDone={onDone}
+            onRedeemed={onRedeemed}
+            isWalletReady={isWalletReady}
+            onProcessingChange={setIsProcessing}
+          />
+        )}
       </d.SheetContent>
     </d.Sheet>
   );

@@ -231,6 +231,28 @@ describe(PaymentPollingProvider.name, () => {
     cleanup();
   });
 
+  it("shows coupon copy instead of payment copy for a coupon redemption", async () => {
+    const { enqueueSnackbar, setIsTrialing, advancePollCycle, cleanup } = setup({
+      isTrialing: true,
+      balance: { totalUsd: 100 },
+      isWalletBalanceLoading: false
+    });
+
+    await act(async () => {
+      screen.getByTestId("start-polling-coupon").click();
+    });
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarWithTitle("Applying coupon..."), expect.anything());
+    expect(enqueueSnackbar).not.toHaveBeenCalledWith(snackbarWithTitle("Processing payment..."), expect.anything());
+
+    await setIsTrialing(false);
+    await advancePollCycle();
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarWithTitle("Coupon applied!"), expect.objectContaining({ variant: "success" }));
+
+    cleanup();
+  });
+
   function snackbarWithTitle(title: string) {
     return expect.objectContaining({ props: expect.objectContaining({ title }) });
   }
@@ -293,6 +315,9 @@ describe(PaymentPollingProvider.name, () => {
           <div data-testid="is-polling">{isPolling.toString()}</div>
           <button data-testid="start-polling" onClick={() => pollForPayment()}>
             Start Polling
+          </button>
+          <button data-testid="start-polling-coupon" onClick={() => pollForPayment({ variant: "coupon" })}>
+            Start Coupon Polling
           </button>
           <button data-testid="stop-polling" onClick={stopPolling}>
             Stop Polling

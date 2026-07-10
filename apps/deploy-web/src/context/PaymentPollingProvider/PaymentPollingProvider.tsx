@@ -12,6 +12,20 @@ const POLLING_INTERVAL_MS = 2000;
 const MAX_POLLING_DURATION_MS = 30000;
 const MAX_ATTEMPTS = MAX_POLLING_DURATION_MS / POLLING_INTERVAL_MS;
 
+export type PaymentPollingVariant = "payment" | "coupon";
+
+/** Snackbar copy per flow. The coupon flow avoids "payment" wording since redeeming a coupon is not a charge. */
+const POLLING_COPY: Record<PaymentPollingVariant, { loading: { title: string; subTitle: string }; success: { title: string; subTitle: string } }> = {
+  payment: {
+    loading: { title: "Processing payment...", subTitle: "Please wait while we update your balance" },
+    success: { title: "Payment successful!", subTitle: "Your balance has been updated" }
+  },
+  coupon: {
+    loading: { title: "Applying coupon...", subTitle: "Please wait while we add your credits" },
+    success: { title: "Coupon applied!", subTitle: "Your balance has been updated" }
+  }
+};
+
 export const DEPENDENCIES = {
   useWallet,
   useWalletBalance,
@@ -23,9 +37,10 @@ export const DEPENDENCIES = {
 
 export interface PaymentPollingContextType {
   /**
-   * Start polling for balance updates after payment.
+   * Start polling for balance updates after a payment or coupon redemption.
+   * `variant` selects the snackbar copy (defaults to "payment").
    */
-  pollForPayment: (initialBalance?: number | null) => void;
+  pollForPayment: (options?: { initialBalance?: number | null; variant?: PaymentPollingVariant }) => void;
   /**
    * Stop polling (optional - usually not needed)
    */
@@ -59,6 +74,7 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
   const initialTrialingRef = useRef<boolean>(wasTrialing);
   const loadingSnackbarKeyRef = useRef<string | number | null>(null);
   const hasSignaledSuccessRef = useRef<boolean>(false);
+  const variantRef = useRef<PaymentPollingVariant>("payment");
 
   const closeLoadingSnackbar = useCallback(() => {
     if (loadingSnackbarKeyRef.current) {
@@ -99,12 +115,13 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
   }, [stopPolling, enqueueSnackbar, refetchBalance, refetchManagedWallet, d]);
 
   const pollForPayment = useCallback(
-    (initialBalance?: number | null) => {
+    (options?: { initialBalance?: number | null; variant?: PaymentPollingVariant }) => {
       if (isPolling) {
         return;
       }
 
-      const balanceToUse = initialBalance ?? currentBalance?.totalUsd ?? null;
+      variantRef.current = options?.variant ?? "payment";
+      const balanceToUse = options?.initialBalance ?? currentBalance?.totalUsd ?? null;
       initialBalanceRef.current = balanceToUse;
       initialTrialingRef.current = wasTrialing;
       hasSignaledSuccessRef.current = false;
@@ -112,7 +129,8 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
       attemptCountRef.current = 0;
       setIsPolling(true);
 
-      const loadingSnackbarKey = enqueueSnackbar(<d.Snackbar title="Processing payment..." subTitle="Please wait while we update your balance" showLoading />, {
+      const { title, subTitle } = POLLING_COPY[variantRef.current].loading;
+      const loadingSnackbarKey = enqueueSnackbar(<d.Snackbar title={title} subTitle={subTitle} showLoading />, {
         variant: "info",
         autoHideDuration: null,
         persist: true
@@ -173,7 +191,8 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
 
       hasSignaledSuccessRef.current = true;
       closeLoadingSnackbar();
-      enqueueSnackbar(<d.Snackbar title="Payment successful!" subTitle="Your balance has been updated" iconVariant="success" />, { variant: "success" });
+      const { title, subTitle } = POLLING_COPY[variantRef.current].success;
+      enqueueSnackbar(<d.Snackbar title={title} subTitle={subTitle} iconVariant="success" />, { variant: "success" });
 
       if (initialTrialingRef.current) {
         analyticsService.track("trial_completed", {

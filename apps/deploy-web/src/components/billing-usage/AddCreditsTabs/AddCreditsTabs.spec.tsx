@@ -35,6 +35,15 @@ describe(AddCreditsTabs.name, () => {
     expect(AddCreditsForm).not.toHaveBeenCalled();
   });
 
+  it("forwards onRedeemed to the coupon form", () => {
+    const onRedeemed = vi.fn();
+    const RedeemCouponForm = vi.fn((_props: Parameters<typeof DEPENDENCIES.RedeemCouponForm>[0]) => <div>coupon-form</div>);
+
+    setup({ initialTab: "coupon", onRedeemed, dependencies: { RedeemCouponForm } });
+
+    expect(RedeemCouponForm.mock.calls[0][0]).toEqual(expect.objectContaining({ onRedeemed }));
+  });
+
   it("forwards aggregated processing state to the parent", () => {
     const onProcessingChange = vi.fn();
 
@@ -60,6 +69,7 @@ describe(AddCreditsTabs.name, () => {
   function setup(input: {
     initialTab?: "purchase" | "coupon";
     onDone?: (amount: number, organization?: string) => void;
+    onRedeemed?: () => void;
     isWalletReady?: boolean;
     onProcessingChange?: (isProcessing: boolean) => void;
     dependencies?: Partial<typeof DEPENDENCIES>;
@@ -68,6 +78,7 @@ describe(AddCreditsTabs.name, () => {
       <AddCreditsTabs
         initialTab={input.initialTab}
         onDone={input.onDone ?? vi.fn()}
+        onRedeemed={input.onRedeemed}
         isWalletReady={input.isWalletReady ?? true}
         onProcessingChange={input.onProcessingChange}
         dependencies={{

@@ -26,6 +26,13 @@ describe(AddCreditsSheet.name, () => {
     expect(dependencies.AddCreditsTabs).toHaveBeenCalledWith(expect.objectContaining({ onDone }), expect.anything());
   });
 
+  it("forwards onRedeemed to the tabs", () => {
+    const onRedeemed = vi.fn();
+    const { dependencies } = setup({ open: true, onRedeemed });
+
+    expect(dependencies.AddCreditsTabs).toHaveBeenCalledWith(expect.objectContaining({ onRedeemed }), expect.anything());
+  });
+
   it("forwards isWalletReady to the tabs", () => {
     const { dependencies } = setup({ open: true, isWalletReady: false });
 
@@ -73,6 +80,7 @@ describe(AddCreditsSheet.name, () => {
     open: boolean;
     onOpenChange?: (open: boolean) => void;
     onDone?: (amount: number, organization?: string) => void;
+    onRedeemed?: () => void;
     isWalletReady?: boolean;
     initialTab?: "purchase" | "coupon";
     dependencies?: Partial<typeof DEPENDENCIES>;
@@ -84,6 +92,7 @@ describe(AddCreditsSheet.name, () => {
         open={input.open}
         onOpenChange={input.onOpenChange ?? vi.fn()}
         onDone={input.onDone ?? vi.fn()}
+        onRedeemed={input.onRedeemed}
         isWalletReady={input.isWalletReady}
         initialTab={input.initialTab}
         dependencies={dependencies}

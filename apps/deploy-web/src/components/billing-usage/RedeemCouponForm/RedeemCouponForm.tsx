@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import { FormattedNumber } from "react-intl";
 import { Alert, AlertDescription, AlertTitle, Form, FormField, FormInput, LoadingButton } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -17,6 +18,9 @@ const couponFormSchema = z.object({
 
 type CouponFormValues = z.infer<typeof couponFormSchema>;
 
+/** How long the success alert stays visible before the sheet auto-closes. */
+const AUTO_CLOSE_DELAY_MS = 1500;
+
 export const DEPENDENCIES = {
   useForm,
   zodResolver,
@@ -30,6 +34,7 @@ export const DEPENDENCIES = {
 interface RedeemCouponFormProps {
   isWalletReady?: boolean;
   onProcessingChange?: (isProcessing: boolean) => void;
+  onRedeemed?: () => void;
   dependencies?: typeof DEPENDENCIES;
 }
 
@@ -37,10 +42,12 @@ interface RedeemCouponFormProps {
  * Redeems a fixed-amount coupon into the managed wallet. Applying a coupon is
  * side-effecting (it creates a Stripe invoice and credits the wallet), so there
  * is no preview step: the user submits a code, we apply it, then poll to refresh
- * the balance. Feedback stays inline — success and failure both render an Alert
- * and the surrounding sheet stays open so the user closes it themselves.
+ * the balance. Feedback stays inline via an Alert; once a credit-adding redemption
+ * settles (balance poll done and, for trial users, the trial flipped) the success
+ * alert shows briefly and then `onRedeemed` fires to close the sheet. Failures and
+ * no-credit coupons keep the sheet open for another attempt.
  */
-export function RedeemCouponForm({ isWalletReady = true, onProcessingChange, dependencies: d = DEPENDENCIES }: RedeemCouponFormProps) {
+export function RedeemCouponForm({ isWalletReady = true, onProcessingChange, onRedeemed, dependencies: d = DEPENDENCIES }: RedeemCouponFormProps) {
   const { user } = d.useUser();
   const { pollForPayment, isPolling } = d.usePaymentPolling();
   const {
@@ -51,6 +58,9 @@ export function RedeemCouponForm({ isWalletReady = true, onProcessingChange, dep
   const [appliedMessage, setAppliedMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorAction, setErrorAction] = useState<string | null>(null);
+
+  const wasProcessingRef = useRef(false);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const form = d.useForm<CouponFormValues>({
     defaultValues: { coupon: "" },
@@ -67,6 +77,28 @@ export function RedeemCouponForm({ isWalletReady = true, onProcessingChange, dep
     },
     [isProcessing, onProcessingChange]
   );
+
+  useEffect(
+    function autoCloseAfterSuccessfulRedeem() {
+      const wasProcessing = wasProcessingRef.current;
+      wasProcessingRef.current = isProcessing;
+
+      // A credit-adding redemption keeps `isProcessing` true through the balance poll
+      // (and, for trial users, until the trial flips). Once it settles, leave the success
+      // alert up briefly, then close the sheet via onRedeemed.
+      if (wasProcessing && !isProcessing && successAmount !== null) {
+        if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+        closeTimeoutRef.current = setTimeout(() => onRedeemed?.(), AUTO_CLOSE_DELAY_MS);
+      }
+    },
+    [isProcessing, successAmount, onRedeemed]
+  );
+
+  useEffect(function clearCloseTimeoutOnUnmount() {
+    return () => {
+      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    };
+  }, []);
 
   const clearMessages = () => {
     setSuccessAmount(null);
@@ -99,7 +131,7 @@ export function RedeemCouponForm({ isWalletReady = true, onProcessingChange, dep
       }
 
       if (response.amountAdded && response.amountAdded > 0) {
-        pollForPayment();
+        pollForPayment({ variant: "coupon" });
         setSuccessAmount(response.amountAdded);
         form.reset();
       } else {
@@ -134,7 +166,9 @@ export function RedeemCouponForm({ isWalletReady = true, onProcessingChange, dep
         {successAmount !== null && (
           <Alert variant="success">
             <AlertTitle className="text-sm font-medium">Coupon applied</AlertTitle>
-            <AlertDescription>{successAmount} credits added to your balance.</AlertDescription>
+            <AlertDescription>
+              <FormattedNumber value={successAmount} style="currency" currency="USD" /> added to your balance.
+            </AlertDescription>
           </Alert>
         )}
 

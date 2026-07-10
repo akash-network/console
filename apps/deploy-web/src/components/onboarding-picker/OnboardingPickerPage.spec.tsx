@@ -158,6 +158,21 @@ describe(OnboardingPickerPage.name, () => {
     expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(false);
   });
 
+  it("closes the verification sheet without deploying when a coupon is redeemed", () => {
+    const push = vi.fn();
+    const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
+    const AddCreditsSheet = vi.fn(ComponentMock);
+    setup({ isTrialing: true, push, dependencies: { DeploymentTemplatePickerCard, AddCreditsSheet } });
+
+    act(() => getCard(DeploymentTemplatePickerCard, "LLM Chatbot").onDeploy!());
+    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(true);
+
+    act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onRedeemed!());
+
+    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(false);
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it("deploys the LLM template when the verification sheet completes after the gated LLM prompt", () => {
     const push = vi.fn();
     const DeploymentTemplatePickerCard = vi.fn(ComponentMock);

@@ -20,6 +20,7 @@ export const DEPENDENCIES = {
 interface AddCreditsTabsProps {
   initialTab?: AddCreditsTab;
   onDone: (amount: number, organization?: string) => void;
+  onRedeemed?: () => void;
   isWalletReady?: boolean;
   onProcessingChange?: (isProcessing: boolean) => void;
   dependencies?: typeof DEPENDENCIES;
@@ -34,7 +35,14 @@ interface AddCreditsTabsProps {
  * inactive tab trigger is disabled while a flow is in progress so the user
  * cannot navigate away mid-transaction.
  */
-export function AddCreditsTabs({ initialTab = "purchase", onDone, isWalletReady, onProcessingChange, dependencies: d = DEPENDENCIES }: AddCreditsTabsProps) {
+export function AddCreditsTabs({
+  initialTab = "purchase",
+  onDone,
+  onRedeemed,
+  isWalletReady,
+  onProcessingChange,
+  dependencies: d = DEPENDENCIES
+}: AddCreditsTabsProps) {
   const [activeTab, setActiveTab] = useState<AddCreditsTab>(initialTab);
   const [purchaseProcessing, setPurchaseProcessing] = useState(false);
   const [couponProcessing, setCouponProcessing] = useState(false);
@@ -72,7 +80,7 @@ export function AddCreditsTabs({ initialTab = "purchase", onDone, isWalletReady,
       </d.TabsContent>
 
       <d.TabsContent value="coupon">
-        <d.RedeemCouponForm isWalletReady={isWalletReady} onProcessingChange={setCouponProcessing} />
+        <d.RedeemCouponForm isWalletReady={isWalletReady} onProcessingChange={setCouponProcessing} onRedeemed={onRedeemed} />
       </d.TabsContent>
     </d.Tabs>
   );
