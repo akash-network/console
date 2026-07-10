@@ -2,7 +2,7 @@ import React, { type FC } from "react";
 import type { ChartConfig } from "@akashnetwork/ui/components";
 import { Card, CardContent, CardHeader, CardTitle, ChartContainer, ChartTooltip, ChartTooltipContent, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { CartesianGrid, Line, LineChart, XAxis } from "recharts";
 
 import { TrendIndicator } from "@src/components/billing-usage/TrendIndicator/TrendIndicator";
@@ -65,7 +65,8 @@ export const CumulativeSpendingLineChart: FC<CumulativeSpendingLineChartProps> =
               axisLine={false}
               tickMargin={8}
               tickFormatter={value => {
-                const date = new Date(value);
+                // parseISO reads date-only strings (YYYY-MM-DD) as local time; native Date() treats them as UTC and shifts the label a day west of UTC
+                const date = parseISO(value);
                 return isNaN(date.getTime()) ? value : format(date, "M/d");
               }}
             />
@@ -75,7 +76,8 @@ export const CumulativeSpendingLineChart: FC<CumulativeSpendingLineChartProps> =
                   className="w-[180px]"
                   nameKey="totalUsdSpent"
                   labelFormatter={value => {
-                    const date = new Date(value);
+                    // parseISO reads date-only strings (YYYY-MM-DD) as local time; native Date() treats them as UTC and shifts the label a day west of UTC
+                    const date = parseISO(value);
                     return isNaN(date.getTime()) ? value : format(date, "MMM d, yyyy");
                   }}
                 />
