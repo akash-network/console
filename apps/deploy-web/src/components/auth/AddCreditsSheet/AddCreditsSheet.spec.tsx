@@ -7,34 +7,47 @@ import { act, render } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(AddCreditsSheet.name, () => {
-  it("renders the AddCreditsForm when open", () => {
+  it("renders the credits tabs when open", () => {
     const { dependencies } = setup({ open: true });
 
-    expect(dependencies.AddCreditsForm).toHaveBeenCalled();
+    expect(dependencies.AddCreditsTabs).toHaveBeenCalled();
   });
 
-  it("does not render the AddCreditsForm while closed", () => {
+  it("does not render the credits tabs while closed", () => {
     const { dependencies } = setup({ open: false });
 
-    expect(dependencies.AddCreditsForm).not.toHaveBeenCalled();
+    expect(dependencies.AddCreditsTabs).not.toHaveBeenCalled();
   });
 
-  it("forwards onDone to the form", () => {
+  it("forwards onDone to the tabs", () => {
     const onDone = vi.fn();
     const { dependencies } = setup({ open: true, onDone });
 
-    expect(dependencies.AddCreditsForm).toHaveBeenCalledWith(expect.objectContaining({ onDone }), expect.anything());
+    expect(dependencies.AddCreditsTabs).toHaveBeenCalledWith(expect.objectContaining({ onDone }), expect.anything());
   });
 
-  it("forwards isWalletReady to the form", () => {
+  it("forwards onRedeemed to the tabs", () => {
+    const onRedeemed = vi.fn();
+    const { dependencies } = setup({ open: true, onRedeemed });
+
+    expect(dependencies.AddCreditsTabs).toHaveBeenCalledWith(expect.objectContaining({ onRedeemed }), expect.anything());
+  });
+
+  it("forwards isWalletReady to the tabs", () => {
     const { dependencies } = setup({ open: true, isWalletReady: false });
 
-    expect(dependencies.AddCreditsForm).toHaveBeenCalledWith(expect.objectContaining({ isWalletReady: false }), expect.anything());
+    expect(dependencies.AddCreditsTabs).toHaveBeenCalledWith(expect.objectContaining({ isWalletReady: false }), expect.anything());
   });
 
-  it("blocks closing while the form reports a payment in progress", () => {
+  it("threads the initial tab to the tabs", () => {
+    const { dependencies } = setup({ open: true, initialTab: "coupon" });
+
+    expect(dependencies.AddCreditsTabs).toHaveBeenCalledWith(expect.objectContaining({ initialTab: "coupon" }), expect.anything());
+  });
+
+  it("blocks closing while the tabs report a payment in progress", () => {
     const onOpenChange = vi.fn();
-    const { dependencies } = setup({ open: true, onOpenChange, dependencies: { AddCreditsForm: reportingForm(true) } });
+    const { dependencies } = setup({ open: true, onOpenChange, dependencies: { AddCreditsTabs: reportingTabs(true) } });
 
     act(() => dependencies.Sheet.mock.calls.at(-1)![0].onOpenChange?.(false));
 
@@ -43,21 +56,21 @@ describe(AddCreditsSheet.name, () => {
 
   it("allows closing when no payment is in progress", () => {
     const onOpenChange = vi.fn();
-    const { dependencies } = setup({ open: true, onOpenChange, dependencies: { AddCreditsForm: reportingForm(false) } });
+    const { dependencies } = setup({ open: true, onOpenChange, dependencies: { AddCreditsTabs: reportingTabs(false) } });
 
     act(() => dependencies.Sheet.mock.calls.at(-1)![0].onOpenChange?.(false));
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("hides the close button while the form reports a payment in progress", () => {
-    const { dependencies } = setup({ open: true, dependencies: { AddCreditsForm: reportingForm(true) } });
+  it("hides the close button while the tabs report a payment in progress", () => {
+    const { dependencies } = setup({ open: true, dependencies: { AddCreditsTabs: reportingTabs(true) } });
 
     expect(dependencies.SheetContent.mock.calls.at(-1)![0].hideCloseButton).toBe(true);
   });
 
-  function reportingForm(isProcessing: boolean) {
-    return ({ onProcessingChange }: Parameters<typeof DEPENDENCIES.AddCreditsForm>[0]) => {
+  function reportingTabs(isProcessing: boolean) {
+    return ({ onProcessingChange }: Parameters<typeof DEPENDENCIES.AddCreditsTabs>[0]) => {
       useEffect(() => onProcessingChange?.(isProcessing), [onProcessingChange]);
       return <></>;
     };
@@ -67,7 +80,9 @@ describe(AddCreditsSheet.name, () => {
     open: boolean;
     onOpenChange?: (open: boolean) => void;
     onDone?: (amount: number, organization?: string) => void;
+    onRedeemed?: () => void;
     isWalletReady?: boolean;
+    initialTab?: "purchase" | "coupon";
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const dependencies = MockComponents(DEPENDENCIES, input.dependencies);
@@ -77,7 +92,9 @@ describe(AddCreditsSheet.name, () => {
         open={input.open}
         onOpenChange={input.onOpenChange ?? vi.fn()}
         onDone={input.onDone ?? vi.fn()}
+        onRedeemed={input.onRedeemed}
         isWalletReady={input.isWalletReady}
+        initialTab={input.initialTab}
         dependencies={dependencies}
       />
     );

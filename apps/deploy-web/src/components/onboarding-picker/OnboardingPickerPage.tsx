@@ -164,6 +164,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
           open={addCreditsSheetReason !== null}
           onOpenChange={open => setAddCreditsSheetReason(open ? "unlock-gpu" : null)}
           isWalletReady={isWalletReady}
+          onRedeemed={() => setAddCreditsSheetReason(null)}
           onDone={() => {
             if (addCreditsSheetReason === "unlock-gpu") {
               deployTemplate(TEMPLATE_IDS.llmChatbot);

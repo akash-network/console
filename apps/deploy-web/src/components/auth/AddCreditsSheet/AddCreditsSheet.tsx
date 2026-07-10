@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@akashnetwork/ui/components";
 
-import { AddCreditsForm } from "@src/components/billing-usage/AddCreditsForm/AddCreditsForm";
+import { AddCreditsTabs } from "@src/components/billing-usage/AddCreditsTabs/AddCreditsTabs";
 
 export const DEPENDENCIES = {
   Sheet,
@@ -11,18 +11,20 @@ export const DEPENDENCIES = {
   SheetHeader,
   SheetTitle,
   SheetDescription,
-  AddCreditsForm
+  AddCreditsTabs
 };
 
 interface AddCreditsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDone: (amount: number, organization?: string) => void;
+  onRedeemed?: () => void;
   isWalletReady?: boolean;
+  initialTab?: "purchase" | "coupon";
   dependencies?: typeof DEPENDENCIES;
 }
 
-export function AddCreditsSheet({ open, onOpenChange, onDone, isWalletReady, dependencies: d = DEPENDENCIES }: AddCreditsSheetProps) {
+export function AddCreditsSheet({ open, onOpenChange, onDone, onRedeemed, isWalletReady, initialTab, dependencies: d = DEPENDENCIES }: AddCreditsSheetProps) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const requestOpenChange = (next: boolean) => {
@@ -41,7 +43,15 @@ export function AddCreditsSheet({ open, onOpenChange, onDone, isWalletReady, dep
           </d.SheetDescription>
         </d.SheetHeader>
 
-        {open && <d.AddCreditsForm onDone={onDone} isWalletReady={isWalletReady} onProcessingChange={setIsProcessing} />}
+        {open && (
+          <d.AddCreditsTabs
+            initialTab={initialTab}
+            onDone={onDone}
+            onRedeemed={onRedeemed}
+            isWalletReady={isWalletReady}
+            onProcessingChange={setIsProcessing}
+          />
+        )}
       </d.SheetContent>
     </d.Sheet>
   );
