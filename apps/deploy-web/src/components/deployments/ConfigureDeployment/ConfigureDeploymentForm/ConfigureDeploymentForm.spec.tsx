@@ -289,6 +289,25 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(requestQuotes).toHaveBeenCalledWith("sdl-x");
   });
 
+  it("deselects the focused placement's provider when the review modal is dismissed via Back", async () => {
+    const { flow } = setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes });
+    const focusedPlacementId = screen.getByTestId("focused-placement").textContent;
+
+    await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+    await userEvent.click(screen.getByRole("button", { name: "back to marketplace" }));
+
+    expect(flow.actions.clearSelection).toHaveBeenCalledWith(focusedPlacementId);
+  });
+
+  it("closes the review modal when it is dismissed via Back", async () => {
+    setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes });
+
+    await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+    await userEvent.click(screen.getByRole("button", { name: "back to marketplace" }));
+
+    expect(screen.queryByRole("button", { name: "back to marketplace" })).not.toBeInTheDocument();
+  });
+
   function setup(input: {
     initialSdl: string | undefined;
     initialName?: string;
@@ -307,6 +326,13 @@ describe(ConfigureDeploymentForm.name, () => {
     const requestQuotes = vi.fn();
     const retryTrial = vi.fn();
     const setDeploymentName = vi.fn();
+    const ReviewAndDeployModal = vi.fn((props: { open: boolean; onBack: () => void }) =>
+      props.open ? (
+        <button type="button" onClick={props.onBack}>
+          back to marketplace
+        </button>
+      ) : null
+    );
     const useConfigureDraft = vi.fn(() =>
       mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({ draftId: input.draftId ?? "draft-1", persistedSdl: undefined, save, clear })
     );
@@ -316,6 +342,7 @@ describe(ConfigureDeploymentForm.name, () => {
       phase: "configuring",
       dseq: null,
       bidStrategy: "select",
+      selections: {},
       deploySucceeded: input.deploySucceeded ?? false,
       error: input.flowError,
       actions: mock<DeploymentFlow["actions"]>({ requestQuotes })
@@ -329,7 +356,7 @@ describe(ConfigureDeploymentForm.name, () => {
       useDeploymentName,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       Snackbar: Snackbar as never,
-      ReviewAndDeployModal: () => null,
+      ReviewAndDeployModal: ReviewAndDeployModal as never,
       DeployProgressOverlay: () => null,
       usePlacementsWithBids: () => new Set<string>()
     };
@@ -346,7 +373,7 @@ describe(ConfigureDeploymentForm.name, () => {
       />
     );
 
-    return { ConfigureDeploymentPanes, ConfigureDeploymentHeader, enqueueSnackbar, save, clear, requestQuotes, retryTrial };
+    return { ConfigureDeploymentPanes, ConfigureDeploymentHeader, ReviewAndDeployModal, flow, enqueueSnackbar, save, clear, requestQuotes, retryTrial };
   }
 });
 
@@ -402,6 +429,24 @@ interface ProbePanesProps {
   sdl: string;
   selectedServiceId: string;
   onSelectService: (serviceId: string) => void;
+  selectedPlacementId: string;
+  onSelectProvider: (placementId: string, bidId: string) => void;
+}
+
+/**
+ * Panes stand-in that selects a provider for the focused placement, mirroring the marketplace click that
+ * auto-opens the review modal once every placement is chosen. Exposes the focused placement id so the
+ * deselect-on-back behavior can be asserted against the exact placement the modal was opened for.
+ */
+function ProviderSelectProbePanes({ selectedPlacementId, onSelectProvider }: ProbePanesProps) {
+  return (
+    <div>
+      <div data-testid="focused-placement">{selectedPlacementId}</div>
+      <button type="button" onClick={() => onSelectProvider(selectedPlacementId, "bid-1")}>
+        select provider
+      </button>
+    </div>
+  );
 }
 
 /**

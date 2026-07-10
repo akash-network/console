@@ -216,6 +216,16 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     }
   }
 
+  /**
+   * Closing the review modal via Back drops the provider chosen for the placement currently in focus — the one
+   * whose selection auto-opened the modal — so the user lands back on the marketplace with it deselected and ready
+   * to re-pick, rather than staring at an already-selected placement with no obvious way forward.
+   */
+  function closeReviewAndDeselect() {
+    flow.actions.clearSelection(selectedPlacement.id);
+    setReviewOpen(false);
+  }
+
   const requestQuotes = flow.actions.requestQuotes;
   /**
    * A terminal start-trial error is sticky, so requesting quotes again after one would otherwise fail straight
@@ -273,7 +283,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
           dseq={flow.dseq}
           placements={placements}
           selections={flow.selections}
-          onBack={() => setReviewOpen(false)}
+          onBack={closeReviewAndDeselect}
           onConfirm={() => {
             setReviewOpen(false);
             flow.actions.deploy(liveSdl);
