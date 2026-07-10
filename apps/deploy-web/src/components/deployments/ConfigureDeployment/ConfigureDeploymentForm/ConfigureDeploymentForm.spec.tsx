@@ -350,6 +350,7 @@ describe(ConfigureDeploymentForm.name, () => {
     const dependencies: typeof DEPENDENCIES = {
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
+      ConfigureDeploymentBackButton: vi.fn(() => <div data-testid="back-button-mock" />),
       ConfigureDeploymentHeader,
       ConfigureDeploymentPanes: ConfigureDeploymentPanes as never,
       useConfigureDraft: useConfigureDraft as never,

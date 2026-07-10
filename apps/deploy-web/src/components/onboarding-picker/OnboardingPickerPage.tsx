@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
 import { DeploymentTemplatePickerCard } from "@src/components/deployments/DeploymentTemplatePickerCard/DeploymentTemplatePickerCard";
 import { AkashConsoleLogo } from "@src/components/icons/AkashConsoleLogo";
+import { AccountMenu } from "@src/components/layout/AccountMenu";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
@@ -34,6 +35,7 @@ export const DEPENDENCIES = {
   useServices,
   DeploymentTemplatePickerCard,
   AddCreditsSheet,
+  AccountMenu,
   Button
 };
 
@@ -64,8 +66,9 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
       </Head>
       <div className="flex min-h-screen flex-col bg-white dark:bg-black">
         <header className="relative flex items-center justify-between border-b border-border">
-          <div className="flex h-14 items-center justify-between pl-4 pr-4">
+          <div className="flex h-14 w-full items-center justify-between pl-4 pr-4">
             <AkashConsoleLogo />
+            <d.AccountMenu minimal />
           </div>
         </header>
 
