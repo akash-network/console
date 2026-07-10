@@ -1,5 +1,5 @@
 import React from "react";
-import { isToday } from "date-fns";
+import { isToday, parseISO } from "date-fns";
 import { GraphDown, GraphUp } from "iconoir-react";
 
 const COMPONENTS = {
@@ -41,7 +41,8 @@ export const TrendIndicator = <Field extends string & Keys<Data>, Data extends H
     if (firstValue === 0) return null;
 
     const percentageChange = ((lastValue - firstValue) / firstValue) * 100;
-    const isCurrentDay = isToday(new Date(lastItem.date));
+    // parseISO reads date-only strings (YYYY-MM-DD) as local time; native Date() treats them as UTC and misfires isToday west of UTC
+    const isCurrentDay = isToday(parseISO(lastItem.date));
 
     return {
       change: Math.round(percentageChange * 100) / 100,
