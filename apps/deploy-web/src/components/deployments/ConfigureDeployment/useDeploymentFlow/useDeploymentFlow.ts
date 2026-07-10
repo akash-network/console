@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/router";
 
 import { useServices } from "@src/context/ServicesProvider";
+import { QueryKeys } from "@src/queries/queryKeys";
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
 import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
 import { ManifestYaml } from "@src/utils/deploymentData/helpers";
@@ -100,6 +102,7 @@ export const DEPENDENCIES = {
   useUpdateDeployment,
   useListBids,
   useRouter,
+  useQueryClient,
   useDeploymentLocalStorage,
   manifestFromSdl
 };
@@ -119,6 +122,7 @@ export function useDeploymentFlow(
   const closeDeployment = dependencies.useCloseDeployment();
   const createLease = dependencies.useCreateLease();
   const updateDeployment = dependencies.useUpdateDeployment();
+  const queryClient = dependencies.useQueryClient();
   const deploymentLocalStorage = dependencies.useDeploymentLocalStorage();
 
   const [phase, setPhase] = useState<DeploymentFlowPhase>(intent.dseq ? "quoting" : "configuring");
@@ -304,7 +308,13 @@ export function useDeploymentFlow(
       setDeploySucceeded(false);
       setPhase("deploying");
       function completeDeploy(result: { data: { deployment: { id: { owner: string } } } }) {
-        cacheDeployedSdl(deploymentLocalStorage, result.data.deployment.id.owner, activeDseq, sdl);
+        const owner = result.data.deployment.id.owner;
+        cacheDeployedSdl(deploymentLocalStorage, owner, activeDseq, sdl);
+        // The onboarding gate decides "onboarded" from the leases cache, which was populated empty before this
+        // first deploy. Refresh it (and the deployment list) so a client-side nav to /deployments doesn't read a
+        // stale empty cache and bounce the user back to onboarding until a full page reload.
+        queryClient.invalidateQueries({ queryKey: QueryKeys.getAllLeasesKey(owner) });
+        queryClient.invalidateQueries({ queryKey: QueryKeys.getDeploymentListKey(owner) });
         setDeploySucceeded(true);
         redirectTimerRef.current = setTimeout(function redirectToDeployment() {
           router.replace(UrlService.deploymentDetails(activeDseq, "EVENTS", "events"));
@@ -326,7 +336,7 @@ export function useDeploymentFlow(
         sendManifestAndLease();
       }
     },
-    [createLease, updateDeployment, dseq, manifest, selections, router, dependencies, deploymentLocalStorage]
+    [createLease, updateDeployment, dseq, manifest, selections, router, dependencies, deploymentLocalStorage, queryClient]
   );
 
   return {
