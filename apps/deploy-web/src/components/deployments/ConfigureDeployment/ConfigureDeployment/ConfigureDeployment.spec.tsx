@@ -135,7 +135,7 @@ describe(ConfigureDeployment.name, () => {
       NextSeo: vi.fn(() => null) as never,
       AutoDeployFlow: vi.fn(() => null) as never,
       ConfigureDeploymentForm: ConfigureDeploymentForm as never,
-      RedirectIfLeased: vi.fn(({ children }) => <>{children}</>) as never,
+      ResumeDeploymentGuard: vi.fn(({ children }) => <>{children({ activeLeases: [] })}</>) as never,
       usePublicTemplate: usePublicTemplate as never,
       useConfigureDraft: useConfigureDraft as never,
       useSearchParams: () => params as unknown as ReadonlyURLSearchParams,

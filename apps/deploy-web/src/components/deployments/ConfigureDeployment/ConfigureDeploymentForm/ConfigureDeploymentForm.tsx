@@ -34,6 +34,7 @@ export const DEPENDENCIES = {
   ConfigureDeploymentHeader,
   ConfigureDeploymentPanes,
   ReviewAndDeployModal,
+  DeployProgressOverlay,
   useConfigureDraft,
   useDeploymentFlow,
   useDeploymentName,
@@ -259,7 +260,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
             />
           </div>
           {flow.phase === "deploying" && (
-            <DeployProgressOverlay
+            <d.DeployProgressOverlay
               providerAddress={firstSelectedProviderAddress(flow.selections)}
               activePhase={flow.deploySucceeded ? "success" : "preparing"}
               deploymentName={deploymentName}

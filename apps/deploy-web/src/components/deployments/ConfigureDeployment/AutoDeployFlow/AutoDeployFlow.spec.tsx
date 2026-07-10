@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ResumeResolution } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
 import type { DEPENDENCIES } from "./AutoDeployFlow";
 import { AutoDeployFlow } from "./AutoDeployFlow";
 
@@ -31,8 +32,17 @@ describe(AutoDeployFlow.name, () => {
       trialError,
       initialDseq: "555",
       templateId: "hello-world",
-      draftId: "d1"
+      draftId: "d1",
+      resumeLeases: []
     });
+  });
+
+  it("forwards the guard's resolved live leases to the flow so it can re-send the manifest", () => {
+    const useAutoDeploymentFlow = vi.fn(() => buildFlow());
+    const activeLeases = [{ dseq: "555", gseq: 1, oseq: 2, provider: "akash1provider" }];
+    setup({ resume: { activeLeases }, useAutoDeploymentFlow });
+
+    expect(useAutoDeploymentFlow).toHaveBeenCalledWith(expect.objectContaining({ resumeLeases: activeLeases }));
   });
 
   it("passes the flow state and template name through to the progress scene", () => {
@@ -116,6 +126,7 @@ describe(AutoDeployFlow.name, () => {
       templateId?: string;
       dseq?: string;
       draftId?: string;
+      resume?: ResumeResolution;
       trial?: { isWalletReady?: boolean; error?: unknown; retryTrial?: () => void };
       contactSupportUrl?: string;
       flow?: Partial<FlowResult>;
@@ -147,6 +158,7 @@ describe(AutoDeployFlow.name, () => {
         templateId={input.templateId}
         dseq={input.dseq}
         draftId={input.draftId}
+        resume={input.resume ?? { activeLeases: [] }}
         dependencies={{
           Layout: ComponentMock,
           PhasedDeployProgressScene,

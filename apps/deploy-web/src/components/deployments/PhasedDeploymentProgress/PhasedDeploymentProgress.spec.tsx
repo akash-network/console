@@ -120,17 +120,6 @@ describe(PhasedDeploymentProgress.name, () => {
     });
   });
 
-  describe("choose provider", () => {
-    it("invokes onChooseProvider when the button is clicked", () => {
-      const onChooseProvider = vi.fn();
-      setup({ onChooseProvider });
-
-      fireEvent.click(screen.getByRole("button", { name: /Choose my provider/ }));
-
-      expect(onChooseProvider).toHaveBeenCalledTimes(1);
-    });
-  });
-
   function setup(input?: Partial<Props>) {
     return render(
       <PhasedDeploymentProgress

@@ -7,6 +7,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useAutoDeploymentFlow } from "@src/hooks/useAutoDeploymentFlow/useAutoDeploymentFlow";
 import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
 import { PhasedDeployProgressScene } from "../DeployProgressOverlay/PhasedDeployProgressScene";
+import type { ResumeResolution } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
 
 export const DEPENDENCIES = {
   Layout,
@@ -27,6 +28,8 @@ type Props = {
   dseq?: string;
   /** The active configure draft id, preserved in the URL when the created dseq is written so a reload resolves the same session. */
   draftId?: string;
+  /** The resume resolution from the {@link ResumeDeploymentGuard}: any live leases to reconstruct so the manifest re-sends. */
+  resume: ResumeResolution;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -43,7 +46,7 @@ type Props = {
  * preparing if a lease already exists — instead of creating a new one. Deploy-success navigation is likewise owned
  * by that flow's built-in redirect.
  */
-export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, templateId, dseq, draftId, dependencies: d = DEPENDENCIES }) => {
+export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, templateId, dseq, draftId, resume, dependencies: d = DEPENDENCIES }) => {
   const { isWalletReady, error: trialError, retryTrial } = d.useEnsureTrialStarted();
   const { publicConfig } = d.useServices();
   const { state, progressPercent, phases, matchedProviderAddress, tryAgain } = d.useAutoDeploymentFlow({
@@ -52,7 +55,8 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, templateId, dseq,
     trialError,
     initialDseq: dseq,
     templateId,
-    draftId
+    draftId,
+    resumeLeases: resume.activeLeases
   });
 
   /**
