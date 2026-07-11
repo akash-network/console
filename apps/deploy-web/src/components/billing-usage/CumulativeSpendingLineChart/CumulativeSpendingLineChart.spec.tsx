@@ -59,7 +59,11 @@ describe(CumulativeSpendingLineChart.name, () => {
     try {
       return fn();
     } finally {
-      process.env.TZ = original;
+      if (original === undefined) {
+        delete process.env.TZ;
+      } else {
+        process.env.TZ = original;
+      }
     }
   }
 
