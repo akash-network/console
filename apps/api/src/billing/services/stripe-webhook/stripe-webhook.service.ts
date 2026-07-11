@@ -246,7 +246,16 @@ export class StripeWebhookService {
       stripePaymentIntentId: params.stripePaymentIntentId
     });
 
-    await this.refillService.topUpWallet(params.paymentAmount, params.userId, { endTrial: params.endTrial });
+    await this.refillService.topUpWallet(params.paymentAmount, params.userId, {
+      endTrial: params.endTrial,
+      payment: {
+        currency: transaction.currency,
+        cardBrand: params.cardBrand,
+        paymentMethodType: params.paymentMethodType,
+        transactionId: transaction.id,
+        source: transaction.type
+      }
+    });
   }
 
   @WithTransaction()
@@ -343,7 +352,10 @@ export class StripeWebhookService {
       ...(isFullyRefunded ? { status: "refunded" } : {})
     });
 
-    await this.refillService.reduceWalletBalance(refundedAmount, user.id);
+    await this.refillService.reduceWalletBalance(refundedAmount, user.id, {
+      currency: transaction.currency,
+      transactionId: transaction.id
+    });
 
     this.logger.info({
       event: "CHARGE_REFUNDED",

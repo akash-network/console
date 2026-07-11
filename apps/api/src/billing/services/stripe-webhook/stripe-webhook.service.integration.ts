@@ -58,7 +58,16 @@ describe(StripeWebhookService.name, () => {
         receiptUrl: "https://receipt.url",
         stripePaymentIntentId: paymentIntentId
       });
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, { endTrial: undefined });
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, {
+        endTrial: undefined,
+        payment: {
+          currency: internalTransaction.currency,
+          cardBrand: "visa",
+          paymentMethodType: "card",
+          transactionId: internalTransaction.id,
+          source: "payment_intent"
+        }
+      });
     });
 
     it("returns early when customer ID is missing", async () => {
@@ -149,7 +158,16 @@ describe(StripeWebhookService.name, () => {
       await service.tryToTopUpWalletFromPaymentIntent(event);
 
       expect(stripeTransactionRepository.findById).toHaveBeenCalledWith(internalTransaction.id);
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, { endTrial: undefined });
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, {
+        endTrial: undefined,
+        payment: {
+          currency: internalTransaction.currency,
+          cardBrand: undefined,
+          paymentMethodType: undefined,
+          transactionId: internalTransaction.id,
+          source: "payment_intent"
+        }
+      });
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(
         "tx-123",
         expect.objectContaining({
@@ -222,7 +240,16 @@ describe(StripeWebhookService.name, () => {
         stripePaymentIntentId: paymentIntentId
       });
       // Coupon invoices leave endTrial undefined so RefillService's default (true) ends the trial, like a card purchase.
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(transactionAmount, mockUser.id, { endTrial: undefined });
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(transactionAmount, mockUser.id, {
+        endTrial: undefined,
+        payment: {
+          currency: internalTransaction.currency,
+          cardBrand: "mastercard",
+          paymentMethodType: undefined,
+          transactionId: internalTransaction.id,
+          source: "coupon_claim"
+        }
+      });
     });
 
     it("returns early when customer ID is missing", async () => {
@@ -330,7 +357,16 @@ describe(StripeWebhookService.name, () => {
         receiptUrl: undefined,
         stripePaymentIntentId: undefined
       });
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(transactionAmount, mockUser.id, { endTrial: undefined });
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(transactionAmount, mockUser.id, {
+        endTrial: undefined,
+        payment: {
+          currency: internalTransaction.currency,
+          cardBrand: undefined,
+          paymentMethodType: undefined,
+          transactionId: internalTransaction.id,
+          source: "coupon_claim"
+        }
+      });
     });
   });
 
@@ -417,7 +453,7 @@ describe(StripeWebhookService.name, () => {
       expect(userRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: mockUser.stripeCustomerId });
       expect(stripeTransactionRepository.findByChargeId).toHaveBeenCalledWith(chargeId);
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: refundedAmount, status: "refunded" });
-      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(refundedAmount, mockUser.id);
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(refundedAmount, mockUser.id, { currency: "usd", transactionId });
     });
 
     it("calculates refund delta correctly for partial refunds", async () => {
@@ -443,7 +479,7 @@ describe(StripeWebhookService.name, () => {
       await service.handleChargeRefunded(event);
 
       // Uses delta (8000 - 3000 = 5000), not cumulative (8000)
-      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(5000, mockUser.id);
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(5000, mockUser.id, { currency: "usd", transactionId });
       // Updates amountRefunded but not status since not fully refunded
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: 8000 });
     });
