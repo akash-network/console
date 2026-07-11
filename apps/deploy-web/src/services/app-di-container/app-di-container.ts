@@ -7,6 +7,7 @@ import {
   DeploymentSettingHttpService,
   isHttpError,
   ManagedDeploymentHttpService,
+  ManagedWalletHttpService,
   StripeService as HttpStripeService,
   TemplateHttpService,
   TxHttpService,
@@ -27,7 +28,6 @@ import type { ApiUrlService } from "../api-url/api-url.service";
 import { withUserToken } from "../auth/auth/interceptors";
 import { createContainer } from "../container/createContainer";
 import { ErrorHandlerService } from "../error-handler/error-handler.service";
-import { ManagedWalletHttpService } from "../managed-wallet-http/managed-wallet-http.service";
 import { ProviderProxyService } from "../provider-proxy/provider-proxy.service";
 import { StripeService } from "../stripe/stripe.service";
 import { UserTracker } from "../user-tracker/user-tracker.service";
@@ -158,7 +158,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
           }
         ]
       });
-      return new ManagedWalletHttpService(httpClient, container.analyticsService);
+      return new ManagedWalletHttpService(httpClient);
     },
     queryClient: () =>
       new QueryClient({
