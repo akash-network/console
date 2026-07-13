@@ -5,7 +5,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Alert,
   AlertDescription,
-  AlertTitle,
   Button,
   Label,
   Select,
@@ -17,12 +16,12 @@ import {
   Spinner
 } from "@akashnetwork/ui/components";
 import { useQueryClient } from "@tanstack/react-query";
-import { GiftIcon } from "lucide-react";
 
 import type { AddCreditsAmountValue } from "@src/components/billing-usage/AddCreditsAmountFields/AddCreditsAmountFields";
 import { AddCreditsAmountFields } from "@src/components/billing-usage/AddCreditsAmountFields/AddCreditsAmountFields";
 import type { PaymentMethodSourceHandle } from "@src/components/billing-usage/AddCreditsNewPaymentMethodFields/AddCreditsNewPaymentMethodFields";
 import { AddCreditsNewPaymentMethodFields } from "@src/components/billing-usage/AddCreditsNewPaymentMethodFields/AddCreditsNewPaymentMethodFields";
+import { FirstPurchaseBonusAlert } from "@src/components/billing-usage/FirstPurchaseBonusAlert/FirstPurchaseBonusAlert";
 import { getPaymentMethodDisplay } from "@src/components/shared/PaymentMethodCard/PaymentMethodCard";
 import { ThreeDSecurePopup } from "@src/components/shared/PaymentMethodForm/ThreeDSecurePopup";
 import { usePaymentPolling } from "@src/context/PaymentPollingProvider";
@@ -38,6 +37,7 @@ const NEW_CARD = "new";
 export const DEPENDENCIES = {
   AddCreditsAmountFields,
   AddCreditsNewPaymentMethodFields,
+  FirstPurchaseBonusAlert,
   ThreeDSecurePopup,
   Label,
   Select,
@@ -283,13 +283,7 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
 
   return (
     <>
-      {isTrialing && (
-        <Alert variant="default" className="bg-blue-50 p-3 dark:bg-blue-950">
-          <GiftIcon className="h-4 w-4" />
-          <AlertTitle className="text-sm font-medium">First-purchase match.</AlertTitle>
-          <AlertDescription className="text-muted-foreground">Akash matches your first purchase dollar-dollar, up to $100.</AlertDescription>
-        </Alert>
-      )}
+      <d.FirstPurchaseBonusAlert amount={amount} />
 
       <form className="space-y-6" onSubmit={submit}>
         <d.AddCreditsAmountFields value={amountInput} onChange={setAmountInput} minAmount={topUpMinAmountUsd} error={amountError} />

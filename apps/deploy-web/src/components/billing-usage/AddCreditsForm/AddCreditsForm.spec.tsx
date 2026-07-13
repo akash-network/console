@@ -27,16 +27,14 @@ describe(AddCreditsForm.name, () => {
     expect(mutate).not.toHaveBeenCalled();
   });
 
-  it("renders the first-purchase match alert while trialing", () => {
-    setup({ status: "idle", isTrialing: true });
-
-    expect(screen.getByText(/first-purchase match/i)).toBeInTheDocument();
-  });
-
-  it("hides the first-purchase match alert when not trialing", () => {
+  it("renders the first-purchase bonus alert with the entered amount regardless of trial state", () => {
     setup({ status: "idle" });
 
-    expect(screen.queryByText(/first-purchase match/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId("first-purchase-bonus-alert")).toHaveTextContent("0");
+
+    fireEvent.click(screen.getByRole("radio", { name: /100/i }));
+
+    expect(screen.getByTestId("first-purchase-bonus-alert")).toHaveTextContent("100");
   });
 
   it("pre-selects the default saved payment method", () => {
@@ -650,6 +648,7 @@ describe(AddCreditsForm.name, () => {
         dependencies={{
           AddCreditsAmountFields,
           AddCreditsNewPaymentMethodFields: makePaymentMethodFieldsMock().Mock,
+          FirstPurchaseBonusAlert: ({ amount }) => <div data-testid="first-purchase-bonus-alert">{amount}</div>,
           ThreeDSecurePopup: () => null,
           Label: MockLabel,
           Select: MockSelect,
