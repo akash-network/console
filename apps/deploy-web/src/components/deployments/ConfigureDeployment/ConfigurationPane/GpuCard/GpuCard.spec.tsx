@@ -129,10 +129,11 @@ describe(GpuCard.name, () => {
     expect(getValues().services[0].profile.gpuModels?.[0]).toEqual({ vendor: "amd", name: "", memory: "", interface: "" });
   });
 
-  it("clears the model along with memory and interface", async () => {
+  it("clears the model along with memory and interface when Any model is picked", async () => {
     const { getValues, user } = setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "a100", memory: "40Gi", interface: "pcie" }] });
 
-    await user.click(screen.getByRole("button", { name: "Clear GPU model" }));
+    await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+    await user.click(await screen.findByRole("option", { name: "Any model" }));
 
     expect(getValues().services[0].profile.gpuModels?.[0]).toMatchObject({ vendor: "nvidia", name: "", memory: "", interface: "" });
   });
@@ -142,9 +143,54 @@ describe(GpuCard.name, () => {
 
     expect(screen.getByRole("combobox", { name: "GPU model" })).toHaveTextContent("a100");
 
-    await user.click(screen.getByRole("button", { name: "Clear GPU model" }));
+    await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+    await user.click(await screen.findByRole("option", { name: "Any model" }));
 
     expect(screen.getByRole("combobox", { name: "GPU model" })).not.toHaveTextContent("a100");
+  });
+
+  it("orders the model options by GPU priority", async () => {
+    const { user } = setup({
+      hasGpu: true,
+      gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }],
+      vendors: [
+        {
+          name: "nvidia",
+          models: [
+            { name: "t4", memory: ["16Gi"], interface: ["pcie"] },
+            { name: "a100", memory: ["80Gi"], interface: ["sxm"] },
+            { name: "h100", memory: ["80Gi"], interface: ["sxm"] }
+          ]
+        }
+      ]
+    });
+
+    await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+    const optionNames = (await screen.findAllByRole("option")).map(option => option.textContent);
+    expect(optionNames).toEqual(["Any model", "h100", "a100", "t4"]);
+  });
+
+  it("filters the model options by the search box", async () => {
+    const { user } = setup({
+      hasGpu: true,
+      gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }],
+      vendors: [
+        {
+          name: "nvidia",
+          models: [
+            { name: "h100", memory: ["80Gi"], interface: ["sxm"] },
+            { name: "t4", memory: ["16Gi"], interface: ["pcie"] }
+          ]
+        }
+      ]
+    });
+
+    await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+    await user.type(await screen.findByRole("combobox", { name: "Search GPU models" }), "h1");
+
+    expect(screen.getByRole("option", { name: "h100" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "t4" })).not.toBeInTheDocument();
   });
 
   it("clears only the memory when the memory clear button is clicked", async () => {
@@ -166,7 +212,6 @@ describe(GpuCard.name, () => {
   it("does not offer clear buttons while the fields are empty", () => {
     setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] });
 
-    expect(screen.queryByRole("button", { name: "Clear GPU model" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Clear GPU memory" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Clear GPU interface" })).not.toBeInTheDocument();
   });
@@ -222,6 +267,7 @@ describe(GpuCard.name, () => {
     gpu?: number;
     hasGpu?: boolean;
     gpuModels?: SdlBuilderFormValuesType["services"][number]["profile"]["gpuModels"];
+    vendors?: GpuVendor[];
     gpuError?: string;
     isLoading?: boolean;
     isError?: boolean;
@@ -241,7 +287,7 @@ describe(GpuCard.name, () => {
     });
 
     const gpuModelsResult = mock<ReturnType<typeof DEPENDENCIES.useGpuModels>>({
-      data: input.isLoading || input.isError ? undefined : GPU_VENDORS,
+      data: input.isLoading || input.isError ? undefined : input.vendors ?? GPU_VENDORS,
       isLoading: input.isLoading ?? false,
       isError: input.isError ?? false
     } as Partial<ReturnType<typeof DEPENDENCIES.useGpuModels>>);

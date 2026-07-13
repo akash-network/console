@@ -19,10 +19,11 @@ import {
 } from "@akashnetwork/ui/components";
 import { GpuIcon, LockIcon, PlusIcon, TrashIcon, XIcon } from "lucide-react";
 
+import { SearchableSelect } from "@src/components/shared/SearchableSelect/SearchableSelect";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
-import { gpuVendors as fallbackVendors } from "@src/utils/akash/gpu";
+import { gpuVendors as fallbackVendors, prioritizeGpuModels } from "@src/utils/akash/gpu";
 import { validationConfig } from "@src/utils/akash/units";
 import { defaultGpuModel } from "@src/utils/sdl/data";
 import { gpuTooltip } from "../cardTooltips";
@@ -136,7 +137,11 @@ export const GpuCard: FC<Props> = ({ serviceIndex, locked = false, isBlockedMode
   );
 };
 
-const GpuCountField: FC<{ serviceIndex: number; locked?: boolean; dependencies: typeof DEPENDENCIES }> = ({ serviceIndex, locked = false, dependencies: d }) => {
+const GpuCountField: FC<{ serviceIndex: number; locked?: boolean; dependencies: typeof DEPENDENCIES }> = ({
+  serviceIndex,
+  locked = false,
+  dependencies: d
+}) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const { error: gpuError } = d.useFieldError(`services.${serviceIndex}.profile.gpu`);
   const errorId = useId();
@@ -229,6 +234,35 @@ function GpuModelFields({ serviceIndex, gpuIndex, gpuVendors, isLoading, isError
     setValue(`${basePath}.interface`, "", { shouldValidate: true, shouldDirty: true });
   }, [name.field, setValue, basePath]);
 
+  const selectModel = useCallback(
+    (value: string) => {
+      if (value) {
+        selectGpuModel(value);
+      } else {
+        clearModel();
+      }
+    },
+    [selectGpuModel, clearModel]
+  );
+
+  const modelOptions = useMemo(
+    () =>
+      prioritizeGpuModels(models).map(model => {
+        const blocked = isBlockedModel(vendor.field.value, model.name);
+        return {
+          value: model.name,
+          disabled: blocked,
+          label: (
+            <span className="flex items-center gap-1.5">
+              {model.name}
+              {blocked && <LockIcon className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Requires credits" />}
+            </span>
+          )
+        };
+      }),
+    [models, isBlockedModel, vendor.field.value]
+  );
+
   return (
     <div role="group" aria-label={`GPU ${gpuIndex + 1}`} className="flex flex-col gap-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
       <div className="flex items-center justify-between">
@@ -270,26 +304,18 @@ function GpuModelFields({ serviceIndex, gpuIndex, gpuVendors, isLoading, isError
           <Field className="gap-2">
             <FieldLabel>Model</FieldLabel>
             <FieldContent>
-              <ClearableSelect clearLabel="Clear GPU model" onClear={!locked && name.field.value ? clearModel : undefined}>
-                <Select value={name.field.value || ""} onValueChange={selectGpuModel} disabled={locked || models.length === 0}>
-                  <SelectTrigger aria-label="GPU model" className={`h-9 ${SELECT_TRUNCATE_VALUE}`}>
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {models.map(model => {
-                      const blocked = isBlockedModel(vendor.field.value, model.name);
-                      return (
-                        <SelectItem key={model.name} value={model.name} disabled={blocked}>
-                          <span className="flex items-center gap-1.5">
-                            {model.name}
-                            {blocked && <LockIcon className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Requires credits" />}
-                          </span>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </ClearableSelect>
+              <SearchableSelect
+                value={name.field.value || ""}
+                onChange={selectModel}
+                options={modelOptions}
+                ariaLabel="GPU model"
+                searchLabel="Search GPU models"
+                searchPlaceholder="Search models..."
+                notFoundMessage="No models found."
+                emptyOption={{ value: "", label: "Any model" }}
+                disabled={locked || models.length === 0}
+                triggerClassName="h-9"
+              />
             </FieldContent>
           </Field>
 
@@ -316,7 +342,10 @@ function GpuModelFields({ serviceIndex, gpuIndex, gpuVendors, isLoading, isError
           <Field className="gap-2">
             <FieldLabel>Interface</FieldLabel>
             <FieldContent>
-              <ClearableSelect clearLabel="Clear GPU interface" onClear={!locked && gpuInterface.field.value ? () => gpuInterface.field.onChange("") : undefined}>
+              <ClearableSelect
+                clearLabel="Clear GPU interface"
+                onClear={!locked && gpuInterface.field.value ? () => gpuInterface.field.onChange("") : undefined}
+              >
                 <Select value={gpuInterface.field.value || ""} onValueChange={gpuInterface.field.onChange} disabled={locked || !selectedModel}>
                   <SelectTrigger aria-label="GPU interface" className={`h-9 ${SELECT_TRUNCATE_VALUE}`}>
                     <SelectValue placeholder="Select" />

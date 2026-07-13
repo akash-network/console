@@ -7,7 +7,7 @@ import type { SdlBuilderFormValuesType } from "@src/types";
 import type { ApiProviderRegion } from "@src/types/provider";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import type { DEPENDENCIES } from "./RegionSelect";
-import { filterRegions, RegionSelect } from "./RegionSelect";
+import { RegionSelect } from "./RegionSelect";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 
@@ -18,25 +18,9 @@ const REGIONS: ApiProviderRegion[] = [
 ];
 
 describe("RegionSelect", () => {
-  describe("filterRegions", () => {
-    it("returns all regions for an empty or whitespace query", () => {
-      expect(filterRegions(REGIONS, "")).toEqual(REGIONS);
-      expect(filterRegions(REGIONS, "   ")).toEqual(REGIONS);
-    });
-
-    it("matches case-insensitive substrings of the visible key", () => {
-      expect(filterRegions(REGIONS, "EU")).toEqual([REGIONS[0], REGIONS[1]]);
-    });
-
-    it("ignores text that only appears in the hidden description", () => {
-      expect(filterRegions(REGIONS, "europe")).toEqual([]);
-      expect(filterRegions(REGIONS, "america")).toEqual([]);
-    });
-  });
-
   it("writes the picked region, reflects it in the trigger, and resets the search", async () => {
     const { getValues } = setup({ regions: REGIONS });
-    const trigger = screen.getByRole("button", { name: "Region" });
+    const trigger = screen.getByRole("combobox", { name: "Region" });
 
     fireEvent.click(trigger);
     fireEvent.change(await screen.findByRole("combobox", { name: "Search regions" }), { target: { value: "na" } });
@@ -51,7 +35,7 @@ describe("RegionSelect", () => {
 
   it("clears the region and shows Any region in the trigger when Any region is picked", async () => {
     const { getValues } = setup({ regions: REGIONS, region: "eu-west" });
-    const trigger = screen.getByRole("button", { name: "Region" });
+    const trigger = screen.getByRole("combobox", { name: "Region" });
 
     fireEvent.click(trigger);
     fireEvent.click(await screen.findByRole("option", { name: "Any region" }));
@@ -63,7 +47,7 @@ describe("RegionSelect", () => {
   it("filters by the visible key, ignores description text, keeps Any region, and restores on clear", async () => {
     setup({ regions: REGIONS });
 
-    fireEvent.click(screen.getByRole("button", { name: "Region" }));
+    fireEvent.click(screen.getByRole("combobox", { name: "Region" }));
     const input = await screen.findByRole("combobox", { name: "Search regions" });
 
     fireEvent.change(input, { target: { value: "eu" } });
