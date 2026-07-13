@@ -1,5 +1,7 @@
 import type { Page } from "@playwright/test";
 
+import { AddCreditsSheetPage } from "./AddCreditsSheetPage";
+
 export class BillingPage {
   constructor(readonly page: Page) {}
 
@@ -11,15 +13,10 @@ export class BillingPage {
     return this.page.locator('[aria-label="Available balance amount"]');
   }
 
-  getPayButton() {
-    return this.page.getByRole("button", { name: /^pay \$/i });
-  }
-
   async submitPayment(amount: string) {
-    const dialog = this.page.getByRole("dialog", { name: "Add Funds" });
-    await dialog.getByRole("combobox").click();
-    await this.page.getByRole("option").first().click();
-    await dialog.getByRole("spinbutton", { name: /amount/i }).fill(amount);
-    await this.getPayButton().click();
+    const sheet = new AddCreditsSheetPage(this.page);
+    await sheet.waitForOpen();
+    await sheet.getDialog().getByLabel("custom-amount").fill(amount);
+    await sheet.submit();
   }
 }

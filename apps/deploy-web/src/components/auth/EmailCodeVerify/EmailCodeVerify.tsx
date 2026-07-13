@@ -106,9 +106,9 @@ export function EmailCodeVerify({ dependencies: d = DEPENDENCIES, ...props }: Pr
         </p>
         <d.VerificationCodeInput ref={verifyInputRef} onComplete={code => verifyMutation.mutate({ code })} disabled={isBusy} />
         {isVerifying ? (
-          <p className="flex items-center gap-2 text-xs text-neutral-500">
+          <div className="flex items-center gap-2 text-xs text-neutral-500">
             <d.Spinner size="small" /> Verifying...
-          </p>
+          </div>
         ) : (
           <p className="text-xs text-neutral-500">Code expires in 10 minutes.</p>
         )}

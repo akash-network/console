@@ -1,7 +1,10 @@
-import React, { useImperativeHandle } from "react";
+import React, { useContext, useImperativeHandle } from "react";
+import type { PaymentMethod } from "@akashnetwork/http-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { getPaymentMethodDisplay } from "@src/components/shared/PaymentMethodCard/PaymentMethodCard";
+import { QueryKeys } from "@src/queries";
 import { AddCreditsAmountFields } from "../AddCreditsAmountFields/AddCreditsAmountFields";
 import type { PaymentMethodSourceHandle } from "../AddCreditsNewPaymentMethodFields/AddCreditsNewPaymentMethodFields";
 import type { DEPENDENCIES } from "./AddCreditsForm";
@@ -10,7 +13,7 @@ import { AddCreditsForm } from "./AddCreditsForm";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 describe(AddCreditsForm.name, () => {
-  it("creates a setup intent on mount", () => {
+  it("creates a setup intent on mount when the user has no saved payment methods", () => {
     const mutate = vi.fn();
     setup({ status: "idle", mutate });
 
@@ -24,10 +27,69 @@ describe(AddCreditsForm.name, () => {
     expect(mutate).not.toHaveBeenCalled();
   });
 
-  it("renders the first-purchase match alert", () => {
-    setup({ status: "idle" });
+  it("renders the first-purchase match alert while trialing", () => {
+    setup({ status: "idle", isTrialing: true });
 
     expect(screen.getByText(/first-purchase match/i)).toBeInTheDocument();
+  });
+
+  it("hides the first-purchase match alert when not trialing", () => {
+    setup({ status: "idle" });
+
+    expect(screen.queryByText(/first-purchase match/i)).not.toBeInTheDocument();
+  });
+
+  it("pre-selects the default saved payment method", () => {
+    setup({
+      status: "idle",
+      paymentMethods: [
+        paymentMethod({ id: "pm_1" }),
+        paymentMethod({ id: "pm_2", isDefault: true, card: { brand: "mastercard", last4: "1111", funding: "credit", exp_month: 3, exp_year: 2031 } })
+      ]
+    });
+
+    expect(screen.getByRole("button", { name: /1111/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /4242/ })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("does not create a setup intent while a saved method is selected", () => {
+    const mutate = vi.fn();
+    setup({ status: "idle", mutate, paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })] });
+
+    expect(mutate).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("new-payment-method-fields")).not.toBeInTheDocument();
+  });
+
+  it("switches to new-card entry and creates a setup intent when 'Add new payment method' is chosen", () => {
+    const mutate = vi.fn();
+    setup({ status: "idle", mutate, paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })] });
+
+    fireEvent.click(screen.getByRole("button", { name: /add new payment method/i }));
+
+    expect(mutate).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("new-payment-method-fields")).toBeInTheDocument();
+  });
+
+  it("charges the selected saved method without collecting a new card", async () => {
+    const confirmPayment = vi.fn().mockResolvedValue({ success: true });
+    const addPaymentMethod = vi.fn();
+    const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
+
+    setup({
+      status: "idle",
+      confirmPayment,
+      paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })],
+      dependencies: { AddCreditsNewPaymentMethodFields }
+    });
+
+    fireEvent.click(screen.getByRole("radio", { name: /100/i }));
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    expect(addPaymentMethod).not.toHaveBeenCalled();
+    expect(confirmPayment).toHaveBeenCalledWith({ userId: "user_1", paymentMethodId: "pm_saved", amount: 100 });
   });
 
   it("passes a loading flag to the payment-method fields while the setup intent is being prepared", () => {
@@ -277,6 +339,7 @@ describe(AddCreditsForm.name, () => {
 
     fireEvent.change(screen.getByLabelText(/custom-amount/i), { target: { value: "19" } });
 
+    expect(screen.getByRole("alert")).toHaveTextContent("Minimum amount is $20");
     expect(screen.getByRole("button", { name: /purchase credits/i })).toBeDisabled();
 
     await act(async () => {
@@ -285,6 +348,134 @@ describe(AddCreditsForm.name, () => {
 
     await waitFor(() => expect(addPaymentMethod).not.toHaveBeenCalled());
     expect(confirmPayment).not.toHaveBeenCalled();
+  });
+
+  it("validates against the wallet-provided minimum and clears the error once met", async () => {
+    const confirmPayment = vi.fn().mockResolvedValue({ success: true });
+
+    setup({
+      status: "idle",
+      topUpMinAmountUsd: 50,
+      confirmPayment,
+      paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })]
+    });
+
+    fireEvent.change(screen.getByLabelText(/custom-amount/i), { target: { value: "30" } });
+
+    expect(screen.getByText(/minimum 50/)).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Minimum amount is $50");
+    expect(screen.getByRole("button", { name: /purchase credits/i })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText(/custom-amount/i), { target: { value: "50" } });
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    expect(confirmPayment).toHaveBeenCalledWith({ userId: "user_1", paymentMethodId: "pm_saved", amount: 50 });
+  });
+
+  it("shows a notice and falls back to new-card entry when saved payment methods fail to load", () => {
+    setup({ status: "success", clientSecret: "seti_secret", isMethodsError: true });
+
+    expect(screen.getByText(/couldn't load your saved payment methods/i)).toBeInTheDocument();
+    expect(screen.getByTestId("new-payment-method-fields")).toBeInTheDocument();
+  });
+
+  it("shows no minimum error before any amount is entered", () => {
+    setup({ status: "success", clientSecret: "seti_secret", topUpMinAmountUsd: 100 });
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("does not re-confirm the setup intent when retrying after a failed charge", async () => {
+    const confirmPayment = vi.fn().mockRejectedValueOnce(new Error("declined")).mockResolvedValue({ success: true });
+    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_new" });
+    const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
+
+    setup({
+      status: "success",
+      clientSecret: "seti_secret",
+      confirmPayment,
+      dependencies: { AddCreditsNewPaymentMethodFields }
+    });
+
+    fireEvent.click(screen.getByRole("radio", { name: "50" }));
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    expect(await screen.findByText("fallback")).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    expect(addPaymentMethod).toHaveBeenCalledTimes(1);
+    expect(confirmPayment).toHaveBeenCalledTimes(2);
+    expect(confirmPayment).toHaveBeenLastCalledWith({ userId: "user_1", paymentMethodId: "pm_new", amount: 50 });
+  });
+
+  it("invalidates the payment methods query when a new-card charge fails", async () => {
+    const invalidateQueries = vi.fn();
+    const confirmPayment = vi.fn().mockRejectedValue(new Error("declined"));
+    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_new" });
+    const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
+
+    setup({
+      status: "success",
+      clientSecret: "seti_secret",
+      confirmPayment,
+      invalidateQueries,
+      dependencies: { AddCreditsNewPaymentMethodFields }
+    });
+
+    fireEvent.click(screen.getByRole("radio", { name: "50" }));
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: QueryKeys.getPaymentMethodsKey() });
+  });
+
+  it("recreates the setup intent when 'Add new payment method' is re-selected after a card was confirmed", async () => {
+    const reset = vi.fn();
+    const confirmPayment = vi.fn().mockRejectedValue(new Error("declined"));
+    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_new" });
+    const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
+
+    setup({
+      status: "success",
+      clientSecret: "seti_secret",
+      reset,
+      confirmPayment,
+      paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })],
+      dependencies: { AddCreditsNewPaymentMethodFields }
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /add new payment method/i }));
+    fireEvent.click(screen.getByRole("radio", { name: "50" }));
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    expect(addPaymentMethod).toHaveBeenCalledTimes(1);
+    expect(reset).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /add new payment method/i }));
+
+    expect(reset).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    expect(addPaymentMethod).toHaveBeenCalledTimes(2);
   });
 
   it("reports processing to the parent once a charge is underway", async () => {
@@ -318,12 +509,50 @@ describe(AddCreditsForm.name, () => {
     >(function MockPaymentMethodFields(props, ref) {
       propsLog.push(props);
       useImperativeHandle(ref, () => ({ addPaymentMethod }), [addPaymentMethod]);
-      return null;
+      return <div data-testid="new-payment-method-fields" />;
     });
 
     return {
       Mock,
       lastProps: () => propsLog.at(-1)
+    };
+  }
+
+  const MockSelectContext = React.createContext<{ value?: string; onValueChange?: (value: string) => void }>({});
+
+  const MockSelect: typeof DEPENDENCIES.Select = ({ children, value, onValueChange }) => (
+    <MockSelectContext.Provider value={{ value, onValueChange }}>{children}</MockSelectContext.Provider>
+  );
+  const MockSelectTrigger = React.forwardRef<HTMLButtonElement, { children?: React.ReactNode }>(function MockSelectTrigger({ children }) {
+    return <div>{children}</div>;
+  });
+  const MockSelectValue = React.forwardRef<HTMLSpanElement, object>(function MockSelectValue() {
+    return null;
+  });
+  const MockSelectContent = React.forwardRef<HTMLDivElement, { children?: React.ReactNode }>(function MockSelectContent({ children }) {
+    return <div>{children}</div>;
+  });
+  const MockSelectItem = React.forwardRef<HTMLDivElement, { children?: React.ReactNode; value: string }>(function MockSelectItem({ children, value }) {
+    const { value: selected, onValueChange } = useContext(MockSelectContext);
+    return (
+      <button type="button" aria-pressed={selected === value} onClick={() => onValueChange?.(value)}>
+        {children}
+      </button>
+    );
+  });
+  const MockLabel = React.forwardRef<HTMLLabelElement, { children?: React.ReactNode }>(function MockLabel({ children }) {
+    return <span>{children}</span>;
+  });
+
+  function paymentMethod(overrides?: Partial<PaymentMethod>): PaymentMethod {
+    return {
+      id: "pm_1",
+      type: "card",
+      created: 0,
+      validated: true,
+      isDefault: false,
+      card: { brand: "visa", last4: "4242", funding: "credit", exp_month: 12, exp_year: 2030 },
+      ...overrides
     };
   }
 
@@ -341,6 +570,9 @@ describe(AddCreditsForm.name, () => {
     status: ReturnType<typeof DEPENDENCIES.useSetupIntentMutation>["status"];
     clientSecret?: string;
     mutate?: ReturnType<typeof DEPENDENCIES.useSetupIntentMutation>["mutate"];
+    reset?: ReturnType<typeof DEPENDENCIES.useSetupIntentMutation>["reset"];
+    invalidateQueries?: ReturnType<typeof DEPENDENCIES.useQueryClient>["invalidateQueries"];
+    topUpMinAmountUsd?: number;
     confirmPayment?: ReturnType<typeof DEPENDENCIES.usePaymentMutations>["confirmPayment"]["mutateAsync"];
     pollForPayment?: ReturnType<typeof DEPENDENCIES.usePaymentPolling>["pollForPayment"];
     start3DSecure?: ReturnType<typeof DEPENDENCIES.use3DSecure>["start3DSecure"];
@@ -350,6 +582,9 @@ describe(AddCreditsForm.name, () => {
     isTrialing?: boolean;
     isPolling?: boolean;
     isWalletReady?: boolean;
+    paymentMethods?: PaymentMethod[];
+    isLoadingMethods?: boolean;
+    isMethodsError?: boolean;
     dependencies?: Partial<typeof DEPENDENCIES>;
   };
 
@@ -358,7 +593,7 @@ describe(AddCreditsForm.name, () => {
       ({
         data: input.clientSecret ? { clientSecret: input.clientSecret } : undefined,
         mutate: input.mutate ?? vi.fn(),
-        reset: vi.fn(),
+        reset: input.reset ?? vi.fn(),
         status: input.status
       }) as unknown as ReturnType<typeof DEPENDENCIES.useSetupIntentMutation>;
 
@@ -381,7 +616,20 @@ describe(AddCreditsForm.name, () => {
         isPolling: input.isPolling ?? false
       });
 
-    const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false });
+    const useWallet: typeof DEPENDENCIES.useWallet = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false, topUpMinAmountUsd: input.topUpMinAmountUsd ?? 20 });
+
+    const useQueryClient: typeof DEPENDENCIES.useQueryClient = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>({
+        invalidateQueries: input.invalidateQueries ?? vi.fn()
+      });
+
+    // UseQueryResult is a discriminated union that neither mock<T>() nor a partial literal can satisfy
+    const usePaymentMethodsQuery = (() => ({
+      data: input.isMethodsError ? undefined : input.paymentMethods ?? [],
+      isLoading: input.isLoadingMethods ?? false,
+      isError: input.isMethodsError ?? false
+    })) as unknown as typeof DEPENDENCIES.usePaymentMethodsQuery;
 
     const use3DSecure: typeof DEPENDENCIES.use3DSecure = () =>
       mock<ReturnType<typeof DEPENDENCIES.use3DSecure>>({
@@ -403,12 +651,22 @@ describe(AddCreditsForm.name, () => {
           AddCreditsAmountFields,
           AddCreditsNewPaymentMethodFields: makePaymentMethodFieldsMock().Mock,
           ThreeDSecurePopup: () => null,
+          Label: MockLabel,
+          Select: MockSelect,
+          SelectContent: MockSelectContent,
+          SelectItem: MockSelectItem,
+          SelectTrigger: MockSelectTrigger,
+          SelectValue: MockSelectValue,
+          Skeleton: () => <div data-testid="skeleton" />,
           useSetupIntentMutation,
           useUser,
+          usePaymentMethodsQuery,
           usePaymentMutations,
           usePaymentPolling,
+          useQueryClient,
           useWallet,
           use3DSecure,
+          getPaymentMethodDisplay,
           handleStripeError: input.handleStripeError ?? (() => ({ message: "fallback", userAction: undefined })),
           ...input.dependencies
         }}

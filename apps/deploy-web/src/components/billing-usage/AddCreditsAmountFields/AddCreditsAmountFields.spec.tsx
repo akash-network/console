@@ -22,9 +22,29 @@ describe(AddCreditsAmountFields.name, () => {
     expect(onChange).toHaveBeenCalledWith({ predefinedAmount: "", customAmount: "42" });
   });
 
-  function setup(input: { value: AddCreditsAmountValue }) {
+  it("renders the minimum in the custom amount label and input constraints", () => {
+    setup({ value: { predefinedAmount: "", customAmount: "" }, minAmount: 100 });
+
+    expect(screen.getByText(/minimum 100/)).toBeInTheDocument();
+    expect(screen.getByLabelText("custom-amount")).toHaveAttribute("min", "100");
+    expect(screen.getByLabelText("custom-amount")).toHaveAttribute("step", "0.01");
+  });
+
+  it("renders the inline validation error when provided", () => {
+    setup({ value: { predefinedAmount: "", customAmount: "5" }, error: "Minimum amount is $20" });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Minimum amount is $20");
+  });
+
+  it("renders no validation error by default", () => {
+    setup({ value: { predefinedAmount: "", customAmount: "50" } });
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  function setup(input: { value: AddCreditsAmountValue; minAmount?: number; error?: string }) {
     const onChange = vi.fn();
-    render(<AddCreditsAmountFields value={input.value} onChange={onChange} />);
+    render(<AddCreditsAmountFields value={input.value} onChange={onChange} minAmount={input.minAmount ?? 20} error={input.error} />);
     return { onChange };
   }
 });

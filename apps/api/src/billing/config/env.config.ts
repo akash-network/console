@@ -36,7 +36,7 @@ export const envSchema = z.object({
     .string()
     .default(AUDITOR)
     .transform(val => (val ? val.split(",").map(addr => addr.trim()) : [])),
-  MANAGED_WALLET_TRIAL_MIN_TOP_UP_AMOUNT: z.number({ coerce: true }).min(20).default(100),
+  MANAGED_WALLET_TRIAL_MIN_TOP_UP_AMOUNT: z.number({ coerce: true }).min(20).default(20),
   MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: z
     .string()
     .default("nvidia/b300,nvidia/b200,nvidia/h200,nvidia/h100,nvidia/pro6000se,nvidia/pro6000we,nvidia/a100,nvidia/rtx5090,nvidia/rtx4090,nvidia/rtx3090")
