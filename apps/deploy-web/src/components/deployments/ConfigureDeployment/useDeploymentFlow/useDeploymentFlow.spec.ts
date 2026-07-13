@@ -60,15 +60,53 @@ describe(useDeploymentFlow.name, () => {
     await waitFor(() => expect(result.current.phase).toBe("error"));
   });
 
-  it("times out to an error when no providers bid within the window", () => {
+  it("halts in error without closing the deployment when no providers bid in the auto flow", () => {
     vi.useFakeTimers();
     try {
-      const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" } });
+      const closeMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate });
       expect(result.current.phase).toBe("quoting");
 
       act(() => vi.advanceTimersByTime(60_000));
 
+      // The auto autopilot re-creates whenever the flow returns to `configuring` and reads its error scene off the
+      // "error" phase, so the flow must halt here — leaving the deployment for the user's "Try again"/"Choose my
+      // provider" rather than closing it and looping.
       expect(result.current.phase).toBe("error");
+      expect(result.current.error?.message).toContain("No providers");
+      expect(closeMutate).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("closes the dangling deployment and returns to configuring, surfacing the error, when no providers bid in the manual flow", () => {
+    vi.useFakeTimers();
+    try {
+      const closeMutate = vi.fn((_args, { onSuccess }) => onSuccess({}));
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
+      expect(result.current.phase).toBe("quoting");
+
+      act(() => vi.advanceTimersByTime(60_000));
+
+      expect(closeMutate).toHaveBeenCalledWith({ dseq: "777" }, expect.any(Object));
+      expect(result.current.phase).toBe("configuring");
+      expect(result.current.error?.message).toContain("No providers");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the no-providers message set while the close is still in flight in the manual flow", () => {
+    vi.useFakeTimers();
+    try {
+      // Never resolves — proves the message survives `cancelAndEdit`'s own `setError(undefined)` so the error toast fires.
+      const closeMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
+
+      act(() => vi.advanceTimersByTime(60_000));
+
+      expect(result.current.phase).toBe("closing");
       expect(result.current.error?.message).toContain("No providers");
     } finally {
       vi.useRealTimers();
