@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { QueryKeys } from "@src/queries/queryKeys";
 import { UrlService } from "@src/utils/urlUtils";
 import type { DeploymentIntent } from "./deploymentIntent";
 import type { DEPENDENCIES } from "./useDeploymentFlow";
@@ -140,6 +141,7 @@ describe(useDeploymentFlow.name, () => {
         useUpdateDeployment: (() => mockMutation()) as never,
         useListBids: (() => ({ data: { data: bids }, isLoading: false, isError: false })) as never,
         useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: vi.fn(), push: vi.fn() })) as never,
+        useQueryClient: (() => mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>()) as never,
         useDeploymentLocalStorage: (() => mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocalStorage>>()) as never,
         manifestFromSdl: () => "M"
       };
@@ -267,6 +269,21 @@ describe(useDeploymentFlow.name, () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("invalidates the leases and deployment-list caches on lease success so the onboarding gate sees the new deployment", () => {
+    const createDeployment = mockMutation();
+    createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
+    const createLease = mockMutation();
+    createLease.mutate.mockImplementation((_i, o) => o.onSuccess(deployedResult("akash1owner")));
+    const { result, queryClient } = renderFlow({ createDeployment, createLease });
+
+    act(() => result.current.actions.requestQuotes("sdl"));
+    act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+    act(() => result.current.actions.deploy("sdl"));
+
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: QueryKeys.getAllLeasesKey("akash1owner") });
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: QueryKeys.getDeploymentListKey("akash1owner") });
   });
 
   it("persists the deployment SDL keyed by the owner the lease response carries so the detail page can read it", () => {
@@ -518,6 +535,7 @@ describe(useDeploymentFlow.name, () => {
       useUpdateDeployment: (() => mock<ReturnType<typeof DEPENDENCIES.useUpdateDeployment>>({ mutate: vi.fn() as never })) as never,
       useListBids: (() => ({ data: { data: [] }, isLoading: false, isError: false })) as never,
       useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: (input.replace ?? vi.fn()) as never })) as never,
+      useQueryClient: (() => mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>()) as never,
       useDeploymentLocalStorage: (() => mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocalStorage>>()) as never,
       manifestFromSdl: () => "manifest"
     };
@@ -536,6 +554,7 @@ describe(useDeploymentFlow.name, () => {
     const intent: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, ...input?.intent };
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: vi.fn(), push: vi.fn() });
     const deploymentLocalStorage = mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocalStorage>>();
+    const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
     const dependencies: typeof DEPENDENCIES = {
       useCreateDeployment: (() => input?.createDeployment ?? mockMutation()) as never,
       useCloseDeployment: (() => input?.closeDeployment ?? mockMutation()) as never,
@@ -543,11 +562,12 @@ describe(useDeploymentFlow.name, () => {
       useUpdateDeployment: (() => input?.updateDeployment ?? mockMutation()) as never,
       useListBids: (() => ({ data: { data: input?.listBids ?? [] }, isLoading: false, isError: false })) as never,
       useRouter: () => router,
+      useQueryClient: (() => queryClient) as never,
       useDeploymentLocalStorage: (() => deploymentLocalStorage) as never,
       manifestFromSdl: input?.manifestFromSdl ?? (() => "M")
     };
     const utils = renderHook(() => useDeploymentFlow({ intent }, dependencies));
-    return { ...utils, router, deploymentLocalStorage };
+    return { ...utils, router, deploymentLocalStorage, queryClient };
   }
 
   function mockMutation() {
