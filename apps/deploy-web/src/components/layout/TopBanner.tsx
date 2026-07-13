@@ -1,17 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { useIntl } from "react-intl";
 import { Button } from "@akashnetwork/ui/components";
+import { REMOVE_SCROLL_CLASS_NAMES } from "@akashnetwork/ui/utils";
 import { Xmark } from "iconoir-react";
 
 import { useWallet } from "@src/context/WalletProvider/WalletProvider";
 import { useChainMaintenanceDetails, useGenericBannerDetails, useTopBanner } from "@src/hooks/useTopBanner";
 import { ConnectManagedWalletButton } from "../wallet/ConnectManagedWalletButton";
 
+/**
+ * Important to have this shared class because it ensures that when modal is open,
+ * the top banner is properly positioned and doesn't cause layout shifts.
+ */
+const TOP_BANNER_CLASS_NAME = `fixed top-0 left-0 right-0 ${REMOVE_SCROLL_CLASS_NAMES.zeroRight}`;
+
 function CreditCardBanner() {
   const { hasManagedWallet } = useWallet();
 
   return (
-    <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 text-primary-foreground md:space-x-4">
+    <div className={`${TOP_BANNER_CLASS_NAME} z-10 flex h-[40px] items-center justify-center bg-primary px-3 py-2 text-primary-foreground md:space-x-4`}>
       <span className="text-xs font-semibold md:text-sm">Credit Card payments are now available!</span>
 
       {!hasManagedWallet && <ConnectManagedWalletButton className="flex-shrink-0 hover:text-primary-foreground/80" size="sm" variant="text" />}
@@ -62,7 +69,7 @@ function MaintenanceBanner({ onClose }: { onClose: () => void }) {
   );
 
   return (
-    <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 text-primary-foreground md:space-x-4">
+    <div className={`${TOP_BANNER_CLASS_NAME} z-10 flex h-[40px] items-center justify-center bg-primary px-3 py-2 text-primary-foreground md:space-x-4`}>
       <span className="text-xs font-semibold md:text-sm">
         Network upgrade scheduled{upgradeAt ? ` at ${upgradeAt}` : ""}. Console will switch to read-only mode during the upgrade.
       </span>
@@ -79,7 +86,7 @@ export function GenericBanner({ onClose, dependencies = DEPENDENCIES }: { onClos
   const { message, links } = dependencies.useGenericBannerDetails();
 
   return (
-    <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center gap-2 bg-primary px-3 py-2 text-primary-foreground md:gap-4">
+    <div className={`${TOP_BANNER_CLASS_NAME} z-10 flex h-[40px] items-center justify-center gap-2 bg-primary px-3 py-2 text-primary-foreground md:gap-4`}>
       <span className="text-xs font-semibold md:text-sm">
         {message}
         {links?.map(link => (
