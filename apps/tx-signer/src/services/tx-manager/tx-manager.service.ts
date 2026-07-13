@@ -1,8 +1,8 @@
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { container, inject, type InjectionToken, instancePerContainerCachingFactory, singleton } from "tsyringe";
 
-import type { SignAndBroadcastOptions } from "@src/lib/batch-signing-client/batch-signing-client.service";
-import { BatchSigningClientService } from "@src/lib/batch-signing-client/batch-signing-client.service";
+import type { SignAndBroadcastOptions } from "@src/lib/signing-client/signing-client.service";
+import { SigningClientService } from "@src/lib/signing-client/signing-client.service";
 import { createSigningStargateClient } from "@src/lib/signing-stargate-client-factory/signing-stargate-client.factory";
 import { Wallet } from "@src/lib/wallet/wallet";
 // eslint-disable-next-line
@@ -10,12 +10,12 @@ import { LoggerService } from "@src/providers/logging.provider";
 import { TYPE_REGISTRY } from "@src/providers/type-registry.provider";
 import { AppConfigService } from "@src/services/app-config/app-config.service";
 
-export type BatchSigningClientServiceFactory = (wallet: Wallet, loggerContext?: string) => BatchSigningClientService;
-const BATCH_SIGNING_CLIENT_FACTORY: InjectionToken<BatchSigningClientServiceFactory> = Symbol("BATCH_SIGNING_CLIENT_FACTORY");
-container.register(BATCH_SIGNING_CLIENT_FACTORY, {
+export type SigningClientServiceFactory = (wallet: Wallet, loggerContext?: string) => SigningClientService;
+const SIGNING_CLIENT_FACTORY: InjectionToken<SigningClientServiceFactory> = Symbol("SIGNING_CLIENT_FACTORY");
+container.register(SIGNING_CLIENT_FACTORY, {
   useFactory: c => {
     return (wallet: Wallet, loggerContext?: string) => {
-      return new BatchSigningClientService(c.resolve(AppConfigService), wallet, c.resolve(TYPE_REGISTRY), createSigningStargateClient, loggerContext);
+      return new SigningClientService(c.resolve(AppConfigService), wallet, c.resolve(TYPE_REGISTRY), createSigningStargateClient, loggerContext);
     };
   }
 });
@@ -23,7 +23,7 @@ container.register(BATCH_SIGNING_CLIENT_FACTORY, {
 export type WalletFactory = (walletIndex?: number) => Wallet;
 type WalletVersionConfig = {
   masterWallet: Wallet;
-  masterSigningClient: BatchSigningClientService;
+  masterSigningClient: SigningClientService;
   derivedWalletFactory: WalletFactory;
 };
 
@@ -35,7 +35,7 @@ const WALLET_RESOURCES: InjectionToken<WalletResources> = Symbol("WALLET_RESOURC
 container.register(WALLET_RESOURCES, {
   useFactory: instancePerContainerCachingFactory(c => {
     const config = c.resolve(AppConfigService);
-    const batchSigningClientFactory = c.resolve<BatchSigningClientServiceFactory>(BATCH_SIGNING_CLIENT_FACTORY);
+    const signingClientFactory = c.resolve<SigningClientServiceFactory>(SIGNING_CLIENT_FACTORY);
 
     const v2MasterWallet = new Wallet(config.get("FUNDING_WALLET_MNEMONIC_V2"));
 
@@ -46,7 +46,7 @@ container.register(WALLET_RESOURCES, {
     return {
       v2: {
         masterWallet: v2MasterWallet,
-        masterSigningClient: batchSigningClientFactory(v2MasterWallet, "V2_MASTER_SIGNING_CLIENT"),
+        masterSigningClient: signingClientFactory(v2MasterWallet, "V2_MASTER_SIGNING_CLIENT"),
         derivedWalletFactory: v2DerivedWalletFactory
       }
     };
@@ -55,7 +55,7 @@ container.register(WALLET_RESOURCES, {
 
 type CachedClient = {
   address: string;
-  client: BatchSigningClientService;
+  client: SigningClientService;
 };
 
 @singleton()
@@ -65,7 +65,7 @@ export class TxManagerService {
 
   constructor(
     @inject(WALLET_RESOURCES) private readonly walletResources: WalletResources,
-    @inject(BATCH_SIGNING_CLIENT_FACTORY) private readonly batchSigningClientServiceFactory: BatchSigningClientServiceFactory,
+    @inject(SIGNING_CLIENT_FACTORY) private readonly signingClientServiceFactory: SigningClientServiceFactory,
     @inject(LoggerService) private readonly logger: LoggerService
   ) {
     this.logger.setContext(TxManagerService.name);
@@ -112,7 +112,7 @@ export class TxManagerService {
       this.logger.debug({ event: "DERIVED_SIGNING_CLIENT_CREATE", derivationIndex });
       this.#clientsByDerivationIndex.set(derivationIndex, {
         address,
-        client: this.batchSigningClientServiceFactory(wallet)
+        client: this.signingClientServiceFactory(wallet)
       });
     }
 
