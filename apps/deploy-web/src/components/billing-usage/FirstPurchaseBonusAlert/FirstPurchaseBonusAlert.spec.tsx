@@ -29,12 +29,12 @@ describe(FirstPurchaseBonusAlert.name, () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("shows the base offer when no amount is entered", () => {
+  it("shows the base offer and qualifying threshold when no amount is entered", () => {
     const { container } = setup({ amount: 0 });
 
     expect(screen.getByText("First-purchase bonus")).toBeInTheDocument();
-    expect(container).toHaveTextContent("Get 10% bonus credits on your first purchase of $100 or more, up to $100.");
-    expect(container).not.toHaveTextContent("more to qualify");
+    expect(container).toHaveTextContent("Get 10% in bonus credits on your first purchase, up to $100.");
+    expect(container).toHaveTextContent("Add $100.00 or more to unlock your bonus.");
   });
 
   it("shows the offer to users whose only charges failed", () => {
@@ -43,24 +43,34 @@ describe(FirstPurchaseBonusAlert.name, () => {
     expect(screen.getByText("First-purchase bonus")).toBeInTheDocument();
   });
 
-  it("nudges when the amount is below the qualifying minimum", () => {
+  it("nudges to add the shortfall when the amount is below the qualifying minimum", () => {
     const { container } = setup({ amount: 50 });
 
-    expect(container).toHaveTextContent("Add $50.00 more to qualify.");
+    expect(container).toHaveTextContent("Add $50.00 more to unlock your bonus.");
   });
 
-  it("previews the bonus and total at a qualifying amount", () => {
+  it("previews the total, purchase, and bonus breakdown at a qualifying amount", () => {
+    setup({ amount: 100 });
+
+    expect(screen.getByText("You'll receive")).toBeInTheDocument();
+    expect(screen.getByText("$110.00 in credits")).toBeInTheDocument();
+    expect(screen.getByText("First-purchase bonus (10%)")).toBeInTheDocument();
+    expect(screen.getByText("+$10.00")).toBeInTheDocument();
+  });
+
+  it("nudges toward the max bonus when the bonus is not yet capped", () => {
     const { container } = setup({ amount: 100 });
 
-    expect(container).toHaveTextContent("You'll receive $110.00 in credits");
-    expect(container).toHaveTextContent("$10.00 first-purchase bonus included.");
+    expect(container).toHaveTextContent("Add $900.00 more to unlock the full $100.00 bonus.");
   });
 
-  it("caps the previewed bonus at $100", () => {
+  it("caps the previewed bonus at $100 and confirms the max bonus is unlocked", () => {
     const { container } = setup({ amount: 10000 });
 
-    expect(container).toHaveTextContent("You'll receive $10,100.00 in credits");
-    expect(container).toHaveTextContent("$100.00 first-purchase bonus included.");
+    expect(screen.getByText("$10,100.00 in credits")).toBeInTheDocument();
+    expect(screen.getByText("+$100.00")).toBeInTheDocument();
+    expect(container).toHaveTextContent("You've unlocked the maximum $100.00 bonus.");
+    expect(container).not.toHaveTextContent("more to unlock");
   });
 
   function setup(input?: { amount?: number; flagEnabled?: boolean; isSuccess?: boolean; transactions?: Charge[] }) {
