@@ -140,6 +140,11 @@ export function useDeploymentFlow(
   const bidStrategyRef = useRef(bidStrategy);
   bidStrategyRef.current = bidStrategy;
 
+  // Latest `cancelAndEdit` for the no-providers timeout to call. It closes over `dseq`/`bidStrategy` and the per-render
+  // close mutation, so it can't be a stable effect dependency — a ref lets the timeout reach the current one without
+  // re-arming (and thus resetting) the timer on every render, which would keep it from ever firing.
+  const cancelAndEditRef = useRef<() => void>();
+
   const bidsQuery = dependencies.useListBids(dseq, { enabled: phase === "quoting", refetchInterval: BID_POLL_INTERVAL });
 
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -175,8 +180,18 @@ export function useDeploymentFlow(
       // Arm only while quoting with nothing shown and no bid ever seen; once a bid has appeared it never re-arms.
       if (phase !== "quoting" || providersEverBidRef.current) return;
       const timer = setTimeout(function timeOutWithoutProviders() {
+        // Only the auto-deploy experience autopilots over this shared flow. That autopilot re-fires a create whenever
+        // the flow lands back in `configuring` and reads its error scene off `phase === "error"` (not `error`), so there
+        // we must halt in `error` — its "Try again"/"Choose my provider" drive the next step. The manual flow has no
+        // autopilot: close the now-dangling deployment and drop back to editing. Either way set the message last so it
+        // survives `cancelAndEdit`'s own `setError(undefined)` (same batch, last write wins) and the error toast fires.
+        if (intentRef.current.sdlStrategy === "default" && bidStrategyRef.current === "auto") {
+          setError({ message: NO_PROVIDERS_MESSAGE });
+          setPhase("error");
+          return;
+        }
+        cancelAndEditRef.current?.();
         setError({ message: NO_PROVIDERS_MESSAGE });
-        setPhase("error");
       }, NO_BIDS_TIMEOUT_MS);
       return function cancelNoProvidersTimeout() {
         clearTimeout(timer);
@@ -244,6 +259,7 @@ export function useDeploymentFlow(
     },
     [closeDeployment, dseq, router, bidStrategy]
   );
+  cancelAndEditRef.current = cancelAndEdit;
 
   const setBidStrategy = useCallback(
     function setBidStrategy(strategy: BidStrategy) {
