@@ -1,5 +1,6 @@
 import type { ApiManagedWalletOutput } from "@akashnetwork/http-sdk";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import type { ReadonlyURLSearchParams } from "next/navigation";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -232,22 +233,22 @@ describe(OnboardingPickerPage.name, () => {
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment());
   });
 
-  it("renders a 'Coming from a hackathon?' link while trialing when the hackathons flag is on", () => {
+  it("renders a 'Hackathon? click here' header link while trialing when the hackathons flag is on", () => {
     setup({ isTrialing: true, isHackathonsEnabled: true });
 
-    expect(screen.getByText(/Coming from a hackathon/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hackathon\? click here/i)).toBeInTheDocument();
   });
 
   it("hides the hackathon link when the hackathons flag is off", () => {
     setup({ isTrialing: true, isHackathonsEnabled: false });
 
-    expect(screen.queryByText(/Coming from a hackathon/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Hackathon\? click here/i)).not.toBeInTheDocument();
   });
 
   it("hides the hackathon link when the user is no longer trialing", () => {
     setup({ isTrialing: false, isHackathonsEnabled: true });
 
-    expect(screen.queryByText(/Coming from a hackathon/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Hackathon\? click here/i)).not.toBeInTheDocument();
   });
 
   it("opens the add-credits sheet on the coupon tab when the hackathon link is clicked", () => {
@@ -261,13 +262,42 @@ describe(OnboardingPickerPage.name, () => {
       dependencies: { Button: Button as unknown as typeof DEPENDENCIES.Button, AddCreditsSheet }
     });
 
-    const hackathonButton = getButtonByText(Button, "Coming from a hackathon?");
+    const hackathonButton = getButtonByText(Button, "Hackathon? click here");
     act(() => (hackathonButton.onClick as () => void)());
 
     const sheetProps = AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps;
     expect(sheetProps.open).toBe(true);
     expect(sheetProps.initialTab).toBe("coupon");
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it("opens the add-credits sheet on the coupon tab and strips the param when landing with redeemCoupon=true", () => {
+    const replace = vi.fn();
+    const AddCreditsSheet = vi.fn(ComponentMock);
+    setup({ isTrialing: true, isHackathonsEnabled: true, searchParams: "redeemCoupon=true", replace, dependencies: { AddCreditsSheet } });
+
+    const sheetProps = AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps;
+    expect(sheetProps.open).toBe(true);
+    expect(sheetProps.initialTab).toBe("coupon");
+    expect(replace).toHaveBeenCalledWith(UrlService.onboardingPicker(), { scroll: false });
+  });
+
+  it("ignores the redeemCoupon param when the hackathons flag is off", () => {
+    const replace = vi.fn();
+    const AddCreditsSheet = vi.fn(ComponentMock);
+    setup({ isTrialing: true, isHackathonsEnabled: false, searchParams: "redeemCoupon=true", replace, dependencies: { AddCreditsSheet } });
+
+    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(false);
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("ignores the redeemCoupon param when the user is not trialing", () => {
+    const replace = vi.fn();
+    const AddCreditsSheet = vi.fn(ComponentMock);
+    setup({ isTrialing: false, isHackathonsEnabled: true, searchParams: "redeemCoupon=true", replace, dependencies: { AddCreditsSheet } });
+
+    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(false);
+    expect(replace).not.toHaveBeenCalled();
   });
 
   function getCard(DeploymentTemplatePickerCard: ReturnType<typeof vi.fn>, title: string) {
@@ -286,6 +316,8 @@ describe(OnboardingPickerPage.name, () => {
   function setup(
     input: {
       push?: () => void;
+      replace?: () => void;
+      searchParams?: string;
       isTrialing?: boolean;
       isHackathonsEnabled?: boolean;
       trialCreditsAmount?: number;
@@ -294,12 +326,14 @@ describe(OnboardingPickerPage.name, () => {
     } = {}
   ) {
     const push = input.push ?? vi.fn();
+    const replace = input.replace ?? vi.fn();
     const isTrialing = input.isTrialing ?? true;
     const isHackathonsEnabled = input.isHackathonsEnabled ?? false;
     const trialCreditsAmount = input.trialCreditsAmount ?? 100;
     const wallet = "wallet" in input ? input.wallet : mock<ApiManagedWalletOutput>({ creditAmount: 100 });
 
-    const useRouter: typeof DEPENDENCIES.useRouter = vi.fn(() => mock<AppRouterInstance>({ push }));
+    const useRouter: typeof DEPENDENCIES.useRouter = vi.fn(() => mock<AppRouterInstance>({ push, replace }));
+    const useSearchParams: typeof DEPENDENCIES.useSearchParams = () => new URLSearchParams(input.searchParams ?? "") as ReadonlyURLSearchParams;
     const useEnsureTrialStarted: typeof DEPENDENCIES.useEnsureTrialStarted = vi.fn(() =>
       mock<EnsureTrialStartedResult>({
         wallet,
@@ -315,7 +349,15 @@ describe(OnboardingPickerPage.name, () => {
 
     return render(
       <OnboardingPickerPage
-        dependencies={MockComponents(DEPENDENCIES, { useRouter, useEnsureTrialStarted, useWallet, useFlag, useServices, ...input.dependencies })}
+        dependencies={MockComponents(DEPENDENCIES, {
+          useRouter,
+          useSearchParams,
+          useEnsureTrialStarted,
+          useWallet,
+          useFlag,
+          useServices,
+          ...input.dependencies
+        })}
       />
     );
   }

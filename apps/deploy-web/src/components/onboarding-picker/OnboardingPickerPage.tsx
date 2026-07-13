@@ -1,12 +1,12 @@
 "use client";
 
 import React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, AlertDescription, Button } from "@akashnetwork/ui/components";
 import { ArrowRight } from "lucide-react";
 import Head from "next/head";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
 import { DeploymentTemplatePickerCard } from "@src/components/deployments/DeploymentTemplatePickerCard/DeploymentTemplatePickerCard";
@@ -31,6 +31,7 @@ const TEMPLATE_IDS = {
 
 export const DEPENDENCIES = {
   useRouter,
+  useSearchParams,
   useWallet,
   useEnsureTrialStarted,
   useServices,
@@ -55,6 +56,18 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   const isHackathonsEnabled = d.useFlag("hackathons");
   const isLlmGated = isTrialing || !isWalletReady;
   const isLlmAvailable = !isLlmGated;
+  const searchParams = d.useSearchParams();
+  const showHackathonEntry = isTrialing && isHackathonsEnabled;
+
+  // Deep link for hackathon materials: /onboarding?redeemCoupon=true opens the sheet on the coupon
+  // tab. The param is stripped once consumed so closing the sheet or refreshing won't re-open it;
+  // until the trial/flag state resolves (both load async) the param stays untouched.
+  useEffect(() => {
+    if (showHackathonEntry && searchParams?.get("redeemCoupon") === "true") {
+      setAddCreditsSheetReason("hackathon-coupon");
+      router.replace(urlService.onboardingPicker(), { scroll: false });
+    }
+  }, [showHackathonEntry, searchParams, router, urlService]);
 
   /** Redirects to the bid-screening view, which auto-starts the deployment from the intent params. */
   function deployTemplate(templateId: string) {
@@ -71,7 +84,15 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
         <header className="relative flex items-center justify-between border-b border-border">
           <div className="flex h-14 w-full items-center justify-between pl-4 pr-4">
             <AkashConsoleLogo />
-            <d.AccountMenu minimal />
+            <div className="flex items-center gap-2">
+              {showHackathonEntry && (
+                <d.Button onClick={() => setAddCreditsSheetReason("hackathon-coupon")} variant="ghost" size="sm">
+                  Hackathon? click here
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </d.Button>
+              )}
+              <d.AccountMenu minimal />
+            </div>
           </div>
         </header>
 
@@ -152,16 +173,11 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
               </div>
 
               {(isTrialing || !wallet?.creditAmount) && (
-                <div className="flex flex-col items-center gap-1 text-center">
+                <div className="text-center">
                   <d.Button onClick={() => setAddCreditsSheetReason("skip-trial")} variant="ghost">
                     Skip the trial - unlock Console
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </d.Button>
-                  {isHackathonsEnabled && (
-                    <d.Button onClick={() => setAddCreditsSheetReason("hackathon-coupon")} variant="link" size="sm">
-                      Coming from a hackathon?
-                    </d.Button>
-                  )}
                 </div>
               )}
             </div>
