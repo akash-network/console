@@ -21,6 +21,9 @@ type CouponFormValues = z.infer<typeof couponFormSchema>;
 /** How long the success alert stays visible before the sheet auto-closes. */
 const AUTO_CLOSE_DELAY_MS = 1500;
 
+// A credit-adding success carries the dollar amount; a coupon that adds nothing uses amountAdded: null.
+type CouponFeedback = { type: "success"; amountAdded: number | null } | { type: "error"; message: string; userAction?: string };
+
 export const DEPENDENCIES = {
   useForm,
   zodResolver,
@@ -54,10 +57,7 @@ export function RedeemCouponForm({ isWalletReady = true, onProcessingChange, onR
     applyCoupon: { isPending: isApplyingCoupon, mutateAsync: applyCoupon }
   } = d.usePaymentMutations();
 
-  const [successAmount, setSuccessAmount] = useState<number | null>(null);
-  const [appliedMessage, setAppliedMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [errorAction, setErrorAction] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<CouponFeedback | null>(null);
 
   const wasProcessingRef = useRef(false);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -86,12 +86,12 @@ export function RedeemCouponForm({ isWalletReady = true, onProcessingChange, onR
       // A credit-adding redemption keeps `isProcessing` true through the balance poll
       // (and, for trial users, until the trial flips). Once it settles, leave the success
       // alert up briefly, then close the sheet via onRedeemed.
-      if (wasProcessing && !isProcessing && successAmount !== null) {
+      if (wasProcessing && !isProcessing && feedback?.type === "success" && feedback.amountAdded !== null) {
         if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
         closeTimeoutRef.current = setTimeout(() => onRedeemed?.(), AUTO_CLOSE_DELAY_MS);
       }
     },
-    [isProcessing, successAmount, onRedeemed]
+    [isProcessing, feedback, onRedeemed]
   );
 
   useEffect(function clearCloseTimeoutOnUnmount() {
@@ -100,45 +100,33 @@ export function RedeemCouponForm({ isWalletReady = true, onProcessingChange, onR
     };
   }, []);
 
-  const clearMessages = () => {
-    setSuccessAmount(null);
-    setAppliedMessage(null);
-    setError(null);
-    setErrorAction(null);
-  };
-
-  const finalizeError = (info: { message: string; userAction?: string }) => {
-    setSuccessAmount(null);
-    setAppliedMessage(null);
-    setError(info.message);
-    setErrorAction(info.userAction ?? null);
-  };
+  const showError = (info: { message: string; userAction?: string }) => setFeedback({ type: "error", message: info.message, userAction: info.userAction });
 
   const onRedeem = async ({ coupon }: CouponFormValues) => {
     if (!user?.id) {
-      finalizeError({ message: "Unable to apply coupon. Please refresh the page and try again." });
+      showError({ message: "Unable to apply coupon. Please refresh the page and try again." });
       return;
     }
 
-    clearMessages();
+    setFeedback(null);
 
     try {
       const response = await applyCoupon({ coupon: coupon.trim(), userId: user.id });
 
       if (response.error) {
-        finalizeError(d.handleCouponError(response));
+        showError(d.handleCouponError(response));
         return;
       }
 
       if (response.amountAdded && response.amountAdded > 0) {
         pollForPayment({ variant: "coupon" });
-        setSuccessAmount(response.amountAdded);
-        form.reset();
+        setFeedback({ type: "success", amountAdded: response.amountAdded });
       } else {
-        setAppliedMessage("Coupon applied. No credits were added to your balance.");
+        setFeedback({ type: "success", amountAdded: null });
       }
+      form.reset();
     } catch (err) {
-      finalizeError(d.handleStripeError(err));
+      showError(d.handleStripeError(err));
     }
   };
 
@@ -157,33 +145,32 @@ export function RedeemCouponForm({ isWalletReady = true, onProcessingChange, onR
               autoComplete="off"
               onChange={e => {
                 field.onChange(e);
-                clearMessages();
+                setFeedback(null);
               }}
             />
           )}
         />
 
-        {successAmount !== null && (
+        {feedback?.type === "success" && (
           <Alert variant="success">
             <AlertTitle className="text-sm font-medium">Coupon applied</AlertTitle>
             <AlertDescription>
-              <FormattedNumber value={successAmount} style="currency" currency="USD" /> added to your balance.
+              {feedback.amountAdded !== null ? (
+                <>
+                  <FormattedNumber value={feedback.amountAdded} style="currency" currency="USD" /> added to your balance.
+                </>
+              ) : (
+                "Coupon applied. No credits were added to your balance."
+              )}
             </AlertDescription>
           </Alert>
         )}
 
-        {appliedMessage && (
-          <Alert variant="success">
-            <AlertTitle className="text-sm font-medium">Coupon applied</AlertTitle>
-            <AlertDescription>{appliedMessage}</AlertDescription>
-          </Alert>
-        )}
-
-        {error && (
+        {feedback?.type === "error" && (
           <Alert variant="destructive">
             <AlertDescription>
-              <span className="block font-medium">{error}</span>
-              {errorAction && <span className="mt-1 block text-sm">{errorAction}</span>}
+              <span className="block font-medium">{feedback.message}</span>
+              {feedback.userAction && <span className="mt-1 block text-sm">{feedback.userAction}</span>}
             </AlertDescription>
           </Alert>
         )}

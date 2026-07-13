@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
 import useCookieTheme from "@src/hooks/useTheme";
+import { HackathonCouponNavEntry } from "./HackathonCouponNavEntry/HackathonCouponNavEntry";
 import { AccountMenu } from "./AccountMenu";
 import { AkashLogo } from "./AkashLogo";
 import { WalletStatus } from "./WalletStatus";
@@ -49,6 +50,8 @@ export const Nav = ({
         ) : (
           <div style={{ height: `${ACCOUNT_BAR_HEIGHT}px` }} className="hidden items-center md:flex">
             <div className="flex items-center gap-2">
+              <HackathonCouponNavEntry />
+
               <div className="ml-4 flex items-center gap-2">
                 <WalletStatus />
               </div>

@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/compo
 import { AddCreditsForm } from "@src/components/billing-usage/AddCreditsForm/AddCreditsForm";
 import { RedeemCouponForm } from "@src/components/billing-usage/RedeemCouponForm/RedeemCouponForm";
 
-type AddCreditsTab = "purchase" | "coupon";
+export type AddCreditsTab = "purchase" | "coupon";
 
 export const DEPENDENCIES = {
   Tabs,
@@ -30,10 +30,10 @@ interface AddCreditsTabsProps {
  * Splits the Add Credits sheet into a purchase flow and a coupon-redemption
  * flow. Only the active tab's content is mounted (Radix unmounts inactive
  * content), so the purchase tab's Stripe SetupIntent is created lazily and the
- * coupon form resets whenever the user switches away. Processing state is
- * aggregated from both children and forwarded to the sheet's close-guard; the
- * inactive tab trigger is disabled while a flow is in progress so the user
- * cannot navigate away mid-transaction.
+ * coupon form resets whenever the user switches away. The active child's
+ * processing state is forwarded to the sheet's close-guard; the inactive tab
+ * trigger is disabled while a flow is in progress so the user cannot navigate
+ * away mid-transaction.
  */
 export function AddCreditsTabs({
   initialTab = "purchase",
@@ -44,10 +44,9 @@ export function AddCreditsTabs({
   dependencies: d = DEPENDENCIES
 }: AddCreditsTabsProps) {
   const [activeTab, setActiveTab] = useState<AddCreditsTab>(initialTab);
-  const [purchaseProcessing, setPurchaseProcessing] = useState(false);
-  const [couponProcessing, setCouponProcessing] = useState(false);
-
-  const isProcessing = purchaseProcessing || couponProcessing;
+  // Only the active tab is mounted (Radix unmounts inactive content), so a
+  // single flag tracks whichever child is currently reporting.
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(
     function reportProcessing() {
@@ -58,9 +57,8 @@ export function AddCreditsTabs({
 
   const handleTabChange = (next: string) => {
     // Switching is blocked while processing, so the tab being left is always
-    // idle here; clear both flags so the unmounted child's state does not linger.
-    setPurchaseProcessing(false);
-    setCouponProcessing(false);
+    // idle here; reset so the unmounted child's state does not linger.
+    setIsProcessing(false);
     setActiveTab(next as AddCreditsTab);
   };
 
@@ -76,11 +74,11 @@ export function AddCreditsTabs({
       </d.TabsList>
 
       <d.TabsContent value="purchase">
-        <d.AddCreditsForm onDone={onDone} isWalletReady={isWalletReady} onProcessingChange={setPurchaseProcessing} />
+        <d.AddCreditsForm onDone={onDone} isWalletReady={isWalletReady} onProcessingChange={setIsProcessing} />
       </d.TabsContent>
 
       <d.TabsContent value="coupon">
-        <d.RedeemCouponForm isWalletReady={isWalletReady} onProcessingChange={setCouponProcessing} onRedeemed={onRedeemed} />
+        <d.RedeemCouponForm isWalletReady={isWalletReady} onProcessingChange={setIsProcessing} onRedeemed={onRedeemed} />
       </d.TabsContent>
     </d.Tabs>
   );

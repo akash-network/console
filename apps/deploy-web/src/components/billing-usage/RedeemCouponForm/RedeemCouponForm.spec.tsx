@@ -32,7 +32,7 @@ describe(RedeemCouponForm.name, () => {
     expect(couponInput().value).toBe("");
   });
 
-  it("shows an inline applied message and skips polling when the coupon adds no credits", async () => {
+  it("shows an inline applied message, skips polling and resets the field when the coupon adds no credits", async () => {
     const applyCoupon = vi.fn().mockResolvedValue({ coupon: null, amountAdded: 0 });
     const pollForPayment = vi.fn();
 
@@ -45,6 +45,7 @@ describe(RedeemCouponForm.name, () => {
     expect(applyCoupon).toHaveBeenCalledWith({ coupon: "AKASH-1234-5678", userId: "user_1" });
     expect(pollForPayment).not.toHaveBeenCalled();
     expect(screen.getByText(/no credits were added to your balance/i)).toBeInTheDocument();
+    expect(couponInput().value).toBe("");
   });
 
   it("shows an inline error mapped from the coupon error code", async () => {

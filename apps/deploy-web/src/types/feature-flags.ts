@@ -11,4 +11,5 @@ export type FeatureFlag =
   | "console_auth_password_escape_hatch"
   | "onboarding_redesign_v1"
   | "ui_sdl_preview_panel"
-  | "ui_build_and_deploy";
+  | "ui_build_and_deploy"
+  | "hackathons";
