@@ -2,7 +2,7 @@
 
 import type { ChangeEventHandler } from "react";
 import React, { useCallback } from "react";
-import { Field, FieldContent, FieldLabel, FieldTitle, Input, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
+import { Field, FieldContent, FieldError, FieldLabel, FieldTitle, Input, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
 
 export interface AddCreditsAmountValue {
   predefinedAmount?: string;
@@ -12,9 +12,11 @@ export interface AddCreditsAmountValue {
 interface AddCreditsAmountFieldsProps {
   value: AddCreditsAmountValue;
   onChange: (value: AddCreditsAmountValue) => void;
+  minAmount: number;
+  error?: string;
 }
 
-export function AddCreditsAmountFields({ value, onChange }: AddCreditsAmountFieldsProps) {
+export function AddCreditsAmountFields({ value, onChange, minAmount, error }: AddCreditsAmountFieldsProps) {
   const changePredefinedAmount = useCallback(
     (predefinedAmount: string) => {
       onChange({ predefinedAmount, customAmount: "" });
@@ -65,7 +67,7 @@ export function AddCreditsAmountFields({ value, onChange }: AddCreditsAmountFiel
 
       <Field className="gap-1">
         <FieldLabel htmlFor="custom-amount" className="font-medium">
-          Or enter custom amount <span className="text-muted-foreground">(minimum 20)</span>
+          Or enter custom amount <span className="text-muted-foreground">(minimum {minAmount})</span>
         </FieldLabel>
         <Input
           id="custom-amount"
@@ -74,8 +76,9 @@ export function AddCreditsAmountFields({ value, onChange }: AddCreditsAmountFiel
           type="number"
           value={value.customAmount}
           onChange={changeCustomAmount}
-          min={20}
+          min={minAmount}
         />
+        {error && <FieldError>{error}</FieldError>}
       </Field>
     </div>
   );
