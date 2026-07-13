@@ -8,7 +8,8 @@ import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { encodePubkey, makeAuthInfoBytes, makeSignDoc } from "@cosmjs/proto-signing";
 import type { IndexedTx, SigningStargateClient } from "@cosmjs/stargate";
 import { calculateFee, GasPrice } from "@cosmjs/stargate";
-import { ExponentialBackoff, handleWhenResult, retry } from "cockatiel";
+import type { RetryPolicy } from "cockatiel";
+import { ConstantBackoff, handleWhenResult, retry } from "cockatiel";
 
 import type { AppConfigService } from "@src/services/app-config/app-config.service";
 import { memoizeAsync } from "../../caching/helpers/helpers";
@@ -20,6 +21,16 @@ export interface SignAndBroadcastOptions {
     granter: string;
   };
 }
+
+/** Interval between tx-recovery polls. Kept below Akash's ~6s block time so several polls land within each block window. */
+const TX_RECOVERY_POLL_INTERVAL_MS = 2_000;
+
+/**
+ * How far past the tx TTL to keep polling. `getTx` runs a `tx_search`, which only returns a tx once it is committed AND
+ * written to the node's tx index, and that index lags block commit — so we poll a bit beyond the TTL to still catch a tx
+ * that landed right at the deadline.
+ */
+const TX_RECOVERY_WINDOW_FACTOR = 1.2;
 
 /**
  * Signs and broadcasts Akash transactions as {@link https://docs.cosmos.network/sdk/latest/reference/architecture/adr-070-unordered-account | unordered}
@@ -36,13 +47,7 @@ export class SigningClientService {
 
   #inFlightCount = 0;
 
-  readonly #txRecoveryExecutor = retry(
-    handleWhenResult(res => !res),
-    {
-      maxAttempts: 5,
-      backoff: new ExponentialBackoff({ maxDelay: 10_000, initialDelay: 1_000 })
-    }
-  );
+  readonly #txRecoveryExecutor: RetryPolicy;
 
   readonly #getChainId = memoizeAsync(() => this.#client.getChainId());
 
@@ -79,6 +84,13 @@ export class SigningClientService {
     this.#client = createClientWithSigner(this.config.get("RPC_NODE_ENDPOINT"), this.wallet, {
       registry: this.registry
     });
+    this.#txRecoveryExecutor = retry(
+      handleWhenResult(res => !res),
+      {
+        maxAttempts: Math.ceil((this.config.get("UNORDERED_TX_TTL_MS") * TX_RECOVERY_WINDOW_FACTOR) / TX_RECOVERY_POLL_INTERVAL_MS),
+        backoff: new ConstantBackoff(TX_RECOVERY_POLL_INTERVAL_MS)
+      }
+    );
   }
 
   async signAndBroadcast(messages: readonly EncodeObject[], options?: SignAndBroadcastOptions): Promise<IndexedTx> {
