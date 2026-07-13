@@ -336,7 +336,7 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
 
         <Button
           type="submit"
-          className="w-full space-x-2"
+          className="w-full gap-2"
           disabled={isProcessing || amount < topUpMinAmountUsd || isLoadingMethods || (isNewCard && isSetupLoading)}
         >
           {isProcessing && <Spinner size="small" />}
