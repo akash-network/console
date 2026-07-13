@@ -18,6 +18,8 @@ export interface PaymentAnalyticsContext {
   paymentMethodType?: string;
   transactionId?: string;
   source?: "payment_intent" | "coupon_claim";
+  /** First-purchase bonus included in the topped-up amount, in cents. */
+  bonusAmountCents?: number;
 }
 
 @singleton()
@@ -92,7 +94,8 @@ export class RefillService {
       card_brand: options.payment?.cardBrand,
       payment_method_type: options.payment?.paymentMethodType,
       transaction_id: options.payment?.transactionId,
-      source: options.payment?.source
+      source: options.payment?.source,
+      bonus_amount_cents: options.payment?.bonusAmountCents
     });
     this.logger.debug({ event: "WALLET_TOP_UP", userWallet, limits });
   }

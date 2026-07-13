@@ -3,7 +3,7 @@ import { inject, singleton } from "tsyringe";
 import { AMPLITUDE, type Amplitude } from "@src/core/providers/amplitude.provider";
 import { LoggerService } from "@src/core/providers/logging.provider";
 
-type AnalyticsEvent = "user_registered" | "account_created" | "balance_top_up" | "balance_refund";
+type AnalyticsEvent = "user_registered" | "account_created" | "balance_top_up" | "balance_refund" | "first_purchase_bonus_granted";
 
 @singleton()
 export class AnalyticsService {

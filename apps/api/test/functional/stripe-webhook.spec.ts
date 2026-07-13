@@ -107,10 +107,12 @@ describe("Stripe webhook", () => {
         expect(response1.status).toBe(200);
 
         const walletAfterFirst = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
-        const expectedBalance = billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT + amount * 10000;
+        // Functional tests run with FEATURE_FLAGS_ENABLE_ALL, so this first $100 purchase earns the 10% first-purchase bonus
+        const firstPurchaseBonus = amount / 10;
+        const expectedBalance = billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT + (amount + firstPurchaseBonus) * 10000;
         expect(walletAfterFirst?.deploymentAllowance).toBe(`${expectedBalance}.00`);
 
-        // Second webhook delivery (retry) - should not double-credit
+        // Second webhook delivery (retry) - should not double-credit nor double-grant the bonus
         const response2 = await getWebhookResponse(payload);
         expect(response2.status).toBe(200);
 
@@ -171,8 +173,9 @@ describe("Stripe webhook", () => {
         const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
         const transaction = await stripeTransactionRepository.findByPaymentIntentId(paymentIntentId);
 
-        // Calculate expected balance: trial allowance + payment amount (cents * 10000 multiplier for uakt)
-        const expectedBalance = billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT + amount * 10000;
+        // Calculate expected balance: trial allowance + payment amount + 10% first-purchase bonus (cents * 10000 multiplier for uakt)
+        const firstPurchaseBonus = amount / 10;
+        const expectedBalance = billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT + (amount + firstPurchaseBonus) * 10000;
 
         expect(webhookResponse.status).toBe(200);
         expect(userWallet).toMatchObject({
@@ -183,8 +186,257 @@ describe("Stripe webhook", () => {
         expect(transaction).toMatchObject({
           status: "succeeded",
           stripeChargeId: chargeId,
-          paymentMethodType: "card"
+          paymentMethodType: "card",
+          bonusAmount: firstPurchaseBonus
         });
+      });
+
+      it("caps the first-purchase bonus at $100 for large payments", async () => {
+        const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+        const amount = 1000000; // $10,000 in cents
+
+        const { user, stripeCustomerId } = await setup();
+
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "payment_intent",
+          status: "created",
+          amount,
+          currency: "usd",
+          stripePaymentIntentId: paymentIntentId
+        });
+
+        nock("https://api.stripe.com")
+          .get(`/v1/charges/${chargeId}`)
+          .reply(200, {
+            id: chargeId,
+            payment_method_details: { card: { brand: "visa", last4: "4242" } },
+            receipt_url: "https://pay.stripe.com/receipts/test"
+          });
+
+        const payload = JSON.stringify({
+          data: {
+            object: {
+              id: paymentIntentId,
+              customer: stripeCustomerId,
+              amount,
+              amount_received: amount,
+              latest_charge: chargeId,
+              payment_method_types: ["card"],
+              metadata: {}
+            }
+          },
+          type: "payment_intent.succeeded"
+        });
+
+        const webhookResponse = await getWebhookResponse(payload);
+
+        const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+        const transaction = await stripeTransactionRepository.findByPaymentIntentId(paymentIntentId);
+        const cappedBonus = 10000; // $100 in cents
+        const expectedBalance = billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT + (amount + cappedBonus) * 10000;
+
+        expect(webhookResponse.status).toBe(200);
+        expect(userWallet?.deploymentAllowance).toBe(`${expectedBalance}.00`);
+        expect(transaction).toMatchObject({ status: "succeeded", bonusAmount: cappedBonus });
+      });
+
+      it("does not grant the bonus below the $100 minimum", async () => {
+        const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+        const amount = 9900; // $99 in cents
+
+        const { user, stripeCustomerId } = await setup();
+
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "payment_intent",
+          status: "created",
+          amount,
+          currency: "usd",
+          stripePaymentIntentId: paymentIntentId
+        });
+
+        nock("https://api.stripe.com")
+          .get(`/v1/charges/${chargeId}`)
+          .reply(200, {
+            id: chargeId,
+            payment_method_details: { card: { brand: "visa", last4: "4242" } },
+            receipt_url: "https://pay.stripe.com/receipts/test"
+          });
+
+        const payload = JSON.stringify({
+          data: {
+            object: {
+              id: paymentIntentId,
+              customer: stripeCustomerId,
+              amount,
+              amount_received: amount,
+              latest_charge: chargeId,
+              payment_method_types: ["card"],
+              metadata: {}
+            }
+          },
+          type: "payment_intent.succeeded"
+        });
+
+        const webhookResponse = await getWebhookResponse(payload);
+
+        const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+        const transaction = await stripeTransactionRepository.findByPaymentIntentId(paymentIntentId);
+        const expectedBalance = billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT + amount * 10000;
+
+        expect(webhookResponse.status).toBe(200);
+        expect(userWallet?.deploymentAllowance).toBe(`${expectedBalance}.00`);
+        expect(transaction).toMatchObject({ status: "succeeded", bonusAmount: 0 });
+      });
+
+      it("does not grant the bonus when the user already completed a paid purchase", async () => {
+        const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+        const amount = 10000;
+
+        const { user, stripeCustomerId } = await setup();
+
+        // Prior completed paid purchase consumed the one-time eligibility
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "payment_intent",
+          status: "succeeded",
+          amount: 20000,
+          currency: "usd",
+          stripePaymentIntentId: `pi_${faker.string.alphanumeric(24)}`
+        });
+
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "payment_intent",
+          status: "created",
+          amount,
+          currency: "usd",
+          stripePaymentIntentId: paymentIntentId
+        });
+
+        nock("https://api.stripe.com")
+          .get(`/v1/charges/${chargeId}`)
+          .reply(200, {
+            id: chargeId,
+            payment_method_details: { card: { brand: "visa", last4: "4242" } },
+            receipt_url: "https://pay.stripe.com/receipts/test"
+          });
+
+        const payload = JSON.stringify({
+          data: {
+            object: {
+              id: paymentIntentId,
+              customer: stripeCustomerId,
+              amount,
+              amount_received: amount,
+              latest_charge: chargeId,
+              payment_method_types: ["card"],
+              metadata: {}
+            }
+          },
+          type: "payment_intent.succeeded"
+        });
+
+        const webhookResponse = await getWebhookResponse(payload);
+
+        const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+        const transaction = await stripeTransactionRepository.findByPaymentIntentId(paymentIntentId);
+        const expectedBalance = billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT + amount * 10000;
+
+        expect(webhookResponse.status).toBe(200);
+        expect(userWallet?.deploymentAllowance).toBe(`${expectedBalance}.00`);
+        expect(transaction).toMatchObject({ status: "succeeded", bonusAmount: 0 });
+      });
+    });
+
+    describe("invoice.payment_succeeded", () => {
+      it("does not grant the bonus for coupon claims nor consume the user's eligibility", async () => {
+        const invoiceId = `in_${faker.string.alphanumeric(24)}`;
+        const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+        const couponAmount = 15000; // $150 coupon, above the bonus minimum
+        const purchaseAmount = 10000; // $100 first real purchase
+
+        const { user, stripeCustomerId } = await setup();
+
+        // Coupon claim redeemed via invoice
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "coupon_claim",
+          status: "created",
+          amount: couponAmount,
+          currency: "usd",
+          stripeInvoiceId: invoiceId
+        });
+
+        const invoicePayload = JSON.stringify({
+          data: {
+            object: {
+              id: invoiceId,
+              customer: stripeCustomerId
+            }
+          },
+          type: "invoice.payment_succeeded"
+        });
+
+        const invoiceResponse = await getWebhookResponse(invoicePayload);
+        expect(invoiceResponse.status).toBe(200);
+
+        const couponTransaction = await stripeTransactionRepository.findByInvoiceId(invoiceId);
+        const walletAfterCoupon = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+        const balanceAfterCoupon = billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT + couponAmount * 10000;
+
+        // Coupon credits only its own amount - no bonus
+        expect(couponTransaction).toMatchObject({ status: "succeeded", bonusAmount: 0 });
+        expect(walletAfterCoupon?.deploymentAllowance).toBe(`${balanceAfterCoupon}.00`);
+
+        // A later first real purchase still earns the bonus - the coupon did not consume eligibility
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "payment_intent",
+          status: "created",
+          amount: purchaseAmount,
+          currency: "usd",
+          stripePaymentIntentId: paymentIntentId
+        });
+
+        nock("https://api.stripe.com")
+          .get(`/v1/charges/${chargeId}`)
+          .reply(200, {
+            id: chargeId,
+            payment_method_details: { card: { brand: "visa", last4: "4242" } },
+            receipt_url: "https://pay.stripe.com/receipts/test"
+          });
+
+        const purchasePayload = JSON.stringify({
+          data: {
+            object: {
+              id: paymentIntentId,
+              customer: stripeCustomerId,
+              amount: purchaseAmount,
+              amount_received: purchaseAmount,
+              latest_charge: chargeId,
+              payment_method_types: ["card"],
+              metadata: {}
+            }
+          },
+          type: "payment_intent.succeeded"
+        });
+
+        const purchaseResponse = await getWebhookResponse(purchasePayload);
+        expect(purchaseResponse.status).toBe(200);
+
+        const purchaseTransaction = await stripeTransactionRepository.findByPaymentIntentId(paymentIntentId);
+        const walletAfterPurchase = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+        const purchaseBonus = purchaseAmount / 10;
+        const balanceAfterPurchase = balanceAfterCoupon + (purchaseAmount + purchaseBonus) * 10000;
+
+        expect(purchaseTransaction).toMatchObject({ status: "succeeded", bonusAmount: purchaseBonus });
+        expect(walletAfterPurchase?.deploymentAllowance).toBe(`${balanceAfterPurchase}.00`);
       });
     });
 

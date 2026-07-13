@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
 import { PaymentMethodRepository, type StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
+import { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import { assertIsPayingUser } from "@src/billing/services/paying-user/paying-user";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
@@ -21,7 +22,8 @@ export class StripeWebhookService {
     private readonly billingConfig: BillingConfigService,
     private readonly userRepository: UserRepository,
     private readonly paymentMethodRepository: PaymentMethodRepository,
-    private readonly stripeTransactionRepository: StripeTransactionRepository
+    private readonly stripeTransactionRepository: StripeTransactionRepository,
+    private readonly firstPurchaseBonusService: FirstPurchaseBonusService
   ) {}
 
   async routeStripeEvent(signature: string, rawEvent: string) {
@@ -236,6 +238,8 @@ export class StripeWebhookService {
       return;
     }
 
+    const bonusAmount = await this.firstPurchaseBonusService.getEligibleBonusAmount(transaction, params.paymentAmount);
+
     await this.stripeTransactionRepository.updateById(params.transactionId, {
       status: "succeeded",
       stripeChargeId: params.chargeId,
@@ -243,19 +247,33 @@ export class StripeWebhookService {
       cardBrand: params.cardBrand,
       cardLast4: params.cardLast4,
       receiptUrl: params.receiptUrl,
-      stripePaymentIntentId: params.stripePaymentIntentId
+      stripePaymentIntentId: params.stripePaymentIntentId,
+      ...(bonusAmount > 0 ? { bonusAmount } : {})
     });
 
-    await this.refillService.topUpWallet(params.paymentAmount, params.userId, {
+    // Single combined top-up: two calls would double chain fees and race on retrieveDeploymentLimit.
+    await this.refillService.topUpWallet(params.paymentAmount + bonusAmount, params.userId, {
       endTrial: params.endTrial,
       payment: {
         currency: transaction.currency,
         cardBrand: params.cardBrand,
         paymentMethodType: params.paymentMethodType,
         transactionId: transaction.id,
-        source: transaction.type
+        source: transaction.type,
+        ...(bonusAmount > 0 ? { bonusAmountCents: bonusAmount } : {})
       }
     });
+
+    if (bonusAmount > 0) {
+      this.firstPurchaseBonusService.trackBonusGranted(params.userId, params.paymentAmount, bonusAmount);
+      this.logger.info({
+        event: "FIRST_PURCHASE_BONUS_GRANTED",
+        transactionId: params.transactionId,
+        userId: params.userId,
+        paidAmountCents: params.paymentAmount,
+        bonusAmountCents: bonusAmount
+      });
+    }
   }
 
   @WithTransaction()
@@ -346,16 +364,31 @@ export class StripeWebhookService {
 
     const isFullyRefunded = charge.refunded;
 
+    // Claw back the first-purchase bonus only on the first transition to fully-refunded
+    // (pre-update status check); partial refunds never touch the bonus. bonusAmount stays
+    // on the row as the audit record of the grant.
+    const bonusClawback = isFullyRefunded && transaction.status !== "refunded" && transaction.bonusAmount > 0 ? transaction.bonusAmount : 0;
+
     // Update transaction with new refund amount and status
     await this.stripeTransactionRepository.updateById(transaction.id, {
       amountRefunded: charge.amount_refunded,
       ...(isFullyRefunded ? { status: "refunded" } : {})
     });
 
-    await this.refillService.reduceWalletBalance(refundedAmount, user.id, {
+    await this.refillService.reduceWalletBalance(refundedAmount + bonusClawback, user.id, {
       currency: transaction.currency,
       transactionId: transaction.id
     });
+
+    if (bonusClawback > 0) {
+      this.logger.info({
+        event: "FIRST_PURCHASE_BONUS_CLAWED_BACK",
+        chargeId: charge.id,
+        userId: user.id,
+        transactionId: transaction.id,
+        bonusAmountCents: bonusClawback
+      });
+    }
 
     this.logger.info({
       event: "CHARGE_REFUNDED",

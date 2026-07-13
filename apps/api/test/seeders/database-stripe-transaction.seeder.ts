@@ -10,6 +10,7 @@ export function generateDatabaseStripeTransaction(overrides: Partial<StripeTrans
     status: "created",
     amount: faker.number.int({ min: 1000, max: 100000 }),
     amountRefunded: 0,
+    bonusAmount: 0,
     currency: "usd",
     stripePaymentIntentId: null,
     stripeChargeId: null,

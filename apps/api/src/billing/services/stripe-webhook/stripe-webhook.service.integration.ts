@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { PaymentMethodRepository, StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import type { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
 import type { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeWebhookService } from "@src/billing/services/stripe-webhook/stripe-webhook.service";
@@ -175,6 +176,103 @@ describe(StripeWebhookService.name, () => {
           stripePaymentIntentId: "pi_123"
         })
       );
+    });
+
+    it("consults the first-purchase bonus service with the locked transaction before flipping its status", async () => {
+      const { service, userRepository, stripeTransactionRepository, firstPurchaseBonusService } = setup();
+      const mockUser = createTestUser();
+      const internalTransaction = createMockTransaction({ status: "created" });
+      const amount = 10000;
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+
+      const event = createPaymentIntentSucceededEvent({
+        id: "pi_123",
+        customer: mockUser.stripeCustomerId,
+        amount,
+        amount_received: amount,
+        metadata: { internal_transaction_id: internalTransaction.id }
+      });
+
+      await service.tryToTopUpWalletFromPaymentIntent(event);
+
+      expect(firstPurchaseBonusService.getEligibleBonusAmount).toHaveBeenCalledWith(internalTransaction, amount);
+      expect(firstPurchaseBonusService.getEligibleBonusAmount.mock.invocationCallOrder[0]).toBeLessThan(
+        stripeTransactionRepository.updateById.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("tops up the combined amount, persists the bonus and tracks the grant when the bonus applies", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService, firstPurchaseBonusService } = setup();
+      const mockUser = createTestUser();
+      const internalTransaction = createMockTransaction({ status: "created" });
+      const amount = 15000;
+      const bonusAmount = 1500;
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+      firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(bonusAmount);
+
+      const event = createPaymentIntentSucceededEvent({
+        id: "pi_123",
+        customer: mockUser.stripeCustomerId,
+        amount,
+        amount_received: amount,
+        metadata: { internal_transaction_id: internalTransaction.id }
+      });
+
+      await service.tryToTopUpWalletFromPaymentIntent(event);
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(
+        internalTransaction.id,
+        expect.objectContaining({
+          status: "succeeded",
+          bonusAmount
+        })
+      );
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount + bonusAmount, mockUser.id, {
+        endTrial: undefined,
+        payment: {
+          currency: internalTransaction.currency,
+          cardBrand: undefined,
+          paymentMethodType: undefined,
+          transactionId: internalTransaction.id,
+          source: "payment_intent",
+          bonusAmountCents: bonusAmount
+        }
+      });
+      expect(firstPurchaseBonusService.trackBonusGranted).toHaveBeenCalledWith(mockUser.id, amount, bonusAmount);
+    });
+
+    it("keeps the update payload and top-up untouched when no bonus applies", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService, firstPurchaseBonusService } = setup();
+      const mockUser = createTestUser();
+      const internalTransaction = createMockTransaction({ status: "created" });
+      const amount = 10000;
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+
+      const event = createPaymentIntentSucceededEvent({
+        id: "pi_123",
+        customer: mockUser.stripeCustomerId,
+        amount,
+        amount_received: amount,
+        metadata: { internal_transaction_id: internalTransaction.id }
+      });
+
+      await service.tryToTopUpWalletFromPaymentIntent(event);
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(
+        internalTransaction.id,
+        expect.not.objectContaining({ bonusAmount: expect.anything() })
+      );
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, expect.anything());
+      expect(firstPurchaseBonusService.trackBonusGranted).not.toHaveBeenCalled();
     });
   });
 
@@ -580,6 +678,75 @@ describe(StripeWebhookService.name, () => {
       expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
       expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
     });
+
+    it("claws back the first-purchase bonus on top of a full refund", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const mockUser = createTestUser();
+      const transactionId = "tx-123";
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findByChargeId.mockResolvedValue(
+        createMockTransaction({ id: transactionId, status: "succeeded", amount: 10000, amountRefunded: 0, bonusAmount: 1000 })
+      );
+
+      const event = createChargeRefundedEvent({
+        id: "ch_123",
+        customer: mockUser.stripeCustomerId!,
+        amount_refunded: 10000,
+        refunded: true
+      });
+
+      await service.handleChargeRefunded(event);
+
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(11000, mockUser.id, { currency: "usd", transactionId });
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: 10000, status: "refunded" });
+    });
+
+    it("does not claw back the bonus again when the transaction is already refunded", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const mockUser = createTestUser();
+      const transactionId = "tx-123";
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      // Already transitioned to refunded by a previous delivery; a late extra refund only reduces its delta
+      stripeTransactionRepository.findByChargeId.mockResolvedValue(
+        createMockTransaction({ id: transactionId, status: "refunded", amount: 10000, amountRefunded: 9000, bonusAmount: 1000 })
+      );
+
+      const event = createChargeRefundedEvent({
+        id: "ch_123",
+        customer: mockUser.stripeCustomerId!,
+        amount_refunded: 10000,
+        refunded: true
+      });
+
+      await service.handleChargeRefunded(event);
+
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(1000, mockUser.id, { currency: "usd", transactionId });
+    });
+
+    it("leaves the bonus untouched on partial refunds", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const mockUser = createTestUser();
+      const transactionId = "tx-123";
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findByChargeId.mockResolvedValue(
+        createMockTransaction({ id: transactionId, status: "succeeded", amount: 10000, amountRefunded: 0, bonusAmount: 1000 })
+      );
+
+      const event = createChargeRefundedEvent({
+        id: "ch_123",
+        customer: mockUser.stripeCustomerId!,
+        amount_refunded: 4000,
+        refunded: false
+      });
+
+      await service.handleChargeRefunded(event);
+
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(4000, mockUser.id, { currency: "usd", transactionId });
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: 4000 });
+    });
   });
 
   describe("handlePaymentMethodAttached", () => {
@@ -822,13 +989,23 @@ describe(StripeWebhookService.name, () => {
     const userRepository = mock<UserRepository>();
     const paymentMethodRepository = mock<PaymentMethodRepository>();
     const stripeTransactionRepository = mock<StripeTransactionRepository>();
+    const firstPurchaseBonusService = mock<FirstPurchaseBonusService>();
+    firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(0);
 
     // Mock Stripe charges API
     stripeService.charges = {
       retrieve: vi.fn()
     } as unknown as Stripe.ChargesResource;
 
-    const service = new StripeWebhookService(stripeService, refillService, billingConfig, userRepository, paymentMethodRepository, stripeTransactionRepository);
+    const service = new StripeWebhookService(
+      stripeService,
+      refillService,
+      billingConfig,
+      userRepository,
+      paymentMethodRepository,
+      stripeTransactionRepository,
+      firstPurchaseBonusService
+    );
 
     return {
       service,
@@ -837,7 +1014,8 @@ describe(StripeWebhookService.name, () => {
       billingConfig,
       userRepository,
       paymentMethodRepository,
-      stripeTransactionRepository
+      stripeTransactionRepository,
+      firstPurchaseBonusService
     };
   }
 
@@ -849,6 +1027,7 @@ describe(StripeWebhookService.name, () => {
       status: "succeeded",
       amount: 10000,
       amountRefunded: 0,
+      bonusAmount: 0,
       currency: "usd",
       stripePaymentIntentId: "pi_123",
       stripeChargeId: "ch_123",
