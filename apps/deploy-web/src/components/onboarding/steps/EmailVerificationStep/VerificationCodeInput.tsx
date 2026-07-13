@@ -19,19 +19,46 @@ export const VerificationCodeInput = React.forwardRef<VerificationCodeInputRef, 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const submittedCodeRef = useRef<string | null>(null);
 
+  const focusFirstDigit = useCallback(() => {
+    inputRefs.current[0]?.focus();
+  }, []);
+
   const reset = useCallback(() => {
     setDigits(Array(CODE_LENGTH).fill(""));
     submittedCodeRef.current = null;
-    inputRefs.current[0]?.focus();
-  }, []);
+    focusFirstDigit();
+  }, [focusFirstDigit]);
 
   useImperativeHandle(
     ref,
     () => ({
       reset,
-      focus: () => inputRefs.current[0]?.focus()
+      focus: focusFirstDigit
     }),
-    [reset]
+    [reset, focusFirstDigit]
+  );
+
+  useEffect(
+    function focusFirstDigitOnPageVisit() {
+      if (disabled) return;
+
+      focusFirstDigit();
+
+      function refocusWhenPageVisible() {
+        if (document.visibilityState === "visible") {
+          focusFirstDigit();
+        }
+      }
+
+      document.addEventListener("visibilitychange", refocusWhenPageVisible);
+      window.addEventListener("focus", focusFirstDigit);
+
+      return function teardownPageVisitFocus() {
+        document.removeEventListener("visibilitychange", refocusWhenPageVisible);
+        window.removeEventListener("focus", focusFirstDigit);
+      };
+    },
+    [disabled, focusFirstDigit]
   );
 
   useEffect(() => {

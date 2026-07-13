@@ -11,14 +11,14 @@ describe(DeploymentTemplatePickerCard.name, () => {
       chip: "Starter",
       title: "Hello World",
       description: "A simple deployment",
-      priceBold: "$5",
+      priceBold: "$1",
       priceRest: "/mo"
     });
 
     expect(screen.getByText("Starter")).toBeInTheDocument();
     expect(screen.getByText("Hello World")).toBeInTheDocument();
     expect(screen.getByText("A simple deployment")).toBeInTheDocument();
-    expect(screen.getByText("$5")).toBeInTheDocument();
+    expect(screen.getByText("$1")).toBeInTheDocument();
     expect(screen.getByText("/mo")).toBeInTheDocument();
   });
 
@@ -77,7 +77,7 @@ describe(DeploymentTemplatePickerCard.name, () => {
       chip: "Starter",
       title: "Hello World",
       description: "A simple deployment",
-      priceBold: "$5",
+      priceBold: "$1",
       priceRest: "/mo",
       ctaLabel: "Deploy now",
       heroImageSrc: "/hero.png",

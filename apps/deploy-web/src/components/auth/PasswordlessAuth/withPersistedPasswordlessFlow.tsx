@@ -6,6 +6,30 @@ import { useCallback, useState } from "react";
 /** sessionStorage key for the in-flight passwordless screen + email. Per-tab; cleared on successful verify. */
 export const EMAIL_CODE_FLOW_STORAGE_KEY = "console_email_code_flow_v1";
 
+/** sessionStorage key for the last code-send time (ms), so the resend cooldown survives a reload. Per-tab. */
+export const CODE_SENT_AT_STORAGE_KEY = "console_email_code_sent_at_v1";
+
+/** Record that a code was just sent, anchoring the resend cooldown so a page reload continues it instead of restarting. */
+export function markCodeSent(): void {
+  try {
+    window.sessionStorage.setItem(CODE_SENT_AT_STORAGE_KEY, String(Date.now()));
+  } catch {
+    return;
+  }
+}
+
+/** Read the last code-send time (ms); null when missing, corrupted, or server-side. */
+export function readCodeSentAt(): number | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(CODE_SENT_AT_STORAGE_KEY);
+    const parsed = raw == null ? NaN : Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 export interface PassedFlowProps {
   initialEmail: string;
   initialScreen: "entry" | "verify";
@@ -37,6 +61,7 @@ export function withPersistedPasswordlessFlow<P extends PassedFlowProps>(Compone
     const onFlowReset = useCallback(function clearPersistedPasswordlessFlow() {
       try {
         window.sessionStorage.removeItem(EMAIL_CODE_FLOW_STORAGE_KEY);
+        window.sessionStorage.removeItem(CODE_SENT_AT_STORAGE_KEY);
       } catch {
         return;
       }

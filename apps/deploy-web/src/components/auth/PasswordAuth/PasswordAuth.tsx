@@ -116,7 +116,7 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
             : "Create your Akash account or log in to an existing one."}
         </p>
         {activeView !== "forgot-password" && isOnboardingRedesignEnabled && (
-          <p className="text-sm leading-5 text-neutral-500 dark:text-neutral-400">$5 credit to deploy your first container. No card required.</p>
+          <p className="text-sm leading-5 text-neutral-500 dark:text-neutral-400">$1 credit to deploy your first container. No card required.</p>
         )}
       </div>
 

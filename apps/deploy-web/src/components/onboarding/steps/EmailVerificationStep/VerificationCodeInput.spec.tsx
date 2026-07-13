@@ -75,6 +75,45 @@ describe(VerificationCodeInput.name, () => {
     });
   });
 
+  it("focuses the first digit input on mount", () => {
+    setup();
+
+    const inputs = screen.queryAllByRole("textbox");
+    expect(inputs[0]).toHaveFocus();
+  });
+
+  it("refocuses the first digit input when the page becomes visible again", () => {
+    setup();
+
+    const inputs = screen.queryAllByRole("textbox");
+    act(() => {
+      inputs[3].focus();
+    });
+    expect(inputs[3]).toHaveFocus();
+
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(inputs[0]).toHaveFocus();
+  });
+
+  it("refocuses the first digit input when the window regains focus", () => {
+    setup();
+
+    const inputs = screen.queryAllByRole("textbox");
+    act(() => {
+      inputs[2].focus();
+    });
+    expect(inputs[2]).toHaveFocus();
+
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+
+    expect(inputs[0]).toHaveFocus();
+  });
+
   it("resets digits when reset is called via ref", async () => {
     const ref = React.createRef<VerificationCodeInputRef>();
     const { onComplete } = setup({ ref });
