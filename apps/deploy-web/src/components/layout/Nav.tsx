@@ -1,6 +1,6 @@
 "use client";
 import { Button } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
+import { cn, REMOVE_SCROLL_CLASS_NAMES } from "@akashnetwork/ui/utils";
 import type { ClassValue } from "clsx";
 import { Menu, Xmark } from "iconoir-react";
 import Link from "next/link";
@@ -25,7 +25,7 @@ export const Nav = ({
   const theme = useCookieTheme();
 
   return (
-    <header className={cn("fixed top-0 z-50 w-full border-b border-border bg-header", className)}>
+    <header className={cn("fixed left-0 right-0 top-0 z-50 border-b border-border bg-header", className, REMOVE_SCROLL_CLASS_NAMES.zeroRight)}>
       <div className="flex h-14 items-center justify-between pl-4 pr-4">
         {!!theme && (
           <Link className="flex items-center" href="/">
