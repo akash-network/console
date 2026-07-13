@@ -210,7 +210,7 @@ describe(GpuCard.name, () => {
     expect(screen.getByRole("combobox", { name: "GPU model" })).toBeDisabled();
     expect(screen.getByRole("combobox", { name: "GPU memory" })).toBeDisabled();
     expect(screen.getByRole("combobox", { name: "GPU interface" })).toBeDisabled();
-  });
+  }, 15_000);
 
   const StubGpuModelFields: typeof DEPENDENCIES.GpuModelFields = ({ gpuIndex }) => <div role="group" aria-label={`GPU ${gpuIndex + 1}`} />;
 

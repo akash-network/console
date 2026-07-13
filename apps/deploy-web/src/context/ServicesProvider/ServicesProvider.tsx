@@ -1,5 +1,5 @@
 import React, { useContext, useMemo } from "react";
-import type { NetworkId } from "@akashnetwork/chain-sdk";
+import type { NetworkId } from "@akashnetwork/chain-sdk/web";
 import { AuthzHttpService, BmeHttpService } from "@akashnetwork/http-sdk";
 
 import { UACT_DENOM, UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";

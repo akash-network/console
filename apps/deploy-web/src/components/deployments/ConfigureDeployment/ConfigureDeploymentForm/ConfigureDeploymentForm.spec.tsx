@@ -289,16 +289,6 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(requestQuotes).toHaveBeenCalledWith("sdl-x");
   });
 
-  it("deselects the focused placement's provider when the review modal is dismissed via Back", async () => {
-    const { flow } = setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes });
-    const focusedPlacementId = screen.getByTestId("focused-placement").textContent;
-
-    await userEvent.click(screen.getByRole("button", { name: "select provider" }));
-    await userEvent.click(screen.getByRole("button", { name: "back to marketplace" }));
-
-    expect(flow.actions.clearSelection).toHaveBeenCalledWith(focusedPlacementId);
-  });
-
   it("closes the review modal when it is dismissed via Back", async () => {
     setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes });
 

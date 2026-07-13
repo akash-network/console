@@ -38,10 +38,11 @@ export const ReviewAndDeployModal: FC<Props> = ({ open, dseq, placements, select
   const { rows, pricedCount, totalCount } = d.useReviewRows({ dseq, placements, selections });
   /** Only deployable once every placement is selected and still has a live (priced) bid — a closed/stale bid leaves a row unpriced and would fail at create-lease. */
   const canConfirm = totalCount > 0 && rows.length === totalCount && pricedCount === totalCount;
+  const preventDefault = (e: Event) => e.preventDefault();
 
   return (
     <DialogV2 open={open} onOpenChange={isOpen => (!isOpen ? onBack() : undefined)}>
-      <DialogV2Content className="max-w-2xl">
+      <DialogV2Content className="max-w-2xl" onEscapeKeyDown={preventDefault} onInteractOutside={preventDefault} hideCloseButton>
         <DialogV2Header>
           <DialogV2Title>Review and deploy</DialogV2Title>
           <DialogV2Description>Review your provider selections for each placement before deploying.</DialogV2Description>
