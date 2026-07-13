@@ -1,3 +1,4 @@
+import type { ApiManagedWalletOutput } from "@akashnetwork/http-sdk";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -61,13 +62,8 @@ describe(OnboardingPickerPage.name, () => {
   });
 
   it("renders an error alert when trial start fails terminally", () => {
-    const useEnsureTrialStarted: () => EnsureTrialStartedResult = () => ({
-      isWalletReady: false,
-      isLoading: false,
-      error: new Error("boom"),
-      refreshWallet: vi.fn(),
-      retryTrial: vi.fn()
-    });
+    const useEnsureTrialStarted: () => EnsureTrialStartedResult = () =>
+      mock<EnsureTrialStartedResult>({ wallet: undefined, isWalletReady: false, isLoading: false, error: new Error("boom") });
     setup({ dependencies: { useEnsureTrialStarted } });
 
     expect(screen.getByText(/We couldn't set up your trial/i)).toBeInTheDocument();
@@ -101,7 +97,7 @@ describe(OnboardingPickerPage.name, () => {
       isTrialing: true,
       dependencies: {
         DeploymentTemplatePickerCard,
-        useEnsureTrialStarted: () => ({ isWalletReady: false, isLoading: true, error: null, refreshWallet: vi.fn(), retryTrial: vi.fn() })
+        useEnsureTrialStarted: () => mock<EnsureTrialStartedResult>({ wallet: undefined, isWalletReady: false, isLoading: true, error: null })
       }
     });
 
@@ -138,7 +134,7 @@ describe(OnboardingPickerPage.name, () => {
       isTrialing: true,
       dependencies: {
         AddCreditsSheet,
-        useEnsureTrialStarted: () => ({ isWalletReady: false, isLoading: true, error: null, refreshWallet: vi.fn(), retryTrial: vi.fn() })
+        useEnsureTrialStarted: () => mock<EnsureTrialStartedResult>({ wallet: undefined, isWalletReady: false, isLoading: true, error: null })
       }
     });
 
@@ -186,15 +182,27 @@ describe(OnboardingPickerPage.name, () => {
   });
 
   it("renders a button to skip the trial and unlock Console while trialing", () => {
-    setup({ isTrialing: true });
+    setup({ isTrialing: true, wallet: mock<ApiManagedWalletOutput>({ creditAmount: 100 }) });
 
     expect(screen.getByText(/Skip the trial - unlock Console/i)).toBeInTheDocument();
   });
 
-  it("hides the skip-the-trial button once the user is no longer trialing", () => {
-    setup({ isTrialing: false });
+  it("hides the skip-the-trial button once the user is no longer trialing and the wallet is funded", () => {
+    setup({ isTrialing: false, wallet: mock<ApiManagedWalletOutput>({ creditAmount: 100 }) });
 
     expect(screen.queryByText(/Skip the trial - unlock Console/i)).not.toBeInTheDocument();
+  });
+
+  it("renders the skip-the-trial button when the wallet has no credit even after the trial has ended", () => {
+    setup({ isTrialing: false, wallet: mock<ApiManagedWalletOutput>({ creditAmount: 0 }) });
+
+    expect(screen.getByText(/Skip the trial - unlock Console/i)).toBeInTheDocument();
+  });
+
+  it("renders the skip-the-trial button when no wallet exists yet and the trial has ended", () => {
+    setup({ isTrialing: false, wallet: undefined });
+
+    expect(screen.getByText(/Skip the trial - unlock Console/i)).toBeInTheDocument();
   });
 
   it("opens the verification sheet when the skip-the-trial button is clicked", () => {
@@ -233,21 +241,24 @@ describe(OnboardingPickerPage.name, () => {
       push?: () => void;
       isTrialing?: boolean;
       trialCreditsAmount?: number;
+      wallet?: EnsureTrialStartedResult["wallet"];
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
     const push = input.push ?? vi.fn();
     const isTrialing = input.isTrialing ?? true;
     const trialCreditsAmount = input.trialCreditsAmount ?? 100;
+    const wallet = "wallet" in input ? input.wallet : mock<ApiManagedWalletOutput>({ creditAmount: 100 });
 
     const useRouter: typeof DEPENDENCIES.useRouter = vi.fn(() => mock<AppRouterInstance>({ push }));
-    const useEnsureTrialStarted: typeof DEPENDENCIES.useEnsureTrialStarted = vi.fn(() => ({
-      isWalletReady: true,
-      isLoading: false,
-      error: null,
-      refreshWallet: vi.fn(),
-      retryTrial: vi.fn()
-    }));
+    const useEnsureTrialStarted: typeof DEPENDENCIES.useEnsureTrialStarted = vi.fn(() =>
+      mock<EnsureTrialStartedResult>({
+        wallet,
+        isWalletReady: true,
+        isLoading: false,
+        error: null
+      })
+    );
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing });
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({ publicConfig: { NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT: trialCreditsAmount }, urlService: UrlService });
