@@ -176,7 +176,7 @@ describe(TrialValidationService.name, () => {
     model: string,
     ids: { dseq: string; gseq: number; oseq: number; bseq: number; provider: string }
   ): ReturnType<typeof createBid> {
-    const bid = createBid({ dseq: ids.dseq, gseq: ids.gseq, oseq: ids.oseq, bseq: ids.bseq, provider: ids.provider });
+    const bid = createBid({ owner: "akash1owner", dseq: ids.dseq, gseq: ids.gseq, oseq: ids.oseq, bseq: ids.bseq, provider: ids.provider });
     bid.bid.resources_offer[0].resources.gpu = {
       units: { val: "1" },
       attributes: [{ key: `vendor/${vendor}/model/${model}`, value: "true" }]
