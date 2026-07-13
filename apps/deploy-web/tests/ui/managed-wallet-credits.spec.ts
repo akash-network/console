@@ -29,7 +29,7 @@ test.describe("Managed wallet credits", () => {
     });
 
     await test.step("verify payment success", async () => {
-      await expect(page.getByText("Payment Successful!")).toBeVisible({ timeout: 60_000 });
+      await expect(billingPage.getPaymentSuccessMessage()).toBeVisible({ timeout: 60_000 });
     });
 
     await test.step("verify balance increased", async () => {
