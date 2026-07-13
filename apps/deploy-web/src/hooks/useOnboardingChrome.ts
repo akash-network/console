@@ -15,8 +15,6 @@ export const ONBOARDING_CHROME_PATHS = ["/new-deployment/configure"];
 export type OnboardingChromeState = {
   /** Render minimal chrome (no sidebar, logout-only menu, no WalletStatus). */
   isStripped: boolean;
-  /** Onboarding state not yet known; hold with a neutral spinner to avoid a chrome flash either way. */
-  isResolving: boolean;
 };
 
 /**
@@ -29,7 +27,7 @@ export type OnboardingChromeState = {
  * (same key) with the gate, so it's usually cached and resolves without a spinner.
  */
 export const useOnboardingChrome = (d: typeof DEPENDENCIES = DEPENDENCIES): OnboardingChromeState => {
-  const { address, hasManagedWallet, isWalletLoading, managedWalletError } = d.useWallet();
+  const { address, hasManagedWallet, managedWalletError } = d.useWallet();
   const pathname = d.usePathname();
   const isRedesignEnabled = d.useFlag("onboarding_redesign_v1");
 
@@ -37,20 +35,21 @@ export const useOnboardingChrome = (d: typeof DEPENDENCIES = DEPENDENCIES): Onbo
   const hasWallet = hasManagedWallet && !!address;
 
   const leasesQuery = d.useAllLeases(address, { enabled: isRelevant && hasWallet });
-  const isLeasesLoading = hasWallet && leasesQuery.isLoading;
   const isOnboarded = hasWallet && (leasesQuery.data?.length ?? 0) > 0;
+  const leasesErrored = hasWallet && leasesQuery.isError;
 
-  // A wallet error leaves onboarding unknowable, so fail open to the full chrome rather than trap the user in the
-  // stripped funnel — mirrors the gate's fail-open on a transient chain-API blip.
-  if (!isRelevant || managedWalletError) {
-    return { isStripped: false, isResolving: false };
+  // A wallet error — or a leases error that leaves onboarding unknowable (an undefined result is not "no leases") —
+  // makes the funnel decision unresolvable, so fail open to the full chrome rather than trap a possibly-onboarded
+  // user in the stripped funnel. Mirrors the gate's fail-open on a transient chain-API blip.
+  if (!isRelevant || managedWalletError || leasesErrored) {
+    return { isStripped: false };
   }
 
-  // The trial wallet is still provisioning/loading, or its leases haven't settled: hold either way to avoid a flash.
-  const isResolving = isWalletLoading || !hasWallet || isLeasesLoading;
-
-  return {
-    isStripped: !isResolving && !isOnboarded,
-    isResolving
-  };
+  // Strip the chrome for the entire first-deploy funnel — including while the trial wallet is still provisioning and
+  // its leases are loading — so the page can render its own progress UX (e.g. the auto-deploy overlay) instead of
+  // being blanked behind Layout's full-screen spinner until the trial responds. We can't distinguish a brand-new
+  // user from an already-onboarded one until leases settle, so we optimistically strip and let the full chrome fill
+  // in if they turn out onboarded (leases are shared/cached in the normal in-app path, so that's rare) — a far
+  // better trade than interrupting an in-progress deploy with a spinner.
+  return { isStripped: !isOnboarded };
 };

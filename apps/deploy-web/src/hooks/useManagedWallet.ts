@@ -72,10 +72,16 @@ export const useManagedWallet = () => {
           }
         : undefined,
       isLoading,
+      /**
+       * True only during the initial wallet-existence lookup — never while a trial wallet is being created.
+       * Consumers gating on "do we yet know the user's wallet situation?" (the onboarding gate) use this so a
+       * provisioning trial reads as known identity and doesn't blank the page with a full-screen loader.
+       */
+      isInitializing: isInitialLoading,
       isFetching,
       createError,
       resetCreate,
       refetch
     };
-  }, [wallet, isLoading, isFetching, createError, resetCreate, refetch, user?.id, create]);
+  }, [wallet, isLoading, isInitialLoading, isFetching, createError, resetCreate, refetch, user?.id, create]);
 };

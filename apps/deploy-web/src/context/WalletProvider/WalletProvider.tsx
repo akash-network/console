@@ -28,6 +28,8 @@ export type ContextType = {
   isManaged: true;
   denom: string;
   isWalletLoading: boolean;
+  /** True only during the initial wallet-existence lookup, not while a trial is being provisioned. */
+  isWalletInitializing: boolean;
   isTrialing: boolean;
   isOnboarding: boolean;
   creditAmount?: number;
@@ -51,7 +53,13 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
   const router = useRouter();
   const { user } = useUser();
-  const { wallet: managedWallet, isLoading: isManagedWalletLoading, create: createManagedWallet, createError: managedWalletError } = useManagedWallet();
+  const {
+    wallet: managedWallet,
+    isLoading: isManagedWalletLoading,
+    isInitializing: isManagedWalletInitializing,
+    create: createManagedWallet,
+    createError: managedWalletError
+  } = useManagedWallet();
   const walletAddress = managedWallet?.address;
   const username = managedWallet?.username;
   const isWalletConnected = !!managedWallet?.isWalletConnected;
@@ -60,6 +68,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const isLoading = deriveWalletIsLoading({
     hasAuthenticatedUserId: !!user?.userId,
     isManagedWalletLoading
+  });
+  const isInitializing = deriveWalletIsLoading({
+    hasAuthenticatedUserId: !!user?.userId,
+    isManagedWalletLoading: isManagedWalletInitializing
   });
   const { signAndBroadcastTx, loadingState } = useSignAndBroadcast({ refetchBalances });
 
@@ -135,6 +147,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isManaged: true,
         denom: managedWallet?.denom ?? "",
         isWalletLoading: isLoading,
+        isWalletInitializing: isInitializing,
         isTrialing: !!managedWallet?.isTrialing,
         isOnboarding: !!user?.userId && !!managedWallet?.isTrialing,
         creditAmount: managedWallet?.creditAmount,

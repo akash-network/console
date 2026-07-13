@@ -77,7 +77,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({
   const { isSettingsInit } = useSettings();
   const { isWalletLoaded } = useWallet();
   const { hasBanner } = useTopBanner();
-  const { isStripped, isResolving } = useOnboardingChrome();
+  const { isStripped } = useOnboardingChrome();
 
   const onOpenMenuClick = () => {
     setIsNavOpen(prev => {
@@ -92,15 +92,6 @@ const LayoutApp: React.FunctionComponent<Props> = ({
   const handleDrawerToggle = () => {
     setIsMobileOpen(!isMobileOpen);
   };
-
-  // Onboarding chrome not yet resolved: hold with a neutral spinner (no Nav/Sidebar) to avoid a chrome flash either way.
-  if (isResolving) {
-    return (
-      <div className={cn("flex h-full min-h-screen items-center justify-center", { "bg-white text-foreground": background === "white" })}>
-        <Spinner size="large" />
-      </div>
-    );
-  }
 
   return (
     <div className={cn("flex h-full flex-col", { "min-h-screen bg-white text-foreground": background === "white" })}>

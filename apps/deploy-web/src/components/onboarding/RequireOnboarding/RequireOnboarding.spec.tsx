@@ -7,9 +7,19 @@ import { render, screen } from "@testing-library/react";
 
 describe(RequireOnboarding.name, () => {
   describe("flag on", () => {
-    it("shows loading until wallet and leases resolve", () => {
-      setup({ flag: true, isWalletLoading: true, path: "/deployments" });
+    it("shows loading until the initial wallet lookup and leases resolve", () => {
+      setup({ flag: true, isWalletInitializing: true, path: "/deployments" });
       expect(screen.queryByText("child")).not.toBeInTheDocument();
+    });
+
+    it("renders the page while a trial is being provisioned instead of a full-screen loader", () => {
+      setup({ flag: true, hasManagedWallet: false, isWalletLoading: true, isWalletInitializing: false, path: "/new-deployment/configure" });
+      expect(screen.getByText("child")).toBeInTheDocument();
+    });
+
+    it("renders an allow-list route immediately while the initial wallet lookup is still loading (uninterrupted deploy overlay)", () => {
+      setup({ flag: true, isWalletInitializing: true, path: "/new-deployment/configure" });
+      expect(screen.getByText("child")).toBeInTheDocument();
     });
 
     it("renders children for an onboarded user on an app route", () => {
@@ -99,6 +109,7 @@ describe(RequireOnboarding.name, () => {
     hasManagedWallet?: boolean;
     isWalletConnected?: boolean;
     isWalletLoading?: boolean;
+    isWalletInitializing?: boolean;
     leases?: number;
     leasesLoading?: boolean;
     leasesError?: boolean;
@@ -118,7 +129,8 @@ describe(RequireOnboarding.name, () => {
           address: input.address ?? "",
           hasManagedWallet: input.hasManagedWallet ?? false,
           isWalletConnected: input.isWalletConnected ?? false,
-          isWalletLoading: input.isWalletLoading ?? false
+          isWalletLoading: input.isWalletLoading ?? false,
+          isWalletInitializing: input.isWalletInitializing ?? false
         })) as typeof DEPENDENCIES.useWallet,
       useAllLeases: (() =>
         mock<ReturnType<typeof DEPENDENCIES.useAllLeases>>({

@@ -13,7 +13,7 @@ describe(useOnboardingChrome.name, () => {
 
     const { result } = renderHook(() => useOnboardingChrome(dependencies));
 
-    expect(result.current).toEqual({ isStripped: true, isResolving: false });
+    expect(result.current).toEqual({ isStripped: true });
   });
 
   it("matches nested configure routes via startsWith", () => {
@@ -29,7 +29,7 @@ describe(useOnboardingChrome.name, () => {
 
     const { result } = renderHook(() => useOnboardingChrome(dependencies));
 
-    expect(result.current).toEqual({ isStripped: false, isResolving: false });
+    expect(result.current).toEqual({ isStripped: false });
   });
 
   it("does not strip on plain /new-deployment", () => {
@@ -37,7 +37,7 @@ describe(useOnboardingChrome.name, () => {
 
     const { result } = renderHook(() => useOnboardingChrome(dependencies));
 
-    expect(result.current).toEqual({ isStripped: false, isResolving: false });
+    expect(result.current).toEqual({ isStripped: false });
   });
 
   it("does nothing when the flag is off", () => {
@@ -45,7 +45,7 @@ describe(useOnboardingChrome.name, () => {
 
     const { result } = renderHook(() => useOnboardingChrome(dependencies));
 
-    expect(result.current).toEqual({ isStripped: false, isResolving: false });
+    expect(result.current).toEqual({ isStripped: false });
   });
 
   it("does nothing on an unrelated route", () => {
@@ -53,31 +53,31 @@ describe(useOnboardingChrome.name, () => {
 
     const { result } = renderHook(() => useOnboardingChrome(dependencies));
 
-    expect(result.current).toEqual({ isStripped: false, isResolving: false });
+    expect(result.current).toEqual({ isStripped: false });
   });
 
-  it("resolves while the wallet query is loading", () => {
+  it("strips and renders while the wallet query is still loading instead of holding a spinner", () => {
     const { dependencies } = setup({ isFlagEnabled: true, pathname: "/new-deployment/configure", leaseCount: 0, isWalletLoading: true });
 
     const { result } = renderHook(() => useOnboardingChrome(dependencies));
 
-    expect(result.current).toEqual({ isStripped: false, isResolving: true });
+    expect(result.current).toEqual({ isStripped: true });
   });
 
-  it("resolves while the trial wallet has not appeared yet", () => {
+  it("strips and renders while the trial wallet is still provisioning instead of holding a spinner", () => {
     const { dependencies } = setup({ isFlagEnabled: true, pathname: "/new-deployment/configure", leaseCount: 0, hasManagedWallet: false });
 
     const { result } = renderHook(() => useOnboardingChrome(dependencies));
 
-    expect(result.current).toEqual({ isStripped: false, isResolving: true });
+    expect(result.current).toEqual({ isStripped: true });
   });
 
-  it("resolves while the leases query is loading", () => {
+  it("strips and renders while the leases query is still loading instead of holding a spinner", () => {
     const { dependencies } = setup({ isFlagEnabled: true, pathname: "/new-deployment/configure", isLeasesLoading: true });
 
     const { result } = renderHook(() => useOnboardingChrome(dependencies));
 
-    expect(result.current).toEqual({ isStripped: false, isResolving: true });
+    expect(result.current).toEqual({ isStripped: true });
   });
 
   it("shows full chrome when the wallet errors", () => {
@@ -91,7 +91,15 @@ describe(useOnboardingChrome.name, () => {
 
     const { result } = renderHook(() => useOnboardingChrome(dependencies));
 
-    expect(result.current).toEqual({ isStripped: false, isResolving: false });
+    expect(result.current).toEqual({ isStripped: false });
+  });
+
+  it("shows full chrome when the leases query errors for an existing wallet", () => {
+    const { dependencies } = setup({ isFlagEnabled: true, pathname: "/new-deployment/configure", isLeasesError: true });
+
+    const { result } = renderHook(() => useOnboardingChrome(dependencies));
+
+    expect(result.current).toEqual({ isStripped: false });
   });
 
   function setup(input: {
@@ -99,6 +107,7 @@ describe(useOnboardingChrome.name, () => {
     pathname: string;
     leaseCount?: number;
     isLeasesLoading?: boolean;
+    isLeasesError?: boolean;
     isWalletLoading?: boolean;
     hasManagedWallet?: boolean;
     managedWalletError?: AppError;
@@ -115,7 +124,8 @@ describe(useOnboardingChrome.name, () => {
     const useAllLeases = (() =>
       mock<ReturnType<typeof DEPENDENCIES.useAllLeases>>({
         isLoading: (input.isLeasesLoading ?? false) as never,
-        data: Array.from({ length: input.leaseCount ?? 0 }) as never
+        isError: (input.isLeasesError ?? false) as never,
+        data: (input.isLeasesError ? undefined : Array.from({ length: input.leaseCount ?? 0 })) as never
       })) as typeof DEPENDENCIES.useAllLeases;
 
     return { dependencies: { useWallet, usePathname, useFlag, useAllLeases } };
