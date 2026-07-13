@@ -1,10 +1,10 @@
+import type { ManagedWalletHttpService } from "@akashnetwork/http-sdk";
 import type { UserProfile } from "@auth0/nextjs-auth0/client";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { useCreateManagedWalletMutation } from "@src/queries/useManagedWalletQuery";
-import type { ManagedWalletHttpService } from "@src/services/managed-wallet-http/managed-wallet-http.service";
 import { useManagedWallet } from "./useManagedWallet";
 
 import { act } from "@testing-library/react";

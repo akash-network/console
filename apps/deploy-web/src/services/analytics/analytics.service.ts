@@ -97,8 +97,6 @@ export type AnalyticsEvent =
   | "add_funds_coupon_claim_amount_btn_clk"
   | "redeploy_btn_clk"
   | "edit_name_btn_clk"
-  | "payment_cancelled"
-  | "payment_success"
   | "create_deployment_btn_clk"
   | "onboarding_step_started"
   | "onboarding_step_completed"

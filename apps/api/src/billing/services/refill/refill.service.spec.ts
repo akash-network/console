@@ -35,7 +35,36 @@ describe(RefillService.name, () => {
       expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledWith(existingWallet);
       expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(existingWallet, { endTrial: true });
       expect(walletInitializerService.initialize).not.toHaveBeenCalled();
-      expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up");
+      expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up", expect.objectContaining({ amount_cents: amountUsd, amount_usd: 1 }));
+    });
+
+    it("attaches payment context to the balance_top_up analytics event", async () => {
+      const { service, userWalletRepository, managedUserWalletService, balancesService, analyticsService } = setup();
+      const existingWallet = createUserWallet({ userId });
+      userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
+      managedUserWalletService.authorizeSpending.mockResolvedValue();
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(5000);
+      balancesService.refreshUserWalletLimits.mockResolvedValue();
+
+      await service.topUpWallet(amountUsd, userId, {
+        payment: {
+          currency: "usd",
+          cardBrand: "visa",
+          paymentMethodType: "card",
+          transactionId: "tx-123",
+          source: "payment_intent"
+        }
+      });
+
+      expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up", {
+        amount_cents: amountUsd,
+        amount_usd: 1,
+        currency: "usd",
+        card_brand: "visa",
+        payment_method_type: "card",
+        transaction_id: "tx-123",
+        source: "payment_intent"
+      });
     });
 
     it("does not end trial when endTrial option is false", async () => {
@@ -70,7 +99,7 @@ describe(RefillService.name, () => {
       });
       expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(newWallet, { endTrial: true });
       expect(walletInitializerService.initialize).toHaveBeenCalledWith(userId);
-      expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up");
+      expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up", expect.objectContaining({ amount_cents: amountUsd, amount_usd: 1 }));
     });
 
     function setup() {
@@ -129,7 +158,26 @@ describe(RefillService.name, () => {
         limits: { deployment: 4000000, fees: 1000 }
       });
       expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(existingWallet);
-      expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_refund");
+      expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_refund", expect.objectContaining({ amount_cents: 100, amount_usd: 1 }));
+    });
+
+    it("attaches payment context to the balance_refund analytics event", async () => {
+      const { service, userWalletRepository, managedUserWalletService, balancesService, analyticsService } = setup();
+      const existingWallet = createUserWallet({ userId, address: "akash1test..." });
+
+      userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(5000000);
+      managedUserWalletService.authorizeSpending.mockResolvedValue();
+      balancesService.refreshUserWalletLimits.mockResolvedValue();
+
+      await service.reduceWalletBalance(100, userId, { currency: "usd", transactionId: "tx-456" });
+
+      expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_refund", {
+        amount_cents: 100,
+        amount_usd: 1,
+        currency: "usd",
+        transaction_id: "tx-456"
+      });
     });
 
     it("does not reduce balance below zero", async () => {
@@ -148,7 +196,7 @@ describe(RefillService.name, () => {
         address: existingWallet.address,
         limits: { deployment: 0, fees: 1000 }
       });
-      expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_refund");
+      expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_refund", expect.objectContaining({ amount_cents: 100, amount_usd: 1 }));
     });
 
     it("does nothing when wallet does not exist", async () => {

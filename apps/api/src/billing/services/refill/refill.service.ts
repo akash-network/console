@@ -12,6 +12,14 @@ import { ManagedUserWalletService } from "@src/billing/services/managed-user-wal
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 
+export interface PaymentAnalyticsContext {
+  currency?: string;
+  cardBrand?: string;
+  paymentMethodType?: string;
+  transactionId?: string;
+  source?: "payment_intent" | "coupon_claim";
+}
+
 @singleton()
 export class RefillService {
   private readonly logger = createOtelLogger({ context: RefillService.name });
@@ -63,8 +71,9 @@ export class RefillService {
    * Top up the wallet with the given amount in USD
    * @param amountUsd - The amount in USD *cents* to top up the wallet with (e.g. 10000 = $100)
    * @param userId - The ID of the user to top up the wallet for
+   * @param options.payment - Payment context attached to the `balance_top_up` analytics event
    */
-  async topUpWallet(amountUsd: number, userId: UserWalletOutput["userId"], options: { endTrial?: boolean } = {}) {
+  async topUpWallet(amountUsd: number, userId: UserWalletOutput["userId"], options: { endTrial?: boolean; payment?: PaymentAnalyticsContext } = {}) {
     const userWallet = await this.getOrCreateUserWallet(userId);
     const currentLimit = await this.balancesService.retrieveDeploymentLimit(userWallet);
 
@@ -76,7 +85,15 @@ export class RefillService {
     });
 
     await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: options.endTrial ?? true });
-    this.analyticsService.track(userId, "balance_top_up");
+    this.analyticsService.track(userId, "balance_top_up", {
+      amount_cents: amountUsd,
+      amount_usd: amountUsd / 100,
+      currency: options.payment?.currency,
+      card_brand: options.payment?.cardBrand,
+      payment_method_type: options.payment?.paymentMethodType,
+      transaction_id: options.payment?.transactionId,
+      source: options.payment?.source
+    });
     this.logger.debug({ event: "WALLET_TOP_UP", userWallet, limits });
   }
 
@@ -84,8 +101,9 @@ export class RefillService {
    * Reduce the wallet balance (e.g., for refunds)
    * @param amountUsd - The amount in USD *cents* to reduce from the wallet (e.g. 10000 = $100)
    * @param userId - The ID of the user to reduce the wallet for
+   * @param payment - Payment context attached to the `balance_refund` analytics event
    */
-  async reduceWalletBalance(amountUsd: number, userId: UserWalletOutput["userId"]) {
+  async reduceWalletBalance(amountUsd: number, userId: UserWalletOutput["userId"], payment?: Pick<PaymentAnalyticsContext, "currency" | "transactionId">) {
     const userWallet = await this.userWalletRepository.findOneBy({ userId });
 
     if (!userWallet || !userWallet.address) {
@@ -106,7 +124,12 @@ export class RefillService {
     });
 
     await this.balancesService.refreshUserWalletLimits(userWallet);
-    this.analyticsService.track(userId, "balance_refund");
+    this.analyticsService.track(userId, "balance_refund", {
+      amount_cents: amountUsd,
+      amount_usd: amountUsd / 100,
+      currency: payment?.currency,
+      transaction_id: payment?.transactionId
+    });
     this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit: currentLimit, nextLimit });
   }
 

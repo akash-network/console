@@ -1,9 +1,9 @@
+import type { ManagedWalletHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { useQueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { ManagedWalletHttpService } from "@src/services/managed-wallet-http/managed-wallet-http.service";
 import { useCreateManagedWalletMutation, useManagedWalletQuery } from "./useManagedWalletQuery";
 
 import { act } from "@testing-library/react";
