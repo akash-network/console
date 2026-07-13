@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { createAkashAddress } from "../../../test/seeders";
-import type { BatchSigningClientService, SignAndBroadcastOptions } from "../../lib/batch-signing-client/batch-signing-client.service";
+import type { SignAndBroadcastOptions, SigningClientService } from "../../lib/signing-client/signing-client.service";
 import type { Wallet } from "../../lib/wallet/wallet";
 import type { LoggerService } from "../../providers";
 import { TxManagerService } from "./tx-manager.service";
@@ -68,7 +68,7 @@ describe(TxManagerService.name, () => {
         rawLog: "success"
       });
 
-      const { service, logger, derivedWallet, batchSigningClientServiceFactory } = setup({
+      const { service, logger, derivedWallet, signingClientServiceFactory } = setup({
         derivedWalletAddress: address,
         derivedSignAndBroadcast: vi.fn().mockResolvedValue(txResult),
         hasPendingTransactions: false
@@ -77,7 +77,7 @@ describe(TxManagerService.name, () => {
       const result = await service.signAndBroadcastWithDerivedWallet(derivationIndex, messages, options);
 
       expect(derivedWallet.getFirstAddress).toHaveBeenCalled();
-      expect(batchSigningClientServiceFactory).toHaveBeenCalledWith(derivedWallet);
+      expect(signingClientServiceFactory).toHaveBeenCalledWith(derivedWallet);
       expect(logger.debug).toHaveBeenCalledWith({ event: "DERIVED_SIGNING_CLIENT_CREATE", derivationIndex });
       expect(result).toEqual(txResult);
     });
@@ -187,8 +187,8 @@ describe(TxManagerService.name, () => {
   function setup(input?: {
     fundingWalletAddress?: string;
     derivedWalletAddress?: string;
-    fundingSignAndBroadcast?: BatchSigningClientService["signAndBroadcast"];
-    derivedSignAndBroadcast?: BatchSigningClientService["signAndBroadcast"];
+    fundingSignAndBroadcast?: SigningClientService["signAndBroadcast"];
+    derivedSignAndBroadcast?: SigningClientService["signAndBroadcast"];
     hasPendingTransactions?: boolean;
   }) {
     const fundingWalletAddress = input?.fundingWalletAddress ?? createAkashAddress();
@@ -206,15 +206,15 @@ describe(TxManagerService.name, () => {
       getFirstAddress: vi.fn().mockResolvedValue(derivedWalletAddress)
     });
 
-    const fundingSigningClient = mock<BatchSigningClientService>({
+    const fundingSigningClient = mock<SigningClientService>({
       signAndBroadcast: input?.fundingSignAndBroadcast ?? vi.fn()
     });
 
-    const oldMasterSigningClient = mock<BatchSigningClientService>({
+    const oldMasterSigningClient = mock<SigningClientService>({
       signAndBroadcast: vi.fn()
     });
 
-    const derivedSigningClient = mock<BatchSigningClientService>({
+    const derivedSigningClient = mock<SigningClientService>({
       signAndBroadcast: input?.derivedSignAndBroadcast ?? vi.fn(),
       hasPendingTransactions: input?.hasPendingTransactions ?? false
     });
@@ -227,7 +227,7 @@ describe(TxManagerService.name, () => {
       return derivedWallet;
     });
 
-    const batchSigningClientServiceFactory = vi.fn().mockImplementation((_wallet: Wallet) => {
+    const signingClientServiceFactory = vi.fn().mockImplementation((_wallet: Wallet) => {
       return derivedSigningClient;
     });
 
@@ -246,7 +246,7 @@ describe(TxManagerService.name, () => {
       }
     };
 
-    const service = new TxManagerService(walletResources, batchSigningClientServiceFactory, logger);
+    const service = new TxManagerService(walletResources, signingClientServiceFactory, logger);
 
     return {
       service,
@@ -258,7 +258,7 @@ describe(TxManagerService.name, () => {
       fundingSigningClient,
       oldMasterSigningClient,
       derivedSigningClient,
-      batchSigningClientServiceFactory,
+      signingClientServiceFactory,
       logger
     };
   }

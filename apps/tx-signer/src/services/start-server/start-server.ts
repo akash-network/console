@@ -3,7 +3,7 @@ import type { ServerType } from "@hono/node-server";
 import { serve } from "@hono/node-server";
 import type EventEmitter from "events";
 import type { Env, Hono } from "hono";
-import { once } from "lodash";
+import once from "lodash/once";
 import type { DependencyContainer } from "tsyringe";
 import { container as rootContainer } from "tsyringe";
 
