@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from "react";
+import type { ApiManagedWalletOutput } from "@akashnetwork/http-sdk";
 import { useIsMutating } from "@tanstack/react-query";
 
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
@@ -10,6 +11,7 @@ export const DEPENDENCIES = {
 };
 
 export type EnsureTrialStartedResult = {
+  wallet: ApiManagedWalletOutput | undefined;
   isWalletReady: boolean;
   isLoading: boolean;
   error: ReturnType<typeof useManagedWallet>["createError"];
@@ -39,7 +41,7 @@ export type EnsureTrialStartedResult = {
  *
  * Use only on pages that are part of the onboarding redesign — the call is unguarded.
  */
-export const useEnsureTrialStarted = (d: typeof DEPENDENCIES = DEPENDENCIES): EnsureTrialStartedResult => {
+export const useEnsureTrialStarted = (d = DEPENDENCIES): EnsureTrialStartedResult => {
   const { wallet, create, isLoading, createError, resetCreate, refetch } = d.useManagedWallet();
   const isWalletReady = !!wallet?.address;
   const isStartingTrial = d.useIsMutating({ mutationKey: QueryKeys.getManagedWalletCreateMutationKey() }) > 0;
@@ -54,5 +56,5 @@ export const useEnsureTrialStarted = (d: typeof DEPENDENCIES = DEPENDENCIES): En
 
   const retryTrial = useCallback(() => resetCreate(), [resetCreate]);
 
-  return { isWalletReady, isLoading, error: createError, refreshWallet: refetch, retryTrial };
+  return { isWalletReady, isLoading, error: createError, refreshWallet: refetch, retryTrial, wallet: wallet as ApiManagedWalletOutput | undefined };
 };

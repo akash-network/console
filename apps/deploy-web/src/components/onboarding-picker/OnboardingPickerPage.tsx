@@ -49,7 +49,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   const { publicConfig, urlService } = d.useServices();
   const trialCreditsAmount = publicConfig.NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT;
   const [addCreditsSheetReason, setAddCreditsSheetReason] = useState<"unlock-gpu" | "skip-trial" | null>(null);
-  const { isWalletReady, error: trialError } = d.useEnsureTrialStarted();
+  const { isWalletReady, error: trialError, wallet } = d.useEnsureTrialStarted();
   const isLlmGated = isTrialing || !isWalletReady;
   const isLlmAvailable = !isLlmGated;
 
@@ -148,7 +148,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
                 </Button>
               </div>
 
-              {isTrialing && (
+              {(isTrialing || !wallet?.creditAmount) && (
                 <div className="text-center">
                   <d.Button onClick={() => setAddCreditsSheetReason("skip-trial")} variant="ghost">
                     Skip the trial - unlock Console
