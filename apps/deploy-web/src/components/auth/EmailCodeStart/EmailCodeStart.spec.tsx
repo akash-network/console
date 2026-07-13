@@ -46,18 +46,49 @@ describe(EmailCodeStart.name, () => {
     });
   });
 
-  function setup(input: { defaultEmail?: string; onStarted?: (email: string) => void; getCaptchaToken?: () => Promise<string> } = {}) {
+  it("keeps the label visible and shows a loading indicator while the code is being sent", async () => {
+    const { authService } = setup();
+    authService.startEmailCode.mockReturnValue(new Promise<void>(() => {}));
+
+    await userEvent.type(screen.getByLabelText("Email"), "alice@example.com");
+    await userEvent.click(screen.getByRole("button", { name: /continue with email/i }));
+
+    await vi.waitFor(() => {
+      expect(screen.getByRole("status")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /continue with email/i })).toBeDisabled();
+  });
+
+  it("records the code-send time on a successful send", async () => {
+    const { authService, markCodeSent } = setup();
+    authService.startEmailCode.mockResolvedValue(undefined);
+
+    await userEvent.type(screen.getByLabelText("Email"), "alice@example.com");
+    await userEvent.click(screen.getByRole("button", { name: /continue with email/i }));
+
+    await vi.waitFor(() => {
+      expect(markCodeSent).toHaveBeenCalled();
+    });
+  });
+
+  function setup(input: { defaultEmail?: string; onStarted?: (email: string) => void; getCaptchaToken?: () => Promise<string>; markCodeSent?: () => void } = {}) {
     const authService = mock<AuthService>();
     const analyticsService = mock<AnalyticsService>();
     const onStarted = input.onStarted ?? vi.fn();
     const getCaptchaToken = input.getCaptchaToken ?? vi.fn().mockResolvedValue("captcha-token");
+    const markCodeSent = input.markCodeSent ?? vi.fn();
 
     render(
       <TestContainerProvider services={{ authService: () => authService, analyticsService: () => analyticsService }}>
-        <EmailCodeStart defaultEmail={input.defaultEmail} onStarted={onStarted} getCaptchaToken={getCaptchaToken} dependencies={DEPENDENCIES} />
+        <EmailCodeStart
+          defaultEmail={input.defaultEmail}
+          onStarted={onStarted}
+          getCaptchaToken={getCaptchaToken}
+          dependencies={{ ...DEPENDENCIES, markCodeSent }}
+        />
       </TestContainerProvider>
     );
 
-    return { authService, analyticsService, onStarted, getCaptchaToken };
+    return { authService, analyticsService, onStarted, getCaptchaToken, markCodeSent };
   }
 });

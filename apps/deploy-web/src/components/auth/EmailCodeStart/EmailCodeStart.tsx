@@ -1,13 +1,14 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { Button, Form, FormField, FormInput, Spinner } from "@akashnetwork/ui/components";
+import { Form, FormField, FormInput, LoadingButton } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
 
 import { RemoteApiError } from "@src/components/shared/RemoteApiError/RemoteApiError";
 import { useServices } from "@src/context/ServicesProvider";
+import { markCodeSent } from "../PasswordlessAuth/withPersistedPasswordlessFlow";
 
 /** Single-field passwordless entry form: blocks submission unless the input is a syntactically valid email. */
 const formSchema = z.object({
@@ -17,12 +18,12 @@ const formSchema = z.object({
 export type EmailCodeStartValues = z.infer<typeof formSchema>;
 
 export const DEPENDENCIES = {
-  Button,
   Form,
   FormField,
   FormInput,
+  LoadingButton,
   RemoteApiError,
-  Spinner,
+  markCodeSent,
   useForm,
   useMutation
 };
@@ -44,6 +45,7 @@ export function EmailCodeStart({ dependencies: d = DEPENDENCIES, ...props }: Pro
       await authService.startEmailCode({ email: input.email, captchaToken });
     },
     onSuccess(_data, variables) {
+      d.markCodeSent();
       props.onStarted(variables.email);
     }
   });
@@ -73,12 +75,25 @@ export function EmailCodeStart({ dependencies: d = DEPENDENCIES, ...props }: Pro
               />
             )}
           />
-          <d.Button type="submit" aria-label="Continue with email" disabled={startMutation.isPending} className="h-10 w-full">
-            {startMutation.isPending ? <d.Spinner size="small" /> : "Continue with email"}
-          </d.Button>
+          <d.LoadingButton type="submit" loading={startMutation.isPending} loadingIndicator={<ButtonSpinner />} className="h-10 w-full">
+            Continue with email
+          </d.LoadingButton>
         </form>
       </d.Form>
       <p className="text-center text-xs leading-4 text-neutral-500 dark:text-neutral-400">We&apos;ll email you a 6 digit code. No password to remember.</p>
     </>
+  );
+}
+
+/**
+ * Ring spinner tinted with the button's foreground color via `border-current`, so it stays visible on
+ * solid buttons. The shared `Spinner`'s arc is `fill-primary`, which equals `bg-primary` and vanishes there.
+ */
+function ButtonSpinner() {
+  return (
+    <span role="status" className="mr-2 flex items-center justify-center">
+      <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent" />
+      <span className="sr-only">Loading...</span>
+    </span>
   );
 }

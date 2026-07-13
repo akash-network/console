@@ -86,14 +86,14 @@ describe(PasswordlessAuth.name, () => {
     expect(token).toBe("test-captcha-token");
   });
 
-  it("shows the $5 credit subtext when onboarding_redesign_v1 is enabled", () => {
+  it("shows the $1 credit subtext when onboarding_redesign_v1 is enabled", () => {
     setup({ isOnboardingRedesignEnabled: true });
-    expect(screen.getByText(/\$5 credit to deploy your first container/i)).toBeInTheDocument();
+    expect(screen.getByText(/\$1 credit to deploy your first container/i)).toBeInTheDocument();
   });
 
-  it("hides the $5 credit subtext when onboarding_redesign_v1 is disabled", () => {
+  it("hides the $1 credit subtext when onboarding_redesign_v1 is disabled", () => {
     setup({ isOnboardingRedesignEnabled: false });
-    expect(screen.queryByText(/\$5 credit to deploy your first container/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\$1 credit to deploy your first container/i)).not.toBeInTheDocument();
   });
 
   it("tracks terms_link_clk when the Terms link is clicked", async () => {
