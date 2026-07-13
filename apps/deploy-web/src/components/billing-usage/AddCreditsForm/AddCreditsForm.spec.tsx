@@ -377,6 +377,13 @@ describe(AddCreditsForm.name, () => {
     expect(confirmPayment).toHaveBeenCalledWith({ userId: "user_1", paymentMethodId: "pm_saved", amount: 50 });
   });
 
+  it("shows a notice and falls back to new-card entry when saved payment methods fail to load", () => {
+    setup({ status: "success", clientSecret: "seti_secret", isMethodsError: true });
+
+    expect(screen.getByText(/couldn't load your saved payment methods/i)).toBeInTheDocument();
+    expect(screen.getByTestId("new-payment-method-fields")).toBeInTheDocument();
+  });
+
   it("shows no minimum error before any amount is entered", () => {
     setup({ status: "success", clientSecret: "seti_secret", topUpMinAmountUsd: 100 });
 
@@ -577,6 +584,7 @@ describe(AddCreditsForm.name, () => {
     isWalletReady?: boolean;
     paymentMethods?: PaymentMethod[];
     isLoadingMethods?: boolean;
+    isMethodsError?: boolean;
     dependencies?: Partial<typeof DEPENDENCIES>;
   };
 
@@ -618,8 +626,9 @@ describe(AddCreditsForm.name, () => {
 
     // UseQueryResult is a discriminated union that neither mock<T>() nor a partial literal can satisfy
     const usePaymentMethodsQuery = (() => ({
-      data: input.paymentMethods ?? [],
-      isLoading: input.isLoadingMethods ?? false
+      data: input.isMethodsError ? undefined : input.paymentMethods ?? [],
+      isLoading: input.isLoadingMethods ?? false,
+      isError: input.isMethodsError ?? false
     })) as unknown as typeof DEPENDENCIES.usePaymentMethodsQuery;
 
     const use3DSecure: typeof DEPENDENCIES.use3DSecure = () =>

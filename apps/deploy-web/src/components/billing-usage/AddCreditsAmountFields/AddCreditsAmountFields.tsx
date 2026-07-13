@@ -77,6 +77,7 @@ export function AddCreditsAmountFields({ value, onChange, minAmount, error }: Ad
           value={value.customAmount}
           onChange={changeCustomAmount}
           min={minAmount}
+          step="0.01"
         />
         {error && <FieldError>{error}</FieldError>}
       </Field>

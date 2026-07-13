@@ -92,7 +92,7 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
   const { pollForPayment, isPolling } = d.usePaymentPolling();
   const { isTrialing, topUpMinAmountUsd } = d.useWallet();
   const queryClient = d.useQueryClient();
-  const { data: paymentMethods, isLoading: isLoadingMethods } = d.usePaymentMethodsQuery();
+  const { data: paymentMethods, isLoading: isLoadingMethods, isError: isMethodsError } = d.usePaymentMethodsQuery();
   const {
     confirmPayment: { mutateAsync: confirmPayment }
   } = d.usePaymentMutations();
@@ -293,6 +293,12 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
 
       <form className="space-y-6" onSubmit={submit}>
         <d.AddCreditsAmountFields value={amountInput} onChange={setAmountInput} minAmount={topUpMinAmountUsd} error={amountError} />
+
+        {isMethodsError && (
+          <Alert variant="destructive">
+            <AlertDescription>We couldn&apos;t load your saved payment methods. You can still pay with a new card.</AlertDescription>
+          </Alert>
+        )}
 
         {isLoadingMethods ? (
           <d.Skeleton className="h-10 w-full" />

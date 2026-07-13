@@ -22,11 +22,12 @@ describe(AddCreditsAmountFields.name, () => {
     expect(onChange).toHaveBeenCalledWith({ predefinedAmount: "", customAmount: "42" });
   });
 
-  it("renders the minimum in the custom amount label and input constraint", () => {
+  it("renders the minimum in the custom amount label and input constraints", () => {
     setup({ value: { predefinedAmount: "", customAmount: "" }, minAmount: 100 });
 
     expect(screen.getByText(/minimum 100/)).toBeInTheDocument();
     expect(screen.getByLabelText("custom-amount")).toHaveAttribute("min", "100");
+    expect(screen.getByLabelText("custom-amount")).toHaveAttribute("step", "0.01");
   });
 
   it("renders the inline validation error when provided", () => {
