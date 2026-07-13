@@ -351,6 +351,65 @@ describe("Stripe webhook", () => {
         expect(userWallet?.deploymentAllowance).toBe(`${expectedBalance}.00`);
         expect(transaction).toMatchObject({ status: "succeeded", bonusAmount: 0 });
       });
+
+      it("grants the bonus exactly once when two first purchases are delivered concurrently", async () => {
+        const amount = 10000;
+        const paymentIntentIds = [`pi_${faker.string.alphanumeric(24)}`, `pi_${faker.string.alphanumeric(24)}`];
+        const chargeIds = [`ch_${faker.string.alphanumeric(24)}`, `ch_${faker.string.alphanumeric(24)}`];
+
+        const { user, stripeCustomerId } = await setup();
+
+        for (const paymentIntentId of paymentIntentIds) {
+          await stripeTransactionRepository.create({
+            userId: user.id,
+            type: "payment_intent",
+            status: "created",
+            amount,
+            currency: "usd",
+            stripePaymentIntentId: paymentIntentId
+          });
+        }
+
+        for (const chargeId of chargeIds) {
+          nock("https://api.stripe.com")
+            .get(`/v1/charges/${chargeId}`)
+            .reply(200, {
+              id: chargeId,
+              payment_method_details: { card: { brand: "visa", last4: "4242" } },
+              receipt_url: "https://pay.stripe.com/receipts/test"
+            });
+        }
+
+        const payloads = paymentIntentIds.map((paymentIntentId, index) =>
+          JSON.stringify({
+            data: {
+              object: {
+                id: paymentIntentId,
+                customer: stripeCustomerId,
+                amount,
+                amount_received: amount,
+                latest_charge: chargeIds[index],
+                payment_method_types: ["card"],
+                metadata: {}
+              }
+            },
+            type: "payment_intent.succeeded"
+          })
+        );
+
+        const responses = await Promise.all(payloads.map(payload => getWebhookResponse(payload)));
+        responses.forEach(response => expect(response.status).toBe(200));
+
+        // The user-row lock serializes the two eligibility checks: whichever webhook commits
+        // first wins the bonus, the other sees a prior completed purchase and grants none
+        const transactions = await Promise.all(paymentIntentIds.map(id => stripeTransactionRepository.findByPaymentIntentId(id)));
+        const bonusAmounts = transactions.map(transaction => transaction?.bonusAmount ?? 0).sort((a, b) => a - b);
+        expect(bonusAmounts).toEqual([0, amount / 10]);
+
+        const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+        const expectedBalance = billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT + (amount * 2 + amount / 10) * 10000;
+        expect(userWallet?.deploymentAllowance).toBe(`${expectedBalance}.00`);
+      });
     });
 
     describe("invoice.payment_succeeded", () => {
@@ -515,6 +574,35 @@ describe("Stripe webhook", () => {
         const walletAfterSecond = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
         // Balance should be unchanged - no double deduction
         expect(walletAfterSecond?.deploymentAllowance).toBe(balanceAfterFirstRefund);
+      });
+
+      it("deducts the refund exactly once when duplicate deliveries arrive concurrently", async () => {
+        const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+        const amount = 50;
+
+        const { user, stripeCustomerId } = await setup();
+
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "payment_intent",
+          status: "succeeded",
+          amount,
+          currency: "usd",
+          stripePaymentIntentId: paymentIntentId,
+          stripeChargeId: chargeId
+        });
+
+        const payload = generateChargeRefundedPayload(chargeId, stripeCustomerId, amount, 0);
+
+        // The transaction-row lock serializes the two deliveries: the loser re-reads the
+        // committed amountRefunded and bails on the idempotency check
+        const responses = await Promise.all([getWebhookResponse(payload), getWebhookResponse(payload)]);
+        responses.forEach(response => expect(response.status).toBe(200));
+
+        const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+        const expectedBalance = billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT - amount * 10000;
+        expect(userWallet?.deploymentAllowance).toBe(`${expectedBalance}.00`);
       });
 
       it("reduces wallet balance and updates transaction status on full refund", async () => {

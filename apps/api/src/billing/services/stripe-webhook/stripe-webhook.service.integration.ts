@@ -535,7 +535,7 @@ describe(StripeWebhookService.name, () => {
       const refundedAmount = 5000;
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeTransactionRepository.findByChargeId.mockResolvedValue(createMockTransaction({ id: transactionId, amountRefunded: 0 }));
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(createMockTransaction({ id: transactionId, amountRefunded: 0 }));
       stripeTransactionRepository.updateById.mockResolvedValue(undefined);
       refillService.reduceWalletBalance.mockResolvedValue();
 
@@ -549,7 +549,7 @@ describe(StripeWebhookService.name, () => {
       await service.handleChargeRefunded(event);
 
       expect(userRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: mockUser.stripeCustomerId });
-      expect(stripeTransactionRepository.findByChargeId).toHaveBeenCalledWith(chargeId);
+      expect(stripeTransactionRepository.findOneByAndLock).toHaveBeenCalledWith({ stripeChargeId: chargeId });
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: refundedAmount, status: "refunded" });
       expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(refundedAmount, mockUser.id, { currency: "usd", transactionId });
     });
@@ -562,7 +562,7 @@ describe(StripeWebhookService.name, () => {
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
       // Transaction already has 3000 refunded
-      stripeTransactionRepository.findByChargeId.mockResolvedValue(createMockTransaction({ id: transactionId, amountRefunded: 3000 }));
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(createMockTransaction({ id: transactionId, amountRefunded: 3000 }));
       stripeTransactionRepository.updateById.mockResolvedValue(undefined);
       refillService.reduceWalletBalance.mockResolvedValue();
 
@@ -589,7 +589,7 @@ describe(StripeWebhookService.name, () => {
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
       // Transaction already has this refund processed (amountRefunded matches charge.amount_refunded)
-      stripeTransactionRepository.findByChargeId.mockResolvedValue(createMockTransaction({ id: "tx-123", amountRefunded: 5000 }));
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(createMockTransaction({ id: "tx-123", amountRefunded: 5000 }));
 
       const event = createChargeRefundedEvent({
         id: chargeId,
@@ -644,7 +644,7 @@ describe(StripeWebhookService.name, () => {
       const mockUser = createTestUser();
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeTransactionRepository.findByChargeId.mockResolvedValue(undefined);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(undefined);
 
       const event = createChargeRefundedEvent({
         id: "ch_123",
@@ -664,7 +664,7 @@ describe(StripeWebhookService.name, () => {
       const mockUser = createTestUser();
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeTransactionRepository.findByChargeId.mockResolvedValue(createMockTransaction({ id: "tx-123", status: "failed" }));
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(createMockTransaction({ id: "tx-123", status: "failed" }));
 
       const event = createChargeRefundedEvent({
         id: "ch_123",
@@ -685,7 +685,7 @@ describe(StripeWebhookService.name, () => {
       const transactionId = "tx-123";
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeTransactionRepository.findByChargeId.mockResolvedValue(
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(
         createMockTransaction({ id: transactionId, status: "succeeded", amount: 10000, amountRefunded: 0, bonusAmount: 1000 })
       );
 
@@ -709,7 +709,7 @@ describe(StripeWebhookService.name, () => {
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
       // Already transitioned to refunded by a previous delivery; a late extra refund only reduces its delta
-      stripeTransactionRepository.findByChargeId.mockResolvedValue(
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(
         createMockTransaction({ id: transactionId, status: "refunded", amount: 10000, amountRefunded: 9000, bonusAmount: 1000 })
       );
 
@@ -731,7 +731,7 @@ describe(StripeWebhookService.name, () => {
       const transactionId = "tx-123";
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeTransactionRepository.findByChargeId.mockResolvedValue(
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(
         createMockTransaction({ id: transactionId, status: "succeeded", amount: 10000, amountRefunded: 0, bonusAmount: 1000 })
       );
 

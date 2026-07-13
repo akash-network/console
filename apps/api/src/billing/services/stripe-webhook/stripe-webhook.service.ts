@@ -323,7 +323,10 @@ export class StripeWebhookService {
       return;
     }
 
-    const transaction = await this.stripeTransactionRepository.findByChargeId(charge.id);
+    // Locked read: concurrent charge.refunded deliveries serialize here, so the loser
+    // re-reads the committed amountRefunded/status and bails on the idempotency check
+    // instead of double-debiting the wallet.
+    const transaction = await this.stripeTransactionRepository.findOneByAndLock({ stripeChargeId: charge.id });
 
     if (!transaction) {
       this.logger.warn({ event: "CHARGE_REFUNDED_NO_TRANSACTION", chargeId: charge.id });
