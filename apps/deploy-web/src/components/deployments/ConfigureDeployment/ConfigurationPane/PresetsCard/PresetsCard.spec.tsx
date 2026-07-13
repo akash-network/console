@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from "react";
 import { FormProvider, useForm, type UseFormSetValue } from "react-hook-form";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
@@ -12,7 +12,8 @@ import userEvent from "@testing-library/user-event";
 
 const PRESETS: HardwarePreset[] = [
   { id: "small", label: "Small preset", group: "compute", cpu: 2, ram: 4, ramUnit: "Gi", storage: 20, storageUnit: "Gi" },
-  { id: "gpu", label: "GPU preset", group: "gpu", cpu: 4, ram: 16, ramUnit: "Gi", storage: 100, storageUnit: "Gi", gpu: 2, gpuVendor: "nvidia", gpuModel: "t4" }
+  { id: "gpu", label: "GPU preset", group: "gpu", cpu: 4, ram: 16, ramUnit: "Gi", storage: 100, storageUnit: "Gi", gpu: 2, gpuVendor: "nvidia", gpuModel: "t4" },
+  { id: "gpu-h100", label: "H100 preset", group: "gpu", cpu: 8, ram: 32, ramUnit: "Gi", storage: 100, storageUnit: "Gi", gpu: 1, gpuVendor: "nvidia", gpuModel: "h100" }
 ];
 
 describe(PresetsCard.name, () => {
@@ -101,12 +102,50 @@ describe(PresetsCard.name, () => {
     expect(screen.getByRole("combobox", { name: "Preset" })).toBeDisabled();
   });
 
+  it("locks a blocked GPU preset while keeping allowed presets selectable", async () => {
+    setup({ isBlockedModel: (_vendor, model) => model === "h100" });
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Preset" }));
+
+    expect(await screen.findByRole("option", { name: /H100 preset/ })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("option", { name: /GPU preset/ })).not.toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("option", { name: /Small preset/ })).not.toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("still applies an allowed preset while some GPUs are blocked", async () => {
+    const { getValues } = setup({ isBlockedModel: (_vendor, model) => model === "h100" });
+
+    await pickPreset("Small preset");
+
+    expect(getValues().services[0].profile.cpu).toBe(2);
+  });
+
+  it("calls onUnlock from the unlock CTA when a GPU preset is blocked", async () => {
+    const onUnlock = vi.fn();
+    setup({ isBlockedModel: (_vendor, model) => model === "h100", onUnlock });
+
+    await userEvent.click(screen.getByRole("button", { name: /unlock high-end gpus/i }));
+
+    expect(onUnlock).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows no unlock CTA when nothing is blocked", () => {
+    setup({});
+
+    expect(screen.queryByRole("button", { name: /unlock/i })).not.toBeInTheDocument();
+  });
+
   async function pickPreset(name: string) {
     await userEvent.click(screen.getByRole("combobox", { name: "Preset" }));
     await userEvent.click(await screen.findByRole("option", { name: new RegExp(name) }));
   }
 
-  function setup(input: { storage?: SdlBuilderFormValuesType["services"][number]["profile"]["storage"]; locked?: boolean }) {
+  function setup(input: {
+    storage?: SdlBuilderFormValuesType["services"][number]["profile"]["storage"];
+    locked?: boolean;
+    isBlockedModel?: (vendor?: string | null, model?: string | null) => boolean;
+    onUnlock?: () => void;
+  }) {
     const values = defaultServiceWithPlacement();
     if (input.storage) {
       values.services[0].profile.storage = input.storage;
@@ -123,7 +162,13 @@ describe(PresetsCard.name, () => {
 
     render(
       <Wrapper>
-        <PresetsCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES, hardwarePresets: PRESETS }} />
+        <PresetsCard
+          serviceIndex={0}
+          locked={input.locked}
+          isBlockedModel={input.isBlockedModel}
+          onUnlock={input.onUnlock}
+          dependencies={{ ...DEPENDENCIES, hardwarePresets: PRESETS }}
+        />
       </Wrapper>
     );
 

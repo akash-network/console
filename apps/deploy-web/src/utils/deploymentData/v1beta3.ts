@@ -102,6 +102,21 @@ export function appendAuditorRequirement(yamlStr: string) {
 ${result}`;
 }
 
+/**
+ * Whether a GPU `vendor`/`model` pair is blocked for managed-wallet trials — the single source of
+ * truth shared by the trial SDL policy ({@link applyTrialGpuPolicy}) and the configure-screen UI,
+ * so the options the UI locks are exactly the ones the policy strips. Matches on the normalized,
+ * lower-cased `vendor/model` key; a missing vendor or model is never blocked.
+ */
+export function isTrialBlockedGpuModel(
+  vendor: string | null | undefined,
+  model: string | null | undefined,
+  blockedModels: readonly string[] = browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS
+): boolean {
+  if (!vendor || !model) return false;
+  return blockedModels.includes(`${vendor.toLowerCase()}/${model.toLowerCase()}`);
+}
+
 export function applyTrialGpuPolicy(
   yamlStr: string,
   blockedModels: readonly string[] = browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS
@@ -110,8 +125,7 @@ export function applyTrialGpuPolicy(
   const computeProfiles = sdlData?.profiles?.compute;
   if (!computeProfiles || typeof computeProfiles !== "object") return yamlStr;
 
-  const blockedSet = new Set(blockedModels);
-  if (blockedSet.size === 0) return yamlStr;
+  if (blockedModels.length === 0) return yamlStr;
   let mutated = false;
 
   for (const profile of Object.values(computeProfiles)) {
@@ -121,7 +135,7 @@ export function applyTrialGpuPolicy(
 
     for (const vendor of Object.keys(vendorMap)) {
       const models = Array.isArray(vendorMap[vendor]) ? vendorMap[vendor]! : [];
-      const allowed = models.filter(entry => entry?.model && !blockedSet.has(`${vendor.toLowerCase()}/${entry.model.toLowerCase()}`));
+      const allowed = models.filter(entry => entry?.model && !isTrialBlockedGpuModel(vendor, entry.model, blockedModels));
 
       if (allowed.length === 0) {
         if (vendorMap[vendor] === null) continue;
