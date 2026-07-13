@@ -98,7 +98,8 @@ describe(SigningClientService.name, () => {
   it("throws after exhausting recovery retries when the transaction is never found", async () => {
     vi.useFakeTimers();
     try {
-      const { service, client } = setup();
+      // ceil(10_000ms TTL × 1.2 window / 2_000ms poll interval) = 6 retries, so 1 initial + 6 = 7 getTx polls before giving up.
+      const { service, client } = setup({ ttlMs: 10_000 });
       client.getTx.mockResolvedValue(null);
 
       const promise = service.signAndBroadcast(createMessages(1));
@@ -106,8 +107,7 @@ describe(SigningClientService.name, () => {
       await vi.advanceTimersByTimeAsync(60_000);
 
       await expect(promise).rejects.toThrow("Failed to sign and broadcast transaction");
-      // initial attempt + 5 retries (cockatiel maxAttempts is the retry count)
-      expect(client.getTx).toHaveBeenCalledTimes(6);
+      expect(client.getTx).toHaveBeenCalledTimes(7);
     } finally {
       vi.useRealTimers();
     }
