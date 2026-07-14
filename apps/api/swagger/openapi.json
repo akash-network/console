@@ -15266,6 +15266,10 @@
                       "name": {
                         "type": "string"
                       },
+                      "displayName": {
+                        "type": "string",
+                        "example": "NVIDIA"
+                      },
                       "models": {
                         "type": "array",
                         "items": {
@@ -15273,6 +15277,10 @@
                           "properties": {
                             "name": {
                               "type": "string"
+                            },
+                            "displayName": {
+                              "type": "string",
+                              "example": "RTX 4090"
                             },
                             "memory": {
                               "type": "array",
@@ -15289,6 +15297,7 @@
                           },
                           "required": [
                             "name",
+                            "displayName",
                             "memory",
                             "interface"
                           ]
@@ -15297,6 +15306,7 @@
                     },
                     "required": [
                       "name",
+                      "displayName",
                       "models"
                     ]
                   }

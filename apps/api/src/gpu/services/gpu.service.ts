@@ -1,15 +1,21 @@
-import axios from "axios";
+import type { HttpClient } from "@akashnetwork/http-sdk";
 import { minutesToSeconds } from "date-fns";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
-import { type GpuVendor, ProviderConfigGpusType } from "@src/types/gpu";
+import type { ProviderConfigGpusType } from "@src/types/gpu";
 import { type GpuBreakdownQuery } from "../http-schemas/gpu.schema";
+import { GPU_MODELS_HTTP_CLIENT } from "../providers/gpu-models-client.provider";
 import { GpuRepository } from "../repositories/gpu.repository";
+import { GpuFormattingService } from "./gpu-formatting/gpu-formatting.service";
 
 @singleton()
 export class GpuService {
-  constructor(private readonly gpuRepository: GpuRepository) {}
+  constructor(
+    private readonly gpuRepository: GpuRepository,
+    private readonly gpuFormattingService: GpuFormattingService,
+    @inject(GPU_MODELS_HTTP_CLIENT) private readonly httpClient: HttpClient
+  ) {}
 
   async getGpuList({
     providerAddress,
@@ -77,50 +83,8 @@ export class GpuService {
 
   @Memoize({ ttlInSeconds: minutesToSeconds(2) })
   async getGpuModels() {
-    const response = await axios.get<ProviderConfigGpusType>("https://raw.githubusercontent.com/akash-network/provider-configs/main/devices/pcie/gpus.json");
-    const gpuModels: GpuVendor[] = [];
-
-    // Loop over vendors
-    for (const [, vendorValue] of Object.entries(response.data)) {
-      const vendor: GpuVendor = {
-        name: vendorValue.name,
-        models: []
-      };
-
-      // Loop over models
-      for (const [, modelValue] of Object.entries(vendorValue.devices)) {
-        const _modelValue = modelValue as {
-          name: string;
-          memory_size: string;
-          interface: string;
-        };
-        const existingModel = vendor.models.find(x => x.name === _modelValue.name);
-
-        if (existingModel) {
-          if (!existingModel.memory.includes(_modelValue.memory_size)) {
-            existingModel.memory.push(_modelValue.memory_size);
-          }
-          if (!existingModel.interface.includes(this.getGpuInterface(_modelValue.interface))) {
-            existingModel.interface.push(this.getGpuInterface(_modelValue.interface));
-          }
-        } else {
-          vendor.models.push({
-            name: _modelValue.name,
-            memory: [_modelValue.memory_size],
-            interface: [this.getGpuInterface(_modelValue.interface)]
-          });
-        }
-      }
-
-      gpuModels.push(vendor);
-    }
-
-    return gpuModels;
-  }
-
-  private getGpuInterface(gpuInterface: string) {
-    const _formatted = gpuInterface.toLowerCase();
-    return _formatted.startsWith("sxm") ? "sxm" : _formatted;
+    const response = await this.httpClient.get<ProviderConfigGpusType>("/gpus.json");
+    return this.gpuFormattingService.mapProviderConfig(response.data);
   }
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })

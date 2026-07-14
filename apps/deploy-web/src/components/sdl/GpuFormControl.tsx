@@ -61,7 +61,7 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
   }, [gpuModels]);
 
   const theOnlyForModelOrEmpty = useCallback(
-    (name: string, attribute: keyof GpuModel) => {
+    (name: string, attribute: "memory" | "interface") => {
       return gpuModelsByName[name][attribute].length === 1 ? gpuModelsByName[name][attribute][0] : "";
     },
     [gpuModelsByName]

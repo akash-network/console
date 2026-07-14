@@ -202,7 +202,11 @@ function GpuModelFields({ serviceIndex, gpuIndex, gpuVendors, isLoading, isError
   const memory = useController({ control, name: `${basePath}.memory` });
   const gpuInterface = useController({ control, name: `${basePath}.interface` });
 
-  const vendorOptions = useMemo(() => (gpuVendors ? gpuVendors.map(v => v.name) : fallbackVendors.map(v => v.value)), [gpuVendors]);
+  const vendorOptions = useMemo(
+    () =>
+      gpuVendors ? gpuVendors.map(v => ({ value: v.name, label: v.displayName ?? v.name })) : fallbackVendors.map(v => ({ value: v.value, label: v.label })),
+    [gpuVendors]
+  );
   const models = useMemo(() => gpuVendors?.find(v => v.name === vendor.field.value)?.models ?? [], [gpuVendors, vendor.field.value]);
   const selectedModel = useMemo(() => models.find(m => m.name === name.field.value), [models, name.field.value]);
   const memorySizes = selectedModel?.memory ?? [];
@@ -249,12 +253,14 @@ function GpuModelFields({ serviceIndex, gpuIndex, gpuVendors, isLoading, isError
     () =>
       prioritizeGpuModels(models).map(model => {
         const blocked = isBlockedModel(vendor.field.value, model.name);
+        const label = model.displayName ?? model.name;
         return {
           value: model.name,
           disabled: blocked,
+          keywords: [label],
           label: (
             <span className="flex items-center gap-1.5">
-              {model.name}
+              {label}
               {blocked && <LockIcon className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Requires credits" />}
             </span>
           )
@@ -283,8 +289,8 @@ function GpuModelFields({ serviceIndex, gpuIndex, gpuVendors, isLoading, isError
             </SelectTrigger>
             <SelectContent>
               {vendorOptions.map(option => (
-                <SelectItem key={option} value={option}>
-                  {option}
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -313,6 +319,7 @@ function GpuModelFields({ serviceIndex, gpuIndex, gpuVendors, isLoading, isError
                 searchPlaceholder="Search models..."
                 notFoundMessage="No models found."
                 emptyOption={{ value: "", label: "Any model" }}
+                renderValue={modelName => models.find(model => model.name === modelName)?.displayName ?? modelName}
                 disabled={locked || models.length === 0}
                 triggerClassName="h-9"
               />
