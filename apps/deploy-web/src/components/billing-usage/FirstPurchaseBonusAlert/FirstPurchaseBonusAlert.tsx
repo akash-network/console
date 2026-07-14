@@ -10,8 +10,8 @@ import { usePaymentTransactionsQuery } from "@src/queries";
 
 /** Keep in sync with FirstPurchaseBonusService (apps/api). Amounts in dollars. */
 const MIN_QUALIFYING_AMOUNT = 100;
-const BONUS_PERCENT = 10;
-const MAX_BONUS = 100;
+export const BONUS_PERCENT = 10;
+export const MAX_BONUS = 100;
 /** Purchase that first reaches the capped bonus (e.g. $1,000 at 10% for a $100 cap). */
 const AMOUNT_FOR_MAX_BONUS = (MAX_BONUS * 100) / BONUS_PERCENT;
 
