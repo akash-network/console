@@ -5,6 +5,7 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { Job, JOB_NAME, JobHandler, JobPayload, JobQueueService, LoggerService } from "@src/core";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
+import { RESOLVED_MARKER } from "@src/notifications/services/notification-data-resolver/notification-data-resolver.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 
 export class CloseTrialDeployment implements Job {
@@ -123,7 +124,8 @@ export class CloseTrialDeploymentHandler implements JobHandler<CloseTrialDeploym
         vars: {
           dseq: payload.dseq,
           owner: wallet.address!,
-          deploymentLifetimeInHours: this.billingConfig.get("TRIAL_DEPLOYMENT_CLEANUP_HOURS")
+          deploymentLifetimeInHours: this.billingConfig.get("TRIAL_DEPLOYMENT_CLEANUP_HOURS"),
+          firstPurchaseBonus: RESOLVED_MARKER
         }
       }),
       {

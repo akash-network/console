@@ -116,7 +116,13 @@ describe(TrialStartedHandler.name, () => {
           template: "beforeTrialEnds",
           userId: user.id,
           conditions: { trial: true },
-          vars: { trialEndsAt: trialEndsAt.toISOString(), paymentLink, remainingCredits: "$resolved", activeDeployments: "$resolved" }
+          vars: {
+            trialEndsAt: trialEndsAt.toISOString(),
+            paymentLink,
+            remainingCredits: "$resolved",
+            activeDeployments: "$resolved",
+            firstPurchaseBonus: "$resolved"
+          }
         }),
         {
           singletonKey: `notification.beforeTrialEnds.${user.id}.${trialDays - 7}`,
@@ -129,7 +135,13 @@ describe(TrialStartedHandler.name, () => {
           template: "beforeTrialEnds",
           userId: user.id,
           conditions: { trial: true },
-          vars: { trialEndsAt: trialEndsAt.toISOString(), paymentLink, remainingCredits: "$resolved", activeDeployments: "$resolved" }
+          vars: {
+            trialEndsAt: trialEndsAt.toISOString(),
+            paymentLink,
+            remainingCredits: "$resolved",
+            activeDeployments: "$resolved",
+            firstPurchaseBonus: "$resolved"
+          }
         }),
         {
           singletonKey: `notification.beforeTrialEnds.${user.id}.${trialDays - 1}`,
@@ -142,7 +154,8 @@ describe(TrialStartedHandler.name, () => {
           template: "trialEnded",
           userId: user.id,
           vars: {
-            paymentLink
+            paymentLink,
+            firstPurchaseBonus: "$resolved"
           },
           conditions: { trial: true }
         }),
@@ -158,7 +171,8 @@ describe(TrialStartedHandler.name, () => {
           userId: user.id,
           conditions: { trial: true },
           vars: {
-            paymentLink
+            paymentLink,
+            firstPurchaseBonus: "$resolved"
           }
         }),
         {

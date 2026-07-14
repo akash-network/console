@@ -5,6 +5,7 @@ import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deploymen
 import { UserWalletRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { DOMAIN_EVENT_NAME, EventPayload, JobHandler, JobQueueService, LoggerService } from "@src/core";
+import { RESOLVED_MARKER } from "@src/notifications/services/notification-data-resolver/notification-data-resolver.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 import { CloseTrialDeployment } from "../close-trial-deployment/close-trial-deployment.handler";
 
@@ -66,7 +67,8 @@ export class TrialDeploymentLeaseCreatedHandler implements JobHandler<TrialDeplo
         vars: {
           deploymentClosedAt: addHours(deploymentCreatedAt, trialDeploymentLifetime).toISOString(),
           dseq: payload.dseq,
-          owner: wallet.address!
+          owner: wallet.address!,
+          firstPurchaseBonus: RESOLVED_MARKER
         }
       }),
       {

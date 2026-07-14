@@ -104,7 +104,8 @@ describe(CloseTrialDeploymentHandler.name, () => {
         vars: {
           dseq: payload.dseq,
           owner: wallet.address!,
-          deploymentLifetimeInHours: 24
+          deploymentLifetimeInHours: 24,
+          firstPurchaseBonus: "$resolved"
         }
       }),
       {

@@ -54,7 +54,8 @@ export class TrialStartedHandler implements JobHandler<TrialStarted> {
       trialEndsAt: trialEndsAt.toISOString(),
       paymentLink: this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK"),
       remainingCredits: RESOLVED_MARKER,
-      activeDeployments: RESOLVED_MARKER
+      activeDeployments: RESOLVED_MARKER,
+      firstPurchaseBonus: RESOLVED_MARKER
     };
     await Promise.all([
       this.jobQueueManager.enqueue(
@@ -86,7 +87,8 @@ export class TrialStartedHandler implements JobHandler<TrialStarted> {
           template: "trialEnded",
           userId: user.id,
           vars: {
-            paymentLink: this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK")
+            paymentLink: this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK"),
+            firstPurchaseBonus: RESOLVED_MARKER
           },
           conditions: notificationConditions
         }),
@@ -100,7 +102,8 @@ export class TrialStartedHandler implements JobHandler<TrialStarted> {
           template: "afterTrialEnds",
           userId: user.id,
           vars: {
-            paymentLink: this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK")
+            paymentLink: this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK"),
+            firstPurchaseBonus: RESOLVED_MARKER
           },
           conditions: notificationConditions
         }),

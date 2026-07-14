@@ -110,7 +110,8 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
         vars: {
           deploymentClosedAt: addHours(deploymentCreatedAt, trialDeploymentLifetimeInHours).toISOString(),
           dseq: payload.dseq,
-          owner: wallet.address!
+          owner: wallet.address!,
+          firstPurchaseBonus: "$resolved"
         }
       }),
       {

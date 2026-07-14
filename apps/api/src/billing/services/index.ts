@@ -5,4 +5,5 @@ export * from "@src/billing/lib/wallet/wallet";
 export * from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
 export * from "@src/billing/services/managed-signer/managed-signer.service";
 export * from "./remaining-credits/remaining-credits.service.ts";
+export * from "./first-purchase-bonus-offer/first-purchase-bonus-offer.service";
 export * from "./wallet-settings/wallet-settings.service";
