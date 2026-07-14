@@ -107,7 +107,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
                 {isFirstPurchaseBonusEnabled && (
                   <>
                     {" "}
-                    Plus, get {BONUS_PERCENT}% in bonus credits on your first purchase — up to ${MAX_BONUS}.
+                    Plus, get {BONUS_PERCENT}% in bonus credits on your first purchase, up to ${MAX_BONUS}.
                   </>
                 )}{" "}
                 Pick a template to get a live URL in about 30 seconds. Some templates require identity verification to unlock.

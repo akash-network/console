@@ -45,7 +45,7 @@ describe(OnboardingPickerPage.name, () => {
   it("renders the first-purchase bonus offer when the first_purchase_bonus flag is on", () => {
     const { container } = setup({ isFirstPurchaseBonusEnabled: true });
 
-    expect(container).toHaveTextContent("Plus, get 10% in bonus credits on your first purchase — up to $100.");
+    expect(container).toHaveTextContent("Plus, get 10% in bonus credits on your first purchase, up to $100.");
   });
 
   it("hides the first-purchase bonus offer when the first_purchase_bonus flag is off", () => {
