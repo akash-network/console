@@ -59,6 +59,12 @@ describe(RequireOnboarding.name, () => {
       expect(replace).not.toHaveBeenCalled();
     });
 
+    it("keeps the onboarding picker mounted while leases load after the trial wallet arrives (no loader flash / remount)", () => {
+      const { replace } = setup({ flag: true, address: "akash1", hasManagedWallet: true, leasesLoading: true, path: "/onboarding" });
+      expect(screen.getByText("child")).toBeInTheDocument();
+      expect(replace).not.toHaveBeenCalled();
+    });
+
     it("still waits for leases on a non-allow-list route while they load", () => {
       setup({ flag: true, address: "akash1", hasManagedWallet: true, leasesLoading: true, path: "/deployments" });
       expect(screen.queryByText("child")).not.toBeInTheDocument();
