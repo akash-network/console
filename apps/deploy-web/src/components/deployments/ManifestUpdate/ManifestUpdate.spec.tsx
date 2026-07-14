@@ -333,6 +333,7 @@ describe(ManifestUpdate.name, () => {
         connectManagedWallet: vi.fn(),
         logout: vi.fn(),
         isWalletLoading: false,
+        isWalletInitializing: false,
         isTrialing: false,
         isOnboarding: false,
         topUpMinAmountUsd: 20,

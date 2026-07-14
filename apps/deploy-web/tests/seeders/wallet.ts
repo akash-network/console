@@ -16,6 +16,7 @@ export const buildWallet = (overrides: Partial<WalletProviderContextType> = {}):
   isManaged: true,
   denom: "uact",
   isWalletLoading: false,
+  isWalletInitializing: false,
   isTrialing: false,
   isOnboarding: false,
   creditAmount: faker.number.float({ min: 0, max: 1000 }),

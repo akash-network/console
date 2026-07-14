@@ -305,6 +305,7 @@ describe(YourAccount.name, () => {
         isManaged: true,
         denom: "uact",
         isWalletLoading: false,
+        isWalletInitializing: false,
         isTrialing: false,
         isOnboarding: false,
         topUpMinAmountUsd: 20,
