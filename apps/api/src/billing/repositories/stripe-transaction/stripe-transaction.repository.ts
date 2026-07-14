@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte, SQL } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, SQL } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -91,6 +91,21 @@ export class StripeTransactionRepository extends BaseRepository<Table, StripeTra
     if (!existing) return undefined;
 
     return this.updateById(existing.id, update, { returning: true });
+  }
+
+  /**
+   * Whether the user has ever completed a paid purchase (`payment_intent` transaction that
+   * succeeded, including ones refunded afterwards). Coupon claims never count.
+   */
+  async hasCompletedPaidTransaction(userId: string): Promise<boolean> {
+    const item = await this.cursor.query.StripeTransactions.findFirst({
+      where: this.whereAccessibleBy(
+        and(eq(this.table.userId, userId), eq(this.table.type, "payment_intent"), inArray(this.table.status, ["succeeded", "refunded"]))
+      ),
+      columns: { id: true }
+    });
+
+    return !!item;
   }
 
   async countByUserId(userId: string): Promise<number> {

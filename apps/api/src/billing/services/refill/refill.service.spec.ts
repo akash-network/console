@@ -52,7 +52,8 @@ describe(RefillService.name, () => {
           cardBrand: "visa",
           paymentMethodType: "card",
           transactionId: "tx-123",
-          source: "payment_intent"
+          source: "payment_intent",
+          bonusAmountCents: 10
         }
       });
 
@@ -63,7 +64,8 @@ describe(RefillService.name, () => {
         card_brand: "visa",
         payment_method_type: "card",
         transaction_id: "tx-123",
-        source: "payment_intent"
+        source: "payment_intent",
+        bonus_amount_cents: 10
       });
     });
 

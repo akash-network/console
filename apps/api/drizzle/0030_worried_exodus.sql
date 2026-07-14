@@ -1,0 +1,1 @@
+ALTER TABLE "stripe_transactions" ADD COLUMN "bonus_amount" integer DEFAULT 0 NOT NULL;
