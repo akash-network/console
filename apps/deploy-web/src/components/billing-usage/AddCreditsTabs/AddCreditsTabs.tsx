@@ -19,7 +19,7 @@ export const DEPENDENCIES = {
 
 interface AddCreditsTabsProps {
   initialTab?: AddCreditsTab;
-  onDone: (amount: number, organization?: string) => void;
+  onDone: (amount: number, organization?: string, bonusAmount?: number) => void;
   onRedeemed?: () => void;
   isWalletReady?: boolean;
   onProcessingChange?: (isProcessing: boolean) => void;

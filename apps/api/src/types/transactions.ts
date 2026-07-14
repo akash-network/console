@@ -22,6 +22,7 @@ export type TransactionCsvRow = {
   id: string;
   date: string;
   amount: string;
+  bonusAmount: string;
   currency: string;
   status: string;
   paymentMethodType: string;

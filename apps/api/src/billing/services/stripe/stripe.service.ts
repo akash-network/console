@@ -555,9 +555,13 @@ export class StripeService extends Stripe {
       expand: ["data.payment_intent"]
     });
 
+    const internalTransactions = await this.stripeTransactionRepository.findByChargeIds(charges.data.map(charge => charge.id));
+    const internalByChargeId = keyBy(internalTransactions, "stripeChargeId");
+
     const transactions = charges.data.map(charge => ({
       id: charge.id,
       amount: charge.amount,
+      bonusAmount: internalByChargeId[charge.id]?.bonusAmount ?? 0,
       currency: charge.currency,
       status: charge.status,
       created: charge.created,
@@ -594,6 +598,7 @@ export class StripeService extends Stripe {
         { key: "id", header: "Transaction ID" },
         { key: "date", header: `Date (${normalizedTimezone})` },
         { key: "amount", header: "Amount" },
+        { key: "bonusAmount", header: "Bonus" },
         { key: "currency", header: "Currency" },
         { key: "status", header: "Status" },
         { key: "paymentMethodType", header: "Payment Method" },
@@ -650,6 +655,7 @@ export class StripeService extends Stripe {
           id: `Error: ${(error as Error).message}`,
           date: "",
           amount: "",
+          bonusAmount: "",
           currency: "",
           status: "",
           paymentMethodType: "",
@@ -667,6 +673,7 @@ export class StripeService extends Stripe {
         id: "No transactions found for the specified date range",
         date: "",
         amount: "",
+        bonusAmount: "",
         currency: "",
         status: "",
         paymentMethodType: "",
@@ -698,6 +705,7 @@ export class StripeService extends Stripe {
       id: transaction.id,
       date,
       amount,
+      bonusAmount: ((transaction.bonusAmount ?? 0) / 100).toFixed(2),
       currency: transaction.currency.toUpperCase(),
       status: transaction.status,
       paymentMethodType: transaction.paymentMethod?.type || "",

@@ -42,6 +42,18 @@ describe(OnboardingPickerPage.name, () => {
     expect(screen.getByText("$1 in free trial credits")).toBeInTheDocument();
   });
 
+  it("renders the first-purchase bonus offer when the first_purchase_bonus flag is on", () => {
+    const { container } = setup({ isFirstPurchaseBonusEnabled: true });
+
+    expect(container).toHaveTextContent("Plus, get 10% in bonus credits on your first purchase, up to $100.");
+  });
+
+  it("hides the first-purchase bonus offer when the first_purchase_bonus flag is off", () => {
+    const { container } = setup({ isFirstPurchaseBonusEnabled: false });
+
+    expect(container).not.toHaveTextContent("bonus credits");
+  });
+
   it("redirects to the configure view with the hello-world auto-deploy intent when its card deploys", () => {
     const push = vi.fn();
     const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
@@ -320,6 +332,7 @@ describe(OnboardingPickerPage.name, () => {
       searchParams?: string;
       isTrialing?: boolean;
       isHackathonsEnabled?: boolean;
+      isFirstPurchaseBonusEnabled?: boolean;
       trialCreditsAmount?: number;
       wallet?: EnsureTrialStartedResult["wallet"];
       dependencies?: Partial<typeof DEPENDENCIES>;
@@ -329,6 +342,7 @@ describe(OnboardingPickerPage.name, () => {
     const replace = input.replace ?? vi.fn();
     const isTrialing = input.isTrialing ?? true;
     const isHackathonsEnabled = input.isHackathonsEnabled ?? false;
+    const isFirstPurchaseBonusEnabled = input.isFirstPurchaseBonusEnabled ?? false;
     const trialCreditsAmount = input.trialCreditsAmount ?? 100;
     const wallet = "wallet" in input ? input.wallet : mock<ApiManagedWalletOutput>({ creditAmount: 100 });
 
@@ -343,7 +357,7 @@ describe(OnboardingPickerPage.name, () => {
       })
     );
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing });
-    const useFlag: typeof DEPENDENCIES.useFlag = () => isHackathonsEnabled;
+    const useFlag: typeof DEPENDENCIES.useFlag = flag => (flag === "first_purchase_bonus" ? isFirstPurchaseBonusEnabled : isHackathonsEnabled);
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({ publicConfig: { NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT: trialCreditsAmount }, urlService: UrlService });
 

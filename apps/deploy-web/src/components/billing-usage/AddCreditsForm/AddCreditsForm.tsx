@@ -5,7 +5,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Alert,
   AlertDescription,
-  AlertTitle,
   Button,
   Label,
   Select,
@@ -17,15 +16,16 @@ import {
   Spinner
 } from "@akashnetwork/ui/components";
 import { useQueryClient } from "@tanstack/react-query";
-import { GiftIcon } from "lucide-react";
 
 import type { AddCreditsAmountValue } from "@src/components/billing-usage/AddCreditsAmountFields/AddCreditsAmountFields";
 import { AddCreditsAmountFields } from "@src/components/billing-usage/AddCreditsAmountFields/AddCreditsAmountFields";
 import type { PaymentMethodSourceHandle } from "@src/components/billing-usage/AddCreditsNewPaymentMethodFields/AddCreditsNewPaymentMethodFields";
 import { AddCreditsNewPaymentMethodFields } from "@src/components/billing-usage/AddCreditsNewPaymentMethodFields/AddCreditsNewPaymentMethodFields";
+import { FirstPurchaseBonusAlert } from "@src/components/billing-usage/FirstPurchaseBonusAlert/FirstPurchaseBonusAlert";
 import { getPaymentMethodDisplay } from "@src/components/shared/PaymentMethodCard/PaymentMethodCard";
 import { ThreeDSecurePopup } from "@src/components/shared/PaymentMethodForm/ThreeDSecurePopup";
 import { usePaymentPolling } from "@src/context/PaymentPollingProvider";
+import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { use3DSecure } from "@src/hooks/use3DSecure";
 import { useUser } from "@src/hooks/useUser";
@@ -38,6 +38,7 @@ const NEW_CARD = "new";
 export const DEPENDENCIES = {
   AddCreditsAmountFields,
   AddCreditsNewPaymentMethodFields,
+  FirstPurchaseBonusAlert,
   ThreeDSecurePopup,
   Label,
   Select,
@@ -51,6 +52,7 @@ export const DEPENDENCIES = {
   usePaymentMutations,
   usePaymentPolling,
   useQueryClient,
+  useServices,
   useWallet,
   use3DSecure,
   useUser,
@@ -59,7 +61,7 @@ export const DEPENDENCIES = {
 };
 
 interface AddCreditsFormProps {
-  onDone: (amount: number, organization?: string) => void;
+  onDone: (amount: number, organization?: string, bonusAmount?: number) => void;
   isWalletReady?: boolean;
   onProcessingChange?: (isProcessing: boolean) => void;
   dependencies?: typeof DEPENDENCIES;
@@ -90,6 +92,7 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
   const { data: setupIntent, mutate: createSetupIntent, status: setupIntentStatus, reset: resetSetupIntent } = d.useSetupIntentMutation();
   const { user } = d.useUser();
   const { pollForPayment, isPolling } = d.usePaymentPolling();
+  const { stripe } = d.useServices();
   const { isTrialing, topUpMinAmountUsd } = d.useWallet();
   const queryClient = d.useQueryClient();
   const { data: paymentMethods, isLoading: isLoadingMethods, isError: isMethodsError } = d.usePaymentMethodsQuery();
@@ -257,9 +260,25 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
       confirmedNewCardRef.current = null;
       setCharge(null);
       setIsProcessing(false);
-      onDone(charge.amount, charge.organization);
+
+      const { amount, organization } = charge;
+      void (async function completeWithGrantedBonus() {
+        // Polling settles only after the webhook topped up the wallet, so the granted
+        // first-purchase bonus is already recorded on the latest transaction.
+        let bonusAmount = 0;
+        try {
+          const { transactions } = await stripe.getCustomerTransactions({ limit: 1 });
+          const latest = transactions[0];
+          if (latest?.status === "succeeded" && latest.amount === Math.round(amount * 100)) {
+            bonusAmount = (latest.bonusAmount ?? 0) / 100;
+          }
+        } catch {
+          // Bonus display is best-effort; completion must proceed without it.
+        }
+        onDone(amount, organization, bonusAmount);
+      })();
     },
-    [isPolling, isTrialing, charge, finalizeFailure, onDone]
+    [isPolling, isTrialing, charge, finalizeFailure, onDone, stripe]
   );
 
   useEffect(
@@ -283,13 +302,7 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
 
   return (
     <>
-      {isTrialing && (
-        <Alert variant="default" className="bg-blue-50 p-3 dark:bg-blue-950">
-          <GiftIcon className="h-4 w-4" />
-          <AlertTitle className="text-sm font-medium">First-purchase match.</AlertTitle>
-          <AlertDescription className="text-muted-foreground">Akash matches your first purchase dollar-dollar, up to $100.</AlertDescription>
-        </Alert>
-      )}
+      <d.FirstPurchaseBonusAlert amount={amount} />
 
       <form className="space-y-6" onSubmit={submit}>
         <d.AddCreditsAmountFields value={amountInput} onChange={setAmountInput} minAmount={topUpMinAmountUsd} error={amountError} />

@@ -2,6 +2,7 @@ import type {
   ApplyCouponParams,
   ConfirmPaymentParams,
   ConfirmPaymentResponse,
+  CustomerTransactionsResponse,
   PaymentMethod,
   SetupIntentResponse,
   ThreeDSecureAuthParams
@@ -44,9 +45,13 @@ export interface UsePaymentTransactionsOptions {
   endDate?: Date | null;
 }
 
-export const usePaymentTransactionsQuery = (options?: UsePaymentTransactionsOptions) => {
+export const usePaymentTransactionsQuery = (
+  options?: UsePaymentTransactionsOptions,
+  queryOptions?: Omit<UseQueryOptions<CustomerTransactionsResponse>, "queryKey" | "queryFn">
+) => {
   const { stripe } = useServices();
   return useQuery({
+    ...queryOptions,
     queryKey: QueryKeys.getPaymentTransactionsKey(options),
     queryFn: async () => {
       return await stripe.getCustomerTransactions(options);

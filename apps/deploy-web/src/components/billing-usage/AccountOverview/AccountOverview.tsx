@@ -44,7 +44,11 @@ export const DEPENDENCIES = {
 
 export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
   const [showAddCredits, setShowAddCredits] = useState(false);
-  const [showPaymentSuccess, setShowPaymentSuccess] = useState<{ amount: string; show: boolean }>({ amount: "", show: false });
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState<{ amount: string; bonusAmount: string; show: boolean }>({
+    amount: "",
+    bonusAmount: "",
+    show: false
+  });
   const { enqueueSnackbar } = d.useSnackbar();
   const { data: defaultPaymentMethod, isLoading: isLoadingDefaultPaymentMethod } = d.useDefaultPaymentMethodQuery();
   const { balance: walletBalance, isLoading: isWalletBalanceLoading } = d.useWalletBalance();
@@ -218,7 +222,8 @@ export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DE
         <d.PaymentSuccessAnimation
           show={showPaymentSuccess.show}
           amount={showPaymentSuccess.amount}
-          onComplete={() => setShowPaymentSuccess({ amount: "", show: false })}
+          bonusAmount={showPaymentSuccess.bonusAmount}
+          onComplete={() => setShowPaymentSuccess({ amount: "", bonusAmount: "", show: false })}
         />
       </div>
 
@@ -227,8 +232,8 @@ export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DE
         onOpenChange={setShowAddCredits}
         initialTab="purchase"
         description="Buy credits or redeem a coupon to top up your balance."
-        onDone={amount => {
-          setShowPaymentSuccess({ amount: String(amount), show: true });
+        onDone={(amount, _organization, bonusAmount) => {
+          setShowPaymentSuccess({ amount: String(amount), bonusAmount: String(bonusAmount ?? 0), show: true });
           setShowAddCredits(false);
         }}
       />

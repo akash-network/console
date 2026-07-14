@@ -40,25 +40,25 @@ export function AddCreditsAmountFields({ value, onChange, minAmount, error }: Ad
         <RadioGroup value={value.predefinedAmount} className="grid-cols-3" onValueChange={changePredefinedAmount}>
           <FieldLabel htmlFor="plus-plan">
             <Field orientation="horizontal" className="cursor-pointer p-2">
-              <RadioGroupItem value="50" id="plus-plan" className="self-center" />
+              <RadioGroupItem value="100" id="plus-plan" className="self-center" />
               <FieldContent>
-                <FieldTitle className="font-medium">50</FieldTitle>
+                <FieldTitle className="font-medium">100</FieldTitle>
               </FieldContent>
             </Field>
           </FieldLabel>
           <FieldLabel htmlFor="pro-plan">
             <Field orientation="horizontal" className="cursor-pointer p-2">
-              <RadioGroupItem value="100" id="pro-plan" className="self-center" />
+              <RadioGroupItem value="500" id="pro-plan" className="self-center" />
               <FieldContent>
-                <FieldTitle>100</FieldTitle>
+                <FieldTitle>500</FieldTitle>
               </FieldContent>
             </Field>
           </FieldLabel>
           <FieldLabel htmlFor="enterprise-plan">
             <Field orientation="horizontal" className="cursor-pointer p-2">
-              <RadioGroupItem value="500" id="enterprise-plan" className="self-center" />
+              <RadioGroupItem value="1000" id="enterprise-plan" className="self-center" />
               <FieldContent>
-                <FieldTitle>500</FieldTitle>
+                <FieldTitle>1000</FieldTitle>
               </FieldContent>
             </Field>
           </FieldLabel>

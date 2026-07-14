@@ -87,6 +87,21 @@ describe(AccountOverview.name, () => {
     expect(MockAddCreditsSheet).toHaveBeenCalledWith(expect.objectContaining({ open: false }), expect.anything());
   });
 
+  it("forwards the granted first-purchase bonus to the payment success animation", () => {
+    const { dependencies, MockAddCreditsSheet } = setup({
+      searchParamsGet: (key: string) => (key === "openPayment" ? "true" : null),
+      defaultPaymentMethod: { id: "pm_123" },
+      isLoading: false
+    });
+
+    act(() => MockAddCreditsSheet.mock.calls.at(-1)![0].onDone(100, undefined, 10));
+
+    expect(dependencies.PaymentSuccessAnimation).toHaveBeenCalledWith(
+      expect.objectContaining({ show: true, amount: "100", bonusAmount: "10" }),
+      expect.anything()
+    );
+  });
+
   function setup(input: {
     searchParamsGet?: (key: string) => string | null;
     routerReplace?: ReturnType<typeof vi.fn>;

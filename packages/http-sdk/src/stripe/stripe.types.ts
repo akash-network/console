@@ -48,6 +48,8 @@ export interface PaymentMethod {
 export interface Charge {
   id: string;
   amount: number;
+  /** First-purchase bonus credited with this payment, in cents. */
+  bonusAmount?: number;
   currency: string;
   status: string;
   created: number;

@@ -9,7 +9,7 @@ describe(AddCreditsAmountFields.name, () => {
   it("emits the chosen predefined amount and clears the custom amount", () => {
     const { onChange } = setup({ value: { predefinedAmount: "", customAmount: "75" } });
 
-    fireEvent.click(screen.getByRole("radio", { name: /100/i }));
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
 
     expect(onChange).toHaveBeenCalledWith({ predefinedAmount: "100", customAmount: "" });
   });

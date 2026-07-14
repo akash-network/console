@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
+import { BONUS_PERCENT, MAX_BONUS } from "@src/components/billing-usage/FirstPurchaseBonusAlert/FirstPurchaseBonusAlert";
 import { DeploymentTemplatePickerCard } from "@src/components/deployments/DeploymentTemplatePickerCard/DeploymentTemplatePickerCard";
 import { AkashConsoleLogo } from "@src/components/icons/AkashConsoleLogo";
 import { AccountMenu } from "@src/components/layout/AccountMenu";
@@ -54,6 +55,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   const [addCreditsSheetReason, setAddCreditsSheetReason] = useState<"unlock-gpu" | "skip-trial" | "hackathon-coupon" | null>(null);
   const { isWalletReady, error: trialError, wallet } = d.useEnsureTrialStarted();
   const isHackathonsEnabled = d.useFlag("hackathons");
+  const isFirstPurchaseBonusEnabled = d.useFlag("first_purchase_bonus");
   const isLlmGated = isTrialing || !isWalletReady;
   const isLlmAvailable = !isLlmGated;
   const searchParams = d.useSearchParams();
@@ -102,6 +104,12 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
               <h1 className="text-3xl font-bold leading-9 text-foreground">Let&apos;s deploy your first app</h1>
               <p className="max-w-2xl text-sm leading-5 text-muted-foreground">
                 We&apos;ve provided you with <span className="font-medium text-blue-600 dark:text-blue-400">${trialCreditsAmount} in free trial credits</span>.
+                {isFirstPurchaseBonusEnabled && (
+                  <>
+                    {" "}
+                    Plus, get {BONUS_PERCENT}% in bonus credits on your first purchase, up to ${MAX_BONUS}.
+                  </>
+                )}{" "}
                 Pick a template to get a live URL in about 30 seconds. Some templates require identity verification to unlock.
               </p>
             </div>
