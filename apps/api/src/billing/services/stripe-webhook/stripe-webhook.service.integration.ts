@@ -3,12 +3,14 @@ import type { Mock } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { FirstPurchaseBonusGranted } from "@src/billing/events/first-purchase-bonus-granted";
 import type { PaymentMethodRepository, StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
 import type { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeWebhookService } from "@src/billing/services/stripe-webhook/stripe-webhook.service";
+import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import type { UserRepository } from "@src/user/repositories";
 
 import { createTestUser } from "@test/seeders/user-test.seeder";
@@ -205,7 +207,7 @@ describe(StripeWebhookService.name, () => {
     });
 
     it("tops up the combined amount, persists the bonus and tracks the grant when the bonus applies", async () => {
-      const { service, userRepository, stripeTransactionRepository, refillService, firstPurchaseBonusService } = setup();
+      const { service, userRepository, stripeTransactionRepository, refillService, firstPurchaseBonusService, domainEventsService } = setup();
       const mockUser = createTestUser();
       const internalTransaction = createMockTransaction({ status: "created" });
       const amount = 15000;
@@ -245,10 +247,14 @@ describe(StripeWebhookService.name, () => {
         }
       });
       expect(firstPurchaseBonusService.trackBonusGranted).toHaveBeenCalledWith(mockUser.id, amount, bonusAmount);
+      expect(domainEventsService.publish).toHaveBeenCalledWith(
+        new FirstPurchaseBonusGranted({ userId: mockUser.id, bonusAmountCents: bonusAmount, paidAmountCents: amount })
+      );
+      expect(domainEventsService.publish.mock.invocationCallOrder[0]).toBeGreaterThan(refillService.topUpWallet.mock.invocationCallOrder[0]);
     });
 
     it("keeps the update payload and top-up untouched when no bonus applies", async () => {
-      const { service, userRepository, stripeTransactionRepository, refillService, firstPurchaseBonusService } = setup();
+      const { service, userRepository, stripeTransactionRepository, refillService, firstPurchaseBonusService, domainEventsService } = setup();
       const mockUser = createTestUser();
       const internalTransaction = createMockTransaction({ status: "created" });
       const amount = 10000;
@@ -273,6 +279,7 @@ describe(StripeWebhookService.name, () => {
       );
       expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, expect.anything());
       expect(firstPurchaseBonusService.trackBonusGranted).not.toHaveBeenCalled();
+      expect(domainEventsService.publish).not.toHaveBeenCalled();
     });
   });
 
@@ -1090,6 +1097,7 @@ describe(StripeWebhookService.name, () => {
     const stripeTransactionRepository = mock<StripeTransactionRepository>();
     const firstPurchaseBonusService = mock<FirstPurchaseBonusService>();
     firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(0);
+    const domainEventsService = mock<DomainEventsService>();
 
     // Mock Stripe charges API
     stripeService.charges = {
@@ -1103,7 +1111,8 @@ describe(StripeWebhookService.name, () => {
       userRepository,
       paymentMethodRepository,
       stripeTransactionRepository,
-      firstPurchaseBonusService
+      firstPurchaseBonusService,
+      domainEventsService
     );
 
     return {
@@ -1114,7 +1123,8 @@ describe(StripeWebhookService.name, () => {
       userRepository,
       paymentMethodRepository,
       stripeTransactionRepository,
-      firstPurchaseBonusService
+      firstPurchaseBonusService,
+      domainEventsService
     };
   }
 
