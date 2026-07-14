@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -43,6 +44,12 @@ describe("SearchableSelect", () => {
     setup({ value: "", emptyOption: { value: "", label: "Any region" } });
 
     expect(screen.getByRole("combobox", { name: "Region" })).toHaveTextContent("Any region");
+  });
+
+  it("renders the selected value through renderValue in the trigger", () => {
+    setup({ value: "na-us-west", renderValue: value => value.toUpperCase() });
+
+    expect(screen.getByRole("combobox", { name: "Region" })).toHaveTextContent("NA-US-WEST");
   });
 
   it("writes the picked option, reflects it in the trigger, and resets the search", async () => {
@@ -108,6 +115,7 @@ describe("SearchableSelect", () => {
     emptyOption?: { value: string; label: string };
     placeholder?: string;
     disabled?: boolean;
+    renderValue?: (value: string) => ReactNode;
   }) {
     const onChange = vi.fn();
     const Harness = () => {
@@ -127,6 +135,7 @@ describe("SearchableSelect", () => {
           emptyOption={input.emptyOption}
           placeholder={input.placeholder}
           disabled={input.disabled}
+          renderValue={input.renderValue}
         />
       );
     };

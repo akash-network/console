@@ -31,9 +31,11 @@ export type ListGpuResponse = z.infer<typeof ListGpuResponseSchema>;
 export const ListGpuModelsResponseSchema = z.array(
   z.object({
     name: z.string(),
+    displayName: z.string().openapi({ example: "NVIDIA" }),
     models: z.array(
       z.object({
         name: z.string(),
+        displayName: z.string().openapi({ example: "RTX 4090" }),
         memory: z.array(z.string()),
         interface: z.array(z.string())
       })

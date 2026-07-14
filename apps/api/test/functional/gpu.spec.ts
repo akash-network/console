@@ -175,14 +175,17 @@ describe("GPU API", () => {
       expect(data).toEqual([
         {
           name: "amd",
+          displayName: "AMD",
           models: [
             {
               name: "mi60",
+              displayName: "MI60",
               memory: ["32Gi"],
               interface: ["pcie"]
             },
             {
               name: "mi100",
+              displayName: "MI100",
               memory: ["32Gi"],
               interface: ["pcie"]
             }
@@ -190,14 +193,17 @@ describe("GPU API", () => {
         },
         {
           name: "nvidia",
+          displayName: "NVIDIA",
           models: [
             {
               name: "a40",
+              displayName: "A40",
               memory: ["48Gi"],
               interface: ["pcie"]
             },
             {
               name: "a100",
+              displayName: "A100",
               memory: ["40Gi"],
               interface: ["pcie"]
             }

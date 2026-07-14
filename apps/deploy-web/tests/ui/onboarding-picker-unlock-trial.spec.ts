@@ -18,8 +18,8 @@ test.describe("Onboarding picker — unlocking the gated LLM template via Add Cr
 
     await onboardingPickerPage.goto();
 
-    await test.step("the gated LLM template CTA reads 'Unlock full trial to deploy' once the trial is active", async () => {
-      await expect(onboardingPickerPage.getLlmChatbotCta()).toHaveText(/unlock full trial to deploy/i, { timeout: 60_000 });
+    await test.step("the gated LLM template CTA reads 'Add credits to unlock' once the trial is active", async () => {
+      await expect(onboardingPickerPage.getLlmChatbotCta()).toHaveText(/add credits to unlock/i, { timeout: 60_000 });
     });
 
     await test.step("clicking the gated CTA opens the Add Credits sheet", async () => {

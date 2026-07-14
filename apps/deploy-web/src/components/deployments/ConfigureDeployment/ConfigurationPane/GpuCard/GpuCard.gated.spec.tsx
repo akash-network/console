@@ -64,8 +64,13 @@ describe("GpuCard trial gate", () => {
       }
     });
 
-    const useGpuModels: typeof DEPENDENCIES.useGpuModels = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useGpuModels>>({ data: GPU_VENDORS, isLoading: false, isError: false } as Partial<ReturnType<typeof DEPENDENCIES.useGpuModels>>);
+    const useGpuModels: typeof DEPENDENCIES.useGpuModels = () => {
+      const result = mock<ReturnType<typeof DEPENDENCIES.useGpuModels>>({ isLoading: false, isError: false } as Partial<
+        ReturnType<typeof DEPENDENCIES.useGpuModels>
+      >);
+      result.data = GPU_VENDORS;
+      return result;
+    };
     const useFieldError: typeof DEPENDENCIES.useFieldError = () => ({ error: undefined });
 
     const Wrapper = ({ children }: PropsWithChildren) => {
@@ -75,7 +80,12 @@ describe("GpuCard trial gate", () => {
 
     render(
       <Wrapper>
-        <GpuCard serviceIndex={0} isBlockedModel={input.isBlockedModel} onUnlock={input.onUnlock} dependencies={{ ...DEPENDENCIES, useGpuModels, useFieldError }} />
+        <GpuCard
+          serviceIndex={0}
+          isBlockedModel={input.isBlockedModel}
+          onUnlock={input.onUnlock}
+          dependencies={{ ...DEPENDENCIES, useGpuModels, useFieldError }}
+        />
       </Wrapper>
     );
 

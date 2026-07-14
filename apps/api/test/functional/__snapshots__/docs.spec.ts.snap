@@ -8419,9 +8419,17 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "schema": {
                   "items": {
                     "properties": {
+                      "displayName": {
+                        "example": "NVIDIA",
+                        "type": "string",
+                      },
                       "models": {
                         "items": {
                           "properties": {
+                            "displayName": {
+                              "example": "RTX 4090",
+                              "type": "string",
+                            },
                             "interface": {
                               "items": {
                                 "type": "string",
@@ -8440,6 +8448,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           },
                           "required": [
                             "name",
+                            "displayName",
                             "memory",
                             "interface",
                           ],
@@ -8453,6 +8462,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     },
                     "required": [
                       "name",
+                      "displayName",
                       "models",
                     ],
                     "type": "object",

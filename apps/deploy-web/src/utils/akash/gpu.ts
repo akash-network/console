@@ -1,4 +1,4 @@
-export const gpuVendors = [{ id: 1, value: "nvidia" }];
+export const gpuVendors = [{ id: 1, value: "nvidia", label: "NVIDIA" }];
 
 /** GPU model-name prefixes (normalized, lowercase) floated to the top of the model picker, most popular first (by network capacity and usage). Prefix-matched, so `pro6000` covers `pro6000se`/`we`/`mq`, `h200` covers `h200nvl`, `rtx5090` covers `rtx5090m`, etc. */
 export const PRIORITIZED_GPU_MODELS = ["h100", "a100", "h200", "pro6000", "rtx5090", "rtx4090", "rtx3090"];

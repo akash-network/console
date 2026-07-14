@@ -33,6 +33,8 @@ type Props = {
   leadingIcon?: ReactNode;
   disabled?: boolean;
   triggerClassName?: string;
+  /** Maps the selected raw `value` to what the trigger displays (e.g. a prettified label); defaults to the raw value. */
+  renderValue?: (value: string) => ReactNode;
 };
 
 /** cmdk requires a non-empty item value; the empty option owns this sentinel while reporting `emptyOption.value` on select. */
@@ -57,7 +59,8 @@ export const SearchableSelect: FC<Props> = ({
   placeholder,
   leadingIcon,
   disabled,
-  triggerClassName
+  triggerClassName,
+  renderValue
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -89,7 +92,7 @@ export const SearchableSelect: FC<Props> = ({
         >
           <span className="flex min-w-0 items-center gap-1.5">
             {leadingIcon}
-            <span className="truncate">{value || emptyOption?.label || placeholder}</span>
+            <span className="truncate">{value ? (renderValue ? renderValue(value) : value) : emptyOption?.label ?? placeholder}</span>
           </span>
           <NavArrowDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         </Button>

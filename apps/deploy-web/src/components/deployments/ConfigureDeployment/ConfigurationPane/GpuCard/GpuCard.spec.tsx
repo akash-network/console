@@ -193,6 +193,54 @@ describe(GpuCard.name, () => {
     expect(screen.queryByRole("option", { name: "t4" })).not.toBeInTheDocument();
   });
 
+  it("shows the prettified model displayName in the options and trigger while writing the raw name", async () => {
+    const { getValues, user } = setup({
+      hasGpu: true,
+      gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }],
+      vendors: [{ name: "nvidia", displayName: "NVIDIA", models: [{ name: "rtx4090", displayName: "RTX 4090", memory: ["24Gi"], interface: ["pcie"] }] }]
+    });
+
+    await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+    await user.click(await screen.findByRole("option", { name: "RTX 4090" }));
+
+    expect(screen.getByRole("combobox", { name: "GPU model" })).toHaveTextContent("RTX 4090");
+    expect(getValues().services[0].profile.gpuModels?.[0]).toMatchObject({ name: "rtx4090" });
+  });
+
+  it("matches the prettified model name in the search box in addition to the raw name", async () => {
+    const { user } = setup({
+      hasGpu: true,
+      gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }],
+      vendors: [
+        {
+          name: "nvidia",
+          displayName: "NVIDIA",
+          models: [
+            { name: "rtx4090", displayName: "RTX 4090", memory: ["24Gi"], interface: ["pcie"] },
+            { name: "a100", displayName: "A100", memory: ["80Gi"], interface: ["sxm"] }
+          ]
+        }
+      ]
+    });
+
+    await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+    await user.type(await screen.findByRole("combobox", { name: "Search GPU models" }), "RTX 40");
+
+    expect(screen.getByRole("option", { name: "RTX 4090" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "A100" })).not.toBeInTheDocument();
+  });
+
+  it("labels the vendor option with its displayName", async () => {
+    const { user } = setup({
+      hasGpu: true,
+      vendors: [{ name: "nvidia", displayName: "NVIDIA", models: [{ name: "a100", displayName: "A100", memory: ["80Gi"], interface: ["sxm"] }] }]
+    });
+
+    await user.click(screen.getByRole("combobox", { name: "GPU vendor" }));
+
+    expect(await screen.findByRole("option", { name: "NVIDIA" })).toBeInTheDocument();
+  });
+
   it("clears only the memory when the memory clear button is clicked", async () => {
     const { getValues, user } = setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "a100", memory: "40Gi", interface: "pcie" }] });
 
@@ -287,10 +335,10 @@ describe(GpuCard.name, () => {
     });
 
     const gpuModelsResult = mock<ReturnType<typeof DEPENDENCIES.useGpuModels>>({
-      data: input.isLoading || input.isError ? undefined : input.vendors ?? GPU_VENDORS,
       isLoading: input.isLoading ?? false,
       isError: input.isError ?? false
     } as Partial<ReturnType<typeof DEPENDENCIES.useGpuModels>>);
+    gpuModelsResult.data = input.isLoading || input.isError ? undefined : input.vendors ?? GPU_VENDORS;
     const useGpuModels: typeof DEPENDENCIES.useGpuModels = () => gpuModelsResult;
     const useFieldError: typeof DEPENDENCIES.useFieldError = () => ({ error: input.gpuError });
 
