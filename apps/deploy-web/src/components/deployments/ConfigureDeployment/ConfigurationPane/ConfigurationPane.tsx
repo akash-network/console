@@ -6,13 +6,18 @@ import { PaneLockBanner } from "../PaneLockBanner/PaneLockBanner";
 import { AdditionalSection } from "./AdditionalSection/AdditionalSection";
 import { HardwareSection } from "./HardwareSection/HardwareSection";
 import { ImageSection } from "./ImageSection/ImageSection";
+import type { ConfigurationLock } from "./configurationLock";
 
 export const DEPENDENCIES = { ImageSection, HardwareSection, AdditionalSection };
 
 type Props = {
   selectedServiceId: string;
-  /** Locks the fields that can't change once the deployment exists on-chain (resources, placement, ports, …). The image, env vars and commands cards stay editable and their changes are pushed via an update on deploy. */
-  locked?: boolean;
+  /**
+   * How much of the pane is locked. `"onchain"` locks only the cards baked into the deployment (resources, placement,
+   * ports, …) while the manifest-only image/env/command cards stay editable; `"all"` locks every card while a
+   * create/close/deploy is in flight. Absent leaves everything editable. See {@link ConfigurationLock}.
+   */
+  locked?: ConfigurationLock;
   isClosing?: boolean;
   onCancelAndEdit?: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -25,7 +30,7 @@ type Props = {
  * index per mount rather than reacting to a changing one, which would otherwise
  * leave the previous service's values and errors on screen.
  */
-export const ConfigurationPane: FC<Props> = ({ selectedServiceId, locked = false, isClosing = false, onCancelAndEdit, dependencies: d = DEPENDENCIES }) => {
+export const ConfigurationPane: FC<Props> = ({ selectedServiceId, locked, isClosing = false, onCancelAndEdit, dependencies: d = DEPENDENCIES }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const watchedServices = useWatch<SdlBuilderFormValuesType>({ control, name: "services" });
   const services = Array.isArray(watchedServices) ? (watchedServices as SdlBuilderFormValuesType["services"]) : [];
@@ -44,8 +49,8 @@ export const ConfigurationPane: FC<Props> = ({ selectedServiceId, locked = false
       <div className="flex-1 overflow-y-auto py-4">
         {selectedServiceIndex >= 0 && (
           <div key={selectedServiceId} className="flex flex-col gap-6">
-            <d.ImageSection serviceIndex={selectedServiceIndex} />
-            <d.HardwareSection serviceIndex={selectedServiceIndex} locked={locked} />
+            <d.ImageSection serviceIndex={selectedServiceIndex} locked={locked === "all"} />
+            <d.HardwareSection serviceIndex={selectedServiceIndex} locked={!!locked} />
             <d.AdditionalSection serviceIndex={selectedServiceIndex} locked={locked} />
           </div>
         )}

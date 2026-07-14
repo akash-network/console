@@ -21,6 +21,13 @@ describe(ImageCard.name, () => {
     expect(getValues().services[0].image).toBe("myimage:1.0");
   });
 
+  it("disables the image and credentials fields while locked", () => {
+    setup({ hasCredentials: true, locked: true });
+
+    expect(screen.getByLabelText("Docker image")).toBeDisabled();
+    expect(screen.getByLabelText("Registry username")).toBeDisabled();
+  });
+
   it("reveals credentials fields and seeds defaults when private registry is checked", async () => {
     const { getValues } = setup({});
 
@@ -122,7 +129,7 @@ describe(ImageCard.name, () => {
     });
   });
 
-  function setup(input: { hasCredentials?: boolean; resolver?: Resolver<SdlBuilderFormValuesType> }) {
+  function setup(input: { hasCredentials?: boolean; resolver?: Resolver<SdlBuilderFormValuesType>; locked?: boolean }) {
     const values = defaultServiceWithPlacement({
       image: "",
       hasCredentials: input.hasCredentials ?? false,
@@ -150,7 +157,7 @@ describe(ImageCard.name, () => {
 
     render(
       <Wrapper>
-        <ImageCard serviceIndex={0} />
+        <ImageCard serviceIndex={0} locked={input.locked} />
       </Wrapper>
     );
 

@@ -56,7 +56,9 @@ function CustomTooltip({
   return (
     <Tooltip>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent className={cn("z-[500] max-w-md p-6", className)}>{title}</TooltipContent>
+      <TooltipPrimitive.Portal>
+        <TooltipContent className={cn("z-[500] max-w-md p-6", className)}>{title}</TooltipContent>
+      </TooltipPrimitive.Portal>
     </Tooltip>
   );
 }

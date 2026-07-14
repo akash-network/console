@@ -13,7 +13,7 @@ export class OnboardingPickerPage {
     return this.page.getByRole("heading", { name: /deploy your first app/i });
   }
 
-  async deploy(template: "Hello world" | "Image Generation" | "LLM Chatbot") {
+  async deploy(template: "Hello world" | "Space Agent" | "LLM Chatbot") {
     const heading = this.page.getByRole("heading", { name: template, exact: true });
     const card = this.page
       .locator("div")

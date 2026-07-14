@@ -22,6 +22,16 @@ describe(EnvironmentVariablesCard.name, () => {
     expect(screen.getByText("Environment variables")).toBeInTheDocument();
   });
 
+  it("opens for viewing but disables the inputs and Save while locked", async () => {
+    const { openCard } = setup({ env: [{ key: "FOO", value: "bar" }], locked: true });
+
+    await openCard();
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByLabelText("Environment variable 1 key")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
   it("shows an empty key/value row in the modal when opened with no variables", async () => {
     const { openCard } = setup({ env: [] });
 
@@ -324,7 +334,7 @@ describe(EnvironmentVariablesCard.name, () => {
     }
   });
 
-  function setup(input: { env?: Array<Partial<EnvironmentVariableType>>; image?: string }) {
+  function setup(input: { env?: Array<Partial<EnvironmentVariableType>>; image?: string; locked?: boolean }) {
     const env = input.env?.map(e => ({ key: "", value: "", isSecret: false, ...e })) ?? [];
 
     const values = defaultServiceWithPlacement({ env, ...(input.image !== undefined ? { image: input.image } : {}) });
@@ -337,7 +347,7 @@ describe(EnvironmentVariablesCard.name, () => {
 
     render(
       <Wrapper>
-        <EnvironmentVariablesCard serviceIndex={0} dependencies={{ ...DEPENDENCIES }} />
+        <EnvironmentVariablesCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES }} />
         <ImageErrorProbe serviceIndex={0} />
       </Wrapper>
     );

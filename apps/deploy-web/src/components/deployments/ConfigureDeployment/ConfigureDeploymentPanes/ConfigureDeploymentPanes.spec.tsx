@@ -80,21 +80,27 @@ describe("ConfigureDeploymentPanes", () => {
     const { DeploymentPane, ConfigurationPane } = setup({ phase: "quoting" });
 
     expect(DeploymentPane).toHaveBeenCalledWith(expect.objectContaining({ locked: true, onCancelAndEdit: expect.any(Function) }), expect.anything());
-    expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ locked: true, onCancelAndEdit: expect.any(Function) }), expect.anything());
+    expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ locked: "onchain", onCancelAndEdit: expect.any(Function) }), expect.anything());
   });
 
   it("flags close progress to both spec panes while closing", () => {
     const { DeploymentPane, ConfigurationPane } = setup({ phase: "closing" });
 
     expect(DeploymentPane).toHaveBeenCalledWith(expect.objectContaining({ locked: true, isClosing: true }), expect.anything());
-    expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ locked: true, isClosing: true }), expect.anything());
+    expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ locked: "all", isClosing: true }), expect.anything());
   });
 
   it("leaves both spec panes unlocked while configuring", () => {
     const { DeploymentPane, ConfigurationPane } = setup({ phase: "configuring" });
 
     expect(DeploymentPane).toHaveBeenCalledWith(expect.objectContaining({ locked: false }), expect.anything());
-    expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ locked: false }), expect.anything());
+    expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ locked: undefined }), expect.anything());
+  });
+
+  it("locks every configuration card while the deployment is being created", () => {
+    const { ConfigurationPane } = setup({ phase: "creating" });
+
+    expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ locked: "all" }), expect.anything());
   });
 
   function setup(

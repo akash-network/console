@@ -20,6 +20,16 @@ describe(CommandsCard.name, () => {
     expect(screen.getByLabelText("Arguments")).toHaveValue("echo hi");
   });
 
+  it("opens for viewing but disables the inputs and Save while locked", async () => {
+    const { openCard } = setup({ command: "bash -c", locked: true });
+
+    await openCard();
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByLabelText("Command")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
   it("commits the command and arguments on Save", async () => {
     const { getValues, openCard } = setup({});
 
@@ -54,7 +64,7 @@ describe(CommandsCard.name, () => {
     expect(getValues().services[0].command?.command).toBe("sh\n-c");
   });
 
-  function setup(input: { command?: string; arg?: string }) {
+  function setup(input: { command?: string; arg?: string; locked?: boolean }) {
     const values = defaultServiceWithPlacement({ command: { command: input.command ?? "", arg: input.arg ?? "" } });
 
     let getValues: () => SdlBuilderFormValuesType = () => values;
@@ -66,7 +76,7 @@ describe(CommandsCard.name, () => {
 
     render(
       <Wrapper>
-        <CommandsCard serviceIndex={0} dependencies={{ ...DEPENDENCIES }} />
+        <CommandsCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES }} />
       </Wrapper>
     );
 

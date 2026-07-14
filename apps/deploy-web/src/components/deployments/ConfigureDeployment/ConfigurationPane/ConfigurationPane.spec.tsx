@@ -6,6 +6,7 @@ import type { SdlBuilderFormValuesType } from "@src/types";
 import { defaultPlacement, defaultService } from "@src/utils/sdl/data";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { DEPENDENCIES as HARDWARE_DEPENDENCIES, HardwareSection } from "./HardwareSection/HardwareSection";
+import type { ConfigurationLock } from "./configurationLock";
 import { ConfigurationPane, DEPENDENCIES } from "./ConfigurationPane";
 
 import { render, screen } from "@testing-library/react";
@@ -109,30 +110,43 @@ describe(ConfigurationPane.name, () => {
   it("shows the lock banner with cancel-and-edit while locked", async () => {
     const onCancelAndEdit = vi.fn();
     const values = defaultServiceWithPlacement({ title: "api" });
-    setup({ values, selectedServiceId: values.services[0].id, locked: true, onCancelAndEdit });
+    setup({ values, selectedServiceId: values.services[0].id, locked: "onchain", onCancelAndEdit });
 
     await userEvent.click(screen.getByRole("button", { name: /cancel and edit/i }));
 
     expect(onCancelAndEdit).toHaveBeenCalled();
   });
 
-  it("locks the hardware and additional sections but never the image section", () => {
+  it("locks the structural sections but leaves the image editable while only the on-chain fields are locked", () => {
     const ImageSection = vi.fn(() => null);
     const HardwareSection = vi.fn(() => null);
     const AdditionalSection = vi.fn(() => null);
     const values = defaultServiceWithPlacement({ title: "api" });
 
-    setup({ values, selectedServiceId: values.services[0].id, locked: true, dependencies: { ImageSection, HardwareSection, AdditionalSection } });
+    setup({ values, selectedServiceId: values.services[0].id, locked: "onchain", dependencies: { ImageSection, HardwareSection, AdditionalSection } });
 
     expect(HardwareSection).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
-    expect(AdditionalSection).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
-    expect(ImageSection).not.toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
+    expect(AdditionalSection).toHaveBeenCalledWith(expect.objectContaining({ locked: "onchain" }), expect.anything());
+    expect(ImageSection).toHaveBeenCalledWith(expect.objectContaining({ locked: false }), expect.anything());
+  });
+
+  it("locks every section while a create/close/deploy is in flight", () => {
+    const ImageSection = vi.fn(() => null);
+    const HardwareSection = vi.fn(() => null);
+    const AdditionalSection = vi.fn(() => null);
+    const values = defaultServiceWithPlacement({ title: "api" });
+
+    setup({ values, selectedServiceId: values.services[0].id, locked: "all", dependencies: { ImageSection, HardwareSection, AdditionalSection } });
+
+    expect(HardwareSection).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
+    expect(AdditionalSection).toHaveBeenCalledWith(expect.objectContaining({ locked: "all" }), expect.anything());
+    expect(ImageSection).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
   });
 
   function setup(input: {
     values: SdlBuilderFormValuesType;
     selectedServiceId: string;
-    locked?: boolean;
+    locked?: ConfigurationLock;
     onCancelAndEdit?: () => void;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {

@@ -25,6 +25,18 @@ describe(CollapsibleCard.name, () => {
     expect(screen.queryByLabelText("Locked")).not.toBeInTheDocument();
   });
 
+  it("dims the card to signal it can't be edited while locked", () => {
+    const { container } = setup({ locked: true });
+
+    expect(container.firstChild).toHaveClass("opacity-60");
+  });
+
+  it("does not dim the card when not locked", () => {
+    const { container } = setup({});
+
+    expect(container.firstChild).not.toHaveClass("opacity-60");
+  });
+
   it("hides the body and shows the summary when collapsed", async () => {
     setup({ summary: "1 GPU" });
 
@@ -281,6 +293,12 @@ describe(CollapsibleCard.name, () => {
       expect(screen.getByLabelText("Locked")).toBeInTheDocument();
     });
 
+    it("dims the action card while locked", () => {
+      const { container } = setup({ onHeaderClick: vi.fn(), locked: true });
+
+      expect(container.firstChild).toHaveClass("opacity-60");
+    });
+
     it("does not fire onHeaderClick when the info icon is clicked", async () => {
       const onHeaderClick = vi.fn();
       setup({ onHeaderClick, infoTooltip: "helpful info" });
@@ -375,6 +393,6 @@ describe(CollapsibleCard.name, () => {
       </CollapsibleCard>
     );
     const view = render(card({}));
-    return { rerender: (overrides: Partial<typeof input>) => view.rerender(card(overrides)) };
+    return { rerender: (overrides: Partial<typeof input>) => view.rerender(card(overrides)), container: view.container };
   }
 });
