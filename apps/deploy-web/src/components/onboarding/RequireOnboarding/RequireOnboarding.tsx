@@ -102,15 +102,17 @@ function LeaseBasedGate({
 
 /**
  * Resolves the lease-based gate's action, in priority order. Public pages always render (RequireAuth owns auth).
- * Allow-list pages (configure, a deployment detail) render *immediately* — ahead of the identity/wallet wait and
- * without waiting on the leases query — because they own their own loading UX (e.g. the auto-deploy progress
- * overlay). Gating them behind wallet initialization would flash the full-screen loader over an in-progress
- * deploy while the wallet spins up, interrupting that overlay and remounting the flow. Everywhere else first
- * waits until user + wallet identity is known, then for leases to settle: an onboarded user renders except on
- * `/onboarding` (sent back where they came from), and a not-onboarded user renders on `/onboarding` but is sent
- * there from anywhere else. A leases *error* leaves onboarding unknowable — an undefined result is not "no
- * leases" — so we fail open and render where the user is rather than eject a genuinely onboarded user into the
- * first-deploy funnel on a transient chain-API blip.
+ * Allow-list pages (configure, a deployment detail) render *immediately*, ahead of the identity/wallet wait and
+ * the leases query, because they own their own loading UX (e.g. the auto-deploy progress overlay). The
+ * `/onboarding` picker likewise renders once identity is known without waiting for leases: its trial wallet
+ * provisions in the background, and the leases query flips to loading the moment that wallet's address appears,
+ * which would otherwise flash the full-screen loader and remount the page (including an open Add Credits sheet).
+ * An already-onboarded user who lands on `/onboarding` is still sent back where they came from, but only once
+ * leases resolve (they render the picker until then). Everywhere else first waits until user + wallet identity is
+ * known, then for leases to settle: an onboarded user renders, a not-onboarded user is sent to `/onboarding`. A
+ * leases *error* leaves onboarding unknowable (an undefined result is not "no leases"), so we fail open and render
+ * where the user is rather than eject a genuinely onboarded user into the first-deploy funnel on a transient
+ * chain-API blip.
  */
 function decideLeaseGate(input: {
   isPublic: boolean;
@@ -126,9 +128,9 @@ function decideLeaseGate(input: {
   if (input.isAllowed) return "render";
   if (!input.identityKnown) return "loading";
   if (!input.isAuthenticated) return "render";
-  if (!input.leasesSettled) return "loading";
   if (input.isOnboarded) return input.isOnOnboarding ? "toReturn" : "render";
   if (input.isOnOnboarding) return "render";
+  if (!input.leasesSettled) return "loading";
   if (input.leasesErrored) return "render";
   return "toOnboarding";
 }
