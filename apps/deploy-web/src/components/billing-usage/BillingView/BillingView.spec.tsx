@@ -42,6 +42,40 @@ describe(BillingView.name, () => {
     expect(screen.getByText(/Succeeded|Pending|Failed/i)).toBeInTheDocument();
   });
 
+  it("shows the first-purchase bonus under the amount when present", () => {
+    const transaction = createMockTransaction({ amount: 25000, status: "succeeded" });
+    setup({
+      data: [
+        mock<Charge>({
+          ...transaction,
+          paymentMethod: transaction.payment_method,
+          receiptUrl: "https://example.com/receipt",
+          bonusAmount: 1000
+        })
+      ]
+    });
+
+    expect(screen.getByText("250.00")).toBeInTheDocument();
+    expect(screen.getByText("10.00")).toBeInTheDocument();
+    expect(screen.getByText(/bonus/)).toBeInTheDocument();
+  });
+
+  it("renders no bonus line when the transaction has no bonus", () => {
+    const transaction = createMockTransaction({ amount: 25000, status: "succeeded" });
+    setup({
+      data: [
+        mock<Charge>({
+          ...transaction,
+          paymentMethod: transaction.payment_method,
+          receiptUrl: "https://example.com/receipt",
+          bonusAmount: 0
+        })
+      ]
+    });
+
+    expect(screen.queryByText(/bonus/)).not.toBeInTheDocument();
+  });
+
   it("calls onPaginationChange when changing page size", () => {
     const onPaginationChange = vi.fn();
     setup({ onPaginationChange });

@@ -141,6 +141,8 @@ export const ApplyCouponResponseSchema = z.object({
 export const TransactionSchema = z.object({
   id: z.string(),
   amount: z.number(),
+  /** First-purchase bonus credited with this payment, in cents. */
+  bonusAmount: z.number().optional(),
   currency: z.string(),
   status: z.string(),
   created: z.number(),

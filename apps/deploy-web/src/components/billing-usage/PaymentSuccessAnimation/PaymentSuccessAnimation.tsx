@@ -8,6 +8,8 @@ import { CheckCircle, Sparks } from "iconoir-react";
 interface PaymentSuccessAnimationProps {
   show: boolean;
   amount: string;
+  /** First-purchase bonus in dollars; shown and added to the credited total when > 0. */
+  bonusAmount?: string;
   onComplete?: () => void;
 }
 
@@ -21,8 +23,10 @@ interface Particle {
   delay: number;
 }
 
-export function PaymentSuccessAnimation({ show, amount, onComplete }: PaymentSuccessAnimationProps) {
+export function PaymentSuccessAnimation({ show, amount, bonusAmount, onComplete }: PaymentSuccessAnimationProps) {
   const [particles, setParticles] = useState<Particle[]>([]);
+  const bonus = parseFloat(bonusAmount ?? "") || 0;
+  const totalCredited = (parseFloat(amount) || 0) + bonus;
 
   useEffect(() => {
     if (show) {
@@ -164,11 +168,22 @@ export function PaymentSuccessAnimation({ show, amount, onComplete }: PaymentSuc
               >
                 <div className="flex items-center rounded-lg border border-green-500/20 bg-green-500/10 px-6 py-3">
                   <span className="text-2xl font-bold text-green-500">
-                    <FormattedNumber value={parseFloat(amount) || 0} style="currency" currency="USD" />
+                    <FormattedNumber value={totalCredited} style="currency" currency="USD" />
                   </span>
                   <span className="ml-2 text-lg text-muted-foreground">added to your account</span>
                 </div>
               </motion.div>
+
+              {bonus > 0 && (
+                <motion.p
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.9, duration: 0.5 }}
+                  className="mb-4 text-sm font-medium text-primary"
+                >
+                  Includes a <FormattedNumber value={bonus} style="currency" currency="USD" /> first-purchase bonus
+                </motion.p>
+              )}
 
               <motion.p
                 initial={{ opacity: 0, y: 10 }}

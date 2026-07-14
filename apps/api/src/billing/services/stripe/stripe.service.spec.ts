@@ -111,6 +111,7 @@ describe(StripeService.name, () => {
           {
             id: mockCharge.id,
             amount: mockCharge.amount,
+            bonusAmount: 0,
             currency: mockCharge.currency,
             status: mockCharge.status,
             created: mockCharge.created,
@@ -124,6 +125,25 @@ describe(StripeService.name, () => {
         nextPage: mockCharge.id,
         prevPage: null
       });
+    });
+
+    it("attaches the recorded first-purchase bonus to matching charges", async () => {
+      const { service, stripeTransactionRepository } = setup();
+      const bonusCharge = createTestCharge({ id: "ch_bonus" });
+      const plainCharge = createTestCharge({ id: "ch_plain" });
+      const mockCharges = {
+        data: [bonusCharge, plainCharge],
+        has_more: false
+      } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
+
+      vi.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
+      stripeTransactionRepository.findByChargeIds.mockResolvedValue([generateDatabaseStripeTransaction({ stripeChargeId: "ch_bonus", bonusAmount: 1000 })]);
+
+      const result = await service.getCustomerTransactions(TEST_CONSTANTS.CUSTOMER_ID);
+
+      expect(stripeTransactionRepository.findByChargeIds).toHaveBeenCalledWith(["ch_bonus", "ch_plain"]);
+      expect(result.transactions[0].bonusAmount).toBe(1000);
+      expect(result.transactions[1].bonusAmount).toBe(0);
     });
 
     it("sanitizes link email from payment method details", async () => {
@@ -248,6 +268,7 @@ describe(StripeService.name, () => {
           {
             id: firstCharge.id,
             amount: firstCharge.amount,
+            bonusAmount: 0,
             currency: firstCharge.currency,
             status: firstCharge.status,
             created: firstCharge.created,
@@ -259,6 +280,7 @@ describe(StripeService.name, () => {
           {
             id: secondCharge.id,
             amount: secondCharge.amount,
+            bonusAmount: 0,
             currency: secondCharge.currency,
             status: secondCharge.status,
             created: secondCharge.created,
@@ -353,13 +375,40 @@ describe(StripeService.name, () => {
 
       const fullCsv = chunks.join("");
 
-      expect(fullCsv).toContain("Transaction ID,Date (America/New_York),Amount,Currency,Status,Payment Method,Card Brand,Card Last 4,Description,Receipt URL");
+      expect(fullCsv).toContain(
+        "Transaction ID,Date (America/New_York),Amount,Bonus,Currency,Status,Payment Method,Card Brand,Card Last 4,Description,Receipt URL"
+      );
 
       expect(fullCsv).toContain(mockTransaction.id);
       expect(fullCsv).toContain("2021-12-31, 7:00:00 p.m.");
       expect(fullCsv).toContain("10.00");
       expect(fullCsv).toContain("visa");
       expect(fullCsv).toContain("4242");
+    });
+
+    it("writes the recorded bonus next to the amount", async () => {
+      const { service } = setup();
+      const mockTransaction = createTestTransaction({ amount: 15000, bonusAmount: 1500 });
+
+      vi.spyOn(service, "getCustomerTransactions").mockResolvedValue({
+        transactions: [mockTransaction],
+        hasMore: false,
+        nextPage: null,
+        prevPage: null
+      });
+
+      const csvStream = service.exportTransactionsCsvStream(TEST_CONSTANTS.CUSTOMER_ID, {
+        startDate: "2022-01-01T00:00:00Z",
+        endDate: "2022-01-31T23:59:59Z",
+        timezone: "America/New_York"
+      });
+
+      const chunks: string[] = [];
+      for await (const chunk of csvStream) {
+        chunks.push(chunk);
+      }
+
+      expect(chunks.join("")).toContain("150.00,15.00");
     });
 
     it("streams multiple pages without loading all into memory", async () => {
@@ -499,7 +548,7 @@ describe(StripeService.name, () => {
 
       expect(fullCsv).toContain("ch_123");
       expect(fullCsv).toContain("No payment method");
-      expect(fullCsv).toMatch(/ch_123,"[^"]*",[^,]*,[^,]*,[^,]*,,,,No payment method,/);
+      expect(fullCsv).toMatch(/ch_123,"[^"]*",[^,]*,[^,]*,[^,]*,[^,]*,,,,No payment method,/);
     });
 
     it("handles error during streaming gracefully", async () => {
@@ -528,7 +577,9 @@ describe(StripeService.name, () => {
 
       const fullCsv = chunks.join("");
 
-      expect(fullCsv).toContain("Transaction ID,Date (America/New_York),Amount,Currency,Status,Payment Method,Card Brand,Card Last 4,Description,Receipt URL");
+      expect(fullCsv).toContain(
+        "Transaction ID,Date (America/New_York),Amount,Bonus,Currency,Status,Payment Method,Card Brand,Card Last 4,Description,Receipt URL"
+      );
       expect(fullCsv).toContain("ch_123");
       expect(fullCsv).toContain("Error: Stripe API error");
     });
@@ -1597,6 +1648,7 @@ function setup(
     updatedAt: new Date()
   }));
   stripeTransactionRepository.updateById.mockResolvedValue(undefined);
+  stripeTransactionRepository.findByChargeIds.mockResolvedValue([]);
   const stripeData = StripeSeederCreate();
 
   // Store the last user for correct mocking

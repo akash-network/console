@@ -78,6 +78,16 @@ export class StripeTransactionRepository extends BaseRepository<Table, StripeTra
     return item ? this.toOutput(item) : undefined;
   }
 
+  async findByChargeIds(chargeIds: string[]): Promise<StripeTransactionOutput[]> {
+    if (!chargeIds.length) return [];
+
+    return this.toOutputList(
+      await this.cursor.query.StripeTransactions.findMany({
+        where: this.whereAccessibleBy(inArray(this.table.stripeChargeId, chargeIds))
+      })
+    );
+  }
+
   async findByInvoiceId(invoiceId: string): Promise<StripeTransactionOutput | undefined> {
     const item = await this.cursor.query.StripeTransactions.findFirst({
       where: this.whereAccessibleBy(eq(this.table.stripeInvoiceId, invoiceId))

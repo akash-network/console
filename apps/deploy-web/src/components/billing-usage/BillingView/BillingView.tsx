@@ -81,7 +81,19 @@ export const BillingView: React.FC<BillingViewProps> = ({
     }),
     columnHelper.accessor("amount", {
       header: "Amount",
-      cell: info => <FormattedNumber value={info.getValue() / 100} style="currency" currency={info.row.original.currency} currencyDisplay="narrowSymbol" />
+      cell: info => {
+        const { currency, bonusAmount = 0 } = info.row.original;
+        return (
+          <div>
+            <FormattedNumber value={info.getValue() / 100} style="currency" currency={currency} currencyDisplay="narrowSymbol" />
+            {bonusAmount > 0 && (
+              <div className="text-xs font-medium text-primary">
+                +<FormattedNumber value={bonusAmount / 100} style="currency" currency={currency} currencyDisplay="narrowSymbol" /> bonus
+              </div>
+            )}
+          </div>
+        );
+      }
     }),
     columnHelper.accessor("paymentMethod.card.brand", {
       header: "Account source",

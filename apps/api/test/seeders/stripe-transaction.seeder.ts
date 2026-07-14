@@ -7,6 +7,7 @@ import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 export const createStripeTransaction = ({
   id = faker.string.uuid(),
   amount = faker.number.int({ min: 1000, max: 100000 }),
+  bonusAmount,
   currency = "usd",
   status = "succeeded",
   description = faker.lorem.sentence(),
@@ -18,6 +19,7 @@ export const createStripeTransaction = ({
   return {
     id,
     amount,
+    bonusAmount,
     currency,
     status,
     description,

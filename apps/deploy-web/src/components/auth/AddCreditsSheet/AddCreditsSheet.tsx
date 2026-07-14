@@ -20,7 +20,7 @@ const DEFAULT_DESCRIPTION =
 interface AddCreditsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onDone: (amount: number, organization?: string) => void;
+  onDone: (amount: number, organization?: string, bonusAmount?: number) => void;
   onRedeemed?: () => void;
   isWalletReady?: boolean;
   initialTab?: AddCreditsTab;
