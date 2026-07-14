@@ -5,7 +5,7 @@ import subDays from "date-fns/subDays";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
-import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import { type StripeTransactionType, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
@@ -17,7 +17,7 @@ export interface PaymentAnalyticsContext {
   cardBrand?: string;
   paymentMethodType?: string;
   transactionId?: string;
-  source?: "payment_intent" | "coupon_claim";
+  source?: StripeTransactionType;
   /** First-purchase bonus included in the topped-up amount, in cents. */
   bonusAmountCents?: number;
 }

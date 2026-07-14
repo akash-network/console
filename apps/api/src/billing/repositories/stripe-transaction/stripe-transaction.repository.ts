@@ -12,6 +12,13 @@ export type StripeTransactionOutput = Table["$inferSelect"];
 export type StripeTransactionStatus = StripeTransactionOutput["status"];
 export type StripeTransactionType = StripeTransactionOutput["type"];
 
+/**
+ * Credit-grant transaction types whose crediting must never graduate a trial user. A granted manual
+ * credit tops up the wallet without ending the trial; a redeemed coupon deliberately ends it (see #3403).
+ * Add new trial-preserving credit-grant types here.
+ */
+export const TRIAL_PRESERVING_TRANSACTION_TYPES: Set<StripeTransactionType> = new Set(["manual_credit"]);
+
 export interface FindTransactionsOptions {
   userId: string;
   limit?: number;

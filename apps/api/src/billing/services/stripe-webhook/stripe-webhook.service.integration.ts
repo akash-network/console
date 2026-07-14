@@ -466,6 +466,105 @@ describe(StripeWebhookService.name, () => {
         }
       });
     });
+
+    it("tops up the wallet with endTrial false for a matched manual_credit invoice transaction", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const mockUser = createTestUser();
+      const invoiceId = "in_manual_1";
+      const amount = 50000;
+      // The admin app pre-creates this row (status pending) before marking the invoice paid
+      const transaction = createMockTransaction({
+        id: "tx-manual-1",
+        type: "manual_credit",
+        status: "pending",
+        amount,
+        stripeInvoiceId: invoiceId
+      });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findByInvoiceId.mockResolvedValue(transaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
+      stripeTransactionRepository.updateById.mockResolvedValue(undefined);
+      refillService.topUpWallet.mockResolvedValue();
+
+      const event = createInvoicePaidEvent({
+        id: invoiceId,
+        customer: mockUser.stripeCustomerId,
+        amount_paid: amount
+      });
+
+      await service.tryToTopUpWalletFromInvoice(event);
+
+      expect(stripeTransactionRepository.findByInvoiceId).toHaveBeenCalledWith(invoiceId);
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transaction.id, expect.objectContaining({ status: "succeeded" }));
+      // endTrial: false — a granted credit must not graduate a trial user
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, {
+        endTrial: false,
+        payment: {
+          currency: transaction.currency,
+          cardBrand: undefined,
+          paymentMethodType: undefined,
+          transactionId: transaction.id,
+          source: "manual_credit"
+        }
+      });
+    });
+
+    it("credits only once when invoice.paid and invoice.payment_succeeded both fire for the same manual_credit invoice", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const mockUser = createTestUser();
+      const invoiceId = "in_manual_dual";
+      const amount = 50000;
+      const pendingTransaction = createMockTransaction({
+        id: "tx-manual-dual",
+        type: "manual_credit",
+        status: "pending",
+        amount,
+        stripeInvoiceId: invoiceId
+      });
+      const succeededTransaction = createMockTransaction({ ...pendingTransaction, status: "succeeded" });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findByInvoiceId.mockResolvedValue(pendingTransaction);
+      // First delivery locks the pending row; second delivery locks an already-succeeded row
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValueOnce(pendingTransaction).mockResolvedValueOnce(succeededTransaction);
+      stripeTransactionRepository.updateById.mockResolvedValue(undefined);
+      refillService.topUpWallet.mockResolvedValue();
+
+      const invoice = { id: invoiceId, customer: mockUser.stripeCustomerId, amount_paid: amount };
+      await service.tryToTopUpWalletFromInvoice(createInvoicePaidEvent(invoice));
+      await service.tryToTopUpWalletFromInvoice(createInvoicePaymentSucceededEvent(invoice));
+
+      // The already-succeeded guard must credit the wallet exactly once across both event variants
+      expect(refillService.topUpWallet).toHaveBeenCalledTimes(1);
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, {
+        endTrial: false,
+        payment: {
+          currency: pendingTransaction.currency,
+          cardBrand: undefined,
+          paymentMethodType: undefined,
+          transactionId: pendingTransaction.id,
+          source: "manual_credit"
+        }
+      });
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledTimes(1);
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(pendingTransaction.id, expect.objectContaining({ status: "succeeded" }));
+    });
+  });
+
+  describe("routeStripeEvent", () => {
+    it.each([
+      createInvoicePaidEvent({ id: "in_route", customer: "cus_route", amount_paid: 1000 }),
+      createInvoicePaymentSucceededEvent({ id: "in_route", customer: "cus_route", amount_paid: 1000 })
+    ])("routes $type events to the invoice top-up handler", async event => {
+      const { service, stripeService } = setup();
+      stripeService.webhooks = { constructEvent: vi.fn().mockReturnValue(event) } as unknown as Stripe.Webhooks;
+      const handler = vi.spyOn(service, "tryToTopUpWalletFromInvoice").mockResolvedValue();
+
+      await service.routeStripeEvent("signature", "raw-body");
+
+      expect(handler).toHaveBeenCalledWith(event);
+    });
   });
 
   describe("handlePaymentIntentFailed", () => {
@@ -1099,6 +1198,16 @@ describe(StripeWebhookService.name, () => {
         object: invoice as Stripe.Invoice
       }
     } as Stripe.InvoicePaymentSucceededEvent;
+  }
+
+  function createInvoicePaidEvent(invoice: Partial<Stripe.Invoice>): Stripe.InvoicePaidEvent {
+    return {
+      id: "evt_123",
+      type: "invoice.paid",
+      data: {
+        object: invoice as Stripe.Invoice
+      }
+    } as Stripe.InvoicePaidEvent;
   }
 
   function createPaymentMethodAttachedEvent(params: {

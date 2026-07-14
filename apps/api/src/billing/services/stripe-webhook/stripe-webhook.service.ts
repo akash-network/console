@@ -3,7 +3,12 @@ import assert from "http-assert";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
-import { PaymentMethodRepository, type StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
+import {
+  PaymentMethodRepository,
+  type StripeTransactionOutput,
+  StripeTransactionRepository,
+  TRIAL_PRESERVING_TRANSACTION_TYPES
+} from "@src/billing/repositories";
 import { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import { assertIsPayingUser } from "@src/billing/services/paying-user/paying-user";
 import { RefillService } from "@src/billing/services/refill/refill.service";
@@ -40,7 +45,11 @@ export class StripeWebhookService {
         case "payment_intent.succeeded":
           await this.tryToTopUpWalletFromPaymentIntent(event);
           break;
+        case "invoice.paid":
         case "invoice.payment_succeeded":
+          // invoice.paid covers out-of-band-paid invoices (e.g. admin-comped manual credits);
+          // invoice.payment_succeeded covers charged invoices. Both credit the matching
+          // pre-created transaction row idempotently (an already-succeeded row no-ops).
           await this.tryToTopUpWalletFromInvoice(event);
           break;
         case "payment_intent.payment_failed":
@@ -70,12 +79,14 @@ export class StripeWebhookService {
     }
   }
 
-  async tryToTopUpWalletFromInvoice(event: Stripe.InvoicePaymentSucceededEvent) {
+  async tryToTopUpWalletFromInvoice(event: Stripe.InvoicePaidEvent | Stripe.InvoicePaymentSucceededEvent) {
     const invoice = event.data.object;
     const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id ?? null;
 
     const transaction = await this.stripeTransactionRepository.findByInvoiceId(invoice.id);
     if (!transaction) {
+      // Double-credit guard: ordinary charged invoices have no pre-created row (only the coupon-claim
+      // and admin manual-credit paths pre-create one), so they no-op here.
       this.logger.info({
         event: "INVOICE_NO_MATCHING_TRANSACTION",
         invoiceId: invoice.id
@@ -90,7 +101,10 @@ export class StripeWebhookService {
         ? payment.payment_intent
         : payment.payment_intent.id
       : undefined;
-    // Invoice top-ups are coupon claims; redeeming a coupon ends the trial like a card purchase does.
+    // A granted manual credit must not graduate a trial user; every other invoice (coupon claims,
+    // card purchases) leaves endTrial undefined so RefillService's default ends the trial.
+    const endTrial = TRIAL_PRESERVING_TRANSACTION_TYPES.has(transaction.type) ? false : undefined;
+
     await this.topUpWalletFromTransaction({
       customerId,
       transaction,
@@ -98,7 +112,8 @@ export class StripeWebhookService {
       paymentMethodType: undefined,
       paymentAmount: transaction.amount,
       stripePaymentIntentId,
-      eventDescription: `invoice ${invoice.id}`
+      eventDescription: `invoice ${invoice.id}`,
+      endTrial
     });
   }
 

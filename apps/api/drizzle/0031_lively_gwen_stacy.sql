@@ -1,0 +1,2 @@
+ALTER TYPE "public"."stripe_transaction_type" ADD VALUE 'manual_credit';--> statement-breakpoint
+CREATE UNIQUE INDEX "stripe_transactions_stripe_invoice_id_unique" ON "stripe_transactions" USING btree ("stripe_invoice_id") WHERE "stripe_transactions"."stripe_invoice_id" IS NOT NULL;
