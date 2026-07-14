@@ -11,7 +11,7 @@ export class AddCreditsSheetPage {
     await this.getDialog().waitFor({ state: "visible", timeout: 15_000 });
   }
 
-  async pickPredefinedAmount(amount: "50" | "100" | "500") {
+  async pickPredefinedAmount(amount: "100" | "500" | "1000") {
     await this.getDialog().getByRole("radio", { name: amount, exact: true }).click();
   }
 

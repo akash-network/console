@@ -77,7 +77,7 @@ export function FirstPurchaseBonusAlert({ amount, dependencies: d = DEPENDENCIES
           </div>
 
           <div className="space-y-1.5">
-            <Progress value={progressToMaxBonus} className="h-2" />
+            <Progress value={progressToMaxBonus} className="h-2 border border-blue-200 dark:border-blue-800" />
             <p className="text-xs text-muted-foreground">
               {bonusMaxed ? (
                 <>
@@ -102,7 +102,7 @@ export function FirstPurchaseBonusAlert({ amount, dependencies: d = DEPENDENCIES
           </div>
 
           <div className="space-y-1.5">
-            <Progress value={progressToQualify} className="h-2" />
+            <Progress value={progressToQualify} className="h-2 border border-blue-200 dark:border-blue-800" />
             <p className="text-sm font-medium">
               {amount > 0 ? (
                 <>

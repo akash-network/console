@@ -32,7 +32,7 @@ describe(AddCreditsForm.name, () => {
 
     expect(screen.getByTestId("first-purchase-bonus-alert")).toHaveTextContent("0");
 
-    fireEvent.click(screen.getByRole("radio", { name: /100/i }));
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
 
     expect(screen.getByTestId("first-purchase-bonus-alert")).toHaveTextContent("100");
   });
@@ -80,7 +80,7 @@ describe(AddCreditsForm.name, () => {
       dependencies: { AddCreditsNewPaymentMethodFields }
     });
 
-    fireEvent.click(screen.getByRole("radio", { name: /100/i }));
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
 
     await act(async () => {
       fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
@@ -119,7 +119,7 @@ describe(AddCreditsForm.name, () => {
       dependencies: { AddCreditsNewPaymentMethodFields }
     });
 
-    fireEvent.click(screen.getByRole("radio", { name: /100/i }));
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
 
     await act(async () => {
       fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
@@ -147,7 +147,7 @@ describe(AddCreditsForm.name, () => {
       dependencies: { AddCreditsNewPaymentMethodFields }
     });
 
-    fireEvent.click(screen.getByRole("radio", { name: /100/i }));
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
 
     await act(async () => {
       fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
@@ -177,7 +177,7 @@ describe(AddCreditsForm.name, () => {
       dependencies: { AddCreditsNewPaymentMethodFields }
     });
 
-    fireEvent.click(screen.getByRole("radio", { name: /100/i }));
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
 
     await act(async () => {
       fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
@@ -203,7 +203,7 @@ describe(AddCreditsForm.name, () => {
       dependencies: { AddCreditsNewPaymentMethodFields }
     });
 
-    fireEvent.click(screen.getByRole("radio", { name: /100/i }));
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
 
     await act(async () => {
       fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
@@ -233,7 +233,7 @@ describe(AddCreditsForm.name, () => {
       dependencies: { AddCreditsNewPaymentMethodFields }
     });
 
-    fireEvent.click(screen.getByRole("radio", { name: "50" }));
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
 
     await act(async () => {
       fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
@@ -264,7 +264,7 @@ describe(AddCreditsForm.name, () => {
       dependencies: { AddCreditsNewPaymentMethodFields }
     });
 
-    fireEvent.click(screen.getByRole("radio", { name: "50" }));
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
 
     await act(async () => {
       fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
@@ -292,7 +292,7 @@ describe(AddCreditsForm.name, () => {
       dependencies: { AddCreditsNewPaymentMethodFields }
     });
 
-    fireEvent.click(screen.getByRole("radio", { name: "50" }));
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
 
     await act(async () => {
       fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
@@ -400,7 +400,7 @@ describe(AddCreditsForm.name, () => {
       dependencies: { AddCreditsNewPaymentMethodFields }
     });
 
-    fireEvent.click(screen.getByRole("radio", { name: "50" }));
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
 
     await act(async () => {
       fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
@@ -414,7 +414,7 @@ describe(AddCreditsForm.name, () => {
 
     expect(addPaymentMethod).toHaveBeenCalledTimes(1);
     expect(confirmPayment).toHaveBeenCalledTimes(2);
-    expect(confirmPayment).toHaveBeenLastCalledWith({ userId: "user_1", paymentMethodId: "pm_new", amount: 50 });
+    expect(confirmPayment).toHaveBeenLastCalledWith({ userId: "user_1", paymentMethodId: "pm_new", amount: 100 });
   });
 
   it("invalidates the payment methods query when a new-card charge fails", async () => {
@@ -431,7 +431,7 @@ describe(AddCreditsForm.name, () => {
       dependencies: { AddCreditsNewPaymentMethodFields }
     });
 
-    fireEvent.click(screen.getByRole("radio", { name: "50" }));
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
 
     await act(async () => {
       fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
@@ -456,7 +456,7 @@ describe(AddCreditsForm.name, () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: /add new payment method/i }));
-    fireEvent.click(screen.getByRole("radio", { name: "50" }));
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
 
     await act(async () => {
       fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
@@ -490,7 +490,7 @@ describe(AddCreditsForm.name, () => {
       dependencies: { AddCreditsNewPaymentMethodFields }
     });
 
-    fireEvent.click(screen.getByRole("radio", { name: "50" }));
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
 
     await act(async () => {
       fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
