@@ -45,6 +45,9 @@ const shellExecRoute = createRoute({
     404: {
       description: "Deployment or lease not found"
     },
+    500: {
+      description: "Internal server error (e.g., lease provider address missing)"
+    },
     502: {
       description: "Provider proxy error"
     }

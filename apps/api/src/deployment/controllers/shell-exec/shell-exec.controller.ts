@@ -35,13 +35,13 @@ export class ShellExecController {
 
     const providerAddress = lease.id.provider;
 
-    const wallet = await this.walletReaderService.getWalletByUserId(userId);
-
-    const auth = await this.providerService.toProviderAuth({ walletId: wallet.id, provider: providerAddress }, ["shell"]);
-
     const providerInfo = await this.providerService.getProvider(providerAddress);
 
     assert(providerInfo, 404, "Provider not found");
+
+    const wallet = await this.walletReaderService.getWalletByUserId(userId);
+
+    const auth = await this.providerService.toProviderAuth({ walletId: wallet.id, provider: providerAddress }, ["shell"]);
 
     const result = await this.shellExecService.execute({
       providerBaseUrl: providerInfo.hostUri,
@@ -51,6 +51,7 @@ export class ShellExecController {
       oseq: input.oseq,
       service: input.service,
       command: input.command,
+      stdin: input.stdin,
       timeout: input.timeout,
       jwtToken: auth.token
     });
@@ -60,9 +61,13 @@ export class ShellExecController {
         ? "Command execution timed out"
         : result.val.startsWith("WebSocket connection failed")
           ? "Failed to connect to provider"
-          : result.val.startsWith("Provider error")
-            ? "Provider returned an error"
-            : "Shell execution failed";
+          : result.val.startsWith("Auth expired")
+            ? "Provider authentication expired"
+            : result.val.startsWith("Invalid provider host")
+              ? "Invalid provider host"
+              : result.val.startsWith("Provider error")
+                ? "Provider returned an error"
+                : "Shell execution failed";
       assert(false, 502, message);
     }
 
