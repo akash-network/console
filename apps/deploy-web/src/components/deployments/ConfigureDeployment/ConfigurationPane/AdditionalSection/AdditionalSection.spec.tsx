@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { ConfigurationLock } from "../configurationLock";
 import { AdditionalSection, DEPENDENCIES } from "./AdditionalSection";
 
 import { render } from "@testing-library/react";
@@ -22,23 +23,33 @@ describe(AdditionalSection.name, () => {
     expect(LogsCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
   });
 
-  it("locks the runtime, ports and logs cards but never env vars or commands", () => {
+  it("locks the runtime, ports and logs cards but leaves env vars and commands editable while only on-chain fields are locked", () => {
     const RuntimeCard = vi.fn(() => null);
     const EnvironmentVariablesCard = vi.fn(() => null);
     const CommandsCard = vi.fn(() => null);
     const ExposePortsCard = vi.fn(() => null);
     const LogsCard = vi.fn(() => null);
 
-    setup({ locked: true, dependencies: { RuntimeCard, EnvironmentVariablesCard, CommandsCard, ExposePortsCard, LogsCard } });
+    setup({ locked: "onchain", dependencies: { RuntimeCard, EnvironmentVariablesCard, CommandsCard, ExposePortsCard, LogsCard } });
 
     expect(RuntimeCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
     expect(ExposePortsCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
     expect(LogsCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
-    expect(EnvironmentVariablesCard).not.toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
-    expect(CommandsCard).not.toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
+    expect(EnvironmentVariablesCard).toHaveBeenCalledWith(expect.objectContaining({ locked: false }), expect.anything());
+    expect(CommandsCard).toHaveBeenCalledWith(expect.objectContaining({ locked: false }), expect.anything());
   });
 
-  function setup(input: { serviceIndex?: number; locked?: boolean; dependencies?: Partial<typeof DEPENDENCIES> }) {
+  it("locks the env-var and command cards too while a create/close/deploy is in flight", () => {
+    const EnvironmentVariablesCard = vi.fn(() => null);
+    const CommandsCard = vi.fn(() => null);
+
+    setup({ locked: "all", dependencies: { EnvironmentVariablesCard, CommandsCard } });
+
+    expect(EnvironmentVariablesCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
+    expect(CommandsCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
+  });
+
+  function setup(input: { serviceIndex?: number; locked?: ConfigurationLock; dependencies?: Partial<typeof DEPENDENCIES> }) {
     render(<AdditionalSection serviceIndex={input.serviceIndex ?? 0} locked={input.locked} dependencies={MockComponents(DEPENDENCIES, input.dependencies)} />);
   }
 });

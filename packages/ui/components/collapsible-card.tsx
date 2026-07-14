@@ -13,7 +13,7 @@ import { CustomTooltip, TooltipProvider } from "./tooltip";
 export interface CollapsibleCardProps {
   title: string;
   icon: React.ReactNode;
-  /** Renders a lock glyph in the header to mark the card read-only (e.g. while quotes are active). */
+  /** Marks the card read-only (e.g. while quotes are active): renders a lock glyph in the header and dims the card to 60% opacity. */
   locked?: boolean;
   /**
    * Optional help content shown in a tooltip behind an info icon next to the
@@ -169,7 +169,7 @@ const CollapsibleCardBody = React.forwardRef<HTMLDivElement, Omit<CollapsibleCar
         ref={ref}
         open={open}
         onOpenChange={handleHeaderToggle}
-        className={cn("bg-card w-full rounded-lg border border-zinc-300 dark:border-zinc-700", className)}
+        className={cn("bg-card w-full rounded-lg border border-zinc-300 dark:border-zinc-700", locked && "opacity-60", className)}
       >
         <div className="relative flex h-12 items-center px-4">
           <CollapsibleTrigger
@@ -224,6 +224,7 @@ const ActionCard: React.FC<
         onClick={onHeaderClick}
         className={cn(
           "bg-card focus-visible:ring-ring flex h-12 w-full items-center gap-2 rounded-lg border border-zinc-300 px-4 text-left outline-none focus-visible:ring-1 dark:border-zinc-700",
+          locked && "opacity-60",
           className
         )}
       >
@@ -233,7 +234,7 @@ const ActionCard: React.FC<
   }
 
   return (
-    <div className={cn("bg-card flex h-12 w-full items-center gap-2 rounded-lg border border-zinc-300 px-4 dark:border-zinc-700", className)}>
+    <div className={cn("bg-card flex h-12 w-full items-center gap-2 rounded-lg border border-zinc-300 px-4 dark:border-zinc-700", locked && "opacity-60", className)}>
       <button
         type="button"
         onClick={onHeaderClick}

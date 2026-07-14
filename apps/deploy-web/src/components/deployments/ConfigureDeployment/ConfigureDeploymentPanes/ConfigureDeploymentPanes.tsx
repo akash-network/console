@@ -3,6 +3,7 @@ import { useAtom } from "jotai";
 
 import { useFlag } from "@src/hooks/useFlag";
 import sdlStore from "@src/store/sdlStore";
+import type { ConfigurationLock } from "../ConfigurationPane/configurationLock";
 import { ConfigurationPane } from "../ConfigurationPane/ConfigurationPane";
 import { DeploymentPane } from "../DeploymentPane/DeploymentPane";
 import { MarketplacePane } from "../MarketplacePane/MarketplacePane";
@@ -55,6 +56,7 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
   const isSdlPreviewEnabled = d.useFlag("ui_sdl_preview_panel");
   const isLocked = phase === "creating" || phase === "quoting" || phase === "closing" || phase === "deploying";
   const isClosing = phase === "closing";
+  const configurationLock: ConfigurationLock | undefined = phase === "quoting" ? "onchain" : isLocked ? "all" : undefined;
 
   return (
     <div className="grid h-full min-h-0 flex-1 auto-cols-fr grid-flow-col grid-cols-[auto_minmax(560px,1fr)] grid-rows-1 border-t border-zinc-300 dark:border-zinc-700">
@@ -76,7 +78,7 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
           />
         </div>
         <div className="min-h-0">
-          <d.ConfigurationPane selectedServiceId={selectedServiceId} locked={isLocked} isClosing={isClosing} onCancelAndEdit={onCancelAndEdit} />
+          <d.ConfigurationPane selectedServiceId={selectedServiceId} locked={configurationLock} isClosing={isClosing} onCancelAndEdit={onCancelAndEdit} />
         </div>
       </div>
       <div className="min-h-0 border-l border-zinc-300 dark:border-zinc-700">

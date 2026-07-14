@@ -20,12 +20,12 @@ import { useFlag } from "@src/hooks/useFlag";
 /**
  * Template ids the picker cards deploy. Each card redirects to the bid-screening (configure) view carrying its
  * `templateId`; that view resolves the SDL and — because the redirect also carries `sdl-strategy=default` and
- * `bid-strategy=auto` — starts the deployment automatically. The image-gen and chatbot ids are public gallery
+ * `bid-strategy=auto` — starts the deployment automatically. The space-agent and chatbot ids are public gallery
  * templates; hello-world is a hardcoded template resolved by code on the configure side.
  */
 const TEMPLATE_IDS = {
   helloWorld: "hello-world",
-  imageGen: "akash-network-awesome-akash-stable-diffusion-ui",
+  spaceAgent: "akash-network-awesome-akash-Space-Agent",
   llmChatbot: "akash-network-awesome-akash-Llama-3.1-8B"
 } as const;
 
@@ -121,7 +121,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
                 title="Hello world"
                 description="Spin up a modern Next.js app running in a Docker container in seconds."
                 priceBold="~$0.25/mo"
-                priceRest=" · 0.5 vCPU · 256 MB"
+                priceRest=" · 0.5 vCPU · 512MiB RAM · 512MiB"
                 ctaLabel="Deploy now"
                 ctaVariant="primary"
                 heroImageSrc="/images/onboarding/hello-world.png"
@@ -130,16 +130,16 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
               />
 
               <d.DeploymentTemplatePickerCard
-                chip="Stable Diffusion"
-                title="Image Generation"
-                description="Turn your text into stunning images. Powered by Stable Diffusion XL."
-                priceBold="~$0.29/hr"
-                priceRest=" · 6 vCPU · 1 GPU · 35GB RAM"
+                chip="Agent Zero"
+                title="Space Agent"
+                description="An open-source AI agent that runs in the browser layer and can reshape its own workspace on the fly."
+                priceBold="~$3.41/mo"
+                priceRest=" · 4 vCPU · 8GiB RAM · 50GiB"
                 ctaLabel="Deploy now"
                 ctaVariant="outline"
                 heroImageSrc="/images/onboarding/stable-diffusion.png"
-                heroImageAlt="Image generation template"
-                onDeploy={() => deployTemplate(TEMPLATE_IDS.imageGen)}
+                heroImageAlt="Space Agent template"
+                onDeploy={() => deployTemplate(TEMPLATE_IDS.spaceAgent)}
               />
 
               <d.DeploymentTemplatePickerCard
@@ -147,8 +147,8 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
                 title="LLM Chatbot"
                 description="Your own private AI chat. Secure, persistent, and fully under your control."
                 priceBold="~$1.50/hr"
-                priceRest=" · 1x RTX 4090 · 16 GB"
-                ctaLabel={isLlmGated ? "Unlock full trial to deploy" : "Deploy now"}
+                priceRest=" · 12 vCPU · 1 GPU · 32GiB RAM · 160GiB"
+                ctaLabel={isLlmGated ? "Add credits to unlock" : "Deploy now"}
                 ctaIcon={isLlmGated ? "lock" : "arrow"}
                 ctaVariant="outline"
                 heroImageSrc="/images/onboarding/llm-chatbot.png"

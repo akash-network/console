@@ -28,6 +28,8 @@ export const DEPENDENCIES = { CollapsibleCard };
 
 type Props = {
   serviceIndex: number;
+  /** While locked the Docker image and registry credentials are read-only; the card also shows the lock glyph and dims. */
+  locked?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -51,13 +53,13 @@ const defaultCredentials = { host: "docker.io", username: "", password: "" };
  * (`hasCredentials`/`credentials`). Checking "Private registry" reveals the credentials fields and
  * seeds defaults; unchecking clears them.
  */
-export const ImageCard: FC<Props> = ({ serviceIndex, dependencies: d = DEPENDENCIES }) => {
+export const ImageCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const hasCredentials = useController({ control, name: `services.${serviceIndex}.hasCredentials` });
 
   return (
-    <d.CollapsibleCard title="Docker" icon={<BoxIcon className="h-4 w-4" />} infoTooltip={dockerImageTooltip}>
-      <fieldset className="flex min-w-0 flex-col gap-4 border-0 p-0">
+    <d.CollapsibleCard locked={locked} title="Docker" icon={<BoxIcon className="h-4 w-4" />} infoTooltip={dockerImageTooltip}>
+      <fieldset disabled={locked} className="flex min-w-0 flex-col gap-4 border-0 p-0">
         <ImageField serviceIndex={serviceIndex} hasCredentials={!!hasCredentials.field.value} onToggleCredentials={hasCredentials.field.onChange} />
 
         {hasCredentials.field.value && <CredentialsFields serviceIndex={serviceIndex} />}

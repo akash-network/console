@@ -25,6 +25,8 @@ const RESERVED_ENV_KEYS = new Set<string>(RESERVED_ENV_KEY_LIST);
 
 type Props = {
   serviceIndex: number;
+  /** While locked the modal still opens for viewing but its inputs and Save are disabled; the card shows the lock glyph and dims. */
+  locked?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -33,7 +35,7 @@ type Props = {
  * a Dialog where the user edits key/value pairs. Changes are committed on Save; cancelled on Close.
  * The header shows the count of user-set variables (reserved keys like SSH_PUBKEY are excluded).
  */
-export const EnvironmentVariablesCard: FC<Props> = ({ serviceIndex, dependencies: d = DEPENDENCIES }) => {
+export const EnvironmentVariablesCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   const { control, getValues, reset, trigger, formState } = useFormContext<SdlBuilderFormValuesType>();
   const hasEnvErrors = !!formState.errors.services?.[serviceIndex]?.env;
   const env = useWatch({ control, name: `services.${serviceIndex}.env` });
@@ -66,6 +68,7 @@ export const EnvironmentVariablesCard: FC<Props> = ({ serviceIndex, dependencies
   return (
     <>
       <d.CollapsibleCard
+        locked={locked}
         title="Environment Variables"
         icon={<KeyRoundIcon className="h-4 w-4" />}
         summary={
@@ -92,7 +95,7 @@ export const EnvironmentVariablesCard: FC<Props> = ({ serviceIndex, dependencies
           </d.DialogV2Header>
 
           <d.DialogV2Body>
-            <fieldset className="contents">
+            <fieldset disabled={locked} className="contents">
               <EnvironmentVariablesList serviceIndex={serviceIndex} />
             </fieldset>
           </d.DialogV2Body>
@@ -105,7 +108,7 @@ export const EnvironmentVariablesCard: FC<Props> = ({ serviceIndex, dependencies
               <Button type="button" variant="ghost" onClick={handleCancel}>
                 Cancel
               </Button>
-              <Button type="button" onClick={handleSave} disabled={hasEnvErrors}>
+              <Button type="button" onClick={handleSave} disabled={hasEnvErrors || locked}>
                 Save
                 <SaveIcon className="ml-2 size-4" />
               </Button>

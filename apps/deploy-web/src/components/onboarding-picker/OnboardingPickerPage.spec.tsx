@@ -12,7 +12,7 @@ import { act, render, screen } from "@testing-library/react";
 import { ComponentMock, MockComponents } from "@tests/unit/mocks";
 
 const HELLO_WORLD_ID = "hello-world";
-const IMAGE_GEN_ID = "akash-network-awesome-akash-stable-diffusion-ui";
+const SPACE_AGENT_ID = "akash-network-awesome-akash-Space-Agent";
 const LLM_ID = "akash-network-awesome-akash-Llama-3.1-8B";
 
 type PickerCardProps = Parameters<typeof DEPENDENCIES.DeploymentTemplatePickerCard>[0];
@@ -25,7 +25,7 @@ describe(OnboardingPickerPage.name, () => {
     setup({ dependencies: { DeploymentTemplatePickerCard } });
 
     const titles = DeploymentTemplatePickerCard.mock.calls.map(call => (call[0] as PickerCardProps).title);
-    expect(titles).toEqual(["Hello world", "Image Generation", "LLM Chatbot"]);
+    expect(titles).toEqual(["Hello world", "Space Agent", "LLM Chatbot"]);
   });
 
   it("renders the account menu in its minimal variant", () => {
@@ -52,14 +52,14 @@ describe(OnboardingPickerPage.name, () => {
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: HELLO_WORLD_ID, sdlStrategy: "default", bidStrategy: "auto" }));
   });
 
-  it("redirects to the configure view with the image-generation auto-deploy intent when its card deploys", () => {
+  it("redirects to the configure view with the space-agent auto-deploy intent when its card deploys", () => {
     const push = vi.fn();
     const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
     setup({ push, dependencies: { DeploymentTemplatePickerCard } });
 
-    act(() => getCard(DeploymentTemplatePickerCard, "Image Generation").onDeploy!());
+    act(() => getCard(DeploymentTemplatePickerCard, "Space Agent").onDeploy!());
 
-    expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: IMAGE_GEN_ID, sdlStrategy: "default", bidStrategy: "auto" }));
+    expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: SPACE_AGENT_ID, sdlStrategy: "default", bidStrategy: "auto" }));
   });
 
   it("renders an error alert when trial start fails terminally", () => {
@@ -80,7 +80,7 @@ describe(OnboardingPickerPage.name, () => {
     const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
     setup({ isTrialing: true, dependencies: { DeploymentTemplatePickerCard } });
 
-    expect(getCard(DeploymentTemplatePickerCard, "LLM Chatbot").ctaLabel).toBe("Unlock full trial to deploy");
+    expect(getCard(DeploymentTemplatePickerCard, "LLM Chatbot").ctaLabel).toBe("Add credits to unlock");
     expect(getCard(DeploymentTemplatePickerCard, "LLM Chatbot").ctaIcon).toBe("lock");
   });
 
@@ -104,7 +104,7 @@ describe(OnboardingPickerPage.name, () => {
 
     const card = getCard(DeploymentTemplatePickerCard, "LLM Chatbot");
     expect(card.disabled).toBeFalsy();
-    expect(card.ctaLabel).toBe("Unlock full trial to deploy");
+    expect(card.ctaLabel).toBe("Add credits to unlock");
   });
 
   it("opens the verification sheet instead of redirecting when the LLM CTA is clicked while trialing", () => {

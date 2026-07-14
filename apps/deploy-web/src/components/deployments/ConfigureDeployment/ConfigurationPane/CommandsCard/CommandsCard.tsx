@@ -25,6 +25,8 @@ export const DEPENDENCIES = { CollapsibleCard, DialogV2, DialogV2Content, Dialog
 
 type Props = {
   serviceIndex: number;
+  /** While locked the modal still opens for viewing but its inputs and Save are disabled; the card shows the lock glyph and dims. */
+  locked?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -39,7 +41,7 @@ type Props = {
  * image default) and clicking it opens a Dialog for editing. Changes are committed on
  * Save and reverted on Cancel.
  */
-export const CommandsCard: FC<Props> = ({ serviceIndex, dependencies: d = DEPENDENCIES }) => {
+export const CommandsCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   const { control, getValues, setValue } = useFormContext<SdlBuilderFormValuesType>();
   const command = useController({ control, name: `services.${serviceIndex}.command.command` });
   const arg = useController({ control, name: `services.${serviceIndex}.command.arg` });
@@ -69,6 +71,7 @@ export const CommandsCard: FC<Props> = ({ serviceIndex, dependencies: d = DEPEND
   return (
     <>
       <d.CollapsibleCard
+        locked={locked}
         title="Commands"
         icon={<TerminalIcon className="h-4 w-4" />}
         infoTooltip={commandsTooltip}
@@ -91,7 +94,7 @@ export const CommandsCard: FC<Props> = ({ serviceIndex, dependencies: d = DEPEND
           </d.DialogV2Header>
 
           <d.DialogV2Body className="flex flex-col gap-4">
-            <fieldset className="contents">
+            <fieldset disabled={locked} className="contents">
               <Field className="gap-2">
                 <FieldLabel htmlFor={`command-${serviceIndex}`}>Command</FieldLabel>
                 <FieldContent>
@@ -128,7 +131,7 @@ export const CommandsCard: FC<Props> = ({ serviceIndex, dependencies: d = DEPEND
             <Button type="button" variant="ghost" onClick={handleCancel}>
               Cancel
             </Button>
-            <Button type="button" onClick={handleSave}>
+            <Button type="button" onClick={handleSave} disabled={locked}>
               Save
               <SaveIcon className="ml-2 size-4" />
             </Button>
