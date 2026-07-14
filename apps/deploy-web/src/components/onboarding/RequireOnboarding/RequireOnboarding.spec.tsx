@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -59,9 +60,23 @@ describe(RequireOnboarding.name, () => {
       expect(replace).not.toHaveBeenCalled();
     });
 
-    it("keeps the onboarding picker mounted while leases load after the trial wallet arrives (no loader flash / remount)", () => {
-      const { replace } = setup({ flag: true, address: "akash1", hasManagedWallet: true, leasesLoading: true, path: "/onboarding" });
+    it("keeps the same onboarding picker instance mounted when the trial wallet address arrives mid-provisioning (no loader flash / remount)", () => {
+      // Render the picker before the trial wallet has an address, then have the address arrive while leases load —
+      // the exact regression this PR fixes. The child must never unmount/remount and we must never redirect.
+      const { replace, getChildMountCount, rerender } = setup({
+        flag: true,
+        hasManagedWallet: true,
+        address: "",
+        isWalletLoading: true,
+        path: "/onboarding"
+      });
       expect(screen.getByText("child")).toBeInTheDocument();
+      const mountsBeforeWallet = getChildMountCount();
+
+      rerender({ address: "akash1", isWalletLoading: false, leasesLoading: true });
+
+      expect(screen.getByText("child")).toBeInTheDocument();
+      expect(getChildMountCount()).toBe(mountsBeforeWallet);
       expect(replace).not.toHaveBeenCalled();
     });
 
@@ -122,41 +137,59 @@ describe(RequireOnboarding.name, () => {
     returnTo?: string;
   }) {
     const replace = vi.fn();
-    const d: typeof DEPENDENCIES = {
+    let mountCount = 0;
+    // Counts DOM mounts of the gated child so a test can prove the child instance survives a wallet-arrival
+    // transition (no unmount/remount) rather than only checking final presence.
+    function Child() {
+      useEffect(() => {
+        mountCount += 1;
+      }, []);
+      return <div>child</div>;
+    }
+
+    const buildDependencies = (props: typeof input): typeof DEPENDENCIES => ({
       ...DEPENDENCIES,
-      useFlag: (() => input.flag) as typeof DEPENDENCIES.useFlag,
+      useFlag: (() => props.flag) as typeof DEPENDENCIES.useFlag,
       useUser: (() =>
         mock<ReturnType<typeof DEPENDENCIES.useUser>>({
-          user: input.loggedOut ? undefined : ({ userId: input.userId ?? "u1" } as never),
+          user: props.loggedOut ? undefined : ({ userId: props.userId ?? "u1" } as never),
           isLoading: false
         })) as typeof DEPENDENCIES.useUser,
       useWallet: (() =>
         mock<ReturnType<typeof DEPENDENCIES.useWallet>>({
-          address: input.address ?? "",
-          hasManagedWallet: input.hasManagedWallet ?? false,
-          isWalletConnected: input.isWalletConnected ?? false,
-          isWalletLoading: input.isWalletLoading ?? false,
-          isWalletInitializing: input.isWalletInitializing ?? false
+          address: props.address ?? "",
+          hasManagedWallet: props.hasManagedWallet ?? false,
+          isWalletConnected: props.isWalletConnected ?? false,
+          isWalletLoading: props.isWalletLoading ?? false,
+          isWalletInitializing: props.isWalletInitializing ?? false
         })) as typeof DEPENDENCIES.useWallet,
       useAllLeases: (() =>
         mock<ReturnType<typeof DEPENDENCIES.useAllLeases>>({
-          data: input.leasesError ? (undefined as never) : input.leases ? (Array.from({ length: input.leases }) as never) : [],
-          isLoading: (input.leasesLoading ?? false) as never,
-          isError: (input.leasesError ?? false) as never
+          data: props.leasesError ? (undefined as never) : props.leases ? (Array.from({ length: props.leases }) as never) : [],
+          isLoading: (props.leasesLoading ?? false) as never,
+          isError: (props.leasesError ?? false) as never
         })) as typeof DEPENDENCIES.useAllLeases,
-      useReturnTo: (() => mock<ReturnType<typeof DEPENDENCIES.useReturnTo>>({ returnTo: input.returnTo ?? "/" })) as typeof DEPENDENCIES.useReturnTo,
+      useReturnTo: (() => mock<ReturnType<typeof DEPENDENCIES.useReturnTo>>({ returnTo: props.returnTo ?? "/" })) as typeof DEPENDENCIES.useReturnTo,
       useRouter: (() =>
-        mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ asPath: input.path, pathname: input.path, replace })) as typeof DEPENDENCIES.useRouter,
+        mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ asPath: props.path, pathname: props.path, replace })) as typeof DEPENDENCIES.useRouter,
       UrlService: {
         ...DEPENDENCIES.UrlService,
         onboarding: (({ returnTo } = {}) => `/signup?returnTo=${returnTo}`) as typeof DEPENDENCIES.UrlService.onboarding
       }
-    };
-    render(
-      <RequireOnboarding isPublic={input.isPublic} dependencies={d}>
-        <div>child</div>
+    });
+
+    const renderGate = (props: typeof input) => (
+      <RequireOnboarding isPublic={props.isPublic} dependencies={buildDependencies(props)}>
+        <Child />
       </RequireOnboarding>
     );
-    return { replace };
+
+    const { rerender } = render(renderGate(input));
+
+    return {
+      replace,
+      getChildMountCount: () => mountCount,
+      rerender: (patch: Partial<typeof input>) => rerender(renderGate({ ...input, ...patch }))
+    };
   }
 });
