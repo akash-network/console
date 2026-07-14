@@ -6,7 +6,7 @@ import type { Resolver } from "@src/core/providers/resolvers.provider";
 import { DATA_RESOLVER } from "@src/core/providers/resolvers.provider";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
-import { UserOutput } from "@src/user/repositories";
+import type { UserOutput } from "@src/user/repositories";
 
 export interface FirstPurchaseBonusOffer {
   bonusPercent: number;
