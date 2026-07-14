@@ -17,18 +17,18 @@ type Lease = DeploymentResponse["leases"][number];
 type ProviderInfo = NonNullable<Awaited<ReturnType<ProviderService["getProvider"]>>>;
 
 function createLease(overrides: Partial<{ gseq: number; oseq: number; provider: string; state: string }> = {}): Lease {
-  return {
+  return mock<Lease>({
     id: { owner: "akash1owner", dseq: "1234", gseq: overrides.gseq ?? 1, oseq: overrides.oseq ?? 1, provider: overrides.provider ?? "akash1provider", bseq: 0 },
     state: overrides.state ?? "active",
     price: { denom: "uakt", amount: "100" },
     created_at: "12345",
     closed_on: "0",
     status: null
-  } as unknown as Lease;
+  });
 }
 
 function createDeployment(overrides: Partial<{ state: string; leases: Lease[] }> = {}): DeploymentResponse {
-  return {
+  return mock<DeploymentResponse>({
     deployment: {
       id: { owner: "akash1owner", dseq: "1234" },
       state: overrides.state ?? "active",
@@ -47,17 +47,18 @@ function createDeployment(overrides: Partial<{ state: string; leases: Lease[] }>
         deposits: []
       }
     }
-  } as unknown as DeploymentResponse;
+  });
 }
 
 function createProviderInfo(overrides: Partial<{ hostUri: string }> = {}): ProviderInfo {
-  return { hostUri: overrides.hostUri ?? "https://provider.example.com" } as unknown as ProviderInfo;
+  return mock<ProviderInfo>({ hostUri: overrides.hostUri ?? "https://provider.example.com" });
 }
 
 describe(ShellExecController.name, () => {
   it("throws 404 when deployment not found", async () => {
     const { controller, deploymentReaderService } = setup();
-    deploymentReaderService.findByUserIdAndDseq.mockResolvedValue(undefined as unknown as DeploymentResponse);
+    // Simulate "deployment not found": clear the default stub so the lookup resolves undefined.
+    deploymentReaderService.findByUserIdAndDseq.mockReset();
 
     const error = await captureError(() => controller.exec({ dseq: "1234", gseq: 1, oseq: 1, command: ["ls"], service: "web", timeout: 60 }));
 
@@ -123,6 +124,7 @@ describe(ShellExecController.name, () => {
 
   it("forwards stdin through to the shell exec service", async () => {
     const { controller, shellExecService } = setup();
+    const secretValue = Math.random().toString(36).substring(2);
 
     await controller.exec({
       dseq: "1234",
@@ -131,10 +133,10 @@ describe(ShellExecController.name, () => {
       command: ["sh", "-c", "cat > /run/secrets/.env"],
       service: "web",
       timeout: 60,
-      stdin: "SECRET=value"
+      stdin: `SECRET=${secretValue}`
     });
 
-    expect(shellExecService.execute).toHaveBeenCalledWith(expect.objectContaining({ stdin: "SECRET=value" }));
+    expect(shellExecService.execute).toHaveBeenCalledWith(expect.objectContaining({ stdin: `SECRET=${secretValue}` }));
   });
 
   it("throws 404 when provider info lookup returns null", async () => {
@@ -252,9 +254,9 @@ describe(ShellExecController.name, () => {
     const deployment = createDeployment({ leases: [createLease({ provider, state })] });
 
     deploymentReaderService.findByUserIdAndDseq.mockResolvedValue(deployment);
-    walletReaderService.getWalletByUserId.mockResolvedValue({ id: 1, address: "akash1wallet" } as Awaited<
-      ReturnType<WalletReaderService["getWalletByUserId"]>
-    >);
+    walletReaderService.getWalletByUserId.mockResolvedValue(
+      mock<Awaited<ReturnType<WalletReaderService["getWalletByUserId"]>>>({ id: 1, address: "akash1wallet" })
+    );
     providerService.toProviderAuth.mockResolvedValue({ type: "jwt" as const, token: "test-token" });
     providerService.getProvider.mockResolvedValue(createProviderInfo());
     shellExecService.execute.mockResolvedValue(new Ok({ stdout: "output", stderr: "", exitCode: 0, truncated: false }));

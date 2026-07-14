@@ -10,11 +10,15 @@ export const ShellExecRequestSchema = z.object({
   command: z.array(z.string().min(1)).min(1).max(64),
   service: z.string().min(1).max(253),
   timeout: z.number().int().min(1).max(120).default(60),
-  stdin: z.string().max(1_048_576).optional().openapi({
-    description:
-      'Optional raw UTF-8 data streamed to the command\'s standard input (max 1 MiB). Put secrets HERE (env files, tokens, passwords) — never in `command`, whose tokens are placed in the provider-proxy request URL, which is logged. Example command: ["sh","-c","cat > /run/secrets/.env"].',
-    example: "SECRET=value"
-  })
+  stdin: z
+    .string()
+    .refine(s => Buffer.byteLength(s, "utf8") <= 1_048_576, { message: "stdin must not exceed 1 MiB (UTF-8 bytes)" })
+    .optional()
+    .openapi({
+      description:
+        'Optional raw UTF-8 data streamed to the command\'s standard input (max 1 MiB). Put secrets HERE (env files, tokens, passwords) — never in `command`, whose tokens are placed in the provider-proxy request URL, which is logged. Example command: ["sh","-c","cat > /run/secrets/.env"].',
+      example: "SECRET=value"
+    })
 });
 
 export const ShellExecResponseSchema = z.object({

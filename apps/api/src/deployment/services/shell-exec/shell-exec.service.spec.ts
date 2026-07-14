@@ -149,7 +149,7 @@ describe(ShellExecService.name, () => {
     });
 
     it("emits stdin=1 when stdin is provided", () => {
-      const url = buildShellUrl(createShellExecInput({ stdin: "SECRET=topsecret" }));
+      const url = buildShellUrl(createShellExecInput({ stdin: `SECRET=${faker.string.alphanumeric(16)}` }));
 
       expect(url).toContain("stdin=1");
       expect(url).not.toContain("stdin=0");
@@ -163,7 +163,7 @@ describe(ShellExecService.name, () => {
     });
 
     it("never places the stdin payload in the URL", () => {
-      const secret = "SUPER_SECRET_VALUE_12345";
+      const secret = `SUPER_SECRET_VALUE_${faker.string.alphanumeric(16)}`;
       const url = buildShellUrl(createShellExecInput({ command: ["sh", "-c", "cat > /run/secrets/.env"], stdin: secret }));
 
       expect(url).not.toContain(secret);
@@ -252,7 +252,7 @@ describe(ShellExecService.name, () => {
 
     it("sends a 104 stdin data frame plus a 104 EOF frame, keeping the secret out of the URL", async () => {
       const { service, mockWs, getConstructorArgs } = createService();
-      const secret = "SECRET=topsecret\nAPI_KEY=abc123";
+      const secret = `SECRET=${faker.string.alphanumeric(16)}\nAPI_KEY=${faker.string.alphanumeric(12)}`;
       const input = createShellExecInput({
         command: ["sh", "-c", "cat > /run/secrets/.env && chmod 600 /run/secrets/.env"],
         stdin: secret

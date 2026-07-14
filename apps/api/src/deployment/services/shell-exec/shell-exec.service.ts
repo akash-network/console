@@ -105,6 +105,7 @@ export class ShellExecService {
 
       let stdout = "";
       let stderr = "";
+      let outputBytes = 0;
       let exitCode: number | undefined;
       let truncated = false;
 
@@ -150,7 +151,11 @@ export class ShellExecService {
 
       const appendOutput = (marker: number, text: string) => {
         if (truncated) return;
-        if (stdout.length + stderr.length + text.length <= MAX_OUTPUT_SIZE) {
+        // Enforce the cap in UTF-8 bytes (not UTF-16 code units) so multi-byte
+        // output is accounted for by its true wire size.
+        const chunkBytes = Buffer.byteLength(text, "utf8");
+        if (outputBytes + chunkBytes <= MAX_OUTPUT_SIZE) {
+          outputBytes += chunkBytes;
           if (marker === LeaseShellCode.Stdout) {
             stdout += text;
           } else {
