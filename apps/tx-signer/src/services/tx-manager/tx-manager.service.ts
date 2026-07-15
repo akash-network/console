@@ -15,7 +15,17 @@ const SIGNING_CLIENT_FACTORY: InjectionToken<SigningClientServiceFactory> = Symb
 container.register(SIGNING_CLIENT_FACTORY, {
   useFactory: c => {
     return (wallet: Wallet, loggerContext?: string) => {
-      return new SigningClientService(c.resolve(AppConfigService), wallet, c.resolve(TYPE_REGISTRY), createSigningStargateClient, loggerContext);
+      const config = c.resolve(AppConfigService);
+      const registry = c.resolve(TYPE_REGISTRY);
+      const client = createSigningStargateClient(config.get("RPC_NODE_ENDPOINT"), wallet, {
+        registry: registry,
+        signConfig: {
+          ttlMs: config.get("UNORDERED_TX_TTL_MS"),
+          gasMultiplier: config.get("GAS_DEFAULT_MULTIPLIER"),
+          averageGasPrice: config.get("AVERAGE_GAS_PRICE")
+        }
+      });
+      return new SigningClientService(client, config, loggerContext);
     };
   }
 });
@@ -53,14 +63,9 @@ container.register(WALLET_RESOURCES, {
   })
 });
 
-type CachedClient = {
-  address: string;
-  client: SigningClientService;
-};
-
 @singleton()
 export class TxManagerService {
-  readonly #clientsByDerivationIndex: Map<number, CachedClient> = new Map();
+  readonly #clientsByDerivationIndex: Map<number, SigningClientService> = new Map();
   readonly #DEFAULT_WALLET_VERSION: WalletVersion = "v2";
 
   constructor(
@@ -88,32 +93,20 @@ export class TxManagerService {
   }
 
   async signAndBroadcastWithDerivedWallet(derivationIndex: number, messages: readonly EncodeObject[], options?: SignAndBroadcastOptions) {
-    const { client } = await this.#getClient(derivationIndex);
-
-    try {
-      return await client.signAndBroadcast(messages, options);
-    } finally {
-      if (!client.hasPendingTransactions && this.#clientsByDerivationIndex.has(derivationIndex)) {
-        this.logger.debug({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", derivationIndex });
-        this.#clientsByDerivationIndex.delete(derivationIndex);
-      }
-    }
+    const client = this.#getClient(derivationIndex);
+    return await client.signAndBroadcast(messages, options);
   }
 
   async getDerivedWalletAddress(index: number) {
     return await this.getDerivedWallet(index).getFirstAddress();
   }
 
-  async #getClient(derivationIndex: number): Promise<CachedClient> {
+  #getClient(derivationIndex: number): SigningClientService {
     if (!this.#clientsByDerivationIndex.has(derivationIndex)) {
       const wallet = this.getDerivedWallet(derivationIndex);
-      const address = await wallet.getFirstAddress();
 
       this.logger.debug({ event: "DERIVED_SIGNING_CLIENT_CREATE", derivationIndex });
-      this.#clientsByDerivationIndex.set(derivationIndex, {
-        address,
-        client: this.signingClientServiceFactory(wallet)
-      });
+      this.#clientsByDerivationIndex.set(derivationIndex, this.signingClientServiceFactory(wallet));
     }
 
     return this.#clientsByDerivationIndex.get(derivationIndex)!;
