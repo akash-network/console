@@ -329,6 +329,11 @@ export class StripeService extends Stripe {
     transactionId: string;
     transactionStatus: StripeTransactionOutput["status"];
   }> {
+    // Ensure the user has a Stripe customer before redeeming. Brand-new accounts may not have
+    // one yet since it is created lazily by the add-payment-method flow (see getStripeCustomerId).
+    const stripeCustomerId = await this.getStripeCustomerId(currentUser);
+    const payingUser = { ...currentUser, stripeCustomerId };
+
     const promotionCode = await this.findPromotionCodeByCode(couponCode);
 
     if (promotionCode) {
@@ -339,7 +344,7 @@ export class StripeService extends Stripe {
       }
 
       return this.applyCouponOrPromotionCode({
-        currentUser,
+        currentUser: payingUser,
         couponOrPromotion: promotionCode,
         coupon,
         updateField: "promotion_code",
@@ -353,7 +358,7 @@ export class StripeService extends Stripe {
 
     if (matchingCoupon) {
       return this.applyCouponOrPromotionCode({
-        currentUser,
+        currentUser: payingUser,
         couponOrPromotion: matchingCoupon,
         coupon: matchingCoupon,
         updateField: "coupon",
@@ -371,7 +376,7 @@ export class StripeService extends Stripe {
     updateField,
     updateId
   }: {
-    currentUser: UserOutput;
+    currentUser: PayingUser;
     couponOrPromotion: Stripe.Coupon | Stripe.PromotionCode;
     coupon: Stripe.Coupon;
     updateField: "promotion_code" | "coupon";
@@ -404,8 +409,6 @@ export class StripeService extends Stripe {
     if (!coupon.amount_off) {
       throw new Error("Invalid coupon type. Only fixed amount coupons are supported.");
     }
-
-    assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
 
     const amountToAdd = coupon.amount_off; // amount_off is already in cents
 
