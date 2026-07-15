@@ -27,6 +27,6 @@ describe(startTrialNotification.name, () => {
       deploymentLifetimeInHours: 24
     });
 
-    expect(result.payload.description).not.toContain("$");
+    expect(result.payload.description).not.toMatch(/(?:\$\s*\d|\b\d[\d,]*(?:\.\d+)?\s*(?:credits?|USD|dollars?))/i);
   });
 });
