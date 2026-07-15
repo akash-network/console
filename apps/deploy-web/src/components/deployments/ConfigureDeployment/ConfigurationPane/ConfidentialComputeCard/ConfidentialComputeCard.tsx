@@ -18,7 +18,7 @@ type TeeType = NonNullable<ServiceParams["tee"]>;
 
 const TEE_OPTIONS: { value: TeeType; label: string; description: string }[] = [
   { value: "cpu", label: "CPU", description: "Run inside a CPU-only Trusted Execution Environment." },
-  { value: "cpu-gpu", label: "CPU-GPU", description: "Attest the GPU as well — this enables the GPU card for this service." }
+  { value: "cpu-gpu", label: "CPU-GPU", description: "Attest the GPU as well. This enables the GPU card for this service." }
 ];
 
 /** TEE type a freshly enabled card defaults to. CPU is the least restrictive and needs no GPU resources. */
@@ -168,15 +168,15 @@ export const ConfidentialComputeCard: FC<Props> = ({ serviceIndex, locked = fals
             })}
           </d.RadioGroup>
           {isGpuBlocked && (
-            <d.Alert variant="warning">
-              <div className="flex flex-col items-start gap-1">
-                <span>GPU access isn&apos;t available on a free trial. Add credits to attest a GPU, or use CPU-only confidential compute.</span>
-                <d.UnlockGpusButton onUnlock={onUnlock} />
+            <d.Alert variant="warning" className="p-4">
+              <div className="flex flex-col items-start gap-2 text-sm">
+                <p>High-end GPUs aren&apos;t available on a free trial. Add credits to attest a GPU, or use CPU-only confidential compute.</p>
+                <d.UnlockGpusButton onUnlock={onUnlock} prominent />
               </div>
             </d.Alert>
           )}
           {gpuMismatch && (
-            <d.Alert variant="warning">
+            <d.Alert variant="warning" className="p-4 text-sm">
               CPU-GPU confidential compute attests a GPU, so this service needs GPU resources. Enable the GPU card above so providers with confidential-compute
               GPUs can bid.
             </d.Alert>

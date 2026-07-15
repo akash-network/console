@@ -162,7 +162,7 @@ describe(ConfidentialComputeCard.name, () => {
     it("shows the free-trial warning with an unlock CTA", () => {
       setup({ tee: "cpu", isGpuBlocked: true });
 
-      expect(screen.getByText(/GPU access isn't available on a free trial/i)).toBeInTheDocument();
+      expect(screen.getByText(/high-end GPUs aren't available on a free trial/i)).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Unlock high-end GPUs" })).toBeInTheDocument();
     });
 
@@ -196,7 +196,7 @@ describe(ConfidentialComputeCard.name, () => {
   it("does not show the free-trial warning when GPU is not blocked", () => {
     setup({ tee: "cpu" });
 
-    expect(screen.queryByText(/GPU access isn't available on a free trial/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/high-end GPUs aren't available on a free trial/i)).not.toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "CPU-GPU" })).not.toBeDisabled();
   });
 

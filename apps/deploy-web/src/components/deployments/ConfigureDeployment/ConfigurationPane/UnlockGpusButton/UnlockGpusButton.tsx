@@ -8,6 +8,11 @@ const UNLOCK_EXPLANATION = "High-end GPUs aren't included in your free trial. Ad
 type Props = {
   /** Opens the add-credits (unlock) sheet owned by the HardwareSection. */
   onUnlock?: () => void;
+  /**
+   * Renders a filled primary button when this is the alert's main call-to-action (the trial confidential-compute
+   * warning), instead of the subtle ghost affordance shown beneath the Presets and GPU cards.
+   */
+  prominent?: boolean;
 };
 
 /**
@@ -15,10 +20,16 @@ type Props = {
  * model: opens the add-credits sheet on click and explains why on hover. Wraps its own
  * `TooltipProvider` so it works wherever it's rendered without the consumer supplying one.
  */
-export const UnlockGpusButton: FC<Props> = ({ onUnlock }) => (
+export const UnlockGpusButton: FC<Props> = ({ onUnlock, prominent = false }) => (
   <TooltipProvider>
     <CustomTooltip title={UNLOCK_EXPLANATION} className="font-sans text-sm normal-case">
-      <Button type="button" variant="ghost" size="sm" className="justify-start px-2 text-muted-foreground" onClick={onUnlock}>
+      <Button
+        type="button"
+        variant={prominent ? "default" : "ghost"}
+        size="sm"
+        className={prominent ? undefined : "justify-start px-2 text-muted-foreground"}
+        onClick={onUnlock}
+      >
         <LockIcon className="mr-2 h-3.5 w-3.5" />
         Unlock high-end GPUs
       </Button>
