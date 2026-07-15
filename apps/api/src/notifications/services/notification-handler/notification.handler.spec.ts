@@ -42,7 +42,8 @@ describe(NotificationHandler.name, () => {
       template: "trialEnded",
       userId: "non-existent-user",
       vars: {
-        paymentLink: faker.internet.url()
+        paymentLink: faker.internet.url(),
+        firstPurchaseBonus: "$resolved"
       },
       version: 1
     });
@@ -70,7 +71,8 @@ describe(NotificationHandler.name, () => {
       template: "trialEnded",
       userId: user.id,
       vars: {
-        paymentLink: faker.internet.url()
+        paymentLink: faker.internet.url(),
+        firstPurchaseBonus: "$resolved"
       },
       version: 1
     });
@@ -99,7 +101,8 @@ describe(NotificationHandler.name, () => {
       template: "trialEnded",
       userId: user.id,
       vars: {
-        paymentLink: faker.internet.url()
+        paymentLink: faker.internet.url(),
+        firstPurchaseBonus: "$resolved"
       },
       conditions: { trial: true }, // User doesn't have trial: true
       version: 1
@@ -116,23 +119,23 @@ describe(NotificationHandler.name, () => {
       trial: true
     });
 
+    const bonusOffer = { bonusPercent: 10, minPurchaseUsd: 100, maxBonusUsd: 100 };
     const { handler, userRepository, notificationService } = setup({
-      findUserById: vi.fn().mockResolvedValue(user)
+      findUserById: vi.fn().mockResolvedValue(user),
+      resolveVars: vi.fn().mockImplementation(async (_user, vars) => ({ ...vars, firstPurchaseBonus: bonusOffer }))
     });
-    const vars = {
-      paymentLink: faker.internet.url()
-    };
+    const paymentLink = faker.internet.url();
 
     await handler.handle({
       template: "trialEnded",
       userId: user.id,
-      vars,
+      vars: { paymentLink, firstPurchaseBonus: "$resolved" },
       conditions: { trial: true },
       version: 1
     });
 
     expect(userRepository.findById).toHaveBeenCalledWith(user.id);
-    expect(notificationService.createNotification).toHaveBeenCalledWith(trialEndedNotification(user, vars));
+    expect(notificationService.createNotification).toHaveBeenCalledWith(trialEndedNotification(user, { paymentLink, firstPurchaseBonus: bonusOffer }));
   });
 
   it("creates notification when no conditions are provided", async () => {
@@ -179,7 +182,12 @@ describe(NotificationHandler.name, () => {
       createdAt: createdDate,
       trial: true
     });
-    const resolvedVars = { remainingCredits: faker.number.int({ min: 1000, max: 10000 }), activeDeployments: faker.number.int({ min: 0, max: 10 }) };
+    const bonusOffer = { bonusPercent: 10, minPurchaseUsd: 100, maxBonusUsd: 100 };
+    const resolvedVars = {
+      remainingCredits: faker.number.int({ min: 1000, max: 10000 }),
+      activeDeployments: faker.number.int({ min: 0, max: 10 }),
+      firstPurchaseBonus: bonusOffer
+    };
     const resolveVars = vi.fn().mockImplementation(async (user, vars) => ({
       ...vars,
       ...resolvedVars
@@ -195,7 +203,7 @@ describe(NotificationHandler.name, () => {
     await handler.handle({
       template: "beforeTrialEnds",
       userId: user.id,
-      vars: { trialEndsAt, paymentLink, remainingCredits: "$resolved", activeDeployments: "$resolved" },
+      vars: { trialEndsAt, paymentLink, remainingCredits: "$resolved", activeDeployments: "$resolved", firstPurchaseBonus: "$resolved" },
       conditions: { trial: true },
       version: 1
     });
@@ -213,23 +221,23 @@ describe(NotificationHandler.name, () => {
       trial: true
     });
 
+    const bonusOffer = { bonusPercent: 10, minPurchaseUsd: 100, maxBonusUsd: 100 };
     const { handler, userRepository, notificationService } = setup({
-      findUserById: vi.fn().mockResolvedValue(user)
+      findUserById: vi.fn().mockResolvedValue(user),
+      resolveVars: vi.fn().mockImplementation(async (_user, vars) => ({ ...vars, firstPurchaseBonus: bonusOffer }))
     });
 
-    const vars = {
-      paymentLink: "https://example.com/billing?openPayment=true"
-    };
+    const paymentLink = "https://example.com/billing?openPayment=true";
     await handler.handle({
       template: "afterTrialEnds",
       userId: user.id,
       conditions: { trial: true },
-      vars,
+      vars: { paymentLink, firstPurchaseBonus: "$resolved" },
       version: 1
     });
 
     expect(userRepository.findById).toHaveBeenCalledWith(user.id);
-    expect(notificationService.createNotification).toHaveBeenCalledWith(afterTrialEndsNotification(user, vars));
+    expect(notificationService.createNotification).toHaveBeenCalledWith(afterTrialEndsNotification(user, { paymentLink, firstPurchaseBonus: bonusOffer }));
   });
 
   it("handles complex conditions with multiple properties", async () => {
@@ -240,18 +248,18 @@ describe(NotificationHandler.name, () => {
       emailVerified: true
     });
 
+    const bonusOffer = { bonusPercent: 10, minPurchaseUsd: 100, maxBonusUsd: 100 };
     const { handler, userRepository, notificationService } = setup({
-      findUserById: vi.fn().mockResolvedValue(user)
+      findUserById: vi.fn().mockResolvedValue(user),
+      resolveVars: vi.fn().mockImplementation(async (_user, vars) => ({ ...vars, firstPurchaseBonus: bonusOffer }))
     });
 
-    const vars = {
-      paymentLink: faker.internet.url()
-    };
+    const paymentLink = faker.internet.url();
 
     await handler.handle({
       template: "trialEnded",
       userId: user.id,
-      vars,
+      vars: { paymentLink, firstPurchaseBonus: "$resolved" },
       conditions: {
         trial: true,
         emailVerified: true
@@ -260,7 +268,7 @@ describe(NotificationHandler.name, () => {
     });
 
     expect(userRepository.findById).toHaveBeenCalledWith(user.id);
-    expect(notificationService.createNotification).toHaveBeenCalledWith(trialEndedNotification(user, vars));
+    expect(notificationService.createNotification).toHaveBeenCalledWith(trialEndedNotification(user, { paymentLink, firstPurchaseBonus: bonusOffer }));
   });
 
   it("returns early when complex conditions are not met", async () => {
@@ -279,7 +287,8 @@ describe(NotificationHandler.name, () => {
       template: "trialEnded",
       userId: user.id,
       vars: {
-        paymentLink: faker.internet.url()
+        paymentLink: faker.internet.url(),
+        firstPurchaseBonus: "$resolved"
       },
       conditions: {
         trial: true,

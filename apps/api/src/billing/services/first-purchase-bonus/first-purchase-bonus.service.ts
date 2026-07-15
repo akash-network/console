@@ -8,11 +8,11 @@ import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-fl
 import { UserRepository } from "@src/user/repositories";
 
 /** Smallest purchase that qualifies for the first-purchase bonus, in cents. */
-const MIN_QUALIFYING_AMOUNT_CENTS = 100_00;
+export const MIN_QUALIFYING_AMOUNT_CENTS = 100_00;
 /** Bonus granted as a percentage of the paid amount. */
-const BONUS_PERCENT = 10;
+export const BONUS_PERCENT = 10;
 /** Bonus ceiling, in cents. */
-const MAX_BONUS_CENTS = 100_00;
+export const MAX_BONUS_CENTS = 100_00;
 
 @singleton()
 export class FirstPurchaseBonusService {

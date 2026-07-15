@@ -61,13 +61,11 @@ describe(TrialStartedHandler.name, () => {
         subscribedToNewsletter: true,
         createdAt: USER_CREATED_AT
       });
-      const initialCredits = faker.number.int({ min: 5_000_000, max: 10_000_000 });
       const deploymentLifetimeInHours = faker.number.int({ min: 1, max: 24 });
 
       const { handler, userRepository, notificationService, jobQueueManager, logger } = setup({
         findUserById: vi.fn().mockResolvedValue(user),
         trialExpirationDays: 30,
-        initialCredits,
         deploymentLifetimeInHours
       });
 
@@ -81,8 +79,7 @@ describe(TrialStartedHandler.name, () => {
       expect(notificationService.createNotification).toHaveBeenCalledWith(
         startTrialNotification(user, {
           trialEndsAt: TRIAL_ENDS_AT,
-          deploymentLifetimeInHours,
-          initialCredits
+          deploymentLifetimeInHours
         })
       );
       expect(logger.info).toHaveBeenCalledWith({
@@ -116,7 +113,13 @@ describe(TrialStartedHandler.name, () => {
           template: "beforeTrialEnds",
           userId: user.id,
           conditions: { trial: true },
-          vars: { trialEndsAt: trialEndsAt.toISOString(), paymentLink, remainingCredits: "$resolved", activeDeployments: "$resolved" }
+          vars: {
+            trialEndsAt: trialEndsAt.toISOString(),
+            paymentLink,
+            remainingCredits: "$resolved",
+            activeDeployments: "$resolved",
+            firstPurchaseBonus: "$resolved"
+          }
         }),
         {
           singletonKey: `notification.beforeTrialEnds.${user.id}.${trialDays - 7}`,
@@ -129,7 +132,13 @@ describe(TrialStartedHandler.name, () => {
           template: "beforeTrialEnds",
           userId: user.id,
           conditions: { trial: true },
-          vars: { trialEndsAt: trialEndsAt.toISOString(), paymentLink, remainingCredits: "$resolved", activeDeployments: "$resolved" }
+          vars: {
+            trialEndsAt: trialEndsAt.toISOString(),
+            paymentLink,
+            remainingCredits: "$resolved",
+            activeDeployments: "$resolved",
+            firstPurchaseBonus: "$resolved"
+          }
         }),
         {
           singletonKey: `notification.beforeTrialEnds.${user.id}.${trialDays - 1}`,
@@ -142,7 +151,8 @@ describe(TrialStartedHandler.name, () => {
           template: "trialEnded",
           userId: user.id,
           vars: {
-            paymentLink
+            paymentLink,
+            firstPurchaseBonus: "$resolved"
           },
           conditions: { trial: true }
         }),
@@ -158,7 +168,8 @@ describe(TrialStartedHandler.name, () => {
           userId: user.id,
           conditions: { trial: true },
           vars: {
-            paymentLink
+            paymentLink,
+            firstPurchaseBonus: "$resolved"
           }
         }),
         {
@@ -211,7 +222,6 @@ describe(TrialStartedHandler.name, () => {
     createNotification?: NotificationService["createNotification"];
     enqueueJob?: JobQueueService["enqueue"];
     trialExpirationDays?: number;
-    initialCredits?: number;
     deploymentLifetimeInHours?: number;
   }) {
     const paymentLink = "https://console.akash.network/billing?openPayment=true";
@@ -229,7 +239,6 @@ describe(TrialStartedHandler.name, () => {
       coreConfig: mockConfig<BillingConfigService>({
         TRIAL_ALLOWANCE_EXPIRATION_DAYS: input?.trialExpirationDays ?? 30,
         CONSOLE_WEB_PAYMENT_LINK: paymentLink,
-        TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: input?.initialCredits ?? 10_000_000,
         TRIAL_DEPLOYMENT_CLEANUP_HOURS: input?.deploymentLifetimeInHours ?? 24
       })
     };
