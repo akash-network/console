@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
 import { useRouter } from "next/router";
 
 import { useServices } from "@src/context/ServicesProvider";
+import { settingsIdAtom } from "@src/context/SettingsProvider/settingsStore";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
 import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
@@ -95,6 +97,11 @@ function useDeploymentLocalStorage() {
   return useServices().deploymentLocalStorage;
 }
 
+/** The wallet address that keys deployment-local storage (WalletProvider sets it to the wallet address); same key the detail page reads. */
+function useSettingsId() {
+  return useAtomValue(settingsIdAtom);
+}
+
 export const DEPENDENCIES = {
   useCreateDeployment,
   useCloseDeployment,
@@ -104,6 +111,7 @@ export const DEPENDENCIES = {
   useRouter,
   useQueryClient,
   useDeploymentLocalStorage,
+  useSettingsId,
   manifestFromSdl
 };
 
@@ -124,6 +132,7 @@ export function useDeploymentFlow(
   const updateDeployment = dependencies.useUpdateDeployment();
   const queryClient = dependencies.useQueryClient();
   const deploymentLocalStorage = dependencies.useDeploymentLocalStorage();
+  const settingsId = dependencies.useSettingsId();
 
   const [phase, setPhase] = useState<DeploymentFlowPhase>(intent.dseq ? "quoting" : "configuring");
   const [dseq, setDseq] = useState<string | null>(intent.dseq ?? null);
@@ -220,6 +229,10 @@ export function useDeploymentFlow(
             setDeployError(undefined);
             setDeploySucceeded(false);
             setPhase("quoting");
+            // Cache the SDL under the wallet + dseq key the detail page reads, at create time, so an in-progress
+            // deployment (on-chain, no lease yet) can be resumed into the configure flow after a reload, when the
+            // captured SDL is otherwise gone. The create response omits `owner`, so key off the settings id.
+            cacheDeployedSdl(deploymentLocalStorage, settingsId, result.data.dseq, sdl);
             router.replace(buildConfigureUrl(intentRef.current, result.data.dseq, bidStrategyRef.current), undefined, { shallow: true });
           },
           onError: function onCreateFailed(cause: unknown) {
@@ -229,7 +242,7 @@ export function useDeploymentFlow(
         }
       );
     },
-    [createDeployment, router]
+    [createDeployment, router, deploymentLocalStorage, settingsId]
   );
 
   const cancelAndEdit = useCallback(
@@ -373,7 +386,7 @@ export function useDeploymentFlow(
  * Storage can be blocked, full, or hold corrupt data, so any failure is swallowed: caching must never keep the
  * deploy-success UI or the redirect from running.
  */
-function cacheDeployedSdl(storage: ReturnType<typeof useDeploymentLocalStorage>, owner: string, dseq: string, sdl: string): void {
+function cacheDeployedSdl(storage: ReturnType<typeof useDeploymentLocalStorage>, owner: string | null | undefined, dseq: string, sdl: string): void {
   try {
     storage.update(owner, dseq, { manifest: sdl });
   } catch {

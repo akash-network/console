@@ -98,6 +98,24 @@ describe(DeploymentDetailTopBar.name, () => {
       expect(deps.CustomDropdownLinkItem).toHaveBeenCalledWith(expect.objectContaining({ children: "Redeploy" }), {});
     });
 
+    it("redeploys with the stored sdl and name and tracks the click when Redeploy is clicked", () => {
+      const redeploy = vi.fn();
+      const track = vi.fn();
+      const deps = setup({
+        deployment: createDeployment({ state: "active" }),
+        analyticsTrack: track,
+        redeploy,
+        localNotes: {
+          getDeploymentData: () => ({ manifest: "some-manifest", name: "my-app" })
+        }
+      });
+
+      clickMockComponent(deps.CustomDropdownLinkItem, ([props]) => props.children === "Redeploy");
+
+      expect(redeploy).toHaveBeenCalledWith({ sdl: "some-manifest", name: "my-app" });
+      expect(track).toHaveBeenCalledWith("redeploy_btn_clk", "Amplitude");
+    });
+
     it("does not render Redeploy option when manifest is missing", () => {
       setup({
         deployment: createDeployment({ state: "active" }),
@@ -212,9 +230,10 @@ describe(DeploymentDetailTopBar.name, () => {
     router?: { back?: () => void; push?: () => void };
     wallet?: { isManaged?: boolean; denom?: string; signAndBroadcastTx?: () => Promise<boolean> };
     analyticsTrack?: ReturnType<typeof vi.fn>;
+    redeploy?: ReturnType<typeof vi.fn>;
     localNotes?: {
       getDeploymentName?: (dseq: string | number) => string | null | undefined;
-      getDeploymentData?: (dseq: string | number) => { manifest?: string } | null;
+      getDeploymentData?: (dseq: string | number) => { manifest?: string; name?: string } | null;
       changeDeploymentName?: (dseq: string | number) => void;
     };
   }) {
@@ -264,6 +283,7 @@ describe(DeploymentDetailTopBar.name, () => {
       useManagedDeploymentConfirm: vi.fn(() => ({
         closeDeploymentConfirm: vi.fn(() => Promise.resolve(true))
       })) as typeof DEPENDENCIES.useManagedDeploymentConfirm,
+      useRedeploy: vi.fn(() => input?.redeploy ?? vi.fn()) as unknown as typeof DEPENDENCIES.useRedeploy,
       useDeploymentSettingQuery: vi.fn(() => ({
         data: { autoTopUpEnabled: false, estimatedTopUpAmount: 0, topUpFrequencyMs: 0 },
         setAutoTopUpEnabled: vi.fn(),
