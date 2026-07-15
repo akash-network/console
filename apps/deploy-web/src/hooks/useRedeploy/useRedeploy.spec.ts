@@ -28,7 +28,7 @@ describe(useRedeploy.name, () => {
   function setup(input: { draftId?: string } = {}) {
     const push = vi.fn();
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push });
-    const createConfigureDraft = vi.fn(() => input.draftId ?? "draft-id") as unknown as typeof DEPENDENCIES.createConfigureDraft;
+    const createConfigureDraft = vi.fn<typeof DEPENDENCIES.createConfigureDraft>(() => input.draftId ?? "draft-id");
     const dependencies: typeof DEPENDENCIES = {
       useRouter: () => router,
       UrlService,
