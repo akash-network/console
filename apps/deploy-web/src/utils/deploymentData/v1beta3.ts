@@ -144,6 +144,16 @@ export function isTrialBlockedGpuSelection(
 }
 
 /**
+ * Whether the managed-wallet trial GPU restriction is switched on at all (any model is blocklisted). This is the
+ * signal for "trials cannot use high-end GPUs", used to gate confidential-compute GPU (cpu-gpu) on its own merit
+ * rather than deriving it from a specific model or the stricter "any" selection rule. When the blocklist is empty
+ * the whole restriction (SDL stripping + per-bid filtering) is a no-op, so nothing GPU-related is gated.
+ */
+export function isTrialGpuRestrictionActive(blockedModels: readonly string[] = browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS): boolean {
+  return blockedModels.length > 0;
+}
+
+/**
  * Whether a form's GPU selection would be blocked for a trial on the configure screen — the submit guard in
  * `ConfigureDeploymentHeader` uses this because enabling the GPU card leaves the model at the empty default
  * *without ever opening the (locked) picker*, so the presentational lock alone cannot stop an empty-model

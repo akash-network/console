@@ -4,7 +4,15 @@ import { describe, expect, it } from "vitest";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { defaultService, defaultServiceWithPlacement } from "@src/utils/sdl/data";
-import { applyTrialGpuPolicy, hasTrialBlockedGpu, isTrialBlockedGpuModel, isTrialBlockedGpuSelection, NewDeploymentData, replaceSdlDenom } from "./v1beta3";
+import {
+  applyTrialGpuPolicy,
+  hasTrialBlockedGpu,
+  isTrialBlockedGpuModel,
+  isTrialBlockedGpuSelection,
+  isTrialGpuRestrictionActive,
+  NewDeploymentData,
+  replaceSdlDenom
+} from "./v1beta3";
 
 describe(replaceSdlDenom.name, () => {
   it("replaces denom in a single placement pricing entry", () => {
@@ -242,6 +250,16 @@ describe(isTrialBlockedGpuSelection.name, () => {
   it("never blocks when the blocked list is empty", () => {
     expect(isTrialBlockedGpuSelection("nvidia", "", [])).toBe(false);
     expect(isTrialBlockedGpuSelection("nvidia", "h100", [])).toBe(false);
+  });
+});
+
+describe(isTrialGpuRestrictionActive.name, () => {
+  it("is active when any model is blocklisted", () => {
+    expect(isTrialGpuRestrictionActive(["nvidia/h100"])).toBe(true);
+  });
+
+  it("is inactive when the blocklist is empty", () => {
+    expect(isTrialGpuRestrictionActive([])).toBe(false);
   });
 });
 

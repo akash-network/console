@@ -4,8 +4,7 @@ import { CollapsibleCard } from "@akashnetwork/ui/components";
 import { CpuIcon, PackageOpenIcon } from "lucide-react";
 
 import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
-import { isTrialBlockedGpuSelection } from "@src/utils/deploymentData/v1beta3";
-import { defaultGpuModel } from "@src/utils/sdl/data";
+import { isTrialBlockedGpuSelection, isTrialGpuRestrictionActive } from "@src/utils/deploymentData/v1beta3";
 import { useRevalidateUniqueness } from "../../DeploymentPane/useRevalidateUniqueness/useRevalidateUniqueness";
 import { computeResourcesTooltip, presetsTooltip } from "../cardTooltips";
 import { ComputeResourcesCard } from "../ComputeResourcesCard/ComputeResourcesCard";
@@ -91,7 +90,7 @@ export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, depen
         <d.ConfidentialComputeCard
           serviceIndex={serviceIndex}
           locked={locked}
-          isGpuBlocked={isBlockedModel(defaultGpuModel.vendor, defaultGpuModel.name)}
+          isGpuBlocked={isRestricted && !locked && isTrialGpuRestrictionActive()}
           onUnlock={openUnlock}
         />
 

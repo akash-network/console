@@ -72,6 +72,15 @@ describe(HardwareSection.name, () => {
     expect(ConfidentialComputeCard).toHaveBeenCalledWith(expect.objectContaining({ isGpuBlocked: false }), expect.anything());
   });
 
+  it("does not block the confidential compute card while the pane is locked so the trial warning never fights the read-only quote view", () => {
+    const ConfidentialComputeCard = vi.fn(() => null);
+    const useTrialGate = () => ({ isRestricted: true, isWalletReady: true });
+
+    setup({ locked: true, dependencies: { ConfidentialComputeCard, useTrialGate } });
+
+    expect(ConfidentialComputeCard).toHaveBeenCalledWith(expect.objectContaining({ isGpuBlocked: false }), expect.anything());
+  });
+
   it("blocks nothing while the pane is locked", () => {
     const GpuCard = vi.fn<typeof DEPENDENCIES.GpuCard>(() => null);
     const useTrialGate = () => ({ isRestricted: true, isWalletReady: true });
