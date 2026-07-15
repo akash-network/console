@@ -2,7 +2,7 @@ import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
 import type { EncodeObject } from "@cosmjs/proto-signing";
-import type { IndexedTx } from "@cosmjs/stargate";
+import { BroadcastTxError, type IndexedTx } from "@cosmjs/stargate";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -93,7 +93,7 @@ describe(SigningClientService.name, () => {
       promise.catch(() => {});
       await vi.advanceTimersByTimeAsync(60_000);
 
-      await expect(promise).rejects.toThrow("Failed to sign and broadcast transaction");
+      await expect(promise).rejects.toThrow("Sign and broadcast succeeded but the transaction could not be found on-chain");
       expect(client.getTx).toHaveBeenCalledTimes(7);
     } finally {
       vi.useRealTimers();
@@ -125,17 +125,6 @@ describe(SigningClientService.name, () => {
     expect(result.code).toBe(11);
   });
 
-  it("returns the out-of-gas transaction without crashing when a usable retry gas limit cannot be derived", async () => {
-    const { service, client } = setup({ gasRecoveryMultiplier: NaN });
-    client.getTx.mockResolvedValue(outOfGasTx({ gasUsed: 100n, gasWanted: 80n }));
-
-    const result = await service.signAndBroadcast(createMessages(1));
-
-    // A NaN gas limit must never reach the signing client — degrade to returning the failed tx, don't throw.
-    expect(client.signUnordered).toHaveBeenCalledTimes(1);
-    expect(result.code).toBe(11);
-  });
-
   it("does not retry a transaction that fails with a non-out-of-gas error", async () => {
     const { service, client } = setup();
     client.getTx.mockResolvedValue(mock<IndexedTx>({ hash: "failed", code: 5, gasUsed: 40n, gasWanted: 80n, height: 100 }));
@@ -144,6 +133,59 @@ describe(SigningClientService.name, () => {
 
     expect(client.signUnordered).toHaveBeenCalledTimes(1);
     expect(result.code).toBe(5);
+  });
+
+  it("re-signs with a higher gas limit when the broadcast is rejected out of gas at CheckTx", async () => {
+    const { service, client } = setup();
+    client.broadcastTxSync.mockRejectedValueOnce(
+      new BroadcastTxError(11, "sdk", "out of gas in location: unordered tx; gasWanted: 40000, gasUsed: 50000: out of gas")
+    );
+
+    const result = await service.signAndBroadcast(createMessages(1));
+
+    expect(client.signUnordered).toHaveBeenCalledTimes(2);
+    // ceil(50000 gasUsed × 1.3 multiplier) = 65000.
+    expect(client.signUnordered).toHaveBeenLastCalledWith(expect.anything(), { granter: undefined, gas: 65000 });
+    expect(result.code).toBe(0);
+  });
+
+  it("throws the broadcast out-of-gas error after exhausting the retry limit", async () => {
+    const { service, client } = setup();
+    client.broadcastTxSync.mockRejectedValue(
+      new BroadcastTxError(11, "sdk", "out of gas in location: unordered tx; gasWanted: 40000, gasUsed: 50000: out of gas")
+    );
+
+    await expect(service.signAndBroadcast(createMessages(1))).rejects.toThrow(BroadcastTxError);
+    // 1 initial attempt + OUT_OF_GAS_RETRY_LIMIT (3) retries = 4 signs.
+    expect(client.signUnordered).toHaveBeenCalledTimes(4);
+  });
+
+  it("does not retry a broadcast error that is not out of gas", async () => {
+    const { service, client } = setup();
+    client.broadcastTxSync.mockRejectedValue(new BroadcastTxError(13, "sdk", "insufficient fee"));
+
+    await expect(service.signAndBroadcast(createMessages(1))).rejects.toThrow(BroadcastTxError);
+    expect(client.signUnordered).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry a code 11 broadcast error from another codespace whose log lacks the out-of-gas marker", async () => {
+    const { service, client } = setup();
+    // Some other module reuses error code 11; its log happens to carry gas figures but is not an out-of-gas abort.
+    client.broadcastTxSync.mockRejectedValue(new BroadcastTxError(11, "othermodule", "rejected; gasWanted: 40000, gasUsed: 50000"));
+
+    await expect(service.signAndBroadcast(createMessages(1))).rejects.toThrow(BroadcastTxError);
+    expect(client.signUnordered).toHaveBeenCalledTimes(1);
+    expect(client.broadcastTxSync).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry a broadcast out-of-gas log whose gasUsed is below gasWanted", async () => {
+    const { service, client } = setup();
+    // A genuine out-of-gas abort consumes at least the whole limit; gasUsed < gasWanted marks a non-genuine or malformed log.
+    client.broadcastTxSync.mockRejectedValue(new BroadcastTxError(11, "othermodule", "out of gas in location: unordered tx; gasWanted: 50000, gasUsed: 40000"));
+
+    await expect(service.signAndBroadcast(createMessages(1))).rejects.toThrow(BroadcastTxError);
+    expect(client.signUnordered).toHaveBeenCalledTimes(1);
+    expect(client.broadcastTxSync).toHaveBeenCalledTimes(1);
   });
 
   function createMessages(seed: number): readonly EncodeObject[] {
