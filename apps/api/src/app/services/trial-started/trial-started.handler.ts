@@ -42,8 +42,7 @@ export class TrialStartedHandler implements JobHandler<TrialStarted> {
       await this.notificationService.createNotification(
         startTrialNotification(user, {
           deploymentLifetimeInHours: this.billingConfig.get("TRIAL_DEPLOYMENT_CLEANUP_HOURS"),
-          trialEndsAt: trialEndsAt.toISOString(),
-          initialCredits: this.billingConfig.get("TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT")
+          trialEndsAt: trialEndsAt.toISOString()
         })
       );
       this.logger.info({ event: "START_TRIAL_NOTIFICATION_SENT", userId: user.id });
