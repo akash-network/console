@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { FormattedNumber } from "react-intl";
 import { Alert, AlertDescription, AlertTitle, Form, FormField, FormInput, LoadingButton } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { LoaderCircle } from "lucide-react";
 import { z } from "zod";
 
 import { usePaymentPolling } from "@src/context/PaymentPollingProvider";
@@ -176,7 +177,13 @@ export function RedeemCouponForm({ isWalletReady = true, onProcessingChange, onR
         )}
 
         <div className="space-y-2">
-          <LoadingButton type="submit" className="w-full" loading={isProcessing} disabled={!canSubmit}>
+          <LoadingButton
+            type="submit"
+            className="w-full"
+            loading={isProcessing}
+            disabled={!canSubmit}
+            loadingIndicator={<LoaderCircle className="mr-2 h-4 w-4 animate-spin text-current" aria-hidden="true" />}
+          >
             Redeem coupon
           </LoadingButton>
           {!isWalletReady && <p className="text-center text-sm text-muted-foreground">Setting up your account…</p>}
