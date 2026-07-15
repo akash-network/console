@@ -2,15 +2,16 @@ import type { FC } from "react";
 import { useCallback } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Alert, CollapsibleCard, Label, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
-import { ShieldCheckIcon } from "lucide-react";
+import { LockIcon, ShieldCheckIcon } from "lucide-react";
 
 import { ConfidentialComputeResources } from "@src/components/deployments/ConfidentialComputeResources";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { buildFormTeeCarveout } from "@src/utils/confidentialCompute";
 import { defaultGpuModel } from "@src/utils/sdl/data";
 import { confidentialComputeTooltip } from "../cardTooltips";
+import { UnlockGpusButton } from "../UnlockGpusButton/UnlockGpusButton";
 
-export const DEPENDENCIES = { CollapsibleCard, RadioGroup, RadioGroupItem, Label, Alert, ConfidentialComputeResources };
+export const DEPENDENCIES = { CollapsibleCard, RadioGroup, RadioGroupItem, Label, Alert, ConfidentialComputeResources, UnlockGpusButton };
 
 type ServiceParams = NonNullable<SdlBuilderFormValuesType["services"][number]["params"]>;
 type TeeType = NonNullable<ServiceParams["tee"]>;
@@ -26,6 +27,14 @@ const DEFAULT_TEE: TeeType = "cpu";
 type Props = {
   serviceIndex: number;
   locked?: boolean;
+  /**
+   * True when the current (trial) user cannot request a GPU: the `cpu-gpu` option is locked and a warning with
+   * an add-credits CTA is shown. CPU-only TEE stays selectable (the backend never blocks it). Defaults to
+   * `false` so existing consumers/tests keep the unrestricted behavior.
+   */
+  isGpuBlocked?: boolean;
+  /** Opens the add-credits (unlock) sheet owned by the HardwareSection. */
+  onUnlock?: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -47,7 +56,7 @@ type Props = {
  * reachable only when the pane is locked, where the short off-state hint just
  * tells the viewer no confidential compute is configured.
  */
-export const ConfidentialComputeCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
+export const ConfidentialComputeCard: FC<Props> = ({ serviceIndex, locked = false, isGpuBlocked = false, onUnlock, dependencies: d = DEPENDENCIES }) => {
   const { control, getValues, setValue } = useFormContext<SdlBuilderFormValuesType>();
   const tee = useWatch({ control, name: `services.${serviceIndex}.params.tee` });
   const isEnabled = tee === "cpu" || tee === "cpu-gpu";
@@ -93,6 +102,8 @@ export const ConfidentialComputeCard: FC<Props> = ({ serviceIndex, locked = fals
 
   const setTee = useCallback(
     (value: TeeType | undefined) => {
+      // Defensive: never let a trial land on cpu-gpu even if the (disabled) radio is somehow triggered.
+      if (value === "cpu-gpu" && isGpuBlocked) return;
       const params = getValues(`services.${serviceIndex}.params`);
       const nextParams: ServiceParams = { ...params, tee: value };
       if (!value) {
@@ -105,7 +116,7 @@ export const ConfidentialComputeCard: FC<Props> = ({ serviceIndex, locked = fals
         enableGpu();
       }
     },
-    [enableGpu, getValues, serviceIndex, setValue]
+    [enableGpu, getValues, isGpuBlocked, serviceIndex, setValue]
   );
 
   const toggleConfidentialCompute = useCallback(
@@ -137,21 +148,33 @@ export const ConfidentialComputeCard: FC<Props> = ({ serviceIndex, locked = fals
           >
             {TEE_OPTIONS.map(option => {
               const id = `tee-${serviceIndex}-${option.value}`;
+              const optionBlocked = isGpuBlocked && option.value === "cpu-gpu";
               return (
                 <d.Label
                   key={option.value}
                   htmlFor={id}
                   className="flex items-start gap-3 rounded-md border border-zinc-200 p-3 font-normal dark:border-zinc-800"
                 >
-                  <d.RadioGroupItem id={id} value={option.value} aria-label={option.label} disabled={locked} className="mt-0.5" />
+                  <d.RadioGroupItem id={id} value={option.value} aria-label={option.label} disabled={locked || optionBlocked} className="mt-0.5" />
                   <span className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium">{option.label}</span>
+                    <span className="flex items-center gap-1.5 text-sm font-medium">
+                      {option.label}
+                      {optionBlocked && <LockIcon className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Requires credits" />}
+                    </span>
                     <span className="text-xs text-muted-foreground">{option.description}</span>
                   </span>
                 </d.Label>
               );
             })}
           </d.RadioGroup>
+          {isGpuBlocked && (
+            <d.Alert variant="warning">
+              <div className="flex flex-col items-start gap-1">
+                <span>GPU access isn&apos;t available on a free trial. Add credits to attest a GPU, or use CPU-only confidential compute.</span>
+                <d.UnlockGpusButton onUnlock={onUnlock} />
+              </div>
+            </d.Alert>
+          )}
           {gpuMismatch && (
             <d.Alert variant="warning">
               CPU-GPU confidential compute attests a GPU, so this service needs GPU resources. Enable the GPU card above so providers with confidential-compute

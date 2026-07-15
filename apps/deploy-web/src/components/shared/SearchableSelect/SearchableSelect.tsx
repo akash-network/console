@@ -15,7 +15,12 @@ export type SearchableSelectOption = {
 };
 
 /** A leading "no selection" row (e.g. "Any region"/"Any model") that is always shown and never filtered out. */
-type EmptyOption = { value: string; label: ReactNode };
+type EmptyOption = {
+  value: string;
+  label: ReactNode;
+  /** Renders the row non-selectable and `aria-disabled` (mirrors {@link SearchableSelectOption.disabled}). */
+  disabled?: boolean;
+};
 
 type Props = {
   value: string;
@@ -104,6 +109,7 @@ export const SearchableSelect: FC<Props> = ({
             {emptyOption && (
               <CommandItem
                 value={EMPTY_OPTION_VALUE}
+                disabled={emptyOption.disabled}
                 onSelect={function selectEmptyOption() {
                   selectValue(emptyOption.value);
                 }}

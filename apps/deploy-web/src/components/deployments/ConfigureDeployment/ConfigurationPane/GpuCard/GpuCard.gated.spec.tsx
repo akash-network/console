@@ -51,6 +51,22 @@ describe("GpuCard trial gate", () => {
     expect(screen.queryByRole("button", { name: /unlock/i })).not.toBeInTheDocument();
   });
 
+  it("locks the 'Any model' option when the empty model is blocked for the trial", async () => {
+    const user = setup({ isBlockedModel: (_vendor, model) => model === "" || model === "h100" });
+
+    await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+    expect(await screen.findByRole("option", { name: /any model/i })).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("keeps the 'Any model' option selectable when nothing is blocked", async () => {
+    const user = setup({});
+
+    await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+    expect(await screen.findByRole("option", { name: /any model/i })).not.toHaveAttribute("aria-disabled", "true");
+  });
+
   function setup(input: { isBlockedModel?: (vendor?: string | null, model?: string | null) => boolean; onUnlock?: () => void }) {
     const values = defaultServiceWithPlacement({
       profile: {

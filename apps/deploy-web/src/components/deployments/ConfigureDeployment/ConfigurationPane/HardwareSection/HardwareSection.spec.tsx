@@ -47,8 +47,29 @@ describe(HardwareSection.name, () => {
 
     setup({ dependencies: { PresetsCard, GpuCard, useTrialGate } });
 
-    expect(PresetsCard).toHaveBeenCalledWith(expect.objectContaining({ isBlockedModel: expect.any(Function), onUnlock: expect.any(Function) }), expect.anything());
+    expect(PresetsCard).toHaveBeenCalledWith(
+      expect.objectContaining({ isBlockedModel: expect.any(Function), onUnlock: expect.any(Function) }),
+      expect.anything()
+    );
     expect(GpuCard).toHaveBeenCalledWith(expect.objectContaining({ isBlockedModel: expect.any(Function), onUnlock: expect.any(Function) }), expect.anything());
+  });
+
+  it("passes isGpuBlocked and an unlock handler to the confidential compute card for a trial", () => {
+    const ConfidentialComputeCard = vi.fn(() => null);
+    const useTrialGate = () => ({ isRestricted: true, isWalletReady: true });
+
+    setup({ dependencies: { ConfidentialComputeCard, useTrialGate } });
+
+    expect(ConfidentialComputeCard).toHaveBeenCalledWith(expect.objectContaining({ isGpuBlocked: true, onUnlock: expect.any(Function) }), expect.anything());
+  });
+
+  it("does not block the confidential compute card when the trial restriction is not in force", () => {
+    const ConfidentialComputeCard = vi.fn(() => null);
+    const useTrialGate = () => ({ isRestricted: false, isWalletReady: true });
+
+    setup({ dependencies: { ConfidentialComputeCard, useTrialGate } });
+
+    expect(ConfidentialComputeCard).toHaveBeenCalledWith(expect.objectContaining({ isGpuBlocked: false }), expect.anything());
   });
 
   it("blocks nothing while the pane is locked", () => {

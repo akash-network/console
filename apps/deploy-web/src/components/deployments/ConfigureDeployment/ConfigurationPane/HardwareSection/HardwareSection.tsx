@@ -4,7 +4,8 @@ import { CollapsibleCard } from "@akashnetwork/ui/components";
 import { CpuIcon, PackageOpenIcon } from "lucide-react";
 
 import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
-import { isTrialBlockedGpuModel } from "@src/utils/deploymentData/v1beta3";
+import { isTrialBlockedGpuSelection } from "@src/utils/deploymentData/v1beta3";
+import { defaultGpuModel } from "@src/utils/sdl/data";
 import { useRevalidateUniqueness } from "../../DeploymentPane/useRevalidateUniqueness/useRevalidateUniqueness";
 import { computeResourcesTooltip, presetsTooltip } from "../cardTooltips";
 import { ComputeResourcesCard } from "../ComputeResourcesCard/ComputeResourcesCard";
@@ -66,8 +67,12 @@ export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, depen
   const openUnlock = () => setIsUnlockOpen(true);
   const closeUnlock = () => setIsUnlockOpen(false);
 
-  /** True only for models the trial blocks and only while the pane is editable — so the lock never fights the quote-lock read-only state. */
-  const isBlockedModel = (vendor?: string | null, model?: string | null) => isRestricted && !locked && isTrialBlockedGpuModel(vendor, model);
+  /**
+   * True only for GPU selections the trial blocks and only while the pane is editable — so the lock never
+   * fights the quote-lock read-only state. Uses {@link isTrialBlockedGpuSelection}, which also treats an
+   * empty ("any") model as blocked for a vendor with blocked models (UI-only, stricter than the SDL policy).
+   */
+  const isBlockedModel = (vendor?: string | null, model?: string | null) => isRestricted && !locked && isTrialBlockedGpuSelection(vendor, model);
 
   return (
     <div className="flex flex-col gap-2 px-4">
@@ -83,7 +88,12 @@ export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, depen
           <d.ComputeResourcesCard serviceIndex={serviceIndex} locked={locked} />
         </d.CollapsibleCard>
 
-        <d.ConfidentialComputeCard serviceIndex={serviceIndex} locked={locked} />
+        <d.ConfidentialComputeCard
+          serviceIndex={serviceIndex}
+          locked={locked}
+          isGpuBlocked={isBlockedModel(defaultGpuModel.vendor, defaultGpuModel.name)}
+          onUnlock={openUnlock}
+        />
 
         <d.RamStorageCard serviceIndex={serviceIndex} locked={locked} />
 

@@ -103,6 +103,18 @@ describe("SearchableSelect", () => {
     expect(await screen.findByRole("option", { name: "eu-west" })).toHaveAttribute("aria-disabled", "true");
   });
 
+  it("renders a disabled empty option as non-selectable", async () => {
+    const { user, onChange } = setup({ value: "eu-west", emptyOption: { value: "", label: "Any region", disabled: true } });
+
+    await user.click(screen.getByRole("combobox", { name: "Region" }));
+    const emptyOption = await screen.findByRole("option", { name: "Any region" });
+
+    expect(emptyOption).toHaveAttribute("aria-disabled", "true");
+
+    await user.click(emptyOption);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("disables the trigger when disabled", () => {
     setup({ disabled: true });
 
@@ -112,7 +124,7 @@ describe("SearchableSelect", () => {
   function setup(input: {
     value?: string;
     options?: SearchableSelectOption[];
-    emptyOption?: { value: string; label: string };
+    emptyOption?: { value: string; label: string; disabled?: boolean };
     placeholder?: string;
     disabled?: boolean;
     renderValue?: (value: string) => ReactNode;

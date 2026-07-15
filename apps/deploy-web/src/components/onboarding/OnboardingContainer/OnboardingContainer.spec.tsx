@@ -372,6 +372,8 @@ describe("OnboardingContainer", () => {
       appendAuditorRequirement: vi.fn(sdl => sdl),
       applyTrialGpuPolicy: vi.fn((sdl: string) => sdl),
       isTrialBlockedGpuModel: vi.fn(() => false),
+      isTrialBlockedGpuSelection: vi.fn(() => false),
+      hasTrialBlockedGpu: vi.fn(() => false),
       replaceSdlDenom: vi.fn((sdl: string) => sdl),
       ENDPOINT_NAME_VALIDATION_REGEX: /^[a-z]+[-_\da-z]+$/,
       TRIAL_ATTRIBUTE: "console/trials" as const,
