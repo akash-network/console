@@ -70,21 +70,18 @@ describe(TxManagerService.name, () => {
 
       const { service, logger, derivedWallet, signingClientServiceFactory } = setup({
         derivedWalletAddress: address,
-        derivedSignAndBroadcast: vi.fn().mockResolvedValue(txResult),
-        hasPendingTransactions: false
+        derivedSignAndBroadcast: vi.fn().mockResolvedValue(txResult)
       });
 
       const result = await service.signAndBroadcastWithDerivedWallet(derivationIndex, messages, options);
 
-      expect(derivedWallet.getFirstAddress).toHaveBeenCalled();
       expect(signingClientServiceFactory).toHaveBeenCalledWith(derivedWallet);
       expect(logger.debug).toHaveBeenCalledWith({ event: "DERIVED_SIGNING_CLIENT_CREATE", derivationIndex });
       expect(result).toEqual(txResult);
     });
 
-    it("cleans up client when no pending transactions", async () => {
+    it("reuses the cached client across calls for the same derivation index", async () => {
       const derivationIndex = 1;
-      const address = createAkashAddress();
       const messages: EncodeObject[] = [
         {
           typeUrl: "/test.MsgTest",
@@ -97,46 +94,19 @@ describe(TxManagerService.name, () => {
         rawLog: "success"
       });
 
-      const { service, logger } = setup({
-        derivedWalletAddress: address,
-        derivedSignAndBroadcast: vi.fn().mockResolvedValue(txResult),
-        hasPendingTransactions: false
+      const { service, signingClientServiceFactory } = setup({
+        derivedWalletAddress: createAkashAddress(),
+        derivedSignAndBroadcast: vi.fn().mockResolvedValue(txResult)
       });
 
       await service.signAndBroadcastWithDerivedWallet(derivationIndex, messages);
-
-      expect(logger.debug).toHaveBeenCalledWith({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", derivationIndex });
-    });
-
-    it("keeps client when has pending transactions", async () => {
-      const derivationIndex = 1;
-      const address = createAkashAddress();
-      const messages: EncodeObject[] = [
-        {
-          typeUrl: "/test.MsgTest",
-          value: {}
-        }
-      ];
-      const txResult = mock<IndexedTx>({
-        code: 0,
-        hash: "tx-hash",
-        rawLog: "success"
-      });
-
-      const { service, logger } = setup({
-        derivedWalletAddress: address,
-        derivedSignAndBroadcast: vi.fn().mockResolvedValue(txResult),
-        hasPendingTransactions: true
-      });
-
       await service.signAndBroadcastWithDerivedWallet(derivationIndex, messages);
 
-      expect(logger.debug).not.toHaveBeenCalledWith({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", derivationIndex });
+      expect(signingClientServiceFactory).toHaveBeenCalledTimes(1);
     });
 
-    it("cleans up client even when transaction fails", async () => {
+    it("propagates the error when the transaction fails", async () => {
       const derivationIndex = 1;
-      const address = createAkashAddress();
       const messages: EncodeObject[] = [
         {
           typeUrl: "/test.MsgTest",
@@ -145,15 +115,12 @@ describe(TxManagerService.name, () => {
       ];
       const error = new Error("Transaction failed");
 
-      const { service, logger } = setup({
-        derivedWalletAddress: address,
-        derivedSignAndBroadcast: vi.fn().mockRejectedValue(error),
-        hasPendingTransactions: false
+      const { service } = setup({
+        derivedWalletAddress: createAkashAddress(),
+        derivedSignAndBroadcast: vi.fn().mockRejectedValue(error)
       });
 
       await expect(service.signAndBroadcastWithDerivedWallet(derivationIndex, messages)).rejects.toThrow("Transaction failed");
-
-      expect(logger.debug).toHaveBeenCalledWith({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", derivationIndex });
     });
   });
 
@@ -189,7 +156,6 @@ describe(TxManagerService.name, () => {
     derivedWalletAddress?: string;
     fundingSignAndBroadcast?: SigningClientService["signAndBroadcast"];
     derivedSignAndBroadcast?: SigningClientService["signAndBroadcast"];
-    hasPendingTransactions?: boolean;
   }) {
     const fundingWalletAddress = input?.fundingWalletAddress ?? createAkashAddress();
     const derivedWalletAddress = input?.derivedWalletAddress ?? createAkashAddress();
@@ -215,8 +181,7 @@ describe(TxManagerService.name, () => {
     });
 
     const derivedSigningClient = mock<SigningClientService>({
-      signAndBroadcast: input?.derivedSignAndBroadcast ?? vi.fn(),
-      hasPendingTransactions: input?.hasPendingTransactions ?? false
+      signAndBroadcast: input?.derivedSignAndBroadcast ?? vi.fn()
     });
 
     const walletFactory = vi.fn().mockImplementation((_index: number) => {
