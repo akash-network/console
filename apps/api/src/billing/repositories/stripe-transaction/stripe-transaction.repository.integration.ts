@@ -42,6 +42,61 @@ describe(StripeTransactionRepository.name, () => {
     });
   });
 
+  // The partial unique index on stripe_invoice_id (WHERE NOT NULL) is the one-row-per-invoice
+  // invariant that both the coupon path and the admin manual-credit path rely on.
+  describe("stripe_invoice_id partial unique index", () => {
+    it("rejects a second transaction with the same stripe invoice id", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const invoiceId = `in_${faker.string.alphanumeric(12)}`;
+
+      await stripeTransactionRepository.create({
+        userId: user.id,
+        type: "manual_credit",
+        status: "pending",
+        amount: 50000,
+        currency: "usd",
+        stripeInvoiceId: invoiceId
+      });
+
+      await expect(
+        stripeTransactionRepository.create({
+          userId: user.id,
+          type: "manual_credit",
+          status: "pending",
+          amount: 99999,
+          currency: "usd",
+          stripeInvoiceId: invoiceId
+        })
+      ).rejects.toThrow();
+    });
+
+    it("allows multiple transactions with a null stripe invoice id", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+
+      const first = await stripeTransactionRepository.create({
+        userId: user.id,
+        type: "payment_intent",
+        status: "succeeded",
+        amount: 1000,
+        currency: "usd",
+        stripeInvoiceId: null
+      });
+
+      const second = await stripeTransactionRepository.create({
+        userId: user.id,
+        type: "payment_intent",
+        status: "succeeded",
+        amount: 2000,
+        currency: "usd",
+        stripeInvoiceId: null
+      });
+
+      expect(first.id).not.toBe(second.id);
+    });
+  });
+
   let cleanup: () => Promise<void>;
   afterEach(async () => {
     await cleanup?.();
@@ -80,6 +135,12 @@ describe(StripeTransactionRepository.name, () => {
       });
     }
 
-    return { stripeTransactionRepository, userRepository, createTestTransaction };
+    async function createTestUser() {
+      const user = await userRepository.create({});
+      createdUserIds.push(user.id);
+      return user;
+    }
+
+    return { stripeTransactionRepository, userRepository, createTestTransaction, createTestUser };
   }
 });

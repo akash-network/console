@@ -17,6 +17,7 @@ import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 describe("Stripe webhook", () => {
   const userWalletsTable = resolveTable("UserWallets");
+  const stripeTransactionsTable = resolveTable("StripeTransactions");
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const userWalletsQuery = db.query.UserWallets;
   const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
@@ -37,6 +38,28 @@ describe("Stripe webhook", () => {
         }
       },
       type: "charge.refunded"
+    });
+
+  const generateInvoicePayload = ({
+    type = "invoice.paid",
+    id,
+    customer
+  }: {
+    type?: "invoice.paid" | "invoice.payment_succeeded";
+    id: string;
+    customer: string;
+  }) =>
+    JSON.stringify({
+      data: {
+        object: {
+          id,
+          object: "invoice",
+          customer,
+          amount_paid: 0,
+          currency: "usd"
+        }
+      },
+      type
     });
 
   const getWebhookResponse = async (payload: string) => {
@@ -700,18 +723,102 @@ describe("Stripe webhook", () => {
         expect(transaction?.status).toBe("succeeded"); // Still not fully refunded
       });
     });
+
+    describe("invoice.paid (manual credit)", () => {
+      it("credits the wallet once and keeps the user trialing for a pre-created manual_credit invoice", async () => {
+        const invoiceId = `in_${faker.string.alphanumeric(24)}`;
+        const amount = 50000; // $500 in cents
+
+        const { user, stripeCustomerId } = await setup();
+
+        // The admin app pre-creates the pending row (direct DB write) before marking the invoice paid
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "manual_credit",
+          status: "pending",
+          amount,
+          currency: "usd",
+          stripeInvoiceId: invoiceId,
+          description: "Enterprise GPU prepay"
+        });
+
+        const response = await getWebhookResponse(generateInvoicePayload({ id: invoiceId, customer: stripeCustomerId }));
+        expect(response.status).toBe(200);
+
+        const wallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+        const expectedBalance = billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT + amount * 10000;
+        expect(wallet).toMatchObject({
+          deploymentAllowance: `${expectedBalance}.00`,
+          isTrialing: true // a granted credit must not graduate a trial user
+        });
+
+        const rows = await db.query.StripeTransactions.findMany({ where: eq(stripeTransactionsTable.stripeInvoiceId, invoiceId) });
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({ type: "manual_credit", status: "succeeded", amount });
+      });
+
+      it("credits exactly once when invoice.paid and invoice.payment_succeeded both fire for the same invoice", async () => {
+        const invoiceId = `in_${faker.string.alphanumeric(24)}`;
+        const amount = 50000;
+
+        const { user, stripeCustomerId } = await setup();
+
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "manual_credit",
+          status: "pending",
+          amount,
+          currency: "usd",
+          stripeInvoiceId: invoiceId
+        });
+
+        const paidResponse = await getWebhookResponse(generateInvoicePayload({ type: "invoice.paid", id: invoiceId, customer: stripeCustomerId }));
+        expect(paidResponse.status).toBe(200);
+
+        const succeededResponse = await getWebhookResponse(
+          generateInvoicePayload({ type: "invoice.payment_succeeded", id: invoiceId, customer: stripeCustomerId })
+        );
+        expect(succeededResponse.status).toBe(200);
+
+        const wallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+        const expectedBalance = billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT + amount * 10000;
+        expect(wallet?.deploymentAllowance).toBe(`${expectedBalance}.00`);
+
+        const rows = await db.query.StripeTransactions.findMany({ where: eq(stripeTransactionsTable.stripeInvoiceId, invoiceId) });
+        expect(rows).toHaveLength(1);
+        expect(rows[0].status).toBe("succeeded");
+      });
+
+      it("does not credit for an invoice with no matching transaction (double-credit guard)", async () => {
+        const invoiceId = `in_${faker.string.alphanumeric(24)}`;
+
+        const { user, stripeCustomerId } = await setup();
+
+        const response = await getWebhookResponse(generateInvoicePayload({ id: invoiceId, customer: stripeCustomerId }));
+        expect(response.status).toBe(200);
+
+        const wallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+        expect(wallet?.deploymentAllowance).toBe(`${billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT}.00`);
+        expect(wallet?.isTrialing).toBe(true);
+
+        const rows = await db.query.StripeTransactions.findMany({ where: eq(stripeTransactionsTable.stripeInvoiceId, invoiceId) });
+        expect(rows).toHaveLength(0);
+      });
+    });
   });
 
   async function setup() {
     const refillService = container.resolve(RefillService);
     const userWalletRepository = container.resolve(UserWalletRepository);
 
-    vi.spyOn(refillService, "topUpWallet").mockImplementation(async (amountUsd, userId) => {
+    vi.spyOn(refillService, "topUpWallet").mockImplementation(async (amountUsd, userId, options) => {
       const wallet = await userWalletRepository.findOneBy({ userId });
       if (!wallet) return;
+      // Mirror the real service: only graduate the trial when endTrial is not explicitly false
+      const endTrial = options?.endTrial ?? true;
       await userWalletRepository.updateById(wallet.id, {
         deploymentAllowance: wallet.deploymentAllowance + amountUsd * 10000,
-        isTrialing: false
+        ...(endTrial ? { isTrialing: false } : {})
       });
     });
 

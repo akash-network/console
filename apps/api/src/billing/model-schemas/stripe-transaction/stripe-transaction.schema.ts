@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { index, integer, pgEnum, pgTable, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { index, integer, pgEnum, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { Users } from "@src/user/model-schemas";
 
@@ -13,7 +13,7 @@ export const stripeTransactionStatusEnum = pgEnum("stripe_transaction_status", [
   "canceled"
 ]);
 
-export const stripeTransactionTypeEnum = pgEnum("stripe_transaction_type", ["payment_intent", "coupon_claim"]);
+export const stripeTransactionTypeEnum = pgEnum("stripe_transaction_type", ["payment_intent", "coupon_claim", "manual_credit"]);
 
 export const StripeTransactions = pgTable(
   "stripe_transactions",
@@ -46,6 +46,12 @@ export const StripeTransactions = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull()
   },
   table => ({
+    // Partial unique index: enforces one transaction row per invoice (manual-credit/coupon paths) and
+    // indexes the findByInvoiceId lookup. Exactly-once crediting comes from the locked status check in
+    // the webhook; this index just guarantees a single row to credit. payment_intent rows leave it null.
+    stripeInvoiceIdUnique: uniqueIndex("stripe_transactions_stripe_invoice_id_unique")
+      .on(table.stripeInvoiceId)
+      .where(sql`${table.stripeInvoiceId} IS NOT NULL`),
     userIdIdx: index("stripe_transactions_user_id_idx").on(table.userId),
     stripePaymentIntentIdIdx: index("stripe_transactions_stripe_payment_intent_id_idx").on(table.stripePaymentIntentId),
     stripeChargeIdIdx: index("stripe_transactions_stripe_charge_id_idx").on(table.stripeChargeId),
