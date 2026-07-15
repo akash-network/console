@@ -7,6 +7,7 @@ import { JobQueueService } from "@src/core/services/job-queue/job-queue.service"
 import { NotificationHandler } from "@src/notifications/services/notification-handler/notification.handler";
 import { CloseTrialDeploymentHandler } from "../services/close-trial-deployment/close-trial-deployment.handler";
 import { EnableDeploymentAlertHandler } from "../services/enable-deployment-alert/enable-deployment-alert.handler";
+import { FirstPurchaseBonusGrantedHandler } from "../services/first-purchase-bonus-granted/first-purchase-bonus-granted.handler";
 import { TrialDeploymentLeaseCreatedHandler } from "../services/trial-deployment-lease-created/trial-deployment-lease-created.handler";
 import { TrialStartedHandler } from "../services/trial-started/trial-started.handler";
 
@@ -21,7 +22,8 @@ container.register(APP_INITIALIZER, {
         container.resolve(CloseTrialDeploymentHandler),
         container.resolve(TrialDeploymentLeaseCreatedHandler),
         container.resolve(EnableDeploymentAlertHandler),
-        container.resolve(WalletBalanceReloadCheckHandler)
+        container.resolve(WalletBalanceReloadCheckHandler),
+        container.resolve(FirstPurchaseBonusGrantedHandler)
       ]);
     }
   } satisfies AppInitializer

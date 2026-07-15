@@ -3,6 +3,7 @@ import assert from "http-assert";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
+import { FirstPurchaseBonusGranted } from "@src/billing/events/first-purchase-bonus-granted";
 import {
   PaymentMethodRepository,
   type StripeTransactionOutput,
@@ -14,6 +15,7 @@ import { assertIsPayingUser } from "@src/billing/services/paying-user/paying-use
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { WithTransaction } from "@src/core";
+import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { UserRepository } from "@src/user/repositories";
 import { BillingConfigService } from "../billing-config/billing-config.service";
 
@@ -28,7 +30,8 @@ export class StripeWebhookService {
     private readonly userRepository: UserRepository,
     private readonly paymentMethodRepository: PaymentMethodRepository,
     private readonly stripeTransactionRepository: StripeTransactionRepository,
-    private readonly firstPurchaseBonusService: FirstPurchaseBonusService
+    private readonly firstPurchaseBonusService: FirstPurchaseBonusService,
+    private readonly domainEventsService: DomainEventsService
   ) {}
 
   async routeStripeEvent(signature: string, rawEvent: string) {
@@ -204,7 +207,7 @@ export class StripeWebhookService {
       }
     }
 
-    await this.updateTransactionAndTopUp({
+    const bonusAmountCents = await this.updateTransactionAndTopUp({
       transactionId: params.transaction.id,
       chargeId: params.chargeId,
       paymentMethodType: params.paymentMethodType,
@@ -217,6 +220,12 @@ export class StripeWebhookService {
       eventDescription: params.eventDescription,
       endTrial: params.endTrial
     });
+
+    // Published here, not inside updateTransactionAndTopUp: this method is not transactional but that one is,
+    // so the awaited call has committed by now and the bonus-granted email never fires on a rolled-back grant.
+    if (bonusAmountCents > 0) {
+      await this.domainEventsService.publish(new FirstPurchaseBonusGranted({ userId: user.id, bonusAmountCents, paidAmountCents: params.paymentAmount }));
+    }
   }
 
   @WithTransaction()
@@ -232,7 +241,7 @@ export class StripeWebhookService {
     userId: string;
     eventDescription: string;
     endTrial?: boolean;
-  }): Promise<void> {
+  }): Promise<number> {
     const transaction = await this.stripeTransactionRepository.findOneByAndLock({ id: params.transactionId });
 
     if (!transaction) {
@@ -241,7 +250,7 @@ export class StripeWebhookService {
         transactionId: params.transactionId,
         description: params.eventDescription
       });
-      return;
+      return 0;
     }
 
     if (transaction.status === "succeeded") {
@@ -250,7 +259,7 @@ export class StripeWebhookService {
         transactionId: params.transactionId,
         description: params.eventDescription
       });
-      return;
+      return 0;
     }
 
     const bonusAmount = await this.firstPurchaseBonusService.getEligibleBonusAmount(transaction, params.paymentAmount);
@@ -289,6 +298,8 @@ export class StripeWebhookService {
         bonusAmountCents: bonusAmount
       });
     }
+
+    return bonusAmount;
   }
 
   @WithTransaction()
