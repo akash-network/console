@@ -405,15 +405,18 @@ export class StripeService extends Stripe {
       throw new Error("Invalid coupon type. Only fixed amount coupons are supported.");
     }
 
-    assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
-
     const amountToAdd = coupon.amount_off; // amount_off is already in cents
+
+    // Ensure the user has a Stripe customer only once the coupon is known to be redeemable. Brand-new
+    // accounts may not have one yet since it is created lazily by the add-payment-method flow (see
+    // getStripeCustomerId); provisioning it earlier would create customers for invalid/unsupported coupons.
+    const stripeCustomerId = await this.getStripeCustomerId(currentUser);
 
     let invoice: Stripe.Invoice | undefined;
 
     try {
       invoice = await this.invoices.create({
-        customer: currentUser.stripeCustomerId,
+        customer: stripeCustomerId,
         auto_advance: false,
         ...(updateField === "promotion_code" ? { discounts: [{ promotion_code: updateId }] } : { discounts: [{ coupon: updateId }] })
       });
@@ -427,7 +430,7 @@ export class StripeService extends Stripe {
 
       await this.invoiceItems.create({
         amount: amountToAdd,
-        customer: currentUser.stripeCustomerId,
+        customer: stripeCustomerId,
         invoice: invoice.id,
         currency: "usd",
         description: "Akash Network Console"
@@ -729,13 +732,18 @@ export class StripeService extends Stripe {
       return user.stripeCustomerId;
     }
 
-    const customer = await this.customers.create({
-      email: user.email ?? undefined,
-      name: user.username ?? undefined,
-      metadata: {
-        userId: user.id
-      }
-    });
+    // Stripe idempotency keyed on the user id so concurrent provisioning (eager registration +
+    // lazy billing paths) can never create duplicate/orphaned customers before the DB update wins.
+    const customer = await this.customers.create(
+      {
+        email: user.email ?? undefined,
+        name: user.username ?? undefined,
+        metadata: {
+          userId: user.id
+        }
+      },
+      { idempotencyKey: `create-customer:${user.id}` }
+    );
 
     const updated = await this.userRepository.updateBy({ id: user.id, stripeCustomerId: null }, { stripeCustomerId: customer.id }, { returning: true });
 

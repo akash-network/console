@@ -41,11 +41,14 @@ describe(StripeService.name, () => {
       const { service, userRepository } = setup();
       const user = createTestUser({ stripeCustomerId: null });
       const result = await service.getStripeCustomerId(user);
-      expect(service.customers.create).toHaveBeenCalledWith({
-        email: user.email,
-        name: user.username,
-        metadata: { userId: user.id }
-      });
+      expect(service.customers.create).toHaveBeenCalledWith(
+        {
+          email: user.email,
+          name: user.username,
+          metadata: { userId: user.id }
+        },
+        { idempotencyKey: `create-customer:${user.id}` }
+      );
       expect(userRepository.updateBy).toHaveBeenCalledWith(
         { id: user.id, stripeCustomerId: null },
         { stripeCustomerId: StripeSeederCreate().customer.id },
@@ -650,6 +653,80 @@ describe(StripeService.name, () => {
       });
     });
 
+    it("creates a Stripe customer before redeeming when the account has none, then applies the coupon", async () => {
+      const { service, userRepository, stripeTransactionRepository } = setup();
+      const mockUser = createTestUser({ stripeCustomerId: null });
+      const createdCustomer = mock<Stripe.Response<Stripe.Customer>>({ id: "cus_new_456" });
+      const mockCoupon = createTestCoupon({
+        id: "coupon_new",
+        amount_off: 1000,
+        percent_off: null,
+        valid: true,
+        currency: "usd",
+        name: "New User Coupon"
+      });
+      const mockPromotionCode = createTestPromotionCode({
+        id: "promo_new",
+        promotion: {
+          type: "coupon",
+          coupon: mockCoupon
+        }
+      });
+      const mockInvoice = createTestInvoice({ id: "in_new", status: "draft" });
+
+      vi.spyOn(service.customers, "create").mockResolvedValue(createdCustomer);
+      vi.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode);
+      vi.spyOn(service.invoices, "create").mockResolvedValue(mockInvoice);
+      vi.spyOn(service.invoiceItems, "create").mockResolvedValue(mock<Stripe.Response<Stripe.InvoiceItem>>());
+      vi.spyOn(service.invoices, "finalizeInvoice").mockResolvedValue(createTestInvoice({ id: "in_new", status: "paid" }));
+
+      const result = await service.applyCoupon(mockUser, mockPromotionCode.code);
+
+      expect(service.customers.create).toHaveBeenCalledWith(
+        {
+          email: mockUser.email,
+          name: mockUser.username,
+          metadata: { userId: mockUser.id }
+        },
+        { idempotencyKey: `create-customer:${mockUser.id}` }
+      );
+      expect(userRepository.updateBy).toHaveBeenCalledWith(
+        { id: mockUser.id, stripeCustomerId: null },
+        { stripeCustomerId: "cus_new_456" },
+        { returning: true }
+      );
+      expect(service.invoices.create).toHaveBeenCalledWith({
+        customer: "cus_new_456",
+        auto_advance: false,
+        discounts: [{ promotion_code: mockPromotionCode.id }]
+      });
+      expect(service.invoiceItems.create).toHaveBeenCalledWith({
+        amount: 1000,
+        customer: "cus_new_456",
+        invoice: mockInvoice.id,
+        currency: "usd",
+        description: "Akash Network Console"
+      });
+      expect(stripeTransactionRepository.create).toHaveBeenCalledWith({
+        userId: mockUser.id,
+        type: "coupon_claim",
+        status: "pending",
+        amount: 1000,
+        currency: "usd",
+        stripeCouponId: mockCoupon.id,
+        stripePromotionCodeId: mockPromotionCode.id,
+        stripeInvoiceId: mockInvoice.id,
+        description: `Coupon: ${mockCoupon.name}`
+      });
+
+      expect(result).toEqual({
+        coupon: mockPromotionCode,
+        amountAdded: 10,
+        transactionId: "test-transaction-id",
+        transactionStatus: "pending"
+      });
+    });
+
     it("applies coupon successfully when no promotion code found", async () => {
       const { service, stripeTransactionRepository } = setup();
       const mockUser = createTestUser();
@@ -785,6 +862,31 @@ describe(StripeService.name, () => {
       vi.spyOn(service.coupons, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Coupon>>);
 
       await expect(service.applyCoupon(mockUser, "INVALID_CODE")).rejects.toThrow("No valid promotion code or coupon found with the provided code");
+    });
+
+    it("does not provision a Stripe customer for a brand-new account when no matching code is found", async () => {
+      const { service } = setup();
+      const mockUser = createTestUser({ stripeCustomerId: null });
+      vi.spyOn(service.promotionCodes, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PromotionCode>>);
+      vi.spyOn(service.coupons, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Coupon>>);
+
+      await expect(service.applyCoupon(mockUser, "INVALID_CODE")).rejects.toThrow("No valid promotion code or coupon found with the provided code");
+
+      expect(service.customers.create).not.toHaveBeenCalled();
+    });
+
+    it("does not provision a Stripe customer for a brand-new account when the coupon is unsupported", async () => {
+      const { service } = setup();
+      const mockUser = createTestUser({ stripeCustomerId: null });
+      const mockCoupon = createTestCoupon({ percent_off: 20, amount_off: null, valid: true });
+      vi.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(undefined);
+      vi.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] });
+
+      await expect(service.applyCoupon(mockUser, mockCoupon.id)).rejects.toThrow(
+        "Percentage-based coupons are not supported. Only fixed amount coupons are allowed."
+      );
+
+      expect(service.customers.create).not.toHaveBeenCalled();
     });
 
     it("voids invoice on error after invoice is created", async () => {

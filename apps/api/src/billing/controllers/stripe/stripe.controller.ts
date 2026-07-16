@@ -147,7 +147,6 @@ export class StripeController {
   }> {
     const { currentUser } = this.authService;
 
-    assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
     assert(params.couponId, 400, "Coupon ID is required");
     assert(params.userId, 400, "User ID is required");
 
