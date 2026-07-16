@@ -1,66 +1,59 @@
 import { useEffect, useMemo, useState } from "react";
 import { useIntl } from "react-intl";
-import { Button } from "@akashnetwork/ui/components";
-import { REMOVE_SCROLL_CLASS_NAMES } from "@akashnetwork/ui/utils";
-import { Xmark } from "iconoir-react";
+import { Banner } from "@akashnetwork/ui/components";
 
-import { useWallet } from "@src/context/WalletProvider/WalletProvider";
 import { useChainMaintenanceDetails, useGenericBannerDetails, useTopBanner } from "@src/hooks/useTopBanner";
-import { ConnectManagedWalletButton } from "../wallet/ConnectManagedWalletButton";
+import { FundingBanner } from "./FundingBanner/FundingBanner";
 
-/**
- * Important to have this shared class because it ensures that when modal is open,
- * the top banner is properly positioned and doesn't cause layout shifts.
- */
-const TOP_BANNER_CLASS_NAME = `fixed top-0 left-0 right-0 ${REMOVE_SCROLL_CLASS_NAMES.zeroRight}`;
+export const NETWORK_DOWN_BANNER_DEPENDENCIES = { useChainMaintenanceDetails };
 
-function CreditCardBanner() {
-  const { hasManagedWallet } = useWallet();
-
-  return (
-    <div className={`${TOP_BANNER_CLASS_NAME} z-10 flex h-[40px] items-center justify-center bg-primary px-3 py-2 text-primary-foreground md:space-x-4`}>
-      <span className="text-xs font-semibold md:text-sm">Credit Card payments are now available!</span>
-
-      {!hasManagedWallet && <ConnectManagedWalletButton className="flex-shrink-0 hover:text-primary-foreground/80" size="sm" variant="text" />}
-    </div>
-  );
-}
-
-function NetworkDownBanner() {
-  const { date } = useChainMaintenanceDetails();
+export function NetworkDownBanner({ dependencies: d = NETWORK_DOWN_BANNER_DEPENDENCIES }: { dependencies?: typeof NETWORK_DOWN_BANNER_DEPENDENCIES } = {}) {
+  const { date } = d.useChainMaintenanceDetails();
   const [isUpgrading, setIsUpgrading] = useState(false);
 
-  useEffect(() => {
-    if (!date) return;
-
-    let timerId: NodeJS.Timeout | undefined;
-    function checkIsUpgrading() {
-      const isUpgrading = Date.now() >= new Date(date).getTime();
-      setIsUpgrading(isUpgrading);
-      if (!isUpgrading) {
-        timerId = setTimeout(checkIsUpgrading, 60_000);
+  useEffect(
+    function trackBlockchainUpgradeWindow() {
+      if (!date) {
+        setIsUpgrading(false);
+        return;
       }
-    }
 
-    checkIsUpgrading();
-    return () => {
-      if (timerId) clearTimeout(timerId);
-    };
-  }, [date]);
+      let timerId: NodeJS.Timeout | undefined;
+      function checkIsUpgrading() {
+        const hasReachedUpgrade = Date.now() >= new Date(date).getTime();
+        setIsUpgrading(hasReachedUpgrade);
+        if (!hasReachedUpgrade) {
+          timerId = setTimeout(checkIsUpgrading, 60_000);
+        }
+      }
+
+      checkIsUpgrading();
+      return function stopTrackingUpgradeWindow() {
+        if (timerId) clearTimeout(timerId);
+      };
+    },
+    [date]
+  );
 
   return (
-    <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 text-primary-foreground md:space-x-4">
-      <span className="text-xs font-semibold md:text-sm">
-        {isUpgrading
-          ? "We are upgrading the blockchain. Console operations are temporarily restricted to read-only."
-          : "Blockchain unavailable — console in read-only mode until service is restored."}
-      </span>
-    </div>
+    <Banner variant="error">
+      {isUpgrading
+        ? "We are upgrading the blockchain. Console operations are temporarily restricted to read-only."
+        : "Blockchain unavailable — console in read-only mode until service is restored."}
+    </Banner>
   );
 }
 
-function MaintenanceBanner({ onClose }: { onClose: () => void }) {
-  const { date } = useChainMaintenanceDetails();
+export const MAINTENANCE_BANNER_DEPENDENCIES = { useChainMaintenanceDetails };
+
+export function MaintenanceBanner({
+  onClose,
+  dependencies: d = MAINTENANCE_BANNER_DEPENDENCIES
+}: {
+  onClose: () => void;
+  dependencies?: typeof MAINTENANCE_BANNER_DEPENDENCIES;
+}) {
+  const { date } = d.useChainMaintenanceDetails();
   const intl = useIntl();
 
   const upgradeAt = useMemo(
@@ -69,14 +62,9 @@ function MaintenanceBanner({ onClose }: { onClose: () => void }) {
   );
 
   return (
-    <div className={`${TOP_BANNER_CLASS_NAME} z-10 flex h-[40px] items-center justify-center bg-primary px-3 py-2 text-primary-foreground md:space-x-4`}>
-      <span className="text-xs font-semibold md:text-sm">
-        Network upgrade scheduled{upgradeAt ? ` at ${upgradeAt}` : ""}. Console will switch to read-only mode during the upgrade.
-      </span>
-      <Button variant="text" className="rounded-full hover:text-primary-foreground/80" size="icon" onClick={onClose}>
-        <Xmark />
-      </Button>
-    </div>
+    <Banner variant="warning" onClose={onClose}>
+      Network upgrade scheduled{upgradeAt ? ` at ${upgradeAt}` : ""}. Console will switch to read-only mode during the upgrade.
+    </Banner>
   );
 }
 
@@ -86,52 +74,41 @@ export function GenericBanner({ onClose, dependencies = DEPENDENCIES }: { onClos
   const { message, links } = dependencies.useGenericBannerDetails();
 
   return (
-    <div className={`${TOP_BANNER_CLASS_NAME} z-10 flex h-[40px] items-center justify-center gap-2 bg-primary px-3 py-2 text-primary-foreground md:gap-4`}>
-      <span className="text-xs font-semibold md:text-sm">
+    <Banner variant="neutral" onClose={onClose}>
+      <span>
         {message}
         {links?.map(link => (
-          <a
-            key={link.href}
-            href={link.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ml-3 text-primary-foreground underline hover:text-primary-foreground/80"
-          >
+          <a key={link.href} href={link.href} target="_blank" rel="noopener noreferrer" className="ml-3 underline hover:opacity-80">
             {link.label}
           </a>
         ))}
       </span>
-      <Button variant="text" className="rounded-full hover:text-primary-foreground/80" size="icon" onClick={onClose}>
-        <Xmark />
-      </Button>
-    </div>
+    </Banner>
   );
 }
 
+/**
+ * The single top banner, rendered inside the (fixed) app header above the nav row — so the nav can never
+ * cover it and it can wrap to multiple lines on small screens. Returns null when no banner applies.
+ */
 export function TopBanner() {
-  const {
-    isMaintenanceBannerOpen: isMaintananceBannerOpen,
-    setIsMaintenanceBannerOpen: setIsMaintananceBannerOpen,
-    isGenericBannerOpen,
-    setIsGenericBannerOpen,
-    isBlockchainDown,
-    hasCreditCardBanner
-  } = useTopBanner();
+  const { isMaintenanceBannerOpen, setIsMaintenanceBannerOpen, isGenericBannerOpen, setIsGenericBannerOpen, isBlockchainDown, hasFundingBanner } =
+    useTopBanner();
 
   if (isBlockchainDown) {
     return <NetworkDownBanner />;
   }
 
-  if (isMaintananceBannerOpen) {
-    return <MaintenanceBanner onClose={() => setIsMaintananceBannerOpen(false)} />;
+  if (isMaintenanceBannerOpen) {
+    return <MaintenanceBanner onClose={() => setIsMaintenanceBannerOpen(false)} />;
   }
 
   if (isGenericBannerOpen) {
     return <GenericBanner onClose={() => setIsGenericBannerOpen(false)} />;
   }
 
-  if (hasCreditCardBanner) {
-    return <CreditCardBanner />;
+  if (hasFundingBanner) {
+    return <FundingBanner />;
   }
 
   return null;

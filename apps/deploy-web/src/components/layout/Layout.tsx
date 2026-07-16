@@ -1,5 +1,5 @@
 "use client";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import React, { Suspense, useEffect, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { IntlProvider } from "react-intl";
@@ -15,8 +15,18 @@ import { useTopBanner } from "@src/hooks/useTopBanner";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
-import { TopBanner } from "./TopBanner";
 import { TrackingScripts } from "./TrackingScripts";
+
+/**
+ * Offsets the desktop sidebar by the live header height (nav + banner) so it follows the header when the banner
+ * wraps to extra lines, instead of a fixed guess. Re-adding ACCOUNT_BAR_HEIGHT to the height cancels the nav
+ * offset the drawer's inner content already subtracts, so the sidebar bottom still lands on the viewport edge.
+ */
+const APP_HEADER_HEIGHT_CSS = `var(--app-header-height, ${ACCOUNT_BAR_HEIGHT + 40}px)`;
+const SIDEBAR_BELOW_BANNER_STYLE: CSSProperties = {
+  marginTop: APP_HEADER_HEIGHT_CSS,
+  height: `calc(100% - ${APP_HEADER_HEIGHT_CSS} + ${ACCOUNT_BAR_HEIGHT}px)`
+};
 
 type Props = {
   isLoading?: boolean;
@@ -95,11 +105,9 @@ const LayoutApp: React.FunctionComponent<Props> = ({
 
   return (
     <div className={cn("flex h-full flex-col", { "min-h-screen bg-white text-foreground": background === "white" })}>
-      <TopBanner />
-
-      <div className="w-full flex-1" style={{ marginTop: `${ACCOUNT_BAR_HEIGHT + (hasBanner ? 40 : 0)}px` }}>
+      <div className="w-full flex-1" style={{ marginTop: `var(--app-header-height, ${ACCOUNT_BAR_HEIGHT + (hasBanner ? 40 : 0)}px)` }}>
         <div className="h-full overflow-x-auto">
-          <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} className={{ "top-[40px]": hasBanner }} minimal={isStripped} />
+          <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} minimal={isStripped} />
 
           <div className="block h-full w-full flex-grow rounded-none md:flex">
             {!isStripped && (
@@ -108,7 +116,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({
                 isNavOpen={isNavOpen}
                 handleDrawerToggle={handleDrawerToggle}
                 isMobileOpen={isMobileOpen}
-                mdDrawerClassName={{ ["h-[calc(100%-40px)] mt-[97px]"]: hasBanner }}
+                mdDrawerPaperStyle={hasBanner ? SIDEBAR_BELOW_BANNER_STYLE : undefined}
               />
             )}
 
