@@ -732,13 +732,18 @@ export class StripeService extends Stripe {
       return user.stripeCustomerId;
     }
 
-    const customer = await this.customers.create({
-      email: user.email ?? undefined,
-      name: user.username ?? undefined,
-      metadata: {
-        userId: user.id
-      }
-    });
+    // Stripe idempotency keyed on the user id so concurrent provisioning (eager registration +
+    // lazy billing paths) can never create duplicate/orphaned customers before the DB update wins.
+    const customer = await this.customers.create(
+      {
+        email: user.email ?? undefined,
+        name: user.username ?? undefined,
+        metadata: {
+          userId: user.id
+        }
+      },
+      { idempotencyKey: `create-customer:${user.id}` }
+    );
 
     const updated = await this.userRepository.updateBy({ id: user.id, stripeCustomerId: null }, { stripeCustomerId: customer.id }, { returning: true });
 

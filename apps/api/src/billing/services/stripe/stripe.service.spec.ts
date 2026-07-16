@@ -41,11 +41,14 @@ describe(StripeService.name, () => {
       const { service, userRepository } = setup();
       const user = createTestUser({ stripeCustomerId: null });
       const result = await service.getStripeCustomerId(user);
-      expect(service.customers.create).toHaveBeenCalledWith({
-        email: user.email,
-        name: user.username,
-        metadata: { userId: user.id }
-      });
+      expect(service.customers.create).toHaveBeenCalledWith(
+        {
+          email: user.email,
+          name: user.username,
+          metadata: { userId: user.id }
+        },
+        { idempotencyKey: `create-customer:${user.id}` }
+      );
       expect(userRepository.updateBy).toHaveBeenCalledWith(
         { id: user.id, stripeCustomerId: null },
         { stripeCustomerId: StripeSeederCreate().customer.id },
@@ -679,11 +682,14 @@ describe(StripeService.name, () => {
 
       const result = await service.applyCoupon(mockUser, mockPromotionCode.code);
 
-      expect(service.customers.create).toHaveBeenCalledWith({
-        email: mockUser.email,
-        name: mockUser.username,
-        metadata: { userId: mockUser.id }
-      });
+      expect(service.customers.create).toHaveBeenCalledWith(
+        {
+          email: mockUser.email,
+          name: mockUser.username,
+          metadata: { userId: mockUser.id }
+        },
+        { idempotencyKey: `create-customer:${mockUser.id}` }
+      );
       expect(userRepository.updateBy).toHaveBeenCalledWith(
         { id: mockUser.id, stripeCustomerId: null },
         { stripeCustomerId: "cus_new_456" },

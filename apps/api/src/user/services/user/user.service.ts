@@ -60,9 +60,10 @@ export class UserService {
     if (wasInserted) {
       this.analyticsService.track(user.id, "account_created", { category: "user" });
       // Provision a billing customer up front so billing actions (e.g. coupon redemption) never
-      // fail on a brand-new account. Best-effort: a provider outage must not fail registration —
-      // the billing layer lazily ensures the customer on the next billing action as a fallback.
-      await this.customerProvisioner.provisionCustomer(user).catch(error => {
+      // fail on a brand-new account. Fire-and-forget best-effort: registration must not block on
+      // (or fail because of) a slow/unavailable Stripe — the billing layer lazily ensures the
+      // customer on the next billing action as a fallback.
+      void this.customerProvisioner.provisionCustomer(user).catch(error => {
         this.logger.error({ event: "FAILED_TO_PROVISION_CUSTOMER", id: user.id, error });
       });
     }

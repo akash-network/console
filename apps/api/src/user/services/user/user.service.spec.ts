@@ -118,7 +118,25 @@ describe(UserService.name, () => {
       const result = await service.registerUser(createRegisterInput({ emailVerified: true }));
 
       expect(result.id).toBe(user.id);
-      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "FAILED_TO_PROVISION_CUSTOMER", id: user.id, error: provisionError }));
+      // Provisioning is fire-and-forget, so the failure is logged asynchronously.
+      await vi.waitFor(() =>
+        expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "FAILED_TO_PROVISION_CUSTOMER", id: user.id, error: provisionError }))
+      );
+    });
+
+    it("returns without waiting for customer provisioning to settle", async () => {
+      const user = createUser({ emailVerified: true, email: "test@example.com" });
+      const { service, userRepository, notificationService, customerProvisioner } = setup();
+
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
+      notificationService.createDefaultChannel.mockResolvedValue(undefined);
+      // Provisioning never settles; registration must still resolve (this would hang if awaited).
+      customerProvisioner.provisionCustomer.mockReturnValue(new Promise<void>(() => {}));
+
+      const result = await service.registerUser(createRegisterInput({ emailVerified: true }));
+
+      expect(result.id).toBe(user.id);
+      expect(customerProvisioner.provisionCustomer).toHaveBeenCalledWith(user);
     });
   });
 
