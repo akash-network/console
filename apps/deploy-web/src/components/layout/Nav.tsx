@@ -1,4 +1,6 @@
 "use client";
+import type { RefObject } from "react";
+import { useEffect, useRef } from "react";
 import { Button } from "@akashnetwork/ui/components";
 import { cn, REMOVE_SCROLL_CLASS_NAMES } from "@akashnetwork/ui/utils";
 import type { ClassValue } from "clsx";
@@ -10,7 +12,14 @@ import useCookieTheme from "@src/hooks/useTheme";
 import { HackathonCouponNavEntry } from "./HackathonCouponNavEntry/HackathonCouponNavEntry";
 import { AccountMenu } from "./AccountMenu";
 import { AkashLogo } from "./AkashLogo";
+import { TopBanner } from "./TopBanner";
 import { WalletStatus } from "./WalletStatus";
+
+/**
+ * Published to `:root` so the layout can offset content by the header's *actual* height. The header grows
+ * when the top banner wraps to multiple lines on small screens; a fixed guess would hide content behind it.
+ */
+const APP_HEADER_HEIGHT_VAR = "--app-header-height";
 
 export const Nav = ({
   isMobileOpen,
@@ -24,9 +33,13 @@ export const Nav = ({
   minimal?: boolean;
 }>) => {
   const theme = useCookieTheme();
+  const headerRef = useRef<HTMLElement>(null);
+  usePublishHeaderHeight(headerRef);
 
   return (
-    <header className={cn("fixed left-0 right-0 top-0 z-50 border-b border-border bg-header", className, REMOVE_SCROLL_CLASS_NAMES.zeroRight)}>
+    <header ref={headerRef} className={cn("fixed left-0 right-0 top-0 z-50 border-b border-border bg-header", className, REMOVE_SCROLL_CLASS_NAMES.zeroRight)}>
+      <TopBanner />
+
       <div className="flex h-14 items-center justify-between pl-4 pr-4">
         {!!theme && (
           <Link className="flex items-center" href="/">
@@ -64,3 +77,26 @@ export const Nav = ({
     </header>
   );
 };
+
+/** Keeps {@link APP_HEADER_HEIGHT_VAR} in sync with the header's rendered height as the banner appears, wraps, or clears. */
+function usePublishHeaderHeight(ref: RefObject<HTMLElement>) {
+  useEffect(
+    function publishHeaderHeightAsCssVar() {
+      const header = ref.current;
+      if (!header) return;
+
+      const root = document.documentElement;
+      function syncHeight() {
+        root.style.setProperty(APP_HEADER_HEIGHT_VAR, `${header!.offsetHeight}px`);
+      }
+
+      syncHeight();
+      const observer = new ResizeObserver(syncHeight);
+      observer.observe(header);
+      return function stopPublishingHeaderHeight() {
+        observer.disconnect();
+      };
+    },
+    [ref]
+  );
+}

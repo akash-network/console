@@ -1,12 +1,11 @@
 "use client";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import React, { useMemo } from "react";
 import { Button, buttonVariants, Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import type { ClassValue } from "clsx";
 import {
   Book,
   Cloud,
@@ -52,13 +51,13 @@ type Props = {
   handleDrawerToggle: () => void;
   onOpenMenuClick: () => void;
   isNavOpen: boolean;
-  mdDrawerClassName?: ClassValue;
+  mdDrawerPaperStyle?: CSSProperties;
 };
 
 const DRAWER_WIDTH = 240;
 const CLOSED_DRAWER_WIDTH = 57;
 
-export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDrawerToggle, isNavOpen, onOpenMenuClick, mdDrawerClassName }) => {
+export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDrawerToggle, isNavOpen, onOpenMenuClick, mdDrawerPaperStyle }) => {
   const { settings } = useSettings();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const muiTheme = useMuiTheme();
@@ -371,14 +370,11 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         className="hidden md:block"
         variant="permanent"
         PaperProps={{
-          className: cn(
-            "border-none ease z-[1000] bg-card transition-[width] duration-300 box-border overflow-hidden mt-[57px]",
-            {
-              ["md:w-[240px]"]: isNavOpen,
-              ["md:w-[57px]"]: !isNavOpen
-            },
-            mdDrawerClassName
-          )
+          className: cn("border-none ease z-[1000] bg-card transition-[width] duration-300 box-border overflow-hidden mt-[57px]", {
+            ["md:w-[240px]"]: isNavOpen,
+            ["md:w-[57px]"]: !isNavOpen
+          }),
+          style: mdDrawerPaperStyle
         }}
         open
       >

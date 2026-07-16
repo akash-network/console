@@ -4,7 +4,7 @@ import { atom, useAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { useHasCreditCardBanner } from "@src/hooks/useHasCreditCardBanner";
+import { useHasFundingBanner } from "@src/hooks/useHasFundingBanner";
 import { useWhen } from "@src/hooks/useWhen";
 import { useSettings } from "../context/SettingsProvider";
 
@@ -29,7 +29,7 @@ interface ITopBannerContext {
   setIsGenericBannerOpen: (isGenericBannerOpen: boolean) => void;
   isGenericBannerOpen: boolean;
   isBlockchainDown: boolean;
-  hasCreditCardBanner: boolean;
+  hasFundingBanner: boolean;
 }
 
 const IS_MAINTENANCE_ATOM = atom(false);
@@ -49,7 +49,7 @@ export function useTopBanner(): ITopBannerContext {
   const maintenanceBannerFlag = useVariant("maintenance_banner");
   const genericBannerFlag = useVariant("generic_banner");
   const { settings } = useSettings();
-  const hasCreditCardBanner = useHasCreditCardBanner();
+  const hasFundingBanner = useHasFundingBanner();
   const { dismissId } = useGenericBannerDetails();
 
   const [isMaintenanceBannerOpen, setIsMaintenanceBannerOpen] = useAtom(IS_MAINTENANCE_ATOM);
@@ -61,8 +61,8 @@ export function useTopBanner(): ITopBannerContext {
   });
 
   const hasBanner = useMemo(
-    () => isMaintenanceBannerOpen || isGenericBannerOpen || settings.isBlockchainDown || hasCreditCardBanner,
-    [isMaintenanceBannerOpen, isGenericBannerOpen, settings.isBlockchainDown, hasCreditCardBanner]
+    () => isMaintenanceBannerOpen || isGenericBannerOpen || settings.isBlockchainDown || hasFundingBanner,
+    [isMaintenanceBannerOpen, isGenericBannerOpen, settings.isBlockchainDown, hasFundingBanner]
   );
 
   return useMemo(
@@ -73,17 +73,9 @@ export function useTopBanner(): ITopBannerContext {
       isGenericBannerOpen,
       setIsGenericBannerOpen,
       isBlockchainDown: settings.isBlockchainDown,
-      hasCreditCardBanner
+      hasFundingBanner
     }),
-    [
-      hasBanner,
-      isMaintenanceBannerOpen,
-      setIsMaintenanceBannerOpen,
-      isGenericBannerOpen,
-      setIsGenericBannerOpen,
-      settings.isBlockchainDown,
-      hasCreditCardBanner
-    ]
+    [hasBanner, isMaintenanceBannerOpen, setIsMaintenanceBannerOpen, isGenericBannerOpen, setIsGenericBannerOpen, settings.isBlockchainDown, hasFundingBanner]
   );
 }
 
