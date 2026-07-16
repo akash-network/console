@@ -556,7 +556,7 @@ export const SdlBuilderFormValuesSchema = z
         continue;
       }
       const expose = data.services[i].expose;
-      const managedSshIndex = expose.findIndex(entry => entry.as === 22);
+      const managedSshIndex = expose.findIndex(entry => entry.port === 22 && entry.as === 22);
       for (let j = 0; j < expose.length; j++) {
         if (j === managedSshIndex) {
           continue;
@@ -571,17 +571,15 @@ export const SdlBuilderFormValuesSchema = z
       }
     }
 
-    if (data.hasSSHKey) {
-      for (let i = 0; i < data.services.length; i++) {
-        if (!data.services[i].sshPubKey) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "SSH Public key is required.",
-            path: ["services", i, "sshPubKey"],
-            fatal: true
-          });
-          return z.NEVER;
-        }
+    for (let i = 0; i < data.services.length; i++) {
+      if ((data.hasSSHKey || isVmImage(data.services[i].image)) && !data.services[i].sshPubKey) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "SSH Public key is required.",
+          path: ["services", i, "sshPubKey"],
+          fatal: true
+        });
+        return z.NEVER;
       }
     }
 

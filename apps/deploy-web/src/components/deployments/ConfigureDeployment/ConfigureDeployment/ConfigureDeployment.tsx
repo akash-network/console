@@ -67,7 +67,7 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
     [intent.templateId, intent.sdlStrategy, intent.bidStrategy, intent.dseq, draft.draftId, intent.vm]
   );
 
-  const templateId = searchParams?.get("templateId") ?? undefined;
+  const templateId = intent.templateId;
   const deploySdl = useAtomValue(sdlStore.deploySdl);
   const hardcodedTemplate: TemplateCreation | undefined = templateId ? hardcodedTemplates.find(template => template.code === templateId) : undefined;
   const fetchedTemplateId = draft.persistedSdl === undefined && !hardcodedTemplate ? templateId : undefined;

@@ -237,12 +237,14 @@ const ExposePortsList: FC<ExposePortsListProps> = ({ serviceIndex, commitsRef })
   const { fields, append, remove } = useFieldArray({ control, name: `services.${serviceIndex}.expose`, keyName: "fieldId" });
   const image = useWatch({ control, name: `services.${serviceIndex}.image` });
   /**
-   * On a VM service the row exposed as port 22 is the managed SSH row: read-only and non-removable.
-   * `fields` is the field-array snapshot (updated on append/remove/reset, not on typing), so the managed
-   * row can't hop to another row mid-session while the user edits port numbers. When no such row exists
-   * (a carried-in SDL without one is taken literally) there is nothing to protect.
+   * On a VM service the exact 22-to-22 row is the managed SSH row: read-only and non-removable. The
+   * exact-pair predicate matches the seeded shape and the schema's reservation, so a row merely squatting
+   * on one side of port 22 stays editable and gets the validation error instead of a lock. `fields` is the
+   * field-array snapshot (updated on append/remove/reset, not on typing), so the managed row can't hop to
+   * another row mid-session while the user edits port numbers. When no such row exists (a carried-in SDL
+   * without one is taken literally) there is nothing to protect.
    */
-  const managedSshIndex = isVmImage(image ?? "") ? fields.findIndex(field => field.as === 22) : -1;
+  const managedSshIndex = isVmImage(image ?? "") ? fields.findIndex(field => field.port === 22 && field.as === 22) : -1;
 
   const add = useCallback(() => {
     append(newExpose() as ExposeType);

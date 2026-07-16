@@ -191,6 +191,30 @@ describe(RuntimeCard.name, () => {
     expect(screen.queryByText("VMs run as a single instance.")).not.toBeInTheDocument();
   });
 
+  it("opens expanded for a vm service so the required key field is visible on entry", () => {
+    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", expanded: false });
+
+    expect(screen.getByLabelText("SSH public key")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Expand Runtime" })).not.toBeInTheDocument();
+  });
+
+  it("shows the missing-key error inline when a vm submit is rejected", async () => {
+    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", resolver: zodResolver(SdlBuilderFormValuesSchema), expanded: false });
+
+    await userEvent.click(screen.getByRole("button", { name: "Request quotes" }));
+
+    await waitFor(() => expect(screen.getByText("SSH Public key is required.")).toBeInTheDocument());
+  });
+
+  it("marks the collapsed card when a submit is rejected on its hidden ssh key field", async () => {
+    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", resolver: zodResolver(SdlBuilderFormValuesSchema), expanded: false });
+
+    await userEvent.click(screen.getByRole("button", { name: "Collapse Runtime" }));
+    await userEvent.click(screen.getByRole("button", { name: "Request quotes" }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Expand Runtime" }).closest(".border-destructive")).not.toBeNull());
+  });
+
   it("re-validates the CPU group limit when the replica count changes", async () => {
     const resolver: Resolver<SdlBuilderFormValuesType> = async values => {
       const errors = values.services[0].count > 1 ? { services: { 0: { profile: { cpu: { type: "max", message: "CPU group limit exceeded" } } } } } : {};
@@ -297,7 +321,10 @@ describe(RuntimeCard.name, () => {
     );
 
     if (input.expanded ?? true) {
-      fireEvent.click(screen.getByRole("button", { name: "Expand Runtime" }));
+      const expandTrigger = screen.queryByRole("button", { name: "Expand Runtime" });
+      if (expandTrigger) {
+        fireEvent.click(expandTrigger);
+      }
     }
 
     return { getValues: () => getValues() };

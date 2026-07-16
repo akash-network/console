@@ -60,11 +60,39 @@ type Props = {
  * Container-VM constraints: a service running a managed SSH-VM image has its replica stepper pinned
  * at a single instance, and while ANY service in the deployment is a VM, "Expose SSH" is forced on
  * (checked and disabled, key field always shown). The force keys off any-service because `hasSSHKey`
- * is deployment-wide: unchecking it from a sibling service's card would strip the VM's key too.
+ * is deployment-wide: unchecking it from a sibling service's card would strip the VM's key too. The
+ * force lives on the card (not the collapsible body, which unmounts while collapsed), a VM service's
+ * card opens expanded so the required key field is visible on entry, and a submit rejected on this
+ * card's fields (missing key, replica limit) marks the collapsed header, mirroring ExposePortsCard.
  */
 export const RuntimeCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
+  const { control, formState } = useFormContext<SdlBuilderFormValuesType>();
+  const hasSSHKey = useController({ control, name: "hasSSHKey" });
+  const services = useWatch({ control, name: "services" });
+  const isVm = isVmImage(services?.[serviceIndex]?.image ?? "");
+  const hasVmService = (services ?? []).some(service => isVmImage(service?.image ?? ""));
+  const { isSubmitted } = formState;
+  const serviceErrors = formState.errors.services?.[serviceIndex];
+  const hasErrors = isSubmitted && !!(serviceErrors?.sshPubKey || serviceErrors?.count);
+
+  useEffect(
+    function forceSshWhileVmServiceExists() {
+      if (hasVmService && !hasSSHKey.field.value) {
+        hasSSHKey.field.onChange(true);
+      }
+    },
+    [hasVmService, hasSSHKey.field]
+  );
+
   return (
-    <d.CollapsibleCard defaultOpen={false} locked={locked} title="Runtime" icon={<SettingsIcon className="h-4 w-4" />} infoTooltip={runtimeTooltip}>
+    <d.CollapsibleCard
+      defaultOpen={isVm}
+      locked={locked}
+      title="Runtime"
+      icon={<SettingsIcon className="h-4 w-4" />}
+      infoTooltip={runtimeTooltip}
+      className={hasErrors ? "border-destructive dark:border-destructive" : undefined}
+    >
       <fieldset disabled={locked} className="flex min-w-0 flex-col gap-4 border-0 p-0">
         <ReplicasField serviceIndex={serviceIndex} dependencies={d} />
 
@@ -123,15 +151,6 @@ const SshKeyField: FC<Required<Omit<Props, "locked">>> = ({ serviceIndex, depend
   const sshPubKey = useController({ control, name: `services.${serviceIndex}.sshPubKey` });
   const services = useWatch({ control, name: "services" });
   const hasVmService = (services ?? []).some(service => isVmImage(service?.image ?? ""));
-
-  useEffect(
-    function forceSshWhileVmServiceExists() {
-      if (hasVmService && !hasSSHKey.field.value) {
-        hasSSHKey.field.onChange(true);
-      }
-    },
-    [hasVmService, hasSSHKey.field]
-  );
 
   const applyKeyToAllServices = useCallback(
     (publicKey: string) => {

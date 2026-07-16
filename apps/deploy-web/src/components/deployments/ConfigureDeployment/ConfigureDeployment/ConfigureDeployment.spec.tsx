@@ -119,6 +119,13 @@ describe(ConfigureDeployment.name, () => {
     expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialSdl: "restored: sdl" }), expect.anything());
   });
 
+  it("ignores a templateId carried alongside vm=true", () => {
+    const { ConfigureDeploymentForm, usePublicTemplate } = setup({ templateId: helloWorldTemplate.code, vm: true });
+
+    expect(usePublicTemplate).toHaveBeenCalledWith(undefined);
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialSdl: undefined }), expect.anything());
+  });
+
   it("routes an auto-deploy intent to the auto flow with the shared flow, not the manual form", () => {
     const { AutoDeployFlow, ConfigureDeploymentForm, DeploymentFlowProvider } = setup({
       templateId: helloWorldTemplate.code,
