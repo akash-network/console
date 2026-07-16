@@ -13,4 +13,5 @@ export type FeatureFlag =
   | "ui_sdl_preview_panel"
   | "ui_build_and_deploy"
   | "hackathons"
-  | "first_purchase_bonus";
+  | "first_purchase_bonus"
+  | "ui_top_nav";

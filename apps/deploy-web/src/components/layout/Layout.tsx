@@ -10,9 +10,11 @@ import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useOnboardingChrome } from "@src/hooks/useOnboardingChrome";
 import { useTopBanner } from "@src/hooks/useTopBanner";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
+import { TopNav } from "./TopNav/TopNav";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
 import { TrackingScripts } from "./TrackingScripts";
@@ -88,6 +90,8 @@ const LayoutApp: React.FunctionComponent<Props> = ({
   const { isWalletLoaded } = useWallet();
   const { hasBanner } = useTopBanner();
   const { isStripped } = useOnboardingChrome();
+  const isTopNavEnabled = useFlag("ui_top_nav");
+  const hasSidebar = !isTopNavEnabled && !isStripped;
 
   const onOpenMenuClick = () => {
     setIsNavOpen(prev => {
@@ -107,10 +111,10 @@ const LayoutApp: React.FunctionComponent<Props> = ({
     <div className={cn("flex h-full flex-col", { "min-h-screen bg-white text-foreground": background === "white" })}>
       <div className="w-full flex-1" style={{ marginTop: `var(--app-header-height, ${ACCOUNT_BAR_HEIGHT + (hasBanner ? 40 : 0)}px)` }}>
         <div className="h-full overflow-x-auto">
-          <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} minimal={isStripped} />
+          {isTopNavEnabled ? <TopNav minimal={isStripped} /> : <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} minimal={isStripped} />}
 
           <div className="block h-full w-full flex-grow rounded-none md:flex">
-            {!isStripped && (
+            {hasSidebar && (
               <Sidebar
                 onOpenMenuClick={onOpenMenuClick}
                 isNavOpen={isNavOpen}
@@ -122,8 +126,8 @@ const LayoutApp: React.FunctionComponent<Props> = ({
 
             <div
               className={cn("ease ml-0 h-full flex-grow overflow-x-auto transition-[margin-left] duration-300", {
-                ["md:ml-[240px]"]: !isStripped && isNavOpen,
-                ["md:ml-[57px]"]: !isStripped && !isNavOpen
+                ["md:ml-[240px]"]: hasSidebar && isNavOpen,
+                ["md:ml-[57px]"]: hasSidebar && !isNavOpen
               })}
             >
               {isLoading !== undefined && <LinearLoadingSkeleton isLoading={isLoading} />}
