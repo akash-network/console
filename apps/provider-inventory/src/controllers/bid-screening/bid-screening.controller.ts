@@ -13,7 +13,7 @@ export class BidScreeningController {
   }
 
   async screenProviders(request: BidScreeningRequest, options?: Abortable): Promise<BidScreeningResponse> {
-    const results = await this.#bidScreeningService.findMatchingProviders(request as BidScreeningInput, options);
+    const results = await this.#bidScreeningService.findMatchingProviders(request as unknown as BidScreeningInput, options);
     return { providers: results };
   }
 }

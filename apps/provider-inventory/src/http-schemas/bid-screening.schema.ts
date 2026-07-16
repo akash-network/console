@@ -65,7 +65,14 @@ const ResourceSchema = z.object({
     attributes: z.array(AttributeSchema).optional()
   }),
   storage: z.array(StorageResourceSchema),
-  endpoints: z.array(z.unknown()).optional().optional()
+  endpoints: z
+    .array(
+      z.object({
+        kind: z.enum(["SHARED_HTTP", "RANDOM_PORT", "LEASED_IP", "UNRECOGNIZED"]).optional(),
+        sequenceNumber: z.number({ coerce: true }).int().nonnegative().optional()
+      })
+    )
+    .optional()
 });
 
 const PriceSchema = z.object({
