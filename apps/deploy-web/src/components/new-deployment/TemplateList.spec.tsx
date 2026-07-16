@@ -30,12 +30,12 @@ describe(TemplateList.name, () => {
 
   it("hides the Agent mode panel when the flag is disabled", () => {
     setup({ isAgentModeEnabled: false });
-    expect(screen.queryByText("Deploy with Agent mode")).not.toBeInTheDocument();
+    expect(screen.queryByText("Deploy with your agent")).not.toBeInTheDocument();
   });
 
   it("shows the Agent mode panel when the flag is enabled", () => {
     setup({ isAgentModeEnabled: true });
-    expect(screen.getByText("Deploy with Agent mode")).toBeInTheDocument();
+    expect(screen.getByText("Deploy with your agent")).toBeInTheDocument();
   });
 
   it("uploads a valid SDL into a configure draft and routes to configure when the redesign flag is on", async () => {

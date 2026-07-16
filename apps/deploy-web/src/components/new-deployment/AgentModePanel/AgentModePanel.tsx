@@ -32,7 +32,7 @@ export const AgentModePanel: React.FunctionComponent = () => {
               <Sparks className="h-5 w-5" />
             </div>
             <div className="space-y-0.5">
-              <h3 className="text-base font-bold tracking-tight">Deploy with Agent mode</h3>
+              <h3 className="text-base font-bold tracking-tight">Deploy with your agent</h3>
               <p className="max-w-2xl text-sm text-muted-foreground">
                 Describe your deployment in plain language. The Akash skill drafts the SDL and deploys it from your coding agent.
               </p>
@@ -40,7 +40,7 @@ export const AgentModePanel: React.FunctionComponent = () => {
           </div>
           <CollapsibleTrigger asChild>
             <Button variant="outline" size="sm" className="shrink-0 gap-2 self-start sm:self-center">
-              <span>Set up Agent mode</span>
+              <span>Set up with your agent</span>
               <NavArrowDown className={cn("h-4 w-4 transition-transform duration-200", isOpen && "rotate-180")} />
             </Button>
           </CollapsibleTrigger>
