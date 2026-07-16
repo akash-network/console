@@ -10,7 +10,6 @@ import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
-import type { CustomerProvisioner } from "@src/user/services/customer-provisioner/customer-provisioner";
 import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
 
@@ -349,8 +348,7 @@ describe(UserService.name, () => {
       auth0Service,
       mock<EmailVerificationCodeService>({
         sendCode: vi.fn().mockResolvedValue({ codeSentAt: new Date().toISOString() })
-      }),
-      mock<CustomerProvisioner>({ provisionCustomer: vi.fn().mockResolvedValue(undefined) })
+      })
     );
 
     return { service, analyticsService, logger, auth0Service, userRepository };

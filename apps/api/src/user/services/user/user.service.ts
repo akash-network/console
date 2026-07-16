@@ -1,6 +1,6 @@
 import assert from "http-assert";
 import randomInt from "lodash/random";
-import { inject, singleton } from "tsyringe";
+import { singleton } from "tsyringe";
 
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
@@ -8,7 +8,6 @@ import { LoggerService } from "@src/core/providers/logging.provider";
 import { getPostgresError, isUniqueViolation } from "@src/core/repositories/base.repository";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
-import { CUSTOMER_PROVISIONER, type CustomerProvisioner } from "@src/user/services/customer-provisioner/customer-provisioner";
 import { UserInput, type UserOutput, UserRepository } from "../../repositories/user/user.repository";
 
 @singleton()
@@ -19,8 +18,7 @@ export class UserService {
     private readonly logger: LoggerService,
     private readonly notificationService: NotificationService,
     private readonly auth0: Auth0Service,
-    private readonly emailVerificationCodeService: EmailVerificationCodeService,
-    @inject(CUSTOMER_PROVISIONER) private readonly customerProvisioner: CustomerProvisioner
+    private readonly emailVerificationCodeService: EmailVerificationCodeService
   ) {}
 
   async registerUser(data: RegisterUserInput): Promise<{
@@ -59,13 +57,6 @@ export class UserService {
 
     if (wasInserted) {
       this.analyticsService.track(user.id, "account_created", { category: "user" });
-      // Provision a billing customer up front so billing actions (e.g. coupon redemption) never
-      // fail on a brand-new account. Fire-and-forget best-effort: registration must not block on
-      // (or fail because of) a slow/unavailable Stripe — the billing layer lazily ensures the
-      // customer on the next billing action as a fallback.
-      void this.customerProvisioner.provisionCustomer(user).catch(error => {
-        this.logger.error({ event: "FAILED_TO_PROVISION_CUSTOMER", id: user.id, error });
-      });
     }
 
     const result = await this.notificationService.createDefaultChannel(user).catch(error => ({ error }));

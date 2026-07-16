@@ -273,28 +273,6 @@ describe(StripeController.name, () => {
         }
       });
     });
-
-    it("redeems a coupon on a brand-new account without a Stripe customer", async () => {
-      const { controller, stripe, user } = setup({ stripeCustomerId: null });
-      const transactionId = faker.string.uuid();
-      const mockCoupon = mock<Stripe.Coupon>({ id: faker.string.uuid() });
-
-      stripe.applyCoupon.mockResolvedValue({
-        coupon: mockCoupon,
-        amountAdded: 10,
-        transactionId,
-        transactionStatus: "pending"
-      });
-
-      const couponId = faker.string.alphanumeric(10);
-      const result = await controller.applyCoupon({
-        couponId,
-        userId: user.id
-      });
-
-      expect(stripe.applyCoupon).toHaveBeenCalledWith(user, couponId);
-      expect(result.data).toMatchObject({ coupon: mockCoupon, amountAdded: 10, transactionId, transactionStatus: "pending" });
-    });
   });
 
   describe("removePaymentMethod", () => {
@@ -319,8 +297,8 @@ describe(StripeController.name, () => {
     });
   });
 
-  function setup(input: { stripeCustomerId?: string | null } = {}) {
-    const user = createUser("stripeCustomerId" in input ? { stripeCustomerId: input.stripeCustomerId } : {});
+  function setup() {
+    const user = createUser();
     const payingUser: PayingUser = { ...user, stripeCustomerId: user.stripeCustomerId! };
     const stripe = mock<StripeService>();
     stripe.paymentMethods = mock<Stripe.PaymentMethodsResource>();

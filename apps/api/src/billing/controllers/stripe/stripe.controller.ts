@@ -147,8 +147,6 @@ export class StripeController {
   }> {
     const { currentUser } = this.authService;
 
-    // The Stripe customer is ensured lazily inside stripe.applyCoupon (getStripeCustomerId),
-    // so brand-new accounts without a customer can still redeem — no pre-gate assert here.
     assert(params.couponId, 400, "Coupon ID is required");
     assert(params.userId, 400, "User ID is required");
 

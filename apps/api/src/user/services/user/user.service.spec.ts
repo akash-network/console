@@ -1,7 +1,7 @@
 import "@test/mocks/logger-service.mock";
 
 import { faker } from "@faker-js/faker";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
@@ -10,7 +10,6 @@ import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
-import type { CustomerProvisioner } from "@src/user/services/customer-provisioner/customer-provisioner";
 import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
 
@@ -81,63 +80,6 @@ describe(UserService.name, () => {
 
       expect(analyticsService.track).not.toHaveBeenCalled();
     });
-
-    it("provisions a billing customer when the user was newly created", async () => {
-      const user = createUser({ emailVerified: true, email: "test@example.com" });
-      const { service, userRepository, notificationService, customerProvisioner } = setup();
-
-      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
-      notificationService.createDefaultChannel.mockResolvedValue(undefined);
-
-      await service.registerUser(createRegisterInput({ emailVerified: true }));
-
-      expect(customerProvisioner.provisionCustomer).toHaveBeenCalledWith(user);
-    });
-
-    it("does not provision a billing customer when the user already existed", async () => {
-      const user = createUser({ emailVerified: true, email: "test@example.com" });
-      const { service, userRepository, notificationService, customerProvisioner } = setup();
-
-      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
-      notificationService.createDefaultChannel.mockResolvedValue(undefined);
-
-      await service.registerUser(createRegisterInput({ emailVerified: true }));
-
-      expect(customerProvisioner.provisionCustomer).not.toHaveBeenCalled();
-    });
-
-    it("logs error but does not throw when customer provisioning fails", async () => {
-      const user = createUser({ emailVerified: true, email: "test@example.com" });
-      const { service, userRepository, notificationService, customerProvisioner, logger } = setup();
-      const provisionError = new Error("Stripe unavailable");
-
-      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
-      notificationService.createDefaultChannel.mockResolvedValue(undefined);
-      customerProvisioner.provisionCustomer.mockRejectedValue(provisionError);
-
-      const result = await service.registerUser(createRegisterInput({ emailVerified: true }));
-
-      expect(result.id).toBe(user.id);
-      // Provisioning is fire-and-forget, so the failure is logged asynchronously.
-      await vi.waitFor(() =>
-        expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "FAILED_TO_PROVISION_CUSTOMER", id: user.id, error: provisionError }))
-      );
-    });
-
-    it("returns without waiting for customer provisioning to settle", async () => {
-      const user = createUser({ emailVerified: true, email: "test@example.com" });
-      const { service, userRepository, notificationService, customerProvisioner } = setup();
-
-      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
-      notificationService.createDefaultChannel.mockResolvedValue(undefined);
-      // Provisioning never settles; registration must still resolve (this would hang if awaited).
-      customerProvisioner.provisionCustomer.mockReturnValue(new Promise<void>(() => {}));
-
-      const result = await service.registerUser(createRegisterInput({ emailVerified: true }));
-
-      expect(result.id).toBe(user.id);
-      expect(customerProvisioner.provisionCustomer).toHaveBeenCalledWith(user);
-    });
   });
 
   function setup() {
@@ -147,19 +89,10 @@ describe(UserService.name, () => {
     const notificationService = mock<NotificationService>();
     const auth0Service = mock<Auth0Service>();
     const emailVerificationCodeService = mock<EmailVerificationCodeService>();
-    const customerProvisioner = mock<CustomerProvisioner>({ provisionCustomer: vi.fn().mockResolvedValue(undefined) });
 
-    const service = new UserService(
-      userRepository,
-      analyticsService,
-      logger,
-      notificationService,
-      auth0Service,
-      emailVerificationCodeService,
-      customerProvisioner
-    );
+    const service = new UserService(userRepository, analyticsService, logger, notificationService, auth0Service, emailVerificationCodeService);
 
-    return { service, userRepository, analyticsService, logger, notificationService, auth0Service, emailVerificationCodeService, customerProvisioner };
+    return { service, userRepository, analyticsService, logger, notificationService, auth0Service, emailVerificationCodeService };
   }
 
   function createRegisterInput(overrides: Partial<RegisterUserInput> = {}): RegisterUserInput {
