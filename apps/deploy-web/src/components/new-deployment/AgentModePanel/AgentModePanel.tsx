@@ -48,24 +48,34 @@ export const AgentModePanel: React.FunctionComponent = () => {
 
         <CollapsibleContent>
           <div className="mt-5 grid grid-cols-1 gap-x-8 gap-y-6 border-t pt-5 md:grid-cols-3">
-            <AgentModeStep index={1} title="Install the Akash skill">
-              <p>In Claude Code, Codex, or OpenCode:</p>
-              <CommandLine command={SKILL_INSTALL_COMMAND} />
-            </AgentModeStep>
+            <AgentModeStep
+              index={1}
+              title="Install the Akash skill"
+              description="In Claude Code, Codex, or OpenCode:"
+              action={<CommandLine command={SKILL_INSTALL_COMMAND} />}
+            />
 
-            <AgentModeStep index={2} title="Create an API key">
-              <p>The agent deploys on your behalf using a Console API key.</p>
-              <Link href={UrlService.userApiKeys()} className="inline-flex font-medium text-primary hover:underline">
-                Go to API keys →
-              </Link>
-            </AgentModeStep>
+            <AgentModeStep
+              index={2}
+              title="Create an API key"
+              description="The agent deploys on your behalf using a Console API key."
+              action={
+                <Link href={UrlService.userApiKeys()} className="inline-flex font-medium text-primary hover:underline">
+                  Go to API keys →
+                </Link>
+              }
+            />
 
-            <AgentModeStep index={3} title="Read the setup guide">
-              <p>Full walkthrough for connecting your agent and deploying.</p>
-              <span className="font-medium text-primary hover:underline">
-                <ExternalLink href={AI_AGENTS_DOCS_URL} text="Setup guide" />
-              </span>
-            </AgentModeStep>
+            <AgentModeStep
+              index={3}
+              title="Read the setup guide"
+              description="Full walkthrough for connecting your agent and deploying."
+              action={
+                <span className="font-medium text-primary hover:underline">
+                  <ExternalLink href={AI_AGENTS_DOCS_URL} text="Setup guide" />
+                </span>
+              }
+            />
           </div>
         </CollapsibleContent>
       </Collapsible>
@@ -76,16 +86,18 @@ export const AgentModePanel: React.FunctionComponent = () => {
 type AgentModeStepProps = {
   index: number;
   title: string;
-  children: React.ReactNode;
+  description: React.ReactNode;
+  action: React.ReactNode;
 };
 
-const AgentModeStep: React.FunctionComponent<AgentModeStepProps> = ({ index, title, children }) => (
-  <div>
+const AgentModeStep: React.FunctionComponent<AgentModeStepProps> = ({ index, title, description, action }) => (
+  <div className="flex h-full flex-col">
     <div className="flex items-center gap-2.5">
       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-secondary text-xs font-semibold text-muted-foreground">{index}</span>
       <h4 className="text-sm font-semibold">{title}</h4>
     </div>
-    <div className="mt-3 space-y-3 text-sm text-muted-foreground">{children}</div>
+    <p className="mt-3 text-sm text-muted-foreground">{description}</p>
+    <div className="mt-auto pt-4">{action}</div>
   </div>
 );
 
