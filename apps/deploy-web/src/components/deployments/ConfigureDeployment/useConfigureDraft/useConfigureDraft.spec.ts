@@ -91,7 +91,7 @@ describe(useConfigureDraft.name, () => {
     });
     expect(result.current.persistedSdl).toBe("sdl: a");
 
-    rerender({ sdlStrategy: "edit", bidStrategy: "select", draftId: "draft-b" });
+    rerender({ sdlStrategy: "edit", bidStrategy: "select", draftId: "draft-b", vm: false });
 
     expect(result.current.draftId).toBe("draft-b");
     expect(result.current.persistedSdl).toBe("sdl: b");
@@ -131,7 +131,7 @@ describe(useConfigureDraft.name, () => {
     const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => clock++);
 
     for (let index = 0; index < 25; index++) {
-      rerender({ sdlStrategy: "edit", bidStrategy: "select", draftId: `draft-${index}` });
+      rerender({ sdlStrategy: "edit", bidStrategy: "select", draftId: `draft-${index}`, vm: false });
       result.current.save(`sdl-${index}`);
     }
     nowSpy.mockRestore();
@@ -179,7 +179,7 @@ describe(useConfigureDraft.name, () => {
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace }),
       mintDraftId
     };
-    const initialProps: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", ...input.intent };
+    const initialProps: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", vm: false, ...input.intent };
 
     return {
       ...renderHook((intent: DeploymentIntent) => useConfigureDraft(intent, dependencies), { initialProps }),

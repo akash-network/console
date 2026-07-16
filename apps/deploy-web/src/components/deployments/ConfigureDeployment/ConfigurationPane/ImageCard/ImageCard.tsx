@@ -1,6 +1,6 @@
 import type { FC } from "react";
-import { useCallback, useState } from "react";
-import { useController, useFormContext } from "react-hook-form";
+import { useCallback, useEffect, useState } from "react";
+import { useController, useFormContext, useWatch } from "react-hook-form";
 import {
   Checkbox,
   CollapsibleCard,
@@ -16,12 +16,13 @@ import {
   SelectTrigger,
   SelectValue
 } from "@akashnetwork/ui/components";
-import { BoxIcon, EyeClosedIcon, EyeIcon } from "lucide-react";
+import { BoxIcon, EyeClosedIcon, EyeIcon, MonitorIcon } from "lucide-react";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { CUSTOM_HOST_ID } from "@src/types";
 import { normalizeDockerImage } from "@src/utils/sdl/normalizeDockerImage";
-import { dockerImageTooltip } from "../cardTooltips";
+import { isVmImage, SSH_VM_IMAGES } from "@src/utils/sdl/vmImages";
+import { dockerImageTooltip, operatingSystemTooltip } from "../cardTooltips";
 import { SELECT_TRUNCATE_VALUE } from "../selectStyles";
 
 export const DEPENDENCIES = { CollapsibleCard };
@@ -52,19 +53,74 @@ const defaultCredentials = { host: "docker.io", username: "", password: "" };
  * behind the "Private registry" toggle, the host/username/password credentials
  * (`hasCredentials`/`credentials`). Checking "Private registry" reveals the credentials fields and
  * seeds defaults; unchecking clears them.
+ *
+ * A service running a managed SSH-VM image presents as an "Operating System" card instead: the image
+ * becomes a distro Select over the managed catalog (the form always stores the real image ref), and
+ * the private-registry controls are hidden (the VM images are public) with any credentials cleared.
  */
 export const ImageCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
-  const { control } = useFormContext<SdlBuilderFormValuesType>();
+  const { control, setValue } = useFormContext<SdlBuilderFormValuesType>();
   const hasCredentials = useController({ control, name: `services.${serviceIndex}.hasCredentials` });
+  const image = useWatch({ control, name: `services.${serviceIndex}.image` });
+  const isVm = isVmImage(image ?? "");
+
+  useEffect(
+    function clearCredentialsOnVmImage() {
+      if (isVm && hasCredentials.field.value) {
+        hasCredentials.field.onChange(false);
+        setValue(`services.${serviceIndex}.credentials`, undefined, { shouldValidate: true, shouldDirty: true });
+      }
+    },
+    [isVm, hasCredentials.field, setValue, serviceIndex]
+  );
 
   return (
-    <d.CollapsibleCard locked={locked} title="Docker" icon={<BoxIcon className="h-4 w-4" />} infoTooltip={dockerImageTooltip}>
+    <d.CollapsibleCard
+      locked={locked}
+      title={isVm ? "Operating System" : "Docker"}
+      icon={isVm ? <MonitorIcon className="h-4 w-4" /> : <BoxIcon className="h-4 w-4" />}
+      infoTooltip={isVm ? operatingSystemTooltip : dockerImageTooltip}
+    >
       <fieldset disabled={locked} className="flex min-w-0 flex-col gap-4 border-0 p-0">
-        <ImageField serviceIndex={serviceIndex} hasCredentials={!!hasCredentials.field.value} onToggleCredentials={hasCredentials.field.onChange} />
+        {isVm ? (
+          <DistributionField serviceIndex={serviceIndex} />
+        ) : (
+          <>
+            <ImageField serviceIndex={serviceIndex} hasCredentials={!!hasCredentials.field.value} onToggleCredentials={hasCredentials.field.onChange} />
 
-        {hasCredentials.field.value && <CredentialsFields serviceIndex={serviceIndex} />}
+            {hasCredentials.field.value && <CredentialsFields serviceIndex={serviceIndex} />}
+          </>
+        )}
       </fieldset>
     </d.CollapsibleCard>
+  );
+};
+
+const DistributionField: FC<{ serviceIndex: number }> = ({ serviceIndex }) => {
+  const { control } = useFormContext<SdlBuilderFormValuesType>();
+  const image = useController({ control, name: `services.${serviceIndex}.image` });
+
+  return (
+    <Field className="gap-2">
+      <FieldLabel htmlFor={`image-${serviceIndex}`}>
+        Distribution <span className="text-destructive">*</span>
+      </FieldLabel>
+      <FieldContent>
+        <Select value={image.field.value} onValueChange={image.field.onChange}>
+          <SelectTrigger id={`image-${serviceIndex}`} aria-label="Distribution" className={`h-9 ${SELECT_TRUNCATE_VALUE}`}>
+            <SelectValue placeholder="Select" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(SSH_VM_IMAGES).map(([distro, imageRef]) => (
+              <SelectItem key={imageRef} value={imageRef}>
+                {distro}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <FieldError className="text-muted-foreground">{image.fieldState.error?.message}</FieldError>
+      </FieldContent>
+    </Field>
   );
 };
 

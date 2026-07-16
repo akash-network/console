@@ -448,6 +448,60 @@ describe(ExposePortsCard.name, () => {
     });
   });
 
+  describe("when the service runs a vm image", () => {
+    const VM_IMAGE = "ghcr.io/akash-network/ubuntu-2404-ssh:2";
+
+    it("shows the port-22 row read-only with the SSH caption and no remove control", async () => {
+      const { openCard } = setup({
+        image: VM_IMAGE,
+        expose: [
+          { port: 22, as: 22, proto: "tcp" },
+          { port: 80, as: 80 }
+        ]
+      });
+
+      await openCard();
+
+      expect(screen.getByText("Reserved for SSH access")).toBeInTheDocument();
+      expect(screen.getByLabelText("Port 1 container port")).toBeDisabled();
+      expect(screen.getByLabelText("Port 1 exposed as")).toBeDisabled();
+      expect(screen.queryByRole("button", { name: "Remove port 1" })).not.toBeInTheDocument();
+    });
+
+    it("keeps the other rows editable and removable", async () => {
+      const { openCard } = setup({
+        image: VM_IMAGE,
+        expose: [
+          { port: 22, as: 22, proto: "tcp" },
+          { port: 80, as: 80 }
+        ]
+      });
+
+      await openCard();
+
+      expect(screen.getByLabelText("Port 2 container port")).not.toBeDisabled();
+      expect(screen.getByRole("button", { name: "Remove port 2" })).toBeInTheDocument();
+    });
+
+    it("protects nothing when no row is exposed as port 22", async () => {
+      const { openCard } = setup({ image: VM_IMAGE, expose: [{ port: 80, as: 80 }] });
+
+      await openCard();
+
+      expect(screen.queryByText("Reserved for SSH access")).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Port 1 container port")).not.toBeDisabled();
+    });
+  });
+
+  it("does not protect a port-22 row on a non-vm service", async () => {
+    const { openCard } = setup({ image: "nginx:latest", expose: [{ port: 22, as: 22, proto: "tcp" }] });
+
+    await openCard();
+
+    expect(screen.queryByText("Reserved for SSH access")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Port 1 container port")).not.toBeDisabled();
+  });
+
   function setup(
     input: {
       expose?: Array<Partial<ExposeType>>;

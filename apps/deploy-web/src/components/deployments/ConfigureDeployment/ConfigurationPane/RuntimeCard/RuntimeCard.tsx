@@ -1,6 +1,6 @@
 import type { FC } from "react";
-import { useCallback } from "react";
-import { useController, useFormContext } from "react-hook-form";
+import { useCallback, useEffect } from "react";
+import { useController, useFormContext, useWatch } from "react-hook-form";
 import {
   Button,
   Checkbox,
@@ -23,6 +23,7 @@ import { useSnackbar } from "notistack";
 import { CodeSnippet } from "@src/components/shared/CodeSnippet";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { withServiceSshKey } from "@src/utils/sdl/sshKey";
+import { isVmImage } from "@src/utils/sdl/vmImages";
 import { generateSSHKeyPair } from "@src/utils/sshKeyUtils";
 import { runtimeTooltip } from "../cardTooltips";
 
@@ -55,6 +56,11 @@ type Props = {
  * it is on, the key is applied to all services (not just the selected one) and mirrored into a
  * managed `SSH_PUBKEY` env var on each (so it appears in the Environment Variables card and the
  * generated SDL); unchecking "Expose SSH" clears both the key and that env var from every service.
+ *
+ * Container-VM constraints: a service running a managed SSH-VM image has its replica stepper pinned
+ * at a single instance, and while ANY service in the deployment is a VM, "Expose SSH" is forced on
+ * (checked and disabled, key field always shown). The force keys off any-service because `hasSSHKey`
+ * is deployment-wide: unchecking it from a sibling service's card would strip the VM's key too.
  */
 export const RuntimeCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   return (
@@ -71,6 +77,8 @@ export const RuntimeCard: FC<Props> = ({ serviceIndex, locked = false, dependenc
 const ReplicasField: FC<Required<Omit<Props, "locked">>> = ({ serviceIndex, dependencies: d }) => {
   const { control, trigger } = useFormContext<SdlBuilderFormValuesType>();
   const count = useController({ control, name: `services.${serviceIndex}.count` });
+  const image = useWatch({ control, name: `services.${serviceIndex}.image` });
+  const isVm = isVmImage(image ?? "");
 
   /**
    * The replica count feeds the per-group CPU/RAM/GPU totals, so re-validate those limits when the user
@@ -95,9 +103,11 @@ const ReplicasField: FC<Required<Omit<Props, "locked">>> = ({ serviceIndex, depe
           value={count.field.value ?? 1}
           min={1}
           max={20}
+          disabled={isVm}
           aria-describedby={count.fieldState.error ? `replicas-error-${serviceIndex}` : undefined}
           onChange={changeCount}
         />
+        {isVm && <p className="text-sm text-muted-foreground">VMs run as a single instance.</p>}
         <FieldError id={`replicas-error-${serviceIndex}`} className="text-muted-foreground">
           {count.fieldState.error?.message}
         </FieldError>
@@ -111,6 +121,17 @@ const SshKeyField: FC<Required<Omit<Props, "locked">>> = ({ serviceIndex, depend
   const { enqueueSnackbar } = d.useSnackbar();
   const hasSSHKey = useController({ control, name: "hasSSHKey" });
   const sshPubKey = useController({ control, name: `services.${serviceIndex}.sshPubKey` });
+  const services = useWatch({ control, name: "services" });
+  const hasVmService = (services ?? []).some(service => isVmImage(service?.image ?? ""));
+
+  useEffect(
+    function forceSshWhileVmServiceExists() {
+      if (hasVmService && !hasSSHKey.field.value) {
+        hasSSHKey.field.onChange(true);
+      }
+    },
+    [hasVmService, hasSSHKey.field]
+  );
 
   const applyKeyToAllServices = useCallback(
     (publicKey: string) => {
@@ -168,11 +189,16 @@ const SshKeyField: FC<Required<Omit<Props, "locked">>> = ({ serviceIndex, depend
   return (
     <Field className="gap-2">
       <div className="flex items-center gap-2">
-        <Checkbox id={`expose-ssh-${serviceIndex}`} checked={!!hasSSHKey.field.value} onCheckedChange={checked => toggleExposeSsh(!!checked)} />
+        <Checkbox
+          id={`expose-ssh-${serviceIndex}`}
+          checked={hasVmService || !!hasSSHKey.field.value}
+          disabled={hasVmService}
+          onCheckedChange={checked => toggleExposeSsh(!!checked)}
+        />
         <Label htmlFor={`expose-ssh-${serviceIndex}`}>Expose SSH</Label>
       </div>
 
-      {hasSSHKey.field.value && (
+      {(hasVmService || hasSSHKey.field.value) && (
         <>
           <FieldLabel htmlFor={`ssh-pub-key-${serviceIndex}`}>SSH public key</FieldLabel>
           <FieldContent>

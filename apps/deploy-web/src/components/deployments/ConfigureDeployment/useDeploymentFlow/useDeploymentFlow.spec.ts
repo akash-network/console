@@ -146,7 +146,9 @@ describe(useDeploymentFlow.name, () => {
         useSettingsId: (() => "akash1owner") as never,
         manifestFromSdl: () => "M"
       };
-      const { result, rerender } = renderHook(() => useDeploymentFlow({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" } }, dependencies));
+      const { result, rerender } = renderHook(() =>
+        useDeploymentFlow({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false } }, dependencies)
+      );
       expect(result.current.phase).toBe("quoting");
 
       bids = []; // every provider's quote disappears (e.g. expired) after having bid
@@ -533,12 +535,12 @@ describe(useDeploymentFlow.name, () => {
   });
 
   function setup(input: {
-    intent?: { sdlStrategy: "default" | "edit"; bidStrategy: "auto" | "select"; dseq?: string; templateId?: string; draftId?: string };
+    intent?: { sdlStrategy: "default" | "edit"; bidStrategy: "auto" | "select"; dseq?: string; templateId?: string; draftId?: string; vm?: boolean };
     replace?: ReturnType<typeof vi.fn>;
     createMutate?: ReturnType<typeof vi.fn>;
     closeMutate?: ReturnType<typeof vi.fn>;
   }) {
-    const intent = input.intent ?? { sdlStrategy: "edit" as const, bidStrategy: "select" as const, dseq: undefined };
+    const intent = { vm: false, ...(input.intent ?? { sdlStrategy: "edit" as const, bidStrategy: "select" as const, dseq: undefined }) };
     const dependencies: typeof DEPENDENCIES = {
       useCreateDeployment: (() => mock<ReturnType<typeof DEPENDENCIES.useCreateDeployment>>({ mutate: (input.createMutate ?? vi.fn()) as never })) as never,
       useCloseDeployment: (() => mock<ReturnType<typeof DEPENDENCIES.useCloseDeployment>>({ mutate: (input.closeMutate ?? vi.fn()) as never })) as never,
@@ -563,7 +565,7 @@ describe(useDeploymentFlow.name, () => {
     manifestFromSdl?: (sdl: string) => string | null;
     listBids?: Array<{ bid: { state: string; price: { amount: string; denom: string }; id: { provider: string; dseq: string; gseq: number; oseq: number } } }>;
   }) {
-    const intent: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, ...input?.intent };
+    const intent: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, vm: false, ...input?.intent };
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: vi.fn(), push: vi.fn() });
     const deploymentLocalStorage = mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocalStorage>>();
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
@@ -595,7 +597,7 @@ describe(useDeploymentFlow.name, () => {
 
 describe(buildConfigureUrl.name, () => {
   it("preserves the draft id alongside the dseq and bid strategy", () => {
-    const url = buildConfigureUrl({ sdlStrategy: "edit", bidStrategy: "select", templateId: "tpl", draftId: "draft-1" }, "999", "auto");
+    const url = buildConfigureUrl({ sdlStrategy: "edit", bidStrategy: "select", templateId: "tpl", draftId: "draft-1", vm: false }, "999", "auto");
 
     expect(url).toContain("/new-deployment/configure/999");
     expect(url).toContain("bid-strategy=auto");
@@ -603,8 +605,21 @@ describe(buildConfigureUrl.name, () => {
   });
 
   it("omits the draft id when the intent carries none", () => {
-    const url = buildConfigureUrl({ sdlStrategy: "edit", bidStrategy: "select" }, undefined, "select");
+    const url = buildConfigureUrl({ sdlStrategy: "edit", bidStrategy: "select", vm: false }, undefined, "select");
 
     expect(url).not.toContain("draftId");
+  });
+
+  it("preserves the vm flag across rewrites", () => {
+    const url = buildConfigureUrl({ sdlStrategy: "edit", bidStrategy: "select", draftId: "draft-1", vm: true }, "999", "select");
+
+    expect(url).toContain("/new-deployment/configure/999");
+    expect(url).toContain("vm=true");
+  });
+
+  it("omits the vm flag for non-vm intents", () => {
+    const url = buildConfigureUrl({ sdlStrategy: "edit", bidStrategy: "select", vm: false }, undefined, "select");
+
+    expect(url).not.toContain("vm=");
   });
 });

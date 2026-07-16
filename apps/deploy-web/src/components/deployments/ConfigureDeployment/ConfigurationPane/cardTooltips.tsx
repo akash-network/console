@@ -100,12 +100,16 @@ export const dockerImageTooltip = (
   </>
 );
 
-export const runtimeTooltip = (
+export const operatingSystemTooltip = (
   <>
-    Runtime options for the service: how many replicas to run and an optional SSH public key for shell access to the
-    container.
+    The Linux distribution this VM-like container runs.
+    <br />
+    <br />
+    Every option is a public, SSH-enabled image maintained by the Akash team.
   </>
 );
+
+export const runtimeTooltip = <>Runtime options for the service: how many replicas to run and an optional SSH public key for shell access to the container.</>;
 
 export const commandsTooltip = (
   <>

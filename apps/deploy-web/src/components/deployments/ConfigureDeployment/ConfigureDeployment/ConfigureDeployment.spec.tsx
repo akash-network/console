@@ -104,6 +104,21 @@ describe(ConfigureDeployment.name, () => {
     expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialName: "resumed-name" }), expect.anything());
   });
 
+  it("ignores the carried-in deploySdl on a vm entry and forwards the vm intent", () => {
+    const { ConfigureDeploymentForm } = setup({ templateId: null, vm: true, deploySdl: mock<TemplateCreation>({ content: "carried: sdl" }) });
+
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(
+      expect.objectContaining({ initialSdl: undefined, intent: expect.objectContaining({ vm: true }) }),
+      expect.anything()
+    );
+  });
+
+  it("still restores the draft's persisted SDL on a vm entry", () => {
+    const { ConfigureDeploymentForm } = setup({ templateId: null, vm: true, persistedSdl: "restored: sdl" });
+
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialSdl: "restored: sdl" }), expect.anything());
+  });
+
   it("routes an auto-deploy intent to the auto flow with the shared flow, not the manual form", () => {
     const { AutoDeployFlow, ConfigureDeploymentForm, DeploymentFlowProvider } = setup({
       templateId: helloWorldTemplate.code,
@@ -128,6 +143,7 @@ describe(ConfigureDeployment.name, () => {
     persistedName?: string;
     template?: { isLoading?: boolean; isError?: boolean; data?: TemplateOutput };
     deploySdl?: TemplateCreation | null;
+    vm?: boolean;
   }) {
     const ConfigureDeploymentForm = vi.fn(() => <div data-testid="form-mock" />);
     const AutoDeployFlow = vi.fn(() => <div data-testid="auto-mock" />);
@@ -152,6 +168,7 @@ describe(ConfigureDeployment.name, () => {
     if (input.templateId) query.templateId = input.templateId;
     if (input.sdlStrategy) query["sdl-strategy"] = input.sdlStrategy;
     if (input.bidStrategy) query["bid-strategy"] = input.bidStrategy;
+    if (input.vm) query.vm = "true";
     const params = new URLSearchParams(query);
 
     const dependencies: typeof DEPENDENCIES = {

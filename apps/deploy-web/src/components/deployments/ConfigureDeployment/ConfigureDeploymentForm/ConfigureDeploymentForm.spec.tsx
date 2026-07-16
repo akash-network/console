@@ -101,6 +101,41 @@ const TWO_SERVICE_SDL = [
   "      count: 1"
 ].join("\n");
 
+/** A VM deployment saved before any SSH key was entered: the VM image is present but no SSH_PUBKEY env exists. */
+const VM_SDL_WITHOUT_KEY = [
+  "version: '2.0'",
+  "services:",
+  "  vm:",
+  "    image: ghcr.io/akash-network/ubuntu-2404-ssh:2",
+  "    expose:",
+  "      - port: 22",
+  "        as: 22",
+  "        proto: tcp",
+  "        to:",
+  "          - global: true",
+  "profiles:",
+  "  compute:",
+  "    vm:",
+  "      resources:",
+  "        cpu:",
+  "          units: 0.5",
+  "        memory:",
+  "          size: 512Mi",
+  "        storage:",
+  "          - size: 512Mi",
+  "  placement:",
+  "    dcloud:",
+  "      pricing:",
+  "        vm:",
+  "          denom: uact",
+  "          amount: 1000",
+  "deployment:",
+  "  vm:",
+  "    dcloud:",
+  "      profile: vm",
+  "      count: 1"
+].join("\n");
+
 describe(ConfigureDeploymentForm.name, () => {
   it("seeds the panes with the carried-in template SDL", () => {
     const { ConfigureDeploymentPanes } = setup({ initialSdl: VALID_SDL });
@@ -298,6 +333,42 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(screen.queryByRole("button", { name: "back to marketplace" })).not.toBeInTheDocument();
   });
 
+  it("seeds an ssh-ready vm service on a vm entry with no carried-in SDL", () => {
+    setup({ initialSdl: undefined, vm: true, Panes: VmStateProbePanes });
+
+    expect(screen.getByTestId("image").textContent).toBe("ghcr.io/akash-network/ubuntu-2404-ssh:2");
+    expect(screen.getByTestId("count").textContent).toBe("1");
+    expect(screen.getByTestId("has-ssh-key").textContent).toBe("true");
+    expect(JSON.parse(screen.getByTestId("expose").textContent ?? "[]")).toEqual([{ port: 22, as: 22, proto: "tcp", global: true }]);
+  });
+
+  it("previews the vm seed's real image and ssh port in the generated SDL", () => {
+    setup({ initialSdl: undefined, vm: true, Panes: VmStateProbePanes });
+
+    const sdl = screen.getByTestId("sdl").textContent ?? "";
+    expect(sdl).toContain("ghcr.io/akash-network/ubuntu-2404-ssh:2");
+    expect(sdl).toContain("port: 22");
+  });
+
+  it("keeps the vm seed's ssh key empty so the schema demands one before quotes", () => {
+    setup({ initialSdl: undefined, vm: true, Panes: VmStateProbePanes });
+
+    expect(screen.getByTestId("ssh-pub-key").textContent).toBe("");
+  });
+
+  it("restores the expose-ssh flag for a carried-in deployment holding a vm service", () => {
+    setup({ initialSdl: VM_SDL_WITHOUT_KEY, Panes: VmStateProbePanes });
+
+    expect(screen.getByTestId("image").textContent).toBe("ghcr.io/akash-network/ubuntu-2404-ssh:2");
+    expect(screen.getByTestId("has-ssh-key").textContent).toBe("true");
+  });
+
+  it("does not turn on the expose-ssh flag for a carried-in deployment without vm services", () => {
+    setup({ initialSdl: VALID_SDL, Panes: VmStateProbePanes });
+
+    expect(screen.getByTestId("has-ssh-key").textContent).toBe("false");
+  });
+
   function setup(input: {
     initialSdl: string | undefined;
     initialName?: string;
@@ -306,6 +377,7 @@ describe(ConfigureDeploymentForm.name, () => {
     deploySucceeded?: boolean;
     flowError?: { message?: string };
     trialError?: unknown;
+    vm?: boolean;
   }) {
     const ConfigureDeploymentPanes = vi.fn(input.Panes ?? (() => <div data-testid="panes-mock" />));
     const ConfigureDeploymentHeader = vi.fn(() => <div data-testid="header-mock" />);
@@ -356,7 +428,7 @@ describe(ConfigureDeploymentForm.name, () => {
       <ConfigureDeploymentForm
         initialSdl={input.initialSdl}
         initialName={input.initialName}
-        intent={{ sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, draftId: input.draftId }}
+        intent={{ sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, draftId: input.draftId, vm: input.vm ?? false }}
         flow={flow}
         trialError={input.trialError}
         retryTrial={retryTrial}
@@ -460,6 +532,24 @@ function SdlProbePanes({ sdl }: ProbePanesProps) {
       <button type="button" onClick={() => setValue("services.0.image", "nginx:latest")}>
         change image
       </button>
+    </div>
+  );
+}
+
+/** Panes stand-in that reports the first service's VM-relevant state and the deployment-wide SSH flag. */
+function VmStateProbePanes({ sdl }: ProbePanesProps) {
+  const { getValues } = useFormContext<SdlBuilderFormValuesType>();
+  const service = getValues("services")[0];
+  return (
+    <div>
+      <div data-testid="sdl">{sdl}</div>
+      <div data-testid="image">{service.image}</div>
+      <div data-testid="count">{String(service.count)}</div>
+      <div data-testid="has-ssh-key">{String(!!getValues("hasSSHKey"))}</div>
+      <div data-testid="ssh-pub-key">{service.sshPubKey ?? ""}</div>
+      <div data-testid="expose">
+        {JSON.stringify(service.expose.map(entry => ({ port: entry.port, as: entry.as, proto: entry.proto, global: entry.global })))}
+      </div>
     </div>
   );
 }

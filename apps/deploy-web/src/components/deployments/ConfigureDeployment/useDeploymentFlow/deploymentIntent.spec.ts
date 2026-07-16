@@ -5,7 +5,7 @@ import { parseDeploymentIntent } from "./deploymentIntent";
 describe(parseDeploymentIntent.name, () => {
   it("defaults strategies when params are absent", () => {
     const intent = parseDeploymentIntent({ dseqSegment: undefined, searchParams: new URLSearchParams() });
-    expect(intent).toEqual({ templateId: undefined, sdlStrategy: "edit", bidStrategy: "select", dseq: undefined });
+    expect(intent).toEqual({ templateId: undefined, sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, vm: false });
   });
 
   it("reads templateId and both strategies", () => {
@@ -13,7 +13,7 @@ describe(parseDeploymentIntent.name, () => {
       dseqSegment: undefined,
       searchParams: new URLSearchParams("templateId=abc&sdl-strategy=default&bid-strategy=auto")
     });
-    expect(intent).toEqual({ templateId: "abc", sdlStrategy: "default", bidStrategy: "auto", dseq: undefined, draftId: undefined });
+    expect(intent).toEqual({ templateId: "abc", sdlStrategy: "default", bidStrategy: "auto", dseq: undefined, draftId: undefined, vm: false });
   });
 
   it("reads the draft id alongside the other params", () => {
@@ -21,7 +21,7 @@ describe(parseDeploymentIntent.name, () => {
       dseqSegment: "12345",
       searchParams: new URLSearchParams("templateId=abc&draftId=draft-1")
     });
-    expect(intent).toEqual({ templateId: "abc", sdlStrategy: "edit", bidStrategy: "select", dseq: "12345", draftId: "draft-1" });
+    expect(intent).toEqual({ templateId: "abc", sdlStrategy: "edit", bidStrategy: "select", dseq: "12345", draftId: "draft-1", vm: false });
   });
 
   it("leaves the draft id undefined when absent", () => {
@@ -51,5 +51,25 @@ describe(parseDeploymentIntent.name, () => {
     });
     expect(intent.sdlStrategy).toBe("edit");
     expect(intent.bidStrategy).toBe("select");
+  });
+
+  it("parses vm=true as a container-vm entry", () => {
+    const intent = parseDeploymentIntent({ dseqSegment: undefined, searchParams: new URLSearchParams("vm=true") });
+    expect(intent.vm).toBe(true);
+  });
+
+  it("treats anything but vm=true as a non-vm entry", () => {
+    const intent = parseDeploymentIntent({ dseqSegment: undefined, searchParams: new URLSearchParams("vm=1") });
+    expect(intent.vm).toBe(false);
+  });
+
+  it("drops templateId and forces the edit strategy on a vm entry", () => {
+    const intent = parseDeploymentIntent({
+      dseqSegment: undefined,
+      searchParams: new URLSearchParams("vm=true&templateId=abc&sdl-strategy=default")
+    });
+    expect(intent.templateId).toBeUndefined();
+    expect(intent.sdlStrategy).toBe("edit");
+    expect(intent.vm).toBe(true);
   });
 });

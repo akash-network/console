@@ -7,6 +7,7 @@ import { memoryUnits, storageUnits, validationConfig } from "@src/utils/akash/un
 import { ENDPOINT_NAME_VALIDATION_REGEX } from "@src/utils/deploymentData/v1beta3";
 import { kvArrayToObject } from "@src/utils/keyValue/keyValue";
 import { roundDecimal } from "@src/utils/mathHelpers";
+import { isVmImage } from "@src/utils/sdl/vmImages";
 import { bytesToShrink } from "@src/utils/unitUtils";
 
 const VALID_IMAGE_NAME =
@@ -546,6 +547,26 @@ export const SdlBuilderFormValuesSchema = z
             fatal: true
           });
           return z.NEVER;
+        }
+      }
+    }
+
+    for (let i = 0; i < data.services.length; i++) {
+      if (!isVmImage(data.services[i].image)) {
+        continue;
+      }
+      const expose = data.services[i].expose;
+      const managedSshIndex = expose.findIndex(entry => entry.as === 22);
+      for (let j = 0; j < expose.length; j++) {
+        if (j === managedSshIndex) {
+          continue;
+        }
+        if (expose[j].port === 22 || expose[j].as === 22) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Port 22 is reserved for SSH.",
+            path: ["services", i, "expose", j, "port"]
+          });
         }
       }
     }
