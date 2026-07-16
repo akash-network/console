@@ -78,8 +78,46 @@ describe("StripeErrorHandler", () => {
 
       const result = handleStripeError(error);
 
-      expect(result.message).toBe("This payment request conflicts with a previous one. Please try again.");
-      expect(result.userAction).toBe("Try the payment again.");
+      expect(result.message).toBe("Your payment is still being processed.");
+      expect(result.userAction).toBe("Wait a moment, then check your balance before retrying.");
+    });
+
+    it("shows the still-processing copy for a 409 carrying the status-derived conflict code", () => {
+      const error = {
+        response: {
+          status: 409,
+          data: {
+            error: "ConflictError",
+            message: "A payment for this request is already in progress. Please wait a moment and try again.",
+            code: "conflict",
+            type: "client_error"
+          }
+        }
+      };
+
+      const result = handleStripeError(error);
+
+      expect(result.message).toBe("Your payment is still being processed.");
+      expect(result.userAction).toBe("Wait a moment, then check your balance before retrying.");
+    });
+
+    it("shows the still-processing copy for the payment_in_progress code", () => {
+      const error = {
+        response: {
+          status: 409,
+          data: {
+            error: "ConflictError",
+            message: "A payment for this request is already in progress. Please wait a moment and try again.",
+            code: "payment_in_progress",
+            type: "payment_error"
+          }
+        }
+      };
+
+      const result = handleStripeError(error);
+
+      expect(result.message).toBe("Your payment is still being processed.");
+      expect(result.userAction).toBe("Wait a moment, then check your balance before retrying.");
     });
 
     it("should handle insufficient funds error codes", () => {

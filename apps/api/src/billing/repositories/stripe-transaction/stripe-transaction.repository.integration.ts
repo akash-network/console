@@ -97,6 +97,98 @@ describe(StripeTransactionRepository.name, () => {
     });
   });
 
+  describe("findOrCreateByIdempotencyKey", () => {
+    it("creates the row on first use of a key", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const key = `topup_${user.id}_${faker.string.uuid()}`;
+
+      const result = await stripeTransactionRepository.findOrCreateByIdempotencyKey(keyedTransactionInput(user.id, key));
+
+      expect(result.isNew).toBe(true);
+      expect(result.transaction.stripeIdempotencyKey).toBe(key);
+      expect(await stripeTransactionRepository.findById(result.transaction.id)).toMatchObject({ stripeIdempotencyKey: key, amount: 10000 });
+    });
+
+    it("returns the existing row without creating another on a reused key", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const key = `topup_${user.id}_${faker.string.uuid()}`;
+
+      const first = await stripeTransactionRepository.findOrCreateByIdempotencyKey(keyedTransactionInput(user.id, key));
+      const second = await stripeTransactionRepository.findOrCreateByIdempotencyKey(keyedTransactionInput(user.id, key));
+
+      expect(second.isNew).toBe(false);
+      expect(second.transaction.id).toBe(first.transaction.id);
+      expect(await stripeTransactionRepository.find({ userId: user.id })).toHaveLength(1);
+    });
+
+    it("resolves a concurrent insert race to a single row", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const key = `topup_${user.id}_${faker.string.uuid()}`;
+
+      const [first, second] = await Promise.all([
+        stripeTransactionRepository.findOrCreateByIdempotencyKey(keyedTransactionInput(user.id, key)),
+        stripeTransactionRepository.findOrCreateByIdempotencyKey(keyedTransactionInput(user.id, key))
+      ]);
+
+      expect(first.transaction.id).toBe(second.transaction.id);
+      expect([first.isNew, second.isNew].filter(Boolean)).toHaveLength(1);
+      expect(await stripeTransactionRepository.find({ userId: user.id })).toHaveLength(1);
+    });
+
+    it("allows multiple rows with a null idempotency key", async () => {
+      const { createTestTransaction } = setup();
+
+      const first = await createTestTransaction({ stripeIdempotencyKey: null });
+      const second = await createTestTransaction({ stripeIdempotencyKey: null });
+
+      expect(first.id).not.toBe(second.id);
+    });
+
+    function keyedTransactionInput(userId: string, stripeIdempotencyKey: string): StripeTransactionInput & { stripeIdempotencyKey: string } {
+      return {
+        userId,
+        type: "payment_intent",
+        status: "created",
+        amount: 10000,
+        currency: "usd",
+        stripeIdempotencyKey
+      };
+    }
+  });
+
+  describe("updateByIdUnlessSettled", () => {
+    it("updates an unsettled row and returns it", async () => {
+      const { stripeTransactionRepository, createTestTransaction } = setup();
+      const transaction = await createTestTransaction({ status: "created" });
+
+      const updated = await stripeTransactionRepository.updateByIdUnlessSettled(transaction.id, { status: "pending", stripePaymentIntentId: "pi_1" });
+
+      expect(updated).toMatchObject({ id: transaction.id, status: "pending", stripePaymentIntentId: "pi_1" });
+    });
+
+    it("updates a failed row so a retried attempt can resume it", async () => {
+      const { stripeTransactionRepository, createTestTransaction } = setup();
+      const transaction = await createTestTransaction({ status: "failed" });
+
+      const updated = await stripeTransactionRepository.updateByIdUnlessSettled(transaction.id, { status: "requires_action" });
+
+      expect(updated).toMatchObject({ id: transaction.id, status: "requires_action" });
+    });
+
+    it.each(["succeeded", "refunded"] as const)("suppresses writes to a %s row", async status => {
+      const { stripeTransactionRepository, createTestTransaction } = setup();
+      const transaction = await createTestTransaction({ status });
+
+      const updated = await stripeTransactionRepository.updateByIdUnlessSettled(transaction.id, { status: "failed", errorMessage: "stale replay" });
+
+      expect(updated).toBeUndefined();
+      expect(await stripeTransactionRepository.findById(transaction.id)).toMatchObject({ status, errorMessage: null });
+    });
+  });
+
   let cleanup: () => Promise<void>;
   afterEach(async () => {
     await cleanup?.();

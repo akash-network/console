@@ -2,6 +2,13 @@ import createError, { HttpError } from "http-errors";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
+/**
+ * Thrown when a retried attempt reuses an idempotency key whose first delivery is still executing
+ * (or recorded a different amount). Maps to 409 so the client keeps its attempt key and retries the
+ * same attempt instead of minting a new charge.
+ */
+export const PAYMENT_IN_PROGRESS_ERROR_MESSAGE = "A payment for this request is already in progress. Please wait a moment and try again.";
+
 @singleton()
 export class StripeErrorService {
   private readonly COUPON_ERRORS = {
@@ -71,6 +78,10 @@ export class StripeErrorService {
     "Payment method was declined. Please try a different card.": {
       code: 402,
       message: "Payment method was declined. Please try a different card."
+    },
+    [PAYMENT_IN_PROGRESS_ERROR_MESSAGE]: {
+      code: 409,
+      message: PAYMENT_IN_PROGRESS_ERROR_MESSAGE
     }
   };
 
@@ -201,6 +212,8 @@ export class StripeErrorService {
       return "duplicate_validation_request";
     } else if (messageLower.includes("card validation failed")) {
       return "card_validation_failed";
+    } else if (messageLower.includes("already in progress")) {
+      return "payment_in_progress";
     }
 
     return "unknown_payment_error";

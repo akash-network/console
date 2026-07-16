@@ -79,7 +79,8 @@ export const ConfirmPaymentRequestSchema = z.object({
     userId: z.string(),
     paymentMethodId: z.string(),
     amount: z.number().gte(20, "Amount must be greater or equal to $20"),
-    awaitResolved: z.boolean().optional()
+    awaitResolved: z.boolean().optional(),
+    idempotencyKey: z.string().uuid().optional()
   })
 });
 

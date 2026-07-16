@@ -28,6 +28,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { use3DSecure } from "@src/hooks/use3DSecure";
 import { useUser } from "@src/hooks/useUser";
+import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { QueryKeys, usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries";
 import { handleStripeError } from "@src/utils/stripeErrorHandler";
 
@@ -53,6 +54,7 @@ export const DEPENDENCIES = {
   useQueryClient,
   useServices,
   useWallet,
+  useWalletBalance,
   use3DSecure,
   useUser,
   getPaymentMethodDisplay,
@@ -72,6 +74,59 @@ interface PendingCharge {
   amount: number;
   wasTrialing: boolean;
   status: "pending" | "charging";
+  idempotencyKey: string;
+}
+
+interface StoredAttempt {
+  key: string;
+  amountCents: number;
+  paymentMethodId: string;
+  userId: string;
+  createdAt: number;
+}
+
+/** Attempt keys persist per tab so closing and reopening the errored sheet (which unmounts the form) retries the same attempt instead of minting a fresh charge. */
+const ATTEMPT_STORAGE_KEY = "add-credits-attempt";
+
+/** A stored attempt older than this is treated as a new purchase, not a retry; Stripe only replays a key for 24h anyway. */
+const ATTEMPT_MAX_AGE_MS = 60 * 60 * 1000;
+
+/** sessionStorage access throws in some privacy modes; attempt-key persistence is best-effort and must never break the purchase flow. */
+function safeSessionStorage<T>(operation: () => T): T | undefined {
+  try {
+    return operation();
+  } catch {
+    return undefined;
+  }
+}
+
+function readStoredAttemptKey(input: { userId: string; amountCents: number; paymentMethodId: string }): string | null {
+  const raw = safeSessionStorage(() => window.sessionStorage.getItem(ATTEMPT_STORAGE_KEY));
+  if (!raw) return null;
+
+  const stored = safeSessionStorage(() => JSON.parse(raw) as StoredAttempt);
+  if (!stored) return null;
+
+  const isCurrentAttempt =
+    stored.userId === input.userId &&
+    stored.amountCents === input.amountCents &&
+    stored.paymentMethodId === input.paymentMethodId &&
+    Date.now() - stored.createdAt < ATTEMPT_MAX_AGE_MS;
+
+  return isCurrentAttempt ? stored.key : null;
+}
+
+function writeStoredAttempt(attempt: StoredAttempt): void {
+  safeSessionStorage(() => window.sessionStorage.setItem(ATTEMPT_STORAGE_KEY, JSON.stringify(attempt)));
+}
+
+function clearStoredAttempt(): void {
+  safeSessionStorage(() => window.sessionStorage.removeItem(ATTEMPT_STORAGE_KEY));
+}
+
+/** A 402 is the only response that proves the attempt is dead: the bank definitively declined and Stripe replays that decline for the key's lifetime, so retrying the same key could never succeed. Every other failure (timeout, 4xx/5xx, no response) leaves the outcome unknown and the key must survive. */
+function isAttemptConcluded(error: unknown): boolean {
+  return !!error && typeof error === "object" && "response" in error && (error as { response?: { status?: number } }).response?.status === 402;
 }
 
 /**
@@ -85,7 +140,11 @@ interface PendingCharge {
  * waits for payment polling to settle before notifying the caller through
  * onDone. A new card is confirmed against its SetupIntent only once: retries
  * after a failed charge reuse the saved payment method instead of
- * re-confirming a consumed intent.
+ * re-confirming a consumed intent. Every attempt carries an idempotency key
+ * that survives unknown-outcome failures (and remounts, via sessionStorage)
+ * and rotates only when the attempt concludes (polling settled, or a
+ * definitive 402 decline) or its params change, so a retried slow charge
+ * replays the original attempt instead of charging again.
  */
 export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChange, dependencies: d = DEPENDENCIES }: AddCreditsFormProps) {
   const { data: setupIntent, mutate: createSetupIntent, status: setupIntentStatus, reset: resetSetupIntent } = d.useSetupIntentMutation();
@@ -93,6 +152,7 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
   const { pollForPayment, isPolling } = d.usePaymentPolling();
   const { stripe, analyticsService } = d.useServices();
   const { isTrialing, topUpMinAmountUsd } = d.useWallet();
+  const { balance } = d.useWalletBalance();
   const queryClient = d.useQueryClient();
   const { data: paymentMethods, isLoading: isLoadingMethods, isError: isMethodsError } = d.usePaymentMethodsQuery();
   const {
@@ -109,6 +169,8 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
   const paymentMethodRef = useRef<PaymentMethodSourceHandle>(null);
   /** Payment method already confirmed against the current SetupIntent; reused on retry because a SetupIntent can only be confirmed once. */
   const confirmedNewCardRef = useRef<{ paymentMethodId: string; organization?: string } | null>(null);
+  /** Attempt key outlives PendingCharge: finalizeFailure clears the charge while the key must survive unknown-outcome failures, so a retry replays the same attempt instead of charging again. */
+  const attemptRef = useRef<{ key: string; amount: number; paymentMethodId: string } | null>(null);
   const wasPollingRef = useRef<boolean>(false);
   /** Last payment-method type reported to analytics, so the payment element's frequent change events don't re-fire the same type. */
   const lastPaymentTypeRef = useRef<string | null>(null);
@@ -173,9 +235,41 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
       organization,
       amount,
       wasTrialing: isTrialing,
-      status: "pending"
+      status: "pending",
+      idempotencyKey: resolveAttemptKey(paymentMethodId, user.id)
     });
   };
+
+  /**
+   * Reuses the in-memory key while the purchase params are unchanged (a retry of the same attempt),
+   * rehydrates a matching persisted key after a remount, and only otherwise mints a fresh one.
+   */
+  function resolveAttemptKey(paymentMethodId: string, userId: string): string {
+    const amountCents = Math.round(amount * 100);
+    const current = attemptRef.current;
+
+    if (current && current.amount === amount && current.paymentMethodId === paymentMethodId) {
+      return current.key;
+    }
+
+    const rehydratedKey = readStoredAttemptKey({ userId, amountCents, paymentMethodId });
+
+    if (rehydratedKey) {
+      attemptRef.current = { key: rehydratedKey, amount, paymentMethodId };
+      return rehydratedKey;
+    }
+
+    const key = crypto.randomUUID();
+    attemptRef.current = { key, amount, paymentMethodId };
+    writeStoredAttempt({ key, amountCents, paymentMethodId, userId, createdAt: Date.now() });
+
+    return key;
+  }
+
+  const clearAttempt = useCallback(() => {
+    attemptRef.current = null;
+    clearStoredAttempt();
+  }, []);
 
   const finalizeFailure = useCallback(
     (message: string, userAction?: string | null) => {
@@ -202,6 +296,14 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
     showSuccessMessage: false
   });
 
+  /** A replayed attempt the webhook already credited settles polling against the pre-charge baseline: the balance rose before polling started, so the default start-of-poll snapshot would never register an increase and the flow would time out. */
+  const pollForAlreadyCreditedPayment = useCallback(
+    (chargedAmount: number) => {
+      pollForPayment({ initialBalance: balance ? balance.totalUsd - chargedAmount : null });
+    },
+    [pollForPayment, balance]
+  );
+
   const performCharge = useCallback(
     async function performCharge(pending: PendingCharge) {
       if (!user?.id) return;
@@ -210,7 +312,8 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
         const chargeResult = await confirmPayment({
           userId: user.id,
           paymentMethodId: pending.paymentMethodId,
-          amount: pending.amount
+          amount: pending.amount,
+          idempotencyKey: pending.idempotencyKey
         });
 
         if (chargeResult.requiresAction && chargeResult.clientSecret && chargeResult.paymentIntentId) {
@@ -223,17 +326,25 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
         }
 
         if (chargeResult.success) {
-          pollForPayment();
+          if (chargeResult.transactionStatus === "succeeded") {
+            pollForAlreadyCreditedPayment(pending.amount);
+          } else {
+            pollForPayment();
+          }
           return;
         }
 
         finalizeFailure("Payment failed. Please try again.");
       } catch (err) {
+        if (isAttemptConcluded(err)) {
+          clearAttempt();
+        }
+
         const stripeError = d.handleStripeError(err);
         finalizeFailure(stripeError.message, stripeError.userAction);
       }
     },
-    [user?.id, confirmPayment, threeDSecure, pollForPayment, finalizeFailure, d]
+    [user?.id, confirmPayment, threeDSecure, pollForPayment, pollForAlreadyCreditedPayment, finalizeFailure, clearAttempt, d]
   );
 
   useEffect(
@@ -259,6 +370,7 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
       }
 
       confirmedNewCardRef.current = null;
+      clearAttempt();
       setCharge(null);
       setIsProcessing(false);
 
@@ -279,7 +391,7 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
         onDone(amount, organization, bonusAmount);
       })();
     },
-    [isPolling, isTrialing, charge, finalizeFailure, onDone, stripe]
+    [isPolling, isTrialing, charge, finalizeFailure, clearAttempt, onDone, stripe]
   );
 
   useEffect(

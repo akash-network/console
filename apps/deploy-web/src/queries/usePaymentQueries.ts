@@ -80,11 +80,12 @@ export const usePaymentMutations = () => {
   const queryClient = useQueryClient();
 
   const confirmPayment = useMutation({
-    mutationFn: async ({ userId, paymentMethodId, amount }: ConfirmPaymentParams): Promise<ConfirmPaymentResponse> => {
+    mutationFn: async ({ userId, paymentMethodId, amount, idempotencyKey }: ConfirmPaymentParams): Promise<ConfirmPaymentResponse> => {
       return await stripe.confirmPayment({
         userId,
         paymentMethodId,
-        amount
+        amount,
+        idempotencyKey
       });
     },
     onSuccess: () => {

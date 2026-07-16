@@ -169,6 +169,48 @@ describe(StripeController.name, () => {
         }
       });
     });
+
+    it("namespaces the client attempt key with the user id before calling Stripe", async () => {
+      const { controller, stripe, user } = setup();
+      const clientKey = faker.string.uuid();
+
+      stripe.hasPaymentMethod.mockResolvedValue(true);
+      stripe.createPaymentIntent.mockResolvedValue({
+        success: true,
+        paymentIntentId: faker.string.uuid(),
+        transactionId: faker.string.uuid(),
+        transactionStatus: "pending"
+      });
+
+      await controller.confirmPayment({
+        userId: user.id,
+        paymentMethodId: faker.string.uuid(),
+        amount: 100,
+        idempotencyKey: clientKey
+      });
+
+      expect(stripe.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: `topup_${user.id}_${clientKey}` }));
+    });
+
+    it("passes no idempotency key to Stripe when the client sends none", async () => {
+      const { controller, stripe, user } = setup();
+
+      stripe.hasPaymentMethod.mockResolvedValue(true);
+      stripe.createPaymentIntent.mockResolvedValue({
+        success: true,
+        paymentIntentId: faker.string.uuid(),
+        transactionId: faker.string.uuid(),
+        transactionStatus: "pending"
+      });
+
+      await controller.confirmPayment({
+        userId: user.id,
+        paymentMethodId: faker.string.uuid(),
+        amount: 100
+      });
+
+      expect(stripe.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: undefined }));
+    });
   });
 
   describe("createSetupIntent", () => {

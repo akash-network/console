@@ -1,0 +1,2 @@
+ALTER TABLE "stripe_transactions" ADD COLUMN "stripe_idempotency_key" varchar(255);--> statement-breakpoint
+CREATE UNIQUE INDEX "stripe_transactions_stripe_idempotency_key_unique" ON "stripe_transactions" USING btree ("stripe_idempotency_key") WHERE "stripe_transactions"."stripe_idempotency_key" IS NOT NULL;

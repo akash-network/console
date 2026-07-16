@@ -1,11 +1,13 @@
 import React, { useContext, useImperativeHandle } from "react";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { getPaymentMethodDisplay } from "@src/components/shared/PaymentMethodCard/PaymentMethodCard";
+import type { WalletBalance } from "@src/hooks/useWalletBalance";
 import { QueryKeys } from "@src/queries";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
+import { handleStripeError } from "@src/utils/stripeErrorHandler";
 import { AddCreditsAmountFields } from "../AddCreditsAmountFields/AddCreditsAmountFields";
 import type { PaymentMethodSourceHandle } from "../AddCreditsNewPaymentMethodFields/AddCreditsNewPaymentMethodFields";
 import type { DEPENDENCIES } from "./AddCreditsForm";
@@ -13,7 +15,13 @@ import { AddCreditsForm } from "./AddCreditsForm";
 
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 describe(AddCreditsForm.name, () => {
+  afterEach(() => {
+    window.sessionStorage.clear();
+  });
+
   it("creates a setup intent on mount when the user has no saved payment methods", () => {
     const mutate = vi.fn();
     setup({ status: "idle", mutate });
@@ -88,7 +96,7 @@ describe(AddCreditsForm.name, () => {
     });
 
     expect(addPaymentMethod).not.toHaveBeenCalled();
-    expect(confirmPayment).toHaveBeenCalledWith({ userId: "user_1", paymentMethodId: "pm_saved", amount: 100 });
+    expect(confirmPayment).toHaveBeenCalledWith({ userId: "user_1", paymentMethodId: "pm_saved", amount: 100, idempotencyKey: expect.any(String) });
   });
 
   it("passes a loading flag to the payment-method fields while the setup intent is being prepared", () => {
@@ -127,7 +135,7 @@ describe(AddCreditsForm.name, () => {
     });
 
     expect(addPaymentMethod).toHaveBeenCalledTimes(1);
-    expect(confirmPayment).toHaveBeenCalledWith({ userId: "user_1", paymentMethodId: "pm_1", amount: 100 });
+    expect(confirmPayment).toHaveBeenCalledWith({ userId: "user_1", paymentMethodId: "pm_1", amount: 100, idempotencyKey: expect.any(String) });
     expect(pollForPayment).toHaveBeenCalledTimes(1);
     expect(onDone).not.toHaveBeenCalled();
   });
@@ -308,7 +316,9 @@ describe(AddCreditsForm.name, () => {
       rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, isWalletReady: true });
     });
 
-    await waitFor(() => expect(confirmPayment).toHaveBeenCalledWith({ userId: "user_1", paymentMethodId: "pm_1", amount: 100 }));
+    await waitFor(() =>
+      expect(confirmPayment).toHaveBeenCalledWith({ userId: "user_1", paymentMethodId: "pm_1", amount: 100, idempotencyKey: expect.any(String) })
+    );
   });
 
   it("does not call the API when addPaymentMethod resolves null", async () => {
@@ -464,7 +474,7 @@ describe(AddCreditsForm.name, () => {
       fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
     });
 
-    expect(confirmPayment).toHaveBeenCalledWith({ userId: "user_1", paymentMethodId: "pm_saved", amount: 50 });
+    expect(confirmPayment).toHaveBeenCalledWith({ userId: "user_1", paymentMethodId: "pm_saved", amount: 50, idempotencyKey: expect.any(String) });
   });
 
   it("shows a notice and falls back to new-card entry when saved payment methods fail to load", () => {
@@ -506,7 +516,7 @@ describe(AddCreditsForm.name, () => {
 
     expect(addPaymentMethod).toHaveBeenCalledTimes(1);
     expect(confirmPayment).toHaveBeenCalledTimes(2);
-    expect(confirmPayment).toHaveBeenLastCalledWith({ userId: "user_1", paymentMethodId: "pm_new", amount: 100 });
+    expect(confirmPayment).toHaveBeenLastCalledWith({ userId: "user_1", paymentMethodId: "pm_new", amount: 100, idempotencyKey: expect.any(String) });
   });
 
   it("invalidates the payment methods query when a new-card charge fails", async () => {
@@ -646,6 +656,272 @@ describe(AddCreditsForm.name, () => {
     expect(cardEvents).toHaveLength(2);
   });
 
+  it("sends a uuid attempt key with the charge", async () => {
+    const confirmPayment = vi.fn().mockResolvedValue({ success: true });
+    setup({ status: "idle", confirmPayment, paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })] });
+
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    expect(confirmPayment.mock.calls[0][0].idempotencyKey).toMatch(UUID_PATTERN);
+  });
+
+  it("reuses the same key when retrying after unknown-outcome failures", async () => {
+    const confirmPayment = vi
+      .fn()
+      .mockRejectedValueOnce({ response: { status: 500 } })
+      .mockRejectedValueOnce(new Error("network down"))
+      .mockResolvedValue({ success: true });
+    setup({ status: "idle", confirmPayment, paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })] });
+
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await act(async () => {
+        fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+      });
+    }
+
+    expect(confirmPayment).toHaveBeenCalledTimes(3);
+    const keys = confirmPayment.mock.calls.map(call => call[0].idempotencyKey);
+    expect(new Set(keys).size).toBe(1);
+  });
+
+  it("rotates the key after a definitive 402 decline", async () => {
+    const confirmPayment = vi
+      .fn()
+      .mockRejectedValueOnce({ response: { status: 402, data: { code: "card_declined" } } })
+      .mockResolvedValue({ success: true });
+    setup({ status: "idle", confirmPayment, paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })] });
+
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    const keys = confirmPayment.mock.calls.map(call => call[0].idempotencyKey);
+    expect(keys[0]).toMatch(UUID_PATTERN);
+    expect(keys[1]).toMatch(UUID_PATTERN);
+    expect(keys[1]).not.toBe(keys[0]);
+  });
+
+  it("rotates the key when the amount changes between attempts", async () => {
+    const confirmPayment = vi.fn().mockRejectedValue({ response: { status: 500 } });
+    setup({ status: "idle", confirmPayment, paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })] });
+
+    fireEvent.change(screen.getByLabelText(/custom-amount/i), { target: { value: "100" } });
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    fireEvent.change(screen.getByLabelText(/custom-amount/i), { target: { value: "200" } });
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    expect(confirmPayment).toHaveBeenLastCalledWith(expect.objectContaining({ amount: 200 }));
+    const keys = confirmPayment.mock.calls.map(call => call[0].idempotencyKey);
+    expect(keys[1]).not.toBe(keys[0]);
+  });
+
+  it("retries the polling-timeout attempt with the same key", async () => {
+    const confirmPayment = vi.fn().mockResolvedValue({ success: true });
+    const methods = [paymentMethod({ id: "pm_saved", isDefault: true })];
+    const { rerender } = setup({ status: "idle", confirmPayment, isTrialing: true, isPolling: false, paymentMethods: methods });
+
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    rerender({ status: "idle", confirmPayment, isTrialing: true, isPolling: true, paymentMethods: methods });
+    rerender({ status: "idle", confirmPayment, isTrialing: true, isPolling: false, paymentMethods: methods });
+
+    expect(await screen.findByText(/payment did not complete in time/i)).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    expect(confirmPayment).toHaveBeenCalledTimes(2);
+    const keys = confirmPayment.mock.calls.map(call => call[0].idempotencyKey);
+    expect(keys[1]).toBe(keys[0]);
+  });
+
+  it("mints a fresh key for the next purchase after the flow completes", async () => {
+    const confirmPayment = vi.fn().mockResolvedValue({ success: true });
+    const onDone = vi.fn();
+    const methods = [paymentMethod({ id: "pm_saved", isDefault: true })];
+    const { rerender } = setup({ status: "idle", confirmPayment, onDone, isTrialing: true, isPolling: false, paymentMethods: methods });
+
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    rerender({ status: "idle", confirmPayment, onDone, isTrialing: true, isPolling: true, paymentMethods: methods });
+    rerender({ status: "idle", confirmPayment, onDone, isTrialing: false, isPolling: false, paymentMethods: methods });
+
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    expect(confirmPayment).toHaveBeenCalledTimes(2);
+    const keys = confirmPayment.mock.calls.map(call => call[0].idempotencyKey);
+    expect(keys[1]).not.toBe(keys[0]);
+  });
+
+  it("replays the same key after a remount with identical purchase params", async () => {
+    const confirmPayment = vi.fn().mockRejectedValue({ response: { status: 500 } });
+    const methods = [paymentMethod({ id: "pm_saved", isDefault: true })];
+    const first = setup({ status: "idle", confirmPayment, paymentMethods: methods });
+
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+    first.unmount();
+
+    setup({ status: "idle", confirmPayment, paymentMethods: methods });
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    expect(confirmPayment).toHaveBeenCalledTimes(2);
+    const keys = confirmPayment.mock.calls.map(call => call[0].idempotencyKey);
+    expect(keys[1]).toBe(keys[0]);
+  });
+
+  it("does not reuse the persisted key when the amount differs after a remount", async () => {
+    const confirmPayment = vi.fn().mockRejectedValue({ response: { status: 500 } });
+    const methods = [paymentMethod({ id: "pm_saved", isDefault: true })];
+    const first = setup({ status: "idle", confirmPayment, paymentMethods: methods });
+
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+    first.unmount();
+
+    setup({ status: "idle", confirmPayment, paymentMethods: methods });
+    fireEvent.change(screen.getByLabelText(/custom-amount/i), { target: { value: "200" } });
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    expect(confirmPayment).toHaveBeenCalledTimes(2);
+    const keys = confirmPayment.mock.calls.map(call => call[0].idempotencyKey);
+    expect(keys[1]).not.toBe(keys[0]);
+  });
+
+  it("starts polling from the pre-charge baseline when the server replays an already-credited attempt", async () => {
+    const confirmPayment = vi.fn().mockResolvedValue({ success: true, transactionStatus: "succeeded" });
+    const pollForPayment = vi.fn();
+    setup({ status: "idle", confirmPayment, pollForPayment, walletBalanceUsd: 500, paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })] });
+
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    expect(pollForPayment).toHaveBeenCalledWith({ initialBalance: 400 });
+  });
+
+  it("polls with the default baseline on a fresh successful charge", async () => {
+    const confirmPayment = vi.fn().mockResolvedValue({ success: true, transactionStatus: "pending" });
+    const pollForPayment = vi.fn();
+    setup({ status: "idle", confirmPayment, pollForPayment, walletBalanceUsd: 500, paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })] });
+
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    expect(pollForPayment).toHaveBeenCalledWith();
+  });
+
+  it("keeps the key and shows the still-processing copy on a 409 conflict", async () => {
+    const confirmPayment = vi
+      .fn()
+      .mockRejectedValueOnce({ response: { status: 409, data: { code: "conflict", message: "A payment for this request is already in progress." } } })
+      .mockResolvedValue({ success: true });
+    setup({ status: "idle", confirmPayment, handleStripeError, paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })] });
+
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    expect(await screen.findByText("Your payment is still being processed.")).toBeInTheDocument();
+    expect(screen.getByText("Wait a moment, then check your balance before retrying.")).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    const keys = confirmPayment.mock.calls.map(call => call[0].idempotencyKey);
+    expect(keys[1]).toBe(keys[0]);
+  });
+
+  it("keeps the key when 3D Secure fails so the retry resumes the same attempt", async () => {
+    const confirmPayment = vi.fn().mockResolvedValue({ requiresAction: true, clientSecret: "pi_secret", paymentIntentId: "pi_1" });
+    let threeDSecureOptions: Parameters<typeof DEPENDENCIES.use3DSecure>[0] | undefined;
+    const use3DSecure: typeof DEPENDENCIES.use3DSecure = options => {
+      threeDSecureOptions = options;
+      return mock<ReturnType<typeof DEPENDENCIES.use3DSecure>>({
+        isOpen: false,
+        threeDSData: null,
+        isLoading: false,
+        start3DSecure: vi.fn(),
+        close3DSecure: vi.fn(),
+        handle3DSSuccess: vi.fn(),
+        handle3DSError: vi.fn()
+      });
+    };
+
+    setup({
+      status: "idle",
+      confirmPayment,
+      paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })],
+      dependencies: { use3DSecure }
+    });
+
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    await act(async () => {
+      threeDSecureOptions?.onError?.("Authentication failed");
+    });
+
+    expect(await screen.findByText("Authentication failed")).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    expect(confirmPayment).toHaveBeenCalledTimes(2);
+    const keys = confirmPayment.mock.calls.map(call => call[0].idempotencyKey);
+    expect(keys[1]).toBe(keys[0]);
+  });
+
   function makePaymentMethodFieldsMock(addPaymentMethod: PaymentMethodSourceHandle["addPaymentMethod"] = vi.fn().mockResolvedValue(null)) {
     const propsLog: Array<{ clientSecret?: string; isLoading: boolean }> = [];
     const Mock: typeof DEPENDENCIES.AddCreditsNewPaymentMethodFields = React.forwardRef<
@@ -728,6 +1004,7 @@ describe(AddCreditsForm.name, () => {
     isTrialing?: boolean;
     isPolling?: boolean;
     isWalletReady?: boolean;
+    walletBalanceUsd?: number;
     paymentMethods?: PaymentMethod[];
     isLoadingMethods?: boolean;
     isMethodsError?: boolean;
@@ -765,6 +1042,11 @@ describe(AddCreditsForm.name, () => {
 
     const useWallet: typeof DEPENDENCIES.useWallet = () =>
       mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false, topUpMinAmountUsd: input.topUpMinAmountUsd ?? 20 });
+
+    const useWalletBalance: typeof DEPENDENCIES.useWalletBalance = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>({
+        balance: input.walletBalanceUsd != null ? mock<WalletBalance>({ totalUsd: input.walletBalanceUsd }) : null
+      });
 
     const useQueryClient: typeof DEPENDENCIES.useQueryClient = () =>
       mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>({
@@ -822,6 +1104,7 @@ describe(AddCreditsForm.name, () => {
           useQueryClient,
           useServices,
           useWallet,
+          useWalletBalance,
           use3DSecure,
           getPaymentMethodDisplay,
           handleStripeError: input.handleStripeError ?? (() => ({ message: "fallback", userAction: undefined })),

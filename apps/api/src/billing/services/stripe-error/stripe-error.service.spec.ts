@@ -1,7 +1,7 @@
 import type Stripe from "stripe";
 import { describe, expect, it } from "vitest";
 
-import { StripeErrorService } from "./stripe-error.service";
+import { PAYMENT_IN_PROGRESS_ERROR_MESSAGE, StripeErrorService } from "./stripe-error.service";
 
 // Helper function to create proper Stripe error objects
 function createStripeError(type: string, props: any = {}): Stripe.errors.StripeError {
@@ -131,6 +131,29 @@ describe(StripeErrorService.name, () => {
 
         expect(result).toHaveProperty("status", 400);
         expect(result).toHaveProperty("message", "Coupon ID is required");
+      });
+
+      it("maps the payment-in-progress message to a 409 with the payment_in_progress code", () => {
+        const { service } = setup();
+        const error = new Error(PAYMENT_IN_PROGRESS_ERROR_MESSAGE);
+        const result = service.toAppError(error, "payment");
+
+        expect(result).toHaveProperty("status", 409);
+        expect(result).toHaveProperty("message", PAYMENT_IN_PROGRESS_ERROR_MESSAGE);
+        expect(result).toHaveProperty("errorCode", "payment_in_progress");
+        expect(result).toHaveProperty("errorType", "payment_error");
+      });
+
+      it("returns the payment_in_progress code from getPaymentErrorCode", () => {
+        const { service } = setup();
+
+        const result = service.getPaymentErrorCode(new Error(PAYMENT_IN_PROGRESS_ERROR_MESSAGE));
+
+        expect(result).toEqual({
+          message: PAYMENT_IN_PROGRESS_ERROR_MESSAGE,
+          code: "payment_in_progress",
+          type: "payment_error"
+        });
       });
     });
 

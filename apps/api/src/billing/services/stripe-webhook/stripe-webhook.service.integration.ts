@@ -1143,6 +1143,7 @@ describe(StripeWebhookService.name, () => {
       stripeCouponId: null,
       stripePromotionCodeId: null,
       stripeInvoiceId: null,
+      stripeIdempotencyKey: null,
       paymentMethodType: "card",
       cardBrand: "visa",
       cardLast4: "4242",

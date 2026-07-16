@@ -36,6 +36,7 @@ export const StripeTransactions = pgTable(
     stripeCouponId: varchar("stripe_coupon_id", { length: 255 }),
     stripePromotionCodeId: varchar("stripe_promotion_code_id", { length: 255 }),
     stripeInvoiceId: varchar("stripe_invoice_id", { length: 255 }),
+    stripeIdempotencyKey: varchar("stripe_idempotency_key", { length: 255 }),
     paymentMethodType: varchar("payment_method_type", { length: 50 }),
     cardBrand: varchar("card_brand", { length: 50 }),
     cardLast4: varchar("card_last4", { length: 4 }),
@@ -52,6 +53,13 @@ export const StripeTransactions = pgTable(
     stripeInvoiceIdUnique: uniqueIndex("stripe_transactions_stripe_invoice_id_unique")
       .on(table.stripeInvoiceId)
       .where(sql`${table.stripeInvoiceId} IS NOT NULL`),
+    // Partial unique index: enforces one transaction row per Stripe idempotency key so retried
+    // deliveries of the same attempt find-or-create the same row (the PaymentIntent metadata embeds
+    // the row id, so a fresh row per delivery would break Stripe's byte-identical replay contract).
+    // Keyless payment_intent rows and legacy rows leave it null.
+    stripeIdempotencyKeyUnique: uniqueIndex("stripe_transactions_stripe_idempotency_key_unique")
+      .on(table.stripeIdempotencyKey)
+      .where(sql`${table.stripeIdempotencyKey} IS NOT NULL`),
     userIdIdx: index("stripe_transactions_user_id_idx").on(table.userId),
     stripePaymentIntentIdIdx: index("stripe_transactions_stripe_payment_intent_id_idx").on(table.stripePaymentIntentId),
     stripeChargeIdIdx: index("stripe_transactions_stripe_charge_id_idx").on(table.stripeChargeId),

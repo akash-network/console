@@ -78,6 +78,8 @@ export interface ConfirmPaymentParams {
   userId: string;
   paymentMethodId: string;
   amount: number;
+  /** Client attempt key (uuid): retries of the same attempt reuse it so the API charges at most once. */
+  idempotencyKey?: string;
 }
 
 export interface ApplyCouponParams {
@@ -112,6 +114,9 @@ export interface ConfirmPaymentResponse {
   requiresAction?: boolean;
   clientSecret?: string;
   paymentIntentId?: string;
+  transactionId?: string;
+  /** "succeeded" on a replayed attempt means the wallet was already credited by the first delivery. */
+  transactionStatus?: string;
 }
 
 export interface ThreeDSecureAuthParams {
