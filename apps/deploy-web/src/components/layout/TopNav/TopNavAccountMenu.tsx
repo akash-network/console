@@ -59,11 +59,11 @@ export function TopNavAccountMenu({ dependencies: d = DEPENDENCIES, minimal = fa
                 <CustomDropdownLinkItem onClick={() => router.push(urlService.userSettings())} icon={<User />}>
                   Profile
                 </CustomDropdownLinkItem>
-                <div className="flex items-center justify-between px-4 py-1 text-sm">
-                  <span className="flex items-center gap-2">
-                    <SunLight className="text-xs" />
-                    Theme
+                <div className="relative flex items-center justify-between py-1 pl-8 pr-2 text-sm">
+                  <span className="absolute left-2 flex h-4 w-4 items-center justify-center">
+                    <SunLight />
                   </span>
+                  <span>Theme</span>
                   <d.ThemeToggle />
                 </div>
                 <CustomDropdownLinkItem onClick={() => window.open(DOCS_URL, "_blank", "noreferrer noopener")} icon={<Book />}>
