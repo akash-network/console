@@ -60,7 +60,7 @@ export const AgentModePanel: React.FunctionComponent = () => {
               title="Create an API key"
               description="The agent deploys on your behalf using a Console API key."
               action={
-                <Link href={UrlService.userApiKeys()} className="inline-flex font-medium text-primary hover:underline">
+                <Link href={UrlService.userApiKeys()} className="inline-flex text-sm font-medium text-primary hover:underline">
                   Go to API keys →
                 </Link>
               }
@@ -71,7 +71,7 @@ export const AgentModePanel: React.FunctionComponent = () => {
               title="Read the setup guide"
               description="Full walkthrough for connecting your agent and deploying."
               action={
-                <span className="font-medium text-primary hover:underline">
+                <span className="text-sm font-medium text-primary hover:underline">
                   <ExternalLink href={AI_AGENTS_DOCS_URL} text="Setup guide" />
                 </span>
               }
