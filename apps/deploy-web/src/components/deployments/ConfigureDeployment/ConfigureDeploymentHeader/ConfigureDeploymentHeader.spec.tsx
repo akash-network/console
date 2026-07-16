@@ -4,6 +4,7 @@ import { Snackbar } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { getAvgCostPerMonth } from "@src/utils/priceUtils";
 import type { DeploymentCost } from "../useDeploymentCost/useDeploymentCost";
 import type { DeploymentFlow, DeploymentFlowActions } from "../useDeploymentFlow/useDeploymentFlow";
 import type { QuoteExpiry } from "../useQuoteExpiry/useQuoteExpiry";
@@ -122,6 +123,13 @@ describe(ConfigureDeploymentHeader.name, () => {
     expect(screen.getByText("/hr")).toBeInTheDocument();
   });
 
+  it("shows the cost per month for a CPU-only deployment so a cheap spec doesn't round to $0.00/hr", () => {
+    setup({ phase: "quoting", cost: { minPerBlock: 5, maxPerBlock: 5, denom: "uakt" }, hasGpu: false });
+    expect(screen.getByText("/month")).toBeInTheDocument();
+    expect(screen.queryByText("/hr")).not.toBeInTheDocument();
+    expect(screen.getByTestId("price")).toHaveTextContent(String(getAvgCostPerMonth(5)));
+  });
+
   it("passes the sdl and current selections through to the cost hook", () => {
     const { useDeploymentCost } = setup({
       phase: "quoting",
@@ -189,6 +197,7 @@ describe(ConfigureDeploymentHeader.name, () => {
     deployError?: { message?: string };
     deploy?: () => void;
     cost?: DeploymentCost | null;
+    hasGpu?: boolean;
     sdl?: string;
     expiry?: QuoteExpiry | null;
     cancelAndEdit?: () => void;
@@ -208,6 +217,7 @@ describe(ConfigureDeploymentHeader.name, () => {
     const useDeploymentCost = vi.fn(() => input.cost ?? null);
     const dependencies: typeof DEPENDENCIES = {
       useDeploymentResourceSummary: (() => "1 vCPU") as never,
+      useDeploymentHasGpu: () => input.hasGpu ?? true,
       useSnackbar: () => mock<ReturnType<(typeof DEPENDENCIES)["useSnackbar"]>>({ enqueueSnackbar }),
       Snackbar,
       generateSdl: () => GENERATED_SDL,

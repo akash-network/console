@@ -19,6 +19,16 @@ describe(ReviewAndDeployModal.name, () => {
     expect(screen.getAllByTestId("price")).toHaveLength(2);
   });
 
+  it("prices per placement and total by the hour when the deployment uses a GPU", () => {
+    setup({ hasGpu: true });
+    screen.getAllByTestId("price").forEach(price => expect(price).toHaveTextContent("hourly"));
+  });
+
+  it("prices per placement and total by the month for a CPU-only deployment", () => {
+    setup({ hasGpu: false });
+    screen.getAllByTestId("price").forEach(price => expect(price).toHaveTextContent("monthly"));
+  });
+
   it("confirms with onConfirm", async () => {
     const onConfirm = vi.fn();
     setup({ onConfirm });
@@ -45,7 +55,7 @@ describe(ReviewAndDeployModal.name, () => {
     expect(screen.getByRole("button", { name: /confirm and deploy/i })).toBeDisabled();
   });
 
-  function setup(input: { rows?: ReviewRow[]; pricedCount?: number; totalCount?: number; onConfirm?: () => void; onBack?: () => void }) {
+  function setup(input: { rows?: ReviewRow[]; pricedCount?: number; totalCount?: number; hasGpu?: boolean; onConfirm?: () => void; onBack?: () => void }) {
     const rows = input.rows ?? [
       { placementId: "p1", placementName: "placement-1", region: "Any region", providerName: "Dune Networks", price: { amount: "100", denom: "uakt" } }
     ];
@@ -54,7 +64,8 @@ describe(ReviewAndDeployModal.name, () => {
       pricedCount: input.pricedCount ?? rows.filter(row => row.price).length,
       totalCount: input.totalCount ?? rows.length
     });
-    const PricePerTimeUnit: typeof DEPENDENCIES.PricePerTimeUnit = () => <span data-testid="price" />;
+    const PricePerTimeUnit: typeof DEPENDENCIES.PricePerTimeUnit = ({ showAsHourly }) => <span data-testid="price">{showAsHourly ? "hourly" : "monthly"}</span>;
+    const useDeploymentHasGpu: typeof DEPENDENCIES.useDeploymentHasGpu = () => input.hasGpu ?? false;
     render(
       <ReviewAndDeployModal
         open
@@ -63,7 +74,7 @@ describe(ReviewAndDeployModal.name, () => {
         selections={{ p1: "akash1a/55/1/2" }}
         onConfirm={input.onConfirm ?? vi.fn()}
         onBack={input.onBack ?? vi.fn()}
-        dependencies={{ useReviewRows, PricePerTimeUnit }}
+        dependencies={{ useReviewRows, PricePerTimeUnit, useDeploymentHasGpu }}
       />
     );
   }

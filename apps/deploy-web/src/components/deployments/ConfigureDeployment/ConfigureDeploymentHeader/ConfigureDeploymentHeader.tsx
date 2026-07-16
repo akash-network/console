@@ -7,10 +7,10 @@ import { useSnackbar } from "notistack";
 
 import { PriceValue } from "@src/components/shared/PriceValue";
 import type { SdlBuilderFormValuesType } from "@src/types";
-import { perBlockToHourly } from "@src/utils/priceUtils";
+import { getAvgCostPerMonth, perBlockToHourly } from "@src/utils/priceUtils";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { validateGeneratedSdl } from "@src/utils/sdl/validateGeneratedSdl";
-import { useDeploymentResourceSummary } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
+import { useDeploymentHasGpu, useDeploymentResourceSummary } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
 import type { DeploymentCost } from "../useDeploymentCost/useDeploymentCost";
 import { useDeploymentCost } from "../useDeploymentCost/useDeploymentCost";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
@@ -19,6 +19,7 @@ import { useQuoteExpiry } from "../useQuoteExpiry/useQuoteExpiry";
 
 export const DEPENDENCIES = {
   useDeploymentResourceSummary,
+  useDeploymentHasGpu,
   useSnackbar,
   Snackbar,
   generateSdl,
@@ -33,6 +34,7 @@ type Props = { flow: DeploymentFlow; sdl: string; onDeploy: () => void; allPlace
 
 export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, onDeploy, allPlacementsHaveBids, dependencies: d = DEPENDENCIES }) => {
   const deploymentSummary = d.useDeploymentResourceSummary();
+  const showAsHourly = d.useDeploymentHasGpu();
   const { control, handleSubmit, getValues } = useFormContext<SdlBuilderFormValuesType>();
   const { enqueueSnackbar } = d.useSnackbar();
   const placements = useWatch({ control, name: "placements" });
@@ -102,7 +104,11 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, onDeploy, allP
           <DeploymentSummaryBlock label="Your deployment" value={deploymentSummary} />
           <div className="hidden h-12 w-px self-stretch bg-border md:block" aria-hidden="true" />
           <div className="flex flex-col items-start gap-0.5 xl:items-end">
-            <DeploymentSummaryBlock label="Deployment cost" value={<CostValue cost={cost} PriceValue={d.PriceValue} />} suffix={cost ? "/hr" : undefined} />
+            <DeploymentSummaryBlock
+              label="Deployment cost"
+              value={<CostValue cost={cost} showAsHourly={showAsHourly} PriceValue={d.PriceValue} />}
+              suffix={cost ? (showAsHourly ? "/hr" : "/month") : undefined}
+            />
             <div className="h-4">{expiry ? <QuoteExpiryLine expiry={expiry} CustomTooltip={d.CustomTooltip} /> : null}</div>
           </div>
         </div>
@@ -155,19 +161,24 @@ function DeploymentSummaryBlock({ label, value, suffix }: DeploymentSummaryBlock
 
 interface CostValueProps {
   cost: DeploymentCost | null;
+  showAsHourly: boolean;
   PriceValue: typeof DEPENDENCIES.PriceValue;
 }
 
-/** The header cost value: a dash before bids, a single hourly USD price when the bounds are equal, otherwise a min–max range. */
-function CostValue({ cost, PriceValue }: CostValueProps) {
+/**
+ * The header cost value: a dash before bids, a single price when the bounds are equal, otherwise a min–max
+ * range. Shown hourly for GPU deployments and monthly for CPU-only ones, matching the marketplace and review
+ * modal so the same spec never reads as `$0.00/hr` in one place and `$30/month` in another.
+ */
+function CostValue({ cost, showAsHourly, PriceValue }: CostValueProps) {
   if (!cost) return <>—</>;
+  const toDisplayValue = showAsHourly ? perBlockToHourly : getAvgCostPerMonth;
   if (cost.minPerBlock === cost.maxPerBlock) {
-    return <PriceValue denom={cost.denom} value={perBlockToHourly(cost.minPerBlock)} />;
+    return <PriceValue denom={cost.denom} value={toDisplayValue(cost.minPerBlock)} />;
   }
   return (
     <>
-      <PriceValue denom={cost.denom} value={perBlockToHourly(cost.minPerBlock)} /> -{" "}
-      <PriceValue denom={cost.denom} value={perBlockToHourly(cost.maxPerBlock)} />
+      <PriceValue denom={cost.denom} value={toDisplayValue(cost.minPerBlock)} /> - <PriceValue denom={cost.denom} value={toDisplayValue(cost.maxPerBlock)} />
     </>
   );
 }

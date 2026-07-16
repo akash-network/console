@@ -15,10 +15,11 @@ import { ArrowRight, Rocket } from "iconoir-react";
 import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
 import type { PlacementType } from "@src/types";
 import { PRICE_DISPLAY_PRECISION, udenomToDenom } from "@src/utils/mathHelpers";
+import { useDeploymentHasGpu } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
 import type { ReviewRow } from "./useReviewRows";
 import { useReviewRows } from "./useReviewRows";
 
-export const DEPENDENCIES = { useReviewRows, PricePerTimeUnit };
+export const DEPENDENCIES = { useReviewRows, PricePerTimeUnit, useDeploymentHasGpu };
 
 interface Props {
   open: boolean;
@@ -36,6 +37,8 @@ interface Props {
  */
 export const ReviewAndDeployModal: FC<Props> = ({ open, dseq, placements, selections, onConfirm, onBack, dependencies: d = DEPENDENCIES }) => {
   const { rows, pricedCount, totalCount } = d.useReviewRows({ dseq, placements, selections });
+  /** Match the marketplace's cost unit: hourly for GPU (meaningful at that scale), monthly for CPU-only (so a cheap deployment reads as e.g. `$30/month` rather than rounding to `$0.00/hr`). */
+  const showAsHourly = d.useDeploymentHasGpu();
   /** Only deployable once every placement is selected and still has a live (priced) bid — a closed/stale bid leaves a row unpriced and would fail at create-lease. */
   const canConfirm = totalCount > 0 && rows.length === totalCount && pricedCount === totalCount;
   const preventDefault = (e: Event) => e.preventDefault();
@@ -68,7 +71,7 @@ export const ReviewAndDeployModal: FC<Props> = ({ open, dseq, placements, select
                     <d.PricePerTimeUnit
                       denom={row.price.denom}
                       perBlockValue={udenomToDenom(row.price.amount, PRICE_DISPLAY_PRECISION)}
-                      showAsHourly
+                      showAsHourly={showAsHourly}
                       abbreviated
                     />
                   ) : (
@@ -86,7 +89,7 @@ export const ReviewAndDeployModal: FC<Props> = ({ open, dseq, placements, select
                 {pricedCount} of {totalCount} {totalCount === 1 ? "placement" : "placements"} priced
               </p>
             </div>
-            <TotalPrice rows={rows} PricePerTimeUnit={d.PricePerTimeUnit} />
+            <TotalPrice rows={rows} showAsHourly={showAsHourly} PricePerTimeUnit={d.PricePerTimeUnit} />
           </div>
         </DialogV2Body>
 
@@ -105,14 +108,23 @@ export const ReviewAndDeployModal: FC<Props> = ({ open, dseq, placements, select
 };
 
 /**
- * Sums the selected offers' per-block prices and renders the hourly USD total through the shared price
- * component. Assumes a single denom across placements (one deployment shares a deposit denom), so it labels
- * the sum with the first priced row's denom; mixed denoms are not expected in this flow.
+ * Sums the selected offers' per-block prices and renders the USD total through the shared price component,
+ * hourly for GPU deployments and monthly for CPU-only ones to match the per-placement rows. Assumes a single
+ * denom across placements (one deployment shares a deposit denom), so it labels the sum with the first priced
+ * row's denom; mixed denoms are not expected in this flow.
  */
-function TotalPrice({ rows, PricePerTimeUnit: Price }: { rows: ReviewRow[]; PricePerTimeUnit: FC<ComponentProps<typeof PricePerTimeUnit>> }) {
+function TotalPrice({
+  rows,
+  showAsHourly,
+  PricePerTimeUnit: Price
+}: {
+  rows: ReviewRow[];
+  showAsHourly: boolean;
+  PricePerTimeUnit: FC<ComponentProps<typeof PricePerTimeUnit>>;
+}) {
   const priced = rows.filter((r): r is ReviewRow & { price: { amount: string; denom: string } } => !!r.price);
   if (priced.length === 0) return <span className="text-2xl font-bold">—</span>;
   const denom = priced[0].price.denom;
   const perBlockTotal = priced.reduce((sum, r) => sum + udenomToDenom(r.price.amount, PRICE_DISPLAY_PRECISION), 0);
-  return <Price denom={denom} perBlockValue={perBlockTotal} showAsHourly abbreviated className="text-2xl font-bold" />;
+  return <Price denom={denom} perBlockValue={perBlockTotal} showAsHourly={showAsHourly} abbreviated className="text-2xl font-bold" />;
 }
