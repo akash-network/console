@@ -58,7 +58,7 @@ export const DeploymentDetails: React.FC<DeploymentDetailsProps> = ({ dseq, owne
           </Card>
         )}
       </div>
-      <h2 className="text-lg font-semibold">Finances</h2>
+      <h2 className="text-lg">Finances</h2>
       <div className="grid grid-cols-4 gap-6">
         <Card>
           <CardContent className="p-4">
@@ -86,7 +86,7 @@ export const DeploymentDetails: React.FC<DeploymentDetailsProps> = ({ dseq, owne
           </CardContent>
         </Card>
       </div>
-      <h2 className="text-lg font-semibold">Resources Deployed</h2>
+      <h2 className="text-lg">Resources Deployed</h2>
       {deploymentDetails.leases.map((lease, index) => (
         <React.Fragment key={index}>
           <div className="space-y-6">

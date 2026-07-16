@@ -78,7 +78,7 @@ export function DeploymentTemplatePickerCard({
           </div>
 
           <div className="flex flex-col gap-2">
-            <h3 className="truncate text-2xl font-semibold leading-8 text-card-foreground">{title}</h3>
+            <h3 className="truncate text-2xl leading-8 text-card-foreground">{title}</h3>
             <p className="line-clamp-2 min-h-10 text-sm leading-5 text-muted-foreground">{description}</p>
           </div>
 

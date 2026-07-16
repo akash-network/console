@@ -60,7 +60,7 @@ export const ProviderConfig: React.FC<ProviderConfigProps> = ({ onComplete }) =>
     <div className="flex w-full flex-col items-center pt-10">
       <div className="w-full max-w-2xl space-y-6">
         <div>
-          <h3 className="text-xl font-bold">Provider Information</h3>
+          <h3 className="text-xl">Provider Information</h3>
           <p className="text-muted-foreground text-sm">Hostname will be displayed publicly to the Console.</p>
           <p className="text-muted-foreground text-sm">Email may be used for notifications.</p>
         </div>

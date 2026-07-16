@@ -32,7 +32,7 @@ export const NoDeploymentsState: React.FC<Props> = ({ onDeployClick, hasDeployme
         <div className="mb-4 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border">
           <Rocket className="rotate-45 text-muted-foreground" />
         </div>
-        <h3 className="mb-2 text-xl font-bold">{title}</h3>
+        <h3 className="mb-2 text-xl">{title}</h3>
 
         {isSignedInWithTrial && !user && (
           <p className="mb-4 text-center text-sm text-muted-foreground">If you are expecting to see some, you may need to sign in or connect a wallet</p>

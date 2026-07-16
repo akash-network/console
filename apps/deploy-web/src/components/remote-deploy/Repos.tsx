@@ -118,7 +118,7 @@ const Repos = ({
   return (
     <div className="flex flex-col gap-5 rounded border bg-card px-6 py-6 text-card-foreground">
       <div className="flex flex-col gap-2">
-        <h1 className="font-semibold">Select Repository</h1>
+        <h1>Select Repository</h1>
         <p className="text-muted-foreground">Select a Repo to be deployed</p>
       </div>
 

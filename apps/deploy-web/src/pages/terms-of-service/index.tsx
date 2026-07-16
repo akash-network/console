@@ -77,8 +77,8 @@ export function TermsOfService() {
           </li>
         </ul>
 
-        <h2 className="mb-2 text-xl font-bold">1. The Services</h2>
-        <h3 className="mb-2 text-lg font-bold">1.1 The Platform</h3>
+        <h2 className="mb-2 text-xl">1. The Services</h2>
+        <h3 className="mb-2 text-lg">1.1 The Platform</h3>
         <p className="mb-4">
           The Platform publishes information about computing infrastructure resources, such as access to virtual machines, Kubbernetes clusters, GPU/TPU
           instances, memory, storage, and other compute resources (&quot;Resources&quot;) provided by third-party providers, which may or may not include Akash
@@ -90,7 +90,7 @@ export function TermsOfService() {
           including without limitation, technical support, security updates, or patches.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">1.2 The Protocol</h3>
+        <h3 className="mb-2 text-lg">1.2 The Protocol</h3>
         <p className="mb-4">
           The Platform provides a web-based means to access the Akash network software protocol that runs on the Akash blockchain, a public blockchain network
           hosted by a network of unaffiliated third-party node operators whose nodes host the Akash blockchain&apos;s distributed ledger and validate and
@@ -104,8 +104,8 @@ export function TermsOfService() {
           mechanism, nor do we control trade execution on the Protocol.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">2. Using the Services</h2>
-        <h3 className="mb-2 text-lg font-bold">2.1 Eligibility</h3>
+        <h2 className="mb-2 text-xl">2. Using the Services</h2>
+        <h3 className="mb-2 text-lg">2.1 Eligibility</h3>
         <p className="mb-4">
           In connection with your access and use of the Services, you represent and warrant that you are at least 18 years old and capable of forming a binding
           contract with Akash in your respective jurisdiction. If you are accessing or using the Services on behalf of a legal entity or other type of
@@ -115,7 +115,7 @@ export function TermsOfService() {
           or headquartered in a Sanctioned Jurisdiction or a Prohibited Jurisdiction.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">2.2 Verification and Screening</h3>
+        <h3 className="mb-2 text-lg">2.2 Verification and Screening</h3>
         <p className="mb-4">
           You may be required to provide us directly, or through a third party, certain information and documentation. You represent and warrant that any
           information and documentation that you provide to us, whether as part of the Services or otherwise, is complete and accurate. We may employ various
@@ -126,7 +126,7 @@ export function TermsOfService() {
           responsibility for any permanent or temporary inability to access or use the Services as a result of any identity verification or screening procedure.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">2.3 User Accounts</h3>
+        <h3 className="mb-2 text-lg">2.3 User Accounts</h3>
         <p className="mb-4">
           You represent and warrant that all information you submit when you create your account is accurate, current, and complete, and that you will keep your
           account information accurate, current, and complete. You are solely responsible for any and all activity that occurs on your account, whether
@@ -137,8 +137,8 @@ export function TermsOfService() {
           reach a resolution.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">3. Digital Asset Wallets</h2>
-        <h3 className="mb-2 text-lg font-bold">3.1 In General</h3>
+        <h2 className="mb-2 text-xl">3. Digital Asset Wallets</h2>
+        <h3 className="mb-2 text-lg">3.1 In General</h3>
         <p className="mb-4">
           To pay for the Services using Digital Assets, you must connect a Digital Asset Wallet. Your relationship with the Digital Asset Wallet provider is
           governed by the terms and provisions of that provider&apos;s agreement with you. By connecting your Digital Asset Wallet to the Platform, you agree to
@@ -146,14 +146,14 @@ export function TermsOfService() {
           the Platform or from accessing or using other aspects of the Services.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">3.2 Non-Custodial</h3>
+        <h3 className="mb-2 text-lg">3.2 Non-Custodial</h3>
         <p className="mb-4">
           The Services are purely non-custodial applications, we do not have custody, possession, or control of your Digital Assets at any time. You own and
           control all Digital Assets held in your Digital Asset Wallet. As the owner of the Digital Assets, you bear all risk of loss of the Digital Assets.
           Akash will not be liable for Digital Asset fluctuations or other loss associated with your use of a Digital Asset Wallet.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">3.3 Security</h3>
+        <h3 className="mb-2 text-lg">3.3 Security</h3>
         <p className="mb-4">
           You are solely responsible for the custody of the cryptographic private keys associated with any Digital Asset Wallet you use or connect to the
           Services. You should never share your Digital Asset Wallet&apos;s credentials or seed phrase with anyone. We accept no responsibility or liability to
@@ -161,8 +161,8 @@ export function TermsOfService() {
           operate with any specific Digital Asset Wallet.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">4. Third Party Services, Applications, and Waiver</h2>
-        <h3 className="mb-2 text-lg font-bold">4.1 Third Party Services</h3>
+        <h2 className="mb-2 text-xl">4. Third Party Services, Applications, and Waiver</h2>
+        <h3 className="mb-2 text-lg">4.1 Third Party Services</h3>
         <p className="mb-4">
           The Services may include, without limitation, links to sites, technology, applications, products, services, materials, or resources, provided or made
           available by, third a third party, including for example, Stripe (collectively, &quot;<strong>Third Party Services</strong>&quot;). Your access and
@@ -179,7 +179,7 @@ export function TermsOfService() {
           for any damage or loss caused or alleged to be caused by, or in connection with, your use of, or reliance on, any Third Party Service.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">4.2 Third Party Applications</h3>
+        <h3 className="mb-2 text-lg">4.2 Third Party Applications</h3>
         <p className="mb-4">
           If, to the extent permitted by Akash, you grant express permission to a third party to access or connect to the Services, either through a third
           party&apos;s service or the Platform, you acknowledge that granting permission to such third party to take specific actions on your behalf does not
@@ -189,7 +189,7 @@ export function TermsOfService() {
           Services.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">4.3 Waiver of Claims</h3>
+        <h3 className="mb-2 text-lg">4.3 Waiver of Claims</h3>
         <p className="mb-4">
           To the maximum extent permitted by applicable law, you hereby waive any and all claims, demands, and damages of every kind or nature, known or
           unknown, suspected or unsuspected, disclosed or undisclosed, against Akash and its affiliates, and each of their respective officers, employees,
@@ -199,7 +199,7 @@ export function TermsOfService() {
           known by him or her must have materially affected his or her settlement with the debtor.&quot;
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">5. Risk Disclosures</h2>
+        <h2 className="mb-2 text-xl">5. Risk Disclosures</h2>
         <p className="mb-4">
           You understand, accept, and agree to assume all of the various risks involved in using, holding, transacting, and transferring Digital Assets and the
           use of the Services, including all of the risks set forth in this Section.
@@ -291,13 +291,13 @@ export function TermsOfService() {
           </li>
         </ul>
 
-        <h2 className="mb-2 text-xl font-bold">6. Acknowledgements and Covenants</h2>
+        <h2 className="mb-2 text-xl">6. Acknowledgements and Covenants</h2>
         <p className="mb-4">
           By accessing or using the Services, you acknowledge, represent, and warrant, in each case as applicable, each of the items contained in this Section
           and all of its subsections.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">6.1 Acknowledgement and Assumption of Risks</h3>
+        <h3 className="mb-2 text-lg">6.1 Acknowledgement and Assumption of Risks</h3>
         <p className="mb-4">
           You represent and warrant that you have received a copy of, have carefully read, understand, accept, and agree to assume all of the risks involved in
           using, holding, trading, delivering, transacting, and/or transferring Digital Assets and the use of the Services, including without limitation, the
@@ -306,7 +306,7 @@ export function TermsOfService() {
           with or that may otherwise relate to your access or use of the Services.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">6.2 Non-Reliance</h3>
+        <h3 className="mb-2 text-lg">6.2 Non-Reliance</h3>
         <p className="mb-4">
           You represent that you are not relying on (and will not at any time rely on) any communication (written or oral) of Akash as advice or as a
           recommendation to engage in any transaction involving Digital Assets. Further, you confirm that Akash has not: (a) given any guarantee or
@@ -325,7 +325,7 @@ export function TermsOfService() {
           own independent analysis of the risks specific to your use of the Services.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">7. Prohibited Use</h2>
+        <h2 className="mb-2 text-xl">7. Prohibited Use</h2>
         <p className="mb-4">
           You may not use the Services to engage in the following categories of activity (each a &quot;Prohibited Use&quot;). The specific types of activities
           listed below are representative, but not exhaustive.
@@ -385,7 +385,7 @@ export function TermsOfService() {
           and Digital Assets you use with the Services.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">8. Sanctions & Export Controls</h2>
+        <h2 className="mb-2 text-xl">8. Sanctions & Export Controls</h2>
         <p className="mb-4">
           You may not use the Services or purchase any Resources in or for the benefit of a country, organization, entity, or person embargoed or blocked by any
           government, including those on sanctions lists identified by OFAC. We do not claim, and we cannot guarantee that the Services or any Resources are or
@@ -393,7 +393,7 @@ export function TermsOfService() {
           export, import, or foreign use.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">9. Changes, Suspension, and Termination</h2>
+        <h2 className="mb-2 text-xl">9. Changes, Suspension, and Termination</h2>
         <p className="mb-4">
           Akash may, at its discretion and without liability to you, with or without prior notice and at any time, modify, discontinue, temporarily, or
           permanently, all or any portion of the Platform. You acknowledge that our decision to take certain actions, including limiting access to, suspending,
@@ -411,8 +411,8 @@ export function TermsOfService() {
           taken as a consequence of, investigations by us, such parties, or law enforcement authorities.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">10. Intellectual Property Rights</h2>
-        <h3 className="mb-2 text-lg font-bold">10.1 Akash Materials</h3>
+        <h2 className="mb-2 text-xl">10. Intellectual Property Rights</h2>
+        <h3 className="mb-2 text-lg">10.1 Akash Materials</h3>
         <p className="mb-4">
           The Services and its entire contents, features, and functionality including but not limited to all information, software, text, displays, images,
           video, and audio, the design, selection, and arrangement thereof, and the &quot;look and feel&quot; of the Services, except any open source software,
@@ -420,7 +420,7 @@ export function TermsOfService() {
           international copyright, trademark, patent, trade secret, and other intellectual property or proprietary rights laws.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">10.2 Limitations on Use</h3>
+        <h3 className="mb-2 text-lg">10.2 Limitations on Use</h3>
         <p className="mb-4">
           In connection with your use of the Services, you may use the Akash Materials solely as authorized by us for as long as we permit you to continue
           accessing the Services. Without limiting the foregoing, you agree not to: (a) resell, lease, lend, share, distribute, or otherwise permit any third
@@ -432,7 +432,7 @@ export function TermsOfService() {
           Services or Akash Materials for any commercial or noncommercial purpose other than their intended purposes determined at Akash&apos;s discretion.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">10.3 Rights We Grant You</h3>
+        <h3 className="mb-2 text-lg">10.3 Rights We Grant You</h3>
         <p className="mb-4">
           We hereby permit you to use and access the Services, provided that you comply with these Terms. If any software, content, or other materials owned or
           controlled by us are distributed to you as part of your use of the Services, we hereby grant you a non-sublicensable, non-transferable, and
@@ -440,7 +440,7 @@ export function TermsOfService() {
           case for the sole purpose of enabling you to use the Services as permitted by these Terms.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">10.4 Reservation of Rights</h3>
+        <h3 className="mb-2 text-lg">10.4 Reservation of Rights</h3>
         <p className="mb-4">
           If your use or access to the Services is in breach of these Terms, your right to access the Services will stop immediately and you must, at our sole
           option, return or destroy any copies of the materials that you made directly or indirectly from the Services. No right, title, or interest in or to
@@ -449,13 +449,13 @@ export function TermsOfService() {
           expressly permitted by these Terms is a breach of these Terms and may violate copyright, trademark, and other applicable laws.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">10.5 Trademarks</h3>
+        <h3 className="mb-2 text-lg">10.5 Trademarks</h3>
         <p className="mb-4">
           Akash&apos;s name, the term &quot;Akash Network&quot; and all related names, logos, product and/or service names, designs, and slogans are trademarks
           of Akash, its affiliates, or licensors. You agree not to use such marks without the prior express written permission of Akash.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">11. Platform Content</h2>
+        <h2 className="mb-2 text-xl">11. Platform Content</h2>
         <p className="mb-4">
           We do not warrant the accuracy, completeness, or usefulness of any materials or information that we or a third party present on or through the
           Services. Such information is made available solely for general information and education purposes. Any information posted to the Services should not
@@ -464,7 +464,7 @@ export function TermsOfService() {
           other user or person who may be informed of any of the Services contents, or by the actions or omissions of others interacting with the Services.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">12. Interactions with other Users</h2>
+        <h2 className="mb-2 text-xl">12. Interactions with other Users</h2>
         <p className="mb-4">
           You are responsible for your interactions with other users, including other Tenants or Providers, as applicable, on or through the Services. While we
           reserve the right to monitor interactions between users, we are not obligated to do so, and we cannot be held liable for your interactions with other
@@ -475,7 +475,7 @@ export function TermsOfService() {
           those claims which you may know or suspect to exist in your favor at the time of agreeing to this release.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">13. Promotions</h2>
+        <h2 className="mb-2 text-xl">13. Promotions</h2>
         <p className="mb-4">
           Akash may make available special offers or conduct promotions for qualifying users. Subject to applicable laws, Akash, or the issuer of a Digital
           Asset subject to an offer or promotion, may establish qualifying criteria to participate in any special promotions at its sole discretion. Any
@@ -484,7 +484,7 @@ export function TermsOfService() {
           any advice about the value or utility of a Digital Asset that is part of a promotion.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">14. Feedback</h2>
+        <h2 className="mb-2 text-xl">14. Feedback</h2>
         <p className="mb-4">
           Any questions, suggestions, ideas, feedback, reviews, or other information or materials regarding the Services provided by you to Akash (collectively,
           &quot;Feedback&quot;) are non-confidential. Akash will be entitled to the unrestricted use and dissemination of Feedback for any purpose, commercial
@@ -493,7 +493,7 @@ export function TermsOfService() {
           modifications made based on any Feedback.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">15. Relationship of the Parties</h2>
+        <h2 className="mb-2 text-xl">15. Relationship of the Parties</h2>
         <p className="mb-4">
           Akash is not your broker, intermediary, agent, or advisor and has no fiduciary relationship or obligation to you in your use of the Services. Akash
           does not provide investment, tax, or legal advice, and you are solely responsible for any transaction, investment, strategy, decision, or other act
@@ -505,8 +505,8 @@ export function TermsOfService() {
           completely harmless in relation thereof.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">16. Charges and Fees</h2>
-        <h3 className="mb-2 text-lg font-bold">16.1 Protocol Fees</h3>
+        <h2 className="mb-2 text-xl">16. Charges and Fees</h2>
+        <h3 className="mb-2 text-lg">16.1 Protocol Fees</h3>
         <p className="mb-4">
           You may be charged fees in connection with your access to the Protocol via a third party interface. You are responsible for doing your own diligence
           on any third party interface to understand any applicable fee or charge that such third party may charge you. Under no circumstances shall Akash incur
@@ -514,13 +514,13 @@ export function TermsOfService() {
         </p>
         <p className="mb-4">You may cancel your access to the Services at any time through the Platform.</p>
 
-        <h3 className="mb-2 text-lg font-bold">16.2 Our Charges and Fees</h3>
+        <h3 className="mb-2 text-lg">16.2 Our Charges and Fees</h3>
         <p className="mb-4">
           We may, in our sole discretion and at any time, set or modify the fees for the Services. If we decide to set or modify fees for the Services, the fee
           schedule will be made available on the Platform. Except when required by law, all fees you pay to us are non-refundable.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">16.3 Blockchain Fees</h3>
+        <h3 className="mb-2 text-lg">16.3 Blockchain Fees</h3>
         <p className="mb-4">
           Blockchain transactions require the payment of transaction fees to the appropriate network&apos;s nodes, miners, validators, or operators
           (&quot;Blockchain Fees&quot;). You will be solely responsible to pay the Blockchain Fees for any transaction that you initiate via the Protocol or the
@@ -531,7 +531,7 @@ export function TermsOfService() {
           refund, disbursement, indemnity, or for any other aspect of your use or transmission of Blockchain Fees.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">16.4 Credit Card Payments; Chargebacks</h3>
+        <h3 className="mb-2 text-lg">16.4 Credit Card Payments; Chargebacks</h3>
         <p className="mb-4">
           You may purchase access to the Services with Digital Assets via your Digital Asset Wallet, or with an accepted debit or credit card (&quot;Payment
           Card&quot;) through Stripe&apos;s payment portal. You are responsible for keeping all information for your Payment Card updated and accurate through
@@ -561,8 +561,8 @@ export function TermsOfService() {
           https://support.stripe.com/topics/cash-titles.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">17. General Service Terms</h2>
-        <h3 className="mb-2 text-lg font-bold">17.1 Blockchain Transactions</h3>
+        <h2 className="mb-2 text-xl">17. General Service Terms</h2>
+        <h3 className="mb-2 text-lg">17.1 Blockchain Transactions</h3>
         <p className="mb-4">
           In connection with the Services, transactions rely on blockchain software parameters, cryptographic tokens generated by such parameters, and other
           nascent software, applications and systems that interact with blockchain-based networks. These technologies are experimental, speculative, inherently
@@ -571,14 +571,14 @@ export function TermsOfService() {
           Assets are distributed.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">17.2 Taxes</h3>
+        <h3 className="mb-2 text-lg">17.2 Taxes</h3>
         <p className="mb-4">
           It is your sole responsibility to determine whether and to what extent any taxes apply to activity you conduct through the Services, and to withhold,
           collect, report, and remit the correct amounts of taxes to the appropriate tax authorities. No communication or information provided to you by Akash
           is intended as, or considered or construed as, legal or tax advice.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">18. WARRANTY DISCLAIMER</h2>
+        <h2 className="mb-2 text-xl">18. WARRANTY DISCLAIMER</h2>
         <p className="mb-4 font-bold">
           Akash has no oversight on or control over any particular Digital Asset or blockchain network, including the Protocol. You are responsible for your use
           of the Services, the functionalities that you enable, transactions engaged on the Protocol through the Services, and access or use of the information
@@ -629,7 +629,7 @@ export function TermsOfService() {
           ANY WARRANTIES THAT CANNOT BE EXCLUDED OR LIMITED UNDER APPLICABLE LAW.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">19. Indemnification</h2>
+        <h2 className="mb-2 text-xl">19. Indemnification</h2>
         <p className="mb-4">
           You agree to defend, indemnify, and hold harmless Akash, its affiliates, licensors, service providers, and their respective officers, directors,
           employees, contractors, agents, licensors, suppliers, successors, and assigns from and against any claims, liabilities, damages, judgments, awards,
@@ -640,7 +640,7 @@ export function TermsOfService() {
           or without your assistance, using any device, account, profile, Digital Asset Wallet, or other mechanism that you own or control.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">20. LIMITATION OF LIABILITY; DISCLAIMER OF DAMAGES</h2>
+        <h2 className="mb-2 text-xl">20. LIMITATION OF LIABILITY; DISCLAIMER OF DAMAGES</h2>
         <p className="mb-4 font-bold">
           TO THE FULLEST EXTENT PROVIDED BY LAW, IN NO EVENT WILL AKASH, ITS AFFILIATES, OR THEIR RESPECTIVE LICENSORS, SERVICE PROVIDERS, EMPLOYEES, AGENTS,
           OFFICERS, OR DIRECTORS BE LIABLE FOR DAMAGES OF ANY KIND, UNDER ANY LEGAL THEORY, ARISING OUT OF OR IN CONNECTION WITH YOUR USE, OR INABILITY TO USE
@@ -660,14 +660,14 @@ export function TermsOfService() {
           LIABILITY AROSE. THE FOREGOING DOES NOT AFFECT ANY LIABILITY THAT CANNOT BE EXCLUDED OR LIMITED UNDER APPLICABLE LAW.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">21. Dispute Resolution, Waiver of Class Action, and Mandatory Arbitration</h2>
+        <h2 className="mb-2 text-xl">21. Dispute Resolution, Waiver of Class Action, and Mandatory Arbitration</h2>
         <p className="mb-4">
           Please read this section carefully because it waives any right to participate in any class action or other representative action or proceeding. This
           section requires you to arbitrate certain disputes and limits the ways in which you can seek relief, including by precluding you from suing in court
           or having a jury trial.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">21.1 Waiver of Class Actions and Right to Jury Trial</h3>
+        <h3 className="mb-2 text-lg">21.1 Waiver of Class Actions and Right to Jury Trial</h3>
         <p className="mb-4">
           To the extent permissible by law, any claim, controversy, or dispute arising out of or related to this Agreement, or any products or services provided
           in connection with the Services (each a &quot;Dispute&quot;) must be brought in your individual capacity, and not as a plaintiff or class member in
@@ -676,7 +676,7 @@ export function TermsOfService() {
           are waiving the right to a trial by jury and the right to participate in a class action.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">21.2 Informal Resolution</h3>
+        <h3 className="mb-2 text-lg">21.2 Informal Resolution</h3>
         <p className="mb-4">
           Before filing a claim against Akash, you agree to try to resolve the Dispute by first emailing{" "}
           <Link href="mailto:consolebilling@akash.network" target="_blank" rel="noopener noreferrer">
@@ -686,7 +686,7 @@ export function TermsOfService() {
           your first email, you or Akash may then submit the Dispute to binding arbitration as provided herein.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">21.3 Arbitration Agreement</h3>
+        <h3 className="mb-2 text-lg">21.3 Arbitration Agreement</h3>
         <p className="mb-4">
           With only limited exceptions as described in 21.7 below, all Disputes between you and Akash must be resolved by final and binding arbitration. By
           agreeing to binding arbitration, you and Akash expressly waive the right to formal court proceedings including without limitation trial by jury and
@@ -694,7 +694,7 @@ export function TermsOfService() {
           the Federal Arbitration Act 9 U.S.C. § 1, et seq. (&quot;FAA&quot;).
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">21.4 Conducting Arbitration</h3>
+        <h3 className="mb-2 text-lg">21.4 Conducting Arbitration</h3>
         <p className="mb-4">
           The arbitration shall be conducted by the International Chamber of Commerce (&quot;ICC&quot;) under its Commercial Arbitration Rules (&quot;ICC
           Rules&quot;) then in effect. If you are a consumer, the most recent version of the ICC Rules can be accessed{" "}
@@ -711,13 +711,13 @@ export function TermsOfService() {
           mutually agreeable location.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">21.5 Confidentiality</h3>
+        <h3 className="mb-2 text-lg">21.5 Confidentiality</h3>
         <p className="mb-4">
           Akash, the arbitrator, and you, will each maintain the confidentiality of any arbitration proceedings, judgments, and awards including information
           gathered and produced during the arbitration.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">21.6 Arbitration Time for Filing</h3>
+        <h3 className="mb-2 text-lg">21.6 Arbitration Time for Filing</h3>
         <p className="mb-4">
           Any arbitration must be commenced by filing a demand for arbitration within one year after the date the party asserting the claim first knows or
           reasonably should know of the act, omission or default giving rise to the claim. If applicable law prohibits a one year limitation period for
@@ -725,7 +725,7 @@ export function TermsOfService() {
           the Dispute is permanently barred.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">21.7 Excepted Claims</h3>
+        <h3 className="mb-2 text-lg">21.7 Excepted Claims</h3>
         <p className="mb-4">
           Notwithstanding this Section 21, you and Akash may bring an individual small claims action in the small claims court in your or Akash&apos;s
           respective county of residence as provided under the ICC Rules, or seek only a temporary restraining order or injunction for alleged breach of
@@ -733,7 +733,7 @@ export function TermsOfService() {
           each case, the action is brought as an individual action and not on a class or representative basis.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">21.8 Severability</h3>
+        <h3 className="mb-2 text-lg">21.8 Severability</h3>
         <p className="mb-4">
           If any portion of this Section 21 is found to be unenforceable or unlawful for any reason, the unenforceable or unlawful provision shall be severed
           from these Terms and such severance of the provision(s) shall have no impact whatsoever on the remainder of this Section 21. Further, to the extent
@@ -744,14 +744,14 @@ export function TermsOfService() {
           shall remain in full force and effect.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">21.9 Modification</h3>
+        <h3 className="mb-2 text-lg">21.9 Modification</h3>
         <p className="mb-4">
           Notwithstanding any term or provision in this Agreement to the contrary, you and Akash agree that if Akash makes any future material change to this
           Section 21, Akash will notify you. Your continued use of the Services including the acceptance of products and services offered on the Platform
           following the posting of changes to this Section 21 constitutes your acceptance of any such changes.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">22. Governing Law</h2>
+        <h2 className="mb-2 text-xl">22. Governing Law</h2>
         <p className="mb-4">
           This Agreement shall be governed by, and construed and enforced in accordance with, the laws of Texas. Without regard to conflict of law rules or
           principles that would cause the application of the laws of any other jurisdiction. You agree that Akash may initiate a proceeding relating to the
@@ -760,7 +760,7 @@ export function TermsOfService() {
           objection to venue in any such courts.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">23. Amendments to this Agreement</h2>
+        <h2 className="mb-2 text-xl">23. Amendments to this Agreement</h2>
         <p className="mb-4">
           Akash reserves the right to amend this Agreement and/or policies that govern the Services from time to time and in our sole discretion. Any changes
           will be effective immediately upon posting of the revisions, and you waive any right you may have to receive specific notices of such changes or
@@ -768,8 +768,8 @@ export function TermsOfService() {
           agree to the changes, you may stop using the Services.
         </p>
 
-        <h2 className="mb-2 text-xl font-bold">24. Miscellaneous Terms</h2>
-        <h3 className="mb-2 text-lg font-bold">24.1 Assignment</h3>
+        <h2 className="mb-2 text-xl">24. Miscellaneous Terms</h2>
+        <h3 className="mb-2 text-lg">24.1 Assignment</h3>
         <p className="mb-4">
           These Terms, and any other document, material, or information referenced herein is particular to you and any attempt that you make to assign, novate,
           or transfer your rights, interests, liabilities, and/or obligations is null and void, unless you have received Akash&apos;s prior written consent.
@@ -778,26 +778,26 @@ export function TermsOfService() {
           the parties and their successors and permitted assigns.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">24.2 Termination & Survival</h3>
+        <h3 className="mb-2 text-lg">24.2 Termination & Survival</h3>
         <p className="mb-4">
           We reserve the right to change, suspend or discontinue, or terminate, restrict, or disable your use of or access to, parts or all of the Services or
           their functionality at any time at our sole discretion and without notice. All sections of this Agreement that by their nature should survive
           termination shall survive termination.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">24.3 Nonwaiver of Rights</h3>
+        <h3 className="mb-2 text-lg">24.3 Nonwaiver of Rights</h3>
         <p className="mb-4">
           Akash&apos;s failure or delay in exercising any right, power, or privilege under these Terms shall not operate as a waiver thereof.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">24.4 Severability</h3>
+        <h3 className="mb-2 text-lg">24.4 Severability</h3>
         <p className="mb-4">
           If any provision of this Agreement shall be determined to be invalid or unenforceable under any rule, law, or regulation, or any governmental agency
           whether local, state, or federal, such provision shall be interpreted to accomplish the objectives of the provision to the greatest extent possible
           under any applicable law, and the validity or enforceability of any other provision of the Terms shall not be affected.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">24.5 Force Majeure</h3>
+        <h3 className="mb-2 text-lg">24.5 Force Majeure</h3>
         <p className="mb-4">
           You acknowledge and consent that the Services are provided by us according to our current technological capability and other business conditions.
           While we have made every effort to ensure continuity and security of the Services, we are unable to completely foresee and hedge against all legal,
@@ -817,26 +817,26 @@ export function TermsOfService() {
           affect the Digital Assets and/or blockchain industries (collectively, &quot;Force Majeure Events&quot;).
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">24.6 Notice</h3>
+        <h3 className="mb-2 text-lg">24.6 Notice</h3>
         <p className="mb-4">
           Any notices or other communications provided by us under these Terms including those regarding modifications to these Terms will be posted online, in
           the Services, or through other electronic communication. You agree and consent to receive electronically all communications, agreements, documents,
           notices, and disclosures that we provide in connection with your use of the Services.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">24.7 Privacy</h3>
+        <h3 className="mb-2 text-lg">24.7 Privacy</h3>
         <p className="mb-4">
           To understand how Akash collects, uses, and shares information about you, please review our{" "}
           <Link href={UrlService.privacyPolicy()}>Privacy Policy</Link>.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">24.8 Third Party Beneficiaries</h3>
+        <h3 className="mb-2 text-lg">24.8 Third Party Beneficiaries</h3>
         <p className="mb-4">
           Nothing in this Agreement, expressed or implied, is intended to confer upon any person, other than the parties and their successors and permitted
           assigns, any of the rights hereunder.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">24.9 Entire Agreement</h3>
+        <h3 className="mb-2 text-lg">24.9 Entire Agreement</h3>
         <p className="mb-4">
           These Terms and every other term or provision applicable to you, including any document incorporated by reference herein, constitute the entire
           agreement and understanding between you and Akash as to the subject matter hereof, and supersede any and all prior discussions, agreements, and
@@ -844,7 +844,7 @@ export function TermsOfService() {
           conflict between these Terms and any other agreement you may have with Akash.
         </p>
 
-        <h3 className="mb-2 text-lg font-bold">24.10 Translation</h3>
+        <h3 className="mb-2 text-lg">24.10 Translation</h3>
         <p className="mb-4">
           These Terms are set forth in the English language and all communications including any notices or information being transmitted shall be in English.
           In the event that these Terms or any part of it is translated (for any proceedings, for your convenience, or otherwise) into any other language, the

@@ -44,7 +44,7 @@ export const CertManagerStep: React.FC<CertManagerStepProps> = ({ onComplete }) 
     <div className="flex w-full flex-col items-center pt-10">
       <div className="w-full max-w-2xl space-y-6">
         <div>
-          <h3 className="text-xl font-bold">TLS / Cert Manager</h3>
+          <h3 className="text-xl">TLS / Cert Manager</h3>
           <p className="text-muted-foreground text-sm">
             Provider v0.12.0 uses cert-manager to issue Let&apos;s Encrypt certificates via DNS-01 challenges. Configure the DNS provider that hosts{" "}
             <code className="text-xs">{providerDomain || "your domain"}</code>.

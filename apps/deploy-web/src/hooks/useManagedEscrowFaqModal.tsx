@@ -53,7 +53,7 @@ export const useManagedEscrowFaqModal = (): {
           )}
           <div className="space-y-2">
             <Alert className="space-y-2">
-              <h2 className="font-bold">How do Akash deployments work?</h2>
+              <h2>How do Akash deployments work?</h2>
               <p className="text-sm text-muted-foreground">
                 Akash deployments use escrow accounts, also known as deployment deposits, as a way to ensure that a user has enough funds to cover the cost of
                 deploying and running their application on the Akash network. When you create a deployment, you deposit{" "}
@@ -93,7 +93,7 @@ export const useManagedEscrowFaqModal = (): {
             </Alert>
 
             <Alert className="space-y-2">
-              <h2 className="font-bold">About Providers</h2>
+              <h2>About Providers</h2>
               <p className="text-sm text-muted-foreground">
                 Each provider has a unique configuration when it comes to escrow accounts. Withdrawals from the escrow account to the provider can be any value
                 starting at 5 minutes. The cost stays the same, but the escrow balance of your deployments will be reduced by the amount withdrawn based on the

@@ -218,7 +218,7 @@ export const ProviderList: React.FunctionComponent = () => {
           <div>
             <div className="flex flex-wrap items-center pt-4">
               <div className="flex items-center space-x-6">
-                <h3 className="text-2xl font-bold">Providers</h3>
+                <h3 className="text-2xl">Providers</h3>
 
                 <div>
                   <Button aria-label="back" onClick={() => refresh()} size="icon" variant="ghost" className="rounded-full">

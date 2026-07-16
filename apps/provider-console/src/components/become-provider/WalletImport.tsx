@@ -202,7 +202,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
             <form onSubmit={form.handleSubmit(submitData)}>
               <div className="space-y-8">
                 <div>
-                  <h3 className="text-xl font-bold">Import Wallet</h3>
+                  <h3 className="text-xl">Import Wallet</h3>
                   <p className="text-muted-foreground text-sm">
                     A wallet is necessary in order to bid on workloads and to receive funds from deployments (tenants/users).
                   </p>
@@ -293,7 +293,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
             <form onSubmit={seedForm.handleSubmit(submitForm)} className="space-y-6">
               <div className="space-y-8">
                 <div>
-                  <h3 className="text-xl font-bold">Auto Import Wallet</h3>
+                  <h3 className="text-xl">Auto Import Wallet</h3>
                   <p className="text-muted-foreground text-sm">Uses secure end-to-end encryption to import your wallet into control node of your provider.</p>
                 </div>
                 <div className="">
@@ -339,14 +339,14 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
       {mode === "manual" && (
         <div className="space-y-6">
           <div>
-            <h3 className="text-xl font-bold">Manual Import</h3>
+            <h3 className="text-xl">Manual Import</h3>
             <p className="text-muted-foreground text-sm">Follow these instructions to manually import your wallet on the control node of your provider.</p>
           </div>
           <div>
             <Separator />
           </div>
           <div className="space-y-4">
-            <h4 className="text-lg font-semibold">Instructions:</h4>
+            <h4 className="text-lg">Instructions:</h4>
             <ol className="list-decimal space-y-2 pl-6">
               <li>Open a Terminal: On your computer, open the terminal app.</li>
               <li>

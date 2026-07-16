@@ -191,7 +191,7 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
     <div className={`flex w-full flex-col items-center ${!editMode ? "pt-10" : "pt-5"}`}>
       <div className={`w-full ${!editMode ? "max-w-2xl" : ""} space-y-6`}>
         <div>
-          {existingAttributes ? <Title>Edit Provider Attributes</Title> : <h3 className="text-xl font-bold">Provider Attributes</h3>}
+          {existingAttributes ? <Title>Edit Provider Attributes</Title> : <h3 className="text-xl">Provider Attributes</h3>}
           <p className="text-muted-foreground text-sm">Attributes choosen here will be displayed publicly to the Console.</p>
           <p className="text-muted-foreground text-sm">It will be used for filtering and querying providers during bid process.</p>
         </div>
@@ -202,7 +202,7 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
           <Form {...form}>
             <form onSubmit={form.handleSubmit(updateProviderAttributesAndProceed)} className="space-y-6">
               <div>
-                <h4 className="mb-2 text-lg font-semibold">Attributes</h4>
+                <h4 className="mb-2 text-lg">Attributes</h4>
                 {fields.map((field, index) => {
                   const selectedKeys = form.watch("attributes").map(attr => attr.key);
                   const availableKeys = attributeKeys.filter(key => !selectedKeys.includes(key) || key === field.key || key === "unknown-attributes");

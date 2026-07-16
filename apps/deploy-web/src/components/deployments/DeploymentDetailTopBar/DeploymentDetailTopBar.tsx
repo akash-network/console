@@ -184,7 +184,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
           <NavArrowLeft />
         </d.Button>
 
-        <h3 className="truncate text-2xl font-bold">{deploymentName ? deploymentName : "Deployment detail"}</h3>
+        <h3 className="truncate text-2xl">{deploymentName ? deploymentName : "Deployment detail"}</h3>
 
         <d.Button aria-label="refresh" onClick={() => loadDeploymentDetail()} size="icon" variant="text">
           <Refresh />

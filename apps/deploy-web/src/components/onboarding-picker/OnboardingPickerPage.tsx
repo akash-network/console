@@ -101,7 +101,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
         <div className="mx-auto w-full max-w-5xl px-6 pt-8 [@media(max-height:520px)]:pb-12">
           <div className="flex w-full flex-col gap-10">
             <div className="flex flex-col gap-1.5">
-              <h1 className="text-3xl font-bold leading-9 text-foreground">Let&apos;s deploy your first app</h1>
+              <h1 className="text-3xl leading-9 text-foreground">Let&apos;s deploy your first app</h1>
               <p className="max-w-2xl text-sm leading-5 text-muted-foreground">
                 We&apos;ve provided you with <span className="font-medium text-blue-600 dark:text-blue-400">${trialCreditsAmount} in free trial credits</span>.
                 {isFirstPurchaseBonusEnabled && (

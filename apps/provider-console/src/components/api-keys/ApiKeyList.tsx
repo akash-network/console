@@ -73,7 +73,7 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">API Keys</h1>
+          <h1 className="text-2xl text-gray-900 dark:text-white">API Keys</h1>
           <p className="mt-1 text-gray-600 dark:text-gray-400">Manage your API access credentials</p>
         </div>
       </div>

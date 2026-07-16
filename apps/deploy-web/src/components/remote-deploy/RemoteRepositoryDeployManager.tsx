@@ -155,7 +155,7 @@ const RemoteRepositoryDeployManager = ({
     <>
       <div className="mt-6 flex flex-col rounded border bg-card px-4 py-6 text-card-foreground md:px-6">
         <div className="flex items-center justify-between gap-6">
-          <h2 className="font-semibold">Import Repository</h2>
+          <h2>Import Repository</h2>
 
           {token?.accessToken && (
             <div className="md:hidden">
@@ -235,7 +235,7 @@ const RemoteRepositoryDeployManager = ({
                 {!token?.accessToken && (
                   <div className="flex flex-col justify-center gap-6 rounded-sm border px-4 py-8 md:items-center">
                     <div className="flex flex-col items-center justify-center">
-                      <h1 className="text-lg font-bold text-primary">Connect Account</h1>
+                      <h1 className="text-lg text-primary">Connect Account</h1>
                       <p className="text-center text-sm text-muted-foreground">Connect a git provider to access your repositories.</p>
                     </div>
                     <div className="flex flex-col gap-3 md:flex-row">

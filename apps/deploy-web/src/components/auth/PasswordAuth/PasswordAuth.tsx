@@ -107,7 +107,7 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
   return (
     <>
       <div className="flex w-full flex-col items-center gap-2 text-center">
-        <h1 className="text-[30px] font-bold leading-9 text-neutral-950 dark:text-neutral-50">
+        <h1 className="text-[30px] leading-9 text-neutral-950 dark:text-neutral-50">
           {activeView === "forgot-password" ? "Reset your password" : "Log in or sign up"}
         </h1>
         <p className="text-sm leading-5 text-neutral-500 dark:text-neutral-400">

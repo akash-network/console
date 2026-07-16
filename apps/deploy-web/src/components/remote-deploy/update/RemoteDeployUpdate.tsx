@@ -110,7 +110,7 @@ const RemoteDeployUpdate = ({ sdlString, onManifestChange }: { sdlString: string
         <>
           <div className="flex flex-col gap-5 rounded border bg-card px-6 py-6 text-card-foreground">
             <div className="flex flex-col gap-2">
-              <h1 className="font-semibold">Rollback</h1> <p className="text-muted-foreground">Rollback to a specific commit</p>
+              <h1>Rollback</h1> <p className="text-muted-foreground">Rollback to a specific commit</p>
             </div>
 
             <Rollback control={control} services={services} />

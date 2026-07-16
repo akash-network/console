@@ -169,7 +169,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
             )}
           >
             {isGitProviderTemplate ? (
-              <h1 className="font-semibold">Build Server Specs</h1>
+              <h1>Build Server Specs</h1>
             ) : (
               <FormField
                 control={control}
