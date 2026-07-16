@@ -16,7 +16,7 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({ icon, title, descrip
     <div className="flex flex-1 flex-col p-5">
       <div className="mb-4 flex justify-center rounded-md border p-2">{icon}</div>
       <div className="mb-4 flex-1 space-y-2">
-        <h3 className="text-lg font-semibold">{title}</h3>
+        <h3 className="text-lg">{title}</h3>
         <p className="text-xs leading-relaxed text-muted-foreground">{description}</p>
       </div>
       <Button onClick={onDeploy} disabled={disabled} className="w-full bg-primary text-primary-foreground hover:bg-primary/90">

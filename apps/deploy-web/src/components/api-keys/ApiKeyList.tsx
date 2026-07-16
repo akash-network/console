@@ -59,7 +59,7 @@ export function ApiKeyList({ apiKeys, onDeleteApiKey, onDeleteClose, isDeleting,
       <div className="py-6">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">API Keys</h1>
+            <h1 className="text-2xl">API Keys</h1>
           </div>
           <Button size="sm" onClick={() => setIsCreateModalOpen(true)}>
             Create Key

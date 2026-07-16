@@ -342,7 +342,7 @@ const SettingsPage: React.FC = () => {
 
       <div className="mt-8 space-y-8">
         <div className="rounded-lg border p-6">
-          <h2 className="text-xl font-semibold">Restart Provider</h2>
+          <h2 className="text-xl">Restart Provider</h2>
           <p className="text-muted-foreground mt-2">Restart your provider instance. This may cause temporary service interruption.</p>
           <Button onClick={() => restartProvider()} className="mt-4" disabled={isDisabled || isRestartLoading}>
             {isRestartLoading ? "Restarting..." : "Restart Provider"}
@@ -351,7 +351,7 @@ const SettingsPage: React.FC = () => {
         </div>
 
         <div className="rounded-lg border p-6">
-          <h2 className="text-xl font-semibold">Akash Node Status</h2>
+          <h2 className="text-xl">Akash Node Status</h2>
           <p className="text-muted-foreground mt-2">Check and upgrade your Akash Node to the latest version.</p>
 
           {isUpgradeStatusLoading ? (
@@ -363,7 +363,7 @@ const SettingsPage: React.FC = () => {
             <div className="mt-4">
               <div className="mb-4 flex gap-4">
                 <div className="flex-1 rounded-md border p-3">
-                  <h3 className="text-muted-foreground text-sm font-medium">Akash Node Version</h3>
+                  <h3 className="text-muted-foreground text-sm">Akash Node Version</h3>
                   <div className="mt-1 flex items-center">
                     <span className="text-base font-semibold">{upgradeStatus.node.appVersion.current}</span>
                     {upgradeStatus.node.appVersion.needsUpgrade && (
@@ -375,7 +375,7 @@ const SettingsPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex-1 rounded-md border p-3">
-                  <h3 className="text-muted-foreground text-sm font-medium">Chart Version</h3>
+                  <h3 className="text-muted-foreground text-sm">Chart Version</h3>
                   <div className="mt-1 flex items-center">
                     <span className="text-base font-semibold">{upgradeStatus.node.chartVersion.current}</span>
                     {upgradeStatus.node.chartVersion.needsUpgrade && (
@@ -436,7 +436,7 @@ const SettingsPage: React.FC = () => {
         </div>
 
         <div className="rounded-lg border p-6">
-          <h2 className="text-xl font-semibold">Upgrade Provider</h2>
+          <h2 className="text-xl">Upgrade Provider</h2>
           <p className="text-muted-foreground mt-2">Upgrade your provider to the latest version.</p>
 
           {isUpgradeStatusLoading ? (
@@ -448,7 +448,7 @@ const SettingsPage: React.FC = () => {
             <div className="mt-4">
               <div className="mb-4 flex gap-4">
                 <div className="flex-1 rounded-md border p-3">
-                  <h3 className="text-muted-foreground text-sm font-medium">Provider Version</h3>
+                  <h3 className="text-muted-foreground text-sm">Provider Version</h3>
                   <div className="mt-1 flex items-center">
                     <span className="text-base font-semibold">{upgradeStatus.provider.appVersion.current}</span>
                     {upgradeStatus.provider.appVersion.needsUpgrade && (
@@ -460,7 +460,7 @@ const SettingsPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex-1 rounded-md border p-3">
-                  <h3 className="text-muted-foreground text-sm font-medium">Chart Version</h3>
+                  <h3 className="text-muted-foreground text-sm">Chart Version</h3>
                   <div className="mt-1 flex items-center">
                     <span className="text-base font-semibold">{upgradeStatus.provider.chartVersion.current}</span>
                     {upgradeStatus.provider.chartVersion.needsUpgrade && (
@@ -538,7 +538,7 @@ const SettingsPage: React.FC = () => {
         </div>
 
         <div className="rounded-lg border p-6">
-          <h2 className="text-xl font-semibold">Provider URL</h2>
+          <h2 className="text-xl">Provider URL</h2>
           <p className="text-muted-foreground mt-2">Update the URL for your provider service.</p>
           <div className="mt-4 flex gap-4">
             <Input
@@ -556,7 +556,7 @@ const SettingsPage: React.FC = () => {
         </div>
 
         <div className="rounded-lg border p-6">
-          <h2 className="text-xl font-semibold">Email Settings</h2>
+          <h2 className="text-xl">Email Settings</h2>
           <p className="text-muted-foreground mt-2">Update your provider email address for future notifications.</p>
           <div className="mt-4 flex gap-4">
             <Input
@@ -587,7 +587,7 @@ const SettingsPage: React.FC = () => {
         </div>
 
         <div className="border-destructive/20 bg-destructive/5 dark:border-destructive/30 dark:bg-destructive/10 rounded-lg border p-6">
-          <h2 className="text-xl font-semibold text-red-500 dark:text-red-400">Danger Zone</h2>
+          <h2 className="text-xl text-red-500 dark:text-red-400">Danger Zone</h2>
           <p className="text-muted-foreground mt-2">
             Actions in this section can lead to permanent data loss and service disruption. Please proceed with caution.
           </p>

@@ -35,7 +35,7 @@ export function ValidatorsInfo({ validator }: IProps) {
               {validator.rank}
             </Badge>
           </div>
-          <h1 className="text-lg font-bold">{validator.moniker}</h1>
+          <h1 className="text-lg">{validator.moniker}</h1>
         </div>
 
         <LabelValue label="Operator Address" value={validator.operatorAddress} />

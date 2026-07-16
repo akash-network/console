@@ -70,7 +70,7 @@ export const PaymentMethodForm: React.FC<PaymentMethodFormProps> = ({
 
       {/* Billing Address Section */}
       <div className="space-y-4">
-        <h3 className="text-left text-sm font-semibold text-muted-foreground">Billing Address</h3>
+        <h3 className="text-left text-sm text-muted-foreground">Billing Address</h3>
         <AddressElement
           options={{
             mode: "billing"
@@ -80,7 +80,7 @@ export const PaymentMethodForm: React.FC<PaymentMethodFormProps> = ({
 
       {/* Payment Element */}
       <div className="space-y-2">
-        <h3 className="text-left text-sm font-semibold text-muted-foreground">Card Information</h3>
+        <h3 className="text-left text-sm text-muted-foreground">Card Information</h3>
         <PaymentElement
           options={{
             layout: "tabs"

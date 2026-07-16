@@ -125,12 +125,12 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        <h3 className="text-left text-sm font-medium text-muted-foreground">BILLING ADDRESS</h3>
+        <h3 className="text-left text-sm text-muted-foreground">BILLING ADDRESS</h3>
         <d.AddressElement options={{ mode: "billing" }} />
       </div>
 
       <div className="space-y-2">
-        <h3 className="text-left text-sm font-medium text-muted-foreground">CHOOSE A PAYMENT METHOD</h3>
+        <h3 className="text-left text-sm text-muted-foreground">CHOOSE A PAYMENT METHOD</h3>
         <d.PaymentElement options={{ layout: "tabs" }} />
       </div>
 

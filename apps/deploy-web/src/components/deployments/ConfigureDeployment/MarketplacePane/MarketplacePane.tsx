@@ -41,7 +41,7 @@ export const MarketplacePane: FC<Props> = ({
     <section aria-labelledby="configure-marketplace-pane-heading" className="flex h-full min-h-0 flex-col">
       <header className="flex h-[52px] shrink-0 items-center justify-between gap-4 border-b border-zinc-300 px-4 dark:border-zinc-700">
         <div className="flex min-w-0 items-center">
-          <h2 id="configure-marketplace-pane-heading" className="shrink-0 font-mono text-sm font-medium uppercase text-muted-foreground">
+          <h2 id="configure-marketplace-pane-heading" className="shrink-0 font-mono text-sm uppercase text-muted-foreground">
             3. Compute Marketplace
           </h2>
           <span className="ml-2 min-w-0 truncate font-mono text-sm font-semibold text-blue-500">• {placementName}</span>

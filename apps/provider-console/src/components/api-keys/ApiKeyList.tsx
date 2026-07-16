@@ -73,7 +73,7 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">API Keys</h1>
+          <h1 className="text-2xl text-gray-900 dark:text-white">API Keys</h1>
           <p className="mt-1 text-gray-600 dark:text-gray-400">Manage your API access credentials</p>
         </div>
       </div>
@@ -85,13 +85,13 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
               <div className="mx-auto mb-4 flex justify-center">
                 <Spinner />
               </div>
-              <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">Loading API Key</h3>
+              <h3 className="mb-2 text-lg text-gray-900 dark:text-white">Loading API Key</h3>
               <p className="text-gray-500 dark:text-gray-400">Please wait while we fetch your API key information.</p>
             </div>
           ) : !hasApiKey ? (
             <div className="py-12 text-center">
               <Key className="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-gray-500" />
-              <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">No API Key Available</h3>
+              <h3 className="mb-2 text-lg text-gray-900 dark:text-white">No API Key Available</h3>
               <p className="mb-4 text-gray-500 dark:text-gray-400">Create your first API key to start integrating with our services.</p>
               <Button onClick={onCreateApiKey} disabled={isCreating}>
                 {isCreating ? "Creating..." : "Create Your First API Key"}
@@ -144,7 +144,7 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
               {/* API Key Section */}
               <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-700/50">
                 <div className="mb-3 flex items-center justify-between">
-                  <h4 className="font-medium text-gray-900 dark:text-white">API Key</h4>
+                  <h4 className="text-gray-900 dark:text-white">API Key</h4>
                   <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" onClick={() => setShowKey(v => !v)} className="flex items-center gap-2">
                       {showKey ? <EyeClosed className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -191,7 +191,7 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700/50">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="mb-1 font-medium text-gray-900 dark:text-white">Ready to integrate?</h4>
+                    <h4 className="mb-1 text-gray-900 dark:text-white">Ready to integrate?</h4>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Learn how to use your API key with our comprehensive documentation.</p>
                   </div>
                   <a

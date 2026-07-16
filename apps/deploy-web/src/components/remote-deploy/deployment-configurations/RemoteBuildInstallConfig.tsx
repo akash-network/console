@@ -25,7 +25,7 @@ const RemoteBuildInstallConfig = ({ services, setValue }: { services: ServiceTyp
         <CardContent className="p-0">
           <CollapsibleTrigger asChild>
             <div className="flex items-center justify-between p-4">
-              <h1 className="font-semibold">Build & Install Configurations</h1>
+              <h1>Build & Install Configurations</h1>
               <NavArrowDown fontSize="1rem" className={cn("transition-all duration-100", { ["rotate-180"]: expanded })} />
             </div>
           </CollapsibleTrigger>

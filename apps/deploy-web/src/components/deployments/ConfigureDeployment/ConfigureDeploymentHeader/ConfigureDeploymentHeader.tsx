@@ -101,7 +101,7 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, onDeploy, allP
   return (
     <header className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
       <div className="flex min-w-0 flex-col gap-1 md:gap-2 xl:flex-1">
-        <h1 className="text-xl font-bold leading-tight tracking-tight md:text-3xl md:leading-9">Configure your deployment</h1>
+        <h1 className="text-xl leading-tight md:text-3xl md:leading-9">Configure your deployment</h1>
         <p className="hidden text-base text-muted-foreground md:block">
           Adjust your deployment spec to refine available providers in the compute marketplace.
           <br />

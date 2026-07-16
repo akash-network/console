@@ -88,7 +88,7 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
   return (
     <>
       <div className="flex w-full flex-col items-center gap-2 text-center">
-        <h1 className="text-[30px] font-bold leading-9 text-neutral-950 dark:text-neutral-50">Start deploying</h1>
+        <h1 className="text-[30px] leading-9 text-neutral-950 dark:text-neutral-50">Start deploying</h1>
         {isOnboardingRedesignEnabled && (
           <p className="text-sm leading-5 text-neutral-500 dark:text-neutral-400">$1 credit to deploy your first container. No card required.</p>
         )}

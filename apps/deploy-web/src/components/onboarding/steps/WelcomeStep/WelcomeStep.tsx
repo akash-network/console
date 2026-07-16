@@ -59,7 +59,7 @@ export const WelcomeStep: React.FunctionComponent<WelcomeStepProps> = ({ onCompl
       {isDeploymentReturnTo ? (
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-3">
-            <h1 className="text-3xl font-semibold tracking-tight">Welcome to Akash Console</h1>
+            <h1 className="text-3xl">Welcome to Akash Console</h1>
             <p className="text-base text-muted-foreground">You&apos;re all set! Continue to complete your deployment.</p>
           </div>
           <Button onClick={goToDeployment} disabled={isDeploying} className="gap-2 bg-primary px-8 py-6 text-lg text-primary-foreground hover:bg-primary/90">
@@ -75,7 +75,7 @@ export const WelcomeStep: React.FunctionComponent<WelcomeStepProps> = ({ onCompl
       ) : (
         <>
           <div className="space-y-3">
-            <h1 className="text-3xl font-semibold tracking-tight">Welcome to Akash Console</h1>
+            <h1 className="text-3xl">Welcome to Akash Console</h1>
             <p className="text-base text-muted-foreground">Choose a template below to launch your first app in seconds.</p>
           </div>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">

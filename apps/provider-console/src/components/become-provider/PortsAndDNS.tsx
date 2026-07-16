@@ -79,14 +79,14 @@ export const PortsAndDNS: React.FC<PortsAndDNSProps> = ({ onComplete }) => {
     <div className="flex flex-col items-center pt-10">
       <div className="w-full max-w-4xl space-y-8">
         <div>
-          <h3 className="text-xl font-bold">Port and DNS Configuration</h3>
+          <h3 className="text-xl">Port and DNS Configuration</h3>
           <p className="text-muted-foreground text-sm">
             Before proceeding, please ensure your firewall settings allow the following ports. DNS configuration can be verified now or completed later.
           </p>
         </div>
 
         <div className="rounded-lg border p-6">
-          <h2 className="mb-4 text-xl font-semibold">Required Ports</h2>
+          <h2 className="mb-4 text-xl">Required Ports</h2>
           <p className="text-muted-foreground mb-4">The following ports must be open on your control machine for the provider to function properly:</p>
 
           <div className="mb-6">
@@ -113,7 +113,7 @@ export const PortsAndDNS: React.FC<PortsAndDNSProps> = ({ onComplete }) => {
         </div>
 
         <div className="rounded-lg border p-6">
-          <h2 className="mb-4 text-xl font-semibold">DNS Configuration</h2>
+          <h2 className="mb-4 text-xl">DNS Configuration</h2>
           <p className="text-muted-foreground mb-4">Configure the following DNS records to point to your control machine IP ({controlMachineIP}):</p>
 
           <div className="mb-6 space-y-2">

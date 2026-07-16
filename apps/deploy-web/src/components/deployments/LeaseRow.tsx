@@ -460,7 +460,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
 
           {sshInstructions && (
             <div className="mt-6">
-              <h5 className="font-bold dark:text-neutral-500">SSH Instructions:</h5>
+              <h5 className="dark:text-neutral-500">SSH Instructions:</h5>
               <ul className="list-inside list-disc space-y-1">
                 <li>
                   Open a command terminal on your machine and copy this command into it:

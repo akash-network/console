@@ -33,10 +33,10 @@ export function AddCreditsAmountFields({ value, onChange, minAmount, error }: Ad
 
   return (
     <div className="space-y-3">
-      <h3 className="text-left text-sm font-medium text-muted-foreground">Credit amount</h3>
+      <h3 className="text-left text-sm text-muted-foreground">Credit amount</h3>
 
       <div className="space-y-1">
-        <h3 className="text-sm font-medium leading-snug">Choose your amount</h3>
+        <h3 className="text-sm leading-snug">Choose your amount</h3>
         <RadioGroup value={value.predefinedAmount} className="grid-cols-3" onValueChange={changePredefinedAmount}>
           <FieldLabel htmlFor="plus-plan">
             <Field orientation="horizontal" className="cursor-pointer p-2">

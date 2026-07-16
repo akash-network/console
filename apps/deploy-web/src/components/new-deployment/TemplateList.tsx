@@ -136,7 +136,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({
       <Card className="mb-6">
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <div>
-            <h3 className="text-xl font-bold tracking-tight">Build Your Own</h3>
+            <h3 className="text-xl">Build Your Own</h3>
             <p className="text-sm text-muted-foreground">Select a type or upload your own SDL.</p>
           </div>
           <d.FileButton onFileSelect={onFileSelect} accept=".yml,.yaml,.txt" size="sm" variant="default" className="space-x-2">
@@ -181,7 +181,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({
       <Card>
         <CardHeader className="flex flex-row items-start justify-between space-x-6">
           <div>
-            <h3 className="text-xl font-bold tracking-tight">Explore Templates</h3>
+            <h3 className="text-xl">Explore Templates</h3>
             <p className="text-sm text-muted-foreground">
               Browse through the marketplace of pre-made solutions with categories like AI & ML, Blockchain nodes and more!{" "}
               <Link
@@ -201,11 +201,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3" aria-label="Template list">
           {previewTemplates.map(template => (
-            <TemplateBox
-              key={template.id}
-              template={template}
-              linkHref={newDeploymentUrl({ step: RouteStep.editDeployment, templateId: template?.id })}
-            />
+            <TemplateBox key={template.id} template={template} linkHref={newDeploymentUrl({ step: RouteStep.editDeployment, templateId: template?.id })} />
           ))}
         </CardContent>
       </Card>

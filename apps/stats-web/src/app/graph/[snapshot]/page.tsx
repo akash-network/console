@@ -44,7 +44,7 @@ export default async function GraphPage({ params }: IGraphProps) {
         </div>
 
         <div className="mb-2">
-          <h1 className="text-center text-3xl font-normal tracking-tight sm:text-left">{title}</h1>
+          <h1 className="text-center text-3xl sm:text-left">{title}</h1>
         </div>
 
         <GraphContainer snapshot={snapshot} />

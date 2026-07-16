@@ -64,7 +64,7 @@ function DeployErrorPanel({ templateName, message, onTryAgain, onContactSupport 
     <div className="relative z-10 flex w-full flex-col gap-6">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold leading-9 text-foreground">We couldn&apos;t deploy {templateName}</h1>
+          <h1 className="text-3xl leading-9 text-foreground">We couldn&apos;t deploy {templateName}</h1>
           <p className="max-w-2xl text-sm leading-5 text-muted-foreground">
             {message ??
               "Something went wrong while creating your deployment. You can try again from the start, or contact support if the problem keeps happening."}
@@ -103,7 +103,7 @@ function DeployProgressPanel({ templateName, progressPercent, phases, onChoosePr
           <span>Deploying</span>
         </div>
 
-        <h1 className="text-3xl font-bold leading-9 text-foreground">Deploying {templateName}</h1>
+        <h1 className="text-3xl leading-9 text-foreground">Deploying {templateName}</h1>
 
         <p className="max-w-2xl text-sm leading-5 text-muted-foreground">
           We&apos;ll pick the best host for you. Typical deploys take 15–30 seconds. When your deployment is ready, we&apos;ll automatically redirect you.

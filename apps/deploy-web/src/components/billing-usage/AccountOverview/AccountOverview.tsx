@@ -167,7 +167,7 @@ export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DE
               </div>
             )}
             <d.CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <h3 className="text-sm font-medium leading-none text-muted-foreground">Available Balance</h3>
+              <h3 className="text-sm leading-none text-muted-foreground">Available Balance</h3>
               <Wallet className="h-4 w-4 text-muted-foreground" />
             </d.CardHeader>
             <d.CardContent>
@@ -189,7 +189,7 @@ export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DE
             )}
             <d.CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
               <div className="flex items-center gap-1">
-                <h3 className="text-sm font-medium leading-none text-muted-foreground">Auto Recharge</h3>
+                <h3 className="text-sm leading-none text-muted-foreground">Auto Recharge</h3>
                 <d.CustomTooltip title="Automatically add credits to your account using your default payment method to keep deployments running.">
                   <InfoCircle className="h-4 w-4 cursor-pointer text-muted-foreground" />
                 </d.CustomTooltip>

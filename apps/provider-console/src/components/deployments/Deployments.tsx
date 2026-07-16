@@ -143,7 +143,7 @@ export const Deployments: React.FC = () => {
 
   return (
     <div className="">
-      <h2 className="mb-4 text-lg font-bold">Total Deployments: {total}</h2>
+      <h2 className="mb-4 text-lg">Total Deployments: {total}</h2>
       <Tabs defaultValue="active" onValueChange={setStatus} className="w-full">
         <TabsList className="grid w-72 grid-cols-2">
           <TabsTrigger value="active">Active</TabsTrigger>

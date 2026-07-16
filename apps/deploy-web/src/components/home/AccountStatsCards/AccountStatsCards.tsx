@@ -63,7 +63,7 @@ export const AccountStatsCards: React.FC<Props> = ({
       {isManagedWallet ? (
         <d.Card>
           <d.CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <h3 className="text-sm font-medium leading-none text-muted-foreground">Available Balance</h3>
+            <h3 className="text-sm leading-none text-muted-foreground">Available Balance</h3>
             <d.Wallet className="h-4 w-4 text-muted-foreground" />
           </d.CardHeader>
           <d.CardContent>
@@ -81,7 +81,7 @@ export const AccountStatsCards: React.FC<Props> = ({
         <>
           <d.Card>
             <d.CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <h3 className="text-sm font-medium leading-none text-muted-foreground">Available Balance ({usdBalance.denom})</h3>
+              <h3 className="text-sm leading-none text-muted-foreground">Available Balance ({usdBalance.denom})</h3>
               <d.Wallet className="h-4 w-4 text-muted-foreground" />
             </d.CardHeader>
             <d.CardContent>
@@ -102,7 +102,7 @@ export const AccountStatsCards: React.FC<Props> = ({
           </d.Card>
           <d.Card>
             <d.CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <h3 className="text-sm font-medium leading-none text-muted-foreground">Available Balance (AKT)</h3>
+              <h3 className="text-sm leading-none text-muted-foreground">Available Balance (AKT)</h3>
               <d.Wallet className="h-4 w-4 text-muted-foreground" />
             </d.CardHeader>
             <d.CardContent>
@@ -124,7 +124,7 @@ export const AccountStatsCards: React.FC<Props> = ({
 
       <d.Card>
         <d.CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <h3 className="text-sm font-medium leading-none text-muted-foreground">Active Deployments</h3>
+          <h3 className="text-sm leading-none text-muted-foreground">Active Deployments</h3>
           <d.Server className="h-4 w-4 text-muted-foreground" />
         </d.CardHeader>
         <d.CardContent>
@@ -134,7 +134,7 @@ export const AccountStatsCards: React.FC<Props> = ({
 
       <d.Card>
         <d.CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <h3 className="text-sm font-medium leading-none text-muted-foreground">Total Cost</h3>
+          <h3 className="text-sm leading-none text-muted-foreground">Total Cost</h3>
           <d.StatsUpSquare className="h-4 w-4 text-muted-foreground" />
         </d.CardHeader>
         <d.CardContent>

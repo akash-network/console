@@ -82,11 +82,11 @@ const Remedies: React.FC = () => {
 
         <TabsContent value="general" className="mt-4">
           <Card className="p-6">
-            <h2 className="mb-4 text-xl font-bold">Common Provider Issues</h2>
+            <h2 className="mb-4 text-xl">Common Provider Issues</h2>
 
             <div className="space-y-6">
               <div>
-                <h3 className="mb-2 text-lg font-semibold">Provider Not Online</h3>
+                <h3 className="mb-2 text-lg">Provider Not Online</h3>
                 <p className="text-muted-foreground mb-2">If your provider is showing as offline, try these steps:</p>
                 <ul className="ml-6 list-disc space-y-2">
                   <li>Check if your control machine is running and accessible</li>
@@ -98,7 +98,7 @@ const Remedies: React.FC = () => {
               <Separator />
 
               <div>
-                <h3 className="mb-2 text-lg font-semibold">Recent Provider Deployment</h3>
+                <h3 className="mb-2 text-lg">Recent Provider Deployment</h3>
                 <p className="text-muted-foreground mb-2">If you&apos;ve recently deployed your provider, be aware that:</p>
                 <ul className="ml-6 list-disc space-y-2">
                   <li>DNS propagation can take up to 48 hours to complete</li>
@@ -124,7 +124,7 @@ const Remedies: React.FC = () => {
 
             <div className="space-y-6">
               <div>
-                <h3 className="mb-2 text-lg font-semibold">DNS Configuration</h3>
+                <h3 className="mb-2 text-lg">DNS Configuration</h3>
                 <p className="text-muted-foreground mb-2">Ensure your DNS records are properly configured:</p>
                 <ul className="ml-6 list-disc space-y-2">
                   <li>
@@ -141,7 +141,7 @@ const Remedies: React.FC = () => {
               <Separator />
 
               <div>
-                <h3 className="mb-2 text-lg font-semibold">Port Accessibility</h3>
+                <h3 className="mb-2 text-lg">Port Accessibility</h3>
                 <p className="text-muted-foreground mb-2">These ports must be open and accessible from the internet:</p>
                 <ul className="ml-6 list-disc space-y-2">
                   <li>
@@ -172,7 +172,7 @@ const Remedies: React.FC = () => {
 
             <div className="space-y-6">
               <div>
-                <h3 className="mb-2 text-lg font-semibold">Control Machine Health</h3>
+                <h3 className="mb-2 text-lg">Control Machine Health</h3>
                 <p className="text-muted-foreground mb-2">Ensure your control machine is healthy:</p>
                 <ul className="ml-6 list-disc space-y-2">
                   <li>Check if your control machine has sufficient resources (CPU, memory, disk space)</li>
@@ -184,7 +184,7 @@ const Remedies: React.FC = () => {
               <Separator />
 
               <div>
-                <h3 className="mb-2 text-lg font-semibold">Kubernetes Services</h3>
+                <h3 className="mb-2 text-lg">Kubernetes Services</h3>
                 <p className="text-muted-foreground mb-2">Verify Kubernetes services are running properly:</p>
                 <ul className="ml-6 list-disc space-y-2">
                   <li>Check if all Kubernetes nodes are in the Ready state</li>

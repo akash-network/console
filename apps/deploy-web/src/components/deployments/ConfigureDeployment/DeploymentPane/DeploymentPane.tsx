@@ -64,7 +64,7 @@ export const DeploymentPane: FC<Props> = ({
   return (
     <section aria-labelledby="configure-deployment-pane-heading" className="flex h-full min-h-0 w-[231px] flex-col">
       <header className="flex h-[52px] shrink-0 items-center justify-between gap-2 border-b border-zinc-300 px-4 dark:border-zinc-700">
-        <h2 id="configure-deployment-pane-heading" className="font-mono text-sm font-medium uppercase text-muted-foreground">
+        <h2 id="configure-deployment-pane-heading" className="font-mono text-sm uppercase text-muted-foreground">
           1. Deployment
         </h2>
         <Button type="button" variant="ghost" onClick={toggle} aria-label="Hide deployment pane" className="h-8 w-8 rounded p-0 text-foreground">

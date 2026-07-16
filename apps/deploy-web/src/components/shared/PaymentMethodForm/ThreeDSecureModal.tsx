@@ -159,7 +159,7 @@ const ThreeDSecureForm: React.FC<Omit<ThreeDSecureModalProps, "isOpen" | "onClos
         <div className="mb-4 flex justify-center">
           <CheckCircle className="h-16 w-16 text-green-500" />
         </div>
-        <h3 className="mb-2 text-lg font-semibold">Authentication Successful!</h3>
+        <h3 className="mb-2 text-lg">Authentication Successful!</h3>
         <p className="text-muted-foreground">{successMessage}</p>
       </div>
     );
@@ -171,7 +171,7 @@ const ThreeDSecureForm: React.FC<Omit<ThreeDSecureModalProps, "isOpen" | "onClos
         <div className="mb-4 flex justify-center">
           <WarningTriangle className="h-16 w-16 text-red-500" />
         </div>
-        <h3 className="mb-2 text-lg font-semibold">Authentication Failed</h3>
+        <h3 className="mb-2 text-lg">Authentication Failed</h3>
         <p className="text-muted-foreground">{errorMsg}</p>
         <p className="text-sm text-muted-foreground">{errorMessage}</p>
       </div>
@@ -187,7 +187,7 @@ const ThreeDSecureForm: React.FC<Omit<ThreeDSecureModalProps, "isOpen" | "onClos
               <Shield className="h-8 w-8 text-primary" />
             </div>
           </div>
-          <h3 className="mb-2 text-lg font-semibold">Secure Authentication</h3>
+          <h3 className="mb-2 text-lg">Secure Authentication</h3>
           <p className="text-muted-foreground">{description}</p>
           <p className="text-sm text-muted-foreground">Please complete the authentication process to continue.</p>
         </div>
@@ -195,7 +195,7 @@ const ThreeDSecureForm: React.FC<Omit<ThreeDSecureModalProps, "isOpen" | "onClos
       <div className="mb-4 flex justify-center">
         <Spinner className="h-16 w-16 text-primary" />
       </div>
-      <h3 className="mb-2 text-lg font-semibold">Processing Authentication</h3>
+      <h3 className="mb-2 text-lg">Processing Authentication</h3>
       <p className="text-muted-foreground">Please wait while we verify your card with your bank...</p>
     </div>
   );

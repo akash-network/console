@@ -96,7 +96,7 @@ export const FreeTrialLandingStep: React.FunctionComponent<FreeTrialLandingStepP
       </div>
 
       <div className="mx-auto max-w-2xl">
-        <h2 className="mb-12 text-center text-3xl font-bold">Why Choose Akash Console?</h2>
+        <h2 className="mb-12 text-center text-3xl">Why Choose Akash Console?</h2>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2" role="list" aria-label="Benefits of Akash Console">
           {benefits.map((benefit, index) => (
             <Card key={index} className="h-full" role="listitem" aria-labelledby={`benefit-title-${index}`}>

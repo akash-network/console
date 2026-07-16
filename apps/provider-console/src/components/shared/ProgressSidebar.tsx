@@ -29,7 +29,7 @@ export const ProgressSidebar: React.FC<ProgressSidebarProps> = ({ nodeConfigs, c
 
   return (
     <div className={cn("w-56 shrink-0 space-y-2", className)}>
-      <h4 className="mb-4 font-medium">Progress</h4>
+      <h4 className="mb-4">Progress</h4>
       {nodeConfigs.map((config, index) => (
         <div key={index} className={cn("flex items-center gap-2 rounded-md p-2", config.status === "in-progress" && "bg-blue-50 dark:bg-blue-950")}>
           {getStatusIcon(config.status)}

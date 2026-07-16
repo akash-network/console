@@ -16,7 +16,7 @@ const BoxTextInput = ({
   return (
     <div className="flex flex-col gap-5 rounded border bg-card px-6 py-6 text-card-foreground">
       <div className="flex flex-col gap-2">
-        <h1 className="font-semibold">{label}</h1>
+        <h1>{label}</h1>
         {description && <p className="text-muted-foreground">{description}</p>}
       </div>
       <Input onChange={onChange} placeholder={placeholder} value={value || ""} />

@@ -383,7 +383,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
     <div className={`flex w-full flex-col items-center ${!editMode ? "pt-10" : "pt-5"}`}>
       <div className={`w-full ${!editMode ? "max-w-5xl" : ""} space-y-6`}>
         <div>
-          {editMode ? <Title>Edit Provider Pricing</Title> : <h3 className="text-xl font-bold">Provider Pricing</h3>}
+          {editMode ? <Title>Edit Provider Pricing</Title> : <h3 className="text-xl">Provider Pricing</h3>}
           <p className="text-muted-foreground text-sm">
             The prices you set here determine the price your provider bids with and total revenue it earns for you.
           </p>
@@ -626,7 +626,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
               </div>
               <div className="col-span-2 space-y-6">
                 <div className="bg-secondary rounded-lg p-6">
-                  <h4 className="mb-4 text-lg font-semibold">Resources</h4>
+                  <h4 className="mb-4 text-lg">Resources</h4>
                   {Object.entries(resources).length > 0 ? (
                     Object.entries(resources)
                       .sort(([keyA], [keyB]) => (keyA === "gpu" ? -1 : keyB === "gpu" ? 1 : 0))
@@ -651,12 +651,12 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                   )}
                 </div>
                 <div className="bg-secondary rounded-lg p-6">
-                  <h4 className="mb-2 text-lg font-semibold">Estimated Monthly Earnings</h4>
+                  <h4 className="mb-2 text-lg">Estimated Monthly Earnings</h4>
                   <p className="text-muted-foreground mb-4 text-sm">The earnings are estimated and based on 80% resource utilization</p>
                   <div className="text-2xl font-bold">{isNaN(estimatedEarnings) ? "-" : `$${roundDecimal(estimatedEarnings)}/month`}</div>
                 </div>
                 <div className="bg-secondary rounded-lg p-6">
-                  <h4 className="mb-2 text-lg font-semibold">Comparative Pricing Insights</h4>
+                  <h4 className="mb-2 text-lg">Comparative Pricing Insights</h4>
                   <p className="text-muted-foreground mb-4 text-sm">
                     See how other providers price similar resources on the Akash Network. Use this information to set competitive rates and maximize your
                     monthly earnings.

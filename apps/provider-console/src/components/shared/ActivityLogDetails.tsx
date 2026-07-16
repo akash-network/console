@@ -225,7 +225,7 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
     return (
       <div className="flex w-full flex-col items-center pt-10">
         <div className="w-full max-w-2xl">
-          <h3 className="text-xl font-bold">Job ID Not Found</h3>
+          <h3 className="text-xl">Job ID Not Found</h3>
           <p className="text-muted-foreground text-sm">Unable to retrieve provider setup process information.</p>
         </div>
       </div>

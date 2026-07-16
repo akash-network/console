@@ -21,7 +21,7 @@ export const AccountHeader: React.FC<Props> = ({ isManagedWallet, onDeployClick,
 
   return (
     <div className="flex items-center justify-between">
-      <h3 className="text-xl font-semibold">Your account</h3>
+      <h3 className="text-xl">Your account</h3>
       <div className="flex gap-4">
         {isManagedWallet && (
           <AddFundsLink

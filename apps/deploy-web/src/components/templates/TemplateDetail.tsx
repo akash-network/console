@@ -63,7 +63,7 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template }) => {
                 <NavArrowLeft />
               </Button>
               <div className="text-truncate">
-                <h3 className="ml-4 text-xl font-bold sm:text-2xl md:text-3xl">{template.name}</h3>
+                <h3 className="ml-4 text-xl sm:text-2xl md:text-3xl">{template.name}</h3>
               </div>
 
               <div className="ml-4">
