@@ -102,7 +102,7 @@ export const dockerImageTooltip = (
 
 export const operatingSystemTooltip = (
   <>
-    The Linux distribution this VM-like container runs.
+    The Linux distribution this VM-like container runs on.
     <br />
     <br />
     Every option is a public, SSH-enabled image maintained by the Akash team.

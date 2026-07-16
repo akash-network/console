@@ -287,6 +287,17 @@ describe("SdlBuilderFormValuesSchema", () => {
     expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["services", 0, "sshPubKey"], message: "SSH Public key is required." }));
   });
 
+  it("rejects a whitespace-only ssh key on a vm service", () => {
+    const result = SdlBuilderFormValuesSchema.safeParse({
+      placements: [{ id: "p-1", name: "dcloud" }],
+      services: [{ ...vmService(), sshPubKey: "   " }]
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["services", 0, "sshPubKey"], message: "SSH Public key is required." }));
+  });
+
   it("flags every storage entry that shares a name, including the first occurrence", () => {
     const result = SdlBuilderFormValuesSchema.safeParse({
       placements: [{ id: "p-1", name: "dcloud" }],

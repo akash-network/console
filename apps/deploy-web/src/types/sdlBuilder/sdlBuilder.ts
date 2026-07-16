@@ -572,7 +572,7 @@ export const SdlBuilderFormValuesSchema = z
     }
 
     for (let i = 0; i < data.services.length; i++) {
-      if ((data.hasSSHKey || isVmImage(data.services[i].image)) && !data.services[i].sshPubKey) {
+      if ((data.hasSSHKey || isVmImage(data.services[i].image)) && !data.services[i].sshPubKey?.trim()) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "SSH Public key is required.",
