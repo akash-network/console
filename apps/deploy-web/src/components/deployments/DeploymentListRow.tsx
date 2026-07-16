@@ -62,7 +62,7 @@ type Props = {
 
 export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, isSelectable, onSelectDeployment, checked, providers, refreshDeployments }) => {
   const router = useRouter();
-  const { analyticsService } = useServices();
+  const { analyticsService, deploymentLocalStorage } = useServices();
   const [open, setOpen] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const { changeDeploymentName, getDeploymentData } = useLocalNotes();
@@ -143,6 +143,8 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
     const message = TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq);
     const response = await signAndBroadcastTx([message]);
     if (response) {
+      deploymentLocalStorage.delete(address, deployment.dseq);
+
       if (onSelectDeployment) {
         onSelectDeployment({ id: deployment.dseq, isShiftPressed: false });
       }

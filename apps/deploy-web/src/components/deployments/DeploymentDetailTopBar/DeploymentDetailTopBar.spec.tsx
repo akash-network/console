@@ -222,7 +222,8 @@ describe(DeploymentDetailTopBar.name, () => {
     const track = input?.analyticsTrack ?? vi.fn();
     const deps = MockComponents(DEPENDENCIES, {
       useServices: vi.fn(() => ({
-        analyticsService: { track }
+        analyticsService: { track },
+        deploymentLocalStorage: { delete: vi.fn() }
       })) as unknown as typeof DEPENDENCIES.useServices,
       useLocalNotes: vi.fn(() => ({
         getDeploymentName: input?.localNotes?.getDeploymentName ?? (() => null),
