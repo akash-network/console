@@ -314,6 +314,11 @@ See detailed guidelines:
 See detailed guidelines:
 @./.claude/instructions/use-logger-service-instead-of-console.md
 
+## Clean Code Over Comments
+
+See detailed guidelines:
+@./.claude/instructions/clean-code-over-comments.md
+
 ## Commit and PR Conventions
 
 See detailed guidelines:
