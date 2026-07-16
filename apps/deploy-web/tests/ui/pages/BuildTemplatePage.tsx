@@ -3,11 +3,7 @@ import { DeployPage } from "./DeployPage";
 
 export class BuildTemplatePage extends DeployPage {
   async gotoInteractive() {
-    await this.page.goto(testEnvConfig.BASE_URL);
-    await this.page
-      .getByRole("link", { name: /sdl builder/i })
-      .first()
-      .click();
+    await this.page.goto(`${testEnvConfig.BASE_URL}/sdl-builder`);
   }
 
   async addService() {
