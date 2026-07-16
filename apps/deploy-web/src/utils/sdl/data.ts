@@ -40,6 +40,14 @@ export const defaultEndpoint = (overrides?: Partial<EndpointType>): EndpointType
 });
 
 /**
+ * Builds a fresh per-service pricing object with the default max price.
+ */
+export const defaultPricing = (): ServiceType["pricing"] => ({
+  amount: 100000,
+  denom: UACT_DENOM
+});
+
+/**
  * Builds a fresh service bound to the given placement id and seeded with the
  * standard single-port HTTP expose / compute / pricing defaults.
  */
@@ -87,10 +95,7 @@ export const defaultService = (placementId: string, overrides?: Partial<ServiceT
   command: { command: "", arg: "" },
   env: [],
   placementId,
-  pricing: {
-    amount: 100000,
-    denom: UACT_DENOM
-  },
+  pricing: defaultPricing(),
   count: 1,
   ...overrides
 });
@@ -106,6 +111,25 @@ export const defaultServiceWithPlacement = (serviceOverrides?: Partial<ServiceTy
     placements: [placement],
     services: [defaultService(placement.id, serviceOverrides)],
     endpoints: []
+  };
+};
+
+const hasValidPricing = (service: Record<string, any>): boolean => typeof service.pricing?.amount === "number" && typeof service.pricing?.denom === "string";
+
+/**
+ * Heals sdl-builder drafts persisted to storage before the uact pricing model
+ * (or corrupted in storage): fills each service's missing/malformed pricing with
+ * the current default, leaving the rest of the draft untouched. Idempotent and
+ * safe on malformed input.
+ */
+export const healSdlBuilderDraft = (values: Record<string, any>): Record<string, any> => {
+  if (!values || !Array.isArray(values.services)) return values;
+
+  return {
+    ...values,
+    services: values.services.map(service =>
+      service && typeof service === "object" && !hasValidPricing(service) ? { ...service, pricing: defaultPricing() } : service
+    )
   };
 };
 

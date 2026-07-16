@@ -27,7 +27,6 @@ import {
   SidebarCollapse,
   SidebarExpand,
   StatsUpSquare,
-  Tools,
   X as TwitterX,
   Youtube
 } from "iconoir-react";
@@ -88,13 +87,6 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
             icon: props => <MultiplePages {...props} />,
             url: UrlService.templates(),
             activeRoutes: [UrlService.templates()]
-          },
-          {
-            title: "SDL Builder",
-            icon: props => <Tools {...props} />,
-            url: UrlService.sdlBuilder(),
-            activeRoutes: [UrlService.sdlBuilder()],
-            testId: "sidebar-sdl-builder-link"
           },
           {
             title: "Providers",

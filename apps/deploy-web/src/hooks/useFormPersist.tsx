@@ -13,6 +13,11 @@ export interface FormPersistConfig {
   onTimeout?: () => void;
   timeout?: number;
   defaultValues?: any;
+  /**
+   * Maps restored values before they are applied to the form — e.g. to migrate
+   * drafts persisted with an older shape. Must be an idempotent, stable reference.
+   */
+  transform?: (values: Record<string, any>) => Record<string, any>;
 }
 
 const useFormPersist = (
@@ -28,7 +33,8 @@ const useFormPersist = (
     touch = false,
     onTimeout,
     timeout,
-    defaultValues
+    defaultValues,
+    transform
   }: FormPersistConfig
 ) => {
   const watchedValues = watch();
@@ -39,10 +45,19 @@ const useFormPersist = (
 
   useEffect(() => {
     const str = getStorage().getItem(name);
-    const parsed = str ? JSON.parse(str) : defaultValues;
+    let parsed = defaultValues;
+
+    if (str) {
+      try {
+        parsed = JSON.parse(str);
+      } catch {
+        clearStorage();
+        parsed = defaultValues;
+      }
+    }
 
     if (parsed) {
-      const { _timestamp = null, ...values } = parsed;
+      const { _timestamp = null, ...restored } = parsed;
       const dataRestored: { [key: string]: any } = {};
       const currTimestamp = Date.now();
 
@@ -51,6 +66,8 @@ const useFormPersist = (
         clearStorage();
         return;
       }
+
+      const values = transform ? transform(restored) : restored;
 
       Object.keys(values).forEach(key => {
         const shouldSet = !exclude.includes(key);
@@ -68,7 +85,7 @@ const useFormPersist = (
         onDataRestored(dataRestored);
       }
     }
-  }, [storage, name, onDataRestored, setValue, defaultValues]);
+  }, [storage, name, onDataRestored, setValue, defaultValues, transform]);
 
   useEffect(() => {
     const values = exclude.length

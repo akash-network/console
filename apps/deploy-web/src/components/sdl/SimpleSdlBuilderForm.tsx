@@ -20,7 +20,7 @@ import type { ITemplate, SdlBuilderFormValuesType, ServiceType } from "@src/type
 import { SdlBuilderFormValuesSchema } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { memoryUnits, storageUnits } from "@src/utils/akash/units";
-import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
+import { defaultServiceWithPlacement, healSdlBuilderDraft } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { UrlService } from "@src/utils/urlUtils";
@@ -53,7 +53,8 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
     watch,
     setValue,
     defaultValues: initialValues,
-    storage: typeof window === "undefined" ? undefined : window.localStorage
+    storage: typeof window === "undefined" ? undefined : window.localStorage,
+    transform: healSdlBuilderDraft
   });
   const { services: _services } = watch();
   const serviceManager = useSdlServiceManager({ control });
