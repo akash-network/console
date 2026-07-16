@@ -249,6 +249,13 @@ function GpuModelFields({ serviceIndex, gpuIndex, gpuVendors, isLoading, isError
     [selectGpuModel, clearModel]
   );
 
+  /**
+   * On a trial, "Any model" is locked too (not just specific blocked models): it only draws a usable bid if an
+   * allowed-model provider happens to bid, otherwise the deployment spins with no explanation (CON-660). The
+   * predicate treats the empty model as blocked when the vendor exposes any blocked model.
+   */
+  const anyModelBlocked = isBlockedModel(vendor.field.value, "");
+
   const modelOptions = useMemo(
     () =>
       prioritizeGpuModels(models).map(model => {
@@ -318,7 +325,18 @@ function GpuModelFields({ serviceIndex, gpuIndex, gpuVendors, isLoading, isError
                 searchLabel="Search GPU models"
                 searchPlaceholder="Search models..."
                 notFoundMessage="No models found."
-                emptyOption={{ value: "", label: "Any model" }}
+                emptyOption={{
+                  value: "",
+                  disabled: anyModelBlocked,
+                  label: anyModelBlocked ? (
+                    <span className="flex items-center gap-1.5">
+                      Any model
+                      <LockIcon className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Requires credits" />
+                    </span>
+                  ) : (
+                    "Any model"
+                  )
+                }}
                 renderValue={modelName => models.find(model => model.name === modelName)?.displayName ?? modelName}
                 disabled={locked || models.length === 0}
                 triggerClassName="h-9"

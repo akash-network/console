@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { TooltipProvider } from "@akashnetwork/ui/components";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
@@ -151,7 +151,64 @@ describe(ConfidentialComputeCard.name, () => {
     expect(screen.queryByText(/needs GPU resources/i)).not.toBeInTheDocument();
   });
 
-  function setup(input: { tee?: "cpu" | "cpu-gpu"; params?: ServiceType["params"]; profile?: Partial<ServiceType["profile"]>; locked?: boolean }) {
+  describe("when GPU is blocked for the trial", () => {
+    it("locks the CPU-GPU option while keeping CPU selectable", () => {
+      setup({ tee: "cpu", isGpuBlocked: true });
+
+      expect(screen.getByRole("radio", { name: "CPU-GPU" })).toBeDisabled();
+      expect(screen.getByRole("radio", { name: "CPU" })).not.toBeDisabled();
+    });
+
+    it("shows the free-trial warning with an unlock CTA", () => {
+      setup({ tee: "cpu", isGpuBlocked: true });
+
+      expect(screen.getByText(/high-end GPUs aren't available on a free trial/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Unlock high-end GPUs" })).toBeInTheDocument();
+    });
+
+    it("opens the unlock sheet when the unlock CTA is clicked", async () => {
+      const onUnlock = vi.fn();
+      setup({ tee: "cpu", isGpuBlocked: true, onUnlock });
+
+      await userEvent.click(screen.getByRole("button", { name: "Unlock high-end GPUs" }));
+
+      expect(onUnlock).toHaveBeenCalledTimes(1);
+    });
+
+    it("ignores a cpu-gpu selection defensively even if the disabled radio is triggered", async () => {
+      // Bypass the disabled radio to prove the setTee guard rejects cpu-gpu on its own; children (the real
+      // RadioGroupItems) are intentionally not rendered since they require the real RadioGroup context. Cast
+      // is needed because the real RadioGroup is a forwardRef component, structurally incompatible with a
+      // plain function component.
+      const RadioGroup = ((props: { onValueChange: (value: string) => void }) => (
+        <button type="button" onClick={() => props.onValueChange("cpu-gpu")}>
+          force-cpu-gpu
+        </button>
+      )) as unknown as typeof DEPENDENCIES.RadioGroup;
+      const { getValues } = setup({ tee: "cpu", isGpuBlocked: true, dependencies: { RadioGroup } });
+
+      await userEvent.click(screen.getByRole("button", { name: "force-cpu-gpu" }));
+
+      expect(getValues().services[0].params?.tee).toBe("cpu");
+    });
+  });
+
+  it("does not show the free-trial warning when GPU is not blocked", () => {
+    setup({ tee: "cpu" });
+
+    expect(screen.queryByText(/high-end GPUs aren't available on a free trial/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "CPU-GPU" })).not.toBeDisabled();
+  });
+
+  function setup(input: {
+    tee?: "cpu" | "cpu-gpu";
+    params?: ServiceType["params"];
+    profile?: Partial<ServiceType["profile"]>;
+    locked?: boolean;
+    isGpuBlocked?: boolean;
+    onUnlock?: () => void;
+    dependencies?: Partial<typeof DEPENDENCIES>;
+  }) {
     const params = input.params ?? (input.tee ? { tee: input.tee } : undefined);
     const base = defaultServiceWithPlacement({ params });
     const values: SdlBuilderFormValuesType = {
@@ -169,7 +226,13 @@ describe(ConfidentialComputeCard.name, () => {
     render(
       <Wrapper>
         <TooltipProvider>
-          <ConfidentialComputeCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES }} />
+          <ConfidentialComputeCard
+            serviceIndex={0}
+            locked={input.locked}
+            isGpuBlocked={input.isGpuBlocked}
+            onUnlock={input.onUnlock}
+            dependencies={{ ...DEPENDENCIES, ...input.dependencies }}
+          />
         </TooltipProvider>
       </Wrapper>
     );

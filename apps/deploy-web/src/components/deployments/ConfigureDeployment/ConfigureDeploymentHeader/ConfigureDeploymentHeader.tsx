@@ -7,9 +7,11 @@ import { useSnackbar } from "notistack";
 
 import { PriceValue } from "@src/components/shared/PriceValue";
 import type { SdlBuilderFormValuesType } from "@src/types";
+import { hasTrialBlockedGpu } from "@src/utils/deploymentData/v1beta3";
 import { getAvgCostPerMonth, perBlockToHourly } from "@src/utils/priceUtils";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { validateGeneratedSdl } from "@src/utils/sdl/validateGeneratedSdl";
+import { useTrialGate } from "../ConfigurationPane/HardwareSection/useTrialGate/useTrialGate";
 import { useDeploymentHasGpu, useDeploymentResourceSummary } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
 import type { DeploymentCost } from "../useDeploymentCost/useDeploymentCost";
 import { useDeploymentCost } from "../useDeploymentCost/useDeploymentCost";
@@ -27,7 +29,8 @@ export const DEPENDENCIES = {
   useDeploymentCost,
   PriceValue,
   useQuoteExpiry,
-  CustomTooltip
+  CustomTooltip,
+  useTrialGate
 };
 
 type Props = { flow: DeploymentFlow; sdl: string; onDeploy: () => void; allPlacementsHaveBids: boolean; dependencies?: typeof DEPENDENCIES };
@@ -37,6 +40,7 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, onDeploy, allP
   const showAsHourly = d.useDeploymentHasGpu();
   const { control, handleSubmit, getValues } = useFormContext<SdlBuilderFormValuesType>();
   const { enqueueSnackbar } = d.useSnackbar();
+  const { isRestricted } = d.useTrialGate();
   const placements = useWatch({ control, name: "placements" });
   const cost = d.useDeploymentCost({ dseq: flow.dseq, sdl, placements, selections: flow.selections });
   const expiry = d.useQuoteExpiry({ dseq: flow.dseq, enabled: flow.phase === "quoting" });
@@ -67,7 +71,13 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, onDeploy, allP
    */
   const onRequestQuotes = handleSubmit(values => {
     const sdl = d.generateSdl(values);
-    const errors = d.validateGeneratedSdl(sdl);
+    const errors = [...d.validateGeneratedSdl(sdl)];
+    // Load-bearing trial guard: enabling the GPU card leaves the model at the empty default without ever
+    // opening the (locked) picker, so the presentational lock alone can't stop an empty-model submission —
+    // otherwise the deployment would spin on "Requesting…" with no usable bid (CON-660).
+    if (isRestricted && hasTrialBlockedGpu(values)) {
+      errors.push("GPU access is not available on a free trial. Add funds to unlock GPU access.");
+    }
     if (errors.length > 0) {
       enqueueSnackbar(
         <d.Snackbar

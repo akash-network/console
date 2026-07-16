@@ -28,6 +28,52 @@ describe(ConfigureDeploymentHeader.name, () => {
     expect(enqueueSnackbar).not.toHaveBeenCalled();
   });
 
+  it("blocks a trial deployment whose GPU resolves to a blocked selection and surfaces the trial message", async () => {
+    const requestQuotes = vi.fn();
+    const { enqueueSnackbar } = setup({
+      phase: "configuring",
+      requestQuotes,
+      isRestricted: true,
+      services: [{ profile: { hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "" }] } }]
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
+
+    await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledTimes(1));
+    expect(requestQuotes).not.toHaveBeenCalled();
+
+    render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
+    expect(screen.getByText(/GPU access is not available on a free trial/i)).toBeInTheDocument();
+  });
+
+  it("lets a trial deployment on an allowed specific GPU model request quotes", async () => {
+    const requestQuotes = vi.fn();
+    setup({
+      phase: "configuring",
+      requestQuotes,
+      isRestricted: true,
+      services: [{ profile: { hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "t4" }] } }]
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
+
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL));
+  });
+
+  it("does not apply the trial GPU guard for a non-trial user", async () => {
+    const requestQuotes = vi.fn();
+    setup({
+      phase: "configuring",
+      requestQuotes,
+      isRestricted: false,
+      services: [{ profile: { hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "" }] } }]
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
+
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL));
+  });
+
   it("surfaces SDL validation errors and does not request quotes when the spec is invalid", async () => {
     const requestQuotes = vi.fn();
     const { enqueueSnackbar } = setup({
@@ -201,6 +247,8 @@ describe(ConfigureDeploymentHeader.name, () => {
     sdl?: string;
     expiry?: QuoteExpiry | null;
     cancelAndEdit?: () => void;
+    isRestricted?: boolean;
+    services?: Array<{ profile: { hasGpu?: boolean; gpuModels?: Array<{ vendor: string; name?: string }> } }>;
   }) {
     const flow = mock<DeploymentFlow>({
       phase: input.phase,
@@ -225,10 +273,11 @@ describe(ConfigureDeploymentHeader.name, () => {
       useDeploymentCost: useDeploymentCost as typeof DEPENDENCIES.useDeploymentCost,
       PriceValue: ({ value }) => <span data-testid="price">{String(value)}</span>,
       useQuoteExpiry: () => input.expiry ?? null,
-      CustomTooltip: ({ children }) => <>{children}</>
+      CustomTooltip: ({ children }) => <>{children}</>,
+      useTrialGate: () => ({ isRestricted: input.isRestricted ?? false, isWalletReady: true })
     };
     render(
-      <Wrapper placements={input.placements}>
+      <Wrapper placements={input.placements} services={input.services}>
         <ConfigureDeploymentHeader
           flow={flow}
           sdl={input.sdl ?? ""}
@@ -241,8 +290,16 @@ describe(ConfigureDeploymentHeader.name, () => {
     return { enqueueSnackbar, useDeploymentCost };
   }
 
-  function Wrapper({ children, placements }: { children: ReactNode; placements?: { id: string }[] }) {
-    const form = useForm({ defaultValues: { placements: placements ?? [] } });
+  function Wrapper({
+    children,
+    placements,
+    services
+  }: {
+    children: ReactNode;
+    placements?: { id: string }[];
+    services?: Array<{ profile: { hasGpu?: boolean; gpuModels?: Array<{ vendor: string; name?: string }> } }>;
+  }) {
+    const form = useForm({ defaultValues: { placements: placements ?? [], services: services ?? [] } });
     return <FormProvider {...form}>{children}</FormProvider>;
   }
 });

@@ -5,15 +5,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Alert,
   AlertDescription,
-  Button,
   Label,
+  LoadingButton,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Skeleton,
-  Spinner
+  Skeleton
 } from "@akashnetwork/ui/components";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -347,14 +346,14 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
           </Alert>
         )}
 
-        <Button
+        <LoadingButton
           type="submit"
-          className="w-full gap-2"
-          disabled={isProcessing || amount < topUpMinAmountUsd || isLoadingMethods || (isNewCard && isSetupLoading)}
+          className="w-full"
+          loading={isProcessing}
+          disabled={amount < topUpMinAmountUsd || isLoadingMethods || (isNewCard && isSetupLoading)}
         >
-          {isProcessing && <Spinner size="small" />}
           Purchase Credits
-        </Button>
+        </LoadingButton>
       </form>
 
       {threeDSecure.threeDSData?.clientSecret && (
