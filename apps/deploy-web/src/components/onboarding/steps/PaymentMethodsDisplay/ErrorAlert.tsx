@@ -18,7 +18,7 @@ export const ErrorAlert: React.FC<ErrorAlertProps> = ({ error }) => {
         <WarningTriangle className="h-6 w-6" />
       </div>
       <div>
-        <h4>Failed to Start Trial</h4>
+        <h4 className="font-medium">Failed to Start Trial</h4>
         <p className="text-sm">{extractErrorMessage(error)}</p>
       </div>
     </Alert>

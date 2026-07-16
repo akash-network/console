@@ -27,7 +27,7 @@ export const ResourceStatsGrid: React.FC<Props> = ({ providers, totalCpu, totalG
     <Card>
       <CardContent className="space-y-6 p-6">
         <div className="space-y-4">
-          <h3 className="text-sm">Current Providers</h3>
+          <h3 className="text-sm font-medium">Current Providers</h3>
           <div className="flex flex-wrap gap-2">
             {providers.map((p, index) =>
               p.owner ? (
@@ -50,7 +50,7 @@ export const ResourceStatsGrid: React.FC<Props> = ({ providers, totalCpu, totalG
         <Separator />
 
         <div className="space-y-4">
-          <h3 className="text-sm">Total resources leased</h3>
+          <h3 className="text-sm font-medium">Total resources leased</h3>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             <ResourceCard icon={<Cpu className="h-6 w-6" />} value={roundDecimal(totalCpu, 2)} label="CPUs" />
             <ResourceCard icon={<Flash className="h-6 w-6" />} value={totalGpu || 0} label="GPUs" />

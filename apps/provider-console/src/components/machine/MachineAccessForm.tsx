@@ -231,7 +231,7 @@ export const MachineAccessForm: React.FC<MachineAccessFormProps> = ({
                     <div className="flex items-center gap-2">
                       <InfoCircle className="text-muted-foreground h-5 w-5" />
                       <div>
-                        <h4 className="text-card-foreground">Using SSH key from Node 1</h4>
+                        <h4 className="text-card-foreground font-medium">Using SSH key from Node 1</h4>
                         <p className="text-muted-foreground text-sm">The private key from the first node will be used automatically.</p>
                       </div>
                     </div>

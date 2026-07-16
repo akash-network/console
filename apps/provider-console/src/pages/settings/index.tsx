@@ -363,7 +363,7 @@ const SettingsPage: React.FC = () => {
             <div className="mt-4">
               <div className="mb-4 flex gap-4">
                 <div className="flex-1 rounded-md border p-3">
-                  <h3 className="text-muted-foreground text-sm">Akash Node Version</h3>
+                  <h3 className="text-muted-foreground text-sm font-medium">Akash Node Version</h3>
                   <div className="mt-1 flex items-center">
                     <span className="text-base font-semibold">{upgradeStatus.node.appVersion.current}</span>
                     {upgradeStatus.node.appVersion.needsUpgrade && (
@@ -375,7 +375,7 @@ const SettingsPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex-1 rounded-md border p-3">
-                  <h3 className="text-muted-foreground text-sm">Chart Version</h3>
+                  <h3 className="text-muted-foreground text-sm font-medium">Chart Version</h3>
                   <div className="mt-1 flex items-center">
                     <span className="text-base font-semibold">{upgradeStatus.node.chartVersion.current}</span>
                     {upgradeStatus.node.chartVersion.needsUpgrade && (
@@ -448,7 +448,7 @@ const SettingsPage: React.FC = () => {
             <div className="mt-4">
               <div className="mb-4 flex gap-4">
                 <div className="flex-1 rounded-md border p-3">
-                  <h3 className="text-muted-foreground text-sm">Provider Version</h3>
+                  <h3 className="text-muted-foreground text-sm font-medium">Provider Version</h3>
                   <div className="mt-1 flex items-center">
                     <span className="text-base font-semibold">{upgradeStatus.provider.appVersion.current}</span>
                     {upgradeStatus.provider.appVersion.needsUpgrade && (
@@ -460,7 +460,7 @@ const SettingsPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex-1 rounded-md border p-3">
-                  <h3 className="text-muted-foreground text-sm">Chart Version</h3>
+                  <h3 className="text-muted-foreground text-sm font-medium">Chart Version</h3>
                   <div className="mt-1 flex items-center">
                     <span className="text-base font-semibold">{upgradeStatus.provider.chartVersion.current}</span>
                     {upgradeStatus.provider.chartVersion.needsUpgrade && (
