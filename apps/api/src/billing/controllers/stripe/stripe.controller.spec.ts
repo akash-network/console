@@ -286,12 +286,13 @@ describe(StripeController.name, () => {
         transactionStatus: "pending"
       });
 
+      const couponId = faker.string.alphanumeric(10);
       const result = await controller.applyCoupon({
-        couponId: faker.string.alphanumeric(10),
+        couponId,
         userId: user.id
       });
 
-      expect(stripe.applyCoupon).toHaveBeenCalledWith(user, expect.any(String));
+      expect(stripe.applyCoupon).toHaveBeenCalledWith(user, couponId);
       expect(result.data).toMatchObject({ coupon: mockCoupon, amountAdded: 10, transactionId, transactionStatus: "pending" });
     });
   });

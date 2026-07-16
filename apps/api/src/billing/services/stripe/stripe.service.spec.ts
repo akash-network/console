@@ -858,6 +858,31 @@ describe(StripeService.name, () => {
       await expect(service.applyCoupon(mockUser, "INVALID_CODE")).rejects.toThrow("No valid promotion code or coupon found with the provided code");
     });
 
+    it("does not provision a Stripe customer for a brand-new account when no matching code is found", async () => {
+      const { service } = setup();
+      const mockUser = createTestUser({ stripeCustomerId: null });
+      vi.spyOn(service.promotionCodes, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PromotionCode>>);
+      vi.spyOn(service.coupons, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Coupon>>);
+
+      await expect(service.applyCoupon(mockUser, "INVALID_CODE")).rejects.toThrow("No valid promotion code or coupon found with the provided code");
+
+      expect(service.customers.create).not.toHaveBeenCalled();
+    });
+
+    it("does not provision a Stripe customer for a brand-new account when the coupon is unsupported", async () => {
+      const { service } = setup();
+      const mockUser = createTestUser({ stripeCustomerId: null });
+      const mockCoupon = createTestCoupon({ percent_off: 20, amount_off: null, valid: true });
+      vi.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(undefined);
+      vi.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] });
+
+      await expect(service.applyCoupon(mockUser, mockCoupon.id)).rejects.toThrow(
+        "Percentage-based coupons are not supported. Only fixed amount coupons are allowed."
+      );
+
+      expect(service.customers.create).not.toHaveBeenCalled();
+    });
+
     it("voids invoice on error after invoice is created", async () => {
       const { service, stripeTransactionRepository } = setup();
       const mockUser = createTestUser();

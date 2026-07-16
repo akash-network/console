@@ -329,11 +329,6 @@ export class StripeService extends Stripe {
     transactionId: string;
     transactionStatus: StripeTransactionOutput["status"];
   }> {
-    // Ensure the user has a Stripe customer before redeeming. Brand-new accounts may not have
-    // one yet since it is created lazily by the add-payment-method flow (see getStripeCustomerId).
-    const stripeCustomerId = await this.getStripeCustomerId(currentUser);
-    const payingUser = { ...currentUser, stripeCustomerId };
-
     const promotionCode = await this.findPromotionCodeByCode(couponCode);
 
     if (promotionCode) {
@@ -344,7 +339,7 @@ export class StripeService extends Stripe {
       }
 
       return this.applyCouponOrPromotionCode({
-        currentUser: payingUser,
+        currentUser,
         couponOrPromotion: promotionCode,
         coupon,
         updateField: "promotion_code",
@@ -358,7 +353,7 @@ export class StripeService extends Stripe {
 
     if (matchingCoupon) {
       return this.applyCouponOrPromotionCode({
-        currentUser: payingUser,
+        currentUser,
         couponOrPromotion: matchingCoupon,
         coupon: matchingCoupon,
         updateField: "coupon",
@@ -376,7 +371,7 @@ export class StripeService extends Stripe {
     updateField,
     updateId
   }: {
-    currentUser: PayingUser;
+    currentUser: UserOutput;
     couponOrPromotion: Stripe.Coupon | Stripe.PromotionCode;
     coupon: Stripe.Coupon;
     updateField: "promotion_code" | "coupon";
@@ -412,11 +407,16 @@ export class StripeService extends Stripe {
 
     const amountToAdd = coupon.amount_off; // amount_off is already in cents
 
+    // Ensure the user has a Stripe customer only once the coupon is known to be redeemable. Brand-new
+    // accounts may not have one yet since it is created lazily by the add-payment-method flow (see
+    // getStripeCustomerId); provisioning it earlier would create customers for invalid/unsupported coupons.
+    const stripeCustomerId = await this.getStripeCustomerId(currentUser);
+
     let invoice: Stripe.Invoice | undefined;
 
     try {
       invoice = await this.invoices.create({
-        customer: currentUser.stripeCustomerId,
+        customer: stripeCustomerId,
         auto_advance: false,
         ...(updateField === "promotion_code" ? { discounts: [{ promotion_code: updateId }] } : { discounts: [{ coupon: updateId }] })
       });
@@ -430,7 +430,7 @@ export class StripeService extends Stripe {
 
       await this.invoiceItems.create({
         amount: amountToAdd,
-        customer: currentUser.stripeCustomerId,
+        customer: stripeCustomerId,
         invoice: invoice.id,
         currency: "usd",
         description: "Akash Network Console"
