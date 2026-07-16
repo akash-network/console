@@ -143,6 +143,7 @@ describe(useDeploymentFlow.name, () => {
         useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: vi.fn(), push: vi.fn() })) as never,
         useQueryClient: (() => mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>()) as never,
         useDeploymentLocalStorage: (() => mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocalStorage>>()) as never,
+        useSettingsId: (() => "akash1owner") as never,
         manifestFromSdl: () => "M"
       };
       const { result, rerender } = renderHook(() => useDeploymentFlow({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" } }, dependencies));
@@ -303,6 +304,16 @@ describe(useDeploymentFlow.name, () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("caches the created SDL by the settings id and dseq at create time so an in-progress deployment can be resumed after a reload", () => {
+    const createDeployment = mockMutation();
+    createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
+    const { result, deploymentLocalStorage } = renderFlow({ createDeployment });
+
+    act(() => result.current.actions.requestQuotes("SDL_AT_CREATE"));
+
+    expect(deploymentLocalStorage.update).toHaveBeenCalledWith("akash1owner", "555", { manifest: "SDL_AT_CREATE" });
   });
 
   it("still marks the deploy succeeded and redirects when caching the SDL throws", () => {
@@ -537,6 +548,7 @@ describe(useDeploymentFlow.name, () => {
       useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: (input.replace ?? vi.fn()) as never })) as never,
       useQueryClient: (() => mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>()) as never,
       useDeploymentLocalStorage: (() => mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocalStorage>>()) as never,
+      useSettingsId: (() => "akash1owner") as never,
       manifestFromSdl: () => "manifest"
     };
     return renderHook(() => useDeploymentFlow({ intent }, dependencies));
@@ -564,6 +576,7 @@ describe(useDeploymentFlow.name, () => {
       useRouter: () => router,
       useQueryClient: (() => queryClient) as never,
       useDeploymentLocalStorage: (() => deploymentLocalStorage) as never,
+      useSettingsId: (() => "akash1owner") as never,
       manifestFromSdl: input?.manifestFromSdl ?? (() => "M")
     };
     const utils = renderHook(() => useDeploymentFlow({ intent }, dependencies));

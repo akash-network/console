@@ -22,6 +22,7 @@ import { useDepositDeployment } from "@src/hooks/useDepositDeployment/useDeposit
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
+import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { averageBlockTime } from "@src/utils/priceUtils";
@@ -50,7 +51,8 @@ export const DEPENDENCIES = {
   usePricing,
   useDeploymentSettingQuery,
   usePopup,
-  useRouter
+  useRouter,
+  useRedeploy
 };
 
 type Props = {
@@ -120,10 +122,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
     changeDeploymentName(deployment.dseq);
   }
 
-  const redeploy = () => {
-    const url = UrlService.newDeployment({ redeploy: deployment.dseq });
-    router.push(url);
-  };
+  const redeploy = d.useRedeploy();
 
   const { deposit: depositDeployment } = d.useDepositDeployment({
     dseq: deployment.dseq,
@@ -212,7 +211,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
                 {storageDeploymentData?.manifest && (
                   <d.CustomDropdownLinkItem
                     onClick={() => {
-                      redeploy();
+                      redeploy({ sdl: storageDeploymentData?.manifest, name: storageDeploymentData?.name });
                       analyticsService.track("redeploy_btn_clk", "Amplitude");
                     }}
                     icon={<Upload fontSize="small" />}
@@ -286,7 +285,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
             {storageDeploymentData?.manifest && (
               <d.Button
                 onClick={() => {
-                  redeploy();
+                  redeploy({ sdl: storageDeploymentData?.manifest, name: storageDeploymentData?.name });
                   analyticsService.track("redeploy_btn_clk", "Amplitude");
                 }}
                 variant="default"

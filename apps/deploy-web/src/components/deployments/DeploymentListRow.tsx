@@ -29,6 +29,7 @@ import { useDepositDeployment } from "@src/hooks/useDepositDeployment/useDeposit
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useRealTimeLeft } from "@src/hooks/useRealTimeLeft";
+import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { useAllLeases, useLeaseStatus } from "@src/queries/useLeaseQuery";
 import type { LeaseDto, NamedDeploymentDto } from "@src/types/deployment";
@@ -156,10 +157,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
     }
   };
 
-  const redeploy = () => {
-    const url = UrlService.newDeployment({ redeploy: deployment.dseq });
-    router.push(url);
-  };
+  const redeploy = useRedeploy();
 
   function showDepositModal(e?: React.MouseEvent) {
     e?.preventDefault();
@@ -350,7 +348,10 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                         Edit name
                       </CustomDropdownLinkItem>
                       {storageDeploymentData?.manifest && (
-                        <CustomDropdownLinkItem onClick={() => redeploy()} icon={<Upload fontSize="small" />}>
+                        <CustomDropdownLinkItem
+                          onClick={() => redeploy({ sdl: storageDeploymentData?.manifest, name: storageDeploymentData?.name })}
+                          icon={<Upload fontSize="small" />}
+                        >
                           Redeploy
                         </CustomDropdownLinkItem>
                       )}

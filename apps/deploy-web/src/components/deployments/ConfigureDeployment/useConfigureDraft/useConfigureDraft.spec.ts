@@ -205,9 +205,21 @@ describe(createConfigureDraft.name, () => {
     expect(create("version: '2.0'")).toBe("fresh-1");
   });
 
+  it("persists the deployment name alongside the sdl when one is given", () => {
+    const { create } = setup({ mintedDraftId: "fresh-1" });
+
+    create("version: '2.0'", "my-app");
+
+    expect(readEntry("fresh-1")).toEqual(expect.objectContaining({ sdl: "version: '2.0'", name: "my-app" }));
+  });
+
   function readSdl(draftId: string) {
+    return readEntry(draftId)?.sdl;
+  }
+
+  function readEntry(draftId: string) {
     const raw = window.localStorage.getItem(`${DRAFT_KEY_PREFIX}${draftId}`);
-    return raw ? (JSON.parse(raw) as { sdl: string }).sdl : undefined;
+    return raw ? (JSON.parse(raw) as { sdl: string; name?: string }) : undefined;
   }
 
   function setup(input: { mintedDraftId?: string; getStorage?: typeof DEPENDENCIES.getStorage }) {
@@ -217,6 +229,6 @@ describe(createConfigureDraft.name, () => {
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({}),
       mintDraftId: vi.fn(() => input.mintedDraftId ?? "minted-id")
     };
-    return { create: (sdl: string) => createConfigureDraft(sdl, dependencies) };
+    return { create: (sdl: string, name?: string) => createConfigureDraft(sdl, name, dependencies) };
   }
 });

@@ -89,15 +89,15 @@ export function useConfigureDraft(intent: DeploymentIntent, dependencies: typeof
 }
 
 /**
- * Starts a configure session from an SDL produced outside the screen (e.g. an uploaded file): mints a draft id,
- * persists the SDL under it, and returns the id so the caller can route to `configure?draftId=<id>`. Uses the same
- * storage format as in-screen saves, so the configure screen restores it via `persistedSdl` on arrival. Storage-safe:
- * if storage is blocked or full the write no-ops and the id is still returned (configure then seeds from its other
- * sources), matching how `saveDraft` already swallows failures.
+ * Starts a configure session from an SDL produced outside the screen (e.g. an uploaded file or a redeploy): mints a
+ * draft id, persists the SDL (and optional deployment `name`) under it, and returns the id so the caller can route to
+ * `configure?draftId=<id>`. Uses the same storage format as in-screen saves, so the configure screen restores it via
+ * `persistedSdl`/`persistedName` on arrival. Storage-safe: if storage is blocked or full the write no-ops and the id
+ * is still returned (configure then seeds from its other sources), matching how `saveDraft` already swallows failures.
  */
-export function createConfigureDraft(sdl: string, dependencies: typeof DEPENDENCIES = DEPENDENCIES): string {
+export function createConfigureDraft(sdl: string, name?: string, dependencies: typeof DEPENDENCIES = DEPENDENCIES): string {
   const draftId = dependencies.mintDraftId();
-  saveDraft(dependencies.getStorage(), draftId, sdl);
+  saveDraft(dependencies.getStorage(), draftId, sdl, name);
   return draftId;
 }
 

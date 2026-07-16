@@ -25,6 +25,14 @@ describe("ReclamationCard", () => {
     expect(screen.queryByRole("button", { name: /resume/i })).not.toBeInTheDocument();
   });
 
+  it("redeploys with the stored sdl and name when Redeploy is clicked", async () => {
+    const { redeploy } = setup({ hasLocalManifest: true, manifest: "version: 2.0", name: "my-app" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Redeploy" }));
+
+    expect(redeploy).toHaveBeenCalledWith({ sdl: "version: 2.0", name: "my-app" });
+  });
+
   it("falls back to a 'new SDL' link when there is no local manifest", () => {
     setup({ hasLocalManifest: false });
 
@@ -52,7 +60,7 @@ describe("ReclamationCard", () => {
     expect(wallet.signAndBroadcastTx).not.toHaveBeenCalled();
   });
 
-  function setup(input: { reason?: string; hasLocalManifest?: boolean; isConfirmed?: boolean; onClosed?: () => void } = {}) {
+  function setup(input: { reason?: string; hasLocalManifest?: boolean; manifest?: string; name?: string; isConfirmed?: boolean; onClosed?: () => void } = {}) {
     const wallet = mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: "akash1owner" });
     wallet.signAndBroadcastTx.mockResolvedValue(true);
 
@@ -60,14 +68,16 @@ describe("ReclamationCard", () => {
     confirm.closeDeploymentConfirm.mockResolvedValue(input.isConfirmed ?? true);
 
     const localNotes = mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>();
-    localNotes.getDeploymentData.mockReturnValue(input.hasLocalManifest ? mock<DeploymentData>({ manifest: "version: 2.0" }) : null);
+    localNotes.getDeploymentData.mockReturnValue(
+      input.hasLocalManifest ? mock<DeploymentData>({ manifest: input.manifest ?? "version: 2.0", name: input.name }) : null
+    );
 
-    const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
+    const redeploy = vi.fn();
 
     const useWallet: typeof DEPENDENCIES.useWallet = () => wallet;
     const useManagedDeploymentConfirm: typeof DEPENDENCIES.useManagedDeploymentConfirm = () => confirm;
     const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () => localNotes;
-    const useRouter: typeof DEPENDENCIES.useRouter = () => router;
+    const useRedeploy: typeof DEPENDENCIES.useRedeploy = () => redeploy;
     const useNewDeploymentUrl: typeof DEPENDENCIES.useNewDeploymentUrl = () => () => "/new-deployment";
 
     const lease = mock<LeaseDto>({
@@ -87,10 +97,10 @@ describe("ReclamationCard", () => {
         lease={lease}
         dseq="123"
         onClosed={input.onClosed}
-        dependencies={MockComponents(DEPENDENCIES, { useWallet, useManagedDeploymentConfirm, useLocalNotes, useRouter, useNewDeploymentUrl })}
+        dependencies={MockComponents(DEPENDENCIES, { useWallet, useManagedDeploymentConfirm, useLocalNotes, useRedeploy, useNewDeploymentUrl })}
       />
     );
 
-    return { wallet, confirm, router };
+    return { wallet, confirm, redeploy };
   }
 });

@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
 
+import { createConfigureDraft } from "@src/components/deployments/ConfigureDeployment/useConfigureDraft/useConfigureDraft";
 import { DeploymentAlerts } from "@src/components/deployments/DeploymentAlerts/DeploymentAlerts";
 import { useServices } from "@src/context/ServicesProvider";
 import { useSettings } from "@src/context/SettingsProvider";
@@ -24,7 +25,6 @@ import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { extractRepositoryUrl } from "@src/services/remote-deploy/env-var-manager.service";
-import { RouteStep } from "@src/types/route-steps.type";
 import { isLeaseLive } from "@src/utils/reclamationUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
@@ -76,7 +76,13 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
       // Redirect to select bids if has no lease — but not when a group is paused (reclaimed): the
       // deployment is still active with no live lease, and must remain viewable, not bounce to bid selection.
       if (deployment?.state === "active" && leases.length === 0 && !deployment.groups?.some(g => g.state === "paused")) {
-        router.replace(UrlService.newDeployment({ dseq, step: RouteStep.createLeases }));
+        // Resume the in-progress (on-chain, no lease yet) deployment in the configure flow. Seed the editor from the
+        // locally cached SDL (kept at create time) so quoting bids against the real spec; passing dseq resumes the
+        // existing deployment rather than creating a new one. With no local SDL (e.g. opened on another device) fall
+        // back to a bare resume.
+        const localData = deploymentLocalStorage.get(address, dseq);
+        const draftId = localData?.manifest ? createConfigureDraft(localData.manifest, localData.name) : undefined;
+        router.replace(UrlService.configureDeployment({ dseq, draftId }));
       }
 
       // Set the array of refs for lease rows
@@ -89,7 +95,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
         );
       }
     }
-  }, [deployment?.state, dseq, leaseRefs.length, leases, router]);
+  }, [deployment?.state, dseq, leaseRefs.length, leases, router, address, deploymentLocalStorage]);
 
   const isDeploymentNotFound = deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found") && !isLoadingDeployment;
   const hasLeases = leases && leases.length > 0;
