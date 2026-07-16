@@ -23,6 +23,7 @@ import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
 import { RequireOnboarding } from "@src/components/onboarding/RequireOnboarding/RequireOnboarding";
 import { UserProviders } from "@src/components/user/UserProviders/UserProviders";
+import { BillingSheetProvider } from "@src/context/BillingSheetProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { FlagProvider } from "@src/context/FlagProvider/FlagProvider";
 import { PaymentPollingProvider } from "@src/context/PaymentPollingProvider";
@@ -58,11 +59,13 @@ const App: React.FunctionComponent<Props> = props => {
             <FlagProvider>
               <WalletProvider>
                 <PaymentPollingProvider>
-                  <NavigationGuardProvider>
-                    <RequireOnboarding isPublic={isPublic}>
-                      <Component {...pageProps} />
-                    </RequireOnboarding>
-                  </NavigationGuardProvider>
+                  <BillingSheetProvider>
+                    <NavigationGuardProvider>
+                      <RequireOnboarding isPublic={isPublic}>
+                        <Component {...pageProps} />
+                      </RequireOnboarding>
+                    </NavigationGuardProvider>
+                  </BillingSheetProvider>
                 </PaymentPollingProvider>
               </WalletProvider>
             </FlagProvider>

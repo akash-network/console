@@ -24,7 +24,6 @@ import { FirstPurchaseBonusAlert } from "@src/components/billing-usage/FirstPurc
 import { getPaymentMethodDisplay } from "@src/components/shared/PaymentMethodCard/PaymentMethodCard";
 import { ThreeDSecurePopup } from "@src/components/shared/PaymentMethodForm/ThreeDSecurePopup";
 import { usePaymentPolling } from "@src/context/PaymentPollingProvider";
-import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { use3DSecure } from "@src/hooks/use3DSecure";
 import { useUser } from "@src/hooks/useUser";
@@ -51,7 +50,6 @@ export const DEPENDENCIES = {
   usePaymentMutations,
   usePaymentPolling,
   useQueryClient,
-  useServices,
   useWallet,
   use3DSecure,
   useUser,
@@ -91,7 +89,6 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
   const { data: setupIntent, mutate: createSetupIntent, status: setupIntentStatus, reset: resetSetupIntent } = d.useSetupIntentMutation();
   const { user } = d.useUser();
   const { pollForPayment, isPolling } = d.usePaymentPolling();
-  const { stripe } = d.useServices();
   const { isTrialing, topUpMinAmountUsd } = d.useWallet();
   const queryClient = d.useQueryClient();
   const { data: paymentMethods, isLoading: isLoadingMethods, isError: isMethodsError } = d.usePaymentMethodsQuery();
@@ -260,24 +257,9 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
       setCharge(null);
       setIsProcessing(false);
 
-      const { amount, organization } = charge;
-      void (async function completeWithGrantedBonus() {
-        // Polling settles only after the webhook topped up the wallet, so the granted
-        // first-purchase bonus is already recorded on the latest transaction.
-        let bonusAmount = 0;
-        try {
-          const { transactions } = await stripe.getCustomerTransactions({ limit: 1 });
-          const latest = transactions[0];
-          if (latest?.status === "succeeded" && latest.amount === Math.round(amount * 100)) {
-            bonusAmount = (latest.bonusAmount ?? 0) / 100;
-          }
-        } catch {
-          // Bonus display is best-effort; completion must proceed without it.
-        }
-        onDone(amount, organization, bonusAmount);
-      })();
+      onDone(charge.amount, charge.organization);
     },
-    [isPolling, isTrialing, charge, finalizeFailure, onDone, stripe]
+    [isPolling, isTrialing, charge, finalizeFailure, onDone]
   );
 
   useEffect(

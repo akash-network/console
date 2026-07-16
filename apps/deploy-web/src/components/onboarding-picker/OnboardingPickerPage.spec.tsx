@@ -16,8 +16,8 @@ const SPACE_AGENT_ID = "akash-network-awesome-akash-Space-Agent";
 const LLM_ID = "akash-network-awesome-akash-Llama-3.1-8B";
 
 type PickerCardProps = Parameters<typeof DEPENDENCIES.DeploymentTemplatePickerCard>[0];
-type SheetProps = Parameters<typeof DEPENDENCIES.AddCreditsSheet>[0];
 type ButtonProps = Parameters<typeof DEPENDENCIES.Button>[0];
+type OpenFn = ReturnType<typeof DEPENDENCIES.useBillingSheet>["open"];
 
 describe(OnboardingPickerPage.name, () => {
   it("renders a card per template", () => {
@@ -119,15 +119,15 @@ describe(OnboardingPickerPage.name, () => {
     expect(card.ctaLabel).toBe("Add credits to unlock");
   });
 
-  it("opens the verification sheet instead of redirecting when the LLM CTA is clicked while trialing", () => {
+  it("opens add credits instead of redirecting when the gated LLM CTA is clicked while trialing", () => {
     const push = vi.fn();
+    const open = vi.fn<OpenFn>();
     const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
-    const AddCreditsSheet = vi.fn(ComponentMock);
-    setup({ isTrialing: true, push, dependencies: { DeploymentTemplatePickerCard, AddCreditsSheet } });
+    setup({ isTrialing: true, push, open, dependencies: { DeploymentTemplatePickerCard } });
 
     act(() => getCard(DeploymentTemplatePickerCard, "LLM Chatbot").onDeploy!());
 
-    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(true);
+    expect(open).toHaveBeenCalledTimes(1);
     expect(push).not.toHaveBeenCalled();
   });
 
@@ -141,55 +141,14 @@ describe(OnboardingPickerPage.name, () => {
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: LLM_ID, sdlStrategy: "default", bidStrategy: "auto" }));
   });
 
-  it("forwards isWalletReady to the verification sheet", () => {
-    const AddCreditsSheet = vi.fn(ComponentMock);
-    setup({
-      isTrialing: true,
-      dependencies: {
-        AddCreditsSheet,
-        useEnsureTrialStarted: () => mock<EnsureTrialStartedResult>({ wallet: undefined, isWalletReady: false, isLoading: true, error: null })
-      }
-    });
-
-    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).isWalletReady).toBe(false);
-  });
-
-  it("closes the verification sheet when the sheet requests to close", () => {
-    const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
-    const AddCreditsSheet = vi.fn(ComponentMock);
-    setup({ isTrialing: true, dependencies: { DeploymentTemplatePickerCard, AddCreditsSheet } });
-
-    act(() => getCard(DeploymentTemplatePickerCard, "LLM Chatbot").onDeploy!());
-    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(true);
-
-    act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onOpenChange(false));
-
-    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(false);
-  });
-
-  it("closes the verification sheet without deploying when a coupon is redeemed", () => {
+  it("deploys the LLM template when add credits completes after the gated LLM prompt", () => {
     const push = vi.fn();
+    const open = vi.fn<OpenFn>();
     const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
-    const AddCreditsSheet = vi.fn(ComponentMock);
-    setup({ isTrialing: true, push, dependencies: { DeploymentTemplatePickerCard, AddCreditsSheet } });
+    setup({ isTrialing: true, push, open, dependencies: { DeploymentTemplatePickerCard } });
 
     act(() => getCard(DeploymentTemplatePickerCard, "LLM Chatbot").onDeploy!());
-    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(true);
-
-    act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onRedeemed!());
-
-    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(false);
-    expect(push).not.toHaveBeenCalled();
-  });
-
-  it("deploys the LLM template when the verification sheet completes after the gated LLM prompt", () => {
-    const push = vi.fn();
-    const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
-    const AddCreditsSheet = vi.fn(ComponentMock);
-    setup({ isTrialing: true, push, dependencies: { DeploymentTemplatePickerCard, AddCreditsSheet } });
-
-    act(() => getCard(DeploymentTemplatePickerCard, "LLM Chatbot").onDeploy!());
-    act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onDone(100, "Acme"));
+    act(() => open.mock.calls.at(-1)![0]!.onSuccess!(100));
 
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: LLM_ID, sdlStrategy: "default", bidStrategy: "auto" }));
   });
@@ -218,29 +177,29 @@ describe(OnboardingPickerPage.name, () => {
     expect(screen.getByText(/Skip the trial - unlock Console/i)).toBeInTheDocument();
   });
 
-  it("opens the verification sheet when the skip-the-trial button is clicked", () => {
+  it("opens add credits when the skip-the-trial button is clicked", () => {
     const push = vi.fn();
+    const open = vi.fn<OpenFn>();
     // Button is a forwardRef component; a plain mock can't satisfy its ref type, so cast the override only.
     const Button = vi.fn(ComponentMock);
-    const AddCreditsSheet = vi.fn(ComponentMock);
-    setup({ isTrialing: true, push, dependencies: { Button: Button as unknown as typeof DEPENDENCIES.Button, AddCreditsSheet } });
+    setup({ isTrialing: true, push, open, dependencies: { Button: Button as unknown as typeof DEPENDENCIES.Button } });
 
     const skipButton = Button.mock.calls.at(-1)![0] as ButtonProps;
     act(() => (skipButton.onClick as () => void)());
 
-    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(true);
+    expect(open).toHaveBeenCalledTimes(1);
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("redirects to the configure view when the verification sheet completes after skipping the trial", () => {
+  it("redirects to the configure view when add credits completes after skipping the trial", () => {
     const push = vi.fn();
+    const open = vi.fn<OpenFn>();
     const Button = vi.fn(ComponentMock);
-    const AddCreditsSheet = vi.fn(ComponentMock);
-    setup({ isTrialing: true, push, dependencies: { Button: Button as unknown as typeof DEPENDENCIES.Button, AddCreditsSheet } });
+    setup({ isTrialing: true, push, open, dependencies: { Button: Button as unknown as typeof DEPENDENCIES.Button } });
 
     const skipButton = Button.mock.calls.at(-1)![0] as ButtonProps;
     act(() => (skipButton.onClick as () => void)());
-    act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onDone(100, "Acme"));
+    act(() => open.mock.calls.at(-1)![0]!.onSuccess!(100));
 
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment());
   });
@@ -263,52 +222,49 @@ describe(OnboardingPickerPage.name, () => {
     expect(screen.queryByText(/Hackathon\? click here/i)).not.toBeInTheDocument();
   });
 
-  it("opens the add-credits sheet on the coupon tab when the hackathon link is clicked", () => {
+  it("opens add credits on the coupon tab when the hackathon link is clicked", () => {
     const push = vi.fn();
+    const open = vi.fn<OpenFn>();
     const Button = vi.fn(ComponentMock);
-    const AddCreditsSheet = vi.fn(ComponentMock);
     setup({
       isTrialing: true,
       isHackathonsEnabled: true,
       push,
-      dependencies: { Button: Button as unknown as typeof DEPENDENCIES.Button, AddCreditsSheet }
+      open,
+      dependencies: { Button: Button as unknown as typeof DEPENDENCIES.Button }
     });
 
     const hackathonButton = getButtonByText(Button, "Hackathon? click here");
     act(() => (hackathonButton.onClick as () => void)());
 
-    const sheetProps = AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps;
-    expect(sheetProps.open).toBe(true);
-    expect(sheetProps.initialTab).toBe("coupon");
+    expect(open).toHaveBeenCalledWith({ initialTab: "coupon" });
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("opens the add-credits sheet on the coupon tab and strips the param when landing with redeemCoupon=true", () => {
+  it("opens add credits on the coupon tab and strips the param when landing with redeemCoupon=true", () => {
     const replace = vi.fn();
-    const AddCreditsSheet = vi.fn(ComponentMock);
-    setup({ isTrialing: true, isHackathonsEnabled: true, searchParams: "redeemCoupon=true", replace, dependencies: { AddCreditsSheet } });
+    const open = vi.fn<OpenFn>();
+    setup({ isTrialing: true, isHackathonsEnabled: true, searchParams: "redeemCoupon=true", replace, open });
 
-    const sheetProps = AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps;
-    expect(sheetProps.open).toBe(true);
-    expect(sheetProps.initialTab).toBe("coupon");
+    expect(open).toHaveBeenCalledWith({ initialTab: "coupon" });
     expect(replace).toHaveBeenCalledWith(UrlService.onboardingPicker(), { scroll: false });
   });
 
   it("ignores the redeemCoupon param when the hackathons flag is off", () => {
     const replace = vi.fn();
-    const AddCreditsSheet = vi.fn(ComponentMock);
-    setup({ isTrialing: true, isHackathonsEnabled: false, searchParams: "redeemCoupon=true", replace, dependencies: { AddCreditsSheet } });
+    const open = vi.fn<OpenFn>();
+    setup({ isTrialing: true, isHackathonsEnabled: false, searchParams: "redeemCoupon=true", replace, open });
 
-    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(false);
+    expect(open).not.toHaveBeenCalled();
     expect(replace).not.toHaveBeenCalled();
   });
 
   it("ignores the redeemCoupon param when the user is not trialing", () => {
     const replace = vi.fn();
-    const AddCreditsSheet = vi.fn(ComponentMock);
-    setup({ isTrialing: false, isHackathonsEnabled: true, searchParams: "redeemCoupon=true", replace, dependencies: { AddCreditsSheet } });
+    const open = vi.fn<OpenFn>();
+    setup({ isTrialing: false, isHackathonsEnabled: true, searchParams: "redeemCoupon=true", replace, open });
 
-    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(false);
+    expect(open).not.toHaveBeenCalled();
     expect(replace).not.toHaveBeenCalled();
   });
 
@@ -329,6 +285,7 @@ describe(OnboardingPickerPage.name, () => {
     input: {
       push?: () => void;
       replace?: () => void;
+      open?: OpenFn;
       searchParams?: string;
       isTrialing?: boolean;
       isHackathonsEnabled?: boolean;
@@ -340,6 +297,7 @@ describe(OnboardingPickerPage.name, () => {
   ) {
     const push = input.push ?? vi.fn();
     const replace = input.replace ?? vi.fn();
+    const open = input.open ?? vi.fn();
     const isTrialing = input.isTrialing ?? true;
     const isHackathonsEnabled = input.isHackathonsEnabled ?? false;
     const isFirstPurchaseBonusEnabled = input.isFirstPurchaseBonusEnabled ?? false;
@@ -360,6 +318,7 @@ describe(OnboardingPickerPage.name, () => {
     const useFlag: typeof DEPENDENCIES.useFlag = flag => (flag === "first_purchase_bonus" ? isFirstPurchaseBonusEnabled : isHackathonsEnabled);
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({ publicConfig: { NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT: trialCreditsAmount }, urlService: UrlService });
+    const useBillingSheet: typeof DEPENDENCIES.useBillingSheet = () => mock<ReturnType<typeof DEPENDENCIES.useBillingSheet>>({ open });
 
     return render(
       <OnboardingPickerPage
@@ -370,6 +329,7 @@ describe(OnboardingPickerPage.name, () => {
           useWallet,
           useFlag,
           useServices,
+          useBillingSheet,
           ...input.dependencies
         })}
       />

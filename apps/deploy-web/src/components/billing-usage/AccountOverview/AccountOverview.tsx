@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { FormattedNumber } from "react-intl";
 import { Button, Card, CardContent, CardHeader, CustomTooltip, Skeleton, Snackbar, Switch } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
@@ -8,9 +8,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSnackbar } from "notistack";
 
-import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
-import { PaymentSuccessAnimation } from "@src/components/billing-usage/PaymentSuccessAnimation/PaymentSuccessAnimation";
 import { Title } from "@src/components/shared/Title";
+import { useBillingSheet } from "@src/context/BillingSheetProvider";
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useDefaultPaymentMethodQuery, useWalletSettingsMutations, useWalletSettingsQuery, useWeeklyDeploymentCostQuery } from "@src/queries";
@@ -26,8 +25,7 @@ export const DEPENDENCIES = {
   useSearchParams,
   useRouter,
   useServices,
-  AddCreditsSheet,
-  PaymentSuccessAnimation,
+  useBillingSheet,
   Title,
   FormattedNumber,
   Link,
@@ -43,12 +41,11 @@ export const DEPENDENCIES = {
 };
 
 export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
-  const [showAddCredits, setShowAddCredits] = useState(false);
-  const [showPaymentSuccess, setShowPaymentSuccess] = useState<{ amount: string; bonusAmount: string; show: boolean }>({
-    amount: "",
-    bonusAmount: "",
-    show: false
-  });
+  const { open: openBillingSheet } = d.useBillingSheet();
+  const openAddCredits = useCallback(
+    () => openBillingSheet({ initialTab: "purchase", description: "Buy credits or redeem a coupon to top up your balance." }),
+    [openBillingSheet]
+  );
   const { enqueueSnackbar } = d.useSnackbar();
   const { data: defaultPaymentMethod, isLoading: isLoadingDefaultPaymentMethod } = d.useDefaultPaymentMethodQuery();
   const { balance: walletBalance, isLoading: isWalletBalanceLoading } = d.useWalletBalance();
@@ -64,10 +61,10 @@ export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DE
 
   useEffect(() => {
     if (!isLoading && searchParams.get("openPayment") === "true") {
-      setShowAddCredits(true);
+      openAddCredits();
       router.replace(urlService.billing(), { scroll: false });
     }
-  }, [isLoading, searchParams, router, urlService]);
+  }, [isLoading, searchParams, router, urlService, openAddCredits]);
 
   const toggleAutoReload = useCallback(
     async (autoReloadEnabled: boolean) => {
@@ -152,7 +149,7 @@ export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DE
     <div>
       <div className="flex items-center justify-between">
         <d.Title subTitle>Your account</d.Title>
-        <d.Button onClick={() => setShowAddCredits(true)} disabled={isWalletBalanceLoading} size="sm">
+        <d.Button onClick={openAddCredits} disabled={isWalletBalanceLoading} size="sm">
           <Plus className="h-4 w-4" />
           Add Funds
         </d.Button>
@@ -218,25 +215,7 @@ export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DE
             </d.CardContent>
           </d.Card>
         </div>
-
-        <d.PaymentSuccessAnimation
-          show={showPaymentSuccess.show}
-          amount={showPaymentSuccess.amount}
-          bonusAmount={showPaymentSuccess.bonusAmount}
-          onComplete={() => setShowPaymentSuccess({ amount: "", bonusAmount: "", show: false })}
-        />
       </div>
-
-      <d.AddCreditsSheet
-        open={showAddCredits}
-        onOpenChange={setShowAddCredits}
-        initialTab="purchase"
-        description="Buy credits or redeem a coupon to top up your balance."
-        onDone={(amount, _organization, bonusAmount) => {
-          setShowPaymentSuccess({ amount: String(amount), bonusAmount: String(bonusAmount ?? 0), show: true });
-          setShowAddCredits(false);
-        }}
-      />
     </div>
   );
 };

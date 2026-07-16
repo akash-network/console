@@ -1,18 +1,18 @@
 "use client";
 
 import React from "react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Alert, AlertDescription, Button } from "@akashnetwork/ui/components";
 import { ArrowRight } from "lucide-react";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
 import { BONUS_PERCENT, MAX_BONUS } from "@src/components/billing-usage/FirstPurchaseBonusAlert/FirstPurchaseBonusAlert";
 import { DeploymentTemplatePickerCard } from "@src/components/deployments/DeploymentTemplatePickerCard/DeploymentTemplatePickerCard";
 import { AkashConsoleLogo } from "@src/components/icons/AkashConsoleLogo";
 import { AccountMenu } from "@src/components/layout/AccountMenu";
+import { useBillingSheet } from "@src/context/BillingSheetProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
@@ -37,8 +37,8 @@ export const DEPENDENCIES = {
   useEnsureTrialStarted,
   useServices,
   useFlag,
+  useBillingSheet,
   DeploymentTemplatePickerCard,
-  AddCreditsSheet,
   AccountMenu,
   Button
 };
@@ -52,7 +52,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   const { isTrialing } = d.useWallet();
   const { publicConfig, urlService } = d.useServices();
   const trialCreditsAmount = publicConfig.NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT;
-  const [addCreditsSheetReason, setAddCreditsSheetReason] = useState<"unlock-gpu" | "skip-trial" | "hackathon-coupon" | null>(null);
+  const { open: openBillingSheet } = d.useBillingSheet();
   const { isWalletReady, error: trialError, wallet } = d.useEnsureTrialStarted();
   const isHackathonsEnabled = d.useFlag("hackathons");
   const isFirstPurchaseBonusEnabled = d.useFlag("first_purchase_bonus");
@@ -66,10 +66,10 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   // until the trial/flag state resolves (both load async) the param stays untouched.
   useEffect(() => {
     if (showHackathonEntry && searchParams?.get("redeemCoupon") === "true") {
-      setAddCreditsSheetReason("hackathon-coupon");
+      openBillingSheet({ initialTab: "coupon" });
       router.replace(urlService.onboardingPicker(), { scroll: false });
     }
-  }, [showHackathonEntry, searchParams, router, urlService]);
+  }, [showHackathonEntry, searchParams, router, urlService, openBillingSheet]);
 
   /** Redirects to the bid-screening view, which auto-starts the deployment from the intent params. */
   function deployTemplate(templateId: string) {
@@ -88,7 +88,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
             <AkashConsoleLogo />
             <div className="flex items-center gap-2">
               {showHackathonEntry && (
-                <d.Button onClick={() => setAddCreditsSheetReason("hackathon-coupon")} variant="ghost" size="sm">
+                <d.Button onClick={() => openBillingSheet({ initialTab: "coupon" })} variant="ghost" size="sm">
                   Hackathon? click here
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </d.Button>
@@ -161,7 +161,9 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
                 ctaVariant="outline"
                 heroImageSrc="/images/onboarding/llm-chatbot.png"
                 heroImageAlt="LLM chatbot template"
-                onDeploy={() => (isLlmAvailable ? deployTemplate(TEMPLATE_IDS.llmChatbot) : setAddCreditsSheetReason("unlock-gpu"))}
+                onDeploy={() =>
+                  isLlmAvailable ? deployTemplate(TEMPLATE_IDS.llmChatbot) : openBillingSheet({ onSuccess: () => deployTemplate(TEMPLATE_IDS.llmChatbot) })
+                }
               />
             </div>
 
@@ -182,7 +184,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
 
               {(isTrialing || !wallet?.creditAmount) && (
                 <div className="text-center">
-                  <d.Button onClick={() => setAddCreditsSheetReason("skip-trial")} variant="ghost">
+                  <d.Button onClick={() => openBillingSheet({ onSuccess: () => router.push(urlService.configureDeployment()) })} variant="ghost">
                     Skip the trial - unlock Console
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </d.Button>
@@ -191,23 +193,6 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
             </div>
           </div>
         </div>
-
-        <d.AddCreditsSheet
-          open={addCreditsSheetReason !== null}
-          onOpenChange={open => setAddCreditsSheetReason(open ? "unlock-gpu" : null)}
-          isWalletReady={isWalletReady}
-          onRedeemed={() => setAddCreditsSheetReason(null)}
-          initialTab={addCreditsSheetReason === "hackathon-coupon" ? "coupon" : "purchase"}
-          onDone={() => {
-            if (addCreditsSheetReason === "unlock-gpu") {
-              deployTemplate(TEMPLATE_IDS.llmChatbot);
-            } else if (addCreditsSheetReason === "skip-trial") {
-              router.push(urlService.configureDeployment());
-            } else {
-              setAddCreditsSheetReason(null);
-            }
-          }}
-        />
       </div>
     </>
   );

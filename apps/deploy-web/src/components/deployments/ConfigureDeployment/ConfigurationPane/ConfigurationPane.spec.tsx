@@ -83,9 +83,12 @@ describe(ConfigurationPane.name, () => {
     });
     const values: SdlBuilderFormValuesType = { placements: [placement], services: [serviceA, serviceB], endpoints: [] };
 
-    /** GpuCard fetches GPU models via React Query; stub it so this pane test stays provider-free and asserts only the Memory/Storage values. */
+    /** GpuCard fetches GPU models via React Query and useBillingSheet needs its provider; stub both so this pane test stays provider-free and asserts only the Memory/Storage values. */
     const HardwareSectionWithStubbedGpu: typeof HardwareSection = props => (
-      <HardwareSection {...props} dependencies={{ ...HARDWARE_DEPENDENCIES, GpuCard: () => null }} />
+      <HardwareSection
+        {...props}
+        dependencies={{ ...HARDWARE_DEPENDENCIES, GpuCard: () => null, useBillingSheet: () => ({ open: () => {}, close: () => {}, isOpen: false }) }}
+      />
     );
     const dependencies = { ...DEPENDENCIES, HardwareSection: HardwareSectionWithStubbedGpu, AdditionalSection: () => null };
 

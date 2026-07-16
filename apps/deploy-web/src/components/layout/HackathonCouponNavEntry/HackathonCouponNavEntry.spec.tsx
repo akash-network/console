@@ -4,9 +4,7 @@ import { mock } from "vitest-mock-extended";
 import { DEPENDENCIES, HackathonCouponNavEntry } from "./HackathonCouponNavEntry";
 
 import { fireEvent, render, screen } from "@testing-library/react";
-import { ComponentMock, MockComponents } from "@tests/unit/mocks";
-
-type SheetProps = Parameters<typeof DEPENDENCIES.AddCreditsSheet>[0];
+import { MockComponents } from "@tests/unit/mocks";
 
 describe(HackathonCouponNavEntry.name, () => {
   it("renders nothing when the hackathons flag is off", () => {
@@ -27,50 +25,22 @@ describe(HackathonCouponNavEntry.name, () => {
     expect(screen.getByRole("button", { name: /Hackathon\? click here/i })).toBeInTheDocument();
   });
 
-  it("opens the add-credits sheet on the coupon tab when the trigger is clicked", () => {
-    const { AddCreditsSheet } = setup({ isHackathonsEnabled: true, isTrialing: true });
+  it("opens add credits on the coupon tab when the trigger is clicked", () => {
+    const { open } = setup({ isHackathonsEnabled: true, isTrialing: true });
 
     fireEvent.click(screen.getByRole("button", { name: /Hackathon\? click here/i }));
 
-    const sheetProps = AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps;
-    expect(sheetProps.open).toBe(true);
-    expect(sheetProps.initialTab).toBe("coupon");
+    expect(open).toHaveBeenCalledWith({ initialTab: "coupon" });
   });
 
-  it("marks the wallet ready when it is loaded and has an address", () => {
-    const { AddCreditsSheet } = setup({ isHackathonsEnabled: true, isTrialing: true, isWalletLoaded: true, address: "akash1abc" });
-
-    const sheetProps = AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps;
-    expect(sheetProps.isWalletReady).toBe(true);
-  });
-
-  it("marks the wallet not ready when it has no address yet", () => {
-    const { AddCreditsSheet } = setup({ isHackathonsEnabled: true, isTrialing: true, isWalletLoaded: true, address: "" });
-
-    const sheetProps = AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps;
-    expect(sheetProps.isWalletReady).toBe(false);
-  });
-
-  function setup(
-    input: {
-      isHackathonsEnabled?: boolean;
-      isTrialing?: boolean;
-      isWalletLoaded?: boolean;
-      address?: string;
-      dependencies?: Partial<typeof DEPENDENCIES>;
-    } = {}
-  ) {
-    const AddCreditsSheet = vi.fn(ComponentMock);
+  function setup(input: { isHackathonsEnabled?: boolean; isTrialing?: boolean; dependencies?: Partial<typeof DEPENDENCIES> } = {}) {
+    const open = vi.fn();
     const useFlag: typeof DEPENDENCIES.useFlag = () => input.isHackathonsEnabled ?? false;
-    const useWallet: typeof DEPENDENCIES.useWallet = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useWallet>>({
-        isTrialing: input.isTrialing ?? true,
-        isWalletLoaded: input.isWalletLoaded ?? true,
-        address: input.address ?? "akash1xyz"
-      });
+    const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? true });
+    const useBillingSheet: typeof DEPENDENCIES.useBillingSheet = () => mock<ReturnType<typeof DEPENDENCIES.useBillingSheet>>({ open });
 
-    render(<HackathonCouponNavEntry dependencies={MockComponents(DEPENDENCIES, { useFlag, useWallet, AddCreditsSheet, ...input.dependencies })} />);
+    render(<HackathonCouponNavEntry dependencies={MockComponents(DEPENDENCIES, { useFlag, useWallet, useBillingSheet, ...input.dependencies })} />);
 
-    return { AddCreditsSheet };
+    return { open };
   }
 });

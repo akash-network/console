@@ -1,9 +1,8 @@
 import type { FC } from "react";
-import { useState } from "react";
 import { CollapsibleCard } from "@akashnetwork/ui/components";
 import { CpuIcon, PackageOpenIcon } from "lucide-react";
 
-import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
+import { useBillingSheet } from "@src/context/BillingSheetProvider";
 import { isTrialBlockedGpuSelection, isTrialGpuRestrictionActive } from "@src/utils/deploymentData/v1beta3";
 import { useRevalidateUniqueness } from "../../DeploymentPane/useRevalidateUniqueness/useRevalidateUniqueness";
 import { computeResourcesTooltip, presetsTooltip } from "../cardTooltips";
@@ -34,9 +33,9 @@ export const DEPENDENCIES = {
   RamStorageCard,
   PersistentStorageCard,
   ConfidentialComputeCard,
-  AddCreditsSheet,
   useRevalidateUniqueness,
-  useTrialGate
+  useTrialGate,
+  useBillingSheet
 };
 
 type Props = {
@@ -60,11 +59,10 @@ type Props = {
  */
 export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   d.useRevalidateUniqueness(`services.${serviceIndex}.profile.storage`, storageUniquenessKey);
-  const { isRestricted, isWalletReady } = d.useTrialGate();
-  const [isUnlockOpen, setIsUnlockOpen] = useState(false);
+  const { isRestricted } = d.useTrialGate();
+  const { open: openBillingSheet } = d.useBillingSheet();
 
-  const openUnlock = () => setIsUnlockOpen(true);
-  const closeUnlock = () => setIsUnlockOpen(false);
+  const openUnlock = () => openBillingSheet();
 
   /**
    * True only for GPU selections the trial blocks and only while the pane is editable — so the lock never
@@ -98,8 +96,6 @@ export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, depen
 
         <d.PersistentStorageCard serviceIndex={serviceIndex} locked={locked} />
       </div>
-
-      <d.AddCreditsSheet open={isUnlockOpen} onOpenChange={setIsUnlockOpen} isWalletReady={isWalletReady} onDone={closeUnlock} />
     </div>
   );
 };

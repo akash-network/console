@@ -158,98 +158,7 @@ describe(AddCreditsForm.name, () => {
 
     rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, isTrialing: false, isPolling: false });
 
-    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, "Acme", 0));
-  });
-
-  it("passes the granted first-purchase bonus to onDone", async () => {
-    const confirmPayment = vi.fn().mockResolvedValue({ success: true });
-    const onDone = vi.fn();
-    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1", organization: "Acme" });
-    const getCustomerTransactions = vi.fn().mockResolvedValue({ transactions: [{ status: "succeeded", amount: 10000, bonusAmount: 1000 }] });
-    const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
-
-    const { rerender } = setup({
-      status: "success",
-      clientSecret: "seti_secret",
-      confirmPayment,
-      onDone,
-      getCustomerTransactions,
-      isTrialing: true,
-      isPolling: false,
-      dependencies: { AddCreditsNewPaymentMethodFields }
-    });
-
-    fireEvent.click(screen.getByRole("radio", { name: "100" }));
-
-    await act(async () => {
-      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
-    });
-
-    rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, getCustomerTransactions, isTrialing: true, isPolling: true });
-    rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, getCustomerTransactions, isTrialing: false, isPolling: false });
-
-    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, "Acme", 10));
-    expect(getCustomerTransactions).toHaveBeenCalledWith({ limit: 1 });
-  });
-
-  it("reports a zero bonus when the latest transaction does not match the charge", async () => {
-    const confirmPayment = vi.fn().mockResolvedValue({ success: true });
-    const onDone = vi.fn();
-    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1", organization: "Acme" });
-    const getCustomerTransactions = vi.fn().mockResolvedValue({ transactions: [{ status: "succeeded", amount: 5000, bonusAmount: 1000 }] });
-    const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
-
-    const { rerender } = setup({
-      status: "success",
-      clientSecret: "seti_secret",
-      confirmPayment,
-      onDone,
-      getCustomerTransactions,
-      isTrialing: true,
-      isPolling: false,
-      dependencies: { AddCreditsNewPaymentMethodFields }
-    });
-
-    fireEvent.click(screen.getByRole("radio", { name: "100" }));
-
-    await act(async () => {
-      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
-    });
-
-    rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, getCustomerTransactions, isTrialing: true, isPolling: true });
-    rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, getCustomerTransactions, isTrialing: false, isPolling: false });
-
-    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, "Acme", 0));
-  });
-
-  it("completes with a zero bonus when the transaction lookup fails", async () => {
-    const confirmPayment = vi.fn().mockResolvedValue({ success: true });
-    const onDone = vi.fn();
-    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1", organization: "Acme" });
-    const getCustomerTransactions = vi.fn().mockRejectedValue(new Error("boom"));
-    const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
-
-    const { rerender } = setup({
-      status: "success",
-      clientSecret: "seti_secret",
-      confirmPayment,
-      onDone,
-      getCustomerTransactions,
-      isTrialing: true,
-      isPolling: false,
-      dependencies: { AddCreditsNewPaymentMethodFields }
-    });
-
-    fireEvent.click(screen.getByRole("radio", { name: "100" }));
-
-    await act(async () => {
-      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
-    });
-
-    rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, getCustomerTransactions, isTrialing: true, isPolling: true });
-    rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, getCustomerTransactions, isTrialing: false, isPolling: false });
-
-    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, "Acme", 0));
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, "Acme"));
   });
 
   it("shows an error when polling stops without the trial flipping", async () => {
@@ -661,7 +570,6 @@ describe(AddCreditsForm.name, () => {
     mutate?: ReturnType<typeof DEPENDENCIES.useSetupIntentMutation>["mutate"];
     reset?: ReturnType<typeof DEPENDENCIES.useSetupIntentMutation>["reset"];
     invalidateQueries?: ReturnType<typeof DEPENDENCIES.useQueryClient>["invalidateQueries"];
-    getCustomerTransactions?: ReturnType<typeof DEPENDENCIES.useServices>["stripe"]["getCustomerTransactions"];
     topUpMinAmountUsd?: number;
     confirmPayment?: ReturnType<typeof DEPENDENCIES.usePaymentMutations>["confirmPayment"]["mutateAsync"];
     pollForPayment?: ReturnType<typeof DEPENDENCIES.usePaymentPolling>["pollForPayment"];
@@ -714,13 +622,6 @@ describe(AddCreditsForm.name, () => {
         invalidateQueries: input.invalidateQueries ?? vi.fn()
       });
 
-    const useServices: typeof DEPENDENCIES.useServices = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useServices>>({
-        stripe: mock<ReturnType<typeof DEPENDENCIES.useServices>["stripe"]>({
-          getCustomerTransactions: input.getCustomerTransactions ?? vi.fn().mockResolvedValue({ transactions: [] })
-        })
-      });
-
     // UseQueryResult is a discriminated union that neither mock<T>() nor a partial literal can satisfy
     const usePaymentMethodsQuery = (() => ({
       data: input.isMethodsError ? undefined : input.paymentMethods ?? [],
@@ -762,7 +663,6 @@ describe(AddCreditsForm.name, () => {
           usePaymentMutations,
           usePaymentPolling,
           useQueryClient,
-          useServices,
           useWallet,
           use3DSecure,
           getPaymentMethodDisplay,

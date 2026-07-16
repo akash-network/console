@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { DEPENDENCIES, HardwareSection } from "./HardwareSection";
 
 import { act, render } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
+
+type OpenFn = ReturnType<typeof DEPENDENCIES.useBillingSheet>["open"];
 
 describe(HardwareSection.name, () => {
   it("renders each hardware row for the selected service", () => {
@@ -101,8 +104,8 @@ describe(HardwareSection.name, () => {
     expect(isBlockedModel?.("nvidia", "h100")).toBe(false);
   });
 
-  it("opens the AddCreditsSheet when a card requests unlock", () => {
-    const AddCreditsSheet = vi.fn(() => <div />);
+  it("opens the billing sheet when a card requests unlock", () => {
+    const open = vi.fn<OpenFn>();
     let requestUnlock: () => void = () => {};
     const GpuCard = vi.fn<typeof DEPENDENCIES.GpuCard>(props => {
       requestUnlock = props.onUnlock ?? (() => {});
@@ -110,18 +113,21 @@ describe(HardwareSection.name, () => {
     });
     const useTrialGate = () => ({ isRestricted: true, isWalletReady: true });
 
-    setup({ dependencies: { GpuCard, AddCreditsSheet, useTrialGate } });
+    setup({ open, dependencies: { GpuCard, useTrialGate } });
 
-    expect(AddCreditsSheet).toHaveBeenLastCalledWith(expect.objectContaining({ open: false, isWalletReady: true }), expect.anything());
+    expect(open).not.toHaveBeenCalled();
 
     act(() => requestUnlock());
 
-    expect(AddCreditsSheet).toHaveBeenLastCalledWith(expect.objectContaining({ open: true }), expect.anything());
+    expect(open).toHaveBeenCalledTimes(1);
   });
 
-  function setup(input: { serviceIndex?: number; locked?: boolean; dependencies?: Partial<typeof DEPENDENCIES> }) {
+  function setup(input: { serviceIndex?: number; locked?: boolean; open?: OpenFn; dependencies?: Partial<typeof DEPENDENCIES> }) {
+    const open = input.open ?? vi.fn();
+    const useBillingSheet: typeof DEPENDENCIES.useBillingSheet = () => mock<ReturnType<typeof DEPENDENCIES.useBillingSheet>>({ open });
     const dependencies = MockComponents(DEPENDENCIES, {
       useTrialGate: () => ({ isRestricted: false, isWalletReady: false }),
+      useBillingSheet,
       ...input.dependencies
     });
     render(<HardwareSection serviceIndex={input.serviceIndex ?? 0} locked={input.locked} dependencies={dependencies} />);
