@@ -1,13 +1,15 @@
 import "@test/mocks/logger-service.mock";
 
-import type { BidHttpService, BlockHttpService } from "@akashnetwork/http-sdk";
+import type { QueryBidsResponse } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
+import type { BlockHttpService } from "@akashnetwork/http-sdk";
 import type { Registry } from "@cosmjs/proto-signing";
 import type { SigningStargateClient } from "@cosmjs/stargate";
 import { describe, expect, it, vi } from "vitest";
-import { mock } from "vitest-mock-extended";
+import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import type { LoggerService } from "@src/core";
+import type { ChainSDK } from "@src/chain/providers/chain-sdk.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { DeploymentConfig } from "@src/deployment/config/config.provider";
 import type { GpuService } from "@src/gpu/services/gpu.service";
 import { GpuBidsCreatorService } from "./gpu-bids-creator.service";
@@ -136,7 +138,7 @@ describe(GpuBidsCreatorService.name, () => {
 
   describe("createBidsForAllModels", () => {
     it("creates deployments for each GPU model, waits for bids, and closes", async () => {
-      const { service, signingClient, bidHttpService, blockHttpService } = setup();
+      const { service, signingClient, chainSdk, blockHttpService } = setup();
       const gpuModels = {
         gpus: {
           total: { allocatable: 10, allocated: 5 },
@@ -146,17 +148,15 @@ describe(GpuBidsCreatorService.name, () => {
         }
       };
 
-      bidHttpService.list.mockResolvedValue([]);
-
       await service["createBidsForAllModels"](gpuModels as any, signingClient, "akash1owner", false);
 
       expect(blockHttpService.getCurrentHeight).toHaveBeenCalled();
       expect(signingClient.simulate).toHaveBeenCalledTimes(2);
-      expect(bidHttpService.list).toHaveBeenCalledWith("akash1owner", "100000");
+      expect(chainSdk.akash.market.v1beta5.getBids).toHaveBeenCalledWith({ filters: { owner: "akash1owner", dseq: "100000" } });
     });
 
     it("skips duplicate model+ram combos when includeInterface is false", async () => {
-      const { service, signingClient, bidHttpService } = setup();
+      const { service, signingClient } = setup();
       const gpuModels = {
         gpus: {
           total: { allocatable: 10, allocated: 5 },
@@ -168,8 +168,6 @@ describe(GpuBidsCreatorService.name, () => {
           }
         }
       };
-
-      bidHttpService.list.mockResolvedValue([]);
 
       await service["createBidsForAllModels"](gpuModels as any, signingClient, "akash1owner", false);
 
@@ -177,7 +175,7 @@ describe(GpuBidsCreatorService.name, () => {
     });
 
     it("does not skip duplicate model+ram combos when includeInterface is true", async () => {
-      const { service, signingClient, bidHttpService } = setup();
+      const { service, signingClient } = setup();
       const gpuModels = {
         gpus: {
           total: { allocatable: 10, allocated: 5 },
@@ -190,15 +188,13 @@ describe(GpuBidsCreatorService.name, () => {
         }
       };
 
-      bidHttpService.list.mockResolvedValue([]);
-
       await service["createBidsForAllModels"](gpuModels as any, signingClient, "akash1owner", true);
 
       expect(signingClient.simulate).toHaveBeenCalledTimes(4);
     });
 
     it("filters out UNKNOWN vendor", async () => {
-      const { service, signingClient, bidHttpService } = setup();
+      const { service, signingClient } = setup();
       const gpuModels = {
         gpus: {
           total: { allocatable: 10, allocated: 5 },
@@ -208,8 +204,6 @@ describe(GpuBidsCreatorService.name, () => {
           }
         }
       };
-
-      bidHttpService.list.mockResolvedValue([]);
 
       await service["createBidsForAllModels"](gpuModels as any, signingClient, "akash1owner", false);
 
@@ -255,33 +249,11 @@ describe(GpuBidsCreatorService.name, () => {
     const config = mockConfigService<BillingConfigService>({
       NETWORK: "mainnet",
       AVERAGE_GAS_PRICE: 0.025,
-      ...(input.rpcNodeEndpoint !== undefined ? {} : { RPC_NODE_ENDPOINT: "https://rpc.example.com" })
+      RPC_NODE_ENDPOINT: "rpcNodeEndpoint" in input ? input.rpcNodeEndpoint : "https://rpc.example.com"
     });
 
-    if (input.rpcNodeEndpoint === undefined && !("rpcNodeEndpoint" in input)) {
-      config.get.mockImplementation((key: string) => {
-        const values: Record<string, any> = {
-          NETWORK: "mainnet",
-          AVERAGE_GAS_PRICE: 0.025,
-          RPC_NODE_ENDPOINT: "https://rpc.example.com"
-        };
-        if (key in values) return values[key];
-        throw new Error(`Missing mock for config key "${key}"`);
-      });
-    } else if (input.rpcNodeEndpoint === undefined) {
-      config.get.mockImplementation((key: string) => {
-        if (key === "RPC_NODE_ENDPOINT") return "";
-        const values: Record<string, any> = {
-          NETWORK: "mainnet",
-          AVERAGE_GAS_PRICE: 0.025
-        };
-        if (key in values) return values[key];
-        throw new Error(`Missing mock for config key "${key}"`);
-      });
-    }
-
-    const bidHttpService = mock<BidHttpService>();
-    bidHttpService.list.mockResolvedValue([]);
+    const chainSdk = mockDeep<ChainSDK>();
+    chainSdk.akash.market.v1beta5.getBids.mockResolvedValue(mock<QueryBidsResponse>({ bids: [] }));
 
     const gpuService = mock<GpuService>();
     gpuService.getGpuList.mockResolvedValue({
@@ -304,17 +276,21 @@ describe(GpuBidsCreatorService.name, () => {
     signingClient.broadcastTx.mockResolvedValue({ code: 0, rawLog: "" } as any);
     signingClient.getBalance.mockResolvedValue({ amount: "1000000", denom: "uakt" });
 
-    const service = new GpuBidsCreatorService(config, bidHttpService, gpuService, blockHttpService, typeRegistry, deploymentConfig, mock<LoggerService>());
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger: CreateLogger = () => logger;
+
+    const service = new GpuBidsCreatorService(config, chainSdk, gpuService, blockHttpService, typeRegistry, deploymentConfig, createLogger);
 
     return {
       service,
       config,
-      bidHttpService,
+      chainSdk,
       gpuService,
       blockHttpService,
       typeRegistry,
       deploymentConfig,
-      signingClient
+      signingClient,
+      logger
     };
   }
 });

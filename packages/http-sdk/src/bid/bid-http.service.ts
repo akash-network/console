@@ -1,6 +1,4 @@
-import type { AxiosRequestConfig } from "axios";
-
-import { HttpService } from "../http/http.service";
+import type { HttpClient } from "../utils/httpClient";
 
 type Attribute = {
   key: string;
@@ -102,14 +100,16 @@ type RestAkashBidListResponse = {
   };
 };
 
-export class BidHttpService extends HttpService {
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
-    super(config);
+export class BidHttpService {
+  readonly #httpClient: HttpClient;
+
+  constructor(httpClient: HttpClient) {
+    this.#httpClient = httpClient;
   }
 
   public async list(owner: string, dseq: string): Promise<Bid[]> {
-    const response = this.extractData(await this.get<RestAkashBidListResponse>(`/akash/market/v1beta5/bids/list?filters.owner=${owner}&filters.dseq=${dseq}`));
+    const response = await this.#httpClient.get<RestAkashBidListResponse>(`/akash/market/v1beta5/bids/list?filters.owner=${owner}&filters.dseq=${dseq}`);
 
-    return response.bids;
+    return response.data.bids;
   }
 }
