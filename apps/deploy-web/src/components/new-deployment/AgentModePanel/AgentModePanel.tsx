@@ -5,6 +5,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowDown, Sparks } from "iconoir-react";
 import Link from "next/link";
 
+import { CodeSnippet } from "@src/components/shared/CodeSnippet";
 import { ExternalLink } from "@src/components/shared/ExternalLink";
 import { useServices } from "@src/context/ServicesProvider";
 import { UrlService } from "@src/utils/urlUtils";
@@ -48,7 +49,9 @@ export const AgentModePanel: React.FunctionComponent = () => {
           <div className="mt-6 grid grid-cols-1 gap-6 border-t pt-6 md:grid-cols-3">
             <AgentModeStep index={1} title="Install the Akash skill">
               <p className="text-sm text-muted-foreground">In Claude Code, Codex, or OpenCode:</p>
-              <code className="mt-2 block overflow-x-auto rounded-md bg-secondary px-3 py-2 text-sm">{SKILL_INSTALL_COMMAND}</code>
+              <div className="mt-2">
+                <CodeSnippet code={SKILL_INSTALL_COMMAND} />
+              </div>
             </AgentModeStep>
 
             <AgentModeStep index={2} title="Create an API key">
