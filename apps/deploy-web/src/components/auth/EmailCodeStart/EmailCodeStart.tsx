@@ -67,6 +67,7 @@ export function EmailCodeStart({ dependencies: d = DEPENDENCIES, ...props }: Pro
             render={({ field }) => (
               <d.FormInput
                 className="w-full"
+                inputClassName="bg-background dark:bg-input/30"
                 type="email"
                 label="Email"
                 placeholder="you@company.com"
@@ -80,7 +81,6 @@ export function EmailCodeStart({ dependencies: d = DEPENDENCIES, ...props }: Pro
           </d.LoadingButton>
         </form>
       </d.Form>
-      <p className="text-center text-xs leading-4 text-neutral-500 dark:text-neutral-400">We&apos;ll email you a 6 digit code. No password to remember.</p>
     </>
   );
 }

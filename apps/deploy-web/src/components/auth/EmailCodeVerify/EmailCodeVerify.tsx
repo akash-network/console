@@ -98,28 +98,54 @@ export function EmailCodeVerify({ dependencies: d = DEPENDENCIES, ...props }: Pr
     <>
       <d.RemoteApiError className="w-full" error={activeError} />
       <div className="flex flex-col items-center gap-5 self-stretch">
-        <p className="text-sm text-neutral-500">
-          Enter the 6-digit code sent to <span className="font-medium text-neutral-900 dark:text-neutral-100">{props.email}</span>.{" "}
-          <d.Button variant="link" className="h-auto p-0 align-baseline text-sm" onClick={editEmail} type="button">
-            Wrong email? Edit
-          </d.Button>
-        </p>
-        <d.VerificationCodeInput ref={verifyInputRef} onComplete={code => verifyMutation.mutate({ code })} disabled={isBusy} />
-        {isVerifying ? (
-          <div className="flex items-center gap-2 text-xs text-neutral-500">
-            <d.Spinner size="small" /> Verifying...
-          </div>
-        ) : (
-          <p className="text-xs text-neutral-500">Code expires in 10 minutes.</p>
-        )}
-        {!isBusy && (
-          <d.Button variant="link" className="h-auto p-0 text-sm" disabled={resendCooldownSec > 0} onClick={resendCode} type="button">
-            {resendLabel}
-          </d.Button>
-        )}
+        <div className="text-center text-sm text-neutral-500">
+          <p>
+            Enter the 6-digit code sent to <span className="font-medium text-neutral-900 dark:text-neutral-100">{obfuscateEmail(props.email)}</span>.{" "}
+          </p>
+          <p>Code expires in 10 minutes.</p>
+        </div>
+        <div className="flex flex-col items-start gap-2">
+          <span className="text-sm font-medium leading-none text-neutral-950 dark:text-neutral-50">Code</span>
+          <d.VerificationCodeInput ref={verifyInputRef} onComplete={code => verifyMutation.mutate({ code })} disabled={isBusy} />
+        </div>
+        <div className="flex items-center justify-center gap-3 text-sm text-neutral-500 dark:text-neutral-400">
+          {isVerifying ? (
+            <span className="flex items-center gap-2 text-xs">
+              <d.Spinner size="small" /> Verifying...
+            </span>
+          ) : (
+            <>
+              <d.Button variant="link" className="h-auto p-0 text-sm font-normal text-neutral-500 dark:text-neutral-400" onClick={editEmail} type="button">
+                Wrong email? Edit
+              </d.Button>
+              <span aria-hidden="true">·</span>
+              {resendMutation.isPending ? (
+                <span className="flex items-center gap-2 text-xs">
+                  <d.Spinner size="small" /> Sending...
+                </span>
+              ) : (
+                <d.Button
+                  variant="link"
+                  className="h-auto p-0 text-sm font-normal text-neutral-500 dark:text-neutral-400"
+                  disabled={resendCooldownSec > 0}
+                  onClick={resendCode}
+                  type="button"
+                >
+                  {resendLabel}
+                </d.Button>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </>
   );
+}
+
+/** Masks an email for display: keeps the first character of the local part and hides everything after it (e.g. `j•••@....`). */
+function obfuscateEmail(email: string): string {
+  const [account = "", domain = ""] = email.split("@", 2);
+  return `${account.charAt(0)}•••@${domain}`;
 }
 
 /** Cooldown remaining (whole seconds) given when the code was last sent; full cooldown when the send time is unknown. */
