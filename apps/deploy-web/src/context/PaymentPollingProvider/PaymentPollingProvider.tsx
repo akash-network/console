@@ -14,15 +14,31 @@ const MAX_ATTEMPTS = MAX_POLLING_DURATION_MS / POLLING_INTERVAL_MS;
 
 export type PaymentPollingVariant = "payment" | "coupon";
 
-/** Snackbar copy per flow. The coupon flow avoids "payment" wording since redeeming a coupon is not a charge. */
-const POLLING_COPY: Record<PaymentPollingVariant, { loading: { title: string; subTitle: string }; success: { title: string; subTitle: string } }> = {
+/**
+ * Snackbar copy per flow. The coupon flow avoids "payment" wording since redeeming a coupon is not a charge.
+ * The `timeout` copy deliberately frames an exhausted poll as still-pending, not failed: the charge usually
+ * succeeded and is just settling slower than the poll window, so the message reassures instead of nudging a
+ * retry (a retried slow-but-successful charge is what produced the duplicate top-ups in CON-684).
+ */
+const POLLING_COPY: Record<
+  PaymentPollingVariant,
+  { loading: { title: string; subTitle: string }; success: { title: string; subTitle: string }; timeout: { title: string; subTitle: string } }
+> = {
   payment: {
     loading: { title: "Processing payment...", subTitle: "Please wait while we update your balance" },
-    success: { title: "Payment successful!", subTitle: "Your balance has been updated" }
+    success: { title: "Payment successful!", subTitle: "Your balance has been updated" },
+    timeout: {
+      title: "Your payment is still processing",
+      subTitle: "This is taking longer than usual — no need to pay again. Your balance will update shortly once it completes."
+    }
   },
   coupon: {
     loading: { title: "Applying coupon...", subTitle: "Please wait while we add your credits" },
-    success: { title: "Coupon applied!", subTitle: "Your balance has been updated" }
+    success: { title: "Coupon applied!", subTitle: "Your balance has been updated" },
+    timeout: {
+      title: "Your coupon is still processing",
+      subTitle: "This is taking longer than usual. Your balance will update shortly once it completes."
+    }
   }
 };
 
@@ -103,8 +119,9 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
     if (attemptCountRef.current > MAX_ATTEMPTS) {
       stopPolling();
       if (!hasSignaledSuccessRef.current) {
-        enqueueSnackbar(<d.Snackbar title="Payment processing timeout" subTitle="Please refresh the page to check your balance" iconVariant="warning" />, {
-          variant: "warning"
+        const { title, subTitle } = POLLING_COPY[variantRef.current].timeout;
+        enqueueSnackbar(<d.Snackbar title={title} subTitle={subTitle} iconVariant="info" />, {
+          variant: "info"
         });
       }
       return;

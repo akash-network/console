@@ -206,7 +206,7 @@ describe(PaymentPollingProvider.name, () => {
     consoleSpy.mockRestore();
   });
 
-  it("signals 'Payment successful!' on trial flip and suppresses the later timeout warning", async () => {
+  it("signals 'Payment successful!' on trial flip and suppresses the later timeout notice", async () => {
     const { enqueueSnackbar, setIsTrialing, advancePollCycle, cleanup } = setup({
       isTrialing: true,
       balance: { totalUsd: 100 },
@@ -226,7 +226,43 @@ describe(PaymentPollingProvider.name, () => {
 
     await advancePollCycle(30000);
 
-    expect(enqueueSnackbar).not.toHaveBeenCalledWith(snackbarWithTitle("Payment processing timeout"), expect.anything());
+    expect(enqueueSnackbar).not.toHaveBeenCalledWith(snackbarWithTitle("Your payment is still processing"), expect.anything());
+
+    cleanup();
+  });
+
+  it("frames an exhausted poll as still processing, not a failure, so the user is not nudged to pay again", async () => {
+    const { enqueueSnackbar, pumpPollCycles, cleanup } = setup({
+      isTrialing: false,
+      balance: { totalUsd: 100 },
+      isWalletBalanceLoading: false
+    });
+
+    await act(async () => {
+      screen.getByTestId("start-polling").click();
+    });
+
+    await pumpPollCycles(16);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarWithTitle("Your payment is still processing"), expect.objectContaining({ variant: "info" }));
+
+    cleanup();
+  });
+
+  it("frames an exhausted coupon poll as still processing rather than failed", async () => {
+    const { enqueueSnackbar, pumpPollCycles, cleanup } = setup({
+      isTrialing: false,
+      balance: { totalUsd: 100 },
+      isWalletBalanceLoading: false
+    });
+
+    await act(async () => {
+      screen.getByTestId("start-polling-coupon").click();
+    });
+
+    await pumpPollCycles(16);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarWithTitle("Your coupon is still processing"), expect.objectContaining({ variant: "info" }));
 
     cleanup();
   });
@@ -268,7 +304,8 @@ describe(PaymentPollingProvider.name, () => {
 
     const state = {
       isTrialing: input.isTrialing,
-      balance: input.balance
+      balance: input.balance,
+      balanceLoading: input.isWalletBalanceLoading
     };
 
     const mockSnackbar = ({ title, subTitle, iconVariant, showLoading }: { title: string; subTitle: string; iconVariant?: string; showLoading?: boolean }) => (
@@ -281,7 +318,7 @@ describe(PaymentPollingProvider.name, () => {
       useWalletBalance: vi.fn(() => ({
         balance: state.balance ? buildWalletBalance(state.balance) : null,
         refetch: refetchBalance,
-        isLoading: input.isWalletBalanceLoading
+        isLoading: state.balanceLoading
       })),
       useManagedWallet: vi.fn(() => ({
         wallet: {
@@ -351,6 +388,27 @@ describe(PaymentPollingProvider.name, () => {
         await act(async () => {
           vi.advanceTimersByTime(time);
         });
+      },
+      /**
+       * Drives `cycles` poll iterations to exhaustion. The provider reschedules the next poll off a
+       * balance-query loading transition; the mocked `refetch` never toggles `isLoading`, so a plain
+       * timer advance stalls after one tick. Each cycle emulates that transition (true → false) then
+       * advances one interval so the scheduled poll fires, letting a test reach the timeout branch.
+       */
+      pumpPollCycles: async (cycles: number) => {
+        for (let i = 0; i < cycles; i++) {
+          state.balanceLoading = true;
+          await act(async () => {
+            rerender(buildUi());
+          });
+          state.balanceLoading = false;
+          await act(async () => {
+            rerender(buildUi());
+          });
+          await act(async () => {
+            vi.advanceTimersByTime(2000);
+          });
+        }
       },
       cleanup: () => {
         vi.useRealTimers();
