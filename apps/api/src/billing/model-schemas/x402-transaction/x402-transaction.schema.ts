@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { index, integer, pgEnum, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgEnum, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { Users } from "@src/user/model-schemas";
 
@@ -31,6 +31,11 @@ export const X402Transactions = pgTable(
     payerAddress: varchar("payer_address", { length: 255 }),
     settlementTxHash: varchar("settlement_tx_hash", { length: 255 }),
     errorMessage: varchar("error_message", { length: 1000 }),
+    // Dseq of the deployment funded by this payment (pay-per-deploy flow). Null for plain top-ups.
+    deploymentDseq: varchar("deployment_dseq", { length: 100 }),
+    // True when the payment settled and credited but the subsequent deployment creation failed.
+    // Funds remain in the user's Console balance; no on-chain reversal is ever attempted.
+    deployFailed: boolean("deploy_failed").notNull().default(false),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull()
   },

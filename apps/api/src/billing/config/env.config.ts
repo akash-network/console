@@ -66,6 +66,16 @@ export const envSchema = z.object({
   X402_FACILITATOR_URL: z.string().default("https://x402.org/facilitator"),
   X402_MIN_TOP_UP_USD: z.number({ coerce: true }).default(1),
   X402_MAX_TOP_UP_USD: z.number({ coerce: true }).default(1000),
+  // Pay-per-deploy deposit bounds (USD) for POST /v1/x402/deploy.
+  X402_MIN_DEPLOY_USD: z.number({ coerce: true }).default(1),
+  X402_MAX_DEPLOY_USD: z.number({ coerce: true }).default(1000),
+  // Abuse controls for the x402-paid endpoints, enforced per user against recent x402_transactions.
+  // Rolling window (seconds) over which the rate limit and cost ceiling are evaluated.
+  X402_ABUSE_WINDOW_SECONDS: z.number({ coerce: true }).default(3600),
+  // Max number of x402-paid requests a single user may make within the window.
+  X402_ABUSE_MAX_REQUESTS: z.number({ coerce: true }).default(10),
+  // Max cumulative USD a single user may pay via x402 within the window (cost ceiling).
+  X402_ABUSE_MAX_SPEND_USD: z.number({ coerce: true }).default(2000),
   // How long a transaction may sit in `settled` before the reconcile job re-drives crediting.
   // The delay keeps the job from racing the in-request credit of a freshly settled payment.
   X402_RECONCILE_THRESHOLD_SECONDS: z.number({ coerce: true }).default(300),

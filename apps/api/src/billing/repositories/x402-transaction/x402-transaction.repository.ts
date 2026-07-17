@@ -1,4 +1,4 @@
-import { and, asc, eq, lt, sql } from "drizzle-orm";
+import { and, asc, eq, gte, lt, ne, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -62,5 +62,44 @@ export class X402TransactionRepository extends BaseRepository<Table, X402Transac
     });
 
     return this.toOutputList(items);
+  }
+
+  /** Records the dseq of the deployment funded by this payment (pay-per-deploy success). */
+  async linkDeployment(id: X402TransactionOutput["id"], deploymentDseq: string): Promise<void> {
+    await this.updateById(id, { deploymentDseq });
+  }
+
+  /**
+   * Flags a paid-and-credited transaction whose deployment creation failed. Funds stay credited to
+   * the user's Console balance; the flag + note record that no deployment was produced.
+   */
+  async markDeployFailed(id: X402TransactionOutput["id"], errorMessage: string): Promise<void> {
+    await this.updateById(id, { deployFailed: true, errorMessage });
+  }
+
+  /**
+   * Count of a user's non-failed x402 transactions created since `since` — the per-window request
+   * count the rate limit is enforced against.
+   */
+  async countByUserSince(userId: X402TransactionOutput["userId"], since: Date): Promise<number> {
+    const [row] = await this.cursor
+      .select({ count: sql<number>`count(*)::int` })
+      .from(this.table)
+      .where(and(eq(this.table.userId, userId), gte(this.table.createdAt, since), ne(this.table.status, "failed")));
+
+    return row?.count ?? 0;
+  }
+
+  /**
+   * Sum (in cents) of a user's non-failed x402 transaction amounts created since `since` — the spend
+   * the per-window cost ceiling is enforced against.
+   */
+  async sumAmountByUserSince(userId: X402TransactionOutput["userId"], since: Date): Promise<number> {
+    const [row] = await this.cursor
+      .select({ total: sql<number>`coalesce(sum(${this.table.amount}), 0)::int` })
+      .from(this.table)
+      .where(and(eq(this.table.userId, userId), gte(this.table.createdAt, since), ne(this.table.status, "failed")));
+
+    return row?.total ?? 0;
   }
 }
