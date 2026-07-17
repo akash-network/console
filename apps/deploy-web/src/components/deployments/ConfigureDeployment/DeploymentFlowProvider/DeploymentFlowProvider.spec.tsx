@@ -37,7 +37,7 @@ describe(DeploymentFlowProvider.name, () => {
   });
 
   function intentFor(dseq: string | undefined): DeploymentIntent {
-    return { sdlStrategy: "default", bidStrategy: "auto", dseq };
+    return { sdlStrategy: "default", bidStrategy: "auto", dseq, vm: false };
   }
 
   function setup(input: {

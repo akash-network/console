@@ -26,11 +26,20 @@ describe(useNewDeploymentUrl.name, () => {
     expect(make({ step: RouteStep.editDeployment, templateId: "tpl-1" })).toBe("/new-deployment?step=edit-deployment&templateId=tpl-1");
   });
 
-  it("keeps the classic URL for git/redeploy/vm intents even when the flag is on", () => {
+  it("keeps the classic URL for git/redeploy intents even when the flag is on", () => {
     const make = build({ flag: true });
     expect(make({ step: RouteStep.editDeployment, gitProvider: "github", templateId: "x" })).toContain("/new-deployment?");
     expect(make({ redeploy: "42" })).toContain("/new-deployment?");
-    expect(make({ step: RouteStep.editDeployment, page: "deploy-linux" })).toContain("/deploy-linux");
+  });
+
+  it("maps the container-vm intent to the configure vm seed when the flag is on", () => {
+    const make = build({ flag: true });
+    expect(make({ step: RouteStep.editDeployment, page: "deploy-linux" })).toBe("/new-deployment/configure?vm=true");
+  });
+
+  it("keeps the container-vm intent on the classic builder when the flag is off", () => {
+    const make = build({ flag: false });
+    expect(make({ step: RouteStep.editDeployment, page: "deploy-linux" })).toBe("/deploy-linux?step=edit-deployment");
   });
 
   function build(input: { flag: boolean }) {

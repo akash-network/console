@@ -178,6 +178,126 @@ describe("SdlBuilderFormValuesSchema", () => {
     expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["endpoints", 1, "name"], message: "Endpoint name must be unique." }));
   });
 
+  it("accepts a vm service with its single managed SSH expose", () => {
+    const result = SdlBuilderFormValuesSchema.safeParse({
+      placements: [{ id: "p-1", name: "dcloud" }],
+      services: [
+        {
+          ...vmService(),
+          expose: [
+            { port: 22, as: 22, proto: "tcp", global: true },
+            { port: 80, as: 80, global: true }
+          ]
+        }
+      ]
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a second row exposed as port 22 on a vm service", () => {
+    const result = SdlBuilderFormValuesSchema.safeParse({
+      placements: [{ id: "p-1", name: "dcloud" }],
+      services: [
+        {
+          ...vmService(),
+          expose: [
+            { port: 22, as: 22, proto: "tcp", global: true },
+            { port: 8080, as: 22, global: true }
+          ]
+        }
+      ]
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(
+      expect.objectContaining({ path: ["services", 0, "expose", 1, "port"], message: "Port 22 is reserved for SSH." })
+    );
+  });
+
+  it("rejects a second row using container port 22 on a vm service", () => {
+    const result = SdlBuilderFormValuesSchema.safeParse({
+      placements: [{ id: "p-1", name: "dcloud" }],
+      services: [
+        {
+          ...vmService(),
+          expose: [
+            { port: 22, as: 22, proto: "tcp", global: true },
+            { port: 22, as: 2222, global: true }
+          ]
+        }
+      ]
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(
+      expect.objectContaining({ path: ["services", 0, "expose", 1, "port"], message: "Port 22 is reserved for SSH." })
+    );
+  });
+
+  it("does not reserve port 22 on non-vm services", () => {
+    const result = SdlBuilderFormValuesSchema.safeParse({
+      placements: [{ id: "p-1", name: "dcloud" }],
+      services: [
+        {
+          ...vmService(),
+          image: "nginx:latest",
+          expose: [
+            { port: 22, as: 22, proto: "tcp", global: true },
+            { port: 8080, as: 22, global: true }
+          ]
+        }
+      ]
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("exempts only the exact 22-to-22 row: a squatter exposed as 22 gets the error", () => {
+    const result = SdlBuilderFormValuesSchema.safeParse({
+      placements: [{ id: "p-1", name: "dcloud" }],
+      services: [
+        {
+          ...vmService(),
+          expose: [
+            { port: 8080, as: 22, global: true },
+            { port: 22, as: 22, proto: "tcp", global: true }
+          ]
+        }
+      ]
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(
+      expect.objectContaining({ path: ["services", 0, "expose", 0, "port"], message: "Port 22 is reserved for SSH." })
+    );
+  });
+
+  it("requires an ssh key on a vm service even when the deployment-wide flag is off", () => {
+    const result = SdlBuilderFormValuesSchema.safeParse({
+      placements: [{ id: "p-1", name: "dcloud" }],
+      services: [{ ...vmService(), sshPubKey: "" }]
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["services", 0, "sshPubKey"], message: "SSH Public key is required." }));
+  });
+
+  it("rejects a whitespace-only ssh key on a vm service", () => {
+    const result = SdlBuilderFormValuesSchema.safeParse({
+      placements: [{ id: "p-1", name: "dcloud" }],
+      services: [{ ...vmService(), sshPubKey: "   " }]
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["services", 0, "sshPubKey"], message: "SSH Public key is required." }));
+  });
+
   it("flags every storage entry that shares a name, including the first occurrence", () => {
     const result = SdlBuilderFormValuesSchema.safeParse({
       placements: [{ id: "p-1", name: "dcloud" }],
@@ -304,6 +424,20 @@ describe("SdlBuilderFormValuesSchema", () => {
     if (result.success) return;
     expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["endpoints", 1, "name"], message: "Endpoint name must be unique." }));
   });
+
+  function vmService() {
+    return {
+      id: "svc-1",
+      title: "vm",
+      image: "ghcr.io/akash-network/ubuntu-2404-ssh:2",
+      profile: { cpu: 0.1, ram: 256, ramUnit: "Mi", storage: [{ size: 512, unit: "Mi" }] },
+      expose: [{ port: 22, as: 22, proto: "tcp", global: true }],
+      placementId: "p-1",
+      pricing: { amount: 1000, denom: "uakt" },
+      count: 1,
+      sshPubKey: "ssh-ed25519 AAAATESTKEY user@host"
+    };
+  }
 });
 
 describe("CredentialsSchema", () => {

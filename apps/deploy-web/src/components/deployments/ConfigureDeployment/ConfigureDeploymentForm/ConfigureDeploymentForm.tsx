@@ -13,10 +13,11 @@ import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
 import { parseBidId } from "@src/utils/bids/bidId";
-import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
+import { defaultServiceWithPlacement, vmServiceOverrides } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { applyImportedSshState } from "@src/utils/sdl/sshKey";
+import { isVmImage } from "@src/utils/sdl/vmImages";
 import { applyPresetToProfile, DEFAULT_HARDWARE_PRESET } from "../ConfigurationPane/PresetsCard/hardwarePresets";
 import { ConfigureDeploymentBackButton } from "../ConfigureDeploymentBackButton/ConfigureDeploymentBackButton";
 import { ConfigureDeploymentHeader } from "../ConfigureDeploymentHeader/ConfigureDeploymentHeader";
@@ -60,7 +61,7 @@ type Props = {
 };
 
 export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, intent, flow, trialError, retryTrial, dependencies: d = DEPENDENCIES }) => {
-  const [initialState] = useState(() => getInitialState(initialSdl));
+  const [initialState] = useState(() => getInitialState(initialSdl, intent.vm));
   const [liveSdl, setLiveSdl] = useState(initialState.sdl);
   const [previewSdl, setPreviewSdl] = useState(initialState.sdl);
   const [selectedServiceId, setSelectedServiceId] = useState<string>(initialState.selectedServiceId);
@@ -305,25 +306,40 @@ interface InitialState {
  * A carried-in SDL is used only when it imports to a usable deployment (at least one visible service);
  * otherwise — invalid YAML, or a service-less SDL the configure screen can't work with — the screen falls
  * back to a default deployment. This guarantees there is always a service (and placement) to select.
+ * A Container-VM entry (`isVm`) seeds an SSH-ready VM service instead of the blank default.
  */
-function getInitialState(carriedInSdl: string | undefined): InitialState {
+function getInitialState(carriedInSdl: string | undefined, isVm: boolean): InitialState {
   if (carriedInSdl) {
     try {
-      const values = applyImportedSshState(importSimpleSdl(carriedInSdl));
+      const values = withVmSshBackfill(applyImportedSshState(importSimpleSdl(carriedInSdl)));
       if (hasVisibleService(values)) {
         return { values, sdl: carriedInSdl, selectedServiceId: seedSelectedServiceId(values) };
       }
     } catch (error) {
-      return defaultInitialState(getImportErrorMessage(error));
+      return defaultInitialState(isVm, getImportErrorMessage(error));
     }
   }
-  return defaultInitialState();
+  return defaultInitialState(isVm);
 }
 
-/** A fresh default deployment, optionally annotated with the error that made an import unusable. */
-function defaultInitialState(importError?: string): InitialState {
-  const values = withDefaultPreset(defaultServiceWithPlacement());
+/** A fresh default deployment (or SSH-ready VM deployment), optionally annotated with the error that made an import unusable. */
+function defaultInitialState(isVm: boolean, importError?: string): InitialState {
+  const values = isVm
+    ? { ...withDefaultPreset(defaultServiceWithPlacement(vmServiceOverrides())), hasSSHKey: true }
+    : withDefaultPreset(defaultServiceWithPlacement());
   return { values, sdl: regenerateSdl(values, ""), selectedServiceId: seedSelectedServiceId(values), importError };
+}
+
+/**
+ * Restores the deployment-wide "Expose SSH" flag for a carried-in deployment holding a VM service, covering
+ * a VM draft saved before a key was entered (`applyImportedSshState` only flips it once a key exists). The
+ * SDL itself is taken literally: no expose or key is backfilled.
+ */
+function withVmSshBackfill(values: SdlBuilderFormValuesType): SdlBuilderFormValuesType {
+  if (values.hasSSHKey || !values.services.some(service => isVmImage(service.image))) {
+    return values;
+  }
+  return { ...values, hasSSHKey: true };
 }
 
 /** Seeds the fresh deployment's service on the default (small) hardware preset so the screen opens deployable. */

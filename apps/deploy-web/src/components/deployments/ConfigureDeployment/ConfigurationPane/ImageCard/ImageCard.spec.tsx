@@ -129,9 +129,44 @@ describe(ImageCard.name, () => {
     });
   });
 
-  function setup(input: { hasCredentials?: boolean; resolver?: Resolver<SdlBuilderFormValuesType>; locked?: boolean }) {
+  it("renders as an Operating System card with a Distribution select for a vm image", () => {
+    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2" });
+
+    expect(screen.getByText("Operating System")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Distribution" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Docker image")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Private registry")).not.toBeInTheDocument();
+  });
+
+  it("stores the real image ref when a distro is picked", async () => {
+    const { getValues } = setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2" });
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Distribution" }));
+    await userEvent.click(screen.getByRole("option", { name: "Debian 11" }));
+
+    expect(getValues().services[0].image).toBe("ghcr.io/akash-network/debian-11-ssh:2");
+  });
+
+  it("clears private-registry credentials when the service runs a vm image", async () => {
+    const { getValues } = setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", hasCredentials: true });
+
+    await waitFor(() => {
+      expect(getValues().services[0].hasCredentials).toBe(false);
+      expect(getValues().services[0].credentials).toBeUndefined();
+    });
+  });
+
+  it("keeps the Docker card for a non-vm image", () => {
+    setup({ image: "nginx:latest" });
+
+    expect(screen.getByText("Docker")).toBeInTheDocument();
+    expect(screen.getByLabelText("Docker image")).toBeInTheDocument();
+    expect(screen.queryByText("Operating System")).not.toBeInTheDocument();
+  });
+
+  function setup(input: { image?: string; hasCredentials?: boolean; resolver?: Resolver<SdlBuilderFormValuesType>; locked?: boolean }) {
     const values = defaultServiceWithPlacement({
-      image: "",
+      image: input.image ?? "",
       hasCredentials: input.hasCredentials ?? false,
       credentials: input.hasCredentials ? { host: "docker.io", username: "", password: "" } : undefined
     });

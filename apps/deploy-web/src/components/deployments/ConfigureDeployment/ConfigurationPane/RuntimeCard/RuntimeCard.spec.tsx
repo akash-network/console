@@ -156,6 +156,65 @@ describe(RuntimeCard.name, () => {
     expect(screen.getByRole("button", { name: "How to use the SSH key" })).toBeInTheDocument();
   });
 
+  it("pins the replica stepper at a single disabled instance for a vm service", () => {
+    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2" });
+
+    expect(screen.getByRole("spinbutton", { name: "Replicas" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Increase Replicas" })).toBeDisabled();
+    expect(screen.getByRole("spinbutton", { name: "Replicas" })).toHaveValue(1);
+    expect(screen.getByText("VMs run as a single instance.")).toBeInTheDocument();
+  });
+
+  it("forces Expose SSH on, disabled, with the key field visible for a vm service", async () => {
+    const { getValues } = setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2" });
+
+    expect(screen.getByRole("checkbox", { name: "Expose SSH" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Expose SSH" })).toBeDisabled();
+    expect(screen.getByLabelText("SSH public key")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate new key" })).toBeInTheDocument();
+    await waitFor(() => expect(getValues().hasSSHKey).toBe(true));
+  });
+
+  it("keeps Expose SSH forced on a sibling non-vm service's card while the deployment holds a vm", () => {
+    setup({ image: "", siblingVmService: true });
+
+    expect(screen.getByRole("checkbox", { name: "Expose SSH" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Expose SSH" })).toBeDisabled();
+    expect(screen.getByRole("spinbutton", { name: "Replicas" })).not.toBeDisabled();
+  });
+
+  it("leaves the replica stepper editable for a non-vm service without vm siblings", () => {
+    setup({ image: "nginx:latest" });
+
+    expect(screen.getByRole("spinbutton", { name: "Replicas" })).not.toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: "Expose SSH" })).not.toBeDisabled();
+    expect(screen.queryByText("VMs run as a single instance.")).not.toBeInTheDocument();
+  });
+
+  it("opens expanded for a vm service so the required key field is visible on entry", () => {
+    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", expanded: false });
+
+    expect(screen.getByLabelText("SSH public key")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Expand Runtime" })).not.toBeInTheDocument();
+  });
+
+  it("shows the missing-key error inline when a vm submit is rejected", async () => {
+    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", resolver: zodResolver(SdlBuilderFormValuesSchema), expanded: false });
+
+    await userEvent.click(screen.getByRole("button", { name: "Request quotes" }));
+
+    await waitFor(() => expect(screen.getByText("SSH Public key is required.")).toBeInTheDocument());
+  });
+
+  it("marks the collapsed card when a submit is rejected on its hidden ssh key field", async () => {
+    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", resolver: zodResolver(SdlBuilderFormValuesSchema), expanded: false });
+
+    await userEvent.click(screen.getByRole("button", { name: "Collapse Runtime" }));
+    await userEvent.click(screen.getByRole("button", { name: "Request quotes" }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Expand Runtime" }).closest(".border-destructive")).not.toBeNull());
+  });
+
   it("re-validates the CPU group limit when the replica count changes", async () => {
     const resolver: Resolver<SdlBuilderFormValuesType> = async values => {
       const errors = values.services[0].count > 1 ? { services: { 0: { profile: { cpu: { type: "max", message: "CPU group limit exceeded" } } } } } : {};
@@ -194,13 +253,15 @@ describe(RuntimeCard.name, () => {
     sshPubKey?: string;
     env?: Array<{ key: string; value?: string }>;
     extraServices?: number;
+    image?: string;
+    siblingVmService?: boolean;
     locked?: boolean;
     expanded?: boolean;
     resolver?: Resolver<SdlBuilderFormValuesType>;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const base = defaultServiceWithPlacement({
-      image: "",
+      image: input.image ?? "",
       count: input.count ?? 1,
       sshPubKey: input.sshPubKey ?? "",
       env: input.env?.map(e => ({ value: "", isSecret: false, ...e })) ?? []
@@ -208,6 +269,9 @@ describe(RuntimeCard.name, () => {
 
     const placementId = base.placements[0].id;
     const extraServices = Array.from({ length: input.extraServices ?? 0 }, (_, i) => defaultService(placementId, { title: `service-${i + 2}`, image: "" }));
+    if (input.siblingVmService) {
+      extraServices.push(defaultService(placementId, { title: "vm-service", image: "ghcr.io/akash-network/ubuntu-2404-ssh:2" }));
+    }
 
     const values: SdlBuilderFormValuesType = {
       ...base,
@@ -257,7 +321,10 @@ describe(RuntimeCard.name, () => {
     );
 
     if (input.expanded ?? true) {
-      fireEvent.click(screen.getByRole("button", { name: "Expand Runtime" }));
+      const expandTrigger = screen.queryByRole("button", { name: "Expand Runtime" });
+      if (expandTrigger) {
+        fireEvent.click(expandTrigger);
+      }
     }
 
     return { getValues: () => getValues() };

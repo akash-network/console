@@ -114,7 +114,7 @@ describe(ResumeDeploymentGuard.name, () => {
   });
 
   function intentFor(dseq: string | undefined): DeploymentIntent {
-    return { sdlStrategy: "edit", bidStrategy: "select", dseq };
+    return { sdlStrategy: "edit", bidStrategy: "select", dseq, vm: false };
   }
 
   function deployment(input: { state: string; leases?: unknown[] }) {

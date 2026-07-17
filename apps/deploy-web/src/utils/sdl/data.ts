@@ -1,7 +1,10 @@
 import { nanoid } from "nanoid";
 
 import { UACT_DENOM } from "@src/config/denom.config";
-import type { EndpointType, PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { EndpointType, ExposeType, PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import { SSH_VM_IMAGES, sshVmDistros, sshVmImages } from "./vmImages";
+
+export { SSH_VM_IMAGES, sshVmDistros, sshVmImages };
 
 export const protoTypes = [
   { id: 1, name: "http" },
@@ -156,14 +159,6 @@ export const defaultRamStorage = {
 /** The defaults applied to a freshly added GPU collection (vendor preset, model left for the user to pick). */
 export const defaultGpuModel = { vendor: "nvidia", name: "", memory: "", interface: "" };
 
-export const SSH_VM_IMAGES = {
-  "Ubuntu 24.04": "ghcr.io/akash-network/ubuntu-2404-ssh:2",
-  "CentOS Stream 9": "ghcr.io/akash-network/centos-stream9-ssh:2",
-  "Debian 11": "ghcr.io/akash-network/debian-11-ssh:2",
-  "SuSE Leap 15.5": "ghcr.io/akash-network/opensuse-leap-155-ssh:2"
-};
-export const sshVmDistros: string[] = Object.keys(SSH_VM_IMAGES);
-export const sshVmImages: Set<string> = new Set(Object.values(SSH_VM_IMAGES));
 export const SSH_EXPOSE = {
   port: 22,
   as: 22,
@@ -179,6 +174,33 @@ export const sshServiceOverrides: Partial<ServiceType> = {
   image: sshVmDistros[0],
   expose: []
 };
+
+/**
+ * The managed SSH expose row a fresh Container-VM service is seeded with: container port 22 published
+ * globally as 22 over tcp. The configure flow generates the SDL straight from form state (no
+ * `transformCustomSdlFields` pass), so the row must exist on the model itself.
+ */
+export const vmSshExpose = (): ExposeType => ({
+  id: nanoid(),
+  port: 22,
+  as: 22,
+  proto: "tcp",
+  global: true,
+  to: [],
+  accept: [],
+  ipName: ""
+});
+
+/**
+ * Overrides for a fresh Container-VM service on the configure screen: the real distro image ref
+ * (unlike the legacy `sshServiceOverrides`, which stores a display label mapped at generation time),
+ * the managed SSH expose, and the single instance VMs run as.
+ */
+export const vmServiceOverrides = (): Partial<ServiceType> => ({
+  image: SSH_VM_IMAGES["Ubuntu 24.04"],
+  expose: [vmSshExpose()],
+  count: 1
+});
 
 export const nextCases = [
   { value: "error", label: "error" },

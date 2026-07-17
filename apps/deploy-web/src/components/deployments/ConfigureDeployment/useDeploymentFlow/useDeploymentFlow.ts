@@ -407,13 +407,14 @@ function manifestFromSdl(sdl: string): string | null {
   }
 }
 
-/** Builds the canonical configure URL preserving templateId/sdl-strategy/draftId and the current dseq + bid-strategy. */
+/** Builds the canonical configure URL preserving templateId/sdl-strategy/draftId/vm and the current dseq + bid-strategy. */
 export function buildConfigureUrl(intent: DeploymentIntent, dseq: string | undefined, bidStrategy: BidStrategy): string {
   return UrlService.configureDeployment({
     dseq,
     templateId: intent.templateId,
     sdlStrategy: intent.templateId ? intent.sdlStrategy : undefined,
     bidStrategy,
-    draftId: intent.draftId
+    draftId: intent.draftId,
+    vm: intent.vm
   });
 }

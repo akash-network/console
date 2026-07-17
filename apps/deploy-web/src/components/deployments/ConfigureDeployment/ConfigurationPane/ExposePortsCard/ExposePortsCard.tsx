@@ -32,6 +32,7 @@ import { nanoid } from "nanoid";
 import type { ExposeType, SdlBuilderFormValuesType } from "@src/types";
 import { EndpointSchema } from "@src/types/sdlBuilder/sdlBuilder";
 import { defaultEndpoint, defaultHttpOptions, nextCases as nextCaseOptions, protoTypes } from "@src/utils/sdl/data";
+import { isVmImage } from "@src/utils/sdl/vmImages";
 import { exposePortsTooltip } from "../cardTooltips";
 
 export const DEPENDENCIES = { CollapsibleCard, DialogV2, DialogV2Content, DialogV2Header, DialogV2Title, DialogV2Description, DialogV2Body, DialogV2Footer };
@@ -234,6 +235,16 @@ type ExposePortsListProps = {
 const ExposePortsList: FC<ExposePortsListProps> = ({ serviceIndex, commitsRef }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const { fields, append, remove } = useFieldArray({ control, name: `services.${serviceIndex}.expose`, keyName: "fieldId" });
+  const image = useWatch({ control, name: `services.${serviceIndex}.image` });
+  /**
+   * On a VM service the exact 22-to-22 row is the managed SSH row: read-only and non-removable. The
+   * exact-pair predicate matches the seeded shape and the schema's reservation, so a row merely squatting
+   * on one side of port 22 stays editable and gets the validation error instead of a lock. `fields` is the
+   * field-array snapshot (updated on append/remove/reset, not on typing), so the managed row can't hop to
+   * another row mid-session while the user edits port numbers. When no such row exists (a carried-in SDL
+   * without one is taken literally) there is nothing to protect.
+   */
+  const managedSshIndex = isVmImage(image ?? "") ? fields.findIndex(field => field.port === 22 && field.as === 22) : -1;
 
   const add = useCallback(() => {
     append(newExpose() as ExposeType);
@@ -247,7 +258,8 @@ const ExposePortsList: FC<ExposePortsListProps> = ({ serviceIndex, commitsRef })
           serviceIndex={serviceIndex}
           exposeIndex={exposeIndex}
           commitsRef={commitsRef}
-          onRemove={fields.length > 1 ? () => remove(exposeIndex) : undefined}
+          isManagedSsh={exposeIndex === managedSshIndex}
+          onRemove={fields.length > 1 && exposeIndex !== managedSshIndex ? () => remove(exposeIndex) : undefined}
         />
       ))}
 
@@ -263,10 +275,12 @@ type ExposePortFieldsProps = {
   serviceIndex: number;
   exposeIndex: number;
   commitsRef: EndpointCommitRegistry;
+  /** Marks the VM service's managed SSH row: its inputs are disabled and it carries the "Reserved for SSH access" caption. */
+  isManagedSsh?: boolean;
   onRemove?: () => void;
 };
 
-const ExposePortFields: FC<ExposePortFieldsProps> = ({ serviceIndex, exposeIndex, commitsRef, onRemove }) => {
+const ExposePortFields: FC<ExposePortFieldsProps> = ({ serviceIndex, exposeIndex, commitsRef, isManagedSsh = false, onRemove }) => {
   const { control, getValues, setValue } = useFormContext<SdlBuilderFormValuesType>();
   const basePath = `services.${serviceIndex}.expose.${exposeIndex}` as const;
   const endpoints = useWatch({ control, name: "endpoints" }) ?? [];
@@ -397,162 +411,172 @@ const ExposePortFields: FC<ExposePortFieldsProps> = ({ serviceIndex, exposeIndex
 
   return (
     <div role="group" aria-label={`Port ${exposeIndex + 1}`} className="flex flex-col gap-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
-      <div className="flex items-start gap-2">
-        <Field className="flex-1 gap-2">
-          <FieldLabel htmlFor={`${fieldId}-port`}>Container port</FieldLabel>
-          <FieldContent>
-            <Input
-              id={`${fieldId}-port`}
-              aria-label={`Port ${exposeIndex + 1} container port`}
-              type="number"
-              min={1}
-              max={65535}
-              value={port.field.value ?? ""}
-              onChange={event => port.field.onChange(parsePort(event.target.value))}
-              onBlur={port.field.onBlur}
-              error={!!port.fieldState.error}
-              inputClassName="h-9"
-            />
-            <FieldError>{port.fieldState.error?.message}</FieldError>
-          </FieldContent>
-        </Field>
+      {isManagedSsh && <p className="text-sm text-muted-foreground">Reserved for SSH access</p>}
+      <fieldset disabled={isManagedSsh} className="contents">
+        <div className="flex items-start gap-2">
+          <Field className="flex-1 gap-2">
+            <FieldLabel htmlFor={`${fieldId}-port`}>Container port</FieldLabel>
+            <FieldContent>
+              <Input
+                id={`${fieldId}-port`}
+                aria-label={`Port ${exposeIndex + 1} container port`}
+                type="number"
+                min={1}
+                max={65535}
+                value={port.field.value ?? ""}
+                onChange={event => port.field.onChange(parsePort(event.target.value))}
+                onBlur={port.field.onBlur}
+                error={!!port.fieldState.error}
+                inputClassName="h-9"
+              />
+              <FieldError>{port.fieldState.error?.message}</FieldError>
+            </FieldContent>
+          </Field>
 
-        <Field className="flex-1 gap-2">
-          <FieldLabel htmlFor={`${fieldId}-as`}>Exposed as</FieldLabel>
-          <FieldContent>
-            <Input
-              id={`${fieldId}-as`}
-              aria-label={`Port ${exposeIndex + 1} exposed as`}
-              type="number"
-              min={1}
-              max={65535}
-              value={as.field.value ?? ""}
-              onChange={event => as.field.onChange(parsePort(event.target.value))}
-              onBlur={as.field.onBlur}
-              error={!!as.fieldState.error}
-              inputClassName="h-9"
-            />
-            <FieldError>{as.fieldState.error?.message}</FieldError>
-          </FieldContent>
-        </Field>
+          <Field className="flex-1 gap-2">
+            <FieldLabel htmlFor={`${fieldId}-as`}>Exposed as</FieldLabel>
+            <FieldContent>
+              <Input
+                id={`${fieldId}-as`}
+                aria-label={`Port ${exposeIndex + 1} exposed as`}
+                type="number"
+                min={1}
+                max={65535}
+                value={as.field.value ?? ""}
+                onChange={event => as.field.onChange(parsePort(event.target.value))}
+                onBlur={as.field.onBlur}
+                error={!!as.fieldState.error}
+                inputClassName="h-9"
+              />
+              <FieldError>{as.fieldState.error?.message}</FieldError>
+            </FieldContent>
+          </Field>
 
-        {onRemove && (
-          <Button size="icon" type="button" variant="ghost" className="mt-6 h-9 w-9 shrink-0" aria-label={`Remove port ${exposeIndex + 1}`} onClick={onRemove}>
-            <XIcon className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-
-      <div className="flex items-start gap-2">
-        <Field className="flex-1 gap-2">
-          <FieldLabel>Protocol</FieldLabel>
-          <FieldContent>
-            <ToggleGroup
-              type="single"
-              variant="outline"
-              value={proto.field.value ?? "http"}
-              onValueChange={changeProto}
-              className="h-9 justify-start gap-0 rounded-md border"
-              aria-label={`Port ${exposeIndex + 1} protocol`}
+          {onRemove && (
+            <Button
+              size="icon"
+              type="button"
+              variant="ghost"
+              className="mt-6 h-9 w-9 shrink-0"
+              aria-label={`Remove port ${exposeIndex + 1}`}
+              onClick={onRemove}
             >
-              {protoTypes.map(option => (
-                <ToggleGroupItem
-                  key={option.id}
-                  value={option.name}
-                  aria-label={option.name}
-                  className="h-full flex-1 rounded-none border-0 uppercase first:rounded-l-md last:rounded-r-md"
-                >
-                  {option.name}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </FieldContent>
-        </Field>
+              <XIcon className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
 
-        <Field className="flex-1 gap-2">
-          <FieldLabel>Routing</FieldLabel>
-          <FieldContent>
-            <Select value={routingValue} onValueChange={changeRouting}>
-              <SelectTrigger aria-label={`Port ${exposeIndex + 1} routing`} className="h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent onCloseAutoFocus={keepFocusInDialog}>
-                <SelectItem value={PUBLIC_ROUTING}>Public (any IP)</SelectItem>
-                <SelectItem value={INTERNAL_ROUTING}>Internal</SelectItem>
-                {endpoints.map(endpoint => (
-                  <SelectItem key={endpoint.id} value={endpoint.name}>
-                    IP endpoint: {endpoint.name}
-                  </SelectItem>
+        <div className="flex items-start gap-2">
+          <Field className="flex-1 gap-2">
+            <FieldLabel>Protocol</FieldLabel>
+            <FieldContent>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                value={proto.field.value ?? "http"}
+                onValueChange={changeProto}
+                className="h-9 justify-start gap-0 rounded-md border"
+                aria-label={`Port ${exposeIndex + 1} protocol`}
+              >
+                {protoTypes.map(option => (
+                  <ToggleGroupItem
+                    key={option.id}
+                    value={option.name}
+                    aria-label={option.name}
+                    className="h-full flex-1 rounded-none border-0 uppercase first:rounded-l-md last:rounded-r-md"
+                  >
+                    {option.name}
+                  </ToggleGroupItem>
                 ))}
-                <SelectItem value={NEW_IP_ENDPOINT}>+ New IP endpoint</SelectItem>
-              </SelectContent>
-            </Select>
-          </FieldContent>
-        </Field>
-      </div>
+              </ToggleGroup>
+            </FieldContent>
+          </Field>
 
-      {isAddingEndpoint && (
-        <Field className="gap-2">
-          <FieldLabel htmlFor={`${fieldId}-new-endpoint`}>New IP endpoint name</FieldLabel>
-          <FieldContent>
-            <Input
-              id={`${fieldId}-new-endpoint`}
-              aria-label="New IP endpoint name"
-              placeholder="e.g. web-ip"
-              value={newEndpointName}
-              onChange={event => {
-                setNewEndpointName(event.target.value);
-                setAddEndpointError(null);
-              }}
-              error={!!addEndpointError}
-              inputClassName="h-9"
-            />
-            <FieldError>{addEndpointError}</FieldError>
-          </FieldContent>
-        </Field>
-      )}
+          <Field className="flex-1 gap-2">
+            <FieldLabel>Routing</FieldLabel>
+            <FieldContent>
+              <Select value={routingValue} onValueChange={changeRouting}>
+                <SelectTrigger aria-label={`Port ${exposeIndex + 1} routing`} className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent onCloseAutoFocus={keepFocusInDialog}>
+                  <SelectItem value={PUBLIC_ROUTING}>Public (any IP)</SelectItem>
+                  <SelectItem value={INTERNAL_ROUTING}>Internal</SelectItem>
+                  {endpoints.map(endpoint => (
+                    <SelectItem key={endpoint.id} value={endpoint.name}>
+                      IP endpoint: {endpoint.name}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={NEW_IP_ENDPOINT}>+ New IP endpoint</SelectItem>
+                </SelectContent>
+              </Select>
+            </FieldContent>
+          </Field>
+        </div>
 
-      {isHttp && !isInternal && (
-        <Field className="gap-2">
-          <FieldLabel htmlFor={`${fieldId}-hostnames`}>Accept hostnames</FieldLabel>
-          <FieldContent>
-            <Input
-              id={`${fieldId}-hostnames`}
-              aria-label={`Port ${exposeIndex + 1} accept hostnames`}
-              placeholder="example.com, api.example.com"
-              defaultValue={hostnamesValue}
-              onChange={event => changeHostnames(event.target.value)}
-              inputClassName="h-9"
-            />
-          </FieldContent>
-        </Field>
-      )}
+        {isAddingEndpoint && (
+          <Field className="gap-2">
+            <FieldLabel htmlFor={`${fieldId}-new-endpoint`}>New IP endpoint name</FieldLabel>
+            <FieldContent>
+              <Input
+                id={`${fieldId}-new-endpoint`}
+                aria-label="New IP endpoint name"
+                placeholder="e.g. web-ip"
+                value={newEndpointName}
+                onChange={event => {
+                  setNewEndpointName(event.target.value);
+                  setAddEndpointError(null);
+                }}
+                error={!!addEndpointError}
+                inputClassName="h-9"
+              />
+              <FieldError>{addEndpointError}</FieldError>
+            </FieldContent>
+          </Field>
+        )}
 
-      {otherServices.length > 0 && (
-        <Field className="gap-2">
-          <FieldLabel>To</FieldLabel>
-          <FieldContent>
-            <div role="group" aria-label={`Port ${exposeIndex + 1} to targets`} className="flex flex-col gap-2">
-              {otherServices.map(service => (
-                <CheckboxWithLabel
-                  key={service.id}
-                  checked={selectedTargets.has(service.title)}
-                  onCheckedChange={state => toggleTarget(service.title, state === "indeterminate" ? false : state)}
-                  label={service.title}
-                />
-              ))}
-            </div>
-          </FieldContent>
-        </Field>
-      )}
+        {isHttp && !isInternal && (
+          <Field className="gap-2">
+            <FieldLabel htmlFor={`${fieldId}-hostnames`}>Accept hostnames</FieldLabel>
+            <FieldContent>
+              <Input
+                id={`${fieldId}-hostnames`}
+                aria-label={`Port ${exposeIndex + 1} accept hostnames`}
+                placeholder="example.com, api.example.com"
+                defaultValue={hostnamesValue}
+                onChange={event => changeHostnames(event.target.value)}
+                inputClassName="h-9"
+              />
+            </FieldContent>
+          </Field>
+        )}
 
-      {isHttp && (
-        <>
-          <Separator className="my-2" />
+        {otherServices.length > 0 && (
+          <Field className="gap-2">
+            <FieldLabel>To</FieldLabel>
+            <FieldContent>
+              <div role="group" aria-label={`Port ${exposeIndex + 1} to targets`} className="flex flex-col gap-2">
+                {otherServices.map(service => (
+                  <CheckboxWithLabel
+                    key={service.id}
+                    checked={selectedTargets.has(service.title)}
+                    onCheckedChange={state => toggleTarget(service.title, state === "indeterminate" ? false : state)}
+                    label={service.title}
+                  />
+                ))}
+              </div>
+            </FieldContent>
+          </Field>
+        )}
 
-          <HttpOptionsFields serviceIndex={serviceIndex} exposeIndex={exposeIndex} />
-        </>
-      )}
+        {isHttp && (
+          <>
+            <Separator className="my-2" />
+
+            <HttpOptionsFields serviceIndex={serviceIndex} exposeIndex={exposeIndex} />
+          </>
+        )}
+      </fieldset>
     </div>
   );
 };

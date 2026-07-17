@@ -45,8 +45,9 @@ type Props = {
  * and the template is ignored; when absent an id is minted and written into the URL so a reload resumes the same draft.
  * Without a draft, a `templateId` is resolved the same way the legacy flow does: hardcoded templates (e.g. hello-world)
  * carry their SDL inline and are matched by code, while everything else is fetched as a public gallery template; with
- * neither, the carried-in `deploySdl` atom is used. Keeping resolution here lets the form initialize synchronously from
- * a single source — and lets a resume skip the template fetch.
+ * neither, the carried-in `deploySdl` atom is used, except on a `vm=true` entry, which ignores the atom so a fresh
+ * Container-VM session always seeds deterministically. Keeping resolution here lets the form initialize synchronously
+ * from a single source — and lets a resume skip the template fetch.
  */
 export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES }) => {
   const searchParams = d.useSearchParams();
@@ -55,11 +56,18 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const intent = parseDeploymentIntent({ dseqSegment, searchParams: new URLSearchParams(searchParams?.toString() ?? "") });
   const draft = d.useConfigureDraft(intent);
   const resolvedIntent = useMemo<DeploymentIntent>(
-    () => ({ templateId: intent.templateId, sdlStrategy: intent.sdlStrategy, bidStrategy: intent.bidStrategy, dseq: intent.dseq, draftId: draft.draftId }),
-    [intent.templateId, intent.sdlStrategy, intent.bidStrategy, intent.dseq, draft.draftId]
+    () => ({
+      templateId: intent.templateId,
+      sdlStrategy: intent.sdlStrategy,
+      bidStrategy: intent.bidStrategy,
+      dseq: intent.dseq,
+      draftId: draft.draftId,
+      vm: intent.vm
+    }),
+    [intent.templateId, intent.sdlStrategy, intent.bidStrategy, intent.dseq, draft.draftId, intent.vm]
   );
 
-  const templateId = searchParams?.get("templateId") ?? undefined;
+  const templateId = intent.templateId;
   const deploySdl = useAtomValue(sdlStore.deploySdl);
   const hardcodedTemplate: TemplateCreation | undefined = templateId ? hardcodedTemplates.find(template => template.code === templateId) : undefined;
   const fetchedTemplateId = draft.persistedSdl === undefined && !hardcodedTemplate ? templateId : undefined;
@@ -78,7 +86,8 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
     [fetchedTemplateId, templateQuery.isError, enqueueSnackbar, d]
   );
 
-  const initialSdl = draft.persistedSdl ?? hardcodedTemplate?.content ?? (fetchedTemplateId ? templateQuery.data?.deploy : deploySdl?.content);
+  const carriedInSdl = intent.vm ? undefined : deploySdl?.content;
+  const initialSdl = draft.persistedSdl ?? hardcodedTemplate?.content ?? (fetchedTemplateId ? templateQuery.data?.deploy : carriedInSdl);
   const initialName = draft.persistedName ?? hardcodedTemplate?.name ?? (fetchedTemplateId ? templateQuery.data?.name : undefined);
 
   const isAutoDeploy = resolvedIntent.sdlStrategy === "default" && resolvedIntent.bidStrategy === "auto";
