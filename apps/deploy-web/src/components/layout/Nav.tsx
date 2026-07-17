@@ -1,6 +1,5 @@
 "use client";
-import type { RefObject } from "react";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { Button } from "@akashnetwork/ui/components";
 import { cn, REMOVE_SCROLL_CLASS_NAMES } from "@akashnetwork/ui/utils";
 import type { ClassValue } from "clsx";
@@ -13,13 +12,8 @@ import { HackathonCouponNavEntry } from "./HackathonCouponNavEntry/HackathonCoup
 import { AccountMenu } from "./AccountMenu";
 import { AkashLogo } from "./AkashLogo";
 import { TopBanner } from "./TopBanner";
+import { usePublishHeaderHeight } from "./usePublishHeaderHeight";
 import { WalletStatus } from "./WalletStatus";
-
-/**
- * Published to `:root` so the layout can offset content by the header's *actual* height. The header grows
- * when the top banner wraps to multiple lines on small screens; a fixed guess would hide content behind it.
- */
-const APP_HEADER_HEIGHT_VAR = "--app-header-height";
 
 export const Nav = ({
   isMobileOpen,
@@ -77,26 +71,3 @@ export const Nav = ({
     </header>
   );
 };
-
-/** Keeps {@link APP_HEADER_HEIGHT_VAR} in sync with the header's rendered height as the banner appears, wraps, or clears. */
-function usePublishHeaderHeight(ref: RefObject<HTMLElement>) {
-  useEffect(
-    function publishHeaderHeightAsCssVar() {
-      const header = ref.current;
-      if (!header) return;
-
-      const root = document.documentElement;
-      function syncHeight() {
-        root.style.setProperty(APP_HEADER_HEIGHT_VAR, `${header!.offsetHeight}px`);
-      }
-
-      syncHeight();
-      const observer = new ResizeObserver(syncHeight);
-      observer.observe(header);
-      return function stopPublishingHeaderHeight() {
-        observer.disconnect();
-      };
-    },
-    [ref]
-  );
-}
