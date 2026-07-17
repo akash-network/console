@@ -1,10 +1,10 @@
 import { skipUnlessOnboardingRedesign } from "./actions/feature-flags";
 import { expect, test } from "./fixture/base-test";
 import { AlertsPage } from "./pages/AlertsPage";
+import { AppNav } from "./pages/AppNav";
 import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
 import { DeploymentAlertsForm } from "./pages/DeploymentAlertsForm";
 import { DeployPage } from "./pages/DeployPage";
-import { Sidebar } from "./pages/Sidebar";
 
 test.describe("Managed wallet alerts", () => {
   test.use({ userType: "existing" });
@@ -16,7 +16,7 @@ test.describe("Managed wallet alerts", () => {
   test("configures deployment alerts and verifies on alerts page", async ({ context, page }) => {
     test.setTimeout(8 * 60 * 1000);
 
-    const sidebar = new Sidebar(page);
+    const appNav = new AppNav(page);
     const alertsPage = new AlertsPage(page);
     const alertsForm = new DeploymentAlertsForm(page);
     const deployPage = new DeployPage(context, page);
@@ -82,7 +82,7 @@ test.describe("Managed wallet alerts", () => {
     });
 
     await test.step("verify alerts on global alerts page", async () => {
-      await sidebar.openAlerts();
+      await appNav.openAlerts();
       await alertsPage.waitForPage();
       await alertsPage.openAlertsTab();
     });

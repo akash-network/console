@@ -1,9 +1,9 @@
 import { createManagedDeployment } from "./actions/deploy";
 import { skipIfOnboardingRedesign } from "./actions/feature-flags";
 import { expect, test } from "./fixture/base-test";
+import { AppNav } from "./pages/AppNav";
 import { BillingPage } from "./pages/BillingPage";
 import { DeployPage } from "./pages/DeployPage";
-import { Sidebar } from "./pages/Sidebar";
 
 test.describe("Managed wallet deployment", () => {
   test.use({ userType: "existing" });
@@ -16,13 +16,13 @@ test.describe("Managed wallet deployment", () => {
     test.setTimeout(3 * 60 * 1000);
 
     const billingPage = new BillingPage(page);
-    const sidebar = new Sidebar(page);
+    const appNav = new AppNav(page);
     const deployPage = new DeployPage(context, page);
 
     await test.step("create deployment", async () => {
       await createManagedDeployment(
         page,
-        { sidebar, deployPage, billingPage, templateName: "Hello World" },
+        { appNav, deployPage, billingPage, templateName: "Hello World" },
         {
           onPaymentSuccess: async () => {
             await expect(page.getByText("Payment Successful!")).toBeVisible({ timeout: 60_000 });

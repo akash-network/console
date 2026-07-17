@@ -1,9 +1,9 @@
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
+import type { AppNav } from "../pages/AppNav";
 import type { BillingPage } from "../pages/BillingPage";
 import type { DeployPage } from "../pages/DeployPage";
-import type { Sidebar } from "../pages/Sidebar";
 
 export interface CreateManagedDeploymentCallbacks {
   onDepositDisabled?: () => Promise<void>;
@@ -15,17 +15,17 @@ export interface CreateManagedDeploymentCallbacks {
 export async function createManagedDeployment(
   page: Page,
   input: {
-    sidebar: Sidebar;
+    appNav: AppNav;
     deployPage: DeployPage;
     billingPage: BillingPage;
     templateName: string;
   },
   callbacks?: CreateManagedDeploymentCallbacks
 ) {
-  const { sidebar, deployPage, billingPage, templateName } = input;
+  const { appNav, deployPage, billingPage, templateName } = input;
 
   const openTemplate = async () => {
-    await sidebar.openDeploy();
+    await appNav.openDeploy();
     await deployPage.selectTemplate(templateName);
     await page.getByLabel("SDL editor").waitFor({ state: "visible", timeout: 15_000 });
   };

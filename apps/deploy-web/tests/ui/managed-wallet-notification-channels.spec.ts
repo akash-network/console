@@ -1,7 +1,7 @@
 import { expect, test } from "./fixture/base-test";
 import { AlertsPage } from "./pages/AlertsPage";
+import { AppNav } from "./pages/AppNav";
 import { NotificationChannelsPage } from "./pages/NotificationChannelsPage";
-import { Sidebar } from "./pages/Sidebar";
 
 test.describe("Managed wallet notification channels", () => {
   test.use({ userType: "existing" });
@@ -10,12 +10,12 @@ test.describe("Managed wallet notification channels", () => {
   const channelEmail = `e2e-channel-${Date.now()}@test.example.com`;
 
   test("creates and deletes a notification channel", async ({ page }) => {
-    const sidebar = new Sidebar(page);
+    const appNav = new AppNav(page);
     const alertsPage = new AlertsPage(page);
     const notificationChannelsPage = new NotificationChannelsPage(page);
 
     await test.step("navigate to notification channels tab", async () => {
-      await sidebar.openAlerts();
+      await appNav.openAlerts();
       await alertsPage.waitForPage();
       await alertsPage.openNotificationChannelsTab();
       await page.waitForURL(/\/alerts\/notification-channels$/);
