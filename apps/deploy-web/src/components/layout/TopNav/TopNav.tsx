@@ -13,7 +13,7 @@ import {
   SheetTrigger
 } from "@akashnetwork/ui/components";
 import { cn, REMOVE_SCROLL_CLASS_NAMES } from "@akashnetwork/ui/utils";
-import { Menu, NavArrowDown } from "iconoir-react";
+import { Cloud, CreditCard, Key, Menu, MessageAlert, MultiplePages, NavArrowDown, Server, StatsUpSquare } from "iconoir-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -39,6 +39,7 @@ type TopNavLink = {
   title: string;
   url: string;
   isActive: boolean;
+  icon: React.ComponentType<{ className?: string }>;
 };
 
 export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Props = {}) {
@@ -55,16 +56,16 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
   const isRouteActive = (...routePrefixes: string[]) => !!pathname && routePrefixes.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
   const navLinks: TopNavLink[] = [
-    { title: "Deployments", url: UrlService.deploymentList(), isActive: isRouteActive("/deployments", "/new-deployment") },
-    { title: "Providers", url: UrlService.providers(), isActive: isRouteActive("/providers") },
-    { title: "Templates", url: UrlService.templates(), isActive: isRouteActive("/templates") }
+    { title: "Deployments", url: UrlService.deploymentList(), isActive: isRouteActive("/deployments", "/new-deployment"), icon: Cloud },
+    { title: "Providers", url: UrlService.providers(), isActive: isRouteActive("/providers"), icon: Server },
+    { title: "Templates", url: UrlService.templates(), isActive: isRouteActive("/templates"), icon: MultiplePages }
   ];
 
   const settingsLinks: TopNavLink[] = [
-    ...(isBillingUsageEnabled ? [{ title: "Billing", url: UrlService.billing(), isActive: isRouteActive("/billing") }] : []),
-    { title: "API Keys", url: UrlService.userApiKeys(), isActive: isRouteActive("/user/api-keys") },
-    ...(isBillingUsageEnabled ? [{ title: "Usage", url: UrlService.usage(), isActive: isRouteActive("/usage") }] : []),
-    ...(isAlertsEnabled ? [{ title: "Alerts", url: UrlService.alerts(), isActive: isRouteActive("/alerts") }] : [])
+    ...(isBillingUsageEnabled ? [{ title: "Billing", url: UrlService.billing(), isActive: isRouteActive("/billing"), icon: CreditCard }] : []),
+    { title: "API Keys", url: UrlService.userApiKeys(), isActive: isRouteActive("/user/api-keys"), icon: Key },
+    ...(isBillingUsageEnabled ? [{ title: "Usage", url: UrlService.usage(), isActive: isRouteActive("/usage"), icon: StatsUpSquare }] : []),
+    ...(isAlertsEnabled ? [{ title: "Alerts", url: UrlService.alerts(), isActive: isRouteActive("/alerts"), icon: MessageAlert }] : [])
   ];
   const isSettingsActive = settingsLinks.some(link => link.isActive);
   const showNavLinks = isAuthenticated && !minimal;
@@ -73,7 +74,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
     <header ref={headerRef} className={cn("fixed left-0 right-0 top-0 z-50 border-b border-border bg-header", REMOVE_SCROLL_CLASS_NAMES.zeroRight)}>
       <d.TopBanner />
 
-      <div className="flex h-14 items-center justify-between pl-4 pr-4">
+      <div className="flex h-14 items-center justify-between px-4 md:px-8">
         <div className="flex items-center gap-8">
           {!!theme && (
             <Link className="flex items-center" href="/">
@@ -113,7 +114,9 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
             </div>
           )}
 
-          <d.TopNavAccountMenu minimal={minimal} />
+          <div className={cn({ "hidden md:block": showNavLinks })}>
+            <d.TopNavAccountMenu minimal={minimal} />
+          </div>
 
           {showNavLinks && (
             <Sheet open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen}>
@@ -122,11 +125,15 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
                   <Menu />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-[280px]">
-                <SheetTitle>
-                  <AkashLogo />
-                </SheetTitle>
-                <nav aria-label="Primary mobile" className="mt-6 flex flex-col gap-1">
+              <SheetContent side="left" className="w-[280px] p-0">
+                <div className="flex h-14 items-center border-b border-border px-4">
+                  <SheetTitle asChild>
+                    <Link href="/" className="flex items-center" onClick={() => setIsMobileNavOpen(false)}>
+                      <AkashLogo />
+                    </Link>
+                  </SheetTitle>
+                </div>
+                <nav aria-label="Primary mobile" className="flex flex-col gap-1 p-3">
                   {navLinks.map(link => (
                     <Link
                       key={link.title}
@@ -135,6 +142,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
                       className={mobileNavLinkClasses(link.isActive)}
                       onClick={() => setIsMobileNavOpen(false)}
                     >
+                      <link.icon className="h-5 w-5 shrink-0" />
                       {link.title}
                     </Link>
                   ))}
@@ -150,9 +158,14 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
                       className={mobileNavLinkClasses(link.isActive)}
                       onClick={() => setIsMobileNavOpen(false)}
                     >
+                      <link.icon className="h-5 w-5 shrink-0" />
                       {link.title}
                     </Link>
                   ))}
+
+                  <Separator className="my-2" />
+
+                  <d.TopNavAccountMenu variant="inline" onNavigate={() => setIsMobileNavOpen(false)} />
                 </nav>
               </SheetContent>
             </Sheet>
@@ -171,7 +184,7 @@ function desktopNavLinkClasses(isActive: boolean) {
 }
 
 function mobileNavLinkClasses(isActive: boolean) {
-  return cn("rounded-md px-3 py-2 text-sm hover:bg-accent", {
+  return cn("flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-accent", {
     "bg-accent font-medium text-foreground": isActive,
     "text-muted-foreground": !isActive
   });

@@ -87,8 +87,48 @@ describe(TopNavAccountMenu.name, () => {
     expect(screen.queryByText("Contact us")).not.toBeInTheDocument();
   });
 
-  function setup(input: { isLoading?: boolean; username?: string; minimal?: boolean }) {
+  describe("inline variant", () => {
+    it("renders the account items without an account menu trigger", () => {
+      setup({ username: "alice", variant: "inline" });
+
+      expect(screen.queryByRole("button", { name: /account menu/i })).not.toBeInTheDocument();
+      expect(screen.getByText("Profile")).toBeInTheDocument();
+      expect(screen.getByText("Theme")).toBeInTheDocument();
+      expect(screen.getByText("Docs")).toBeInTheDocument();
+      expect(screen.getByText("Privacy Policy")).toBeInTheDocument();
+      expect(screen.getByText("Terms of Service")).toBeInTheDocument();
+      expect(screen.getByText("Contact us")).toBeInTheDocument();
+      expect(screen.getByText("Log out")).toBeInTheDocument();
+    });
+
+    it("renders nothing when signed out", () => {
+      const { container } = setup({ variant: "inline" });
+
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it("navigates and closes the sheet when an item is selected", async () => {
+      const { push, onNavigate } = setup({ username: "alice", variant: "inline" });
+
+      await userEvent.click(screen.getByText("Profile"));
+
+      expect(push).toHaveBeenCalledWith("/user/settings");
+      expect(onNavigate).toHaveBeenCalledTimes(1);
+    });
+
+    it("logs out and closes the sheet when Log out is selected", async () => {
+      const { authService, onNavigate } = setup({ username: "bob", variant: "inline" });
+
+      await userEvent.click(screen.getByText("Log out"));
+
+      expect(authService.logout).toHaveBeenCalledTimes(1);
+      expect(onNavigate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  function setup(input: { isLoading?: boolean; username?: string; minimal?: boolean; variant?: "dropdown" | "inline" }) {
     const push = vi.fn();
+    const onNavigate = vi.fn();
     const authService = mock<AuthService>();
     const windowOpen = vi.spyOn(window, "open").mockImplementation(() => null);
 
@@ -101,12 +141,12 @@ describe(TopNavAccountMenu.name, () => {
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push })
     });
 
-    render(
+    const { container } = render(
       <TestContainerProvider services={{ authService: () => authService }}>
-        <TopNavAccountMenu dependencies={dependencies} minimal={input.minimal} />
+        <TopNavAccountMenu dependencies={dependencies} minimal={input.minimal} variant={input.variant} onNavigate={onNavigate} />
       </TestContainerProvider>
     );
 
-    return { authService, push, windowOpen };
+    return { authService, push, windowOpen, onNavigate, container };
   }
 });
