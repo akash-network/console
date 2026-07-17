@@ -32,6 +32,11 @@ _(appended by the council workflow)_
 | Release | Branch | Worktree | Status |
 |---|---|---|---|
 | v1.0 core | `feat/x402-usdc-topup` | main checkout `/Users/colin/Code/console` | ◐ |
+| v1.0 readback + on-ramp | `feat/x402-v1-0-readback-and-onramp` | `/Users/colin/Code/console-worktrees/x402-v1-0` | ☑ |
+| v1.1 money-integrity gate | `feat/x402-v1-1-money-integrity-gate` | `/Users/colin/Code/console-worktrees/x402-v1-1` | ☑ |
+| v1.2 sandbox + discovery | `feat/x402-v1-2-sandbox-and-discovery` | `/Users/colin/Code/console-worktrees/x402-v1-2` | ☑ |
+| v2.0 pay-per-deploy | `feat/x402-v2-0-pay-per-deploy` | `/Users/colin/Code/console-worktrees/x402-v2-0` | ☑ |
+| Integration (v1.0+v1.1+v1.2+v2.0) | `feat/x402-integration` | `/Users/colin/Code/console-worktrees/x402-integration` | ☑ |
 
 ## Handoff instructions
 

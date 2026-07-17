@@ -25,25 +25,38 @@ Repo layout facts that matter (verified against this codebase):
 
 ## Current status
 
-- Branch: `feat/x402-usdc-topup` (branched from upstream `main`, shallow clone at
-  `/Users/colin/Code/console`)
-- Implemented (v1 core, done):
-  - `POST /v1/x402/top-up?amount=<usd>` — x402-gated top-up. No `X-PAYMENT` header → 402 with
-    payment requirements; signed retry → facilitator verify → settle → credit via
-    `RefillService.topUpWallet`. Files:
-    - `apps/api/src/billing/services/x402/x402.service.ts` (flow; settle-before-credit, idempotent
-      by sha256 of payment payload, crash-recovery via `settled` status resume)
-    - `apps/api/src/billing/services/x402/x402-http-server-factory.service.ts`
-    - `apps/api/src/billing/controllers/x402/x402.controller.ts` (`@Protected` X402Payment)
-    - `apps/api/src/billing/routes/x402/x402.router.ts` (operationId `createUsdcTopUp`)
-    - `apps/api/src/billing/model-schemas/x402-transaction/…` + repository + migration
-      `apps/api/drizzle/0032_melodic_onslaught.sql`
-    - env config: `X402_ENABLED`, `X402_PAY_TO_ADDRESS`, `X402_NETWORK` (CAIP-2, default
-      `eip155:8453` Base), `X402_FACILITATOR_URL` (default `https://x402.org/facilitator`),
-      `X402_MIN_TOP_UP_USD`, `X402_MAX_TOP_UP_USD`
-  - Unit tests: `x402.service.spec.ts` — 7 passing (`npx vitest run --project=unit src/billing/services/x402/x402.service.spec.ts`)
-  - `npx tsc -p tsconfig.build.json --noEmit` clean; eslint clean on touched files.
-- Not yet done: see PLAN.md release scopes.
+- **Review candidate: `feat/x402-integration`** at
+  `/Users/colin/Code/console-worktrees/x402-integration` — the single integrated branch that merges
+  all four verified release branches (v1.0 readback/on-ramp, v1.1 money-integrity gate, v1.2
+  sandbox/discovery, v2.0 pay-per-deploy) on top of the v1.0 core. This is the branch to review and,
+  once approved, land. Base of each release remains `feat/x402-usdc-topup` (v1.0 core).
+- Merge order used: base `feat/x402-v2-0-pay-per-deploy` (already contains v1.1 + core), then
+  `git merge feat/x402-v1-0-readback-and-onramp`, then `git merge feat/x402-v1-2-sandbox-and-discovery`.
+  Conflicts were resolved semantically so every feature works together.
+- Endpoints now available on the integrated branch (all on `x402Router`, registered via
+  `src/routers/open-api-handlers.ts`):
+  - `POST /v1/x402/top-up?amount=<usd>` (`createUsdcTopUp`) — x402-gated wallet top-up.
+  - `GET /v1/x402/transactions` (`listUsdcTopUps`) — paginated, IDOR-safe read-back of the caller's
+    own x402 transactions (v1.0).
+  - `GET /v1/x402/discovery` (`listPayableResources`, public `SECURITY_NONE`) — canonical discovery
+    document; derived from `X402Service.getCanonicalRoutes()`, the same single source the 402 flow
+    uses, so it advertises both `POST /v1/x402/top-up` **and** `POST /v1/x402/deploy` (v1.2 + v2.0).
+  - `POST /v1/x402/deploy` (`createUsdcDeployment`) — pay-per-deploy: one x402-paid call settles,
+    credits, then creates a funded deployment; partial-failure returns 502
+    `DEPLOY_FAILED_FUNDS_CREDITED` with funds left spendable (v2.0).
+  - Reconcile job (`x402-reconcile-settled`, seeded in `src/app/providers/jobs.provider.ts`) —
+    re-drives crediting for any `settled`-but-uncredited transaction (v1.1).
+- Money-integrity flow on `x402.service.ts`: settle-before-credit → v1.1 conditional
+  `settled→succeeded` transition (`markSettledAsSucceeded`, exactly-once) → `payment_hash`
+  unique-violation handling → v1.2 pre-settle guardrails (`validatePreSettle`:
+  `WRONG_NETWORK`/`WRONG_ASSET`/`AMOUNT_MISMATCH` before settlement) → v2.0 pay-per-deploy path +
+  per-user rate/cost abuse controls. All error codes unified in
+  `apps/api/src/billing/services/x402/x402-error-codes.ts` and used by controller, service, router.
+- Migrations sequential: `0032_melodic_onslaught.sql` (v1.0 core table) + `0033_x402_deploy_columns.sql`
+  (v2.0 `deployment_dseq`/`deploy_failed` columns); `_journal.json` in sync (no renumber needed —
+  v1.0/v1.1/v1.2 added no migration).
+- Verification on the integrated branch: `npx tsc -p tsconfig.build.json --noEmit` clean; eslint
+  `--quiet` clean on all touched x402/billing/config dirs; all x402 + `env.config` unit specs green.
 
 ## Conventions the next agent must follow
 
