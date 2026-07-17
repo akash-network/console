@@ -14,6 +14,7 @@ import { singleton } from "tsyringe";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { type X402TransactionOutput, X402TransactionRepository } from "@src/billing/repositories/x402-transaction/x402-transaction.repository";
 import { RefillService } from "@src/billing/services/refill/refill.service";
+import { X402_ERROR_CODES, type X402ErrorCode } from "@src/billing/services/x402/x402-error-codes";
 import { X402HttpServerFactoryService } from "@src/billing/services/x402/x402-http-server-factory.service";
 import { WithTransaction } from "@src/core";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
@@ -31,14 +32,14 @@ type PaymentVerifiedResult = Extract<HTTPProcessResult, { type: "payment-verifie
  * (e.g. driving deployment creation) can key off it.
  */
 type SettlementResult =
-  | { type: "payment-required"; response: HTTPResponseInstructions }
+  | { type: "payment-required"; code: X402ErrorCode; response: HTTPResponseInstructions }
   | { type: "duplicate-payment"; transactionId: string }
   | { type: "credited"; transaction: X402TransactionOutput; headers: Record<string, string>; settlementTxHash: string; payerAddress?: string };
 
 type AbuseLimitViolation = { type: "rate-limited"; retryAfterSeconds: number } | { type: "cost-ceiling-exceeded"; ceilingUsdCents: number };
 
 export type X402TopUpProcessResult =
-  | { type: "payment-required"; response: HTTPResponseInstructions }
+  | { type: "payment-required"; code: X402ErrorCode; response: HTTPResponseInstructions }
   | { type: "duplicate-payment"; transactionId: string }
   | {
       type: "success";
@@ -66,7 +67,7 @@ export type X402DeploySuccessData = {
 };
 
 export type X402DeployProcessResult =
-  | { type: "payment-required"; response: HTTPResponseInstructions }
+  | { type: "payment-required"; code: X402ErrorCode; response: HTTPResponseInstructions }
   | { type: "duplicate-payment"; transactionId: string }
   | AbuseLimitViolation
   | {
@@ -256,14 +257,17 @@ export class X402Service {
   private async verifyPayment(
     context: HTTPRequestContext,
     routeLabel: string
-  ): Promise<PaymentVerifiedResult | { type: "payment-required"; response: HTTPResponseInstructions }> {
+  ): Promise<PaymentVerifiedResult | { type: "payment-required"; code: X402ErrorCode; response: HTTPResponseInstructions }> {
     const httpServer = this.getHttpServer();
     await this.initialize(httpServer);
 
     const result = await httpServer.processHTTPRequest(context);
 
     if (result.type === "payment-error") {
-      return { type: "payment-required", response: result.response };
+      // A verify-stage failure with a payment attached is an invalid payment; without one it is the
+      // standard 402 challenge advertising the accepted payment requirements.
+      const code = context.paymentHeader ? X402_ERROR_CODES.PAYMENT_INVALID : X402_ERROR_CODES.PAYMENT_REQUIRED;
+      return { type: "payment-required", code, response: result.response };
     }
 
     if (result.type === "no-payment-required") {
@@ -311,7 +315,7 @@ export class X402Service {
         errorMessage: settleResult.errorMessage ?? settleResult.errorReason
       });
       this.logger.warn({ event: "X402_SETTLEMENT_FAILED", transactionId: transaction.id, errorReason: settleResult.errorReason });
-      return { type: "payment-required", response: settleResult.response };
+      return { type: "payment-required", code: X402_ERROR_CODES.PAYMENT_INVALID, response: settleResult.response };
     }
 
     // Settled on-chain: persist proof first so a crash before crediting is recoverable
