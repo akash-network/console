@@ -50,7 +50,7 @@ type OnboardingPickerPageProps = {
 export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: OnboardingPickerPageProps) {
   const router = d.useRouter();
   const { isTrialing } = d.useWallet();
-  const { publicConfig, urlService } = d.useServices();
+  const { publicConfig, urlService, analyticsService } = d.useServices();
   const trialCreditsAmount = publicConfig.NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT;
   const [addCreditsSheetReason, setAddCreditsSheetReason] = useState<"unlock-gpu" | "skip-trial" | "hackathon-coupon" | null>(null);
   const { isWalletReady, error: trialError, wallet } = d.useEnsureTrialStarted();
@@ -72,8 +72,27 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   }, [showHackathonEntry, searchParams, router, urlService]);
 
   /** Redirects to the bid-screening view, which auto-starts the deployment from the intent params. */
-  function deployTemplate(templateId: string) {
+  function redirectToConfigure(templateId: string) {
     router.push(urlService.configureDeployment({ templateId, sdlStrategy: "default", bidStrategy: "auto" }));
+  }
+
+  function deployTemplate(templateId: string) {
+    analyticsService.track("onboarding_deploy_click", { category: "onboarding", option: templateId });
+    redirectToConfigure(templateId);
+  }
+
+  function trackCustomImageDeploy() {
+    analyticsService.track("onboarding_deploy_click", { category: "onboarding", option: "custom-image" });
+  }
+
+  function openSkipTrialCredits() {
+    analyticsService.track("onboarding_add_credits_click", { category: "onboarding", reason: "skip-trial" });
+    setAddCreditsSheetReason("skip-trial");
+  }
+
+  function openGpuUnlockCredits() {
+    analyticsService.track("onboarding_add_credits_click", { category: "onboarding", reason: "unlock-gpu" });
+    setAddCreditsSheetReason("unlock-gpu");
   }
 
   return (
@@ -163,7 +182,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
                 ctaVariant="outline"
                 heroImageSrc="/images/onboarding/llm-chatbot.png"
                 heroImageAlt="LLM chatbot template"
-                onDeploy={() => (isLlmAvailable ? deployTemplate(TEMPLATE_IDS.llmChatbot) : setAddCreditsSheetReason("unlock-gpu"))}
+                onDeploy={() => (isLlmAvailable ? deployTemplate(TEMPLATE_IDS.llmChatbot) : openGpuUnlockCredits())}
               />
             </div>
 
@@ -175,7 +194,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
                 </div>
 
                 <Button variant="outline" className="w-full gap-2 no-underline hover:no-underline sm:w-auto" asChild>
-                  <Link href={urlService.configureDeployment()}>
+                  <Link href={urlService.configureDeployment()} onClick={trackCustomImageDeploy}>
                     <span>Deploy image</span>
                     <ArrowRight className="h-4 w-4" />
                   </Link>
@@ -184,7 +203,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
 
               {(isTrialing || !wallet?.creditAmount) && (
                 <div className="text-center">
-                  <d.Button onClick={() => setAddCreditsSheetReason("skip-trial")} variant="ghost">
+                  <d.Button onClick={openSkipTrialCredits} variant="ghost">
                     Skip the trial - unlock Console
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </d.Button>
@@ -196,13 +215,14 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
 
         <d.AddCreditsSheet
           open={addCreditsSheetReason !== null}
+          context={addCreditsSheetReason ?? undefined}
           onOpenChange={open => setAddCreditsSheetReason(open ? "unlock-gpu" : null)}
           isWalletReady={isWalletReady}
           onRedeemed={() => setAddCreditsSheetReason(null)}
           initialTab={addCreditsSheetReason === "hackathon-coupon" ? "coupon" : "purchase"}
           onDone={() => {
             if (addCreditsSheetReason === "unlock-gpu") {
-              deployTemplate(TEMPLATE_IDS.llmChatbot);
+              redirectToConfigure(TEMPLATE_IDS.llmChatbot);
             } else if (addCreditsSheetReason === "skip-trial") {
               router.push(urlService.configureDeployment());
             } else {

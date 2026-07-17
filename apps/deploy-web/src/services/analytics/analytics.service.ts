@@ -109,7 +109,19 @@ export type AnalyticsEvent =
   | "onboarding_logout"
   | "log_collector_enabled"
   | "log_collector_disabled"
-  | "log_collector_deployed";
+  | "log_collector_deployed"
+  | "onboarding_deploy_click"
+  | "onboarding_add_credits_click"
+  | "add_credits_opened"
+  | "add_credits_amount_selected"
+  | "add_credits_payment_method_selected"
+  | "add_credits_purchased"
+  | "add_credits_cancelled"
+  | "configure_page_viewed"
+  | "configure_preset_selected"
+  | "configure_gpu_type_selected"
+  | "configure_gpu_count_changed"
+  | "configure_cpu_count_changed";
 
 export type AnalyticsCategory = "user" | "billing" | "deployments" | "wallet" | "sdl_builder" | "transactions" | "profile" | "settings" | "onboarding";
 

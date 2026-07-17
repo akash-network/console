@@ -36,11 +36,13 @@ export const DEPENDENCIES = {
 interface AddCreditsNewPaymentMethodFieldsProps {
   clientSecret?: string;
   isLoading: boolean;
+  /** Reports the payment-method type (card, bank, …) the user selects in the Stripe payment element, for analytics. */
+  onPaymentTypeChange?: (type: string) => void;
   dependencies?: typeof DEPENDENCIES;
 }
 
 export const AddCreditsNewPaymentMethodFields = forwardRef<PaymentMethodSourceHandle, AddCreditsNewPaymentMethodFieldsProps>(
-  function AddCreditsNewPaymentMethodFields({ clientSecret, isLoading, dependencies: d = DEPENDENCIES }, ref) {
+  function AddCreditsNewPaymentMethodFields({ clientSecret, isLoading, onPaymentTypeChange, dependencies: d = DEPENDENCIES }, ref) {
     const { stripeService } = d.useServices();
     const { resolvedTheme } = d.useTheme();
 
@@ -64,7 +66,7 @@ export const AddCreditsNewPaymentMethodFields = forwardRef<PaymentMethodSourceHa
       <ErrorBoundary fallback={<div>Failed to load payment form</div>}>
         {stripePromise ? (
           <d.Elements key={clientSecret} stripe={stripePromise} options={{ clientSecret, appearance: stripeAppearance }}>
-            <StripePaymentMethodFields ref={ref} dependencies={d} />
+            <StripePaymentMethodFields ref={ref} dependencies={d} onPaymentTypeChange={onPaymentTypeChange} />
           </d.Elements>
         ) : (
           <div className="p-4 text-center text-muted-foreground">
@@ -78,10 +80,11 @@ export const AddCreditsNewPaymentMethodFields = forwardRef<PaymentMethodSourceHa
 
 interface StripePaymentMethodFieldsProps {
   dependencies: typeof DEPENDENCIES;
+  onPaymentTypeChange?: (type: string) => void;
 }
 
 const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePaymentMethodFieldsProps>(function StripePaymentMethodFields(
-  { dependencies: d },
+  { dependencies: d, onPaymentTypeChange },
   ref
 ) {
   const stripe = d.useStripe();
@@ -131,7 +134,7 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
 
       <div className="space-y-2">
         <h3 className="text-left text-sm font-medium text-muted-foreground">CHOOSE A PAYMENT METHOD</h3>
-        <d.PaymentElement options={{ layout: "tabs" }} />
+        <d.PaymentElement options={{ layout: "tabs" }} onChange={event => onPaymentTypeChange?.(event.value.type)} />
       </div>
 
       <Field className="gap-1">

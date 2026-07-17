@@ -20,6 +20,7 @@ import {
 import { GpuIcon, LockIcon, PlusIcon, TrashIcon, XIcon } from "lucide-react";
 
 import { SearchableSelect } from "@src/components/shared/SearchableSelect/SearchableSelect";
+import { useServices } from "@src/context/ServicesProvider";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
@@ -30,7 +31,7 @@ import { gpuTooltip } from "../cardTooltips";
 import { SELECT_TRUNCATE_VALUE } from "../selectStyles";
 import { UnlockGpusButton } from "../UnlockGpusButton/UnlockGpusButton";
 
-export const DEPENDENCIES = { CollapsibleCard, useGpuModels, useFieldError, GpuModelFields };
+export const DEPENDENCIES = { CollapsibleCard, useGpuModels, useFieldError, useServices, GpuModelFields };
 
 type Props = {
   serviceIndex: number;
@@ -113,6 +114,7 @@ export const GpuCard: FC<Props> = ({ serviceIndex, locked = false, isBlockedMode
               onUnlock={onUnlock}
               locked={locked}
               onRemove={index === 0 ? undefined : () => remove(index)}
+              dependencies={d}
             />
           ))}
 
@@ -143,9 +145,15 @@ const GpuCountField: FC<{ serviceIndex: number; locked?: boolean; dependencies: 
   dependencies: d
 }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
+  const { analyticsService } = d.useServices();
   const { error: gpuError } = d.useFieldError(`services.${serviceIndex}.profile.gpu`);
   const errorId = useId();
   const gpu = useController({ control, name: `services.${serviceIndex}.profile.gpu` });
+
+  function changeGpuCount(count: number) {
+    analyticsService.track("configure_gpu_count_changed", { category: "deployments", count });
+    gpu.field.onChange(count);
+  }
 
   return (
     <Field className="gap-2">
@@ -159,7 +167,7 @@ const GpuCountField: FC<{ serviceIndex: number; locked?: boolean; dependencies: 
           max={validationConfig.maxGpuAmount}
           aria-describedby={gpuError ? errorId : undefined}
           disabled={locked}
-          onChange={gpu.field.onChange}
+          onChange={changeGpuCount}
         />
         <FieldError id={errorId}>{gpuError}</FieldError>
       </FieldContent>
@@ -180,6 +188,7 @@ type GpuModelFieldsProps = {
   /** While the pane is locked every input is disabled so the configured GPU stays viewable but read-only. */
   locked?: boolean;
   onRemove?: () => void;
+  dependencies?: typeof DEPENDENCIES;
 };
 
 /**
@@ -193,8 +202,20 @@ type GpuModelFieldsProps = {
  * selects never sit permanently dead with no explanation (matching the legacy
  * GPU control's "Loading GPU models…" affordance).
  */
-function GpuModelFields({ serviceIndex, gpuIndex, gpuVendors, isLoading, isError, isBlockedModel, onUnlock, locked = false, onRemove }: GpuModelFieldsProps) {
+function GpuModelFields({
+  serviceIndex,
+  gpuIndex,
+  gpuVendors,
+  isLoading,
+  isError,
+  isBlockedModel,
+  onUnlock,
+  locked = false,
+  onRemove,
+  dependencies: d = DEPENDENCIES
+}: GpuModelFieldsProps) {
   const { control, setValue } = useFormContext<SdlBuilderFormValuesType>();
+  const { analyticsService } = d.useServices();
   const basePath = `services.${serviceIndex}.profile.gpuModels.${gpuIndex}` as const;
 
   const vendor = useController({ control, name: `${basePath}.vendor` });
@@ -228,8 +249,9 @@ function GpuModelFields({ serviceIndex, gpuIndex, gpuVendors, isLoading, isError
       name.field.onChange(value);
       setValue(`${basePath}.memory`, onlyOption(picked?.memory), { shouldValidate: true, shouldDirty: true });
       setValue(`${basePath}.interface`, onlyOption(picked?.interface), { shouldValidate: true, shouldDirty: true });
+      analyticsService.track("configure_gpu_type_selected", { category: "deployments", model: value, vendor: vendor.field.value });
     },
-    [models, name.field, setValue, basePath]
+    [models, name.field, setValue, basePath, analyticsService, vendor.field.value]
   );
 
   const clearModel = useCallback(() => {

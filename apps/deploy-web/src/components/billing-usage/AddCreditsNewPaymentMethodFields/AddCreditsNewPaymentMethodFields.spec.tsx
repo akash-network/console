@@ -101,7 +101,27 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     expect(await screen.findByText(/couldn't save your card/i)).toBeInTheDocument();
   });
 
-  function setup(input: { isLoading: boolean; clientSecret?: string; dependencies?: Partial<typeof DEPENDENCIES> }) {
+  it("reports the selected payment method type from the payment element", () => {
+    const onPaymentTypeChange = vi.fn();
+    const PaymentElement = ((props: { onChange?: (event: { value: { type: string } }) => void }) => (
+      <button type="button" onClick={() => props.onChange?.({ value: { type: "us_bank_account" } })}>
+        choose bank
+      </button>
+    )) as unknown as typeof DEPENDENCIES.PaymentElement;
+
+    setup({ isLoading: false, clientSecret: "seti_secret", onPaymentTypeChange, dependencies: { PaymentElement } });
+
+    fireEvent.click(screen.getByRole("button", { name: /choose bank/i }));
+
+    expect(onPaymentTypeChange).toHaveBeenCalledWith("us_bank_account");
+  });
+
+  function setup(input: {
+    isLoading: boolean;
+    clientSecret?: string;
+    onPaymentTypeChange?: (type: string) => void;
+    dependencies?: Partial<typeof DEPENDENCIES>;
+  }) {
     const Elements = (({ children }: { children?: React.ReactNode }) => (
       <div data-testid="stripe-elements">{children}</div>
     )) as unknown as typeof DEPENDENCIES.Elements;
@@ -125,6 +145,7 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
         ref={ref}
         clientSecret={input.clientSecret}
         isLoading={input.isLoading}
+        onPaymentTypeChange={input.onPaymentTypeChange}
         dependencies={{
           Elements,
           useServices,

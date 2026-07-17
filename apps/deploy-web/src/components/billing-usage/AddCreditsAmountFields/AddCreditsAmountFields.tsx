@@ -14,14 +14,17 @@ interface AddCreditsAmountFieldsProps {
   onChange: (value: AddCreditsAmountValue) => void;
   minAmount: number;
   error?: string;
+  /** Fired when the user commits an amount — a preset pick or a blurred custom amount — for analytics. */
+  onAmountCommit?: (amount: number, isCustom: boolean) => void;
 }
 
-export function AddCreditsAmountFields({ value, onChange, minAmount, error }: AddCreditsAmountFieldsProps) {
+export function AddCreditsAmountFields({ value, onChange, minAmount, error, onAmountCommit }: AddCreditsAmountFieldsProps) {
   const changePredefinedAmount = useCallback(
     (predefinedAmount: string) => {
       onChange({ predefinedAmount, customAmount: "" });
+      onAmountCommit?.(Number(predefinedAmount), false);
     },
-    [onChange]
+    [onChange, onAmountCommit]
   );
 
   const changeCustomAmount: ChangeEventHandler<HTMLInputElement> = useCallback(
@@ -30,6 +33,13 @@ export function AddCreditsAmountFields({ value, onChange, minAmount, error }: Ad
     },
     [onChange]
   );
+
+  const commitCustomAmount = useCallback(() => {
+    const amount = Number(value.customAmount);
+    if (amount > 0) {
+      onAmountCommit?.(amount, true);
+    }
+  }, [value.customAmount, onAmountCommit]);
 
   return (
     <div className="space-y-3">
@@ -76,6 +86,7 @@ export function AddCreditsAmountFields({ value, onChange, minAmount, error }: Ad
           type="number"
           value={value.customAmount}
           onChange={changeCustomAmount}
+          onBlur={commitCustomAmount}
           min={minAmount}
           step="0.01"
         />

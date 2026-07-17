@@ -9,6 +9,7 @@ import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
+import { useServices } from "@src/context/ServicesProvider";
 import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
@@ -40,6 +41,7 @@ export const DEPENDENCIES = {
   useConfigureDraft,
   useDeploymentName,
   usePlacementsWithBids,
+  useServices,
   useSnackbar,
   Snackbar
 };
@@ -72,6 +74,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
    */
   const lastSelectedServiceId = useRef(selectedServiceId);
   const { enqueueSnackbar } = d.useSnackbar();
+  const { analyticsService } = d.useServices();
   const draft = d.useConfigureDraft(intent);
   const { name: deploymentName, setName: setDeploymentName } = d.useDeploymentName({ initialName, dseq: flow.dseq });
   const form = useForm<SdlBuilderFormValuesType>({
@@ -83,6 +86,13 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const services = useWatch({ control: form.control, name: "services" });
   const placements = useWatch({ control: form.control, name: "placements" });
   const selectedPlacement = resolveSelectedPlacement(services, placements, selectedServiceId);
+
+  useEffect(
+    function trackConfigurePageViewed() {
+      analyticsService.track("configure_page_viewed", { category: "deployments" });
+    },
+    [analyticsService]
+  );
 
   useEffect(
     function notifyOnImportError() {

@@ -3,6 +3,7 @@ import { FormProvider, useForm } from "react-hook-form";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
 import { validationConfig } from "@src/utils/akash/units";
@@ -305,6 +306,23 @@ describe(GpuCard.name, () => {
     expect(screen.getByRole("combobox", { name: "GPU interface" })).toBeDisabled();
   }, 15_000);
 
+  it("tracks the selected GPU model with its vendor", async () => {
+    const { analyticsService, user } = setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] });
+
+    await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+    await user.click(await screen.findByRole("option", { name: "t4" }));
+
+    expect(analyticsService.track).toHaveBeenCalledWith("configure_gpu_type_selected", { category: "deployments", model: "t4", vendor: "nvidia" });
+  });
+
+  it("tracks a GPU count change", async () => {
+    const { analyticsService, user } = setup({ hasGpu: true, gpu: 1 });
+
+    await user.click(screen.getByRole("button", { name: "Increase GPU count" }));
+
+    expect(analyticsService.track).toHaveBeenCalledWith("configure_gpu_count_changed", { category: "deployments", count: 2 });
+  });
+
   const StubGpuModelFields: typeof DEPENDENCIES.GpuModelFields = ({ gpuIndex }) => <div role="group" aria-label={`GPU ${gpuIndex + 1}`} />;
 
   function makeGpuModels(count: number): SdlBuilderFormValuesType["services"][number]["profile"]["gpuModels"] {
@@ -341,6 +359,8 @@ describe(GpuCard.name, () => {
     gpuModelsResult.data = input.isLoading || input.isError ? undefined : input.vendors ?? GPU_VENDORS;
     const useGpuModels: typeof DEPENDENCIES.useGpuModels = () => gpuModelsResult;
     const useFieldError: typeof DEPENDENCIES.useFieldError = () => ({ error: input.gpuError });
+    const analyticsService = mock<AnalyticsService>();
+    const useServices: typeof DEPENDENCIES.useServices = () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService });
 
     let getValues: () => SdlBuilderFormValuesType = () => values;
     const Wrapper = ({ children }: PropsWithChildren) => {
@@ -351,12 +371,12 @@ describe(GpuCard.name, () => {
 
     render(
       <Wrapper>
-        <GpuCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES, useGpuModels, useFieldError, ...input.dependencies }} />
+        <GpuCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES, useGpuModels, useFieldError, useServices, ...input.dependencies }} />
       </Wrapper>
     );
 
     const user = userEvent.setup();
 
-    return { user, getValues: () => getValues() };
+    return { user, getValues: () => getValues(), analyticsService };
   }
 });
