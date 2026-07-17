@@ -10,3 +10,4 @@ export * from "@src/billing/routes/stripe-payment-methods/stripe-payment-methods
 export * from "@src/billing/routes/get-balances/get-balances.router";
 export * from "@src/billing/routes/usage/usage.router";
 export * from "@src/billing/routes/wallet-settings/wallet-settings.router";
+export * from "@src/billing/routes/x402/x402.router";

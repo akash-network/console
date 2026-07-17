@@ -15,7 +15,8 @@ import {
   stripeTransactionsRouter,
   stripeWebhook,
   usageRouter,
-  walletSettingRouter
+  walletSettingRouter,
+  x402Router
 } from "@src/billing";
 import { blockPredictionRouter, blocksRouter } from "@src/block";
 import { certificateRouter } from "@src/certificate/routes/certificate.router";
@@ -65,6 +66,7 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   stripeCustomersRouter,
   stripePaymentMethodsRouter,
   stripeTransactionsRouter,
+  x402Router,
   usageRouter,
   registerUserRouter,
   getCurrentUserRouter,

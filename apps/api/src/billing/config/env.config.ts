@@ -52,7 +52,20 @@ export const envSchema = z.object({
       message: "MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS entries must be in 'vendor/model' format"
     }),
   MASTER_WALLET_TARGET_ACT_BALANCE: z.number({ coerce: true }).default(10_000_000_000),
-  TX_SIGNER_BASE_URL: z.string()
+  TX_SIGNER_BASE_URL: z.string(),
+  X402_ENABLED: z.enum(["true", "false"]).default("false"),
+  X402_PAY_TO_ADDRESS: z
+    .string()
+    .regex(/^0x[a-fA-F0-9]{40}$/, "X402_PAY_TO_ADDRESS must be an EVM address")
+    .optional(),
+  X402_NETWORK: z
+    .string()
+    .regex(/^[a-z0-9-]+:[a-zA-Z0-9-_]+$/, "X402_NETWORK must be a CAIP-2 network id, e.g. eip155:8453")
+    .default("eip155:8453")
+    .transform(value => value as `${string}:${string}`),
+  X402_FACILITATOR_URL: z.string().default("https://x402.org/facilitator"),
+  X402_MIN_TOP_UP_USD: z.number({ coerce: true }).default(1),
+  X402_MAX_TOP_UP_USD: z.number({ coerce: true }).default(1000)
 });
 
 export type BillingConfig = z.infer<typeof envSchema>;
