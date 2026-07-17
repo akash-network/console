@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
   Spinner
 } from "@akashnetwork/ui/components";
-import { Book, LogOut, Page, PrivacyPolicy, Send, SunLight, User } from "iconoir-react";
+import { Book, CloudSunny, LogOut, Page, Send, ShieldCheck, User } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -61,7 +61,7 @@ export function TopNavAccountMenu({ dependencies: d = DEPENDENCIES, minimal = fa
                 </CustomDropdownLinkItem>
                 <div className="relative flex items-center justify-between py-1 pl-8 pr-2 text-sm">
                   <span className="absolute left-2 flex h-4 w-4 items-center justify-center">
-                    <SunLight />
+                    <CloudSunny />
                   </span>
                   <span>Theme</span>
                   <d.ThemeToggle />
@@ -69,13 +69,13 @@ export function TopNavAccountMenu({ dependencies: d = DEPENDENCIES, minimal = fa
                 <CustomDropdownLinkItem onClick={() => window.open(DOCS_URL, "_blank", "noreferrer noopener")} icon={<Book />}>
                   Docs
                 </CustomDropdownLinkItem>
-                <CustomDropdownLinkItem onClick={() => router.push(urlService.privacyPolicy())} icon={<PrivacyPolicy />}>
+                <CustomDropdownLinkItem onClick={() => router.push(urlService.privacyPolicy())} icon={<ShieldCheck />}>
                   Privacy Policy
                 </CustomDropdownLinkItem>
                 <CustomDropdownLinkItem onClick={() => router.push(urlService.termsOfService())} icon={<Page />}>
                   Terms of Service
                 </CustomDropdownLinkItem>
-                <CustomDropdownLinkItem onClick={() => router.push(urlService.contact())} icon={<Send />}>
+                <CustomDropdownLinkItem onClick={() => router.push(urlService.contact())} icon={<Send className="-rotate-45" />}>
                   Contact us
                 </CustomDropdownLinkItem>
                 <DropdownMenuSeparator />
