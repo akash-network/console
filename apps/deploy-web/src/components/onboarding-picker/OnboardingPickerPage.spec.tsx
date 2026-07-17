@@ -45,6 +45,7 @@ describe(OnboardingPickerPage.name, () => {
   it("renders the first-purchase bonus offer when the first_purchase_bonus flag is on", () => {
     const { container } = setup({ isFirstPurchaseBonusEnabled: true });
 
+    expect(container).toHaveTextContent("up to $100 free credits, full GPU access and 30 day deployments");
     expect(container).toHaveTextContent("Plus, get 10% in bonus credits on your first purchase, up to $100.");
   });
 
@@ -52,6 +53,8 @@ describe(OnboardingPickerPage.name, () => {
     const { container } = setup({ isFirstPurchaseBonusEnabled: false });
 
     expect(container).not.toHaveTextContent("bonus credits");
+    expect(container).not.toHaveTextContent("free credits");
+    expect(container).toHaveTextContent("full GPU access and 30 day deployments");
   });
 
   it("redirects to the configure view with the hello-world auto-deploy intent when its card deploys", () => {

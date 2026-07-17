@@ -45,14 +45,14 @@ export function DeploymentTemplatePickerCard({
   return (
     <div
       className={cn(
-        "relative z-50 flex flex-col rounded-xl",
-        recommended && "drop-shadow-[0_0_6px_rgba(0,166,255,0.25)] dark:drop-shadow-[0_0_8px_rgba(0,166,255,0.4)]"
+        "relative z-50 flex flex-col rounded-xl transition-[filter] duration-200",
+        "hover:drop-shadow-[0_0_6px_rgba(0,166,255,0.25)] dark:hover:drop-shadow-[0_0_8px_rgba(0,166,255,0.4)]"
       )}
     >
       {recommended && (
         <Badge
           variant="info"
-          className="absolute -top-2 left-4 z-10 rounded-md border border-blue-500 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 dark:bg-blue-950/50 dark:text-blue-400"
+          className="absolute -top-2 left-4 z-10 rounded-md border border-blue-500 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-500 hover:bg-blue-50"
         >
           Recommended for new users
         </Badge>

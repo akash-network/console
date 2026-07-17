@@ -104,13 +104,15 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
               <h1 className="text-3xl leading-9 text-foreground">Let&apos;s deploy your first app</h1>
               <p className="max-w-2xl text-sm leading-5 text-muted-foreground">
                 We&apos;ve provided you with <span className="font-medium text-blue-600 dark:text-blue-400">${trialCreditsAmount} in free trial credits</span>.
+                This covers a couple of smaller deployments so you can see how easy it is. Purchase your first credits to unlock our full experience -{" "}
+                {isFirstPurchaseBonusEnabled ? `up to $${MAX_BONUS} free credits, ` : ""}full GPU access and 30 day deployments.
                 {isFirstPurchaseBonusEnabled && (
                   <>
                     {" "}
                     Plus, get {BONUS_PERCENT}% in bonus credits on your first purchase, up to ${MAX_BONUS}.
                   </>
                 )}{" "}
-                Pick a template to get a live URL in about 30 seconds. Some templates require identity verification to unlock.
+                Pick a template to get a live URL in about 30 seconds.
               </p>
             </div>
 
@@ -166,10 +168,10 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
             </div>
 
             <div className="mb-8">
-              <div className="mb-6 flex w-full flex-col items-start gap-3 rounded-xl border border-border bg-background p-4 sm:flex-row sm:items-center">
+              <div className="mb-6 flex w-full flex-col items-start gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center">
                 <div className="flex flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
                   <p className="text-sm font-semibold leading-5 text-foreground">Already have a Docker Image?</p>
-                  <p className="text-xs leading-4 text-muted-foreground">Recommended for experienced developers who want to get started right away.</p>
+                  <p className="text-xs leading-5 text-muted-foreground">Recommended for experienced developers who want to get started right away.</p>
                 </div>
 
                 <Button variant="outline" className="w-full gap-2 no-underline hover:no-underline sm:w-auto" asChild>
