@@ -90,6 +90,7 @@ export type AnalyticsEvent =
   | "build_n_deploy_btn_clk"
   | "launch_container_vm_btn_clk"
   | "run_custom_container_btn_clk"
+  | "deploy_with_agent_btn_clk"
   | "sdl_uploaded"
   | "deposit_deployment_btn_clk"
   | "add_funds_btn_clk"

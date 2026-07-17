@@ -24,6 +24,7 @@ import type { NewDeploymentParams } from "@src/utils/urlUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { TemplateBox } from "../templates/TemplateBox";
+import { AgentModePanel } from "./AgentModePanel/AgentModePanel";
 import { DeployOptionBox } from "./DeployOptionBox";
 
 const previewTemplateIds = [
@@ -68,6 +69,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({
   const [, setSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const isBuildAndDeployEnabled = d.useFlag("ui_build_and_deploy");
   const isRedesignEnabled = d.useFlag("onboarding_redesign_v1");
+  const isAgentModeEnabled = d.useFlag("ui_agent_mode_deploy");
 
   const handleGithubTemplate = async () => {
     analyticsService.track("build_n_deploy_btn_clk", "Amplitude");
@@ -131,6 +133,8 @@ export const TemplateList: React.FunctionComponent<Props> = ({
   return (
     <div className="my-0 pb-8">
       <CustomNextSeo title="Create Deployment - Template List" url={`${domainName}${UrlService.newDeployment({ step: RouteStep.chooseTemplate })}`} />
+
+      {isAgentModeEnabled && <AgentModePanel />}
 
       {/* Build Your Own Section */}
       <Card className="mb-6">

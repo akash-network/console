@@ -28,6 +28,16 @@ describe(TemplateList.name, () => {
     expect(screen.getByText("Run Custom Container")).toBeInTheDocument();
   });
 
+  it("hides the Agent mode panel when the flag is disabled", () => {
+    setup({ isAgentModeEnabled: false });
+    expect(screen.queryByText("Deploy with your agent")).not.toBeInTheDocument();
+  });
+
+  it("shows the Agent mode panel when the flag is enabled", () => {
+    setup({ isAgentModeEnabled: true });
+    expect(screen.getByText("Deploy with your agent")).toBeInTheDocument();
+  });
+
   it("uploads a valid SDL into a configure draft and routes to configure when the redesign flag is on", async () => {
     const { push, createConfigureDraft, onTemplateSelected, enqueueSnackbar } = setup({ isRedesignEnabled: true });
 
@@ -65,7 +75,7 @@ describe(TemplateList.name, () => {
     return new File([content], "deploy.yaml", { type: "application/x-yaml" });
   }
 
-  function setup(input: { isBuildAndDeployEnabled?: boolean; isRedesignEnabled?: boolean; importSdlThrows?: boolean }) {
+  function setup(input: { isBuildAndDeployEnabled?: boolean; isRedesignEnabled?: boolean; isAgentModeEnabled?: boolean; importSdlThrows?: boolean }) {
     const push = vi.fn();
     const onTemplateSelected = vi.fn();
     const setEditedManifest = vi.fn();
@@ -95,6 +105,7 @@ describe(TemplateList.name, () => {
       useFlag: flagName => {
         if (flagName === "ui_build_and_deploy") return input.isBuildAndDeployEnabled ?? false;
         if (flagName === "onboarding_redesign_v1") return input.isRedesignEnabled ?? false;
+        if (flagName === "ui_agent_mode_deploy") return input.isAgentModeEnabled ?? false;
         return false;
       },
       useNewDeploymentUrl: () => params => UrlService.newDeployment(params),
