@@ -84,7 +84,9 @@ test.describe("Onboarding gate — onboarded user", () => {
       await page.setViewportSize({ width: 1440, height: 900 });
       await visit(page, "/deployments");
       await expect(page).toHaveURL(/\/deployments(\?|$)/, { timeout: 30_000 });
-      await expect(page.getByRole("link", { name: "Deploy" }).first()).toHaveAttribute("href", /\/new-deployment(\?|$)/, { timeout: 30_000 });
+      await expect(page.getByRole("link", { name: /^(deploy|create deployment)$/i }).first()).toHaveAttribute("href", /\/new-deployment(\?|$)/, {
+        timeout: 30_000
+      });
     });
 
     await test.step("the classic deployment-type/template picker is reachable and renders", async () => {
