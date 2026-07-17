@@ -102,7 +102,7 @@ export function EmailCodeVerify({ dependencies: d = DEPENDENCIES, ...props }: Pr
           <p>
             Enter the 6-digit code sent to <span className="font-medium text-neutral-900 dark:text-neutral-100">{obfuscateEmail(props.email)}</span>.{" "}
           </p>
-          <p>Code expires in 10 mintes.</p>
+          <p>Code expires in 10 minutes.</p>
         </div>
         <div className="flex flex-col items-start gap-2">
           <span className="text-sm font-medium leading-none text-neutral-950 dark:text-neutral-50">Code</span>
@@ -119,7 +119,11 @@ export function EmailCodeVerify({ dependencies: d = DEPENDENCIES, ...props }: Pr
                 Wrong email? Edit
               </d.Button>
               <span aria-hidden="true">·</span>
-              {!isBusy && (
+              {resendMutation.isPending ? (
+                <span className="flex items-center gap-2 text-xs">
+                  <d.Spinner size="small" /> Sending...
+                </span>
+              ) : (
                 <d.Button
                   variant="link"
                   className="h-auto p-0 text-sm font-normal text-neutral-500 dark:text-neutral-400"
