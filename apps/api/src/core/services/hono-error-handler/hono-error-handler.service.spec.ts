@@ -74,6 +74,21 @@ describe(HonoErrorHandlerService.name, () => {
     });
   });
 
+  describe("when an HttpError carries errorCode/errorType properties", () => {
+    it("serializes them instead of the status-derived fallbacks", async () => {
+      const { service, mockContext } = setup();
+      const error = createHttpError(409, "This payment was already requested with different parameters.", {
+        errorCode: "idempotency_key_mismatch",
+        errorType: "payment_error"
+      });
+
+      await service.handle(error, mockContext);
+
+      expect(mockContext.body).toHaveBeenCalledWith(expect.stringContaining('"code":"idempotency_key_mismatch"'), expect.objectContaining({ status: 409 }));
+      expect(mockContext.body).toHaveBeenCalledWith(expect.stringContaining('"type":"payment_error"'), expect.anything());
+    });
+  });
+
   describe("when error contains non-JSON values", () => {
     it("handles bigint values in http errors", async () => {
       const { service, mockContext } = setup();

@@ -80,6 +80,29 @@ describe("Stripe transactions confirm", () => {
       expect(await stripeTransactionRepository.find({ userId: user.id })).toHaveLength(1);
       expect(paymentIntentCreateScope.isDone()).toBe(false);
     });
+
+    it("rejects a replayed key whose amount changed with a definitive idempotency_key_mismatch code", async () => {
+      const { user, token, stripeCustomerId, paymentMethodId } = await setup();
+      const clientKey = faker.string.uuid();
+
+      await stripeTransactionRepository.create({
+        userId: user.id,
+        type: "payment_intent",
+        status: "created",
+        amount: 2000,
+        currency: "usd",
+        stripeIdempotencyKey: `topup_${user.id}_${clientKey}`
+      });
+
+      nock("https://api.stripe.com")
+        .get(`/v1/payment_methods/${paymentMethodId}`)
+        .reply(200, { id: paymentMethodId, object: "payment_method", customer: stripeCustomerId });
+
+      const response = await confirmPayment(token, { userId: user.userId!, paymentMethodId, amount: 25, idempotencyKey: clientKey });
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toEqual(expect.objectContaining({ code: "idempotency_key_mismatch" }));
+    });
   });
 
   async function confirmPayment(token: string, data: { userId: string; paymentMethodId: string; amount: number; idempotencyKey?: string }) {
