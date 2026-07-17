@@ -168,7 +168,7 @@ function ProgressCheckpoint({ at, status }: { at: number; status: DeploymentPhas
     <div className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ left: `${at}%` }}>
       <span
         className={cn(
-          "relative inline-flex h-[22px] w-[22px] items-center justify-center rounded-full border border-primary-foreground bg-primary text-primary-foreground",
+          "relative flex h-[22px] w-[22px] items-center justify-center rounded-full border border-primary-foreground bg-primary text-primary-foreground",
           status === "completed" ? "border-primary-foreground bg-primary text-primary-foreground" : "border-2 border-border bg-background"
         )}
         aria-label={capitalize(status)}
