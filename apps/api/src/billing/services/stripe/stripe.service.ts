@@ -12,7 +12,7 @@ import { Readable } from "stream";
 import Stripe from "stripe";
 import { inject, singleton } from "tsyringe";
 
-import { PaymentIntentResult, PaymentMethodValidationResult, Transaction } from "@src/billing/http-schemas/stripe.schema";
+import { PaymentIntentResult, Transaction } from "@src/billing/http-schemas/stripe.schema";
 import {
   PaymentMethodRepository,
   SETTLED_TRANSACTION_STATUSES,
@@ -1161,32 +1161,6 @@ export class StripeService extends Stripe {
       });
       throw error;
     }
-  }
-
-  async validatePaymentMethodForTrial(params: { customer: string; payment_method: string; userId: string }): Promise<PaymentMethodValidationResult> {
-    const validationResult = await this.createTestCharge({
-      customer: params.customer,
-      payment_method: params.payment_method
-    });
-
-    // If the card requires 3D Secure authentication, reuse the existing payment intent
-    if (validationResult.requiresAction) {
-      return {
-        success: false,
-        requires3DS: true,
-        clientSecret: validationResult.clientSecret || "",
-        paymentIntentId: validationResult.paymentIntentId || "",
-        paymentMethodId: params.payment_method
-      };
-    }
-
-    if (!validationResult.success) {
-      throw new Error("Card validation failed. Please ensure your payment method is valid and try again.");
-    }
-
-    return {
-      success: true
-    };
   }
 
   private async markPaymentMethodAsValidated(customerId: string, paymentMethodId: string, paymentIntentId: string): Promise<void> {

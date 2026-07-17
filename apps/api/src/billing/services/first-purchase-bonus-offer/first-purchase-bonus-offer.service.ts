@@ -4,8 +4,6 @@ import { StripeTransactionRepository } from "@src/billing/repositories";
 import { BONUS_PERCENT, MAX_BONUS_CENTS, MIN_QUALIFYING_AMOUNT_CENTS } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import type { Resolver } from "@src/core/providers/resolvers.provider";
 import { DATA_RESOLVER } from "@src/core/providers/resolvers.provider";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { UserOutput } from "@src/user/repositories";
 
 export interface FirstPurchaseBonusOffer {
@@ -23,13 +21,9 @@ export interface FirstPurchaseBonusOffer {
 export class FirstPurchaseBonusOfferService implements Resolver {
   readonly key = "firstPurchaseBonus";
 
-  constructor(
-    private readonly featureFlagsService: FeatureFlagsService,
-    private readonly stripeTransactionRepository: StripeTransactionRepository
-  ) {}
+  constructor(private readonly stripeTransactionRepository: StripeTransactionRepository) {}
 
   async resolve(user: UserOutput): Promise<FirstPurchaseBonusOffer | null> {
-    if (!this.featureFlagsService.isEnabled(FeatureFlags.FIRST_PURCHASE_BONUS)) return null;
     if (await this.stripeTransactionRepository.hasCompletedPaidTransaction(user.id)) return null;
 
     return {

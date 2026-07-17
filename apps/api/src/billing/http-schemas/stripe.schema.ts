@@ -95,14 +95,6 @@ export const PaymentIntentResultSchema = z.object({
   transactionStatus: TransactionStatusSchema.optional()
 });
 
-export const PaymentMethodValidationResultSchema = z.object({
-  success: z.boolean(),
-  requires3DS: z.boolean().optional(),
-  clientSecret: z.string().optional(),
-  paymentIntentId: z.string().optional(),
-  paymentMethodId: z.string().optional()
-});
-
 export const ConfirmPaymentResponseSchema = z.object({
   data: PaymentIntentResultSchema
 });
@@ -259,7 +251,6 @@ export type PaymentMethodsResponse = z.infer<typeof PaymentMethodsResponseSchema
 export type PaymentMethodResponse = z.infer<typeof PaymentMethodResponseSchema>;
 export type ConfirmPaymentRequest = z.infer<typeof ConfirmPaymentRequestSchema>;
 export type PaymentIntentResult = z.infer<typeof PaymentIntentResultSchema>;
-export type PaymentMethodValidationResult = z.infer<typeof PaymentMethodValidationResultSchema>;
 export type ConfirmPaymentResponse = z.infer<typeof ConfirmPaymentResponseSchema>;
 export type ApplyCouponRequest = z.infer<typeof ApplyCouponRequestSchema>;
 export type Coupon = z.infer<typeof CouponSchema>;

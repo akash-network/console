@@ -3,8 +3,6 @@ import { singleton } from "tsyringe";
 
 import { type StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { UserRepository } from "@src/user/repositories";
 
 /** Smallest purchase that qualifies for the first-purchase bonus, in cents. */
@@ -18,7 +16,6 @@ export const MAX_BONUS_CENTS = 100_00;
 export class FirstPurchaseBonusService {
   constructor(
     private readonly stripeTransactionRepository: StripeTransactionRepository,
-    private readonly featureFlagsService: FeatureFlagsService,
     private readonly analyticsService: AnalyticsService,
     private readonly userRepository: UserRepository
   ) {}
@@ -36,7 +33,6 @@ export class FirstPurchaseBonusService {
    */
   async getEligibleBonusAmount(transaction: StripeTransactionOutput, paidAmountCents: number): Promise<number> {
     if (transaction.type !== "payment_intent") return 0;
-    if (!this.featureFlagsService.isEnabled(FeatureFlags.FIRST_PURCHASE_BONUS)) return 0;
 
     const bonusCents = this.calculateBonusCents(paidAmountCents);
     if (bonusCents === 0) return 0;

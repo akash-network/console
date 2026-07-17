@@ -6,27 +6,11 @@ import { TrialStarted } from "@src/billing/events/trial-started";
 import { UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
-import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
-
-export type Requires3DSResult = {
-  id: null;
-  userId: string;
-  address: null;
-  creditAmount: 0;
-  isTrialing: false;
-  createdAt: null;
-  requires3DS: true;
-  clientSecret: string | null;
-  paymentIntentId: string | null;
-  paymentMethodId: string | null;
-};
-
-export type StartTrialResult = UserWalletPublicOutput | Requires3DSResult;
 
 @singleton()
 export class WalletInitializerService {
@@ -38,21 +22,14 @@ export class WalletInitializerService {
     private readonly domainEvents: DomainEventsService,
     private readonly featureFlagsService: FeatureFlagsService,
     private readonly stripeService: StripeService,
-    private readonly stripeErrorService: StripeErrorService,
     private readonly userRepository: UserRepository
   ) {}
 
-  async startTrial(userId: string): Promise<StartTrialResult> {
+  async startTrial(userId: string): Promise<UserWalletPublicOutput> {
     const { currentUser } = this.authService;
 
     assert(currentUser.emailVerified, 400, "Email not verified");
     await this.#assertNoDuplicateFingerprint(currentUser);
-
-    if (!this.featureFlagsService.isEnabled(FeatureFlags.ONBOARDING_REDESIGN_V1)) {
-      assert(currentUser.stripeCustomerId, 400, "Stripe customer ID not found");
-      const threeDsResult = await this.#validatePaymentMethod(currentUser);
-      if (threeDsResult) return threeDsResult;
-    }
 
     return this.initializeAndGrantTrialLimits(userId);
   }
@@ -64,47 +41,6 @@ export class WalletInitializerService {
 
     const usersWithSameFingerprint = await this.userRepository.findTrialUsersByFingerprint(user.lastFingerprint, user.id);
     assert(usersWithSameFingerprint.length === 0, 400, "Unable to start trial. Please contact support for assistance.");
-  }
-
-  async #validatePaymentMethod(user: UserOutput): Promise<Requires3DSResult | null> {
-    const paymentMethods = await this.stripeService.getPaymentMethods(user.id, user.stripeCustomerId!, this.authService.ability);
-    assert(paymentMethods.length > 0, 400, "You must have a payment method to start a trial.");
-
-    if (this.stripeService.isProduction) {
-      const hasDuplicateTrialAccount = await this.stripeService.hasDuplicateTrialAccount(paymentMethods, user.id);
-      assert(!hasDuplicateTrialAccount, 400, "This payment method is already associated with another trial account. Please use a different payment method.");
-    }
-
-    const latestPaymentMethod = paymentMethods[0];
-    try {
-      const validationResult = await this.stripeService.validatePaymentMethodForTrial({
-        customer: user.stripeCustomerId!,
-        payment_method: latestPaymentMethod.id,
-        userId: user.id
-      });
-
-      if (validationResult.requires3DS) {
-        return {
-          id: null,
-          userId: user.id,
-          address: null,
-          creditAmount: 0,
-          isTrialing: false,
-          createdAt: null,
-          requires3DS: true,
-          clientSecret: validationResult.clientSecret || null,
-          paymentIntentId: validationResult.paymentIntentId || null,
-          paymentMethodId: validationResult.paymentMethodId || null
-        };
-      }
-    } catch (error: unknown) {
-      if (this.stripeErrorService.isKnownError(error, "payment")) {
-        throw this.stripeErrorService.toAppError(error, "payment");
-      }
-      throw error;
-    }
-
-    return null;
   }
 
   async initializeAndGrantTrialLimits(userId: string): Promise<UserWalletPublicOutput> {

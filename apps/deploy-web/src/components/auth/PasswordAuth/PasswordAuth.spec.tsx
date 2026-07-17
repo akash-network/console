@@ -185,18 +185,13 @@ describe(PasswordAuth.name, () => {
   });
 
   describe("$1 credit subtext", () => {
-    it("renders when onboarding_redesign_v1 is enabled and the login/signup view is active", () => {
-      setup({ isOnboardingRedesignEnabled: true });
+    it("renders when the login/signup view is active", () => {
+      setup();
       expect(screen.getByText(/\$1 credit to deploy your first container/i)).toBeInTheDocument();
     });
 
-    it("does not render when onboarding_redesign_v1 is disabled", () => {
-      setup({ isOnboardingRedesignEnabled: false });
-      expect(screen.queryByText(/\$1 credit to deploy your first container/i)).not.toBeInTheDocument();
-    });
-
-    it("does not render in the forgot-password view even when onboarding_redesign_v1 is enabled", () => {
-      setup({ searchParams: { tab: "forgot-password" }, isOnboardingRedesignEnabled: true });
+    it("does not render in the forgot-password view", () => {
+      setup({ searchParams: { tab: "forgot-password" } });
       expect(screen.queryByText(/\$1 credit to deploy your first container/i)).not.toBeInTheDocument();
     });
   });
@@ -208,7 +203,6 @@ describe(PasswordAuth.name, () => {
         returnTo?: string;
         from?: string;
       };
-      isOnboardingRedesignEnabled?: boolean;
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
@@ -232,7 +226,6 @@ describe(PasswordAuth.name, () => {
         hasReturnTo: false,
         isDeploymentReturnTo: false
       });
-    const useFlag: typeof DEPENDENCIES.useFlag = (() => Boolean(input.isOnboardingRedesignEnabled)) as never;
 
     const params = new URLSearchParams();
     params.set("tab", input.searchParams?.tab || "login");
@@ -263,7 +256,6 @@ describe(PasswordAuth.name, () => {
             useSearchParams,
             useRouter: () => router,
             useReturnTo,
-            useFlag,
             Turnstile,
             ...input.dependencies
           }}

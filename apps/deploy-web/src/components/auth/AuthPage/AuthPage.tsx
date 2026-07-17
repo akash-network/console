@@ -7,7 +7,6 @@ import { NextSeo } from "next-seo";
 
 import { AuthLayout } from "@src/components/auth/AuthLayout/AuthLayout";
 import { H100PriceStatus } from "@src/components/gpu/H100PriceStatus/H100PriceStatus";
-import { useFlag } from "@src/hooks/useFlag";
 import { PasswordAuth } from "../PasswordAuth/PasswordAuth";
 import { PasswordlessAuthClient } from "../PasswordlessAuth/PasswordlessAuth";
 
@@ -17,7 +16,6 @@ export const DEPENDENCIES = {
   NextSeo,
   PasswordAuth,
   PasswordlessAuth: PasswordlessAuthClient,
-  useFlag,
   useRouter,
   useSearchParams
 };
@@ -29,10 +27,8 @@ interface Props {
 export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
-  const isPasswordless = d.useFlag("console_auth_passwordless");
-  const canUsePassword = d.useFlag("console_auth_password_escape_hatch");
-  const forcePassword = canUsePassword && searchParams.get("auth") === "password";
-  const showPasswordless = isPasswordless && !forcePassword;
+  const forcePassword = searchParams.get("auth") === "password";
+  const showPasswordless = !forcePassword;
 
   useEffect(
     function stripTabParamWhenPasswordless() {

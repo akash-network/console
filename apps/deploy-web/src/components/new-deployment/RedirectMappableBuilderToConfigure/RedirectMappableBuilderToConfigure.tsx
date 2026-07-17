@@ -6,17 +6,16 @@ import { useRouter } from "next/router";
 
 import { Loading } from "@src/components/layout/Layout";
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
-import { useFlag } from "@src/hooks/useFlag";
 import { UrlService } from "@src/utils/urlUtils";
 
-export const DEPENDENCIES = { useFlag, useRouter, UrlService };
+export const DEPENDENCIES = { useRouter, UrlService };
 
 type Props = { children: ReactNode; dependencies?: typeof DEPENDENCIES };
 
 /**
- * Client-side redirect for inbound/external links to the classic builder. When the redesign flag is on and
- * the `/new-deployment` query is a mappable intent (template or blank editor, not git/redeploy), it replaces
- * to the configure screen. Intentionally client-only — no SSR (the team is phasing getServerSideProps out).
+ * Client-side redirect for inbound/external links to the classic builder. When the `/new-deployment` query is a
+ * mappable intent (template or blank editor, not git/redeploy), it replaces to the configure screen.
+ * Intentionally client-only — no SSR (the team is phasing getServerSideProps out).
  *
  * The CI/CD template is a git/remote-deploy intent that `NewDeploymentContainer` opens as such (keyed on
  * `CI_CD_TEMPLATE_ID`), and a bare `/new-deployment?templateId=<CI_CD_TEMPLATE_ID>` link (no git query params)
@@ -24,7 +23,6 @@ type Props = { children: ReactNode; dependencies?: typeof DEPENDENCIES };
  * can't represent that intent.
  */
 export function RedirectMappableBuilderToConfigure({ children, dependencies: d = DEPENDENCIES }: Props) {
-  const isRedesignEnabled = d.useFlag("onboarding_redesign_v1");
   const router = d.useRouter();
   const step = typeof router.query.step === "string" ? router.query.step : undefined;
   const templateId = typeof router.query.templateId === "string" ? router.query.templateId : undefined;
@@ -32,8 +30,7 @@ export function RedirectMappableBuilderToConfigure({ children, dependencies: d =
   const hasGitProvider = typeof router.query.gitProvider === "string";
   const hasRepoUrl = typeof router.query.repoUrl === "string";
   const isCiCdTemplate = templateId === CI_CD_TEMPLATE_ID;
-  const isMappable = !hasRedeploy && !hasGitProvider && !hasRepoUrl && !isCiCdTemplate && (step === "edit-deployment" || !!templateId);
-  const shouldRedirect = isRedesignEnabled && isMappable;
+  const shouldRedirect = !hasRedeploy && !hasGitProvider && !hasRepoUrl && !isCiCdTemplate && (step === "edit-deployment" || !!templateId);
 
   useEffect(
     function redirectLegacyBuilderToConfigure() {

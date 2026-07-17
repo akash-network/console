@@ -24,10 +24,8 @@ export function generateTestPassword(): string {
  * flow is active. Races a passwordless marker against an email/password marker
  * and returns the first to appear.
  *
- * When `preferPassword` is set, navigates to /login?auth=password so the FF-gated
- * password escape hatch (console_auth_password_escape_hatch) is selected when
- * available; the param is inert when the flag is off, so callers transparently
- * fall back to whichever UI the environment serves.
+ * When `preferPassword` is set, navigates to /login?auth=password so the password
+ * escape hatch is selected; without it the environment serves passwordless auth by default.
  *
  * Throws if neither marker resolves within DETECT_TIMEOUT_MS.
  * Leaves the page on /login so callers can drive the matching flow directly.

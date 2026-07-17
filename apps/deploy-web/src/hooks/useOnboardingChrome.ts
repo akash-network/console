@@ -1,10 +1,9 @@
 import { usePathname } from "next/navigation";
 
 import { useWallet } from "@src/context/WalletProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 
-export const DEPENDENCIES = { useWallet, usePathname, useFlag, useAllLeases };
+export const DEPENDENCIES = { useWallet, usePathname, useAllLeases };
 
 /**
  * Routes that get the stripped onboarding chrome. Matched with `startsWith`, so this
@@ -19,7 +18,7 @@ export type OnboardingChromeState = {
 
 /**
  * Single source of truth for whether the app chrome should be stripped for onboarding.
- * Ships fully dark: only active behind `onboarding_redesign_v1` on an onboarding route.
+ * Only active on an onboarding route.
  *
  * "Onboarding" here means the user's *first* deployment — chrome is stripped only until they have a lease, the
  * same signal the onboarding gate uses (see `RequireOnboarding`). A trial user who has already deployed keeps the
@@ -29,9 +28,8 @@ export type OnboardingChromeState = {
 export const useOnboardingChrome = (d: typeof DEPENDENCIES = DEPENDENCIES): OnboardingChromeState => {
   const { address, hasManagedWallet, managedWalletError } = d.useWallet();
   const pathname = d.usePathname();
-  const isRedesignEnabled = d.useFlag("onboarding_redesign_v1");
 
-  const isRelevant = isRedesignEnabled && !!pathname && ONBOARDING_CHROME_PATHS.some(path => pathname.startsWith(path));
+  const isRelevant = !!pathname && ONBOARDING_CHROME_PATHS.some(path => pathname.startsWith(path));
   const hasWallet = hasManagedWallet && !!address;
 
   const leasesQuery = d.useAllLeases(address, { enabled: isRelevant && hasWallet });
