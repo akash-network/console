@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, asc, eq, lt, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -31,5 +31,36 @@ export class X402TransactionRepository extends BaseRepository<Table, X402Transac
     });
 
     return item ? this.toOutput(item) : undefined;
+  }
+
+  /**
+   * Atomically transitions a transaction from `settled` to `succeeded`.
+   *
+   * The conditional `WHERE status = 'settled'` makes the credit exactly-once under concurrency:
+   * only the caller whose UPDATE actually affects a row (rowCount 1) may go on to credit the wallet.
+   * Any concurrent retry or the reconcile job observes rowCount 0 and must not credit.
+   */
+  async markSettledAsSucceeded(id: X402TransactionOutput["id"]): Promise<boolean> {
+    const updated = await this.cursor
+      .update(this.table)
+      .set({ status: "succeeded", updatedAt: sql`now()` })
+      .where(and(eq(this.table.id, id), eq(this.table.status, "settled")))
+      .returning({ id: this.table.id });
+
+    return updated.length === 1;
+  }
+
+  /**
+   * Returns transactions stuck in `settled` (payment captured on-chain but wallet not yet credited)
+   * whose last update is older than `olderThan`, oldest first — the reconcile job's work backlog.
+   */
+  async findStaleSettled(olderThan: Date, limit: number): Promise<X402TransactionOutput[]> {
+    const items = await this.cursor.query.X402Transactions.findMany({
+      where: this.whereAccessibleBy(and(eq(this.table.status, "settled"), lt(this.table.updatedAt, olderThan))),
+      orderBy: asc(this.table.updatedAt),
+      limit
+    });
+
+    return this.toOutputList(items);
   }
 }

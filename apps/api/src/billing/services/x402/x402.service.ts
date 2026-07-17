@@ -1,14 +1,21 @@
 import { createOtelLogger } from "@akashnetwork/logging/otel";
-import type { HTTPRequestContext, HTTPResponseInstructions, ProcessSettleSuccessResponse, x402HTTPResourceServer } from "@x402/core/server";
-import type { PaymentPayload } from "@x402/core/types";
+import type {
+  HTTPRequestContext,
+  HTTPResponseInstructions,
+  PaymentCancellationDispatcher,
+  ProcessSettleSuccessResponse,
+  x402HTTPResourceServer
+} from "@x402/core/server";
+import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 import { createHash } from "crypto";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
-import { X402TransactionRepository } from "@src/billing/repositories/x402-transaction/x402-transaction.repository";
+import { type X402TransactionOutput, X402TransactionRepository } from "@src/billing/repositories/x402-transaction/x402-transaction.repository";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { X402HttpServerFactoryService } from "@src/billing/services/x402/x402-http-server-factory.service";
 import { WithTransaction } from "@src/core";
+import { isUniqueViolation } from "@src/core/repositories/base.repository";
 
 export const X402_TOP_UP_ROUTE = "POST /v1/x402/top-up";
 
@@ -65,40 +72,22 @@ export class X402Service {
     const paymentHash = this.hashPayment(paymentPayload);
 
     const existing = await this.x402TransactionRepository.findByPaymentHash(paymentHash);
-
-    if (existing?.status === "succeeded") {
-      await cancellationDispatcher.cancel({ reason: "handler_failed", responseStatus: 409 });
-      return { type: "duplicate-payment", transactionId: existing.id };
+    const resolvedExisting = await this.resolveTerminalOrSettled(existing, cancellationDispatcher);
+    if (resolvedExisting) {
+      return resolvedExisting;
     }
 
-    if (existing?.status === "settled") {
-      // Payment already settled on-chain but crediting was interrupted: resume it
-      await cancellationDispatcher.cancel({ reason: "handler_failed", responseStatus: 409 });
-      await this.creditSettledTransaction(existing.id);
-      return {
-        type: "success",
-        headers: {},
-        data: {
-          transactionId: existing.id,
-          amountUsdCents: existing.amount,
-          network: existing.network,
-          settlementTxHash: existing.settlementTxHash ?? "",
-          payerAddress: existing.payerAddress ?? undefined
-        }
-      };
+    // `existing` is now undefined or a resumable pending/failed attempt this request owns.
+    let transaction: X402TransactionOutput;
+    if (existing) {
+      transaction = existing;
+    } else {
+      const created = await this.createTransaction({ userId, amountUsdCents, paymentRequirements, paymentHash }, cancellationDispatcher);
+      if (created.type === "resolved") {
+        return created.result;
+      }
+      transaction = created.transaction;
     }
-
-    const transaction =
-      existing ??
-      (await this.x402TransactionRepository.create({
-        userId,
-        status: "pending",
-        amount: amountUsdCents,
-        currency: "usd",
-        network: paymentRequirements.network,
-        asset: paymentRequirements.asset,
-        paymentHash
-      }));
 
     const settleResult = await httpServer.processSettlement(paymentPayload, paymentRequirements, declaredExtensions, { request: context });
 
@@ -142,15 +131,129 @@ export class X402Service {
     };
   }
 
+  /**
+   * Re-drives crediting for every transaction stranded in `settled` (captured on-chain but not yet
+   * credited) past the configured threshold. Idempotent per row via the conditional credit gate, so
+   * it is safe to run alongside in-request crediting and concurrent reconcile runs. Emits a backlog
+   * count each run for observability.
+   */
+  async reconcileStaleSettled(): Promise<{ backlog: number; credited: number; failed: number }> {
+    const cutoff = new Date(Date.now() - this.config.X402_RECONCILE_THRESHOLD_SECONDS * 1000);
+    const stale = await this.x402TransactionRepository.findStaleSettled(cutoff, this.config.X402_RECONCILE_BATCH_SIZE);
+
+    this.logger.info({
+      event: "X402_RECONCILE_BACKLOG",
+      backlog: stale.length,
+      thresholdSeconds: this.config.X402_RECONCILE_THRESHOLD_SECONDS,
+      cutoff: cutoff.toISOString()
+    });
+
+    let credited = 0;
+    let failed = 0;
+
+    for (const transaction of stale) {
+      try {
+        if (await this.creditSettledTransaction(transaction.id)) {
+          credited++;
+        }
+      } catch (error) {
+        failed++;
+        this.logger.error({ event: "X402_RECONCILE_CREDIT_FAILED", transactionId: transaction.id, error });
+      }
+    }
+
+    this.logger.info({ event: "X402_RECONCILE_COMPLETED", backlog: stale.length, credited, failed });
+
+    return { backlog: stale.length, credited, failed };
+  }
+
+  private async resolveTerminalOrSettled(
+    existing: X402TransactionOutput | undefined,
+    cancellationDispatcher: PaymentCancellationDispatcher
+  ): Promise<X402TopUpProcessResult | undefined> {
+    if (existing?.status === "succeeded") {
+      await cancellationDispatcher.cancel({ reason: "handler_failed", responseStatus: 409 });
+      return { type: "duplicate-payment", transactionId: existing.id };
+    }
+
+    if (existing?.status === "settled") {
+      // Payment already settled on-chain but crediting was interrupted: resume it
+      await cancellationDispatcher.cancel({ reason: "handler_failed", responseStatus: 409 });
+      await this.creditSettledTransaction(existing.id);
+      return {
+        type: "success",
+        headers: {},
+        data: {
+          transactionId: existing.id,
+          amountUsdCents: existing.amount,
+          network: existing.network,
+          settlementTxHash: existing.settlementTxHash ?? "",
+          payerAddress: existing.payerAddress ?? undefined
+        }
+      };
+    }
+
+    return undefined;
+  }
+
+  private async createTransaction(
+    input: { userId: string; amountUsdCents: number; paymentRequirements: PaymentRequirements; paymentHash: string },
+    cancellationDispatcher: PaymentCancellationDispatcher
+  ): Promise<{ type: "created"; transaction: X402TransactionOutput } | { type: "resolved"; result: X402TopUpProcessResult }> {
+    try {
+      const transaction = await this.x402TransactionRepository.create({
+        userId: input.userId,
+        status: "pending",
+        amount: input.amountUsdCents,
+        currency: "usd",
+        network: input.paymentRequirements.network,
+        asset: input.paymentRequirements.asset,
+        paymentHash: input.paymentHash
+      });
+      return { type: "created", transaction };
+    } catch (error) {
+      if (!isUniqueViolation(error)) {
+        throw error;
+      }
+
+      // The DB-level UNIQUE(payment_hash) index lost the insert race to a concurrent request for the
+      // same payment. Re-read the winning row and resume/dedupe instead of surfacing a 500.
+      this.logger.info({ event: "X402_PAYMENT_HASH_CONFLICT", paymentHash: input.paymentHash });
+      const raced = await this.x402TransactionRepository.findByPaymentHash(input.paymentHash);
+      const resolved = await this.resolveTerminalOrSettled(raced, cancellationDispatcher);
+      if (resolved) {
+        return { type: "resolved", result: resolved };
+      }
+
+      // The concurrent request is still mid-flight (pending/failed): do not settle the same payment
+      // twice. Report it as a duplicate; crediting is guaranteed by that request or the reconcile job.
+      await cancellationDispatcher.cancel({ reason: "handler_failed", responseStatus: 409 });
+      return { type: "resolved", result: { type: "duplicate-payment", transactionId: raced!.id } };
+    }
+  }
+
+  /**
+   * Credits a settled transaction exactly once. Returns `true` only when this call performed the
+   * credit; `false` when there was nothing to credit or another caller already claimed it.
+   */
   @WithTransaction()
-  private async creditSettledTransaction(transactionId: string): Promise<void> {
+  private async creditSettledTransaction(transactionId: string): Promise<boolean> {
     const transaction = await this.x402TransactionRepository.findOneByAndLock({ id: transactionId });
 
     if (!transaction || transaction.status !== "settled") {
-      return;
+      return false;
     }
 
-    await this.x402TransactionRepository.updateById(transaction.id, { status: "succeeded" });
+    // Atomic settled -> succeeded transition is the money-integrity gate: only the caller that wins
+    // the conditional UPDATE credits the wallet. A concurrent retry or the reconcile job sees the
+    // transition already claimed (rowCount 0) and returns without double-crediting.
+    const transitioned = await this.x402TransactionRepository.markSettledAsSucceeded(transaction.id);
+
+    if (!transitioned) {
+      this.logger.info({ event: "X402_CREDIT_SKIPPED_ALREADY_CLAIMED", transactionId: transaction.id });
+      return false;
+    }
+
     await this.refillService.topUpWallet(transaction.amount, transaction.userId, {
       payment: {
         currency: transaction.currency,
@@ -158,6 +261,8 @@ export class X402Service {
         transactionId: transaction.id
       }
     });
+
+    return true;
   }
 
   private getHttpServer(): x402HTTPResourceServer {

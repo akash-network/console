@@ -1,5 +1,6 @@
 import type { HTTPRequestContext, PaymentCancellationDispatcher, x402HTTPResourceServer } from "@x402/core/server";
 import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
+import { PostgresError } from "postgres";
 import { container } from "tsyringe";
 import { beforeEach, describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -67,7 +68,7 @@ describe(X402Service.name, () => {
         settlementTxHash: "0xsettlementhash",
         payerAddress: "0xpayer"
       });
-      expect(x402TransactionRepository.updateById).toHaveBeenCalledWith(transaction.id, { status: "succeeded" });
+      expect(x402TransactionRepository.markSettledAsSucceeded).toHaveBeenCalledWith(transaction.id);
       expect(refillService.topUpWallet).toHaveBeenCalledWith(transaction.amount, userId, {
         payment: {
           currency: "usd",
@@ -131,7 +132,7 @@ describe(X402Service.name, () => {
       const result = await service.processTopUp(createRequestContext(), userId, amountUsd);
 
       expect(httpServer.processSettlement).not.toHaveBeenCalled();
-      expect(x402TransactionRepository.updateById).toHaveBeenCalledWith(transaction.id, { status: "succeeded" });
+      expect(x402TransactionRepository.markSettledAsSucceeded).toHaveBeenCalledWith(transaction.id);
       expect(refillService.topUpWallet).toHaveBeenCalledWith(transaction.amount, transaction.userId, expect.anything());
       expect(result).toMatchObject({ type: "success", data: { transactionId: transaction.id, settlementTxHash: "0xsettlementhash" } });
     });
@@ -157,6 +158,106 @@ describe(X402Service.name, () => {
     });
   });
 
+  describe("money-integrity gate", () => {
+    it("credits exactly once when the same settled row is driven twice concurrently", async () => {
+      const { service, httpServer, x402TransactionRepository, refillService } = setup();
+      const transaction = createTransaction({ status: "settled", settlementTxHash: "0xsettlementhash" });
+      httpServer.processHTTPRequest.mockResolvedValue(createVerifiedResult());
+      x402TransactionRepository.findByPaymentHash.mockResolvedValue(transaction);
+      x402TransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
+      // The conditional UPDATE only affects a row for the first caller; the second sees rowCount 0.
+      x402TransactionRepository.markSettledAsSucceeded.mockReset();
+      x402TransactionRepository.markSettledAsSucceeded.mockResolvedValueOnce(true).mockResolvedValue(false);
+
+      await Promise.all([service.processTopUp(createRequestContext(), userId, amountUsd), service.processTopUp(createRequestContext(), userId, amountUsd)]);
+
+      expect(refillService.topUpWallet).toHaveBeenCalledTimes(1);
+    });
+
+    it("reconciles a crash-before-credit transaction and credits exactly once", async () => {
+      const { service, x402TransactionRepository, refillService } = setup();
+      const stranded = createTransaction({ status: "settled", settlementTxHash: "0xsettlementhash" });
+      x402TransactionRepository.findStaleSettled.mockResolvedValue([stranded]);
+      x402TransactionRepository.findOneByAndLock.mockResolvedValue(stranded);
+      // First reconcile pass wins the transition; a second concurrent/duplicate pass gets rowCount 0.
+      x402TransactionRepository.markSettledAsSucceeded.mockReset();
+      x402TransactionRepository.markSettledAsSucceeded.mockResolvedValueOnce(true).mockResolvedValue(false);
+
+      const first = await service.reconcileStaleSettled();
+      const second = await service.reconcileStaleSettled();
+
+      expect(refillService.topUpWallet).toHaveBeenCalledTimes(1);
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(stranded.amount, stranded.userId, {
+        payment: { currency: "usd", paymentMethodType: "x402", transactionId: stranded.id }
+      });
+      expect(first).toEqual({ backlog: 1, credited: 1, failed: 0 });
+      expect(second).toEqual({ backlog: 1, credited: 0, failed: 0 });
+    });
+
+    it("reports the stale settled backlog it scanned each run", async () => {
+      const { service, x402TransactionRepository } = setup();
+      x402TransactionRepository.findStaleSettled.mockResolvedValue([]);
+
+      const result = await service.reconcileStaleSettled();
+
+      expect(x402TransactionRepository.findStaleSettled).toHaveBeenCalledWith(expect.any(Date), 100);
+      expect(result).toEqual({ backlog: 0, credited: 0, failed: 0 });
+    });
+
+    it("counts a failed credit without aborting the rest of the backlog", async () => {
+      const { service, x402TransactionRepository, refillService } = setup();
+      const failing = createTransaction({ id: "aaaaaaaa-0000-0000-0000-000000000000", status: "settled" });
+      const succeeding = createTransaction({ id: "bbbbbbbb-0000-0000-0000-000000000000", status: "settled" });
+      x402TransactionRepository.findStaleSettled.mockResolvedValue([failing, succeeding]);
+      x402TransactionRepository.findOneByAndLock.mockImplementation(async query => (query?.id === failing.id ? failing : succeeding));
+      refillService.topUpWallet.mockRejectedValueOnce(new Error("refill boom"));
+
+      const result = await service.reconcileStaleSettled();
+
+      expect(result).toEqual({ backlog: 2, credited: 1, failed: 1 });
+    });
+  });
+
+  describe("payment_hash unique violation", () => {
+    it("resumes from the winning row instead of throwing when the insert loses the race", async () => {
+      const { service, httpServer, x402TransactionRepository, refillService } = setup();
+      const raced = createTransaction({ status: "settled", settlementTxHash: "0xsettlementhash" });
+      httpServer.processHTTPRequest.mockResolvedValue(createVerifiedResult());
+      x402TransactionRepository.findByPaymentHash.mockResolvedValueOnce(undefined).mockResolvedValue(raced);
+      x402TransactionRepository.findOneByAndLock.mockResolvedValue(raced);
+      x402TransactionRepository.create.mockRejectedValue(uniqueViolation());
+
+      const result = await service.processTopUp(createRequestContext(), userId, amountUsd);
+
+      expect(httpServer.processSettlement).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).toHaveBeenCalledTimes(1);
+      expect(result).toMatchObject({ type: "success", data: { transactionId: raced.id } });
+    });
+
+    it("returns a 409 duplicate when the racing request is still in flight", async () => {
+      const { service, httpServer, x402TransactionRepository, refillService } = setup();
+      const inFlight = createTransaction({ status: "pending" });
+      httpServer.processHTTPRequest.mockResolvedValue(createVerifiedResult());
+      x402TransactionRepository.findByPaymentHash.mockResolvedValueOnce(undefined).mockResolvedValue(inFlight);
+      x402TransactionRepository.create.mockRejectedValue(uniqueViolation());
+
+      const result = await service.processTopUp(createRequestContext(), userId, amountUsd);
+
+      expect(result).toEqual({ type: "duplicate-payment", transactionId: inFlight.id });
+      expect(httpServer.processSettlement).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+    });
+
+    it("rethrows non-unique-violation insert errors", async () => {
+      const { service, httpServer, x402TransactionRepository } = setup();
+      httpServer.processHTTPRequest.mockResolvedValue(createVerifiedResult());
+      x402TransactionRepository.findByPaymentHash.mockResolvedValue(undefined);
+      x402TransactionRepository.create.mockRejectedValue(new Error("connection reset"));
+
+      await expect(service.processTopUp(createRequestContext(), userId, amountUsd)).rejects.toThrow("connection reset");
+    });
+  });
+
   describe("isEnabled", () => {
     it("is disabled unless both the flag and the payTo address are configured", () => {
       expect(setup({ X402_ENABLED: "false" }).service.isEnabled).toBe(false);
@@ -174,10 +275,14 @@ describe(X402Service.name, () => {
       X402_FACILITATOR_URL: "https://x402.org/facilitator",
       X402_MIN_TOP_UP_USD: 1,
       X402_MAX_TOP_UP_USD: 1000,
+      X402_RECONCILE_THRESHOLD_SECONDS: 300,
+      X402_RECONCILE_INTERVAL_SECONDS: 300,
+      X402_RECONCILE_BATCH_SIZE: 100,
       ...configOverrides
     });
 
     const x402TransactionRepository = mock<X402TransactionRepository>();
+    x402TransactionRepository.markSettledAsSucceeded.mockResolvedValue(true);
     const refillService = mock<RefillService>();
     const httpServer = mock<x402HTTPResourceServer>();
     const httpServerFactory = mock<X402HttpServerFactoryService>();
@@ -233,6 +338,12 @@ describe(X402Service.name, () => {
       maxTimeoutSeconds: 300,
       extra: {}
     };
+  }
+
+  function uniqueViolation(): PostgresError {
+    const error = new PostgresError("duplicate key value violates unique constraint");
+    (error as PostgresError & { code: string }).code = "23505";
+    return error;
   }
 
   function createTransaction(overrides: Partial<X402TransactionOutput> = {}): X402TransactionOutput {

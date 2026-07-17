@@ -65,7 +65,14 @@ export const envSchema = z.object({
     .transform(value => value as `${string}:${string}`),
   X402_FACILITATOR_URL: z.string().default("https://x402.org/facilitator"),
   X402_MIN_TOP_UP_USD: z.number({ coerce: true }).default(1),
-  X402_MAX_TOP_UP_USD: z.number({ coerce: true }).default(1000)
+  X402_MAX_TOP_UP_USD: z.number({ coerce: true }).default(1000),
+  // How long a transaction may sit in `settled` before the reconcile job re-drives crediting.
+  // The delay keeps the job from racing the in-request credit of a freshly settled payment.
+  X402_RECONCILE_THRESHOLD_SECONDS: z.number({ coerce: true }).default(300),
+  // How often the reconcile job re-scans for stranded `settled` transactions.
+  X402_RECONCILE_INTERVAL_SECONDS: z.number({ coerce: true }).default(300),
+  // Max number of stale `settled` transactions reconciled per run.
+  X402_RECONCILE_BATCH_SIZE: z.number({ coerce: true }).default(100)
 });
 
 export type BillingConfig = z.infer<typeof envSchema>;
