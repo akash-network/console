@@ -4,7 +4,7 @@ import { singleton } from "tsyringe";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
-import type { X402TopUpProcessResult } from "@src/billing/services/x402/x402.service";
+import type { X402DiscoveryResult, X402TopUpProcessResult } from "@src/billing/services/x402/x402.service";
 import { X402Service } from "@src/billing/services/x402/x402.service";
 
 @singleton()
@@ -27,5 +27,11 @@ export class X402Controller {
     const { currentUser } = this.authService;
 
     return await this.x402Service.processTopUp(context, currentUser.id, amountUsd);
+  }
+
+  getDiscovery(): X402DiscoveryResult {
+    assert(this.x402Service.isEnabled, 404, "x402 payments are not enabled");
+
+    return this.x402Service.getDiscovery();
   }
 }

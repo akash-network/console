@@ -39,5 +39,32 @@ export const X402PaymentRequiredResponseSchema = z
     description: "x402 payment-required body: retry the request with an X-PAYMENT header satisfying one of the accepted payment requirements"
   });
 
+export const X402DiscoveryResponseSchema = z
+  .object({
+    x402Version: z.number(),
+    resources: z.array(
+      z.object({
+        resource: z.string().openapi({ description: "The protected route, as METHOD PATH (e.g. 'POST /v1/x402/top-up')" }),
+        description: z.string(),
+        mimeType: z.string(),
+        accepts: z.array(
+          z.object({
+            scheme: z.string(),
+            network: z.string().openapi({ description: "CAIP-2 settlement network id (e.g. eip155:8453)" }),
+            payTo: z.string(),
+            currency: z.string(),
+            minAmountUsd: z.number(),
+            maxAmountUsd: z.number(),
+            maxTimeoutSeconds: z.number()
+          })
+        )
+      })
+    )
+  })
+  .openapi({
+    description: "Public x402 discovery document: the list of payable resources and their accepted payment terms, mirroring the accepts a 402 response returns."
+  });
+
 export type X402TopUpQuery = z.infer<typeof X402TopUpQuerySchema>;
 export type X402TopUpResponse = z.infer<typeof X402TopUpResponseSchema>;
+export type X402DiscoveryResponse = z.infer<typeof X402DiscoveryResponseSchema>;

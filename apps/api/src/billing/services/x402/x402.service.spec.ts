@@ -7,7 +7,7 @@ import { mock } from "vitest-mock-extended";
 import type { BillingConfig } from "@src/billing/providers";
 import type { X402TransactionOutput, X402TransactionRepository } from "@src/billing/repositories";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
-import { X402Service } from "@src/billing/services/x402/x402.service";
+import { X402_TOP_UP_ROUTE, X402Service } from "@src/billing/services/x402/x402.service";
 import type { X402HttpServerFactoryService } from "@src/billing/services/x402/x402-http-server-factory.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 
@@ -157,6 +157,123 @@ describe(X402Service.name, () => {
     });
   });
 
+  describe("pre-settle guardrails", () => {
+    it("rejects with WRONG_NETWORK and never settles when the requirement network differs from the configured network", async () => {
+      const { service, httpServer, refillService } = setup();
+      const verified = createVerifiedResult();
+      // Verified requirement is on a different network than the one we advertise (config eip155:8453).
+      verified.paymentRequirements = createRequirements({ network: "eip155:84532" });
+      verified.paymentPayload.accepted = createRequirements({ network: "eip155:84532" });
+      httpServer.processHTTPRequest.mockResolvedValue(verified);
+
+      const result = await service.processTopUp(createRequestContext(), userId, amountUsd);
+
+      expect(result).toMatchObject({ type: "payment-rejected", code: "WRONG_NETWORK", response: { status: 402 } });
+      expect(verified.cancellationDispatcher.cancel).toHaveBeenCalled();
+      expect(httpServer.processSettlement).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+    });
+
+    it("rejects with WRONG_ASSET and never settles when the payer authorized a different asset", async () => {
+      const { service, httpServer, refillService } = setup();
+      const verified = createVerifiedResult();
+      verified.paymentRequirements = createRequirements({ asset: "0xusdc" });
+      verified.paymentPayload.accepted = createRequirements({ asset: "0xnotusdc" });
+      httpServer.processHTTPRequest.mockResolvedValue(verified);
+
+      const result = await service.processTopUp(createRequestContext(), userId, amountUsd);
+
+      expect(result).toMatchObject({ type: "payment-rejected", code: "WRONG_ASSET" });
+      expect(httpServer.processSettlement).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+    });
+
+    it("rejects with AMOUNT_MISMATCH and never settles when the authorized amount differs from the requirement", async () => {
+      const { service, httpServer, refillService } = setup();
+      const verified = createVerifiedResult();
+      verified.paymentRequirements = createRequirements({ amount: "25000000" });
+      verified.paymentPayload.accepted = createRequirements({ amount: "1" });
+      httpServer.processHTTPRequest.mockResolvedValue(verified);
+
+      const result = await service.processTopUp(createRequestContext(), userId, amountUsd);
+
+      expect(result).toMatchObject({ type: "payment-rejected", code: "AMOUNT_MISMATCH" });
+      expect(httpServer.processSettlement).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+    });
+
+    it("settles when the verified requirement matches the configured network and the authorized payment", async () => {
+      const { service, httpServer, x402TransactionRepository } = setup();
+      const transaction = createTransaction({ status: "pending" });
+      httpServer.processHTTPRequest.mockResolvedValue(createVerifiedResult());
+      httpServer.processSettlement.mockResolvedValue({
+        success: true,
+        transaction: "0xsettlementhash",
+        network: "eip155:8453",
+        headers: {},
+        requirements: createRequirements()
+      });
+      x402TransactionRepository.findByPaymentHash.mockResolvedValue(undefined);
+      x402TransactionRepository.create.mockResolvedValue(transaction);
+      x402TransactionRepository.findOneByAndLock.mockResolvedValue({ ...transaction, status: "settled" });
+
+      const result = await service.processTopUp(createRequestContext(), userId, amountUsd);
+
+      expect(httpServer.processSettlement).toHaveBeenCalled();
+      expect(result).toMatchObject({ type: "success" });
+    });
+  });
+
+  describe("getDiscovery", () => {
+    it("advertises the configured accepts derived from the canonical source", () => {
+      const { service } = setup();
+
+      const discovery = service.getDiscovery();
+
+      expect(discovery).toMatchObject({
+        x402Version: 2,
+        resources: [
+          {
+            resource: X402_TOP_UP_ROUTE,
+            accepts: [
+              {
+                scheme: "exact",
+                network: "eip155:8453",
+                payTo: "0x1111111111111111111111111111111111111111",
+                currency: "USD",
+                minAmountUsd: 1,
+                maxAmountUsd: 1000,
+                maxTimeoutSeconds: 300
+              }
+            ]
+          }
+        ]
+      });
+    });
+
+    it("stays in sync with the accepts the 402 flow serves (one canonical source)", async () => {
+      const { service, httpServer, httpServerFactory } = setup();
+      httpServer.processHTTPRequest.mockResolvedValue({
+        type: "payment-error",
+        response: { status: 402, headers: {}, body: { x402Version: 2, accepts: [] } }
+      });
+
+      // Trigger the 402 flow so the http server (and its routes config) is built.
+      await service.processTopUp(createRequestContext(), userId, amountUsd);
+
+      const routesConfig = httpServerFactory.create.mock.calls[0][0].routes as Record<string, { accepts: { scheme: string; network: string; payTo: string } }>;
+      const routeAccepts = routesConfig[X402_TOP_UP_ROUTE].accepts;
+
+      const discovery = service.getDiscovery();
+      const discoveryAccepts = discovery.resources[0].accepts[0];
+
+      expect(discovery.resources[0].resource).toBe(X402_TOP_UP_ROUTE);
+      expect(discoveryAccepts.scheme).toBe(routeAccepts.scheme);
+      expect(discoveryAccepts.network).toBe(routeAccepts.network);
+      expect(discoveryAccepts.payTo).toBe(routeAccepts.payTo);
+    });
+  });
+
   describe("isEnabled", () => {
     it("is disabled unless both the flag and the payTo address are configured", () => {
       expect(setup({ X402_ENABLED: "false" }).service.isEnabled).toBe(false);
@@ -223,7 +340,7 @@ describe(X402Service.name, () => {
     };
   }
 
-  function createRequirements(): PaymentRequirements {
+  function createRequirements(overrides: Partial<PaymentRequirements> = {}): PaymentRequirements {
     return {
       scheme: "exact",
       network: "eip155:8453",
@@ -231,7 +348,8 @@ describe(X402Service.name, () => {
       amount: "25000000",
       payTo: "0x1111111111111111111111111111111111111111",
       maxTimeoutSeconds: 300,
-      extra: {}
+      extra: {},
+      ...overrides
     };
   }
 

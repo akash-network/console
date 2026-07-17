@@ -1,6 +1,13 @@
 import { createOtelLogger } from "@akashnetwork/logging/otel";
-import type { HTTPRequestContext, HTTPResponseInstructions, ProcessSettleSuccessResponse, x402HTTPResourceServer } from "@x402/core/server";
-import type { PaymentPayload } from "@x402/core/types";
+import type {
+  HTTPRequestContext,
+  HTTPResponseInstructions,
+  ProcessSettleSuccessResponse,
+  RouteConfig,
+  RoutesConfig,
+  x402HTTPResourceServer
+} from "@x402/core/server";
+import type { Network, PaymentPayload, PaymentRequirements } from "@x402/core/types";
 import { createHash } from "crypto";
 import { singleton } from "tsyringe";
 
@@ -12,8 +19,56 @@ import { WithTransaction } from "@src/core";
 
 export const X402_TOP_UP_ROUTE = "POST /v1/x402/top-up";
 
+/** Explicit reasons a verified payment can be rejected before settlement. */
+export type X402ValidationCode = "WRONG_NETWORK" | "WRONG_ASSET" | "AMOUNT_MISMATCH";
+
+/**
+ * Canonical, statically-known description of one x402-protected route's accepted payment.
+ * This is the single source both the 402 flow (via {@link X402Service.buildRoutesConfig})
+ * and the public discovery endpoint (via {@link X402Service.getDiscovery}) derive from.
+ */
+export interface X402RouteAccepts {
+  scheme: "exact";
+  network: Network;
+  payTo: string;
+  maxTimeoutSeconds: number;
+  currency: "USD";
+  minAmountUsd: number;
+  maxAmountUsd: number;
+}
+
+export interface X402CanonicalRoute {
+  route: string;
+  description: string;
+  mimeType: string;
+  accepts: X402RouteAccepts;
+}
+
+export interface X402DiscoveryAccepts {
+  scheme: string;
+  network: string;
+  payTo: string;
+  currency: string;
+  minAmountUsd: number;
+  maxAmountUsd: number;
+  maxTimeoutSeconds: number;
+}
+
+export interface X402DiscoveryResource {
+  resource: string;
+  description: string;
+  mimeType: string;
+  accepts: X402DiscoveryAccepts[];
+}
+
+export interface X402DiscoveryResult {
+  x402Version: number;
+  resources: X402DiscoveryResource[];
+}
+
 export type X402TopUpProcessResult =
   | { type: "payment-required"; response: HTTPResponseInstructions }
+  | { type: "payment-rejected"; code: X402ValidationCode; response: HTTPResponseInstructions }
   | { type: "duplicate-payment"; transactionId: string }
   | {
       type: "success";
@@ -61,6 +116,21 @@ export class X402Service {
     }
 
     const { paymentPayload, paymentRequirements, declaredExtensions, cancellationDispatcher } = result;
+
+    const validationCode = this.validatePreSettle(paymentPayload, paymentRequirements);
+
+    if (validationCode) {
+      await cancellationDispatcher.cancel({ reason: "handler_failed", responseStatus: 402 });
+      this.logger.warn({
+        event: "X402_PRE_SETTLE_REJECTED",
+        code: validationCode,
+        requirementNetwork: paymentRequirements.network,
+        requirementAsset: paymentRequirements.asset,
+        requirementAmount: paymentRequirements.amount
+      });
+      return { type: "payment-rejected", code: validationCode, response: this.buildValidationResponse(validationCode, paymentRequirements) };
+    }
+
     const amountUsdCents = Math.round(amountUsd * 100);
     const paymentHash = this.hashPayment(paymentPayload);
 
@@ -160,26 +230,119 @@ export class X402Service {
     });
   }
 
+  /**
+   * The canonical list of x402-protected routes and their accepted payment terms.
+   * Both the 402 flow ({@link buildRoutesConfig}) and the public discovery endpoint
+   * ({@link getDiscovery}) derive from this single source, so the accepts advertised in
+   * a 402 response and in discovery can never drift apart.
+   */
+  getCanonicalRoutes(): X402CanonicalRoute[] {
+    return [
+      {
+        route: X402_TOP_UP_ROUTE,
+        description: "Top up Akash Console credits with a USDC payment",
+        mimeType: "application/json",
+        accepts: {
+          scheme: "exact",
+          network: this.config.X402_NETWORK,
+          payTo: this.config.X402_PAY_TO_ADDRESS!,
+          maxTimeoutSeconds: 300,
+          currency: "USD",
+          minAmountUsd: this.config.X402_MIN_TOP_UP_USD,
+          maxAmountUsd: this.config.X402_MAX_TOP_UP_USD
+        }
+      }
+    ];
+  }
+
+  /** Public discovery document listing every x402 resource and its accepted payments. */
+  getDiscovery(): X402DiscoveryResult {
+    return {
+      x402Version: 2,
+      resources: this.getCanonicalRoutes().map(route => ({
+        resource: route.route,
+        description: route.description,
+        mimeType: route.mimeType,
+        accepts: [
+          {
+            scheme: route.accepts.scheme,
+            network: route.accepts.network,
+            payTo: route.accepts.payTo,
+            currency: route.accepts.currency,
+            minAmountUsd: route.accepts.minAmountUsd,
+            maxAmountUsd: route.accepts.maxAmountUsd,
+            maxTimeoutSeconds: route.accepts.maxTimeoutSeconds
+          }
+        ]
+      }))
+    };
+  }
+
+  private buildRoutesConfig(): RoutesConfig {
+    const routes: Record<string, RouteConfig> = {};
+
+    for (const route of this.getCanonicalRoutes()) {
+      routes[route.route] = {
+        description: route.description,
+        mimeType: route.mimeType,
+        accepts: {
+          scheme: route.accepts.scheme,
+          network: route.accepts.network,
+          payTo: route.accepts.payTo,
+          price: context => `$${this.parseAmount(context)}`,
+          maxTimeoutSeconds: route.accepts.maxTimeoutSeconds
+        }
+      };
+    }
+
+    return routes;
+  }
+
   private getHttpServer(): x402HTTPResourceServer {
     this.httpServer ??= this.httpServerFactory.create({
       facilitatorUrl: this.config.X402_FACILITATOR_URL,
       network: this.config.X402_NETWORK,
-      routes: {
-        [X402_TOP_UP_ROUTE]: {
-          description: "Top up Akash Console credits with a USDC payment",
-          mimeType: "application/json",
-          accepts: {
-            scheme: "exact",
-            network: this.config.X402_NETWORK,
-            payTo: this.config.X402_PAY_TO_ADDRESS!,
-            price: context => `$${this.parseAmount(context)}`,
-            maxTimeoutSeconds: 300
-          }
-        }
-      }
+      routes: this.buildRoutesConfig()
     });
 
     return this.httpServer;
+  }
+
+  /**
+   * Defence-in-depth guardrail run after the facilitator verifies a payment but before we
+   * settle it on-chain. The verified requirement about to be settled must match the network
+   * we advertise and must exactly match the terms the payer actually authorized. A mismatch
+   * means we never call {@link x402HTTPResourceServer.processSettlement}, so a payment for the
+   * wrong network, wrong asset, or a different amount is never settled or credited.
+   */
+  private validatePreSettle(paymentPayload: PaymentPayload, paymentRequirements: PaymentRequirements): X402ValidationCode | undefined {
+    const authorized = paymentPayload.accepted;
+
+    if (paymentRequirements.network !== this.config.X402_NETWORK || authorized.network !== paymentRequirements.network) {
+      return "WRONG_NETWORK";
+    }
+
+    if (authorized.asset !== paymentRequirements.asset) {
+      return "WRONG_ASSET";
+    }
+
+    if (authorized.amount !== paymentRequirements.amount) {
+      return "AMOUNT_MISMATCH";
+    }
+
+    return undefined;
+  }
+
+  private buildValidationResponse(code: X402ValidationCode, paymentRequirements: PaymentRequirements): HTTPResponseInstructions {
+    return {
+      status: 402,
+      headers: {},
+      body: {
+        x402Version: 2,
+        error: code,
+        accepts: [paymentRequirements]
+      }
+    };
   }
 
   private async initialize(httpServer: x402HTTPResourceServer): Promise<void> {

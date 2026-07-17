@@ -2,10 +2,15 @@ import { HonoAdapter } from "@x402/hono";
 import { container } from "tsyringe";
 
 import { X402Controller } from "@src/billing/controllers/x402/x402.controller";
-import { X402PaymentRequiredResponseSchema, X402TopUpQuerySchema, X402TopUpResponseSchema } from "@src/billing/http-schemas/x402.schema";
+import {
+  X402DiscoveryResponseSchema,
+  X402PaymentRequiredResponseSchema,
+  X402TopUpQuerySchema,
+  X402TopUpResponseSchema
+} from "@src/billing/http-schemas/x402.schema";
 import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
-import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
+import { SECURITY_BEARER_OR_API_KEY, SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 
 export const x402Router = new OpenApiHonoHandler();
 
@@ -60,7 +65,8 @@ x402Router.openapi(topUpRoute, async function x402TopUp(c) {
   );
 
   switch (result.type) {
-    case "payment-required": {
+    case "payment-required":
+    case "payment-rejected": {
       Object.entries(result.response.headers).forEach(([key, value]) => c.header(key, value));
       if (result.response.isHtml) {
         return c.html(String(result.response.body ?? ""), result.response.status as 402);
@@ -74,4 +80,35 @@ x402Router.openapi(topUpRoute, async function x402TopUp(c) {
       return c.json({ data: result.data }, 200);
     }
   }
+});
+
+const discoveryRoute = createRoute({
+  method: "get",
+  operationId: "listPayableResources",
+  path: "/v1/x402/discovery",
+  summary: "Discover x402 payable resources and their accepted payments",
+  description:
+    "Public discovery document listing every x402-protected resource and the payments it accepts " +
+    "(route, scheme, network, asset/amount bounds, payTo). Mirrors the accepts returned in a 402 response, " +
+    "derived from the same canonical source, so agents can plan a payment without first triggering a 402.",
+  tags: ["Payment"],
+  security: SECURITY_NONE,
+  request: {},
+  responses: {
+    200: {
+      description: "The x402 discovery document",
+      content: {
+        "application/json": {
+          schema: X402DiscoveryResponseSchema
+        }
+      }
+    },
+    404: {
+      description: "x402 payments are not enabled"
+    }
+  }
+});
+x402Router.openapi(discoveryRoute, async function x402Discovery(c) {
+  const result = container.resolve(X402Controller).getDiscovery();
+  return c.json(result, 200);
 });
