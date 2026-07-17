@@ -88,8 +88,8 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
   return (
     <>
       <div className="flex w-full flex-col items-center gap-2 text-center">
-        <h1 className="text-[30px] leading-9 text-neutral-950 dark:text-neutral-50">Start deploying</h1>
-        {isOnboardingRedesignEnabled && (
+        <h1 className="text-[30px] leading-9 text-neutral-950 dark:text-neutral-50">{screen === "verify" ? "Check your email" : "Start deploying"}</h1>
+        {isOnboardingRedesignEnabled && screen === "entry" && (
           <p className="text-sm leading-5 text-neutral-500 dark:text-neutral-400">$1 credit to deploy your first container. No card required.</p>
         )}
       </div>
@@ -102,31 +102,34 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
             <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
           </div>
           <d.EmailCodeStart key={`start-${screenKey}`} defaultEmail={email} getCaptchaToken={getCaptchaToken} onStarted={goToVerify} />
-          <p className="text-center text-xs leading-4 text-neutral-500 dark:text-neutral-400">
-            By continuing, you agree to our{" "}
-            <d.Link
-              href="/terms-of-service"
-              prefetch={false}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => analyticsService.track("terms_link_clk")}
-              className="font-medium text-neutral-950 underline dark:text-neutral-50"
-            >
-              Terms
-            </d.Link>{" "}
-            and{" "}
-            <d.Link
-              href="/privacy-policy"
-              prefetch={false}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => analyticsService.track("privacy_policy_link_clk")}
-              className="font-medium text-neutral-950 underline dark:text-neutral-50"
-            >
-              Privacy Policy
-            </d.Link>
-            .
-          </p>
+          <div className="flex flex-col text-center text-xs leading-4 text-neutral-500 dark:text-neutral-400">
+            <p>We&apos;ll email you a 6 digit code. No password to remember.</p>
+            <p>
+              By continuing, you agree to our{" "}
+              <d.Link
+                href="/terms-of-service"
+                prefetch={false}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => analyticsService.track("terms_link_clk")}
+                className="font-medium text-neutral-950 underline dark:text-neutral-50"
+              >
+                Terms
+              </d.Link>{" "}
+              and{" "}
+              <d.Link
+                href="/privacy-policy"
+                prefetch={false}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => analyticsService.track("privacy_policy_link_clk")}
+                className="font-medium text-neutral-950 underline dark:text-neutral-50"
+              >
+                Privacy Policy
+              </d.Link>
+              .
+            </p>
+          </div>
         </>
       )}
       {screen === "verify" && (
