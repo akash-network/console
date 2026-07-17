@@ -52,7 +52,13 @@ export class AppNav {
     await this.page.getByText("API Keys").click();
   }
 
+  /**
+   * `count()` is a snapshot, so sampling it right after a `waitUntil: "commit"` navigation can miss the top nav
+   * before it paints and misclassify the shell as legacy. Both shells render the account menu, and TopNav's
+   * primary nav resolves from the same user state in the same pass, so waiting on it first makes the read reliable.
+   */
   private async isTopNav() {
+    await this.accountMenuButton().waitFor({ state: "visible" });
     return (await this.page.getByRole("navigation", { name: "Primary" }).count()) > 0;
   }
 }
