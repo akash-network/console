@@ -6,7 +6,7 @@ import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { X402TransactionListQuery, X402TransactionListResponse } from "@src/billing/http-schemas/x402.schema";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { X402TransactionRepository } from "@src/billing/repositories/x402-transaction/x402-transaction.repository";
-import type { X402DeployInput, X402DeployProcessResult, X402TopUpProcessResult } from "@src/billing/services/x402/x402.service";
+import type { X402DeployInput, X402DeployProcessResult, X402DiscoveryResult, X402TopUpProcessResult } from "@src/billing/services/x402/x402.service";
 import { X402Service } from "@src/billing/services/x402/x402.service";
 import { X402_ERROR_CODES } from "@src/billing/services/x402/x402-error-codes";
 
@@ -85,5 +85,14 @@ export class X402Controller {
         total
       }
     };
+  }
+
+  // Public discovery document; still 404s when x402 is disabled so agents don't discover a dead route.
+  getDiscovery(): X402DiscoveryResult {
+    if (!this.x402Service.isEnabled) {
+      throw createError(404, "x402 payments are not enabled", { data: { errorCode: X402_ERROR_CODES.X402_DISABLED } });
+    }
+
+    return this.x402Service.getDiscovery();
   }
 }

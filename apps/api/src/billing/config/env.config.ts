@@ -1,11 +1,12 @@
 import dotenv from "dotenv";
 import { z } from "zod";
 
+import { isX402TestnetNetwork } from "@src/billing/config/x402-networks";
 import { AUDITOR } from "@src/deployment/config/provider.config";
 
 dotenv.config({ path: "env/.env.funding-wallet-index" });
 
-export const envSchema = z.object({
+const baseEnvSchema = z.object({
   OLD_MASTER_WALLET_MNEMONIC: z.string().optional(),
   FUNDING_WALLET_MNEMONIC: z.string().optional(),
   FUNDING_WALLET_MNEMONIC_V1: z.string().optional(),
@@ -83,6 +84,22 @@ export const envSchema = z.object({
   X402_RECONCILE_INTERVAL_SECONDS: z.number({ coerce: true }).default(300),
   // Max number of stale `settled` transactions reconciled per run.
   X402_RECONCILE_BATCH_SIZE: z.number({ coerce: true }).default(100)
+});
+
+/**
+ * Sandbox firewall: a testnet x402 settlement network must never be paired with a
+ * mainnet Akash `NETWORK`, otherwise a testnet payment (worthless funds) could settle
+ * and credit a real mainnet balance. Enforced at config-parse time so a misconfigured
+ * deployment fails fast at startup instead of silently crediting free credits.
+ */
+export const envSchema = baseEnvSchema.superRefine((config, ctx) => {
+  if (config.NETWORK === "mainnet" && isX402TestnetNetwork(config.X402_NETWORK)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["X402_NETWORK"],
+      message: `X402_NETWORK "${config.X402_NETWORK}" is a testnet network and cannot be used while NETWORK is "mainnet": a testnet settlement must never credit a mainnet balance. Use a mainnet X402_NETWORK (e.g. eip155:8453) or run with NETWORK=sandbox/testnet.`
+    });
+  }
 });
 
 export type BillingConfig = z.infer<typeof envSchema>;

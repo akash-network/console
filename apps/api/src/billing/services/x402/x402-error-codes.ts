@@ -13,7 +13,19 @@ export const X402_ERROR_CODES = {
   /** 402 — the attached payment failed verification or on-chain settlement. */
   PAYMENT_INVALID: "PAYMENT_INVALID",
   /** 409 — this payment was already used to credit a previous top-up. */
-  DUPLICATE_PAYMENT: "DUPLICATE_PAYMENT"
+  DUPLICATE_PAYMENT: "DUPLICATE_PAYMENT",
+  /** 402 — the verified payment's settlement network differs from the configured/advertised network. */
+  WRONG_NETWORK: "WRONG_NETWORK",
+  /** 402 — the payer authorized a different asset than the one the requirement settles. */
+  WRONG_ASSET: "WRONG_ASSET",
+  /** 402 — the payer's authorized amount differs from the requirement amount. */
+  AMOUNT_MISMATCH: "AMOUNT_MISMATCH"
 } as const;
 
 export type X402ErrorCode = (typeof X402_ERROR_CODES)[keyof typeof X402_ERROR_CODES];
+
+/**
+ * Pre-settle guardrail rejection codes — the subset of {@link X402_ERROR_CODES} returned when a
+ * verified payment is rejected before on-chain settlement (see `X402Service.validatePreSettle`).
+ */
+export type X402ValidationCode = typeof X402_ERROR_CODES.WRONG_NETWORK | typeof X402_ERROR_CODES.WRONG_ASSET | typeof X402_ERROR_CODES.AMOUNT_MISMATCH;
