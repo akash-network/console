@@ -68,7 +68,7 @@ export const ReclamationSection: FC<Props> = ({ locked = false }) => {
             value={field.value ?? ""}
             onValueChange={value => field.onChange(value === RECLAMATION_ANY_VALUE ? undefined : (value as ReclamationMinWindow))}
           >
-            <SelectTrigger aria-label="Reclamation" className="h-8 w-full text-xs">
+            <SelectTrigger aria-label="Reclamation" className="h-9 w-full text-xs">
               <SelectValue placeholder="Any" />
             </SelectTrigger>
             <SelectContent>
