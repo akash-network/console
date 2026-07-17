@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test";
 import { skipUnlessOnboardingRedesign } from "./actions/feature-flags";
 import { expect, test } from "./fixture/base-test";
 import { testEnvConfig } from "./fixture/test-env.config";
+import { AppNav } from "./pages/AppNav";
 
 /**
  * Exercises the onboarding gate's routing contract with `onboarding_redesign_v1` enabled (the test env has it on):
@@ -72,7 +73,7 @@ test.describe("Onboarding gate — onboarded user", () => {
 
     await test.step("can open the app home — where a not-onboarded user is bounced", async () => {
       await visit(page, "/");
-      await expect(page.getByLabel("Connected wallet name and balance")).toBeVisible({ timeout: 60_000 });
+      await expect(new AppNav(page).accountMenuButton()).toBeVisible({ timeout: 60_000 });
     });
   });
 

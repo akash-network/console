@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 
 import { testEnvConfig } from "../fixture/test-env.config";
+import { AppNav } from "../pages/AppNav";
 import { AuthPage } from "../pages/AuthPage";
 import { AuthPagePasswordless } from "../pages/AuthPagePasswordless";
 import type { Auth0ManagementService } from "../services/auth0-management.service";
@@ -67,7 +68,7 @@ export async function loginExistingUser(page: Page): Promise<void> {
   await signInWithPassword(page, { email, password });
 
   await page.waitForURL(url => !url.pathname.includes("/login"), { timeout: 15_000 });
-  await page.getByLabel("Connected wallet name and balance").waitFor({ timeout: 30_000 });
+  await new AppNav(page).accountMenuButton().waitFor({ timeout: 30_000 });
 }
 
 /**

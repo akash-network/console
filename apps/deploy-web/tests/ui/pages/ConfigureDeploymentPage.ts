@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 
 import { testEnvConfig } from "../fixture/test-env.config";
-import { Sidebar } from "./Sidebar";
+import { AppNav } from "./AppNav";
 
 /**
  * Drives the "Configure your deployment" screen and its quoting lifecycle: configure a spec, request
@@ -17,13 +17,13 @@ export class ConfigureDeploymentPage {
   }
 
   /**
-   * Reaches the configure screen the way a user does — from the app home, opening the sidebar's Deploy entry
-   * (the classic deployment-type/template picker), then choosing "Run Custom Container" (bring your own image),
-   * which routes on to configure under the onboarding redesign — rather than deep-linking to the URL.
+   * Reaches the configure screen the way a user does — from the app home, opening the Deploy entry in whichever
+   * nav is rendered (the classic deployment-type/template picker), then choosing "Run Custom Container" (bring
+   * your own image), which routes on to configure under the onboarding redesign — rather than deep-linking to the URL.
    */
   async open() {
     await this.page.goto(`${testEnvConfig.BASE_URL}/`, { waitUntil: "commit" });
-    await new Sidebar(this.page).openDeploy();
+    await new AppNav(this.page).openDeploy();
     await this.page.getByLabel("Run Custom Container").click({ timeout: 60_000 });
     await this.page.getByRole("heading", { name: "Configure your deployment" }).waitFor({ state: "visible", timeout: 30_000 });
   }

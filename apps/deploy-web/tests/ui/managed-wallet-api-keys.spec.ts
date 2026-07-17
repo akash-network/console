@@ -1,5 +1,6 @@
 import { expect, test } from "./fixture/base-test";
 import { ApiKeysPage } from "./pages/ApiKeysPage";
+import { AppNav } from "./pages/AppNav";
 
 test.describe("Managed wallet API keys", () => {
   test.use({ userType: "existing" });
@@ -9,9 +10,8 @@ test.describe("Managed wallet API keys", () => {
   test("creates and deletes an API key", async ({ page }) => {
     const apiKeysPage = new ApiKeysPage(page);
 
-    await test.step("navigate to API keys via account menu", async () => {
-      await page.getByRole("button", { name: /account menu/i }).click();
-      await page.getByText("API Keys").click();
+    await test.step("navigate to API keys", async () => {
+      await new AppNav(page).openApiKeys();
       await apiKeysPage.waitForPage();
     });
 
