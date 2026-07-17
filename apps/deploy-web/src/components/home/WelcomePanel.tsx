@@ -5,6 +5,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { Learning, NavArrowDown, Rocket, SearchEngine } from "iconoir-react";
 import Link from "next/link";
 
+import { Title } from "@src/components/shared/Title";
 import { useServices } from "@src/context/ServicesProvider";
 
 export const WelcomePanel: React.FC = () => {
@@ -14,7 +15,7 @@ export const WelcomePanel: React.FC = () => {
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-3xl">Welcome to Akash Console!</h2>
+        <Title>Welcome to Akash Console!</Title>
         <CollapsibleTrigger asChild>
           <Button size="icon" variant="ghost" className="!m-0 rounded-full" onClick={() => setExpanded(prev => !prev)}>
             <NavArrowDown fontSize="1rem" className={cn("transition-all duration-100", { ["rotate-180"]: expanded })} />

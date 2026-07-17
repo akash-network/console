@@ -6,6 +6,7 @@ import { Trash } from "iconoir-react";
 
 import { ApiKeyDocsBanner } from "@src/components/api-keys/ApiKeyDocsBanner";
 import { CreateApiKeyModal } from "@src/components/api-keys/CreateApiKeyModal";
+import { Title } from "@src/components/shared/Title";
 import { useWallet } from "@src/context/WalletProvider";
 
 interface Props {
@@ -56,10 +57,10 @@ export function ApiKeyList({ apiKeys, onDeleteApiKey, onDeleteClose, isDeleting,
         </Popup>
       )}
 
-      <div className="py-6">
+      <div className="pb-6">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl">API Keys</h1>
+            <Title>API Keys</Title>
           </div>
           <Button size="sm" onClick={() => setIsCreateModalOpen(true)}>
             Create Key
