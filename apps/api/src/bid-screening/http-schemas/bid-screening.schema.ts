@@ -89,14 +89,26 @@ const RequirementsSchema = z.object({
   attributes: z.array(AttributeSchema).default([])
 });
 
-const SUPPORTED_TIMEZONES = new Set(Intl.supportedValuesOf("timeZone"));
+/**
+ * Accepts any IANA zone the runtime recognizes, including aliases such as `Asia/Kolkata`, `UTC`, or
+ * `US/Eastern` that browsers report but `Intl.supportedValuesOf("timeZone")` omits (it lists only
+ * canonical names). Mirrors what Postgres `AT TIME ZONE` accepts downstream.
+ */
+function isSupportedTimeZone(timeZone: string): boolean {
+  try {
+    new Intl.DateTimeFormat(undefined, { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}
 export const BidScreeningRequestSchema = z.object({
   requirements: RequirementsSchema.default({}),
   resources: z.array(ResourceUnitSchema).openapi({ description: "Resource units with replica counts" }),
   timezone: z
     .string()
-    .refine(val => SUPPORTED_TIMEZONES.has(val), { message: "Timezone is not supported" })
-    .openapi({ description: "Client timezone, validated against supported Node.js Intl timezones", example: "America/Chicago" }),
+    .refine(isSupportedTimeZone, { message: "Timezone is not supported" })
+    .openapi({ description: "Client IANA timezone, validated against zones the runtime recognizes", example: "America/Chicago" }),
   reclamationWindow: z.number().int().positive().optional().openapi({
     description:
       "Optional reclamation window in seconds; if provided, only providers with a reclamationWindow greater than or equal to this value will be considered",
