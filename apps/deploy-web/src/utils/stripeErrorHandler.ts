@@ -125,6 +125,10 @@ function handleErrorByCode(errorCode: string, originalMessage?: string): StripeE
       message: "Your payment is still being processed.",
       userAction: "Wait a moment, then check your balance before retrying."
     },
+    idempotency_key_mismatch: {
+      message: "This payment request conflicts with a previous attempt.",
+      userAction: "Check your balance, then start a new payment."
+    },
     rate_limited: {
       message: "Too many payment attempts. Please wait a moment and try again.",
       userAction: "Wait a moment and try again."

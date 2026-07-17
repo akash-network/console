@@ -14,6 +14,8 @@ const MAX_ATTEMPTS = MAX_POLLING_DURATION_MS / POLLING_INTERVAL_MS;
 
 export type PaymentPollingVariant = "payment" | "coupon";
 
+export type PaymentPollingOutcome = "success" | "timeout";
+
 /**
  * Snackbar copy per flow. The coupon flow avoids "payment" wording since redeeming a coupon is not a charge.
  * The `timeout` copy deliberately frames an exhausted poll as still-pending, not failed: the charge usually
@@ -65,6 +67,14 @@ export interface PaymentPollingContextType {
    * Whether currently polling
    */
   isPolling: boolean;
+  /**
+   * Terminal outcome of the most recent poll: "success" once settlement was
+   * confirmed (balance rose or the trial flipped), "timeout" when polling
+   * exhausted without confirmation — the payment may still settle later, so
+   * exhaustion must not be treated as completion. Null while polling or
+   * before the first poll.
+   */
+  lastOutcome: PaymentPollingOutcome | null;
 }
 
 const PaymentPollingContext = createContext<PaymentPollingContextType | null>(null);
@@ -82,6 +92,7 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
   const { analyticsService } = d.useServices();
 
   const [isPolling, setIsPolling] = React.useState(false);
+  const [lastOutcome, setLastOutcome] = React.useState<PaymentPollingOutcome | null>(null);
   const pollingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPollingRef = useRef<boolean>(false);
   const attemptCountRef = useRef<number>(0);
@@ -118,6 +129,7 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
 
     if (attemptCountRef.current > MAX_ATTEMPTS) {
       stopPolling();
+      setLastOutcome(hasSignaledSuccessRef.current ? "success" : "timeout");
       if (!hasSignaledSuccessRef.current) {
         const { title, subTitle } = POLLING_COPY[variantRef.current].timeout;
         enqueueSnackbar(<d.Snackbar title={title} subTitle={subTitle} iconVariant="info" />, {
@@ -144,6 +156,7 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
       hasSignaledSuccessRef.current = false;
       isPollingRef.current = true;
       attemptCountRef.current = 0;
+      setLastOutcome(null);
       setIsPolling(true);
 
       const { title, subTitle } = POLLING_COPY[variantRef.current].loading;
@@ -218,6 +231,7 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
         });
       } else {
         stopPolling();
+        setLastOutcome("success");
       }
     },
     [isPolling, currentBalance, wasTrialing, stopPolling, enqueueSnackbar, analyticsService, d, closeLoadingSnackbar]
@@ -231,6 +245,7 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
 
       if (initialTrialingRef.current && !wasTrialing) {
         stopPolling();
+        setLastOutcome("success");
 
         enqueueSnackbar(
           <d.Snackbar title="Welcome to Akash!" subTitle="Your trial has been completed. You now have full access to the platform." iconVariant="success" />,
@@ -253,7 +268,8 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
   const contextValue: PaymentPollingContextType = {
     pollForPayment,
     stopPolling,
-    isPolling
+    isPolling,
+    lastOutcome
   };
 
   return <PaymentPollingContext.Provider value={contextValue}>{children}</PaymentPollingContext.Provider>;

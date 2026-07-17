@@ -3,11 +3,18 @@ import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
 /**
- * Thrown when a retried attempt reuses an idempotency key whose first delivery is still executing
- * (or recorded a different amount). Maps to 409 so the client keeps its attempt key and retries the
- * same attempt instead of minting a new charge.
+ * Thrown when a retried attempt reuses an idempotency key whose first delivery is still executing.
+ * Maps to 409 so the client keeps its attempt key and retries the same attempt instead of minting a
+ * new charge.
  */
 export const PAYMENT_IN_PROGRESS_ERROR_MESSAGE = "A payment for this request is already in progress. Please wait a moment and try again.";
+
+/**
+ * Thrown when a reused idempotency key carries different parameters (e.g. a changed amount) than
+ * the attempt it recorded. Unlike an in-progress conflict this can never resolve by retrying, so it
+ * maps to a 409 with a distinct code telling the client to rotate its attempt key.
+ */
+export const IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE = "This payment was already requested with different parameters. Please start a new payment attempt.";
 
 @singleton()
 export class StripeErrorService {
@@ -82,6 +89,10 @@ export class StripeErrorService {
     [PAYMENT_IN_PROGRESS_ERROR_MESSAGE]: {
       code: 409,
       message: PAYMENT_IN_PROGRESS_ERROR_MESSAGE
+    },
+    [IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE]: {
+      code: 409,
+      message: IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE
     }
   };
 
@@ -214,6 +225,8 @@ export class StripeErrorService {
       return "card_validation_failed";
     } else if (messageLower.includes("already in progress")) {
       return "payment_in_progress";
+    } else if (messageLower.includes("different parameters")) {
+      return "idempotency_key_mismatch";
     }
 
     return "unknown_payment_error";
@@ -393,7 +406,7 @@ export class StripeErrorService {
   private handleIdempotencyError(error: Stripe.errors.StripeIdempotencyError): HttpError {
     return createError(409, "This request conflicts with a previous request. Please try again with different parameters.", {
       originalError: error,
-      errorCode: "conflict",
+      errorCode: "idempotency_key_mismatch",
       errorType: "client_error"
     });
   }

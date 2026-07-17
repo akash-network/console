@@ -7,7 +7,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { PaymentMethodRepository, StripeTransactionRepository } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { PAYMENT_IN_PROGRESS_ERROR_MESSAGE } from "@src/billing/services/stripe-error/stripe-error.service";
+import { IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE, PAYMENT_IN_PROGRESS_ERROR_MESSAGE } from "@src/billing/services/stripe-error/stripe-error.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
 import type { UserRepository } from "@src/user/repositories";
 import { StripeService } from "./stripe.service";
@@ -250,8 +250,28 @@ describe(StripeService.name, () => {
         const transaction = generateDatabaseStripeTransaction({ amount: 5000, status: "created", stripePaymentIntentId: null });
         stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: false });
 
-        await expect(service.createPaymentIntent(keyedParams)).rejects.toThrow(PAYMENT_IN_PROGRESS_ERROR_MESSAGE);
+        await expect(service.createPaymentIntent(keyedParams)).rejects.toThrow(IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE);
         expect(service.paymentIntents.create).not.toHaveBeenCalled();
+        expect(stripeTransactionRepository.updateByIdUnlessSettled).not.toHaveBeenCalled();
+      });
+
+      it.each(["succeeded", "refunded"] as const)("rejects a reused top-up key whose amount changed instead of replaying the %s row", async status => {
+        const { service, stripeTransactionRepository } = setup();
+        const transaction = generateDatabaseStripeTransaction({ amount: 5000, status, stripePaymentIntentId: "pi_replayed" });
+        stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: false });
+
+        await expect(service.createPaymentIntent(keyedParams)).rejects.toThrow(IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE);
+        expect(service.paymentIntents.create).not.toHaveBeenCalled();
+        expect(service.paymentIntents.retrieve).not.toHaveBeenCalled();
+      });
+
+      it("rejects a reused top-up key whose amount changed before resuming the recorded intent", async () => {
+        const { service, stripeTransactionRepository } = setup();
+        const transaction = generateDatabaseStripeTransaction({ amount: 5000, status: "pending", stripePaymentIntentId: "pi_live" });
+        stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: false });
+
+        await expect(service.createPaymentIntent(keyedParams)).rejects.toThrow(IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE);
+        expect(service.paymentIntents.retrieve).not.toHaveBeenCalled();
         expect(stripeTransactionRepository.updateByIdUnlessSettled).not.toHaveBeenCalled();
       });
 
@@ -314,6 +334,80 @@ describe(StripeService.name, () => {
           expect.objectContaining({ status: "failed", errorMessage: "socket hang up" })
         );
         expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      });
+
+      describe("when a webhook settles the row mid-request", () => {
+        it("responds with the settled outcome when the guard suppresses the fresh-charge update", async () => {
+          const { service, stripeTransactionRepository } = setup();
+          const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "created", stripeIdempotencyKey: idempotencyKey });
+          stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: true });
+          stripeTransactionRepository.updateByIdUnlessSettled.mockResolvedValue(undefined);
+          stripeTransactionRepository.findById.mockResolvedValue({ ...transaction, status: "succeeded", stripePaymentIntentId: "pi_settled" });
+
+          const result = await service.createPaymentIntent(keyedParams);
+
+          expect(result).toEqual({
+            success: true,
+            paymentIntentId: "pi_settled",
+            transactionId: transaction.id,
+            transactionStatus: "succeeded"
+          });
+        });
+
+        it("responds with the settled outcome when the guard suppresses the resumed-intent update", async () => {
+          const { service, stripeTransactionRepository } = setup();
+          const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "pending", stripePaymentIntentId: "pi_live" });
+          stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: false });
+          vi.mocked(service.paymentIntents.retrieve).mockResolvedValue(createTestPaymentIntent({ id: "pi_live", status: "processing" }));
+          stripeTransactionRepository.updateByIdUnlessSettled.mockResolvedValue(undefined);
+          stripeTransactionRepository.findById.mockResolvedValue({ ...transaction, status: "succeeded" });
+
+          const result = await service.createPaymentIntent(keyedParams);
+
+          expect(result).toEqual({
+            success: true,
+            paymentIntentId: "pi_live",
+            transactionId: transaction.id,
+            transactionStatus: "succeeded"
+          });
+        });
+
+        it("responds with the settled outcome instead of throwing the stale decline", async () => {
+          const { service, stripeTransactionRepository } = setup();
+          const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "pending", stripePaymentIntentId: "pi_live" });
+          stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: false });
+          vi.mocked(service.paymentIntents.retrieve).mockResolvedValue(createTestPaymentIntent({ id: "pi_live", status: "requires_payment_method" }));
+          stripeTransactionRepository.updateByIdUnlessSettled.mockResolvedValue(undefined);
+          stripeTransactionRepository.findById.mockResolvedValue({ ...transaction, status: "succeeded" });
+
+          const result = await service.createPaymentIntent(keyedParams);
+
+          expect(result).toEqual(expect.objectContaining({ success: true, transactionStatus: "succeeded" }));
+        });
+
+        it("responds with the settled outcome instead of rethrowing a stale charge error", async () => {
+          const { service, stripeTransactionRepository } = setup();
+          const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "created", stripeIdempotencyKey: idempotencyKey });
+          stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: true });
+          vi.mocked(service.paymentIntents.create).mockRejectedValue(new Error("socket hang up"));
+          stripeTransactionRepository.updateByIdUnlessSettled.mockResolvedValue(undefined);
+          stripeTransactionRepository.findById.mockResolvedValue({ ...transaction, status: "succeeded", stripePaymentIntentId: "pi_settled" });
+
+          const result = await service.createPaymentIntent(keyedParams);
+
+          expect(result).toEqual(expect.objectContaining({ success: true, paymentIntentId: "pi_settled", transactionStatus: "succeeded" }));
+        });
+
+        it("rethrows the original error when the suppressed row is not actually settled", async () => {
+          const { service, stripeTransactionRepository } = setup();
+          const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "created", stripeIdempotencyKey: idempotencyKey });
+          stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: true });
+          vi.mocked(service.paymentIntents.create).mockRejectedValue(new Error("socket hang up"));
+          stripeTransactionRepository.updateByIdUnlessSettled.mockResolvedValue(undefined);
+          stripeTransactionRepository.findById.mockResolvedValue({ ...transaction, status: "failed" });
+
+          await expect(service.createPaymentIntent(keyedParams)).rejects.toThrow("socket hang up");
+        });
       });
     });
   });

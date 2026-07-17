@@ -261,7 +261,7 @@ describe(AddCreditsForm.name, () => {
     await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, "Acme", 0));
   });
 
-  it("shows an error when polling stops without the trial flipping", async () => {
+  it("shows an error when polling confirms payment but the trial does not flip", async () => {
     const confirmPayment = vi.fn().mockResolvedValue({ success: true });
     const onDone = vi.fn();
     const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1", organization: "Acme" });
@@ -742,10 +742,8 @@ describe(AddCreditsForm.name, () => {
       fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
     });
 
-    rerender({ status: "idle", confirmPayment, isTrialing: true, isPolling: true, paymentMethods: methods });
-    rerender({ status: "idle", confirmPayment, isTrialing: true, isPolling: false, paymentMethods: methods });
-
-    expect(await screen.findByText(/payment did not complete in time/i)).toBeInTheDocument();
+    rerender({ status: "idle", confirmPayment, isTrialing: true, isPolling: true, lastOutcome: null, paymentMethods: methods });
+    rerender({ status: "idle", confirmPayment, isTrialing: true, isPolling: false, lastOutcome: "timeout", paymentMethods: methods });
 
     await act(async () => {
       fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
@@ -754,6 +752,86 @@ describe(AddCreditsForm.name, () => {
     expect(confirmPayment).toHaveBeenCalledTimes(2);
     const keys = confirmPayment.mock.calls.map(call => call[0].idempotencyKey);
     expect(keys[1]).toBe(keys[0]);
+  });
+
+  it("does not complete or rotate the key when polling exhausts without confirming the payment", async () => {
+    const confirmPayment = vi.fn().mockResolvedValue({ success: true });
+    const onDone = vi.fn();
+    const methods = [paymentMethod({ id: "pm_saved", isDefault: true })];
+    const { rerender } = setup({ status: "idle", confirmPayment, onDone, isTrialing: false, isPolling: false, paymentMethods: methods });
+
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    rerender({ status: "idle", confirmPayment, onDone, isTrialing: false, isPolling: true, lastOutcome: null, paymentMethods: methods });
+    rerender({ status: "idle", confirmPayment, onDone, isTrialing: false, isPolling: false, lastOutcome: "timeout", paymentMethods: methods });
+
+    expect(onDone).not.toHaveBeenCalled();
+    expect(screen.queryByText(/payment did not complete in time/i)).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    const keys = confirmPayment.mock.calls.map(call => call[0].idempotencyKey);
+    expect(keys[1]).toBe(keys[0]);
+  });
+
+  it("does not reuse a stored attempt key older than the 24h replay window", async () => {
+    const confirmPayment = vi.fn().mockResolvedValue({ success: true });
+    const staleKey = "11111111-2222-4333-8444-555555555555";
+    window.sessionStorage.setItem(
+      "add-credits-attempt",
+      JSON.stringify({ key: staleKey, amountCents: 10000, paymentMethodId: "pm_saved", userId: "user_1", createdAt: Date.now() - 25 * 60 * 60 * 1000 })
+    );
+    setup({ status: "idle", confirmPayment, paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })] });
+
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    expect(confirmPayment.mock.calls[0][0].idempotencyKey).not.toBe(staleKey);
+  });
+
+  it("reuses a stored attempt key that is still inside the 24h replay window", async () => {
+    const confirmPayment = vi.fn().mockResolvedValue({ success: true });
+    const recentKey = "11111111-2222-4333-8444-555555555555";
+    window.sessionStorage.setItem(
+      "add-credits-attempt",
+      JSON.stringify({ key: recentKey, amountCents: 10000, paymentMethodId: "pm_saved", userId: "user_1", createdAt: Date.now() - 23 * 60 * 60 * 1000 })
+    );
+    setup({ status: "idle", confirmPayment, paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })] });
+
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    expect(confirmPayment.mock.calls[0][0].idempotencyKey).toBe(recentKey);
+  });
+
+  it("rotates the key after a definitive 409 idempotency-key mismatch", async () => {
+    const confirmPayment = vi
+      .fn()
+      .mockRejectedValueOnce({ response: { status: 409, data: { code: "idempotency_key_mismatch", message: "mismatch" } } })
+      .mockResolvedValue({ success: true });
+    setup({ status: "idle", confirmPayment, paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })] });
+
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    const keys = confirmPayment.mock.calls.map(call => call[0].idempotencyKey);
+    expect(keys[1]).not.toBe(keys[0]);
   });
 
   it("mints a fresh key for the next purchase after the flow completes", async () => {
@@ -1003,6 +1081,7 @@ describe(AddCreditsForm.name, () => {
     onProcessingChange?: (isProcessing: boolean) => void;
     isTrialing?: boolean;
     isPolling?: boolean;
+    lastOutcome?: ReturnType<typeof DEPENDENCIES.usePaymentPolling>["lastOutcome"];
     isWalletReady?: boolean;
     walletBalanceUsd?: number;
     paymentMethods?: PaymentMethod[];
@@ -1037,7 +1116,8 @@ describe(AddCreditsForm.name, () => {
       mock<ReturnType<typeof DEPENDENCIES.usePaymentPolling>>({
         pollForPayment: input.pollForPayment ?? vi.fn(),
         stopPolling: vi.fn(),
-        isPolling: input.isPolling ?? false
+        isPolling: input.isPolling ?? false,
+        lastOutcome: input.lastOutcome === undefined ? "success" : input.lastOutcome
       });
 
     const useWallet: typeof DEPENDENCIES.useWallet = () =>

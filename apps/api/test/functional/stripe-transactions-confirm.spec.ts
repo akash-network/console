@@ -65,6 +65,7 @@ describe("Stripe transactions confirm", () => {
       nock("https://api.stripe.com")
         .get(`/v1/payment_methods/${paymentMethodId}`)
         .reply(200, { id: paymentMethodId, object: "payment_method", customer: stripeCustomerId });
+      const paymentIntentCreateScope = nock("https://api.stripe.com").post("/v1/payment_intents").reply(500);
 
       const response = await confirmPayment(token, { userId: user.userId!, paymentMethodId, amount: 20, idempotencyKey: clientKey });
 
@@ -77,6 +78,7 @@ describe("Stripe transactions confirm", () => {
         })
       );
       expect(await stripeTransactionRepository.find({ userId: user.id })).toHaveLength(1);
+      expect(paymentIntentCreateScope.isDone()).toBe(false);
     });
   });
 

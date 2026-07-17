@@ -120,6 +120,25 @@ describe("StripeErrorHandler", () => {
       expect(result.userAction).toBe("Wait a moment, then check your balance before retrying.");
     });
 
+    it("tells the user to start over for the idempotency_key_mismatch code", () => {
+      const error = {
+        response: {
+          status: 409,
+          data: {
+            error: "ConflictError",
+            message: "This payment was already requested with different parameters. Please start a new payment attempt.",
+            code: "idempotency_key_mismatch",
+            type: "payment_error"
+          }
+        }
+      };
+
+      const result = handleStripeError(error);
+
+      expect(result.message).toBe("This payment request conflicts with a previous attempt.");
+      expect(result.userAction).toBe("Check your balance, then start a new payment.");
+    });
+
     it("should handle insufficient funds error codes", () => {
       const error = {
         response: {

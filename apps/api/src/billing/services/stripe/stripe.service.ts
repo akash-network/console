@@ -21,7 +21,7 @@ import {
   StripeTransactionRepository
 } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { PAYMENT_IN_PROGRESS_ERROR_MESSAGE } from "@src/billing/services/stripe-error/stripe-error.service";
+import { IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE, PAYMENT_IN_PROGRESS_ERROR_MESSAGE } from "@src/billing/services/stripe-error/stripe-error.service";
 import { type CreateLogger, LOGGER_FACTORY, WithTransaction } from "@src/core";
 import { TimerService } from "@src/core/services/timer/timer.service";
 import type { TransactionCsvRow } from "@src/types/transactions";
@@ -253,6 +253,8 @@ export class StripeService extends Stripe {
       hasPaymentIntent: !!transaction.stripePaymentIntentId
     });
 
+    this.#ensureReusedKeyAmountConsistency(transaction, params.idempotencyKey, amountInCents);
+
     if (SETTLED_TRANSACTION_STATUSES.has(transaction.status)) {
       this.loggerService.info({
         event: "PAYMENT_INTENT_REPLAY_SHORT_CIRCUIT",
@@ -271,8 +273,6 @@ export class StripeService extends Stripe {
     if (transaction.stripePaymentIntentId) {
       return await this.#resumeFromRecordedPaymentIntent(transaction, transaction.stripePaymentIntentId);
     }
-
-    this.#ensureReusedKeyAmountConsistency(transaction, params.idempotencyKey, amountInCents);
 
     return await this.#chargePaymentIntent(transaction, params);
   }
@@ -297,7 +297,12 @@ export class StripeService extends Stripe {
         }
 
         if (update.status) {
-          await this.stripeTransactionRepository.updateByIdUnlessSettled(transaction.id, update);
+          const updated = await this.stripeTransactionRepository.updateByIdUnlessSettled(transaction.id, update);
+
+          if (!updated) {
+            const settled = await this.#resultFromSettledWinner(transaction.id, paymentIntent.id);
+            if (settled) return settled;
+          }
         }
 
         return {
@@ -322,10 +327,15 @@ export class StripeService extends Stripe {
       default: {
         const message = paymentIntent.last_payment_error?.message ?? transaction.errorMessage ?? "Payment method was declined. Please try a different card.";
 
-        await this.stripeTransactionRepository.updateByIdUnlessSettled(transaction.id, {
+        const updated = await this.stripeTransactionRepository.updateByIdUnlessSettled(transaction.id, {
           status: this.mapPaymentIntentStatusToTransactionStatus(paymentIntent.status),
           errorMessage: message
         });
+
+        if (!updated) {
+          const settled = await this.#resultFromSettledWinner(transaction.id, paymentIntent.id);
+          if (settled) return settled;
+        }
 
         throw createError(402, message, { errorCode: "card_declined", errorType: "payment_error" });
       }
@@ -333,11 +343,11 @@ export class StripeService extends Stripe {
   }
 
   /**
-   * A reused key must charge the amount recorded on its row so Stripe's byte-identical replay
-   * contract holds. Top-up keys reject a changed amount because the client rotates its key whenever
-   * the amount changes, so a mismatch means a stale or misbehaving client. Wallet-reload keys
-   * tolerate it (the reload job recomputes a live amount on every redelivery of the same job id)
-   * and the charge proceeds with the recorded amount.
+   * A reused key must request the amount recorded on its row so a replay can never report success
+   * for a different amount than was charged. Top-up keys reject a changed amount as a definitive
+   * mismatch (the client rotates its key whenever the amount changes, so this only means a stale or
+   * misbehaving client). Wallet-reload keys tolerate it (the reload job recomputes a live amount on
+   * every redelivery of the same job id) and the flow proceeds with the recorded amount.
    */
   #ensureReusedKeyAmountConsistency(transaction: StripeTransactionOutput, idempotencyKey: string, requestedAmountInCents: number): void {
     if (transaction.amount === requestedAmountInCents) {
@@ -355,8 +365,34 @@ export class StripeService extends Stripe {
     });
 
     if (isTopUpKey) {
-      throw new Error(PAYMENT_IN_PROGRESS_ERROR_MESSAGE);
+      throw new Error(IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE);
     }
+  }
+
+  /**
+   * When updateByIdUnlessSettled() suppresses a write, a webhook settled the row mid-request and its
+   * outcome is authoritative. Responding from the request's now-stale view would report a credited
+   * payment as still pending (or as a failure), so the settled row drives the response instead.
+   */
+  async #resultFromSettledWinner(transactionId: string, fallbackPaymentIntentId?: string): Promise<PaymentIntentResult | undefined> {
+    const winner = await this.stripeTransactionRepository.findById(transactionId);
+
+    if (!winner || !SETTLED_TRANSACTION_STATUSES.has(winner.status)) {
+      return undefined;
+    }
+
+    this.loggerService.info({
+      event: "PAYMENT_INTENT_SETTLED_MID_REQUEST",
+      transactionId,
+      status: winner.status
+    });
+
+    return {
+      success: true,
+      paymentIntentId: winner.stripePaymentIntentId ?? fallbackPaymentIntentId,
+      transactionId: winner.id,
+      transactionStatus: winner.status
+    };
   }
 
   async #chargePaymentIntent(
@@ -390,7 +426,12 @@ export class StripeService extends Stripe {
         update.status = this.mapPaymentIntentStatusToTransactionStatus(paymentIntent.status);
       }
 
-      await this.stripeTransactionRepository.updateByIdUnlessSettled(transaction.id, update);
+      const updated = await this.stripeTransactionRepository.updateByIdUnlessSettled(transaction.id, update);
+
+      if (!updated) {
+        const settled = await this.#resultFromSettledWinner(transaction.id, paymentIntent.id);
+        if (settled) return settled;
+      }
 
       const transactionStatus = update.status ?? transaction.status;
 
@@ -431,11 +472,17 @@ export class StripeService extends Stripe {
         paymentIntentId = rawError.payment_intent?.id;
       }
 
-      await this.stripeTransactionRepository.updateByIdUnlessSettled(transaction.id, {
+      const updated = await this.stripeTransactionRepository.updateByIdUnlessSettled(transaction.id, {
         status: "failed",
         errorMessage: error instanceof Error ? error.message : "Unknown error",
         stripePaymentIntentId: paymentIntentId
       });
+
+      if (!updated) {
+        const settled = await this.#resultFromSettledWinner(transaction.id, paymentIntentId);
+        if (settled) return settled;
+      }
+
       throw error;
     }
   }

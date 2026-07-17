@@ -267,6 +267,90 @@ describe(PaymentPollingProvider.name, () => {
     cleanup();
   });
 
+  it("reports a timeout outcome when polling exhausts without confirming the payment", async () => {
+    const { pumpPollCycles, cleanup } = setup({
+      isTrialing: false,
+      balance: { totalUsd: 100 },
+      isWalletBalanceLoading: false
+    });
+
+    await act(async () => {
+      screen.getByTestId("start-polling").click();
+    });
+
+    expect(screen.queryByTestId("last-outcome")).toHaveTextContent("null");
+
+    await pumpPollCycles(16);
+
+    expect(screen.queryByTestId("is-polling")).toHaveTextContent("false");
+    expect(screen.queryByTestId("last-outcome")).toHaveTextContent("timeout");
+
+    cleanup();
+  });
+
+  it("reports a success outcome when the balance increase is confirmed", async () => {
+    const { setBalance, cleanup } = setup({
+      isTrialing: false,
+      balance: { totalUsd: 100 },
+      isWalletBalanceLoading: false
+    });
+
+    await act(async () => {
+      screen.getByTestId("start-polling").click();
+    });
+
+    await setBalance({ totalUsd: 200 });
+
+    expect(screen.queryByTestId("is-polling")).toHaveTextContent("false");
+    expect(screen.queryByTestId("last-outcome")).toHaveTextContent("success");
+
+    cleanup();
+  });
+
+  it("reports a success outcome when the trial flips", async () => {
+    const { setIsTrialing, advancePollCycle, cleanup } = setup({
+      isTrialing: true,
+      balance: { totalUsd: 100 },
+      isWalletBalanceLoading: false
+    });
+
+    await act(async () => {
+      screen.getByTestId("start-polling").click();
+    });
+
+    await setIsTrialing(false);
+    await advancePollCycle();
+
+    expect(screen.queryByTestId("is-polling")).toHaveTextContent("false");
+    expect(screen.queryByTestId("last-outcome")).toHaveTextContent("success");
+
+    cleanup();
+  });
+
+  it("resets the outcome when a new poll starts", async () => {
+    const { pumpPollCycles, cleanup } = setup({
+      isTrialing: false,
+      balance: { totalUsd: 100 },
+      isWalletBalanceLoading: false
+    });
+
+    await act(async () => {
+      screen.getByTestId("start-polling").click();
+    });
+
+    await pumpPollCycles(16);
+
+    expect(screen.queryByTestId("last-outcome")).toHaveTextContent("timeout");
+
+    await act(async () => {
+      screen.getByTestId("start-polling").click();
+    });
+
+    expect(screen.queryByTestId("last-outcome")).toHaveTextContent("null");
+
+    cleanup();
+  });
+
   it("shows coupon copy instead of payment copy for a coupon redemption", async () => {
     const { enqueueSnackbar, setIsTrialing, advancePollCycle, cleanup } = setup({
       isTrialing: true,
@@ -346,10 +430,11 @@ describe(PaymentPollingProvider.name, () => {
     } as unknown as typeof DEPENDENCIES;
 
     const TestComponent = () => {
-      const { pollForPayment, stopPolling, isPolling } = usePaymentPolling();
+      const { pollForPayment, stopPolling, isPolling, lastOutcome } = usePaymentPolling();
       return (
         <div>
           <div data-testid="is-polling">{isPolling.toString()}</div>
+          <div data-testid="last-outcome">{String(lastOutcome)}</div>
           <button data-testid="start-polling" onClick={() => pollForPayment()}>
             Start Polling
           </button>
@@ -380,6 +465,12 @@ describe(PaymentPollingProvider.name, () => {
       unmount,
       setIsTrialing: async (isTrialing: boolean) => {
         state.isTrialing = isTrialing;
+        await act(async () => {
+          rerender(buildUi());
+        });
+      },
+      setBalance: async (balance: { totalUsd: number } | null) => {
+        state.balance = balance;
         await act(async () => {
           rerender(buildUi());
         });
