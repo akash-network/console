@@ -11,6 +11,8 @@ import type { RefillService } from "@src/billing/services/refill/refill.service"
 import { X402Service } from "@src/billing/services/x402/x402.service";
 import type { X402HttpServerFactoryService } from "@src/billing/services/x402/x402-http-server-factory.service";
 import { TxService } from "@src/core/services/tx/tx.service";
+import type { CreateDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import type { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 
 describe(X402Service.name, () => {
   const userId = "test-user-id";
@@ -158,6 +160,133 @@ describe(X402Service.name, () => {
     });
   });
 
+  describe("processDeploy (pay-per-deploy)", () => {
+    it("settles, credits the balance and creates a deployment, linking the dseq on the row", async () => {
+      const { service, httpServer, x402TransactionRepository, refillService, deploymentWriterService } = setup();
+      const transaction = createTransaction({ status: "pending" });
+      const deployment = createDeploymentResult();
+      httpServer.processHTTPRequest.mockResolvedValue(createVerifiedResult());
+      httpServer.processSettlement.mockResolvedValue({
+        success: true,
+        transaction: "0xsettlementhash",
+        network: "eip155:8453",
+        payer: "0xpayer",
+        headers: { "PAYMENT-RESPONSE": "encoded" },
+        requirements: createRequirements()
+      });
+      x402TransactionRepository.findByPaymentHash.mockResolvedValue(undefined);
+      x402TransactionRepository.create.mockResolvedValue(transaction);
+      x402TransactionRepository.findOneByAndLock.mockResolvedValue({ ...transaction, status: "settled" });
+      deploymentWriterService.create.mockResolvedValue(deployment);
+
+      const result = await service.processDeploy(createDeployRequestContext(), userId, createDeployInput());
+
+      // Funding flows through the single refill choke point, with no first-purchase/trial bonus.
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(transaction.amount, userId, {
+        payment: { currency: "usd", paymentMethodType: "x402", transactionId: transaction.id }
+      });
+      expect(refillService.topUpWallet).toHaveBeenCalledTimes(1);
+      expect(deploymentWriterService.create).toHaveBeenCalledWith({ sdl: createDeployInput().sdl, deposit: amountUsd, userId });
+      expect(x402TransactionRepository.linkDeployment).toHaveBeenCalledWith(transaction.id, deployment.dseq);
+      expect(x402TransactionRepository.markDeployFailed).not.toHaveBeenCalled();
+      expect(result).toMatchObject({
+        type: "success",
+        headers: { "PAYMENT-RESPONSE": "encoded" },
+        data: { transactionId: transaction.id, deploymentDseq: deployment.dseq, settlementTxHash: "0xsettlementhash", manifest: deployment.manifest }
+      });
+    });
+
+    it("leaves funds credited and flags the row when deployment creation fails after settlement", async () => {
+      const { service, httpServer, x402TransactionRepository, refillService, deploymentWriterService } = setup();
+      const transaction = createTransaction({ status: "pending" });
+      httpServer.processHTTPRequest.mockResolvedValue(createVerifiedResult());
+      httpServer.processSettlement.mockResolvedValue({
+        success: true,
+        transaction: "0xsettlementhash",
+        network: "eip155:8453",
+        payer: "0xpayer",
+        headers: {},
+        requirements: createRequirements()
+      });
+      x402TransactionRepository.findByPaymentHash.mockResolvedValue(undefined);
+      x402TransactionRepository.create.mockResolvedValue(transaction);
+      x402TransactionRepository.findOneByAndLock.mockResolvedValue({ ...transaction, status: "settled" });
+      deploymentWriterService.create.mockRejectedValue(new Error("broadcast failed"));
+
+      const result = await service.processDeploy(createDeployRequestContext(), userId, createDeployInput());
+
+      // The credit happened; the money is safe in the Console balance and never reversed on-chain.
+      expect(refillService.topUpWallet).toHaveBeenCalledTimes(1);
+      expect(x402TransactionRepository.markDeployFailed).toHaveBeenCalledWith(transaction.id, "broadcast failed");
+      expect(x402TransactionRepository.linkDeployment).not.toHaveBeenCalled();
+      expect(result).toMatchObject({
+        type: "deploy-failed",
+        transactionId: transaction.id,
+        amountUsdCents: transaction.amount,
+        settlementTxHash: "0xsettlementhash",
+        message: "broadcast failed"
+      });
+    });
+
+    it("rejects with rate-limited and never settles when the per-user request rate limit is exceeded", async () => {
+      const { service, httpServer, x402TransactionRepository, refillService, deploymentWriterService } = setup();
+      const verified = createVerifiedResult();
+      httpServer.processHTTPRequest.mockResolvedValue(verified);
+      x402TransactionRepository.countByUserSince.mockResolvedValue(10);
+
+      const result = await service.processDeploy(createDeployRequestContext(), userId, createDeployInput());
+
+      expect(result).toMatchObject({ type: "rate-limited", retryAfterSeconds: 3600 });
+      expect(verified.cancellationDispatcher.cancel).toHaveBeenCalledWith({ reason: "handler_failed", responseStatus: 429 });
+      expect(httpServer.processSettlement).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(deploymentWriterService.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects with cost-ceiling-exceeded and never settles when the per-user spend ceiling is exceeded", async () => {
+      const { service, httpServer, x402TransactionRepository, refillService, deploymentWriterService } = setup();
+      const verified = createVerifiedResult();
+      httpServer.processHTTPRequest.mockResolvedValue(verified);
+      // Recent spend already at the $2000 ceiling (in cents); this request would push past it.
+      x402TransactionRepository.sumAmountByUserSince.mockResolvedValue(200000);
+
+      const result = await service.processDeploy(createDeployRequestContext(), userId, createDeployInput());
+
+      expect(result).toMatchObject({ type: "cost-ceiling-exceeded", ceilingUsdCents: 200000 });
+      expect(verified.cancellationDispatcher.cancel).toHaveBeenCalledWith({ reason: "handler_failed", responseStatus: 402 });
+      expect(httpServer.processSettlement).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(deploymentWriterService.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects a payment already used for a previous deployment as a duplicate", async () => {
+      const { service, httpServer, x402TransactionRepository, refillService, deploymentWriterService } = setup();
+      const transaction = createTransaction({ status: "succeeded", deploymentDseq: "999" });
+      httpServer.processHTTPRequest.mockResolvedValue(createVerifiedResult());
+      x402TransactionRepository.findByPaymentHash.mockResolvedValue(transaction);
+
+      const result = await service.processDeploy(createDeployRequestContext(), userId, createDeployInput());
+
+      expect(result).toEqual({ type: "duplicate-payment", transactionId: transaction.id });
+      expect(httpServer.processSettlement).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(deploymentWriterService.create).not.toHaveBeenCalled();
+    });
+
+    it("returns payment-required instructions when no payment is attached", async () => {
+      const { service, httpServer, deploymentWriterService } = setup();
+      httpServer.processHTTPRequest.mockResolvedValue({
+        type: "payment-error",
+        response: { status: 402, headers: {}, body: { x402Version: 2, accepts: [] } }
+      });
+
+      const result = await service.processDeploy(createDeployRequestContext(), userId, createDeployInput());
+
+      expect(result).toMatchObject({ type: "payment-required", response: { status: 402 } });
+      expect(deploymentWriterService.create).not.toHaveBeenCalled();
+    });
+  });
+
   describe("money-integrity gate", () => {
     it("credits exactly once when the same settled row is driven twice concurrently", async () => {
       const { service, httpServer, x402TransactionRepository, refillService } = setup();
@@ -278,20 +407,40 @@ describe(X402Service.name, () => {
       X402_RECONCILE_THRESHOLD_SECONDS: 300,
       X402_RECONCILE_INTERVAL_SECONDS: 300,
       X402_RECONCILE_BATCH_SIZE: 100,
+      X402_MIN_DEPLOY_USD: 1,
+      X402_MAX_DEPLOY_USD: 1000,
+      X402_ABUSE_WINDOW_SECONDS: 3600,
+      X402_ABUSE_MAX_REQUESTS: 10,
+      X402_ABUSE_MAX_SPEND_USD: 2000,
       ...configOverrides
     });
 
     const x402TransactionRepository = mock<X402TransactionRepository>();
     x402TransactionRepository.markSettledAsSucceeded.mockResolvedValue(true);
+    x402TransactionRepository.countByUserSince.mockResolvedValue(0);
+    x402TransactionRepository.sumAmountByUserSince.mockResolvedValue(0);
     const refillService = mock<RefillService>();
     const httpServer = mock<x402HTTPResourceServer>();
     const httpServerFactory = mock<X402HttpServerFactoryService>();
     httpServerFactory.create.mockReturnValue(httpServer);
     httpServer.initialize.mockResolvedValue();
+    const deploymentWriterService = mock<DeploymentWriterService>();
 
-    const service = new X402Service(config, x402TransactionRepository, refillService, httpServerFactory);
+    const service = new X402Service(config, x402TransactionRepository, refillService, httpServerFactory, deploymentWriterService);
 
-    return { service, config, x402TransactionRepository, refillService, httpServer, httpServerFactory };
+    return { service, config, x402TransactionRepository, refillService, httpServer, httpServerFactory, deploymentWriterService };
+  }
+
+  function createDeployInput() {
+    return { sdl: 'version: "2.0"\nservices:\n  web:\n    image: nginx', deposit: amountUsd };
+  }
+
+  function createDeploymentResult(): CreateDeploymentResponse["data"] {
+    return {
+      dseq: "1234567890",
+      manifest: '[{"name":"web"}]',
+      signTx: { code: 0, transactionHash: "0xdeploytx", rawLog: "" }
+    };
   }
 
   function createRequestContext(): HTTPRequestContext {
@@ -359,9 +508,28 @@ describe(X402Service.name, () => {
       payerAddress: null,
       settlementTxHash: null,
       errorMessage: null,
+      deploymentDseq: null,
+      deployFailed: false,
       createdAt: new Date(),
       updatedAt: new Date(),
       ...overrides
+    };
+  }
+
+  function createDeployRequestContext(): HTTPRequestContext {
+    return {
+      adapter: {
+        getHeader: () => undefined,
+        getMethod: () => "POST",
+        getPath: () => "/v1/x402/deploy",
+        getUrl: () => "https://console-api.akash.network/v1/x402/deploy",
+        getAcceptHeader: () => "application/json",
+        getUserAgent: () => "test",
+        getBody: () => ({ sdl: 'version: "2.0"', deposit: amountUsd })
+      },
+      path: "/v1/x402/deploy",
+      method: "POST",
+      paymentHeader: "encoded-payment"
     };
   }
 });
