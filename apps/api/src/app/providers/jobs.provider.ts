@@ -1,6 +1,8 @@
 import { container } from "tsyringe";
 
 import { WalletBalanceReloadCheckHandler } from "@src/billing/services/wallet-balance-reload-check/wallet-balance-reload-check.handler";
+import { X402ReconcileJobService } from "@src/billing/services/x402-reconcile-job/x402-reconcile-job.service";
+import { X402ReconcileSettledHandler } from "@src/billing/services/x402-reconcile-settled/x402-reconcile-settled.handler";
 import type { AppInitializer } from "@src/core/providers/app-initializer";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
@@ -23,8 +25,11 @@ container.register(APP_INITIALIZER, {
         container.resolve(TrialDeploymentLeaseCreatedHandler),
         container.resolve(EnableDeploymentAlertHandler),
         container.resolve(WalletBalanceReloadCheckHandler),
-        container.resolve(FirstPurchaseBonusGrantedHandler)
+        container.resolve(FirstPurchaseBonusGrantedHandler),
+        container.resolve(X402ReconcileSettledHandler)
       ]);
+
+      await container.resolve(X402ReconcileJobService).scheduleInitial();
     }
   } satisfies AppInitializer
 });
