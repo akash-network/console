@@ -46,6 +46,12 @@ describe(TopNav.name, () => {
     expect(screen.getByRole("link", { name: "Deployments" })).toHaveAttribute("aria-current", "page");
   });
 
+  it("does not mark a link active for a route that only shares its prefix", () => {
+    setup({ isAuthenticated: true, pathname: "/providers-old" });
+
+    expect(screen.getByRole("link", { name: "Providers" })).not.toHaveAttribute("aria-current");
+  });
+
   it("shows all settings items when billing and alerts flags are on", async () => {
     setup({ isAuthenticated: true, flags: { billing_usage: true, alerts: true } });
 

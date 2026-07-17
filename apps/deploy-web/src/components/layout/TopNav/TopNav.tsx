@@ -52,7 +52,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
   const isAlertsEnabled = d.useFlag("alerts");
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
-  const isRouteActive = (...routePrefixes: string[]) => !!pathname && routePrefixes.some(prefix => pathname.startsWith(prefix));
+  const isRouteActive = (...routePrefixes: string[]) => !!pathname && routePrefixes.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
   const navLinks: TopNavLink[] = [
     { title: "Deployments", url: UrlService.deploymentList(), isActive: isRouteActive("/deployments", "/new-deployment") },

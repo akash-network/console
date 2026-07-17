@@ -24,7 +24,7 @@ export function ThemeToggle({ dependencies: d = DEPENDENCIES }: Props = {}) {
 
   const onThemeClick = (nextTheme: string) => {
     setTheme(nextTheme);
-    document.cookie = `theme=${nextTheme}; path=/`;
+    document.cookie = `theme=${nextTheme}; path=/; Max-Age=31536000; SameSite=Lax`;
   };
 
   return (
