@@ -143,9 +143,7 @@ export const DeploymentList: React.FunctionComponent = () => {
       {deployments && deployments.length > 0 && isWalletConnected && (
         <div className="flex flex-wrap items-center pb-6">
           <>
-            <Title className="font-bold" subTitle>
-              Deployments
-            </Title>
+            <Title>Deployments</Title>
 
             <div className="ml-6">
               <Button aria-label="back" onClick={() => getDeployments()} size="icon" variant="ghost">
