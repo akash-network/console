@@ -76,8 +76,10 @@ export const BillingView: React.FC<BillingViewProps> = ({
 
   const columns = [
     columnHelper.accessor("created", {
-      header: "Date",
-      cell: info => new Date(info.getValue() * 1000).toLocaleDateString()
+      header: "Date (UTC)",
+      // Render in UTC so the displayed day matches the Stripe charge timestamp
+      // regardless of the viewer's local timezone (see akash-network/console#2010).
+      cell: info => new Date(info.getValue() * 1000).toLocaleDateString(undefined, { timeZone: "UTC" })
     }),
     columnHelper.accessor("amount", {
       header: "Amount",

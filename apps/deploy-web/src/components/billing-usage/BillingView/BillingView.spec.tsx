@@ -30,13 +30,13 @@ describe(BillingView.name, () => {
   it("renders table with billing data", () => {
     const { data } = setup();
     expect(screen.getByText("History")).toBeInTheDocument();
-    expect(screen.getByText("Date")).toBeInTheDocument();
+    expect(screen.getByText("Date (UTC)")).toBeInTheDocument();
     expect(screen.getByText("Amount")).toBeInTheDocument();
     expect(screen.getByText("Account source")).toBeInTheDocument();
     expect(screen.getByText("Status")).toBeInTheDocument();
     expect(screen.getByText("Receipt")).toBeInTheDocument();
 
-    expect(screen.getByText(new Date(data[0].created * 1000).toLocaleDateString())).toBeInTheDocument();
+    expect(screen.getByText(new Date(data[0].created * 1000).toLocaleDateString(undefined, { timeZone: "UTC" }))).toBeInTheDocument();
     expect(screen.getByText((data[0].amount / 100).toFixed(2))).toBeInTheDocument();
     expect(screen.getByText(new RegExp(data[0].paymentMethod.card?.last4 || ""))).toBeInTheDocument();
     expect(screen.getByText(/Succeeded|Pending|Failed/i)).toBeInTheDocument();
