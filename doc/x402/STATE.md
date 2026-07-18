@@ -25,6 +25,8 @@ Repo layout facts that matter (verified against this codebase):
 
 ## Current status
 
+- **Upstream PR: https://github.com/akash-network/console/pull/3460** (head `opencolin:feat/x402-integration`, base `akash-network:main`).
+
 - **Review candidate: `feat/x402-integration`** at
   `/Users/colin/Code/console-worktrees/x402-integration` — the single integrated branch that merges
   all four verified release branches (v1.0 readback/on-ramp, v1.1 money-integrity gate, v1.2
