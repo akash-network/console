@@ -6,7 +6,14 @@ import { WebSocket } from "ws";
 import { LoggerService } from "@src/core";
 import { DEPLOYMENT_CONFIG, type DeploymentConfig } from "@src/deployment/config/config.provider";
 
-const MAX_OUTPUT_SIZE = 1024 * 1024;
+/**
+ * Cap on the combined stdout+stderr the service buffers per exec, in UTF-8
+ * bytes. Kept small (64 KiB) so many concurrent execs cannot exhaust memory —
+ * a synchronous buffered response is only safe while the buffer is bounded
+ * (per maintainer review on #3079/#3097). Exported so tests assert against the
+ * same constant instead of a hardcoded literal.
+ */
+export const MAX_OUTPUT_SIZE = 64 * 1024;
 
 /**
  * LeaseShell protocol markers. The provider prefixes every shell frame with a

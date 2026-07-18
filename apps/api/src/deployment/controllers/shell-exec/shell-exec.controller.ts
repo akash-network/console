@@ -8,6 +8,35 @@ import { DeploymentReaderService } from "@src/deployment/services/deployment-rea
 import { ShellExecService } from "@src/deployment/services/shell-exec/shell-exec.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 
+type ExecErrorMapping = { status: number; message: string };
+
+/**
+ * Ordered mapping from a service-layer error sentinel (the stable, prefixed
+ * strings returned by `ShellExecService.execute`) to a user-facing HTTP status
+ * and message. Keeping this a table — rather than a chain of ternaries — makes
+ * the contract readable, testable, and cheap to extend, and guarantees the raw
+ * internal string is never leaked to the client. Each failure mode gets the
+ * semantically correct status:
+ *   - timeout            → 504 (we are a gateway to the provider, not a slow client)
+ *   - auth expired       → 403
+ *   - invalid host       → 502 (`hostUri` is server-derived on-chain data, not
+ *                                client input, so a bad host is an upstream fault)
+ *   - connection/provider→ 502
+ */
+const EXEC_ERROR_TABLE: ReadonlyArray<{ prefix: string } & ExecErrorMapping> = [
+  { prefix: "Command timed out", status: 504, message: "Command execution timed out" },
+  { prefix: "Auth expired", status: 403, message: "Provider authentication expired" },
+  { prefix: "Invalid provider host", status: 502, message: "Invalid provider host" },
+  { prefix: "WebSocket connection failed", status: 502, message: "Failed to connect to provider" },
+  { prefix: "Provider error", status: 502, message: "Provider returned an error" },
+  { prefix: "Connection closed without exit code", status: 502, message: "Provider connection closed unexpectedly" }
+];
+
+export function mapExecError(errVal: string): ExecErrorMapping {
+  const match = EXEC_ERROR_TABLE.find(entry => errVal.startsWith(entry.prefix));
+  return match ? { status: match.status, message: match.message } : { status: 502, message: "Shell execution failed" };
+}
+
 @singleton()
 export class ShellExecController {
   constructor(
@@ -57,18 +86,8 @@ export class ShellExecController {
     });
 
     if (!result.ok) {
-      const message = result.val.startsWith("Command timed out")
-        ? "Command execution timed out"
-        : result.val.startsWith("WebSocket connection failed")
-          ? "Failed to connect to provider"
-          : result.val.startsWith("Auth expired")
-            ? "Provider authentication expired"
-            : result.val.startsWith("Invalid provider host")
-              ? "Invalid provider host"
-              : result.val.startsWith("Provider error")
-                ? "Provider returned an error"
-                : "Shell execution failed";
-      assert(false, 502, message);
+      const { status, message } = mapExecError(result.val);
+      assert(false, status, message);
     }
 
     return result.val;

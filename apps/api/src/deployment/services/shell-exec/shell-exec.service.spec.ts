@@ -9,6 +9,7 @@ import {
   buildShellUrl,
   isStrictBase64,
   isValidProviderHost,
+  MAX_OUTPUT_SIZE,
   parseExitCode,
   type ShellExecInput,
   type ShellExecOutput,
@@ -199,7 +200,7 @@ describe(ShellExecService.name, () => {
 
   describe("execute - provider host pre-check", () => {
     it("returns an Err without opening a socket when the host is not https", async () => {
-      const { service } = createService();
+      const { service } = setup();
 
       const result = await service.execute(createShellExecInput({ providerBaseUrl: "http://provider.example.com" }));
 
@@ -209,7 +210,7 @@ describe(ShellExecService.name, () => {
     });
 
     it("returns an Err when the host is an IP address", async () => {
-      const { service } = createService();
+      const { service } = setup();
 
       const result = await service.execute(createShellExecInput({ providerBaseUrl: "https://203.0.113.10:8443" }));
 
@@ -220,7 +221,7 @@ describe(ShellExecService.name, () => {
 
   describe("execute - proxy routing (D1)", () => {
     it("connects to the PROVIDER_PROXY_URL as wss and sends the envelope with the provider url and no data", async () => {
-      const { service, mockWs, getConstructorArgs } = createService();
+      const { service, mockWs, getConstructorArgs } = setup();
       const input = createShellExecInput();
 
       const promise = service.execute(input);
@@ -251,7 +252,7 @@ describe(ShellExecService.name, () => {
     const STDIN_MARKER = 104;
 
     it("sends a 104 stdin data frame plus a 104 EOF frame, keeping the secret out of the URL", async () => {
-      const { service, mockWs, getConstructorArgs } = createService();
+      const { service, mockWs, getConstructorArgs } = setup();
       const secret = `SECRET=${faker.string.alphanumeric(16)}\nAPI_KEY=${faker.string.alphanumeric(12)}`;
       const input = createShellExecInput({
         command: ["sh", "-c", "cat > /run/secrets/.env && chmod 600 /run/secrets/.env"],
@@ -306,7 +307,7 @@ describe(ShellExecService.name, () => {
     });
 
     it("does not send any 104 frame when stdin is omitted", async () => {
-      const { service, mockWs } = createService();
+      const { service, mockWs } = setup();
       const input = createShellExecInput();
 
       const promise = service.execute(input);
@@ -335,7 +336,7 @@ describe(ShellExecService.name, () => {
 
   describe("execute - receive / marker handling", () => {
     it("routes marker 100 to stdout with the marker byte stripped", async () => {
-      const { service, mockWs } = createService();
+      const { service, mockWs } = setup();
       const promise = service.execute(createShellExecInput());
 
       mockWs._trigger("open");
@@ -350,7 +351,7 @@ describe(ShellExecService.name, () => {
     });
 
     it("routes marker 101 to stderr with the marker byte stripped", async () => {
-      const { service, mockWs } = createService();
+      const { service, mockWs } = setup();
       const promise = service.execute(createShellExecInput());
 
       mockWs._trigger("open");
@@ -365,7 +366,7 @@ describe(ShellExecService.name, () => {
     });
 
     it("reads the exit code from a 102 JSON result frame", async () => {
-      const { service, mockWs } = createService();
+      const { service, mockWs } = setup();
       const promise = service.execute(createShellExecInput());
 
       mockWs._trigger("open");
@@ -377,7 +378,7 @@ describe(ShellExecService.name, () => {
     });
 
     it("reads the exit code from a 102 4-byte LE int32 result frame", async () => {
-      const { service, mockWs } = createService();
+      const { service, mockWs } = setup();
       const promise = service.execute(createShellExecInput());
 
       mockWs._trigger("open");
@@ -389,7 +390,7 @@ describe(ShellExecService.name, () => {
     });
 
     it("treats a 103 failure frame as a provider error (mapped 502), not output", async () => {
-      const { service, mockWs } = createService();
+      const { service, mockWs } = setup();
       const promise = service.execute(createShellExecInput());
 
       mockWs._trigger("open");
@@ -402,7 +403,7 @@ describe(ShellExecService.name, () => {
     });
 
     it("decodes a base64-string data payload", async () => {
-      const { service, mockWs } = createService();
+      const { service, mockWs } = setup();
       const promise = service.execute(createShellExecInput());
 
       const base64 = Buffer.from([100, ...Buffer.from("hi", "utf-8")]).toString("base64");
@@ -418,7 +419,7 @@ describe(ShellExecService.name, () => {
 
   describe("execute - error / robustness handling", () => {
     it("resolves an error-key frame as a mapped provider error without decoding it", async () => {
-      const { service, mockWs } = createService();
+      const { service, mockWs } = setup();
       const promise = service.execute(createShellExecInput());
 
       mockWs._trigger("open");
@@ -441,7 +442,7 @@ describe(ShellExecService.name, () => {
     });
 
     it("drops a non-base64 string payload instead of leaking it as output", async () => {
-      const { service, mockWs, logger } = createService();
+      const { service, mockWs, logger } = setup();
       const promise = service.execute(createShellExecInput());
 
       mockWs._trigger("open");
@@ -456,7 +457,7 @@ describe(ShellExecService.name, () => {
     });
 
     it("ignores pong keepalive frames without corrupting output", async () => {
-      const { service, mockWs } = createService();
+      const { service, mockWs } = setup();
       const promise = service.execute(createShellExecInput());
 
       mockWs._trigger("open");
@@ -471,7 +472,7 @@ describe(ShellExecService.name, () => {
     });
 
     it("returns an Err with the connection message on a socket error", async () => {
-      const { service, mockWs } = createService();
+      const { service, mockWs } = setup();
       const promise = service.execute(createShellExecInput());
 
       mockWs._trigger("error", new Error("ECONNREFUSED"));
@@ -483,7 +484,7 @@ describe(ShellExecService.name, () => {
     });
 
     it("returns an Err when the socket closes before an exit code arrives", async () => {
-      const { service, mockWs } = createService();
+      const { service, mockWs } = setup();
       const promise = service.execute(createShellExecInput());
 
       mockWs._trigger("open");
@@ -496,12 +497,12 @@ describe(ShellExecService.name, () => {
   });
 
   describe("execute - truncation (M5)", () => {
-    it("sets truncated but still reports the correct exit code when output exceeds 1 MB", async () => {
-      const { service, mockWs } = createService();
+    it("sets truncated but still reports the correct exit code when output exceeds the cap", async () => {
+      const { service, mockWs } = setup();
       const promise = service.execute(createShellExecInput());
 
       mockWs._trigger("open");
-      mockWs._trigger("message", dataFrame(100, "A".repeat(1024 * 1024 + 1)));
+      mockWs._trigger("message", dataFrame(100, "A".repeat(MAX_OUTPUT_SIZE + 1)));
       // keeps reading past the cap so the exit frame is still processed
       mockWs._trigger("message", exitFrameJson(3));
 
@@ -511,11 +512,11 @@ describe(ShellExecService.name, () => {
       expect((result.val as ShellExecOutput).exitCode).toBe(3);
     });
 
-    it("does not truncate output that is exactly 1 MB", async () => {
-      const { service, mockWs } = createService();
+    it("does not truncate output that is exactly at the cap", async () => {
+      const { service, mockWs } = setup();
       const promise = service.execute(createShellExecInput());
 
-      const data = "A".repeat(1024 * 1024);
+      const data = "A".repeat(MAX_OUTPUT_SIZE);
       mockWs._trigger("open");
       mockWs._trigger("message", dataFrame(100, data));
       mockWs._trigger("message", exitFrameJson(0));
@@ -523,13 +524,13 @@ describe(ShellExecService.name, () => {
       const result = await promise;
       expect(result.ok).toBe(true);
       expect((result.val as ShellExecOutput).truncated).toBe(false);
-      expect((result.val as ShellExecOutput).stdout.length).toBe(1024 * 1024);
+      expect((result.val as ShellExecOutput).stdout.length).toBe(MAX_OUTPUT_SIZE);
     });
   });
 
   describe("execute - auth expiry (M4)", () => {
     it("maps a 4001 close frame to an auth-expired error, not a generic provider error", async () => {
-      const { service, mockWs } = createService();
+      const { service, mockWs } = setup();
       const promise = service.execute(createShellExecInput());
 
       mockWs._trigger("open");
@@ -542,7 +543,7 @@ describe(ShellExecService.name, () => {
     });
 
     it("maps a 4003 ws close event to an auth-expired error", async () => {
-      const { service, mockWs } = createService();
+      const { service, mockWs } = setup();
       const promise = service.execute(createShellExecInput());
 
       mockWs._trigger("open");
@@ -557,7 +558,7 @@ describe(ShellExecService.name, () => {
   describe("execute - timeout", () => {
     it("resolves with a timeout error when the command runs past the timeout", async () => {
       vi.useFakeTimers();
-      const { service, mockWs } = createService();
+      const { service, mockWs } = setup();
       const promise = service.execute(createShellExecInput({ timeout: 5 }));
 
       mockWs._trigger("open");
@@ -586,7 +587,7 @@ describe(ShellExecService.name, () => {
     };
   }
 
-  function createService() {
+  function setup(overrides: { proxyUrl?: string } = {}) {
     const mockWs = createMockWebSocket();
     let constructorArgs: unknown[] = [];
     vi.mocked(WebSocket).mockImplementation(function (this: unknown, ...args: unknown[]) {
@@ -595,7 +596,7 @@ describe(ShellExecService.name, () => {
     } as unknown as typeof WebSocket);
 
     const logger = mock<LoggerService>();
-    const config = { PROVIDER_PROXY_URL: PROXY_URL } as DeploymentConfig;
+    const config = { PROVIDER_PROXY_URL: overrides.proxyUrl ?? PROXY_URL } as DeploymentConfig;
     const service = new ShellExecService(config, logger);
 
     return { service, mockWs, logger, getConstructorArgs: () => constructorArgs };

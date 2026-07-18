@@ -8,7 +8,7 @@ import type { WalletReaderService } from "@src/billing/services/wallet-reader/wa
 import type { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import type { ShellExecService } from "@src/deployment/services/shell-exec/shell-exec.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
-import { ShellExecController } from "./shell-exec.controller";
+import { mapExecError, ShellExecController } from "./shell-exec.controller";
 
 import { createUser } from "@test/seeders/user.seeder";
 
@@ -54,6 +54,20 @@ function createProviderInfo(overrides: Partial<{ hostUri: string }> = {}): Provi
   return mock<ProviderInfo>({ hostUri: overrides.hostUri ?? "https://provider.example.com" });
 }
 
+describe("mapExecError", () => {
+  it.each([
+    ["Command timed out", 504, "Command execution timed out"],
+    ["Auth expired: provider closed connection (code 4001)", 403, "Provider authentication expired"],
+    ["Invalid provider host: http://provider.example.com", 502, "Invalid provider host"],
+    ["WebSocket connection failed: ECONNREFUSED", 502, "Failed to connect to provider"],
+    ["Provider error: internal error", 502, "Provider returned an error"],
+    ["Connection closed without exit code", 502, "Provider connection closed unexpectedly"],
+    ["some entirely unexpected failure", 502, "Shell execution failed"]
+  ])("maps %j to status %i", (errVal, status, message) => {
+    expect(mapExecError(errVal as string)).toEqual({ status, message });
+  });
+});
+
 describe(ShellExecController.name, () => {
   it("throws 404 when deployment not found", async () => {
     const { controller, deploymentReaderService } = setup();
@@ -93,13 +107,13 @@ describe(ShellExecController.name, () => {
     expect(error.message).toBe("Lease is not active");
   });
 
-  it("throws 502 when shell exec service returns an error result", async () => {
+  it("throws 504 when the command times out", async () => {
     const { controller, shellExecService } = setup();
     shellExecService.execute.mockResolvedValue(Err("Command timed out"));
 
     const error = await captureError(() => controller.exec({ dseq: "1234", gseq: 1, oseq: 1, command: ["ls"], service: "web", timeout: 60 }));
 
-    expect(error.status).toBe(502);
+    expect(error.status).toBe(504);
     expect(error.message).toBe("Command execution timed out");
   });
 
@@ -217,14 +231,44 @@ describe(ShellExecController.name, () => {
     expect(error.message).toBe("Provider returned an error");
   });
 
-  it("throws 502 with auth-expired message when the provider JWT expires mid-run", async () => {
+  it("throws 403 when the provider JWT expires mid-run", async () => {
     const { controller, shellExecService } = setup();
     shellExecService.execute.mockResolvedValue(Err("Auth expired: provider closed connection (code 4001)"));
 
     const error = await captureError(() => controller.exec({ dseq: "1234", gseq: 1, oseq: 1, command: ["ls"], service: "web", timeout: 60 }));
 
-    expect(error.status).toBe(502);
+    expect(error.status).toBe(403);
     expect(error.message).toBe("Provider authentication expired");
+  });
+
+  it("throws 502 for an invalid (server-derived) provider host", async () => {
+    const { controller, shellExecService } = setup();
+    shellExecService.execute.mockResolvedValue(Err("Invalid provider host: http://provider.example.com"));
+
+    const error = await captureError(() => controller.exec({ dseq: "1234", gseq: 1, oseq: 1, command: ["ls"], service: "web", timeout: 60 }));
+
+    expect(error.status).toBe(502);
+    expect(error.message).toBe("Invalid provider host");
+  });
+
+  it("throws 502 with a distinct message when the connection closes without an exit code", async () => {
+    const { controller, shellExecService } = setup();
+    shellExecService.execute.mockResolvedValue(Err("Connection closed without exit code"));
+
+    const error = await captureError(() => controller.exec({ dseq: "1234", gseq: 1, oseq: 1, command: ["ls"], service: "web", timeout: 60 }));
+
+    expect(error.status).toBe(502);
+    expect(error.message).toBe("Provider connection closed unexpectedly");
+  });
+
+  it("falls back to a generic 502 for an unrecognized service error", async () => {
+    const { controller, shellExecService } = setup();
+    shellExecService.execute.mockResolvedValue(Err("some entirely unexpected failure"));
+
+    const error = await captureError(() => controller.exec({ dseq: "1234", gseq: 1, oseq: 1, command: ["ls"], service: "web", timeout: 60 }));
+
+    expect(error.status).toBe(502);
+    expect(error.message).toBe("Shell execution failed");
   });
 
   async function captureError(fn: () => Promise<unknown>): Promise<{ status: number; message: string }> {
