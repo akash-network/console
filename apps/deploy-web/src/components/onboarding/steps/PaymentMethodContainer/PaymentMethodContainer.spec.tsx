@@ -37,6 +37,12 @@ describe("PaymentMethodContainer", () => {
     expect(mockCreateSetupIntent).toHaveBeenCalled();
   });
 
+  it("should not create setup intent until the user is authenticated", () => {
+    const { mockCreateSetupIntent } = setup({ user: null });
+
+    expect(mockCreateSetupIntent).not.toHaveBeenCalled();
+  });
+
   it("should handle payment method removal", async () => {
     const { child, mockRemovePaymentMethod } = setup();
     mockRemovePaymentMethod.mockResolvedValue(undefined);

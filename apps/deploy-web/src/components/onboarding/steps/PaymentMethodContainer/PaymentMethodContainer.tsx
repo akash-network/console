@@ -140,10 +140,10 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
   );
 
   useEffect(() => {
-    if (!setupIntent) {
+    if (user && !setupIntent) {
       createSetupIntent();
     }
-  }, [setupIntent, createSetupIntent]);
+  }, [user, setupIntent, createSetupIntent]);
 
   useEffect(() => {
     if (isConnectingWallet && hasManagedWallet && !isWalletLoading) {

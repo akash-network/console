@@ -55,9 +55,11 @@ export const createAppRootContainer = (config: ServicesConfig) => {
         });
     },
     stripe: () =>
-      container.applyAxiosInterceptors(new HttpStripeService(apiConfig), {
-        request: [withUserToken]
-      }),
+      new HttpStripeService(
+        container.applyAxiosInterceptors(createHttpClient(apiConfig), {
+          request: [withUserToken]
+        })
+      ),
     stripeService: () =>
       new StripeService({
         config: {
