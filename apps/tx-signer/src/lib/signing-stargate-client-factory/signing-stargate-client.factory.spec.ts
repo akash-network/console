@@ -76,6 +76,24 @@ describe(SigningStargateWithUnorderedSupportClient.name, () => {
     expect(authInfo.signerInfos[0].sequence).toBe(0n);
   });
 
+  it("derives the timeout timestamp after gas simulation so estimation latency does not erode the ttl", async () => {
+    vi.useFakeTimers();
+    try {
+      const ttlMs = 120_000;
+      const simulationLatencyMs = 5_000;
+      const startTime = 1_700_000_000_000;
+      vi.setSystemTime(startTime);
+      const { client } = setup({ ttlMs, onSimulate: () => vi.setSystemTime(startTime + simulationLatencyMs) });
+
+      const txRaw = await client.signUnordered(createMessages());
+
+      const body = TxBody.decode(txRaw.bodyBytes);
+      expect(body.timeoutTimestamp!.getTime()).toBe(startTime + simulationLatencyMs + ttlMs);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("estimates gas by simulating the unordered tx body and applies the safety multiplier", async () => {
     const { client, abciQuery } = setup({ gasUsed: 2000, gasMultiplier: 1.2 });
 
@@ -123,7 +141,7 @@ describe(SigningStargateWithUnorderedSupportClient.name, () => {
     return [{ typeUrl: "/test.MsgTest", value: {} }];
   }
 
-  function setup(input?: { ttlMs?: number; gasUsed?: number; gasMultiplier?: number }) {
+  function setup(input?: { ttlMs?: number; gasUsed?: number; gasMultiplier?: number; onSimulate?: () => void }) {
     const address = createAkashAddress();
     const accountNumber = faker.number.int({ min: 1, max: 1000 });
     const gasUsed = input?.gasUsed ?? 2000;
@@ -153,10 +171,13 @@ describe(SigningStargateWithUnorderedSupportClient.name, () => {
     });
 
     // Gas estimation runs the real #simulateRawTx through the query client, so mock the underlying ABCI query.
-    const abciQuery = vi.fn().mockResolvedValue({
-      code: 0,
-      value: SimulateResponse.encode(SimulateResponse.fromPartial({ gasInfo: { gasUsed: BigInt(gasUsed), gasWanted: BigInt(gasUsed) } })).finish(),
-      height: 1
+    const abciQuery = vi.fn().mockImplementation(async () => {
+      input?.onSimulate?.();
+      return {
+        code: 0,
+        value: SimulateResponse.encode(SimulateResponse.fromPartial({ gasInfo: { gasUsed: BigInt(gasUsed), gasWanted: BigInt(gasUsed) } })).finish(),
+        height: 1
+      };
     });
     const cometClient = mock<Comet38Client>({ abciQuery });
 
