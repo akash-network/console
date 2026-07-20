@@ -67,7 +67,7 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
 
 const LayoutApp: React.FunctionComponent<Props> = ({
   children,
-  isLoading,
+  isLoading = false,
   isUsingSettings,
   isUsingWallet,
   disableContainer,
@@ -130,7 +130,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({
                 ["md:ml-[57px]"]: hasSidebar && !isNavOpen
               })}
             >
-              {isLoading !== undefined && <LinearLoadingSkeleton isLoading={isLoading} />}
+              <LinearLoadingSkeleton isLoading={isLoading} />
 
               <ErrorBoundary FallbackComponent={ErrorFallback}>
                 {!isUsingSettings || isSettingsInit ? (
