@@ -247,7 +247,7 @@ npm run lint -- --fix
 
 #### Env file linting
 
-`.env` files are validated by [dotenv-linter](https://dotenv-linter.github.io/) via `script/lint-env.mjs`, run per-app in CI. It checks file hygiene, that no key is shared across files that layer together at runtime (`.env`, `.env.${DEPLOYMENT_ENV}`, `.env.${NETWORK}`), and that `.env.production`/`.env.staging` and `.env.sandbox`/`.env.mainnet` declare matching key sets.
+`.env` files are validated by [dotenv-linter](https://dotenv-linter.github.io/) via `script/lint-env.mjs`, run per-app in CI. It checks file hygiene, that no key is shared across files that layer together at runtime (`.env`, `.env.${DEPLOYMENT_ENV}`, `.env.${NETWORK}`), that `.env.production`/`.env.staging` and `.env.sandbox`/`.env.mainnet` declare matching key sets, and that every declared key is referenced somewhere in the codebase (no dead config).
 
 ```bash
 # Requires dotenv-linter on PATH (https://dotenv-linter.github.io/#/installation)

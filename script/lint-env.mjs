@@ -35,6 +35,18 @@ const KEY_SET_EQUALITY_PAIRS = [
  */
 const LAYERING_CHECK_SKIP = new Set(["provider-console"]);
 
+/**
+ * Keys that are consumed only by external tooling or SDKs that read process.env by convention, so
+ * they never appear as an identifier in the source tree. Listing one here exempts it from the
+ * "unused key" check.
+ */
+const EXTERNAL_ENV_KEYS = new Set();
+
+/** Env file suffixes whose keys are checked for usage. Test and local-only files are excluded. */
+function isUsageCheckedEnvFile(fileName) {
+  return fileName.startsWith(".env") && !fileName.includes(".local") && !fileName.endsWith(".test") && !fileName.endsWith(".bak");
+}
+
 const dotenvLinter = resolveDotenvLinter();
 
 function resolveDotenvLinter() {
@@ -164,7 +176,53 @@ function checkKeySetEquality(app) {
   return problems;
 }
 
+function declaredKeys(envDir) {
+  const files = readdirSync(envDir).filter(isUsageCheckedEnvFile);
+  const keys = new Set();
+  for (const file of files) {
+    for (const match of readFileSync(join(envDir, file), "utf8").matchAll(/^([A-Za-z_][A-Za-z0-9_]*)=/gm)) {
+      keys.add(match[1]);
+    }
+  }
+  return [...keys];
+}
+
+/** Names referenced via dotenvx interpolation (`$VAR`, `${VAR}`, `%{VAR}`) anywhere in the env files. */
+function interpolatedNames() {
+  const output = tryGit(["grep", "-hoIE", "[$%][{]?[A-Za-z_][A-Za-z0-9_]*", "--", "apps/*/env/**", "packages/*/env/**"]);
+  const names = new Set();
+  for (const match of output.matchAll(/[$%][{]?([A-Za-z_][A-Za-z0-9_]*)/g)) names.add(match[1]);
+  return names;
+}
+
+function tryGit(args) {
+  try {
+    return execFileSync("git", args, { cwd: REPO_ROOT, encoding: "utf8" });
+  } catch (error) {
+    return `${error.stdout ?? ""}`;
+  }
+}
+
+function isKeyReferencedInSource(key) {
+  try {
+    execFileSync("git", ["grep", "-qwI", key, "--", ":(exclude)apps/*/env/**", ":(exclude)packages/*/env/**"], {
+      cwd: REPO_ROOT,
+      stdio: "ignore"
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function checkUnusedKeys(app, interpolated) {
+  const unused = declaredKeys(app.envDir).filter(key => !EXTERNAL_ENV_KEYS.has(key) && !interpolated.has(key) && !isKeyReferencedInSource(key));
+  if (unused.length === 0) return [];
+  return [`declares keys not referenced anywhere in the codebase: ${unused.sort().join(", ")}`];
+}
+
 function main() {
+  const interpolated = interpolatedNames();
   const apps = discoverApps(process.argv.slice(2));
   if (apps.length === 0) {
     console.log("No apps with an env directory to lint.");
@@ -173,7 +231,7 @@ function main() {
 
   let failed = false;
   for (const app of apps) {
-    const problems = [...checkHygiene(app), ...checkCrossLayerConflicts(app), ...checkKeySetEquality(app)];
+    const problems = [...checkHygiene(app), ...checkCrossLayerConflicts(app), ...checkKeySetEquality(app), ...checkUnusedKeys(app, interpolated)];
     if (problems.length === 0) {
       console.log(`✓ ${app.name}`);
       continue;
