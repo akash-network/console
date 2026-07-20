@@ -1,4 +1,4 @@
-export const bytesToHumanReadableSize = function (bytes) {
+export const bytesToHumanReadableSize = function (bytes: number) {
   const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
 
   if (bytes == 0) {
@@ -43,7 +43,7 @@ export function parseSizeStr(str: string | undefined): number {
     if (suffix) {
       const suffixPos = str.length - suffix.length;
       const numberStr = str.substring(0, suffixPos);
-      return parseFloat(numberStr) * specSuffixes[suffix];
+      return parseFloat(numberStr) * specSuffixes[suffix as keyof typeof specSuffixes];
     } else {
       return parseFloat(str);
     }
@@ -71,7 +71,7 @@ export function parseDecimalKubernetesString(str: string | undefined): number {
     if (suffix) {
       const suffixPos = str.length - suffix.length;
       const numberStr = str.substring(0, suffixPos);
-      return parseFloat(numberStr) * kubernetesDecimalSuffixes[suffix];
+      return parseFloat(numberStr) * kubernetesDecimalSuffixes[suffix as keyof typeof kubernetesDecimalSuffixes];
     } else {
       return parseFloat(str);
     }

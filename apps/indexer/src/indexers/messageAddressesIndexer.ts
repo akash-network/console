@@ -147,7 +147,7 @@ export class MessageAddressesIndexer extends Indexer {
         } else if (pubkey.type === "tendermint/PubKeyMultisigThreshold") {
           multisigThreshold = pubkey.value.threshold;
           addresses = addresses.concat(
-            pubkey.value.pubkeys.map(p => {
+            pubkey.value.pubkeys.map((p: { value: string }) => {
               const pubKeyBuffer = Buffer.from(p.value, "base64");
               return toBech32(activeChain.bech32Prefix, rawSecp256k1PubkeyToRawAddress(pubKeyBuffer));
             })

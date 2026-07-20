@@ -66,10 +66,8 @@ export async function getCachedBlockResultsByHeight(height: number) {
   }
 }
 
-const getAllFiles = function (dirPath, arrayOfFiles?) {
+const getAllFiles = function (dirPath: string, arrayOfFiles: string[] = []): string[] {
   const files = fs.readdirSync(dirPath);
-
-  arrayOfFiles = arrayOfFiles || [];
 
   files.forEach(function (file) {
     if (fs.statSync(dirPath + "/" + file).isDirectory()) {
@@ -82,7 +80,7 @@ const getAllFiles = function (dirPath, arrayOfFiles?) {
   return arrayOfFiles;
 };
 
-const getTotalSize = function (directoryPath) {
+const getTotalSize = function (directoryPath: string) {
   const arrayOfFiles = getAllFiles(directoryPath);
 
   let totalSize = 0;

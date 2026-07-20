@@ -37,7 +37,7 @@ interface SchedulerConfig {
 }
 
 interface HealthchecksConfig {
-  id: string;
+  id?: string;
   measureDuration?: boolean;
 }
 

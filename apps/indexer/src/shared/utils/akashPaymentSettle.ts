@@ -1,9 +1,10 @@
 import type { Deployment, Lease } from "@akashnetwork/database/dbSchemas/akash";
+import type { Transaction as DbTransaction } from "sequelize";
 
 // This copies the logic of the akash node
 
 // Port of https://github.com/akash-network/akash/blob/c2be64614f7417cf99447185f9d13b49bf33dadb/x/escrow/keeper/keeper.go#L353
-export async function accountSettle(deployment: Deployment, height: number, blockGroupTransaction): Promise<{ blockRate: number }> {
+export async function accountSettle(deployment: Deployment, height: number, blockGroupTransaction: DbTransaction): Promise<{ blockRate: number }> {
   if (!deployment) throw new Error("Deployment is missing");
   if (!deployment.leases) throw new Error("Deployment.leases is missing");
 

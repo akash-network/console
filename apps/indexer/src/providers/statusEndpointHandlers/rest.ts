@@ -45,8 +45,19 @@ export async function fetchProviderStatusFromREST(provider: Provider, timeout: n
   };
 }
 
-function sumResources(resources) {
-  const resourcesArr = resources?.nodes || resources || [];
+type RestUnitValue = number | { units: { val: string } };
+type RestSizeValue = number | { size: { val: string } };
+
+interface RestNodeResource {
+  cpu: RestUnitValue;
+  gpu?: RestUnitValue;
+  memory: RestSizeValue;
+  storage_ephemeral?: RestSizeValue;
+  storage?: RestSizeValue;
+}
+
+function sumResources(resources: RestNodeResource[] | { nodes?: RestNodeResource[] } | null | undefined) {
+  const resourcesArr: RestNodeResource[] = Array.isArray(resources) ? resources : resources?.nodes ?? [];
 
   return resourcesArr
     .map(x => ({
@@ -71,14 +82,14 @@ function sumResources(resources) {
     );
 }
 
-function getStorageFromResource(resource) {
-  return Object.keys(resource).includes("storage_ephemeral") ? resource.storage_ephemeral : resource.storage;
+function getStorageFromResource(resource: RestNodeResource): RestSizeValue {
+  return Object.keys(resource).includes("storage_ephemeral") ? resource.storage_ephemeral! : resource.storage!;
 }
 
-function getUnitValue(resource) {
+function getUnitValue(resource: RestUnitValue) {
   return typeof resource === "number" ? resource : parseInt(resource.units.val);
 }
 
-function getByteValue(val) {
+function getByteValue(val: RestSizeValue) {
   return typeof val === "number" ? val : parseInt(val.size.val);
 }

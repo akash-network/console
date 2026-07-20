@@ -129,7 +129,8 @@ async function initApp() {
       }
     }
 
-    if (!(process.env.ACTIVE_CHAIN in chainDefinitions)) {
+    const activeChainCode = process.env.ACTIVE_CHAIN;
+    if (!activeChainCode || !(activeChainCode in chainDefinitions)) {
       throw new Error(`Unknown chain with code: ${process.env.ACTIVE_CHAIN}`);
     }
 
