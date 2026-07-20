@@ -6,7 +6,7 @@ import { mock, mockDeep } from "vitest-mock-extended";
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { CoreConfigService } from "../core-config/core-config.service";
 import type { ExecutionContextService } from "../execution-context/execution-context.service";
-import { type Job, JOB_NAME, type JobHandler, JobQueueService } from "./job-queue.service";
+import { type EventHandler, type Job, JOB_NAME, type JobHandler, JobQueueService } from "./job-queue.service";
 
 describe(JobQueueService.name, () => {
   describe("registerHandlers", () => {
@@ -71,6 +71,66 @@ describe(JobQueueService.name, () => {
       const { service } = setup();
 
       await expect(service.registerHandlers([handler1, handler2])).rejects.toThrow("JobQueue does not support multiple handlers for the same queue: test");
+    });
+  });
+
+  describe("registerEventHandlers", () => {
+    it("creates a queue named after the event and subscribes it when no queue suffix is given", async () => {
+      const { service, pgBoss } = setup();
+
+      await service.registerEventHandlers([new TestEventHandler()]);
+
+      expect(pgBoss.createQueue).toHaveBeenCalledWith("TestEvent", {
+        retryBackoff: true,
+        retryDelayMax: 5 * 60,
+        retryLimit: 5,
+        policy: undefined
+      });
+      expect(pgBoss.subscribe).toHaveBeenCalledWith("TestEvent", "TestEvent");
+    });
+
+    it("suffixes the queue name and subscribes it to the event when a queue is given", async () => {
+      const { service, pgBoss } = setup();
+
+      await service.registerEventHandlers([new TestEventHandler(vi.fn(), "analytics")]);
+
+      expect(pgBoss.createQueue).toHaveBeenCalledWith("TestEvent.analytics", expect.anything());
+      expect(pgBoss.subscribe).toHaveBeenCalledWith("TestEvent", "TestEvent.analytics");
+    });
+
+    it("subscribes multiple handlers of the same event to their own queues", async () => {
+      const { service, pgBoss } = setup();
+
+      await service.registerEventHandlers([new TestEventHandler(vi.fn(), "one"), new TestEventHandler(vi.fn(), "two")]);
+
+      expect(pgBoss.subscribe).toHaveBeenCalledWith("TestEvent", "TestEvent.one");
+      expect(pgBoss.subscribe).toHaveBeenCalledWith("TestEvent", "TestEvent.two");
+      expect(pgBoss.createQueue).toHaveBeenCalledTimes(2);
+    });
+
+    it("throws when two handlers resolve to the same queue", async () => {
+      const { service } = setup();
+
+      await expect(service.registerEventHandlers([new TestEventHandler(), new TestEventHandler()])).rejects.toThrow(
+        "JobQueue does not support multiple handlers for the same queue: TestEvent"
+      );
+    });
+  });
+
+  describe("publish", () => {
+    it("publishes the event with its version merged into the data", async () => {
+      const { service, pgBoss, logger } = setup();
+      const event = new TestEvent({ userId: "user-1" });
+      const options = { singletonKey: "user-1" };
+
+      await service.publish(event, options);
+
+      expect(pgBoss.publish).toHaveBeenCalledWith("TestEvent", { userId: "user-1", version: 1 }, options);
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "EVENT_PUBLISHED",
+        domainEvent: event,
+        options
+      });
     });
   });
 
@@ -275,6 +335,23 @@ describe(JobQueueService.name, () => {
       expect(handleFn).toHaveBeenCalledWith({ message: "Job 1", userId: "user-1" }, { id: job.id });
     });
 
+    it("runs an event handler on its subscriber queue rather than the event name", async () => {
+      const handleFn = vi.fn().mockResolvedValue(undefined);
+      const { service, pgBoss } = setup();
+      const job = { id: "1", data: { userId: "user-1", version: 1 } };
+
+      vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: WorkHandler<unknown>) => {
+        await processFn([job as PgBossJob<unknown>]);
+        return "work-id";
+      });
+
+      await service.registerEventHandlers([new TestEventHandler(handleFn, "analytics")]);
+      await service.startWorkers({ concurrency: 1 });
+
+      expect(pgBoss.work).toHaveBeenCalledWith("TestEvent.analytics", { batchSize: 1 }, expect.any(Function));
+      expect(handleFn).toHaveBeenCalledWith({ userId: "user-1", version: 1 }, { id: job.id });
+    });
+
     it("uses default options when none provided", async () => {
       const handleFn = vi.fn().mockResolvedValue(undefined);
       const handler = new TestHandler(handleFn);
@@ -361,6 +438,8 @@ describe(JobQueueService.name, () => {
         mockDeep<PgBoss>({
           createQueue: vi.fn().mockResolvedValue(undefined),
           send: vi.fn().mockResolvedValue("job-id"),
+          publish: vi.fn().mockResolvedValue(undefined),
+          subscribe: vi.fn().mockResolvedValue(undefined),
           work: vi.fn().mockResolvedValue(undefined),
           start: vi.fn().mockResolvedValue(undefined),
           stop: vi.fn().mockResolvedValue(undefined),
@@ -400,5 +479,21 @@ describe(JobQueueService.name, () => {
   class TestHandler implements JobHandler<TestJob> {
     readonly accepts = TestJob;
     constructor(public readonly handle: JobHandler<TestJob>["handle"]) {}
+  }
+
+  class TestEvent implements Job {
+    static readonly [JOB_NAME] = "TestEvent";
+    readonly name = TestEvent[JOB_NAME];
+    readonly version = 1;
+
+    constructor(public readonly data: { userId: string }) {}
+  }
+
+  class TestEventHandler implements EventHandler<TestEvent> {
+    readonly accepts = TestEvent;
+    constructor(
+      public readonly handle: EventHandler<TestEvent>["handle"] = vi.fn().mockResolvedValue(undefined),
+      public readonly queue?: string
+    ) {}
   }
 });

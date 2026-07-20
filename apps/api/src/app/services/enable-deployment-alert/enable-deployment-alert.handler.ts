@@ -1,12 +1,12 @@
 import { singleton } from "tsyringe";
 
 import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
-import type { JobHandler, JobPayload } from "@src/core";
+import type { EventHandler, JobPayload } from "@src/core";
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 
 @singleton()
-export class EnableDeploymentAlertHandler implements JobHandler<EnableDeploymentAlertCommand> {
+export class EnableDeploymentAlertHandler implements EventHandler<EnableDeploymentAlertCommand> {
   public readonly accepts = EnableDeploymentAlertCommand;
 
   public readonly concurrency = 2;

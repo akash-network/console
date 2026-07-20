@@ -12,7 +12,7 @@ export const PG_BOSS_TOKEN: InjectionToken<PgBoss> = Symbol("pgBoss");
 @singleton()
 export class JobQueueService implements Disposable {
   private readonly pgBoss: PgBoss;
-  private handlers?: JobHandler<Job>[];
+  private handlers?: RegisteredHandler[];
   private readonly tracer = trace.getTracer("job-queue");
 
   constructor(
@@ -32,23 +32,67 @@ export class JobQueueService implements Disposable {
       });
   }
 
+  /**
+   * Registers command handlers. Each command is delivered to a single queue named after
+   * the command and processed by exactly one handler.
+   */
   async registerHandlers(handlers: JobHandler<Job>[]): Promise<void> {
-    const seenJobs = new Set<string>();
-    const promises = handlers.map(async handler => {
-      const queueName = handler.accepts[JOB_NAME];
-      if (seenJobs.has(queueName)) {
+    await this.#registerQueues(
+      handlers.map(handler => ({
+        queueName: handler.accepts[JOB_NAME],
+        policy: handler.policy,
+        concurrency: handler.concurrency,
+        handle: handler.handle.bind(handler)
+      }))
+    );
+  }
+
+  /**
+   * Registers domain event handlers using pg-boss publish/subscribe. A single event can have
+   * multiple handlers, each owning its own queue so it fails, retries, and restarts in isolation.
+   * The queue defaults to the event name and takes a `<eventName>.<queue>` suffix when a handler
+   * declares its own `queue`, allowing several handlers to subscribe to the same event.
+   */
+  async registerEventHandlers(handlers: EventHandler<Job>[]): Promise<void> {
+    await this.#registerQueues(
+      handlers.map(handler => {
+        const eventName = handler.accepts[JOB_NAME];
+        return {
+          queueName: handler.queue ? `${eventName}.${handler.queue}` : eventName,
+          subscribesTo: eventName,
+          policy: handler.policy,
+          concurrency: handler.concurrency,
+          handle: handler.handle.bind(handler)
+        };
+      })
+    );
+  }
+
+  async #registerQueues(registrations: QueueRegistration[]): Promise<void> {
+    this.handlers ??= [];
+    const seenQueues = new Set(this.handlers.map(handler => handler.queueName));
+
+    const promises = registrations.map(async registration => {
+      const { queueName, subscribesTo, policy, concurrency, handle } = registration;
+      if (seenQueues.has(queueName)) {
         throw new Error(`JobQueue does not support multiple handlers for the same queue: ${queueName}`);
       }
-      seenJobs.add(queueName);
+      seenQueues.add(queueName);
+      this.handlers!.push({ queueName, concurrency, handle });
+
       await this.pgBoss.createQueue(queueName, {
         retryLimit: 5,
         retryBackoff: true,
         retryDelayMax: 5 * 60,
-        policy: handler.policy
+        policy
       });
+
+      if (subscribesTo) {
+        await this.pgBoss.subscribe(subscribesTo, queueName);
+      }
     });
+
     await Promise.all(promises);
-    this.handlers = handlers.slice(0);
   }
 
   /**
@@ -97,6 +141,20 @@ export class JobQueueService implements Disposable {
     });
 
     return jobId;
+  }
+
+  /**
+   * Publishes a domain event to every queue subscribed to it via {@link registerEventHandlers}.
+   * Unlike {@link enqueue}, this fans out to all subscribers and therefore returns no single job id.
+   */
+  async publish(event: Job, options?: EnqueueOptions): Promise<void> {
+    await this.pgBoss.publish(event.name, { ...event.data, version: event.version }, options);
+
+    this.logger.info({
+      event: "EVENT_PUBLISHED",
+      domainEvent: event,
+      options
+    });
   }
 
   async cancel(name: string, id: string): Promise<void> {
@@ -195,7 +253,7 @@ export class JobQueueService implements Disposable {
       batchSize: 1
     };
     const jobs = this.handlers.map(async handler => {
-      const queueName = handler.accepts[JOB_NAME];
+      const queueName = handler.queueName;
       const workersPromises = Array.from({ length: handler.concurrency ?? concurrency ?? 2 }).map(() =>
         this.pgBoss.work<JobPayload<Job>>(queueName, workerOptions, async ([job]) => {
           await this.#executeWithOtelContext(queueName, job.id, async () => {
@@ -325,6 +383,29 @@ export interface JobHandler<T extends Job> {
   policy?: PgBossQueue["policy"];
   handle(payload: JobPayload<T>, job?: JobMeta): Promise<void>;
 }
+
+export interface EventHandler<T extends Job> {
+  accepts: JobType<T>;
+  /**
+   * Distinct subscriber queue suffix. Enables multiple independent handlers for one event.
+   * When omitted the queue is named after the event itself, otherwise it becomes `<eventName>.<queue>`.
+   */
+  queue?: string;
+  concurrency?: ProcessOptions["concurrency"];
+  policy?: PgBossQueue["policy"];
+  handle(payload: JobPayload<T>, job?: JobMeta): Promise<void>;
+}
+
+interface QueueRegistration {
+  queueName: string;
+  /** When set, the queue is subscribed to this event so published events fan out to it. */
+  subscribesTo?: string;
+  policy?: PgBossQueue["policy"];
+  concurrency?: ProcessOptions["concurrency"];
+  handle: JobHandler<Job>["handle"];
+}
+
+type RegisteredHandler = Pick<QueueRegistration, "queueName" | "concurrency" | "handle">;
 
 export type EnqueueOptions = PgBossSendOptions;
 export interface ProcessOptions extends Omit<PgBossWorkOptions, "batchSize"> {

@@ -17,12 +17,14 @@ container.register(APP_INITIALIZER, {
       const jobQueueManager = container.resolve(JobQueueService);
       await jobQueueManager.setup();
       await jobQueueManager.registerHandlers([
-        container.resolve(TrialStartedHandler),
         container.resolve(NotificationHandler),
         container.resolve(CloseTrialDeploymentHandler),
+        container.resolve(WalletBalanceReloadCheckHandler)
+      ]);
+      await jobQueueManager.registerEventHandlers([
+        container.resolve(TrialStartedHandler),
         container.resolve(TrialDeploymentLeaseCreatedHandler),
         container.resolve(EnableDeploymentAlertHandler),
-        container.resolve(WalletBalanceReloadCheckHandler),
         container.resolve(FirstPurchaseBonusGrantedHandler)
       ]);
     }
