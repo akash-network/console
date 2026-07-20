@@ -2,6 +2,7 @@ import { useController, useFormContext, useWatch } from "react-hook-form";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultService } from "@src/utils/sdl/data";
 import { ConfigurationPane } from "../ConfigurationPane/ConfigurationPane";
@@ -369,6 +370,12 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(screen.getByTestId("has-ssh-key").textContent).toBe("false");
   });
 
+  it("tracks the configure page view on mount", () => {
+    const { analyticsService } = setup({ initialSdl: undefined });
+
+    expect(analyticsService.track).toHaveBeenCalledWith("configure_page_viewed", { category: "deployments" });
+  });
+
   function setup(input: {
     initialSdl: string | undefined;
     initialName?: string;
@@ -409,6 +416,7 @@ describe(ConfigureDeploymentForm.name, () => {
       error: input.flowError,
       actions: mock<DeploymentFlow["actions"]>({ requestQuotes })
     });
+    const analyticsService = mock<AnalyticsService>();
     const dependencies: typeof DEPENDENCIES = {
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
@@ -418,6 +426,7 @@ describe(ConfigureDeploymentForm.name, () => {
       useConfigureDraft: useConfigureDraft as never,
       useDeploymentName,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
+      useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService }),
       Snackbar: Snackbar as never,
       ReviewAndDeployModal: ReviewAndDeployModal as never,
       DeployProgressOverlay: () => null,
@@ -436,7 +445,18 @@ describe(ConfigureDeploymentForm.name, () => {
       />
     );
 
-    return { ConfigureDeploymentPanes, ConfigureDeploymentHeader, ReviewAndDeployModal, flow, enqueueSnackbar, save, clear, requestQuotes, retryTrial };
+    return {
+      ConfigureDeploymentPanes,
+      ConfigureDeploymentHeader,
+      ReviewAndDeployModal,
+      flow,
+      enqueueSnackbar,
+      save,
+      clear,
+      requestQuotes,
+      retryTrial,
+      analyticsService
+    };
   }
 });
 

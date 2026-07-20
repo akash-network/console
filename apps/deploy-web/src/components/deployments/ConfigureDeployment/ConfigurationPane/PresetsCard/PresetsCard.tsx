@@ -4,13 +4,14 @@ import { useFormContext, useWatch } from "react-hook-form";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@akashnetwork/ui/components";
 import { LockIcon } from "lucide-react";
 
+import { useServices } from "@src/context/ServicesProvider";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { SELECT_TRUNCATE_VALUE } from "../selectStyles";
 import { UnlockGpusButton } from "../UnlockGpusButton/UnlockGpusButton";
 import type { HardwarePreset, HardwarePresetGroup } from "./hardwarePresets";
 import { applyPreset, detectPreset, formatPresetSpecs, HARDWARE_PRESET_GROUP_LABELS, HARDWARE_PRESET_GROUP_ORDER, hardwarePresets } from "./hardwarePresets";
 
-export const DEPENDENCIES = { hardwarePresets };
+export const DEPENDENCIES = { hardwarePresets, useServices };
 
 type Props = {
   serviceIndex: number;
@@ -37,6 +38,7 @@ type Props = {
  */
 export const PresetsCard: FC<Props> = ({ serviceIndex, locked = false, isBlockedModel = () => false, onUnlock, dependencies: d = DEPENDENCIES }) => {
   const { control, setValue } = useFormContext<SdlBuilderFormValuesType>();
+  const { analyticsService } = d.useServices();
   const profile = useWatch({ control, name: `services.${serviceIndex}.profile` });
   const selectedPresetId = useMemo(() => detectPreset(d.hardwarePresets, profile ?? {})?.id ?? "", [d.hardwarePresets, profile]);
 
@@ -47,8 +49,9 @@ export const PresetsCard: FC<Props> = ({ serviceIndex, locked = false, isBlocked
         return;
       }
       applyPreset(setValue, serviceIndex, preset);
+      analyticsService.track("configure_preset_selected", { category: "deployments", preset: id });
     },
-    [d.hardwarePresets, setValue, serviceIndex]
+    [d.hardwarePresets, setValue, serviceIndex, analyticsService]
   );
 
   const groups = HARDWARE_PRESET_GROUP_ORDER.map(group => ({

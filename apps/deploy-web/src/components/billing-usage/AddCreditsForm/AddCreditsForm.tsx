@@ -91,7 +91,7 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
   const { data: setupIntent, mutate: createSetupIntent, status: setupIntentStatus, reset: resetSetupIntent } = d.useSetupIntentMutation();
   const { user } = d.useUser();
   const { pollForPayment, isPolling } = d.usePaymentPolling();
-  const { stripe } = d.useServices();
+  const { stripe, analyticsService } = d.useServices();
   const { isTrialing, topUpMinAmountUsd } = d.useWallet();
   const queryClient = d.useQueryClient();
   const { data: paymentMethods, isLoading: isLoadingMethods, isError: isMethodsError } = d.usePaymentMethodsQuery();
@@ -110,6 +110,8 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
   /** Payment method already confirmed against the current SetupIntent; reused on retry because a SetupIntent can only be confirmed once. */
   const confirmedNewCardRef = useRef<{ paymentMethodId: string; organization?: string } | null>(null);
   const wasPollingRef = useRef<boolean>(false);
+  /** Last payment-method type reported to analytics, so the payment element's frequent change events don't re-fire the same type. */
+  const lastPaymentTypeRef = useRef<string | null>(null);
 
   const amount = useMemo(() => Number(amountInput.predefinedAmount || amountInput.customAmount) || 0, [amountInput.predefinedAmount, amountInput.customAmount]);
   const amountError = amount > 0 && amount < topUpMinAmountUsd ? `Minimum amount is $${topUpMinAmountUsd}` : undefined;
@@ -289,14 +291,41 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
 
   const changeSelectedMethod = useCallback(
     (methodId: string) => {
-      if (methodId === NEW_CARD && confirmedNewCardRef.current) {
-        // The previous SetupIntent was consumed by confirmSetup; a fresh one is required to collect a different card.
-        confirmedNewCardRef.current = null;
-        resetSetupIntent();
+      if (methodId === NEW_CARD) {
+        lastPaymentTypeRef.current = null;
+        if (confirmedNewCardRef.current) {
+          confirmedNewCardRef.current = null;
+          resetSetupIntent();
+        }
       }
       setSelectedMethodId(methodId);
+      const method = methodId === NEW_CARD ? undefined : paymentMethods?.find(candidate => candidate.id === methodId);
+      if (method) {
+        analyticsService.track("add_credits_payment_method_selected", { category: "billing", type: toPaymentMethodType(method.type) });
+      }
     },
-    [resetSetupIntent]
+    [resetSetupIntent, paymentMethods, analyticsService]
+  );
+
+  const trackAmountSelected = useCallback(
+    (amount: number, isCustom: boolean) => {
+      if (amount > 0) {
+        analyticsService.track("add_credits_amount_selected", { category: "billing", amount, isCustom });
+      }
+    },
+    [analyticsService]
+  );
+
+  const trackPaymentTypeSelected = useCallback(
+    (type: string) => {
+      const normalizedType = toPaymentMethodType(type);
+      if (lastPaymentTypeRef.current === normalizedType) {
+        return;
+      }
+      lastPaymentTypeRef.current = normalizedType;
+      analyticsService.track("add_credits_payment_method_selected", { category: "billing", type: normalizedType });
+    },
+    [analyticsService]
   );
 
   return (
@@ -304,7 +333,13 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
       <d.FirstPurchaseBonusAlert amount={amount} />
 
       <form className="space-y-6" onSubmit={submit}>
-        <d.AddCreditsAmountFields value={amountInput} onChange={setAmountInput} minAmount={topUpMinAmountUsd} error={amountError} />
+        <d.AddCreditsAmountFields
+          value={amountInput}
+          onChange={setAmountInput}
+          minAmount={topUpMinAmountUsd}
+          error={amountError}
+          onAmountCommit={trackAmountSelected}
+        />
 
         {isMethodsError && (
           <Alert variant="destructive">
@@ -335,7 +370,14 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
           )
         )}
 
-        {isNewCard && <d.AddCreditsNewPaymentMethodFields ref={paymentMethodRef} clientSecret={setupIntent?.clientSecret} isLoading={isSetupLoading} />}
+        {isNewCard && (
+          <d.AddCreditsNewPaymentMethodFields
+            ref={paymentMethodRef}
+            clientSecret={setupIntent?.clientSecret}
+            isLoading={isSetupLoading}
+            onPaymentTypeChange={trackPaymentTypeSelected}
+          />
+        )}
 
         {error && (
           <Alert variant="destructive">
@@ -372,4 +414,11 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
       )}
     </>
   );
+}
+
+/** Maps a Stripe payment-method type (`card`, `us_bank_account`, …) to the coarse label reported to analytics. */
+function toPaymentMethodType(rawType: string): string {
+  if (rawType === "card") return "card";
+  if (rawType.includes("bank")) return "bank";
+  return rawType;
 }

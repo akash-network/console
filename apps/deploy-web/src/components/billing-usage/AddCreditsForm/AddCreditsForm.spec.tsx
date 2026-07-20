@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 
 import { getPaymentMethodDisplay } from "@src/components/shared/PaymentMethodCard/PaymentMethodCard";
 import { QueryKeys } from "@src/queries";
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import { AddCreditsAmountFields } from "../AddCreditsAmountFields/AddCreditsAmountFields";
 import type { PaymentMethodSourceHandle } from "../AddCreditsNewPaymentMethodFields/AddCreditsNewPaymentMethodFields";
 import type { DEPENDENCIES } from "./AddCreditsForm";
@@ -590,6 +591,61 @@ describe(AddCreditsForm.name, () => {
     expect(onProcessingChange).toHaveBeenCalledWith(true);
   });
 
+  it("tracks the selected amount when a predefined amount is chosen", () => {
+    const analyticsService = mock<AnalyticsService>();
+    setup({ status: "idle", analyticsService, paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })] });
+
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+
+    expect(analyticsService.track).toHaveBeenCalledWith("add_credits_amount_selected", { category: "billing", amount: 100, isCustom: false });
+  });
+
+  it("tracks the payment method type when a saved bank method is selected", () => {
+    const analyticsService = mock<AnalyticsService>();
+    setup({
+      status: "idle",
+      analyticsService,
+      paymentMethods: [paymentMethod({ id: "pm_default", isDefault: true }), paymentMethod({ id: "pm_bank", type: "us_bank_account", card: undefined })]
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /us_bank_account/i }));
+
+    expect(analyticsService.track).toHaveBeenCalledWith("add_credits_payment_method_selected", { category: "billing", type: "bank" });
+  });
+
+  it("re-reports a new-card payment type after switching to a saved method and back", () => {
+    const analyticsService = mock<AnalyticsService>();
+    const NewCardFields: typeof DEPENDENCIES.AddCreditsNewPaymentMethodFields = React.forwardRef<
+      PaymentMethodSourceHandle,
+      { clientSecret?: string; isLoading: boolean; onPaymentTypeChange?: (type: string) => void }
+    >(function NewCardFields({ onPaymentTypeChange }) {
+      return (
+        <button type="button" onClick={() => onPaymentTypeChange?.("card")}>
+          emit card
+        </button>
+      );
+    });
+
+    setup({
+      status: "idle",
+      analyticsService,
+      paymentMethods: [paymentMethod({ id: "pm_bank", type: "us_bank_account", card: undefined })],
+      dependencies: { AddCreditsNewPaymentMethodFields: NewCardFields }
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /add new payment method/i }));
+    fireEvent.click(screen.getByRole("button", { name: /emit card/i }));
+    fireEvent.click(screen.getByRole("button", { name: /emit card/i }));
+    fireEvent.click(screen.getByRole("button", { name: /us_bank_account/i }));
+    fireEvent.click(screen.getByRole("button", { name: /add new payment method/i }));
+    fireEvent.click(screen.getByRole("button", { name: /emit card/i }));
+
+    const cardEvents = analyticsService.track.mock.calls.filter(
+      ([event, props]) => event === "add_credits_payment_method_selected" && (props as { type?: string })?.type === "card"
+    );
+    expect(cardEvents).toHaveLength(2);
+  });
+
   function makePaymentMethodFieldsMock(addPaymentMethod: PaymentMethodSourceHandle["addPaymentMethod"] = vi.fn().mockResolvedValue(null)) {
     const propsLog: Array<{ clientSecret?: string; isLoading: boolean }> = [];
     const Mock: typeof DEPENDENCIES.AddCreditsNewPaymentMethodFields = React.forwardRef<
@@ -675,6 +731,7 @@ describe(AddCreditsForm.name, () => {
     paymentMethods?: PaymentMethod[];
     isLoadingMethods?: boolean;
     isMethodsError?: boolean;
+    analyticsService?: AnalyticsService;
     dependencies?: Partial<typeof DEPENDENCIES>;
   };
 
@@ -718,7 +775,8 @@ describe(AddCreditsForm.name, () => {
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({
         stripe: mock<ReturnType<typeof DEPENDENCIES.useServices>["stripe"]>({
           getCustomerTransactions: input.getCustomerTransactions ?? vi.fn().mockResolvedValue({ transactions: [] })
-        })
+        }),
+        analyticsService: input.analyticsService ?? mock<AnalyticsService>()
       });
 
     // UseQueryResult is a discriminated union that neither mock<T>() nor a partial literal can satisfy

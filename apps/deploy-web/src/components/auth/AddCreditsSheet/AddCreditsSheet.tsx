@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@akashnetwork/ui/components";
 
 import { type AddCreditsTab, AddCreditsTabs } from "@src/components/billing-usage/AddCreditsTabs/AddCreditsTabs";
+import { useServices } from "@src/context/ServicesProvider";
 
 export const DEPENDENCIES = {
   Sheet,
@@ -11,7 +12,8 @@ export const DEPENDENCIES = {
   SheetHeader,
   SheetTitle,
   SheetDescription,
-  AddCreditsTabs
+  AddCreditsTabs,
+  useServices
 };
 
 const DEFAULT_DESCRIPTION =
@@ -25,6 +27,8 @@ interface AddCreditsSheetProps {
   isWalletReady?: boolean;
   initialTab?: AddCreditsTab;
   description?: React.ReactNode;
+  /** Where the sheet was opened from (e.g. the onboarding reason); sent with the lifecycle events for funnel segmentation. */
+  context?: string;
   dependencies?: typeof DEPENDENCIES;
 }
 
@@ -36,13 +40,43 @@ export function AddCreditsSheet({
   isWalletReady,
   initialTab,
   description = DEFAULT_DESCRIPTION,
+  context,
   dependencies: d = DEPENDENCIES
 }: AddCreditsSheetProps) {
+  const { analyticsService } = d.useServices();
   const [isProcessing, setIsProcessing] = useState(false);
+  const wasOpenRef = useRef(false);
+  /** Set once a purchase or coupon redemption completes, so closing afterward isn't reported as a cancellation. */
+  const completedRef = useRef(false);
+
+  useEffect(
+    function trackOpened() {
+      if (open && !wasOpenRef.current) {
+        completedRef.current = false;
+        analyticsService.track("add_credits_opened", { category: "billing", context });
+      }
+      wasOpenRef.current = open;
+    },
+    [open, context, analyticsService]
+  );
 
   const requestOpenChange = (next: boolean) => {
     if (!next && isProcessing) return;
+    if (!next && !completedRef.current) {
+      analyticsService.track("add_credits_cancelled", { category: "billing", context });
+    }
     onOpenChange(next);
+  };
+
+  const completePurchase = (amount: number, organization?: string, bonusAmount?: number) => {
+    completedRef.current = true;
+    analyticsService.track("add_credits_purchased", { category: "billing", amount, context });
+    onDone(amount, organization, bonusAmount);
+  };
+
+  const completeRedemption = () => {
+    completedRef.current = true;
+    onRedeemed?.();
   };
 
   return (
@@ -56,8 +90,8 @@ export function AddCreditsSheet({
         {open && (
           <d.AddCreditsTabs
             initialTab={initialTab}
-            onDone={onDone}
-            onRedeemed={onRedeemed}
+            onDone={completePurchase}
+            onRedeemed={completeRedemption}
             isWalletReady={isWalletReady}
             onProcessingChange={setIsProcessing}
           />

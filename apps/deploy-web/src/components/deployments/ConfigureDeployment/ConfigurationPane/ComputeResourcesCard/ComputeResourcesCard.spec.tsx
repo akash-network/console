@@ -4,13 +4,15 @@ import type { Resolver } from "react-hook-form";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { ComputeResourcesCard, DEPENDENCIES } from "./ComputeResourcesCard";
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(ComputeResourcesCard.name, () => {
@@ -123,6 +125,37 @@ describe(ComputeResourcesCard.name, () => {
     expect(await screen.findByText("RAM is required.")).toBeInTheDocument();
   });
 
+  it("tracks the CPU count on blur", async () => {
+    const { analyticsService } = setup({});
+
+    const cpuInput = screen.getByLabelText("CPU Count");
+    await userEvent.clear(cpuInput);
+    await userEvent.type(cpuInput, "2");
+    fireEvent.blur(cpuInput);
+
+    expect(analyticsService.track).toHaveBeenCalledWith("configure_cpu_count_changed", { category: "deployments", count: 2 });
+  });
+
+  it("does not track the CPU count when it is unchanged on blur", () => {
+    const { analyticsService } = setup({});
+
+    const cpuInput = screen.getByLabelText("CPU Count");
+    fireEvent.focus(cpuInput);
+    fireEvent.blur(cpuInput);
+
+    expect(analyticsService.track).not.toHaveBeenCalledWith("configure_cpu_count_changed", expect.anything());
+  });
+
+  it("does not track the CPU count when the field is cleared to an empty value", async () => {
+    const { analyticsService } = setup({});
+
+    const cpuInput = screen.getByLabelText("CPU Count");
+    await userEvent.clear(cpuInput);
+    fireEvent.blur(cpuInput);
+
+    expect(analyticsService.track).not.toHaveBeenCalledWith("configure_cpu_count_changed", expect.anything());
+  });
+
   function setup(input: {
     ram?: number;
     ramUnit?: string;
@@ -158,12 +191,15 @@ describe(ComputeResourcesCard.name, () => {
       return <FormProvider {...form}>{children}</FormProvider>;
     };
 
+    const analyticsService = mock<AnalyticsService>();
+    const useServices: typeof DEPENDENCIES.useServices = () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService });
+
     render(
       <Wrapper>
-        <ComputeResourcesCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES, ...input.dependencies }} />
+        <ComputeResourcesCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES, useServices, ...input.dependencies }} />
       </Wrapper>
     );
 
-    return { getValues: () => getValues() };
+    return { getValues: () => getValues(), analyticsService };
   }
 });

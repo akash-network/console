@@ -1,4 +1,5 @@
 import type { FC } from "react";
+import { useRef } from "react";
 import { useController, useFormContext } from "react-hook-form";
 import {
   Field,
@@ -13,10 +14,11 @@ import {
   useFieldError
 } from "@akashnetwork/ui/components";
 
+import { useServices } from "@src/context/ServicesProvider";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { memoryUnits, storageUnits, validationConfig } from "@src/utils/akash/units";
 
-export const DEPENDENCIES = { NumberUnitInput, useFieldError };
+export const DEPENDENCIES = { NumberUnitInput, useFieldError, useServices };
 
 type Props = {
   serviceIndex: number;
@@ -33,6 +35,8 @@ type Props = {
  */
 export const ComputeResourcesCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
+  const { analyticsService } = d.useServices();
+  const cpuFocusValueRef = useRef<number | null>(null);
 
   const ram = useController({ control, name: `services.${serviceIndex}.profile.ram` });
   const ramUnit = useController({ control, name: `services.${serviceIndex}.profile.ramUnit` });
@@ -47,31 +51,43 @@ export const ComputeResourcesCard: FC<Props> = ({ serviceIndex, locked = false, 
       <FormField
         control={control}
         name={`services.${serviceIndex}.profile.cpu`}
-        render={({ field, fieldState }) => (
-          <FormItem>
-            <FormLabel className="text-sm" htmlFor="cpu-count-input">
-              CPU Count
-            </FormLabel>
-            <Input
-              type="number"
-              id="cpu-count"
-              aria-label="CPU Count"
-              error={!!fieldState.error}
-              value={Number.isFinite(field.value) ? field.value : ""}
-              min={0.1}
-              step={0.1}
-              max={validationConfig.maxCpuAmount}
-              disabled={locked}
-              onChange={event => {
-                const next = parseFloat(event.target.value);
-                field.onChange(Number.isFinite(next) ? next : null);
-              }}
-              onBlur={field.onBlur}
-              inputClassName="h-9"
-            />
-            <FormMessage className="text-muted-foreground" />
-          </FormItem>
-        )}
+        render={({ field, fieldState }) => {
+          const captureCpuCount = () => {
+            cpuFocusValueRef.current = field.value;
+          };
+          const commitCpuCount = () => {
+            if (field.value !== cpuFocusValueRef.current && Number.isFinite(field.value)) {
+              analyticsService.track("configure_cpu_count_changed", { category: "deployments", count: field.value });
+            }
+            field.onBlur();
+          };
+          return (
+            <FormItem>
+              <FormLabel className="text-sm" htmlFor="cpu-count-input">
+                CPU Count
+              </FormLabel>
+              <Input
+                type="number"
+                id="cpu-count"
+                aria-label="CPU Count"
+                error={!!fieldState.error}
+                value={Number.isFinite(field.value) ? field.value : ""}
+                min={0.1}
+                step={0.1}
+                max={validationConfig.maxCpuAmount}
+                disabled={locked}
+                onFocus={captureCpuCount}
+                onChange={event => {
+                  const next = parseFloat(event.target.value);
+                  field.onChange(Number.isFinite(next) ? next : null);
+                }}
+                onBlur={commitCpuCount}
+                inputClassName="h-9"
+              />
+              <FormMessage className="text-muted-foreground" />
+            </FormItem>
+          );
+        }}
       />
 
       <div className="grid grid-cols-2 gap-2">

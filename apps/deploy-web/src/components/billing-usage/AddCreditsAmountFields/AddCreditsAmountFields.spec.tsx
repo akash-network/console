@@ -42,9 +42,36 @@ describe(AddCreditsAmountFields.name, () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  function setup(input: { value: AddCreditsAmountValue; minAmount?: number; error?: string }) {
+  it("reports a committed predefined amount", () => {
+    const { onAmountCommit } = setup({ value: { predefinedAmount: "", customAmount: "" } });
+
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+
+    expect(onAmountCommit).toHaveBeenCalledWith(100, false);
+  });
+
+  it("reports a committed custom amount on blur", () => {
+    const { onAmountCommit } = setup({ value: { predefinedAmount: "", customAmount: "250" } });
+
+    fireEvent.blur(screen.getByLabelText("custom-amount"));
+
+    expect(onAmountCommit).toHaveBeenCalledWith(250, true);
+  });
+
+  it("does not report an empty custom amount on blur", () => {
+    const { onAmountCommit } = setup({ value: { predefinedAmount: "", customAmount: "" } });
+
+    fireEvent.blur(screen.getByLabelText("custom-amount"));
+
+    expect(onAmountCommit).not.toHaveBeenCalled();
+  });
+
+  function setup(input: { value: AddCreditsAmountValue; minAmount?: number; error?: string; onAmountCommit?: (amount: number, isCustom: boolean) => void }) {
     const onChange = vi.fn();
-    render(<AddCreditsAmountFields value={input.value} onChange={onChange} minAmount={input.minAmount ?? 20} error={input.error} />);
-    return { onChange };
+    const onAmountCommit = input.onAmountCommit ?? vi.fn();
+    render(
+      <AddCreditsAmountFields value={input.value} onChange={onChange} minAmount={input.minAmount ?? 20} error={input.error} onAmountCommit={onAmountCommit} />
+    );
+    return { onChange, onAmountCommit };
   }
 });

@@ -5,10 +5,11 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { EnsureTrialStartedResult } from "@src/hooks/useEnsureTrialStarted";
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import { UrlService } from "@src/utils/urlUtils";
 import { DEPENDENCIES, OnboardingPickerPage } from "./OnboardingPickerPage";
 
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ComponentMock, MockComponents } from "@tests/unit/mocks";
 
 const HELLO_WORLD_ID = "hello-world";
@@ -315,6 +316,71 @@ describe(OnboardingPickerPage.name, () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
+  it("tracks a deploy click for the hello-world template", () => {
+    const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
+    const { analyticsService } = setup({ dependencies: { DeploymentTemplatePickerCard } });
+
+    act(() => getCard(DeploymentTemplatePickerCard, "Hello world").onDeploy!());
+
+    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding", option: HELLO_WORLD_ID });
+  });
+
+  it("tracks a deploy click for the space-agent template", () => {
+    const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
+    const { analyticsService } = setup({ dependencies: { DeploymentTemplatePickerCard } });
+
+    act(() => getCard(DeploymentTemplatePickerCard, "Space Agent").onDeploy!());
+
+    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding", option: SPACE_AGENT_ID });
+  });
+
+  it("tracks a deploy click for the llm template once the user is no longer trialing", () => {
+    const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
+    const { analyticsService } = setup({ isTrialing: false, dependencies: { DeploymentTemplatePickerCard } });
+
+    act(() => getCard(DeploymentTemplatePickerCard, "LLM Chatbot").onDeploy!());
+
+    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding", option: LLM_ID });
+  });
+
+  it("tracks a deploy click with the custom-image option from the Deploy image link", () => {
+    const { analyticsService } = setup({});
+
+    act(() => fireEvent.click(screen.getByRole("link", { name: /deploy image/i })));
+
+    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding", option: "custom-image" });
+  });
+
+  it("tracks skipping the trial as an add-credits click", () => {
+    const Button = vi.fn(ComponentMock);
+    const { analyticsService } = setup({ isTrialing: true, dependencies: { Button: Button as unknown as typeof DEPENDENCIES.Button } });
+
+    const skipButton = Button.mock.calls.at(-1)![0] as ButtonProps;
+    act(() => (skipButton.onClick as () => void)());
+
+    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_add_credits_click", { category: "onboarding", reason: "skip-trial" });
+  });
+
+  it("tracks the add-credits-to-unlock click on the gated LLM card", () => {
+    const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
+    const { analyticsService } = setup({ isTrialing: true, dependencies: { DeploymentTemplatePickerCard } });
+
+    act(() => getCard(DeploymentTemplatePickerCard, "LLM Chatbot").onDeploy!());
+
+    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_add_credits_click", { category: "onboarding", reason: "unlock-gpu" });
+  });
+
+  it("does not track a deploy click when the llm auto-deploys after adding credits", () => {
+    const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
+    const AddCreditsSheet = vi.fn(ComponentMock);
+    const { analyticsService } = setup({ isTrialing: true, dependencies: { DeploymentTemplatePickerCard, AddCreditsSheet } });
+
+    act(() => getCard(DeploymentTemplatePickerCard, "LLM Chatbot").onDeploy!());
+    act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onDone(100, "Acme"));
+
+    expect(analyticsService.track).not.toHaveBeenCalledWith("onboarding_deploy_click", expect.anything());
+  });
+
   function getCard(DeploymentTemplatePickerCard: ReturnType<typeof vi.fn>, title: string) {
     return DeploymentTemplatePickerCard.mock.calls.find(call => (call[0] as PickerCardProps).title === title)![0] as PickerCardProps;
   }
@@ -361,10 +427,15 @@ describe(OnboardingPickerPage.name, () => {
     );
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing });
     const useFlag: typeof DEPENDENCIES.useFlag = flag => (flag === "first_purchase_bonus" ? isFirstPurchaseBonusEnabled : isHackathonsEnabled);
+    const analyticsService = mock<AnalyticsService>();
     const useServices: typeof DEPENDENCIES.useServices = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useServices>>({ publicConfig: { NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT: trialCreditsAmount }, urlService: UrlService });
+      mock<ReturnType<typeof DEPENDENCIES.useServices>>({
+        publicConfig: { NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT: trialCreditsAmount },
+        urlService: UrlService,
+        analyticsService
+      });
 
-    return render(
+    const result = render(
       <OnboardingPickerPage
         dependencies={MockComponents(DEPENDENCIES, {
           useRouter,
@@ -377,5 +448,7 @@ describe(OnboardingPickerPage.name, () => {
         })}
       />
     );
+
+    return { ...result, analyticsService };
   }
 });

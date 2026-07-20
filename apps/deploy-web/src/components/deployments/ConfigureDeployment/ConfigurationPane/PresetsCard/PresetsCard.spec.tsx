@@ -1,7 +1,9 @@
 import type { PropsWithChildren } from "react";
 import { FormProvider, useForm, type UseFormSetValue } from "react-hook-form";
 import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import type { HardwarePreset } from "./hardwarePresets";
@@ -12,8 +14,32 @@ import userEvent from "@testing-library/user-event";
 
 const PRESETS: HardwarePreset[] = [
   { id: "small", label: "Small preset", group: "compute", cpu: 2, ram: 4, ramUnit: "Gi", storage: 20, storageUnit: "Gi" },
-  { id: "gpu", label: "GPU preset", group: "gpu", cpu: 4, ram: 16, ramUnit: "Gi", storage: 100, storageUnit: "Gi", gpu: 2, gpuVendor: "nvidia", gpuModel: "t4" },
-  { id: "gpu-h100", label: "H100 preset", group: "gpu", cpu: 8, ram: 32, ramUnit: "Gi", storage: 100, storageUnit: "Gi", gpu: 1, gpuVendor: "nvidia", gpuModel: "h100" }
+  {
+    id: "gpu",
+    label: "GPU preset",
+    group: "gpu",
+    cpu: 4,
+    ram: 16,
+    ramUnit: "Gi",
+    storage: 100,
+    storageUnit: "Gi",
+    gpu: 2,
+    gpuVendor: "nvidia",
+    gpuModel: "t4"
+  },
+  {
+    id: "gpu-h100",
+    label: "H100 preset",
+    group: "gpu",
+    cpu: 8,
+    ram: 32,
+    ramUnit: "Gi",
+    storage: 100,
+    storageUnit: "Gi",
+    gpu: 1,
+    gpuVendor: "nvidia",
+    gpuModel: "h100"
+  }
 ];
 
 describe(PresetsCard.name, () => {
@@ -135,6 +161,14 @@ describe(PresetsCard.name, () => {
     expect(screen.queryByRole("button", { name: /unlock/i })).not.toBeInTheDocument();
   });
 
+  it("tracks the selected preset", async () => {
+    const { analyticsService } = setup({});
+
+    await pickPreset("Small preset");
+
+    expect(analyticsService.track).toHaveBeenCalledWith("configure_preset_selected", { category: "deployments", preset: "small" });
+  });
+
   async function pickPreset(name: string) {
     await userEvent.click(screen.getByRole("combobox", { name: "Preset" }));
     await userEvent.click(await screen.findByRole("option", { name: new RegExp(name) }));
@@ -160,6 +194,9 @@ describe(PresetsCard.name, () => {
       return <FormProvider {...form}>{children}</FormProvider>;
     };
 
+    const analyticsService = mock<AnalyticsService>();
+    const useServices: typeof DEPENDENCIES.useServices = () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService });
+
     render(
       <Wrapper>
         <PresetsCard
@@ -167,11 +204,11 @@ describe(PresetsCard.name, () => {
           locked={input.locked}
           isBlockedModel={input.isBlockedModel}
           onUnlock={input.onUnlock}
-          dependencies={{ ...DEPENDENCIES, hardwarePresets: PRESETS }}
+          dependencies={{ ...DEPENDENCIES, hardwarePresets: PRESETS, useServices }}
         />
       </Wrapper>
     );
 
-    return { getValues: () => getValues(), setValue };
+    return { getValues: () => getValues(), setValue, analyticsService };
   }
 });
