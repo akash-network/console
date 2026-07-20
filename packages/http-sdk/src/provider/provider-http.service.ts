@@ -11,9 +11,8 @@ export class ProviderHttpService {
 
   async sendManifest({ hostUri, dseq, manifest, jwtToken }: { hostUri: string; dseq: string; manifest: string; jwtToken: string }): Promise<void> {
     return extractData(
-      await this.httpClient.put(`/deployment/${dseq}/manifest`, {
+      await this.httpClient.put(`/deployment/${dseq}/manifest`, manifest, {
         baseURL: hostUri,
-        body: manifest,
         headers: this.getJwtTokenHeaders(jwtToken),
         timeout: 60000
       })
