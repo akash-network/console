@@ -3,6 +3,17 @@
 
 export const operations = {
   v1: {
+    getWalletSettings: { path: "/v1/wallet-settings", method: "get", operationId: "getWalletSettings", pathParams: [], queryParams: [], hasBody: false },
+    createWalletSettings: { path: "/v1/wallet-settings", method: "post", operationId: "createWalletSettings", pathParams: [], queryParams: [], hasBody: true },
+    updateWalletSettings: { path: "/v1/wallet-settings", method: "put", operationId: "updateWalletSettings", pathParams: [], queryParams: [], hasBody: true },
+    deleteWalletSettings: {
+      path: "/v1/wallet-settings",
+      method: "delete",
+      operationId: "deleteWalletSettings",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
     listStripePrices: { path: "/v1/stripe/prices", method: "get", operationId: "listStripePrices", pathParams: [], queryParams: [], hasBody: false },
     applyStripeCoupon: { path: "/v1/stripe/coupons/apply", method: "post", operationId: "applyStripeCoupon", pathParams: [], queryParams: [], hasBody: true },
     updateStripeCustomerOrganization: {

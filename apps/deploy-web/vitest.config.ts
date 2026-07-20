@@ -19,7 +19,7 @@ export default defineConfig({
     },
     coverage: {
       include: ["src/**/*.{js,ts,tsx}"],
-      exclude: ["src/**/Editor/monaco-*.ts", "src/**/Editor/*.worker.ts"]
+      exclude: ["src/**/Editor/monaco-*.ts", "src/**/Editor/*.worker.ts", "src/queries/queryKeys.ts", "src/queries/queryKeys.ts"]
     },
     pool: "threads",
     projects: [

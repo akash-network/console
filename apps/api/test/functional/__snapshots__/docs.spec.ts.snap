@@ -15123,6 +15123,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     "/v1/wallet-settings": {
       "delete": {
         "description": "Deletes wallet settings for a user wallet",
+        "operationId": "deleteWalletSettings",
         "responses": {
           "204": {
             "description": "Wallet settings deleted successfully",
@@ -15146,6 +15147,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
       },
       "get": {
         "description": "Retrieves the wallet settings for the current user's wallet",
+        "operationId": "getWalletSettings",
         "responses": {
           "200": {
             "content": {
@@ -15192,6 +15194,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
       },
       "post": {
         "description": "Creates wallet settings for a user wallet",
+        "operationId": "createWalletSettings",
         "requestBody": {
           "content": {
             "application/json": {
@@ -15263,6 +15266,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
       },
       "put": {
         "description": "Updates wallet settings for a user wallet",
+        "operationId": "updateWalletSettings",
         "requestBody": {
           "content": {
             "application/json": {

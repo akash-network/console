@@ -1,195 +1,142 @@
-import type { UpdateWalletSettingsParams, WalletSettings, WalletSettingsHttpService } from "@akashnetwork/http-sdk";
+import { ApiError } from "@akashnetwork/openapi-sdk";
+import { createProxy } from "@akashnetwork/react-query-proxy";
+import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
-import { mock } from "vitest-mock-extended";
 
 import { useWalletSettingsMutations, useWalletSettingsQuery } from "./useWalletSettingsQueries";
 
 import { act } from "@testing-library/react";
-import { setupQuery } from "@tests/unit/query-client";
+import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
+
+type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["services"]>["api"]>>;
+
+function setupQueryWithClient<T>(hook: () => T, options?: RenderAppHookOptions) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false
+      }
+    }
+  });
+
+  const hookResult = setupQuery(hook, {
+    ...options,
+    services: {
+      ...options?.services,
+      queryClient: () => queryClient
+    }
+  });
+
+  return { ...hookResult, queryClient };
+}
 
 describe("useWalletSettingsQueries", () => {
   describe(useWalletSettingsQuery.name, () => {
-    it("fetches wallet settings successfully", async () => {
-      const mockSettings: WalletSettings = {
-        autoReloadEnabled: true
-      };
-      const walletSettingsService = mock<WalletSettingsHttpService>({
-        getWalletSettings: vi.fn().mockResolvedValue(mockSettings)
-      });
+    it("returns wallet settings data on success", async () => {
+      const settings = { autoReloadEnabled: true };
+      const getWalletSettings = vi.fn().mockResolvedValue({ data: settings });
+      const api = createProxy({ v1: { getWalletSettings } }) as unknown as ApiService;
 
       const { result } = setupQuery(() => useWalletSettingsQuery(), {
-        services: { walletSettings: () => walletSettingsService }
+        services: { api: () => api }
       });
 
       await vi.waitFor(() => {
-        expect(walletSettingsService.getWalletSettings).toHaveBeenCalled();
+        expect(getWalletSettings).toHaveBeenCalled();
         expect(result.current.isSuccess).toBe(true);
-        expect(result.current.data).toEqual(mockSettings);
+        expect(result.current.data).toEqual(settings);
       });
     });
 
-    it("handles error when fetching wallet settings", async () => {
-      const walletSettingsService = mock<WalletSettingsHttpService>({
-        getWalletSettings: vi.fn().mockRejectedValue(new Error("Failed to fetch settings"))
-      });
+    it("returns null when wallet settings are not found", async () => {
+      const getWalletSettings = vi.fn().mockRejectedValue(new ApiError(404, undefined, "GET /v1/wallet-settings → 404"));
+      const api = createProxy({ v1: { getWalletSettings } }) as unknown as ApiService;
 
       const { result } = setupQuery(() => useWalletSettingsQuery(), {
-        services: { walletSettings: () => walletSettingsService }
+        services: { api: () => api }
       });
 
       await vi.waitFor(() => {
-        expect(walletSettingsService.getWalletSettings).toHaveBeenCalled();
+        expect(getWalletSettings).toHaveBeenCalled();
+        expect(result.current.isSuccess).toBe(true);
+        expect(result.current.data).toBeNull();
+      });
+    });
+
+    it("rethrows non-404 errors", async () => {
+      const getWalletSettings = vi.fn().mockRejectedValue(new ApiError(500, undefined, "GET /v1/wallet-settings → 500"));
+      const api = createProxy({ v1: { getWalletSettings } }) as unknown as ApiService;
+
+      const { result } = setupQuery(() => useWalletSettingsQuery(), {
+        services: { api: () => api }
+      });
+
+      await vi.waitFor(() => {
+        expect(getWalletSettings).toHaveBeenCalled();
         expect(result.current.isError).toBe(true);
       });
     });
   });
 
   describe(useWalletSettingsMutations.name, () => {
-    describe("updateWalletSettings", () => {
-      it("updates wallet settings and invalidates queries", async () => {
-        const updateParams: UpdateWalletSettingsParams = {
-          autoReloadEnabled: true
-        };
-        const mockUpdatedSettings: WalletSettings = {
-          autoReloadEnabled: true
-        };
-        const walletSettingsService = mock<WalletSettingsHttpService>({
-          updateWalletSettings: vi.fn().mockResolvedValue(mockUpdatedSettings)
-        });
+    it("updates wallet settings and invalidates the query", async () => {
+      const params = { data: { autoReloadEnabled: true } };
+      const { result, queryClient, api, v1 } = setupMutations();
+      const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
 
-        const { result } = setupQuery(() => useWalletSettingsMutations(), {
-          services: { walletSettings: () => walletSettingsService }
-        });
-
-        await act(async () => {
-          await result.current.updateWalletSettings.mutateAsync(updateParams);
-        });
-
-        await vi.waitFor(() => {
-          expect(walletSettingsService.updateWalletSettings).toHaveBeenCalledWith(updateParams);
-          expect(result.current.updateWalletSettings.isSuccess).toBe(true);
-        });
+      await act(async () => {
+        await result.current.updateWalletSettings.mutateAsync(params);
       });
 
-      it("handles error when updating wallet settings", async () => {
-        const updateParams: UpdateWalletSettingsParams = {
-          autoReloadEnabled: false
-        };
-        const walletSettingsService = mock<WalletSettingsHttpService>({
-          updateWalletSettings: vi.fn().mockRejectedValue(new Error("Update failed"))
-        });
-
-        const { result } = setupQuery(() => useWalletSettingsMutations(), {
-          services: { walletSettings: () => walletSettingsService }
-        });
-
-        await act(async () => {
-          try {
-            await result.current.updateWalletSettings.mutateAsync(updateParams);
-          } catch (error) {
-            // Expected error
-          }
-        });
-
-        await vi.waitFor(() => {
-          expect(walletSettingsService.updateWalletSettings).toHaveBeenCalledWith(updateParams);
-          expect(result.current.updateWalletSettings.isError).toBe(true);
-        });
+      await vi.waitFor(() => {
+        expect(v1.updateWalletSettings).toHaveBeenCalledWith(params);
+        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: api.v1.getWalletSettings.getKey() });
       });
     });
 
-    describe("createWalletSettings", () => {
-      it("creates wallet settings and invalidates queries", async () => {
-        const newSettings: WalletSettings = {
-          autoReloadEnabled: true
-        };
-        const walletSettingsService = mock<WalletSettingsHttpService>({
-          createWalletSettings: vi.fn().mockResolvedValue(newSettings)
-        });
+    it("creates wallet settings and invalidates the query", async () => {
+      const params = { data: { autoReloadEnabled: true } };
+      const { result, queryClient, api, v1 } = setupMutations();
+      const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
 
-        const { result } = setupQuery(() => useWalletSettingsMutations(), {
-          services: { walletSettings: () => walletSettingsService }
-        });
-
-        await act(async () => {
-          await result.current.createWalletSettings.mutateAsync(newSettings);
-        });
-
-        await vi.waitFor(() => {
-          expect(walletSettingsService.createWalletSettings).toHaveBeenCalledWith(newSettings);
-          expect(result.current.createWalletSettings.isSuccess).toBe(true);
-        });
+      await act(async () => {
+        await result.current.createWalletSettings.mutateAsync(params);
       });
 
-      it("handles error when creating wallet settings", async () => {
-        const newSettings: WalletSettings = {
-          autoReloadEnabled: true
-        };
-        const walletSettingsService = mock<WalletSettingsHttpService>({
-          createWalletSettings: vi.fn().mockRejectedValue(new Error("Creation failed"))
-        });
-
-        const { result } = setupQuery(() => useWalletSettingsMutations(), {
-          services: { walletSettings: () => walletSettingsService }
-        });
-
-        await act(async () => {
-          try {
-            await result.current.createWalletSettings.mutateAsync(newSettings);
-          } catch (error) {
-            // Expected error
-          }
-        });
-
-        await vi.waitFor(() => {
-          expect(walletSettingsService.createWalletSettings).toHaveBeenCalledWith(newSettings);
-          expect(result.current.createWalletSettings.isError).toBe(true);
-        });
+      await vi.waitFor(() => {
+        expect(v1.createWalletSettings).toHaveBeenCalledWith(params);
+        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: api.v1.getWalletSettings.getKey() });
       });
     });
 
-    describe("deleteWalletSettings", () => {
-      it("deletes wallet settings and invalidates queries", async () => {
-        const walletSettingsService = mock<WalletSettingsHttpService>({
-          deleteWalletSettings: vi.fn().mockResolvedValue(undefined)
-        });
+    it("deletes wallet settings and invalidates the query", async () => {
+      const { result, queryClient, api, v1 } = setupMutations();
+      const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
 
-        const { result } = setupQuery(() => useWalletSettingsMutations(), {
-          services: { walletSettings: () => walletSettingsService }
-        });
-
-        await act(async () => {
-          await result.current.deleteWalletSettings.mutateAsync();
-        });
-
-        await vi.waitFor(() => {
-          expect(walletSettingsService.deleteWalletSettings).toHaveBeenCalled();
-          expect(result.current.deleteWalletSettings.isSuccess).toBe(true);
-        });
+      await act(async () => {
+        await result.current.deleteWalletSettings.mutateAsync();
       });
 
-      it("handles error when deleting wallet settings", async () => {
-        const walletSettingsService = mock<WalletSettingsHttpService>({
-          deleteWalletSettings: vi.fn().mockRejectedValue(new Error("Deletion failed"))
-        });
-
-        const { result } = setupQuery(() => useWalletSettingsMutations(), {
-          services: { walletSettings: () => walletSettingsService }
-        });
-
-        await act(async () => {
-          try {
-            await result.current.deleteWalletSettings.mutateAsync();
-          } catch (error) {
-            // Expected error
-          }
-        });
-
-        await vi.waitFor(() => {
-          expect(walletSettingsService.deleteWalletSettings).toHaveBeenCalled();
-          expect(result.current.deleteWalletSettings.isError).toBe(true);
-        });
+      await vi.waitFor(() => {
+        expect(v1.deleteWalletSettings).toHaveBeenCalled();
+        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: api.v1.getWalletSettings.getKey() });
       });
     });
+
+    function setupMutations() {
+      const v1 = {
+        getWalletSettings: vi.fn(),
+        updateWalletSettings: vi.fn().mockResolvedValue(undefined),
+        createWalletSettings: vi.fn().mockResolvedValue(undefined),
+        deleteWalletSettings: vi.fn().mockResolvedValue(undefined)
+      };
+      const api = createProxy({ v1 }) as unknown as ApiService;
+      const { result, queryClient } = setupQueryWithClient(() => useWalletSettingsMutations(), {
+        services: { api: () => api }
+      });
+      return { result, queryClient, api, v1 };
+    }
   });
 });

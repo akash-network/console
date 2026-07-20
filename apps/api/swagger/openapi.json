@@ -308,6 +308,7 @@
     "/v1/wallet-settings": {
       "get": {
         "summary": "Get wallet settings",
+        "operationId": "getWalletSettings",
         "description": "Retrieves the wallet settings for the current user's wallet",
         "tags": [
           "WalletSetting"
@@ -354,6 +355,7 @@
       },
       "post": {
         "summary": "Create wallet settings",
+        "operationId": "createWalletSettings",
         "description": "Creates wallet settings for a user wallet",
         "tags": [
           "WalletSetting"
@@ -425,6 +427,7 @@
       },
       "put": {
         "summary": "Update wallet settings",
+        "operationId": "updateWalletSettings",
         "description": "Updates wallet settings for a user wallet",
         "tags": [
           "WalletSetting"
@@ -496,6 +499,7 @@
       },
       "delete": {
         "summary": "Delete wallet settings",
+        "operationId": "deleteWalletSettings",
         "description": "Deletes wallet settings for a user wallet",
         "tags": [
           "WalletSetting"
@@ -1140,10 +1144,14 @@
                               "nullable": true
                             }
                           }
+                        },
+                        "id": {
+                          "type": "string"
                         }
                       },
                       "required": [
-                        "type"
+                        "type",
+                        "id"
                       ]
                     }
                   },
@@ -1310,10 +1318,14 @@
                                 "nullable": true
                               }
                             }
+                          },
+                          "id": {
+                            "type": "string"
                           }
                         },
                         "required": [
-                          "type"
+                          "type",
+                          "id"
                         ]
                       }
                     }
@@ -1683,6 +1695,9 @@
                               "amount": {
                                 "type": "number"
                               },
+                              "bonusAmount": {
+                                "type": "number"
+                              },
                               "currency": {
                                 "type": "string"
                               },
@@ -1970,7 +1985,7 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "default": "2026-06-26",
+              "default": "2026-07-20",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -2096,7 +2111,7 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "default": "2026-06-26",
+              "default": "2026-07-20",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -16777,7 +16792,7 @@
                   },
                   "timezone": {
                     "type": "string",
-                    "description": "Client timezone, validated against supported Node.js Intl timezones",
+                    "description": "Client IANA timezone, validated against zones the runtime recognizes",
                     "example": "America/Chicago"
                   },
                   "reclamationWindow": {
@@ -16888,6 +16903,260 @@
                   },
                   "required": [
                     "providers"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body"
+          }
+        }
+      }
+    },
+    "/v1/confidential-compute/attestation/validate": {
+      "post": {
+        "operationId": "validateConfidentialComputeAttestation",
+        "summary": "Validate confidential compute attestation evidence against the hardware vendors (AMD SEV-SNP, Intel TDX, NVIDIA)",
+        "tags": [
+          "Confidential Compute"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nonce": {
+                    "type": "string",
+                    "description": "Per-request freshness challenge sent to the hardware, base64 (64 bytes, AEP-83 §5)"
+                  },
+                  "report": {
+                    "type": "string",
+                    "description": "CPU attestation report (AMD SEV-SNP or Intel TDX quote), base64",
+                    "example": "BQAAAAAA..."
+                  },
+                  "tee_platform": {
+                    "type": "string",
+                    "enum": [
+                      "snp",
+                      "tdx",
+                      "snp-gpu",
+                      "tdx-gpu"
+                    ],
+                    "description": "TEE platform that produced the evidence"
+                  },
+                  "cert_chain": {
+                    "type": "string",
+                    "default": "",
+                    "description": "CPU vendor cert chain, base64; may be empty (e.g. AMD VCEK fetched from KDS)",
+                    "example": "BQAAAAAA..."
+                  },
+                  "auxblob": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Platform auxiliary blob (e.g. TDX collateral), base64; may be empty",
+                    "example": "BQAAAAAA..."
+                  },
+                  "gpu_reports": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "device_index": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "description": "GPU device index this report attests",
+                          "example": 0
+                        },
+                        "report": {
+                          "type": "string",
+                          "description": "Hardware-signed GPU attestation report (embeds the device cert chain), base64",
+                          "example": "BQAAAAAA..."
+                        }
+                      },
+                      "required": [
+                        "device_index",
+                        "report"
+                      ]
+                    },
+                    "default": [],
+                    "description": "Per-GPU attestation reports; empty for CPU-only platforms"
+                  }
+                },
+                "required": [
+                  "nonce",
+                  "report",
+                  "tee_platform"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Per-report attestation verdicts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "overall": {
+                      "type": "string",
+                      "enum": [
+                        "valid",
+                        "invalid",
+                        "unverifiable"
+                      ],
+                      "description": "Rollup: valid only if every report is valid; invalid if any report is invalid; otherwise unverifiable"
+                    },
+                    "nonce": {
+                      "type": "string",
+                      "description": "Echo of the request nonce, for client correlation"
+                    },
+                    "reports": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "cpu"
+                                ]
+                              },
+                              "vendor": {
+                                "type": "string",
+                                "enum": [
+                                  "amd-sev-snp",
+                                  "intel-tdx"
+                                ]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "valid",
+                                  "invalid",
+                                  "unverifiable"
+                                ],
+                                "description": "valid = chained to the vendor root, signature/EAT verified, and bound to the request nonce; invalid = a check ran and failed (bad signature, untrusted chain, nonce mismatch); unverifiable = the check could not be completed (vendor service unreachable, not configured, missing material)"
+                              },
+                              "detail": {
+                                "type": "string",
+                                "description": "Human-readable explanation of the verdict"
+                              },
+                              "checks": {
+                                "type": "object",
+                                "properties": {
+                                  "certChainValid": {
+                                    "type": "boolean",
+                                    "description": "Evidence chains to the vendor root certificate"
+                                  },
+                                  "signatureValid": {
+                                    "type": "boolean",
+                                    "description": "The report/EAT signature verified"
+                                  },
+                                  "nonceMatch": {
+                                    "type": "boolean",
+                                    "description": "The evidence is bound to the request nonce"
+                                  },
+                                  "notRevoked": {
+                                    "type": "boolean",
+                                    "description": "Revocation status; omitted when revocation was not checked"
+                                  }
+                                },
+                                "description": "Granular sub-results behind the verdict; fields are omitted when not evaluated"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "vendor",
+                              "status",
+                              "detail"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "gpu"
+                                ]
+                              },
+                              "device_index": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "vendor": {
+                                "type": "string",
+                                "enum": [
+                                  "nvidia"
+                                ]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "valid",
+                                  "invalid",
+                                  "unverifiable"
+                                ],
+                                "description": "valid = chained to the vendor root, signature/EAT verified, and bound to the request nonce; invalid = a check ran and failed (bad signature, untrusted chain, nonce mismatch); unverifiable = the check could not be completed (vendor service unreachable, not configured, missing material)"
+                              },
+                              "detail": {
+                                "type": "string",
+                                "description": "Human-readable explanation of the verdict"
+                              },
+                              "checks": {
+                                "type": "object",
+                                "properties": {
+                                  "certChainValid": {
+                                    "type": "boolean",
+                                    "description": "Evidence chains to the vendor root certificate"
+                                  },
+                                  "signatureValid": {
+                                    "type": "boolean",
+                                    "description": "The report/EAT signature verified"
+                                  },
+                                  "nonceMatch": {
+                                    "type": "boolean",
+                                    "description": "The evidence is bound to the request nonce"
+                                  },
+                                  "notRevoked": {
+                                    "type": "boolean",
+                                    "description": "Revocation status; omitted when revocation was not checked"
+                                  }
+                                },
+                                "description": "Granular sub-results behind the verdict; fields are omitted when not evaluated"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "device_index",
+                              "vendor",
+                              "status",
+                              "detail"
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "overall",
+                    "nonce",
+                    "reports"
                   ]
                 }
               }

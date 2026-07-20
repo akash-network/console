@@ -158,152 +158,22 @@ export interface paths {
      * Get wallet settings
      * @description Retrieves the wallet settings for the current user's wallet
      */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Wallet settings retrieved successfully */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              data: {
-                autoReloadEnabled: boolean;
-              };
-            };
-          };
-        };
-        /** @description UserWallet Not Found */
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
+    get: operations["getWalletSettings"];
     /**
      * Update wallet settings
      * @description Updates wallet settings for a user wallet
      */
-    put: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": {
-            data: {
-              autoReloadEnabled: boolean;
-            };
-          };
-        };
-      };
-      responses: {
-        /** @description Wallet settings updated successfully */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              data: {
-                autoReloadEnabled: boolean;
-              };
-            };
-          };
-        };
-        /** @description UserWallet Not Found */
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
+    put: operations["updateWalletSettings"];
     /**
      * Create wallet settings
      * @description Creates wallet settings for a user wallet
      */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": {
-            data: {
-              autoReloadEnabled: boolean;
-            };
-          };
-        };
-      };
-      responses: {
-        /** @description Wallet settings created successfully */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              data: {
-                autoReloadEnabled: boolean;
-              };
-            };
-          };
-        };
-        /** @description UserWallet Not Found */
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
+    post: operations["createWalletSettings"];
     /**
      * Delete wallet settings
      * @description Deletes wallet settings for a user wallet
      */
-    delete: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Wallet settings deleted successfully */
-        204: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-        /** @description UserWallet Not Found */
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
+    delete: operations["deleteWalletSettings"];
     options?: never;
     head?: never;
     patch?: never;
@@ -5743,8 +5613,12 @@ export interface paths {
           content: {
             "application/json": {
               name: string;
+              /** @example NVIDIA */
+              displayName: string;
               models: {
                 name: string;
+                /** @example RTX 4090 */
+                displayName: string;
                 memory: string[];
                 interface: string[];
               }[];
@@ -7252,6 +7126,140 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  getWalletSettings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Wallet settings retrieved successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              autoReloadEnabled: boolean;
+            };
+          };
+        };
+      };
+      /** @description UserWallet Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  updateWalletSettings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": {
+          data: {
+            autoReloadEnabled: boolean;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description Wallet settings updated successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              autoReloadEnabled: boolean;
+            };
+          };
+        };
+      };
+      /** @description UserWallet Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  createWalletSettings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": {
+          data: {
+            autoReloadEnabled: boolean;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description Wallet settings created successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              autoReloadEnabled: boolean;
+            };
+          };
+        };
+      };
+      /** @description UserWallet Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteWalletSettings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Wallet settings deleted successfully */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description UserWallet Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   listStripePrices: {
     parameters: {
       query?: never;
@@ -7424,6 +7432,7 @@ export interface operations {
                 name?: string | null;
                 phone?: string | null;
               };
+              id: string;
             };
           };
         };
@@ -7511,6 +7520,7 @@ export interface operations {
                 name?: string | null;
                 phone?: string | null;
               };
+              id: string;
             }[];
           };
         };
@@ -7654,6 +7664,7 @@ export interface operations {
               transactions: {
                 id: string;
                 amount: number;
+                bonusAmount?: number;
                 currency: string;
                 status: string;
                 created: number;
@@ -8683,7 +8694,7 @@ export interface operations {
             };
           }[];
           /**
-           * @description Client timezone, validated against supported Node.js Intl timezones
+           * @description Client IANA timezone, validated against zones the runtime recognizes
            * @example America/Chicago
            */
           timezone: string;

@@ -1,3 +1,4 @@
+import { HTTPException } from "hono/http-exception";
 import assert from "http-assert";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
@@ -61,7 +62,15 @@ export class StripeController {
   @Protected([{ action: "read", subject: "PaymentMethod" }])
   async getDefaultPaymentMethod(): Promise<PaymentMethodResponse> {
     const { ability } = this.authService;
-    const currentUser = this.authService.getCurrentPayingUser();
+    const currentUser = this.authService.getCurrentPayingUser({ strict: false });
+
+    if (!currentUser) {
+      throw new HTTPException(404, {
+        message: "PaymentMethod not found",
+        cause: "User does not have a Stripe customer ID"
+      });
+    }
+
     const paymentMethod = await this.stripe.getDefaultPaymentMethod(currentUser, ability);
 
     assert(paymentMethod, 404, "PaymentMethod not found");

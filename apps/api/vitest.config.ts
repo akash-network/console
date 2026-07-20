@@ -45,6 +45,7 @@ export default defineConfig({
         "src/**/index.ts",
         "src/*/routes/**/*.ts",
         "src/*/routers/**/*.ts",
+        "src/*/http-schemas/**/*.ts",
         "src/routers/**/*.ts",
         "src/server.ts",
         "src/background-jobs-app.ts",

@@ -11,8 +11,7 @@ import {
   StripeService as HttpStripeService,
   TemplateHttpService,
   TxHttpService,
-  UsageHttpService,
-  WalletSettingsHttpService
+  UsageHttpService
 } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
@@ -110,10 +109,6 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       });
       return new ManagedDeploymentHttpService(httpClient);
     },
-    walletSettings: () =>
-      container.applyAxiosInterceptors(new WalletSettingsHttpService(apiConfig), {
-        request: [withUserToken]
-      }),
     apiKey: () =>
       container.applyAxiosInterceptors(new ApiKeyHttpService(apiConfig), {
         request: [withUserToken]

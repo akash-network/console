@@ -25,7 +25,6 @@
     "zod": "3.*"
   },
   "devDependencies": {
-    "@akashnetwork/net": "*",
     "vitest": "^4.1.5"
   },
   "peerDependencies": {

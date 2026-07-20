@@ -31,10 +31,6 @@ export class StripeService {
     return extractData(await this.#httpClient.get("/v1/stripe/payment-methods")).data;
   }
 
-  async getDefaultPaymentMethod(): Promise<PaymentMethod> {
-    return extractData(await this.#httpClient.get("/v1/stripe/payment-methods/default")).data;
-  }
-
   async removePaymentMethod(paymentMethodId: string): Promise<void> {
     return extractData(await this.#httpClient.delete(`/v1/stripe/payment-methods/${paymentMethodId}`)).data;
   }
