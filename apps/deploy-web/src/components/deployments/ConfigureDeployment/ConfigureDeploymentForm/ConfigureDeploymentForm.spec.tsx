@@ -7,11 +7,12 @@ import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/
 import { defaultService } from "@src/utils/sdl/data";
 import { ConfigurationPane } from "../ConfigurationPane/ConfigurationPane";
 import { usePlacementManager } from "../DeploymentPane/usePlacementManager/usePlacementManager";
+import { importDeploymentState } from "../importDeploymentState/importDeploymentState";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./ConfigureDeploymentForm";
 import { ConfigureDeploymentForm, firstBidReadyServiceId, nextUndoneServiceId } from "./ConfigureDeploymentForm";
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const VALID_SDL = [
@@ -376,6 +377,44 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(analyticsService.track).toHaveBeenCalledWith("configure_page_viewed", { category: "deployments" });
   });
 
+  it("threads the live sdl, deployment name, and editability into the import/export control", () => {
+    const { SdlImportExport } = setup({ initialSdl: VALID_SDL, initialName: "my-app" });
+
+    expect(SdlImportExport).toHaveBeenCalledWith(expect.objectContaining({ sdl: VALID_SDL, deploymentName: "my-app", canImport: true }), expect.anything());
+  });
+
+  it("disables import while the flow is quoting", () => {
+    const { SdlImportExport } = setup({ initialSdl: VALID_SDL, phase: "quoting" });
+
+    expect(SdlImportExport).toHaveBeenCalledWith(expect.objectContaining({ canImport: false }), expect.anything());
+  });
+
+  it("replaces the whole configuration when an sdl is imported", async () => {
+    const { SdlImportExport } = setup({ initialSdl: undefined, Panes: ImportProbePanes });
+    const state = importDeploymentState(TWO_SERVICE_SDL);
+
+    await act(async () => {
+      (SdlImportExport as ReturnType<typeof vi.fn>).mock.calls[0][0].onImport(state);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("service-titles").textContent).toBe("web,api");
+      expect(screen.getByTestId("sdl").textContent).toContain("version: '2.0'");
+      expect(screen.getByTestId("selected").textContent).toBe(state.selectedServiceId);
+    });
+  });
+
+  it("persists the imported sdl to the draft under the existing deployment name", async () => {
+    const { SdlImportExport, save } = setup({ initialSdl: undefined, initialName: "my-app", Panes: ImportProbePanes });
+    const state = importDeploymentState(TWO_SERVICE_SDL);
+
+    await act(async () => {
+      (SdlImportExport as ReturnType<typeof vi.fn>).mock.calls[0][0].onImport(state);
+    });
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("node:18"), "my-app"));
+  });
+
   function setup(input: {
     initialSdl: string | undefined;
     initialName?: string;
@@ -385,9 +424,11 @@ describe(ConfigureDeploymentForm.name, () => {
     flowError?: { message?: string };
     trialError?: unknown;
     vm?: boolean;
+    phase?: DeploymentFlow["phase"];
   }) {
     const ConfigureDeploymentPanes = vi.fn(input.Panes ?? (() => <div data-testid="panes-mock" />));
     const ConfigureDeploymentHeader = vi.fn(() => <div data-testid="header-mock" />);
+    const SdlImportExport = vi.fn(() => null);
     const enqueueSnackbar = vi.fn();
     const Snackbar = vi.fn(() => null);
     const save = vi.fn<(sdl: string, name?: string) => void>();
@@ -408,7 +449,7 @@ describe(ConfigureDeploymentForm.name, () => {
     const useDeploymentName = ((args: { initialName?: string }) => ({ name: args.initialName ?? "", setName: setDeploymentName })) as never;
     // The base flow is created upstream by the DeploymentFlowProvider now, so it arrives as a prop rather than a hook.
     const flow = mock<DeploymentFlow>({
-      phase: "configuring",
+      phase: input.phase ?? "configuring",
       dseq: null,
       bidStrategy: "select",
       selections: {},
@@ -430,6 +471,7 @@ describe(ConfigureDeploymentForm.name, () => {
       Snackbar: Snackbar as never,
       ReviewAndDeployModal: ReviewAndDeployModal as never,
       DeployProgressOverlay: () => null,
+      SdlImportExport: SdlImportExport as never,
       usePlacementsWithBids: () => new Set<string>()
     };
 
@@ -449,6 +491,7 @@ describe(ConfigureDeploymentForm.name, () => {
       ConfigureDeploymentPanes,
       ConfigureDeploymentHeader,
       ReviewAndDeployModal,
+      SdlImportExport,
       flow,
       enqueueSnackbar,
       save,
@@ -620,6 +663,19 @@ function AddRemoveProbePanes({ sdl, selectedServiceId, onSelectService }: ProbeP
           AdditionalSection: FieldRegisteringSection as never
         }}
       />
+    </div>
+  );
+}
+
+/** Panes stand-in that reports the imported services, live sdl, and selection so an import can be asserted end to end. */
+function ImportProbePanes({ sdl, selectedServiceId }: ProbePanesProps) {
+  const services = useWatch<SdlBuilderFormValuesType>({ name: "services" });
+  const titles = Array.isArray(services) ? (services as SdlBuilderFormValuesType["services"]).map(service => service.title) : [];
+  return (
+    <div>
+      <div data-testid="service-titles">{titles.join(",")}</div>
+      <div data-testid="sdl">{sdl}</div>
+      <div data-testid="selected">{selectedServiceId}</div>
     </div>
   );
 }

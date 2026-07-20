@@ -121,7 +121,10 @@ export type AnalyticsEvent =
   | "configure_preset_selected"
   | "configure_gpu_type_selected"
   | "configure_gpu_count_changed"
-  | "configure_cpu_count_changed";
+  | "configure_cpu_count_changed"
+  | "configure_sdl_imported"
+  | "configure_sdl_downloaded"
+  | "configure_sdl_copied";
 
 export type AnalyticsCategory = "user" | "billing" | "deployments" | "wallet" | "sdl_builder" | "transactions" | "profile" | "settings" | "onboarding";
 
