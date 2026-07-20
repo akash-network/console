@@ -45,6 +45,7 @@ export function decodeMsg(type: string, msg: Uint8Array) {
   return msgType.decode(msg);
 }
 
-export function uint8arrayToString(arr: Uint8Array) {
+export function uint8arrayToString(arr: Uint8Array | undefined) {
+  if (!arr) return "";
   return new TextDecoder().decode(arr);
 }
