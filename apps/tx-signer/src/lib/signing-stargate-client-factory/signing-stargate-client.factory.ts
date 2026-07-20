@@ -94,11 +94,14 @@ export class SigningStargateWithUnorderedSupportClient extends SigningStargateCl
   async signUnordered(messages: readonly EncodeObject[], options?: { granter?: string; gas?: number }): Promise<TxRaw> {
     const [address, chainId, accountNumber, pubkey] = await Promise.all([this.#getAddress(), this.#getChainId(), this.#getAccountNumber(), this.#getPubkey()]);
 
-    const bodyBytes = this.#encodeTxBody(messages);
-    const fee = await this.#estimateFee(bodyBytes, pubkey, { granter: options?.granter, gas: options?.gas });
+    const txBody = this.#buildTxBody(messages);
+    const fee = await this.#estimateFee(TxBody.encode(txBody).finish(), pubkey, { granter: options?.granter, gas: options?.gas });
 
     // sequence MUST be 0 for unordered transactions; the chain rejects a non-zero sequence when unordered is set.
     const authInfoBytes = makeAuthInfoBytes([{ pubkey, sequence: 0 }], fee.amount, Number(fee.gas), fee.granter, fee.payer);
+    // update timestampTimeout to compensate time spent in doing stuff above
+    txBody.timeoutTimestamp = new Date(Date.now() + this.#signConfig.ttlMs);
+    const bodyBytes = TxBody.encode(txBody).finish();
     const signDoc = makeSignDoc(bodyBytes, authInfoBytes, chainId, accountNumber);
     const { signature, signed } = await this.#signer.signDirect(address, signDoc);
 
@@ -120,15 +123,13 @@ export class SigningStargateWithUnorderedSupportClient extends SigningStargateCl
     return Number(gasInfo.gasUsed);
   }
 
-  #encodeTxBody(messages: readonly EncodeObject[]): Uint8Array {
-    return TxBody.encode(
-      TxBody.fromPartial({
-        messages: messages.map(message => this.registry.encodeAsAny(message)),
-        memo: MEMO,
-        unordered: true,
-        timeoutTimestamp: new Date(Date.now() + this.#signConfig.ttlMs)
-      })
-    ).finish();
+  #buildTxBody(messages: readonly EncodeObject[]) {
+    return TxBody.fromPartial({
+      messages: messages.map(message => this.registry.encodeAsAny(message)),
+      memo: MEMO,
+      unordered: true,
+      timeoutTimestamp: new Date(Date.now() + this.#signConfig.ttlMs)
+    });
   }
 
   async #estimateFee(bodyBytes: Uint8Array, pubkey: ReturnType<typeof encodePubkey>, options: { granter?: string; gas?: number }) {
