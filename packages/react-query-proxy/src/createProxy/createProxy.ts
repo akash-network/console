@@ -111,17 +111,24 @@ type OptionalMutationVariables<T extends (...args: any[]) => any> = Parameters<T
  * from a rejected SDK call by returning a fallback value — widening `TQueryFnData` by
  * `TRecovered`; re-throw inside it to let the error propagate as a normal query error.
  */
-type ProxyQueryOptions<TQueryFnData, TData, TRecovered> = Omit<UseQueryOptions<TQueryFnData, Error, TData, QueryKey>, "queryFn" | "queryKey"> & {
+export type ProxyQueryOptions<TQueryFnData, TData, TRecovered> = Omit<UseQueryOptions<TQueryFnData, Error, TData, QueryKey>, "queryFn" | "queryKey"> & {
   queryKey?: QueryKey;
   catchError?: (error: Error) => TRecovered;
 };
 
+/**
+ * `TRecovered` widens the query-fn data, so it flows into `TQueryFnData`, which in turn types
+ * inference-sensitive fields like `placeholderData` and `initialData`. Passing a generic value there
+ * (e.g. `placeholderData: keepPreviousData`, whose type is `<T>(prev: T) => T`) would otherwise let
+ * `TRecovered` be inferred from it and pollute `TData` with the helper's function type. `NoInfer` pins
+ * `TRecovered` to the sole intended inference site — `catchError`'s return — so `TData` stays the data shape.
+ */
 type HooksProxy<T extends (...args: any[]) => any> = undefined extends Parameters<T>[0]
   ? {
       getKey: (input?: NonNullable<Parameters<T>[0]>) => PropertyKey[];
       useQuery: <TRecovered = never, TData = Awaited<ReturnType<T>> | TRecovered>(
         input?: NonNullable<Parameters<T>[0]>,
-        options?: ProxyQueryOptions<Awaited<ReturnType<T>> | TRecovered, TData, TRecovered>
+        options?: ProxyQueryOptions<Awaited<ReturnType<T>> | NoInfer<TRecovered>, TData, TRecovered>
       ) => UseQueryResult<TData>;
       useMutation: (
         options?: Omit<UseMutationOptions<Awaited<ReturnType<T>>, Error, OptionalMutationVariables<T>, any>, "mutationFn">
@@ -131,7 +138,7 @@ type HooksProxy<T extends (...args: any[]) => any> = undefined extends Parameter
       getKey: (input: Parameters<T>[0]) => PropertyKey[];
       useQuery: <TRecovered = never, TData = Awaited<ReturnType<T>> | TRecovered>(
         input: Parameters<T>[0],
-        options?: ProxyQueryOptions<Awaited<ReturnType<T>> | TRecovered, TData, TRecovered>
+        options?: ProxyQueryOptions<Awaited<ReturnType<T>> | NoInfer<TRecovered>, TData, TRecovered>
       ) => UseQueryResult<TData>;
       useMutation: (
         options?: Omit<UseMutationOptions<Awaited<ReturnType<T>>, Error, Parameters<T>[0], any>, "mutationFn">

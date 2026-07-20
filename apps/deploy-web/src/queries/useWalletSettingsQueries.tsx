@@ -1,15 +1,18 @@
 // v8 ignore
 import type { paths } from "@akashnetwork/console-api-types";
 import { ApiError } from "@akashnetwork/openapi-sdk";
-import type { UseQueryOptions } from "@tanstack/react-query";
+import type { UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 
-export const useWalletSettingsQuery = (options?: Omit<UseQueryOptions<WalletSettings | null>, "queryKey" | "queryFn">) => {
+export const useWalletSettingsQuery = (
+  options?: Omit<UseQueryOptions<WalletSettings | null>, "queryKey" | "queryFn">
+): UseQueryResult<WalletSettings["data"] | null> => {
   const { api } = useServices();
   return api.v1.getWalletSettings.useQuery(undefined, {
     ...options,
+    select: response => response?.data ?? null,
     catchError(error) {
       if (error instanceof ApiError && error.status === 404) return null;
       throw error;

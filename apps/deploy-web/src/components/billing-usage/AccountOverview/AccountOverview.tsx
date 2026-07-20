@@ -87,12 +87,14 @@ export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DE
       }
 
       const settings = {
-        autoReloadEnabled
+        data: {
+          autoReloadEnabled
+        }
       };
 
       upsertWalletSettings.mutate(settings, {
         onSuccess: response =>
-          enqueueSnackbar(<d.Snackbar title={`Auto Reload ${response.autoReloadEnabled ? "enabled" : "disabled"}`} iconVariant="success" />, {
+          enqueueSnackbar(<d.Snackbar title={`Auto Reload ${response.data.autoReloadEnabled ? "enabled" : "disabled"}`} iconVariant="success" />, {
             variant: "success",
             autoHideDuration: 3000
           }),
