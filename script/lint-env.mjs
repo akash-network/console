@@ -40,7 +40,7 @@ const LAYERING_CHECK_SKIP = new Set(["provider-console"]);
  * they never appear as an identifier in the source tree. Listing one here exempts it from the
  * "unused key" check.
  */
-const EXTERNAL_ENV_KEYS = new Set();
+const EXTERNAL_ENV_KEYS = new Set(["NEXT_PUBLIC_UNLEASH_FRONTEND_API_URL", "NEXT_PUBLIC_UNLEASH_FRONTEND_API_TOKEN", "NEXT_PUBLIC_AUTH0_LOGIN"]);
 
 /** Env file suffixes whose keys are checked for usage. Test and local-only files are excluded. */
 function isUsageCheckedEnvFile(fileName) {
