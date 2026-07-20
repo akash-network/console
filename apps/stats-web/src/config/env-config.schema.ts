@@ -22,6 +22,7 @@ export const browserEnvSchema = z.object({
 
 export const serverEnvSchema = browserEnvSchema.extend({
   MAINTENANCE_MODE: coercedBoolean().optional().default("false"),
+  CSP_MODE: z.enum(["enforce", "report-only"]).optional(),
   BASE_API_MAINNET_URL: z.string().url(),
   BASE_API_TESTNET_URL: z.string().url(),
   BASE_API_SANDBOX_URL: z.string().url()

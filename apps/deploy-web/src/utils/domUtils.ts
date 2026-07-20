@@ -21,9 +21,23 @@ function scriptExists(id: string): boolean {
   return !!document.getElementById(id);
 }
 
+/**
+ * Reads the active CSP nonce from an already-nonced script via the `.nonce` IDL property,
+ * since browsers clear the `nonce` content attribute after parsing.
+ */
+export function getCspNonce(): string | undefined {
+  return document.querySelector<HTMLScriptElement>("script[nonce]")?.nonce || undefined;
+}
+
 function createScriptElement(options: ScriptOptions): HTMLScriptElement {
   const script = document.createElement("script");
   Object.assign(script, options);
+
+  const nonce = getCspNonce();
+  if (nonce) {
+    script.nonce = nonce;
+  }
+
   return script;
 }
 
