@@ -1,6 +1,7 @@
 import type { AxiosRequestConfig } from "axios";
 
-import { ApiHttpService } from "../api-http/api-http.service";
+import { extractData } from "../http/http.service";
+import type { HttpClient } from "../utils/httpClient";
 import type {
   ConfirmPaymentParams,
   ConfirmPaymentResponse,
@@ -16,49 +17,50 @@ import type {
   ThreeDSecureAuthParams
 } from "./stripe.types";
 
-export class StripeService extends ApiHttpService {
-  constructor(config?: AxiosRequestConfig) {
-    super(config);
+export class StripeService {
+  readonly #httpClient: HttpClient;
+  constructor(httpClient: HttpClient) {
+    this.#httpClient = httpClient;
   }
 
   async createSetupIntent(config?: AxiosRequestConfig): Promise<SetupIntentResponse> {
-    return this.extractApiData(await this.post("/v1/stripe/payment-methods/setup", {}, config));
+    return extractData(await this.#httpClient.post("/v1/stripe/payment-methods/setup", {}, config)).data;
   }
 
   async getPaymentMethods(): Promise<PaymentMethod[]> {
-    return this.extractApiData(await this.get("/v1/stripe/payment-methods"));
+    return extractData(await this.#httpClient.get("/v1/stripe/payment-methods")).data;
   }
 
   async getDefaultPaymentMethod(): Promise<PaymentMethod> {
-    return this.extractApiData(await this.get("/v1/stripe/payment-methods/default"));
+    return extractData(await this.#httpClient.get("/v1/stripe/payment-methods/default")).data;
   }
 
   async removePaymentMethod(paymentMethodId: string): Promise<void> {
-    return this.extractApiData(await this.delete(`/v1/stripe/payment-methods/${paymentMethodId}`));
+    return extractData(await this.#httpClient.delete(`/v1/stripe/payment-methods/${paymentMethodId}`)).data;
   }
 
   async updateCustomerOrganization(organization: string): Promise<void> {
-    await this.put("/v1/stripe/customers/organization", { organization });
+    await this.#httpClient.put("/v1/stripe/customers/organization", { organization });
   }
 
   async applyCoupon(couponId: string, userId: string): Promise<CouponResponse> {
-    return this.extractApiData(await this.post("/v1/stripe/coupons/apply", { data: { couponId, userId } }));
+    return extractData(await this.#httpClient.post("/v1/stripe/coupons/apply", { data: { couponId, userId } })).data;
   }
 
   async getCustomerDiscounts(): Promise<CustomerDiscountsResponse> {
-    return this.extractApiData(await this.get("/v1/stripe/coupons/customer-discounts"));
+    return extractData(await this.#httpClient.get("/v1/stripe/coupons/customer-discounts")).data;
   }
 
   async confirmPayment(params: ConfirmPaymentParams): Promise<ConfirmPaymentResponse> {
-    return this.extractApiData(await this.post("/v1/stripe/transactions/confirm", { data: params }));
+    return extractData(await this.#httpClient.post("/v1/stripe/transactions/confirm", { data: params })).data;
   }
 
   async validatePaymentMethodAfter3DS(params: ThreeDSecureAuthParams): Promise<{ success: boolean }> {
-    return this.extractApiData(await this.post("/v1/stripe/payment-methods/validate", { data: params }));
+    return extractData(await this.#httpClient.post("/v1/stripe/payment-methods/validate", { data: params })).data;
   }
 
   async setPaymentMethodAsDefault(params: SetPaymentMethodAsDefaultParams): Promise<PaymentMethod[]> {
-    return this.extractApiData(await this.post("/v1/stripe/payment-methods/default", { data: params }));
+    return extractData(await this.#httpClient.post("/v1/stripe/payment-methods/default", { data: params })).data;
   }
 
   async getCustomerTransactions(options?: CustomerTransactionsParams): Promise<CustomerTransactionsResponse> {
@@ -78,7 +80,7 @@ export class StripeService extends ApiHttpService {
 
     const url = `/v1/stripe/transactions${params.toString() ? `?${params}` : ""}`;
 
-    return this.extractApiData(await this.get(url));
+    return extractData(await this.#httpClient.get(url));
   }
 
   async exportTransactionsCsv(params: ExportTransactionsCsvParams): Promise<Blob> {
@@ -90,14 +92,14 @@ export class StripeService extends ApiHttpService {
 
     const url = `/v1/stripe/transactions/export?${queryParams}`;
 
-    return this.extractData(
-      await this.get(url, {
+    return extractData(
+      await this.#httpClient.get(url, {
         responseType: "blob"
       })
     );
   }
 
   async findPrices(config?: AxiosRequestConfig): Promise<StripePrice[]> {
-    return this.extractApiData(await this.get("/v1/stripe/prices", config));
+    return extractData(await this.#httpClient.get("/v1/stripe/prices", config)).data;
   }
 }
