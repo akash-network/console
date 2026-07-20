@@ -3,10 +3,13 @@ import type { Job as PgBossJob, PgBoss, WorkHandler } from "pg-boss";
 import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
+import type { Sql } from "postgres";
+
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { CoreConfigService } from "../core-config/core-config.service";
 import type { ExecutionContextService } from "../execution-context/execution-context.service";
-import { type Job, JOB_NAME, type JobHandler, JobQueueService } from "./job-queue.service";
+import type { TxService } from "../tx/tx.service";
+import { type EnqueueOptions, type Job, JOB_NAME, type JobHandler, JobQueueService } from "./job-queue.service";
 
 describe(JobQueueService.name, () => {
   describe("registerHandlers", () => {
@@ -88,7 +91,7 @@ describe(JobQueueService.name, () => {
       expect(pgBoss.send).toHaveBeenCalledWith({
         name: job.name,
         data: { ...job.data, version: job.version },
-        options: { startAfter: expect.any(Date) }
+        options: { startAfter: expect.any(Date), db: undefined }
       });
       expect(logger.info).toHaveBeenCalledWith({
         event: "JOB_ENQUEUED",
@@ -112,9 +115,24 @@ describe(JobQueueService.name, () => {
       expect(pgBoss.send).toHaveBeenCalledWith({
         name: job.name,
         data: { ...job.data, version: job.version },
-        options: undefined
+        options: { db: undefined }
       });
       expect(result).toBe("job-id-456");
+    });
+
+    it("enqueues the job on the ambient transaction connection when one is active", async () => {
+      const job = new TestJob({ message: "Hello World", userId: "user-123" });
+      const unsafe = vi.fn().mockResolvedValue([{ id: "job-1" }]);
+      const connection = { unsafe } as unknown as Sql;
+      const { service, pgBoss, txService } = setup();
+      txService.getConnection.mockReturnValue(connection);
+      const send = vi.spyOn(pgBoss, "send").mockResolvedValue("job-id-789");
+
+      await service.enqueue(job);
+
+      const { db } = (send.mock.calls[0][0] as unknown as { options: EnqueueOptions }).options;
+      await db!.executeSql("INSERT INTO job VALUES ($1)", ["payload"]);
+      expect(unsafe).toHaveBeenCalledWith("INSERT INTO job VALUES ($1)", ["payload"]);
     });
   });
 
@@ -371,13 +389,15 @@ describe(JobQueueService.name, () => {
       executionContextService: mock<ExecutionContextService>({
         set: vi.fn().mockResolvedValue(undefined),
         runWithContext: vi.fn(async (cb: () => Promise<unknown>) => await cb()) as ExecutionContextService["runWithContext"]
-      })
+      }),
+      txService: mock<TxService>()
     };
 
     const service = new JobQueueService(
       mocks.logger,
       mocks.coreConfig,
       mocks.executionContextService,
+      mocks.txService,
       input && Object.hasOwn(input, "pgBoss") ? input?.pgBoss : mocks.pgBoss
     );
 

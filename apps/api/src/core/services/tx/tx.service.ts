@@ -1,7 +1,8 @@
 import type { ExtractTablesWithRelations } from "drizzle-orm";
 import type { PgTransaction } from "drizzle-orm/pg-core";
-import { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js/session";
+import type { PostgresJsQueryResultHKT, PostgresJsSession } from "drizzle-orm/postgres-js/session";
 import { AsyncLocalStorage } from "node:async_hooks";
+import type { Sql } from "postgres";
 import { container, singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg } from "@src/core/providers/postgres.provider";
@@ -33,6 +34,13 @@ export class TxService {
 
   getPgTx() {
     return this.storage.getStore()?.get("PG_TX");
+  }
+
+  getConnection(): Sql | undefined {
+    const tx = this.getPgTx();
+    if (!tx) return undefined;
+
+    return (tx._.session as PostgresJsSession<Sql, ApiPgTables, ExtractTablesWithRelations<ApiPgTables>>).client;
   }
 }
 
