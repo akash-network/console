@@ -1,7 +1,6 @@
-import type { AxiosRequestConfig } from "axios";
-
-import { HttpService } from "../http/http.service";
+import { extractData } from "../http/http.service";
 import type { Denom } from "../types/denom.type";
+import type { HttpClient } from "../utils/httpClient";
 
 export interface RawBalance {
   amount: string;
@@ -17,13 +16,11 @@ interface BalanceResponse {
   balance: RawBalance;
 }
 
-export class BalanceHttpService extends HttpService {
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
-    super(config);
-  }
+export class BalanceHttpService {
+  constructor(private readonly httpClient: HttpClient) {}
 
   async getBalance(address: string, denom: string): Promise<Balance | undefined> {
-    const response = this.extractData(await this.get<BalanceResponse>(`cosmos/bank/v1beta1/balances/${address}/by_denom?denom=${denom}`));
+    const response = extractData(await this.httpClient.get<BalanceResponse>(`cosmos/bank/v1beta1/balances/${address}/by_denom?denom=${denom}`));
     return response.balance ? { amount: parseFloat(response.balance.amount), denom: response.balance.denom } : undefined;
   }
 }

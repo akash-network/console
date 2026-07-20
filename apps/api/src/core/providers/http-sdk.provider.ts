@@ -28,13 +28,6 @@ container.register(CHAIN_API_HTTP_CLIENT, {
   )
 });
 
-const SERVICES = [BalanceHttpService, ProviderHttpService];
-SERVICES.forEach(Service =>
-  container.register(Service as InjectionToken<unknown>, {
-    useFactory: instancePerContainerCachingFactory(c => new Service({ baseURL: c.resolve(CoreConfigService).get("REST_API_NODE_URL") }))
-  })
-);
-
 const NON_AXIOS_SERVICES: Array<new (httpClient: HttpClient) => unknown> = [
   DeploymentHttpService,
   LeaseHttpService,
@@ -42,7 +35,9 @@ const NON_AXIOS_SERVICES: Array<new (httpClient: HttpClient) => unknown> = [
   AuthzHttpService,
   BlockHttpService,
   BmeHttpService,
-  BidHttpService
+  BidHttpService,
+  BalanceHttpService,
+  ProviderHttpService
 ];
 NON_AXIOS_SERVICES.forEach(Service =>
   container.register(Service, { useFactory: instancePerContainerCachingFactory(c => new Service(c.resolve(CHAIN_API_HTTP_CLIENT))) })
