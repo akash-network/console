@@ -1,6 +1,6 @@
 import type { FC } from "react";
 import { useMemo, useState } from "react";
-import { Badge, Button, Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+import { Badge, Button, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import type { Column, Row, SortingState } from "@tanstack/react-table";
 import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
@@ -23,6 +23,18 @@ const NO_REGION = "—";
 /** Fallback uptime for a provider missing from the derived map; treated as fully healthy. */
 const HEALTHY_UPTIME: ProviderUptime = { percent: 1, buckets: [] };
 
+/**
+ * Fixed column widths (percent of table width) keyed by column id, applied under `table-fixed` so layout is
+ * content-independent and the loading skeleton lines up exactly with the live table — nothing shifts when
+ * providers arrive. Provider (`hostUri`) is intentionally absent: it absorbs whatever width is left over.
+ */
+const COLUMN_WIDTH_CLASS: Record<string, string | undefined> = {
+  location: "w-[20%]",
+  uptime: "w-[22%]",
+  cost: "w-[16%]",
+  status: "w-[18%]"
+};
+
 interface Props {
   providers: PlacementOffer[];
   isLoading?: boolean;
@@ -34,7 +46,15 @@ interface Props {
   showCostAsHourly?: boolean;
 }
 
-export const MarketplaceProvidersTable: FC<Props> = ({ providers, isLoading, isSearchActive, onClearSearch, selectedBidId, onSelect, showCostAsHourly = false }) => {
+export const MarketplaceProvidersTable: FC<Props> = ({
+  providers,
+  isLoading,
+  isSearchActive,
+  onClearSearch,
+  selectedBidId,
+  onSelect,
+  showCostAsHourly = false
+}) => {
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const uptimeByOwner = useProvidersUptime(providers);
@@ -57,11 +77,7 @@ export const MarketplaceProvidersTable: FC<Props> = ({ providers, isLoading, isS
   });
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-4">
-        <Spinner size="large" />
-      </div>
-    );
+    return <ProvidersTableSkeleton />;
   }
 
   if (providers.length === 0) {
@@ -92,12 +108,12 @@ export const MarketplaceProvidersTable: FC<Props> = ({ providers, isLoading, isS
 
   return (
     <div className="overflow-hidden rounded-[14px] border shadow-sm">
-      <Table>
+      <Table className="table-fixed">
         <TableHeader>
           {table.getHeaderGroups().map(headerGroup => (
             <TableRow key={headerGroup.id} className="hover:bg-transparent">
               {headerGroup.headers.map(header => (
-                <TableHead key={header.id} className="h-10 pl-4 pr-2">
+                <TableHead key={header.id} className={cn("h-10 pl-4 pr-2", COLUMN_WIDTH_CLASS[header.column.id])}>
                   {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                 </TableHead>
               ))}
@@ -124,6 +140,46 @@ export const MarketplaceProvidersTable: FC<Props> = ({ providers, isLoading, isS
   );
 };
 
+/** A couple of placeholder rows to signal the list is loading; the pane scrolls, so this needn't match the real provider count. */
+const SKELETON_ROW_COUNT = 6;
+
+/** Columns shown during the initial load, before any bid adds Cost/Status. `id` keys into COLUMN_WIDTH_CLASS so the skeleton shares column widths with the live table; `barWidth` sizes the grey bar inside each cell. */
+const SKELETON_COLUMNS = [
+  { id: "hostUri", header: "Provider", barWidth: "w-40" },
+  { id: "location", header: "Region", barWidth: "w-20" },
+  { id: "uptime", header: "Uptime (7D)", barWidth: "w-24" }
+];
+
+/** Loading placeholder mirroring the real table shell — same container, header labels and row height — so the pane doesn't shift when providers arrive. */
+function ProvidersTableSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-[14px] border shadow-sm">
+      <Table className="table-fixed">
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            {SKELETON_COLUMNS.map(column => (
+              <TableHead key={column.id} className={cn("h-10 pl-4 pr-2", COLUMN_WIDTH_CLASS[column.id])}>
+                <span className="whitespace-nowrap font-mono text-sm font-normal uppercase text-muted-foreground">{column.header}</span>
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {Array.from({ length: SKELETON_ROW_COUNT }, (_, rowIndex) => (
+            <TableRow key={rowIndex} className="h-[52px] hover:bg-transparent">
+              {SKELETON_COLUMNS.map(column => (
+                <TableCell key={column.id} className="py-2 pl-4 pr-2">
+                  <Skeleton className={cn("h-4", column.barWidth)} />
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 /** Only never-bid providers are pinned into the bottom group; a closed/expired bid stays up with the bidders (it did bid) — just muted and unselectable. */
 function isPinnedBelow(state: PlacementOffer["offerState"]): boolean {
   return state === "unavailable";
@@ -140,7 +196,10 @@ function OfferRow({ row }: { row: Row<PlacementOffer> }) {
   return (
     <TableRow className={cn("h-[52px]", isDisabled && "text-muted-foreground hover:bg-transparent")}>
       {row.getVisibleCells().map(cell => (
-        <TableCell key={cell.id} className={cn("py-2 pl-4 pr-2 text-sm", !isDisabled && "font-medium text-foreground")}>
+        <TableCell
+          key={cell.id}
+          className={cn("py-2 pl-4 pr-2 text-sm", cell.column.id === "hostUri" && "truncate", !isDisabled && "font-medium text-foreground")}
+        >
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
         </TableCell>
       ))}
@@ -155,7 +214,7 @@ function SortableHeader({ column, title }: { column: Column<PlacementOffer, unkn
     <button
       type="button"
       onClick={() => column.toggleSorting(sorted === "asc")}
-      className="group flex items-center gap-1 font-mono text-sm font-normal uppercase text-muted-foreground"
+      className="group flex items-center gap-1 whitespace-nowrap font-mono text-sm font-normal uppercase text-muted-foreground"
     >
       {title}
       {sorted === "asc" ? (
@@ -197,7 +256,14 @@ function buildColumns(
             cell: ({ row }) => {
               const { price } = row.original;
               if (!price) return <span className="text-muted-foreground">{NO_REGION}</span>;
-              return <PricePerTimeUnit denom={price.denom} perBlockValue={udenomToDenom(price.amount, PRICE_DISPLAY_PRECISION)} showAsHourly={selection.showCostAsHourly} abbreviated />;
+              return (
+                <PricePerTimeUnit
+                  denom={price.denom}
+                  perBlockValue={udenomToDenom(price.amount, PRICE_DISPLAY_PRECISION)}
+                  showAsHourly={selection.showCostAsHourly}
+                  abbreviated
+                />
+              );
             }
           })
         ]
