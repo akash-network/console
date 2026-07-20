@@ -25,6 +25,7 @@
     "validate:types": "tsc -p tsconfig.build.json --noEmit && echo"
   },
   "devDependencies": {
+    "@akashnetwork/dev-config": "*",
     "typescript": "~5.8.2",
     "vitest": "^4.1.5",
     "zod": "3.*"

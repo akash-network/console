@@ -15,6 +15,7 @@ import { useSaveSettings } from "@src/queries/useSaveSettings";
 import type { CustomUserProfile, UserSettings } from "@src/types/user";
 import Layout from "../layout/Layout";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const formSchema = z.object({
   username: z
     .string()

@@ -2,7 +2,8 @@ import { generateMock } from "@anatine/zod-mock";
 import { faker } from "@faker-js/faker";
 import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { Test, TestingModule } from "@nestjs/testing";
+import type { TestingModule } from "@nestjs/testing";
+import { Test } from "@nestjs/testing";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import nock from "nock";
 import request from "supertest";
@@ -134,6 +135,7 @@ describe("Deployment Alerts CRUD", () => {
     await app.init();
 
     const userId = faker.string.uuid();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const schema = {
       ...alertSchema,
       NotificationChannel

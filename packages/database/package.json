@@ -21,5 +21,8 @@
     "dotenv": "^12.0.4",
     "sequelize": "^6.21.3",
     "sequelize-typescript": "^2.1.5"
+  },
+  "devDependencies": {
+    "@akashnetwork/dev-config": "*"
   }
 }

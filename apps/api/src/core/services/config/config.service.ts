@@ -4,7 +4,7 @@ interface ConfigServiceOptions<E extends ZodObject<ZodRawShape> | ZodEffects<Zod
   config?: z.infer<E> & C;
 }
 
-// eslint-disable-next-line @typescript-eslint/ban-types
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export class ConfigService<E extends ZodObject<ZodRawShape> | ZodEffects<ZodObject<ZodRawShape>>, C extends Record<string, any> = {}> {
   private readonly config: C & z.infer<E>;
 

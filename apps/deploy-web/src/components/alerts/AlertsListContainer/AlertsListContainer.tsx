@@ -1,8 +1,8 @@
 "use client";
 
 import type { FC, ReactNode } from "react";
-import { useMemo } from "react";
 import React from "react";
+import { useMemo } from "react";
 import { useCallback, useState } from "react";
 import type { components } from "@akashnetwork/console-api-types/notifications";
 import { useQueryClient } from "@tanstack/react-query";

@@ -151,6 +151,7 @@ describe(createProxy.name, () => {
     it("reflects the select return type in the query data", () => {
       const { proxy } = setup();
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const result = proxy.users.getById.useQuery({ id: 1 }, { select: user => user.name });
 
       expectTypeOf<(typeof result)["data"]>().toEqualTypeOf<string | undefined>();
@@ -159,6 +160,7 @@ describe(createProxy.name, () => {
     it("defaults the data type to the SDK return type when no select is given", () => {
       const { proxy } = setup();
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const result = proxy.users.getById.useQuery({ id: 1 });
 
       expectTypeOf<(typeof result)["data"]>().toEqualTypeOf<User | undefined>();
@@ -167,6 +169,7 @@ describe(createProxy.name, () => {
     it("widens the data type by the catchError return type", () => {
       const { proxy } = setup();
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const result = proxy.users.getById.useQuery({ id: 1 }, { catchError: () => null });
 
       expectTypeOf<(typeof result)["data"]>().toEqualTypeOf<User | null | undefined>();
@@ -175,6 +178,7 @@ describe(createProxy.name, () => {
     it("applies select on top of the catchError-widened type", () => {
       const { proxy } = setup();
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const result = proxy.users.getById.useQuery(
         { id: 1 },
         {
@@ -189,6 +193,7 @@ describe(createProxy.name, () => {
     it("keeps the data type as the SDK return type when placeholderData is keepPreviousData", () => {
       const { proxy } = setup();
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const result = proxy.users.getById.useQuery({ id: 1 }, { placeholderData: keepPreviousData });
 
       expectTypeOf<(typeof result)["data"]>().toEqualTypeOf<User | undefined>();
@@ -197,6 +202,7 @@ describe(createProxy.name, () => {
     it("keeps select and catchError intact when combined with keepPreviousData", () => {
       const { proxy } = setup();
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const result = proxy.users.getById.useQuery(
         { id: 1 },
         {

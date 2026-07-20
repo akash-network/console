@@ -2,8 +2,8 @@
 import "@xterm/xterm/css/xterm.css";
 
 import type { Ref } from "react";
-import { useEffect, useRef } from "react";
 import React from "react";
+import { useEffect, useRef } from "react";
 import { LoggerService } from "@akashnetwork/logging";
 import { cn } from "@akashnetwork/ui/utils";
 import { FitAddon } from "@xterm/addon-fit";

@@ -1,6 +1,8 @@
 import { faker } from "@faker-js/faker";
-import { INestApplication, Module } from "@nestjs/common";
-import { Test, TestingModule } from "@nestjs/testing";
+import type { INestApplication } from "@nestjs/common";
+import { Module } from "@nestjs/common";
+import type { TestingModule } from "@nestjs/testing";
+import { Test } from "@nestjs/testing";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import request from "supertest";
 import { describe, expect, it, onTestFinished } from "vitest";
@@ -9,8 +11,8 @@ import { LoggerService } from "@src/common/services/logger/logger.service";
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
 import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception/http-exception.filter";
 import RestModule from "@src/interfaces/rest/rest.module";
-import { Alert } from "@src/modules/alert/model-schemas";
 import * as alertSchema from "@src/modules/alert/model-schemas";
+import { Alert } from "@src/modules/alert/model-schemas";
 import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 
 import { generateGeneralAlert } from "@test/seeders/general-alert.seeder";
@@ -59,6 +61,7 @@ describe("Account Purge (internal)", () => {
     const userId = faker.string.uuid();
 
     if (input.withSeed) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const schema = { ...alertSchema, NotificationChannel };
       const db = module.get<NodePgDatabase<typeof schema>>(DRIZZLE_PROVIDER_TOKEN);
       const [channel] = await db

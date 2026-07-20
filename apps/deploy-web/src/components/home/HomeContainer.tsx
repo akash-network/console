@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
 import React from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
