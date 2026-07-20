@@ -108,7 +108,7 @@ export class BmeIndexer extends Indexer {
   ): Promise<void> {}
 
   @benchmark.measureMethodAsync
-  async afterEveryBlock(currentBlock: Block, previousBlock: Block, dbTransaction: DbTransaction): Promise<void> {
+  async afterEveryBlock(currentBlock: Block, previousBlock: Block | null, dbTransaction: DbTransaction): Promise<void> {
     const rawEvents = await BmeRawEvent.findAll({
       where: { height: currentBlock.height, isProcessed: false },
       order: [["index", "ASC"]],

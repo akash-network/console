@@ -18,6 +18,8 @@
     "src/chain/dataStore.ts",
     "src/chain/genesisImporter.ts",
     "src/chain/nodeAccessor.ts",
+    "src/chain/chainSync.ts",
+    "src/chain/statsProcessor.ts",
     "src/indexers/bmeIndexer.types.ts",
     "src/indexers/bmeIndexer.ts",
     "src/indexers/indexer.ts",

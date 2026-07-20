@@ -1,6 +1,7 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
 import { Block, Message } from "@akashnetwork/database/dbSchemas";
 import type { AkashMessage } from "@akashnetwork/database/dbSchemas/akash";
+import type { Message as MessageEntity } from "@akashnetwork/database/dbSchemas/base";
 import { Transaction, TransactionEvent, TransactionEventAttribute } from "@akashnetwork/database/dbSchemas/base";
 import { fromBase64 } from "@cosmjs/encoding";
 import { decodeTxRaw } from "@cosmjs/proto-signing";
@@ -172,12 +173,15 @@ class StatsProcessor {
           for (const transaction of block.transactions) {
             const decodeTimer = benchmark.startTimer("decodeTx");
             const tx = blockData.block.data.txs.find(t => sha256(Buffer.from(t, "base64")).toUpperCase() === transaction.hash);
+            if (!tx) {
+              throw new Error(`Transaction ${transaction.hash} not found in block ${block.height}`);
+            }
             const decodedTx = decodeTxRaw(fromBase64(tx));
             decodeTimer.end();
 
             const transactionEvents = allTransactionEvents.filter(e => e.txId === transaction.id);
 
-            for (const msg of transaction.messages) {
+            for (const msg of transaction.messages ?? []) {
               console.log(`Processing message ${msg.type} - Block #${block.height}`);
 
               const encodedMessage = decodedTx.body.messages[msg.index].value;
@@ -276,7 +280,13 @@ class StatsProcessor {
     }
   }
 
-  private async processMessage(msg, encodedMessage: Uint8Array, height: number, blockGroupTransaction: DbTransaction, hasProcessingError: boolean) {
+  private async processMessage(
+    msg: MessageEntity,
+    encodedMessage: Uint8Array,
+    height: number,
+    blockGroupTransaction: DbTransaction,
+    hasProcessingError: boolean
+  ) {
     for (const indexer of activeIndexers) {
       if (indexer.hasHandlerForType(msg.type) && (!hasProcessingError || indexer.processFailedTxs)) {
         const decodedMessage = decodeMsg(msg.type, encodedMessage);
