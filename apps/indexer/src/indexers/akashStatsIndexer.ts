@@ -35,7 +35,7 @@ import { decodeMsg, uint8arrayToString } from "@src/shared/utils/protobuf";
 import * as benchmark from "../shared/utils/benchmark";
 import { Indexer } from "./indexer";
 
-class IActiveLeases {
+interface IActiveLeases {
   predictedClosedHeights: number[];
   count: number;
   cpuSum: number;
@@ -58,7 +58,7 @@ const denomMapping = {
 export class AkashStatsIndexer extends Indexer {
   private totalLeaseCount = 0;
   private activeProviderCount = 0;
-  private activeLeases: IActiveLeases;
+  private activeLeases?: IActiveLeases;
 
   constructor() {
     super();
@@ -186,27 +186,27 @@ export class AkashStatsIndexer extends Indexer {
 
   @benchmark.measureMethodAsync
   async afterEveryBlock(currentBlock: Block, previousBlock: Block, dbTransaction: DbTransaction) {
-    const shouldRefreshPredictedHeights = currentBlock.transactions.some(tx => tx.messages.some(msg => this.shouldRefreshForMessage(msg)));
+    const shouldRefreshPredictedHeights = currentBlock.transactions.some(tx => tx.messages?.some(msg => this.shouldRefreshForMessage(msg)));
 
-    if (shouldRefreshPredictedHeights || this.activeLeases.predictedClosedHeights.includes(currentBlock.height)) {
+    if (shouldRefreshPredictedHeights || this.activeLeases?.predictedClosedHeights.includes(currentBlock.height)) {
       this.activeLeases = await this.getActiveLeases(dbTransaction, currentBlock.height);
     }
 
     currentBlock.activeProviderCount = this.activeProviderCount;
-    currentBlock.activeLeaseCount = this.activeLeases.count;
+    currentBlock.activeLeaseCount = this.activeLeases?.count ?? 0;
     currentBlock.totalLeaseCount = this.totalLeaseCount;
-    currentBlock.activeCPU = this.activeLeases.cpuSum;
-    currentBlock.activeGPU = this.activeLeases.gpuSum;
-    currentBlock.activeMemory = this.activeLeases.memorySum;
-    currentBlock.activeEphemeralStorage = this.activeLeases.ephemeralStorageSum;
-    currentBlock.activePersistentStorage = this.activeLeases.persistentStorageSum;
-    currentBlock.totalUAktSpent = (previousBlock?.totalUAktSpent || 0) + this.activeLeases.priceSumUAKT;
-    currentBlock.totalUUsdcSpent = (previousBlock?.totalUUsdcSpent || 0) + this.activeLeases.priceSumUUSDC;
-    currentBlock.totalUActSpent = (previousBlock?.totalUActSpent || 0) + this.activeLeases.priceSumUACT;
+    currentBlock.activeCPU = this.activeLeases?.cpuSum ?? 0;
+    currentBlock.activeGPU = this.activeLeases?.gpuSum ?? 0;
+    currentBlock.activeMemory = this.activeLeases?.memorySum ?? 0;
+    currentBlock.activeEphemeralStorage = this.activeLeases?.ephemeralStorageSum ?? 0;
+    currentBlock.activePersistentStorage = this.activeLeases?.persistentStorageSum ?? 0;
+    currentBlock.totalUAktSpent = (previousBlock?.totalUAktSpent || 0) + (this.activeLeases?.priceSumUAKT ?? 0);
+    currentBlock.totalUUsdcSpent = (previousBlock?.totalUUsdcSpent || 0) + (this.activeLeases?.priceSumUUSDC ?? 0);
+    currentBlock.totalUActSpent = (previousBlock?.totalUActSpent || 0) + (this.activeLeases?.priceSumUACT ?? 0);
   }
 
   @benchmark.measureMethodAsync
-  private async getActiveLeases(blockGroupTransaction: DbTransaction, height: number) {
+  private async getActiveLeases(blockGroupTransaction: DbTransaction | null, height: number) {
     const activeLeases = await Lease.findAll({
       raw: true,
       attributes: [
@@ -304,10 +304,10 @@ export class AkashStatsIndexer extends Indexer {
     const created = await Deployment.create(
       {
         id: randomUUID(),
-        owner: decodedMessage.id.owner,
-        dseq: decodedMessage.id.dseq.toString(),
-        deposit: parseInt(decodedMessage.deposit.amount),
-        balance: parseInt(decodedMessage.deposit.amount),
+        owner: decodedMessage.id?.owner,
+        dseq: decodedMessage.id?.dseq.toString(),
+        deposit: parseInt(decodedMessage.deposit?.amount ?? "0"),
+        balance: parseInt(decodedMessage.deposit?.amount ?? "0"),
         withdrawnAmount: 0,
         denom: "uakt",
         createdHeight: height,
@@ -334,13 +334,13 @@ export class AkashStatsIndexer extends Indexer {
         await DeploymentGroupResource.create(
           {
             deploymentGroupId: createdGroup.id,
-            cpuUnits: parseInt(uint8arrayToString(groupResource.resources.cpu.units.val)),
+            cpuUnits: parseInt(uint8arrayToString(groupResource.resources?.cpu?.units?.val)),
             gpuUnits: 0,
-            memoryQuantity: parseInt(uint8arrayToString(groupResource.resources.memory.quantity.val)),
-            ephemeralStorageQuantity: parseInt(uint8arrayToString(groupResource.resources.storage.quantity.val)),
+            memoryQuantity: parseInt(uint8arrayToString(groupResource.resources?.memory?.quantity?.val) || "0"),
+            ephemeralStorageQuantity: parseInt(uint8arrayToString(groupResource.resources?.storage?.quantity?.val) || "0"),
             persistentStorageQuantity: 0,
             count: groupResource.count,
-            price: parseFloat(groupResource.price.amount) // TODO: handle denom
+            price: parseFloat(groupResource.price?.amount ?? "0") // TODO: handle denom
           },
           { transaction: blockGroupTransaction }
         );
@@ -352,10 +352,10 @@ export class AkashStatsIndexer extends Indexer {
     const created = await Deployment.create(
       {
         id: randomUUID(),
-        owner: decodedMessage.id.owner,
-        dseq: decodedMessage.id.dseq.toString(),
-        deposit: parseInt(decodedMessage.deposit.amount),
-        balance: parseInt(decodedMessage.deposit.amount),
+        owner: decodedMessage.id?.owner,
+        dseq: decodedMessage.id?.dseq.toString(),
+        deposit: parseInt(decodedMessage.deposit?.amount ?? "0"),
+        balance: parseInt(decodedMessage.deposit?.amount ?? "0"),
         withdrawnAmount: 0,
         denom: "uakt",
         createdHeight: height,
@@ -382,19 +382,21 @@ export class AkashStatsIndexer extends Indexer {
         await DeploymentGroupResource.create(
           {
             deploymentGroupId: createdGroup.id,
-            cpuUnits: parseInt(uint8arrayToString(groupResource.resources.cpu.units.val)),
+            cpuUnits: parseInt(uint8arrayToString(groupResource.resources?.cpu?.units?.val) || "0"),
             gpuUnits: 0,
-            memoryQuantity: parseInt(uint8arrayToString(groupResource.resources.memory.quantity.val)),
-            ephemeralStorageQuantity: groupResource.resources.storage
-              .filter(x => !isPersistentStorage(x))
-              .map(x => parseInt(uint8arrayToString(x.quantity.val)))
-              .reduce((a, b) => a + b, 0),
-            persistentStorageQuantity: groupResource.resources.storage
-              .filter(x => isPersistentStorage(x))
-              .map(x => parseInt(uint8arrayToString(x.quantity.val)))
-              .reduce((a, b) => a + b, 0),
+            memoryQuantity: parseInt(uint8arrayToString(groupResource.resources?.memory?.quantity?.val) || "0"),
+            ephemeralStorageQuantity:
+              groupResource.resources?.storage
+                ?.filter(x => !isPersistentStorage(x))
+                .map(x => parseInt(uint8arrayToString(x.quantity?.val) || "0"))
+                .reduce((a, b) => a + b, 0) ?? 0,
+            persistentStorageQuantity:
+              groupResource.resources?.storage
+                ?.filter(x => isPersistentStorage(x))
+                .map(x => parseInt(uint8arrayToString(x.quantity?.val) || "0"))
+                .reduce((a, b) => a + b, 0) ?? 0,
             count: groupResource.count,
-            price: parseFloat(groupResource.price.amount) // TODO: handle denom
+            price: parseFloat(groupResource.price?.amount ?? "0") // TODO: handle denom
           },
           { transaction: blockGroupTransaction }
         );
@@ -403,19 +405,19 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleCreateDeploymentV3(decodedMessage: v1beta3.MsgCreateDeployment, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
-    if (!(decodedMessage.deposit.denom in denomMapping)) {
+    if (decodedMessage.deposit?.denom && !(decodedMessage.deposit.denom in denomMapping)) {
       throw "Unknown denom: " + decodedMessage.deposit.denom;
     }
 
     const created = await Deployment.create(
       {
         id: randomUUID(),
-        owner: decodedMessage.id.owner,
-        dseq: decodedMessage.id.dseq.toString(),
-        deposit: parseInt(decodedMessage.deposit.amount),
-        balance: parseInt(decodedMessage.deposit.amount),
+        owner: decodedMessage.id?.owner,
+        dseq: decodedMessage.id?.dseq.toString(),
+        deposit: parseInt(decodedMessage.deposit?.amount ?? "0"),
+        balance: parseInt(decodedMessage.deposit?.amount ?? "0"),
         withdrawnAmount: 0,
-        denom: denomMapping[decodedMessage.deposit.denom],
+        denom: denomMapping[decodedMessage.deposit?.denom ?? ""],
         createdHeight: height,
         closedHeight: null
       },
@@ -437,26 +439,28 @@ export class AkashStatsIndexer extends Indexer {
       );
 
       for (const groupResource of group.resources) {
-        const { vendor: gpuVendor, model: gpuModel } = getGPUAttributes(groupResource.resource.gpu);
+        const { vendor: gpuVendor, model: gpuModel } = getGPUAttributes(groupResource.resource?.gpu);
 
         await DeploymentGroupResource.create(
           {
             deploymentGroupId: createdGroup.id,
-            cpuUnits: parseInt(uint8arrayToString(groupResource.resource.cpu.units.val)),
-            gpuUnits: parseInt(uint8arrayToString(groupResource.resource.gpu.units.val)),
+            cpuUnits: parseInt(uint8arrayToString(groupResource.resource?.cpu?.units?.val) || "0"),
+            gpuUnits: parseInt(uint8arrayToString(groupResource.resource?.gpu?.units?.val) || "0"),
             gpuVendor: gpuVendor,
             gpuModel: gpuModel,
-            memoryQuantity: parseInt(uint8arrayToString(groupResource.resource.memory.quantity.val)),
-            ephemeralStorageQuantity: groupResource.resource.storage
-              .filter(x => !isPersistentStorage(x))
-              .map(x => parseInt(uint8arrayToString(x.quantity.val)))
-              .reduce((a, b) => a + b, 0),
-            persistentStorageQuantity: groupResource.resource.storage
-              .filter(x => isPersistentStorage(x))
-              .map(x => parseInt(uint8arrayToString(x.quantity.val)))
-              .reduce((a, b) => a + b, 0),
+            memoryQuantity: parseInt(uint8arrayToString(groupResource.resource?.memory?.quantity?.val) || "0"),
+            ephemeralStorageQuantity:
+              groupResource.resource?.storage
+                ?.filter(x => !isPersistentStorage(x))
+                .map(x => parseInt(uint8arrayToString(x.quantity?.val) || "0"))
+                .reduce((a, b) => a + b, 0) ?? 0,
+            persistentStorageQuantity:
+              groupResource.resource?.storage
+                ?.filter(x => isPersistentStorage(x))
+                .map(x => parseInt(uint8arrayToString(x.quantity?.val) || "0"))
+                .reduce((a, b) => a + b, 0) ?? 0,
             count: groupResource.count,
-            price: parseFloat(groupResource.price.amount) // TODO: handle denom
+            price: parseFloat(groupResource.price?.amount ?? "0") // TODO: handle denom
           },
           { transaction: blockGroupTransaction }
         );
@@ -465,19 +469,19 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleCreateDeploymentV4(decodedMessage: v1beta4.MsgCreateDeployment, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
-    if (!(decodedMessage.deposit.amount.denom in denomMapping)) {
+    if (decodedMessage.deposit?.amount?.denom && !(decodedMessage.deposit.amount.denom in denomMapping)) {
       throw "Unknown denom: " + decodedMessage.deposit.amount.denom;
     }
 
     const created = await Deployment.create(
       {
         id: randomUUID(),
-        owner: decodedMessage.id.owner,
-        dseq: decodedMessage.id.dseq.toString(),
-        deposit: parseInt(decodedMessage.deposit.amount.amount),
-        balance: parseInt(decodedMessage.deposit.amount.amount),
+        owner: decodedMessage.id?.owner,
+        dseq: decodedMessage.id?.dseq.toString(),
+        deposit: parseInt(decodedMessage.deposit?.amount?.amount ?? "0"),
+        balance: parseInt(decodedMessage.deposit?.amount?.amount ?? "0"),
         withdrawnAmount: 0,
-        denom: denomMapping[decodedMessage.deposit.amount.denom],
+        denom: denomMapping[decodedMessage.deposit?.amount?.denom ?? ""],
         createdHeight: height,
         closedHeight: null
       },
@@ -499,26 +503,28 @@ export class AkashStatsIndexer extends Indexer {
       );
 
       for (const groupResource of group.resources) {
-        const { vendor: gpuVendor, model: gpuModel } = getGPUAttributes(groupResource.resource.gpu);
+        const { vendor: gpuVendor, model: gpuModel } = getGPUAttributes(groupResource.resource?.gpu);
 
         await DeploymentGroupResource.create(
           {
             deploymentGroupId: createdGroup.id,
-            cpuUnits: parseInt(uint8arrayToString(groupResource.resource.cpu.units.val)),
-            gpuUnits: parseInt(uint8arrayToString(groupResource.resource.gpu.units.val)),
+            cpuUnits: parseInt(uint8arrayToString(groupResource.resource?.cpu?.units?.val) || "0"),
+            gpuUnits: parseInt(uint8arrayToString(groupResource.resource?.gpu?.units?.val) || "0"),
             gpuVendor: gpuVendor,
             gpuModel: gpuModel,
-            memoryQuantity: parseInt(uint8arrayToString(groupResource.resource.memory.quantity.val)),
-            ephemeralStorageQuantity: groupResource.resource.storage
-              .filter(x => !isPersistentStorage(x))
-              .map(x => parseInt(uint8arrayToString(x.quantity.val)))
-              .reduce((a, b) => a + b, 0),
-            persistentStorageQuantity: groupResource.resource.storage
-              .filter(x => isPersistentStorage(x))
-              .map(x => parseInt(uint8arrayToString(x.quantity.val)))
-              .reduce((a, b) => a + b, 0),
+            memoryQuantity: parseInt(uint8arrayToString(groupResource.resource?.memory?.quantity?.val) || "0"),
+            ephemeralStorageQuantity:
+              groupResource.resource?.storage
+                ?.filter(x => !isPersistentStorage(x))
+                .map(x => parseInt(uint8arrayToString(x.quantity?.val) || "0"))
+                .reduce((a, b) => a + b, 0) ?? 0,
+            persistentStorageQuantity:
+              groupResource.resource?.storage
+                ?.filter(x => isPersistentStorage(x))
+                .map(x => parseInt(uint8arrayToString(x.quantity?.val) || "0"))
+                .reduce((a, b) => a + b, 0) ?? 0,
             count: groupResource.count,
-            price: parseFloat(groupResource.price.amount) // TODO: handle denom
+            price: parseFloat(groupResource.price?.amount ?? "0") // TODO: handle denom
           },
           { transaction: blockGroupTransaction }
         );
@@ -534,15 +540,15 @@ export class AkashStatsIndexer extends Indexer {
   ) {
     const deployment = await Deployment.findOne({
       where: {
-        owner: decodedMessage.id.owner,
-        dseq: decodedMessage.id.dseq.toString()
+        owner: decodedMessage.id?.owner,
+        dseq: decodedMessage.id?.dseq.toString()
       },
       include: [{ model: Lease }],
       transaction: blockGroupTransaction
     });
 
     if (!deployment) {
-      throw new Error(`Deployment for ${decodedMessage.id.owner}/${decodedMessage.id.dseq.toString()} not found.`);
+      throw new Error(`Deployment for ${decodedMessage.id?.owner}/${decodedMessage.id?.dseq.toString()} not found.`);
     }
 
     msg.relatedDeploymentId = deployment.id;
@@ -566,11 +572,11 @@ export class AkashStatsIndexer extends Indexer {
   ) {
     const bid = await Bid.findOne({
       where: {
-        owner: decodedMessage.bidId.owner,
-        dseq: decodedMessage.bidId.dseq.toString(),
-        gseq: decodedMessage.bidId.gseq,
-        oseq: decodedMessage.bidId.oseq,
-        provider: decodedMessage.bidId.provider
+        owner: decodedMessage.bidId?.owner,
+        dseq: decodedMessage.bidId?.dseq.toString(),
+        gseq: decodedMessage.bidId?.gseq,
+        oseq: decodedMessage.bidId?.oseq,
+        provider: decodedMessage.bidId?.provider
       },
       transaction: blockGroupTransaction
     });
@@ -578,9 +584,9 @@ export class AkashStatsIndexer extends Indexer {
     const deploymentGroup = await DeploymentGroup.findOne({
       attributes: ["id"],
       where: {
-        owner: decodedMessage.bidId.owner,
-        dseq: decodedMessage.bidId.dseq.toString(),
-        gseq: decodedMessage.bidId.gseq
+        owner: decodedMessage.bidId?.owner,
+        dseq: decodedMessage.bidId?.dseq.toString(),
+        gseq: decodedMessage.bidId?.gseq
       },
       include: [
         {
@@ -593,40 +599,40 @@ export class AkashStatsIndexer extends Indexer {
     });
 
     if (!deploymentGroup) {
-      throw new Error(`Deployment group for ${decodedMessage.bidId.owner}/${decodedMessage.bidId.dseq.toString()}/${decodedMessage.bidId.gseq} not found.`);
+      throw new Error(`Deployment group for ${decodedMessage.bidId?.owner}/${decodedMessage.bidId?.dseq.toString()}/${decodedMessage.bidId?.gseq} not found.`);
     }
 
     const deployment = await Deployment.findOne({
       where: {
-        owner: decodedMessage.bidId.owner,
-        dseq: decodedMessage.bidId.dseq.toString()
+        owner: decodedMessage.bidId?.owner,
+        dseq: decodedMessage.bidId?.dseq.toString()
       },
       include: [{ model: Lease }],
       transaction: blockGroupTransaction
     });
 
     if (!deployment) {
-      throw new Error(`Deployment for ${decodedMessage.bidId.owner}/${decodedMessage.bidId.dseq.toString()} not found.`);
+      throw new Error(`Deployment for ${decodedMessage.bidId?.owner}/${decodedMessage.bidId?.dseq.toString()} not found.`);
     }
 
     const { blockRate } = await accountSettle(deployment, height, blockGroupTransaction);
 
-    const predictedClosedHeight = Math.ceil(height + deployment.balance / (blockRate + bid.price));
+    const predictedClosedHeight = Math.ceil(height + deployment.balance / (blockRate + (bid?.price ?? 0)));
 
     await Lease.create(
       {
         id: randomUUID(),
         deploymentId: deployment.id,
         deploymentGroupId: deploymentGroup.id,
-        owner: decodedMessage.bidId.owner,
-        dseq: decodedMessage.bidId.dseq.toString(),
-        oseq: decodedMessage.bidId.oseq,
-        gseq: decodedMessage.bidId.gseq,
+        owner: decodedMessage.bidId?.owner,
+        dseq: decodedMessage.bidId?.dseq.toString(),
+        oseq: decodedMessage.bidId?.oseq,
+        gseq: decodedMessage.bidId?.gseq,
         bseq: 0,
-        providerAddress: decodedMessage.bidId.provider,
+        providerAddress: decodedMessage.bidId?.provider,
         createdHeight: height,
         predictedClosedHeight: predictedClosedHeight.toString(),
-        price: bid.price,
+        price: bid?.price ?? 0,
         denom: deployment.denom,
 
         // Stats
@@ -652,12 +658,12 @@ export class AkashStatsIndexer extends Indexer {
   private async handleCreateLeaseV5(decodedMessage: v1beta5.MsgCreateLease, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
     const bid = await Bid.findOne({
       where: {
-        owner: decodedMessage.bidId.owner,
-        dseq: decodedMessage.bidId.dseq.toString(),
-        gseq: decodedMessage.bidId.gseq,
-        oseq: decodedMessage.bidId.oseq,
-        bseq: decodedMessage.bidId.bseq,
-        provider: decodedMessage.bidId.provider
+        owner: decodedMessage.bidId?.owner,
+        dseq: decodedMessage.bidId?.dseq.toString(),
+        gseq: decodedMessage.bidId?.gseq,
+        oseq: decodedMessage.bidId?.oseq,
+        bseq: decodedMessage.bidId?.bseq,
+        provider: decodedMessage.bidId?.provider
       },
       transaction: blockGroupTransaction
     });
@@ -665,9 +671,9 @@ export class AkashStatsIndexer extends Indexer {
     const deploymentGroup = await DeploymentGroup.findOne({
       attributes: ["id"],
       where: {
-        owner: decodedMessage.bidId.owner,
-        dseq: decodedMessage.bidId.dseq.toString(),
-        gseq: decodedMessage.bidId.gseq
+        owner: decodedMessage.bidId?.owner,
+        dseq: decodedMessage.bidId?.dseq.toString(),
+        gseq: decodedMessage.bidId?.gseq
       },
       include: [
         {
@@ -680,40 +686,40 @@ export class AkashStatsIndexer extends Indexer {
     });
 
     if (!deploymentGroup) {
-      throw new Error(`Deployment group for ${decodedMessage.bidId.owner}/${decodedMessage.bidId.dseq.toString()}/${decodedMessage.bidId.gseq} not found.`);
+      throw new Error(`Deployment group for ${decodedMessage.bidId?.owner}/${decodedMessage.bidId?.dseq.toString()}/${decodedMessage.bidId?.gseq} not found.`);
     }
 
     const deployment = await Deployment.findOne({
       where: {
-        owner: decodedMessage.bidId.owner,
-        dseq: decodedMessage.bidId.dseq.toString()
+        owner: decodedMessage.bidId?.owner,
+        dseq: decodedMessage.bidId?.dseq.toString()
       },
       include: [{ model: Lease }],
       transaction: blockGroupTransaction
     });
 
     if (!deployment) {
-      throw new Error(`Deployment for ${decodedMessage.bidId.owner}/${decodedMessage.bidId.dseq.toString()} not found.`);
+      throw new Error(`Deployment for ${decodedMessage.bidId?.owner}/${decodedMessage.bidId?.dseq.toString()} not found.`);
     }
 
     const { blockRate } = await accountSettle(deployment, height, blockGroupTransaction);
 
-    const predictedClosedHeight = Math.ceil(height + deployment.balance / (blockRate + bid.price));
+    const predictedClosedHeight = Math.ceil(height + deployment.balance / (blockRate + (bid?.price ?? 0)));
 
     await Lease.create(
       {
         id: randomUUID(),
         deploymentId: deployment.id,
         deploymentGroupId: deploymentGroup.id,
-        owner: decodedMessage.bidId.owner,
-        dseq: decodedMessage.bidId.dseq.toString(),
-        oseq: decodedMessage.bidId.oseq,
-        gseq: decodedMessage.bidId.gseq,
-        bseq: decodedMessage.bidId.bseq,
-        providerAddress: decodedMessage.bidId.provider,
+        owner: decodedMessage.bidId?.owner,
+        dseq: decodedMessage.bidId?.dseq.toString(),
+        oseq: decodedMessage.bidId?.oseq,
+        gseq: decodedMessage.bidId?.gseq,
+        bseq: decodedMessage.bidId?.bseq,
+        providerAddress: decodedMessage.bidId?.provider,
         createdHeight: height,
         predictedClosedHeight: predictedClosedHeight.toString(),
-        price: bid.price,
+        price: bid?.price ?? 0,
         denom: deployment.denom,
 
         // Stats
@@ -744,24 +750,24 @@ export class AkashStatsIndexer extends Indexer {
   ) {
     const deployment = await Deployment.findOne({
       where: {
-        owner: decodedMessage.leaseId.owner,
-        dseq: decodedMessage.leaseId.dseq.toString()
+        owner: decodedMessage.leaseId?.owner,
+        dseq: decodedMessage.leaseId?.dseq.toString()
       },
       include: [{ model: Lease }],
       transaction: blockGroupTransaction
     });
 
     if (!deployment) {
-      throw new Error(`Deployment for ${decodedMessage.leaseId.owner}/${decodedMessage.leaseId.dseq.toString()} not found.`);
+      throw new Error(`Deployment for ${decodedMessage.leaseId?.owner}/${decodedMessage.leaseId?.dseq.toString()} not found.`);
     }
 
     const lease = deployment.leases.find(
-      x => x.oseq === decodedMessage.leaseId.oseq && x.gseq === decodedMessage.leaseId.gseq && x.providerAddress === decodedMessage.leaseId.provider
+      x => x.oseq === decodedMessage.leaseId?.oseq && x.gseq === decodedMessage.leaseId?.gseq && x.providerAddress === decodedMessage.leaseId?.provider
     );
 
     if (!lease)
       throw new Error(
-        `Lease for ${decodedMessage.leaseId.owner}/${decodedMessage.leaseId.dseq}/${decodedMessage.leaseId.gseq}/${decodedMessage.leaseId.provider} not found.`
+        `Lease for ${decodedMessage.leaseId?.owner}/${decodedMessage.leaseId?.dseq}/${decodedMessage.leaseId?.gseq}/${decodedMessage.leaseId?.provider} not found.`
       );
 
     msg.relatedDeploymentId = deployment.id;
@@ -786,28 +792,28 @@ export class AkashStatsIndexer extends Indexer {
   private async handleCloseLeaseV5(decodedMessage: v1beta5.MsgCloseLease, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
     const deployment = await Deployment.findOne({
       where: {
-        owner: decodedMessage.id.owner,
-        dseq: decodedMessage.id.dseq.toString()
+        owner: decodedMessage.id?.owner,
+        dseq: decodedMessage.id?.dseq.toString()
       },
       include: [{ model: Lease }],
       transaction: blockGroupTransaction
     });
 
     if (!deployment) {
-      throw new Error(`Deployment for ${decodedMessage.id.owner}/${decodedMessage.id.dseq.toString()} not found.`);
+      throw new Error(`Deployment for ${decodedMessage.id?.owner}/${decodedMessage.id?.dseq.toString()} not found.`);
     }
 
     const lease = deployment.leases.find(
       x =>
-        x.oseq === decodedMessage.id.oseq &&
-        x.gseq === decodedMessage.id.gseq &&
-        x.bseq === decodedMessage.id.bseq &&
-        x.providerAddress === decodedMessage.id.provider
+        x.oseq === decodedMessage.id?.oseq &&
+        x.gseq === decodedMessage.id?.gseq &&
+        x.bseq === decodedMessage.id?.bseq &&
+        x.providerAddress === decodedMessage.id?.provider
     );
 
     if (!lease)
       throw new Error(
-        `Lease for ${decodedMessage.id.owner}/${decodedMessage.id.dseq}/${decodedMessage.id.gseq}/${decodedMessage.id.bseq}/${decodedMessage.id.provider} not found.`
+        `Lease for ${decodedMessage.id?.owner}/${decodedMessage.id?.dseq}/${decodedMessage.id?.gseq}/${decodedMessage.id?.bseq}/${decodedMessage.id?.provider} not found.`
       );
 
     msg.relatedDeploymentId = deployment.id;
@@ -837,13 +843,13 @@ export class AkashStatsIndexer extends Indexer {
   ) {
     await Bid.create(
       {
-        owner: decodedMessage.order.owner,
-        dseq: decodedMessage.order.dseq.toString(),
-        gseq: decodedMessage.order.gseq,
-        oseq: decodedMessage.order.oseq,
+        owner: decodedMessage.order?.owner,
+        dseq: decodedMessage.order?.dseq.toString(),
+        gseq: decodedMessage.order?.gseq,
+        oseq: decodedMessage.order?.oseq,
         bseq: 0,
         provider: decodedMessage.provider,
-        price: parseFloat(decodedMessage.price.amount),
+        price: parseFloat(decodedMessage.price?.amount ?? "0"),
         createdHeight: height
       },
       { transaction: blockGroupTransaction }
@@ -852,14 +858,14 @@ export class AkashStatsIndexer extends Indexer {
     const deployment = await Deployment.findOne({
       attributes: ["id"],
       where: {
-        owner: decodedMessage.order.owner,
-        dseq: decodedMessage.order.dseq.toString()
+        owner: decodedMessage.order?.owner,
+        dseq: decodedMessage.order?.dseq.toString()
       },
       transaction: blockGroupTransaction
     });
 
     if (!deployment) {
-      throw new Error(`Deployment for ${decodedMessage.order.owner}/${decodedMessage.order.dseq.toString()} not found.`);
+      throw new Error(`Deployment for ${decodedMessage.order?.owner}/${decodedMessage.order?.dseq.toString()} not found.`);
     }
 
     msg.relatedDeploymentId = deployment.id;
@@ -868,13 +874,13 @@ export class AkashStatsIndexer extends Indexer {
   private async handleCreateBidV5(decodedMessage: v1beta5.MsgCreateBid, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
     await Bid.create(
       {
-        owner: decodedMessage.id.owner,
-        dseq: decodedMessage.id.dseq.toString(),
-        gseq: decodedMessage.id.gseq,
-        oseq: decodedMessage.id.oseq,
-        bseq: decodedMessage.id.bseq,
-        provider: decodedMessage.id.provider,
-        price: parseFloat(decodedMessage.price.amount),
+        owner: decodedMessage.id?.owner,
+        dseq: decodedMessage.id?.dseq.toString(),
+        gseq: decodedMessage.id?.gseq,
+        oseq: decodedMessage.id?.oseq,
+        bseq: decodedMessage.id?.bseq,
+        provider: decodedMessage.id?.provider,
+        price: parseFloat(decodedMessage.price?.amount ?? "0"),
         createdHeight: height
       },
       { transaction: blockGroupTransaction }
@@ -883,14 +889,14 @@ export class AkashStatsIndexer extends Indexer {
     const deployment = await Deployment.findOne({
       attributes: ["id"],
       where: {
-        owner: decodedMessage.id.owner,
-        dseq: decodedMessage.id.dseq.toString()
+        owner: decodedMessage.id?.owner,
+        dseq: decodedMessage.id?.dseq.toString()
       },
       transaction: blockGroupTransaction
     });
 
     if (!deployment) {
-      throw new Error(`Deployment for ${decodedMessage.id.owner}/${decodedMessage.id.dseq.toString()} not found.`);
+      throw new Error(`Deployment for ${decodedMessage.id?.owner}/${decodedMessage.id?.dseq.toString()} not found.`);
     }
 
     msg.relatedDeploymentId = deployment.id;
@@ -904,21 +910,21 @@ export class AkashStatsIndexer extends Indexer {
   ) {
     const deployment = await Deployment.findOne({
       where: {
-        owner: decodedMessage.bidId.owner,
-        dseq: decodedMessage.bidId.dseq.toString()
+        owner: decodedMessage.bidId?.owner,
+        dseq: decodedMessage.bidId?.dseq.toString()
       },
       include: [{ model: Lease }],
       transaction: blockGroupTransaction
     });
 
     if (!deployment) {
-      throw new Error(`Deployment for ${decodedMessage.bidId.owner}/${decodedMessage.bidId.dseq.toString()} not found.`);
+      throw new Error(`Deployment for ${decodedMessage.bidId?.owner}/${decodedMessage.bidId?.dseq.toString()} not found.`);
     }
 
     msg.relatedDeploymentId = deployment.id;
 
     const lease = deployment.leases.find(
-      x => x.oseq === decodedMessage.bidId.oseq && x.gseq === decodedMessage.bidId.gseq && x.providerAddress === decodedMessage.bidId.provider
+      x => x.oseq === decodedMessage.bidId?.oseq && x.gseq === decodedMessage.bidId?.gseq && x.providerAddress === decodedMessage.bidId?.provider
     );
 
     if (lease) {
@@ -941,11 +947,11 @@ export class AkashStatsIndexer extends Indexer {
 
     await Bid.destroy({
       where: {
-        owner: decodedMessage.bidId.owner,
-        dseq: decodedMessage.bidId.dseq.toString(),
-        gseq: decodedMessage.bidId.gseq,
-        oseq: decodedMessage.bidId.oseq,
-        provider: decodedMessage.bidId.provider
+        owner: decodedMessage.bidId?.owner,
+        dseq: decodedMessage.bidId?.dseq.toString(),
+        gseq: decodedMessage.bidId?.gseq,
+        oseq: decodedMessage.bidId?.oseq,
+        provider: decodedMessage.bidId?.provider
       },
       transaction: blockGroupTransaction
     });
@@ -954,25 +960,25 @@ export class AkashStatsIndexer extends Indexer {
   private async handleCloseBidV5(decodedMessage: v1beta5.MsgCloseBid, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
     const deployment = await Deployment.findOne({
       where: {
-        owner: decodedMessage.id.owner,
-        dseq: decodedMessage.id.dseq.toString()
+        owner: decodedMessage.id?.owner,
+        dseq: decodedMessage.id?.dseq.toString()
       },
       include: [{ model: Lease }],
       transaction: blockGroupTransaction
     });
 
     if (!deployment) {
-      throw new Error(`Deployment for ${decodedMessage.id.owner}/${decodedMessage.id.dseq.toString()} not found.`);
+      throw new Error(`Deployment for ${decodedMessage.id?.owner}/${decodedMessage.id?.dseq.toString()} not found.`);
     }
 
     msg.relatedDeploymentId = deployment.id;
 
     const lease = deployment.leases.find(
       x =>
-        x.oseq === decodedMessage.id.oseq &&
-        x.gseq === decodedMessage.id.gseq &&
-        x.bseq === decodedMessage.id.bseq &&
-        x.providerAddress === decodedMessage.id.provider
+        x.oseq === decodedMessage.id?.oseq &&
+        x.gseq === decodedMessage.id?.gseq &&
+        x.bseq === decodedMessage.id?.bseq &&
+        x.providerAddress === decodedMessage.id?.provider
     );
 
     if (lease) {
@@ -995,12 +1001,12 @@ export class AkashStatsIndexer extends Indexer {
 
     await Bid.destroy({
       where: {
-        owner: decodedMessage.id.owner,
-        dseq: decodedMessage.id.dseq.toString(),
-        gseq: decodedMessage.id.gseq,
-        oseq: decodedMessage.id.oseq,
-        bseq: decodedMessage.id.bseq,
-        provider: decodedMessage.id.provider
+        owner: decodedMessage.id?.owner,
+        dseq: decodedMessage.id?.dseq.toString(),
+        gseq: decodedMessage.id?.gseq,
+        oseq: decodedMessage.id?.oseq,
+        bseq: decodedMessage.id?.bseq,
+        provider: decodedMessage.id?.provider
       },
       transaction: blockGroupTransaction
     });
@@ -1014,8 +1020,8 @@ export class AkashStatsIndexer extends Indexer {
   ) {
     const deployment = await Deployment.findOne({
       where: {
-        owner: decodedMessage.id.owner,
-        dseq: decodedMessage.id.dseq.toString()
+        owner: decodedMessage.id?.owner,
+        dseq: decodedMessage.id?.dseq.toString()
       },
       include: [
         {
@@ -1026,13 +1032,13 @@ export class AkashStatsIndexer extends Indexer {
     });
 
     if (!deployment) {
-      throw new Error(`Deployment for ${decodedMessage.id.owner}/${decodedMessage.id.dseq.toString()} not found.`);
+      throw new Error(`Deployment for ${decodedMessage.id?.owner}/${decodedMessage.id?.dseq.toString()} not found.`);
     }
 
     msg.relatedDeploymentId = deployment.id;
 
-    deployment.deposit += parseFloat(decodedMessage.amount.amount);
-    deployment.balance += parseFloat(decodedMessage.amount.amount);
+    deployment.deposit += parseFloat(decodedMessage.amount?.amount ?? "0");
+    deployment.balance += parseFloat(decodedMessage.amount?.amount ?? "0");
     await deployment.save({ transaction: blockGroupTransaction });
 
     const blockRate = deployment.leases
@@ -1052,14 +1058,14 @@ export class AkashStatsIndexer extends Indexer {
     // For v1 escrow, we need to extract the deployment info from the account ID
     // The xid field contains the deployment identifier in the format "owner/dseq"
     // The owner is provided directly in the message, and dseq is extracted from xid
-    const scope = decodedMessage.id.scope;
+    const scope = decodedMessage.id?.scope;
 
     if (scope !== Scope.deployment) {
       console.log(`Invalid scope: ${scope}`);
       return;
     }
 
-    const [owner, dseq] = decodedMessage.id.xid.split("/");
+    const [owner, dseq] = decodedMessage.id?.xid.split("/") || [];
 
     if (!owner || !dseq) {
       throw new Error(`Invalid owner or dseq: ${owner}/${dseq}`);
@@ -1084,8 +1090,8 @@ export class AkashStatsIndexer extends Indexer {
 
     msg.relatedDeploymentId = deployment.id;
 
-    deployment.deposit += parseFloat(decodedMessage.deposit.amount.amount);
-    deployment.balance += parseFloat(decodedMessage.deposit.amount.amount);
+    deployment.deposit += parseFloat(decodedMessage.deposit?.amount?.amount ?? "0");
+    deployment.balance += parseFloat(decodedMessage.deposit?.amount?.amount ?? "0");
     await deployment.save({ transaction: blockGroupTransaction });
 
     const blockRate = deployment.leases
@@ -1098,7 +1104,7 @@ export class AkashStatsIndexer extends Indexer {
       await lease.save({ transaction: blockGroupTransaction });
     }
 
-    msg.amount = getAmountFromCoin(decodedMessage.deposit.amount);
+    msg.amount = getAmountFromCoin(decodedMessage.deposit?.amount);
   }
 
   private async handleWithdrawLease(
@@ -1107,11 +1113,11 @@ export class AkashStatsIndexer extends Indexer {
     blockGroupTransaction: DbTransaction,
     msg: Message
   ) {
-    const owner = decodedMessage.bidId.owner;
-    const dseq = decodedMessage.bidId.dseq.toString();
-    const gseq = decodedMessage.bidId.gseq;
-    const oseq = decodedMessage.bidId.oseq;
-    const provider = decodedMessage.bidId.provider;
+    const owner = decodedMessage.bidId?.owner;
+    const dseq = decodedMessage.bidId?.dseq.toString();
+    const gseq = decodedMessage.bidId?.gseq;
+    const oseq = decodedMessage.bidId?.oseq;
+    const provider = decodedMessage.bidId?.provider;
 
     const deployment = await Deployment.findOne({
       where: {
@@ -1134,12 +1140,12 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleWithdrawLeaseV5(decodedMessage: v1beta5.MsgWithdrawLease, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
-    const owner = decodedMessage.id.owner;
-    const dseq = decodedMessage.id.dseq.toString();
-    const gseq = decodedMessage.id.gseq;
-    const oseq = decodedMessage.id.oseq;
-    const bseq = decodedMessage.id.bseq;
-    const provider = decodedMessage.id.provider;
+    const owner = decodedMessage.id?.owner;
+    const dseq = decodedMessage.id?.dseq.toString();
+    const gseq = decodedMessage.id?.gseq;
+    const oseq = decodedMessage.id?.oseq;
+    const bseq = decodedMessage.id?.bseq;
+    const provider = decodedMessage.id?.provider;
 
     const deployment = await Deployment.findOne({
       where: {
@@ -1326,7 +1332,7 @@ export class AkashStatsIndexer extends Indexer {
 
   private async handleMissedClosedDeployments(currentTransaction: Transaction, dbTransaction: DbTransaction, txEvents: TransactionEvent[]) {
     for (const event of txEvents) {
-      if (event.type === "akash.v1" && event.attributes.some(attr => attr.key === "action" && attr.value === "deployment-closed")) {
+      if (event.type === "akash.v1" && event.attributes?.some(attr => attr.key === "action" && attr.value === "deployment-closed")) {
         await this.handleOldFormatDeploymentClosedEvent(event, currentTransaction, dbTransaction);
       } else if (event.type === "akash.deployment.v1.EventDeploymentClosed") {
         await this.handleNewFormatDeploymentClosedEvent(event, currentTransaction, dbTransaction);
@@ -1335,14 +1341,16 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleOldFormatDeploymentClosedEvent(event: TransactionEvent, currentTransaction: Transaction, dbTransaction: DbTransaction) {
-    const dseq = event.attributes.find(attr => attr.key === "dseq").value;
-    const owner = event.attributes.find(attr => attr.key === "owner").value;
+    const dseq = event.attributes?.find(attr => attr.key === "dseq")?.value;
+    const owner = event.attributes?.find(attr => attr.key === "owner")?.value;
 
-    await this.updateDeploymentClosedHeight(owner, dseq, currentTransaction, dbTransaction);
+    if (owner && dseq) {
+      await this.updateDeploymentClosedHeight(owner, dseq, currentTransaction, dbTransaction);
+    }
   }
 
   private async handleNewFormatDeploymentClosedEvent(event: TransactionEvent, currentTransaction: Transaction, dbTransaction: DbTransaction) {
-    const idAttr = event.attributes.find(attr => attr.key === "id");
+    const idAttr = event.attributes?.find(attr => attr.key === "id");
     if (!idAttr) return;
 
     try {
@@ -1388,7 +1396,7 @@ export class AkashStatsIndexer extends Indexer {
 
   private async handleMissedClosedLeases(currentTransaction: Transaction, dbTransaction: DbTransaction, txEvents: TransactionEvent[]) {
     for (const event of txEvents) {
-      if (event.type === "akash.v1" && event.attributes.some(attr => attr.key === "action" && attr.value === "lease-closed")) {
+      if (event.type === "akash.v1" && event.attributes?.some(attr => attr.key === "action" && attr.value === "lease-closed")) {
         await this.handleOldFormatLeaseClosedEvent(event, currentTransaction, dbTransaction);
       } else if (event.type === "akash.market.v1.EventLeaseClosed") {
         await this.handleNewFormatLeaseClosedEvent(event, currentTransaction, dbTransaction);
@@ -1397,17 +1405,19 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleOldFormatLeaseClosedEvent(event: TransactionEvent, currentTransaction: Transaction, dbTransaction: DbTransaction) {
-    const dseq = event.attributes.find(attr => attr.key === "dseq").value;
-    const owner = event.attributes.find(attr => attr.key === "owner").value;
-    const oseq = parseInt(event.attributes.find(attr => attr.key === "oseq").value);
-    const gseq = parseInt(event.attributes.find(attr => attr.key === "gseq").value);
-    const provider = event.attributes.find(attr => attr.key === "provider").value;
+    const dseq = event.attributes?.find(attr => attr.key === "dseq")?.value;
+    const owner = event.attributes?.find(attr => attr.key === "owner")?.value;
+    const oseq = parseInt(event.attributes?.find(attr => attr.key === "oseq")?.value ?? "0");
+    const gseq = parseInt(event.attributes?.find(attr => attr.key === "gseq")?.value ?? "0");
+    const provider = event.attributes?.find(attr => attr.key === "provider")?.value;
 
-    await this.updateLeaseClosedHeight(owner, dseq, oseq, gseq, provider, currentTransaction, dbTransaction);
+    if (owner && dseq && provider) {
+      await this.updateLeaseClosedHeight(owner, dseq, oseq, gseq, provider, currentTransaction, dbTransaction);
+    }
   }
 
   private async handleNewFormatLeaseClosedEvent(event: TransactionEvent, currentTransaction: Transaction, dbTransaction: DbTransaction) {
-    const idAttr = event.attributes.find(attr => attr.key === "id");
+    const idAttr = event.attributes?.find(attr => attr.key === "id");
     if (!idAttr) return;
 
     try {
@@ -1476,8 +1486,8 @@ function isPersistentStorage(storage: v1beta2.Storage | v1beta3.Storage | v1beta
   return (storage.attributes || []).some(a => a.key === "persistent" && a.value === "true");
 }
 
-function getGPUAttributes(gpu: v1beta3.GPU | v1beta4.GPU) {
-  if (!gpu.attributes || gpu.attributes.length !== 1) return { vendor: null, model: null };
+function getGPUAttributes(gpu: v1beta3.GPU | v1beta4.GPU | undefined) {
+  if (!gpu || !gpu.attributes || gpu.attributes.length !== 1) return { vendor: null, model: null };
 
   const attr = gpu.attributes[0];
 

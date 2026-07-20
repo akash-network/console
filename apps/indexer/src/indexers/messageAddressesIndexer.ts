@@ -111,7 +111,7 @@ export class MessageAddressesIndexer extends Indexer {
   public async afterEveryTransaction(rawTx: DecodedTxRaw, currentTransaction: Transaction, dbTransaction: DbTransaction): Promise<void> {
     const { multisigThreshold, addresses } = this.getTransactionSignerAddresses(rawTx, currentTransaction.hash);
 
-    currentTransaction.multisigThreshold = multisigThreshold;
+    currentTransaction.multisigThreshold = multisigThreshold ?? undefined;
 
     await AddressReference.bulkCreate(
       addresses.map(address => ({

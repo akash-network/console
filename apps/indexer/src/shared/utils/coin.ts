@@ -5,8 +5,8 @@ export function getAmountFromCoinArray(coins: Coin[], denom: string): string {
   return coin ? coin.amount : "0";
 }
 
-export function getAmountFromCoin(coin: Coin, denom?: string): string {
-  if (denom && coin.denom !== denom) {
+export function getAmountFromCoin(coin: Coin | undefined, denom?: string): string {
+  if (!coin || (denom && coin.denom !== denom)) {
     return "0";
   }
 

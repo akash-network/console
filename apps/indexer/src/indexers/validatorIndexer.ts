@@ -103,16 +103,16 @@ export class ValidatorIndexer extends Indexer {
     const validatorInfo = {
       operatorAddress: decodedMessage.validatorAddress,
       accountAddress: accountAddress,
-      hexAddress: toHex(pubkeyToRawAddress(decodedMessage.pubkey.typeUrl, decodedMessage.pubkey.value.slice(2))).toUpperCase(),
+      hexAddress: toHex(pubkeyToRawAddress(decodedMessage.pubkey?.typeUrl ?? "", decodedMessage.pubkey?.value.slice(2) ?? new Uint8Array())).toUpperCase(),
       createdMsgId: msg?.id,
-      moniker: decodedMessage.description.moniker,
-      identity: decodedMessage.description.identity,
-      website: decodedMessage.description.website,
-      description: decodedMessage.description.details,
-      securityContact: decodedMessage.description.securityContact,
-      rate: this.convertCommissionRate(decodedMessage.commission.rate),
-      maxRate: this.convertCommissionRate(decodedMessage.commission.maxRate),
-      maxChangeRate: this.convertCommissionRate(decodedMessage.commission.maxChangeRate),
+      moniker: decodedMessage.description?.moniker,
+      identity: decodedMessage.description?.identity,
+      website: decodedMessage.description?.website,
+      description: decodedMessage.description?.details,
+      securityContact: decodedMessage.description?.securityContact,
+      rate: this.convertCommissionRate(decodedMessage.commission?.rate),
+      maxRate: this.convertCommissionRate(decodedMessage.commission?.maxRate),
+      maxChangeRate: this.convertCommissionRate(decodedMessage.commission?.maxChangeRate),
       minSelfDelegation: parseInt(decodedMessage.minSelfDelegation)
     };
 
@@ -137,21 +137,24 @@ export class ValidatorIndexer extends Indexer {
 
     if (!validator) throw new Error(`Validator not found: ${decodedMessage.validatorAddress}`);
 
-    if (decodedMessage.description.moniker !== "[do-not-modify]") {
-      validator.moniker = decodedMessage.description.moniker;
+    if (decodedMessage.description) {
+      if (decodedMessage.description.moniker !== "[do-not-modify]") {
+        validator.moniker = decodedMessage.description?.moniker ?? "";
+      }
+      if (decodedMessage.description.identity !== "[do-not-modify]") {
+        validator.identity = decodedMessage.description?.identity;
+      }
+      if (decodedMessage.description.website !== "[do-not-modify]") {
+        validator.website = decodedMessage.description.website;
+      }
+      if (decodedMessage.description.details !== "[do-not-modify]") {
+        validator.description = decodedMessage.description?.details;
+      }
+      if (decodedMessage.description.securityContact !== "[do-not-modify]") {
+        validator.securityContact = decodedMessage.description?.securityContact;
+      }
     }
-    if (decodedMessage.description.identity !== "[do-not-modify]") {
-      validator.identity = decodedMessage.description.identity;
-    }
-    if (decodedMessage.description.website !== "[do-not-modify]") {
-      validator.website = decodedMessage.description.website;
-    }
-    if (decodedMessage.description.details !== "[do-not-modify]") {
-      validator.description = decodedMessage.description.details;
-    }
-    if (decodedMessage.description.securityContact !== "[do-not-modify]") {
-      validator.securityContact = decodedMessage.description.securityContact;
-    }
+
     if (decodedMessage.commissionRate) {
       validator.rate = parseFloat(decodedMessage.commissionRate);
     }
@@ -207,7 +210,8 @@ export class ValidatorIndexer extends Indexer {
    * Converts commission rate from Cosmos SDK format to decimal format
    * Handles both integer format (18 decimal places) and decimal format
    */
-  private convertCommissionRate(rate: string): number {
+  private convertCommissionRate(rate: string | undefined): number {
+    if (!rate) return 0;
     const parsedRate = parseFloat(rate);
     return parsedRate > 1 ? parsedRate / 1e18 : parsedRate;
   }

@@ -20,6 +20,8 @@
     "src/chain/nodeAccessor.ts",
     "src/indexers/bmeIndexer.types.ts",
     "src/indexers/bmeIndexer.ts",
-    "src/indexers/indexer.ts"
+    "src/indexers/indexer.ts",
+    "src/indexers/messageAddressesIndexer.ts",
+    "src/indexers/validatorIndexer.ts",
   ]
 }
