@@ -40,6 +40,8 @@ export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d 
   const { resolvedTheme } = useTheme();
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  /** The editor's SDL-validation verdict (null until the editor has validated once); a false verdict blocks import. */
+  const [isValid, setIsValid] = useState<boolean | null>(null);
   /** The exact text of the last uploaded file, so an unedited upload is reported as `method: "file"`. */
   const uploadedContentRef = useRef<string | null>(null);
 
@@ -50,6 +52,10 @@ export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d 
   function handleEditorChange(value?: string) {
     setText(value ?? "");
     setError(null);
+  }
+
+  function handleValidate(event: { isValid: boolean }) {
+    setIsValid(event.isValid);
   }
 
   function handleFileSelect(file: File | null) {
@@ -82,33 +88,40 @@ export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d 
 
   return (
     <DialogV2 open onOpenChange={isOpen => (!isOpen ? onClose() : undefined)}>
-      <DialogV2Content className="max-w-3xl">
+      <DialogV2Content className="flex h-[600px] max-h-[85vh] max-w-3xl flex-col">
         <DialogV2Header>
           <DialogV2Title>Import SDL</DialogV2Title>
           <DialogV2Description>Paste your SDL below or upload a file. Importing replaces your current configuration.</DialogV2Description>
         </DialogV2Header>
 
-        <DialogV2Body className="space-y-4">
-          <div className="flex justify-end">
+        <DialogV2Body className="flex min-h-0 flex-1 flex-col gap-4">
+          <div className="flex shrink-0 justify-end">
             <d.FileButton onFileSelect={handleFileSelect} accept=".yml,.yaml,.txt" size="sm" variant="outline">
               Upload file
             </d.FileButton>
           </div>
-          <d.SDLEditor
-            height="440px"
-            value={text}
-            onChange={handleEditorChange}
-            theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
-            onMount={focusOnMount}
-          />
-          {error && <Alert variant="destructive">{error}</Alert>}
+          <div className="min-h-0 flex-1 overflow-hidden rounded-md border">
+            <d.SDLEditor
+              height="100%"
+              value={text}
+              onChange={handleEditorChange}
+              onValidate={handleValidate}
+              theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
+              onMount={focusOnMount}
+            />
+          </div>
+          {error && (
+            <Alert variant="destructive" className="shrink-0">
+              {error}
+            </Alert>
+          )}
         </DialogV2Body>
 
         <DialogV2Footer>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleImport} disabled={!text.trim()}>
+          <Button onClick={handleImport} disabled={!text.trim() || isValid === false}>
             Import
           </Button>
         </DialogV2Footer>

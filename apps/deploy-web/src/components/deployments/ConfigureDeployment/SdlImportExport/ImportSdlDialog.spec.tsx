@@ -29,6 +29,27 @@ describe(ImportSdlDialog.name, () => {
     expect(onImport).toHaveBeenCalledWith(IMPORTED_STATE, { method: "paste" });
   });
 
+  it("disables Import while the editor reports validation errors", async () => {
+    setup({});
+
+    await userEvent.type(screen.getByLabelText("SDL editor"), "invalid: sdl");
+    await userEvent.click(screen.getByRole("button", { name: "mark invalid" }));
+
+    expect(screen.getByRole("button", { name: "Import" })).toBeDisabled();
+  });
+
+  it("re-enables Import once the editor reports the sdl is valid", async () => {
+    setup({});
+
+    await userEvent.type(screen.getByLabelText("SDL editor"), "some: sdl");
+    await userEvent.click(screen.getByRole("button", { name: "mark invalid" }));
+    expect(screen.getByRole("button", { name: "Import" })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole("button", { name: "mark valid" }));
+
+    expect(screen.getByRole("button", { name: "Import" })).toBeEnabled();
+  });
+
   it("shows a known parser error inline, keeps the dialog open, and does not import", async () => {
     const error = Object.assign(new Error("bad indentation at line 3"), { name: "YAMLException" });
     const { onImport } = setup({
@@ -148,8 +169,24 @@ describe(ImportSdlDialog.name, () => {
     const onImport = vi.fn();
     const importDeploymentState = vi.fn(input.importResult ?? (() => IMPORTED_STATE));
 
-    const SDLEditor = (({ value, onChange }: { value?: string; onChange?: (value: string) => void }) => (
-      <textarea aria-label="SDL editor" value={value ?? ""} onChange={event => onChange?.(event.target.value)} />
+    const SDLEditor = (({
+      value,
+      onChange,
+      onValidate
+    }: {
+      value?: string;
+      onChange?: (value: string) => void;
+      onValidate?: (event: { isValid: boolean }) => void;
+    }) => (
+      <div>
+        <textarea aria-label="SDL editor" value={value ?? ""} onChange={event => onChange?.(event.target.value)} />
+        <button type="button" onClick={() => onValidate?.({ isValid: false })}>
+          mark invalid
+        </button>
+        <button type="button" onClick={() => onValidate?.({ isValid: true })}>
+          mark valid
+        </button>
+      </div>
     )) as never;
     const FileButton: typeof DEPENDENCIES.FileButton = ({ onFileSelect, children }) => (
       <label>
