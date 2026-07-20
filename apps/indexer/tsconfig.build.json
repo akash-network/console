@@ -10,7 +10,8 @@
     "module": "NodeNext",
     "lib": ["esnext"],
     "allowImportingTsExtensions": true,
-    "rewriteRelativeImportExtensions": true
+    "rewriteRelativeImportExtensions": true,
+    "strict": true
   },
   "exclude": ["node_modules", "dist"],
   "extends": "@akashnetwork/dev-config/tsconfig.base-node.json",

@@ -1,8 +1,5 @@
 {
   "extends": "./tsconfig.build.json",
-  "compilerOptions": {
-    "strict": true
-  },
   "include": ["**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
