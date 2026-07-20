@@ -86,7 +86,8 @@
       "next": false
     },
     "packages/database": {
-      "project": ["dbSchemas/**/*.ts", "*.ts"]
+      "project": ["dbSchemas/**/*.ts", "*.ts"],
+      "ignoreDependencies": ["@akashnetwork/dev-config"]
     },
     "packages/dev-config": {
       "entry": [

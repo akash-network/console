@@ -1,8 +1,7 @@
 // @ts-check
+import { FlatCompat } from "@eslint/eslintrc";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
-
-import { FlatCompat } from "@eslint/eslintrc";
 
 import tsConfig from "./typescript.mjs";
 

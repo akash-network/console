@@ -1,11 +1,10 @@
 // @ts-check
-import stylistic from "@stylistic/eslint-plugin";
 import js from "@eslint/js";
+import stylistic from "@stylistic/eslint-plugin";
+import akash from "eslint-plugin-akash";
 import importX from "eslint-plugin-import-x";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 import globals from "globals";
-
-import akash from "eslint-plugin-akash";
 
 export default [
   {
