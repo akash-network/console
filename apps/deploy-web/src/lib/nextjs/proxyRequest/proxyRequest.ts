@@ -82,6 +82,7 @@ async function forwardRequestStream(req: NextApiRequest, res: NextApiResponse, o
     headers,
     body,
     duplex: body ? "half" : undefined,
+    credentials: "omit",
     signal: options.signal
   } as any); // TODO: fetch API typings are mixed between envs, here we should have nodejs specific only
 

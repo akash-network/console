@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { EventEmitter, Readable, Writable } from "node:stream";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
+import { EventEmitter, PassThrough, Readable, Writable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 
 import { proxyRequest } from "./proxyRequest";
@@ -396,6 +398,28 @@ describe(proxyRequest.name, () => {
     });
   });
 
+  describe("when upstream returns 401 for a request with a body", () => {
+    it("forwards the 401 and its body to the client instead of failing with a proxy error", async () => {
+      const upstream = await startUpstream((_req, res) => {
+        res.writeHead(401, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "unauthorized" }));
+      });
+      const req = createStreamingReq({ method: "POST", body: '{"amount":10}' });
+      const res = createCapturingRes();
+      const onError = vi.fn();
+
+      try {
+        await proxyRequest(req, res, { target: upstream.url, onError });
+      } finally {
+        await upstream.close();
+      }
+
+      expect(onError).not.toHaveBeenCalled();
+      expect(res.statusCode).toBe(401);
+      expect(res.body).toBe(JSON.stringify({ error: "unauthorized" }));
+    });
+  });
+
   function setup(input: {
     method?: string;
     requestBody?: string;
@@ -525,4 +549,48 @@ function createFailingStream(error: Error): ReadableStream<Uint8Array> {
       controller.error(error);
     }
   });
+}
+
+async function startUpstream(handler: http.RequestListener) {
+  const server = http.createServer((req, res) => {
+    req.resume();
+    handler(req, res);
+  });
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as AddressInfo;
+  return {
+    url: `http://127.0.0.1:${port}/`,
+    close: () => new Promise<void>(resolve => server.close(() => resolve()))
+  };
+}
+
+function createStreamingReq(input: { method: string; body?: string; headers?: Record<string, string> }): NextApiRequest {
+  const stream = Readable.from(input.body ? [input.body] : []);
+  return Object.assign(stream, {
+    method: input.method,
+    headers: {
+      ...input.headers,
+      ...(input.body ? { "content-length": String(Buffer.byteLength(input.body)) } : {})
+    }
+  }) as unknown as NextApiRequest;
+}
+
+function createCapturingRes() {
+  const chunks: Buffer[] = [];
+  const stream = new PassThrough();
+  stream.on("data", (chunk: Buffer) => chunks.push(Buffer.from(chunk)));
+
+  const res = Object.assign(stream, {
+    statusCode: 200,
+    headersSent: false,
+    writeHead: vi.fn(function (this: { statusCode: number; headersSent: boolean }, status: number) {
+      this.statusCode = status;
+      this.headersSent = true;
+      return this;
+    })
+  }) as unknown as NextApiResponse & { body: string };
+
+  Object.defineProperty(res, "body", { get: () => Buffer.concat(chunks).toString() });
+
+  return res;
 }
