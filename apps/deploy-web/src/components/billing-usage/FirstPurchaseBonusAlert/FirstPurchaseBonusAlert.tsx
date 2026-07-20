@@ -35,7 +35,7 @@ export function FirstPurchaseBonusAlert({ amount, dependencies: d = DEPENDENCIES
   const isEnabled = d.useFlag("first_purchase_bonus");
   const { data, isSuccess } = d.usePaymentTransactionsQuery(undefined, { enabled: isEnabled });
 
-  const hasPaidBefore = !!data?.transactions.some(transaction => transaction.status === "succeeded");
+  const hasPaidBefore = !!data?.transactions?.some(transaction => transaction.status === "succeeded");
 
   // Gate on isSuccess (not isFetched): a failed transactions fetch also sets isFetched, leaving `data`
   // empty and hasPaidBefore false, which would wrongly show the offer to users with unknown history.
