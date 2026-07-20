@@ -1,11 +1,12 @@
 import dotenv from "dotenv";
 import { z } from "zod";
 
+import { isX402TestnetNetwork } from "@src/billing/config/x402-networks";
 import { AUDITOR } from "@src/deployment/config/provider.config";
 
 dotenv.config({ path: "env/.env.funding-wallet-index" });
 
-export const envSchema = z.object({
+const baseEnvSchema = z.object({
   OLD_MASTER_WALLET_MNEMONIC: z.string().optional(),
   FUNDING_WALLET_MNEMONIC: z.string().optional(),
   FUNDING_WALLET_MNEMONIC_V1: z.string().optional(),
@@ -52,7 +53,53 @@ export const envSchema = z.object({
       message: "MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS entries must be in 'vendor/model' format"
     }),
   MASTER_WALLET_TARGET_ACT_BALANCE: z.number({ coerce: true }).default(10_000_000_000),
-  TX_SIGNER_BASE_URL: z.string()
+  TX_SIGNER_BASE_URL: z.string(),
+  X402_ENABLED: z.enum(["true", "false"]).default("false"),
+  X402_PAY_TO_ADDRESS: z
+    .string()
+    .regex(/^0x[a-fA-F0-9]{40}$/, "X402_PAY_TO_ADDRESS must be an EVM address")
+    .optional(),
+  X402_NETWORK: z
+    .string()
+    .regex(/^[a-z0-9-]+:[a-zA-Z0-9-_]+$/, "X402_NETWORK must be a CAIP-2 network id, e.g. eip155:8453")
+    .default("eip155:8453")
+    .transform(value => value as `${string}:${string}`),
+  X402_FACILITATOR_URL: z.string().default("https://x402.org/facilitator"),
+  X402_MIN_TOP_UP_USD: z.number({ coerce: true }).default(1),
+  X402_MAX_TOP_UP_USD: z.number({ coerce: true }).default(1000),
+  // Pay-per-deploy deposit bounds (USD) for POST /v1/x402/deploy.
+  X402_MIN_DEPLOY_USD: z.number({ coerce: true }).default(1),
+  X402_MAX_DEPLOY_USD: z.number({ coerce: true }).default(1000),
+  // Abuse controls for the x402-paid endpoints, enforced per user against recent x402_transactions.
+  // Rolling window (seconds) over which the rate limit and cost ceiling are evaluated.
+  X402_ABUSE_WINDOW_SECONDS: z.number({ coerce: true }).default(3600),
+  // Max number of x402-paid requests a single user may make within the window.
+  X402_ABUSE_MAX_REQUESTS: z.number({ coerce: true }).default(10),
+  // Max cumulative USD a single user may pay via x402 within the window (cost ceiling).
+  X402_ABUSE_MAX_SPEND_USD: z.number({ coerce: true }).default(2000),
+  // How long a transaction may sit in `settled` before the reconcile job re-drives crediting.
+  // The delay keeps the job from racing the in-request credit of a freshly settled payment.
+  X402_RECONCILE_THRESHOLD_SECONDS: z.number({ coerce: true }).default(300),
+  // How often the reconcile job re-scans for stranded `settled` transactions.
+  X402_RECONCILE_INTERVAL_SECONDS: z.number({ coerce: true }).default(300),
+  // Max number of stale `settled` transactions reconciled per run.
+  X402_RECONCILE_BATCH_SIZE: z.number({ coerce: true }).default(100)
+});
+
+/**
+ * Sandbox firewall: a testnet x402 settlement network must never be paired with a
+ * mainnet Akash `NETWORK`, otherwise a testnet payment (worthless funds) could settle
+ * and credit a real mainnet balance. Enforced at config-parse time so a misconfigured
+ * deployment fails fast at startup instead of silently crediting free credits.
+ */
+export const envSchema = baseEnvSchema.superRefine((config, ctx) => {
+  if (config.NETWORK === "mainnet" && isX402TestnetNetwork(config.X402_NETWORK)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["X402_NETWORK"],
+      message: `X402_NETWORK "${config.X402_NETWORK}" is a testnet network and cannot be used while NETWORK is "mainnet": a testnet settlement must never credit a mainnet balance. Use a mainnet X402_NETWORK (e.g. eip155:8453) or run with NETWORK=sandbox/testnet.`
+    });
+  }
 });
 
 export type BillingConfig = z.infer<typeof envSchema>;
