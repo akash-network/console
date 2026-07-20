@@ -20,6 +20,14 @@ export class NoVisibleServiceError extends Error {
   override name = "NoVisibleServiceError";
 }
 
+/** Error names `importSimpleSdl` throws that carry a meaningful, user-safe message (line/col, validation detail). */
+const KNOWN_SDL_PARSER_ERROR_NAMES = ["YAMLException", "CustomValidationError", "TemplateValidation"];
+
+/** True for a recognized parser/validation failure from the import pipeline, as opposed to unexpected internal noise. */
+export function isKnownSdlParserError(err: unknown): err is Error {
+  return err instanceof Error && KNOWN_SDL_PARSER_ERROR_NAMES.includes(err.name);
+}
+
 /**
  * The single import pipeline for the configure screen: parses an SDL, lifts its SSH state into the
  * form model, backfills the VM expose-ssh flag, and seeds the selection. Throws `NoVisibleServiceError`

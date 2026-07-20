@@ -22,7 +22,7 @@ import { ConfigureDeploymentHeader } from "../ConfigureDeploymentHeader/Configur
 import { ConfigureDeploymentPanes } from "../ConfigureDeploymentPanes/ConfigureDeploymentPanes";
 import { DeployProgressOverlay } from "../DeployProgressOverlay/DeployProgressOverlay";
 import type { ImportedDeploymentState } from "../importDeploymentState/importDeploymentState";
-import { importDeploymentState, NoVisibleServiceError, seedSelectedServiceId } from "../importDeploymentState/importDeploymentState";
+import { importDeploymentState, isKnownSdlParserError, NoVisibleServiceError, seedSelectedServiceId } from "../importDeploymentState/importDeploymentState";
 import { ReviewAndDeployModal } from "../ReviewAndDeployModal/ReviewAndDeployModal";
 import { SdlImportExport } from "../SdlImportExport/SdlImportExport";
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
@@ -373,7 +373,7 @@ function withDefaultPreset(values: SdlBuilderFormValuesType): SdlBuilderFormValu
  * keeping it out of the rendered DOM avoids any injection surface.
  */
 function getImportErrorMessage(error: unknown): string {
-  if (error instanceof Error && (error.name === "YAMLException" || error.name === "CustomValidationError" || error.name === "TemplateValidation")) {
+  if (isKnownSdlParserError(error)) {
     return "The deployment couldn't be loaded because its SDL is invalid.";
   }
   return "The deployment couldn't be loaded.";

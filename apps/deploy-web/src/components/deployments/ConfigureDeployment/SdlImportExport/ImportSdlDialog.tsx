@@ -18,7 +18,7 @@ import { useTheme } from "next-themes";
 
 import { SDLEditor } from "@src/components/sdl/SDLEditor/SDLEditor";
 import type { ImportedDeploymentState } from "../importDeploymentState/importDeploymentState";
-import { importDeploymentState } from "../importDeploymentState/importDeploymentState";
+import { importDeploymentState, isKnownSdlParserError, NoVisibleServiceError } from "../importDeploymentState/importDeploymentState";
 
 /** An SDL well over any real deployment is almost certainly the wrong file; reject before reading it into memory. */
 const MAX_SDL_FILE_BYTES = 512 * 1024;
@@ -40,10 +40,10 @@ export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d 
   const { resolvedTheme } = useTheme();
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
-  /** The editor's SDL-validation verdict (null until the editor has validated once); a false verdict blocks import. */
-  const [isValid, setIsValid] = useState<boolean | null>(null);
-  /** The exact text of the last uploaded file, so an unedited upload is reported as `method: "file"`. */
-  const uploadedContentRef = useRef<string | null>(null);
+  /** The editor's SDL-validation verdict; assumed valid until the editor reports otherwise, so a false verdict blocks import. */
+  const [isValid, setIsValid] = useState(true);
+  /** True while the editor still holds an untouched uploaded file, so an unedited upload is reported as `method: "file"`. */
+  const fromFileRef = useRef(false);
 
   const focusOnMount = useCallback((editorInstance: editor.IStandaloneCodeEditor) => {
     editorInstance.focus();
@@ -52,6 +52,7 @@ export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d 
   function handleEditorChange(value?: string) {
     setText(value ?? "");
     setError(null);
+    fromFileRef.current = false;
   }
 
   function handleValidate(event: { isValid: boolean }) {
@@ -67,7 +68,7 @@ export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d 
     const reader = new FileReader();
     reader.onload = function populateEditor(event) {
       const content = (event.target?.result as string) ?? "";
-      uploadedContentRef.current = content;
+      fromFileRef.current = true;
       setText(content);
       setError(null);
     };
@@ -80,7 +81,7 @@ export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d 
   function handleImport() {
     try {
       const state = d.importDeploymentState(text);
-      onImport(state, { method: text === uploadedContentRef.current ? "file" : "paste" });
+      onImport(state, { method: fromFileRef.current ? "file" : "paste" });
     } catch (err) {
       setError(describeImportError(err));
     }
@@ -121,7 +122,7 @@ export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d 
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleImport} disabled={!text.trim() || isValid === false}>
+          <Button onClick={handleImport} disabled={!text.trim() || !isValid}>
             Import
           </Button>
         </DialogV2Footer>
@@ -131,18 +132,15 @@ export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d 
 };
 
 /**
- * Turns an import failure into a user-facing message. Parser errors (`YAMLException` with line/col,
- * validation errors, the no-service case) carry a helpful message, so it is surfaced directly; anything
- * else is parser-internal noise and gets a fixed fallback. Name-based checks match the legacy importer.
+ * Turns an import failure into a user-facing message. Recognized parser/validation errors and the
+ * no-service case carry a helpful message, so it is surfaced directly; anything else is parser-internal
+ * noise and gets a fixed fallback.
  * Note: this consciously diverges from the mount path's fixed-message policy — showing `err.message` here
  * gives the "clear validation error" the feature requires, and React escapes text nodes so it is not an
  * injection vector. This function is the single swap point if that policy call is revisited.
  */
 function describeImportError(err: unknown): string {
-  if (
-    err instanceof Error &&
-    (err.name === "NoVisibleServiceError" || err.name === "YAMLException" || err.name === "CustomValidationError" || err.name === "TemplateValidation")
-  ) {
+  if (err instanceof NoVisibleServiceError || isKnownSdlParserError(err)) {
     return err.message;
   }
   return "This SDL couldn't be parsed. Check the file and try again.";
