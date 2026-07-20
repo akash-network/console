@@ -7,7 +7,7 @@ import { mock } from "vitest-mock-extended";
 import { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import type { PayingUser } from "@src/billing/services/paying-user/paying-user";
-import type { StripeService } from "@src/billing/services/stripe/stripe.service";
+import type { PaymentMethod, StripeService } from "@src/billing/services/stripe/stripe.service";
 import type { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
 import type { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import { StripeController } from "./stripe.controller";
@@ -294,6 +294,33 @@ describe(StripeController.name, () => {
 
       await expect(controller.removePaymentMethod(paymentMethodId)).rejects.toMatchObject({ status: 403 });
       expect(stripe.paymentMethods.detach).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getDefaultPaymentMethod", () => {
+    it("returns the default payment method for the current paying user", async () => {
+      const { controller, stripe } = setup();
+      const paymentMethod = mock<PaymentMethod>({ id: faker.string.uuid(), isDefault: true });
+      stripe.getDefaultPaymentMethod.mockResolvedValue(paymentMethod);
+
+      const result = await controller.getDefaultPaymentMethod();
+
+      expect(result).toEqual({ data: paymentMethod });
+    });
+
+    it("throws 404 when the current user has no Stripe customer", async () => {
+      const { controller, authService, stripe } = setup();
+      authService.getCurrentPayingUser.mockReturnValue(undefined as unknown as PayingUser);
+
+      await expect(controller.getDefaultPaymentMethod()).rejects.toMatchObject({ status: 404 });
+      expect(stripe.getDefaultPaymentMethod).not.toHaveBeenCalled();
+    });
+
+    it("throws 404 when no default payment method exists", async () => {
+      const { controller, stripe } = setup();
+      stripe.getDefaultPaymentMethod.mockResolvedValue(undefined);
+
+      await expect(controller.getDefaultPaymentMethod()).rejects.toMatchObject({ status: 404 });
     });
   });
 

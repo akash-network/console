@@ -1,4 +1,5 @@
 import type { StripeService } from "@akashnetwork/http-sdk";
+import { ApiError } from "@akashnetwork/openapi-sdk";
 import { createProxy } from "@akashnetwork/react-query-proxy";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
@@ -75,6 +76,31 @@ describe("usePaymentQueries", () => {
       expect(getDefaultPaymentMethod).toHaveBeenCalled();
       expect(result.current.isSuccess).toBe(true);
       expect(result.current.data).toEqual(mockDefaultMethod);
+    });
+  });
+
+  it("returns null when default payment method is not found", async () => {
+    const getDefaultPaymentMethod = vi.fn().mockRejectedValue(new ApiError(404, undefined, "GET /v1/stripe/payment-methods/default → 404"));
+    const api = createProxy({ v1: { getDefaultPaymentMethod } }) as unknown as ApiService;
+    const { result } = setupQuery(() => useDefaultPaymentMethodQuery(), {
+      services: { api: () => api }
+    });
+    await vi.waitFor(() => {
+      expect(getDefaultPaymentMethod).toHaveBeenCalled();
+      expect(result.current.isSuccess).toBe(true);
+      expect(result.current.data).toBeNull();
+    });
+  });
+
+  it("rethrows non-404 errors from default payment method", async () => {
+    const getDefaultPaymentMethod = vi.fn().mockRejectedValue(new ApiError(500, undefined, "GET /v1/stripe/payment-methods/default → 500"));
+    const api = createProxy({ v1: { getDefaultPaymentMethod } }) as unknown as ApiService;
+    const { result } = setupQuery(() => useDefaultPaymentMethodQuery(), {
+      services: { api: () => api }
+    });
+    await vi.waitFor(() => {
+      expect(getDefaultPaymentMethod).toHaveBeenCalled();
+      expect(result.current.isError).toBe(true);
     });
   });
 

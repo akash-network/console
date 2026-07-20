@@ -35,11 +35,11 @@ export const useDefaultPaymentMethodQuery = (
   const { api } = useServices();
   return api.v1.getDefaultPaymentMethod.useQuery(undefined, {
     ...options,
-    select: response => response?.data ?? null,
     catchError(error) {
       if (error instanceof ApiError && error.status === 404) return null;
       throw error;
-    }
+    },
+    select: response => response?.data ?? null
   });
 };
 

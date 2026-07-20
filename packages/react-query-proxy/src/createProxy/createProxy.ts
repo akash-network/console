@@ -112,15 +112,21 @@ type OptionalMutationVariables<T extends (...args: any[]) => any> = Parameters<T
  * `catchError` recovery. `catchError` recovers a rejected SDK call by returning a fallback
  * value (inferred as `TRecovered`); re-throw inside it to propagate as a normal query error.
  *
- * `TRecovered` is deliberately kept out of `UseQueryOptions` so its only inference site is
- * `catchError`'s return: unioning it into `TQueryFnData` would (a) let a generic value like
- * `placeholderData: keepPreviousData` infer `TRecovered` from its function type and pollute
- * `TData`, and (b) make `select`'s parameter depend on `TRecovered`, forcing it to resolve to
- * its `never` default before `catchError` is seen.
+ * `TRecovered` is deliberately kept out of `TQueryFnData` so it does not pollute the fields
+ * react-query feeds from cached data: unioning it into `TQueryFnData` would let a generic value
+ * like `placeholderData: keepPreviousData` infer `TRecovered` from its function type and leak into
+ * `TData`. `select` is the one exception — at runtime a rejected call resolves to the `catchError`
+ * fallback, which then flows into `select` — so its input is widened to `TQueryFnData | TRecovered`
+ * here (re-declared after being omitted from `UseQueryOptions`, whose `select` only sees
+ * `TQueryFnData`).
  */
-export type ProxyQueryOptions<TQueryFnData, TData, TRecovered> = Omit<UseQueryOptions<TQueryFnData, Error, TData, QueryKey>, "queryFn" | "queryKey"> & {
+export type ProxyQueryOptions<TQueryFnData, TData, TRecovered> = Omit<
+  UseQueryOptions<TQueryFnData, Error, TData, QueryKey>,
+  "queryFn" | "queryKey" | "select"
+> & {
   queryKey?: QueryKey;
   catchError?: (error: Error) => TRecovered;
+  select?: (data: TQueryFnData | TRecovered) => TData;
 };
 
 type HooksProxy<T extends (...args: any[]) => any> = undefined extends Parameters<T>[0]
