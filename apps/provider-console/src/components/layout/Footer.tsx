@@ -5,7 +5,7 @@ import Link from "next/link";
 import { UrlService } from "@src/utils/urlUtils";
 import { Title } from "../shared/Title";
 
-export interface IFooterProps {}
+export type IFooterProps = Record<string, never>;
 
 export const Footer: React.FC<IFooterProps> = () => {
   const year = new Date().getFullYear();
