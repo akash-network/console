@@ -30,7 +30,7 @@ export const usePaymentMethodsQuery = (options?: Omit<UseQueryOptions<PaymentMet
 type DefaultPaymentMethodResponse = paths["/v1/stripe/payment-methods/default"]["get"]["responses"][200]["content"]["application/json"];
 
 export const useDefaultPaymentMethodQuery = (
-  options?: Omit<UseQueryOptions<DefaultPaymentMethodResponse | null>, "queryKey" | "queryFn" | "select">
+  options?: Omit<UseQueryOptions<DefaultPaymentMethodResponse>, "queryKey" | "queryFn" | "select">
 ): UseQueryResult<DefaultPaymentMethodResponse["data"] | null> => {
   const { api } = useServices();
   return api.v1.getDefaultPaymentMethod.useQuery(undefined, {

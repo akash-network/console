@@ -105,30 +105,30 @@ type OptionalMutationVariables<T extends (...args: any[]) => any> = Parameters<T
 
 /**
  * Per-call useQuery options layered on react-query's, minus the fields the proxy owns
- * (`queryFn`, `queryKey`, which it re-adds as optional). `TQueryFnData` is what the SDK
- * call resolves to (after `catchError` recovery); `TData` is the shape observed by the
- * consumer, inferred from `select` and defaulting to `TQueryFnData`. `catchError` recovers
- * from a rejected SDK call by returning a fallback value — widening `TQueryFnData` by
- * `TRecovered`; re-throw inside it to let the error propagate as a normal query error.
+ * (`queryFn`, `queryKey`, which it re-adds as optional). `TQueryFnData` is the SDK call's
+ * raw success type — it types the fields react-query feeds from cached data (`select`'s
+ * input, `placeholderData`, `initialData`). `TData` is the shape the consumer observes,
+ * inferred from `select` and otherwise defaulting to the success type unioned with the
+ * `catchError` recovery. `catchError` recovers a rejected SDK call by returning a fallback
+ * value (inferred as `TRecovered`); re-throw inside it to propagate as a normal query error.
+ *
+ * `TRecovered` is deliberately kept out of `UseQueryOptions` so its only inference site is
+ * `catchError`'s return: unioning it into `TQueryFnData` would (a) let a generic value like
+ * `placeholderData: keepPreviousData` infer `TRecovered` from its function type and pollute
+ * `TData`, and (b) make `select`'s parameter depend on `TRecovered`, forcing it to resolve to
+ * its `never` default before `catchError` is seen.
  */
 export type ProxyQueryOptions<TQueryFnData, TData, TRecovered> = Omit<UseQueryOptions<TQueryFnData, Error, TData, QueryKey>, "queryFn" | "queryKey"> & {
   queryKey?: QueryKey;
   catchError?: (error: Error) => TRecovered;
 };
 
-/**
- * `TRecovered` widens the query-fn data, so it flows into `TQueryFnData`, which in turn types
- * inference-sensitive fields like `placeholderData` and `initialData`. Passing a generic value there
- * (e.g. `placeholderData: keepPreviousData`, whose type is `<T>(prev: T) => T`) would otherwise let
- * `TRecovered` be inferred from it and pollute `TData` with the helper's function type. `NoInfer` pins
- * `TRecovered` to the sole intended inference site — `catchError`'s return — so `TData` stays the data shape.
- */
 type HooksProxy<T extends (...args: any[]) => any> = undefined extends Parameters<T>[0]
   ? {
       getKey: (input?: NonNullable<Parameters<T>[0]>) => PropertyKey[];
       useQuery: <TRecovered = never, TData = Awaited<ReturnType<T>> | TRecovered>(
         input?: NonNullable<Parameters<T>[0]>,
-        options?: ProxyQueryOptions<Awaited<ReturnType<T>> | NoInfer<TRecovered>, TData, TRecovered>
+        options?: ProxyQueryOptions<Awaited<ReturnType<T>>, TData, TRecovered>
       ) => UseQueryResult<TData>;
       useMutation: (
         options?: Omit<UseMutationOptions<Awaited<ReturnType<T>>, Error, OptionalMutationVariables<T>, any>, "mutationFn">
@@ -138,7 +138,7 @@ type HooksProxy<T extends (...args: any[]) => any> = undefined extends Parameter
       getKey: (input: Parameters<T>[0]) => PropertyKey[];
       useQuery: <TRecovered = never, TData = Awaited<ReturnType<T>> | TRecovered>(
         input: Parameters<T>[0],
-        options?: ProxyQueryOptions<Awaited<ReturnType<T>> | NoInfer<TRecovered>, TData, TRecovered>
+        options?: ProxyQueryOptions<Awaited<ReturnType<T>>, TData, TRecovered>
       ) => UseQueryResult<TData>;
       useMutation: (
         options?: Omit<UseMutationOptions<Awaited<ReturnType<T>>, Error, Parameters<T>[0], any>, "mutationFn">

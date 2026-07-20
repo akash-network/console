@@ -1,25 +1,8 @@
 import type { UseMutationResult } from "@tanstack/react-query";
+import { keepPreviousData } from "@tanstack/react-query";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import { createProxy } from "./createProxy";
-
-interface User {
-  id: number;
-  name?: string;
-}
-
-interface Sdk {
-  users: {
-    list: (input?: { page?: number }) => Promise<User[]>;
-    getById: (input: { id: number }) => Promise<User>;
-    create: (input: { name: string }) => Promise<User>;
-  };
-  admin: {
-    settings: {
-      update: (input: { theme: string }) => Promise<{ success: boolean }>;
-    };
-  };
-}
 
 describe(createProxy.name, () => {
   describe("getKey", () => {
@@ -98,7 +81,7 @@ describe(createProxy.name, () => {
 
     it("passes through the raw call as queryFn when catchError is not provided", async () => {
       const { proxy, sdk, useQuery } = setup();
-      sdk.users.getById.mockResolvedValue({ id: 7 });
+      vi.mocked(sdk.users.getById).mockResolvedValue({ id: 7 });
       proxy.users.getById.useQuery({ id: 7 });
 
       const queryFn = useQuery.mock.calls[0][0].queryFn;
@@ -115,7 +98,7 @@ describe(createProxy.name, () => {
 
     it("recovers with the catchError value when the call rejects", async () => {
       const { proxy, sdk, useQuery } = setup();
-      sdk.users.getById.mockRejectedValue(new Error("not found"));
+      vi.mocked(sdk.users.getById).mockRejectedValue(new Error("not found"));
       proxy.users.getById.useQuery({ id: 1 }, { catchError: () => null });
 
       const queryFn = useQuery.mock.calls[0][0].queryFn;
@@ -126,7 +109,7 @@ describe(createProxy.name, () => {
     it("passes the thrown error to catchError", async () => {
       const { proxy, sdk, useQuery } = setup();
       const error = new Error("boom");
-      sdk.users.getById.mockRejectedValue(error);
+      vi.mocked(sdk.users.getById).mockRejectedValue(error);
       const catchError = vi.fn().mockReturnValue(null);
       proxy.users.getById.useQuery({ id: 1 }, { catchError });
 
@@ -138,7 +121,7 @@ describe(createProxy.name, () => {
     it("propagates the error when catchError re-throws", async () => {
       const { proxy, sdk, useQuery } = setup();
       const error = new Error("boom");
-      sdk.users.getById.mockRejectedValue(error);
+      vi.mocked(sdk.users.getById).mockRejectedValue(error);
       proxy.users.getById.useQuery(
         { id: 1 },
         {
@@ -155,7 +138,7 @@ describe(createProxy.name, () => {
 
     it("does not invoke catchError when the call resolves", async () => {
       const { proxy, sdk, useQuery } = setup();
-      sdk.users.getById.mockResolvedValue({ id: 3 });
+      vi.mocked(sdk.users.getById).mockResolvedValue({ id: 3 });
       const catchError = vi.fn();
       proxy.users.getById.useQuery({ id: 3 }, { catchError });
 
@@ -195,6 +178,29 @@ describe(createProxy.name, () => {
       const result = proxy.users.getById.useQuery(
         { id: 1 },
         {
+          select: user => user?.id ?? null,
+          catchError: () => null
+        }
+      );
+
+      expectTypeOf<(typeof result)["data"]>().toEqualTypeOf<number | null | undefined>();
+    });
+
+    it("keeps the data type as the SDK return type when placeholderData is keepPreviousData", () => {
+      const { proxy } = setup();
+
+      const result = proxy.users.getById.useQuery({ id: 1 }, { placeholderData: keepPreviousData });
+
+      expectTypeOf<(typeof result)["data"]>().toEqualTypeOf<User | undefined>();
+    });
+
+    it("keeps select and catchError intact when combined with keepPreviousData", () => {
+      const { proxy } = setup();
+
+      const result = proxy.users.getById.useQuery(
+        { id: 1 },
+        {
+          placeholderData: keepPreviousData,
           catchError: () => null,
           select: user => user?.id ?? null
         }
@@ -411,3 +417,21 @@ describe(createProxy.name, () => {
     };
   }
 });
+
+interface User {
+  id: number;
+  name?: string;
+}
+
+interface Sdk {
+  users: {
+    list: (input?: { page?: number }) => Promise<User[]>;
+    getById: (input: { id: number }) => Promise<User>;
+    create: (input: { name: string }) => Promise<User>;
+  };
+  admin: {
+    settings: {
+      update: (input: { theme: string }) => Promise<{ success: boolean }>;
+    };
+  };
+}

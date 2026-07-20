@@ -7,7 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useServices } from "@src/context/ServicesProvider";
 
 export const useWalletSettingsQuery = (
-  options?: Omit<UseQueryOptions<WalletSettings | null>, "queryKey" | "queryFn">
+  options?: Omit<UseQueryOptions<WalletSettings>, "queryKey" | "queryFn">
 ): UseQueryResult<WalletSettings["data"] | null> => {
   const { api } = useServices();
   return api.v1.getWalletSettings.useQuery(undefined, {
