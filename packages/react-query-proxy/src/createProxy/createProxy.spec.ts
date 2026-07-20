@@ -1,5 +1,5 @@
 import type { UseMutationResult } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import { createProxy } from "./createProxy";
 
@@ -94,6 +94,113 @@ describe(createProxy.name, () => {
       const queryFn = useQuery.mock.calls[0][0].queryFn;
       queryFn();
       expect(sdk.users.list).toHaveBeenCalledWith(undefined);
+    });
+
+    it("passes through the raw call as queryFn when catchError is not provided", async () => {
+      const { proxy, sdk, useQuery } = setup();
+      sdk.users.getById.mockResolvedValue({ id: 7 });
+      proxy.users.getById.useQuery({ id: 7 });
+
+      const queryFn = useQuery.mock.calls[0][0].queryFn;
+
+      await expect(queryFn()).resolves.toEqual({ id: 7 });
+    });
+
+    it("does not forward catchError to the underlying useQuery", () => {
+      const { proxy, useQuery } = setup();
+      proxy.users.getById.useQuery({ id: 1 }, { catchError: () => ({ id: -1 }) });
+
+      expect(useQuery.mock.calls[0][0]).not.toHaveProperty("catchError");
+    });
+
+    it("recovers with the catchError value when the call rejects", async () => {
+      const { proxy, sdk, useQuery } = setup();
+      sdk.users.getById.mockRejectedValue(new Error("not found"));
+      proxy.users.getById.useQuery({ id: 1 }, { catchError: () => null });
+
+      const queryFn = useQuery.mock.calls[0][0].queryFn;
+
+      await expect(queryFn()).resolves.toBeNull();
+    });
+
+    it("passes the thrown error to catchError", async () => {
+      const { proxy, sdk, useQuery } = setup();
+      const error = new Error("boom");
+      sdk.users.getById.mockRejectedValue(error);
+      const catchError = vi.fn().mockReturnValue(null);
+      proxy.users.getById.useQuery({ id: 1 }, { catchError });
+
+      await useQuery.mock.calls[0][0].queryFn();
+
+      expect(catchError).toHaveBeenCalledWith(error);
+    });
+
+    it("propagates the error when catchError re-throws", async () => {
+      const { proxy, sdk, useQuery } = setup();
+      const error = new Error("boom");
+      sdk.users.getById.mockRejectedValue(error);
+      proxy.users.getById.useQuery(
+        { id: 1 },
+        {
+          catchError: e => {
+            throw e;
+          }
+        }
+      );
+
+      const queryFn = useQuery.mock.calls[0][0].queryFn;
+
+      await expect(queryFn()).rejects.toBe(error);
+    });
+
+    it("does not invoke catchError when the call resolves", async () => {
+      const { proxy, sdk, useQuery } = setup();
+      sdk.users.getById.mockResolvedValue({ id: 3 });
+      const catchError = vi.fn();
+      proxy.users.getById.useQuery({ id: 3 }, { catchError });
+
+      const result = await useQuery.mock.calls[0][0].queryFn();
+
+      expect(result).toEqual({ id: 3 });
+      expect(catchError).not.toHaveBeenCalled();
+    });
+
+    it("reflects the select return type in the query data", () => {
+      const { proxy } = setup();
+
+      const result = proxy.users.getById.useQuery({ id: 1 }, { select: user => user.name });
+
+      expectTypeOf<(typeof result)["data"]>().toEqualTypeOf<string | undefined>();
+    });
+
+    it("defaults the data type to the SDK return type when no select is given", () => {
+      const { proxy } = setup();
+
+      const result = proxy.users.getById.useQuery({ id: 1 });
+
+      expectTypeOf<(typeof result)["data"]>().toEqualTypeOf<User | undefined>();
+    });
+
+    it("widens the data type by the catchError return type", () => {
+      const { proxy } = setup();
+
+      const result = proxy.users.getById.useQuery({ id: 1 }, { catchError: () => null });
+
+      expectTypeOf<(typeof result)["data"]>().toEqualTypeOf<User | null | undefined>();
+    });
+
+    it("applies select on top of the catchError-widened type", () => {
+      const { proxy } = setup();
+
+      const result = proxy.users.getById.useQuery(
+        { id: 1 },
+        {
+          catchError: () => null,
+          select: user => user?.id ?? null
+        }
+      );
+
+      expectTypeOf<(typeof result)["data"]>().toEqualTypeOf<number | null | undefined>();
     });
 
     it("can proxy class instance", () => {

@@ -1,4 +1,5 @@
 import type { StripeService } from "@akashnetwork/http-sdk";
+import { createProxy } from "@akashnetwork/react-query-proxy";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -23,7 +24,8 @@ import {
 } from "@tests/seeders/payment";
 import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
 
-// Helper to setup query with access to queryClient for spy verification
+type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["services"]>["api"]>>;
+
 function setupQueryWithClient<T>(hook: () => T, options?: RenderAppHookOptions) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -64,14 +66,13 @@ describe("usePaymentQueries", () => {
 
   it("fetches default payment method", async () => {
     const mockDefaultMethod = createMockPaymentMethod({ isDefault: true });
-    const stripeService = mock<StripeService>({
-      getDefaultPaymentMethod: vi.fn().mockResolvedValue(mockDefaultMethod)
-    });
+    const getDefaultPaymentMethod = vi.fn().mockResolvedValue({ data: mockDefaultMethod });
+    const api = createProxy({ v1: { getDefaultPaymentMethod } }) as unknown as ApiService;
     const { result } = setupQuery(() => useDefaultPaymentMethodQuery(), {
-      services: { stripe: () => stripeService }
+      services: { api: () => api }
     });
     await vi.waitFor(() => {
-      expect(stripeService.getDefaultPaymentMethod).toHaveBeenCalled();
+      expect(getDefaultPaymentMethod).toHaveBeenCalled();
       expect(result.current.isSuccess).toBe(true);
       expect(result.current.data).toEqual(mockDefaultMethod);
     });
@@ -224,8 +225,9 @@ describe("usePaymentQueries", () => {
       const stripeService = mock<StripeService>({
         setPaymentMethodAsDefault: vi.fn().mockResolvedValue(mockPaymentMethod)
       });
+      const api = createProxy({ v1: { getDefaultPaymentMethod: vi.fn() } }) as unknown as ApiService;
       const { result, queryClient } = setupQueryWithClient(() => usePaymentMutations(), {
-        services: { stripe: () => stripeService }
+        services: { stripe: () => stripeService, api: () => api }
       });
 
       const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
@@ -237,7 +239,7 @@ describe("usePaymentQueries", () => {
       await vi.waitFor(() => {
         expect(stripeService.setPaymentMethodAsDefault).toHaveBeenCalledWith({ id: "pm_123" });
         expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: ["PAYMENT_METHODS"] });
-        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: ["DEFAULT_PAYMENT_METHOD"] });
+        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: api.v1.getDefaultPaymentMethod.getKey() });
       });
     });
   });

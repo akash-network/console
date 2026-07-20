@@ -1,3 +1,4 @@
+import type { paths } from "@akashnetwork/console-api-types";
 import type {
   ApplyCouponParams,
   ConfirmPaymentParams,
@@ -7,7 +8,8 @@ import type {
   SetupIntentResponse,
   ThreeDSecureAuthParams
 } from "@akashnetwork/http-sdk";
-import type { UseQueryOptions } from "@tanstack/react-query";
+import { ApiError } from "@akashnetwork/openapi-sdk";
+import type { UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -25,14 +27,18 @@ export const usePaymentMethodsQuery = (options?: Omit<UseQueryOptions<PaymentMet
   });
 };
 
-export const useDefaultPaymentMethodQuery = (options?: Omit<UseQueryOptions<PaymentMethod>, "queryKey" | "queryFn">) => {
-  const { stripe } = useServices();
-  return useQuery<PaymentMethod>({
+type DefaultPaymentMethodResponse = paths["/v1/stripe/payment-methods/default"]["get"]["responses"][200]["content"]["application/json"];
+
+export const useDefaultPaymentMethodQuery = (
+  options?: Omit<UseQueryOptions<DefaultPaymentMethodResponse | null>, "queryKey" | "queryFn" | "select">
+): UseQueryResult<DefaultPaymentMethodResponse["data"] | null> => {
+  const { api } = useServices();
+  return api.v1.getDefaultPaymentMethod.useQuery(undefined, {
     ...options,
-    queryKey: QueryKeys.getDefaultPaymentMethodKey(),
-    queryFn: async () => {
-      const response = await stripe.getDefaultPaymentMethod();
-      return response;
+    select: response => response?.data ?? null,
+    catchError(error) {
+      if (error instanceof ApiError && error.status === 404) return null;
+      throw error;
     }
   });
 };
@@ -70,7 +76,7 @@ export const useSetupIntentMutation = () => {
 };
 
 export const usePaymentMutations = () => {
-  const { stripe } = useServices();
+  const { stripe, api } = useServices();
   const queryClient = useQueryClient();
 
   const confirmPayment = useMutation({
@@ -126,7 +132,7 @@ export const usePaymentMutations = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });
-      queryClient.invalidateQueries({ queryKey: QueryKeys.getDefaultPaymentMethodKey() });
+      queryClient.invalidateQueries({ queryKey: api.v1.getDefaultPaymentMethod.getKey() });
     }
   });
 

@@ -1,50 +1,39 @@
-import type { UpdateWalletSettingsParams, WalletSettings } from "@akashnetwork/http-sdk";
+// v8 ignore
+import type { paths } from "@akashnetwork/console-api-types";
+import { ApiError } from "@akashnetwork/openapi-sdk";
 import type { UseQueryOptions } from "@tanstack/react-query";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { QueryKeys } from "./queryKeys";
 
-export const useWalletSettingsQuery = (options?: Omit<UseQueryOptions<WalletSettings>, "queryKey" | "queryFn">) => {
-  const { walletSettings } = useServices();
-  return useQuery<WalletSettings>({
+export const useWalletSettingsQuery = (options?: Omit<UseQueryOptions<WalletSettings | null>, "queryKey" | "queryFn">) => {
+  const { api } = useServices();
+  return api.v1.getWalletSettings.useQuery(undefined, {
     ...options,
-    queryKey: QueryKeys.getWalletSettingsKey(),
-    queryFn: async () => {
-      return await walletSettings.getWalletSettings();
+    catchError(error) {
+      if (error instanceof ApiError && error.status === 404) return null;
+      throw error;
     }
   });
 };
 
 export const useWalletSettingsMutations = () => {
-  const { walletSettings } = useServices();
+  const { api } = useServices();
   const queryClient = useQueryClient();
+  const invalidateGetWalletSettingsQuery = () => {
+    queryClient.invalidateQueries({ queryKey: api.v1.getWalletSettings.getKey() });
+  };
 
-  const updateWalletSettings = useMutation({
-    mutationFn: async (settings: UpdateWalletSettingsParams): Promise<WalletSettings> => {
-      return await walletSettings.updateWalletSettings(settings);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QueryKeys.getWalletSettingsKey() });
-    }
+  const updateWalletSettings = api.v1.updateWalletSettings.useMutation({
+    onSuccess: invalidateGetWalletSettingsQuery
   });
 
-  const createWalletSettings = useMutation({
-    mutationFn: async (settings: WalletSettings): Promise<WalletSettings> => {
-      return await walletSettings.createWalletSettings(settings);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QueryKeys.getWalletSettingsKey() });
-    }
+  const createWalletSettings = api.v1.createWalletSettings.useMutation({
+    onSuccess: invalidateGetWalletSettingsQuery
   });
 
-  const deleteWalletSettings = useMutation({
-    mutationFn: async (): Promise<void> => {
-      return await walletSettings.deleteWalletSettings();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QueryKeys.getWalletSettingsKey() });
-    }
+  const deleteWalletSettings = api.v1.deleteWalletSettings.useMutation({
+    onSuccess: invalidateGetWalletSettingsQuery
   });
 
   return {
@@ -54,3 +43,5 @@ export const useWalletSettingsMutations = () => {
     deleteWalletSettings
   };
 };
+
+type WalletSettings = paths["/v1/wallet-settings"]["get"]["responses"][200]["content"]["application/json"];

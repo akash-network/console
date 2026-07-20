@@ -10,7 +10,6 @@ import {
   DeploymentHttpService,
   GitHubHttpService,
   LeaseHttpService,
-  NodeHttpService,
   ProviderHttpService
 } from "@akashnetwork/http-sdk";
 import type { InjectionToken } from "tsyringe";
@@ -50,8 +49,3 @@ NON_AXIOS_SERVICES.forEach(Service =>
 );
 
 container.register(GitHubHttpService, { useValue: new GitHubHttpService({ baseURL: "https://raw.githubusercontent.com" }) });
-container.register(NodeHttpService, {
-  useFactory: instancePerContainerCachingFactory(
-    c => new NodeHttpService(createHttpClient({ baseURL: c.resolve(CoreConfigService).get("NODE_API_BASE_PATH"), adapter: "http" }))
-  )
-});

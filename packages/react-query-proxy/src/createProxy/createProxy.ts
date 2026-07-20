@@ -53,10 +53,20 @@ function createRecursiveProxyImpl<T extends Record<string, any>>(
               if (options?.queryKey) {
                 queryKey = queryKey.concat(options.queryKey as PropertyKey[]);
               }
+              const { catchError, ...restOptions } = options ?? {};
+              const callSdk = () => (target as any)[prop](input);
               return useQueryImpl({
-                ...options,
+                ...restOptions,
                 queryKey,
-                queryFn: () => (target as any)[prop](input)
+                queryFn: catchError
+                  ? async () => {
+                      try {
+                        return await callSdk();
+                      } catch (error) {
+                        return catchError(error as Error);
+                      }
+                    }
+                  : callSdk
               });
             },
             useMutation: options => {
@@ -93,23 +103,36 @@ type RecursiveHooksProxy<T> = {
  */
 type OptionalMutationVariables<T extends (...args: any[]) => any> = Parameters<T> extends [] ? void : Exclude<Parameters<T>[0], undefined> | void;
 
+/**
+ * Per-call useQuery options layered on react-query's, minus the fields the proxy owns
+ * (`queryFn`, `queryKey`, which it re-adds as optional). `TQueryFnData` is what the SDK
+ * call resolves to (after `catchError` recovery); `TData` is the shape observed by the
+ * consumer, inferred from `select` and defaulting to `TQueryFnData`. `catchError` recovers
+ * from a rejected SDK call by returning a fallback value — widening `TQueryFnData` by
+ * `TRecovered`; re-throw inside it to let the error propagate as a normal query error.
+ */
+type ProxyQueryOptions<TQueryFnData, TData, TRecovered> = Omit<UseQueryOptions<TQueryFnData, Error, TData, QueryKey>, "queryFn" | "queryKey"> & {
+  queryKey?: QueryKey;
+  catchError?: (error: Error) => TRecovered;
+};
+
 type HooksProxy<T extends (...args: any[]) => any> = undefined extends Parameters<T>[0]
   ? {
       getKey: (input?: NonNullable<Parameters<T>[0]>) => PropertyKey[];
-      useQuery: (
+      useQuery: <TRecovered = never, TData = Awaited<ReturnType<T>> | TRecovered>(
         input?: NonNullable<Parameters<T>[0]>,
-        options?: Omit<UseQueryOptions<Awaited<ReturnType<T>>, Error, any, QueryKey>, "queryFn" | "queryKey"> & { queryKey?: QueryKey }
-      ) => UseQueryResult<Awaited<ReturnType<T>>>;
+        options?: ProxyQueryOptions<Awaited<ReturnType<T>> | TRecovered, TData, TRecovered>
+      ) => UseQueryResult<TData>;
       useMutation: (
         options?: Omit<UseMutationOptions<Awaited<ReturnType<T>>, Error, OptionalMutationVariables<T>, any>, "mutationFn">
       ) => UseMutationResult<Awaited<ReturnType<T>>, Error, OptionalMutationVariables<T>, any>;
     }
   : {
       getKey: (input: Parameters<T>[0]) => PropertyKey[];
-      useQuery: (
+      useQuery: <TRecovered = never, TData = Awaited<ReturnType<T>> | TRecovered>(
         input: Parameters<T>[0],
-        options?: Omit<UseQueryOptions<Awaited<ReturnType<T>>, Error, any, QueryKey>, "queryFn" | "queryKey"> & { queryKey?: QueryKey }
-      ) => UseQueryResult<Awaited<ReturnType<T>>>;
+        options?: ProxyQueryOptions<Awaited<ReturnType<T>> | TRecovered, TData, TRecovered>
+      ) => UseQueryResult<TData>;
       useMutation: (
         options?: Omit<UseMutationOptions<Awaited<ReturnType<T>>, Error, Parameters<T>[0], any>, "mutationFn">
       ) => UseMutationResult<Awaited<ReturnType<T>>, Error, Parameters<T>[0], any>;
