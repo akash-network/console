@@ -40,10 +40,8 @@ export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d 
   const { resolvedTheme } = useTheme();
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
-  /** The editor's SDL-validation verdict; assumed valid until the editor reports otherwise, so a false verdict blocks import. */
   const [isValid, setIsValid] = useState(true);
-  /** True while the editor still holds an untouched uploaded file, so an unedited upload is reported as `method: "file"`. */
-  const fromFileRef = useRef(false);
+  const untouchedUploadedFileRef = useRef(false);
 
   const focusOnMount = useCallback((editorInstance: editor.IStandaloneCodeEditor) => {
     editorInstance.focus();
@@ -52,7 +50,7 @@ export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d 
   function handleEditorChange(value?: string) {
     setText(value ?? "");
     setError(null);
-    fromFileRef.current = false;
+    untouchedUploadedFileRef.current = false;
   }
 
   function handleValidate(event: { isValid: boolean }) {
@@ -68,7 +66,7 @@ export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d 
     const reader = new FileReader();
     reader.onload = function populateEditor(event) {
       const content = (event.target?.result as string) ?? "";
-      fromFileRef.current = true;
+      untouchedUploadedFileRef.current = true;
       setText(content);
       setError(null);
     };
@@ -81,7 +79,7 @@ export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d 
   function handleImport() {
     try {
       const state = d.importDeploymentState(text);
-      onImport(state, { method: fromFileRef.current ? "file" : "paste" });
+      onImport(state, { method: untouchedUploadedFileRef.current ? "file" : "paste" });
     } catch (err) {
       setError(describeImportError(err));
     }

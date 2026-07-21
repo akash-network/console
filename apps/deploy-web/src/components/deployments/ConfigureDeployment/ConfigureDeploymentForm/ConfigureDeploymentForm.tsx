@@ -339,18 +339,14 @@ interface InitialState {
  * A Container-VM entry (`isVm`) seeds an SSH-ready VM service instead of the blank default.
  */
 function getInitialState(carriedInSdl: string | undefined, isVm: boolean): InitialState {
-  if (carriedInSdl) {
-    try {
-      return importDeploymentState(carriedInSdl);
-    } catch (error) {
-      // A service-less SDL falls back silently to a default deployment (unchanged behavior); any other
-      // failure means the carried-in SDL was genuinely unusable, so it falls back with a surfaced error.
-      if (!(error instanceof NoVisibleServiceError)) {
-        return defaultInitialState(isVm, getImportErrorMessage(error));
-      }
-    }
+  if (!carriedInSdl) return defaultInitialState(isVm);
+
+  try {
+    return importDeploymentState(carriedInSdl);
+  } catch (error) {
+    if (error instanceof NoVisibleServiceError) return defaultInitialState(isVm);
+    return defaultInitialState(isVm, getImportErrorMessage(error));
   }
-  return defaultInitialState(isVm);
 }
 
 /** A fresh default deployment (or SSH-ready VM deployment), optionally annotated with the error that made an import unusable. */
