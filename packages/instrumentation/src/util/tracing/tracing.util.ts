@@ -33,7 +33,7 @@ import { context, SpanStatusCode, trace } from "@opentelemetry/api";
  * @returns Method decorator
  */
 export function Trace(spanName?: string) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+  return function (target: { constructor: { name: string } }, propertyKey: string, descriptor: PropertyDescriptor): PropertyDescriptor {
     const originalMethod = descriptor.value;
     const methodName = propertyKey;
 
@@ -122,7 +122,7 @@ export function Trace(spanName?: string) {
  * @param name - Name of the span
  * @returns OpenTelemetry Span object
  */
-export function createSpan(name: string) {
+export function createSpan(name: string): Span {
   return trace.getTracer("default").startSpan(name);
 }
 

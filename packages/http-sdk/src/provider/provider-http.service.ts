@@ -19,7 +19,19 @@ export class ProviderHttpService {
     );
   }
 
-  async getLeaseStatus({ hostUri, dseq, gseq, oseq, jwtToken }: { hostUri: string; dseq: string; gseq: number; oseq: number; jwtToken: string }) {
+  async getLeaseStatus({
+    hostUri,
+    dseq,
+    gseq,
+    oseq,
+    jwtToken
+  }: {
+    hostUri: string;
+    dseq: string;
+    gseq: number;
+    oseq: number;
+    jwtToken: string;
+  }): Promise<unknown> {
     return extractData(
       await this.httpClient.get(`/lease/${dseq}/${gseq}/${oseq}/status`, {
         baseURL: hostUri,

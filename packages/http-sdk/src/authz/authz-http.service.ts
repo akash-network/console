@@ -72,17 +72,21 @@ export class AuthzHttpService {
 
   constructor(private readonly httpClient: HttpClient) {}
 
-  async getFeeAllowancesForGrantee(address: string) {
+  async getFeeAllowancesForGrantee(address: string): Promise<FeeAllowance[]> {
     const allowances = extractData(await this.httpClient.get<FeeAllowanceListResponse>(`cosmos/feegrant/v1beta1/allowances/${address}`));
     return allowances.allowances;
   }
 
-  async getValidFeeAllowancesForGrantee(address: string) {
+  async getValidFeeAllowancesForGrantee(address: string): Promise<FeeAllowance[]> {
     const allowances = await this.getFeeAllowancesForGrantee(address);
     return allowances.filter(allowance => this.isValidFeeAllowance(allowance));
   }
 
-  async getPaginatedFeeAllowancesForGranter(address: string, limit: number, offset: number) {
+  async getPaginatedFeeAllowancesForGranter(
+    address: string,
+    limit: number,
+    offset: number
+  ): Promise<{ allowances: FeeAllowance[]; pagination: { next_key: string | null; total: number } }> {
     const allowances = extractData(
       await this.httpClient.get<FeeAllowanceListResponse>(`cosmos/feegrant/v1beta1/issued/${address}`, {
         params: {
@@ -140,21 +144,21 @@ export class AuthzHttpService {
     return migrateLegacyDepositDeploymentGrant(response.grants.find(grant => this.isValidDepositDeploymentGrant(grant)));
   }
 
-  async hasFeeAllowance(granter: string, grantee: string) {
+  async hasFeeAllowance(granter: string, grantee: string): Promise<boolean> {
     const feeAllowances = await this.getFeeAllowancesForGrantee(grantee);
     return feeAllowances.some(allowance => allowance.granter === granter);
   }
 
-  async hasValidFeeAllowance(granter: string, grantee: string) {
+  async hasValidFeeAllowance(granter: string, grantee: string): Promise<boolean> {
     const feeAllowances = await this.getValidFeeAllowancesForGrantee(grantee);
     return feeAllowances.some(allowance => allowance.granter === granter);
   }
 
-  async hasDepositDeploymentGrant(granter: string, grantee: string) {
+  async hasDepositDeploymentGrant(granter: string, grantee: string): Promise<boolean> {
     return !!(await this.getDepositDeploymentGrantsForGranterAndGrantee(granter, grantee));
   }
 
-  async hasValidDepositDeploymentGrant(granter: string, grantee: string) {
+  async hasValidDepositDeploymentGrant(granter: string, grantee: string): Promise<boolean> {
     return !!(await this.getValidDepositDeploymentGrantsForGranterAndGrantee(granter, grantee));
   }
 
@@ -188,7 +192,9 @@ export class AuthzHttpService {
     return result;
   }
 
-  async getPaginatedDepositDeploymentGrants(options: ({ granter: string } | { grantee: string }) & { limit: number; offset: number }) {
+  async getPaginatedDepositDeploymentGrants(
+    options: ({ granter: string } | { grantee: string }) & { limit: number; offset: number }
+  ): Promise<{ grants: DepositDeploymentGrant[]; pagination: { next_key: string | null; total: number } }> {
     const side = "granter" in options ? "granter" : "grantee";
     const address = "granter" in options ? options.granter : options.grantee;
     const limit = options.limit;
