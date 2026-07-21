@@ -43,7 +43,7 @@ const NodesPage: React.FunctionComponent = () => {
 
       // If we have an action_id, the mutation will handle the redirect in onSuccess
       // This toast is still useful for users to see even if they'll be redirected
-    } catch (error) {
+    } catch {
       toast({
         variant: "destructive",
         title: "Failed to remove node",

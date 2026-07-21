@@ -156,7 +156,7 @@ export const WalletProvider = ({ children }) => {
             throw new Error("Invalid nonce response");
           }
         }
-      } catch (error) {
+      } catch {
         logout();
       }
     }

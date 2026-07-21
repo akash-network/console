@@ -109,7 +109,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
       setValue("services", imported.services);
       setServiceCollapsed(imported.services.map((x, i) => i));
       setTemplateMetadata(template);
-    } catch (error) {
+    } catch {
       enqueueSnackbar(<Snackbar title="Error fetching template." iconVariant="error" />, {
         variant: "error"
       });

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { MdHighlightOff } from "react-icons/md";
 import { Alert, Button, Card, CardContent, Form, FormField, FormInput, Spinner, Switch, Textarea } from "@akashnetwork/ui/components";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle } from "iconoir-react";
 import { NextSeo } from "next-seo";
 import { z } from "zod";
@@ -15,7 +16,6 @@ import { useSaveSettings } from "@src/queries/useSaveSettings";
 import type { CustomUserProfile, UserSettings } from "@src/types/user";
 import Layout from "../layout/Layout";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const formSchema = z.object({
   username: z
     .string()
@@ -35,6 +35,7 @@ export const UserSettingsForm: FC<{ user: CustomUserProfile }> = ({ user }) => {
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const { isLoading } = useCustomUser();
   const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
       username: "",
       subscribedToNewsletter: false,
