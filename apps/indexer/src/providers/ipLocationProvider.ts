@@ -23,7 +23,7 @@ async function getIpLocation(ip: string) {
   };
 }
 
-export async function updateProvidersLocation() {
+export async function updateProvidersLocation(): Promise<void> {
   const providers = await Provider.findAll({
     where: {
       isOnline: true

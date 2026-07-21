@@ -166,7 +166,7 @@ export class AkashStatsIndexer extends Indexer {
     await Bid.sync({ force: false });
   }
 
-  async initCache(firstBlockHeight: number) {
+  async initCache(firstBlockHeight: number): Promise<void> {
     this.activeLeases = await this.getActiveLeases(null, firstBlockHeight);
 
     this.totalLeaseCount = await Lease.count();
@@ -185,7 +185,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   @benchmark.measureMethodAsync
-  async afterEveryBlock(currentBlock: Block, previousBlock: Block | null, dbTransaction: DbTransaction) {
+  async afterEveryBlock(currentBlock: Block, previousBlock: Block | null, dbTransaction: DbTransaction): Promise<void> {
     const shouldRefreshPredictedHeights = currentBlock.transactions.some(tx => tx.messages?.some(msg => this.shouldRefreshForMessage(msg)));
 
     if (shouldRefreshPredictedHeights || this.activeLeases?.predictedClosedHeights.includes(currentBlock.height)) {

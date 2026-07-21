@@ -1,11 +1,11 @@
-export function pickRandomElement<T>(arr: T[]) {
+export function pickRandomElement<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-export function round(amount: number, precision: number = 2) {
+export function round(amount: number, precision: number = 2): number {
   return Math.round((amount + Number.EPSILON) * Math.pow(10, precision)) / Math.pow(10, precision);
 }
 
-export function uaktToAKT(amount: number, precision = 2) {
+export function uaktToAKT(amount: number, precision = 2): number {
   return round(amount / 1_000_000, precision);
 }

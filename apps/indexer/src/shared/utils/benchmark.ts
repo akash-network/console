@@ -17,7 +17,7 @@ let firstTime: number | null = null;
 let lastTime: number | null = null;
 let activeTimer: string | null = null;
 
-export function measureMethod(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+export function measureMethod(target: { constructor: { name: string } }, propertyKey: string, descriptor: PropertyDescriptor): void {
   const originalMethod = descriptor.value;
 
   descriptor.value = function (...args: any[]) {
@@ -29,7 +29,7 @@ export function measureMethod(target: any, propertyKey: string, descriptor: Prop
   };
 }
 
-export function measureMethodAsync(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+export function measureMethodAsync(target: { constructor: { name: string } }, propertyKey: string, descriptor: PropertyDescriptor): void {
   const originalMethod = descriptor.value;
 
   descriptor.value = async function (...args: any[]) {
@@ -56,7 +56,7 @@ export async function measureAsync<T>(name: string, fn: () => Promise<T>): Promi
   return await fn().finally(() => timer.end());
 }
 
-export function startTimer(name: string) {
+export function startTimer(name: string): { end: () => void } {
   const startTime = performance.now();
 
   const parent = activeTimer;
@@ -106,7 +106,7 @@ export function displayTimes(): void {
   }
 }
 
-export function displayTimesForGroup(group: string) {
+export function displayTimesForGroup(group: string): void {
   console.log("Group: " + (group || "ROOT"));
 
   const fullTime = group

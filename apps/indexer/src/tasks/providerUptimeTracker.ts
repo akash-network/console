@@ -4,7 +4,7 @@ import { QueryTypes } from "sequelize";
 
 import { sequelize } from "@src/db/dbConnection";
 
-export async function updateProviderUptime() {
+export async function updateProviderUptime(): Promise<void> {
   console.log("Updating provider uptimes.");
   console.time("updateProviderUptimes");
 

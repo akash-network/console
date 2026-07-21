@@ -1,13 +1,13 @@
 import { ripemd160, sha256 } from "@cosmjs/crypto";
 import { fromBech32 } from "@cosmjs/encoding";
 
-export function isValidBech32Address(address: string, prefix?: string) {
+export function isValidBech32Address(address: string, prefix?: string): boolean | null {
   const bech32 = parseBech32(address);
 
   return bech32 && (!prefix || bech32.prefix === prefix);
 }
 
-export function parseBech32(str: string) {
+export function parseBech32(str: string): ReturnType<typeof fromBech32> | null {
   try {
     return fromBech32(str);
   } catch {

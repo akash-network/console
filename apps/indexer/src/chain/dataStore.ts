@@ -12,12 +12,12 @@ if (!fs.existsSync(dataFolderPath)) {
   fs.mkdirSync(dataFolderPath, { recursive: true });
 }
 
-export const blockHeightToKey = (height: number) => height.toString().padStart(10, "0");
+export const blockHeightToKey = (height: number): string => height.toString().padStart(10, "0");
 
 export const blocksDb = new Level(dataFolderPath + "/blocks.db");
 export const blockResultsDb = new Level(dataFolderPath + "/blockResults.db");
 
-export async function getLatestHeightInCache() {
+export async function getLatestHeightInCache(): Promise<number> {
   const reverseKeyIterator = blocksDb.keys({ reverse: true });
   const keyStr = await reverseKeyIterator.next();
   await reverseKeyIterator.close();
@@ -29,7 +29,7 @@ export async function getLatestHeightInCache() {
   }
 }
 
-export const getCacheSize = async function () {
+export const getCacheSize = async function (): Promise<{ blocksSize: string; blockResultsSize: string }> {
   console.time("size");
   const blocksSize = await getTotalSize(dataFolderPath + "/blocks.db");
   const blockResultsSize = await getTotalSize(dataFolderPath + "/blockResults.db");
@@ -37,14 +37,14 @@ export const getCacheSize = async function () {
   return { blocksSize: blocksSize, blockResultsSize: blockResultsSize };
 };
 
-export const deleteCache = async function () {
+export const deleteCache = async function (): Promise<void> {
   console.log("Deleting cache...");
   await blocksDb.clear();
   await blockResultsDb.clear();
   console.log("Deleted");
 };
 
-export async function getCachedBlockByHeight(height: number) {
+export async function getCachedBlockByHeight(height: number): Promise<BlockType | null> {
   try {
     const content = await blocksDb.get(blockHeightToKey(height));
     return JSON.parse(content) as BlockType;
@@ -55,7 +55,7 @@ export async function getCachedBlockByHeight(height: number) {
   }
 }
 
-export async function getCachedBlockResultsByHeight(height: number) {
+export async function getCachedBlockResultsByHeight(height: number): Promise<BlockResultType | null> {
   try {
     const content = await blockResultsDb.get(blockHeightToKey(height));
     return JSON.parse(content) as BlockResultType;

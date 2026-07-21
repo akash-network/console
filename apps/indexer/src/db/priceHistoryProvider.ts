@@ -9,7 +9,7 @@ interface PriceHistoryResponse {
   total_volumes: Array<Array<number>>;
 }
 
-export const syncPriceHistory = async () => {
+export const syncPriceHistory = async (): Promise<void> => {
   if (!activeChain.coinGeckoId) {
     console.log("No coin gecko id defined for this chain. Skipping price history sync.");
     return;

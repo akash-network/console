@@ -1,4 +1,4 @@
-export const bytesToHumanReadableSize = function (bytes: number) {
+export const bytesToHumanReadableSize = function (bytes: number): string {
   const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
 
   if (bytes == 0) {

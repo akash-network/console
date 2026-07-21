@@ -152,7 +152,17 @@ export class Scheduler {
     }
   }
 
-  public getTasksStatus() {
+  public getTasksStatus(): Array<{
+    name: string;
+    isRunning: boolean;
+    function: () => Promise<void>;
+    interval: string;
+    runCount: number;
+    successfulRunCount: number;
+    failedRunCount: number;
+    latestError: string | Error | null;
+    healthchecksConfig: boolean;
+  }> {
     return Array.from(this.tasks.values()).map(task => ({
       name: task.name,
       isRunning: !!task.runningPromise,

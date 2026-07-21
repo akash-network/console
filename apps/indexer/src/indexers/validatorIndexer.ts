@@ -33,7 +33,7 @@ export class ValidatorIndexer extends Indexer {
   }
 
   @benchmark.measureMethodAsync
-  async seed(genesis: IGenesis) {
+  async seed(genesis: IGenesis): Promise<void> {
     const validators = genesis.app_state.staking.validators;
 
     await sequelize.transaction(async dbTransaction => {

@@ -1,31 +1,31 @@
 import { round } from "./math";
 
-export const getDayStr = (date?: Date) => {
+export const getDayStr = (date?: Date): string => {
   return date ? toUTC(date).toISOString().split("T")[0] : getTodayUTC().toISOString().split("T")[0];
 };
 
-export function getTodayUTC() {
+export function getTodayUTC(): Date {
   const currentDate = toUTC(new Date());
   currentDate.setUTCHours(0, 0, 0, 0);
 
   return currentDate;
 }
 
-export function startOfDay(date: Date) {
+export function startOfDay(date: Date): Date {
   const currentDate = toUTC(date);
   currentDate.setUTCHours(0, 0, 0, 0);
 
   return currentDate;
 }
 
-export function endOfDay(date: Date) {
+export function endOfDay(date: Date): Date {
   const currentDate = toUTC(date);
   currentDate.setUTCHours(23, 59, 59, 999);
 
   return currentDate;
 }
 
-export function toUTC(date: Date) {
+export function toUTC(date: Date): Date {
   const now_utc = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds());
 
   return new Date(now_utc);

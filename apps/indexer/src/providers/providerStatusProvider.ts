@@ -24,7 +24,7 @@ const ConcurrentStatusCall = 10;
 const StatusCallTimeout = 10_000; // 10 seconds
 const UptimeCheckIntervalSeconds = 15 * 60; // 15 minutes
 
-export async function syncProvidersInfo() {
+export async function syncProvidersInfo(): Promise<void> {
   const providers = await Provider.findAll({
     where: {
       deletedHeight: null,
