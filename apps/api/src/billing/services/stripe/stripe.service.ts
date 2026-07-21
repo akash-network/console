@@ -88,6 +88,22 @@ export class StripeService extends Stripe {
     });
   }
 
+  retrievePaymentMethod(paymentMethodId: string): Promise<Stripe.PaymentMethod> {
+    return this.paymentMethods.retrieve(paymentMethodId);
+  }
+
+  detachPaymentMethod(paymentMethodId: string): Promise<Stripe.PaymentMethod> {
+    return this.paymentMethods.detach(paymentMethodId);
+  }
+
+  retrieveCharge(chargeId: string): Promise<Stripe.Charge> {
+    return this.charges.retrieve(chargeId);
+  }
+
+  constructWebhookEvent(payload: string | Buffer, signature: string): Stripe.Event {
+    return this.webhooks.constructEvent(payload, signature, this.billingConfig.get("STRIPE_WEBHOOK_SECRET"));
+  }
+
   async findPrices(): Promise<StripePrices[]> {
     const { data: prices } = await this.prices.list({ active: true, product: this.billingConfig.get("STRIPE_PRODUCT_ID") });
     const responsePrices = prices.map(price => ({

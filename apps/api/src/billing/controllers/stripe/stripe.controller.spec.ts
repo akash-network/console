@@ -220,7 +220,7 @@ describe(StripeController.name, () => {
 
       userWalletRepository.findOneByUserId.mockResolvedValue(mock<UserWalletOutput>({ isTrialing: true }));
       stripe.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
-      stripe.createSetupIntent.mockResolvedValue(mock<Stripe.SetupIntent>({ client_secret: clientSecret }));
+      stripe.createSetupIntent.mockResolvedValue(mock<Stripe.Response<Stripe.SetupIntent>>({ client_secret: clientSecret }));
 
       const result = await controller.createSetupIntent();
 
@@ -234,7 +234,7 @@ describe(StripeController.name, () => {
 
       userWalletRepository.findOneByUserId.mockResolvedValue(mock<UserWalletOutput>({ isTrialing: false }));
       stripe.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
-      stripe.createSetupIntent.mockResolvedValue(mock<Stripe.SetupIntent>({ client_secret: clientSecret }));
+      stripe.createSetupIntent.mockResolvedValue(mock<Stripe.Response<Stripe.SetupIntent>>({ client_secret: clientSecret }));
 
       const result = await controller.createSetupIntent();
 
@@ -248,7 +248,7 @@ describe(StripeController.name, () => {
 
       userWalletRepository.findOneByUserId.mockResolvedValue(undefined);
       stripe.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
-      stripe.createSetupIntent.mockResolvedValue(mock<Stripe.SetupIntent>({ client_secret: clientSecret }));
+      stripe.createSetupIntent.mockResolvedValue(mock<Stripe.Response<Stripe.SetupIntent>>({ client_secret: clientSecret }));
 
       const result = await controller.createSetupIntent();
 
@@ -321,21 +321,21 @@ describe(StripeController.name, () => {
     it("detaches the payment method without checking trial status", async () => {
       const { controller, stripe, userWalletRepository, user } = setup();
       const paymentMethodId = faker.string.uuid();
-      stripe.paymentMethods.retrieve.mockResolvedValue(mock<Stripe.Response<Stripe.PaymentMethod>>({ customer: user.stripeCustomerId }));
+      stripe.retrievePaymentMethod.mockResolvedValue(mock<Stripe.Response<Stripe.PaymentMethod>>({ customer: user.stripeCustomerId }));
 
       await controller.removePaymentMethod(paymentMethodId);
 
-      expect(stripe.paymentMethods.detach).toHaveBeenCalledWith(paymentMethodId);
+      expect(stripe.detachPaymentMethod).toHaveBeenCalledWith(paymentMethodId);
       expect(userWalletRepository.findOneByUserId).not.toHaveBeenCalled();
     });
 
     it("rejects when the payment method does not belong to the user", async () => {
       const { controller, stripe } = setup();
       const paymentMethodId = faker.string.uuid();
-      stripe.paymentMethods.retrieve.mockResolvedValue(mock<Stripe.Response<Stripe.PaymentMethod>>({ customer: "cus_someoneelse" }));
+      stripe.retrievePaymentMethod.mockResolvedValue(mock<Stripe.Response<Stripe.PaymentMethod>>({ customer: "cus_someoneelse" }));
 
       await expect(controller.removePaymentMethod(paymentMethodId)).rejects.toMatchObject({ status: 403 });
-      expect(stripe.paymentMethods.detach).not.toHaveBeenCalled();
+      expect(stripe.detachPaymentMethod).not.toHaveBeenCalled();
     });
   });
 
@@ -366,11 +366,34 @@ describe(StripeController.name, () => {
     });
   });
 
+  describe("validatePaymentMethodAfter3DS", () => {
+    it("validates the payment method after confirming ownership", async () => {
+      const { controller, stripe, user } = setup();
+      stripe.retrievePaymentMethod.mockResolvedValue(mock<Stripe.Response<Stripe.PaymentMethod>>({ customer: user.stripeCustomerId }));
+      stripe.validatePaymentMethodAfter3DS.mockResolvedValue({ success: true });
+
+      const result = await controller.validatePaymentMethodAfter3DS({ data: { paymentMethodId: "pm_1", paymentIntentId: "pi_1" } });
+
+      expect(stripe.retrievePaymentMethod).toHaveBeenCalledWith("pm_1");
+      expect(stripe.validatePaymentMethodAfter3DS).toHaveBeenCalledWith(user.stripeCustomerId, "pm_1", "pi_1");
+      expect(result).toEqual({ success: true });
+    });
+
+    it("rejects when the payment method belongs to another customer", async () => {
+      const { controller, stripe } = setup();
+      stripe.retrievePaymentMethod.mockResolvedValue(mock<Stripe.Response<Stripe.PaymentMethod>>({ customer: "cus_someoneelse" }));
+
+      await expect(controller.validatePaymentMethodAfter3DS({ data: { paymentMethodId: "pm_1", paymentIntentId: "pi_1" } })).rejects.toMatchObject({
+        status: 403
+      });
+      expect(stripe.validatePaymentMethodAfter3DS).not.toHaveBeenCalled();
+    });
+  });
+
   function setup() {
     const user = createUser();
     const payingUser: PayingUser = { ...user, stripeCustomerId: user.stripeCustomerId! };
     const stripe = mock<StripeService>();
-    stripe.paymentMethods = mock<Stripe.PaymentMethodsResource>();
     const authService = mock<AuthService>({
       currentUser: user
     });

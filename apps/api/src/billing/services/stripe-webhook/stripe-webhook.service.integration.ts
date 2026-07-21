@@ -5,7 +5,6 @@ import { mock } from "vitest-mock-extended";
 
 import { FirstPurchaseBonusGranted } from "@src/billing/events/first-purchase-bonus-granted";
 import type { PaymentMethodRepository, StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
-import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
 import type { StripeService } from "@src/billing/services/stripe/stripe.service";
@@ -30,7 +29,7 @@ describe(StripeWebhookService.name, () => {
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
       stripeTransactionRepository.updateById.mockResolvedValue(undefined);
       refillService.topUpWallet.mockResolvedValue();
-      (stripeService.charges.retrieve as Mock).mockResolvedValue({
+      (stripeService.retrieveCharge as Mock).mockResolvedValue({
         id: chargeId,
         payment_method_details: { card: { brand: "visa", last4: "4242" } },
         receipt_url: "https://receipt.url"
@@ -51,7 +50,7 @@ describe(StripeWebhookService.name, () => {
       await service.tryToTopUpWalletFromPaymentIntent(event);
 
       expect(userRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: mockUser.stripeCustomerId });
-      expect(stripeService.charges.retrieve).toHaveBeenCalledWith(chargeId);
+      expect(stripeService.retrieveCharge).toHaveBeenCalledWith(chargeId);
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(internalTransaction.id, {
         status: "succeeded",
         stripeChargeId: chargeId,
@@ -304,7 +303,7 @@ describe(StripeWebhookService.name, () => {
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
       stripeTransactionRepository.updateById.mockResolvedValue(undefined);
       refillService.topUpWallet.mockResolvedValue();
-      (stripeService.charges.retrieve as Mock).mockResolvedValue({
+      (stripeService.retrieveCharge as Mock).mockResolvedValue({
         id: chargeId,
         payment_method_details: { card: { brand: "mastercard", last4: "5555" } },
         receipt_url: "https://receipt.stripe.com/inv"
@@ -334,7 +333,7 @@ describe(StripeWebhookService.name, () => {
 
       expect(userRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: mockUser.stripeCustomerId });
       expect(stripeTransactionRepository.findByInvoiceId).toHaveBeenCalledWith(invoiceId);
-      expect(stripeService.charges.retrieve).toHaveBeenCalledWith(chargeId);
+      expect(stripeService.retrieveCharge).toHaveBeenCalledWith(chargeId);
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(internalTransaction.id, {
         status: "succeeded",
         stripeChargeId: chargeId,
@@ -565,7 +564,7 @@ describe(StripeWebhookService.name, () => {
       createInvoicePaymentSucceededEvent({ id: "in_route", customer: "cus_route", amount_paid: 1000 })
     ])("routes $type events to the invoice top-up handler", async event => {
       const { service, stripeService } = setup();
-      stripeService.webhooks = { constructEvent: vi.fn().mockReturnValue(event) } as unknown as Stripe.Webhooks;
+      (stripeService.constructWebhookEvent as Mock).mockReturnValue(event);
       const handler = vi.spyOn(service, "tryToTopUpWalletFromInvoice").mockResolvedValue();
 
       await service.routeStripeEvent("signature", "raw-body");
@@ -1091,7 +1090,6 @@ describe(StripeWebhookService.name, () => {
   function setup() {
     const stripeService = mock<StripeService>();
     const refillService = mock<RefillService>();
-    const billingConfig = mock<BillingConfigService>();
     const userRepository = mock<UserRepository>();
     const paymentMethodRepository = mock<PaymentMethodRepository>();
     const stripeTransactionRepository = mock<StripeTransactionRepository>();
@@ -1099,15 +1097,9 @@ describe(StripeWebhookService.name, () => {
     firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(0);
     const domainEventsService = mock<DomainEventsService>();
 
-    // Mock Stripe charges API
-    stripeService.charges = {
-      retrieve: vi.fn()
-    } as unknown as Stripe.ChargesResource;
-
     const service = new StripeWebhookService(
       stripeService,
       refillService,
-      billingConfig,
       userRepository,
       paymentMethodRepository,
       stripeTransactionRepository,
@@ -1119,7 +1111,6 @@ describe(StripeWebhookService.name, () => {
       service,
       stripeService,
       refillService,
-      billingConfig,
       userRepository,
       paymentMethodRepository,
       stripeTransactionRepository,

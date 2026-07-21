@@ -1,5 +1,6 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import { createMongoAbility } from "@casl/ability";
+import { faker } from "@faker-js/faker";
 import crypto from "crypto";
 import Stripe from "stripe";
 import { describe, expect, it, vi } from "vitest";
@@ -1942,6 +1943,55 @@ describe(StripeService.name, () => {
 
       expect(result).toEqual(failedTransaction);
     }, 10_000);
+  });
+
+  describe("Stripe SDK primitive wrappers", () => {
+    it("retrievePaymentMethod delegates to the Stripe payment-methods API", async () => {
+      const { service } = setup();
+      const paymentMethod = mock<Stripe.Response<Stripe.PaymentMethod>>({ id: "pm_1" });
+      vi.spyOn(service.paymentMethods, "retrieve").mockResolvedValue(paymentMethod);
+
+      const result = await service.retrievePaymentMethod("pm_1");
+
+      expect(service.paymentMethods.retrieve).toHaveBeenCalledWith("pm_1");
+      expect(result).toBe(paymentMethod);
+    });
+
+    it("detachPaymentMethod delegates to the Stripe payment-methods API", async () => {
+      const { service } = setup();
+      const paymentMethod = mock<Stripe.Response<Stripe.PaymentMethod>>({ id: "pm_1" });
+      vi.spyOn(service.paymentMethods, "detach").mockResolvedValue(paymentMethod);
+
+      const result = await service.detachPaymentMethod("pm_1");
+
+      expect(service.paymentMethods.detach).toHaveBeenCalledWith("pm_1");
+      expect(result).toBe(paymentMethod);
+    });
+
+    it("retrieveCharge delegates to the Stripe charges API", async () => {
+      const { service } = setup();
+      const charge = mock<Stripe.Response<Stripe.Charge>>({ id: "ch_1" });
+      vi.spyOn(service.charges, "retrieve").mockResolvedValue(charge);
+
+      const result = await service.retrieveCharge("ch_1");
+
+      expect(service.charges.retrieve).toHaveBeenCalledWith("ch_1");
+      expect(result).toBe(charge);
+    });
+
+    it("constructWebhookEvent verifies the signature with the configured webhook secret", () => {
+      const { service, billingConfig } = setup();
+      const webhookSecret = `whsec_${faker.string.alphanumeric(32)}`;
+      billingConfig.get.mockReturnValue(webhookSecret);
+      const event = mock<Stripe.Event>({ id: "evt_1" });
+      vi.spyOn(service.webhooks, "constructEvent").mockReturnValue(event);
+
+      const result = service.constructWebhookEvent("raw-body", "sig-header");
+
+      expect(billingConfig.get).toHaveBeenCalledWith("STRIPE_WEBHOOK_SECRET");
+      expect(service.webhooks.constructEvent).toHaveBeenCalledWith("raw-body", "sig-header", webhookSecret);
+      expect(result).toBe(event);
+    });
   });
 });
 
