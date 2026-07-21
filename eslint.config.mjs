@@ -1,29 +1,33 @@
 // @ts-check
-import path from "path";
-import { fileURLToPath } from "url";
-
-import { nextConfigs, nextParityRules } from "@akashnetwork/dev-config/eslint/next.mjs";
 import tsConfig from "@akashnetwork/dev-config/eslint/typescript.mjs";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const WEB_FILES = ["apps/*-web/**/*.{ts,tsx}", "apps/landing/**/*.{ts,tsx}"];
+/**
+ * Workspaces that own an eslint.config.mjs lint themselves — via their own `lint`
+ * script (locally and in CI's `npm run lint -w <workspace>`) and via lint-staged,
+ * which resolves each staged file against its owning config. The root config is
+ * only the fallback for root-level files and config-less packages, so it must
+ * ignore the self-configured workspaces; otherwise a root-cwd `eslint .` would
+ * lint them without the rules and parser options their own configs provide
+ * (decorator metadata for DI apps, Next.js parity for web apps).
+ */
+const SELF_CONFIGURED_WORKSPACES = [
+  "apps/api/**",
+  "apps/deploy-web/**",
+  "apps/indexer/**",
+  "apps/log-collector/**",
+  "apps/notifications/**",
+  "apps/provider-console/**",
+  "apps/provider-inventory/**",
+  "apps/provider-proxy/**",
+  "apps/stats-web/**",
+  "packages/console-api-types/**",
+  "packages/openapi-sdk/**",
+  "packages/react-query-proxy/**"
+];
 
 export default [
   {
-    ignores: ["console-air/**", ".claude/**"]
+    ignores: [".claude/**", ...SELF_CONFIGURED_WORKSPACES]
   },
-  ...tsConfig,
-  ...nextConfigs.map(config => ({ ...config, files: WEB_FILES })),
-  {
-    files: WEB_FILES,
-    settings: {
-      next: { rootDir: "apps/*" },
-      "import-x/ignore": ["react"]
-    },
-    rules: {
-      ...nextParityRules,
-      "@next/next/no-html-link-for-pages": ["error", ["deploy-web", "landing"].map(app => path.resolve(__dirname, `apps/${app}/src/pages`))]
-    }
-  }
+  ...tsConfig
 ];

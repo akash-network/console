@@ -1,11 +1,13 @@
 import { createMongoAbility, MongoAbility } from "@casl/ability";
 import { context, propagation, SpanStatusCode, trace } from "@opentelemetry/api";
 import { Job as PgBossJob, PgBoss, Queue as PgBossQueue, SendOptions as PgBossSendOptions, WorkOptions as PgBossWorkOptions } from "pg-boss";
+import type { Sql } from "postgres";
 import { Disposable, inject, InjectionToken, singleton } from "tsyringe";
 
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { CoreConfigService } from "../core-config/core-config.service";
 import { ExecutionContextService } from "../execution-context/execution-context.service";
+import { TxService } from "../tx/tx.service";
 
 export const PG_BOSS_TOKEN: InjectionToken<PgBoss> = Symbol("pgBoss");
 
@@ -19,6 +21,7 @@ export class JobQueueService implements Disposable {
     private readonly logger: LoggerService,
     private readonly coreConfig: CoreConfigService,
     private readonly executionContextService: ExecutionContextService,
+    private readonly txService: TxService,
     @inject(PG_BOSS_TOKEN, { isOptional: true }) pgBoss?: PgBoss
   ) {
     this.pgBoss =
@@ -83,10 +86,11 @@ export class JobQueueService implements Disposable {
    * @param options - The custom options to enqueue the job with.
    */
   async enqueue(job: Job, options?: EnqueueOptions): Promise<string | null> {
+    const connection = this.txService.getConnection();
     const jobId = await this.pgBoss.send({
       name: job.name,
       data: { ...job.data, version: job.version },
-      options
+      options: { ...options, db: connection ? this.#toTransactionDb(connection) : undefined }
     });
 
     this.logger.info({
@@ -97,6 +101,14 @@ export class JobQueueService implements Disposable {
     });
 
     return jobId;
+  }
+
+  #toTransactionDb(connection: Sql): NonNullable<EnqueueOptions["db"]> {
+    return {
+      async executeSql(text, values) {
+        return { rows: await connection.unsafe(text, values as Parameters<typeof connection.unsafe>[1]) };
+      }
+    };
   }
 
   async cancel(name: string, id: string): Promise<void> {

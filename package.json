@@ -18,8 +18,8 @@
     "format": "prettier --write ./*.{js,json} **/*.{ts,tsx,js,json}",
     "indexer:dev": "turbo dev --filter=\"./apps/indexer\"",
     "knip": "knip",
-    "lint": "eslint .",
-    "lint:fix": "npm run lint -- --fix",
+    "lint": "npm run lint --workspaces --if-present -- --quiet",
+    "lint:fix": "npm run lint --workspaces --if-present -- --fix",
     "prepare": "husky || true",
     "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\"",
     "safe-install": "script/safe-deps-install.sh",
@@ -27,33 +27,6 @@
     "stats:dev": "turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\"",
     "stats:dev:no-db": "cross-env SKIP_DC_DB=true turbo dev --filter=\"./apps/stats-web/\" --filter=\"./apps/api\"",
     "update-apps-local-deps": "turbo update-apps-local-deps --filter=\"./packages/*\""
-  },
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx}": [
-      "eslint --fix --quiet",
-      "prettier --write"
-    ],
-    "package.json": [
-      "npx sort-package-json"
-    ],
-    "./packages/ui/**/*.ts": [
-      "npm run validate:types -w packages/ui"
-    ],
-    "./packages/net/**/*.ts": [
-      "npm run validate:types -w packages/net"
-    ],
-    "./packages/network-store/**/*.ts": [
-      "npm run validate:types -w packages/network-store"
-    ],
-    "./packages/http-sdk/**/*.ts": [
-      "npm run validate:types -w packages/http-sdk"
-    ],
-    "./packages/logging/**/*.ts": [
-      "npm run validate:types -w packages/logging"
-    ],
-    "./packages/database/**/*.ts": [
-      "npm run validate:types -w packages/database"
-    ]
   },
   "dependencies": {
     "@interchain-ui/react": "^1.23.31",
