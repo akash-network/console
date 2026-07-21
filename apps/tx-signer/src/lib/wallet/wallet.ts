@@ -1,6 +1,6 @@
 import type { AminoSignResponse, OfflineAminoSigner, StdSignDoc } from "@cosmjs/amino";
 import { makeCosmoshubPath, Secp256k1HdWallet } from "@cosmjs/amino";
-import type { DirectSecp256k1HdWalletOptions, DirectSignResponse, OfflineDirectSigner } from "@cosmjs/proto-signing";
+import type { AccountData, DirectSecp256k1HdWalletOptions, DirectSignResponse, OfflineDirectSigner } from "@cosmjs/proto-signing";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 
 export const WALLET_ADDRESS_PREFIX = "akash";
@@ -34,7 +34,7 @@ export class Wallet implements OfflineDirectSigner {
     };
   }
 
-  async getAccounts() {
+  async getAccounts(): Promise<readonly AccountData[]> {
     return (await this.#instanceAsPromised).getAccounts();
   }
 

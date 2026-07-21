@@ -17,7 +17,7 @@ export class DbDriver {
     this.#db = db;
   }
 
-  async transaction<T>(cb: () => Promise<T>) {
+  async transaction<T>(cb: () => Promise<T>): Promise<T> {
     const existingTx = this.#storage.getStore()?.get("PG_TX");
 
     if (existingTx) {
@@ -32,7 +32,7 @@ export class DbDriver {
     });
   }
 
-  getDb() {
+  getDb(): PgTransaction<PostgresJsQueryResultHKT, Record<string, never>, ExtractTablesWithRelations<Record<string, never>>> | DrizzleDb {
     return this.#storage.getStore()?.get("PG_TX") ?? this.#db;
   }
 }

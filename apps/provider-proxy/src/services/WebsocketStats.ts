@@ -38,7 +38,7 @@ export class ClientWebSocketStats {
     this.openedOn = new Date();
   }
 
-  setUsage(usage: WebSocketUsage) {
+  setUsage(usage: WebSocketUsage): void {
     this.usage = usage;
 
     if (usage !== "Unknown") {
@@ -46,19 +46,25 @@ export class ClientWebSocketStats {
     }
   }
 
-  logDataTransfer(dataTransferred: number) {
+  logDataTransfer(dataTransferred: number): void {
     this.usageStats[this.usage].data += dataTransferred;
   }
 
-  close() {
+  close(): void {
     this.closedOn = new Date();
   }
 
-  isClosed() {
+  isClosed(): boolean {
     return !!this.closedOn;
   }
 
-  getStats() {
+  getStats(): {
+    id: string;
+    openedOn: Date;
+    closedOn: Date | undefined;
+    usageStats: Record<WebSocketUsage, { count: number; data: number }>;
+    totalStats: { count: number; data: number };
+  } {
     return {
       id: this.id,
       openedOn: this.openedOn,

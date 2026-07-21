@@ -20,6 +20,7 @@ const SELF_CONFIGURED_WORKSPACES = [
   "apps/provider-inventory/**",
   "apps/provider-proxy/**",
   "apps/stats-web/**",
+  "apps/tx-signer/**",
   "packages/console-api-types/**",
   "packages/database/**",
   "packages/env-loader/**",
