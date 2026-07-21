@@ -21,6 +21,9 @@ const SELF_CONFIGURED_WORKSPACES = [
   "apps/provider-proxy/**",
   "apps/stats-web/**",
   "packages/console-api-types/**",
+  "packages/database/**",
+  "packages/env-loader/**",
+  "packages/net/**",
   "packages/openapi-sdk/**",
   "packages/react-query-proxy/**"
 ];

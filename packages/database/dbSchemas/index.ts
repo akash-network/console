@@ -26,7 +26,7 @@ const baseModels: ModelCtor<Model<any, any>>[] = [
   Validator
 ];
 
-export function getChainModels(chainName: string) {
+export function getChainModels(chainName: string): ModelCtor<Model<any, any>>[] {
   let models: ModelCtor<Model<any, any>>[] = baseModels;
   if (chainDefinitions[chainName].customBlockModel) {
     models = models.filter(model => model !== BaseBlock);
