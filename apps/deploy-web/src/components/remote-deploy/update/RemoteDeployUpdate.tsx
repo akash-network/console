@@ -45,7 +45,7 @@ const RemoteDeployUpdate = ({ sdlString, onManifestChange }: { sdlString: string
           setValue("services", imported.services);
         }
       }
-    } catch (error) {
+    } catch {
       enqueueSnackbar(<Snackbar title="Error while parsing SDL file" />, { variant: "error" });
     }
 

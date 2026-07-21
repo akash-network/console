@@ -113,7 +113,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ classNa
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setValue(e.target.value);
-    onChange && onChange(e);
+    if (onChange) onChange(e);
   };
 
   return (

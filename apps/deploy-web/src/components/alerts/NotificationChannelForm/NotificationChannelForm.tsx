@@ -67,7 +67,7 @@ export const NotificationChannelForm: FC<NotificationChannelFormProps> = ({ onCa
           ...values,
           emails: Array.from(new Set(emails))
         });
-      } catch (err) {
+      } catch {
         setError("Failed to save notification channel. Please try again.");
       }
     },

@@ -29,7 +29,7 @@ export function aktToUakt(amount: number | string) {
 }
 
 export function coinToUDenom(coin: Coin) {
-  let value: number | null = null;
+  let value: number | null;
   const usdcDenom = getUsdcDenom();
 
   if (coin.denom === "akt" || coin.denom === "act") {
@@ -44,7 +44,7 @@ export function coinToUDenom(coin: Coin) {
 }
 
 export function coinToDenom(coin: Coin) {
-  let value: number | null = null;
+  let value: number | null;
   const usdcDenom = getUsdcDenom();
 
   if (coin.denom === "akt" || coin.denom === "act") {

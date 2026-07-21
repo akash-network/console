@@ -37,10 +37,10 @@ export const UserFavoriteButton: React.FunctionComponent<Props> = ({ id, isFavor
 
       if (isFavorite) {
         await removeFavorite();
-        onRemoveFavorite && onRemoveFavorite();
+        if (onRemoveFavorite) onRemoveFavorite();
       } else {
         await addFavorite();
-        onAddFavorite && onAddFavorite();
+        if (onAddFavorite) onAddFavorite();
       }
 
       setIsFavorite(prev => !prev);

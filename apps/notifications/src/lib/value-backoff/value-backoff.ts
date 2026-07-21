@@ -40,7 +40,7 @@ export function valueBackoff<T>(request: () => Promise<T | EmptyResult>, options
         const customError = options.createError();
         customError.cause = error;
         return Promise.reject(customError);
-      } catch (createErrorException) {
+      } catch {
         return Promise.reject(error);
       }
     }

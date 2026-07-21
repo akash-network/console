@@ -87,7 +87,7 @@ export class WebsocketServer {
             let newOrLegacyMessage: Record<string, unknown> | undefined;
             try {
               newOrLegacyMessage = typeof messageStr === "string" ? JSON.parse(messageStr) : undefined;
-            } catch (error) {
+            } catch {
               this.logger?.error({
                 event: "CLIENT_MESSAGE_INVALID_JSON",
                 message: "Received message is not a JSON string",

@@ -58,7 +58,7 @@ export const ViewPanel: React.FunctionComponent<Props> = ({
         }
 
         setHeight(height);
-      } catch (error) {
+      } catch {
         setHeight("auto");
       }
     }

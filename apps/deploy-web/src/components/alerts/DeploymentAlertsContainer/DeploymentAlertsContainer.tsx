@@ -94,7 +94,7 @@ export const DeploymentAlertsContainer: FC<Props> = ({ children, deployment }) =
         });
 
         return toOutput(result);
-      } catch (e) {
+      } catch {
         notificator.error("Alert configuration failed...", { dataTestId: "alert-config-error-notification" });
       }
     },
