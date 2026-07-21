@@ -1,5 +1,5 @@
-import { useUser } from "@auth0/nextjs-auth0/client";
 import { useMemo } from "react";
+import { useUser } from "@auth0/nextjs-auth0/client";
 
 import type { CustomUserProfile } from "@src/types/user";
 import { plans } from "@src/utils/plans";
