@@ -20,12 +20,19 @@ describe(StripeService.name, () => {
       expect(result.transactions).toHaveLength(1);
     });
 
-    it("throws when startDate is not before endDate", async () => {
+    it("throws when startDate is after endDate", async () => {
       const { service } = setup();
 
       await expect(service.getCustomerTransactions({ startDate: new Date("2026-07-21T00:00:00Z"), endDate: new Date("2026-06-21T00:00:00Z") })).rejects.toThrow(
         "startDate must be less than endDate"
       );
+    });
+
+    it("throws when startDate equals endDate", async () => {
+      const { service } = setup();
+      const sameInstant = new Date("2026-07-21T00:00:00Z");
+
+      await expect(service.getCustomerTransactions({ startDate: sameInstant, endDate: sameInstant })).rejects.toThrow("startDate must be less than endDate");
     });
   });
 
