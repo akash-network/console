@@ -50,7 +50,7 @@ export default [
       "import-x/external-module-folders": ["node_modules", "dist", "build", "public"]
     },
     rules: {
-      "no-useless-assignment": "off",
+      "no-useless-assignment": "error",
       "preserve-caught-error": "error",
       "simple-import-sort/imports": [
         "error",

@@ -37,7 +37,7 @@ function parseToken(token: string): {
   try {
     // kid = JSON.parse(atob(tokenParts[0])).kid; - kid is optional. Cannot always expect.
     payload = JSON.parse(atob(tokenParts[1]));
-  } catch (error) {
+  } catch {
     throw new BadRequest("Invalid token format");
   }
   const headerPayload = new TextEncoder().encode(`${tokenParts[0]}.${tokenParts[1]}`);

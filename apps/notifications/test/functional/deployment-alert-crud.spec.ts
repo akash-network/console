@@ -15,7 +15,7 @@ import { DeploymentAlertCreateInput } from "@src/interfaces/rest/controllers/dep
 import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception/http-exception.filter";
 import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-result/http-result.interceptor";
 import RestModule from "@src/interfaces/rest/rest.module";
-import * as alertSchema from "@src/modules/alert/model-schemas";
+import type * as alertSchema from "@src/modules/alert/model-schemas";
 import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 
 import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -135,12 +135,7 @@ describe("Deployment Alerts CRUD", () => {
     await app.init();
 
     const userId = faker.string.uuid();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const schema = {
-      ...alertSchema,
-      NotificationChannel
-    };
-    const db = module.get<NodePgDatabase<typeof schema>>(DRIZZLE_PROVIDER_TOKEN);
+    const db = module.get<NodePgDatabase<typeof alertSchema & { NotificationChannel: typeof NotificationChannel }>>(DRIZZLE_PROVIDER_TOKEN);
     const [notificationChannel] = await db
       .insert(NotificationChannel)
       .values([generateNotificationChannel({ userId })])

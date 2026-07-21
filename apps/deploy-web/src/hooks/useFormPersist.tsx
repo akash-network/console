@@ -62,7 +62,7 @@ const useFormPersist = (
       const currTimestamp = Date.now();
 
       if (timeout && currTimestamp - _timestamp > timeout) {
-        onTimeout && onTimeout();
+        if (onTimeout) onTimeout();
         clearStorage();
         return;
       }
