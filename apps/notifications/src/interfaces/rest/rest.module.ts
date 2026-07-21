@@ -31,7 +31,7 @@ import { AuthService } from "./services/auth/auth.service";
   controllers: [AlertController, NotificationChannelController, DeploymentAlertController, HealthzController, JobsController, InternalAccountController]
 })
 export default class RestModule {
-  configure(consumer: MiddlewareConsumer) {
+  configure(consumer: MiddlewareConsumer): void {
     consumer.apply(LocalHttpLoggerMiddleware).forRoutes({
       path: "*",
       method: RequestMethod.ALL

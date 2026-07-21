@@ -18,16 +18,16 @@ export class StateService implements OnApplicationBootstrap, OnApplicationShutdo
     });
   }
 
-  getState() {
+  getState(): "active" | "stopped" {
     return this.state;
   }
 
-  async onApplicationBootstrap() {
+  async onApplicationBootstrap(): Promise<void> {
     await this.pgBossHandlerService.startAllHandlers();
     this.state = "active";
   }
 
-  async onApplicationShutdown() {
+  async onApplicationShutdown(): Promise<void> {
     await this.boss.stop();
     await this.pg.end();
     this.state = "stopped";

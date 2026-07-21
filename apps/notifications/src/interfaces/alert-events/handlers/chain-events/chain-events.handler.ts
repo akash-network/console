@@ -24,7 +24,7 @@ export class ChainEventsHandler {
     key: eventKeyRegistry.blockCreated,
     dto: ChainBlockCreatedDto
   })
-  async processBlock(block: ChainBlockCreatedDto) {
+  async processBlock(block: ChainBlockCreatedDto): Promise<void> {
     const results = await Promise.allSettled([
       this.deploymentBalanceAlertsService.alertFor(block, message => this.brokerService.publish(eventKeyRegistry.createNotification, message)),
       this.walletBalanceAlertsService.alertFor(block, async message => this.brokerService.publish(eventKeyRegistry.createNotification, message))
@@ -44,7 +44,7 @@ export class ChainEventsHandler {
     key: eventKeyRegistry.eventCloseDeployment,
     dto: EventClosedDeploymentDto
   })
-  async processDeploymentClosed(payload: EventClosedDeploymentDto) {
+  async processDeploymentClosed(payload: EventClosedDeploymentDto): Promise<void> {
     await this.chainMessageAlertService.alertFor({ type: "CHAIN_EVENT", payload }, message =>
       this.brokerService.publish(eventKeyRegistry.createNotification, message)
     );
@@ -54,7 +54,7 @@ export class ChainEventsHandler {
     key: eventKeyRegistry.eventLeaseReclaimStarted,
     dto: EventLeaseReclaimStartedDto
   })
-  async processLeaseReclaimStarted(payload: EventLeaseReclaimStartedDto) {
+  async processLeaseReclaimStarted(payload: EventLeaseReclaimStartedDto): Promise<void> {
     await this.reclaimAlertService.alertFor(payload, message => this.brokerService.publish(eventKeyRegistry.createNotification, message));
   }
 }

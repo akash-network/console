@@ -1,5 +1,5 @@
 export class RichError extends Error {
-  static enrich(error: unknown, code?: string | number, data?: Record<string, unknown>) {
+  static enrich(error: unknown, code?: string | number, data?: Record<string, unknown>): RichError {
     const message = this.extractMessage(error);
     const stack = this.extractStack(error);
     const richError = new RichError(message, code, data, error);

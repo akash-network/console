@@ -52,7 +52,7 @@ export type ResponseDefinitionOptions = Record<
   }
 >;
 
-export function ValidateHttp(options: ResponseDefinitionOptions) {
+export function ValidateHttp(options: ResponseDefinitionOptions): ReturnType<typeof applyDecorators> {
   const successSchema = (options[200] || options[201])?.schema;
 
   const decorators = [

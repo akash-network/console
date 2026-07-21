@@ -2,7 +2,7 @@ import RestModule from "@src/interfaces/rest/rest.module";
 import { Bootstrapper } from "@src/lib/bootstrap/bootstrapper/bootstrapper";
 import { SwaggerSetup } from "@src/lib/bootstrap/swagger-setup/swagger-setup";
 
-export async function bootstrap() {
+export async function bootstrap(): Promise<void> {
   const bootstrapper = new Bootstrapper(RestModule);
   const app = await bootstrapper.createApp();
   await bootstrapper.configureHttp();

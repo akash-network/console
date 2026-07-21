@@ -1,7 +1,7 @@
 import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { faker } from "@faker-js/faker";
 
-import type { DecodedMessageValue, MessageTypeFilter } from "@src/modules/chain/services/block-message-parser/block-message-parser.service";
+import type { BlockMessage, DecodedMessageValue, MessageTypeFilter } from "@src/modules/chain/services/block-message-parser/block-message-parser.service";
 
 /**
  * Generates a DeploymentID object
@@ -11,7 +11,7 @@ export function generateDeploymentID(
     owner?: string;
     dseq?: string;
   } = {}
-) {
+): { owner: string; dseq: string } {
   return {
     owner: options.owner || faker.finance.ethereumAddress(),
     dseq: options.dseq || faker.string.numeric(10)
@@ -21,7 +21,9 @@ export function generateDeploymentID(
 /**
  * Generates a transaction message
  */
-export function generateTransactionMessage(type: "MsgCreateDeployment" | "MsgCloseDeployment" | string = "MsgCreateDeployment") {
+export function generateTransactionMessage(
+  type: "MsgCreateDeployment" | "MsgCloseDeployment" | string = "MsgCreateDeployment"
+): { typeUrl: string; value: Uint8Array } {
   let typeUrl: string;
 
   switch (type) {
@@ -51,7 +53,7 @@ export function generateParsedTransaction(
     messageTypes?: Array<string>;
     memo?: string;
   } = {}
-) {
+): { hash: string; height: number; messages: { typeUrl: string; value: Uint8Array }[]; memo: string } {
   const messageTypes = options.messageTypes || ["MsgCreateDeployment"];
 
   return {
@@ -70,7 +72,7 @@ export function generateParsedTransactions(
     count?: number;
     messageTypes?: Array<string>;
   } = {}
-) {
+): ReturnType<typeof generateParsedTransaction>[] {
   const count = options.count || faker.number.int({ min: 1, max: 5 });
 
   return Array.from({ length: count }, () => generateParsedTransaction({ messageTypes: options.messageTypes }));
@@ -83,7 +85,27 @@ export function generateMsgCreateDeploymentMessage(
   options: {
     deploymentId?: ReturnType<typeof generateDeploymentID>;
   } = {}
-) {
+): {
+  type: string;
+  typeUrl: string;
+  value: {
+    id: { owner: string; dseq: string };
+    groups: {
+      name: string;
+      resources: {
+        resources: {
+          cpu: { units: { val: string } };
+          memory: { quantity: { val: string } };
+          storage: { name: string; quantity: { val: string } }[];
+        };
+        count: number;
+        price: { denom: string; amount: string };
+      }[];
+    }[];
+    deposit: { denom: string; amount: string };
+    depositor: string;
+  };
+} {
   const deploymentId = options.deploymentId || generateDeploymentID();
 
   return {
@@ -135,7 +157,7 @@ export function generateMsgCloseDeploymentMessage(
   options: {
     deploymentId?: ReturnType<typeof generateDeploymentID>;
   } = {}
-) {
+): { type: string; typeUrl: string; value: { id: { owner: string; dseq: string } } } {
   const deploymentId = options.deploymentId || generateDeploymentID();
 
   return {
@@ -150,7 +172,10 @@ export function generateMsgCloseDeploymentMessage(
 /**
  * Generates related deployment messages (create and close) with the same deployment ID
  */
-export function generateRelatedDeploymentMessages() {
+export function generateRelatedDeploymentMessages(): {
+  create: ReturnType<typeof generateMsgCreateDeploymentMessage>;
+  close: ReturnType<typeof generateMsgCloseDeploymentMessage>;
+} {
   const deploymentId = generateDeploymentID();
 
   return {
@@ -162,7 +187,7 @@ export function generateRelatedDeploymentMessages() {
 /**
  * Generates a mock BlockMessage object for testing
  */
-export function generateMockBlockMessage(type: "MsgCreateDeployment" | "MsgCloseDeployment" | string = "MsgCreateDeployment") {
+export function generateMockBlockMessage(type: "MsgCreateDeployment" | "MsgCloseDeployment" | string = "MsgCreateDeployment"): BlockMessage {
   let typeUrl: string;
   let value: DecodedMessageValue;
 
@@ -240,7 +265,7 @@ export function generateMockMessages(
     count?: number;
     types?: Array<"MsgCreateDeployment" | "MsgCloseDeployment" | string>;
   } = {}
-) {
+): BlockMessage[] {
   const count = options.count || faker.number.int({ min: 1, max: 5 });
   const types = options.types || ["MsgCreateDeployment", "MsgCloseDeployment"];
 
@@ -272,7 +297,7 @@ export function generateMsgCloseDeployment(
     dseq?: string;
     owner?: string;
   } = {}
-) {
+): { type: string; typeUrl: string; value: { id: { dseq: { low: number }; owner: string }; $type: string } } {
   const deploymentId = generateDeploymentID({
     owner: options.owner,
     dseq: options.dseq || faker.string.numeric(6)
@@ -299,7 +324,14 @@ export function generateMsgCreateDeployment(
     dseq?: string;
     owner?: string;
   } = {}
-) {
+): {
+  type: string;
+  typeUrl: string;
+  value: Omit<ReturnType<typeof generateMsgCreateDeploymentMessage>["value"], "id"> & {
+    id: { dseq: { low: number }; owner: string };
+    $type: string;
+  };
+} {
   const deploymentId = generateDeploymentID({
     owner: options.owner,
     dseq: options.dseq || faker.string.numeric(6)

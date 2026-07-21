@@ -26,7 +26,7 @@ export class EmailSenderService {
     this.loggerService.setContext(EmailSenderService.name);
   }
 
-  async send({ addresses, userId, subject, content }: EmailSendOptions) {
+  async send({ addresses, userId, subject, content }: EmailSendOptions): Promise<void> {
     await this.novu.trigger({
       workflowId: this.configService.getOrThrow("notifications.NOVU_MAILER_WORKFLOW_ID"),
       to: {

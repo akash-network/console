@@ -1,4 +1,5 @@
 import { DrizzlePGModule } from "@knaadh/nestjs-drizzle-pg";
+import type { DynamicModule } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 
 import { Logger } from "@src/common/providers/logger.provider";
@@ -8,7 +9,7 @@ import config from "./config";
 
 const logger = new Logger({ context: "DRIZZLE" });
 
-export const register = <TSchema extends Record<string, unknown> = Record<string, never>>(schema: TSchema) => [
+export const register = <TSchema extends Record<string, unknown> = Record<string, never>>(schema: TSchema): DynamicModule[] => [
   ConfigModule.forFeature(config),
   DrizzlePGModule.registerAsync({
     tag: DRIZZLE_PROVIDER_TOKEN,

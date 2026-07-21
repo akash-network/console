@@ -55,17 +55,17 @@ export class NotificationChannelRepository {
     private readonly db: NodePgDatabase<typeof schema>
   ) {}
 
-  accessibleBy(...abilityParams: AbilityParams) {
+  accessibleBy(...abilityParams: AbilityParams): this {
     return new NotificationChannelRepository(this.db).withAbility(...abilityParams) as this;
   }
 
-  protected withAbility(ability: AnyAbility, action: Parameters<AnyAbility["can"]>[0]) {
+  protected withAbility(ability: AnyAbility, action: Parameters<AnyAbility["can"]>[0]): this {
     this.ability = new DrizzleAbility(schema.NotificationChannel, ability, action, "NotificationChannel");
 
     return this;
   }
 
-  protected whereAccessibleBy(where?: SQL) {
+  protected whereAccessibleBy(where?: SQL): SQL | undefined {
     return this.ability?.whereAccessibleBy(where) || where;
   }
 

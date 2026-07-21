@@ -1,10 +1,11 @@
 import { defineAbility } from "@casl/ability";
+import type { CustomDecorator } from "@nestjs/common";
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor, SetMetadata, UnauthorizedException } from "@nestjs/common";
 import { Observable, of } from "rxjs";
 import { Err } from "ts-results";
 
 const UNPROTECTED = "UNPROTECTED";
-export const Unprotected = () => SetMetadata(UNPROTECTED, true);
+export const Unprotected = (): CustomDecorator<typeof UNPROTECTED> => SetMetadata(UNPROTECTED, true);
 
 @Injectable()
 export class AuthInterceptor implements NestInterceptor {

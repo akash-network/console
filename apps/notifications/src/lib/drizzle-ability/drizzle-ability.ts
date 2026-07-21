@@ -38,12 +38,12 @@ export class DrizzleAbility<T extends PgTableWithColumns<any>, A extends AnyAbil
     this.abilityClause = this.toDrizzleWhereClause();
   }
 
-  throwUnlessCanExecute(payload: Record<string, any>) {
+  throwUnlessCanExecute(payload: Record<string, any>): void {
     const params = [this.action, subject(this.subjectType as string, payload)] as unknown as Parameters<A["can"]>;
     ForbiddenError.from(this.ability).throwUnlessCan(...params);
   }
 
-  whereAccessibleBy(where?: SQL) {
+  whereAccessibleBy(where?: SQL): SQL | undefined {
     if (!where && this.abilityClause) {
       return this.abilityClause;
     }

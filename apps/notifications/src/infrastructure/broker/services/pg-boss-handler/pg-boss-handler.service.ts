@@ -26,7 +26,7 @@ export class PgBossHandlerService {
     this.loggerService.setContext(PgBossHandlerService.name);
   }
 
-  async startAllHandlers() {
+  async startAllHandlers(): Promise<void> {
     if (PgBossHandlerService.isInitialized) {
       return;
     }
