@@ -6,7 +6,7 @@ async function bootstrap() {
   const interfaceModuleName = process.env.INTERFACE || "all";
   const logger = new Logger({ context: "BOOTSTRAP" });
 
-  const interfaceModule = load(interfaceModuleName);
+  const interfaceModule = await load(interfaceModuleName);
 
   if (!interfaceModule) {
     logger.error(`Unsupported interface "${interfaceModuleName}"`);
@@ -17,29 +17,29 @@ async function bootstrap() {
   logger.info(`Successfully started with interface "${interfaceModuleName}" with NODE_OPTIONS=${process.env.NODE_OPTIONS}.`);
 }
 
-function load(interfaceModule: string): { bootstrap: () => Promise<void> } | undefined {
+async function load(interfaceModule: string): Promise<{ bootstrap: () => Promise<void> } | undefined> {
   if (interfaceModule === "alert-events") {
-    return require("./interfaces/alert-events");
+    return import("./interfaces/alert-events/index.ts");
   }
 
   if (interfaceModule === "all") {
-    return require("./interfaces/all");
+    return import("./interfaces/all/index.ts");
   }
 
   if (interfaceModule === "chain-events") {
-    return require("./interfaces/chain-events");
+    return import("./interfaces/chain-events/index.ts");
   }
 
   if (interfaceModule === "notifications-events") {
-    return require("./interfaces/notifications-events");
+    return import("./interfaces/notifications-events/index.ts");
   }
 
   if (interfaceModule === "rest") {
-    return require("./interfaces/rest");
+    return import("./interfaces/rest/index.ts");
   }
 
   if (interfaceModule === "swagger-gen") {
-    return require("./interfaces/swagger-gen");
+    return import("./interfaces/swagger-gen/index.ts");
   }
 
   return undefined;
