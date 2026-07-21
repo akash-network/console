@@ -1,8 +1,10 @@
 import { relations, sql } from "drizzle-orm";
 import { boolean, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
-import { UserWallets } from "@src/billing/model-schemas/user-wallet/user-wallet.schema"; // eslint-disable-line import-x/no-cycle
-import { Templates } from "@src/user/model-schemas/template/template.schema"; // eslint-disable-line import-x/no-cycle
+// eslint-disable-next-line import-x/no-cycle
+import { UserWallets } from "@src/billing/model-schemas/user-wallet/user-wallet.schema";
+// eslint-disable-next-line import-x/no-cycle
+import { Templates } from "@src/user/model-schemas/template/template.schema";
 
 export const userAgentMaxLength = 500;
 

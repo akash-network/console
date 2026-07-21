@@ -212,7 +212,7 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
           />
         </div>
       );
-    } catch (error) {
+    } catch {
       return (
         <div className="mt-4 rounded-md bg-gray-100 p-4 dark:bg-gray-800" style={{ height: 200, overflowY: "auto" }}>
           <pre className="whitespace-pre-wrap break-words text-sm">{logs}</pre>

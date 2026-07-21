@@ -9,7 +9,6 @@ export function ComponentMock(props: Record<string, any>) {
 }
 
 export const createRefComponentMock = () => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const renderFn = vi.fn((props: Record<string, any>, _ref: unknown) => {
     return <>{props.children}</>;
   });

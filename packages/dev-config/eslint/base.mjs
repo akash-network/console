@@ -31,7 +31,7 @@ export default [
       akash
     },
     linterOptions: {
-      reportUnusedDisableDirectives: "off"
+      reportUnusedDisableDirectives: "error"
     },
     languageOptions: {
       ecmaVersion: "latest",
@@ -50,8 +50,8 @@ export default [
       "import-x/external-module-folders": ["node_modules", "dist", "build", "public"]
     },
     rules: {
-      "no-useless-assignment": "off",
-      "preserve-caught-error": "off",
+      "no-useless-assignment": "error",
+      "preserve-caught-error": "error",
       "simple-import-sort/imports": [
         "error",
         {

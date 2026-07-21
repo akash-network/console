@@ -67,7 +67,7 @@ expect.extend({
         message: () => `Ok`,
         pass: true
       };
-    } catch (error) {
+    } catch {
       return received === null
         ? {
             message: () => `Ok`,

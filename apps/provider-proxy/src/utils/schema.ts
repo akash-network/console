@@ -84,7 +84,7 @@ const jwtTokenManager = new JwtTokenManager({
 function validateJwtPayload(token: string): { isValid: boolean; errors?: string[] } {
   try {
     return jwtTokenManager.validatePayload(jwtTokenManager.decodeToken(token));
-  } catch (error) {
+  } catch {
     return { isValid: false, errors: ["Invalid token"] };
   }
 }

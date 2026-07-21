@@ -13,7 +13,7 @@ type RequestBody<R> = R extends { requestBody?: infer RB } ? RB : never;
 type Body<R> = NonNullable<RequestBody<R>> extends { content: { "application/json": infer B } } ? B : never;
 
 /** Forces TypeScript to evaluate the intersection eagerly, avoiding deferred conditional types. */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+
 type Prettify<T> = { [K in keyof T]: T[K] } & {};
 
 export type FlatInput<R> = Prettify<

@@ -83,7 +83,6 @@ export const ProviderList: React.FunctionComponent = () => {
     if (sortQuery && sortOptions.some(x => x.id === sortQuery)) {
       setSort(sortQuery as SortId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortQuery]);
 
   useEffect(() => {

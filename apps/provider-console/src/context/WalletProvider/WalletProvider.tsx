@@ -92,7 +92,7 @@ export const WalletProvider = ({ children }) => {
     } catch (error) {
       console.warn(`Failed to connect to RPC endpoint: ${rpc}`, error);
       // If the selected network's RPC fails, we could add fallback logic here if needed
-      throw new Error(`Unable to connect to ${selectedNetwork.title} RPC endpoint: ${rpc}`);
+      throw new Error(`Unable to connect to ${selectedNetwork.title} RPC endpoint: ${rpc}`, { cause: error });
     }
 
     const client = await SigningStargateClient.connectWithSigner(rpc, offlineSigner);
@@ -156,7 +156,7 @@ export const WalletProvider = ({ children }) => {
             throw new Error("Invalid nonce response");
           }
         }
-      } catch (error) {
+      } catch {
         logout();
       }
     }

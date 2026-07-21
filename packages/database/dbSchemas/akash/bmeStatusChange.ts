@@ -1,7 +1,7 @@
 import { DataTypes, UUIDV4 } from "sequelize";
 import { BelongsTo, Column, Default, Model, PrimaryKey, Table } from "sequelize-typescript";
 
-import { Block } from "../base/block"; // eslint-disable-line import-x/no-cycle
+import { Block } from "../base/block";
 import { Required } from "../decorators/requiredDecorator";
 
 /**

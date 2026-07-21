@@ -9,12 +9,11 @@ export class TemplateProcessorService {
   mergeTemplateCategories(...categories: Category[][]): MergedCategory[] {
     const mergedCategories: MergedCategory[] = [];
     for (const category of categories.flat()) {
-      let categoryIndex = mergedCategories.findIndex(c => c.title.toLowerCase() === category.title.toLowerCase());
+      const categoryIndex = mergedCategories.findIndex(c => c.title.toLowerCase() === category.title.toLowerCase());
       if (categoryIndex !== -1) {
         const existingCategory = mergedCategories[categoryIndex];
         existingCategory.templates = (existingCategory.templates || []).concat(category.templates || []);
       } else {
-        categoryIndex = mergedCategories.length;
         const categoryClone = JSON.parse(JSON.stringify(category));
         categoryClone.templates ??= [];
         mergedCategories.push(categoryClone);

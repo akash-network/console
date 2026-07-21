@@ -1,6 +1,9 @@
+import typography from "@tailwindcss/typography";
+import tailwindScrollbar from "tailwind-scrollbar";
 import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
 
-module.exports = function (app: string) {
+export default function createTailwindConfig(app: string): Config {
   const config: Config = {
     darkMode: "selector",
     content: [
@@ -94,9 +97,9 @@ module.exports = function (app: string) {
         }
       }
     },
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    plugins: [require("tailwindcss-animate"), require("tailwind-scrollbar")({ nocompatible: true }), require("@tailwindcss/typography")]
+
+    plugins: [tailwindcssAnimate, tailwindScrollbar({ nocompatible: true }), typography]
   };
 
   return config;
-};
+}

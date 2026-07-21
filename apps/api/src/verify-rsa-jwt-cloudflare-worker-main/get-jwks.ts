@@ -10,7 +10,7 @@ export async function getJwks(jwksUri: string, kvStore: KVStore, jwkCacheKey?: s
   try {
     new URL(jwksUri);
   } catch (error) {
-    throw new Error("Invalid JWKS URI");
+    throw new Error("Invalid JWKS URI", { cause: error });
   }
   // Fetch the JWKs from KV or the JWKS URI
   const jwks = await kvStore.get<Jwks>(jwkCacheKey && jwkCacheKey.length > 0 ? jwkCacheKey : DEFAULT_JWK_CACHE_KEY, () => fetchJwks(jwksUri), validateJwks);
@@ -22,7 +22,7 @@ async function fetchJwks(jwksUri: string): Promise<Jwks> {
   try {
     response = await fetch(jwksUri);
   } catch (e) {
-    throw new Error("Failed to request on fetching JWKs: " + (e as Error).message);
+    throw new Error("Failed to request on fetching JWKs: " + (e as Error).message, { cause: e });
   }
   if (!response.ok || !response.status.toString().startsWith("2")) {
     throw new Error("Failed to fetch JWKs: " + response.statusText);

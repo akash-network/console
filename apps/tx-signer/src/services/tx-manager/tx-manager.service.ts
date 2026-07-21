@@ -5,7 +5,6 @@ import type { SignAndBroadcastOptions } from "@src/lib/signing-client/signing-cl
 import { SigningClientService } from "@src/lib/signing-client/signing-client.service";
 import { createSigningStargateClient } from "@src/lib/signing-stargate-client-factory/signing-stargate-client.factory";
 import { Wallet } from "@src/lib/wallet/wallet";
-// eslint-disable-next-line
 import { LoggerService } from "@src/providers/logging.provider";
 import { TYPE_REGISTRY } from "@src/providers/type-registry.provider";
 import { AppConfigService } from "@src/services/app-config/app-config.service";

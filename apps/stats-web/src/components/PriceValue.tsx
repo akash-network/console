@@ -24,14 +24,7 @@ export const PriceValue: React.FunctionComponent<Props> = ({ denom, value, showL
     <span className="inline-flex items-center">
       {!isLoaded && <Spinner size="small" />}
       {showLt && !!price && _value !== computedValue && "< "}
-      {!!price && (
-        <FormattedNumber
-          value={computedValue}
-          // eslint-disable-next-line react/style-prop-object
-          style="currency"
-          currency="USD"
-        />
-      )}
+      {!!price && <FormattedNumber value={computedValue} style="currency" currency="USD" />}
     </span>
   );
 };
