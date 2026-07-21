@@ -47,12 +47,7 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
             <div className="flex items-center justify-between space-x-2">
               <span className="text-xs">Credits Remaining:</span>
               <span>
-                <d.FormattedNumber
-                  value={walletBalance.totalDeploymentGrantsUSD}
-                  // eslint-disable-next-line react/style-prop-object
-                  style="currency"
-                  currency="USD"
-                />
+                <d.FormattedNumber value={walletBalance.totalDeploymentGrantsUSD} style="currency" currency="USD" />
               </span>
             </div>
 
@@ -61,12 +56,7 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
             <div className="flex items-center justify-between space-x-2">
               <span className="text-xs">Deposits:</span>
               <span>
-                <d.FormattedNumber
-                  value={walletBalance.totalDeploymentEscrowUSD}
-                  // eslint-disable-next-line react/style-prop-object
-                  style="currency"
-                  currency="USD"
-                />
+                <d.FormattedNumber value={walletBalance.totalDeploymentEscrowUSD} style="currency" currency="USD" />
               </span>
             </div>
           </d.CardContent>

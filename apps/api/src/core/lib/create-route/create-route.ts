@@ -1,5 +1,4 @@
 import type { RouteConfig } from "@hono/zod-openapi";
-// eslint-disable-next-line no-restricted-imports
 import { createRoute as createOpenApiRoute } from "@hono/zod-openapi";
 import type { MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";

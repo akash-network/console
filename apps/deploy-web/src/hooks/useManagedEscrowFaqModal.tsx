@@ -29,24 +29,14 @@ export const useManagedEscrowFaqModal = (): {
               <div className="flex items-center justify-between space-x-2">
                 <span className="text-xs text-muted-foreground">Available:</span>
                 <span className="font-bold">
-                  <FormattedNumber
-                    value={walletBalance.totalDeploymentGrantsUSD}
-                    // eslint-disable-next-line react/style-prop-object
-                    style="currency"
-                    currency="USD"
-                  />
+                  <FormattedNumber value={walletBalance.totalDeploymentGrantsUSD} style="currency" currency="USD" />
                 </span>
               </div>
 
               <div className="flex items-center justify-between space-x-2">
                 <span className="text-xs text-muted-foreground">Deposits:</span>
                 <span>
-                  <FormattedNumber
-                    value={walletBalance.totalDeploymentEscrowUSD}
-                    // eslint-disable-next-line react/style-prop-object
-                    style="currency"
-                    currency="USD"
-                  />
+                  <FormattedNumber value={walletBalance.totalDeploymentEscrowUSD} style="currency" currency="USD" />
                 </span>
               </div>
             </div>
@@ -57,13 +47,7 @@ export const useManagedEscrowFaqModal = (): {
               <p className="text-sm text-muted-foreground">
                 Akash deployments use escrow accounts, also known as deployment deposits, as a way to ensure that a user has enough funds to cover the cost of
                 deploying and running their application on the Akash network. When you create a deployment, you deposit{" "}
-                <FormattedNumber
-                  value={minDeposit.act}
-                  // eslint-disable-next-line react/style-prop-object
-                  style="currency"
-                  currency="USD"
-                />{" "}
-                into the account.
+                <FormattedNumber value={minDeposit.act} style="currency" currency="USD" /> into the account.
               </p>
 
               <div>

@@ -28,7 +28,6 @@ describe("array helpers", () => {
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [_, timeoutResult] = await Promise.all([
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         forEachInChunks(
           array,
           (_, index) => {

@@ -9,7 +9,6 @@
  * - URLs and network addresses
  */
 
-/* eslint-disable no-useless-escape */
 import { languages } from "monaco-editor/esm/vs/editor/editor.api.js";
 
 const logLanguage: languages.IMonarchLanguage = {
