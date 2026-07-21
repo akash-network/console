@@ -48,7 +48,7 @@ export const SDLEditor = forwardRef<SdlEditorRefType, Props>(({ onChange, onVali
       try {
         const { parseDocument } = await import("yaml");
         doc = parseDocument(value, { keepSourceTokens: true });
-      } catch (error) {
+      } catch {
         onValidate?.({ isValid: false });
         return false;
       }

@@ -168,7 +168,7 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
         }))
       };
       setProviderProcess(updatedProviderProcess);
-      onComplete && onComplete();
+      if (onComplete) onComplete();
     } else {
       const attributes = data.attributes.map(attr => ({
         key: attr.key === "unknown-attributes" ? attr.customKey || "" : attr.key || "",

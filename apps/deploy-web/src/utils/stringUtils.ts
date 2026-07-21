@@ -18,7 +18,7 @@ export function isUrl(val: string) {
   try {
     const url = new URL(val);
     return url.protocol === "http:" || url.protocol === "https:";
-  } catch (_) {
+  } catch {
     return false;
   }
 }

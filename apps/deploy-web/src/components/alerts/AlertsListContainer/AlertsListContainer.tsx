@@ -59,7 +59,7 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
         } else {
           refetch();
         }
-      } catch (error) {
+      } catch {
         notificator.error("Failed to remove alert", {
           dataTestId: "alert-remove-error-notification"
         });
@@ -85,7 +85,7 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
         await queryClient.invalidateQueries({
           queryKey: QueryKeys.getDeploymentDetailKey(address, dseq)
         });
-      } catch (error) {
+      } catch {
         notificator.error("Failed to update alert");
       } finally {
         setLoadingIds(prev => {

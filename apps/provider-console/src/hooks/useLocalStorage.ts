@@ -82,7 +82,7 @@ export function useCustomLocalStorage<T>(key: string, initialValue: T) {
 function parseJSON(value: string) {
   try {
     return value === "undefined" ? undefined : JSON.parse(value ?? "");
-  } catch (error) {
+  } catch {
     return value === "undefined" ? undefined : value;
   }
 }

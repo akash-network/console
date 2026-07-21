@@ -167,12 +167,10 @@ export class GpuPriceService {
         const providerBidsLast14d = providerBids.filter(b => b.datetime > lastBidsForPeriod);
         const bidsFromPricingBot = providerBids.filter(b => b.deployment.owner === pricingBotAddress && b.deployment.cpuUnits === 100);
 
-        let bestBid = null;
-        if (bidsFromPricingBot.length > 0) {
-          bestBid = bidsFromPricingBot.reduce((best, bid) => (bid.height > best.height ? bid : best));
-        } else {
-          bestBid = this.findBestProviderBid(providerBidsLast14d, x) ?? this.findBestProviderBid(providerBids, x);
-        }
+        const bestBid =
+          bidsFromPricingBot.length > 0
+            ? bidsFromPricingBot.reduce((best, bid) => (bid.height > best.height ? bid : best))
+            : this.findBestProviderBid(providerBidsLast14d, x) ?? this.findBestProviderBid(providerBids, x);
 
         if (bestBid) {
           providersWithBestBid.push({

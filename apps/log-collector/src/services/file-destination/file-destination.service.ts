@@ -101,7 +101,7 @@ export class FileDestinationService {
     try {
       const filePath = await this.getLogPath();
       return await this.readLastLinesFromFile(filePath);
-    } catch (error) {
+    } catch {
       return [];
     }
   }
@@ -150,12 +150,12 @@ export class FileDestinationService {
   private async ensureFileExists(filePath: string): Promise<void> {
     try {
       await this.fs.promises.access(filePath);
-    } catch (error) {
+    } catch {
       const logDir = this.configService.get("LOG_DIR");
 
       try {
         await this.fs.promises.access(logDir);
-      } catch (dirError) {
+      } catch {
         await this.fs.promises.mkdir(logDir, { recursive: true });
         this.loggerService.info({
           event: "LOG_DIR_CREATED",

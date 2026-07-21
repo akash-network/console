@@ -158,7 +158,7 @@ const SettingsPage: React.FC = () => {
         setTimeout(() => setRestartSuccess(false), 20000);
       }
       setUrlError("");
-    } catch (error) {
+    } catch {
       setUrlError("Please enter a valid domain name");
     }
   };

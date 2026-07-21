@@ -50,7 +50,7 @@ export function isValidHttpUrl(str: string): boolean {
 
   try {
     url = new URL(str);
-  } catch (_) {
+  } catch {
     return false;
   }
 

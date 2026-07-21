@@ -16,7 +16,5 @@ export function* chunkify<T>(iter: Iterable<T>, size: number): Generator<readonl
 
   if (i !== 0) {
     yield buf.slice(0, i);
-    i = 0;
-    buf.length = 0;
   }
 }
