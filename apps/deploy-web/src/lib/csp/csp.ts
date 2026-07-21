@@ -1,5 +1,7 @@
 const CSP_HEADER_ENFORCE = "Content-Security-Policy";
 const CSP_HEADER_REPORT_ONLY = "Content-Security-Policy-Report-Only";
+const CSP_REPORT_ENDPOINT_NAME = "csp-endpoint";
+const CSP_REPORT_MAX_AGE_SECONDS = 10886400;
 
 const NONCE_BYTE_LENGTH = 16;
 
@@ -22,7 +24,14 @@ const FIXED_VENDOR_CONNECT_ORIGINS = [
 ];
 
 /** Image hosts that never vary by environment (inline data/blob URIs, GitHub avatars/raw content, Google). */
-const FIXED_IMG_SRC = ["data:", "blob:", "https://raw.githubusercontent.com", "https://avatars.githubusercontent.com", "https://www.googletagmanager.com", "https://*.google-analytics.com"];
+const FIXED_IMG_SRC = [
+  "data:",
+  "blob:",
+  "https://raw.githubusercontent.com",
+  "https://avatars.githubusercontent.com",
+  "https://www.googletagmanager.com",
+  "https://*.google-analytics.com"
+];
 
 export interface ContentSecurityPolicyInput {
   mainnetApiUrl?: string;
@@ -46,6 +55,27 @@ export function toOrigin(value?: string): string | undefined {
 
   try {
     return new URL(value).origin;
+  } catch {
+    return undefined;
+  }
+}
+
+export function toSentrySecurityReportUri(dsn?: string): string | undefined {
+  if (!dsn || dsn.startsWith("/")) return undefined;
+
+  try {
+    const dsnUrl = new URL(dsn);
+    const pathSegments = dsnUrl.pathname.split("/").filter(Boolean);
+    const projectId = pathSegments[pathSegments.length - 1];
+
+    if (!dsnUrl.username || !projectId) return undefined;
+
+    const basePath = pathSegments.slice(0, -1).join("/");
+    const reportUrl = new URL(dsnUrl.origin);
+    reportUrl.pathname = `${basePath ? `/${basePath}` : ""}/api/${projectId}/security/`;
+    reportUrl.searchParams.set("sentry_key", dsnUrl.username);
+
+    return reportUrl.toString();
   } catch {
     return undefined;
   }
@@ -89,6 +119,7 @@ export function buildContentSecurityPolicy(nonce: string, input: ContentSecurity
 
   const connectSrc = dedupeOrigins(["'self'", ...envConnectOrigins, ...FIXED_VENDOR_CONNECT_ORIGINS]);
   const imgSrc = dedupeOrigins(["'self'", ...FIXED_IMG_SRC, toOrigin(input.templatesUrl)]);
+  const sentrySecurityReportUri = toSentrySecurityReportUri(input.sentryDsn);
 
   if (isDevelopment) {
     scriptSrc.push("'unsafe-eval'");
@@ -110,12 +141,35 @@ export function buildContentSecurityPolicy(nonce: string, input: ContentSecurity
     "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com https://www.googletagmanager.com",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
-    ...(isDevelopment ? [] : ["upgrade-insecure-requests"])
+    ...(isDevelopment ? [] : ["upgrade-insecure-requests"]),
+    ...(sentrySecurityReportUri ? [`report-uri ${sentrySecurityReportUri}`, `report-to ${CSP_REPORT_ENDPOINT_NAME}`] : [])
   ].join("; ");
 }
 
 export function getContentSecurityPolicyHeaderName() {
   return process.env.CSP_MODE === "enforce" ? CSP_HEADER_ENFORCE : CSP_HEADER_REPORT_ONLY;
+}
+
+export function getContentSecurityPolicyReportHeaders(input: ContentSecurityPolicyInput) {
+  const sentrySecurityReportUri = toSentrySecurityReportUri(input.sentryDsn);
+
+  if (!sentrySecurityReportUri) return [];
+
+  return [
+    {
+      name: "Report-To",
+      value: JSON.stringify({
+        group: CSP_REPORT_ENDPOINT_NAME,
+        max_age: CSP_REPORT_MAX_AGE_SECONDS,
+        endpoints: [{ url: sentrySecurityReportUri }],
+        include_subdomains: true
+      })
+    },
+    {
+      name: "Reporting-Endpoints",
+      value: `${CSP_REPORT_ENDPOINT_NAME}="${sentrySecurityReportUri}"`
+    }
+  ];
 }
 
 function dedupeOrigins(origins: Array<string | undefined>) {

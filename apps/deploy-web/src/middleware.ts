@@ -3,7 +3,7 @@ import { netConfig } from "@akashnetwork/net";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { buildContentSecurityPolicy, generateNonce, getContentSecurityPolicyHeaderName } from "./lib/csp/csp";
+import { buildContentSecurityPolicy, generateNonce, getContentSecurityPolicyHeaderName, getContentSecurityPolicyReportHeaders } from "./lib/csp/csp";
 
 const { MAINTENANCE_MODE } = process.env;
 const logger = new LoggerService({ name: "middleware" });
@@ -12,7 +12,7 @@ const networkRpcAndApiUrls = netConfig.getSupportedNetworks().flatMap(network =>
 
 export function middleware(request: NextRequest) {
   const nonce = generateNonce();
-  const contentSecurityPolicy = buildContentSecurityPolicy(nonce, {
+  const contentSecurityPolicyInput = {
     mainnetApiUrl: process.env.NEXT_PUBLIC_BASE_API_MAINNET_URL,
     testnetApiUrl: process.env.NEXT_PUBLIC_BASE_API_TESTNET_URL,
     sandboxApiUrl: process.env.NEXT_PUBLIC_BASE_API_SANDBOX_URL,
@@ -22,8 +22,10 @@ export function middleware(request: NextRequest) {
     sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
     templatesUrl: process.env.NEXT_PUBLIC_BASE_TEMPLATES_URL,
     networkRpcAndApiUrls
-  });
+  };
+  const contentSecurityPolicy = buildContentSecurityPolicy(nonce, contentSecurityPolicyInput);
   const contentSecurityPolicyHeaderName = getContentSecurityPolicyHeaderName();
+  const contentSecurityPolicyReportHeaders = getContentSecurityPolicyReportHeaders(contentSecurityPolicyInput);
 
   const maintenancePage = "/maintenance";
   const isMaintenanceMode = MAINTENANCE_MODE === "true";
@@ -32,14 +34,14 @@ export function middleware(request: NextRequest) {
     logger.info({ message: `Redirecting to maintenance page from ${fromPath}` });
 
     const redirectResponse = NextResponse.redirect(new URL(`${maintenancePage}?return=${encodeURIComponent(fromPath)}`, request.url), 307); // 307 - temporary redirect
-    redirectResponse.headers.set(contentSecurityPolicyHeaderName, contentSecurityPolicy);
+    setContentSecurityPolicyHeaders(redirectResponse, contentSecurityPolicyHeaderName, contentSecurityPolicy, contentSecurityPolicyReportHeaders);
     return redirectResponse;
   } else if (!isMaintenanceMode && request.nextUrl.pathname.startsWith(maintenancePage)) {
     const returnPath = getReturnPath(request);
     logger.info({ message: `Redirecting from maintenance page to ${returnPath}` });
 
     const redirectResponse = NextResponse.redirect(new URL(returnPath, request.url), 307); // 307 - temporary redirect
-    redirectResponse.headers.set(contentSecurityPolicyHeaderName, contentSecurityPolicy);
+    setContentSecurityPolicyHeaders(redirectResponse, contentSecurityPolicyHeaderName, contentSecurityPolicy, contentSecurityPolicyReportHeaders);
     return redirectResponse;
   }
 
@@ -48,7 +50,7 @@ export function middleware(request: NextRequest) {
   requestHeaders.set(contentSecurityPolicyHeaderName, contentSecurityPolicy);
 
   const res = NextResponse.next({ request: { headers: requestHeaders } });
-  res.headers.set(contentSecurityPolicyHeaderName, contentSecurityPolicy);
+  setContentSecurityPolicyHeaders(res, contentSecurityPolicyHeaderName, contentSecurityPolicy, contentSecurityPolicyReportHeaders);
 
   const cookieName = "unleash-session-id";
   let sessionId = request.cookies.get(cookieName)?.value;
@@ -65,6 +67,18 @@ export function middleware(request: NextRequest) {
   }
 
   return res;
+}
+
+function setContentSecurityPolicyHeaders(
+  response: NextResponse,
+  contentSecurityPolicyHeaderName: string,
+  contentSecurityPolicy: string,
+  reportHeaders: Array<{ name: string; value: string }>
+) {
+  response.headers.set(contentSecurityPolicyHeaderName, contentSecurityPolicy);
+  reportHeaders.forEach(header => {
+    response.headers.set(header.name, header.value);
+  });
 }
 
 function getReturnPath(request: NextRequest) {

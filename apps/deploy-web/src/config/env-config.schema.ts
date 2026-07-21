@@ -58,7 +58,7 @@ export const browserEnvSchema = z.object({
 
 export const serverEnvSchema = browserEnvSchema.extend({
   MAINTENANCE_MODE: coercedBoolean().optional().default("false"),
-  CSP_MODE: z.enum(["enforce", "report-only"]).optional(),
+  CSP_MODE: z.enum(["enforce", "report-only"]).default("report-only"),
   AUTH0_SECRET: z.string(),
   AUTH0_BASE_URL: z.string().url(),
   AUTH0_ISSUER_BASE_URL: z.string().url(),
