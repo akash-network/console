@@ -13369,7 +13369,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/start-trial": {
       "post": {
-        "description": "Creates a managed wallet for a user and initiates a trial period. This endpoint handles payment method validation and may require 3D Secure authentication for certain payment methods. Returns wallet information and trial status.",
+        "description": "Creates a managed wallet for a user and initiates a trial period. Returns wallet information and trial status.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -13470,81 +13470,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               },
             },
             "description": "Trial started successfully and wallet created",
-          },
-          "202": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "address": {
-                          "nullable": true,
-                          "type": "string",
-                        },
-                        "clientSecret": {
-                          "nullable": true,
-                          "type": "string",
-                        },
-                        "createdAt": {
-                          "nullable": true,
-                          "type": "string",
-                        },
-                        "creditAmount": {
-                          "type": "number",
-                        },
-                        "denom": {
-                          "type": "string",
-                        },
-                        "id": {
-                          "nullable": true,
-                          "type": "number",
-                        },
-                        "isTrialing": {
-                          "type": "boolean",
-                        },
-                        "paymentIntentId": {
-                          "nullable": true,
-                          "type": "string",
-                        },
-                        "paymentMethodId": {
-                          "nullable": true,
-                          "type": "string",
-                        },
-                        "requires3DS": {
-                          "type": "boolean",
-                        },
-                        "topUpMinAmountUsd": {
-                          "description": "Minimum USD amount accepted by the next paid top-up for this wallet.",
-                          "type": "number",
-                        },
-                        "userId": {
-                          "nullable": true,
-                          "type": "string",
-                        },
-                      },
-                      "required": [
-                        "id",
-                        "userId",
-                        "creditAmount",
-                        "address",
-                        "denom",
-                        "isTrialing",
-                        "topUpMinAmountUsd",
-                        "createdAt",
-                      ],
-                      "type": "object",
-                    },
-                  },
-                  "required": [
-                    "data",
-                  ],
-                  "type": "object",
-                },
-              },
-            },
-            "description": "3D Secure authentication required to complete trial setup",
           },
         },
         "security": [],

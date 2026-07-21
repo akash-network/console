@@ -10,13 +10,6 @@ import { FirstPurchaseBonusAlert } from "./FirstPurchaseBonusAlert";
 import { render, screen } from "@testing-library/react";
 
 describe(FirstPurchaseBonusAlert.name, () => {
-  it("renders nothing when the feature flag is off and disables the transactions query", () => {
-    const { container, usePaymentTransactionsQuery } = setup({ flagEnabled: false });
-
-    expect(container).toBeEmptyDOMElement();
-    expect(usePaymentTransactionsQuery).toHaveBeenCalledWith(undefined, { enabled: false });
-  });
-
   it("renders nothing until the transactions query succeeds", () => {
     const { container } = setup({ isSuccess: false });
 
@@ -73,9 +66,7 @@ describe(FirstPurchaseBonusAlert.name, () => {
     expect(container).not.toHaveTextContent("more to unlock");
   });
 
-  function setup(input?: { amount?: number; flagEnabled?: boolean; isSuccess?: boolean; transactions?: Charge[] }) {
-    const useFlag: typeof DEPENDENCIES.useFlag = vi.fn().mockReturnValue(input?.flagEnabled ?? true);
-
+  function setup(input?: { amount?: number; isSuccess?: boolean; transactions?: Charge[] }) {
     // UseQueryResult is a discriminated union that neither mock<T>() nor a partial literal can satisfy
     const usePaymentTransactionsQuery = vi.fn(() => ({
       data: { transactions: input?.transactions ?? [] },
@@ -84,10 +75,10 @@ describe(FirstPurchaseBonusAlert.name, () => {
 
     const result = render(
       <IntlProvider locale="en-US" defaultLocale="en-US">
-        <FirstPurchaseBonusAlert amount={input?.amount ?? 0} dependencies={{ useFlag, usePaymentTransactionsQuery }} />
+        <FirstPurchaseBonusAlert amount={input?.amount ?? 0} dependencies={{ usePaymentTransactionsQuery }} />
       </IntlProvider>
     );
 
-    return { ...result, useFlag, usePaymentTransactionsQuery };
+    return { ...result, usePaymentTransactionsQuery };
   }
 });

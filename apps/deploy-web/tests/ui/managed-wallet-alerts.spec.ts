@@ -1,4 +1,3 @@
-import { skipUnlessOnboardingRedesign } from "./actions/feature-flags";
 import { expect, test } from "./fixture/base-test";
 import { AlertsPage } from "./pages/AlertsPage";
 import { AppNav } from "./pages/AppNav";
@@ -8,10 +7,6 @@ import { DeployPage } from "./pages/DeployPage";
 
 test.describe("Managed wallet alerts", () => {
   test.use({ userType: "existing" });
-
-  test.beforeEach(async ({ page }) => {
-    await skipUnlessOnboardingRedesign(page);
-  });
 
   test("configures deployment alerts and verifies on alerts page", async ({ context, page }) => {
     test.setTimeout(8 * 60 * 1000);

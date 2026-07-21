@@ -10,7 +10,6 @@ import { RemoteApiError } from "@src/components/shared/RemoteApiError/RemoteApiE
 import type { TurnstileRef } from "@src/components/turnstile/Turnstile";
 import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
 import { useServices } from "@src/context/ServicesProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { useReturnTo } from "@src/hooks/useReturnTo/useReturnTo";
 import { useUser } from "@src/hooks/useUser";
 import { ForgotPasswordForm } from "../ForgotPasswordForm/ForgotPasswordForm";
@@ -31,7 +30,6 @@ export const DEPENDENCIES = {
   TabsList,
   TabsTrigger,
   Turnstile: ClientOnlyTurnstile,
-  useFlag,
   useReturnTo,
   useRouter,
   useSearchParams,
@@ -50,7 +48,6 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const searchParams = d.useSearchParams();
   const { checkSession } = d.useUser();
   const { navigateBack } = d.useReturnTo({ defaultReturnTo: "/" });
-  const isOnboardingRedesignEnabled = d.useFlag("onboarding_redesign_v1");
   const [email, setEmail] = useState("");
   const turnstileRef = useRef<TurnstileRef | null>(null);
 
@@ -115,7 +112,7 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
             ? "Enter your email address and we'll send you instructions to reset your password."
             : "Create your Akash account or log in to an existing one."}
         </p>
-        {activeView !== "forgot-password" && isOnboardingRedesignEnabled && (
+        {activeView !== "forgot-password" && (
           <p className="text-sm leading-5 text-neutral-500 dark:text-neutral-400">$1 credit to deploy your first container. No card required.</p>
         )}
       </div>

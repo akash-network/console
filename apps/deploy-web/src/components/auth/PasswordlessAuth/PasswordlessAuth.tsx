@@ -9,7 +9,6 @@ import { useRouter } from "next/router";
 import type { TurnstileRef } from "@src/components/turnstile/Turnstile";
 import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
 import { useServices } from "@src/context/ServicesProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { useReturnTo } from "@src/hooks/useReturnTo/useReturnTo";
 import { useUser } from "@src/hooks/useUser";
 import { EmailCodeStart } from "../EmailCodeStart/EmailCodeStart";
@@ -24,7 +23,6 @@ export const DEPENDENCIES = {
   Link,
   OAuthRow,
   Turnstile: ClientOnlyTurnstile,
-  useFlag,
   useReturnTo,
   useRouter,
   useSearchParams,
@@ -41,7 +39,6 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
   const { checkSession } = d.useUser();
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
-  const isOnboardingRedesignEnabled = d.useFlag("onboarding_redesign_v1");
   const [email, setEmail] = useState(props.initialEmail);
   const [screenKey, setScreenKey] = useState(0);
   const turnstileRef = useRef<TurnstileRef>(null);
@@ -99,7 +96,7 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
     <>
       <div className="flex w-full flex-col items-center gap-2 text-center">
         <h1 className="text-[30px] leading-9 text-neutral-950 dark:text-neutral-50">{screen === "verify" ? "Check your email" : "Start deploying"}</h1>
-        {isOnboardingRedesignEnabled && screen === "entry" && (
+        {screen === "entry" && (
           <p className="text-sm leading-5 text-neutral-500 dark:text-neutral-400">$1 credit to deploy your first container. No card required.</p>
         )}
       </div>

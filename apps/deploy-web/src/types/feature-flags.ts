@@ -6,13 +6,8 @@ export type FeatureFlag =
   | "ui_sdl_log_collector_enabled"
   | "maintenance_banner"
   | "auto_credit_reload"
-  | "console_embedded_login"
-  | "console_auth_passwordless"
-  | "console_auth_password_escape_hatch"
-  | "onboarding_redesign_v1"
   | "ui_sdl_preview_panel"
   | "ui_build_and_deploy"
   | "ui_agent_mode_deploy"
   | "hackathons"
-  | "first_purchase_bonus"
   | "ui_top_nav";

@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
-import { RouteStep } from "@src/types/route-steps.type";
 import { UrlService } from "@src/utils/urlUtils";
 import type { DEPENDENCIES } from "./TemplateList";
 import { TemplateList } from "./TemplateList";
@@ -38,8 +37,8 @@ describe(TemplateList.name, () => {
     expect(screen.getByText("Deploy with your agent")).toBeInTheDocument();
   });
 
-  it("uploads a valid SDL into a configure draft and routes to configure when the redesign flag is on", async () => {
-    const { push, createConfigureDraft, onTemplateSelected, enqueueSnackbar } = setup({ isRedesignEnabled: true });
+  it("uploads a valid SDL into a configure draft and routes to configure", async () => {
+    const { push, createConfigureDraft, onTemplateSelected, enqueueSnackbar } = setup({});
 
     await userEvent.upload(screen.getByLabelText("Upload SDL"), sdlFile("deploy: from-file"));
 
@@ -50,7 +49,7 @@ describe(TemplateList.name, () => {
   });
 
   it("rejects an invalid SDL at the picker: surfaces an error and neither drafts nor navigates", async () => {
-    const { push, createConfigureDraft, enqueueSnackbar } = setup({ isRedesignEnabled: true, importSdlThrows: true });
+    const { push, createConfigureDraft, enqueueSnackbar } = setup({ importSdlThrows: true });
 
     await userEvent.upload(screen.getByLabelText("Upload SDL"), sdlFile("not a valid sdl"));
 
@@ -59,23 +58,12 @@ describe(TemplateList.name, () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("uploads an SDL into the legacy editor step when the redesign flag is off", async () => {
-    const { push, createConfigureDraft, onTemplateSelected, setEditedManifest } = setup({ isRedesignEnabled: false });
-
-    await userEvent.upload(screen.getByLabelText("Upload SDL"), sdlFile("deploy: from-file"));
-
-    await waitFor(() => expect(setEditedManifest).toHaveBeenCalledWith("deploy: from-file"));
-    expect(onTemplateSelected).toHaveBeenCalledWith(expect.objectContaining({ code: "from-file", content: "deploy: from-file" }));
-    expect(push).toHaveBeenCalledWith(UrlService.newDeployment({ step: RouteStep.editDeployment }));
-    expect(createConfigureDraft).not.toHaveBeenCalled();
-  });
-
   /** A YAML File the mocked FileButton hands to the upload handler, standing in for the browser's file picker. */
   function sdlFile(content: string) {
     return new File([content], "deploy.yaml", { type: "application/x-yaml" });
   }
 
-  function setup(input: { isBuildAndDeployEnabled?: boolean; isRedesignEnabled?: boolean; isAgentModeEnabled?: boolean; importSdlThrows?: boolean }) {
+  function setup(input: { isBuildAndDeployEnabled?: boolean; isAgentModeEnabled?: boolean; importSdlThrows?: boolean }) {
     const push = vi.fn();
     const onTemplateSelected = vi.fn();
     const setEditedManifest = vi.fn();
@@ -104,7 +92,6 @@ describe(TemplateList.name, () => {
       useRouter: () => router,
       useFlag: flagName => {
         if (flagName === "ui_build_and_deploy") return input.isBuildAndDeployEnabled ?? false;
-        if (flagName === "onboarding_redesign_v1") return input.isRedesignEnabled ?? false;
         if (flagName === "ui_agent_mode_deploy") return input.isAgentModeEnabled ?? false;
         return false;
       },

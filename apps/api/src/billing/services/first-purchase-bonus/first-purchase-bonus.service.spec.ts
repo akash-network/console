@@ -3,8 +3,6 @@ import { mock } from "vitest-mock-extended";
 
 import type { StripeTransactionRepository } from "@src/billing/repositories";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { UserRepository } from "@src/user/repositories";
 import { FirstPurchaseBonusService } from "./first-purchase-bonus.service";
 
@@ -14,19 +12,8 @@ import { createTestUser } from "@test/seeders/user-test.seeder";
 describe(FirstPurchaseBonusService.name, () => {
   describe("getEligibleBonusAmount", () => {
     it("returns 0 for coupon claims without querying the repository", async () => {
-      const { service, stripeTransactionRepository, featureFlagsService } = setup({ flagEnabled: true });
+      const { service, stripeTransactionRepository } = setup();
       const transaction = generateDatabaseStripeTransaction({ type: "coupon_claim" });
-
-      const result = await service.getEligibleBonusAmount(transaction, 10000);
-
-      expect(result).toBe(0);
-      expect(featureFlagsService.isEnabled).not.toHaveBeenCalled();
-      expect(stripeTransactionRepository.hasCompletedPaidTransaction).not.toHaveBeenCalled();
-    });
-
-    it("returns 0 when the feature flag is disabled", async () => {
-      const { service, stripeTransactionRepository } = setup({ flagEnabled: false });
-      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent" });
 
       const result = await service.getEligibleBonusAmount(transaction, 10000);
 
@@ -35,7 +22,7 @@ describe(FirstPurchaseBonusService.name, () => {
     });
 
     it("returns 0 below the qualifying amount without querying the repository nor locking the user", async () => {
-      const { service, stripeTransactionRepository, userRepository } = setup({ flagEnabled: true });
+      const { service, stripeTransactionRepository, userRepository } = setup();
       const transaction = generateDatabaseStripeTransaction({ type: "payment_intent" });
 
       const result = await service.getEligibleBonusAmount(transaction, 9900);
@@ -46,7 +33,7 @@ describe(FirstPurchaseBonusService.name, () => {
     });
 
     it("returns 0 when the user already completed a paid purchase", async () => {
-      const { service, stripeTransactionRepository } = setup({ flagEnabled: true, hasPaidBefore: true });
+      const { service, stripeTransactionRepository } = setup({ hasPaidBefore: true });
       const transaction = generateDatabaseStripeTransaction({ type: "payment_intent" });
 
       const result = await service.getEligibleBonusAmount(transaction, 10000);
@@ -56,7 +43,7 @@ describe(FirstPurchaseBonusService.name, () => {
     });
 
     it("grants 10% of a qualifying first purchase", async () => {
-      const { service } = setup({ flagEnabled: true, hasPaidBefore: false });
+      const { service } = setup({ hasPaidBefore: false });
       const transaction = generateDatabaseStripeTransaction({ type: "payment_intent" });
 
       const result = await service.getEligibleBonusAmount(transaction, 10000);
@@ -64,17 +51,8 @@ describe(FirstPurchaseBonusService.name, () => {
       expect(result).toBe(1000);
     });
 
-    it("checks the first-purchase bonus feature flag", async () => {
-      const { service, featureFlagsService } = setup({ flagEnabled: true, hasPaidBefore: false });
-      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent" });
-
-      await service.getEligibleBonusAmount(transaction, 10000);
-
-      expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.FIRST_PURCHASE_BONUS);
-    });
-
     it("locks the user row before checking prior purchases so concurrent claims serialize", async () => {
-      const { service, stripeTransactionRepository, userRepository } = setup({ flagEnabled: true, hasPaidBefore: false });
+      const { service, stripeTransactionRepository, userRepository } = setup({ hasPaidBefore: false });
       const transaction = generateDatabaseStripeTransaction({ type: "payment_intent" });
 
       await service.getEligibleBonusAmount(transaction, 10000);
@@ -86,7 +64,7 @@ describe(FirstPurchaseBonusService.name, () => {
     });
 
     it("throws when the user row cannot be locked", async () => {
-      const { service, stripeTransactionRepository } = setup({ flagEnabled: true, userLockable: false });
+      const { service, stripeTransactionRepository } = setup({ userLockable: false });
       const transaction = generateDatabaseStripeTransaction({ type: "payment_intent" });
 
       await expect(service.getEligibleBonusAmount(transaction, 10000)).rejects.toMatchObject({ status: 500 });
@@ -137,20 +115,17 @@ describe(FirstPurchaseBonusService.name, () => {
     });
   });
 
-  function setup(input?: { flagEnabled?: boolean; hasPaidBefore?: boolean; userLockable?: boolean }) {
+  function setup(input?: { hasPaidBefore?: boolean; userLockable?: boolean }) {
     const stripeTransactionRepository = mock<StripeTransactionRepository>();
     stripeTransactionRepository.hasCompletedPaidTransaction.mockResolvedValue(input?.hasPaidBefore ?? false);
-
-    const featureFlagsService = mock<FeatureFlagsService>();
-    featureFlagsService.isEnabled.mockReturnValue(input?.flagEnabled ?? false);
 
     const analyticsService = mock<AnalyticsService>();
 
     const userRepository = mock<UserRepository>();
     userRepository.findOneByAndLock.mockResolvedValue(input?.userLockable === false ? undefined : createTestUser());
 
-    const service = new FirstPurchaseBonusService(stripeTransactionRepository, featureFlagsService, analyticsService, userRepository);
+    const service = new FirstPurchaseBonusService(stripeTransactionRepository, analyticsService, userRepository);
 
-    return { service, stripeTransactionRepository, featureFlagsService, analyticsService, userRepository };
+    return { service, stripeTransactionRepository, analyticsService, userRepository };
   }
 });

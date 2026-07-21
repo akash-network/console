@@ -6,30 +6,23 @@ import { useRouter } from "next/router";
 
 import { Loading } from "@src/components/layout/Layout";
 import { useWallet } from "@src/context/WalletProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { useReturnTo } from "@src/hooks/useReturnTo/useReturnTo";
 import { useUser } from "@src/hooks/useUser";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
-import { UrlService } from "@src/utils/urlUtils";
 
 const ONBOARDING_ROUTE = "/onboarding";
 
 type GateDecision = "loading" | "render" | "toOnboarding" | "toReturn";
 
-/** While the redesign flag is on, a not-yet-onboarded user may stay on these routes (they deploy their first app here). */
+/** A not-yet-onboarded user may stay on these routes (they deploy their first app here). */
 const ONBOARDING_ALLOWED_PREFIXES = ["/new-deployment/configure"];
 
-/** Legacy (flag-off) redirect never touches these prefixes. Mirrors the removed OnboardingRedirectEffect. */
-const WALLET_GATE_EXCLUDED_PREFIXES = ["/signup", "/onboarding", "/login", "/api/", "/user/verify-email"];
-
 export const DEPENDENCIES = {
-  useFlag,
   useUser,
   useWallet,
   useAllLeases,
   useReturnTo,
-  useRouter,
-  UrlService
+  useRouter
 };
 
 type Props = {
@@ -40,13 +33,10 @@ type Props = {
 };
 
 export function RequireOnboarding({ children, isPublic, dependencies: d = DEPENDENCIES }: Props) {
-  const isRedesignEnabled = d.useFlag("onboarding_redesign_v1");
-  return isRedesignEnabled ? (
+  return (
     <LeaseBasedGate isPublic={isPublic} dependencies={d}>
       {children}
     </LeaseBasedGate>
-  ) : (
-    <WalletBasedGate dependencies={d}>{children}</WalletBasedGate>
   );
 }
 
@@ -133,26 +123,4 @@ function decideLeaseGate(input: {
   if (!input.leasesSettled) return "loading";
   if (input.leasesErrored) return "render";
   return "toOnboarding";
-}
-
-function WalletBasedGate({ children, dependencies: d }: Required<Pick<Props, "children">> & { dependencies: typeof DEPENDENCIES }) {
-  const router = d.useRouter();
-  const { user, isLoading: isUserLoading } = d.useUser();
-  const { hasManagedWallet, isWalletConnected, isWalletLoading } = d.useWallet();
-
-  const isExcluded = WALLET_GATE_EXCLUDED_PREFIXES.some(prefix => router.pathname.startsWith(prefix));
-  const stateKnown = !isUserLoading && !isWalletLoading;
-  const needsOnboarding = !!user?.userId && !hasManagedWallet && !isWalletConnected;
-
-  const decision = isExcluded ? "render" : !stateKnown ? "loading" : needsOnboarding ? "toOnboarding" : "render";
-
-  useEffect(
-    function redirectRegisteredUserWithoutWalletToOnboarding() {
-      if (decision === "toOnboarding") router.replace(d.UrlService.onboarding({ returnTo: router.asPath }));
-    },
-    [decision, router, d.UrlService]
-  );
-
-  if (decision === "render") return <>{children}</>;
-  return <Loading text="" />;
 }

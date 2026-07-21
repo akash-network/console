@@ -5,7 +5,6 @@ import { FormattedNumber } from "react-intl";
 import { Alert, Progress } from "@akashnetwork/ui/components";
 import { GiftIcon } from "lucide-react";
 
-import { useFlag } from "@src/hooks/useFlag";
 import { usePaymentTransactionsQuery } from "@src/queries";
 
 /** Keep in sync with FirstPurchaseBonusService (apps/api). Amounts in dollars. */
@@ -16,7 +15,6 @@ export const MAX_BONUS = 100;
 const AMOUNT_FOR_MAX_BONUS = (MAX_BONUS * 100) / BONUS_PERCENT;
 
 export const DEPENDENCIES = {
-  useFlag,
   usePaymentTransactionsQuery
 };
 
@@ -32,14 +30,13 @@ interface FirstPurchaseBonusAlertProps {
  * as consumed). Coupon claims create no charge, so coupon users still see the offer.
  */
 export function FirstPurchaseBonusAlert({ amount, dependencies: d = DEPENDENCIES }: FirstPurchaseBonusAlertProps) {
-  const isEnabled = d.useFlag("first_purchase_bonus");
-  const { data, isSuccess } = d.usePaymentTransactionsQuery(undefined, { enabled: isEnabled });
+  const { data, isSuccess } = d.usePaymentTransactionsQuery();
 
   const hasPaidBefore = !!data?.transactions?.some(transaction => transaction.status === "succeeded");
 
   // Gate on isSuccess (not isFetched): a failed transactions fetch also sets isFetched, leaving `data`
   // empty and hasPaidBefore false, which would wrongly show the offer to users with unknown history.
-  if (!isEnabled || !isSuccess || hasPaidBefore) return null;
+  if (!isSuccess || hasPaidBefore) return null;
 
   const bonus = Math.min(Math.floor(amount * BONUS_PERCENT) / 100, MAX_BONUS);
   const qualifies = amount >= MIN_QUALIFYING_AMOUNT;

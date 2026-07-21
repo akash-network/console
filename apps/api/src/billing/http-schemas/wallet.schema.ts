@@ -30,14 +30,6 @@ export const WalletResponseNo3DSOutputSchema = z.object({
     .refine(data => !data.paymentMethodId, { message: "paymentMethodId must be null or undefined for 200 responses" })
 });
 
-export const WalletResponse3DSOutputSchema = z.object({
-  data: WalletWithOptional3DSSchema.strict()
-    .refine(data => data.requires3DS === true, { message: "requires3DS must be true for 202 responses" })
-    .refine(data => data.clientSecret !== null && data.clientSecret !== undefined, { message: "clientSecret is required for 202 responses" })
-    .refine(data => data.paymentIntentId !== null && data.paymentIntentId !== undefined, { message: "paymentIntentId is required for 202 responses" })
-    .refine(data => data.paymentMethodId !== null && data.paymentMethodId !== undefined, { message: "paymentMethodId is required for 202 responses" })
-});
-
 export const WalletListResponseOutputSchema = z.object({
   data: z.array(WalletWithOptional3DSSchema)
 });

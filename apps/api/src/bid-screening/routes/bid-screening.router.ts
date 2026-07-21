@@ -5,8 +5,6 @@ import { container } from "tsyringe";
 
 import { BID_SCREENING_CONFIG } from "@src/bid-screening/providers/config.provider";
 import { createRoute } from "@src/core/lib/create-route/create-route";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import type { BidScreeningResponse } from "../http-schemas/bid-screening.schema";
@@ -47,10 +45,6 @@ const postBidScreeningRoute = createRoute({
 });
 
 bidScreeningRouter.openapi(postBidScreeningRoute, async function routePostBidScreening(c) {
-  if (!container.resolve(FeatureFlagsService).isEnabled(FeatureFlags.ONBOARDING_REDESIGN_V1)) {
-    return c.json({ providers: [] }, 200);
-  }
-
   const { PROVIDER_INVENTORY_API_URL } = container.resolve(BID_SCREENING_CONFIG);
   const url = new URL("/v1/bid-screening", PROVIDER_INVENTORY_API_URL);
 

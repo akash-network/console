@@ -43,19 +43,11 @@ describe(OnboardingPickerPage.name, () => {
     expect(screen.getByText("$1 in free trial credits")).toBeInTheDocument();
   });
 
-  it("renders the first-purchase bonus offer when the first_purchase_bonus flag is on", () => {
-    const { container } = setup({ isFirstPurchaseBonusEnabled: true });
+  it("renders the first-purchase bonus offer", () => {
+    const { container } = setup({});
 
     expect(container).toHaveTextContent("up to $100 free credits, full GPU access and 30 day deployments");
     expect(container).toHaveTextContent("Plus, get 10% in bonus credits on your first purchase, up to $100.");
-  });
-
-  it("hides the first-purchase bonus offer when the first_purchase_bonus flag is off", () => {
-    const { container } = setup({ isFirstPurchaseBonusEnabled: false });
-
-    expect(container).not.toHaveTextContent("bonus credits");
-    expect(container).not.toHaveTextContent("free credits");
-    expect(container).toHaveTextContent("full GPU access and 30 day deployments");
   });
 
   it("redirects to the configure view with the hello-world auto-deploy intent when its card deploys", () => {
@@ -401,7 +393,6 @@ describe(OnboardingPickerPage.name, () => {
       searchParams?: string;
       isTrialing?: boolean;
       isHackathonsEnabled?: boolean;
-      isFirstPurchaseBonusEnabled?: boolean;
       trialCreditsAmount?: number;
       wallet?: EnsureTrialStartedResult["wallet"];
       dependencies?: Partial<typeof DEPENDENCIES>;
@@ -411,7 +402,6 @@ describe(OnboardingPickerPage.name, () => {
     const replace = input.replace ?? vi.fn();
     const isTrialing = input.isTrialing ?? true;
     const isHackathonsEnabled = input.isHackathonsEnabled ?? false;
-    const isFirstPurchaseBonusEnabled = input.isFirstPurchaseBonusEnabled ?? false;
     const trialCreditsAmount = input.trialCreditsAmount ?? 100;
     const wallet = "wallet" in input ? input.wallet : mock<ApiManagedWalletOutput>({ creditAmount: 100 });
 
@@ -426,7 +416,7 @@ describe(OnboardingPickerPage.name, () => {
       })
     );
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing });
-    const useFlag: typeof DEPENDENCIES.useFlag = flag => (flag === "first_purchase_bonus" ? isFirstPurchaseBonusEnabled : isHackathonsEnabled);
+    const useFlag: typeof DEPENDENCIES.useFlag = flag => (flag === "hackathons" ? isHackathonsEnabled : false);
     const analyticsService = mock<AnalyticsService>();
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({

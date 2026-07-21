@@ -1,11 +1,6 @@
 import { closeActiveDeployment } from "./actions/deploy";
-import { skipUnlessOnboardingRedesign } from "./actions/feature-flags";
 import { expect, test } from "./fixture/base-test";
 import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
-
-test.beforeEach(async ({ page }) => {
-  await skipUnlessOnboardingRedesign(page);
-});
 
 test.describe("Configure deployment — request quotes flow", () => {
   test.use({ userType: "existing" });

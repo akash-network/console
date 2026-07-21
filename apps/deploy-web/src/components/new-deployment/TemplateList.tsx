@@ -68,7 +68,6 @@ export const TemplateList: React.FunctionComponent<Props> = ({
   const [previewTemplates, setPreviewTemplates] = useState<TemplateOutputSummaryWithCategory[]>([]);
   const [, setSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const isBuildAndDeployEnabled = d.useFlag("ui_build_and_deploy");
-  const isRedesignEnabled = d.useFlag("onboarding_redesign_v1");
   const isAgentModeEnabled = d.useFlag("ui_agent_mode_deploy");
 
   const handleGithubTemplate = async () => {
@@ -102,29 +101,14 @@ export const TemplateList: React.FunctionComponent<Props> = ({
     reader.onload = function loadUploadedSdl(event) {
       const content = event.target?.result as string;
 
-      if (isRedesignEnabled) {
-        if (!canImportSdl(content, d.importSimpleSdl)) {
-          enqueueSnackbar(
-            <d.Snackbar title="Invalid SDL file" subTitle="This file couldn't be read as a deployment. Please upload a valid SDL." iconVariant="error" />,
-            { variant: "error" }
-          );
-          return;
-        }
-        router.push(UrlService.configureDeployment({ draftId: d.createConfigureDraft(content) }));
+      if (!canImportSdl(content, d.importSimpleSdl)) {
+        enqueueSnackbar(
+          <d.Snackbar title="Invalid SDL file" subTitle="This file couldn't be read as a deployment. Please upload a valid SDL." iconVariant="error" />,
+          { variant: "error" }
+        );
         return;
       }
-
-      onTemplateSelected({
-        title: "From file",
-        code: "from-file",
-        category: "General",
-        description: "Custom uploaded file",
-        content
-      });
-      setEditedManifest(content);
-      setSdlEditMode("yaml");
-
-      router.push(UrlService.newDeployment({ step: RouteStep.editDeployment }));
+      router.push(UrlService.configureDeployment({ draftId: d.createConfigureDraft(content) }));
     };
 
     reader.readAsText(file);

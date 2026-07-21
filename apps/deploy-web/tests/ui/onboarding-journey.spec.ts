@@ -1,7 +1,6 @@
 import type { Page } from "@playwright/test";
 
 import { closeActiveDeployment } from "./actions/deploy";
-import { skipUnlessOnboardingRedesign } from "./actions/feature-flags";
 import { expect, test } from "./fixture/base-test";
 import { testEnvConfig } from "./fixture/test-env.config";
 import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
@@ -18,10 +17,6 @@ import { OnboardingPickerPage } from "./pages/OnboardingPickerPage";
 test.describe("Onboarding journey — new user's first deployment", () => {
   test.use({ userType: "new" });
   test.setTimeout(10 * 60 * 1000);
-
-  test.beforeEach(async ({ page }) => {
-    await skipUnlessOnboardingRedesign(page);
-  });
 
   test("picks a template and the app auto-deploys it", async ({ context, page }) => {
     const picker = new OnboardingPickerPage(page);

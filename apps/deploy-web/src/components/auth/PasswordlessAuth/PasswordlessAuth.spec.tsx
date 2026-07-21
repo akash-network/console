@@ -88,14 +88,9 @@ describe(PasswordlessAuth.name, () => {
     expect(token).toBe("test-captcha-token");
   });
 
-  it("shows the $1 credit subtext when onboarding_redesign_v1 is enabled", () => {
-    setup({ isOnboardingRedesignEnabled: true });
+  it("shows the $1 credit subtext", () => {
+    setup();
     expect(screen.getByText(/\$1 credit to deploy your first container/i)).toBeInTheDocument();
-  });
-
-  it("hides the $1 credit subtext when onboarding_redesign_v1 is disabled", () => {
-    setup({ isOnboardingRedesignEnabled: false });
-    expect(screen.queryByText(/\$1 credit to deploy your first container/i)).not.toBeInTheDocument();
   });
 
   it("tracks terms_link_clk when the Terms link is clicked", async () => {
@@ -118,7 +113,6 @@ describe(PasswordlessAuth.name, () => {
     input: {
       initialEmail?: string;
       step?: string;
-      isOnboardingRedesignEnabled?: boolean;
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
@@ -145,7 +139,6 @@ describe(PasswordlessAuth.name, () => {
         hasReturnTo: false,
         isDeploymentReturnTo: false
       });
-    const useFlag: typeof DEPENDENCIES.useFlag = (() => Boolean(input.isOnboardingRedesignEnabled)) as never;
     const useRouter: typeof DEPENDENCIES.useRouter = (() => ({ push, replace, pathname: "/login" })) as never;
     const useSearchParams: typeof DEPENDENCIES.useSearchParams = (() => params) as never;
 
@@ -168,7 +161,6 @@ describe(PasswordlessAuth.name, () => {
             ...MockComponents(DEPENDENCIES),
             useUser,
             useReturnTo,
-            useFlag,
             useRouter,
             useSearchParams,
             Turnstile,

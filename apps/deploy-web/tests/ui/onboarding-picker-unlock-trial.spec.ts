@@ -1,14 +1,9 @@
-import { skipUnlessOnboardingRedesign } from "./actions/feature-flags";
 import { expect, test } from "./fixture/base-test";
 import { AddCreditsSheetPage } from "./pages/AddCreditsSheetPage";
 import { OnboardingPickerPage } from "./pages/OnboardingPickerPage";
 
 test.describe("Onboarding picker — unlocking the gated LLM template via Add Credits", () => {
   test.use({ userType: "new" });
-
-  test.beforeEach(async ({ page }) => {
-    await skipUnlessOnboardingRedesign(page);
-  });
 
   test("a fresh trialing user unlocks the LLM template by purchasing credits", async ({ page }) => {
     test.setTimeout(5 * 60 * 1000);

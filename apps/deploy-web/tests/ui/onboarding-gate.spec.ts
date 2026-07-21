@@ -1,19 +1,17 @@
 import type { Page } from "@playwright/test";
 
-import { skipUnlessOnboardingRedesign } from "./actions/feature-flags";
 import { expect, test } from "./fixture/base-test";
 import { testEnvConfig } from "./fixture/test-env.config";
 import { AppNav } from "./pages/AppNav";
 
 /**
- * Exercises the onboarding gate's routing contract with `onboarding_redesign_v1` enabled (the test env has it on):
- * a not-onboarded user is confined to the onboarding + first-deploy path, an onboarded user is kept out of
- * onboarding but free inside the app, deploy entry points route to the configure screen, and public pages are
- * never gated. The full not-onboarded→onboarded transition — including the `/deployments/{dseq}` allow-list
- * while a deployment exists but has no lease yet — is exercised as a real deploy in onboarding-journey.spec.ts.
- * The flag-off (WalletBasedGate) path and the git/redeploy link fall-through stay in the RequireOnboarding /
- * useNewDeploymentUrl / RedirectMappableBuilderToConfigure unit specs (no per-test flag toggle here; git can
- * trigger an OAuth redirect that muddies a URL assertion).
+ * Exercises the onboarding gate's routing contract: a not-onboarded user is confined to the onboarding +
+ * first-deploy path, an onboarded user is kept out of onboarding but free inside the app, deploy entry points
+ * route to the configure screen, and public pages are never gated. The full not-onboarded→onboarded transition —
+ * including the `/deployments/{dseq}` allow-list while a deployment exists but has no lease yet — is exercised as
+ * a real deploy in onboarding-journey.spec.ts. The git/redeploy link fall-through stays in the RequireOnboarding /
+ * useNewDeploymentUrl / RedirectMappableBuilderToConfigure unit specs (git can trigger an OAuth redirect that
+ * muddies a URL assertion).
  */
 
 /** A stable, always-present awesome-akash template id used to shape inbound deploy links. */
@@ -21,10 +19,6 @@ const TEMPLATE_ID = "akash-network-awesome-akash-Llama-3.1-8B";
 
 test.describe("Onboarding gate — not-onboarded user", () => {
   test.use({ userType: "new" });
-
-  test.beforeEach(async ({ page }) => {
-    await skipUnlessOnboardingRedesign(page);
-  });
 
   test("is confined to the onboarding and first-deploy path", async ({ page }) => {
     test.setTimeout(3 * 60 * 1000);
@@ -53,10 +47,6 @@ test.describe("Onboarding gate — not-onboarded user", () => {
 
 test.describe("Onboarding gate — onboarded user", () => {
   test.use({ userType: "existing" });
-
-  test.beforeEach(async ({ page }) => {
-    await skipUnlessOnboardingRedesign(page);
-  });
 
   test("faces none of the restrictions an onboarding user has", async ({ page }) => {
     test.setTimeout(3 * 60 * 1000);

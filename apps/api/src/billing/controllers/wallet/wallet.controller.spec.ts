@@ -39,28 +39,6 @@ describe("WalletController", () => {
       expect(result).toEqual({ data: { ...wallet, denom: "uakt", topUpMinAmountUsd: 100 } });
     });
 
-    it("passes a 3DS-required result through with denom attached", async () => {
-      const user = createUser();
-      const threeDsResult = {
-        id: null,
-        userId: user.id,
-        address: null,
-        creditAmount: 0,
-        isTrialing: false,
-        createdAt: null,
-        requires3DS: true,
-        clientSecret: "cs",
-        paymentIntentId: "pi",
-        paymentMethodId: "pm"
-      } as const;
-      const container = setup({ user, startTrialResult: threeDsResult });
-      const walletController = container.resolve(WalletController);
-
-      const result = await walletController.create({ data: { userId: user.id } });
-
-      expect(result).toEqual({ data: { ...threeDsResult, denom: "uakt", topUpMinAmountUsd: 20 } });
-    });
-
     it("propagates errors thrown by walletInitializer.startTrial", async () => {
       const user = createUser();
       const error = new Error("Email not verified");

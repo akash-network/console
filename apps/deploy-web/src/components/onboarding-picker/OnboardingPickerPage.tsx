@@ -55,7 +55,6 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   const [addCreditsSheetReason, setAddCreditsSheetReason] = useState<"unlock-gpu" | "skip-trial" | "hackathon-coupon" | null>(null);
   const { isWalletReady, error: trialError, wallet } = d.useEnsureTrialStarted();
   const isHackathonsEnabled = d.useFlag("hackathons");
-  const isFirstPurchaseBonusEnabled = d.useFlag("first_purchase_bonus");
   const isLlmGated = isTrialing || !isWalletReady;
   const isLlmAvailable = !isLlmGated;
   const searchParams = d.useSearchParams();
@@ -123,15 +122,9 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
               <h1 className="text-3xl leading-9 text-foreground">Let&apos;s deploy your first app</h1>
               <p className="max-w-2xl text-sm leading-5 text-muted-foreground">
                 We&apos;ve provided you with <span className="font-medium text-blue-600 dark:text-blue-400">${trialCreditsAmount} in free trial credits</span>.
-                This covers a couple of smaller deployments so you can see how easy it is. Purchase your first credits to unlock our full experience -{" "}
-                {isFirstPurchaseBonusEnabled ? `up to $${MAX_BONUS} free credits, ` : ""}full GPU access and 30 day deployments.
-                {isFirstPurchaseBonusEnabled && (
-                  <>
-                    {" "}
-                    Plus, get {BONUS_PERCENT}% in bonus credits on your first purchase, up to ${MAX_BONUS}.
-                  </>
-                )}{" "}
-                Pick a template to get a live URL in about 30 seconds.
+                This covers a couple of smaller deployments so you can see how easy it is. Purchase your first credits to unlock our full experience - up to $
+                {MAX_BONUS} free credits, full GPU access and 30 day deployments. Plus, get {BONUS_PERCENT}% in bonus credits on your first purchase, up to $
+                {MAX_BONUS}. Pick a template to get a live URL in about 30 seconds.
               </p>
             </div>
 
