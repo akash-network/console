@@ -6,7 +6,7 @@ import { bytesToHumanReadableSize } from "./files";
 
 const progressLogThrottle = 1000;
 
-export async function download(url: string, path: string) {
+export async function download(url: string, path: string): Promise<void> {
   const uri = new URL(url);
   if (!path) {
     path = basename(uri.pathname);

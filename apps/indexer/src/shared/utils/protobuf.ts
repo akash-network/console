@@ -29,7 +29,7 @@ const newAkashTypes: ReadonlyArray<[string, GeneratedType]> = [...Object.values(
   .filter(x => "$type" in x)
   .map(x => ["/" + x.$type, x as unknown as GeneratedType]);
 
-export function decodeMsg(type: string, msg: Uint8Array) {
+export function decodeMsg(type: string, msg: Uint8Array): unknown {
   const myRegistry = new Registry([...defaultRegistryTypes, ...akashTypes, ...newAkashTypes]);
 
   const msgType = myRegistry.lookupType(type);
@@ -45,7 +45,7 @@ export function decodeMsg(type: string, msg: Uint8Array) {
   return msgType.decode(msg);
 }
 
-export function uint8arrayToString(arr: Uint8Array | undefined) {
+export function uint8arrayToString(arr: Uint8Array | undefined): string {
   if (!arr) return "";
   return new TextDecoder().decode(arr);
 }

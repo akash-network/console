@@ -2,7 +2,7 @@ import { Validator } from "@akashnetwork/database/dbSchemas/base";
 import fetch from "node-fetch";
 import { Op } from "sequelize";
 
-export async function fetchValidatorKeybaseInfos() {
+export async function fetchValidatorKeybaseInfos(): Promise<void> {
   const validators = await Validator.findAll({
     where: {
       identity: { [Op.notIn]: [null, ""] }

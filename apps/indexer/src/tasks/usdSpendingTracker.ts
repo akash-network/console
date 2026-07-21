@@ -4,7 +4,7 @@ import { Op } from "sequelize";
 
 import { sequelize } from "@src/db/dbConnection";
 
-export async function updateUsdSpending() {
+export async function updateUsdSpending(): Promise<void> {
   // Check if there is a day flagged for update (akt price changed)
   let firstDayToRefresh = await Day.findOne({
     where: {

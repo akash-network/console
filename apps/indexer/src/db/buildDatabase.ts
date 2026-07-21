@@ -10,7 +10,7 @@ import { sequelize } from "./dbConnection";
 /**
  * Initiate database schema
  */
-export const initDatabase = async () => {
+export const initDatabase = async (): Promise<void> => {
   console.log(`Connecting to db (${sequelize.config.host}/${sequelize.config.database})...`);
   await sequelize.authenticate();
   console.log("Connection has been established successfully.");

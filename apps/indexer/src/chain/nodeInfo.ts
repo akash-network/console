@@ -62,7 +62,7 @@ export class NodeInfo {
     };
   }
 
-  public loadFromSavedNodeInfo(savedNodeInfo: SavedNodeInfo) {
+  public loadFromSavedNodeInfo(savedNodeInfo: SavedNodeInfo): void {
     this.status = savedNodeInfo.status === NodeStatus.OK && !Number.isFinite(savedNodeInfo.earliestBlockHeight) ? NodeStatus.UNKNOWN : savedNodeInfo.status;
     this.maxConcurrentQuery = savedNodeInfo.maxConcurrentQuery;
     this.delayBetweenRequests = savedNodeInfo.delayBetweenRequests;
@@ -152,7 +152,7 @@ export class NodeInfo {
     }
   }
 
-  public async query(path: string, height?: number) {
+  public async query(path: string, height?: number): Promise<any> {
     this.activeQueries.push(path);
 
     if (this.delayBetweenRequests && this.lastQueryDate) {

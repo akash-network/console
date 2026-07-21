@@ -37,10 +37,21 @@ function parseEventAttrs(event: { attributes: Array<{ key: string; value: string
   return attrs;
 }
 
-export const setMissingBlock = (height: number) => (missingBlock = height);
+export const setMissingBlock = (height: number): number => (missingBlock = height);
 let missingBlock: number | null = null;
 
-export async function getSyncStatus() {
+export async function getSyncStatus(): Promise<{
+  latestHeightInCache: number;
+  latestHeightInDb: number;
+  latestDateInDb: Date | null;
+  isInsertLate: boolean | null;
+  latestProcessedHeight: number;
+  latestProcessedDateInDb: Date | null;
+  isProcessingLate: boolean | null;
+  latestNotificationProcessedHeight: number;
+  latestNotificationProcessedDateInDb: Date | null;
+  isNotificationProcessingLate: boolean | null;
+}> {
   const latestHeightInCacheRequest = getLatestHeightInCache();
   const latestHeightInDbRequest = Block.max("height") as Promise<number>;
   const latestProcessedHeightRequest = Block.max("height", { where: { isProcessed: true } }) as Promise<number>;
@@ -88,7 +99,7 @@ export async function getSyncStatus() {
   };
 }
 
-export async function syncBlocks() {
+export async function syncBlocks(): Promise<void> {
   const latestAvailableHeight = await nodeAccessor.getLatestBlockHeight();
   let latestBlockToDownload = Math.min(lastBlockToSync, latestAvailableHeight);
   const latestInsertedHeight = ((await Block.max("height")) as number) || 0;
