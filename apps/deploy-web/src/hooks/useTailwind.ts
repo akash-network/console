@@ -3,8 +3,16 @@ import resolveConfig from "tailwindcss/resolveConfig";
 
 import tailwindConfig from "../../tailwind.config";
 
-export default function useTailwind() {
-  const tailwind = useMemo(() => resolveConfig(tailwindConfig), [tailwindConfig]);
+/** Semantic colors declared in the shared UI tailwind preset that Tailwind's built-in DefaultColors type does not describe. */
+type CustomThemeColors = {
+  primary: { DEFAULT: string; foreground: string; visited: string };
+};
 
-  return tailwind;
+export default function useTailwind() {
+  return useMemo(() => {
+    const resolvedConfig = resolveConfig(tailwindConfig);
+    const colors = resolvedConfig.theme.colors as typeof resolvedConfig.theme.colors & CustomThemeColors;
+
+    return { ...resolvedConfig, theme: { ...resolvedConfig.theme, colors } };
+  }, []);
 }
