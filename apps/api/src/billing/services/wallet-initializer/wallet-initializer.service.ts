@@ -1,16 +1,16 @@
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
-import { AuthService } from "@src/auth/services/auth.service";
+import type { AuthService } from "@src/auth/services/auth.service";
 import { TrialStarted } from "@src/billing/events/trial-started";
-import { UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
-import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
-import { StripeService } from "@src/billing/services/stripe/stripe.service";
-import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import type { UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
+import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
+import type { StripeService } from "@src/billing/services/stripe/stripe.service";
+import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
-import { UserOutput, UserRepository } from "@src/user/repositories";
-import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
+import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import type { UserOutput, UserRepository } from "@src/user/repositories";
+import type { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
 
 @singleton()
 export class WalletInitializerService {
