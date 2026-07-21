@@ -118,8 +118,16 @@ function handleErrorByCode(errorCode: string, originalMessage?: string): StripeE
       userAction: "Refresh the page and try again."
     },
     conflict: {
-      message: "This payment request conflicts with a previous one. Please try again.",
-      userAction: "Try the payment again."
+      message: "Your payment is still being processed.",
+      userAction: "Wait a moment, then check your balance before retrying."
+    },
+    payment_in_progress: {
+      message: "Your payment is still being processed.",
+      userAction: "Wait a moment, then check your balance before retrying."
+    },
+    idempotency_key_mismatch: {
+      message: "This payment request conflicts with a previous attempt.",
+      userAction: "Check your balance, then start a new payment."
     },
     rate_limited: {
       message: "Too many payment attempts. Please wait a moment and try again.",
@@ -181,8 +189,8 @@ function handleErrorByStatus(status: number, originalMessage?: string): StripeEr
       };
     case 409:
       return {
-        message: "This payment request conflicts with a previous one. Please try again.",
-        userAction: "Try the payment again."
+        message: "Your payment is still being processed.",
+        userAction: "Wait a moment, then check your balance before retrying."
       };
     case 404:
       return {

@@ -21,7 +21,7 @@ import {
 } from "@src/billing/http-schemas/stripe.schema";
 import type { StripeTransactionOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
-import { StripeService } from "@src/billing/services/stripe/stripe.service";
+import { StripeService, TOP_UP_IDEMPOTENCY_KEY_PREFIX } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
 import { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 @singleton()
@@ -107,7 +107,8 @@ export class StripeController {
         customer: currentUser.stripeCustomerId,
         payment_method: params.paymentMethodId,
         amount: params.amount,
-        confirm: true
+        confirm: true,
+        idempotencyKey: params.idempotencyKey ? `${TOP_UP_IDEMPOTENCY_KEY_PREFIX}${currentUser.id}_${params.idempotencyKey}` : undefined
       });
 
       // Handle 3D Secure authentication requirement

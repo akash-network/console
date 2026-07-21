@@ -4,6 +4,7 @@ import { ConstantBackoff, handleWhenResult, retry, TaskCancelledError, timeout, 
 import crypto from "crypto";
 import { stringify } from "csv-stringify";
 import assert from "http-assert";
+import createError from "http-errors";
 import difference from "lodash/difference";
 import keyBy from "lodash/keyBy";
 import orderBy from "lodash/orderBy";
@@ -12,8 +13,15 @@ import Stripe from "stripe";
 import { inject, singleton } from "tsyringe";
 
 import { PaymentIntentResult, PaymentMethodValidationResult, Transaction } from "@src/billing/http-schemas/stripe.schema";
-import { PaymentMethodRepository, StripeTransactionInput, StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
+import {
+  PaymentMethodRepository,
+  SETTLED_TRANSACTION_STATUSES,
+  StripeTransactionInput,
+  StripeTransactionOutput,
+  StripeTransactionRepository
+} from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE, PAYMENT_IN_PROGRESS_ERROR_MESSAGE } from "@src/billing/services/stripe-error/stripe-error.service";
 import { type CreateLogger, LOGGER_FACTORY, WithTransaction } from "@src/core";
 import { TimerService } from "@src/core/services/timer/timer.service";
 import type { TransactionCsvRow } from "@src/types/transactions";
@@ -32,6 +40,14 @@ interface StripePrices {
  */
 const STRIPE_CURRENCY = "usd";
 
+/**
+ * Prefix of the idempotency keys the confirm-payment controller builds from client attempt keys.
+ * The service uses it to tell strict top-up attempts (reject on amount change; the client rotates
+ * its key whenever the amount changes) from wallet auto-reload keys (tolerate a recomputed amount
+ * and charge the recorded one, since the reload job re-derives live amounts on every redelivery).
+ */
+export const TOP_UP_IDEMPOTENCY_KEY_PREFIX = "topup_";
+
 export type PaymentMethod = Stripe.PaymentMethod & { validated: boolean; isDefault: boolean };
 
 @singleton()
@@ -39,9 +55,12 @@ export class StripeService extends Stripe {
   readonly isProduction = this.billingConfig.get("STRIPE_SECRET_KEY").startsWith("sk_live");
 
   /**
-   * Statuses that should be applied later via Stripe webhooks.
+   * Statuses that should be applied later via Stripe webhooks. Both map to transaction status
+   * "succeeded", and writing that from the request path would make the webhook's
+   * `status !== "succeeded"` guard skip crediting the wallet: the customer would be charged
+   * without ever receiving credits.
    */
-  readonly #DEFERRED_STATUSES = new Set<Stripe.PaymentIntent.Status>(["succeeded"]);
+  readonly #DEFERRED_STATUSES = new Set<Stripe.PaymentIntent.Status>(["succeeded", "requires_capture"]);
   private readonly loggerService: LoggerService;
 
   constructor(
@@ -202,19 +221,189 @@ export class StripeService extends Stripe {
   }): Promise<PaymentIntentResult> {
     const amountInCents = Math.round(params.amount * 100);
 
-    const transaction = await this.stripeTransactionRepository.create({
+    if (!params.idempotencyKey) {
+      const transaction = await this.stripeTransactionRepository.create({
+        userId: params.userId,
+        type: "payment_intent",
+        status: "created",
+        amount: amountInCents,
+        currency: STRIPE_CURRENCY
+      });
+
+      return await this.#chargePaymentIntent(transaction, params);
+    }
+
+    const { transaction, isNew } = await this.stripeTransactionRepository.findOrCreateByIdempotencyKey({
       userId: params.userId,
       type: "payment_intent",
       status: "created",
       amount: amountInCents,
-      currency: STRIPE_CURRENCY
+      currency: STRIPE_CURRENCY,
+      stripeIdempotencyKey: params.idempotencyKey
     });
 
+    if (isNew) {
+      return await this.#chargePaymentIntent(transaction, params);
+    }
+
+    this.loggerService.info({
+      event: "PAYMENT_INTENT_KEY_REUSED",
+      transactionId: transaction.id,
+      status: transaction.status,
+      hasPaymentIntent: !!transaction.stripePaymentIntentId
+    });
+
+    this.#ensureReusedKeyAmountConsistency(transaction, params.idempotencyKey, amountInCents);
+
+    if (SETTLED_TRANSACTION_STATUSES.has(transaction.status)) {
+      this.loggerService.info({
+        event: "PAYMENT_INTENT_REPLAY_SHORT_CIRCUIT",
+        transactionId: transaction.id,
+        status: transaction.status
+      });
+
+      return {
+        success: true,
+        paymentIntentId: transaction.stripePaymentIntentId ?? undefined,
+        transactionId: transaction.id,
+        transactionStatus: transaction.status
+      };
+    }
+
+    if (transaction.stripePaymentIntentId) {
+      return await this.#resumeFromRecordedPaymentIntent(transaction, transaction.stripePaymentIntentId);
+    }
+
+    return await this.#chargePaymentIntent(transaction, params);
+  }
+
+  /**
+   * A row that already records a PaymentIntent must never create a second one: the live intent is
+   * retrieved and its current status drives the outcome. This keeps a replayed delivery from
+   * downgrading row state with a stale response, re-opening 3DS on a dead intent, or creating an
+   * extra charge after Stripe prunes the key (replays are only guaranteed for 24 hours).
+   */
+  async #resumeFromRecordedPaymentIntent(transaction: StripeTransactionOutput, stripePaymentIntentId: string): Promise<PaymentIntentResult> {
+    const paymentIntent = await this.paymentIntents.retrieve(stripePaymentIntentId);
+
+    switch (paymentIntent.status) {
+      case "succeeded":
+      case "requires_capture":
+      case "processing": {
+        const update: Partial<Pick<StripeTransactionInput, "status">> = {};
+
+        if (!this.#DEFERRED_STATUSES.has(paymentIntent.status)) {
+          update.status = this.mapPaymentIntentStatusToTransactionStatus(paymentIntent.status);
+        }
+
+        if (update.status) {
+          const updated = await this.stripeTransactionRepository.updateByIdUnlessSettled(transaction.id, update);
+
+          if (!updated) {
+            const settled = await this.#resultFromSettledWinner(transaction.id, paymentIntent.id);
+            if (settled) return settled;
+          }
+        }
+
+        return {
+          success: true,
+          paymentIntentId: paymentIntent.id,
+          transactionId: transaction.id,
+          transactionStatus: update.status ?? transaction.status
+        };
+      }
+
+      case "requires_action":
+      case "requires_confirmation":
+        return {
+          success: false,
+          paymentIntentId: paymentIntent.id,
+          requiresAction: true,
+          clientSecret: paymentIntent.client_secret || undefined,
+          transactionId: transaction.id,
+          transactionStatus: transaction.status
+        };
+
+      default: {
+        const message = paymentIntent.last_payment_error?.message ?? transaction.errorMessage ?? "Payment method was declined. Please try a different card.";
+
+        const updated = await this.stripeTransactionRepository.updateByIdUnlessSettled(transaction.id, {
+          status: this.mapPaymentIntentStatusToTransactionStatus(paymentIntent.status),
+          errorMessage: message
+        });
+
+        if (!updated) {
+          const settled = await this.#resultFromSettledWinner(transaction.id, paymentIntent.id);
+          if (settled) return settled;
+        }
+
+        throw createError(402, message, { errorCode: "card_declined", errorType: "payment_error" });
+      }
+    }
+  }
+
+  /**
+   * A reused key must request the amount recorded on its row so a replay can never report success
+   * for a different amount than was charged. Top-up keys reject a changed amount as a definitive
+   * mismatch (the client rotates its key whenever the amount changes, so this only means a stale or
+   * misbehaving client). Wallet-reload keys tolerate it (the reload job recomputes a live amount on
+   * every redelivery of the same job id) and the flow proceeds with the recorded amount.
+   */
+  #ensureReusedKeyAmountConsistency(transaction: StripeTransactionOutput, idempotencyKey: string, requestedAmountInCents: number): void {
+    if (transaction.amount === requestedAmountInCents) {
+      return;
+    }
+
+    const isTopUpKey = idempotencyKey.startsWith(TOP_UP_IDEMPOTENCY_KEY_PREFIX);
+
+    this.loggerService.warn({
+      event: "PAYMENT_INTENT_KEY_AMOUNT_MISMATCH",
+      transactionId: transaction.id,
+      recordedAmount: transaction.amount,
+      requestedAmount: requestedAmountInCents,
+      isTopUpKey
+    });
+
+    if (isTopUpKey) {
+      throw new Error(IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE);
+    }
+  }
+
+  /**
+   * When updateByIdUnlessSettled() suppresses a write, a webhook settled the row mid-request and its
+   * outcome is authoritative. Responding from the request's now-stale view would report a credited
+   * payment as still pending (or as a failure), so the settled row drives the response instead.
+   */
+  async #resultFromSettledWinner(transactionId: string, fallbackPaymentIntentId?: string): Promise<PaymentIntentResult | undefined> {
+    const winner = await this.stripeTransactionRepository.findById(transactionId);
+
+    if (!winner || !SETTLED_TRANSACTION_STATUSES.has(winner.status)) {
+      return undefined;
+    }
+
+    this.loggerService.info({
+      event: "PAYMENT_INTENT_SETTLED_MID_REQUEST",
+      transactionId,
+      status: winner.status
+    });
+
+    return {
+      success: true,
+      paymentIntentId: winner.stripePaymentIntentId ?? fallbackPaymentIntentId,
+      transactionId: winner.id,
+      transactionStatus: winner.status
+    };
+  }
+
+  async #chargePaymentIntent(
+    transaction: StripeTransactionOutput,
+    params: { customer: string; payment_method: string; confirm: boolean; metadata?: Record<string, string>; idempotencyKey?: string }
+  ): Promise<PaymentIntentResult> {
     const createOptions: Parameters<Stripe["paymentIntents"]["create"]> = [
       {
         customer: params.customer,
         payment_method: params.payment_method,
-        amount: amountInCents,
+        amount: transaction.amount,
         currency: STRIPE_CURRENCY,
         confirm: params.confirm,
         metadata: {
@@ -237,7 +426,12 @@ export class StripeService extends Stripe {
         update.status = this.mapPaymentIntentStatusToTransactionStatus(paymentIntent.status);
       }
 
-      await this.stripeTransactionRepository.updateById(transaction.id, update);
+      const updated = await this.stripeTransactionRepository.updateByIdUnlessSettled(transaction.id, update);
+
+      if (!updated) {
+        const settled = await this.#resultFromSettledWinner(transaction.id, paymentIntent.id);
+        if (settled) return settled;
+      }
 
       const transactionStatus = update.status ?? transaction.status;
 
@@ -247,7 +441,6 @@ export class StripeService extends Stripe {
           return { success: true, paymentIntentId: paymentIntent.id, transactionId: transaction.id, transactionStatus };
 
         case "requires_action":
-          // Card requires 3D Secure authentication
           return {
             success: false,
             paymentIntentId: paymentIntent.id,
@@ -258,26 +451,38 @@ export class StripeService extends Stripe {
           };
 
         case "requires_payment_method":
-          // Card was declined
           throw new Error("Payment method was declined. Please try a different card.");
 
         default:
           throw new Error(`Payment failed with status: ${paymentIntent.status}`);
       }
     } catch (error) {
-      // Extract payment intent ID from Stripe error if available (e.g., card declined still creates a payment intent)
+      if (error instanceof Stripe.errors.StripeError && error.code === "idempotency_key_in_use") {
+        this.loggerService.warn({ event: "PAYMENT_INTENT_KEY_IN_USE", transactionId: transaction.id });
+        throw new Error(PAYMENT_IN_PROGRESS_ERROR_MESSAGE);
+      }
+
+      if (error instanceof Stripe.errors.StripeIdempotencyError) {
+        throw error;
+      }
+
       let paymentIntentId: string | undefined;
       if (error instanceof Stripe.errors.StripeError && error.raw) {
         const rawError = error.raw as { payment_intent?: Stripe.PaymentIntent };
         paymentIntentId = rawError.payment_intent?.id;
       }
 
-      // Update transaction with error status and payment intent ID if available
-      await this.stripeTransactionRepository.updateById(transaction.id, {
+      const updated = await this.stripeTransactionRepository.updateByIdUnlessSettled(transaction.id, {
         status: "failed",
         errorMessage: error instanceof Error ? error.message : "Unknown error",
         stripePaymentIntentId: paymentIntentId
       });
+
+      if (!updated) {
+        const settled = await this.#resultFromSettledWinner(transaction.id, paymentIntentId);
+        if (settled) return settled;
+      }
+
       throw error;
     }
   }

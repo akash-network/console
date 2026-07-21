@@ -17,6 +17,7 @@ export function generateDatabaseStripeTransaction(overrides: Partial<StripeTrans
     stripeCouponId: null,
     stripePromotionCodeId: null,
     stripeInvoiceId: null,
+    stripeIdempotencyKey: null,
     paymentMethodType: null,
     cardBrand: null,
     cardLast4: null,

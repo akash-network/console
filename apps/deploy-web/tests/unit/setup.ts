@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { Blob } from "node:buffer";
+import { randomUUID } from "node:crypto";
 import { afterEach, beforeAll, vi } from "vitest";
 
 import { cleanup } from "@testing-library/react";
@@ -13,6 +14,11 @@ Object.assign(globalThis, {
     disconnect() {}
   }
 });
+
+// jsdom 20 ships crypto.getRandomValues but not crypto.randomUUID
+if (typeof globalThis.crypto.randomUUID !== "function") {
+  Object.defineProperty(globalThis.crypto, "randomUUID", { value: randomUUID, writable: true, configurable: true });
+}
 
 // Mock hasPointerCapture and scrollIntoView for jsdom compatibility with Radix UI
 Object.defineProperty(HTMLElement.prototype, "hasPointerCapture", {

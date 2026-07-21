@@ -37,8 +37,8 @@ export class HonoErrorHandlerService {
 
     if (isHttpError(error)) {
       const { name } = error.constructor;
-      const errorCode = error.data?.errorCode || this.getErrorCode(error);
-      const errorType = error.data?.errorType || this.getErrorType(error);
+      const errorCode = error.data?.errorCode || error.errorCode || this.getErrorCode(error);
+      const errorType = error.data?.errorType || error.errorType || this.getErrorType(error);
 
       return this.unsafeJson(
         c,
