@@ -96,7 +96,7 @@ async function executeCliHandler(name: string, handler: () => Promise<unknown>, 
   await context.with(trace.setSpan(context.active(), tracer.startSpan(name)), async () => {
     logger.info({ event: "COMMAND_START", name });
 
-    const { migratePG } = require("../core/providers/postgres.provider");
+    const { migratePG } = await import("../core/providers/postgres.provider.ts");
 
     try {
       await Promise.all([migratePG(), ...container.resolveAll(APP_INITIALIZER).map(initializer => initializer[ON_APP_START]())]);

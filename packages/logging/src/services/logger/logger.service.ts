@@ -1,4 +1,5 @@
 import { isHttpError } from "http-errors";
+import { createRequire } from "node:module";
 import type { DestinationStream } from "pino";
 import pino from "pino";
 
@@ -102,10 +103,11 @@ export class LoggerService implements Logger {
   private getPrettyIfPresent() {
     if (typeof window === "undefined" && LoggerService.config.STD_OUT_LOG_FORMAT === "pretty") {
       try {
+        const requireModule = createRequire(__filename);
         return {
           ok: true,
 
-          value: require("pino-pretty")({ colorize: true, sync: true })
+          value: requireModule("pino-pretty")({ colorize: true, sync: true })
         } as const;
       } catch (error) {
         return {
