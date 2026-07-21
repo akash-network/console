@@ -21,13 +21,15 @@ export type ApiTransactionResponse = {
 export type TransactionCsvRow = {
   id: string;
   date: string;
+  type: string;
   amount: string;
   bonusAmount: string;
+  amountRefunded: string;
   currency: string;
   status: string;
-  paymentMethodType: string;
   cardBrand: string;
   cardLast4: string;
   description: string;
+  invoiceId: string;
   receiptUrl: string;
 };

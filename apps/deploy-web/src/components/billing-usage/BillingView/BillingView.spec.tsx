@@ -1,8 +1,7 @@
 import React from "react";
-import type { Charge } from "@akashnetwork/http-sdk";
+import type { BillingTransaction } from "@akashnetwork/http-sdk";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
-import { mock } from "vitest-mock-extended";
 
 import type { BillingViewProps } from "./BillingView";
 import { BillingView } from "./BillingView";
@@ -27,33 +26,54 @@ describe(BillingView.name, () => {
     expect(screen.getByText(/No billing history found/i)).toBeInTheDocument();
   });
 
-  it("renders table with billing data", () => {
-    const { data } = setup();
+  it("renders table headers", () => {
+    setup();
     expect(screen.getByText("History")).toBeInTheDocument();
     expect(screen.getByText("Date")).toBeInTheDocument();
+    expect(screen.getByText("Type")).toBeInTheDocument();
+    expect(screen.getByText("Description")).toBeInTheDocument();
     expect(screen.getByText("Amount")).toBeInTheDocument();
-    expect(screen.getByText("Account source")).toBeInTheDocument();
     expect(screen.getByText("Status")).toBeInTheDocument();
     expect(screen.getByText("Receipt")).toBeInTheDocument();
+  });
 
-    expect(screen.getByText(new Date(data[0].created * 1000).toLocaleDateString())).toBeInTheDocument();
+  it("renders the type badge label for each transaction type", () => {
+    setup({
+      data: [
+        createMockTransaction({ type: "payment_intent" }),
+        createMockTransaction({ type: "coupon_claim" }),
+        createMockTransaction({ type: "manual_credit" })
+      ]
+    });
+
+    expect(screen.getByText("Card Payment")).toBeInTheDocument();
+    expect(screen.getByText("Coupon")).toBeInTheDocument();
+    expect(screen.getByText("Manual Credit")).toBeInTheDocument();
+  });
+
+  it("shows the card brand and last4 under a card payment", () => {
+    setup({ data: [createMockTransaction({ type: "payment_intent", cardBrand: "visa", cardLast4: "4242" })] });
+
+    expect(screen.getByText(/Visa/)).toBeInTheDocument();
+    expect(screen.getByText(/4242/)).toBeInTheDocument();
+  });
+
+  it("renders the description, falling back to N/A when missing", () => {
+    setup({
+      data: [createMockTransaction({ description: "Wallet top-up" }), createMockTransaction({ description: null })]
+    });
+
+    expect(screen.getByText("Wallet top-up")).toBeInTheDocument();
+    expect(screen.getByText("N/A")).toBeInTheDocument();
+  });
+
+  it("renders the transaction amount", () => {
+    const { data } = setup({ data: [createMockTransaction({ amount: 25000, status: "succeeded" })] });
     expect(screen.getByText((data[0].amount / 100).toFixed(2))).toBeInTheDocument();
-    expect(screen.getByText(new RegExp(data[0].paymentMethod.card?.last4 || ""))).toBeInTheDocument();
-    expect(screen.getByText(/Succeeded|Pending|Failed/i)).toBeInTheDocument();
   });
 
   it("shows the first-purchase bonus under the amount when present", () => {
-    const transaction = createMockTransaction({ amount: 25000, status: "succeeded" });
-    setup({
-      data: [
-        mock<Charge>({
-          ...transaction,
-          paymentMethod: transaction.payment_method,
-          receiptUrl: "https://example.com/receipt",
-          bonusAmount: 1000
-        })
-      ]
-    });
+    setup({ data: [createMockTransaction({ amount: 25000, bonusAmount: 1000 })] });
 
     expect(screen.getByText("250.00")).toBeInTheDocument();
     expect(screen.getByText("10.00")).toBeInTheDocument();
@@ -61,19 +81,35 @@ describe(BillingView.name, () => {
   });
 
   it("renders no bonus line when the transaction has no bonus", () => {
-    const transaction = createMockTransaction({ amount: 25000, status: "succeeded" });
-    setup({
-      data: [
-        mock<Charge>({
-          ...transaction,
-          paymentMethod: transaction.payment_method,
-          receiptUrl: "https://example.com/receipt",
-          bonusAmount: 0
-        })
-      ]
-    });
+    setup({ data: [createMockTransaction({ amount: 25000, bonusAmount: 0 })] });
 
     expect(screen.queryByText(/bonus/)).not.toBeInTheDocument();
+  });
+
+  it("shows the refunded amount when the transaction has a refund", () => {
+    setup({ data: [createMockTransaction({ amount: 25000, amountRefunded: 5000, status: "refunded" })] });
+
+    expect(screen.getByText("50.00")).toBeInTheDocument();
+    expect(screen.getByText(/refunded/)).toBeInTheDocument();
+    expect(screen.getByText("Refunded")).toBeInTheDocument();
+  });
+
+  it("renders no refunded line when nothing was refunded", () => {
+    setup({ data: [createMockTransaction({ amount: 25000, amountRefunded: 0 })] });
+
+    expect(screen.queryByText(/refunded/i)).not.toBeInTheDocument();
+  });
+
+  it("renders a receipt link when a receipt url is present", () => {
+    setup({ data: [createMockTransaction({ receiptUrl: "https://example.com/receipt" })] });
+    const receiptLink = screen.getAllByRole("link").find(link => link.getAttribute("target") === "_blank");
+    expect(receiptLink).toHaveAttribute("href", "https://example.com/receipt");
+  });
+
+  it("renders no receipt link when the receipt url is missing", () => {
+    setup({ data: [createMockTransaction({ receiptUrl: null })] });
+    const receiptLink = screen.queryAllByRole("link").find(link => link.getAttribute("target") === "_blank");
+    expect(receiptLink).toBeUndefined();
   });
 
   it("calls onPaginationChange when changing page size", () => {
@@ -146,13 +182,7 @@ describe(BillingView.name, () => {
   });
 
   function setup(props: Partial<React.ComponentProps<typeof BillingView>> = {}) {
-    const defaultData = createMockItems(createMockTransaction, 1).map((t: ReturnType<typeof createMockTransaction>) =>
-      mock<Charge>({
-        ...t,
-        paymentMethod: t.payment_method,
-        receiptUrl: "https://example.com/receipt"
-      })
-    );
+    const defaultData: BillingTransaction[] = createMockItems(createMockTransaction, 1);
 
     const defaultComponents: NonNullable<BillingViewProps["components"]> = {
       FormattedNumber: ({ value }) => <span>{value.toFixed(2)}</span>,

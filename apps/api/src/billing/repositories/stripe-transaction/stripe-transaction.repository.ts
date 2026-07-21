@@ -176,9 +176,19 @@ export class StripeTransactionRepository extends BaseRepository<Table, StripeTra
     return !!item;
   }
 
-  async countByUserId(userId: string): Promise<number> {
+  async countByUserId(userId: string, options?: { startDate?: Date; endDate?: Date }): Promise<number> {
+    const conditions: SQL[] = [eq(this.table.userId, userId)];
+
+    if (options?.startDate) {
+      conditions.push(gte(this.table.createdAt, options.startDate));
+    }
+
+    if (options?.endDate) {
+      conditions.push(lte(this.table.createdAt, options.endDate));
+    }
+
     const items = await this.cursor.query.StripeTransactions.findMany({
-      where: this.whereAccessibleBy(eq(this.table.userId, userId)),
+      where: this.whereAccessibleBy(and(...conditions)),
       columns: { id: true }
     });
 

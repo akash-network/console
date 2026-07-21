@@ -189,6 +189,47 @@ describe(StripeTransactionRepository.name, () => {
     });
   });
 
+  describe("findByUserId", () => {
+    it("returns the newest transactions first and honors limit and offset", async () => {
+      const { stripeTransactionRepository, createTestTransaction } = setup();
+      const oldest = await createTestTransaction({ createdAt: new Date("2024-01-01T00:00:00Z") });
+      const middle = await createTestTransaction({ createdAt: new Date("2024-02-01T00:00:00Z") });
+      const newest = await createTestTransaction({ createdAt: new Date("2024-03-01T00:00:00Z") });
+
+      const firstPage = await stripeTransactionRepository.findByUserId({ userId: newest.userId, limit: 2, offset: 0 });
+      const secondPage = await stripeTransactionRepository.findByUserId({ userId: newest.userId, limit: 2, offset: 2 });
+
+      expect(firstPage.map(transaction => transaction.id)).toEqual([newest.id, middle.id]);
+      expect(secondPage.map(transaction => transaction.id)).toEqual([oldest.id]);
+    });
+  });
+
+  describe("countByUserId", () => {
+    it("counts every transaction type for the user", async () => {
+      const { stripeTransactionRepository, createTestTransaction } = setup();
+      await createTestTransaction();
+      await createTestTransaction({ type: "coupon_claim", stripeInvoiceId: `in_${faker.string.alphanumeric(12)}` });
+      const last = await createTestTransaction({ type: "manual_credit", stripeInvoiceId: `in_${faker.string.alphanumeric(12)}` });
+
+      const count = await stripeTransactionRepository.countByUserId(last.userId);
+
+      expect(count).toBe(3);
+    });
+
+    it("counts only transactions within the date range", async () => {
+      const { stripeTransactionRepository, createTestTransaction } = setup();
+      await createTestTransaction({ createdAt: new Date("2024-01-01T00:00:00Z") });
+      const recent = await createTestTransaction({ createdAt: new Date("2024-06-01T00:00:00Z") });
+
+      const count = await stripeTransactionRepository.countByUserId(recent.userId, {
+        startDate: new Date("2024-05-01T00:00:00Z"),
+        endDate: new Date("2024-07-01T00:00:00Z")
+      });
+
+      expect(count).toBe(1);
+    });
+  });
+
   let cleanup: () => Promise<void>;
   afterEach(async () => {
     await cleanup?.();

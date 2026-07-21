@@ -205,18 +205,17 @@ export class StripeController {
   @Protected([{ action: "read", subject: "StripePayment" }])
   async getCustomerTransactions(options?: {
     limit?: number;
-    startingAfter?: string;
-    endingBefore?: string;
+    offset?: number;
     startDate?: string;
     endDate?: string;
-  }): Promise<{ data: { transactions: Transaction[]; hasMore: boolean; nextPage: string | null; prevPage: string | null } }> {
+  }): Promise<{ data: { transactions: Transaction[]; totalCount: number; hasMore: boolean } }> {
     const { currentUser } = this.authService;
 
     if (!currentUser.stripeCustomerId) {
-      return { data: { transactions: [], hasMore: false, nextPage: null, prevPage: null } };
+      return { data: { transactions: [], totalCount: 0, hasMore: false } };
     }
 
-    const response = await this.stripe.getCustomerTransactions(currentUser.stripeCustomerId, options);
+    const response = await this.stripe.getCustomerTransactions(currentUser.id, options);
     return { data: response };
   }
 
@@ -226,7 +225,7 @@ export class StripeController {
 
     assert(currentUser.stripeCustomerId, 403, "Payments are not configured. Please start with a trial first");
 
-    return this.stripe.exportTransactionsCsvStream(currentUser.stripeCustomerId, options);
+    return this.stripe.exportTransactionsCsvStream(currentUser.id, options);
   }
 
   @Protected([{ action: "create", subject: "StripePayment" }])

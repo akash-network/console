@@ -13,14 +13,9 @@ describe("QueryKeys", () => {
       expect(QueryKeys.getPaymentTransactionsKey({ limit: 50 })).toEqual(["STRIPE_TRANSACTIONS", "limit", "50"]);
     });
 
-    it("should return payment transactions key with startingAfter", () => {
-      expect(QueryKeys.getPaymentTransactionsKey({ startingAfter: "txn_123" })).toEqual(["STRIPE_TRANSACTIONS", "after", "txn_123"]);
-      expect(QueryKeys.getPaymentTransactionsKey({ startingAfter: "txn_456" })).toEqual(["STRIPE_TRANSACTIONS", "after", "txn_456"]);
-    });
-
-    it("should return payment transactions key with endingBefore", () => {
-      expect(QueryKeys.getPaymentTransactionsKey({ endingBefore: "txn_123" })).toEqual(["STRIPE_TRANSACTIONS", "before", "txn_123"]);
-      expect(QueryKeys.getPaymentTransactionsKey({ endingBefore: "txn_456" })).toEqual(["STRIPE_TRANSACTIONS", "before", "txn_456"]);
+    it("returns payment transactions key with offset", () => {
+      expect(QueryKeys.getPaymentTransactionsKey({ offset: 10 })).toEqual(["STRIPE_TRANSACTIONS", "offset", "10"]);
+      expect(QueryKeys.getPaymentTransactionsKey({ offset: 20 })).toEqual(["STRIPE_TRANSACTIONS", "offset", "20"]);
     });
 
     it("should return payment transactions key with created start_date", () => {
@@ -45,35 +40,22 @@ describe("QueryKeys", () => {
       ]);
     });
 
-    it("should return payment transactions key with multiple options", () => {
+    it("returns payment transactions key with multiple options", () => {
       const startDate = new Date(1234567890);
       const endDate = new Date(1234567900);
       expect(
         QueryKeys.getPaymentTransactionsKey({
           limit: 25,
-          startingAfter: "txn_123",
-          endingBefore: "txn_456",
+          offset: 50,
           startDate,
           endDate
         })
-      ).toEqual([
-        "STRIPE_TRANSACTIONS",
-        "limit",
-        "25",
-        "after",
-        "txn_123",
-        "before",
-        "txn_456",
-        "start_date",
-        startDate.toISOString(),
-        "end_date",
-        endDate.toISOString()
-      ]);
+      ).toEqual(["STRIPE_TRANSACTIONS", "limit", "25", "offset", "50", "start_date", startDate.toISOString(), "end_date", endDate.toISOString()]);
     });
 
-    it("should handle null values for startingAfter and endingBefore", () => {
-      expect(QueryKeys.getPaymentTransactionsKey({ startingAfter: null })).toEqual(["STRIPE_TRANSACTIONS"]);
-      expect(QueryKeys.getPaymentTransactionsKey({ endingBefore: null })).toEqual(["STRIPE_TRANSACTIONS"]);
+    it("omits offset when it is null or zero", () => {
+      expect(QueryKeys.getPaymentTransactionsKey({ offset: null })).toEqual(["STRIPE_TRANSACTIONS"]);
+      expect(QueryKeys.getPaymentTransactionsKey({ offset: 0 })).toEqual(["STRIPE_TRANSACTIONS"]);
     });
 
     it("should handle partial created options", () => {

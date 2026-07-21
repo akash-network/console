@@ -45,8 +45,7 @@ export const useDefaultPaymentMethodQuery = (
 
 export interface UsePaymentTransactionsOptions {
   limit?: number;
-  startingAfter?: string | null;
-  endingBefore?: string | null;
+  offset?: number | null;
   startDate?: Date | null;
   endDate?: Date | null;
 }
