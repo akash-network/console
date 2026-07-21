@@ -157,7 +157,7 @@ export class PodDiscoveryService {
           resourceVersion = yield* this.pollEvents(AbortSignal.timeout(this.WATCH_RETRY_INTERVAL_MS));
         } catch (pollError) {
           if (pollError instanceof AggregateError && watchErrors.length > 0) {
-            throw new AggregateError([...watchErrors, ...pollError.errors], pollError.message);
+            throw new AggregateError([...watchErrors, ...pollError.errors], pollError.message, { cause: pollError });
           }
           throw pollError;
         }
@@ -257,7 +257,7 @@ export class PodDiscoveryService {
           this.loggerService.error({ event: "POD_POLL_ERROR", error, consecutiveFailures: consecutiveErrors.length });
 
           if (consecutiveErrors.length >= this.MAX_POLL_FAILURES) {
-            throw new AggregateError(consecutiveErrors, `Pod polling failed ${consecutiveErrors.length} times consecutively`);
+            throw new AggregateError(consecutiveErrors, `Pod polling failed ${consecutiveErrors.length} times consecutively`, { cause: error });
           }
         }
 

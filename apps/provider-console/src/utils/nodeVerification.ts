@@ -41,7 +41,7 @@ export const processKeyfile = (keyfile?: string): string | null => {
     }
   } catch (error) {
     console.error("Error encoding keyfile:", error);
-    throw new Error("Failed to process keyfile. The keyfile content could not be encoded properly.");
+    throw new Error("Failed to process keyfile. The keyfile content could not be encoded properly.", { cause: error });
   }
 };
 
@@ -76,7 +76,7 @@ export const verifyControlMachine = async (access: MachineAccess): Promise<Syste
     return response.data.system_info;
   } catch (error: any) {
     console.error("Control machine verification error:", error);
-    throw new Error(error.response?.data?.detail?.error?.message || error.message || "Failed to verify server access");
+    throw new Error(error.response?.data?.detail?.error?.message || error.message || "Failed to verify server access", { cause: error });
   }
 };
 
@@ -119,6 +119,6 @@ export const verifyWorkerNode = async (controlMachine: MachineAccess, workerNode
     return response.data.system_info;
   } catch (error: any) {
     console.error("Worker node verification error:", error);
-    throw new Error(error.response?.data?.detail?.error?.message || error.message || "Failed to verify server access");
+    throw new Error(error.response?.data?.detail?.error?.message || error.message || "Failed to verify server access", { cause: error });
   }
 };
