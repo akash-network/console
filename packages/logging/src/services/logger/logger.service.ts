@@ -39,14 +39,14 @@ export const CUSTOM_LEVELS: Record<string, string> = {
 export class LoggerService implements Logger {
   static config: Config = envConfig;
 
-  static configure(config: Partial<Config>) {
+  static configure(config: Partial<Config>): void {
     this.config = {
       ...this.config,
       ...config
     };
   }
 
-  static forContext(context: string) {
+  static forContext(context: string): LoggerService {
     const logger = new LoggerService();
     logger.setContext(context);
 
@@ -116,7 +116,7 @@ export class LoggerService implements Logger {
     }
   }
 
-  setContext(context: string) {
+  setContext(context: string): void {
     this.bind({ context });
   }
 

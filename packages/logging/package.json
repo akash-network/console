@@ -29,6 +29,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@akashnetwork/dev-config": "*",
     "@types/http-errors": "^2.0.4",
     "@types/node": "^22.8.6",
     "pino-pretty": "^11.3.0",

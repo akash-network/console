@@ -18,7 +18,7 @@ export class TxHttpService extends ApiHttpService {
   ) {
     super(config);
   }
-  async signAndBroadcastTx(input: TxInput) {
+  async signAndBroadcastTx(input: TxInput): Promise<TxOutput> {
     const messages = input.messages.map(m => ({ ...m, value: Buffer.from(this.registry.encode(m)).toString("base64") }));
 
     return this.extractApiData(

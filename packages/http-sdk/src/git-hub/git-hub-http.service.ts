@@ -51,7 +51,7 @@ export class GitHubHttpService extends HttpService {
     super(config);
   }
 
-  async getProviderAttributesSchema() {
+  async getProviderAttributesSchema(): Promise<ProviderAttributesSchema> {
     return this.extractData(await this.get<ProviderAttributesSchema>(this.getFullPath("/config/provider-attributes.json")));
   }
 

@@ -21,5 +21,8 @@
     "@akashnetwork/chain-sdk": "1.0.0-alpha.39",
     "@akashnetwork/net": "*",
     "jotai": "^2.9.2"
+  },
+  "devDependencies": {
+    "@akashnetwork/dev-config": "*"
   }
 }

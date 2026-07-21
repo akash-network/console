@@ -1,3 +1,4 @@
+import type { SpanContext } from "@opentelemetry/api";
 import { context, propagation, trace } from "@opentelemetry/api";
 
 import { LoggerService } from "../../services/logger/logger.service";
@@ -8,7 +9,7 @@ import type { CreateLogger } from "../../types";
  * This mixin adds trace information to log entries
  * @deprecated Use `createOtelLogger` instead of setting `LoggerService.mixin` directly
  */
-export function collectOtel() {
+export function collectOtel(): Partial<SpanContext> & { jobId?: string; userId?: string } {
   const currentSpan = trace.getSpan(context.active());
   const spanContext = currentSpan?.spanContext();
   const currentBaggage = propagation.getBaggage(context.active());

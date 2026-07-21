@@ -1,3 +1,4 @@
+import type { SetStateAction } from "jotai";
 import { atom } from "jotai";
 import { getDefaultStore, useAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
@@ -18,7 +19,7 @@ interface NetworksStore {
 }
 
 export class NetworkStore {
-  static create(options: NetworkStoreOptions) {
+  static create(options: NetworkStoreOptions): NetworkStore {
     return new NetworkStore(options);
   }
 
@@ -45,11 +46,11 @@ export class NetworkStore {
 
   private readonly store: ReturnType<typeof getDefaultStore>;
 
-  get networks() {
+  get networks(): Network[] {
     return this.store.get(this.networksStore).data;
   }
 
-  get selectedNetwork() {
+  get selectedNetwork(): Network {
     return this.store.get(this.selectedNetworkStore);
   }
 
@@ -57,23 +58,23 @@ export class NetworkStore {
     return this.store.get(this.selectedNetworkIdStore) as Network["id"];
   }
 
-  get deploymentVersion() {
+  get deploymentVersion(): Network["deploymentVersion"] {
     return this.selectedNetwork.deploymentVersion;
   }
 
-  get marketVersion() {
+  get marketVersion(): Network["marketVersion"] {
     return this.selectedNetwork.marketVersion;
   }
 
-  get escrowVersion() {
+  get escrowVersion(): Network["escrowVersion"] {
     return this.selectedNetwork.escrowVersion;
   }
 
-  get certVersion() {
+  get certVersion(): Network["certVersion"] {
     return this.selectedNetwork.certVersion;
   }
 
-  get providerVersion() {
+  get providerVersion(): Network["providerVersion"] {
     return this.selectedNetwork.providerVersion;
   }
 
@@ -98,19 +99,19 @@ export class NetworkStore {
     }
   }
 
-  useNetworksStore() {
+  useNetworksStore(): [NetworksStore, (update: SetStateAction<NetworksStore>) => void] {
     return useAtom(this.networksStore);
   }
 
-  useNetworks() {
+  useNetworks(): Network[] {
     return this.useNetworksStore()[0].data;
   }
 
-  useSelectedNetworkStore() {
+  useSelectedNetworkStore(): [Network, (network: Network) => void] {
     return useAtom(this.selectedNetworkStore);
   }
 
-  useSelectedNetwork() {
+  useSelectedNetwork(): Network {
     return this.useSelectedNetworkStore()[0];
   }
 
@@ -131,7 +132,7 @@ export class NetworkStore {
     }
   }
 
-  useSelectedNetworkId() {
+  useSelectedNetworkId(): Network["id"] {
     return this.useSelectedNetworkIdStore()[0];
   }
 }
