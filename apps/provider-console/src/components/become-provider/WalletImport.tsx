@@ -52,6 +52,7 @@ interface WalletImportProps {
   onComplete: () => void;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const appearanceFormSchema = z.object({
   walletMode: z.enum(["seed", "manual"], {
     required_error: "Please select a mode."

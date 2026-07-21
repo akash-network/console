@@ -1,8 +1,8 @@
 "use client";
 
 import type { FC, ReactNode } from "react";
-import { useEffect } from "react";
 import React from "react";
+import { useEffect } from "react";
 import { useCallback, useState } from "react";
 import type { components } from "@akashnetwork/console-api-types/notifications";
 import { extractApiErrorMessage } from "@akashnetwork/openapi-sdk";

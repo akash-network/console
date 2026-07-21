@@ -1,5 +1,5 @@
-import type { AxiosInstance } from "axios";
 import type axios from "axios";
+import type { AxiosInstance } from "axios";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import type { GitLabCommit } from "@src/types/remoteCommits";

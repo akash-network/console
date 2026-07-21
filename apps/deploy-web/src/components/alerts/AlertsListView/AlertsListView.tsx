@@ -1,6 +1,6 @@
 import type { FC } from "react";
-import { useCallback } from "react";
 import React from "react";
+import { useCallback } from "react";
 import type { components } from "@akashnetwork/console-api-types/notifications";
 import { Checkbox, CustomPagination, MIN_PAGE_SIZE, Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import type { CellContext } from "@tanstack/react-table";

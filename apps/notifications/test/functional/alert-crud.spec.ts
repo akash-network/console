@@ -1,7 +1,9 @@
 import { generateMock } from "@anatine/zod-mock";
 import { faker } from "@faker-js/faker";
-import { INestApplication, Module } from "@nestjs/common";
-import { Test, TestingModule } from "@nestjs/testing";
+import type { INestApplication } from "@nestjs/common";
+import { Module } from "@nestjs/common";
+import type { TestingModule } from "@nestjs/testing";
+import { Test } from "@nestjs/testing";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
@@ -13,7 +15,8 @@ import { chainMessageCreateInputSchema } from "@src/interfaces/rest/http-schemas
 import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-result/http-result.interceptor";
 import RestModule from "@src/interfaces/rest/rest.module";
 import * as alertSchema from "@src/modules/alert/model-schemas";
-import { AlertOutput, AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
+import type { AlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
+import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 
 import { generateNotificationChannel } from "@test/seeders/notification-channel.seeder";
@@ -125,6 +128,7 @@ describe("Alerts CRUD", () => {
     await app.init();
 
     const userId = faker.string.uuid();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const schema = {
       ...alertSchema,
       NotificationChannel

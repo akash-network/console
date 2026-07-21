@@ -1,6 +1,6 @@
 import type { components } from "@octokit/openapi-types";
-import type { AxiosInstance } from "axios";
 import type axios from "axios";
+import type { AxiosInstance } from "axios";
 
 import type { GitCommit } from "@src/types/remoteCommits";
 import type { GithubRepository } from "@src/types/remotedeploy";
