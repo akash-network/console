@@ -48,14 +48,7 @@ export function WalletStatus({ dependencies: d = DEPENDENCIES }: Props = {}) {
                     {walletBalance && isTrialing && <div className="text-muted-foreground">|</div>}
 
                     <div className="text-xs">
-                      {walletBalance && (
-                        <d.FormattedNumber
-                          value={walletBalance.totalDeploymentGrantsUSD}
-                          // eslint-disable-next-line react/style-prop-object
-                          style="currency"
-                          currency="USD"
-                        />
-                      )}
+                      {walletBalance && <d.FormattedNumber value={walletBalance.totalDeploymentGrantsUSD} style="currency" currency="USD" />}
                     </div>
 
                     <div>

@@ -175,12 +175,7 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
           {props.variant === "prompt" ? (
             <div>
               <Label>{props.message}</Label>
-              <Input
-                value={promptInput}
-                // eslint-disable-next-line no-void
-                onChange={_ => void setPromptInput(_.target.value)}
-                className="w-full"
-              />
+              <Input value={promptInput} onChange={_ => void setPromptInput(_.target.value)} className="w-full" />
             </div>
           ) : (
             props.children

@@ -5,7 +5,7 @@ import { Block } from "../base";
 import { Required } from "../decorators/requiredDecorator";
 import { Deployment } from "./deployment"; // eslint-disable-line import-x/no-cycle
 import { DeploymentGroup } from "./deploymentGroup"; // eslint-disable-line import-x/no-cycle
-import { Provider } from "./provider"; // eslint-disable-line import-x/no-cycle
+import { Provider } from "./provider";
 
 /**
  * Lease model for Akash

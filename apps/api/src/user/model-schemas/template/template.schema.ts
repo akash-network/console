@@ -1,7 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import { bigint, boolean, index, pgTable, text, uuid, varchar } from "drizzle-orm/pg-core";
 
-import { Users } from "@src/user/model-schemas/user/user.schema"; // eslint-disable-line import-x/no-cycle
+import { Users } from "@src/user/model-schemas/user/user.schema";
 
 export const Templates = pgTable(
   "template",

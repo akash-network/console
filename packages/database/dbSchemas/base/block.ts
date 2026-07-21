@@ -5,7 +5,7 @@ import { Required } from "../decorators/requiredDecorator";
 import { Day } from "./day"; // eslint-disable-line import-x/no-cycle
 import { Message } from "./message"; // eslint-disable-line import-x/no-cycle
 import { Transaction } from "./transaction"; // eslint-disable-line import-x/no-cycle
-import { Validator } from "./validator"; // eslint-disable-line import-x/no-cycle
+import { Validator } from "./validator";
 
 export const tableConfig = {
   modelName: "block",
