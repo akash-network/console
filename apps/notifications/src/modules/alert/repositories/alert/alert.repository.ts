@@ -319,7 +319,6 @@ export class AlertRepository {
       const batch = await cursor;
 
       if (batch.length === 0) {
-        hasMore = false;
         break;
       }
 

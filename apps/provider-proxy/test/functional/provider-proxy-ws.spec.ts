@@ -170,7 +170,8 @@ describe("Provider proxy ws", () => {
     const proxyServerUrl = await startServer({ REST_API_NODE_URL: chainServer.url });
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
-    await new Promise(resolve => ws.once("open", resolve)), ws.send(JSON.stringify(ourMessage("please_close", providerUrl, { providerAddress })));
+    await new Promise(resolve => ws.once("open", resolve));
+    ws.send(JSON.stringify(ourMessage("please_close", providerUrl, { providerAddress })));
     expect(await waitForMessage(ws)).toEqual(
       providerMessage("", {
         closed: true,

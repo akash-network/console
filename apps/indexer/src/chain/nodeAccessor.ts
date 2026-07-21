@@ -25,9 +25,16 @@ class NodeAccessor {
     console.log("Saving node status...");
     const statuses = this.nodes.map(x => x.getSavedNodeInfo());
 
-    await fs.promises.writeFile(savedNodeInfoPath, JSON.stringify(statuses, (k, value) => {
-      return typeof value === "number" && Number.isNaN(value) ? null : value;
-    }, 2));
+    await fs.promises.writeFile(
+      savedNodeInfoPath,
+      JSON.stringify(
+        statuses,
+        (k, value) => {
+          return typeof value === "number" && Number.isNaN(value) ? null : value;
+        },
+        2
+      )
+    );
   }
 
   private async refetchNodeStatus() {
@@ -93,7 +100,7 @@ class NodeAccessor {
   }
 
   public async waitForAvailableNode(height?: number): Promise<NodeInfo> {
-    let node: NodeInfo | null = null;
+    let node: NodeInfo | null;
     do {
       node = this.getAvailableNode(height);
       if (node) return node;

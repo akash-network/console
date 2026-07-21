@@ -210,7 +210,7 @@ describe(defineServerSideProps, () => {
   it("handles if condition that returns undefined and null", async () => {
     const mockHandler = vi.fn().mockResolvedValue({ props: { handled: true } });
 
-    let result = await setup({
+    const result = await setup({
       route: "/test",
       if: vi.fn().mockReturnValue(undefined),
       handler: mockHandler
@@ -219,7 +219,7 @@ describe(defineServerSideProps, () => {
     expect(mockHandler).toHaveBeenCalled();
     expect(result).toEqual({ props: { handled: true } });
 
-    result = await setup({
+    await setup({
       route: "/test",
       if: vi.fn().mockReturnValue(null),
       handler: mockHandler

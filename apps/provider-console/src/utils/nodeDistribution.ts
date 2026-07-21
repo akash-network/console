@@ -9,7 +9,7 @@
  */
 export const calculateNodeDistribution = (totalNewNodes: number, existingControlPlane: number = 0, existingWorkers: number = 0) => {
   const totalNodes = totalNewNodes + existingControlPlane + existingWorkers;
-  let targetControlPlane = 0;
+  let targetControlPlane: number;
 
   // Calculate target number of control plane nodes for the entire cluster
   // Following Kubernetes best practices:

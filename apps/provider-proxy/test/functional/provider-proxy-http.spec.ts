@@ -97,7 +97,7 @@ describe("Provider HTTP proxy", () => {
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
     await startServer({ REST_API_NODE_URL: chainServer.url });
 
-    let response = await request("/", {
+    await request("/", {
       method: "POST",
       body: JSON.stringify({
         method: "GET",
@@ -107,7 +107,7 @@ describe("Provider HTTP proxy", () => {
     });
     await chainServer.close();
 
-    response = await request("/", {
+    const response = await request("/", {
       method: "POST",
       body: JSON.stringify({
         method: "GET",
