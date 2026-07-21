@@ -33,4 +33,4 @@ export const TYPE_REGISTRY: InjectionToken<Registry> = Symbol("TYPE_REGISTRY");
 export type { Registry };
 
 container.register(TYPE_REGISTRY, { useValue: registry });
-export const InjectTypeRegistry = () => inject(TYPE_REGISTRY);
+export const InjectTypeRegistry = (): ReturnType<typeof inject> => inject(TYPE_REGISTRY);

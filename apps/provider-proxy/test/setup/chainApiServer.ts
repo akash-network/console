@@ -67,6 +67,6 @@ export interface ChainApiOptions {
 }
 
 let index = 0;
-export function generateBech32() {
+export function generateBech32(): string {
   return toBech32("akash", Buffer.from(`test${++index}`, "utf8"));
 }

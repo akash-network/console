@@ -1,7 +1,9 @@
 import { createChainNodeWebSDK } from "@akashnetwork/chain-sdk/web";
+import type { LoggerService } from "@akashnetwork/logging";
 import { HttpLoggerInterceptor } from "@akashnetwork/logging/hono";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 
+import type { AppConfig } from "./config/env.config";
 import { appConfigSchema } from "./config/env.config";
 import { CertificateValidator, createCertificateValidatorInstrumentation } from "./services/CertificateValidator/CertificateValidator";
 import { ProviderProxy } from "./services/ProviderProxy";
@@ -9,7 +11,19 @@ import { ProviderService } from "./services/ProviderService/ProviderService";
 import { WebsocketStats } from "./services/WebsocketStats";
 import { createForbidPrivateNetworkLookup } from "./utils/createForbidPrivateNetworkLookup/createForbidPrivateNetworkLookup";
 
-export function createContainer(untrustedConfig: Record<string, unknown>) {
+export interface Container {
+  wsStats: WebsocketStats;
+  providerProxy: ProviderProxy;
+  certificateValidator: CertificateValidator;
+  httpLogger: LoggerService | undefined;
+  httpLoggerInterceptor: HttpLoggerInterceptor;
+  wsLogger: LoggerService | undefined;
+  appLogger: LoggerService | undefined;
+  providerService: ProviderService;
+  appConfig: AppConfig;
+}
+
+export function createContainer(untrustedConfig: Record<string, unknown>): Container {
   const appConfig = appConfigSchema.parse(untrustedConfig);
   const isLoggingDisabled = process.env.NODE_ENV === "test";
 
@@ -48,5 +62,3 @@ export function createContainer(untrustedConfig: Record<string, unknown>) {
     appConfig
   };
 }
-
-export type Container = ReturnType<typeof createContainer>;

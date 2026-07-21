@@ -1,4 +1,5 @@
 import type { EncodeObject } from "@cosmjs/proto-signing";
+import type { IndexedTx } from "@cosmjs/stargate";
 import { container, inject, type InjectionToken, instancePerContainerCachingFactory, singleton } from "tsyringe";
 
 import type { SignAndBroadcastOptions } from "@src/lib/signing-client/signing-client.service";
@@ -81,22 +82,22 @@ export class TxManagerService {
     return resources;
   }
 
-  async signAndBroadcastWithFundingWallet(messages: readonly EncodeObject[]) {
+  async signAndBroadcastWithFundingWallet(messages: readonly EncodeObject[]): Promise<IndexedTx> {
     const { masterSigningClient } = this.#getWalletResources();
     return await masterSigningClient.signAndBroadcast(messages);
   }
 
-  async getFundingWalletAddress() {
+  async getFundingWalletAddress(): Promise<string> {
     const { masterWallet } = this.#getWalletResources();
     return await masterWallet.getFirstAddress();
   }
 
-  async signAndBroadcastWithDerivedWallet(derivationIndex: number, messages: readonly EncodeObject[], options?: SignAndBroadcastOptions) {
+  async signAndBroadcastWithDerivedWallet(derivationIndex: number, messages: readonly EncodeObject[], options?: SignAndBroadcastOptions): Promise<IndexedTx> {
     const client = this.#getClient(derivationIndex);
     return await client.signAndBroadcast(messages, options);
   }
 
-  async getDerivedWalletAddress(index: number) {
+  async getDerivedWalletAddress(index: number): Promise<string> {
     return await this.getDerivedWallet(index).getFirstAddress();
   }
 
@@ -111,7 +112,7 @@ export class TxManagerService {
     return this.#clientsByDerivationIndex.get(derivationIndex)!;
   }
 
-  getDerivedWallet(index: number) {
+  getDerivedWallet(index: number): Wallet {
     const { derivedWalletFactory } = this.#getWalletResources();
     return derivedWalletFactory(index);
   }

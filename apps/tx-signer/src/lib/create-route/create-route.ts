@@ -5,6 +5,6 @@ export function createRoute<
   R extends Omit<RouteConfig, "security"> & {
     security?: Required<RouteConfig>["security"];
   }
->(routeConfig: R) {
+>(routeConfig: R): Omit<R, "security"> & { getRoutingPath(): string } {
   return createOpenApiRoute(routeConfig as Omit<R, "security">);
 }

@@ -24,7 +24,7 @@ import { LoggerService } from "@src/services/logger/logger.service";
  * @param c - The dependency injection container to use. Defaults to the global container.
  * @returns Promise that resolves when the application has started successfully
  */
-export const bootstrap = async (c = container) => {
+export const bootstrap = async (c = container): Promise<void> => {
   const loggerService = c.resolve(LoggerService);
   loggerService.setContext("INIT");
   const nodeProcess = c.resolve<NodeJS.Process>(PROCESS);
