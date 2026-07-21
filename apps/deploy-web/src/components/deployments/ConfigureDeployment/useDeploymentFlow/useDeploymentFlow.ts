@@ -10,7 +10,9 @@ import { QueryKeys } from "@src/queries/queryKeys";
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
 import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
 import { ManifestYaml } from "@src/utils/deploymentData/helpers";
+import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { UrlService } from "@src/utils/urlUtils";
+import { aggregateDeploymentResources } from "../DeploymentResourceSummary/deploymentResources";
 import { useCreateDeployment } from "../useCreateDeployment/useCreateDeployment";
 import type { BidStrategy, DeploymentIntent } from "./deploymentIntent";
 
@@ -71,48 +73,22 @@ const DEFAULT_DEPOSIT = 0.5;
 const DEPLOY_SUCCESS_DWELL_MS = 1200;
 
 /**
- * How long to wait for a *first* bid before giving up on a freshly quoted deployment. Some specs never draw a
- * single bid (niche resources, tight region filters, or a quiet marketplace); rather than leave the user staring
- * at "Requesting…" for the full ~5-minute bid window that only makes sense once bids exist, fail fast when none
- * arrive at all. Reset the instant any open bid lands — from then on the normal quote-expiry window governs.
+ * Wait this long for a first bid before failing fast — some specs never draw one (niche resources, tight filters, a
+ * quiet marketplace), and the full ~5-minute quote window only makes sense once bids exist. Resets when any bid lands.
  */
 const NO_BIDS_TIMEOUT_MS = 60 * 1000;
 
 /** Error surfaced when a deployment draws no provider bids at all within {@link NO_BIDS_TIMEOUT_MS}. */
 const NO_PROVIDERS_MESSAGE = "No providers are available for this deployment right now. Try adjusting your deployment and requesting quotes again.";
 
-function useCloseDeployment() {
-  return useServices().api.v1.closeDeployment.useMutation();
-}
-
-function useCreateLease() {
-  return useServices().api.v1.createLease.useMutation();
-}
-
-function useUpdateDeployment() {
-  return useServices().api.v1.updateDeployment.useMutation();
-}
-
-function useDeploymentLocalStorage() {
-  return useServices().deploymentLocalStorage;
-}
-
-/** The wallet address that keys deployment-local storage (WalletProvider sets it to the wallet address); same key the detail page reads. */
-function useSettingsId() {
-  return useAtomValue(settingsIdAtom);
-}
-
 export const DEPENDENCIES = {
+  useServices,
   useCreateDeployment,
-  useCloseDeployment,
-  useCreateLease,
-  useUpdateDeployment,
   useListBids,
   useRouter,
   useQueryClient,
-  useDeploymentLocalStorage,
-  useSettingsId,
-  manifestFromSdl
+  manifestFromSdl,
+  deploymentResourcesFromSdl
 };
 
 /**
@@ -125,14 +101,14 @@ export function useDeploymentFlow(
   { intent, isWalletReady = true, trialError }: UseDeploymentFlowInput,
   dependencies: typeof DEPENDENCIES = DEPENDENCIES
 ): DeploymentFlow {
+  const { api, deploymentLocalStorage, analyticsService } = dependencies.useServices();
   const router = dependencies.useRouter();
   const createDeployment = dependencies.useCreateDeployment({ isWalletReady, trialError });
-  const closeDeployment = dependencies.useCloseDeployment();
-  const createLease = dependencies.useCreateLease();
-  const updateDeployment = dependencies.useUpdateDeployment();
+  const closeDeployment = api.v1.closeDeployment.useMutation();
+  const createLease = api.v1.createLease.useMutation();
+  const updateDeployment = api.v1.updateDeployment.useMutation();
   const queryClient = dependencies.useQueryClient();
-  const deploymentLocalStorage = dependencies.useDeploymentLocalStorage();
-  const settingsId = dependencies.useSettingsId();
+  const settingsId = useAtomValue(settingsIdAtom);
 
   const [phase, setPhase] = useState<DeploymentFlowPhase>(intent.dseq ? "quoting" : "configuring");
   const [dseq, setDseq] = useState<string | null>(intent.dseq ?? null);
@@ -146,16 +122,11 @@ export function useDeploymentFlow(
   const intentRef = useRef(intent);
   intentRef.current = intent;
 
-  // Always-current bid strategy for the async create-success callback below. The auto autopilot fires the create as
-  // "auto", but the user can switch to "select" ("Choose my provider") while it's still in flight; reading the ref
-  // keeps the create-success URL on whatever strategy is current, so a late create doesn't bounce the user back to the
-  // auto page after they've moved to the manual one.
+  /** Read in the async create-success callback so a create resolving after a strategy switch uses the current value. */
   const bidStrategyRef = useRef(bidStrategy);
   bidStrategyRef.current = bidStrategy;
 
-  // Latest `cancelAndEdit` for the no-providers timeout to call. It closes over `dseq`/`bidStrategy` and the per-render
-  // close mutation, so it can't be a stable effect dependency — a ref lets the timeout reach the current one without
-  // re-arming (and thus resetting) the timer on every render, which would keep it from ever firing.
+  /** Held in a ref so the no-providers timeout calls the latest `cancelAndEdit` without re-arming the timer each render. */
   const cancelAndEditRef = useRef<() => void>();
 
   const bidsQuery = dependencies.useListBids(dseq, { enabled: phase === "quoting", refetchInterval: BID_POLL_INTERVAL });
@@ -182,30 +153,41 @@ export function useDeploymentFlow(
 
   const hasOpenBids = (bidsQuery.data?.data ?? []).some(entry => entry.bid.state === "open");
 
-  // Latches true once this deployment has drawn any open bid. Makes the no-providers timeout one-shot: after providers
-  // have bid, their later disappearance (e.g. quotes expiring) must not re-arm it — that's the quote-expiry path, not a
-  // "no providers" failure. Reset per deployment when a fresh quote request starts (see `requestQuotes`).
+  /** One-shot latch: once any bid appears the no-providers timeout must not re-arm — a later empty list is quote-expiry, not "no providers". */
   const providersEverBidRef = useRef(false);
+
+  const bidsReceivedTrackedRef = useRef(false);
+
+  useEffect(
+    function trackFirstBidsReceived() {
+      const currentBids = bidsQuery.data?.data;
+      if (!currentBids || currentBids.length === 0 || bidsReceivedTrackedRef.current) return;
+      bidsReceivedTrackedRef.current = true;
+      analyticsService.track("bids_received", { category: "deployments", numberOfBids: currentBids.length, dseq });
+    },
+    [bidsQuery.data, dseq, analyticsService]
+  );
 
   useEffect(
     function failWhenNoProvidersBid() {
       if (hasOpenBids) providersEverBidRef.current = true;
-      // Arm only while quoting with nothing shown and no bid ever seen; once a bid has appeared it never re-arms.
       if (phase !== "quoting" || providersEverBidRef.current) return;
-      const timer = setTimeout(function timeOutWithoutProviders() {
-        // Only the auto-deploy experience autopilots over this shared flow. That autopilot re-fires a create whenever
-        // the flow lands back in `configuring` and reads its error scene off `phase === "error"` (not `error`), so there
-        // we must halt in `error` — its "Try again"/"Choose my provider" drive the next step. The manual flow has no
-        // autopilot: close the now-dangling deployment and drop back to editing. Either way set the message last so it
-        // survives `cancelAndEdit`'s own `setError(undefined)` (same batch, last write wins) and the error toast fires.
-        if (intentRef.current.sdlStrategy === "default" && bidStrategyRef.current === "auto") {
+      const timer = setTimeout(
+        /**
+         * The auto flow autopilots over this shared flow and reads its error scene off `phase === "error"`, so it must
+         * halt there; the manual flow has no autopilot, so close the dangling deployment and drop back to editing.
+         */
+        function timeOutWithoutProviders() {
+          if (intentRef.current.sdlStrategy === "default" && bidStrategyRef.current === "auto") {
+            setError({ message: NO_PROVIDERS_MESSAGE });
+            setPhase("error");
+            return;
+          }
+          cancelAndEditRef.current?.();
           setError({ message: NO_PROVIDERS_MESSAGE });
-          setPhase("error");
-          return;
-        }
-        cancelAndEditRef.current?.();
-        setError({ message: NO_PROVIDERS_MESSAGE });
-      }, NO_BIDS_TIMEOUT_MS);
+        },
+        NO_BIDS_TIMEOUT_MS
+      );
       return function cancelNoProvidersTimeout() {
         clearTimeout(timer);
       };
@@ -213,10 +195,14 @@ export function useDeploymentFlow(
     [phase, hasOpenBids]
   );
 
+  /**
+   * Caches the SDL under the settings id + dseq at create time (the create response omits `owner`) so an in-progress
+   * deployment can resume into the flow after a reload — the same key the detail page reads.
+   */
   const requestQuotes = useCallback(
     function requestQuotes(sdl: string) {
-      // A fresh deployment reopens the no-providers window: re-arm the one-shot timeout for the new quoting session.
       providersEverBidRef.current = false;
+      bidsReceivedTrackedRef.current = false;
       setPhase("creating");
       setError(undefined);
       createDeployment.mutate(
@@ -229,9 +215,7 @@ export function useDeploymentFlow(
             setDeployError(undefined);
             setDeploySucceeded(false);
             setPhase("quoting");
-            // Cache the SDL under the wallet + dseq key the detail page reads, at create time, so an in-progress
-            // deployment (on-chain, no lease yet) can be resumed into the configure flow after a reload, when the
-            // captured SDL is otherwise gone. The create response omits `owner`, so key off the settings id.
+            analyticsService.track("create_deployment", { category: "deployments", label: "Create deployment in wizard", dseq: result.data.dseq });
             cacheDeployedSdl(deploymentLocalStorage, settingsId, result.data.dseq, sdl);
             router.replace(buildConfigureUrl(intentRef.current, result.data.dseq, bidStrategyRef.current), undefined, { shallow: true });
           },
@@ -242,13 +226,12 @@ export function useDeploymentFlow(
         }
       );
     },
-    [createDeployment, router, deploymentLocalStorage, settingsId]
+    [createDeployment, router, deploymentLocalStorage, settingsId, analyticsService]
   );
 
+  /** Drops the dseq from the URL immediately, not on close-success, so a returning user never sees the abandoned deployment while the close is in flight. */
   const cancelAndEdit = useCallback(
     function cancelAndEdit() {
-      // Drop the dseq from the URL immediately — not on close-success — so returning to editing (and the auto flow's
-      // "Try again") never leaves the abandoned deployment in the address bar while the close request is in flight.
       router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategy), undefined, { shallow: true });
       if (!dseq) {
         setPhase("configuring");
@@ -298,10 +281,14 @@ export function useDeploymentFlow(
     [dseq]
   );
 
-  const selectProvider = useCallback(function selectProvider(placementId: string, bidId: string) {
-    setDeployError(undefined);
-    setSelections(previous => ({ ...previous, [placementId]: bidId }));
-  }, []);
+  const selectProvider = useCallback(
+    function selectProvider(placementId: string, bidId: string) {
+      setDeployError(undefined);
+      setSelections(previous => ({ ...previous, [placementId]: bidId }));
+      analyticsService.track("bid_selected", "Amplitude");
+    },
+    [analyticsService]
+  );
 
   const clearSelection = useCallback(function clearSelection(placementId: string) {
     setSelections(function omitPlacement(previous) {
@@ -312,18 +299,8 @@ export function useDeploymentFlow(
   }, []);
 
   /**
-   * Deploys the current selections. The manifest is always derived from the SDL being deployed, so a
-   * quoting-window edit is what gets leased — never a stale create-time manifest. When that manifest differs
-   * from the one captured at create — or none was captured, e.g. a reload that resumed straight into
-   * `quoting` — the deployment is updated first (MsgUpdateDeployment) so the on-chain manifest hash matches
-   * before the provider is sent the manifest at lease time; an unchanged manifest goes straight to the lease.
-   * On success it persists the SDL under the deployment's dseq keyed by the owner the response carries (so it
-   * needs no wallet) — the same key the detail page reads — then replaces the configure entry with the
-   * deployment's events tab (matching the legacy builder), so Back lands on the new-deployment page rather than
-   * the just-deployed config.
-   * On any failure it drops back to `quoting` (unmounting the overlay) and sets `deployError` to drive the
-   * error toast and the header's Retry CTA; retry re-fires with the current selections. Provider re-selection
-   * after a lease exists is out of scope here.
+   * The manifest is derived from the SDL being deployed (not the create-time one) so a quoting-window edit gets leased;
+   * when it differs from create the deployment is updated first so the on-chain hash matches before the manifest is sent.
    */
   const deploy = useCallback(
     function deploy(sdl: string) {
@@ -333,15 +310,22 @@ export function useDeploymentFlow(
       if (leases.length === 0) return;
       const activeDseq = dseq;
       const activeManifest = nextManifest;
+      const resources = dependencies.deploymentResourcesFromSdl(sdl);
       setDeployError(undefined);
       setDeploySucceeded(false);
       setPhase("deploying");
+      /**
+       * The onboarding gate reads "onboarded" off the leases cache, empty until this first deploy, so refreshing it
+       * keeps a client-side nav to /deployments from bouncing the user back to onboarding until a full reload.
+       */
       function completeDeploy(result: { data: { deployment: { id: { owner: string } } } }) {
         const owner = result.data.deployment.id.owner;
+        analyticsService.track("create_lease", { category: "deployments", label: "Create lease", dseq: activeDseq, ...resources });
+        if (resources.gpuAmount > 0) {
+          analyticsService.track("create_gpu_deployment", { category: "deployments", label: "Create lease", dseq: activeDseq, ...resources });
+        }
+        analyticsService.track("send_manifest", { category: "deployments", label: "Send manifest after creating lease", dseq: activeDseq });
         cacheDeployedSdl(deploymentLocalStorage, owner, activeDseq, sdl);
-        // The onboarding gate decides "onboarded" from the leases cache, which was populated empty before this
-        // first deploy. Refresh it (and the deployment list) so a client-side nav to /deployments doesn't read a
-        // stale empty cache and bounce the user back to onboarding until a full page reload.
         queryClient.invalidateQueries({ queryKey: QueryKeys.getAllLeasesKey(owner) });
         queryClient.invalidateQueries({ queryKey: QueryKeys.getDeploymentListKey(owner) });
         setDeploySucceeded(true);
@@ -365,7 +349,7 @@ export function useDeploymentFlow(
         sendManifestAndLease();
       }
     },
-    [createLease, updateDeployment, dseq, manifest, selections, router, dependencies, deploymentLocalStorage, queryClient]
+    [createLease, updateDeployment, dseq, manifest, selections, router, dependencies, deploymentLocalStorage, queryClient, analyticsService]
   );
 
   return {
@@ -381,12 +365,13 @@ export function useDeploymentFlow(
   };
 }
 
-/**
- * Best-effort cache of the deployed SDL under the deployment's owner + dseq — the key the detail page reads.
- * Storage can be blocked, full, or hold corrupt data, so any failure is swallowed: caching must never keep the
- * deploy-success UI or the redirect from running.
- */
-function cacheDeployedSdl(storage: ReturnType<typeof useDeploymentLocalStorage>, owner: string | null | undefined, dseq: string, sdl: string): void {
+/** Best-effort cache under owner + dseq (the key the detail page reads); failures are swallowed so storage issues never block deploy. */
+function cacheDeployedSdl(
+  storage: ReturnType<typeof useServices>["deploymentLocalStorage"],
+  owner: string | null | undefined,
+  dseq: string,
+  sdl: string
+): void {
   try {
     storage.update(owner, dseq, { manifest: sdl });
   } catch {
@@ -394,16 +379,21 @@ function cacheDeployedSdl(storage: ReturnType<typeof useDeploymentLocalStorage>,
   }
 }
 
-/**
- * The provider manifest for an SDL, or null when the SDL can't be built (e.g. invalid/mid-edit). Matches the
- * server's create-deployment manifest (both are `manifestToSortedJSON` of the SDL's groups), so a session that
- * lost the captured manifest — a reload resumed straight into quoting — can still deploy from the restored SDL.
- */
+/** The provider manifest for an SDL, or null when it can't be built (invalid/mid-edit). Matches the server's create-deployment manifest, so the update-before-lease comparison in `deploy` holds. */
 function manifestFromSdl(sdl: string): string | null {
   try {
     return ManifestYaml(sdl);
   } catch {
     return null;
+  }
+}
+
+function deploymentResourcesFromSdl(sdl: string): { gpuAmount: number; cpuAmount: number; memoryAmount: number; storageAmount: number } {
+  try {
+    const totals = aggregateDeploymentResources(importSimpleSdl(sdl).services);
+    return { gpuAmount: totals.gpu, cpuAmount: totals.cpu, memoryAmount: totals.memoryBytes, storageAmount: totals.ephemeralBytes + totals.persistentBytes };
+  } catch {
+    return { gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 };
   }
 }
 

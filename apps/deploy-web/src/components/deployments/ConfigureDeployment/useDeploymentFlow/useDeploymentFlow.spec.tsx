@@ -1,6 +1,9 @@
+import type { PropsWithChildren } from "react";
+import { createStore, Provider as JotaiStoreProvider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
-import { mock } from "vitest-mock-extended";
+import { mock, mockDeep } from "vitest-mock-extended";
 
+import { settingsIdAtom } from "@src/context/SettingsProvider/settingsStore";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { UrlService } from "@src/utils/urlUtils";
 import type { DeploymentIntent } from "./deploymentIntent";
@@ -42,9 +45,6 @@ describe(useDeploymentFlow.name, () => {
     });
     const { result } = setup({ replace, createMutate, intent: { sdlStrategy: "default", bidStrategy: "auto" } });
 
-    // The auto autopilot fires the create as "auto"; the user then picks "Choose my provider" (switches to select) while
-    // it's still in flight. When the create finally resolves, the URL must land on select — not bounce back to auto and
-    // remount the auto flow.
     act(() => result.current.actions.requestQuotes("sdl-content"));
     act(() => result.current.actions.setBidStrategy("select"));
     act(() => resolveCreate?.({ data: { dseq: "999", manifest: "m" } }));
@@ -70,9 +70,6 @@ describe(useDeploymentFlow.name, () => {
 
       act(() => vi.advanceTimersByTime(60_000));
 
-      // The auto autopilot re-creates whenever the flow returns to `configuring` and reads its error scene off the
-      // "error" phase, so the flow must halt here — leaving the deployment for the user's "Try again"/"Choose my
-      // provider" rather than closing it and looping.
       expect(result.current.phase).toBe("error");
       expect(result.current.error?.message).toContain("No providers");
       expect(closeMutate).not.toHaveBeenCalled();
@@ -101,7 +98,6 @@ describe(useDeploymentFlow.name, () => {
   it("keeps the no-providers message set while the close is still in flight in the manual flow", () => {
     vi.useFakeTimers();
     try {
-      // Never resolves — proves the message survives `cancelAndEdit`'s own `setError(undefined)` so the error toast fires.
       const closeMutate = vi.fn();
       const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
 
@@ -134,24 +130,20 @@ describe(useDeploymentFlow.name, () => {
     try {
       const openBid = { bid: { state: "open", price: { amount: "1", denom: "uakt" }, id: { provider: "p", dseq: "777", gseq: 1, oseq: 1 } } };
       let bids: Array<typeof openBid> = [openBid];
+      const services = mockServices();
       const dependencies: typeof DEPENDENCIES = {
+        useServices: (() => services) as never,
         useCreateDeployment: (() => mockMutation()) as never,
-        useCloseDeployment: (() => mockMutation()) as never,
-        useCreateLease: (() => mockMutation()) as never,
-        useUpdateDeployment: (() => mockMutation()) as never,
         useListBids: (() => ({ data: { data: bids }, isLoading: false, isError: false })) as never,
         useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: vi.fn(), push: vi.fn() })) as never,
         useQueryClient: (() => mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>()) as never,
-        useDeploymentLocalStorage: (() => mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocalStorage>>()) as never,
-        useSettingsId: (() => "akash1owner") as never,
-        manifestFromSdl: () => "M"
+        manifestFromSdl: () => "M",
+        deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 })
       };
-      const { result, rerender } = renderHook(() =>
-        useDeploymentFlow({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false } }, dependencies)
-      );
+      const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
       expect(result.current.phase).toBe("quoting");
 
-      bids = []; // every provider's quote disappears (e.g. expired) after having bid
+      bids = [];
       rerender();
       act(() => vi.advanceTimersByTime(60_000));
 
@@ -174,7 +166,7 @@ describe(useDeploymentFlow.name, () => {
 
   it("clears the dseq from the URL as soon as cancel starts, before the close resolves", () => {
     const replace = vi.fn();
-    const closeMutate = vi.fn(); // never resolves — proves the URL reset is optimistic, not tied to close-success
+    const closeMutate = vi.fn();
     const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777", templateId: "tpl" }, replace, closeMutate });
 
     act(() => result.current.actions.cancelAndEdit());
@@ -534,6 +526,101 @@ describe(useDeploymentFlow.name, () => {
     expect(result.current.selections).toEqual({ "placement-1": "akash1a/555/1/3" });
   });
 
+  describe("deploy funnel analytics", () => {
+    it("tracks create_deployment with the new dseq when the deployment is created", () => {
+      const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+      const { result, analyticsService } = setup({ createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl-content"));
+
+      expect(analyticsService.track).toHaveBeenCalledWith("create_deployment", { category: "deployments", label: "Create deployment in wizard", dseq: "999" });
+    });
+
+    it("tracks bids_received with the bid count the first time bids arrive", () => {
+      const openBid = { bid: { state: "open", price: { amount: "1", denom: "uakt" }, id: { provider: "p", dseq: "777", gseq: 1, oseq: 1 } } };
+      const { analyticsService } = renderFlow({ intent: { dseq: "777" }, listBids: [openBid] });
+
+      expect(analyticsService.track).toHaveBeenCalledWith("bids_received", { category: "deployments", numberOfBids: 1, dseq: "777" });
+    });
+
+    it("fires bids_received only once across subsequent bid refetches", () => {
+      const openBid = { bid: { state: "open", price: { amount: "1", denom: "uakt" }, id: { provider: "p", dseq: "777", gseq: 1, oseq: 1 } } };
+      const { rerender, analyticsService } = renderFlow({ intent: { dseq: "777" }, listBids: [openBid] });
+
+      rerender();
+      rerender();
+
+      expect(analyticsService.track.mock.calls.filter(([name]) => name === "bids_received")).toHaveLength(1);
+    });
+
+    it("tracks bid_selected when a provider is selected", () => {
+      const { result, analyticsService } = renderFlow();
+
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/1/1/1"));
+
+      expect(analyticsService.track).toHaveBeenCalledWith("bid_selected", "Amplitude");
+    });
+
+    it("tracks create_lease and send_manifest with the deployment resources on lease success", () => {
+      const { result, analyticsService } = renderDeployedFlow({ gpuAmount: 0, cpuAmount: 2, memoryAmount: 1024, storageAmount: 2048 });
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.deploy("sdl"));
+
+      expect(analyticsService.track).toHaveBeenCalledWith("create_lease", {
+        category: "deployments",
+        label: "Create lease",
+        dseq: "555",
+        gpuAmount: 0,
+        cpuAmount: 2,
+        memoryAmount: 1024,
+        storageAmount: 2048
+      });
+      expect(analyticsService.track).toHaveBeenCalledWith("send_manifest", {
+        category: "deployments",
+        label: "Send manifest after creating lease",
+        dseq: "555"
+      });
+    });
+
+    it("tracks create_gpu_deployment on lease success when the deployment requests a GPU", () => {
+      const { result, analyticsService } = renderDeployedFlow({ gpuAmount: 1, cpuAmount: 4, memoryAmount: 2048, storageAmount: 4096 });
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.deploy("sdl"));
+
+      expect(analyticsService.track).toHaveBeenCalledWith("create_gpu_deployment", {
+        category: "deployments",
+        label: "Create lease",
+        dseq: "555",
+        gpuAmount: 1,
+        cpuAmount: 4,
+        memoryAmount: 2048,
+        storageAmount: 4096
+      });
+    });
+
+    it("does not track create_gpu_deployment for a CPU-only deployment", () => {
+      const { result, analyticsService } = renderDeployedFlow({ gpuAmount: 0, cpuAmount: 2, memoryAmount: 1024, storageAmount: 2048 });
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.deploy("sdl"));
+
+      expect(analyticsService.track).not.toHaveBeenCalledWith("create_gpu_deployment", expect.anything());
+    });
+
+    function renderDeployedFlow(resources: { gpuAmount: number; cpuAmount: number; memoryAmount: number; storageAmount: number }) {
+      const createDeployment = mockMutation();
+      createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
+      const createLease = mockMutation();
+      createLease.mutate.mockImplementation((_i, o) => o.onSuccess(deployedResult("akash1owner")));
+      return renderFlow({ createDeployment, createLease, deploymentResourcesFromSdl: () => resources });
+    }
+  });
+
   function setup(input: {
     intent?: { sdlStrategy: "default" | "edit"; bidStrategy: "auto" | "select"; dseq?: string; templateId?: string; draftId?: string; vm?: boolean };
     replace?: ReturnType<typeof vi.fn>;
@@ -541,19 +628,17 @@ describe(useDeploymentFlow.name, () => {
     closeMutate?: ReturnType<typeof vi.fn>;
   }) {
     const intent = { vm: false, ...(input.intent ?? { sdlStrategy: "edit" as const, bidStrategy: "select" as const, dseq: undefined }) };
+    const services = mockServices({ closeDeployment: mockMutation(input.closeMutate) });
     const dependencies: typeof DEPENDENCIES = {
+      useServices: (() => services) as never,
       useCreateDeployment: (() => mock<ReturnType<typeof DEPENDENCIES.useCreateDeployment>>({ mutate: (input.createMutate ?? vi.fn()) as never })) as never,
-      useCloseDeployment: (() => mock<ReturnType<typeof DEPENDENCIES.useCloseDeployment>>({ mutate: (input.closeMutate ?? vi.fn()) as never })) as never,
-      useCreateLease: (() => mock<ReturnType<typeof DEPENDENCIES.useCreateLease>>({ mutate: vi.fn() as never })) as never,
-      useUpdateDeployment: (() => mock<ReturnType<typeof DEPENDENCIES.useUpdateDeployment>>({ mutate: vi.fn() as never })) as never,
       useListBids: (() => ({ data: { data: [] }, isLoading: false, isError: false })) as never,
       useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: (input.replace ?? vi.fn()) as never })) as never,
       useQueryClient: (() => mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>()) as never,
-      useDeploymentLocalStorage: (() => mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocalStorage>>()) as never,
-      useSettingsId: (() => "akash1owner") as never,
-      manifestFromSdl: () => "manifest"
+      manifestFromSdl: () => "manifest",
+      deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 })
     };
-    return renderHook(() => useDeploymentFlow({ intent }, dependencies));
+    return { ...renderDeploymentFlow(intent, dependencies), analyticsService: services.analyticsService };
   }
 
   function renderFlow(input?: {
@@ -563,30 +648,48 @@ describe(useDeploymentFlow.name, () => {
     closeDeployment?: ReturnType<typeof mockMutation>;
     updateDeployment?: ReturnType<typeof mockMutation>;
     manifestFromSdl?: (sdl: string) => string | null;
+    deploymentResourcesFromSdl?: (sdl: string) => { gpuAmount: number; cpuAmount: number; memoryAmount: number; storageAmount: number };
     listBids?: Array<{ bid: { state: string; price: { amount: string; denom: string }; id: { provider: string; dseq: string; gseq: number; oseq: number } } }>;
   }) {
     const intent: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, vm: false, ...input?.intent };
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: vi.fn(), push: vi.fn() });
-    const deploymentLocalStorage = mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocalStorage>>();
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
+    const services = mockServices({ closeDeployment: input?.closeDeployment, createLease: input?.createLease, updateDeployment: input?.updateDeployment });
     const dependencies: typeof DEPENDENCIES = {
+      useServices: (() => services) as never,
       useCreateDeployment: (() => input?.createDeployment ?? mockMutation()) as never,
-      useCloseDeployment: (() => input?.closeDeployment ?? mockMutation()) as never,
-      useCreateLease: (() => input?.createLease ?? mockMutation()) as never,
-      useUpdateDeployment: (() => input?.updateDeployment ?? mockMutation()) as never,
       useListBids: (() => ({ data: { data: input?.listBids ?? [] }, isLoading: false, isError: false })) as never,
       useRouter: () => router,
       useQueryClient: (() => queryClient) as never,
-      useDeploymentLocalStorage: (() => deploymentLocalStorage) as never,
-      useSettingsId: (() => "akash1owner") as never,
-      manifestFromSdl: input?.manifestFromSdl ?? (() => "M")
+      manifestFromSdl: input?.manifestFromSdl ?? (() => "M"),
+      deploymentResourcesFromSdl: input?.deploymentResourcesFromSdl ?? (() => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 }))
     };
-    const utils = renderHook(() => useDeploymentFlow({ intent }, dependencies));
-    return { ...utils, router, deploymentLocalStorage, queryClient };
+    const utils = renderDeploymentFlow(intent, dependencies);
+    return { ...utils, router, queryClient, deploymentLocalStorage: services.deploymentLocalStorage, analyticsService: services.analyticsService };
   }
 
-  function mockMutation() {
-    return mock<{ mutate: ReturnType<typeof vi.fn> }>({ mutate: vi.fn() });
+  function mockMutation(mutate: ReturnType<typeof vi.fn> = vi.fn()) {
+    return mock<{ mutate: ReturnType<typeof vi.fn> }>({ mutate });
+  }
+
+  function mockServices(mutations?: {
+    closeDeployment?: ReturnType<typeof mockMutation>;
+    createLease?: ReturnType<typeof mockMutation>;
+    updateDeployment?: ReturnType<typeof mockMutation>;
+  }) {
+    const services = mockDeep<ReturnType<typeof DEPENDENCIES.useServices>>();
+    services.api.v1.closeDeployment.useMutation.mockReturnValue((mutations?.closeDeployment ?? mockMutation()) as never);
+    services.api.v1.createLease.useMutation.mockReturnValue((mutations?.createLease ?? mockMutation()) as never);
+    services.api.v1.updateDeployment.useMutation.mockReturnValue((mutations?.updateDeployment ?? mockMutation()) as never);
+    return services;
+  }
+
+  function renderDeploymentFlow(intent: DeploymentIntent, dependencies: typeof DEPENDENCIES) {
+    const store = createStore();
+    store.set(settingsIdAtom, "akash1owner");
+    return renderHook(() => useDeploymentFlow({ intent }, dependencies), {
+      wrapper: ({ children }: PropsWithChildren) => <JotaiStoreProvider store={store}>{children}</JotaiStoreProvider>
+    });
   }
 
   /** The create-lease success payload shape the flow reads the owner from. */
