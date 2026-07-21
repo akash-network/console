@@ -63,7 +63,7 @@ export const NodeListTable = ({ nodes, onRemoveNode, activeControlMachine, isNod
       } else {
         return date.toLocaleDateString();
       }
-    } catch (e) {
+    } catch {
       return "Invalid Date";
     }
   };

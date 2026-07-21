@@ -49,7 +49,7 @@ export const PaymentMethodForm: React.FC<PaymentMethodFormProps> = ({
       if (result.setupIntent?.status === "succeeded") {
         onSuccess(organization.trim() || undefined);
       }
-    } catch (err) {
+    } catch {
       setError("An unexpected error occurred.");
     } finally {
       setIsProcessing(false);

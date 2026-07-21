@@ -18,6 +18,6 @@ export default tseslint.config(...base, {
     "@typescript-eslint/no-unused-expressions": ["error"],
     "@typescript-eslint/no-empty-object-type": ["error", { allowInterfaces: "with-single-extends" }],
     "@typescript-eslint/consistent-type-imports": ["error", { prefer: "type-imports", fixStyle: "separate-type-imports" }],
-    "@typescript-eslint/no-unused-vars": ["error", { ignoreRestSiblings: true, argsIgnorePattern: "^_", caughtErrors: "none" }]
+    "@typescript-eslint/no-unused-vars": ["error", { ignoreRestSiblings: true, argsIgnorePattern: "^_", caughtErrors: "all" }]
   }
 });

@@ -35,7 +35,7 @@ export function createWalletScopedStorage<T>(baseKey: string): AsyncStorage<T> {
 
     try {
       return JSON.parse(value) as T;
-    } catch (error) {
+    } catch {
       return undefined;
     }
   };
