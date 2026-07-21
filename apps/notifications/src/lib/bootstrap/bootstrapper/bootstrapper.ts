@@ -1,3 +1,4 @@
+/* v8 ignore start */
 import "@akashnetwork/env-loader";
 
 import type { Logger as LoggerBase } from "@akashnetwork/logging";

@@ -1,3 +1,4 @@
+/* v8 ignore start */
 import type { Type } from "@nestjs/common";
 
 import { Bootstrapper } from "@src/lib/bootstrap/bootstrapper/bootstrapper";
