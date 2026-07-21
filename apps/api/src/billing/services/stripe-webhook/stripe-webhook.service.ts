@@ -17,7 +17,6 @@ import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { WithTransaction } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { UserRepository } from "@src/user/repositories";
-import { BillingConfigService } from "../billing-config/billing-config.service";
 
 @singleton()
 export class StripeWebhookService {
@@ -26,7 +25,6 @@ export class StripeWebhookService {
   constructor(
     private readonly stripe: StripeService,
     private readonly refillService: RefillService,
-    private readonly billingConfig: BillingConfigService,
     private readonly userRepository: UserRepository,
     private readonly paymentMethodRepository: PaymentMethodRepository,
     private readonly stripeTransactionRepository: StripeTransactionRepository,
@@ -35,7 +33,7 @@ export class StripeWebhookService {
   ) {}
 
   async routeStripeEvent(signature: string, rawEvent: string) {
-    const event = this.stripe.webhooks.constructEvent(rawEvent, signature, this.billingConfig.get("STRIPE_WEBHOOK_SECRET"));
+    const event = this.stripe.constructWebhookEvent(rawEvent, signature);
     this.logger.info({
       event: "STRIPE_EVENT_RECEIVED",
       type: event.type,
@@ -194,7 +192,7 @@ export class StripeWebhookService {
 
     if (params.chargeId) {
       try {
-        const charge = await this.stripe.charges.retrieve(params.chargeId);
+        const charge = await this.stripe.retrieveCharge(params.chargeId);
         cardBrand = charge.payment_method_details?.card?.brand ?? undefined;
         cardLast4 = charge.payment_method_details?.card?.last4 ?? undefined;
         receiptUrl = charge.receipt_url ?? undefined;
