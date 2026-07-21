@@ -1,26 +1,56 @@
 import { LoggerService } from "@akashnetwork/logging";
+import { netConfig } from "@akashnetwork/net";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+
+import { buildContentSecurityPolicy, generateNonce, getContentSecurityPolicyHeaderName, getContentSecurityPolicyReportHeaders } from "./lib/csp/csp";
 
 const { MAINTENANCE_MODE } = process.env;
 const logger = new LoggerService({ name: "middleware" });
 
+const networkRpcAndApiUrls = netConfig.getSupportedNetworks().flatMap(network => [netConfig.getBaseRpcUrl(network), netConfig.getBaseAPIUrl(network)]);
+
 export function middleware(request: NextRequest) {
+  const nonce = generateNonce();
+  const contentSecurityPolicyInput = {
+    mainnetApiUrl: process.env.NEXT_PUBLIC_BASE_API_MAINNET_URL,
+    testnetApiUrl: process.env.NEXT_PUBLIC_BASE_API_TESTNET_URL,
+    sandboxApiUrl: process.env.NEXT_PUBLIC_BASE_API_SANDBOX_URL,
+    providerProxyUrl: process.env.NEXT_PUBLIC_PROVIDER_PROXY_URL,
+    amplitudeProxyUrl: process.env.NEXT_PUBLIC_AMPLITUDE_PROXY_URL,
+    unleashFrontendApiUrl: process.env.NEXT_PUBLIC_UNLEASH_FRONTEND_API_URL,
+    sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    templatesUrl: process.env.NEXT_PUBLIC_BASE_TEMPLATES_URL,
+    networkRpcAndApiUrls
+  };
+  const contentSecurityPolicy = buildContentSecurityPolicy(nonce, contentSecurityPolicyInput);
+  const contentSecurityPolicyHeaderName = getContentSecurityPolicyHeaderName();
+  const contentSecurityPolicyReportHeaders = getContentSecurityPolicyReportHeaders(contentSecurityPolicyInput);
+
   const maintenancePage = "/maintenance";
   const isMaintenanceMode = MAINTENANCE_MODE === "true";
   if (isMaintenanceMode && !request.nextUrl.pathname.startsWith(maintenancePage)) {
     const fromPath = request.nextUrl.pathname + request.nextUrl.search;
     logger.info({ message: `Redirecting to maintenance page from ${fromPath}` });
 
-    return NextResponse.redirect(new URL(`${maintenancePage}?return=${encodeURIComponent(fromPath)}`, request.url), 307); // 307 - temporary redirect
+    const redirectResponse = NextResponse.redirect(new URL(`${maintenancePage}?return=${encodeURIComponent(fromPath)}`, request.url), 307); // 307 - temporary redirect
+    setContentSecurityPolicyHeaders(redirectResponse, contentSecurityPolicyHeaderName, contentSecurityPolicy, contentSecurityPolicyReportHeaders);
+    return redirectResponse;
   } else if (!isMaintenanceMode && request.nextUrl.pathname.startsWith(maintenancePage)) {
     const returnPath = getReturnPath(request);
     logger.info({ message: `Redirecting from maintenance page to ${returnPath}` });
 
-    return NextResponse.redirect(new URL(returnPath, request.url), 307); // 307 - temporary redirect
+    const redirectResponse = NextResponse.redirect(new URL(returnPath, request.url), 307); // 307 - temporary redirect
+    setContentSecurityPolicyHeaders(redirectResponse, contentSecurityPolicyHeaderName, contentSecurityPolicy, contentSecurityPolicyReportHeaders);
+    return redirectResponse;
   }
 
-  const res = NextResponse.next();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set(contentSecurityPolicyHeaderName, contentSecurityPolicy);
+
+  const res = NextResponse.next({ request: { headers: requestHeaders } });
+  setContentSecurityPolicyHeaders(res, contentSecurityPolicyHeaderName, contentSecurityPolicy, contentSecurityPolicyReportHeaders);
 
   const cookieName = "unleash-session-id";
   let sessionId = request.cookies.get(cookieName)?.value;
@@ -37,6 +67,18 @@ export function middleware(request: NextRequest) {
   }
 
   return res;
+}
+
+function setContentSecurityPolicyHeaders(
+  response: NextResponse,
+  contentSecurityPolicyHeaderName: string,
+  contentSecurityPolicy: string,
+  reportHeaders: Array<{ name: string; value: string }>
+) {
+  response.headers.set(contentSecurityPolicyHeaderName, contentSecurityPolicy);
+  reportHeaders.forEach(header => {
+    response.headers.set(header.name, header.value);
+  });
 }
 
 function getReturnPath(request: NextRequest) {
