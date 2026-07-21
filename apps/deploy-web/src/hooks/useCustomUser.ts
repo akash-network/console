@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useUser } from "@auth0/nextjs-auth0/client";
 
 import type { CustomUserProfile } from "@src/types/user";
@@ -15,7 +16,7 @@ type UseCustomUser = {
  */
 export const useCustomUser = (): UseCustomUser => {
   const { user, isLoading, error, checkSession } = useUser();
-  const completeUser = user ? { ...user, plan: plans.find(x => x.code === user.planCode) } : user;
+  const completeUser = useMemo(() => (user ? { ...user, plan: plans.find(x => x.code === user.planCode) } : user), [user]);
 
   return {
     user: completeUser,

@@ -43,6 +43,18 @@ describe("PaymentMethodContainer", () => {
     expect(mockCreateSetupIntent).not.toHaveBeenCalled();
   });
 
+  it("does not create another setup intent while a request is already in flight", () => {
+    const { mockCreateSetupIntent } = setup({ setupIntentStatus: "pending" });
+
+    expect(mockCreateSetupIntent).not.toHaveBeenCalled();
+  });
+
+  it("does not recreate a setup intent after a failed request", () => {
+    const { mockCreateSetupIntent } = setup({ setupIntentStatus: "error" });
+
+    expect(mockCreateSetupIntent).not.toHaveBeenCalled();
+  });
+
   it("should handle payment method removal", async () => {
     const { child, mockRemovePaymentMethod } = setup();
     mockRemovePaymentMethod.mockResolvedValue(undefined);
@@ -357,6 +369,7 @@ describe("PaymentMethodContainer", () => {
     input: {
       paymentMethods?: any[];
       setupIntent?: any;
+      setupIntentStatus?: "idle" | "pending" | "success" | "error";
       hasManagedWallet?: boolean;
       isWalletLoading?: boolean;
       isConnectingWallet?: boolean;
@@ -376,6 +389,7 @@ describe("PaymentMethodContainer", () => {
     const mockUseSetupIntentMutation = vi.fn().mockReturnValue({
       data: input.setupIntent,
       mutate: mockCreateSetupIntent,
+      status: input.setupIntentStatus ?? (input.setupIntent ? "success" : "idle"),
       reset: vi.fn()
     });
 

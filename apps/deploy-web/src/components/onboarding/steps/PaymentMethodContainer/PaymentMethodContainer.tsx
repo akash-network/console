@@ -56,7 +56,7 @@ export type PaymentMethodContainerProps = {
 };
 
 export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ children, onComplete, dependencies: d = DEPENDENCIES }) => {
-  const { data: setupIntent, mutate: createSetupIntent, reset: resetSetupIntent } = d.useSetupIntentMutation();
+  const { data: setupIntent, mutate: createSetupIntent, status: setupIntentStatus, reset: resetSetupIntent } = d.useSetupIntentMutation();
   const { data: paymentMethods = [], refetch: refetchPaymentMethods } = d.usePaymentMethodsQuery();
   const { removePaymentMethod } = d.usePaymentMutations();
   const { isWalletLoading, hasManagedWallet, managedWalletError } = d.useWallet();
@@ -140,10 +140,10 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
   );
 
   useEffect(() => {
-    if (user && !setupIntent) {
+    if (user && setupIntentStatus === "idle") {
       createSetupIntent();
     }
-  }, [user, setupIntent, createSetupIntent]);
+  }, [user, setupIntentStatus, createSetupIntent]);
 
   useEffect(() => {
     if (isConnectingWallet && hasManagedWallet && !isWalletLoading) {

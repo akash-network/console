@@ -66,11 +66,15 @@ export const usePaymentTransactionsQuery = (
 };
 
 export const useSetupIntentMutation = () => {
-  const { stripe } = useServices();
+  const { stripe, errorHandler } = useServices();
   return useMutation<SetupIntentResponse, Error>({
+    retry: false,
     mutationFn: async () => {
       const response = await stripe.createSetupIntent();
       return response;
+    },
+    onError: error => {
+      errorHandler.reportError({ error, tags: { category: "billing" } });
     }
   });
 };
