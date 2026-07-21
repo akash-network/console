@@ -51,7 +51,7 @@ export default [
     },
     rules: {
       "no-useless-assignment": "off",
-      "preserve-caught-error": "off",
+      "preserve-caught-error": "error",
       "simple-import-sort/imports": [
         "error",
         {

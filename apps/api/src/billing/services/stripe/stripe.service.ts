@@ -851,7 +851,7 @@ export class StripeService extends Stripe {
           }
         }
 
-        throw new Error("Duplicate card validation request detected. Please wait before retrying.");
+        throw new Error("Duplicate card validation request detected. Please wait before retrying.", { cause: error });
       }
       throw error;
     }
