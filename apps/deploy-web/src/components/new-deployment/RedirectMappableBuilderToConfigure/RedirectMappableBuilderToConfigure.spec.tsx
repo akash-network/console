@@ -18,8 +18,14 @@ describe(RedirectMappableBuilderToConfigure.name, () => {
     expect(replace).toHaveBeenCalledWith("/new-deployment/configure");
   });
 
-  it("does not redirect git or redeploy intents", () => {
+  it("does not redirect a git intent", () => {
     const { replace } = setup({ query: { step: "edit-deployment", gitProvider: "github", templateId: "x" } });
+    expect(replace).not.toHaveBeenCalled();
+    expect(screen.getByText("classic")).toBeInTheDocument();
+  });
+
+  it("does not redirect a redeploy intent", () => {
+    const { replace } = setup({ query: { step: "edit-deployment", redeploy: "dseq-1", templateId: "x" } });
     expect(replace).not.toHaveBeenCalled();
     expect(screen.getByText("classic")).toBeInTheDocument();
   });
