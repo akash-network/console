@@ -304,23 +304,11 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
           wallet.connectManagedWallet();
           router.replace(urlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
         }
-      } catch (error) {
+      } catch {
         notificator.error("Failed to deploy template. Please try again.");
       }
     },
-    [
-      d,
-      router,
-      urlService,
-      wallet,
-      templateService,
-      minDeposit,
-      deploymentLocalStorage,
-      analyticsService,
-      notificator,
-      errorHandler,
-      navigateBack
-    ]
+    [d, router, urlService, wallet, templateService, minDeposit, deploymentLocalStorage, analyticsService, notificator, errorHandler, navigateBack]
   );
 
   const steps: OnboardingStep[] = [

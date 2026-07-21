@@ -186,7 +186,6 @@ export const getProviderAttributeValue = <TKey extends keyof ProviderAttributesS
 ): string | string[] | boolean | number | null => {
   const _key = providerAttributeSchema[key].key;
   const possibleValues = providerAttributeSchema[key].values;
-  let values = null;
 
   switch (providerAttributeSchema[key].type) {
     case "string":
@@ -196,20 +195,22 @@ export const getProviderAttributeValue = <TKey extends keyof ProviderAttributesS
           .map(x => x.value)
           .join(",") || null
       );
-    case "number":
-      values =
+    case "number": {
+      const numberValue =
         provider.providerAttributes
           .filter(x => x.key === _key)
           .map(x => x.value)
           .join(",") || "0";
-      return parseFloat(values);
-    case "boolean":
-      values =
+      return parseFloat(numberValue);
+    }
+    case "boolean": {
+      const booleanValue =
         provider.providerAttributes
           .filter(x => x.key === _key)
           .map(x => x.value)
           .join(",") || null;
-      return values ? values === "true" : false;
+      return booleanValue ? booleanValue === "true" : false;
+    }
     case "option":
       return provider.providerAttributes
         .filter(x => x.key === _key)

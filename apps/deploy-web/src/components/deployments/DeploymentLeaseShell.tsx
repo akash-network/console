@@ -127,7 +127,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
       try {
         const jsonData = JSON.parse(parsedData);
         exitCode = jsonData["exit_code"];
-      } catch (error) {
+      } catch {
         /* empty */
       }
       if (exitCode === undefined) {

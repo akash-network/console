@@ -60,7 +60,7 @@ export const TemplateGallery: React.FunctionComponent<{ dependencies?: typeof DE
   useEffect(() => {
     const queryCategory = searchParams?.get("category");
     const querySearch = searchParams?.get("search");
-    let _templates: TemplateOutputSummaryWithCategory[] = [];
+    let _templates: TemplateOutputSummaryWithCategory[];
 
     if (queryCategory) {
       const selectedCategory = categories.find(x => x.title === queryCategory);

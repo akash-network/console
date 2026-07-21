@@ -112,7 +112,6 @@ export class WalletInitializerService {
     let userWallet = wallet;
     if (!isNew) return this.userWalletRepository.toPublic(userWallet);
 
-    let isTrialSpendingAuthorized = false;
     try {
       const wallet = await this.walletManager.createAndAuthorizeTrialSpending(this.managedSignerService, { addressIndex: userWallet.id });
       userWallet = await this.userWalletRepository.updateById(
@@ -124,17 +123,13 @@ export class WalletInitializerService {
         },
         { returning: true }
       );
-      isTrialSpendingAuthorized = true;
     } catch (error) {
       await this.userWalletRepository.deleteById(userWallet.id);
       throw error;
     }
 
     const walletOutput = this.userWalletRepository.toPublic(userWallet);
-
-    if (isTrialSpendingAuthorized) {
-      await this.domainEvents.publish(new TrialStarted({ userId }));
-    }
+    await this.domainEvents.publish(new TrialStarted({ userId }));
 
     return walletOutput;
   }
