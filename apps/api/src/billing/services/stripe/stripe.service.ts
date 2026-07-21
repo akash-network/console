@@ -459,7 +459,7 @@ export class StripeService extends Stripe {
     } catch (error) {
       if (error instanceof Stripe.errors.StripeError && error.code === "idempotency_key_in_use") {
         this.loggerService.warn({ event: "PAYMENT_INTENT_KEY_IN_USE", transactionId: transaction.id });
-        throw new Error(PAYMENT_IN_PROGRESS_ERROR_MESSAGE);
+        throw new Error(PAYMENT_IN_PROGRESS_ERROR_MESSAGE, { cause: error });
       }
 
       if (error instanceof Stripe.errors.StripeIdempotencyError) {
