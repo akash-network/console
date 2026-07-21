@@ -11,7 +11,7 @@ import { LoggerService } from "@src/common/services/logger/logger.service";
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
 import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception/http-exception.filter";
 import RestModule from "@src/interfaces/rest/rest.module";
-import * as alertSchema from "@src/modules/alert/model-schemas";
+import type * as alertSchema from "@src/modules/alert/model-schemas";
 import { Alert } from "@src/modules/alert/model-schemas";
 import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 
@@ -61,9 +61,7 @@ describe("Account Purge (internal)", () => {
     const userId = faker.string.uuid();
 
     if (input.withSeed) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const schema = { ...alertSchema, NotificationChannel };
-      const db = module.get<NodePgDatabase<typeof schema>>(DRIZZLE_PROVIDER_TOKEN);
+      const db = module.get<NodePgDatabase<typeof alertSchema & { NotificationChannel: typeof NotificationChannel }>>(DRIZZLE_PROVIDER_TOKEN);
       const [channel] = await db
         .insert(NotificationChannel)
         .values([generateNotificationChannel({ userId })])

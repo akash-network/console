@@ -17,7 +17,7 @@ export default defineApiHandler({
     let networkConfig: Array<ReturnType<typeof nodeWithId>>;
     try {
       networkConfig = allNetworksConfig[query.network];
-    } catch (error) {
+    } catch {
       res.status(422).json({ error: `Unable to fetch ${query.network} blockchain network config. Does this network exist?` });
       return;
     }

@@ -41,7 +41,11 @@ export const SdlBuilderProvider: FCWithChildren<SdlBuilderProviderProps> = ({ ch
     (component: ComponentNames) => {
       setHiddenComponents(prev => {
         const next = new Set(prev);
-        next.has(component) ? next.delete(component) : next.add(component);
+        if (next.has(component)) {
+          next.delete(component);
+        } else {
+          next.add(component);
+        }
         return next;
       });
     },

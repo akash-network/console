@@ -113,7 +113,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
             lastSyncedSdlRef.current = sdlString;
             form.reset({ ...form.getValues(), placements: imported.placements, services: imported.services });
           }
-        } catch (error) {
+        } catch {
           setError("Error importing SDL");
         }
       }

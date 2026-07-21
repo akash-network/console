@@ -97,8 +97,8 @@ export function DataTable<TData, TValue>({
     // TODO fix typing
     const nextState = (updater as any)(pagination);
 
-    setPageIndex && setPageIndex(nextState.pageIndex);
-    setPageSize && setPageSize(nextState.pageSize);
+    if (setPageIndex) setPageIndex(nextState.pageIndex);
+    if (setPageSize) setPageSize(nextState.pageSize);
 
     setPagination(nextState);
   }

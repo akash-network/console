@@ -93,7 +93,7 @@ export function useGenericBannerDetails(): GenericBannerDetails {
   try {
     const details = genericBannerFlag?.enabled ? (JSON.parse(genericBannerFlag.payload?.value as string) as GenericBannerDetails) : { message: "" };
     return details;
-  } catch (error) {
+  } catch {
     return { message: "" };
   }
 }

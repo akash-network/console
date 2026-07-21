@@ -151,68 +151,66 @@ describe(createProxy.name, () => {
     it("reflects the select return type in the query data", () => {
       const { proxy } = setup();
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const result = proxy.users.getById.useQuery({ id: 1 }, { select: user => user.name });
-
-      expectTypeOf<(typeof result)["data"]>().toEqualTypeOf<string | undefined>();
+      expectTypeOf(proxy.users.getById.useQuery({ id: 1 }, { select: user => user.name }))
+        .toHaveProperty("data")
+        .toEqualTypeOf<string | undefined>();
     });
 
     it("defaults the data type to the SDK return type when no select is given", () => {
       const { proxy } = setup();
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const result = proxy.users.getById.useQuery({ id: 1 });
-
-      expectTypeOf<(typeof result)["data"]>().toEqualTypeOf<User | undefined>();
+      expectTypeOf(proxy.users.getById.useQuery({ id: 1 }))
+        .toHaveProperty("data")
+        .toEqualTypeOf<User | undefined>();
     });
 
     it("widens the data type by the catchError return type", () => {
       const { proxy } = setup();
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const result = proxy.users.getById.useQuery({ id: 1 }, { catchError: () => null });
-
-      expectTypeOf<(typeof result)["data"]>().toEqualTypeOf<User | null | undefined>();
+      expectTypeOf(proxy.users.getById.useQuery({ id: 1 }, { catchError: () => null }))
+        .toHaveProperty("data")
+        .toEqualTypeOf<User | null | undefined>();
     });
 
     it("applies select on top of the catchError-widened type", () => {
       const { proxy } = setup();
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const result = proxy.users.getById.useQuery(
-        { id: 1 },
-        {
-          select: user => user?.id ?? null,
-          catchError: () => null
-        }
-      );
-
-      expectTypeOf<(typeof result)["data"]>().toEqualTypeOf<number | null | undefined>();
+      expectTypeOf(
+        proxy.users.getById.useQuery(
+          { id: 1 },
+          {
+            select: user => user?.id ?? null,
+            catchError: () => null
+          }
+        )
+      )
+        .toHaveProperty("data")
+        .toEqualTypeOf<number | null | undefined>();
     });
 
     it("keeps the data type as the SDK return type when placeholderData is keepPreviousData", () => {
       const { proxy } = setup();
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const result = proxy.users.getById.useQuery({ id: 1 }, { placeholderData: keepPreviousData });
-
-      expectTypeOf<(typeof result)["data"]>().toEqualTypeOf<User | undefined>();
+      expectTypeOf(proxy.users.getById.useQuery({ id: 1 }, { placeholderData: keepPreviousData }))
+        .toHaveProperty("data")
+        .toEqualTypeOf<User | undefined>();
     });
 
     it("keeps select and catchError intact when combined with keepPreviousData", () => {
       const { proxy } = setup();
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const result = proxy.users.getById.useQuery(
-        { id: 1 },
-        {
-          placeholderData: keepPreviousData,
-          catchError: () => null,
-          select: user => user?.id ?? null
-        }
-      );
-
-      expectTypeOf<(typeof result)["data"]>().toEqualTypeOf<number | null | undefined>();
+      expectTypeOf(
+        proxy.users.getById.useQuery(
+          { id: 1 },
+          {
+            placeholderData: keepPreviousData,
+            catchError: () => null,
+            select: user => user?.id ?? null
+          }
+        )
+      )
+        .toHaveProperty("data")
+        .toEqualTypeOf<number | null | undefined>();
     });
 
     it("can proxy class instance", () => {
