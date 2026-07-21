@@ -19,6 +19,7 @@
     "indexer:dev": "turbo dev --filter=\"./apps/indexer\"",
     "knip": "knip",
     "lint": "eslint .",
+    "lint:env": "node script/lint-env.mjs",
     "lint:fix": "npm run lint -- --fix",
     "prepare": "husky || true",
     "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\"",

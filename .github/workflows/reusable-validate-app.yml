@@ -53,6 +53,18 @@ jobs:
         run: |
           npm run lint -w apps/${{ inputs.app }} -- --quiet
 
+      - name: Lint env files
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+        env:
+          APP: ${{ inputs.app }}
+          DOTENV_LINTER_VERSION: v4.0.0
+          DOTENV_LINTER_SHA256: 9e2f1f6eb88a71ac15ef209f78f5a68644db82f132d2677112b4f80ec2bd2127
+        run: |
+          curl -fsSL "https://github.com/dotenv-linter/dotenv-linter/releases/download/${DOTENV_LINTER_VERSION}/dotenv-linter-linux-x86_64.tar.gz" -o /tmp/dotenv-linter.tar.gz
+          echo "${DOTENV_LINTER_SHA256}  /tmp/dotenv-linter.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/dotenv-linter.tar.gz -C /tmp dotenv-linter
+          DOTENV_LINTER_BIN=/tmp/dotenv-linter node script/lint-env.mjs "apps/$APP"
+
       - name: Ensure there are no leftovers
         if: github.event_name == 'pull_request'
         run: |
