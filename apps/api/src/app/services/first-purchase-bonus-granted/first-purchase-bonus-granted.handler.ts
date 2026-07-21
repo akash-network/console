@@ -1,13 +1,13 @@
 import { singleton } from "tsyringe";
 
 import { FirstPurchaseBonusGranted } from "@src/billing/events/first-purchase-bonus-granted";
-import { EventPayload, JobHandler, LoggerService } from "@src/core";
+import { EventHandler, EventPayload, LoggerService } from "@src/core";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { firstPurchaseBonusGrantedNotification } from "@src/notifications/services/notification-templates/first-purchase-bonus-granted-notification";
 import { UserRepository } from "@src/user/repositories";
 
 @singleton()
-export class FirstPurchaseBonusGrantedHandler implements JobHandler<FirstPurchaseBonusGranted> {
+export class FirstPurchaseBonusGrantedHandler implements EventHandler<FirstPurchaseBonusGranted> {
   public readonly accepts = FirstPurchaseBonusGranted;
 
   public readonly concurrency = 2;

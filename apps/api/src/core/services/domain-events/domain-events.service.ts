@@ -15,17 +15,15 @@ export class DomainEventsService {
     private readonly logger: LoggerService
   ) {}
 
-  async publish(event: DomainEvent, options?: EnqueueOptions): Promise<string | null> {
+  async publish(event: DomainEvent, options?: EnqueueOptions): Promise<void> {
     try {
-      return await this.jobQueueManager.enqueue(event, options);
+      await this.jobQueueManager.publish(event, options);
     } catch (error) {
       this.logger.error({
         event: "DOMAIN_EVENT_PUBLISH_FAILED",
         domainEvent: event,
         error
       });
-
-      return null;
     }
   }
 }

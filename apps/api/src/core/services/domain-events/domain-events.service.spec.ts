@@ -8,7 +8,7 @@ import { DomainEventsService } from "./domain-events.service";
 
 describe(DomainEventsService.name, () => {
   describe("publish()", () => {
-    it("enqueues the event successfully", async () => {
+    it("publishes the event to the job queue", async () => {
       class TestEvent implements DomainEvent {
         version = 1;
         name = "testEvent";
@@ -17,13 +17,32 @@ describe(DomainEventsService.name, () => {
 
       const { service, jobQueueManager } = setup();
       const event = new TestEvent();
-      const jobId = "12345";
-      jobQueueManager.enqueue.mockResolvedValue(jobId);
+      const options = { singletonKey: "key" };
 
-      const result = await service.publish(event);
+      await service.publish(event, options);
 
-      expect(result).toBe(jobId);
-      expect(jobQueueManager.enqueue).toHaveBeenCalledWith(event, undefined);
+      expect(jobQueueManager.publish).toHaveBeenCalledWith(event, options);
+    });
+
+    it("logs and swallows errors when publishing fails", async () => {
+      class TestEvent implements DomainEvent {
+        version = 1;
+        name = "testEvent";
+        data = { key: "value" };
+      }
+
+      const { service, jobQueueManager, logger } = setup();
+      const event = new TestEvent();
+      const error = new Error("boom");
+      jobQueueManager.publish.mockRejectedValue(error);
+
+      await expect(service.publish(event)).resolves.toBeUndefined();
+
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "DOMAIN_EVENT_PUBLISH_FAILED",
+        domainEvent: event,
+        error
+      });
     });
   });
 
