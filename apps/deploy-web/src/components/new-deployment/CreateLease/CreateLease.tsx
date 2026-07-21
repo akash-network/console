@@ -137,7 +137,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
   const bidsReceivedTracked = useRef(false);
 
   useEffect(() => {
-    setNumberOfRequests(prev => ++prev);
+    setNumberOfRequests(prev => prev + 1);
   }, [bidsUpdatedAt]);
 
   useEffect(() => {

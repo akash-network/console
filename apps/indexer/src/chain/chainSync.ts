@@ -196,10 +196,9 @@ async function insertBlocks(startHeight: number, endHeight: number) {
     const blockDatetime = new Date(blockData.block.header.time);
 
     const txs = blockData.block.data.txs;
-    let blockResults: BlockResultType | null = null;
 
     // Always fetch block results — BME epoch events fire in EndBlocker regardless of transactions
-    blockResults = await getCachedBlockResultsByHeight(i);
+    let blockResults: BlockResultType | null = await getCachedBlockResultsByHeight(i);
     if (blockResults == null) {
       // Block results may be missing from old cache that only fetched results for blocks with txs.
       // Fetch from node and cache for future use.

@@ -124,7 +124,7 @@ export class TxEventsService {
   private extractFilteredEventsFromBlockResults(blockResults: BlockResultsResponse, filter?: EventFilter): ProcessedEvent[] {
     return blockResults.results
       .map(result => {
-        let events: Event[] = [];
+        let events: Event[];
 
         if (filter) {
           const regexp = this.toFilterRegexp(filter);

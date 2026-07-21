@@ -17,7 +17,7 @@ consoleClient.interceptors.response.use(
     return response.data;
   },
   async error => {
-    let errorMessage = "An unexpected error occurred";
+    let errorMessage: string;
     if (typeof error.response === "undefined") {
       errorMessage = "Server is not reachable or CORS is not enable on the server!";
       errorNotification("Server is not reachable or CORS is not enable on the server!");
