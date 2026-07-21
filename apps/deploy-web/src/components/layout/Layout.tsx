@@ -30,6 +30,19 @@ const SIDEBAR_BELOW_BANNER_STYLE: CSSProperties = {
   height: `calc(100% - ${APP_HEADER_HEIGHT_CSS} + ${ACCOUNT_BAR_HEIGHT}px)`
 };
 
+export const DEPENDENCIES = {
+  LinearLoadingSkeleton,
+  Nav,
+  Sidebar,
+  TopNav,
+  TrackingScripts,
+  useFlag,
+  useOnboardingChrome,
+  useSettings,
+  useTopBanner,
+  useWallet
+};
+
 type Props = {
   isLoading?: boolean;
   isUsingSettings?: boolean;
@@ -38,9 +51,19 @@ type Props = {
   containerClassName?: string;
   background?: "default" | "white";
   children?: ReactNode;
+  dependencies?: typeof DEPENDENCIES;
 };
 
-const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName, background }) => {
+const Layout: React.FunctionComponent<Props> = ({
+  children,
+  isLoading,
+  isUsingSettings,
+  isUsingWallet,
+  disableContainer,
+  containerClassName,
+  background,
+  dependencies
+}) => {
   const [locale, setLocale] = useState("en-US");
 
   useEffect(() => {
@@ -58,6 +81,7 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
         disableContainer={disableContainer}
         containerClassName={containerClassName}
         background={background}
+        dependencies={dependencies}
       >
         {children}
       </LayoutApp>
@@ -67,13 +91,15 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
 
 const LayoutApp: React.FunctionComponent<Props> = ({
   children,
-  isLoading,
+  isLoading = false,
   isUsingSettings,
   isUsingWallet,
   disableContainer,
   containerClassName = "",
-  background = "default"
+  background = "default",
+  dependencies: d = DEPENDENCIES
 }) => {
+  const { LinearLoadingSkeleton, Nav, Sidebar, TopNav, TrackingScripts, useFlag, useOnboardingChrome, useSettings, useTopBanner, useWallet } = d;
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const [isNavOpen, setIsNavOpen] = useState(() => {
@@ -130,7 +156,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({
                 ["md:ml-[57px]"]: hasSidebar && !isNavOpen
               })}
             >
-              {isLoading !== undefined && <LinearLoadingSkeleton isLoading={isLoading} />}
+              <LinearLoadingSkeleton isLoading={isLoading} />
 
               <ErrorBoundary FallbackComponent={ErrorFallback}>
                 {!isUsingSettings || isSettingsInit ? (
