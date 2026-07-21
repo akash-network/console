@@ -1,9 +1,8 @@
 import { faker } from "@faker-js/faker";
 import type { Job as PgBossJob, PgBoss, WorkHandler } from "pg-boss";
+import type { Sql } from "postgres";
 import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
-
-import type { Sql } from "postgres";
 
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { CoreConfigService } from "../core-config/core-config.service";

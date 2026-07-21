@@ -12,3 +12,15 @@ export class TrialStarted implements DomainEvent {
     }
   ) {}
 }
+
+export class BlaStarted implements DomainEvent {
+  static readonly [DOMAIN_EVENT_NAME] = "BlaStarted";
+  public readonly name = BlaStarted[DOMAIN_EVENT_NAME];
+  public readonly version = 1;
+
+  constructor(
+    public readonly data: {
+      userId: UserOutput["id"];
+    }
+  ) {}
+}
