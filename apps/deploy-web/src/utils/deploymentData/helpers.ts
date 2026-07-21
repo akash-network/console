@@ -42,7 +42,7 @@ export function parseSizeStr(str: string) {
     }
   } catch (err) {
     console.error(err);
-    throw new Error("Error while parsing size: " + str);
+    throw new Error("Error while parsing size: " + str, { cause: err });
   }
 }
 
