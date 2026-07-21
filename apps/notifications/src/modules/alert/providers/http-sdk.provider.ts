@@ -29,7 +29,7 @@ export const HTTP_SDK_PROVIDERS: Provider[] = [
   },
   {
     provide: BalanceHttpService,
-    inject: [ConfigService],
-    useFactory: (configService: ConfigService<AlertConfig>) => new BalanceHttpService({ baseURL: configService.getOrThrow("alert.API_NODE_ENDPOINT") })
+    inject: [CHAIN_API_HTTP_CLIENT_TOKEN],
+    useFactory: (httpClient: HttpClient) => new BalanceHttpService(httpClient)
   }
 ];
