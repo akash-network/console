@@ -76,7 +76,7 @@ export class StripeService {
 
     const url = `/v1/stripe/transactions${params.toString() ? `?${params}` : ""}`;
 
-    return extractData(await this.#httpClient.get(url));
+    return extractData(await this.#httpClient.get(url)).data;
   }
 
   async exportTransactionsCsv(params: ExportTransactionsCsvParams): Promise<Blob> {
