@@ -9,6 +9,7 @@ import type { UserWalletOutput, UserWalletRepository } from "@src/billing/reposi
 import type { PayingUser } from "@src/billing/services/paying-user/paying-user";
 import type { PaymentMethod, StripeService } from "@src/billing/services/stripe/stripe.service";
 import type { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
+import type { TransactionReportingService } from "@src/billing/services/transaction-reporting/transaction-reporting.service";
 import type { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import { StripeController } from "./stripe.controller";
 
@@ -401,7 +402,8 @@ describe(StripeController.name, () => {
     const stripeErrorService = mock<StripeErrorService>();
     const userWalletRepository = mock<UserWalletRepository>();
     const trialValidationService = mock<TrialValidationService>();
-    const controller = new StripeController(stripe, authService, stripeErrorService, userWalletRepository, trialValidationService);
+    const transactionReporting = mock<TransactionReportingService>();
+    const controller = new StripeController(stripe, authService, stripeErrorService, userWalletRepository, trialValidationService, transactionReporting);
     container.register(AuthService, { useValue: authService });
 
     return {
