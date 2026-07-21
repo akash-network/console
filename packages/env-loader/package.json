@@ -21,5 +21,8 @@
   "dependencies": {
     "@dotenvx/dotenvx": "^1.12.1",
     "pino": "^9.5.0"
+  },
+  "devDependencies": {
+    "@akashnetwork/dev-config": "*"
   }
 }

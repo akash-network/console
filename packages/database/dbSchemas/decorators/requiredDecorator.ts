@@ -1,5 +1,5 @@
 import { AllowNull } from "sequelize-typescript";
 
-export function Required(target: any, propertyName: string): void {
+export function Required(target: object, propertyName: string): void {
   return AllowNull(false)(target, propertyName);
 }
