@@ -94,7 +94,7 @@ module.exports = function (app: string) {
         }
       }
     },
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+
     plugins: [require("tailwindcss-animate"), require("tailwind-scrollbar")({ nocompatible: true }), require("@tailwindcss/typography")]
   };
 

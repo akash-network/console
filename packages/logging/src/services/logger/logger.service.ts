@@ -104,7 +104,7 @@ export class LoggerService implements Logger {
       try {
         return {
           ok: true,
-          // eslint-disable-next-line @typescript-eslint/no-var-requires
+
           value: require("pino-pretty")({ colorize: true, sync: true })
         } as const;
       } catch (error) {

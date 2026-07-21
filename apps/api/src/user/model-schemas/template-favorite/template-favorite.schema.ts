@@ -1,7 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import { pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
-import { Templates } from "@src/user/model-schemas/template/template.schema"; // eslint-disable-line import-x/no-cycle
+import { Templates } from "@src/user/model-schemas/template/template.schema";
 
 export const TemplateFavorites = pgTable(
   "templateFavorite",

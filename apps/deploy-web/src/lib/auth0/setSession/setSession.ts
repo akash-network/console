@@ -13,8 +13,8 @@
  * 4. `setSession` implementation which is basically an adoption of `updateSession` function
  */
 
-import type { Session, SessionCache } from "@auth0/nextjs-auth0"; // eslint-disable-line no-restricted-imports
-import { getSession as auth0GetSession } from "@auth0/nextjs-auth0"; // eslint-disable-line no-restricted-imports
+import type { Session, SessionCache } from "@auth0/nextjs-auth0";
+import { getSession as auth0GetSession } from "@auth0/nextjs-auth0";
 // @ts-expect-error - access to internal function via webpack alias in next.config.js#72
 import * as sessionModule from "@auth0/nextjs-auth0/session";
 // @ts-expect-error - access to internal function via webpack alias in next.config.js#72

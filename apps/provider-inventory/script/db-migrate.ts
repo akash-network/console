@@ -1,4 +1,3 @@
-/* eslint-disable import-x/no-extraneous-dependencies, import-x/no-unresolved */
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import fs from "node:fs";

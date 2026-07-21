@@ -31,7 +31,7 @@ export default [
       akash
     },
     linterOptions: {
-      reportUnusedDisableDirectives: "off"
+      reportUnusedDisableDirectives: "error"
     },
     languageOptions: {
       ecmaVersion: "latest",

@@ -95,7 +95,7 @@ const logger = createOtelLogger({ context: "CLI" });
 async function executeCliHandler(name: string, handler: () => Promise<unknown>, options?: { type?: "action" | "daemon" }) {
   await context.with(trace.setSpan(context.active(), tracer.startSpan(name)), async () => {
     logger.info({ event: "COMMAND_START", name });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+
     const { migratePG } = require("../core/providers/postgres.provider");
 
     try {

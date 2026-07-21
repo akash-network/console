@@ -123,7 +123,7 @@ async function initApp() {
   try {
     if (env.STANDBY) {
       console.log("STANDBY mode enabled. Doing nothing.");
-      // eslint-disable-next-line no-constant-condition
+
       while (true) {
         await sleep(5_000);
       }

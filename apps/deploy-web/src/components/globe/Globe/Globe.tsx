@@ -289,7 +289,7 @@ export function Globe({
     },
     // `resolvedSize` is intentionally omitted — `syncGlobeSize` pushes size updates through
     // `globe.update()` so cobe doesn't re-wrap the canvas on every resize. See `globeRef`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
     [markersKey, rotationSpeed, focusScreenBiasY, focusScreenBiasX, markerSize, effectiveTheme, d, cobeOptionsKey]
   );
 

@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type Options } from "tsup"; // eslint-disable-line import-x/no-extraneous-dependencies
+import { type Options } from "tsup";
 
 type Plugin = Required<Options>["plugins"][number];
 type EsBuildPlugin = Required<Options>["esbuildPlugins"][number];

@@ -270,8 +270,6 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
     } else {
       setFilteredBids(bids?.map(bid => bid.id) || []);
     }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, bids, providers, isFilteringFavorites, isFilteringAudited, favoriteProviders]);
 
   const selectBid = (bid: BidDto) => {
