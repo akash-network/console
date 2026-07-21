@@ -256,13 +256,14 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
       );
       break;
     case "custom": {
-      props.actions?.length > 0 &&
+      if ((props.actions?.length ?? 0) > 0) {
         component.push(
           <DialogFooter className="flex flex-row justify-between space-x-2 sm:justify-between" key="DialogCustomActions">
             <div className="space-x-2">{buttonsForSide("left")}</div>
             <div className="space-x-2">{buttonsForSide("right")}</div>
           </DialogFooter>
         );
+      }
       break;
     }
     case "select": {

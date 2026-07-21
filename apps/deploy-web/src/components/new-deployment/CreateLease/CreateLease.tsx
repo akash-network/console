@@ -220,15 +220,14 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
         await providerProxy.sendManifest(provider, mani, options);
       }
 
-      // Ad tracking script
-      publicConfig.NEXT_PUBLIC_TRACKING_ENABLED &&
-        publicConfig.NEXT_PUBLIC_GROWTH_CHANNEL_TRACKING_ENABLED &&
+      if (publicConfig.NEXT_PUBLIC_TRACKING_ENABLED && publicConfig.NEXT_PUBLIC_GROWTH_CHANNEL_TRACKING_ENABLED) {
         addScriptToHead({
           src: "https://pxl.growth-channel.net/s/76250b26-c260-4776-874b-471ed290230d",
           async: true,
           defer: true,
           id: "growth-channel-script-lease"
         });
+      }
 
       router.replace(UrlService.deploymentDetails(dseq, "EVENTS", "events"));
     } catch (error) {
