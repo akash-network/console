@@ -9,7 +9,7 @@ const PROBE_METHOD_MAP: Record<ProbeType, keyof Omit<HealthzService, "name">> = 
 
 @Injectable()
 export class HealthzHelperService {
-  async summarize(type: ProbeType, services: HealthzService[]) {
+  async summarize(type: ProbeType, services: HealthzService[]): Promise<SummarizedProbeResult> {
     const method = PROBE_METHOD_MAP[type];
 
     const statuses = await Promise.all(services.map(async service => ({ name: service.name, result: await service[method]() })));
@@ -31,7 +31,7 @@ export class HealthzHelperService {
     );
   }
 
-  async throwUnlessHealthy(type: ProbeType, ...services: HealthzService[]) {
+  async throwUnlessHealthy(type: ProbeType, ...services: HealthzService[]): Promise<SummarizedProbeResult> {
     const result = await this.summarize(type, services);
 
     if (result.status === "error") {

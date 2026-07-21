@@ -35,7 +35,7 @@ export class SwaggerSetup {
     private readonly pathModule: typeof path = path
   ) {}
 
-  serveSwagger() {
+  serveSwagger(): void {
     const customSwaggerUiPath = this.pathModule.resolve(__dirname, "../dist/swagger-ui-dist");
 
     for (const { scope, mountPath } of SCOPES) {
@@ -44,7 +44,7 @@ export class SwaggerSetup {
     }
   }
 
-  generateSwagger() {
+  generateSwagger(): void {
     const logger = new Logger({ context: "SWAGGER" });
     const swaggerDir = this.pathModule.resolve(__dirname, "../swagger");
 

@@ -11,7 +11,7 @@ export class LoggerService extends ConsoleLogger implements LoggerBase {
     super(opts);
   }
 
-  info(message: any, ...optionalParams: [...any, string?]) {
+  info(message: unknown, ...optionalParams: [...any, string?]): void {
     return this.log(message, ...optionalParams);
   }
 }

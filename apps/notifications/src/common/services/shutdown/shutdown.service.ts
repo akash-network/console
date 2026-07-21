@@ -9,7 +9,7 @@ export class ShutdownService {
     this.sub.subscribe(() => shutdownFn());
   }
 
-  shutdown() {
+  shutdown(): void {
     this.sub.next();
   }
 }

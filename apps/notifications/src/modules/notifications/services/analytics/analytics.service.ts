@@ -23,7 +23,7 @@ export class AnalyticsService {
     this.samplingRate = this.validateSamplingRate();
   }
 
-  track(userId: string, eventName: AnalyticsEvent, eventProperties: Record<string, unknown> = {}) {
+  track(userId: string, eventName: AnalyticsEvent, eventProperties: Record<string, unknown> = {}): void {
     if (this.shouldSampleUser(userId)) {
       const amplitudeProperties = eventProperties as Record<string, unknown>;
       this.amplitude.track(eventName, amplitudeProperties, {

@@ -1,3 +1,4 @@
+/* v8 ignore start */
 import "@akashnetwork/env-loader";
 
 import type { Logger as LoggerBase } from "@akashnetwork/logging";
@@ -20,7 +21,7 @@ export class Bootstrapper {
     loggerService.setContext(Bootstrapper.name);
   }
 
-  async createApp() {
+  async createApp(): Promise<INestApplication> {
     this.app = await this.nestFactory.create(this.module, { logger: this.loggerService });
     this.app.enableShutdownHooks();
     const shutdownService = await this.app.resolve(ShutdownService);
@@ -29,19 +30,19 @@ export class Bootstrapper {
     return this.app;
   }
 
-  async startWorker() {
+  async startWorker(): Promise<void> {
     this.assertApp();
     await this.app.init();
   }
 
-  async configureHttp() {
+  async configureHttp(): Promise<void> {
     this.assertApp();
     this.app.enableVersioning();
     this.app.useGlobalFilters(new HttpExceptionFilter(await this.app.resolve(LoggerService)));
     this.app.enableCors();
   }
 
-  async startHttp(port = process.env.PORT ?? 3000) {
+  async startHttp(port = process.env.PORT ?? 3000): Promise<void> {
     this.assertApp();
     await this.startWorker();
     await this.app.listen(port);

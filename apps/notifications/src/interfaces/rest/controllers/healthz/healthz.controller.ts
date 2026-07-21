@@ -2,6 +2,7 @@ import { Controller, Get } from "@nestjs/common";
 import { ApiExcludeController } from "@nestjs/swagger";
 
 import { HealthzHelperService } from "@src/common/services/healthz-helper/healthz-helper.service";
+import type { SummarizedProbeResult } from "@src/common/types/healthz.type";
 import { DbHealthzService } from "@src/infrastructure/db/services/db-healthz/db-healthz.service";
 import { Unprotected } from "@src/interfaces/rest/interceptors/auth/auth.interceptor";
 
@@ -15,12 +16,12 @@ export class HealthzController {
   ) {}
 
   @Get("readiness")
-  async getReadiness() {
+  async getReadiness(): Promise<SummarizedProbeResult> {
     return this.healthzHelperService.throwUnlessHealthy("readiness", this.dbHealthzService);
   }
 
   @Get("liveness")
-  getLiveness() {
+  getLiveness(): Promise<SummarizedProbeResult> {
     return this.healthzHelperService.throwUnlessHealthy("liveness", this.dbHealthzService);
   }
 }

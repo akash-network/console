@@ -11,7 +11,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     logger.setContext(HttpExceptionFilter.name);
   }
 
-  catch(exception: unknown, host: ArgumentsHost) {
+  catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const isSerializationException = exception instanceof ZodSerializationException;

@@ -14,7 +14,16 @@ export function generateSimpleMockBlock(
     chainId?: string;
     txCount?: number;
   } = {}
-) {
+): {
+  id: string;
+  header: {
+    height: number;
+    time: string;
+    chainId: string;
+    version: { block: string; app: string };
+  };
+  txs: Uint8Array[];
+} {
   const height = options.height || faker.number.int({ min: 1, max: 1000000 });
   const txCount = options.txCount || faker.number.int({ min: 0, max: 10 });
 
@@ -44,7 +53,12 @@ export function generateMockBlockData(
     hash?: string;
     messages?: BlockMessage[];
   } = {}
-) {
+): {
+  height: number;
+  hash: string;
+  time: string;
+  messages: BlockMessage[];
+} {
   const height = options.height || faker.number.int({ min: 1, max: 1000000 });
   const time = options.time || faker.date.recent().toISOString();
 

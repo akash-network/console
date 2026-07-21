@@ -25,7 +25,7 @@ export class BrokerService {
     this.logger.setContext(BrokerService.name);
   }
 
-  async publish<T extends keyof EventToPayload>(eventName: T, event: EventToPayload[T], options?: PublishOptions) {
+  async publish<T extends keyof EventToPayload>(eventName: T, event: EventToPayload[T], options?: PublishOptions): Promise<void> {
     if (options) {
       await this.boss.publish(eventName, event, options);
     } else {
@@ -34,7 +34,7 @@ export class BrokerService {
     this.logger.log({ event: "EVENT_PUBLISHED", eventName });
   }
 
-  async subscribe<ReqData>(eventName: string, options: { prefetchCount: number }, handler: SingleMsgWorkHandler<ReqData>) {
+  async subscribe<ReqData>(eventName: string, options: { prefetchCount: number }, handler: SingleMsgWorkHandler<ReqData>): Promise<void> {
     const queueName = this.toQueueName(eventName);
     await this.boss.createQueue(queueName);
     await this.boss.subscribe(eventName, queueName);
@@ -49,7 +49,7 @@ export class BrokerService {
     this.logger.log({ event: "WORKER_STARTED", queueName, options });
   }
 
-  async publishAll(events: Event[]) {
+  async publishAll(events: Event[]): Promise<void> {
     const client = await this.pool.connect();
 
     try {

@@ -92,7 +92,7 @@ export class AlertRepository {
     protected readonly db: NodePgDatabase<typeof schema>
   ) {}
 
-  accessibleBy(ability: AbilityParams[0], action: AbilityParams[1], subject: string = "Alert") {
+  accessibleBy(ability: AbilityParams[0], action: AbilityParams[1], subject: string = "Alert"): this {
     return new AlertRepository(this.db).withAbility(ability, action, subject) as this;
   }
 
@@ -102,7 +102,7 @@ export class AlertRepository {
     return this;
   }
 
-  protected whereAccessibleBy(where?: SQL) {
+  protected whereAccessibleBy(where?: SQL): SQL | undefined {
     return this.ability?.whereAccessibleBy(where) || where;
   }
 

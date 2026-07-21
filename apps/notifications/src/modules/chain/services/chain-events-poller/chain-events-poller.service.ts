@@ -206,7 +206,7 @@ export class ChainEventsPollerService implements OnApplicationBootstrap, OnModul
     return this.getReadinessStatus();
   }
 
-  async onModuleDestroy() {
+  async onModuleDestroy(): Promise<void> {
     await this.finishPolling();
   }
 
