@@ -45,8 +45,12 @@ export const SdlImportExport: FC<Props> = ({ sdl, deploymentName, canImport, onI
     analyticsService.track("configure_sdl_downloaded", { category: "deployments" });
   }
 
-  function handleCopy() {
-    d.copyTextToClipboard(sdl);
+  async function handleCopy() {
+    const copied = await d.copyTextToClipboard(sdl);
+    if (!copied) {
+      enqueueSnackbar(<d.Snackbar title="Couldn't copy the SDL to your clipboard" iconVariant="error" />, { variant: "error" });
+      return;
+    }
     enqueueSnackbar(<d.Snackbar title="SDL copied to clipboard!" iconVariant="success" />, { variant: "success" });
     analyticsService.track("configure_sdl_copied", { category: "deployments" });
   }

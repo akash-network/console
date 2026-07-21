@@ -1,4 +1,4 @@
-function fallbackCopyTextToClipboard(text: string) {
+function fallbackCopyTextToClipboard(text: string): boolean {
   const textArea = document.createElement("textarea");
   textArea.value = text;
 
@@ -12,26 +12,24 @@ function fallbackCopyTextToClipboard(text: string) {
   textArea.select();
 
   try {
-    const successful = document.execCommand("copy");
-    const msg = successful ? "successful" : "unsuccessful";
-    console.log("Fallback: Copying text command was " + msg);
-  } catch (err) {
-    console.error("Fallback: Oops, unable to copy", err);
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
+    document.body.removeChild(textArea);
+  }
+}
+
+/** Copies text to the clipboard, resolving to whether the write actually succeeded (including the legacy fallback path). */
+export const copyTextToClipboard = async (text: string): Promise<boolean> => {
+  if (!navigator.clipboard) {
+    return fallbackCopyTextToClipboard(text);
   }
 
-  document.body.removeChild(textArea);
-}
-export const copyTextToClipboard = (text: string) => {
-  if (!navigator.clipboard) {
-    fallbackCopyTextToClipboard(text);
-    return;
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
   }
-  navigator.clipboard.writeText(text).then(
-    () => {
-      console.log("Async: Copying to clipboard was successful!");
-    },
-    err => {
-      console.error("Async: Could not copy text: ", err);
-    }
-  );
 };

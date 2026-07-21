@@ -7,7 +7,7 @@ import type { ImportedDeploymentState } from "../importDeploymentState/importDep
 import type { DEPENDENCIES } from "./SdlImportExport";
 import { SdlImportExport } from "./SdlImportExport";
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const IMPORTED_STATE: ImportedDeploymentState = { values: mock<SdlBuilderFormValuesType>(), sdl: "imported-sdl", selectedServiceId: "svc-1" };
@@ -76,8 +76,18 @@ describe(SdlImportExport.name, () => {
     await userEvent.click(screen.getByRole("menuitem", { name: "Copy to clipboard" }));
 
     expect(copyTextToClipboard).toHaveBeenCalledWith("some: sdl");
+    await waitFor(() => expect(analyticsService.track).toHaveBeenCalledWith("configure_sdl_copied", { category: "deployments" }));
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "success" }));
-    expect(analyticsService.track).toHaveBeenCalledWith("configure_sdl_copied", { category: "deployments" });
+  });
+
+  it("shows an error and does not track the copy when the clipboard write fails", async () => {
+    const { enqueueSnackbar, analyticsService } = setup({ sdl: "some: sdl", canCopy: false });
+
+    await userEvent.click(screen.getByRole("button", { name: "Export" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Copy to clipboard" }));
+
+    await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" })));
+    expect(analyticsService.track).not.toHaveBeenCalledWith("configure_sdl_copied", { category: "deployments" });
   });
 
   it("disables the export actions when there is no sdl to export", async () => {
@@ -89,12 +99,12 @@ describe(SdlImportExport.name, () => {
     expect(screen.getByRole("menuitem", { name: "Copy to clipboard" })).toHaveAttribute("aria-disabled", "true");
   });
 
-  function setup(input: { sdl?: string; deploymentName?: string; canImport?: boolean }) {
+  function setup(input: { sdl?: string; deploymentName?: string; canImport?: boolean; canCopy?: boolean }) {
     const onImport = vi.fn();
     const analyticsService = mock<AnalyticsService>();
     const enqueueSnackbar = vi.fn();
     const saveAs = vi.fn<(data: Blob, filename: string) => void>();
-    const copyTextToClipboard = vi.fn();
+    const copyTextToClipboard = vi.fn<(text: string) => Promise<boolean>>().mockResolvedValue(input.canCopy ?? true);
 
     const ImportSdlDialog: typeof DEPENDENCIES.ImportSdlDialog = ({ onImport: onDialogImport }) => (
       <button type="button" onClick={() => onDialogImport(IMPORTED_STATE, { method: "file" })}>
