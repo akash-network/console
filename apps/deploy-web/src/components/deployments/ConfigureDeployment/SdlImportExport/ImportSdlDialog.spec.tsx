@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
@@ -7,12 +7,14 @@ import { NoVisibleServiceError } from "../importDeploymentState/importDeployment
 import type { DEPENDENCIES } from "./ImportSdlDialog";
 import { ImportSdlDialog } from "./ImportSdlDialog";
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const IMPORTED_STATE: ImportedDeploymentState = { values: mock<SdlBuilderFormValuesType>(), sdl: "imported-sdl", selectedServiceId: "svc-1" };
 
 describe(ImportSdlDialog.name, () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it("disables Import while the editor is empty", () => {
     setup({});
 
@@ -137,6 +139,28 @@ describe(ImportSdlDialog.name, () => {
     expect(onImport).toHaveBeenCalledWith(IMPORTED_STATE, { method: "paste" });
   });
 
+  it("ignores a slow file read once the editor has been edited", async () => {
+    const reads = captureFileReads();
+    setup({});
+
+    await userEvent.upload(screen.getByLabelText("Upload file"), sdlFile("stale: sdl"));
+    await userEvent.type(screen.getByLabelText("SDL editor"), "fresh");
+    act(() => reads[0].emitLoad("stale: sdl"));
+
+    expect(screen.getByLabelText("SDL editor")).toHaveValue("fresh");
+  });
+
+  it("suppresses a read error for a file superseded by a newer edit", async () => {
+    const reads = captureFileReads();
+    setup({});
+
+    await userEvent.upload(screen.getByLabelText("Upload file"), sdlFile("stale: sdl"));
+    await userEvent.type(screen.getByLabelText("SDL editor"), "fresh");
+    act(() => reads[0].emitError());
+
+    expect(screen.queryByText("Couldn't read the file. Please try again.")).not.toBeInTheDocument();
+  });
+
   it("rejects an oversized file without reading it", async () => {
     const { importDeploymentState } = setup({});
 
@@ -155,6 +179,24 @@ describe(ImportSdlDialog.name, () => {
     expect(onClose).toHaveBeenCalled();
     expect(onImport).not.toHaveBeenCalled();
   });
+
+  function captureFileReads() {
+    const reads: Array<{ emitLoad: (content: string) => void; emitError: () => void }> = [];
+    vi.stubGlobal(
+      "FileReader",
+      class {
+        onload: ((event: { target: { result: string } }) => void) | null = null;
+        onerror: (() => void) | null = null;
+        readAsText() {
+          reads.push({
+            emitLoad: content => this.onload?.({ target: { result: content } }),
+            emitError: () => this.onerror?.()
+          });
+        }
+      }
+    );
+    return reads;
+  }
 
   function sdlFile(content: string) {
     return new File([content], "deploy.yaml", { type: "application/x-yaml" });

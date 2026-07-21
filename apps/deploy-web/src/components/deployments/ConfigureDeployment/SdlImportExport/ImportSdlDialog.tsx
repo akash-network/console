@@ -42,12 +42,15 @@ export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d 
   const [error, setError] = useState<string | null>(null);
   const [isValid, setIsValid] = useState(true);
   const untouchedUploadedFileRef = useRef(false);
+  /** Guards against a slow FileReader overwriting newer text: a read applies only while it is still the latest. */
+  const fileReadGenerationRef = useRef(0);
 
   const focusOnMount = useCallback((editorInstance: editor.IStandaloneCodeEditor) => {
     editorInstance.focus();
   }, []);
 
   function handleEditorChange(value?: string) {
+    fileReadGenerationRef.current += 1;
     setText(value ?? "");
     setError(null);
     untouchedUploadedFileRef.current = false;
@@ -59,18 +62,22 @@ export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d 
 
   function handleFileSelect(file: File | null) {
     if (!file) return;
+    fileReadGenerationRef.current += 1;
+    const generation = fileReadGenerationRef.current;
     if (file.size > MAX_SDL_FILE_BYTES) {
       setError("This file is too large to be an SDL. Choose a file under 512 KB.");
       return;
     }
     const reader = new FileReader();
     reader.onload = function populateEditor(event) {
+      if (generation !== fileReadGenerationRef.current) return;
       const content = (event.target?.result as string) ?? "";
       untouchedUploadedFileRef.current = true;
       setText(content);
       setError(null);
     };
     reader.onerror = function reportReadFailure() {
+      if (generation !== fileReadGenerationRef.current) return;
       setError("Couldn't read the file. Please try again.");
     };
     reader.readAsText(file);
