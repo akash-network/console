@@ -1,1 +1,3 @@
-export default require("@akashnetwork/ui/tailwind")("provider-console");
+import createTailwindConfig from "@akashnetwork/ui/tailwind";
+
+export default createTailwindConfig("provider-console");
