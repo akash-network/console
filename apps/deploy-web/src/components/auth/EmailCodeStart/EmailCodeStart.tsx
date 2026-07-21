@@ -67,7 +67,7 @@ export function EmailCodeStart({ dependencies: d = DEPENDENCIES, ...props }: Pro
             render={({ field }) => (
               <d.FormInput
                 className="w-full"
-                inputClassName="bg-background dark:bg-input/30"
+                inputClassName="dark:bg-input/30"
                 type="email"
                 label="Email"
                 placeholder="you@company.com"

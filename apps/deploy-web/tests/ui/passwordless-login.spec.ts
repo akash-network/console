@@ -3,6 +3,7 @@ import { ManagementApiError } from "auth0";
 import { signInPasswordless } from "./actions/auth";
 import { expect, test } from "./fixture/base-test";
 import { testEnvConfig } from "./fixture/test-env.config";
+import { AuthPagePasswordless } from "./pages/AuthPagePasswordless";
 import { HomePage } from "./pages/HomePage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { MailsacCodeVerificationStrategy } from "./services/email-verification/mailsac-code.strategy";
@@ -46,5 +47,19 @@ test.describe("Passwordless auth", () => {
     await signInPasswordless(page, testEnvConfig.TEST_USER_EMAIL!);
 
     expect(await new HomePage(page).isCurrentPage()).toBe(true);
+  });
+
+  test("returns to the email step when the browser back button is pressed on the verify screen", async ({ page }) => {
+    test.setTimeout(60 * 1000);
+
+    const auth = new AuthPagePasswordless(page);
+    await auth.goto();
+    await auth.startWithEmail(testEnvConfig.TEST_USER_EMAIL!);
+    await auth.waitForVerifyScreen();
+
+    await auth.goBack();
+
+    await expect(auth.emailInput).toBeVisible();
+    await expect(page).not.toHaveURL(/step=verify/);
   });
 });

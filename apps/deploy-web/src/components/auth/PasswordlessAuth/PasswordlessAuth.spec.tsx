@@ -12,58 +12,60 @@ import { ComponentMock, MockComponents } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(PasswordlessAuth.name, () => {
-  it("flips to the verify screen when EmailCodeStart calls onStarted", () => {
+  it("renders the entry screen when the URL has no step", () => {
     const EmailCodeStartMock = vi.fn(ComponentMock);
     const EmailCodeVerifyMock = vi.fn(ComponentMock);
-    setup({
-      dependencies: { EmailCodeStart: EmailCodeStartMock as never, EmailCodeVerify: EmailCodeVerifyMock as never }
-    });
+    setup({ dependencies: { EmailCodeStart: EmailCodeStartMock as never, EmailCodeVerify: EmailCodeVerifyMock as never } });
+
+    expect(EmailCodeStartMock).toHaveBeenCalled();
+    expect(EmailCodeVerifyMock).not.toHaveBeenCalled();
+  });
+
+  it("renders the verify screen prefilled with the known email when the URL step is verify", () => {
+    const EmailCodeVerifyMock = vi.fn(ComponentMock);
+    setup({ step: "verify", initialEmail: "alice@example.com", dependencies: { EmailCodeVerify: EmailCodeVerifyMock as never } });
+
+    expect(EmailCodeVerifyMock).toHaveBeenLastCalledWith(expect.objectContaining({ email: "alice@example.com" }), expect.anything());
+  });
+
+  it("pushes step=verify to the URL when EmailCodeStart calls onStarted", () => {
+    const EmailCodeStartMock = vi.fn(ComponentMock);
+    const { push } = setup({ dependencies: { EmailCodeStart: EmailCodeStartMock as never } });
 
     act(() => EmailCodeStartMock.mock.lastCall![0].onStarted("alice@example.com"));
 
-    expect(EmailCodeVerifyMock).toHaveBeenLastCalledWith(expect.objectContaining({ email: "alice@example.com" }), expect.anything());
+    expect(push).toHaveBeenCalledWith(expect.stringContaining("step=verify"), undefined, { shallow: true });
   });
 
-  it("starts on the verify screen and prefills email from initialEmail/initialScreen", () => {
+  it("persists the email when EmailCodeStart calls onStarted", () => {
     const EmailCodeStartMock = vi.fn(ComponentMock);
-    const EmailCodeVerifyMock = vi.fn(ComponentMock);
-    setup({
-      initialEmail: "alice@example.com",
-      initialScreen: "verify",
-      dependencies: { EmailCodeStart: EmailCodeStartMock as never, EmailCodeVerify: EmailCodeVerifyMock as never }
-    });
+    const { onEmailChange } = setup({ dependencies: { EmailCodeStart: EmailCodeStartMock as never } });
 
-    expect(EmailCodeVerifyMock).toHaveBeenLastCalledWith(expect.objectContaining({ email: "alice@example.com" }), expect.anything());
+    act(() => EmailCodeStartMock.mock.lastCall![0].onStarted("alice@example.com"));
+
+    expect(onEmailChange).toHaveBeenCalledWith("alice@example.com");
   });
 
-  it("returns to the entry screen when EmailCodeVerify calls onEditEmail", () => {
-    const EmailCodeStartMock = vi.fn(ComponentMock);
+  it("removes the step param from the URL when EmailCodeVerify calls onEditEmail", () => {
     const EmailCodeVerifyMock = vi.fn(ComponentMock);
-    setup({
-      initialEmail: "alice@example.com",
-      initialScreen: "verify",
-      dependencies: { EmailCodeStart: EmailCodeStartMock as never, EmailCodeVerify: EmailCodeVerifyMock as never }
-    });
+    const { replace } = setup({ step: "verify", initialEmail: "alice@example.com", dependencies: { EmailCodeVerify: EmailCodeVerifyMock as never } });
 
     act(() => EmailCodeVerifyMock.mock.lastCall![0].onEditEmail());
 
-    expect(EmailCodeStartMock).toHaveBeenLastCalledWith(expect.objectContaining({ defaultEmail: "alice@example.com" }), expect.anything());
+    expect(replace).toHaveBeenCalledWith(expect.not.stringContaining("step"), undefined, { shallow: true });
   });
 
-  it("notifies the persistence layer when EmailCodeStart succeeds", () => {
-    const EmailCodeStartMock = vi.fn(ComponentMock);
-    const { onFlowChange } = setup({ dependencies: { EmailCodeStart: EmailCodeStartMock as never } });
+  it("redirects to the entry screen when the URL step is verify but no email is known", () => {
+    const { replace } = setup({ step: "verify", initialEmail: "" });
 
-    act(() => EmailCodeStartMock.mock.lastCall![0].onStarted("alice@example.com"));
-
-    expect(onFlowChange).toHaveBeenLastCalledWith({ email: "alice@example.com", screen: "verify" });
+    expect(replace).toHaveBeenCalledWith(expect.not.stringContaining("step"), undefined, { shallow: true });
   });
 
   it("resets the persisted flow, refreshes the session, and navigates back when EmailCodeVerify calls onVerified", async () => {
     const EmailCodeVerifyMock = vi.fn(ComponentMock);
     const { onFlowReset, checkSession, navigateBack } = setup({
+      step: "verify",
       initialEmail: "alice@example.com",
-      initialScreen: "verify",
       dependencies: { EmailCodeVerify: EmailCodeVerifyMock as never }
     });
 
@@ -115,16 +117,20 @@ describe(PasswordlessAuth.name, () => {
   function setup(
     input: {
       initialEmail?: string;
-      initialScreen?: "entry" | "verify";
+      step?: string;
       isOnboardingRedesignEnabled?: boolean;
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
     const analyticsService = mock<AnalyticsService>();
-    const onFlowChange = vi.fn();
+    const onEmailChange = vi.fn();
     const onFlowReset = vi.fn();
     const checkSession = vi.fn(async () => undefined);
     const navigateBack = vi.fn();
+    const push = vi.fn();
+    const replace = vi.fn();
+    const params = new URLSearchParams();
+    if (input.step) params.set("step", input.step);
     const useUser: typeof DEPENDENCIES.useUser = () =>
       mock<ReturnType<typeof DEPENDENCIES.useUser>>({
         checkSession,
@@ -140,6 +146,8 @@ describe(PasswordlessAuth.name, () => {
         isDeploymentReturnTo: false
       });
     const useFlag: typeof DEPENDENCIES.useFlag = (() => Boolean(input.isOnboardingRedesignEnabled)) as never;
+    const useRouter: typeof DEPENDENCIES.useRouter = (() => ({ push, replace, pathname: "/login" })) as never;
+    const useSearchParams: typeof DEPENDENCIES.useSearchParams = (() => params) as never;
 
     const Turnstile = vi.fn(({ turnstileRef }: { turnstileRef?: RefObject<TurnstileRef> }) => {
       if (turnstileRef) {
@@ -154,14 +162,15 @@ describe(PasswordlessAuth.name, () => {
       <TestContainerProvider services={{ analyticsService: () => analyticsService }}>
         <PasswordlessAuth
           initialEmail={input.initialEmail ?? ""}
-          initialScreen={input.initialScreen ?? "entry"}
-          onFlowChange={onFlowChange}
+          onEmailChange={onEmailChange}
           onFlowReset={onFlowReset}
           dependencies={{
             ...MockComponents(DEPENDENCIES),
             useUser,
             useReturnTo,
             useFlag,
+            useRouter,
+            useSearchParams,
             Turnstile,
             ...input.dependencies
           }}
@@ -169,7 +178,7 @@ describe(PasswordlessAuth.name, () => {
       </TestContainerProvider>
     );
 
-    return { analyticsService, onFlowChange, onFlowReset, checkSession, navigateBack };
+    return { analyticsService, onEmailChange, onFlowReset, checkSession, navigateBack, push, replace };
   }
 });
 

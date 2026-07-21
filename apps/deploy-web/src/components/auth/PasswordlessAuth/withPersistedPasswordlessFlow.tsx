@@ -3,7 +3,7 @@
 import type { ComponentType } from "react";
 import { useCallback, useState } from "react";
 
-/** sessionStorage key for the in-flight passwordless screen + email. Per-tab; cleared on successful verify. */
+/** sessionStorage key for the in-flight passwordless email. Per-tab; cleared on successful verify. The screen itself lives in the URL. */
 export const EMAIL_CODE_FLOW_STORAGE_KEY = "console_email_code_flow_v1";
 
 /** sessionStorage key for the last code-send time (ms), so the resend cooldown survives a reload. Per-tab. */
@@ -18,7 +18,7 @@ export function markCodeSent(): void {
   }
 }
 
-/** Read the last code-send time (ms); null when missing, corrupted, or server-side. */
+/** Epoch ms of the last code send; null when unknown (missing, corrupted, or server-side). */
 export function readCodeSentAt(): number | null {
   if (typeof window === "undefined") return null;
   try {
@@ -32,33 +32,32 @@ export function readCodeSentAt(): number | null {
 
 export interface PassedFlowProps {
   initialEmail: string;
-  initialScreen: "entry" | "verify";
-  onFlowChange: (state: { email: string; screen: "entry" | "verify" }) => void;
+  onEmailChange: (email: string) => void;
   onFlowReset: () => void;
 }
 
 /**
- * Lifts sessionStorage hydration and persistence out of the wrapped component.
- * Read happens in a lazy useState initializer so the first paint already reflects the persisted flow.
+ * Lifts sessionStorage hydration and persistence of the in-flight email out of the wrapped component.
+ * Read happens in a lazy useState initializer so the first paint already reflects the persisted email.
  * Intended to be combined with `dynamic({ ssr: false })` at the route entry to avoid SSR hydration mismatch.
  */
 export function withPersistedPasswordlessFlow<P extends PassedFlowProps>(Component: ComponentType<P>): ComponentType<Omit<P, keyof PassedFlowProps>> {
   function WithPersistedPasswordlessFlow(outerProps: Omit<P, keyof PassedFlowProps>) {
-    const [initial] = useState(readPersistedFlow);
+    const [initialEmail] = useState(readPersistedEmail);
 
-    const onFlowChange = useCallback(function persistPasswordlessFlow(state: { email: string; screen: "entry" | "verify" }) {
+    const persistPasswordlessEmail = useCallback((email: string) => {
       try {
-        if (state.screen !== "verify") {
+        if (!email) {
           window.sessionStorage.removeItem(EMAIL_CODE_FLOW_STORAGE_KEY);
           return;
         }
-        window.sessionStorage.setItem(EMAIL_CODE_FLOW_STORAGE_KEY, JSON.stringify(state));
+        window.sessionStorage.setItem(EMAIL_CODE_FLOW_STORAGE_KEY, JSON.stringify({ email }));
       } catch {
         return;
       }
     }, []);
 
-    const onFlowReset = useCallback(function clearPersistedPasswordlessFlow() {
+    const clearPersistedPasswordlessFlow = useCallback(() => {
       try {
         window.sessionStorage.removeItem(EMAIL_CODE_FLOW_STORAGE_KEY);
         window.sessionStorage.removeItem(CODE_SENT_AT_STORAGE_KEY);
@@ -68,25 +67,22 @@ export function withPersistedPasswordlessFlow<P extends PassedFlowProps>(Compone
     }, []);
 
     return (
-      <Component {...(outerProps as P)} initialEmail={initial.email} initialScreen={initial.screen} onFlowChange={onFlowChange} onFlowReset={onFlowReset} />
+      <Component {...(outerProps as P)} initialEmail={initialEmail} onEmailChange={persistPasswordlessEmail} onFlowReset={clearPersistedPasswordlessFlow} />
     );
   }
   WithPersistedPasswordlessFlow.displayName = `withPersistedPasswordlessFlow(${Component.displayName ?? Component.name ?? "Component"})`;
   return WithPersistedPasswordlessFlow;
 }
 
-/** Read `{ email, screen }` from sessionStorage; defaults to empty entry when missing, corrupted, or server-side. */
-function readPersistedFlow(): { email: string; screen: "entry" | "verify" } {
-  if (typeof window === "undefined") return { email: "", screen: "entry" };
+/** The persisted email; "" when unknown (missing, corrupted, or server-side). */
+function readPersistedEmail(): string {
+  if (typeof window === "undefined") return "";
   try {
     const raw = window.sessionStorage.getItem(EMAIL_CODE_FLOW_STORAGE_KEY);
-    if (!raw) return { email: "", screen: "entry" };
-    const parsed = JSON.parse(raw) as { email?: unknown; screen?: unknown };
-    return {
-      email: typeof parsed.email === "string" ? parsed.email : "",
-      screen: parsed.screen === "verify" ? "verify" : "entry"
-    };
+    if (!raw) return "";
+    const parsed = JSON.parse(raw) as { email?: unknown };
+    return typeof parsed.email === "string" ? parsed.email : "";
   } catch {
-    return { email: "", screen: "entry" };
+    return "";
   }
 }

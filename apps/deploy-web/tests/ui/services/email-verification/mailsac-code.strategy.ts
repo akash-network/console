@@ -24,6 +24,13 @@ const SUBMIT_TIMEOUT_MS = 10_000;
 /** How long we tolerate the digit inputs not being ready (just mounted, or being reset after a prior failure). */
 const INPUT_READY_TIMEOUT_MS = 5_000;
 
+/**
+ * Next.js renders an off-screen `role="alert"` route announcer (`#__next-route-announcer__`) and fills it with
+ * `document.title` on every client-side navigation — an accessibility aid, not an error. Excluded from error-alert
+ * detection so a normal SPA route change (e.g. entering the OTP step) is not misread as a rejected code.
+ */
+const NEXT_ROUTE_ANNOUNCER_SELECTOR = "#__next-route-announcer__";
+
 interface MailsacMessage {
   _id: string;
   subject?: string;
@@ -150,7 +157,7 @@ export class MailsacCodeVerificationStrategy implements EmailVerificationStrateg
   }
 
   async #awaitSubmitOutcome(page: Page): Promise<SubmitOutcome> {
-    const errorAlert = page.locator('[role="alert"]').filter({ hasText: /\S/ }).first();
+    const errorAlert = page.locator(`[role="alert"]:not(${NEXT_ROUTE_ANNOUNCER_SELECTOR})`).filter({ hasText: /\S/ }).first();
 
     const whenNavigatedAway = page
       .waitForURL(url => !url.pathname.includes("/login"), { timeout: SUBMIT_TIMEOUT_MS })

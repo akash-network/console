@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/router";
 
 import type { TurnstileRef } from "@src/components/turnstile/Turnstile";
 import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
@@ -24,6 +26,8 @@ export const DEPENDENCIES = {
   Turnstile: ClientOnlyTurnstile,
   useFlag,
   useReturnTo,
+  useRouter,
+  useSearchParams,
   useUser
 };
 
@@ -35,13 +39,18 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
   const { publicConfig, analyticsService } = useServices();
   const { navigateBack } = d.useReturnTo({ defaultReturnTo: "/" });
   const { checkSession } = d.useUser();
+  const router = d.useRouter();
+  const searchParams = d.useSearchParams();
   const isOnboardingRedesignEnabled = d.useFlag("onboarding_redesign_v1");
   const [email, setEmail] = useState(props.initialEmail);
-  const [screen, setScreen] = useState<"entry" | "verify">(props.initialScreen);
   const [screenKey, setScreenKey] = useState(0);
   const turnstileRef = useRef<TurnstileRef>(null);
 
-  const getCaptchaToken = useCallback(async function getCaptchaToken() {
+  const screen: "entry" | "verify" = searchParams.get("step") === "verify" ? "verify" : "entry";
+
+  const { onEmailChange, onFlowReset } = props;
+
+  const getCaptchaToken = useCallback(async () => {
     if (!turnstileRef.current) {
       throw new Error("Captcha has not been rendered");
     }
@@ -49,41 +58,42 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
     return token;
   }, []);
 
-  const goToVerify = useCallback(function goToVerify(verifiedEmail: string) {
-    setEmail(verifiedEmail);
-    setScreen("verify");
-  }, []);
-
-  const goBackToEntry = useCallback(function goBackToEntry() {
-    setScreen("entry");
-  }, []);
-
-  const { onFlowChange, onFlowReset } = props;
-
-  const handleVerified = useCallback(
-    async function handleVerified() {
-      onFlowReset();
-      await checkSession();
-      navigateBack();
+  const goToVerify = useCallback(
+    (verifiedEmail: string) => {
+      setEmail(verifiedEmail);
+      onEmailChange(verifiedEmail);
+      const params = new URLSearchParams(searchParams);
+      params.set("step", "verify");
+      router.push(`?${params.toString()}`, undefined, { shallow: true });
     },
-    [checkSession, navigateBack, onFlowReset]
+    [router, searchParams, onEmailChange]
   );
 
-  const remountActiveScreen = useCallback(function remountActiveScreen() {
+  const goBackToEntry = useCallback(() => {
+    const params = new URLSearchParams(searchParams);
+    params.delete("step");
+    const query = params.toString();
+    router.replace(query ? `?${query}` : router.pathname, undefined, { shallow: true });
+  }, [router, searchParams]);
+
+  useEffect(
+    function redirectToEntryWhenEmailMissing() {
+      if (screen === "verify" && !email) {
+        goBackToEntry();
+      }
+    },
+    [screen, email, goBackToEntry]
+  );
+
+  const handleVerified = useCallback(async () => {
+    onFlowReset();
+    await checkSession();
+    navigateBack();
+  }, [checkSession, navigateBack, onFlowReset]);
+
+  const remountActiveScreen = useCallback(() => {
     setScreenKey(value => value + 1);
   }, []);
-
-  const isFirstFlowChangeRef = useRef(true);
-  useEffect(
-    function notifyFlowChange() {
-      if (isFirstFlowChangeRef.current) {
-        isFirstFlowChangeRef.current = false;
-        return;
-      }
-      onFlowChange({ email, screen });
-    },
-    [email, screen, onFlowChange]
-  );
 
   return (
     <>
@@ -132,7 +142,7 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
           </div>
         </>
       )}
-      {screen === "verify" && (
+      {screen === "verify" && email && (
         <d.EmailCodeVerify
           key={`verify-${screenKey}`}
           email={email}

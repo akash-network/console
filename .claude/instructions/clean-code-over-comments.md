@@ -4,6 +4,7 @@
 - **Clarity is the default; a comment is the last resort.** Before writing any comment, make the code say it — rename to reveal intent, or extract a named function. A comment you *had* to write is a signal the code failed to be clear: fix the code, don't annotate it.
 - **No inline comments.** Never write `//` or `/* */` comments inside function bodies, JSX, or tests — not even to label a section or restate a line. The only allowed comment is a `/** ... */` JSDoc block on a declaration, and only for the *why* (a non-obvious constraint, gotcha, or tradeoff) — never the *what*.
 - **Names replace comments.** Prefer a verbose, intention-revealing name over a short name plus a comment: `secondsUntilBidExpiry`, not `t` with a `// seconds until bid expires`. Name functions by behavior, not by trigger: `redirectToSocialLogin`, not `onOAuthClick`. A name that needs a comment to be understood is the wrong name.
+- **One name per callback.** When a callback is bound to a named `const` (a `useCallback`, `useMemo`, event handler, or any assignment), the `const` carries the behavior name and the body stays an anonymous arrow — don't *also* name the function expression, and don't name the `const` after its trigger or the prop it feeds. One name is enough, and it names the *behavior*. Keep a named function expression only for a callback that has no binding name of its own: `useEffect(function redirectWhenSignedOut() {…})`, a `return function teardown() {…}` cleanup, or an inline `items.map(function renderRow() {…})`.
 - **Structure replaces comments.** A function that needs internal section-comments to navigate wants to be several named functions. Separate concerns at every level — orchestration vs. detail, one reason to change per unit — so each piece is small enough to need no narration. Don't over-fragment though: single-statement operations stay inline; extract only multi-line sequences that earn a name.
 - **JSDoc the non-obvious.** Module-level helper functions and "magic" constants (colors, fallbacks, multipliers, timeouts) get a 1–2 line JSDoc stating what/why. Skip it when the name is already fully self-describing.
 
@@ -25,6 +26,16 @@ async function activateDeployment(deploymentId: string) {
   const cheapest = selectCheapestBid(bids);
   await createLease(deploymentId, cheapest);
 }
+```
+
+```typescript
+const clearPersistedFlow = useCallback(() => {
+  sessionStorage.removeItem(FLOW_KEY);
+}, []);
+
+useEffect(function redirectWhenSignedOut() {
+  if (!user) redirectToLogin();
+}, [user]);
 ```
 
 ### Bad
@@ -53,4 +64,10 @@ async function activateDeployment(deploymentId: string) {
   // 3. create the lease
   await createLease(deploymentId, cheapest);
 }
+```
+
+```typescript
+const onReset = useCallback(function clearPersistedFlow() {
+  sessionStorage.removeItem(FLOW_KEY);
+}, []);
 ```
