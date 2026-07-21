@@ -185,7 +185,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   @benchmark.measureMethodAsync
-  async afterEveryBlock(currentBlock: Block, previousBlock: Block, dbTransaction: DbTransaction) {
+  async afterEveryBlock(currentBlock: Block, previousBlock: Block | null, dbTransaction: DbTransaction) {
     const shouldRefreshPredictedHeights = currentBlock.transactions.some(tx => tx.messages?.some(msg => this.shouldRefreshForMessage(msg)));
 
     if (shouldRefreshPredictedHeights || this.activeLeases?.predictedClosedHeights.includes(currentBlock.height)) {
@@ -417,7 +417,7 @@ export class AkashStatsIndexer extends Indexer {
         deposit: parseInt(decodedMessage.deposit?.amount ?? "0"),
         balance: parseInt(decodedMessage.deposit?.amount ?? "0"),
         withdrawnAmount: 0,
-        denom: denomMapping[decodedMessage.deposit?.denom ?? ""],
+        denom: denomMapping[(decodedMessage.deposit?.denom ?? "") as keyof typeof denomMapping],
         createdHeight: height,
         closedHeight: null
       },
@@ -481,7 +481,7 @@ export class AkashStatsIndexer extends Indexer {
         deposit: parseInt(decodedMessage.deposit?.amount?.amount ?? "0"),
         balance: parseInt(decodedMessage.deposit?.amount?.amount ?? "0"),
         withdrawnAmount: 0,
-        denom: denomMapping[decodedMessage.deposit?.amount?.denom ?? ""],
+        denom: denomMapping[(decodedMessage.deposit?.amount?.denom ?? "") as keyof typeof denomMapping],
         createdHeight: height,
         closedHeight: null
       },

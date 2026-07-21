@@ -37,7 +37,7 @@ export abstract class Indexer {
 
   abstract seed(genesis: IGenesis): Promise<void>;
 
-  abstract afterEveryBlock(currentBlock: Block, previousBlock: Block, dbTransaction: DbTransaction): Promise<void>;
+  abstract afterEveryBlock(currentBlock: Block, previousBlock: Block | null, dbTransaction: DbTransaction): Promise<void>;
 
   abstract afterEveryTransaction(
     rawTx: DecodedTxRaw,

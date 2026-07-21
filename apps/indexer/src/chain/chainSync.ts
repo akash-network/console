@@ -38,7 +38,7 @@ function parseEventAttrs(event: { attributes: Array<{ key: string; value: string
 }
 
 export const setMissingBlock = (height: number) => (missingBlock = height);
-let missingBlock: number;
+let missingBlock: number | null = null;
 
 export async function getSyncStatus() {
   const latestHeightInCacheRequest = getLatestHeightInCache();
@@ -66,12 +66,12 @@ export async function getSyncStatus() {
     })
   )?.height;
 
-  const latestDateInDb = latestHeightInDb ? (await Block.findOne({ where: { height: latestHeightInDb } })).datetime : null;
-  const latestProcessedDateInDb = latestProcessedHeight ? (await Block.findOne({ where: { height: latestProcessedHeight } })).datetime : null;
+  const latestDateInDb = latestHeightInDb ? (await Block.findOne({ where: { height: latestHeightInDb } }))?.datetime ?? null : null;
+  const latestProcessedDateInDb = latestProcessedHeight ? (await Block.findOne({ where: { height: latestProcessedHeight } }))?.datetime ?? null : null;
   const latestNotificationProcessedHeight = firstNotificationUnprocessedMessage ? firstNotificationUnprocessedMessage - 1 : latestHeightInDb;
   const latestNotificationProcessedDateInDb =
     !activeChain.startHeight || latestNotificationProcessedHeight > activeChain.startHeight
-      ? (await Block.findOne({ where: { height: latestNotificationProcessedHeight } })).datetime
+      ? (await Block.findOne({ where: { height: latestNotificationProcessedHeight } }))?.datetime ?? null
       : null;
 
   return {
@@ -175,12 +175,12 @@ async function insertBlocks(startHeight: number, endHeight: number) {
     order: [["height", "DESC"]]
   })) as any;
 
-  let blocksToAdd = [];
-  let txsToAdd = [];
-  let txsEventsToAdd = [];
-  let txsEventAttributesToAdd = [];
-  let msgsToAdd = [];
-  let bmeRawEventsToAdd = [];
+  let blocksToAdd: any[] = [];
+  let txsToAdd: any[] = [];
+  let txsEventsToAdd: any[] = [];
+  let txsEventAttributesToAdd: any[] = [];
+  let msgsToAdd: any[] = [];
+  let bmeRawEventsToAdd: any[] = [];
 
   for (let i = startHeight; i <= endHeight; ++i) {
     const getCachedBlockTimer = benchmark.startTimer("getCachedBlockByHeight");
@@ -204,7 +204,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
       // Block results may be missing from old cache that only fetched results for blocks with txs.
       // Fetch from node and cache for future use.
       const blockResultJson = await nodeAccessor.getBlockResult(i);
-      blockResults = blockResultJson.result;
+      blockResults = blockResultJson.result as BlockResultType;
       await blockResultsDb.put(blockHeightToKey(i), JSON.stringify(blockResults));
     }
 
@@ -215,6 +215,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
 
       const decodedTx = decodeTxRaw(fromBase64(tx));
       const msgs = decodedTx.body.messages;
+      const feeAmount = decodedTx.authInfo.fee?.amount;
 
       // Check if transaction only contains MsgMultiSend to skip events/attributes later
       const hasOnlyMultiSend = msgs.length > 0 && msgs.every(msg => msg.typeUrl === "/cosmos.bank.v1beta1.MsgMultiSend");
@@ -243,7 +244,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
         height: i,
         msgCount: msgs.length,
         index: txIndex,
-        fee: decodedTx.authInfo.fee.amount.length > 0 ? decodedTx.authInfo.fee.amount[0].amount : "0",
+        fee: feeAmount && feeAmount.length > 0 ? feeAmount[0].amount : "0",
         memo: decodedTx.body.memo,
         hasProcessingError: !!txJson.code,
         log: txJson.code ? txJson.log : null,
