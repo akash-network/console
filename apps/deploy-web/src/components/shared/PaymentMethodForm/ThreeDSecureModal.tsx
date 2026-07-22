@@ -69,10 +69,19 @@ const ThreeDSecureForm: React.FC<Omit<ThreeDSecureModalProps, "isOpen" | "onClos
   const [errorMsg, setErrorMsg] = useState<string>("");
   const hasStartedAuthenticationRef = useRef(false);
   const callbacksRef = useRef({ onSuccess, onError });
+  const successTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(function trackLatestCallbacks() {
     callbacksRef.current = { onSuccess, onError };
   });
+
+  useEffect(function clearSuccessTimerOnUnmount() {
+    return () => {
+      if (successTimerRef.current) {
+        clearTimeout(successTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(
     function authenticateOnce() {
@@ -89,7 +98,7 @@ const ThreeDSecureForm: React.FC<Omit<ThreeDSecureModalProps, "isOpen" | "onClos
 
       function succeed() {
         setStatus("succeeded");
-        setTimeout(() => callbacksRef.current.onSuccess(), SUCCESS_DELAY);
+        successTimerRef.current = setTimeout(() => callbacksRef.current.onSuccess(), SUCCESS_DELAY);
       }
 
       function routeResult({ error, paymentIntent }: AuthenticationResult) {

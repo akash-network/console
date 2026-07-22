@@ -139,6 +139,31 @@ describe(ThreeDSecureModal.name, () => {
     expect(onError).toHaveBeenCalledWith("Authentication failed due to an unexpected error");
   });
 
+  it("does not invoke onSuccess when unmounted during the success delay window", async () => {
+    vi.useFakeTimers();
+    try {
+      const deferred = createDeferred<AuthenticationResult>();
+      const confirmPayment = vi.fn(() => deferred.promise);
+      const onSuccess = vi.fn();
+      const { unmount } = setup({ confirmPayment, onSuccess });
+
+      await act(async () => {
+        deferred.resolve({ paymentIntent: { status: "succeeded", id: "pi_1" } });
+        await deferred.promise;
+      });
+
+      unmount();
+
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+
+      expect(onSuccess).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not start a second confirmation when unmounted mid-challenge", () => {
     const confirmPayment = vi.fn(() => new Promise<AuthenticationResult>(() => {}));
     const { unmount } = setup({ confirmPayment });
