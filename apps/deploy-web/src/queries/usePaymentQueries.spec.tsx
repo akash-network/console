@@ -5,6 +5,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { QueryKeys } from "./queryKeys";
 import {
   useDefaultPaymentMethodQuery,
   usePaymentMethodsQuery,
@@ -136,14 +137,16 @@ describe("usePaymentQueries", () => {
   });
 
   describe("usePaymentMutations", () => {
-    it("confirms payment and invalidate queries", async () => {
-      const mockPaymentResponse = createMockPaymentResponse();
+    it("invalidates both payment methods and transactions after a settled payment", async () => {
+      const mockPaymentResponse = createMockPaymentResponse({ requiresAction: false });
       const stripeService = mock<StripeService>({
         confirmPayment: vi.fn().mockResolvedValue(mockPaymentResponse)
       });
-      const { result } = setupQuery(() => usePaymentMutations(), {
+      const { result, queryClient } = setupQueryWithClient(() => usePaymentMutations(), {
         services: { stripe: () => stripeService }
       });
+
+      const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
 
       await act(async () => {
         await result.current.confirmPayment.mutateAsync({
@@ -155,7 +158,35 @@ describe("usePaymentQueries", () => {
 
       await vi.waitFor(() => {
         expect(stripeService.confirmPayment).toHaveBeenCalled();
+        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: QueryKeys.getPaymentMethodsKey() });
+        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: QueryKeys.getPaymentTransactionsKey() });
       });
+    });
+
+    it("skips payment-method invalidation while a payment still requires 3DS action", async () => {
+      const mockPaymentResponse = createMockPaymentResponse({ requiresAction: true });
+      const stripeService = mock<StripeService>({
+        confirmPayment: vi.fn().mockResolvedValue(mockPaymentResponse)
+      });
+      const { result, queryClient } = setupQueryWithClient(() => usePaymentMutations(), {
+        services: { stripe: () => stripeService }
+      });
+
+      const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+      await act(async () => {
+        await result.current.confirmPayment.mutateAsync({
+          userId: "u1",
+          paymentMethodId: mockPaymentResponse.id,
+          amount: mockPaymentResponse.amount
+        });
+      });
+
+      await vi.waitFor(() => {
+        expect(stripeService.confirmPayment).toHaveBeenCalled();
+        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: QueryKeys.getPaymentTransactionsKey() });
+      });
+      expect(invalidateQueriesSpy).not.toHaveBeenCalledWith({ queryKey: QueryKeys.getPaymentMethodsKey() });
     });
 
     it("applies coupon and invalidate discounts", async () => {
