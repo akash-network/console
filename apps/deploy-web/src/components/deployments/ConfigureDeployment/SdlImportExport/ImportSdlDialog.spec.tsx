@@ -91,7 +91,7 @@ describe(ImportSdlDialog.name, () => {
     await userEvent.type(screen.getByLabelText("SDL editor"), "1");
     await userEvent.click(screen.getByRole("button", { name: "Import" }));
 
-    expect(screen.getByText("This SDL couldn't be parsed. Check the file and try again.")).toBeInTheDocument();
+    expect(screen.getByText("This config couldn't be parsed. Check the file and try again.")).toBeInTheDocument();
   });
 
   it("clears the error message when the editor is edited again", async () => {
@@ -103,11 +103,11 @@ describe(ImportSdlDialog.name, () => {
 
     await userEvent.type(screen.getByLabelText("SDL editor"), "1");
     await userEvent.click(screen.getByRole("button", { name: "Import" }));
-    expect(screen.getByText("This SDL couldn't be parsed. Check the file and try again.")).toBeInTheDocument();
+    expect(screen.getByText("This config couldn't be parsed. Check the file and try again.")).toBeInTheDocument();
 
     await userEvent.type(screen.getByLabelText("SDL editor"), "2");
 
-    expect(screen.queryByText("This SDL couldn't be parsed. Check the file and try again.")).not.toBeInTheDocument();
+    expect(screen.queryByText("This config couldn't be parsed. Check the file and try again.")).not.toBeInTheDocument();
   });
 
   it("populates the editor from an uploaded file", async () => {
@@ -166,7 +166,7 @@ describe(ImportSdlDialog.name, () => {
 
     await userEvent.upload(screen.getByLabelText("Upload file"), oversizedFile());
 
-    expect(screen.getByText("This file is too large to be an SDL. Choose a file under 512 KB.")).toBeInTheDocument();
+    expect(screen.getByText("This file is too large to be a config. Choose a file under 512 KB.")).toBeInTheDocument();
     expect(screen.getByLabelText("SDL editor")).toHaveValue("");
     expect(importDeploymentState).not.toHaveBeenCalled();
   });

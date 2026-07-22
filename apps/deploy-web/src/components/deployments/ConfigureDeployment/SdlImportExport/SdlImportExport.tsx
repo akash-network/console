@@ -1,10 +1,10 @@
 "use client";
 import type { FC } from "react";
 import { useState } from "react";
-import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Snackbar } from "@akashnetwork/ui/components";
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, Snackbar } from "@akashnetwork/ui/components";
 import { copyTextToClipboard } from "@akashnetwork/ui/utils";
 import { saveAs } from "file-saver";
-import { Download, Import, NavArrowDown } from "iconoir-react";
+import { MoreHoriz } from "iconoir-react";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -27,7 +27,7 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-/** Import/export controls for the configure toolbar: an Import button and an Export dropdown. */
+/** SDL import/export actions for the configure toolbar, collapsed into a single overflow menu. */
 export const SdlImportExport: FC<Props> = ({ sdl, deploymentName, canImport, onImport, dependencies: d = DEPENDENCIES }) => {
   const { analyticsService } = d.useServices();
   const { enqueueSnackbar } = d.useSnackbar();
@@ -56,21 +56,18 @@ export const SdlImportExport: FC<Props> = ({ sdl, deploymentName, canImport, onI
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <Button variant="outline" size="sm" disabled={!canImport} onClick={() => setImportOpen(true)} className="gap-2">
-        <Import className="h-4 w-4" />
-        Import
-      </Button>
-
-      <DropdownMenu>
+    <>
+      <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Download className="h-4 w-4" />
-            Export
-            <NavArrowDown className="h-4 w-4" />
+          <Button variant="ghost" size="icon" className="rounded-full" aria-label="SDL import and export">
+            <MoreHoriz />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem disabled={!canImport} onClick={() => setImportOpen(true)}>
+            Import Config
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem disabled={!sdl} onClick={handleDownload}>
             Download .yaml
           </DropdownMenuItem>
@@ -81,7 +78,7 @@ export const SdlImportExport: FC<Props> = ({ sdl, deploymentName, canImport, onI
       </DropdownMenu>
 
       {isImportOpen && <d.ImportSdlDialog onClose={() => setImportOpen(false)} onImport={handleImported} />}
-    </div>
+    </>
   );
 };
 

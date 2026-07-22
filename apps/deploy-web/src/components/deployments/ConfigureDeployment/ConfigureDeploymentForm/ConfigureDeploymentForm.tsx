@@ -274,10 +274,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
       <FormProvider {...form}>
         <div className="relative flex min-h-0 flex-1 flex-col">
           <div className="px-6 pt-6">
-            <div className="flex items-center justify-between">
-              <d.ConfigureDeploymentBackButton />
-              <d.SdlImportExport sdl={liveSdl} deploymentName={deploymentName} canImport={isEditable} onImport={applyImportedState} />
-            </div>
+            <d.ConfigureDeploymentBackButton />
             <div className="mt-2">
               <d.ConfigureDeploymentHeader flow={headerFlow} sdl={liveSdl} onDeploy={() => setReviewOpen(true)} allPlacementsHaveBids={allPlacementsHaveBids} />
             </div>
@@ -298,6 +295,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
               onCancelAndEdit={flow.actions.cancelAndEdit}
               deploymentName={deploymentName}
               onDeploymentNameChange={setDeploymentName}
+              configurationActions={<d.SdlImportExport sdl={liveSdl} deploymentName={deploymentName} canImport={isEditable} onImport={applyImportedState} />}
             />
           </div>
           {flow.phase === "deploying" && (

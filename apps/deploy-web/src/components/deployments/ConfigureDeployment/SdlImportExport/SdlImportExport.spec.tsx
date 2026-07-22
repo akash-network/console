@@ -16,21 +16,25 @@ describe(SdlImportExport.name, () => {
   it("opens the import dialog when Import is clicked", async () => {
     setup({});
 
-    await userEvent.click(screen.getByRole("button", { name: "Import" }));
+    await openMenu();
+    await userEvent.click(screen.getByRole("menuitem", { name: /Import Config/ }));
 
     expect(screen.getByRole("button", { name: "trigger import" })).toBeInTheDocument();
   });
 
-  it("disables Import while the flow is locked", () => {
+  it("disables Import while the flow is locked", async () => {
     setup({ canImport: false });
 
-    expect(screen.getByRole("button", { name: "Import" })).toBeDisabled();
+    await openMenu();
+
+    expect(screen.getByRole("menuitem", { name: /Import Config/ })).toHaveAttribute("aria-disabled", "true");
   });
 
   it("applies the import, shows a snackbar, tracks the method, and closes the dialog", async () => {
     const { onImport, analyticsService, enqueueSnackbar } = setup({});
 
-    await userEvent.click(screen.getByRole("button", { name: "Import" }));
+    await openMenu();
+    await userEvent.click(screen.getByRole("menuitem", { name: /Import Config/ }));
     await userEvent.click(screen.getByRole("button", { name: "trigger import" }));
 
     expect(onImport).toHaveBeenCalledWith(IMPORTED_STATE);
@@ -42,7 +46,7 @@ describe(SdlImportExport.name, () => {
   it("downloads the sdl as a yaml file named after the deployment", async () => {
     const { saveAs } = setup({ sdl: "some: sdl", deploymentName: "My App 2!" });
 
-    await userEvent.click(screen.getByRole("button", { name: "Export" }));
+    await openMenu();
     await userEvent.click(screen.getByRole("menuitem", { name: "Download .yaml" }));
 
     const [blob, filename] = saveAs.mock.calls[0];
@@ -54,7 +58,7 @@ describe(SdlImportExport.name, () => {
   it("falls back to a generic filename when the deployment name has no usable characters", async () => {
     const { saveAs } = setup({ sdl: "some: sdl", deploymentName: "!!!" });
 
-    await userEvent.click(screen.getByRole("button", { name: "Export" }));
+    await openMenu();
     await userEvent.click(screen.getByRole("menuitem", { name: "Download .yaml" }));
 
     expect(saveAs.mock.calls[0][1]).toBe("deployment.yaml");
@@ -63,7 +67,7 @@ describe(SdlImportExport.name, () => {
   it("tracks the download", async () => {
     const { analyticsService } = setup({ sdl: "some: sdl" });
 
-    await userEvent.click(screen.getByRole("button", { name: "Export" }));
+    await openMenu();
     await userEvent.click(screen.getByRole("menuitem", { name: "Download .yaml" }));
 
     expect(analyticsService.track).toHaveBeenCalledWith("configure_sdl_downloaded", { category: "deployments" });
@@ -72,7 +76,7 @@ describe(SdlImportExport.name, () => {
   it("copies the sdl to the clipboard, shows a snackbar, and tracks the copy", async () => {
     const { copyTextToClipboard, enqueueSnackbar, analyticsService } = setup({ sdl: "some: sdl" });
 
-    await userEvent.click(screen.getByRole("button", { name: "Export" }));
+    await openMenu();
     await userEvent.click(screen.getByRole("menuitem", { name: "Copy to clipboard" }));
 
     expect(copyTextToClipboard).toHaveBeenCalledWith("some: sdl");
@@ -83,7 +87,7 @@ describe(SdlImportExport.name, () => {
   it("shows an error and does not track the copy when the clipboard write fails", async () => {
     const { enqueueSnackbar, analyticsService } = setup({ sdl: "some: sdl", canCopy: false });
 
-    await userEvent.click(screen.getByRole("button", { name: "Export" }));
+    await openMenu();
     await userEvent.click(screen.getByRole("menuitem", { name: "Copy to clipboard" }));
 
     await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" })));
@@ -93,11 +97,15 @@ describe(SdlImportExport.name, () => {
   it("disables the export actions when there is no sdl to export", async () => {
     setup({ sdl: "" });
 
-    await userEvent.click(screen.getByRole("button", { name: "Export" }));
+    await openMenu();
 
     expect(screen.getByRole("menuitem", { name: "Download .yaml" })).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByRole("menuitem", { name: "Copy to clipboard" })).toHaveAttribute("aria-disabled", "true");
   });
+
+  function openMenu() {
+    return userEvent.click(screen.getByRole("button", { name: "SDL import and export" }));
+  }
 
   function setup(input: { sdl?: string; deploymentName?: string; canImport?: boolean; canCopy?: boolean }) {
     const onImport = vi.fn();

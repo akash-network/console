@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { describe, expect, it, vi } from "vitest";
 
@@ -143,11 +143,19 @@ describe(ConfigurationPane.name, () => {
     expect(ImageSection).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
   });
 
+  it("renders the actions slot in the pane header", () => {
+    const values = defaultServiceWithPlacement({ title: "api" });
+    setup({ values, selectedServiceId: values.services[0].id, actions: <button type="button">Import / export</button> });
+
+    expect(screen.getByRole("button", { name: "Import / export" })).toBeInTheDocument();
+  });
+
   function setup(input: {
     values: SdlBuilderFormValuesType;
     selectedServiceId: string;
     locked?: ConfigurationLock;
     onCancelAndEdit?: () => void;
+    actions?: ReactNode;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const Wrapper = ({ children }: PropsWithChildren) => {
@@ -160,6 +168,7 @@ describe(ConfigurationPane.name, () => {
           selectedServiceId={input.selectedServiceId}
           locked={input.locked}
           onCancelAndEdit={input.onCancelAndEdit}
+          actions={input.actions}
           dependencies={MockComponents(DEPENDENCIES, input.dependencies)}
         />
       </Wrapper>

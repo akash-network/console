@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useController, useFormContext, useWatch } from "react-hook-form";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -426,7 +427,9 @@ describe(ConfigureDeploymentForm.name, () => {
     vm?: boolean;
     phase?: DeploymentFlow["phase"];
   }) {
-    const ConfigureDeploymentPanes = vi.fn(input.Panes ?? (() => <div data-testid="panes-mock" />));
+    const ConfigureDeploymentPanes = vi.fn(
+      input.Panes ?? (({ configurationActions }: ProbePanesProps) => <div data-testid="panes-mock">{configurationActions}</div>)
+    );
     const ConfigureDeploymentHeader = vi.fn(() => <div data-testid="header-mock" />);
     const SdlImportExport = vi.fn(() => null);
     const enqueueSnackbar = vi.fn();
@@ -557,6 +560,7 @@ interface ProbePanesProps {
   onSelectService: (serviceId: string) => void;
   selectedPlacementId: string;
   onSelectProvider: (placementId: string, bidId: string) => void;
+  configurationActions?: ReactNode;
 }
 
 /**
@@ -668,7 +672,7 @@ function AddRemoveProbePanes({ sdl, selectedServiceId, onSelectService }: ProbeP
 }
 
 /** Panes stand-in that reports the imported services, live sdl, and selection so an import can be asserted end to end. */
-function ImportProbePanes({ sdl, selectedServiceId }: ProbePanesProps) {
+function ImportProbePanes({ sdl, selectedServiceId, configurationActions }: ProbePanesProps) {
   const services = useWatch<SdlBuilderFormValuesType>({ name: "services" });
   const titles = Array.isArray(services) ? (services as SdlBuilderFormValuesType["services"]).map(service => service.title) : [];
   return (
@@ -676,6 +680,7 @@ function ImportProbePanes({ sdl, selectedServiceId }: ProbePanesProps) {
       <div data-testid="service-titles">{titles.join(",")}</div>
       <div data-testid="sdl">{sdl}</div>
       <div data-testid="selected">{selectedServiceId}</div>
+      {configurationActions}
     </div>
   );
 }

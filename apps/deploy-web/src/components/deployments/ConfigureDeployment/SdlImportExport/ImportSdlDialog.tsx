@@ -65,7 +65,7 @@ export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d 
     fileReadGenerationRef.current += 1;
     const generation = fileReadGenerationRef.current;
     if (file.size > MAX_SDL_FILE_BYTES) {
-      setError("This file is too large to be an SDL. Choose a file under 512 KB.");
+      setError("This file is too large to be a config. Choose a file under 512 KB.");
       return;
     }
     const reader = new FileReader();
@@ -96,8 +96,13 @@ export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d 
     <DialogV2 open onOpenChange={isOpen => (!isOpen ? onClose() : undefined)}>
       <DialogV2Content className="flex h-[600px] max-h-[85vh] max-w-3xl flex-col">
         <DialogV2Header>
-          <DialogV2Title>Import SDL</DialogV2Title>
-          <DialogV2Description>Paste your SDL below or upload a file. Importing replaces your current configuration.</DialogV2Description>
+          <DialogV2Title>Import Config</DialogV2Title>
+          <DialogV2Description>
+            Paste your config below or upload a file. Importing replaces your current configuration.{" "}
+            <a href="https://akash.network/docs/developers/deployment/akash-sdl/" target="_blank" rel="noopener" className="text-primary underline">
+              View the SDL reference
+            </a>
+          </DialogV2Description>
         </DialogV2Header>
 
         <DialogV2Body className="flex min-h-0 flex-1 flex-col gap-4">
@@ -148,5 +153,5 @@ function describeImportError(err: unknown): string {
   if (err instanceof NoVisibleServiceError || isKnownSdlParserError(err)) {
     return err.message;
   }
-  return "This SDL couldn't be parsed. Check the file and try again.";
+  return "This config couldn't be parsed. Check the file and try again.";
 }

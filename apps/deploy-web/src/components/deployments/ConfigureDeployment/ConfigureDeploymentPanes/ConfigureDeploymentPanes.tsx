@@ -1,4 +1,4 @@
-import type { FC } from "react";
+import type { FC, ReactNode } from "react";
 import { useAtom } from "jotai";
 
 import { useFlag } from "@src/hooks/useFlag";
@@ -27,6 +27,8 @@ type Props = {
   onCancelAndEdit: () => void;
   deploymentName: string;
   onDeploymentNameChange: (value: string) => void;
+  /** Rendered in the Configuration column header, e.g. the SDL import/export menu. */
+  configurationActions?: ReactNode;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -50,6 +52,7 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
   onCancelAndEdit,
   deploymentName,
   onDeploymentNameChange,
+  configurationActions,
   dependencies: d = DEPENDENCIES
 }) => {
   const [isSdlPreviewOpen, setIsSdlPreviewOpen] = useAtom(sdlStore.sdlPreviewOpen);
@@ -78,7 +81,13 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
           />
         </div>
         <div className="min-h-0">
-          <d.ConfigurationPane selectedServiceId={selectedServiceId} locked={configurationLock} isClosing={isClosing} onCancelAndEdit={onCancelAndEdit} />
+          <d.ConfigurationPane
+            selectedServiceId={selectedServiceId}
+            locked={configurationLock}
+            isClosing={isClosing}
+            onCancelAndEdit={onCancelAndEdit}
+            actions={configurationActions}
+          />
         </div>
       </div>
       <div className="min-h-0 border-l border-zinc-300 dark:border-zinc-700">

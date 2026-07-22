@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { createStore, Provider as JotaiStoreProvider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 
@@ -103,6 +104,13 @@ describe("ConfigureDeploymentPanes", () => {
     expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ locked: "all" }), expect.anything());
   });
 
+  it("forwards the configuration actions slot into the configuration pane header", () => {
+    const actions = <div data-testid="config-actions" />;
+    const { ConfigurationPane } = setup({ configurationActions: actions });
+
+    expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ actions }), expect.anything());
+  });
+
   function setup(
     input: {
       isSdlPreviewEnabled?: boolean;
@@ -119,6 +127,7 @@ describe("ConfigureDeploymentPanes", () => {
       selections?: Record<string, string>;
       onSelectProvider?: (placementId: string, bidId: string) => void;
       onCancelAndEdit?: () => void;
+      configurationActions?: ReactNode;
     } = {}
   ) {
     const SdlPreviewPane = vi.fn(({ isOpen, onOpen, onClose }: { isOpen: boolean; onOpen: () => void; onClose: () => void }) => (
@@ -159,6 +168,7 @@ describe("ConfigureDeploymentPanes", () => {
           onCancelAndEdit={input.onCancelAndEdit ?? vi.fn()}
           deploymentName=""
           onDeploymentNameChange={vi.fn()}
+          configurationActions={input.configurationActions}
           dependencies={dependencies}
         />
       </JotaiStoreProvider>
