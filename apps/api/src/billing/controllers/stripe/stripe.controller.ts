@@ -23,6 +23,7 @@ import type { StripeTransactionOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { StripeService, TOP_UP_IDEMPOTENCY_KEY_PREFIX } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
+import { TransactionReportingService } from "@src/billing/services/transaction-reporting/transaction-reporting.service";
 import { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 @singleton()
 export class StripeController {
@@ -31,7 +32,8 @@ export class StripeController {
     private readonly authService: AuthService,
     private readonly stripeErrorService: StripeErrorService,
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly trialValidationService: TrialValidationService
+    private readonly trialValidationService: TrialValidationService,
+    private readonly transactionReporting: TransactionReportingService
   ) {}
 
   @Protected([{ action: "read", subject: "StripePayment" }])
@@ -216,7 +218,7 @@ export class StripeController {
       return { data: { transactions: [], hasMore: false, nextPage: null, prevPage: null } };
     }
 
-    const response = await this.stripe.getCustomerTransactions(currentUser.stripeCustomerId, options);
+    const response = await this.transactionReporting.getCustomerTransactions(currentUser.stripeCustomerId, options);
     return { data: response };
   }
 
@@ -226,7 +228,7 @@ export class StripeController {
 
     assert(currentUser.stripeCustomerId, 403, "Payments are not configured. Please start with a trial first");
 
-    return this.stripe.exportTransactionsCsvStream(currentUser.stripeCustomerId, options);
+    return this.transactionReporting.exportTransactionsCsvStream(currentUser.stripeCustomerId, options);
   }
 
   @Protected([{ action: "create", subject: "StripePayment" }])
