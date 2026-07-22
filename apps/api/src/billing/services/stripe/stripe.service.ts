@@ -13,6 +13,7 @@ import Stripe from "stripe";
 import { inject, singleton } from "tsyringe";
 
 import { PaymentIntentResult, Transaction } from "@src/billing/http-schemas/stripe.schema";
+import { STRIPE_CLIENT } from "@src/billing/providers/stripe-client.provider";
 import {
   PaymentMethodRepository,
   SETTLED_TRANSACTION_STATUSES,
@@ -51,7 +52,7 @@ export const TOP_UP_IDEMPOTENCY_KEY_PREFIX = "topup_";
 export type PaymentMethod = Stripe.PaymentMethod & { validated: boolean; isDefault: boolean };
 
 @singleton()
-export class StripeService extends Stripe {
+export class StripeService {
   readonly isProduction = this.billingConfig.get("STRIPE_SECRET_KEY").startsWith("sk_live");
 
   /**
@@ -69,18 +70,14 @@ export class StripeService extends Stripe {
     private readonly paymentMethodRepository: PaymentMethodRepository,
     private readonly stripeTransactionRepository: StripeTransactionRepository,
     private readonly timerService: TimerService,
+    @inject(STRIPE_CLIENT) private readonly stripe: Stripe,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    const secretKey = billingConfig.get("STRIPE_SECRET_KEY");
-    super(secretKey, {
-      apiVersion: "2025-10-29.clover",
-      httpClient: Stripe.createFetchHttpClient() // need to use fetch API, so we can intercept it in tests with nock
-    });
     this.loggerService = createLogger({ context: StripeService.name });
   }
 
   async createSetupIntent(customerId: string, { isFreeTrial }: { isFreeTrial: boolean }) {
-    return await this.setupIntents.create({
+    return await this.stripe.setupIntents.create({
       customer: customerId,
       usage: "off_session",
       payment_method_types: ["card", "link"],
@@ -89,23 +86,23 @@ export class StripeService extends Stripe {
   }
 
   retrievePaymentMethod(paymentMethodId: string): Promise<Stripe.PaymentMethod> {
-    return this.paymentMethods.retrieve(paymentMethodId);
+    return this.stripe.paymentMethods.retrieve(paymentMethodId);
   }
 
   detachPaymentMethod(paymentMethodId: string): Promise<Stripe.PaymentMethod> {
-    return this.paymentMethods.detach(paymentMethodId);
+    return this.stripe.paymentMethods.detach(paymentMethodId);
   }
 
   retrieveCharge(chargeId: string): Promise<Stripe.Charge> {
-    return this.charges.retrieve(chargeId);
+    return this.stripe.charges.retrieve(chargeId);
   }
 
   constructWebhookEvent(payload: string | Buffer, signature: string): Stripe.Event {
-    return this.webhooks.constructEvent(payload, signature, this.billingConfig.get("STRIPE_WEBHOOK_SECRET"));
+    return this.stripe.webhooks.constructEvent(payload, signature, this.billingConfig.get("STRIPE_WEBHOOK_SECRET"));
   }
 
   async findPrices(): Promise<StripePrices[]> {
-    const { data: prices } = await this.prices.list({ active: true, product: this.billingConfig.get("STRIPE_PRODUCT_ID") });
+    const { data: prices } = await this.stripe.prices.list({ active: true, product: this.billingConfig.get("STRIPE_PRODUCT_ID") });
     const responsePrices = prices.map(price => ({
       unitAmount: price.custom_unit_amount || !price.unit_amount ? undefined : price.unit_amount / 100,
       isCustom: !!price.custom_unit_amount,
@@ -117,7 +114,7 @@ export class StripeService extends Stripe {
 
   async getPaymentMethods(userId: string, customerId: string, ability: AnyAbility): Promise<PaymentMethod[]> {
     const [remotes, locals] = await Promise.all([
-      this.paymentMethods.list({ customer: customerId }),
+      this.stripe.paymentMethods.list({ customer: customerId }),
       this.paymentMethodRepository.accessibleBy(ability, "read").findByUserId(userId)
     ]);
 
@@ -150,7 +147,7 @@ export class StripeService extends Stripe {
 
   async getDefaultPaymentMethod(user: PayingUser, ability: AnyAbility): Promise<PaymentMethod | undefined> {
     const [customer, local] = await Promise.all([
-      this.customers.retrieve(user.stripeCustomerId, {
+      this.stripe.customers.retrieve(user.stripeCustomerId, {
         expand: ["invoice_settings.default_payment_method"]
       }),
       this.paymentMethodRepository.accessibleBy(ability, "read").findDefaultByUserId(user.id)
@@ -174,7 +171,7 @@ export class StripeService extends Stripe {
 
   async hasPaymentMethod(paymentMethodId: string, user: UserOutput): Promise<boolean> {
     try {
-      const paymentMethod = await this.paymentMethods.retrieve(paymentMethodId);
+      const paymentMethod = await this.stripe.paymentMethods.retrieve(paymentMethodId);
       const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
 
       return customerId === user.stripeCustomerId;
@@ -191,7 +188,7 @@ export class StripeService extends Stripe {
   async markPaymentMethodAsDefault(paymentMethodId: string, user: PayingUser, ability: AnyAbility): Promise<PaymentMethod> {
     const [local, remote] = await Promise.all([
       this.paymentMethodRepository.accessibleBy(ability, "update").markAsDefault(paymentMethodId),
-      this.paymentMethods.retrieve(paymentMethodId, undefined, { timeout: 3_000 })
+      this.stripe.paymentMethods.retrieve(paymentMethodId, undefined, { timeout: 3_000 })
     ]);
 
     assert(remote, 404, "Payment method not found", { source: "stripe" });
@@ -217,7 +214,7 @@ export class StripeService extends Stripe {
   }
 
   async markRemotePaymentMethodAsDefault(paymentMethodId: string, user: PayingUser): Promise<void> {
-    await this.customers.update(
+    await this.stripe.customers.update(
       user.stripeCustomerId,
       {
         invoice_settings: { default_payment_method: paymentMethodId }
@@ -300,7 +297,7 @@ export class StripeService extends Stripe {
    * extra charge after Stripe prunes the key (replays are only guaranteed for 24 hours).
    */
   async #resumeFromRecordedPaymentIntent(transaction: StripeTransactionOutput, stripePaymentIntentId: string): Promise<PaymentIntentResult> {
-    const paymentIntent = await this.paymentIntents.retrieve(stripePaymentIntentId);
+    const paymentIntent = await this.stripe.paymentIntents.retrieve(stripePaymentIntentId);
 
     switch (paymentIntent.status) {
       case "succeeded":
@@ -435,7 +432,7 @@ export class StripeService extends Stripe {
     }
 
     try {
-      const paymentIntent = await this.paymentIntents.create(...createOptions);
+      const paymentIntent = await this.stripe.paymentIntents.create(...createOptions);
       const update: Partial<Pick<StripeTransactionInput, "stripePaymentIntentId" | "status">> = { stripePaymentIntentId: paymentIntent.id };
 
       if (!this.#DEFERRED_STATUSES.has(paymentIntent.status)) {
@@ -526,14 +523,14 @@ export class StripeService extends Stripe {
   }
 
   async listPromotionCodes() {
-    const promotionCodes = await this.promotionCodes.list({
+    const promotionCodes = await this.stripe.promotionCodes.list({
       expand: ["data.promotion.coupon"]
     });
     return { promotionCodes: promotionCodes.data };
   }
 
   async findPromotionCodeByCode(code: string): Promise<Stripe.PromotionCode | undefined> {
-    const { data: promotionCodes } = await this.promotionCodes.list({
+    const { data: promotionCodes } = await this.stripe.promotionCodes.list({
       code,
       expand: ["data.promotion.coupon"]
     });
@@ -636,7 +633,7 @@ export class StripeService extends Stripe {
     let invoice: Stripe.Invoice | undefined;
 
     try {
-      invoice = await this.invoices.create({
+      invoice = await this.stripe.invoices.create({
         customer: stripeCustomerId,
         auto_advance: false,
         ...(updateField === "promotion_code" ? { discounts: [{ promotion_code: updateId }] } : { discounts: [{ coupon: updateId }] })
@@ -649,7 +646,7 @@ export class StripeService extends Stripe {
         discountType: updateField
       });
 
-      await this.invoiceItems.create({
+      await this.stripe.invoiceItems.create({
         amount: amountToAdd,
         customer: stripeCustomerId,
         invoice: invoice.id,
@@ -657,7 +654,7 @@ export class StripeService extends Stripe {
         description: "Akash Network Console"
       });
 
-      invoice = await this.invoices.finalizeInvoice(invoice.id);
+      invoice = await this.stripe.invoices.finalizeInvoice(invoice.id);
 
       this.loggerService.info({
         event: "INVOICE_FINALIZED_AND_PAID",
@@ -685,7 +682,7 @@ export class StripeService extends Stripe {
       let isInvoiceRolledBack: boolean | undefined;
 
       if (invoice?.id) {
-        isInvoiceRolledBack = await this.invoices
+        isInvoiceRolledBack = await this.stripe.invoices
           .voidInvoice(invoice.id)
           .then(() => true)
           .catch(() => false);
@@ -743,14 +740,14 @@ export class StripeService extends Stripe {
   }
 
   async listCoupons() {
-    const coupons = await this.coupons.list({
+    const coupons = await this.stripe.coupons.list({
       limit: 100
     });
     return { coupons: coupons.data };
   }
 
   async getCoupon(couponId: string) {
-    return await this.coupons.retrieve(couponId);
+    return await this.stripe.coupons.retrieve(couponId);
   }
 
   async getCustomerTransactions(
@@ -770,7 +767,7 @@ export class StripeService extends Stripe {
           }
         : undefined;
 
-    const charges = await this.charges.list({
+    const charges = await this.stripe.charges.list({
       created,
       customer: customerId,
       limit: options?.limit ?? 100,
@@ -955,7 +952,7 @@ export class StripeService extends Stripe {
 
     // Stripe idempotency keyed on the user id so concurrent provisioning (eager registration +
     // lazy billing paths) can never create duplicate/orphaned customers before the DB update wins.
-    const customer = await this.customers.create(
+    const customer = await this.stripe.customers.create(
       {
         email: user.email ?? undefined,
         name: user.username ?? undefined,
@@ -979,11 +976,11 @@ export class StripeService extends Stripe {
   }
 
   async updateCustomerOrganization(customerId: string, organization: string): Promise<void> {
-    const customer = await this.customers.retrieve(customerId);
+    const customer = await this.stripe.customers.retrieve(customerId);
 
     assert(!("deleted" in customer), 404, "Customer is deleted");
 
-    await this.customers.update(customerId, {
+    await this.stripe.customers.update(customerId, {
       business_name: organization
     });
   }
@@ -1032,7 +1029,7 @@ export class StripeService extends Stripe {
     let paymentIntent: Stripe.PaymentIntent;
 
     try {
-      paymentIntent = await this.paymentIntents.create(
+      paymentIntent = await this.stripe.paymentIntents.create(
         {
           amount: 100, // $1.00 USD in cents
           currency: STRIPE_CURRENCY,
@@ -1134,7 +1131,7 @@ export class StripeService extends Stripe {
 
   async validatePaymentMethodAfter3DS(customerId: string, paymentMethodId: string, paymentIntentId: string): Promise<{ success: boolean }> {
     try {
-      const paymentIntent = await this.paymentIntents.retrieve(paymentIntentId);
+      const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
 
       const paymentIntentCustomerId = typeof paymentIntent.customer === "string" ? paymentIntent.customer : paymentIntent.customer?.id;
       assert(paymentIntentCustomerId === customerId, 403, "Payment intent does not belong to the user");

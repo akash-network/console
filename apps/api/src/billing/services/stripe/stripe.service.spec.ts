@@ -32,18 +32,18 @@ import { createTestUser } from "@test/seeders/user-test.seeder";
 describe(StripeService.name, () => {
   describe("getStripeCustomerId", () => {
     it("returns existing user when stripeCustomerId exists", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const userWithStripeId = createTestUser();
       const result = await service.getStripeCustomerId(userWithStripeId);
       expect(result).toEqual(userWithStripeId.stripeCustomerId);
-      expect(service.customers.create).not.toHaveBeenCalled();
+      expect(stripe.customers.create).not.toHaveBeenCalled();
     });
 
     it("creates new Stripe customer and updates user when no stripeCustomerId", async () => {
-      const { service, userRepository } = setup();
+      const { service, stripe, userRepository } = setup();
       const user = createTestUser({ stripeCustomerId: null });
       const result = await service.getStripeCustomerId(user);
-      expect(service.customers.create).toHaveBeenCalledWith(
+      expect(stripe.customers.create).toHaveBeenCalledWith(
         {
           email: user.email,
           name: user.username,
@@ -70,7 +70,7 @@ describe(StripeService.name, () => {
     };
 
     it("creates the transaction and payment intent in USD regardless of caller input", async () => {
-      const { service, stripeTransactionRepository } = setup();
+      const { service, stripe, stripeTransactionRepository } = setup();
       const result = await service.createPaymentIntent(mockPaymentParams);
       expect(stripeTransactionRepository.create).toHaveBeenCalledWith({
         userId: mockPaymentParams.userId,
@@ -79,7 +79,7 @@ describe(StripeService.name, () => {
         amount: 10000,
         currency: "usd"
       });
-      expect(service.paymentIntents.create).toHaveBeenCalledWith({
+      expect(stripe.paymentIntents.create).toHaveBeenCalledWith({
         customer: mockPaymentParams.customer,
         payment_method: mockPaymentParams.payment_method,
         amount: 10000,
@@ -99,12 +99,12 @@ describe(StripeService.name, () => {
     });
 
     it("does not consult the idempotency-key row lookup on keyless calls", async () => {
-      const { service, stripeTransactionRepository } = setup();
+      const { service, stripe, stripeTransactionRepository } = setup();
 
       await service.createPaymentIntent(mockPaymentParams);
 
       expect(stripeTransactionRepository.findOrCreateByIdempotencyKey).not.toHaveBeenCalled();
-      expect(vi.mocked(service.paymentIntents.create).mock.calls[0]).toHaveLength(1);
+      expect(vi.mocked(stripe.paymentIntents.create).mock.calls[0]).toHaveLength(1);
     });
 
     describe("when an idempotency key is provided", () => {
@@ -112,7 +112,7 @@ describe(StripeService.name, () => {
       const keyedParams = { ...mockPaymentParams, idempotencyKey };
 
       it("finds or creates the row by key and forwards the key to Stripe", async () => {
-        const { service, stripeTransactionRepository } = setup();
+        const { service, stripe, stripeTransactionRepository } = setup();
         const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "created", stripeIdempotencyKey: idempotencyKey });
         stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: true });
 
@@ -127,7 +127,7 @@ describe(StripeService.name, () => {
           stripeIdempotencyKey: idempotencyKey
         });
         expect(stripeTransactionRepository.create).not.toHaveBeenCalled();
-        expect(service.paymentIntents.create).toHaveBeenCalledWith(
+        expect(stripe.paymentIntents.create).toHaveBeenCalledWith(
           expect.objectContaining({
             amount: 10000,
             metadata: { internal_transaction_id: transaction.id }
@@ -138,14 +138,14 @@ describe(StripeService.name, () => {
       });
 
       it.each(["succeeded", "refunded"] as const)("short-circuits a replay of a %s row without contacting Stripe", async status => {
-        const { service, stripeTransactionRepository } = setup();
+        const { service, stripe, stripeTransactionRepository } = setup();
         const transaction = generateDatabaseStripeTransaction({ amount: 10000, status, stripePaymentIntentId: "pi_replayed" });
         stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: false });
 
         const result = await service.createPaymentIntent(keyedParams);
 
-        expect(service.paymentIntents.create).not.toHaveBeenCalled();
-        expect(service.paymentIntents.retrieve).not.toHaveBeenCalled();
+        expect(stripe.paymentIntents.create).not.toHaveBeenCalled();
+        expect(stripe.paymentIntents.retrieve).not.toHaveBeenCalled();
         expect(result).toEqual({
           success: true,
           paymentIntentId: "pi_replayed",
@@ -157,15 +157,15 @@ describe(StripeService.name, () => {
       it.each(["succeeded", "requires_capture"] as const)(
         "retrieves the live intent instead of creating one and defers the %s status to the webhook",
         async liveStatus => {
-          const { service, stripeTransactionRepository } = setup();
+          const { service, stripe, stripeTransactionRepository } = setup();
           const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "pending", stripePaymentIntentId: "pi_live" });
           stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: false });
-          vi.mocked(service.paymentIntents.retrieve).mockResolvedValue(createTestPaymentIntent({ id: "pi_live", status: liveStatus }));
+          vi.mocked(stripe.paymentIntents.retrieve).mockResolvedValue(createTestPaymentIntent({ id: "pi_live", status: liveStatus }));
 
           const result = await service.createPaymentIntent(keyedParams);
 
-          expect(service.paymentIntents.retrieve).toHaveBeenCalledWith("pi_live");
-          expect(service.paymentIntents.create).not.toHaveBeenCalled();
+          expect(stripe.paymentIntents.retrieve).toHaveBeenCalledWith("pi_live");
+          expect(stripe.paymentIntents.create).not.toHaveBeenCalled();
           expect(stripeTransactionRepository.updateByIdUnlessSettled).not.toHaveBeenCalled();
           expect(result).toEqual({
             success: true,
@@ -177,10 +177,10 @@ describe(StripeService.name, () => {
       );
 
       it("records the mapped status when the live intent is processing", async () => {
-        const { service, stripeTransactionRepository } = setup();
+        const { service, stripe, stripeTransactionRepository } = setup();
         const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "requires_action", stripePaymentIntentId: "pi_live" });
         stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: false });
-        vi.mocked(service.paymentIntents.retrieve).mockResolvedValue(createTestPaymentIntent({ id: "pi_live", status: "processing" }));
+        vi.mocked(stripe.paymentIntents.retrieve).mockResolvedValue(createTestPaymentIntent({ id: "pi_live", status: "processing" }));
 
         const result = await service.createPaymentIntent(keyedParams);
 
@@ -189,16 +189,16 @@ describe(StripeService.name, () => {
       });
 
       it.each(["requires_action", "requires_confirmation"] as const)("resumes 3DS with the live client secret when the intent is in %s", async liveStatus => {
-        const { service, stripeTransactionRepository } = setup();
+        const { service, stripe, stripeTransactionRepository } = setup();
         const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "requires_action", stripePaymentIntentId: "pi_live" });
         stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: false });
-        vi.mocked(service.paymentIntents.retrieve).mockResolvedValue(
+        vi.mocked(stripe.paymentIntents.retrieve).mockResolvedValue(
           createTestPaymentIntent({ id: "pi_live", status: liveStatus, client_secret: "pi_live_secret" })
         );
 
         const result = await service.createPaymentIntent(keyedParams);
 
-        expect(service.paymentIntents.create).not.toHaveBeenCalled();
+        expect(stripe.paymentIntents.create).not.toHaveBeenCalled();
         expect(result).toEqual({
           success: false,
           paymentIntentId: "pi_live",
@@ -223,10 +223,10 @@ describe(StripeService.name, () => {
       });
 
       it("synthesizes a 402 with the live decline reason when the intent requires a new payment method", async () => {
-        const { service, stripeTransactionRepository } = setup();
+        const { service, stripe, stripeTransactionRepository } = setup();
         const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "pending", stripePaymentIntentId: "pi_live" });
         stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: false });
-        vi.mocked(service.paymentIntents.retrieve).mockResolvedValue(
+        vi.mocked(stripe.paymentIntents.retrieve).mockResolvedValue(
           createTestPaymentIntent({
             id: "pi_live",
             status: "requires_payment_method",
@@ -239,7 +239,7 @@ describe(StripeService.name, () => {
           message: "Your card was declined.",
           errorCode: "card_declined"
         });
-        expect(service.paymentIntents.create).not.toHaveBeenCalled();
+        expect(stripe.paymentIntents.create).not.toHaveBeenCalled();
         expect(stripeTransactionRepository.updateByIdUnlessSettled).toHaveBeenCalledWith(transaction.id, {
           status: "failed",
           errorMessage: "Your card was declined."
@@ -247,37 +247,37 @@ describe(StripeService.name, () => {
       });
 
       it("rejects a reused top-up key whose amount changed without touching the row or Stripe", async () => {
-        const { service, stripeTransactionRepository } = setup();
+        const { service, stripe, stripeTransactionRepository } = setup();
         const transaction = generateDatabaseStripeTransaction({ amount: 5000, status: "created", stripePaymentIntentId: null });
         stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: false });
 
         await expect(service.createPaymentIntent(keyedParams)).rejects.toThrow(IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE);
-        expect(service.paymentIntents.create).not.toHaveBeenCalled();
+        expect(stripe.paymentIntents.create).not.toHaveBeenCalled();
         expect(stripeTransactionRepository.updateByIdUnlessSettled).not.toHaveBeenCalled();
       });
 
       it.each(["succeeded", "refunded"] as const)("rejects a reused top-up key whose amount changed instead of replaying the %s row", async status => {
-        const { service, stripeTransactionRepository } = setup();
+        const { service, stripe, stripeTransactionRepository } = setup();
         const transaction = generateDatabaseStripeTransaction({ amount: 5000, status, stripePaymentIntentId: "pi_replayed" });
         stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: false });
 
         await expect(service.createPaymentIntent(keyedParams)).rejects.toThrow(IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE);
-        expect(service.paymentIntents.create).not.toHaveBeenCalled();
-        expect(service.paymentIntents.retrieve).not.toHaveBeenCalled();
+        expect(stripe.paymentIntents.create).not.toHaveBeenCalled();
+        expect(stripe.paymentIntents.retrieve).not.toHaveBeenCalled();
       });
 
       it("rejects a reused top-up key whose amount changed before resuming the recorded intent", async () => {
-        const { service, stripeTransactionRepository } = setup();
+        const { service, stripe, stripeTransactionRepository } = setup();
         const transaction = generateDatabaseStripeTransaction({ amount: 5000, status: "pending", stripePaymentIntentId: "pi_live" });
         stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: false });
 
         await expect(service.createPaymentIntent(keyedParams)).rejects.toThrow(IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE);
-        expect(service.paymentIntents.retrieve).not.toHaveBeenCalled();
+        expect(stripe.paymentIntents.retrieve).not.toHaveBeenCalled();
         expect(stripeTransactionRepository.updateByIdUnlessSettled).not.toHaveBeenCalled();
       });
 
       it("charges the recorded amount when a reused wallet-reload key recomputes a different amount", async () => {
-        const { service, stripeTransactionRepository } = setup();
+        const { service, stripe, stripeTransactionRepository } = setup();
         const reloadKey = "WalletBalanceReloadCheck.job_1";
         const transaction = generateDatabaseStripeTransaction({
           amount: 5000,
@@ -289,15 +289,15 @@ describe(StripeService.name, () => {
 
         const result = await service.createPaymentIntent({ ...mockPaymentParams, idempotencyKey: reloadKey });
 
-        expect(service.paymentIntents.create).toHaveBeenCalledWith(expect.objectContaining({ amount: 5000 }), { idempotencyKey: reloadKey });
+        expect(stripe.paymentIntents.create).toHaveBeenCalledWith(expect.objectContaining({ amount: 5000 }), { idempotencyKey: reloadKey });
         expect(result).toEqual(expect.objectContaining({ success: true, transactionId: transaction.id }));
       });
 
       it("maps a concurrent key-in-use rejection to the in-progress error without touching the row", async () => {
-        const { service, stripeTransactionRepository } = setup();
+        const { service, stripe, stripeTransactionRepository } = setup();
         const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "created", stripePaymentIntentId: null });
         stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: false });
-        vi.mocked(service.paymentIntents.create).mockRejectedValue(
+        vi.mocked(stripe.paymentIntents.create).mockRejectedValue(
           new Stripe.errors.StripeInvalidRequestError({
             type: "invalid_request_error",
             code: "idempotency_key_in_use",
@@ -310,24 +310,24 @@ describe(StripeService.name, () => {
       });
 
       it("rethrows a params-mismatch idempotency error without recording a failure", async () => {
-        const { service, stripeTransactionRepository } = setup();
+        const { service, stripe, stripeTransactionRepository } = setup();
         const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "created", stripePaymentIntentId: null });
         stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: true });
         const idempotencyError = new Stripe.errors.StripeIdempotencyError({
           type: "idempotency_error",
           message: "Keys for idempotent requests can only be used with the same parameters they were first used with."
         } as Stripe.StripeRawError);
-        vi.mocked(service.paymentIntents.create).mockRejectedValue(idempotencyError);
+        vi.mocked(stripe.paymentIntents.create).mockRejectedValue(idempotencyError);
 
         await expect(service.createPaymentIntent(keyedParams)).rejects.toBe(idempotencyError);
         expect(stripeTransactionRepository.updateByIdUnlessSettled).not.toHaveBeenCalled();
       });
 
       it("records failures through the settled-status guard", async () => {
-        const { service, stripeTransactionRepository } = setup();
+        const { service, stripe, stripeTransactionRepository } = setup();
         const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "created", stripePaymentIntentId: null });
         stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: true });
-        vi.mocked(service.paymentIntents.create).mockRejectedValue(new Error("socket hang up"));
+        vi.mocked(stripe.paymentIntents.create).mockRejectedValue(new Error("socket hang up"));
 
         await expect(service.createPaymentIntent(keyedParams)).rejects.toThrow("socket hang up");
         expect(stripeTransactionRepository.updateByIdUnlessSettled).toHaveBeenCalledWith(
@@ -356,10 +356,10 @@ describe(StripeService.name, () => {
         });
 
         it("responds with the settled outcome when the guard suppresses the resumed-intent update", async () => {
-          const { service, stripeTransactionRepository } = setup();
+          const { service, stripe, stripeTransactionRepository } = setup();
           const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "pending", stripePaymentIntentId: "pi_live" });
           stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: false });
-          vi.mocked(service.paymentIntents.retrieve).mockResolvedValue(createTestPaymentIntent({ id: "pi_live", status: "processing" }));
+          vi.mocked(stripe.paymentIntents.retrieve).mockResolvedValue(createTestPaymentIntent({ id: "pi_live", status: "processing" }));
           stripeTransactionRepository.updateByIdUnlessSettled.mockResolvedValue(undefined);
           stripeTransactionRepository.findById.mockResolvedValue({ ...transaction, status: "succeeded" });
 
@@ -374,10 +374,10 @@ describe(StripeService.name, () => {
         });
 
         it("responds with the settled outcome instead of throwing the stale decline", async () => {
-          const { service, stripeTransactionRepository } = setup();
+          const { service, stripe, stripeTransactionRepository } = setup();
           const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "pending", stripePaymentIntentId: "pi_live" });
           stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: false });
-          vi.mocked(service.paymentIntents.retrieve).mockResolvedValue(createTestPaymentIntent({ id: "pi_live", status: "requires_payment_method" }));
+          vi.mocked(stripe.paymentIntents.retrieve).mockResolvedValue(createTestPaymentIntent({ id: "pi_live", status: "requires_payment_method" }));
           stripeTransactionRepository.updateByIdUnlessSettled.mockResolvedValue(undefined);
           stripeTransactionRepository.findById.mockResolvedValue({ ...transaction, status: "succeeded" });
 
@@ -387,10 +387,10 @@ describe(StripeService.name, () => {
         });
 
         it("responds with the settled outcome instead of rethrowing a stale charge error", async () => {
-          const { service, stripeTransactionRepository } = setup();
+          const { service, stripe, stripeTransactionRepository } = setup();
           const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "created", stripeIdempotencyKey: idempotencyKey });
           stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: true });
-          vi.mocked(service.paymentIntents.create).mockRejectedValue(new Error("socket hang up"));
+          vi.mocked(stripe.paymentIntents.create).mockRejectedValue(new Error("socket hang up"));
           stripeTransactionRepository.updateByIdUnlessSettled.mockResolvedValue(undefined);
           stripeTransactionRepository.findById.mockResolvedValue({ ...transaction, status: "succeeded", stripePaymentIntentId: "pi_settled" });
 
@@ -400,10 +400,10 @@ describe(StripeService.name, () => {
         });
 
         it("rethrows the original error when the suppressed row is not actually settled", async () => {
-          const { service, stripeTransactionRepository } = setup();
+          const { service, stripe, stripeTransactionRepository } = setup();
           const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "created", stripeIdempotencyKey: idempotencyKey });
           stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: true });
-          vi.mocked(service.paymentIntents.create).mockRejectedValue(new Error("socket hang up"));
+          vi.mocked(stripe.paymentIntents.create).mockRejectedValue(new Error("socket hang up"));
           stripeTransactionRepository.updateByIdUnlessSettled.mockResolvedValue(undefined);
           stripeTransactionRepository.findById.mockResolvedValue({ ...transaction, status: "failed" });
 
@@ -415,14 +415,14 @@ describe(StripeService.name, () => {
 
   describe("getCustomerTransactions", () => {
     it("returns formatted transactions", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const mockCharge = createTestCharge();
       const mockCharges = {
         data: [mockCharge],
         has_more: false
       } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
 
-      vi.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
+      vi.spyOn(stripe.charges, "list").mockResolvedValue(mockCharges);
 
       const result = await service.getCustomerTransactions(TEST_CONSTANTS.CUSTOMER_ID);
       expect(result).toEqual({
@@ -447,7 +447,7 @@ describe(StripeService.name, () => {
     });
 
     it("attaches the recorded first-purchase bonus to matching charges", async () => {
-      const { service, stripeTransactionRepository } = setup();
+      const { service, stripe, stripeTransactionRepository } = setup();
       const bonusCharge = createTestCharge({ id: "ch_bonus" });
       const plainCharge = createTestCharge({ id: "ch_plain" });
       const mockCharges = {
@@ -455,7 +455,7 @@ describe(StripeService.name, () => {
         has_more: false
       } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
 
-      vi.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
+      vi.spyOn(stripe.charges, "list").mockResolvedValue(mockCharges);
       stripeTransactionRepository.findByChargeIds.mockResolvedValue([generateDatabaseStripeTransaction({ stripeChargeId: "ch_bonus", bonusAmount: 1000 })]);
 
       const result = await service.getCustomerTransactions(TEST_CONSTANTS.CUSTOMER_ID);
@@ -466,7 +466,7 @@ describe(StripeService.name, () => {
     });
 
     it("sanitizes link email from payment method details", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const mockCharge = createTestCharge({
         id: "ch_link",
         payment_method_details: { type: "link", link: { email: "user@test.com" } } as unknown as Stripe.Charge.PaymentMethodDetails
@@ -476,7 +476,7 @@ describe(StripeService.name, () => {
         has_more: false
       } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
 
-      vi.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
+      vi.spyOn(stripe.charges, "list").mockResolvedValue(mockCharges);
 
       const result = await service.getCustomerTransactions(TEST_CONSTANTS.CUSTOMER_ID);
       expect(result.transactions[0].paymentMethod).toEqual({
@@ -486,7 +486,7 @@ describe(StripeService.name, () => {
     });
 
     it("returns null paymentMethod when payment_method_details is null", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const mockCharge = createTestCharge({
         id: "ch_null_pm",
         payment_method_details: null as unknown as Stripe.Charge.PaymentMethodDetails
@@ -496,28 +496,28 @@ describe(StripeService.name, () => {
         has_more: false
       } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
 
-      vi.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
+      vi.spyOn(stripe.charges, "list").mockResolvedValue(mockCharges);
 
       const result = await service.getCustomerTransactions(TEST_CONSTANTS.CUSTOMER_ID);
       expect(result.transactions[0].paymentMethod).toBeNull();
     });
 
     it("calls charges.list with endingBefore parameter", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const mockCharge = createTestCharge({ id: "ch_456", amount: 2000 });
       const mockCharges = {
         data: [mockCharge],
         has_more: true
       } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
 
-      vi.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
+      vi.spyOn(stripe.charges, "list").mockResolvedValue(mockCharges);
 
       await service.getCustomerTransactions(TEST_CONSTANTS.CUSTOMER_ID, {
         endingBefore: "ch_before_id",
         limit: 50
       });
 
-      expect(service.charges.list).toHaveBeenCalledWith({
+      expect(stripe.charges.list).toHaveBeenCalledWith({
         customer: TEST_CONSTANTS.CUSTOMER_ID,
         limit: 50,
         created: undefined,
@@ -528,14 +528,14 @@ describe(StripeService.name, () => {
     });
 
     it("calls charges.list with created parameter", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const mockCharge = createTestCharge({ id: "ch_789", amount: 3000 });
       const mockCharges = {
         data: [mockCharge],
         has_more: false
       } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
 
-      vi.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
+      vi.spyOn(stripe.charges, "list").mockResolvedValue(mockCharges);
 
       const startDate = new Date("2022-01-01T00:00:00Z").toISOString();
       const endDate = new Date("2022-12-31T23:59:59Z").toISOString();
@@ -545,7 +545,7 @@ describe(StripeService.name, () => {
         limit: 25
       });
 
-      expect(service.charges.list).toHaveBeenCalledWith({
+      expect(stripe.charges.list).toHaveBeenCalledWith({
         customer: TEST_CONSTANTS.CUSTOMER_ID,
         limit: 25,
         created: {
@@ -559,7 +559,7 @@ describe(StripeService.name, () => {
     });
 
     it("returns correct prevPage when startingAfter is provided", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const firstCharge = createTestCharge({
         id: "ch_first",
         amount: 1000,
@@ -576,7 +576,7 @@ describe(StripeService.name, () => {
         has_more: true
       } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
 
-      vi.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
+      vi.spyOn(stripe.charges, "list").mockResolvedValue(mockCharges);
 
       const result = await service.getCustomerTransactions(TEST_CONSTANTS.CUSTOMER_ID, {
         startingAfter: "ch_previous_id"
@@ -616,7 +616,7 @@ describe(StripeService.name, () => {
     });
 
     it("returns null prevPage when startingAfter is not provided", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const mockCharge = createTestCharge({
         id: "ch_only",
         description: "Only charge"
@@ -626,7 +626,7 @@ describe(StripeService.name, () => {
         has_more: false
       } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
 
-      vi.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
+      vi.spyOn(stripe.charges, "list").mockResolvedValue(mockCharges);
 
       const result = await service.getCustomerTransactions(TEST_CONSTANTS.CUSTOMER_ID);
 
@@ -634,13 +634,13 @@ describe(StripeService.name, () => {
     });
 
     it("calls charges.list with all parameters combined", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const mockCharges = {
         data: [],
         has_more: false
       } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
 
-      vi.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
+      vi.spyOn(stripe.charges, "list").mockResolvedValue(mockCharges);
 
       const startDate = new Date("2021-01-01T00:00:00Z").toISOString();
       const endDate = new Date("2021-12-31T23:59:59Z").toISOString();
@@ -655,7 +655,7 @@ describe(StripeService.name, () => {
 
       await service.getCustomerTransactions(TEST_CONSTANTS.CUSTOMER_ID, options);
 
-      expect(service.charges.list).toHaveBeenCalledWith({
+      expect(stripe.charges.list).toHaveBeenCalledWith({
         customer: TEST_CONSTANTS.CUSTOMER_ID,
         limit: 10,
         created: {
@@ -906,7 +906,7 @@ describe(StripeService.name, () => {
 
   describe("applyCoupon", () => {
     it("applies promotion code successfully, creates invoice with item, and leaves transaction pending for webhook", async () => {
-      const { service, stripeTransactionRepository } = setup();
+      const { service, stripe, stripeTransactionRepository } = setup();
       const mockUser = createTestUser();
       const mockCoupon = createTestCoupon({
         id: "coupon_123",
@@ -927,25 +927,25 @@ describe(StripeService.name, () => {
       const mockFinalizedInvoice = createTestInvoice({ id: "in_123", status: "paid" });
 
       vi.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode);
-      vi.spyOn(service.invoices, "create").mockResolvedValue(mockInvoice);
-      vi.spyOn(service.invoiceItems, "create").mockResolvedValue(mock<Stripe.Response<Stripe.InvoiceItem>>());
-      vi.spyOn(service.invoices, "finalizeInvoice").mockResolvedValue(mockFinalizedInvoice);
+      vi.spyOn(stripe.invoices, "create").mockResolvedValue(mockInvoice);
+      vi.spyOn(stripe.invoiceItems, "create").mockResolvedValue(mock<Stripe.Response<Stripe.InvoiceItem>>());
+      vi.spyOn(stripe.invoices, "finalizeInvoice").mockResolvedValue(mockFinalizedInvoice);
 
       const result = await service.applyCoupon(mockUser, mockPromotionCode.code);
 
-      expect(service.invoices.create).toHaveBeenCalledWith({
+      expect(stripe.invoices.create).toHaveBeenCalledWith({
         customer: mockUser.stripeCustomerId,
         auto_advance: false,
         discounts: [{ promotion_code: mockPromotionCode.id }]
       });
-      expect(service.invoiceItems.create).toHaveBeenCalledWith({
+      expect(stripe.invoiceItems.create).toHaveBeenCalledWith({
         amount: 1000,
         customer: mockUser.stripeCustomerId,
         invoice: mockInvoice.id,
         currency: "usd",
         description: "Akash Network Console"
       });
-      expect(service.invoices.finalizeInvoice).toHaveBeenCalledWith(mockInvoice.id);
+      expect(stripe.invoices.finalizeInvoice).toHaveBeenCalledWith(mockInvoice.id);
 
       expect(stripeTransactionRepository.create).toHaveBeenCalledWith({
         userId: mockUser.id,
@@ -970,7 +970,7 @@ describe(StripeService.name, () => {
     });
 
     it("creates a Stripe customer before redeeming when the account has none, then applies the coupon", async () => {
-      const { service, userRepository, stripeTransactionRepository } = setup();
+      const { service, stripe, userRepository, stripeTransactionRepository } = setup();
       const mockUser = createTestUser({ stripeCustomerId: null });
       const createdCustomer = mock<Stripe.Response<Stripe.Customer>>({ id: "cus_new_456" });
       const mockCoupon = createTestCoupon({
@@ -990,15 +990,15 @@ describe(StripeService.name, () => {
       });
       const mockInvoice = createTestInvoice({ id: "in_new", status: "draft" });
 
-      vi.spyOn(service.customers, "create").mockResolvedValue(createdCustomer);
+      vi.spyOn(stripe.customers, "create").mockResolvedValue(createdCustomer);
       vi.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode);
-      vi.spyOn(service.invoices, "create").mockResolvedValue(mockInvoice);
-      vi.spyOn(service.invoiceItems, "create").mockResolvedValue(mock<Stripe.Response<Stripe.InvoiceItem>>());
-      vi.spyOn(service.invoices, "finalizeInvoice").mockResolvedValue(createTestInvoice({ id: "in_new", status: "paid" }));
+      vi.spyOn(stripe.invoices, "create").mockResolvedValue(mockInvoice);
+      vi.spyOn(stripe.invoiceItems, "create").mockResolvedValue(mock<Stripe.Response<Stripe.InvoiceItem>>());
+      vi.spyOn(stripe.invoices, "finalizeInvoice").mockResolvedValue(createTestInvoice({ id: "in_new", status: "paid" }));
 
       const result = await service.applyCoupon(mockUser, mockPromotionCode.code);
 
-      expect(service.customers.create).toHaveBeenCalledWith(
+      expect(stripe.customers.create).toHaveBeenCalledWith(
         {
           email: mockUser.email,
           name: mockUser.username,
@@ -1011,12 +1011,12 @@ describe(StripeService.name, () => {
         { stripeCustomerId: "cus_new_456" },
         { returning: true }
       );
-      expect(service.invoices.create).toHaveBeenCalledWith({
+      expect(stripe.invoices.create).toHaveBeenCalledWith({
         customer: "cus_new_456",
         auto_advance: false,
         discounts: [{ promotion_code: mockPromotionCode.id }]
       });
-      expect(service.invoiceItems.create).toHaveBeenCalledWith({
+      expect(stripe.invoiceItems.create).toHaveBeenCalledWith({
         amount: 1000,
         customer: "cus_new_456",
         invoice: mockInvoice.id,
@@ -1044,7 +1044,7 @@ describe(StripeService.name, () => {
     });
 
     it("applies coupon successfully when no promotion code found", async () => {
-      const { service, stripeTransactionRepository } = setup();
+      const { service, stripe, stripeTransactionRepository } = setup();
       const mockUser = createTestUser();
       const mockCoupon = createTestCoupon({
         id: "coupon_direct",
@@ -1059,25 +1059,25 @@ describe(StripeService.name, () => {
 
       vi.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(undefined);
       vi.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] });
-      vi.spyOn(service.invoices, "create").mockResolvedValue(mockInvoice);
-      vi.spyOn(service.invoiceItems, "create").mockResolvedValue(mock<Stripe.Response<Stripe.InvoiceItem>>());
-      vi.spyOn(service.invoices, "finalizeInvoice").mockResolvedValue(mockFinalizedInvoice);
+      vi.spyOn(stripe.invoices, "create").mockResolvedValue(mockInvoice);
+      vi.spyOn(stripe.invoiceItems, "create").mockResolvedValue(mock<Stripe.Response<Stripe.InvoiceItem>>());
+      vi.spyOn(stripe.invoices, "finalizeInvoice").mockResolvedValue(mockFinalizedInvoice);
 
       const result = await service.applyCoupon(mockUser, mockCoupon.id);
 
-      expect(service.invoices.create).toHaveBeenCalledWith({
+      expect(stripe.invoices.create).toHaveBeenCalledWith({
         customer: mockUser.stripeCustomerId,
         auto_advance: false,
         discounts: [{ coupon: mockCoupon.id }]
       });
-      expect(service.invoiceItems.create).toHaveBeenCalledWith({
+      expect(stripe.invoiceItems.create).toHaveBeenCalledWith({
         amount: 500,
         customer: mockUser.stripeCustomerId,
         invoice: mockInvoice.id,
         currency: "usd",
         description: "Akash Network Console"
       });
-      expect(service.invoices.finalizeInvoice).toHaveBeenCalledWith(mockInvoice.id);
+      expect(stripe.invoices.finalizeInvoice).toHaveBeenCalledWith(mockInvoice.id);
 
       expect(stripeTransactionRepository.create).toHaveBeenCalledWith({
         userId: mockUser.id,
@@ -1172,27 +1172,27 @@ describe(StripeService.name, () => {
     });
 
     it("throws error for invalid promotion code", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const mockUser = createTestUser();
-      vi.spyOn(service.promotionCodes, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PromotionCode>>);
-      vi.spyOn(service.coupons, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Coupon>>);
+      vi.spyOn(stripe.promotionCodes, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PromotionCode>>);
+      vi.spyOn(stripe.coupons, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Coupon>>);
 
       await expect(service.applyCoupon(mockUser, "INVALID_CODE")).rejects.toThrow("No valid promotion code or coupon found with the provided code");
     });
 
     it("does not provision a Stripe customer for a brand-new account when no matching code is found", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const mockUser = createTestUser({ stripeCustomerId: null });
-      vi.spyOn(service.promotionCodes, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PromotionCode>>);
-      vi.spyOn(service.coupons, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Coupon>>);
+      vi.spyOn(stripe.promotionCodes, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PromotionCode>>);
+      vi.spyOn(stripe.coupons, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Coupon>>);
 
       await expect(service.applyCoupon(mockUser, "INVALID_CODE")).rejects.toThrow("No valid promotion code or coupon found with the provided code");
 
-      expect(service.customers.create).not.toHaveBeenCalled();
+      expect(stripe.customers.create).not.toHaveBeenCalled();
     });
 
     it("does not provision a Stripe customer for a brand-new account when the coupon is unsupported", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const mockUser = createTestUser({ stripeCustomerId: null });
       const mockCoupon = createTestCoupon({ percent_off: 20, amount_off: null, valid: true });
       vi.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(undefined);
@@ -1202,11 +1202,11 @@ describe(StripeService.name, () => {
         "Percentage-based coupons are not supported. Only fixed amount coupons are allowed."
       );
 
-      expect(service.customers.create).not.toHaveBeenCalled();
+      expect(stripe.customers.create).not.toHaveBeenCalled();
     });
 
     it("voids invoice on error after invoice is created", async () => {
-      const { service, stripeTransactionRepository } = setup();
+      const { service, stripe, stripeTransactionRepository } = setup();
       const mockUser = createTestUser();
       const mockCoupon = createTestCoupon({
         id: "coupon_123",
@@ -1226,25 +1226,25 @@ describe(StripeService.name, () => {
       const mockInvoice = createTestInvoice({ id: "in_123", status: "draft" });
 
       vi.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode);
-      vi.spyOn(service.invoices, "create").mockResolvedValue(mockInvoice);
-      vi.spyOn(service.invoiceItems, "create").mockRejectedValue(new Error("Invoice item creation failed"));
-      vi.spyOn(service.invoices, "voidInvoice").mockResolvedValue(mock<Stripe.Response<Stripe.Invoice>>());
+      vi.spyOn(stripe.invoices, "create").mockResolvedValue(mockInvoice);
+      vi.spyOn(stripe.invoiceItems, "create").mockRejectedValue(new Error("Invoice item creation failed"));
+      vi.spyOn(stripe.invoices, "voidInvoice").mockResolvedValue(mock<Stripe.Response<Stripe.Invoice>>());
 
       await expect(service.applyCoupon(mockUser, mockPromotionCode.code)).rejects.toThrow("Invoice item creation failed");
 
-      expect(service.invoices.voidInvoice).toHaveBeenCalledWith(mockInvoice.id);
+      expect(stripe.invoices.voidInvoice).toHaveBeenCalledWith(mockInvoice.id);
       expect(stripeTransactionRepository.create).not.toHaveBeenCalled();
     });
   });
 
   describe("createSetupIntent", () => {
     it("creates setup intent with correct parameters when not a free trial", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const stripeData = StripeSeederCreate();
-      vi.spyOn(service.setupIntents, "create").mockResolvedValue(stripeData.setupIntent);
+      vi.spyOn(stripe.setupIntents, "create").mockResolvedValue(stripeData.setupIntent);
 
       const result = await service.createSetupIntent(TEST_CONSTANTS.CUSTOMER_ID, { isFreeTrial: false });
-      expect(service.setupIntents.create).toHaveBeenCalledWith({
+      expect(stripe.setupIntents.create).toHaveBeenCalledWith({
         customer: TEST_CONSTANTS.CUSTOMER_ID,
         usage: "off_session",
         payment_method_types: ["card", "link"]
@@ -1253,12 +1253,12 @@ describe(StripeService.name, () => {
     });
 
     it("creates setup intent with free trial metadata when user is trialing", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const stripeData = StripeSeederCreate();
-      vi.spyOn(service.setupIntents, "create").mockResolvedValue(stripeData.setupIntent);
+      vi.spyOn(stripe.setupIntents, "create").mockResolvedValue(stripeData.setupIntent);
 
       const result = await service.createSetupIntent(TEST_CONSTANTS.CUSTOMER_ID, { isFreeTrial: true });
-      expect(service.setupIntents.create).toHaveBeenCalledWith({
+      expect(stripe.setupIntents.create).toHaveBeenCalledWith({
         customer: TEST_CONSTANTS.CUSTOMER_ID,
         usage: "off_session",
         payment_method_types: ["card", "link"],
@@ -1270,13 +1270,13 @@ describe(StripeService.name, () => {
 
   describe("findPrices", () => {
     it("returns sorted prices", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const mockPrices = [
         { custom_unit_amount: true, currency: "usd" },
         { unit_amount: 1000, currency: "usd" },
         { unit_amount: 2000, currency: "usd" }
       ];
-      vi.spyOn(service.prices, "list").mockResolvedValue({ data: mockPrices } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Price>>);
+      vi.spyOn(stripe.prices, "list").mockResolvedValue({ data: mockPrices } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Price>>);
 
       const result = await service.findPrices();
       expect(result).toEqual([
@@ -1289,7 +1289,7 @@ describe(StripeService.name, () => {
 
   describe("getPaymentMethods", () => {
     it("returns customer payment methods", async () => {
-      const { service, paymentMethodRepository } = setup();
+      const { service, stripe, paymentMethodRepository } = setup();
       const mockPaymentMethods = [
         generatePaymentMethod({
           id: TEST_CONSTANTS.PAYMENT_METHOD_ID,
@@ -1342,7 +1342,7 @@ describe(StripeService.name, () => {
           }
         })
       ];
-      vi.spyOn(service.paymentMethods, "list").mockResolvedValue({ data: mockPaymentMethods } as unknown as Stripe.Response<
+      vi.spyOn(stripe.paymentMethods, "list").mockResolvedValue({ data: mockPaymentMethods } as unknown as Stripe.Response<
         Stripe.ApiList<Stripe.PaymentMethod>
       >);
       paymentMethodRepository.findByUserId.mockResolvedValue([]);
@@ -1352,7 +1352,7 @@ describe(StripeService.name, () => {
         TEST_CONSTANTS.CUSTOMER_ID,
         createMongoAbility([{ action: "read", subject: "PaymentMethod" }])
       );
-      expect(service.paymentMethods.list).toHaveBeenCalledWith({
+      expect(stripe.paymentMethods.list).toHaveBeenCalledWith({
         customer: TEST_CONSTANTS.CUSTOMER_ID
       });
       // The method sorts by created timestamp in descending order, so pm_123 (higher timestamp) comes first
@@ -1373,15 +1373,15 @@ describe(StripeService.name, () => {
 
   describe("listPromotionCodes", () => {
     it("returns promotion codes with expanded coupons", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const stripeData = StripeSeederCreate();
       const mockPromotionCodes = [stripeData.promotionCode, { id: "promo_456", code: "TEST100", coupon: { id: "coupon_456" } }];
-      vi.spyOn(service.promotionCodes, "list").mockResolvedValue({ data: mockPromotionCodes } as unknown as Stripe.Response<
+      vi.spyOn(stripe.promotionCodes, "list").mockResolvedValue({ data: mockPromotionCodes } as unknown as Stripe.Response<
         Stripe.ApiList<Stripe.PromotionCode>
       >);
 
       const result = await service.listPromotionCodes();
-      expect(service.promotionCodes.list).toHaveBeenCalledWith({
+      expect(stripe.promotionCodes.list).toHaveBeenCalledWith({
         expand: ["data.promotion.coupon"]
       });
       expect(result).toEqual({ promotionCodes: mockPromotionCodes });
@@ -1390,15 +1390,15 @@ describe(StripeService.name, () => {
 
   describe("listCoupons", () => {
     it("returns coupons", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const mockCoupons = [
         { id: TEST_CONSTANTS.COUPON_ID, percent_off: 50 },
         { id: "coupon_456", amount_off: 1000 }
       ];
-      vi.spyOn(service.coupons, "list").mockResolvedValue({ data: mockCoupons } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Coupon>>);
+      vi.spyOn(stripe.coupons, "list").mockResolvedValue({ data: mockCoupons } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Coupon>>);
 
       const result = await service.listCoupons();
-      expect(service.coupons.list).toHaveBeenCalledWith({
+      expect(stripe.coupons.list).toHaveBeenCalledWith({
         limit: 100
       });
       expect(result).toEqual({ coupons: mockCoupons });
@@ -1407,12 +1407,12 @@ describe(StripeService.name, () => {
 
   describe("getCoupon", () => {
     it("returns coupon by id", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const mockCoupon = { id: TEST_CONSTANTS.COUPON_ID, percent_off: 50 };
-      vi.spyOn(service.coupons, "retrieve").mockResolvedValue(mockCoupon as unknown as Stripe.Response<Stripe.Coupon>);
+      vi.spyOn(stripe.coupons, "retrieve").mockResolvedValue(mockCoupon as unknown as Stripe.Response<Stripe.Coupon>);
 
       const result = await service.getCoupon(TEST_CONSTANTS.COUPON_ID);
-      expect(service.coupons.retrieve).toHaveBeenCalledWith(TEST_CONSTANTS.COUPON_ID);
+      expect(stripe.coupons.retrieve).toHaveBeenCalledWith(TEST_CONSTANTS.COUPON_ID);
       expect(result).toEqual(mockCoupon);
     });
   });
@@ -1572,18 +1572,18 @@ describe(StripeService.name, () => {
     };
 
     it("creates $0 authorization successfully for card validation in trialing wallets", async () => {
-      const { service, paymentMethodRepository, userRepository } = setup();
+      const { service, stripe, paymentMethodRepository, userRepository } = setup();
       const mockUser = createTestUser();
       const mockPaymentIntent = createTestPaymentIntent({ status: "succeeded", amount: 0 });
 
       vi.spyOn(userRepository, "findOneBy").mockResolvedValue(mockUser);
       paymentMethodRepository.findValidatedByUserId.mockResolvedValue([]);
-      vi.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent);
+      vi.spyOn(stripe.paymentIntents, "create").mockResolvedValue(mockPaymentIntent);
       paymentMethodRepository.markAsValidated.mockResolvedValue(undefined);
 
       const result = await service.createTestCharge(mockParams);
 
-      expect(service.paymentIntents.create).toHaveBeenCalledWith(
+      expect(stripe.paymentIntents.create).toHaveBeenCalledWith(
         {
           customer: mockParams.customer,
           payment_method: mockParams.payment_method,
@@ -1634,7 +1634,7 @@ describe(StripeService.name, () => {
     });
 
     it("handles card decline", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const mockPaymentIntent = {
         id: "pi_test_123",
         status: "requires_payment_method",
@@ -1644,7 +1644,7 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Override default payment intent mock
-      vi.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
+      vi.spyOn(stripe.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       const result = await service.createTestCharge(mockParams);
 
@@ -1655,7 +1655,7 @@ describe(StripeService.name, () => {
     });
 
     it("handles payment intent with requires_capture status", async () => {
-      const { service, paymentMethodRepository } = setup();
+      const { service, stripe, paymentMethodRepository } = setup();
       const mockUser = createUser({ id: "user_123", stripeCustomerId: "cus_123" });
       const mockPaymentIntent = {
         id: "pi_test_123",
@@ -1664,7 +1664,7 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Override default payment intent mock
-      vi.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
+      vi.spyOn(stripe.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       // Mock payment method validation
       paymentMethodRepository.markAsValidated.mockResolvedValue(undefined);
@@ -1679,7 +1679,7 @@ describe(StripeService.name, () => {
     });
 
     it("handles payment intent with unexpected status", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const mockPaymentIntent = {
         id: "pi_test_123",
         status: "processing",
@@ -1687,7 +1687,7 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Override default payment intent mock
-      vi.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
+      vi.spyOn(stripe.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       const result = await service.createTestCharge(mockParams);
 
@@ -1720,7 +1720,7 @@ describe(StripeService.name, () => {
     });
 
     it("handles payment method validation update failure gracefully", async () => {
-      const { service, paymentMethodRepository } = setup();
+      const { service, stripe, paymentMethodRepository } = setup();
       const mockPaymentIntent = {
         id: "pi_test_123",
         status: "succeeded",
@@ -1728,7 +1728,7 @@ describe(StripeService.name, () => {
       } as Stripe.PaymentIntent;
 
       // Override default payment intent mock
-      vi.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
+      vi.spyOn(stripe.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       // Mock payment method validation to fail
       paymentMethodRepository.markAsValidated.mockRejectedValue(new Error("Database error"));
@@ -1743,10 +1743,10 @@ describe(StripeService.name, () => {
     });
 
     it("handles payment intent creation failure", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const creationError = new Error("Payment failed");
 
-      vi.spyOn(service.paymentIntents, "create").mockRejectedValue(creationError);
+      vi.spyOn(stripe.paymentIntents, "create").mockRejectedValue(creationError);
 
       await expect(service.createTestCharge(mockParams)).rejects.toThrow("Payment failed");
     });
@@ -1760,7 +1760,7 @@ describe(StripeService.name, () => {
     };
 
     it("marks payment method as validated when payment intent succeeded", async () => {
-      const { service, paymentMethodRepository } = setup();
+      const { service, stripe, paymentMethodRepository } = setup();
       const mockUser = createUser({ id: "user_123", stripeCustomerId: "cus_123" });
       const mockPaymentIntent = {
         id: "pi_123",
@@ -1771,7 +1771,7 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
-      vi.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
+      vi.spyOn(stripe.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       // Mock payment method validation
       paymentMethodRepository.markAsValidated.mockResolvedValue(undefined);
@@ -1779,12 +1779,12 @@ describe(StripeService.name, () => {
       const result = await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
 
       expect(result).toEqual({ success: true });
-      expect(service.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
+      expect(stripe.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
       expect(paymentMethodRepository.markAsValidated).toHaveBeenCalledWith(mockParams.paymentMethodId, mockUser.id);
     });
 
     it("marks payment method as validated when payment intent requires_capture", async () => {
-      const { service, paymentMethodRepository } = setup();
+      const { service, stripe, paymentMethodRepository } = setup();
       const mockUser = createUser({ id: "user_123", stripeCustomerId: "cus_123" });
       const mockPaymentIntent = {
         id: "pi_123",
@@ -1795,7 +1795,7 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
-      vi.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
+      vi.spyOn(stripe.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       // Mock payment method validation
       paymentMethodRepository.markAsValidated.mockResolvedValue(undefined);
@@ -1803,12 +1803,12 @@ describe(StripeService.name, () => {
       const result = await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
 
       expect(result).toEqual({ success: true });
-      expect(service.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
+      expect(stripe.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
       expect(paymentMethodRepository.markAsValidated).toHaveBeenCalledWith(mockParams.paymentMethodId, mockUser.id);
     });
 
     it("logs warning when payment intent is not successful", async () => {
-      const { service, paymentMethodRepository } = setup();
+      const { service, stripe, paymentMethodRepository } = setup();
       const mockPaymentIntent = {
         id: "pi_123",
         status: "requires_payment_method",
@@ -1818,21 +1818,21 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
-      vi.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
+      vi.spyOn(stripe.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       const result = await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
 
       expect(result).toEqual({ success: false });
-      expect(service.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
+      expect(stripe.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
       expect(paymentMethodRepository.markAsValidated).not.toHaveBeenCalled();
     });
 
     it("handles payment intent retrieval failure", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const retrievalError = new Error("Payment intent not found");
 
       // Mock payment intent retrieval to fail
-      vi.spyOn(service.paymentIntents, "retrieve").mockRejectedValue(retrievalError);
+      vi.spyOn(stripe.paymentIntents, "retrieve").mockRejectedValue(retrievalError);
 
       await expect(service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId)).rejects.toThrow(
         "Payment intent not found"
@@ -1840,7 +1840,7 @@ describe(StripeService.name, () => {
     });
 
     it("handles user not found during validation", async () => {
-      const { service, paymentMethodRepository } = setup({ user: undefined });
+      const { service, stripe, paymentMethodRepository } = setup({ user: undefined });
       const mockPaymentIntent = {
         id: "pi_123",
         status: "succeeded",
@@ -1850,17 +1850,17 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
-      vi.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
+      vi.spyOn(stripe.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       const result = await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
 
       expect(result).toEqual({ success: true });
-      expect(service.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
+      expect(stripe.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
       expect(paymentMethodRepository.markAsValidated).not.toHaveBeenCalled();
     });
 
     it("throws error when payment intent belongs to different customer", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const mockPaymentIntent = {
         id: "pi_123",
         status: "succeeded",
@@ -1870,7 +1870,7 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
-      vi.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
+      vi.spyOn(stripe.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       await expect(service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId)).rejects.toThrow(
         "Payment intent does not belong to the user"
@@ -1878,7 +1878,7 @@ describe(StripeService.name, () => {
     });
 
     it("throws error when payment intent references different payment method", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const mockPaymentIntent = {
         id: "pi_123",
         status: "succeeded",
@@ -1888,7 +1888,7 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
-      vi.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
+      vi.spyOn(stripe.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       await expect(service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId)).rejects.toThrow(
         "Payment intent does not reference the provided payment method"
@@ -1947,49 +1947,49 @@ describe(StripeService.name, () => {
 
   describe("Stripe SDK primitive wrappers", () => {
     it("retrievePaymentMethod delegates to the Stripe payment-methods API", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const paymentMethod = mock<Stripe.Response<Stripe.PaymentMethod>>({ id: "pm_1" });
-      vi.spyOn(service.paymentMethods, "retrieve").mockResolvedValue(paymentMethod);
+      vi.spyOn(stripe.paymentMethods, "retrieve").mockResolvedValue(paymentMethod);
 
       const result = await service.retrievePaymentMethod("pm_1");
 
-      expect(service.paymentMethods.retrieve).toHaveBeenCalledWith("pm_1");
+      expect(stripe.paymentMethods.retrieve).toHaveBeenCalledWith("pm_1");
       expect(result).toBe(paymentMethod);
     });
 
     it("detachPaymentMethod delegates to the Stripe payment-methods API", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const paymentMethod = mock<Stripe.Response<Stripe.PaymentMethod>>({ id: "pm_1" });
-      vi.spyOn(service.paymentMethods, "detach").mockResolvedValue(paymentMethod);
+      vi.spyOn(stripe.paymentMethods, "detach").mockResolvedValue(paymentMethod);
 
       const result = await service.detachPaymentMethod("pm_1");
 
-      expect(service.paymentMethods.detach).toHaveBeenCalledWith("pm_1");
+      expect(stripe.paymentMethods.detach).toHaveBeenCalledWith("pm_1");
       expect(result).toBe(paymentMethod);
     });
 
     it("retrieveCharge delegates to the Stripe charges API", async () => {
-      const { service } = setup();
+      const { service, stripe } = setup();
       const charge = mock<Stripe.Response<Stripe.Charge>>({ id: "ch_1" });
-      vi.spyOn(service.charges, "retrieve").mockResolvedValue(charge);
+      vi.spyOn(stripe.charges, "retrieve").mockResolvedValue(charge);
 
       const result = await service.retrieveCharge("ch_1");
 
-      expect(service.charges.retrieve).toHaveBeenCalledWith("ch_1");
+      expect(stripe.charges.retrieve).toHaveBeenCalledWith("ch_1");
       expect(result).toBe(charge);
     });
 
     it("constructWebhookEvent verifies the signature with the configured webhook secret", () => {
-      const { service, billingConfig } = setup();
+      const { service, stripe, billingConfig } = setup();
       const webhookSecret = `whsec_${faker.string.alphanumeric(32)}`;
       billingConfig.get.mockReturnValue(webhookSecret);
       const event = mock<Stripe.Event>({ id: "evt_1" });
-      vi.spyOn(service.webhooks, "constructEvent").mockReturnValue(event);
+      vi.spyOn(stripe.webhooks, "constructEvent").mockReturnValue(event);
 
       const result = service.constructWebhookEvent("raw-body", "sig-header");
 
       expect(billingConfig.get).toHaveBeenCalledWith("STRIPE_WEBHOOK_SECRET");
-      expect(service.webhooks.constructEvent).toHaveBeenCalledWith("raw-body", "sig-header", webhookSecret);
+      expect(stripe.webhooks.constructEvent).toHaveBeenCalledWith("raw-body", "sig-header", webhookSecret);
       expect(result).toBe(event);
     });
   });
@@ -2007,7 +2007,9 @@ function setup(
   const paymentMethodRepository = mock<PaymentMethodRepository>();
   const stripeTransactionRepository = mock<StripeTransactionRepository>();
 
-  const service = new StripeService(billingConfig, userRepository, paymentMethodRepository, stripeTransactionRepository, mock<TimerService>(), () =>
+  const stripe = new Stripe(`sk_test_${faker.string.alphanumeric(32)}`, { apiVersion: "2025-10-29.clover", httpClient: Stripe.createFetchHttpClient() });
+
+  const service = new StripeService(billingConfig, userRepository, paymentMethodRepository, stripeTransactionRepository, mock<TimerService>(), stripe, () =>
     mock<LoggerService>()
   );
 
@@ -2085,29 +2087,30 @@ function setup(
   vi.spyOn(userRepository, "findOneBy").mockResolvedValue(userToReturn ?? undefined);
 
   // Mock Stripe methods
-  vi.spyOn(service.customers, "create").mockResolvedValue(stripeData.customer);
-  vi.spyOn(service.customers, "update").mockResolvedValue({} as unknown as Stripe.Response<Stripe.Customer>);
-  vi.spyOn(service.customers, "retrieve").mockResolvedValue({} as unknown as Stripe.Response<Stripe.Customer>);
+  vi.spyOn(stripe.customers, "create").mockResolvedValue(stripeData.customer);
+  vi.spyOn(stripe.customers, "update").mockResolvedValue({} as unknown as Stripe.Response<Stripe.Customer>);
+  vi.spyOn(stripe.customers, "retrieve").mockResolvedValue({} as unknown as Stripe.Response<Stripe.Customer>);
   // Setup payment intent mock based on parameters
   const paymentIntentToReturn = params.paymentIntent || stripeData.paymentIntent;
-  vi.spyOn(service.paymentIntents, "create").mockResolvedValue(paymentIntentToReturn);
-  vi.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(stripeData.paymentIntent);
-  vi.spyOn(service.prices, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Price>>);
-  vi.spyOn(service.promotionCodes, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PromotionCode>>);
-  vi.spyOn(service.coupons, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Coupon>>);
-  vi.spyOn(service.coupons, "retrieve").mockResolvedValue({} as unknown as Stripe.Response<Stripe.Coupon>);
-  vi.spyOn(service.charges, "list").mockResolvedValue({ data: [], has_more: false } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>);
-  vi.spyOn(service.refunds, "create").mockResolvedValue({} as unknown as Stripe.Response<Stripe.Refund>);
-  vi.spyOn(service.refunds, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Refund>>);
-  vi.spyOn(service.setupIntents, "create").mockResolvedValue(stripeData.setupIntent);
-  vi.spyOn(service.paymentMethods, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PaymentMethod>>);
-  vi.spyOn(service.invoices, "create").mockResolvedValue(createTestInvoice());
-  vi.spyOn(service.invoices, "finalizeInvoice").mockResolvedValue(createTestInvoice({ status: "paid" }));
-  vi.spyOn(service.invoices, "voidInvoice").mockResolvedValue({} as unknown as Stripe.Response<Stripe.Invoice>);
-  vi.spyOn(service.invoiceItems, "create").mockResolvedValue({} as unknown as Stripe.Response<Stripe.InvoiceItem>);
+  vi.spyOn(stripe.paymentIntents, "create").mockResolvedValue(paymentIntentToReturn);
+  vi.spyOn(stripe.paymentIntents, "retrieve").mockResolvedValue(paymentIntentToReturn);
+  vi.spyOn(stripe.prices, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Price>>);
+  vi.spyOn(stripe.promotionCodes, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PromotionCode>>);
+  vi.spyOn(stripe.coupons, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Coupon>>);
+  vi.spyOn(stripe.coupons, "retrieve").mockResolvedValue({} as unknown as Stripe.Response<Stripe.Coupon>);
+  vi.spyOn(stripe.charges, "list").mockResolvedValue({ data: [], has_more: false } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>);
+  vi.spyOn(stripe.refunds, "create").mockResolvedValue({} as unknown as Stripe.Response<Stripe.Refund>);
+  vi.spyOn(stripe.refunds, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Refund>>);
+  vi.spyOn(stripe.setupIntents, "create").mockResolvedValue(stripeData.setupIntent);
+  vi.spyOn(stripe.paymentMethods, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PaymentMethod>>);
+  vi.spyOn(stripe.invoices, "create").mockResolvedValue(createTestInvoice());
+  vi.spyOn(stripe.invoices, "finalizeInvoice").mockResolvedValue(createTestInvoice({ status: "paid" }));
+  vi.spyOn(stripe.invoices, "voidInvoice").mockResolvedValue({} as unknown as Stripe.Response<Stripe.Invoice>);
+  vi.spyOn(stripe.invoiceItems, "create").mockResolvedValue({} as unknown as Stripe.Response<Stripe.InvoiceItem>);
 
   return {
     service,
+    stripe,
     userRepository,
     billingConfig,
     paymentMethodRepository,
