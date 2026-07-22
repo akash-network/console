@@ -83,6 +83,14 @@ describe(ThreeDSecureModal.name, () => {
     expect(onError).toHaveBeenCalledWith("Your card was declined.");
   });
 
+  it("falls back to a generic message when the Stripe error has no message", async () => {
+    const confirmPayment = vi.fn().mockResolvedValue({ error: {} });
+    const { onError } = setup({ confirmPayment });
+
+    expect(await screen.findByText("Authentication failed")).toBeInTheDocument();
+    expect(onError).toHaveBeenCalledWith("Authentication failed");
+  });
+
   it("shows a declined message when the intent still requires a payment method", async () => {
     const confirmPayment = vi.fn().mockResolvedValue({ paymentIntent: { status: "requires_payment_method", id: "pi_1" } });
     const { onError } = setup({ confirmPayment });
@@ -99,6 +107,14 @@ describe(ThreeDSecureModal.name, () => {
     expect(onError).toHaveBeenCalledWith("Authentication failed. Status: requires_action");
   });
 
+  it("labels the status as unknown when the payment intent status is empty", async () => {
+    const confirmPayment = vi.fn().mockResolvedValue({ paymentIntent: { status: "", id: "pi_1" } });
+    const { onError } = setup({ confirmPayment });
+
+    expect(await screen.findByText("Authentication failed. Status: unknown")).toBeInTheDocument();
+    expect(onError).toHaveBeenCalledWith("Authentication failed. Status: unknown");
+  });
+
   it("fails with a retry message when no payment intent is returned", async () => {
     const confirmPayment = vi.fn().mockResolvedValue({});
     const { onError } = setup({ confirmPayment });
@@ -113,6 +129,14 @@ describe(ThreeDSecureModal.name, () => {
 
     expect(await screen.findByText("Network down")).toBeInTheDocument();
     expect(onError).toHaveBeenCalledWith("Network down");
+  });
+
+  it("reports a generic message when the confirmation rejects with a non-error value", async () => {
+    const confirmPayment = vi.fn().mockRejectedValue("stripe exploded");
+    const { onError } = setup({ confirmPayment });
+
+    expect(await screen.findByText("Authentication failed due to an unexpected error")).toBeInTheDocument();
+    expect(onError).toHaveBeenCalledWith("Authentication failed due to an unexpected error");
   });
 
   it("does not start a second confirmation when unmounted mid-challenge", () => {
@@ -137,6 +161,15 @@ describe(ThreeDSecureModal.name, () => {
     setup({ confirmPayment, clientSecret: "" });
 
     expect(screen.getByText(/Authentication data is missing/i)).toBeInTheDocument();
+    expect(confirmPayment).not.toHaveBeenCalled();
+  });
+
+  it("keeps processing without confirming while Stripe.js is still loading inside Elements", () => {
+    const confirmPayment = vi.fn(() => new Promise<AuthenticationResult>(() => {}));
+    const useStripe: typeof DEPENDENCIES.useStripe = () => null;
+    setup({ confirmPayment, dependencies: { useStripe } });
+
+    expect(screen.getByText("Processing Authentication")).toBeInTheDocument();
     expect(confirmPayment).not.toHaveBeenCalled();
   });
 
