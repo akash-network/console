@@ -16,15 +16,15 @@ import { SdlBuilderFormValuesSchema } from "@src/types";
 import { parseBidId } from "@src/utils/bids/bidId";
 import { defaultServiceWithPlacement, vmServiceOverrides } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
-import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
-import { applyImportedSshState } from "@src/utils/sdl/sshKey";
-import { isVmImage } from "@src/utils/sdl/vmImages";
 import { applyPresetToProfile, DEFAULT_HARDWARE_PRESET } from "../ConfigurationPane/PresetsCard/hardwarePresets";
 import { ConfigureDeploymentBackButton } from "../ConfigureDeploymentBackButton/ConfigureDeploymentBackButton";
 import { ConfigureDeploymentHeader } from "../ConfigureDeploymentHeader/ConfigureDeploymentHeader";
 import { ConfigureDeploymentPanes } from "../ConfigureDeploymentPanes/ConfigureDeploymentPanes";
 import { DeployProgressOverlay } from "../DeployProgressOverlay/DeployProgressOverlay";
+import type { ImportedDeploymentState } from "../importDeploymentState/importDeploymentState";
+import { importDeploymentState, isKnownSdlParserError, NoVisibleServiceError, seedSelectedServiceId } from "../importDeploymentState/importDeploymentState";
 import { ReviewAndDeployModal } from "../ReviewAndDeployModal/ReviewAndDeployModal";
+import { SdlImportExport } from "../SdlImportExport/SdlImportExport";
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
@@ -38,6 +38,7 @@ export const DEPENDENCIES = {
   ConfigureDeploymentPanes,
   ReviewAndDeployModal,
   DeployProgressOverlay,
+  SdlImportExport,
   useConfigureDraft,
   useDeploymentName,
   usePlacementsWithBids,
@@ -233,6 +234,22 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     setReviewOpen(false);
   }
 
+  /**
+   * Replaces the whole configuration with an imported SDL. Resets the form first (clearing dirty/touched/errors
+   * so stale validation can't leak), then explicitly syncs the live SDL and selection; both setters are batched
+   * with the reset, so they win over what the watch subscriptions would recompute mid-reset.
+   */
+  const applyImportedState = useCallback(
+    (state: ImportedDeploymentState) => {
+      form.reset(state.values);
+      setLiveSdl(state.sdl);
+      setSelectedServiceId(state.selectedServiceId);
+    },
+    [form]
+  );
+  /** Import is only meaningful while the deployment is still editable; export stays available in every phase. */
+  const isEditable = flow.phase === "configuring" || flow.phase === "error";
+
   const requestQuotes = flow.actions.requestQuotes;
   /**
    * A terminal start-trial error is sticky, so requesting quotes again after one would otherwise fail straight
@@ -278,6 +295,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
               onCancelAndEdit={flow.actions.cancelAndEdit}
               deploymentName={deploymentName}
               onDeploymentNameChange={setDeploymentName}
+              configurationActions={<d.SdlImportExport sdl={liveSdl} deploymentName={deploymentName} canImport={isEditable} onImport={applyImportedState} />}
             />
           </div>
           {flow.phase === "deploying" && (
@@ -319,17 +337,14 @@ interface InitialState {
  * A Container-VM entry (`isVm`) seeds an SSH-ready VM service instead of the blank default.
  */
 function getInitialState(carriedInSdl: string | undefined, isVm: boolean): InitialState {
-  if (carriedInSdl) {
-    try {
-      const values = withVmSshBackfill(applyImportedSshState(importSimpleSdl(carriedInSdl)));
-      if (hasVisibleService(values)) {
-        return { values, sdl: carriedInSdl, selectedServiceId: seedSelectedServiceId(values) };
-      }
-    } catch (error) {
-      return defaultInitialState(isVm, getImportErrorMessage(error));
-    }
+  if (!carriedInSdl) return defaultInitialState(isVm);
+
+  try {
+    return importDeploymentState(carriedInSdl);
+  } catch (error) {
+    if (error instanceof NoVisibleServiceError) return defaultInitialState(isVm);
+    return defaultInitialState(isVm, getImportErrorMessage(error));
   }
-  return defaultInitialState(isVm);
 }
 
 /** A fresh default deployment (or SSH-ready VM deployment), optionally annotated with the error that made an import unusable. */
@@ -340,27 +355,10 @@ function defaultInitialState(isVm: boolean, importError?: string): InitialState 
   return { values, sdl: regenerateSdl(values, ""), selectedServiceId: seedSelectedServiceId(values), importError };
 }
 
-/**
- * Restores the deployment-wide "Expose SSH" flag for a carried-in deployment holding a VM service, covering
- * a VM draft saved before a key was entered (`applyImportedSshState` only flips it once a key exists). The
- * SDL itself is taken literally: no expose or key is backfilled.
- */
-function withVmSshBackfill(values: SdlBuilderFormValuesType): SdlBuilderFormValuesType {
-  if (values.hasSSHKey || !values.services.some(service => isVmImage(service.image))) {
-    return values;
-  }
-  return { ...values, hasSSHKey: true };
-}
-
 /** Seeds the fresh deployment's service on the default (small) hardware preset so the screen opens deployable. */
 function withDefaultPreset(values: SdlBuilderFormValuesType): SdlBuilderFormValuesType {
   const [service, ...rest] = values.services;
   return { ...values, services: [{ ...service, profile: applyPresetToProfile(service.profile, DEFAULT_HARDWARE_PRESET) }, ...rest] };
-}
-
-/** A usable deployment has at least one service the user can configure (log collectors don't count). */
-function hasVisibleService(values: SdlBuilderFormValuesType): boolean {
-  return values.services.some(service => !isLogCollectorService(service));
 }
 
 /**
@@ -369,16 +367,10 @@ function hasVisibleService(values: SdlBuilderFormValuesType): boolean {
  * keeping it out of the rendered DOM avoids any injection surface.
  */
 function getImportErrorMessage(error: unknown): string {
-  if (error instanceof Error && (error.name === "YAMLException" || error.name === "CustomValidationError" || error.name === "TemplateValidation")) {
+  if (isKnownSdlParserError(error)) {
     return "The deployment couldn't be loaded because its SDL is invalid.";
   }
   return "The deployment couldn't be loaded.";
-}
-
-/** Picks the first user-visible service to focus when the screen first mounts. `getInitialState` guarantees one exists. */
-function seedSelectedServiceId(values: SdlBuilderFormValuesType): string {
-  const visible = values.services.find(candidate => !isLogCollectorService(candidate)) ?? values.services[0];
-  return visible.id;
 }
 
 /** Regenerates the preview SDL, keeping the last good output while the form is mid-edit. */
