@@ -23,12 +23,14 @@ import type { StripeTransactionOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { StripeService, TOP_UP_IDEMPOTENCY_KEY_PREFIX } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
+import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { TransactionReportingService } from "@src/billing/services/transaction-reporting/transaction-reporting.service";
 import { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 @singleton()
 export class StripeController {
   constructor(
     private readonly stripe: StripeService,
+    private readonly stripeTransaction: StripeTransactionService,
     private readonly authService: AuthService,
     private readonly stripeErrorService: StripeErrorService,
     private readonly userWalletRepository: UserWalletRepository,
@@ -104,13 +106,14 @@ export class StripeController {
     try {
       assert(await this.stripe.hasPaymentMethod(params.paymentMethodId, currentUser), 403, "Payment method does not belong to the user");
 
-      const result = await this.stripe.createPaymentIntent({
+      const result = await this.stripeTransaction.createPaymentIntent({
         userId: currentUser.id,
         customer: currentUser.stripeCustomerId,
         payment_method: params.paymentMethodId,
         amount: params.amount,
         confirm: true,
-        idempotencyKey: params.idempotencyKey ? `${TOP_UP_IDEMPOTENCY_KEY_PREFIX}${currentUser.id}_${params.idempotencyKey}` : undefined
+        idempotencyKey: params.idempotencyKey ? `${TOP_UP_IDEMPOTENCY_KEY_PREFIX}${currentUser.id}_${params.idempotencyKey}` : undefined,
+        onAmountMismatch: "reject"
       });
 
       // Handle 3D Secure authentication requirement
@@ -133,7 +136,7 @@ export class StripeController {
       }
 
       if (params.awaitResolved) {
-        const transaction = await this.stripe.resolveTransaction(result.transactionId);
+        const transaction = await this.stripeTransaction.resolveTransaction(result.transactionId);
         return { data: { success: true, transactionId: result.transactionId, transactionStatus: transaction.status } };
       }
 
@@ -166,7 +169,7 @@ export class StripeController {
       const result = await this.stripe.applyCoupon(currentUser, params.couponId);
 
       if (params.awaitResolved) {
-        const transaction = await this.stripe.resolveTransaction(result.transactionId);
+        const transaction = await this.stripeTransaction.resolveTransaction(result.transactionId);
         return { data: { coupon: result.coupon, amountAdded: result.amountAdded, transactionId: result.transactionId, transactionStatus: transaction.status } };
       }
 

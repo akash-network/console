@@ -7,6 +7,7 @@ import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-rel
 import type { WalletSettingRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { StripeService } from "@src/billing/services/stripe/stripe.service";
+import type { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { JobMeta } from "@src/core";
 import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
@@ -31,7 +32,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const costUntilTargetDateInFiat = 50.0;
       const expectedReloadAmount = 40.0; // max(50 - 10, 20) = 40
 
-      const { handler, drainingDeploymentService, stripeService, instrumentationService, walletReloadJobService, job, jobMeta } = setup({
+      const { handler, drainingDeploymentService, stripeTransactionService, instrumentationService, walletReloadJobService, job, jobMeta } = setup({
         balance,
         weeklyCostInDenom: costUntilTargetDateInDenom,
         weeklyCostInFiat: costUntilTargetDateInFiat
@@ -63,13 +64,14 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const scheduledDate = new Date(scheduleCall[1]?.startAfter as string);
       expect(scheduledDate.getTime()).toBeCloseTo(expectedNextCheckDate.getTime(), -3);
 
-      expect(stripeService.createPaymentIntent).toHaveBeenCalledWith({
+      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith({
         userId: expect.any(String),
         customer: expect.any(String),
         payment_method: expect.any(String),
         amount: expectedReloadAmount,
         confirm: true,
-        idempotencyKey: `${WalletBalanceReloadCheck.name}.${jobMeta.id}`
+        idempotencyKey: `${WalletBalanceReloadCheck.name}.${jobMeta.id}`,
+        onAmountMismatch: "tolerate"
       });
       expect(instrumentationService.recordReloadTriggered).toHaveBeenCalledWith(
         expectedReloadAmount,
@@ -93,7 +95,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const costUntilTargetDateInFiat = 20.0;
       const expectedReloadAmount = 20.0; // max(20 - 4, 20) = 20
 
-      const { handler, stripeService, job, jobMeta } = setup({
+      const { handler, stripeTransactionService, job, jobMeta } = setup({
         balance,
         weeklyCostInDenom: costUntilTargetDateInDenom,
         weeklyCostInFiat: costUntilTargetDateInFiat
@@ -101,13 +103,14 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       await handler.handle(job, jobMeta);
 
-      expect(stripeService.createPaymentIntent).toHaveBeenCalledWith({
+      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith({
         userId: expect.any(String),
         customer: expect.any(String),
         payment_method: expect.any(String),
         amount: expectedReloadAmount,
         confirm: true,
-        idempotencyKey: `${WalletBalanceReloadCheck.name}.${jobMeta.id}`
+        idempotencyKey: `${WalletBalanceReloadCheck.name}.${jobMeta.id}`,
+        onAmountMismatch: "tolerate"
       });
     });
 
@@ -118,7 +121,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const costUntilTargetDateInDenom = 50_000_000;
       const costUntilTargetDateInFiat = 50.0;
 
-      const { handler, stripeService, instrumentationService, job, jobMeta } = setup({
+      const { handler, stripeTransactionService, instrumentationService, job, jobMeta } = setup({
         balance,
         weeklyCostInDenom: costUntilTargetDateInDenom,
         weeklyCostInFiat: costUntilTargetDateInFiat
@@ -126,7 +129,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       await handler.handle(job, jobMeta);
 
-      expect(stripeService.createPaymentIntent).not.toHaveBeenCalled();
+      expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
       expect(instrumentationService.recordReloadSkipped).toHaveBeenCalledWith(
         balance,
         expect.any(Number),
@@ -147,7 +150,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const costUntilTargetDateInDenom = 50_000_000;
       const costUntilTargetDateInFiat = 50.0;
 
-      const { handler, stripeService, instrumentationService, job, jobMeta } = setup({
+      const { handler, stripeTransactionService, instrumentationService, job, jobMeta } = setup({
         balance,
         weeklyCostInDenom: costUntilTargetDateInDenom,
         weeklyCostInFiat: costUntilTargetDateInFiat
@@ -155,7 +158,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       await handler.handle(job, jobMeta);
 
-      expect(stripeService.createPaymentIntent).not.toHaveBeenCalled();
+      expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
       expect(instrumentationService.recordReloadSkipped).toHaveBeenCalledWith(
         balance,
         expect.any(Number),
@@ -200,12 +203,12 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const costUntilTargetDateInFiat = 50.0;
       const error = new Error("Payment failed");
 
-      const { handler, stripeService, instrumentationService, job, jobMeta } = setup({
+      const { handler, stripeTransactionService, instrumentationService, job, jobMeta } = setup({
         balance,
         weeklyCostInDenom: costUntilTargetDateInDenom,
         weeklyCostInFiat: costUntilTargetDateInFiat
       });
-      stripeService.createPaymentIntent.mockRejectedValue(error);
+      stripeTransactionService.createPaymentIntent.mockRejectedValue(error);
 
       await expect(handler.handle(job, jobMeta)).rejects.toThrow(error);
 
@@ -379,6 +382,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     const walletReloadJobService = mock<WalletReloadJobService>();
     const drainingDeploymentService = mock<DrainingDeploymentService>();
     const stripeService = mock<StripeService>();
+    const stripeTransactionService = mock<StripeTransactionService>();
     const instrumentationService = mock<WalletBalanceReloadCheckInstrumentationService>({
       recordJobExecution: vi.fn(),
       recordReloadTriggered: vi.fn(),
@@ -413,6 +417,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       balancesService,
       walletReloadJobService,
       stripeService,
+      stripeTransactionService,
       drainingDeploymentService,
       instrumentationService
     );
@@ -424,6 +429,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       walletReloadJobService,
       drainingDeploymentService,
       stripeService,
+      stripeTransactionService,
       instrumentationService,
       walletSetting,
       walletSettingWithWallet,
