@@ -35,8 +35,9 @@ export const ProvidersGlobe: FC<Props> = ({ focusedProviderAddress, dependencies
   const { data: providers } = d.useProviderList();
 
   const cobeOptions = useMemo(() => {
-    const glowColor: [number, number, number] = documentTheme === "dark" ? [0.05, 0.05, 0.05] : [1, 1, 1];
-    return { mapSamples: 32000, dark: 1, diffuse: 0, mapBrightness: documentTheme === "dark" ? 3 : 1, glowColor };
+    // Dark: lift the glow to the --card level (#171717) and brighten the map so the dotted continents read against the near-black (#0a0a0a) app background; white glow in light.
+    const glowColor: [number, number, number] = documentTheme === "dark" ? [0.09, 0.09, 0.09] : [1, 1, 1];
+    return { mapSamples: 32000, dark: 1, diffuse: 0, mapBrightness: documentTheme === "dark" ? 8 : 1, glowColor };
   }, [documentTheme]);
 
   const focused = useMemo(

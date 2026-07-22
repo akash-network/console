@@ -88,11 +88,11 @@ describe(ProvidersGlobe.name, () => {
   });
 
   describe("cobe options", () => {
-    it("brightens the map and darkens the glow under the dark theme", () => {
+    it("brightens the map and holds the glow at the card level under the dark theme", () => {
       const Globe = vi.fn(ComponentMock);
       setup({ theme: "dark", dependencies: { Globe } });
 
-      expect(Globe.mock.calls[0][0].cobeOptions).toMatchObject({ mapBrightness: 3, glowColor: [0.05, 0.05, 0.05] });
+      expect(Globe.mock.calls[0][0].cobeOptions).toMatchObject({ mapBrightness: 8, glowColor: [0.09, 0.09, 0.09] });
     });
 
     it("uses the light map brightness and glow under the light theme", () => {

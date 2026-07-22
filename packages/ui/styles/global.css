@@ -4,7 +4,7 @@
 
 @layer base {
   :root, .light {
-    --background: 0 0% 96%;
+    --background: 0 0% 100%;
     --header: 120 33% 100%;
     --foreground: 0 0% 4%;
     --card: 120 33% 100%;
@@ -38,30 +38,30 @@
   }
 
   .dark {
-    --background: 0 0% 15%;
+    --background: 0 0% 4%;
     --header: 0 0% 4%;
-    --foreground: 0 0% 96%;
+    --foreground: 0 0% 98%;
     --card: 0 0% 9%;
-    --card-foreground: 0 0% 96%;
-    --popover: 0 0% 15%;
-    --popover-foreground: 0 0% 96%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 98%;
     --primary: 0 0% 90%;
-    --primary-foreground: 0 0% 4%;
+    --primary-foreground: 0 0% 9%;
     --primary-visited: 0 0% 30%;
-    --secondary: 0 0% 16%;
-    --secondary-foreground: 0 0% 47%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 98%;
     --success: 142 76% 36%;
-    --muted: 0 0% 16%;
-    --muted-foreground: 0 0% 56%;
-    --accent: 0 0% 9%;
-    --accent-foreground: 0 0% 96%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 64%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 98%;
     --warning: 27 98% 47%;
     --warning-foreground: 0 0% 98%;
     --destructive: 0 84% 51%;
     --destructive-foreground: 0 0% 96%;
     --akash: 355 100% 62%;
     --border: 0 0% 100% / 10%;
-    --input: 0 0% 25%;
+    --input: 0 0% 100% / 15%;
     --ring: 0 0% 56%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;

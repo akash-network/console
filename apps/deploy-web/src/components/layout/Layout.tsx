@@ -134,7 +134,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({
   };
 
   return (
-    <div className={cn("flex h-full flex-col", { "min-h-screen bg-white text-foreground": background === "white" })}>
+    <div className={cn("flex h-full flex-col", { "min-h-screen bg-white text-foreground dark:bg-background": background === "white" })}>
       <div className="w-full flex-1" style={{ marginTop: `var(--app-header-height, ${ACCOUNT_BAR_HEIGHT + (hasBanner ? 40 : 0)}px)` }}>
         <div className="h-full overflow-x-auto">
           {isTopNavEnabled ? <TopNav minimal={isStripped} /> : <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} minimal={isStripped} />}
