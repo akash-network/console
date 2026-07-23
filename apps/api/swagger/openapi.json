@@ -1632,22 +1632,14 @@
           },
           {
             "schema": {
-              "type": "string",
-              "description": "ID of the last transaction from the previous page (if paginating forwards)",
-              "example": "ch_1234567890"
+              "type": "number",
+              "description": "Number of transactions to skip for pagination",
+              "minimum": 0,
+              "example": 0,
+              "default": 0
             },
             "required": false,
-            "name": "startingAfter",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "description": "ID of the first transaction from the previous page (if paginating backwards)",
-              "example": "ch_0987654321"
-            },
-            "required": false,
-            "name": "endingBefore",
+            "name": "offset",
             "in": "query"
           },
           {
@@ -1692,7 +1684,18 @@
                               "id": {
                                 "type": "string"
                               },
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "payment_intent",
+                                  "coupon_claim",
+                                  "manual_credit"
+                                ]
+                              },
                               "amount": {
+                                "type": "number"
+                              },
+                              "amountRefunded": {
                                 "type": "number"
                               },
                               "bonusAmount": {
@@ -1707,136 +1710,17 @@
                               "created": {
                                 "type": "number"
                               },
-                              "paymentMethod": {
-                                "type": "object",
-                                "nullable": true,
-                                "properties": {
-                                  "type": {
-                                    "type": "string"
-                                  },
-                                  "validated": {
-                                    "type": "boolean"
-                                  },
-                                  "isDefault": {
-                                    "type": "boolean"
-                                  },
-                                  "card": {
-                                    "type": "object",
-                                    "nullable": true,
-                                    "properties": {
-                                      "brand": {
-                                        "type": "string",
-                                        "nullable": true
-                                      },
-                                      "last4": {
-                                        "type": "string",
-                                        "nullable": true
-                                      },
-                                      "exp_month": {
-                                        "type": "number"
-                                      },
-                                      "exp_year": {
-                                        "type": "number"
-                                      },
-                                      "funding": {
-                                        "type": "string",
-                                        "nullable": true
-                                      },
-                                      "country": {
-                                        "type": "string",
-                                        "nullable": true
-                                      },
-                                      "network": {
-                                        "type": "string",
-                                        "nullable": true
-                                      },
-                                      "three_d_secure_usage": {
-                                        "type": "object",
-                                        "nullable": true,
-                                        "properties": {
-                                          "supported": {
-                                            "type": "boolean",
-                                            "nullable": true
-                                          }
-                                        }
-                                      }
-                                    },
-                                    "required": [
-                                      "brand",
-                                      "last4",
-                                      "exp_month",
-                                      "exp_year"
-                                    ]
-                                  },
-                                  "link": {
-                                    "type": "object",
-                                    "nullable": true,
-                                    "properties": {
-                                      "email": {
-                                        "type": "string",
-                                        "nullable": true
-                                      }
-                                    }
-                                  },
-                                  "billing_details": {
-                                    "type": "object",
-                                    "properties": {
-                                      "address": {
-                                        "type": "object",
-                                        "nullable": true,
-                                        "properties": {
-                                          "city": {
-                                            "type": "string",
-                                            "nullable": true
-                                          },
-                                          "country": {
-                                            "type": "string",
-                                            "nullable": true
-                                          },
-                                          "line1": {
-                                            "type": "string",
-                                            "nullable": true
-                                          },
-                                          "line2": {
-                                            "type": "string",
-                                            "nullable": true
-                                          },
-                                          "postal_code": {
-                                            "type": "string",
-                                            "nullable": true
-                                          },
-                                          "state": {
-                                            "type": "string",
-                                            "nullable": true
-                                          }
-                                        },
-                                        "required": [
-                                          "city",
-                                          "country",
-                                          "line1",
-                                          "line2",
-                                          "postal_code",
-                                          "state"
-                                        ]
-                                      },
-                                      "email": {
-                                        "type": "string",
-                                        "nullable": true
-                                      },
-                                      "name": {
-                                        "type": "string",
-                                        "nullable": true
-                                      },
-                                      "phone": {
-                                        "type": "string",
-                                        "nullable": true
-                                      }
-                                    }
-                                  }
-                                },
-                                "required": [
-                                  "type"
-                                ]
+                              "cardBrand": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "cardLast4": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "stripeInvoiceId": {
+                                "type": "string",
+                                "nullable": true
                               },
                               "receiptUrl": {
                                 "type": "string",
@@ -1845,35 +1729,29 @@
                               "description": {
                                 "type": "string",
                                 "nullable": true
-                              },
-                              "metadata": {
-                                "type": "object",
-                                "nullable": true,
-                                "additionalProperties": {
-                                  "type": "string"
-                                }
                               }
                             },
                             "required": [
                               "id",
+                              "type",
                               "amount",
+                              "amountRefunded",
                               "currency",
                               "status",
-                              "created",
-                              "paymentMethod"
+                              "created"
                             ]
                           }
                         },
+                        "totalCount": {
+                          "type": "number"
+                        },
                         "hasMore": {
                           "type": "boolean"
-                        },
-                        "nextPage": {
-                          "type": "string",
-                          "nullable": true
                         }
                       },
                       "required": [
                         "transactions",
+                        "totalCount",
                         "hasMore"
                       ]
                     }

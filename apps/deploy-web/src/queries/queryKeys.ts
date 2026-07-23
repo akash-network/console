@@ -81,28 +81,6 @@ export class QueryKeys {
    */
   static getManagedWalletCreateMutationKey = () => ["MANAGED_WALLET_CREATE"];
 
-  static getPaymentTransactionsKey = (options?: { limit?: number; offset?: number | null; startDate?: Date | null; endDate?: Date | null }) => {
-    const key = ["STRIPE_TRANSACTIONS"];
-
-    if (options?.limit) {
-      key.push("limit", options.limit.toString());
-    }
-
-    if (options?.offset) {
-      key.push("offset", options.offset.toString());
-    }
-
-    if (options?.startDate) {
-      key.push("start_date", options.startDate.toISOString());
-    }
-
-    if (options?.endDate) {
-      key.push("end_date", options.endDate.toISOString());
-    }
-
-    return key;
-  };
-
   static getExportTransactionsCsvKey = (options: { startDate?: Date | null; endDate?: Date | null; timezone: string }) => {
     const key = ["EXPORT_TRANSACTIONS_CSV", options.timezone];
 

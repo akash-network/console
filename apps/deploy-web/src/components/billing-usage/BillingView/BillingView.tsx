@@ -1,6 +1,5 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import type { BillingTransaction } from "@akashnetwork/http-sdk";
 import {
   Alert,
   AlertDescription,
@@ -32,6 +31,7 @@ import { Download, Page } from "iconoir-react";
 import Link from "next/link";
 
 import { Title } from "@src/components/shared/Title";
+import type { BillingTransaction } from "@src/queries";
 import { capitalizeFirstLetter } from "@src/utils/stringUtils";
 
 export const COMPONENTS = {
