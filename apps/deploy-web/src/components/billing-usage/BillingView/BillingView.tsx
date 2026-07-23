@@ -113,7 +113,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
           <div>
             <span
               className={cn(
-                "inline-flex items-center justify-center rounded-full px-2 py-1 text-xs font-semibold",
+                "inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold",
                 TRANSACTION_TYPE_BADGE_CLASSES[type] ?? DEFAULT_TRANSACTION_TYPE_BADGE_CLASS
               )}
             >
@@ -162,7 +162,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
       cell: info => (
         <div
           className={cn(
-            "inline-flex items-center justify-center rounded-full px-2 py-1 text-xs font-semibold",
+            "inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold",
             STATUS_BADGE_CLASSES[info.getValue()] ?? DEFAULT_STATUS_BADGE_CLASS
           )}
         >
