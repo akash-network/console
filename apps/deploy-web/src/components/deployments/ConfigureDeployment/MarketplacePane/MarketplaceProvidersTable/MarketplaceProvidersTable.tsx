@@ -107,11 +107,11 @@ export const MarketplaceProvidersTable: FC<Props> = ({
   const columnCount = table.getVisibleFlatColumns().length;
 
   return (
-    <div className="overflow-hidden rounded-[14px] border shadow-sm">
+    <div className="overflow-hidden rounded-lg border border-zinc-300 bg-card shadow-sm dark:border-zinc-700">
       <Table className="table-fixed">
         <TableHeader>
           {table.getHeaderGroups().map(headerGroup => (
-            <TableRow key={headerGroup.id} className="hover:bg-transparent">
+            <TableRow key={headerGroup.id} className="bg-muted/40 hover:bg-muted/40">
               {headerGroup.headers.map(header => (
                 <TableHead key={header.id} className={cn("h-10 pl-4 pr-2", COLUMN_WIDTH_CLASS[header.column.id])}>
                   {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
@@ -153,10 +153,10 @@ const SKELETON_COLUMNS = [
 /** Loading placeholder mirroring the real table shell — same container, header labels and row height — so the pane doesn't shift when providers arrive. */
 function ProvidersTableSkeleton() {
   return (
-    <div className="overflow-hidden rounded-[14px] border shadow-sm">
+    <div className="overflow-hidden rounded-lg border border-zinc-300 bg-card shadow-sm dark:border-zinc-700">
       <Table className="table-fixed">
         <TableHeader>
-          <TableRow className="hover:bg-transparent">
+          <TableRow className="bg-muted/40 hover:bg-muted/40">
             {SKELETON_COLUMNS.map(column => (
               <TableHead key={column.id} className={cn("h-10 pl-4 pr-2", COLUMN_WIDTH_CLASS[column.id])}>
                 <span className="whitespace-nowrap font-mono text-sm font-normal uppercase text-muted-foreground">{column.header}</span>

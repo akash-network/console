@@ -71,7 +71,7 @@ export const PlacementCard: FC<Props> = ({
   return (
     <div
       onClick={selectPlacement}
-      className={cn("cursor-pointer rounded-lg border p-2", {
+      className={cn("cursor-pointer rounded-lg border bg-card p-2", {
         "border-green-500/60 bg-green-50 dark:border-green-500/40 dark:bg-green-950/30": selectionState === "done",
         "ring-[3px] ring-blue-500/20": selectionState === "done" && isSelected,
         "border-blue-500 ring-[3px] ring-blue-500/20": selectionState === "selecting",
