@@ -1,8 +1,8 @@
 import React from "react";
-import type { BillingTransaction } from "@akashnetwork/http-sdk";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
 
+import type { BillingTransaction } from "@src/queries";
 import type { BillingViewProps } from "./BillingView";
 import { BillingView } from "./BillingView";
 
