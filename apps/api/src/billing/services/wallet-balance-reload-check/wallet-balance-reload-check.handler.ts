@@ -8,6 +8,7 @@ import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balanc
 import { UserWalletOutput, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { PaymentMethod, StripeService } from "@src/billing/services/stripe/stripe.service";
+import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { JobHandler, JobMeta, JobPayload } from "@src/core";
 import type { Require } from "@src/core/types/require.type";
@@ -53,6 +54,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     private readonly balancesService: BalancesService,
     private readonly walletReloadJobService: WalletReloadJobService,
     private readonly stripeService: StripeService,
+    private readonly stripeTransactionService: StripeTransactionService,
     private readonly drainingDeploymentService: DrainingDeploymentService,
     private readonly instrumentationService: WalletBalanceReloadCheckInstrumentationService
   ) {}
@@ -189,13 +191,14 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     const reloadAmountInFiat = Math.max(costUntilTargetDateInFiat - resources.balance, this.#MIN_RELOAD_AMOUNT_IN_USD);
 
     try {
-      await this.stripeService.createPaymentIntent({
+      await this.stripeTransactionService.createPaymentIntent({
         userId: resources.user.id,
         customer: resources.user.stripeCustomerId,
         payment_method: resources.paymentMethod.id,
         amount: reloadAmountInFiat,
         confirm: true,
-        idempotencyKey: `${WalletBalanceReloadCheck.name}.${resources.job.id}`
+        idempotencyKey: `${WalletBalanceReloadCheck.name}.${resources.job.id}`,
+        onAmountMismatch: "tolerate"
       });
       this.instrumentationService.recordReloadTriggered(reloadAmountInFiat, resources.balance, threshold, costUntilTargetDateInFiat, log);
     } catch (error) {
