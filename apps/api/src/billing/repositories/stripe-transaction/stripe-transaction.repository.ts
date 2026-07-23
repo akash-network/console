@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, lte, notInArray, SQL, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, lte, notInArray, SQL, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -187,12 +187,12 @@ export class StripeTransactionRepository extends BaseRepository<Table, StripeTra
       conditions.push(lte(this.table.createdAt, options.endDate));
     }
 
-    const items = await this.cursor.query.StripeTransactions.findMany({
-      where: this.whereAccessibleBy(and(...conditions)),
-      columns: { id: true }
-    });
+    const [{ total }] = await this.cursor
+      .select({ total: count() })
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(...conditions)));
 
-    return items.length;
+    return total;
   }
 
   async sumAmountByUserId(userId: string, options?: { startDate?: Date; endDate?: Date; status?: StripeTransactionStatus }): Promise<number> {

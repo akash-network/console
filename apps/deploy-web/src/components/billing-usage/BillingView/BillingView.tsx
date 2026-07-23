@@ -52,6 +52,8 @@ const TRANSACTION_TYPE_BADGE_CLASSES: Record<BillingTransaction["type"], string>
   payment_intent: "bg-gray-100 text-gray-800"
 };
 
+const DEFAULT_TRANSACTION_TYPE_BADGE_CLASS = "bg-gray-100 text-gray-800";
+
 const STATUS_BADGE_CLASSES: Record<string, string> = {
   succeeded: "bg-green-100 text-green-800",
   pending: "bg-yellow-100 text-yellow-800",
@@ -109,8 +111,13 @@ export const BillingView: React.FC<BillingViewProps> = ({
         const type = info.getValue();
         return (
           <div>
-            <span className={cn("inline-flex items-center justify-center rounded-full px-2 py-1 text-xs font-semibold", TRANSACTION_TYPE_BADGE_CLASSES[type])}>
-              {TRANSACTION_TYPE_LABELS[type]}
+            <span
+              className={cn(
+                "inline-flex items-center justify-center rounded-full px-2 py-1 text-xs font-semibold",
+                TRANSACTION_TYPE_BADGE_CLASSES[type] ?? DEFAULT_TRANSACTION_TYPE_BADGE_CLASS
+              )}
+            >
+              {TRANSACTION_TYPE_LABELS[type] ?? capitalizeFirstLetter(type)}
             </span>
             {cardLast4 && (
               <div className="mt-1 text-xs text-muted-foreground">

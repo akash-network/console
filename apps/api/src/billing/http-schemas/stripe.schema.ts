@@ -184,7 +184,7 @@ const dateRangeErrorMessage = "Date range cannot exceed 366 days and startDate m
 
 export const CustomerTransactionsQuerySchema = z
   .object({
-    limit: z.coerce.number().optional().openapi({
+    limit: z.coerce.number().int().min(1).max(100).optional().openapi({
       type: "number",
       minimum: 1,
       maximum: 100,

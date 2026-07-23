@@ -59,7 +59,7 @@ export const createMockTransaction = (overrides: Partial<BillingTransaction> = {
   bonusAmount: 0,
   currency: "usd",
   status: faker.helpers.arrayElement(["succeeded", "pending", "failed"]),
-  created: faker.date.past().getTime(),
+  created: Math.floor(faker.date.past().getTime() / 1000),
   cardBrand: "visa",
   cardLast4: faker.string.numeric(4),
   stripeInvoiceId: null,
