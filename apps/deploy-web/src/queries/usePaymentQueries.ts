@@ -92,10 +92,12 @@ export const usePaymentMutations = () => {
         idempotencyKey
       });
     },
-    onSuccess: () => {
-      // Invalidate relevant queries after successful payment
-      queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });
+    onSuccess: response => {
       queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentTransactionsKey() });
+
+      if (!response.requiresAction) {
+        queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });
+      }
     }
   });
 

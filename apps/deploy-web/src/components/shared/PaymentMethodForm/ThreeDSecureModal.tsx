@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Spinner } from "@akashnetwork/ui/components";
 import { Elements, useElements, useStripe } from "@stripe/react-stripe-js";
 import { CheckCircle, Shield, WarningTriangle } from "iconoir-react";
@@ -9,6 +9,14 @@ import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 
 const SUCCESS_DELAY = 1_500;
 const SUCCESSFUL_STATUSES = ["succeeded", "requires_capture", "processing"] as const;
+
+export const DEPENDENCIES = {
+  Elements,
+  useServices,
+  useTheme,
+  useStripe,
+  useElements
+};
 
 interface ThreeDSecureModalProps {
   clientSecret: string;
@@ -21,6 +29,7 @@ interface ThreeDSecureModalProps {
   successMessage?: string;
   errorMessage?: string;
   hideTitle?: boolean;
+  dependencies?: typeof DEPENDENCIES;
 }
 
 type AuthenticationStatus = "processing" | "succeeded" | "failed";
@@ -51,107 +60,79 @@ const ThreeDSecureForm: React.FC<Omit<ThreeDSecureModalProps, "isOpen" | "onClos
   description = "Your bank requires additional verification for this transaction.",
   successMessage = "Your card has been verified successfully.",
   errorMessage = "Please try again or use a different payment method.",
-  hideTitle = false
+  hideTitle = false,
+  dependencies: d = DEPENDENCIES
 }) => {
-  const stripe = useStripe();
-  const elements = useElements();
+  const stripe = d.useStripe();
+  const elements = d.useElements();
   const [status, setStatus] = useState<AuthenticationStatus>("processing");
   const [errorMsg, setErrorMsg] = useState<string>("");
-  const authenticationInProgress = useRef(false);
+  const hasStartedAuthenticationRef = useRef(false);
+  const callbacksRef = useRef({ onSuccess, onError });
+  const successTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const handleAuthenticationFailure = useCallback(
-    (message: string) => {
-      setStatus("failed");
-      setErrorMsg(message);
-      onError(message);
-    },
-    [onError]
-  );
+  useEffect(function trackLatestCallbacks() {
+    callbacksRef.current = { onSuccess, onError };
+  });
 
-  const handleAuthenticationSuccess = useCallback(
-    (paymentIntentStatus: string) => {
-      console.log("3D Secure authentication successful, status:", paymentIntentStatus);
-      setStatus("succeeded");
-      setTimeout(() => {
-        onSuccess();
-      }, SUCCESS_DELAY);
-    },
-    [onSuccess]
-  );
-
-  const processAuthenticationResult = useCallback(
-    (result: AuthenticationResult) => {
-      const { error, paymentIntent } = result;
-
-      if (error) {
-        console.error("3D Secure authentication error:", error);
-        const errorMessage = error.message || "Authentication failed";
-        handleAuthenticationFailure(errorMessage);
-        return;
-      }
-
-      if (!paymentIntent) {
-        console.error("3D Secure authentication failed - no payment intent");
-        handleAuthenticationFailure("Authentication failed. Please try again.");
-        return;
-      }
-
-      if (SUCCESSFUL_STATUSES.includes(paymentIntent.status as (typeof SUCCESSFUL_STATUSES)[number])) {
-        handleAuthenticationSuccess(paymentIntent.status);
-      } else if (paymentIntent.status === "requires_payment_method") {
-        console.error("3D Secure authentication failed - payment method declined");
-        const errorMessage = "Your payment method was declined. Please try a different card.";
-        handleAuthenticationFailure(errorMessage);
-      } else {
-        console.error("3D Secure authentication failed, unexpected status:", paymentIntent.status);
-        const errorText = `Authentication failed. Status: ${paymentIntent.status || "unknown"}`;
-        handleAuthenticationFailure(errorText);
-      }
-    },
-    [handleAuthenticationFailure, handleAuthenticationSuccess]
-  );
-
-  const performAuthentication = useCallback(async () => {
-    if (!stripe || authenticationInProgress.current) {
-      if (authenticationInProgress.current) {
-        console.log("Authentication already in progress, skipping...");
-      }
-      return;
-    }
-
-    authenticationInProgress.current = true;
-
-    try {
-      const result = await stripe.confirmPayment({
-        clientSecret,
-        confirmParams: {
-          payment_method: paymentMethodId,
-          return_url: window.location.href
-        },
-        redirect: "if_required"
-      });
-      console.log("3D Secure authentication result:", result);
-      processAuthenticationResult(result);
-    } catch (err) {
-      console.error("3D Secure authentication exception:", err);
-      const errorText = err instanceof Error ? err.message : "Authentication failed due to an unexpected error";
-      handleAuthenticationFailure(errorText);
-    } finally {
-      authenticationInProgress.current = false;
-    }
-  }, [stripe, clientSecret, paymentMethodId, processAuthenticationResult, handleAuthenticationFailure]);
-
-  useEffect(() => {
-    if (!stripe || !elements || status !== "processing") {
-      return;
-    }
-
-    performAuthentication();
-
+  useEffect(function clearSuccessTimerOnUnmount() {
     return () => {
-      authenticationInProgress.current = false;
+      if (successTimerRef.current) {
+        clearTimeout(successTimerRef.current);
+      }
     };
-  }, [stripe, elements, status, performAuthentication, handleAuthenticationFailure]);
+  }, []);
+
+  useEffect(
+    function authenticateOnce() {
+      if (!stripe || !elements || hasStartedAuthenticationRef.current) {
+        return;
+      }
+      hasStartedAuthenticationRef.current = true;
+
+      function fail(message: string) {
+        setStatus("failed");
+        setErrorMsg(message);
+        callbacksRef.current.onError(message);
+      }
+
+      function succeed() {
+        setStatus("succeeded");
+        successTimerRef.current = setTimeout(() => callbacksRef.current.onSuccess(), SUCCESS_DELAY);
+      }
+
+      function routeResult({ error, paymentIntent }: AuthenticationResult) {
+        if (error) {
+          fail(error.message || "Authentication failed");
+        } else if (!paymentIntent) {
+          fail("Authentication failed. Please try again.");
+        } else if (SUCCESSFUL_STATUSES.includes(paymentIntent.status as (typeof SUCCESSFUL_STATUSES)[number])) {
+          succeed();
+        } else if (paymentIntent.status === "requires_payment_method") {
+          fail("Your payment method was declined. Please try a different card.");
+        } else {
+          fail(`Authentication failed. Status: ${paymentIntent.status || "unknown"}`);
+        }
+      }
+
+      function failWithThrownError(err: unknown) {
+        fail(err instanceof Error ? err.message : "Authentication failed due to an unexpected error");
+      }
+
+      stripe
+        .confirmPayment({
+          clientSecret,
+          confirmParams: {
+            payment_method: paymentMethodId,
+            return_url: window.location.href
+          },
+          redirect: "if_required"
+        })
+        .then(routeResult)
+        .catch(failWithThrownError);
+    },
+    [stripe, elements, clientSecret, paymentMethodId]
+  );
 
   if (status === "succeeded") {
     return (
@@ -211,10 +192,11 @@ export const ThreeDSecureModal: React.FC<ThreeDSecureModalProps> = ({
   description = "Your bank requires additional verification for this transaction.",
   successMessage = "Your card has been verified successfully.",
   errorMessage = "Please try again or use a different payment method.",
-  hideTitle = false
+  hideTitle = false,
+  dependencies: d = DEPENDENCIES
 }) => {
-  const { stripeService } = useServices();
-  const { resolvedTheme } = useTheme();
+  const { stripeService } = d.useServices();
+  const { resolvedTheme } = d.useTheme();
   const isDarkMode = resolvedTheme === "dark";
   const stripePromise = stripeService.getStripe();
 
@@ -235,7 +217,7 @@ export const ThreeDSecureModal: React.FC<ThreeDSecureModalProps> = ({
   }
 
   return (
-    <Elements
+    <d.Elements
       key={clientSecret}
       stripe={stripePromise}
       options={{
@@ -260,7 +242,8 @@ export const ThreeDSecureModal: React.FC<ThreeDSecureModalProps> = ({
         successMessage={successMessage}
         errorMessage={errorMessage}
         hideTitle={hideTitle}
+        dependencies={d}
       />
-    </Elements>
+    </d.Elements>
   );
 };
