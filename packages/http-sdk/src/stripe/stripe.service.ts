@@ -60,7 +60,7 @@ export class StripeService {
   }
 
   async getCustomerTransactions(options?: CustomerTransactionsParams): Promise<CustomerTransactionsResponse> {
-    const { limit, startingAfter, endingBefore, startDate, endDate } = options || {};
+    const { limit, offset, startDate, endDate } = options || {};
 
     if (startDate && endDate && startDate >= endDate) {
       throw new Error("startDate must be less than endDate");
@@ -68,8 +68,7 @@ export class StripeService {
 
     const params = new URLSearchParams({
       ...(limit && { limit: limit.toString() }),
-      ...(startingAfter && { startingAfter }),
-      ...(endingBefore && { endingBefore }),
+      ...(offset && { offset: offset.toString() }),
       ...(startDate && { startDate: startDate.toISOString() }),
       ...(endDate && { endDate: endDate.toISOString() })
     });

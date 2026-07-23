@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, lte, notInArray, SQL, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, lte, notInArray, SQL, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -176,13 +176,23 @@ export class StripeTransactionRepository extends BaseRepository<Table, StripeTra
     return !!item;
   }
 
-  async countByUserId(userId: string): Promise<number> {
-    const items = await this.cursor.query.StripeTransactions.findMany({
-      where: this.whereAccessibleBy(eq(this.table.userId, userId)),
-      columns: { id: true }
-    });
+  async countByUserId(userId: string, options?: { startDate?: Date; endDate?: Date }): Promise<number> {
+    const conditions: SQL[] = [eq(this.table.userId, userId)];
 
-    return items.length;
+    if (options?.startDate) {
+      conditions.push(gte(this.table.createdAt, options.startDate));
+    }
+
+    if (options?.endDate) {
+      conditions.push(lte(this.table.createdAt, options.endDate));
+    }
+
+    const [{ total }] = await this.cursor
+      .select({ total: count() })
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(...conditions)));
+
+    return total;
   }
 
   async sumAmountByUserId(userId: string, options?: { startDate?: Date; endDate?: Date; status?: StripeTransactionStatus }): Promise<number> {

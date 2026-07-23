@@ -189,10 +189,86 @@ describe(StripeTransactionRepository.name, () => {
     });
   });
 
+  describe("findByUserId", () => {
+    it("returns the user's transactions newest first", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 1000, createdAt: new Date("2024-01-01T00:00:00Z") });
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 3000, createdAt: new Date("2024-03-01T00:00:00Z") });
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 2000, createdAt: new Date("2024-02-01T00:00:00Z") });
+
+      const result = await stripeTransactionRepository.findByUserId({ userId: user.id });
+
+      expect(result.map(transaction => transaction.amount)).toEqual([3000, 2000, 1000]);
+    });
+
+    it("paginates with limit and offset", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 1000, createdAt: new Date("2024-01-01T00:00:00Z") });
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 3000, createdAt: new Date("2024-03-01T00:00:00Z") });
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 2000, createdAt: new Date("2024-02-01T00:00:00Z") });
+
+      const firstPage = await stripeTransactionRepository.findByUserId({ userId: user.id, limit: 2, offset: 0 });
+      const secondPage = await stripeTransactionRepository.findByUserId({ userId: user.id, limit: 2, offset: 2 });
+
+      expect(firstPage.map(transaction => transaction.amount)).toEqual([3000, 2000]);
+      expect(secondPage.map(transaction => transaction.amount)).toEqual([1000]);
+    });
+
+    it("returns only the requested user's transactions", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const otherUser = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 1000 });
+      await stripeTransactionRepository.create({ ...transactionInput(otherUser.id), amount: 2000 });
+
+      const result = await stripeTransactionRepository.findByUserId({ userId: user.id });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].userId).toBe(user.id);
+    });
+  });
+
+  describe("countByUserId", () => {
+    it("counts all of the user's transactions when no date range is given", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(user.id) });
+      await stripeTransactionRepository.create({ ...transactionInput(user.id) });
+
+      expect(await stripeTransactionRepository.countByUserId(user.id)).toBe(2);
+    });
+
+    it("counts transactions on and within the date-range boundaries, excluding those outside", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const startDate = new Date("2024-06-01T00:00:00Z");
+      const endDate = new Date("2024-06-30T23:59:59Z");
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: startDate });
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: new Date("2024-06-15T12:00:00Z") });
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: endDate });
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: new Date("2024-05-31T23:59:59Z") });
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: new Date("2024-07-01T00:00:00Z") });
+
+      expect(await stripeTransactionRepository.countByUserId(user.id, { startDate, endDate })).toBe(3);
+    });
+  });
+
   let cleanup: () => Promise<void>;
   afterEach(async () => {
     await cleanup?.();
   });
+
+  function transactionInput(userId: string): StripeTransactionInput {
+    return {
+      userId,
+      type: "payment_intent",
+      status: "succeeded",
+      amount: faker.number.int({ min: 1000, max: 100000 }),
+      currency: "usd"
+    };
+  }
 
   function setup() {
     const stripeTransactionRepository = container.resolve(StripeTransactionRepository);

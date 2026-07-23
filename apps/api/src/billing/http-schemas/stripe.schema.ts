@@ -134,23 +134,27 @@ export const ApplyCouponResponseSchema = z.object({
 
 export const TransactionSchema = z.object({
   id: z.string(),
+  type: z.enum(["payment_intent", "coupon_claim", "manual_credit"]),
   amount: z.number(),
+  /** Cumulative amount refunded on this transaction, in cents. */
+  amountRefunded: z.number(),
   /** First-purchase bonus credited with this payment, in cents. */
   bonusAmount: z.number().optional(),
   currency: z.string(),
   status: z.string(),
   created: z.number(),
-  paymentMethod: PaymentMethodDetailsSchema.refine(hasCardOrLink, cardOrLinkError).nullable(),
+  cardBrand: z.string().nullable().optional(),
+  cardLast4: z.string().nullable().optional(),
+  stripeInvoiceId: z.string().nullable().optional(),
   receiptUrl: z.string().nullable().optional(),
-  description: z.string().nullable().optional(),
-  metadata: z.record(z.string()).nullable().optional()
+  description: z.string().nullable().optional()
 });
 
 export const CustomerTransactionsResponseSchema = z.object({
   data: z.object({
     transactions: z.array(TransactionSchema),
-    hasMore: z.boolean(),
-    nextPage: z.string().nullable().optional()
+    totalCount: z.number(),
+    hasMore: z.boolean()
   })
 });
 
@@ -180,7 +184,7 @@ const dateRangeErrorMessage = "Date range cannot exceed 366 days and startDate m
 
 export const CustomerTransactionsQuerySchema = z
   .object({
-    limit: z.coerce.number().optional().openapi({
+    limit: z.coerce.number().int().min(1).max(100).optional().openapi({
       type: "number",
       minimum: 1,
       maximum: 100,
@@ -188,13 +192,12 @@ export const CustomerTransactionsQuerySchema = z
       example: 100,
       default: 100
     }),
-    startingAfter: z.string().optional().openapi({
-      description: "ID of the last transaction from the previous page (if paginating forwards)",
-      example: "ch_1234567890"
-    }),
-    endingBefore: z.string().optional().openapi({
-      description: "ID of the first transaction from the previous page (if paginating backwards)",
-      example: "ch_0987654321"
+    offset: z.coerce.number().int().min(0).optional().openapi({
+      type: "number",
+      minimum: 0,
+      description: "Number of transactions to skip for pagination",
+      example: 0,
+      default: 0
     }),
     startDate: dateRangeSchema.startDate.optional(),
     endDate: dateRangeSchema.endDate.optional()

@@ -1,3 +1,4 @@
+import type { BillingTransaction } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 
 export const createMockPaymentMethod = (overrides = {}) => ({
@@ -50,13 +51,19 @@ export const createMockDiscount = (overrides = {}) => ({
   ...overrides
 });
 
-export const createMockTransaction = (overrides = {}) => ({
+export const createMockTransaction = (overrides: Partial<BillingTransaction> = {}): BillingTransaction => ({
   id: `pi_${faker.string.alphanumeric(24)}`,
+  type: "payment_intent",
   amount: faker.number.int({ min: 1000, max: 10000 }),
+  amountRefunded: 0,
+  bonusAmount: 0,
   currency: "usd",
   status: faker.helpers.arrayElement(["succeeded", "pending", "failed"]),
-  payment_method: createMockPaymentMethod(),
-  created: faker.date.past().getTime(),
+  created: Math.floor(faker.date.past().getTime() / 1000),
+  cardBrand: "visa",
+  cardLast4: faker.string.numeric(4),
+  stripeInvoiceId: null,
+  receiptUrl: faker.internet.url(),
   description: faker.helpers.arrayElement(["Monthly subscription", "One-time purchase", "Annual plan"]),
   ...overrides
 });
