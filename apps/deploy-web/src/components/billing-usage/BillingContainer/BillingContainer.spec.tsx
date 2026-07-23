@@ -1,5 +1,5 @@
 import React from "react";
-import type { Charge } from "@akashnetwork/http-sdk";
+import type { BillingTransaction } from "@akashnetwork/http-sdk";
 import type { PaginationState } from "@tanstack/react-table";
 import type { AxiosError } from "axios";
 import { describe, expect, it, type MockedFunction, vi } from "vitest";
@@ -66,7 +66,7 @@ describe(BillingContainer.name, () => {
 
   async function setup(
     overrides: Partial<{
-      data: { transactions: Charge[]; hasMore: boolean; nextPage?: string; totalCount: number };
+      data: { transactions: BillingTransaction[]; hasMore: boolean; totalCount: number };
       isFetching: boolean;
       isError: boolean;
       queryError: AxiosError;
@@ -77,7 +77,6 @@ describe(BillingContainer.name, () => {
       ? {
           transactions: [createMockTransaction()],
           hasMore: true,
-          nextPage: "next_cursor",
           totalCount: 1
         }
       : overrides.data;

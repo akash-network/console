@@ -7,10 +7,9 @@ describe(StripeService.name, () => {
   describe("getCustomerTransactions", () => {
     it("unwraps the API data envelope so transactions reach the caller", async () => {
       const payload = {
-        transactions: [{ id: "ch_123", amount: 2000 }],
-        hasMore: false,
-        nextPage: null,
-        prevPage: null
+        transactions: [{ id: "txn_123", type: "payment_intent", amount: 2000, amountRefunded: 0 }],
+        totalCount: 1,
+        hasMore: false
       };
       const { service } = setup({ payload });
 
@@ -18,6 +17,14 @@ describe(StripeService.name, () => {
 
       expect(result).toEqual(payload);
       expect(result.transactions).toHaveLength(1);
+    });
+
+    it("forwards limit and offset as query params", async () => {
+      const { service, httpClient } = setup();
+
+      await service.getCustomerTransactions({ limit: 10, offset: 20 });
+
+      expect(httpClient.get).toHaveBeenCalledWith("/v1/stripe/transactions?limit=10&offset=20");
     });
 
     it("throws when startDate is after endDate", async () => {
@@ -37,7 +44,7 @@ describe(StripeService.name, () => {
   });
 
   function setup(input?: { payload?: unknown }) {
-    const payload = input?.payload ?? { transactions: [], hasMore: false, nextPage: null, prevPage: null };
+    const payload = input?.payload ?? { transactions: [], totalCount: 0, hasMore: false };
     const httpClient = {
       get: vi.fn().mockResolvedValue({ data: { data: payload } })
     } as unknown as HttpClient & { get: ReturnType<typeof vi.fn> };

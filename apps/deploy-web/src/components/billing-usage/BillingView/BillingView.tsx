@@ -1,12 +1,11 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import type { Charge } from "@akashnetwork/http-sdk";
+import type { BillingTransaction } from "@akashnetwork/http-sdk";
 import {
   Alert,
   AlertDescription,
   AlertTitle,
   Button,
-  CustomTooltip,
   DateRangePicker,
   Label,
   Pagination,
@@ -41,8 +40,32 @@ export const COMPONENTS = {
   PaginationSizeSelector
 };
 
+const TRANSACTION_TYPE_LABELS: Record<BillingTransaction["type"], string> = {
+  payment_intent: "Card Payment",
+  coupon_claim: "Coupon",
+  manual_credit: "Manual Credit"
+};
+
+const TRANSACTION_TYPE_BADGE_CLASSES: Record<BillingTransaction["type"], string> = {
+  coupon_claim: "bg-blue-100 text-blue-800",
+  manual_credit: "bg-gray-100 text-gray-800",
+  payment_intent: "bg-gray-100 text-gray-800"
+};
+
+const STATUS_BADGE_CLASSES: Record<string, string> = {
+  succeeded: "bg-green-100 text-green-800",
+  pending: "bg-yellow-100 text-yellow-800",
+  failed: "bg-red-100 text-red-800",
+  refunded: "bg-blue-100 text-blue-800"
+};
+
+const DEFAULT_STATUS_BADGE_CLASS = "bg-gray-100 text-gray-800";
+
+/** Coupon claims and manual credits top up the wallet, so their amount reads as money in (green +). */
+const isCreditTransaction = (type: BillingTransaction["type"]) => type === "coupon_claim" || type === "manual_credit";
+
 export type BillingViewProps = {
-  data: Charge[];
+  data: BillingTransaction[];
   hasMore: boolean;
   hasPrevious: boolean;
   isFetching: boolean;
@@ -72,36 +95,60 @@ export const BillingView: React.FC<BillingViewProps> = ({
   components: { FormattedNumber, DateRangePicker, PaginationSizeSelector } = COMPONENTS
 }) => {
   const oneYearAgo = startOfDay(subYears(new Date(), 1));
-  const columnHelper = createColumnHelper<Charge>();
+  const columnHelper = createColumnHelper<BillingTransaction>();
 
   const columns = [
     columnHelper.accessor("created", {
       header: "Date",
       cell: info => new Date(info.getValue() * 1000).toLocaleDateString()
     }),
-    columnHelper.accessor("amount", {
-      header: "Amount",
+    columnHelper.accessor("type", {
+      header: "Type",
       cell: info => {
-        const { currency, bonusAmount = 0 } = info.row.original;
+        const { cardBrand, cardLast4 } = info.row.original;
+        const type = info.getValue();
         return (
           <div>
-            <FormattedNumber value={info.getValue() / 100} style="currency" currency={currency} currencyDisplay="narrowSymbol" />
-            {bonusAmount > 0 && (
-              <div className="text-xs font-medium text-primary">
-                +<FormattedNumber value={bonusAmount / 100} style="currency" currency={currency} currencyDisplay="narrowSymbol" /> bonus
+            <span className={cn("inline-flex items-center justify-center rounded-full px-2 py-1 text-xs font-semibold", TRANSACTION_TYPE_BADGE_CLASSES[type])}>
+              {TRANSACTION_TYPE_LABELS[type]}
+            </span>
+            {cardLast4 && (
+              <div className="mt-1 text-xs text-muted-foreground">
+                {cardBrand ? `${capitalizeFirstLetter(cardBrand)} ` : ""}**** {cardLast4}
               </div>
             )}
           </div>
         );
       }
     }),
-    columnHelper.accessor("paymentMethod.card.brand", {
-      header: "Account source",
+    columnHelper.accessor("amount", {
+      header: "Amount",
       cell: info => {
-        const { card } = info.row.original.paymentMethod;
-        if (!card) return "N/A";
-        return `${capitalizeFirstLetter(card.brand)} **** ${card.last4}`;
+        const { currency, bonusAmount = 0, amountRefunded = 0, type } = info.row.original;
+        const isCredit = isCreditTransaction(type);
+        return (
+          <div>
+            <span className={cn(isCredit && "font-medium text-green-600 dark:text-green-500")}>
+              {isCredit && "+"}
+              <FormattedNumber value={info.getValue() / 100} style="currency" currency={currency} currencyDisplay="narrowSymbol" />
+            </span>
+            {bonusAmount > 0 && (
+              <div className="text-xs font-medium text-primary">
+                +<FormattedNumber value={bonusAmount / 100} style="currency" currency={currency} currencyDisplay="narrowSymbol" /> bonus
+              </div>
+            )}
+            {amountRefunded > 0 && (
+              <div className="text-xs font-medium text-muted-foreground">
+                -<FormattedNumber value={amountRefunded / 100} style="currency" currency={currency} currencyDisplay="narrowSymbol" /> refunded
+              </div>
+            )}
+          </div>
+        );
       }
+    }),
+    columnHelper.accessor("description", {
+      header: "Description",
+      cell: info => info.getValue() || "N/A"
     }),
     columnHelper.accessor("status", {
       header: "Status",
@@ -109,13 +156,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
         <div
           className={cn(
             "inline-flex items-center justify-center rounded-full px-2 py-1 text-xs font-semibold",
-            info.getValue() === "succeeded"
-              ? "bg-green-100 text-green-800"
-              : info.getValue() === "pending"
-                ? "bg-yellow-100 text-yellow-800"
-                : info.getValue() === "failed"
-                  ? "bg-red-100 text-red-800"
-                  : "bg-gray-100 text-gray-800"
+            STATUS_BADGE_CLASSES[info.getValue()] ?? DEFAULT_STATUS_BADGE_CLASS
           )}
         >
           {capitalizeFirstLetter(info.getValue())}
@@ -125,15 +166,17 @@ export const BillingView: React.FC<BillingViewProps> = ({
     columnHelper.display({
       id: "receipt",
       header: "Receipt",
-      cell: info => (
-        <CustomTooltip title={<p className="text-sm">View Receipt on Stripe</p>}>
-          <Link href={info.row.original.receiptUrl || "#"} target="_blank" rel="noopener noreferrer">
+      cell: info => {
+        const { receiptUrl } = info.row.original;
+        if (!receiptUrl) return null;
+        return (
+          <Link href={receiptUrl} target="_blank" rel="noopener noreferrer" aria-label="View receipt on Stripe">
             <Button size="icon" variant="ghost" className="text-black hover:bg-primary hover:text-white dark:text-white">
               <Page width={16} />
             </Button>
           </Link>
-        </CustomTooltip>
-      )
+        );
+      }
     })
   ];
 
@@ -171,7 +214,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
     );
   }
 
-  const columnClasses = ["w-32 px-4 py-2", "w-32 px-4 py-2", "w-32 px-4 py-2", "w-32 px-4 py-2", "w-4 px-4 py-2"];
+  const columnClasses = ["w-28 px-4 py-2", "w-40 px-4 py-2", "w-32 px-4 py-2", "w-48 px-4 py-2", "w-28 px-4 py-2", "w-16 px-4 py-2"];
 
   return (
     <div className="space-y-2">

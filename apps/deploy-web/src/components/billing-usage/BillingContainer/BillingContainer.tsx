@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { Charge } from "@akashnetwork/http-sdk";
+import type { BillingTransaction } from "@akashnetwork/http-sdk";
 import { useToast } from "@akashnetwork/ui/hooks";
 import type { PaginationState } from "@tanstack/react-table";
 import axios from "axios";
@@ -14,7 +14,7 @@ const DEPENDENCIES = {
 };
 
 export type ChildrenProps = {
-  data: Charge[];
+  data: BillingTransaction[];
   hasMore: boolean;
   hasPrevious: boolean;
   isFetching: boolean;
@@ -33,23 +33,11 @@ type BillingContainerProps = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-type CursorHistoryItem = {
-  startingAfter?: string | null;
-  endingBefore?: string | null;
-  pageIndex: number;
-};
-
 export const BillingContainer: React.FC<BillingContainerProps> = ({ children, dependencies: D = DEPENDENCIES }) => {
   const { toast } = useToast();
   const { stripe } = useServices();
   const [dateRange, setDateRange] = React.useState<{ from: Date; to: Date }>(() => createDateRange());
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
-  const [currentCursors, setCurrentCursors] = useState<{
-    startingAfter?: string | null;
-    endingBefore?: string | null;
-  }>({});
-
-  const [cursorHistory, setCursorHistory] = useState<CursorHistoryItem[]>([{ pageIndex: 0 }]);
 
   const [errorMessage, setErrorMessage] = React.useState("");
 
@@ -62,8 +50,7 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
     error: queryError
   } = D.usePaymentTransactionsQuery({
     limit: pagination.pageSize,
-    startingAfter: currentCursors.startingAfter,
-    endingBefore: currentCursors.endingBefore,
+    offset: pagination.pageIndex * pagination.pageSize,
     startDate,
     endDate
   });
@@ -75,56 +62,11 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
   }, [queryError]);
 
   const handlePaginationChange = (state: PaginationState) => {
-    const isForward = state.pageIndex > pagination.pageIndex;
-    const isBackward = state.pageIndex < pagination.pageIndex;
-
-    if (isForward && data?.nextPage) {
-      const newCursors = {
-        startingAfter: data.nextPage,
-        endingBefore: undefined
-      };
-
-      setCurrentCursors(newCursors);
-
-      setCursorHistory(prev => [
-        ...prev,
-        {
-          startingAfter: data.nextPage,
-          pageIndex: state.pageIndex
-        }
-      ]);
-    } else if (isBackward) {
-      const targetHistoryItem = cursorHistory.find(item => item.pageIndex === state.pageIndex);
-
-      if (targetHistoryItem) {
-        setCurrentCursors({
-          startingAfter: targetHistoryItem.startingAfter,
-          endingBefore: targetHistoryItem.endingBefore
-        });
-
-        setCursorHistory(prev => prev.filter(item => item.pageIndex <= state.pageIndex));
-      } else if (state.pageIndex === 0) {
-        setCurrentCursors({});
-        setCursorHistory([{ pageIndex: 0 }]);
-      }
-    } else if (state.pageSize !== pagination.pageSize) {
-      setCurrentCursors({});
-      setCursorHistory([{ pageIndex: 0 }]);
-      setPagination(prev => ({
-        ...prev,
-        pageIndex: 0,
-        pageSize: state.pageSize
-      }));
-      return;
-    }
-
-    setPagination(state);
+    setPagination(state.pageSize !== pagination.pageSize ? { pageIndex: 0, pageSize: state.pageSize } : state);
   };
 
   const changeDateRange = (range: { from: Date; to: Date }) => {
     setDateRange(createDateRange(range));
-    setCurrentCursors({});
-    setCursorHistory([{ pageIndex: 0 }]);
     setPagination(prev => ({ ...prev, pageIndex: 0 }));
     setErrorMessage("");
   };
