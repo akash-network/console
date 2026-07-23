@@ -207,6 +207,12 @@ describe(TrialValidationService.name, () => {
       expect(() => service.validateTopUpAmount(undefined, 1)).not.toThrow();
     });
 
+    it("resolves for a registration-created wallet that was never activated", () => {
+      const { service } = setupTopUp({ trialMin: 100 });
+      const wallet = createUserWallet({ isTrialing: true, activatedAt: null });
+      expect(() => service.validateTopUpAmount(wallet, 1)).not.toThrow();
+    });
+
     it("resolves for non-trial users paying at or above the standard minimum", () => {
       const { service } = setupTopUp({ trialMin: 100 });
       const wallet = createUserWallet({ isTrialing: false });

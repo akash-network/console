@@ -1,6 +1,6 @@
 import { Trace } from "@akashnetwork/instrumentation";
 import subDays from "date-fns/subDays";
-import { and, count, eq, gt, inArray, lte, or } from "drizzle-orm";
+import { and, count, eq, gt, inArray, isNotNull, isNull, lte, or } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -82,6 +82,16 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return this.toOutput(item);
   }
 
+  async claimActivation(id: UserWalletOutput["id"]): Promise<UserWalletOutput | undefined> {
+    const [claimed] = await this.cursor
+      .update(this.table)
+      .set({ activatedAt: new Date() })
+      .where(and(eq(this.table.id, id), isNull(this.table.activatedAt)))
+      .returning();
+
+    return claimed ? this.toOutput(claimed) : undefined;
+  }
+
   async findDrainingWallets(thresholds: { fee: number; trialExpirationDays: number }) {
     const trialWindowStart = subDays(new Date(), thresholds.trialExpirationDays);
 
@@ -89,8 +99,9 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
       await this.cursor.query.UserWallets.findMany({
         where: this.whereAccessibleBy(
           and(
+            isNotNull(this.table.activatedAt),
             lte(this.table.feeAllowance, thresholds.fee.toString()),
-            or(and(eq(this.table.isTrialing, true), gt(this.table.createdAt, trialWindowStart)), eq(this.table.isTrialing, false))
+            or(and(eq(this.table.isTrialing, true), gt(this.table.activatedAt, trialWindowStart)), eq(this.table.isTrialing, false))
           )
         )
       })
