@@ -5,6 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { StripeTransactionRepository } from "@src/billing/repositories";
+import type { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
+import type { RefillService } from "@src/billing/services/refill/refill.service";
 import { IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE, PAYMENT_IN_PROGRESS_ERROR_MESSAGE } from "@src/billing/services/stripe-error/stripe-error.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
 import { StripeTransactionService } from "./stripe-transaction.service";
@@ -426,7 +428,14 @@ describe(StripeTransactionService.name, () => {
 
     const stripe = new Stripe(`sk_test_${faker.string.alphanumeric(32)}`, { apiVersion: "2025-10-29.clover", httpClient: Stripe.createFetchHttpClient() });
 
-    const service = new StripeTransactionService(stripe, stripeTransactionRepository, timerService, () => mock<LoggerService>());
+    const service = new StripeTransactionService(
+      stripe,
+      stripeTransactionRepository,
+      mock<RefillService>(),
+      mock<FirstPurchaseBonusService>(),
+      timerService,
+      () => mock<LoggerService>()
+    );
 
     stripeTransactionRepository.create.mockImplementation(async input => ({
       id: "test-transaction-id",

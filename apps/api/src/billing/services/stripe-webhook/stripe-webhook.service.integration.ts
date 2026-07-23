@@ -1,3 +1,4 @@
+import type { LoggerService } from "@akashnetwork/logging";
 import type Stripe from "stripe";
 import type { Mock } from "vitest";
 import { describe, expect, it, vi } from "vitest";
@@ -8,8 +9,10 @@ import type { PaymentMethodRepository, StripeTransactionOutput, StripeTransactio
 import type { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
 import type { StripeService } from "@src/billing/services/stripe/stripe.service";
+import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { StripeWebhookService } from "@src/billing/services/stripe-webhook/stripe-webhook.service";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import type { TimerService } from "@src/core/services/timer/timer.service";
 import type { UserRepository } from "@src/user/repositories";
 
 import { createTestUser } from "@test/seeders/user-test.seeder";
@@ -1097,14 +1100,22 @@ describe(StripeWebhookService.name, () => {
     firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(0);
     const domainEventsService = mock<DomainEventsService>();
 
+    const stripeTransaction = new StripeTransactionService(
+      mock<Stripe>(),
+      stripeTransactionRepository,
+      refillService,
+      firstPurchaseBonusService,
+      mock<TimerService>(),
+      () => mock<LoggerService>()
+    );
+
     const service = new StripeWebhookService(
       stripeService,
-      refillService,
       userRepository,
       paymentMethodRepository,
       stripeTransactionRepository,
-      firstPurchaseBonusService,
-      domainEventsService
+      domainEventsService,
+      stripeTransaction
     );
 
     return {
