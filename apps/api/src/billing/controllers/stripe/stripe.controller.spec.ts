@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import type { CouponRedemptionService } from "@src/billing/services/coupon-redemption/coupon-redemption.service";
 import type { PayingUser } from "@src/billing/services/paying-user/paying-user";
 import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { type PaymentMethod } from "@src/billing/services/payment-method/payment-method.service";
@@ -263,11 +264,11 @@ describe(StripeController.name, () => {
 
   describe("applyCoupon", () => {
     it("returns transactionId and transactionStatus on successful coupon", async () => {
-      const { controller, stripe, user } = setup();
+      const { controller, couponRedemptionService, user } = setup();
       const transactionId = faker.string.uuid();
       const mockCoupon = mock<Stripe.Coupon>({ id: faker.string.uuid() });
 
-      stripe.applyCoupon.mockResolvedValue({
+      couponRedemptionService.redeemCoupon.mockResolvedValue({
         coupon: mockCoupon,
         amountAdded: 10,
         transactionId,
@@ -290,12 +291,12 @@ describe(StripeController.name, () => {
     });
 
     it("resolves transaction when awaitResolved is true", async () => {
-      const { controller, stripe, stripeTransaction, user } = setup();
+      const { controller, couponRedemptionService, stripeTransaction, user } = setup();
       const transactionId = faker.string.uuid();
       const mockCoupon = mock<Stripe.Coupon>({ id: faker.string.uuid() });
       const resolvedTransaction = generateDatabaseStripeTransaction({ id: transactionId, status: "succeeded" });
 
-      stripe.applyCoupon.mockResolvedValue({
+      couponRedemptionService.redeemCoupon.mockResolvedValue({
         coupon: mockCoupon,
         amountAdded: 10,
         transactionId,
@@ -431,6 +432,7 @@ describe(StripeController.name, () => {
     const payingUser: PayingUser = { ...user, stripeCustomerId: user.stripeCustomerId! };
     const stripe = mock<StripeService>();
     const paymentMethodService = mock<PaymentMethodService>();
+    const couponRedemptionService = mock<CouponRedemptionService>();
     const stripeTransaction = mock<StripeTransactionService>();
     const authService = mock<AuthService>({
       currentUser: user
@@ -448,7 +450,8 @@ describe(StripeController.name, () => {
       userWalletRepository,
       trialValidationService,
       transactionReporting,
-      paymentMethodService
+      paymentMethodService,
+      couponRedemptionService
     );
     container.register(AuthService, { useValue: authService });
 
@@ -456,6 +459,7 @@ describe(StripeController.name, () => {
       controller,
       stripe,
       paymentMethodService,
+      couponRedemptionService,
       stripeTransaction,
       authService,
       stripeErrorService,

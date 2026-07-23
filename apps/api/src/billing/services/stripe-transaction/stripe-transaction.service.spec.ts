@@ -422,6 +422,35 @@ describe(StripeTransactionService.name, () => {
     }, 10_000);
   });
 
+  describe("recordCouponClaim", () => {
+    it("creates a pending coupon_claim transaction with the coupon metadata", async () => {
+      const { service, stripeTransactionRepository } = setup();
+
+      const result = await service.recordCouponClaim({
+        userId: "user_1",
+        amount: 1000,
+        currency: "usd",
+        couponId: "coupon_1",
+        promotionCodeId: "promo_1",
+        invoiceId: "in_1",
+        description: "Coupon: Test"
+      });
+
+      expect(stripeTransactionRepository.create).toHaveBeenCalledWith({
+        userId: "user_1",
+        type: "coupon_claim",
+        status: "pending",
+        amount: 1000,
+        currency: "usd",
+        stripeCouponId: "coupon_1",
+        stripePromotionCodeId: "promo_1",
+        stripeInvoiceId: "in_1",
+        description: "Coupon: Test"
+      });
+      expect(result).toEqual(expect.objectContaining({ type: "coupon_claim" }));
+    });
+  });
+
   function setup(params: { paymentIntent?: Stripe.Response<Stripe.PaymentIntent> } = {}) {
     const stripeTransactionRepository = mock<StripeTransactionRepository>();
     const timerService = mock<TimerService>();
