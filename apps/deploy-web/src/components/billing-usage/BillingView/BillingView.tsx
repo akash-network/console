@@ -6,7 +6,6 @@ import {
   AlertDescription,
   AlertTitle,
   Button,
-  CustomTooltip,
   DateRangePicker,
   Label,
   Pagination,
@@ -171,13 +170,11 @@ export const BillingView: React.FC<BillingViewProps> = ({
         const { receiptUrl } = info.row.original;
         if (!receiptUrl) return null;
         return (
-          <CustomTooltip title={<p className="text-sm">View Receipt on Stripe</p>}>
-            <Link href={receiptUrl} target="_blank" rel="noopener noreferrer">
-              <Button size="icon" variant="ghost" className="text-black hover:bg-primary hover:text-white dark:text-white">
-                <Page width={16} />
-              </Button>
-            </Link>
-          </CustomTooltip>
+          <Link href={receiptUrl} target="_blank" rel="noopener noreferrer" aria-label="View receipt on Stripe">
+            <Button size="icon" variant="ghost" className="text-black hover:bg-primary hover:text-white dark:text-white">
+              <Page width={16} />
+            </Button>
+          </Link>
         );
       }
     })
@@ -217,7 +214,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
     );
   }
 
-  const columnClasses = ["w-28 px-4 py-2", "w-40 px-4 py-2", "px-4 py-2", "w-32 px-4 py-2", "w-28 px-4 py-2", "w-16 px-4 py-2"];
+  const columnClasses = ["w-28 px-4 py-2", "w-40 px-4 py-2", "w-48 px-4 py-2", "w-32 px-4 py-2", "w-28 px-4 py-2", "w-16 px-4 py-2"];
 
   return (
     <div className="space-y-2">
