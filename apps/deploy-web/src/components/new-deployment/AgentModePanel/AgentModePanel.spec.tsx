@@ -24,14 +24,15 @@ describe(AgentModePanel.name, () => {
     expect(analyticsService.track).toHaveBeenCalledWith("deploy_with_agent_btn_clk", "Amplitude");
     expect(screen.getByText("Install the Akash skill")).toBeInTheDocument();
     expect(screen.getByText("/plugin marketplace add akash-network/akash-skill")).toBeInTheDocument();
+    expect(screen.getByText("/plugin install akash-network@akash-network")).toBeInTheDocument();
   });
 
-  it("offers a copy button for the install command", async () => {
+  it("offers a copy button for each install command", async () => {
     setup();
 
     await userEvent.click(screen.getByRole("button", { name: /Set up with your agent/ }));
 
-    expect(screen.getByRole("button", { name: "copy" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "copy" })).toHaveLength(2);
   });
 
   it("links Create an API key to the in-app API keys page", async () => {
