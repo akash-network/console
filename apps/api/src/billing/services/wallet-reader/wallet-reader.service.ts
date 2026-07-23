@@ -21,7 +21,7 @@ export class WalletReaderService {
   async getWallets(query: GetWalletOptions): Promise<UserWalletPublicOutput[]> {
     const wallets = await this.userWalletRepository.accessibleBy(this.authService.ability, "read").find(query);
 
-    return wallets.map(wallet => this.userWalletRepository.toPublic(wallet));
+    return wallets.filter(wallet => wallet.activatedAt).map(wallet => this.userWalletRepository.toPublic(wallet));
   }
 
   async getWalletByUserId(userId: string): Promise<WalletInitialized>;

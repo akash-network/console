@@ -6,12 +6,15 @@ import { mock } from "vitest-mock-extended";
 
 import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import type { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
+import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
+
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(UserService.name, () => {
   describe("registerUser", () => {
@@ -337,6 +340,9 @@ describe(UserService.name, () => {
     const analyticsService = mock<AnalyticsService>();
     const logger = mock<LoggerService>();
     const auth0Service = mock<Auth0Service>();
+    const walletInitializerService = mock<WalletInitializerService>({
+      ensureWallet: vi.fn().mockResolvedValue(createUserWallet())
+    });
     const userRepository = container.resolve(UserRepository);
     const service = new UserService(
       userRepository,
@@ -348,9 +354,10 @@ describe(UserService.name, () => {
       auth0Service,
       mock<EmailVerificationCodeService>({
         sendCode: vi.fn().mockResolvedValue({ codeSentAt: new Date().toISOString() })
-      })
+      }),
+      walletInitializerService
     );
 
-    return { service, analyticsService, logger, auth0Service, userRepository };
+    return { service, analyticsService, logger, auth0Service, userRepository, walletInitializerService };
   }
 });

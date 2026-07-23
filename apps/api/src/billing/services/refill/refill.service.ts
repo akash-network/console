@@ -55,9 +55,10 @@ export class RefillService {
 
   private async refillWalletFees(userWallet: UserWalletOutput) {
     const trialWindowStart = subDays(new Date(), this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS);
-    const isInTrialWindow = userWallet.isTrialing && userWallet.createdAt && userWallet.createdAt > trialWindowStart;
+    const trialStartedAt = userWallet.activatedAt ?? userWallet.createdAt;
+    const isInTrialWindow = userWallet.isTrialing && trialStartedAt && trialStartedAt > trialWindowStart;
 
-    const expiration = isInTrialWindow && userWallet.createdAt ? addDays(userWallet.createdAt, this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS) : undefined;
+    const expiration = isInTrialWindow && trialStartedAt ? addDays(trialStartedAt, this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS) : undefined;
 
     await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
       address: userWallet.address!,
@@ -136,12 +137,13 @@ export class RefillService {
     this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit: currentLimit, nextLimit });
   }
 
+  /**
+   * Funding a wallet with real money activates it even when the user never started a trial,
+   * so `claimActivation` is attempted on every top-up and silently no-ops for already-activated wallets.
+   */
   private async getOrCreateUserWallet(userId: UserWalletOutput["userId"]) {
-    const userWallet = await this.userWalletRepository.findOneBy({ userId });
-    if (userWallet) {
-      return userWallet;
-    }
+    const userWallet = await this.walletInitializerService.ensureWallet(userId);
 
-    return await this.walletInitializerService.initialize(userId);
+    return (await this.userWalletRepository.claimActivation(userWallet.id)) ?? userWallet;
   }
 }

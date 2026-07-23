@@ -232,6 +232,13 @@
       "when": 1784238593894,
       "tag": "0032_massive_wolverine",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1784819171143,
+      "tag": "0033_long_solo",
+      "breakpoints": true
     }
   ]
 }

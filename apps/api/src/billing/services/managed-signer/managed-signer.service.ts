@@ -194,7 +194,7 @@ export class ManagedSignerService {
     });
   }
 
-  async ensureFeeGrants(wallet: Pick<UserWalletOutput, "address" | "isTrialing" | "createdAt">): Promise<number> {
+  async ensureFeeGrants(wallet: Pick<UserWalletOutput, "address" | "isTrialing" | "createdAt" | "activatedAt">): Promise<number> {
     return withSpan("ManagedSignerService.ensureFeeGrants", async () => {
       let feeAllowance = await this.balancesService.retrieveAndCalcFeeLimit(wallet);
       const needsRefill = feeAllowance < this.billingConfigService.get("FEE_ALLOWANCE_REFILL_THRESHOLD");

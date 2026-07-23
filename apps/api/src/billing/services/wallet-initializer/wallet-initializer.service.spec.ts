@@ -41,10 +41,11 @@ describe(WalletInitializerService.name, () => {
 
     it("goes straight to wallet init without requiring a payment method", async () => {
       const user = createUser({ emailVerified: true, stripeCustomerId: faker.string.uuid() });
-      const newWallet = createUserWallet({ userId: user.id });
+      const newWallet = createUserWallet({ userId: user.id, activatedAt: null });
       const di = setup({
         user,
         getOrCreateWallet: vi.fn().mockResolvedValue({ wallet: newWallet, isNew: true }),
+        claimActivation: vi.fn().mockResolvedValue({ ...newWallet, activatedAt: new Date() }),
         updateWalletById: vi.fn().mockResolvedValue(newWallet)
       });
       const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
@@ -58,10 +59,11 @@ describe(WalletInitializerService.name, () => {
 
     it("does not require a stripeCustomerId", async () => {
       const user = createUser({ emailVerified: true, stripeCustomerId: null as unknown as string });
-      const newWallet = createUserWallet({ userId: user.id });
+      const newWallet = createUserWallet({ userId: user.id, activatedAt: null });
       const di = setup({
         user,
         getOrCreateWallet: vi.fn().mockResolvedValue({ wallet: newWallet, isNew: true }),
+        claimActivation: vi.fn().mockResolvedValue({ ...newWallet, activatedAt: new Date() }),
         updateWalletById: vi.fn().mockResolvedValue(newWallet)
       });
       const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
@@ -73,82 +75,108 @@ describe(WalletInitializerService.name, () => {
   });
 
   describe("initializeAndGrantTrialLimits", () => {
-    it("creates a new wallet and authorizes trial spending when no wallet exists", async () => {
+    it("derives and saves the address when the wallet is missing one", async () => {
       const userId = "test-user-id";
-      const newWallet = createUserWallet({ userId });
-      const chainWallet = createChainWallet();
-      const getOrCreateWallet = vi.fn().mockImplementation(async () => ({ wallet: newWallet, isNew: true }));
-      const updateWalletById = vi.fn().mockImplementation(async () => newWallet);
+      const orphanWallet = createUserWallet({ userId, address: null as unknown as string, activatedAt: null });
+      const derivedAddress = "akash1derived";
+      const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet: orphanWallet, isNew: true });
+      const updateWalletById = vi.fn().mockImplementation(async (id, patch) => ({ ...orphanWallet, ...patch }));
+      const claimActivation = vi.fn().mockResolvedValue({ ...orphanWallet, address: derivedAddress, activatedAt: new Date() });
 
-      const di = setup({
-        getOrCreateWallet,
-        updateWalletById
-      });
+      const di = setup({ getOrCreateWallet, updateWalletById, claimActivation });
+      const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
+      managedUserWalletService.createWallet.mockResolvedValue({ address: derivedAddress });
+      managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(createChainWallet({ address: derivedAddress }));
+
+      await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId);
+
+      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: orphanWallet.id });
+      expect(updateWalletById).toHaveBeenCalledWith(orphanWallet.id, { address: derivedAddress }, { returning: true });
+    });
+
+    it("returns the current state without chain calls when the wallet is already activated", async () => {
+      const userId = "test-user-id";
+      const activatedWallet = createUserWallet({ userId, activatedAt: new Date() });
+      const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet: activatedWallet, isNew: false });
+
+      const di = setup({ getOrCreateWallet });
+      const managedUserWalletService = di.resolve(ManagedUserWalletService);
+
+      const result = await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId);
+
+      expect(result.address).toBe(activatedWallet.address);
+      expect(managedUserWalletService.createAndAuthorizeTrialSpending).not.toHaveBeenCalled();
+      expect(di.resolve(DomainEventsService).publish).not.toHaveBeenCalled();
+    });
+
+    it("claims activation, authorizes trial spending and saves the granted allowances", async () => {
+      const userId = "test-user-id";
+      const wallet = createUserWallet({ userId, activatedAt: null });
+      const chainWallet = createChainWallet();
+      const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet, isNew: false });
+      const claimActivation = vi.fn().mockResolvedValue({ ...wallet, activatedAt: new Date() });
+      const updateWalletById = vi.fn().mockImplementation(async (id, patch) => ({ ...wallet, ...patch }));
+
+      const di = setup({ getOrCreateWallet, claimActivation, updateWalletById });
       const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
       managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(chainWallet);
 
       await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId);
 
-      expect(getOrCreateWallet).toHaveBeenCalledWith({ userId });
-      expect(managedUserWalletService.createAndAuthorizeTrialSpending).toHaveBeenCalledWith(di.resolve(ManagedSignerService), { addressIndex: newWallet.id });
+      expect(claimActivation).toHaveBeenCalledWith(wallet.id);
+      expect(managedUserWalletService.createAndAuthorizeTrialSpending).toHaveBeenCalledWith(di.resolve(ManagedSignerService), { addressIndex: wallet.id });
       expect(updateWalletById).toHaveBeenCalledWith(
-        newWallet.id,
+        wallet.id,
         {
-          address: chainWallet.address,
           deploymentAllowance: chainWallet.limits.deployment,
           feeAllowance: chainWallet.limits.fees
         },
-        expect.any(Object)
+        { returning: true }
       );
     });
 
-    it("does not authorizes trial spending for existing wallet", async () => {
+    it("throws 409 when activation is already claimed by a concurrent request", async () => {
       const userId = "test-user-id";
-      const existingWallet = createUserWallet({ userId });
-      const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet: existingWallet, isNew: false });
+      const wallet = createUserWallet({ userId, activatedAt: null });
+      const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet, isNew: false });
+      const claimActivation = vi.fn().mockResolvedValue(undefined);
 
-      const di = setup({
-        getOrCreateWallet
-      });
+      const di = setup({ getOrCreateWallet, claimActivation });
       const managedUserWalletService = di.resolve(ManagedUserWalletService);
 
-      await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId);
-
-      expect(getOrCreateWallet).toHaveBeenCalledWith({ userId });
+      await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId)).rejects.toMatchObject({ status: 409 });
       expect(managedUserWalletService.createAndAuthorizeTrialSpending).not.toHaveBeenCalled();
+      expect(di.resolve(DomainEventsService).publish).not.toHaveBeenCalled();
     });
 
-    it("throws an error when cannot authorize trial spending and deletes user wallet", async () => {
+    it("unsets activation and keeps the wallet when authorization fails", async () => {
       const userId = "test-user-id";
-      const newWallet = createUserWallet({ userId });
-      const getOrCreateWallet = vi.fn().mockImplementation(async () => ({ wallet: newWallet, isNew: true }));
-      const deleteWalletById = vi.fn().mockImplementation(async () => null);
+      const wallet = createUserWallet({ userId, activatedAt: null });
+      const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet, isNew: false });
+      const claimActivation = vi.fn().mockResolvedValue({ ...wallet, activatedAt: new Date() });
+      const updateWalletById = vi.fn().mockImplementation(async (id, patch) => ({ ...wallet, ...patch }));
+      const deleteWalletById = vi.fn();
 
-      const di = setup({
-        getOrCreateWallet,
-        deleteWalletById
-      });
+      const di = setup({ getOrCreateWallet, claimActivation, updateWalletById, deleteWalletById });
       const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
       managedUserWalletService.createAndAuthorizeTrialSpending.mockRejectedValue(new Error("Failed to authorize trial"));
 
       await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId)).rejects.toThrow("Failed to authorize trial");
-      expect(managedUserWalletService.createAndAuthorizeTrialSpending).toHaveBeenCalledWith(di.resolve(ManagedSignerService), { addressIndex: newWallet.id });
-      expect(deleteWalletById).toHaveBeenCalledWith(newWallet.id);
+
+      expect(updateWalletById).toHaveBeenCalledWith(wallet.id, { activatedAt: null });
+      expect(deleteWalletById).not.toHaveBeenCalled();
       expect(di.resolve(DomainEventsService).publish).not.toHaveBeenCalled();
     });
 
-    it(`publishes "TrialStarted" event`, async () => {
+    it(`publishes "TrialStarted" event on successful activation`, async () => {
       const userId = "test-user-id";
-      const newWallet = createUserWallet({ userId });
+      const wallet = createUserWallet({ userId, activatedAt: null });
       const chainWallet = createChainWallet();
-      const getOrCreateWallet = vi.fn().mockImplementation(async () => ({ wallet: newWallet, isNew: true }));
-      const updateWalletById = vi.fn().mockImplementation(async () => newWallet);
+      const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet, isNew: false });
+      const claimActivation = vi.fn().mockResolvedValue({ ...wallet, activatedAt: new Date() });
+      const updateWalletById = vi.fn().mockImplementation(async (id, patch) => ({ ...wallet, ...patch }));
 
-      const di = setup({
-        userId,
-        getOrCreateWallet,
-        updateWalletById
-      });
+      const di = setup({ userId, getOrCreateWallet, claimActivation, updateWalletById });
       const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
       managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(chainWallet);
 
@@ -158,10 +186,48 @@ describe(WalletInitializerService.name, () => {
     });
   });
 
+  describe("ensureWallet", () => {
+    it("creates the wallet and saves a derived address when none exists", async () => {
+      const userId = "test-user-id";
+      const bareWallet = createUserWallet({ userId, address: null as unknown as string, activatedAt: null });
+      const derivedAddress = "akash1derived";
+      const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet: bareWallet, isNew: true });
+      const updateWalletById = vi.fn().mockImplementation(async (id, patch) => ({ ...bareWallet, ...patch }));
+
+      const di = setup({ getOrCreateWallet, updateWalletById });
+      const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
+      managedUserWalletService.createWallet.mockResolvedValue({ address: derivedAddress });
+
+      const result = await di.resolve(WalletInitializerService).ensureWallet(userId);
+
+      expect(getOrCreateWallet).toHaveBeenCalledWith({ userId });
+      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: bareWallet.id });
+      expect(updateWalletById).toHaveBeenCalledWith(bareWallet.id, { address: derivedAddress }, { returning: true });
+      expect(result.address).toBe(derivedAddress);
+    });
+
+    it("returns the existing wallet without deriving an address again", async () => {
+      const userId = "test-user-id";
+      const existingWallet = createUserWallet({ userId });
+      const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet: existingWallet, isNew: false });
+      const updateWalletById = vi.fn();
+
+      const di = setup({ getOrCreateWallet, updateWalletById });
+      const managedUserWalletService = di.resolve(ManagedUserWalletService);
+
+      const result = await di.resolve(WalletInitializerService).ensureWallet(userId);
+
+      expect(managedUserWalletService.createWallet).not.toHaveBeenCalled();
+      expect(updateWalletById).not.toHaveBeenCalled();
+      expect(result).toEqual(existingWallet);
+    });
+  });
+
   function setup(input?: {
     getOrCreateWallet?: UserWalletRepository["getOrCreate"];
     updateWalletById?: UserWalletRepository["updateById"];
     deleteWalletById?: UserWalletRepository["deleteById"];
+    claimActivation?: UserWalletRepository["claimActivation"];
     userId?: string;
     user?: UserOutput;
     isProduction?: boolean;
@@ -176,6 +242,7 @@ describe(WalletInitializerService.name, () => {
         getOrCreate: input?.getOrCreateWallet,
         updateById: input?.updateWalletById,
         deleteById: input?.deleteWalletById ?? vi.fn(),
+        claimActivation: input?.claimActivation,
         accessibleBy() {
           return this as unknown as UserWalletRepository;
         },
