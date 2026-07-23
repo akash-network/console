@@ -14,7 +14,7 @@ const Switch = React.forwardRef<
   <SwitchPrimitives.Root
     data-size={size}
     className={cn(
-      "group/switch aria-[checked=false]:bg-input aria-[checked=false]:dark:bg-input/80 aria-[checked=true]:bg-primary focus-visible:ring-ring focus-visible:ring-offset-background peer inline-flex shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-6 data-[size=sm]:h-4 data-[size=default]:w-11 data-[size=sm]:w-7",
+      "group/switch aria-[checked=false]:bg-input aria-[checked=true]:bg-primary focus-visible:ring-ring focus-visible:ring-offset-background peer inline-flex shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-6 data-[size=sm]:h-4 data-[size=default]:w-11 data-[size=sm]:w-7",
       className
     )}
     {...props}
