@@ -100,7 +100,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
         <title>Onboarding | Akash Console</title>
         <meta name="description" content="Deploy your first app on Akash Network with our onboarding flow. Get a live URL in about 30 seconds." />
       </Head>
-      <div className="flex min-h-screen flex-col bg-white dark:bg-black">
+      <div className="flex min-h-screen flex-col bg-background">
         <header className="relative flex items-center justify-between border-b border-border">
           <div className="flex h-14 w-full items-center justify-between pl-4 pr-4">
             <AkashConsoleLogo />

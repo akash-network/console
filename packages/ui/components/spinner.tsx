@@ -13,7 +13,7 @@ export function Spinner({ className, size = "medium", variant = "primary" }: Spi
       <svg
         aria-hidden="true"
         className={cn("animate-spin", {
-          "fill-primary text-muted-foreground/20 dark:fill-primary dark:text-transparent/20": variant === "primary",
+          "fill-primary text-muted-foreground/20": variant === "primary",
           "fill-primary text-transparent/20 dark:text-white": variant === "dark",
           "h-2 w-2": size === "xSmall",
           "h-4 w-4": size === "small",

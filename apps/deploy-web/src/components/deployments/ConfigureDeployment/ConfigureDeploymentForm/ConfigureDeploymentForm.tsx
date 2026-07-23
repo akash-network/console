@@ -269,7 +269,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   );
 
   return (
-    <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col dark:bg-card">
+    <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col">
       <d.NextSeo title="Configure your deployment" />
       <FormProvider {...form}>
         <div className="relative flex min-h-0 flex-1 flex-col">
