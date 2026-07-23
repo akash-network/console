@@ -8,9 +8,11 @@ import { inject, singleton } from "tsyringe";
 import { PaymentIntentResult } from "@src/billing/http-schemas/stripe.schema";
 import { STRIPE_CLIENT } from "@src/billing/providers/stripe-client.provider";
 import { SETTLED_TRANSACTION_STATUSES, StripeTransactionInput, StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
+import { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
+import { RefillService } from "@src/billing/services/refill/refill.service";
 import { STRIPE_CURRENCY } from "@src/billing/services/stripe/stripe.service";
 import { IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE, PAYMENT_IN_PROGRESS_ERROR_MESSAGE } from "@src/billing/services/stripe-error/stripe-error.service";
-import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY, WithTransaction } from "@src/core";
 import { TimerService } from "@src/core/services/timer/timer.service";
 
 /**
@@ -37,6 +39,8 @@ export class StripeTransactionService {
   constructor(
     @inject(STRIPE_CLIENT) private readonly stripe: Stripe,
     private readonly stripeTransactionRepository: StripeTransactionRepository,
+    private readonly refillService: RefillService,
+    private readonly firstPurchaseBonusService: FirstPurchaseBonusService,
     private readonly timerService: TimerService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -377,5 +381,188 @@ export class StripeTransactionService {
     assert(lastTransaction, 404, "Transaction not found");
 
     return lastTransaction;
+  }
+
+  @WithTransaction()
+  async settleSucceededTransaction(params: {
+    transactionId: string;
+    chargeId: string | undefined;
+    paymentMethodType: string | undefined;
+    cardBrand: string | undefined;
+    cardLast4: string | undefined;
+    receiptUrl: string | undefined;
+    stripePaymentIntentId: string | undefined;
+    paymentAmount: number;
+    userId: string;
+    eventDescription: string;
+    endTrial?: boolean;
+  }): Promise<number> {
+    const transaction = await this.stripeTransactionRepository.findOneByAndLock({ id: params.transactionId });
+
+    if (!transaction) {
+      this.loggerService.warn({
+        event: "TRANSACTION_NOT_FOUND_FOR_UPDATE",
+        transactionId: params.transactionId,
+        description: params.eventDescription
+      });
+      return 0;
+    }
+
+    if (transaction.status === "succeeded") {
+      this.loggerService.info({
+        event: "PAYMENT_ALREADY_PROCESSED",
+        transactionId: params.transactionId,
+        description: params.eventDescription
+      });
+      return 0;
+    }
+
+    const bonusAmount = await this.firstPurchaseBonusService.getEligibleBonusAmount(transaction, params.paymentAmount);
+
+    await this.stripeTransactionRepository.updateById(params.transactionId, {
+      status: "succeeded",
+      stripeChargeId: params.chargeId,
+      paymentMethodType: params.paymentMethodType,
+      cardBrand: params.cardBrand,
+      cardLast4: params.cardLast4,
+      receiptUrl: params.receiptUrl,
+      stripePaymentIntentId: params.stripePaymentIntentId,
+      ...(bonusAmount > 0 ? { bonusAmount } : {})
+    });
+
+    // Single combined top-up: two calls would double chain fees and race on retrieveDeploymentLimit.
+    await this.refillService.topUpWallet(params.paymentAmount + bonusAmount, params.userId, {
+      endTrial: params.endTrial,
+      payment: {
+        currency: transaction.currency,
+        cardBrand: params.cardBrand,
+        paymentMethodType: params.paymentMethodType,
+        transactionId: transaction.id,
+        source: transaction.type,
+        ...(bonusAmount > 0 ? { bonusAmountCents: bonusAmount } : {})
+      }
+    });
+
+    if (bonusAmount > 0) {
+      this.firstPurchaseBonusService.trackBonusGranted(params.userId, params.paymentAmount, bonusAmount);
+      this.loggerService.info({
+        event: "FIRST_PURCHASE_BONUS_GRANTED",
+        transactionId: params.transactionId,
+        userId: params.userId,
+        paidAmountCents: params.paymentAmount,
+        bonusAmountCents: bonusAmount
+      });
+    }
+
+    return bonusAmount;
+  }
+
+  @WithTransaction()
+  async markPaymentIntentFailed(paymentIntentId: string, errorMessage: string): Promise<void> {
+    await this.stripeTransactionRepository.updateByPaymentIntentId(paymentIntentId, {
+      status: "failed",
+      errorMessage
+    });
+
+    this.loggerService.warn({
+      event: "PAYMENT_INTENT_FAILED",
+      paymentIntentId,
+      errorMessage
+    });
+  }
+
+  @WithTransaction()
+  async markPaymentIntentCanceled(paymentIntentId: string): Promise<void> {
+    await this.stripeTransactionRepository.updateByPaymentIntentId(paymentIntentId, {
+      status: "canceled"
+    });
+
+    this.loggerService.info({
+      event: "PAYMENT_INTENT_CANCELED",
+      paymentIntentId
+    });
+  }
+
+  @WithTransaction()
+  async applyRefund(params: { chargeId: string; amountRefunded: number; fullyRefunded: boolean; userId: string }): Promise<void> {
+    // Locked read: concurrent charge.refunded deliveries serialize here, so the loser
+    // re-reads the committed amountRefunded/status and bails on the idempotency check
+    // instead of double-debiting the wallet.
+    const transaction = await this.stripeTransactionRepository.findOneByAndLock({ stripeChargeId: params.chargeId });
+
+    if (!transaction) {
+      this.loggerService.warn({ event: "CHARGE_REFUNDED_NO_TRANSACTION", chargeId: params.chargeId });
+      return;
+    }
+
+    // Idempotency check: if we've already processed up to this refund amount, skip
+    if (transaction.amountRefunded >= params.amountRefunded) {
+      this.loggerService.info({
+        event: "CHARGE_REFUND_ALREADY_PROCESSED",
+        chargeId: params.chargeId,
+        transactionId: transaction.id,
+        storedAmountRefunded: transaction.amountRefunded,
+        incomingAmountRefunded: params.amountRefunded
+      });
+      return;
+    }
+
+    // Calculate delta based on what we've already processed, not previous_attributes
+    // This handles both retries and partial refunds correctly
+    const refundedAmount = params.amountRefunded - transaction.amountRefunded;
+    if (refundedAmount <= 0) {
+      this.loggerService.warn({ event: "CHARGE_REFUNDED_NO_DELTA", chargeId: params.chargeId, totalRefunded: params.amountRefunded });
+      return;
+    }
+
+    // Only reduce wallet balance if the transaction was successful (user actually received credits)
+    if (transaction.status !== "succeeded" && transaction.status !== "refunded") {
+      this.loggerService.info({
+        event: "CHARGE_REFUNDED_SKIPPED",
+        chargeId: params.chargeId,
+        transactionId: transaction.id,
+        transactionStatus: transaction.status,
+        reason: "Transaction was not in succeeded state, user never received credits"
+      });
+      return;
+    }
+
+    const isFullyRefunded = params.fullyRefunded;
+
+    // Claw back the first-purchase bonus only on the first transition to fully-refunded
+    // (pre-update status check); partial refunds never touch the bonus. bonusAmount stays
+    // on the row as the audit record of the grant.
+    const bonusClawback = isFullyRefunded && transaction.status !== "refunded" && transaction.bonusAmount > 0 ? transaction.bonusAmount : 0;
+
+    await this.stripeTransactionRepository.updateById(transaction.id, {
+      amountRefunded: params.amountRefunded,
+      ...(isFullyRefunded ? { status: "refunded" } : {})
+    });
+
+    await this.refillService.reduceWalletBalance(refundedAmount + bonusClawback, params.userId, {
+      currency: transaction.currency,
+      transactionId: transaction.id
+    });
+
+    if (bonusClawback > 0) {
+      this.loggerService.info({
+        event: "FIRST_PURCHASE_BONUS_CLAWED_BACK",
+        chargeId: params.chargeId,
+        userId: params.userId,
+        transactionId: transaction.id,
+        bonusAmountCents: bonusClawback
+      });
+    }
+
+    this.loggerService.info({
+      event: "CHARGE_REFUNDED",
+      chargeId: params.chargeId,
+      userId: params.userId,
+      refundedAmount,
+      totalRefunded: params.amountRefunded,
+      previouslyRefunded: transaction.amountRefunded,
+      isFullyRefunded,
+      transactionId: transaction.id
+    });
   }
 }

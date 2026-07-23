@@ -10,10 +10,9 @@ import {
   StripeTransactionRepository,
   TRIAL_PRESERVING_TRANSACTION_TYPES
 } from "@src/billing/repositories";
-import { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import { assertIsPayingUser } from "@src/billing/services/paying-user/paying-user";
-import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
+import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { WithTransaction } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { UserRepository } from "@src/user/repositories";
@@ -24,12 +23,11 @@ export class StripeWebhookService {
 
   constructor(
     private readonly stripe: StripeService,
-    private readonly refillService: RefillService,
     private readonly userRepository: UserRepository,
     private readonly paymentMethodRepository: PaymentMethodRepository,
     private readonly stripeTransactionRepository: StripeTransactionRepository,
-    private readonly firstPurchaseBonusService: FirstPurchaseBonusService,
-    private readonly domainEventsService: DomainEventsService
+    private readonly domainEventsService: DomainEventsService,
+    private readonly stripeTransaction: StripeTransactionService
   ) {}
 
   async routeStripeEvent(signature: string, rawEvent: string) {
@@ -205,7 +203,7 @@ export class StripeWebhookService {
       }
     }
 
-    const bonusAmountCents = await this.updateTransactionAndTopUp({
+    const bonusAmountCents = await this.stripeTransaction.settleSucceededTransaction({
       transactionId: params.transaction.id,
       chargeId: params.chargeId,
       paymentMethodType: params.paymentMethodType,
@@ -219,119 +217,22 @@ export class StripeWebhookService {
       endTrial: params.endTrial
     });
 
-    // Published here, not inside updateTransactionAndTopUp: this method is not transactional but that one is,
+    // Published here, not inside settleSucceededTransaction: this method is not transactional but that one is,
     // so the awaited call has committed by now and the bonus-granted email never fires on a rolled-back grant.
     if (bonusAmountCents > 0) {
       await this.domainEventsService.publish(new FirstPurchaseBonusGranted({ userId: user.id, bonusAmountCents, paidAmountCents: params.paymentAmount }));
     }
   }
 
-  @WithTransaction()
-  private async updateTransactionAndTopUp(params: {
-    transactionId: string;
-    chargeId: string | undefined;
-    paymentMethodType: string | undefined;
-    cardBrand: string | undefined;
-    cardLast4: string | undefined;
-    receiptUrl: string | undefined;
-    stripePaymentIntentId: string | undefined;
-    paymentAmount: number;
-    userId: string;
-    eventDescription: string;
-    endTrial?: boolean;
-  }): Promise<number> {
-    const transaction = await this.stripeTransactionRepository.findOneByAndLock({ id: params.transactionId });
-
-    if (!transaction) {
-      this.logger.warn({
-        event: "TRANSACTION_NOT_FOUND_FOR_UPDATE",
-        transactionId: params.transactionId,
-        description: params.eventDescription
-      });
-      return 0;
-    }
-
-    if (transaction.status === "succeeded") {
-      this.logger.info({
-        event: "PAYMENT_ALREADY_PROCESSED",
-        transactionId: params.transactionId,
-        description: params.eventDescription
-      });
-      return 0;
-    }
-
-    const bonusAmount = await this.firstPurchaseBonusService.getEligibleBonusAmount(transaction, params.paymentAmount);
-
-    await this.stripeTransactionRepository.updateById(params.transactionId, {
-      status: "succeeded",
-      stripeChargeId: params.chargeId,
-      paymentMethodType: params.paymentMethodType,
-      cardBrand: params.cardBrand,
-      cardLast4: params.cardLast4,
-      receiptUrl: params.receiptUrl,
-      stripePaymentIntentId: params.stripePaymentIntentId,
-      ...(bonusAmount > 0 ? { bonusAmount } : {})
-    });
-
-    // Single combined top-up: two calls would double chain fees and race on retrieveDeploymentLimit.
-    await this.refillService.topUpWallet(params.paymentAmount + bonusAmount, params.userId, {
-      endTrial: params.endTrial,
-      payment: {
-        currency: transaction.currency,
-        cardBrand: params.cardBrand,
-        paymentMethodType: params.paymentMethodType,
-        transactionId: transaction.id,
-        source: transaction.type,
-        ...(bonusAmount > 0 ? { bonusAmountCents: bonusAmount } : {})
-      }
-    });
-
-    if (bonusAmount > 0) {
-      this.firstPurchaseBonusService.trackBonusGranted(params.userId, params.paymentAmount, bonusAmount);
-      this.logger.info({
-        event: "FIRST_PURCHASE_BONUS_GRANTED",
-        transactionId: params.transactionId,
-        userId: params.userId,
-        paidAmountCents: params.paymentAmount,
-        bonusAmountCents: bonusAmount
-      });
-    }
-
-    return bonusAmount;
-  }
-
-  @WithTransaction()
   async handlePaymentIntentFailed(event: Stripe.PaymentIntentPaymentFailedEvent) {
     const paymentIntent = event.data.object;
-    const errorMessage = paymentIntent.last_payment_error?.message ?? "Payment failed";
-
-    await this.stripeTransactionRepository.updateByPaymentIntentId(paymentIntent.id, {
-      status: "failed",
-      errorMessage
-    });
-
-    this.logger.warn({
-      event: "PAYMENT_INTENT_FAILED",
-      paymentIntentId: paymentIntent.id,
-      errorMessage
-    });
+    await this.stripeTransaction.markPaymentIntentFailed(paymentIntent.id, paymentIntent.last_payment_error?.message ?? "Payment failed");
   }
 
-  @WithTransaction()
   async handlePaymentIntentCanceled(event: Stripe.PaymentIntentCanceledEvent) {
-    const paymentIntent = event.data.object;
-
-    await this.stripeTransactionRepository.updateByPaymentIntentId(paymentIntent.id, {
-      status: "canceled"
-    });
-
-    this.logger.info({
-      event: "PAYMENT_INTENT_CANCELED",
-      paymentIntentId: paymentIntent.id
-    });
+    await this.stripeTransaction.markPaymentIntentCanceled(event.data.object.id);
   }
 
-  @WithTransaction()
   async handleChargeRefunded(event: Stripe.ChargeRefundedEvent) {
     const charge = event.data.object;
     const customerId = charge.customer as string;
@@ -347,85 +248,11 @@ export class StripeWebhookService {
       return;
     }
 
-    // Locked read: concurrent charge.refunded deliveries serialize here, so the loser
-    // re-reads the committed amountRefunded/status and bails on the idempotency check
-    // instead of double-debiting the wallet.
-    const transaction = await this.stripeTransactionRepository.findOneByAndLock({ stripeChargeId: charge.id });
-
-    if (!transaction) {
-      this.logger.warn({ event: "CHARGE_REFUNDED_NO_TRANSACTION", chargeId: charge.id });
-      return;
-    }
-
-    // Idempotency check: if we've already processed up to this refund amount, skip
-    if (transaction.amountRefunded >= charge.amount_refunded) {
-      this.logger.info({
-        event: "CHARGE_REFUND_ALREADY_PROCESSED",
-        chargeId: charge.id,
-        transactionId: transaction.id,
-        storedAmountRefunded: transaction.amountRefunded,
-        incomingAmountRefunded: charge.amount_refunded
-      });
-      return;
-    }
-
-    // Calculate delta based on what we've already processed, not previous_attributes
-    // This handles both retries and partial refunds correctly
-    const refundedAmount = charge.amount_refunded - transaction.amountRefunded;
-    if (refundedAmount <= 0) {
-      this.logger.warn({ event: "CHARGE_REFUNDED_NO_DELTA", chargeId: charge.id, totalRefunded: charge.amount_refunded });
-      return;
-    }
-
-    // Only reduce wallet balance if the transaction was successful (user actually received credits)
-    if (transaction.status !== "succeeded" && transaction.status !== "refunded") {
-      this.logger.info({
-        event: "CHARGE_REFUNDED_SKIPPED",
-        chargeId: charge.id,
-        transactionId: transaction.id,
-        transactionStatus: transaction.status,
-        reason: "Transaction was not in succeeded state, user never received credits"
-      });
-      return;
-    }
-
-    const isFullyRefunded = charge.refunded;
-
-    // Claw back the first-purchase bonus only on the first transition to fully-refunded
-    // (pre-update status check); partial refunds never touch the bonus. bonusAmount stays
-    // on the row as the audit record of the grant.
-    const bonusClawback = isFullyRefunded && transaction.status !== "refunded" && transaction.bonusAmount > 0 ? transaction.bonusAmount : 0;
-
-    // Update transaction with new refund amount and status
-    await this.stripeTransactionRepository.updateById(transaction.id, {
-      amountRefunded: charge.amount_refunded,
-      ...(isFullyRefunded ? { status: "refunded" } : {})
-    });
-
-    await this.refillService.reduceWalletBalance(refundedAmount + bonusClawback, user.id, {
-      currency: transaction.currency,
-      transactionId: transaction.id
-    });
-
-    if (bonusClawback > 0) {
-      this.logger.info({
-        event: "FIRST_PURCHASE_BONUS_CLAWED_BACK",
-        chargeId: charge.id,
-        userId: user.id,
-        transactionId: transaction.id,
-        bonusAmountCents: bonusClawback
-      });
-    }
-
-    this.logger.info({
-      event: "CHARGE_REFUNDED",
+    await this.stripeTransaction.applyRefund({
       chargeId: charge.id,
-      userId: user.id,
-      refundedAmount,
-      totalRefunded: charge.amount_refunded,
-      previouslyRefunded: transaction.amountRefunded,
-      isFullyRefunded,
-      transactionId: transaction.id
+      amountRefunded: charge.amount_refunded,
+      fullyRefunded: charge.refunded,
+      userId: user.id
     });
   }
 
