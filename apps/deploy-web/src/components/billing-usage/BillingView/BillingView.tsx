@@ -121,10 +121,6 @@ export const BillingView: React.FC<BillingViewProps> = ({
         );
       }
     }),
-    columnHelper.accessor("description", {
-      header: "Description",
-      cell: info => info.getValue() || "N/A"
-    }),
     columnHelper.accessor("amount", {
       header: "Amount",
       cell: info => {
@@ -149,6 +145,10 @@ export const BillingView: React.FC<BillingViewProps> = ({
           </div>
         );
       }
+    }),
+    columnHelper.accessor("description", {
+      header: "Description",
+      cell: info => info.getValue() || "N/A"
     }),
     columnHelper.accessor("status", {
       header: "Status",
@@ -214,7 +214,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
     );
   }
 
-  const columnClasses = ["w-28 px-4 py-2", "w-40 px-4 py-2", "w-48 px-4 py-2", "w-32 px-4 py-2", "w-28 px-4 py-2", "w-16 px-4 py-2"];
+  const columnClasses = ["w-28 px-4 py-2", "w-40 px-4 py-2", "w-32 px-4 py-2", "w-48 px-4 py-2", "w-28 px-4 py-2", "w-16 px-4 py-2"];
 
   return (
     <div className="space-y-2">
