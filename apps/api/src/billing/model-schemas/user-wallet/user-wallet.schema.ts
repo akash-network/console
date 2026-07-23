@@ -1,5 +1,6 @@
 import { boolean, numeric, pgTable, serial, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
+// eslint-disable-next-line import-x/no-cycle
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
 export const UserWallets = pgTable("user_wallets", {
