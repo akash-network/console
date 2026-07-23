@@ -81,25 +81,15 @@ export class QueryKeys {
    */
   static getManagedWalletCreateMutationKey = () => ["MANAGED_WALLET_CREATE"];
 
-  static getPaymentTransactionsKey = (options?: {
-    limit?: number;
-    startingAfter?: string | null;
-    endingBefore?: string | null;
-    startDate?: Date | null;
-    endDate?: Date | null;
-  }) => {
+  static getPaymentTransactionsKey = (options?: { limit?: number; offset?: number | null; startDate?: Date | null; endDate?: Date | null }) => {
     const key = ["STRIPE_TRANSACTIONS"];
 
     if (options?.limit) {
       key.push("limit", options.limit.toString());
     }
 
-    if (options?.startingAfter) {
-      key.push("after", options.startingAfter);
-    }
-
-    if (options?.endingBefore) {
-      key.push("before", options.endingBefore);
+    if (options?.offset) {
+      key.push("offset", options.offset.toString());
     }
 
     if (options?.startDate) {

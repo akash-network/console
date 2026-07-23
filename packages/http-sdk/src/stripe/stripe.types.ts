@@ -45,18 +45,24 @@ export interface PaymentMethod {
   } | null;
 }
 
-export interface Charge {
+export type BillingTransactionType = "payment_intent" | "coupon_claim" | "manual_credit";
+
+export interface BillingTransaction {
   id: string;
+  type: BillingTransactionType;
   amount: number;
+  /** Cumulative amount refunded on this transaction, in cents. */
+  amountRefunded: number;
   /** First-purchase bonus credited with this payment, in cents. */
   bonusAmount?: number;
   currency: string;
   status: string;
   created: number;
-  paymentMethod: PaymentMethod;
-  receiptUrl?: string;
-  description?: string;
-  metadata?: Record<string, string>;
+  cardBrand?: string | null;
+  cardLast4?: string | null;
+  stripeInvoiceId?: string | null;
+  receiptUrl?: string | null;
+  description?: string | null;
 }
 
 export interface Discount {
@@ -89,18 +95,15 @@ export interface ApplyCouponParams {
 
 export interface CustomerTransactionsParams {
   limit?: number;
-  startingAfter?: string | null;
-  endingBefore?: string | null;
+  offset?: number | null;
   startDate?: Date | null;
   endDate?: Date | null;
 }
 
 export interface CustomerTransactionsResponse {
-  transactions: Charge[];
-  hasMore: boolean;
-  nextPage: string | null;
-  prevPage: string | null;
+  transactions: BillingTransaction[];
   totalCount: number;
+  hasMore: boolean;
 }
 
 export interface ExportTransactionsCsvParams {

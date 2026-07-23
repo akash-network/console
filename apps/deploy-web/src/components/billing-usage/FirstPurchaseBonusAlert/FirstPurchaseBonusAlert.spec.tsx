@@ -1,6 +1,6 @@
 import React from "react";
 import { IntlProvider } from "react-intl";
-import type { Charge } from "@akashnetwork/http-sdk";
+import type { BillingTransaction } from "@akashnetwork/http-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -17,7 +17,7 @@ describe(FirstPurchaseBonusAlert.name, () => {
   });
 
   it("renders nothing when the user already has a succeeded charge", () => {
-    const { container } = setup({ transactions: [mock<Charge>({ status: "succeeded" })] });
+    const { container } = setup({ transactions: [mock<BillingTransaction>({ status: "succeeded" })] });
 
     expect(container).toBeEmptyDOMElement();
   });
@@ -31,7 +31,7 @@ describe(FirstPurchaseBonusAlert.name, () => {
   });
 
   it("shows the offer to users whose only charges failed", () => {
-    setup({ amount: 0, transactions: [mock<Charge>({ status: "failed" })] });
+    setup({ amount: 0, transactions: [mock<BillingTransaction>({ status: "failed" })] });
 
     expect(screen.getByText("First-purchase bonus")).toBeInTheDocument();
   });
@@ -66,7 +66,7 @@ describe(FirstPurchaseBonusAlert.name, () => {
     expect(container).not.toHaveTextContent("more to unlock");
   });
 
-  function setup(input?: { amount?: number; isSuccess?: boolean; transactions?: Charge[] }) {
+  function setup(input?: { amount?: number; isSuccess?: boolean; transactions?: BillingTransaction[] }) {
     // UseQueryResult is a discriminated union that neither mock<T>() nor a partial literal can satisfy
     const usePaymentTransactionsQuery = vi.fn(() => ({
       data: { transactions: input?.transactions ?? [] },
