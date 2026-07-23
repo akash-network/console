@@ -21,6 +21,7 @@ import {
 } from "@src/billing/http-schemas/stripe.schema";
 import type { StripeTransactionOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
+import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { StripeService, TOP_UP_IDEMPOTENCY_KEY_PREFIX } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
 import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
@@ -35,7 +36,8 @@ export class StripeController {
     private readonly stripeErrorService: StripeErrorService,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly trialValidationService: TrialValidationService,
-    private readonly transactionReporting: TransactionReportingService
+    private readonly transactionReporting: TransactionReportingService,
+    private readonly paymentMethodService: PaymentMethodService
   ) {}
 
   @Protected([{ action: "read", subject: "StripePayment" }])
@@ -60,7 +62,7 @@ export class StripeController {
     const { ability } = this.authService;
     const currentUser = this.authService.getCurrentPayingUser();
 
-    await this.stripe.markPaymentMethodAsDefault(input.data.id, currentUser, ability);
+    await this.paymentMethodService.markPaymentMethodAsDefault(input.data.id, currentUser, ability);
   }
 
   @Protected([{ action: "read", subject: "PaymentMethod" }])
@@ -75,7 +77,7 @@ export class StripeController {
       });
     }
 
-    const paymentMethod = await this.stripe.getDefaultPaymentMethod(currentUser, ability);
+    const paymentMethod = await this.paymentMethodService.getDefaultPaymentMethod(currentUser, ability);
 
     assert(paymentMethod, 404, "PaymentMethod not found");
 
@@ -87,7 +89,7 @@ export class StripeController {
     const currentUser = this.authService.getCurrentPayingUser({ strict: false });
 
     if (currentUser) {
-      const paymentMethods = await this.stripe.getPaymentMethods(currentUser.id, currentUser.stripeCustomerId, this.authService.ability);
+      const paymentMethods = await this.paymentMethodService.getPaymentMethods(currentUser.id, currentUser.stripeCustomerId, this.authService.ability);
       return { data: paymentMethods };
     }
 
@@ -104,7 +106,7 @@ export class StripeController {
     this.trialValidationService.validateTopUpAmount(userWallet, params.amount);
 
     try {
-      assert(await this.stripe.hasPaymentMethod(params.paymentMethodId, currentUser), 403, "Payment method does not belong to the user");
+      assert(await this.paymentMethodService.hasPaymentMethod(params.paymentMethodId, currentUser), 403, "Payment method does not belong to the user");
 
       const result = await this.stripeTransaction.createPaymentIntent({
         userId: currentUser.id,

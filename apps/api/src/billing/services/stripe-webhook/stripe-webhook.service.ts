@@ -4,16 +4,11 @@ import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
 import { FirstPurchaseBonusGranted } from "@src/billing/events/first-purchase-bonus-granted";
-import {
-  PaymentMethodRepository,
-  type StripeTransactionOutput,
-  StripeTransactionRepository,
-  TRIAL_PRESERVING_TRANSACTION_TYPES
-} from "@src/billing/repositories";
+import { type StripeTransactionOutput, StripeTransactionRepository, TRIAL_PRESERVING_TRANSACTION_TYPES } from "@src/billing/repositories";
 import { assertIsPayingUser } from "@src/billing/services/paying-user/paying-user";
+import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
-import { WithTransaction } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { UserRepository } from "@src/user/repositories";
 
@@ -24,10 +19,10 @@ export class StripeWebhookService {
   constructor(
     private readonly stripe: StripeService,
     private readonly userRepository: UserRepository,
-    private readonly paymentMethodRepository: PaymentMethodRepository,
     private readonly stripeTransactionRepository: StripeTransactionRepository,
     private readonly domainEventsService: DomainEventsService,
-    private readonly stripeTransaction: StripeTransactionService
+    private readonly stripeTransaction: StripeTransactionService,
+    private readonly paymentMethodService: PaymentMethodService
   ) {}
 
   async routeStripeEvent(signature: string, rawEvent: string) {
@@ -256,7 +251,6 @@ export class StripeWebhookService {
     });
   }
 
-  @WithTransaction()
   async handlePaymentMethodAttached(event: Stripe.PaymentMethodAttachedEvent) {
     const paymentMethod = event.data.object;
     const customerId = paymentMethod.customer as string;
@@ -281,68 +275,23 @@ export class StripeWebhookService {
 
     assertIsPayingUser(user);
 
-    const fingerprint = this.stripe.extractFingerprint(paymentMethod);
-    if (!fingerprint) {
-      this.logger.error({
-        event: "PAYMENT_METHOD_MISSING_FINGERPRINT",
-        paymentMethodId: paymentMethod.id,
-        type: paymentMethod.type
-      });
+    const result = await this.paymentMethodService.syncAttached({ user, paymentMethod });
+    if (!result) {
       return;
-    }
-
-    // Use upsert for idempotency - handles Stripe webhook retries gracefully
-    const { paymentMethod: localPaymentMethod, isNew } = await this.paymentMethodRepository.upsert({
-      userId: user.id,
-      fingerprint,
-      paymentMethodId: paymentMethod.id
-    });
-
-    // Only set as default on Stripe if newly created AND is the first payment method (default)
-    if (isNew && localPaymentMethod.isDefault) {
-      try {
-        await this.stripe.markRemotePaymentMethodAsDefault(paymentMethod.id, user);
-      } catch (error) {
-        // Log but don't fail - local record exists, Stripe sync can be retried manually if needed
-        this.logger.warn({
-          event: "STRIPE_DEFAULT_PAYMENT_METHOD_SYNC_FAILED",
-          paymentMethodId: paymentMethod.id,
-          userId: user.id,
-          error
-        });
-      }
     }
 
     this.logger.info({
       event: "PAYMENT_METHOD_ATTACHED",
       paymentMethodId: paymentMethod.id,
       userId: user.id,
-      isDefault: localPaymentMethod.isDefault,
-      wasAlreadyProcessed: !isNew
+      isDefault: result.isDefault,
+      wasAlreadyProcessed: !result.isNew
     });
   }
 
-  @WithTransaction()
   async handlePaymentMethodDetached(event: Stripe.PaymentMethodDetachedEvent) {
     const paymentMethod = event.data.object;
     const customerId = paymentMethod.customer || event.data.previous_attributes?.customer;
-    const fingerprint = this.stripe.extractFingerprint(paymentMethod);
-
-    this.logger.info({
-      event: "PAYMENT_METHOD_DETACHED",
-      paymentMethodId: paymentMethod.id,
-      customerId,
-      fingerprint
-    });
-
-    if (!fingerprint) {
-      this.logger.warn({
-        event: "PAYMENT_METHOD_DETACHED_NO_FINGERPRINT",
-        paymentMethodId: paymentMethod.id,
-        type: paymentMethod.type
-      });
-      return;
-    }
 
     if (!customerId) {
       this.logger.warn({
@@ -361,13 +310,12 @@ export class StripeWebhookService {
       return;
     }
 
-    const deletedPaymentMethod = await this.paymentMethodRepository.deleteByFingerprint(fingerprint, paymentMethod.id, currentUser.id);
+    const deleted = await this.paymentMethodService.removeDetached({ userId: currentUser.id, paymentMethod });
 
     this.logger.info({
       event: "PAYMENT_METHOD_DETACHED",
       paymentMethodId: paymentMethod.id,
-      fingerprint,
-      deleted: !!deletedPaymentMethod
+      deleted
     });
   }
 }

@@ -3,7 +3,7 @@ import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { UserWalletRepository, type WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
-import { StripeService } from "@src/billing/services/stripe/stripe.service";
+import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { WithTransaction } from "@src/core";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
@@ -21,7 +21,7 @@ export class WalletSettingService {
     private readonly walletSettingRepository: WalletSettingRepository,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly userRepository: UserRepository,
-    private readonly stripeService: StripeService,
+    private readonly paymentMethodService: PaymentMethodService,
     private readonly authService: AuthService,
     private readonly walletReloadJobService: WalletReloadJobService
   ) {}
@@ -104,7 +104,7 @@ export class WalletSettingService {
 
       const { ability } = this.authService;
       assert(
-        await this.stripeService.getDefaultPaymentMethod({ ...user, stripeCustomerId }, ability),
+        await this.paymentMethodService.getDefaultPaymentMethod({ ...user, stripeCustomerId }, ability),
         403,
         "Default payment method is required to enable automatic wallet balance reload"
       );

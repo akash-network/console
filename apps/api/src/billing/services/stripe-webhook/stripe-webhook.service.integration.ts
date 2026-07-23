@@ -7,6 +7,7 @@ import { mock } from "vitest-mock-extended";
 import { FirstPurchaseBonusGranted } from "@src/billing/events/first-purchase-bonus-granted";
 import type { PaymentMethodRepository, StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
 import type { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
+import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
 import type { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
@@ -858,235 +859,69 @@ describe(StripeWebhookService.name, () => {
   });
 
   describe("handlePaymentMethodAttached", () => {
-    it("creates payment method for new card", async () => {
-      const { service, userRepository, paymentMethodRepository, stripeService } = setup();
+    it("delegates to PaymentMethodService for a paying user", async () => {
+      const { service, userRepository, paymentMethodService } = setup();
       const mockUser = createTestUser({ stripeCustomerId: "cus_123" });
-      const paymentMethodId = "pm_123";
-      const fingerprint = "fp_abc123";
-
       userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeService.extractFingerprint.mockReturnValue(fingerprint);
-      paymentMethodRepository.upsert.mockResolvedValue({
-        paymentMethod: {
-          id: "local-pm-123",
-          userId: mockUser.id,
-          fingerprint,
-          paymentMethodId,
-          isDefault: true,
-          isValidated: false,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        isNew: true
-      });
-      stripeService.markRemotePaymentMethodAsDefault.mockResolvedValue(undefined);
-
-      const event = createPaymentMethodAttachedEvent({
-        id: paymentMethodId,
-        customer: mockUser.stripeCustomerId!,
-        card: { fingerprint }
-      });
+      paymentMethodService.syncAttached.mockResolvedValue({ isNew: true, isDefault: true });
+      const event = createPaymentMethodAttachedEvent({ id: "pm_123", customer: mockUser.stripeCustomerId!, card: { fingerprint: "fp_abc123" } });
 
       await service.handlePaymentMethodAttached(event);
 
-      expect(paymentMethodRepository.upsert).toHaveBeenCalledWith({
-        userId: mockUser.id,
-        fingerprint,
-        paymentMethodId
-      });
-      expect(stripeService.markRemotePaymentMethodAsDefault).toHaveBeenCalledWith(paymentMethodId, mockUser);
+      expect(paymentMethodService.syncAttached).toHaveBeenCalledWith({ user: mockUser, paymentMethod: event.data.object });
     });
 
-    it("creates payment method for link type", async () => {
-      const { service, userRepository, paymentMethodRepository, stripeService } = setup();
-      const mockUser = createTestUser({ stripeCustomerId: "cus_123" });
-      const paymentMethodId = "pm_link_123";
-      const linkFingerprint = "link_abc123hash";
-
-      userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeService.extractFingerprint.mockReturnValue(linkFingerprint);
-      paymentMethodRepository.upsert.mockResolvedValue({
-        paymentMethod: {
-          id: "local-pm-link-123",
-          userId: mockUser.id,
-          fingerprint: linkFingerprint,
-          paymentMethodId,
-          isDefault: true,
-          isValidated: false,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        isNew: true
-      });
-      stripeService.markRemotePaymentMethodAsDefault.mockResolvedValue(undefined);
-
-      const event = createPaymentMethodAttachedEvent({
-        id: paymentMethodId,
-        customer: mockUser.stripeCustomerId!,
-        type: "link",
-        link: { email: "user@test.com" }
-      });
-
-      await service.handlePaymentMethodAttached(event);
-
-      expect(stripeService.extractFingerprint).toHaveBeenCalled();
-      expect(paymentMethodRepository.upsert).toHaveBeenCalledWith({
-        userId: mockUser.id,
-        fingerprint: linkFingerprint,
-        paymentMethodId
-      });
-      expect(stripeService.markRemotePaymentMethodAsDefault).toHaveBeenCalledWith(paymentMethodId, mockUser);
-    });
-
-    it("handles duplicate webhook delivery gracefully (idempotency)", async () => {
-      const { service, userRepository, paymentMethodRepository, stripeService } = setup();
-      const mockUser = createTestUser({ stripeCustomerId: "cus_123" });
-      const paymentMethodId = "pm_123";
-      const fingerprint = "fp_abc123";
-
-      userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeService.extractFingerprint.mockReturnValue(fingerprint);
-      paymentMethodRepository.upsert.mockResolvedValue({
-        paymentMethod: {
-          id: "local-pm-123",
-          userId: mockUser.id,
-          fingerprint,
-          paymentMethodId,
-          isDefault: true,
-          isValidated: false,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        isNew: false // Already existed
-      });
-
-      const event = createPaymentMethodAttachedEvent({
-        id: paymentMethodId,
-        customer: mockUser.stripeCustomerId!,
-        card: { fingerprint }
-      });
-
-      await service.handlePaymentMethodAttached(event);
-
-      expect(paymentMethodRepository.upsert).toHaveBeenCalled();
-      // Should NOT call Stripe API when payment method already exists
-      expect(stripeService.markRemotePaymentMethodAsDefault).not.toHaveBeenCalled();
-    });
-
-    it("does not set as default on Stripe when not the first payment method", async () => {
-      const { service, userRepository, paymentMethodRepository, stripeService } = setup();
-      const mockUser = createTestUser({ stripeCustomerId: "cus_123" });
-      const paymentMethodId = "pm_456";
-      const fingerprint = "fp_def456";
-
-      userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeService.extractFingerprint.mockReturnValue(fingerprint);
-      paymentMethodRepository.upsert.mockResolvedValue({
-        paymentMethod: {
-          id: "local-pm-456",
-          userId: mockUser.id,
-          fingerprint,
-          paymentMethodId,
-          isDefault: false, // Not the default (not first payment method)
-          isValidated: false,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        isNew: true
-      });
-
-      const event = createPaymentMethodAttachedEvent({
-        id: paymentMethodId,
-        customer: mockUser.stripeCustomerId!,
-        card: { fingerprint }
-      });
-
-      await service.handlePaymentMethodAttached(event);
-
-      expect(stripeService.markRemotePaymentMethodAsDefault).not.toHaveBeenCalled();
-    });
-
-    it("logs warning but does not fail when Stripe default sync fails", async () => {
-      const { service, userRepository, paymentMethodRepository, stripeService } = setup();
-      const mockUser = createTestUser({ stripeCustomerId: "cus_123" });
-      const paymentMethodId = "pm_123";
-      const fingerprint = "fp_abc123";
-
-      userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeService.extractFingerprint.mockReturnValue(fingerprint);
-      paymentMethodRepository.upsert.mockResolvedValue({
-        paymentMethod: {
-          id: "local-pm-123",
-          userId: mockUser.id,
-          fingerprint,
-          paymentMethodId,
-          isDefault: true,
-          isValidated: false,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        isNew: true
-      });
-      stripeService.markRemotePaymentMethodAsDefault.mockRejectedValue(new Error("Stripe API error"));
-
-      const event = createPaymentMethodAttachedEvent({
-        id: paymentMethodId,
-        customer: mockUser.stripeCustomerId!,
-        card: { fingerprint }
-      });
-
-      // Should not throw
-      await expect(service.handlePaymentMethodAttached(event)).resolves.not.toThrow();
-    });
-
-    it("returns early when customer ID is missing", async () => {
-      const { service, userRepository, paymentMethodRepository } = setup();
-
-      const event = createPaymentMethodAttachedEvent({
-        id: "pm_123",
-        customer: null,
-        card: { fingerprint: "fp_abc123" }
-      });
+    it("returns early without delegating when the customer id is missing", async () => {
+      const { service, userRepository, paymentMethodService } = setup();
+      const event = createPaymentMethodAttachedEvent({ id: "pm_123", customer: null, card: { fingerprint: "fp_abc123" } });
 
       await service.handlePaymentMethodAttached(event);
 
       expect(userRepository.findOneBy).not.toHaveBeenCalled();
-      expect(paymentMethodRepository.upsert).not.toHaveBeenCalled();
+      expect(paymentMethodService.syncAttached).not.toHaveBeenCalled();
     });
 
-    it("returns early when user is not found", async () => {
-      const { service, userRepository, paymentMethodRepository } = setup();
-
+    it("returns early without delegating when the user is not found", async () => {
+      const { service, userRepository, paymentMethodService } = setup();
       userRepository.findOneBy.mockResolvedValue(undefined);
-
-      const event = createPaymentMethodAttachedEvent({
-        id: "pm_123",
-        customer: "cus_unknown",
-        card: { fingerprint: "fp_abc123" }
-      });
+      const event = createPaymentMethodAttachedEvent({ id: "pm_123", customer: "cus_unknown", card: { fingerprint: "fp_abc123" } });
 
       await service.handlePaymentMethodAttached(event);
 
       expect(userRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: "cus_unknown" });
-      expect(paymentMethodRepository.upsert).not.toHaveBeenCalled();
+      expect(paymentMethodService.syncAttached).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("handlePaymentMethodDetached", () => {
+    it("delegates removal to PaymentMethodService for a known customer", async () => {
+      const { service, userRepository, paymentMethodService } = setup();
+      const mockUser = createTestUser({ stripeCustomerId: "cus_123" });
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      paymentMethodService.removeDetached.mockResolvedValue(true);
+      const event = {
+        id: "evt_1",
+        type: "payment_method.detached",
+        data: { object: { id: "pm_1", customer: "cus_123" } }
+      } as unknown as Stripe.PaymentMethodDetachedEvent;
+
+      await service.handlePaymentMethodDetached(event);
+
+      expect(paymentMethodService.removeDetached).toHaveBeenCalledWith({ userId: mockUser.id, paymentMethod: event.data.object });
     });
 
-    it("returns early when fingerprint is missing", async () => {
-      const { service, userRepository, paymentMethodRepository, stripeService } = setup();
-      const mockUser = createTestUser({ stripeCustomerId: "cus_123" });
+    it("returns early without delegating when the user is not found", async () => {
+      const { service, userRepository, paymentMethodService } = setup();
+      userRepository.findOneBy.mockResolvedValue(undefined);
+      const event = {
+        id: "evt_1",
+        type: "payment_method.detached",
+        data: { object: { id: "pm_1", customer: "cus_unknown" } }
+      } as unknown as Stripe.PaymentMethodDetachedEvent;
 
-      userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeService.extractFingerprint.mockReturnValue(undefined);
+      await service.handlePaymentMethodDetached(event);
 
-      const event = createPaymentMethodAttachedEvent({
-        id: "pm_123",
-        customer: mockUser.stripeCustomerId!,
-        card: { fingerprint: null }
-      });
-
-      await service.handlePaymentMethodAttached(event);
-
-      expect(paymentMethodRepository.upsert).not.toHaveBeenCalled();
+      expect(paymentMethodService.removeDetached).not.toHaveBeenCalled();
     });
   });
 
@@ -1100,6 +935,8 @@ describe(StripeWebhookService.name, () => {
     firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(0);
     const domainEventsService = mock<DomainEventsService>();
 
+    const paymentMethodService = mock<PaymentMethodService>();
+
     const stripeTransaction = new StripeTransactionService(
       mock<Stripe>(),
       stripeTransactionRepository,
@@ -1112,10 +949,10 @@ describe(StripeWebhookService.name, () => {
     const service = new StripeWebhookService(
       stripeService,
       userRepository,
-      paymentMethodRepository,
       stripeTransactionRepository,
       domainEventsService,
-      stripeTransaction
+      stripeTransaction,
+      paymentMethodService
     );
 
     return {
@@ -1126,7 +963,8 @@ describe(StripeWebhookService.name, () => {
       paymentMethodRepository,
       stripeTransactionRepository,
       firstPurchaseBonusService,
-      domainEventsService
+      domainEventsService,
+      paymentMethodService
     };
   }
 

@@ -6,7 +6,8 @@ import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
-import type { PaymentMethod, StripeService } from "@src/billing/services/stripe/stripe.service";
+import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
+import { type PaymentMethod } from "@src/billing/services/payment-method/payment-method.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { UserRepository } from "@src/user/repositories";
 import { WalletSettingService } from "./wallet-settings.service";
@@ -181,7 +182,7 @@ describe(WalletSettingService.name, () => {
     const userRepository = mock<UserRepository>();
     userRepository.findById.mockResolvedValue(userWithStripe);
     const paymentMethod = { ...generatePaymentMethod(), validated: true };
-    const stripeService = mock<StripeService>({
+    const paymentMethodService = mock<PaymentMethodService>({
       getDefaultPaymentMethod: vi.fn().mockResolvedValue(paymentMethod as PaymentMethod)
     });
     const walletSetting = generateWalletSetting({ userId: user.id });
@@ -195,7 +196,14 @@ describe(WalletSettingService.name, () => {
     const walletReloadJobService = mock<WalletReloadJobService>({
       scheduleForWalletSetting: vi.fn().mockResolvedValue(jobId)
     });
-    const service = new WalletSettingService(walletSettingRepository, userWalletRepository, userRepository, stripeService, authService, walletReloadJobService);
+    const service = new WalletSettingService(
+      walletSettingRepository,
+      userWalletRepository,
+      userRepository,
+      paymentMethodService,
+      authService,
+      walletReloadJobService
+    );
 
     return {
       user: userWithStripe,
@@ -205,7 +213,7 @@ describe(WalletSettingService.name, () => {
       walletSettingRepository,
       userWalletRepository,
       userRepository,
-      stripeService,
+      paymentMethodService,
       authService,
       walletReloadJobService,
       jobId,
