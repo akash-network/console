@@ -1,19 +1,15 @@
 import type { LoggerService } from "@akashnetwork/logging";
-import type { AnyAbility } from "@casl/ability";
-import crypto from "crypto";
 import assert from "http-assert";
-import difference from "lodash/difference";
-import keyBy from "lodash/keyBy";
 import orderBy from "lodash/orderBy";
 import Stripe from "stripe";
 import { inject, singleton } from "tsyringe";
 
+import { extractFingerprint } from "@src/billing/lib/payment-method/extract-fingerprint";
 import { STRIPE_CLIENT } from "@src/billing/providers/stripe-client.provider";
 import { PaymentMethodRepository, StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { type CreateLogger, LOGGER_FACTORY, WithTransaction } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { type UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
-import type { PayingUser } from "../paying-user/paying-user";
 
 interface StripePrices {
   unitAmount: number;
@@ -34,8 +30,6 @@ export const STRIPE_CURRENCY = "usd";
  * inferred from this prefix.
  */
 export const TOP_UP_IDEMPOTENCY_KEY_PREFIX = "topup_";
-
-export type PaymentMethod = Stripe.PaymentMethod & { validated: boolean; isDefault: boolean };
 
 @singleton()
 export class StripeService {
@@ -88,117 +82,6 @@ export class StripeService {
     }));
 
     return orderBy(responsePrices, ["isCustom", "unitAmount"], ["asc", "asc"]) as StripePrices[];
-  }
-
-  async getPaymentMethods(userId: string, customerId: string, ability: AnyAbility): Promise<PaymentMethod[]> {
-    const [remotes, locals] = await Promise.all([
-      this.stripe.paymentMethods.list({ customer: customerId }),
-      this.paymentMethodRepository.accessibleBy(ability, "read").findByUserId(userId)
-    ]);
-
-    const localById = keyBy(locals, "paymentMethodId");
-    const remoteIds: string[] = [];
-
-    const merged = remotes.data
-      .map(remote => {
-        remoteIds.push(remote.id);
-        return {
-          ...remote,
-          validated: !!localById[remote.id]?.isValidated,
-          isDefault: !!localById[remote.id]?.isDefault
-        };
-      })
-      .sort((a, b) => b.created - a.created);
-
-    const outOfSyncIds = difference(remoteIds, Object.keys(localById));
-
-    if (outOfSyncIds.length) {
-      this.loggerService.warn({
-        event: "STRIPE_PAYMENT_METHOD_OUT_OF_SYNC",
-        userId,
-        outOfSyncIds
-      });
-    }
-
-    return merged;
-  }
-
-  async getDefaultPaymentMethod(user: PayingUser, ability: AnyAbility): Promise<PaymentMethod | undefined> {
-    const [customer, local] = await Promise.all([
-      this.stripe.customers.retrieve(user.stripeCustomerId, {
-        expand: ["invoice_settings.default_payment_method"]
-      }),
-      this.paymentMethodRepository.accessibleBy(ability, "read").findDefaultByUserId(user.id)
-    ]);
-
-    assert(!customer.deleted, 402, "Payment account has been deleted");
-
-    const remote = customer.invoice_settings.default_payment_method;
-
-    if (typeof remote === "object" && remote && local) {
-      return { ...remote, validated: local.isValidated, isDefault: local.isDefault };
-    } else {
-      this.loggerService.warn({
-        event: "STRIPE_PAYMENT_METHOD_OUT_OF_SYNC",
-        userId: user.id,
-        remoteId: typeof remote === "string" ? remote : remote?.id,
-        localId: local?.paymentMethodId
-      });
-    }
-  }
-
-  async hasPaymentMethod(paymentMethodId: string, user: UserOutput): Promise<boolean> {
-    try {
-      const paymentMethod = await this.stripe.paymentMethods.retrieve(paymentMethodId);
-      const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
-
-      return customerId === user.stripeCustomerId;
-    } catch (error: unknown) {
-      if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") {
-        return false;
-      }
-
-      throw error;
-    }
-  }
-
-  @WithTransaction()
-  async markPaymentMethodAsDefault(paymentMethodId: string, user: PayingUser, ability: AnyAbility): Promise<PaymentMethod> {
-    const [local, remote] = await Promise.all([
-      this.paymentMethodRepository.accessibleBy(ability, "update").markAsDefault(paymentMethodId),
-      this.stripe.paymentMethods.retrieve(paymentMethodId, undefined, { timeout: 3_000 })
-    ]);
-
-    assert(remote, 404, "Payment method not found", { source: "stripe" });
-
-    if (local) {
-      await this.markRemotePaymentMethodAsDefault(paymentMethodId, user);
-      return { ...remote, validated: local.isValidated, isDefault: local.isDefault };
-    }
-
-    const fingerprint = this.extractFingerprint(remote);
-
-    assert(fingerprint, 403, "Payment method cannot be set as default. No identifiable fingerprint found.");
-
-    const newLocal = await this.paymentMethodRepository.accessibleBy(ability, "create").createAsDefault({
-      userId: user.id,
-      fingerprint,
-      paymentMethodId
-    });
-
-    await this.markRemotePaymentMethodAsDefault(paymentMethodId, user);
-
-    return { ...remote, validated: newLocal.isValidated, isDefault: newLocal.isDefault };
-  }
-
-  async markRemotePaymentMethodAsDefault(paymentMethodId: string, user: PayingUser): Promise<void> {
-    await this.stripe.customers.update(
-      user.stripeCustomerId,
-      {
-        invoice_settings: { default_payment_method: paymentMethodId }
-      },
-      { timeout: 3_000 }
-    );
   }
 
   async listPromotionCodes() {
@@ -438,7 +321,7 @@ export class StripeService {
       currentUserId
     });
 
-    const fingerprints = paymentMethods.map(paymentMethod => this.extractFingerprint(paymentMethod)).filter(Boolean) as string[];
+    const fingerprints = paymentMethods.map(paymentMethod => extractFingerprint(paymentMethod)).filter(Boolean) as string[];
 
     if (!fingerprints.length) {
       return false;
@@ -648,16 +531,6 @@ export class StripeService {
         error: validationError
       });
       // Don't fail the test charge if validation update fails - the card is still valid
-    }
-  }
-
-  extractFingerprint(paymentMethod: Stripe.PaymentMethod): string | undefined {
-    if (paymentMethod.card?.fingerprint) {
-      return paymentMethod.card.fingerprint;
-    }
-
-    if (paymentMethod.type === "link" && paymentMethod.link?.email) {
-      return `link_${crypto.createHash("sha256").update(paymentMethod.link.email.toLowerCase()).digest("hex")}`;
     }
   }
 }

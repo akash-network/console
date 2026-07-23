@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 import { merge } from "lodash";
 import type Stripe from "stripe";
 
-import type { PaymentMethod } from "@src/billing/services/stripe/stripe.service";
+import type { PaymentMethod } from "@src/billing/services/payment-method/payment-method.service";
 
 type PaymentMethodOverrides = Omit<Partial<Stripe.PaymentMethod>, "card"> & {
   card?: Partial<Stripe.PaymentMethod.Card> | null;

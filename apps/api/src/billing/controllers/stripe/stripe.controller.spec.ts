@@ -7,7 +7,9 @@ import { mock } from "vitest-mock-extended";
 import { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import type { PayingUser } from "@src/billing/services/paying-user/paying-user";
-import type { PaymentMethod, StripeService } from "@src/billing/services/stripe/stripe.service";
+import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
+import { type PaymentMethod } from "@src/billing/services/payment-method/payment-method.service";
+import type { StripeService } from "@src/billing/services/stripe/stripe.service";
 import type { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
 import type { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import type { TransactionReportingService } from "@src/billing/services/transaction-reporting/transaction-reporting.service";
@@ -20,10 +22,10 @@ import { createUser } from "@test/seeders/user.seeder";
 describe(StripeController.name, () => {
   describe("confirmPayment", () => {
     it("returns transactionId and transactionStatus on successful payment", async () => {
-      const { controller, stripe, stripeTransaction, user } = setup();
+      const { controller, stripeTransaction, paymentMethodService, user } = setup();
       const transactionId = faker.string.uuid();
 
-      stripe.hasPaymentMethod.mockResolvedValue(true);
+      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
       stripeTransaction.createPaymentIntent.mockResolvedValue({
         success: true,
         paymentIntentId: faker.string.uuid(),
@@ -47,11 +49,11 @@ describe(StripeController.name, () => {
     });
 
     it("resolves transaction when awaitResolved is true", async () => {
-      const { controller, stripe, stripeTransaction, user } = setup();
+      const { controller, stripeTransaction, paymentMethodService, user } = setup();
       const transactionId = faker.string.uuid();
       const resolvedTransaction = generateDatabaseStripeTransaction({ id: transactionId, status: "succeeded" });
 
-      stripe.hasPaymentMethod.mockResolvedValue(true);
+      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
       stripeTransaction.createPaymentIntent.mockResolvedValue({
         success: true,
         paymentIntentId: faker.string.uuid(),
@@ -78,10 +80,10 @@ describe(StripeController.name, () => {
     });
 
     it("invokes trial-min validation before contacting Stripe", async () => {
-      const { controller, stripe, stripeTransaction, userWalletRepository, trialValidationService, user } = setup();
+      const { controller, stripeTransaction, userWalletRepository, trialValidationService, paymentMethodService, user } = setup();
       const wallet = mock<UserWalletOutput>({ isTrialing: true });
       userWalletRepository.findOneByUserId.mockResolvedValue(wallet);
-      stripe.hasPaymentMethod.mockResolvedValue(true);
+      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
       stripeTransaction.createPaymentIntent.mockResolvedValue({
         success: true,
         paymentIntentId: faker.string.uuid(),
@@ -99,7 +101,7 @@ describe(StripeController.name, () => {
     });
 
     it("propagates the trial-min rejection without ever calling Stripe", async () => {
-      const { controller, stripe, stripeTransaction, userWalletRepository, trialValidationService, user } = setup();
+      const { controller, stripeTransaction, userWalletRepository, trialValidationService, paymentMethodService, user } = setup();
       const wallet = mock<UserWalletOutput>({ isTrialing: true });
       userWalletRepository.findOneByUserId.mockResolvedValue(wallet);
       const trialError = Object.assign(new Error("First top-up must be at least $100 while on the free trial."), { status: 402 });
@@ -114,14 +116,14 @@ describe(StripeController.name, () => {
           amount: 50
         })
       ).rejects.toBe(trialError);
-      expect(stripe.hasPaymentMethod).not.toHaveBeenCalled();
+      expect(paymentMethodService.hasPaymentMethod).not.toHaveBeenCalled();
       expect(stripeTransaction.createPaymentIntent).not.toHaveBeenCalled();
     });
 
     it("forwards an undefined wallet to trial-min validation when no wallet exists", async () => {
-      const { controller, stripe, stripeTransaction, userWalletRepository, trialValidationService, user } = setup();
+      const { controller, stripeTransaction, userWalletRepository, trialValidationService, paymentMethodService, user } = setup();
       userWalletRepository.findOneByUserId.mockResolvedValue(undefined);
-      stripe.hasPaymentMethod.mockResolvedValue(true);
+      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
       stripeTransaction.createPaymentIntent.mockResolvedValue({
         success: true,
         paymentIntentId: faker.string.uuid(),
@@ -139,12 +141,12 @@ describe(StripeController.name, () => {
     });
 
     it("returns 3DS data with transactionId and transactionStatus", async () => {
-      const { controller, stripe, stripeTransaction, user } = setup();
+      const { controller, stripeTransaction, paymentMethodService, user } = setup();
       const transactionId = faker.string.uuid();
       const paymentIntentId = faker.string.uuid();
       const clientSecret = faker.string.alphanumeric(32);
 
-      stripe.hasPaymentMethod.mockResolvedValue(true);
+      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
       stripeTransaction.createPaymentIntent.mockResolvedValue({
         success: false,
         requiresAction: true,
@@ -173,10 +175,10 @@ describe(StripeController.name, () => {
     });
 
     it("namespaces the client attempt key with the user id before calling Stripe", async () => {
-      const { controller, stripe, stripeTransaction, user } = setup();
+      const { controller, stripeTransaction, paymentMethodService, user } = setup();
       const clientKey = faker.string.uuid();
 
-      stripe.hasPaymentMethod.mockResolvedValue(true);
+      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
       stripeTransaction.createPaymentIntent.mockResolvedValue({
         success: true,
         paymentIntentId: faker.string.uuid(),
@@ -195,9 +197,9 @@ describe(StripeController.name, () => {
     });
 
     it("passes no idempotency key to Stripe when the client sends none", async () => {
-      const { controller, stripe, stripeTransaction, user } = setup();
+      const { controller, stripeTransaction, paymentMethodService, user } = setup();
 
-      stripe.hasPaymentMethod.mockResolvedValue(true);
+      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
       stripeTransaction.createPaymentIntent.mockResolvedValue({
         success: true,
         paymentIntentId: faker.string.uuid(),
@@ -343,9 +345,9 @@ describe(StripeController.name, () => {
 
   describe("getDefaultPaymentMethod", () => {
     it("returns the default payment method for the current paying user", async () => {
-      const { controller, stripe } = setup();
+      const { controller, paymentMethodService } = setup();
       const paymentMethod = mock<PaymentMethod>({ id: faker.string.uuid(), isDefault: true });
-      stripe.getDefaultPaymentMethod.mockResolvedValue(paymentMethod);
+      paymentMethodService.getDefaultPaymentMethod.mockResolvedValue(paymentMethod);
 
       const result = await controller.getDefaultPaymentMethod();
 
@@ -353,16 +355,16 @@ describe(StripeController.name, () => {
     });
 
     it("throws 404 when the current user has no Stripe customer", async () => {
-      const { controller, authService, stripe } = setup();
+      const { controller, authService, paymentMethodService } = setup();
       authService.getCurrentPayingUser.mockReturnValue(undefined as unknown as PayingUser);
 
       await expect(controller.getDefaultPaymentMethod()).rejects.toMatchObject({ status: 404 });
-      expect(stripe.getDefaultPaymentMethod).not.toHaveBeenCalled();
+      expect(paymentMethodService.getDefaultPaymentMethod).not.toHaveBeenCalled();
     });
 
     it("throws 404 when no default payment method exists", async () => {
-      const { controller, stripe } = setup();
-      stripe.getDefaultPaymentMethod.mockResolvedValue(undefined);
+      const { controller, paymentMethodService } = setup();
+      paymentMethodService.getDefaultPaymentMethod.mockResolvedValue(undefined);
 
       await expect(controller.getDefaultPaymentMethod()).rejects.toMatchObject({ status: 404 });
     });
@@ -392,10 +394,43 @@ describe(StripeController.name, () => {
     });
   });
 
+  describe("markAsDefault", () => {
+    it("delegates to PaymentMethodService with the current paying user and ability", async () => {
+      const { controller, paymentMethodService, authService } = setup();
+
+      await controller.markAsDefault({ data: { id: "pm_1" } });
+
+      expect(paymentMethodService.markPaymentMethodAsDefault).toHaveBeenCalledWith("pm_1", authService.getCurrentPayingUser(), authService.ability);
+    });
+  });
+
+  describe("getPaymentMethods", () => {
+    it("returns the current user's payment methods", async () => {
+      const { controller, paymentMethodService } = setup();
+      const methods = [mock<PaymentMethod>({ id: "pm_1", isDefault: true })];
+      paymentMethodService.getPaymentMethods.mockResolvedValue(methods);
+
+      const result = await controller.getPaymentMethods();
+
+      expect(result).toEqual({ data: methods });
+    });
+
+    it("returns an empty list when there is no current paying user", async () => {
+      const { controller, authService, paymentMethodService } = setup();
+      authService.getCurrentPayingUser.mockReturnValue(undefined as unknown as PayingUser);
+
+      const result = await controller.getPaymentMethods();
+
+      expect(result).toEqual({ data: [] });
+      expect(paymentMethodService.getPaymentMethods).not.toHaveBeenCalled();
+    });
+  });
+
   function setup() {
     const user = createUser();
     const payingUser: PayingUser = { ...user, stripeCustomerId: user.stripeCustomerId! };
     const stripe = mock<StripeService>();
+    const paymentMethodService = mock<PaymentMethodService>();
     const stripeTransaction = mock<StripeTransactionService>();
     const authService = mock<AuthService>({
       currentUser: user
@@ -412,13 +447,15 @@ describe(StripeController.name, () => {
       stripeErrorService,
       userWalletRepository,
       trialValidationService,
-      transactionReporting
+      transactionReporting,
+      paymentMethodService
     );
     container.register(AuthService, { useValue: authService });
 
     return {
       controller,
       stripe,
+      paymentMethodService,
       stripeTransaction,
       authService,
       stripeErrorService,

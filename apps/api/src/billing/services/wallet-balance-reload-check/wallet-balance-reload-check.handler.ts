@@ -7,7 +7,7 @@ import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-rel
 import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balance.schema";
 import { UserWalletOutput, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
-import { PaymentMethod, StripeService } from "@src/billing/services/stripe/stripe.service";
+import { type PaymentMethod, PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { JobHandler, JobMeta, JobPayload } from "@src/core";
@@ -53,7 +53,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     private readonly walletSettingRepository: WalletSettingRepository,
     private readonly balancesService: BalancesService,
     private readonly walletReloadJobService: WalletReloadJobService,
-    private readonly stripeService: StripeService,
+    private readonly paymentMethodService: PaymentMethodService,
     private readonly stripeTransactionService: StripeTransactionService,
     private readonly drainingDeploymentService: DrainingDeploymentService,
     private readonly instrumentationService: WalletBalanceReloadCheckInstrumentationService
@@ -146,7 +146,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
   }
 
   async #getDefaultPaymentMethod(user: PayingUser): Promise<Result<PaymentMethod, ValidationError>> {
-    const paymentMethod = await this.stripeService.getDefaultPaymentMethod(
+    const paymentMethod = await this.paymentMethodService.getDefaultPaymentMethod(
       user,
       createMongoAbility([
         {

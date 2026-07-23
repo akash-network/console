@@ -6,7 +6,7 @@ import { mock } from "vitest-mock-extended";
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import type { WalletSettingRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
-import type { StripeService } from "@src/billing/services/stripe/stripe.service";
+import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import type { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { JobMeta } from "@src/core";
@@ -317,10 +317,10 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     it("logs validation error when default payment method cannot be retrieved", async () => {
       const balance = 15.0;
 
-      const { handler, instrumentationService, stripeService, job, jobMeta } = setup({
+      const { handler, instrumentationService, paymentMethodService, job, jobMeta } = setup({
         balance
       });
-      stripeService.getDefaultPaymentMethod.mockResolvedValue(undefined);
+      paymentMethodService.getDefaultPaymentMethod.mockResolvedValue(undefined);
 
       await handler.handle(job, jobMeta);
 
@@ -381,7 +381,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     });
     const walletReloadJobService = mock<WalletReloadJobService>();
     const drainingDeploymentService = mock<DrainingDeploymentService>();
-    const stripeService = mock<StripeService>();
+    const paymentMethodService = mock<PaymentMethodService>();
     const stripeTransactionService = mock<StripeTransactionService>();
     const instrumentationService = mock<WalletBalanceReloadCheckInstrumentationService>({
       recordJobExecution: vi.fn(),
@@ -407,7 +407,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       balancesService.getDeploymentBalanceInFiat.mockResolvedValue(balance);
       balancesService.toFiatAmount.mockResolvedValue(weeklyCostInFiat);
       drainingDeploymentService.calculateAllDeploymentCostUntilDate.mockResolvedValue(weeklyCostInDenom);
-      stripeService.getDefaultPaymentMethod.mockResolvedValue(generatePaymentMethod());
+      paymentMethodService.getDefaultPaymentMethod.mockResolvedValue(generatePaymentMethod());
     }
 
     walletReloadJobService.scheduleForWalletSetting.mockResolvedValue(jobId);
@@ -416,7 +416,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       walletSettingRepository,
       balancesService,
       walletReloadJobService,
-      stripeService,
+      paymentMethodService,
       stripeTransactionService,
       drainingDeploymentService,
       instrumentationService
@@ -428,7 +428,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       balancesService,
       walletReloadJobService,
       drainingDeploymentService,
-      stripeService,
+      paymentMethodService,
       stripeTransactionService,
       instrumentationService,
       walletSetting,

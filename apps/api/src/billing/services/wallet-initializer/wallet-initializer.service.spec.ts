@@ -52,7 +52,6 @@ describe(WalletInitializerService.name, () => {
 
       await di.resolve(WalletInitializerService).startTrial(user.id);
 
-      expect(di.resolve(StripeService).getPaymentMethods).not.toHaveBeenCalled();
       expect(managedUserWalletService.createAndAuthorizeTrialSpending).toHaveBeenCalled();
     });
 
@@ -210,8 +209,7 @@ describe(WalletInitializerService.name, () => {
     di.registerInstance(
       StripeService,
       mock<StripeService>({
-        isProduction: input?.isProduction ?? false,
-        getPaymentMethods: vi.fn(async () => [])
+        isProduction: input?.isProduction ?? false
       })
     );
     di.registerInstance(

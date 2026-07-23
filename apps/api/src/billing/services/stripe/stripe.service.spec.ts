@@ -1,5 +1,4 @@
 import type { LoggerService } from "@akashnetwork/logging";
-import { createMongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import crypto from "crypto";
 import Stripe from "stripe";
@@ -428,90 +427,6 @@ describe(StripeService.name, () => {
         { unitAmount: 10, isCustom: false, currency: "usd" },
         { unitAmount: 20, isCustom: false, currency: "usd" },
         { unitAmount: undefined, isCustom: true, currency: "usd" }
-      ]);
-    });
-  });
-
-  describe("getPaymentMethods", () => {
-    it("returns customer payment methods", async () => {
-      const { service, stripe, paymentMethodRepository } = setup();
-      const mockPaymentMethods = [
-        generatePaymentMethod({
-          id: TEST_CONSTANTS.PAYMENT_METHOD_ID,
-          created: 1757992768,
-          card: {
-            brand: "visa",
-            last4: "8732",
-            exp_month: 8,
-            exp_year: 2027,
-            fingerprint: "6a91270a-2f4a-481a-9b03-40b62efb6aff"
-          },
-          billing_details: {
-            address: {
-              city: "Pembroke Pines",
-              country: "US",
-              line1: "81275 Cambridge Street",
-              line2: null,
-              postal_code: "04285-3982",
-              state: "New Hampshire"
-            },
-            email: "Claudie27@yahoo.com",
-            name: "Winifred Wiegand",
-            phone: "1-233-340-5835 x45200",
-            tax_id: null
-          }
-        }),
-        generatePaymentMethod({
-          id: "pm_456",
-          created: 1757991776,
-          card: {
-            brand: "mastercard",
-            last4: "0777",
-            exp_month: 4,
-            exp_year: 2030,
-            fingerprint: "a7c2eb4c-e81e-48cd-9515-71089d4bd0ce"
-          },
-          billing_details: {
-            address: {
-              city: "West Estellaburgh",
-              country: "US",
-              line1: "842 Molly Circles",
-              line2: null,
-              postal_code: "51261-2993",
-              state: "North Carolina"
-            },
-            email: "Golda_Rodriguez95@yahoo.com",
-            name: "Robin Nader V",
-            phone: "336.613.4413 x6559",
-            tax_id: null
-          }
-        })
-      ];
-      vi.spyOn(stripe.paymentMethods, "list").mockResolvedValue({ data: mockPaymentMethods } as unknown as Stripe.Response<
-        Stripe.ApiList<Stripe.PaymentMethod>
-      >);
-      paymentMethodRepository.findByUserId.mockResolvedValue([]);
-
-      const result = await service.getPaymentMethods(
-        TEST_CONSTANTS.USER_ID,
-        TEST_CONSTANTS.CUSTOMER_ID,
-        createMongoAbility([{ action: "read", subject: "PaymentMethod" }])
-      );
-      expect(stripe.paymentMethods.list).toHaveBeenCalledWith({
-        customer: TEST_CONSTANTS.CUSTOMER_ID
-      });
-      // The method sorts by created timestamp in descending order, so pm_123 (higher timestamp) comes first
-      expect(result).toEqual([
-        {
-          ...mockPaymentMethods[0],
-          validated: false,
-          isDefault: false
-        },
-        {
-          ...mockPaymentMethods[1],
-          validated: false,
-          isDefault: false
-        }
       ]);
     });
   });
