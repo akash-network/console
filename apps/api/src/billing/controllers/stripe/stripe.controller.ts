@@ -21,6 +21,7 @@ import {
 } from "@src/billing/http-schemas/stripe.schema";
 import type { StripeTransactionOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
+import { CouponRedemptionService } from "@src/billing/services/coupon-redemption/coupon-redemption.service";
 import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { StripeService, TOP_UP_IDEMPOTENCY_KEY_PREFIX } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
@@ -37,7 +38,8 @@ export class StripeController {
     private readonly userWalletRepository: UserWalletRepository,
     private readonly trialValidationService: TrialValidationService,
     private readonly transactionReporting: TransactionReportingService,
-    private readonly paymentMethodService: PaymentMethodService
+    private readonly paymentMethodService: PaymentMethodService,
+    private readonly couponRedemptionService: CouponRedemptionService
   ) {}
 
   @Protected([{ action: "read", subject: "StripePayment" }])
@@ -168,7 +170,7 @@ export class StripeController {
     assert(params.userId, 400, "User ID is required");
 
     try {
-      const result = await this.stripe.applyCoupon(currentUser, params.couponId);
+      const result = await this.couponRedemptionService.redeemCoupon(currentUser, params.couponId);
 
       if (params.awaitResolved) {
         const transaction = await this.stripeTransaction.resolveTransaction(result.transactionId);

@@ -565,4 +565,26 @@ export class StripeTransactionService {
       transactionId: transaction.id
     });
   }
+
+  async recordCouponClaim(params: {
+    userId: string;
+    amount: number;
+    currency: string;
+    couponId: string;
+    promotionCodeId?: string;
+    invoiceId: string;
+    description: string;
+  }): Promise<StripeTransactionOutput> {
+    return this.stripeTransactionRepository.create({
+      userId: params.userId,
+      type: "coupon_claim",
+      status: "pending",
+      amount: params.amount,
+      currency: params.currency,
+      stripeCouponId: params.couponId,
+      stripePromotionCodeId: params.promotionCodeId,
+      stripeInvoiceId: params.invoiceId,
+      description: params.description
+    });
+  }
 }
