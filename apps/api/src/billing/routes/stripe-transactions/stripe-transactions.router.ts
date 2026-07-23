@@ -93,11 +93,10 @@ const getCustomerTransactionsRoute = createRoute({
   }
 });
 stripeTransactionsRouter.openapi(getCustomerTransactionsRoute, async function getCustomerTransactions(c) {
-  const { limit, startingAfter, endingBefore, startDate, endDate } = c.req.valid("query");
+  const { limit, offset, startDate, endDate } = c.req.valid("query");
   const response = await container.resolve(StripeController).getCustomerTransactions({
     limit,
-    startingAfter,
-    endingBefore,
+    offset,
     startDate,
     endDate
   });
