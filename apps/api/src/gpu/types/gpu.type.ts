@@ -1,5 +1,3 @@
-import type { MsgCreateBid } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
-
 export type GpuProviderType = {
   owner: string;
   hostUri: string;
@@ -40,7 +38,8 @@ export type GpuBidType = {
       interface: string;
     }[];
   };
-  data: MsgCreateBid;
+  /** JSON-encoded MsgCreateBid (v1beta4 or v1beta5), exposed only on debug requests; must stay JSON.stringify-safe. */
+  data: unknown;
 };
 
 export type GpuWithPricesType = GpuType & {
