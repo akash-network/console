@@ -63,7 +63,7 @@ export class RefillService {
    * @param options.payment - Payment context attached to the `balance_top_up` analytics event
    */
   async topUpWallet(amountUsd: number, userId: UserWalletOutput["userId"], options: { endTrial?: boolean; payment?: PaymentAnalyticsContext } = {}) {
-    const userWallet = await this.getOrCreateUserWallet(userId);
+    const userWallet = await this.ensureActivatedWallet(userId);
     const currentLimit = await this.balancesService.retrieveDeploymentLimit(userWallet);
 
     const nextLimit = currentLimit + amountUsd * 10000;
@@ -124,10 +124,11 @@ export class RefillService {
   }
 
   /**
-   * Funding a wallet with real money activates it even when the user never started a trial,
-   * so `claimActivation` is attempted on every top-up and silently no-ops for already-activated wallets.
+   * Returns the user's wallet, creating and activating it as needed —
+   * funding with real money must activate a wallet even when the user never started a trial.
+   * The activation claim no-ops for already-activated wallets.
    */
-  private async getOrCreateUserWallet(userId: UserWalletOutput["userId"]) {
+  private async ensureActivatedWallet(userId: UserWalletOutput["userId"]) {
     const userWallet = await this.walletInitializerService.ensureWallet(userId);
 
     return (await this.userWalletRepository.claimActivation(userWallet.id)) ?? userWallet;
