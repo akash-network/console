@@ -7,6 +7,7 @@ import { mock } from "vitest-mock-extended";
 import { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import type { CouponRedemptionService } from "@src/billing/services/coupon-redemption/coupon-redemption.service";
+import type { CustomerService } from "@src/billing/services/customer/customer.service";
 import type { PayingUser } from "@src/billing/services/paying-user/paying-user";
 import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { type PaymentMethod } from "@src/billing/services/payment-method/payment-method.service";
@@ -220,11 +221,11 @@ describe(StripeController.name, () => {
 
   describe("createSetupIntent", () => {
     it("passes isFreeTrial true when user wallet is trialing", async () => {
-      const { controller, stripe, userWalletRepository, user } = setup();
+      const { controller, stripe, customerService, userWalletRepository, user } = setup();
       const clientSecret = faker.string.alphanumeric(32);
 
       userWalletRepository.findOneByUserId.mockResolvedValue(mock<UserWalletOutput>({ isTrialing: true }));
-      stripe.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
+      customerService.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
       stripe.createSetupIntent.mockResolvedValue(mock<Stripe.Response<Stripe.SetupIntent>>({ client_secret: clientSecret }));
 
       const result = await controller.createSetupIntent();
@@ -234,11 +235,11 @@ describe(StripeController.name, () => {
     });
 
     it("passes isFreeTrial false when user wallet is not trialing", async () => {
-      const { controller, stripe, userWalletRepository, user } = setup();
+      const { controller, stripe, customerService, userWalletRepository, user } = setup();
       const clientSecret = faker.string.alphanumeric(32);
 
       userWalletRepository.findOneByUserId.mockResolvedValue(mock<UserWalletOutput>({ isTrialing: false }));
-      stripe.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
+      customerService.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
       stripe.createSetupIntent.mockResolvedValue(mock<Stripe.Response<Stripe.SetupIntent>>({ client_secret: clientSecret }));
 
       const result = await controller.createSetupIntent();
@@ -248,11 +249,11 @@ describe(StripeController.name, () => {
     });
 
     it("defaults isFreeTrial to true when no wallet exists", async () => {
-      const { controller, stripe, userWalletRepository, user } = setup();
+      const { controller, stripe, customerService, userWalletRepository, user } = setup();
       const clientSecret = faker.string.alphanumeric(32);
 
       userWalletRepository.findOneByUserId.mockResolvedValue(undefined);
-      stripe.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
+      customerService.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
       stripe.createSetupIntent.mockResolvedValue(mock<Stripe.Response<Stripe.SetupIntent>>({ client_secret: clientSecret }));
 
       const result = await controller.createSetupIntent();
@@ -433,6 +434,7 @@ describe(StripeController.name, () => {
     const stripe = mock<StripeService>();
     const paymentMethodService = mock<PaymentMethodService>();
     const couponRedemptionService = mock<CouponRedemptionService>();
+    const customerService = mock<CustomerService>();
     const stripeTransaction = mock<StripeTransactionService>();
     const authService = mock<AuthService>({
       currentUser: user
@@ -451,7 +453,8 @@ describe(StripeController.name, () => {
       trialValidationService,
       transactionReporting,
       paymentMethodService,
-      couponRedemptionService
+      couponRedemptionService,
+      customerService
     );
     container.register(AuthService, { useValue: authService });
 
@@ -460,6 +463,7 @@ describe(StripeController.name, () => {
       stripe,
       paymentMethodService,
       couponRedemptionService,
+      customerService,
       stripeTransaction,
       authService,
       stripeErrorService,

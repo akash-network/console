@@ -1,13 +1,9 @@
-import type { LoggerService } from "@akashnetwork/logging";
-import assert from "http-assert";
 import orderBy from "lodash/orderBy";
 import Stripe from "stripe";
 import { inject, singleton } from "tsyringe";
 
 import { STRIPE_CLIENT } from "@src/billing/providers/stripe-client.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
-import { type UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
 
 interface StripePrices {
   unitAmount: number;
@@ -33,16 +29,10 @@ export const TOP_UP_IDEMPOTENCY_KEY_PREFIX = "topup_";
 export class StripeService {
   readonly isProduction = this.billingConfig.get("STRIPE_SECRET_KEY").startsWith("sk_live");
 
-  private readonly loggerService: LoggerService;
-
   constructor(
     private readonly billingConfig: BillingConfigService,
-    private readonly userRepository: UserRepository,
-    @inject(STRIPE_CLIENT) private readonly stripe: Stripe,
-    @inject(LOGGER_FACTORY) createLogger: CreateLogger
-  ) {
-    this.loggerService = createLogger({ context: StripeService.name });
-  }
+    @inject(STRIPE_CLIENT) private readonly stripe: Stripe
+  ) {}
 
   async createSetupIntent(customerId: string, { isFreeTrial }: { isFreeTrial: boolean }) {
     return await this.stripe.setupIntents.create({
@@ -89,45 +79,5 @@ export class StripeService {
 
   async getCoupon(couponId: string) {
     return await this.stripe.coupons.retrieve(couponId);
-  }
-
-  async getStripeCustomerId(user: UserOutput): Promise<string> {
-    if (user.stripeCustomerId) {
-      return user.stripeCustomerId;
-    }
-
-    // Stripe idempotency keyed on the user id so concurrent provisioning (eager registration +
-    // lazy billing paths) can never create duplicate/orphaned customers before the DB update wins.
-    const customer = await this.stripe.customers.create(
-      {
-        email: user.email ?? undefined,
-        name: user.username ?? undefined,
-        metadata: {
-          userId: user.id
-        }
-      },
-      { idempotencyKey: `create-customer:${user.id}` }
-    );
-
-    const updated = await this.userRepository.updateBy({ id: user.id, stripeCustomerId: null }, { stripeCustomerId: customer.id }, { returning: true });
-
-    if (updated) {
-      return updated.stripeCustomerId!;
-    }
-
-    // Concurrent creation detected: fetch and return the persisted customer ID
-    const reloaded = await this.userRepository.findOneBy({ id: user.id });
-    assert(reloaded?.stripeCustomerId, 500, "Failed to retrieve stripeCustomerId");
-    return reloaded.stripeCustomerId;
-  }
-
-  async updateCustomerOrganization(customerId: string, organization: string): Promise<void> {
-    const customer = await this.stripe.customers.retrieve(customerId);
-
-    assert(!("deleted" in customer), 404, "Customer is deleted");
-
-    await this.stripe.customers.update(customerId, {
-      business_name: organization
-    });
   }
 }
