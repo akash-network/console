@@ -1,7 +1,5 @@
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { PromisePool } from "@supercharge/promise-pool";
-import addDays from "date-fns/addDays";
-import subDays from "date-fns/subDays";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
@@ -54,18 +52,7 @@ export class RefillService {
   }
 
   private async refillWalletFees(userWallet: UserWalletOutput) {
-    const trialWindowStart = subDays(new Date(), this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS);
-    const isInTrialWindow = userWallet.isTrialing && userWallet.createdAt && userWallet.createdAt > trialWindowStart;
-
-    const expiration = isInTrialWindow && userWallet.createdAt ? addDays(userWallet.createdAt, this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS) : undefined;
-
-    await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
-      address: userWallet.address!,
-      limits: {
-        fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
-      },
-      expiration
-    });
+    await this.managedUserWalletService.refillWalletFees(this.managedSignerService, userWallet);
     await this.balancesService.refreshUserWalletLimits(userWallet);
   }
 
@@ -76,7 +63,7 @@ export class RefillService {
    * @param options.payment - Payment context attached to the `balance_top_up` analytics event
    */
   async topUpWallet(amountUsd: number, userId: UserWalletOutput["userId"], options: { endTrial?: boolean; payment?: PaymentAnalyticsContext } = {}) {
-    const userWallet = await this.getOrCreateUserWallet(userId);
+    const userWallet = await this.ensureActivatedWallet(userId);
     const currentLimit = await this.balancesService.retrieveDeploymentLimit(userWallet);
 
     const nextLimit = currentLimit + amountUsd * 10000;
@@ -136,12 +123,14 @@ export class RefillService {
     this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit: currentLimit, nextLimit });
   }
 
-  private async getOrCreateUserWallet(userId: UserWalletOutput["userId"]) {
-    const userWallet = await this.userWalletRepository.findOneBy({ userId });
-    if (userWallet) {
-      return userWallet;
-    }
+  /**
+   * Returns the user's wallet, creating and activating it as needed —
+   * funding with real money must activate a wallet even when the user never started a trial.
+   * The activation claim no-ops for already-activated wallets.
+   */
+  private async ensureActivatedWallet(userId: UserWalletOutput["userId"]) {
+    const userWallet = await this.walletInitializerService.ensureWallet(userId);
 
-    return await this.walletInitializerService.initialize(userId);
+    return (await this.userWalletRepository.claimActivation(userWallet.id)) ?? userWallet;
   }
 }

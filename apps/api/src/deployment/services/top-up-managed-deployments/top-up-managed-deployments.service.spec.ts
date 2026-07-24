@@ -469,7 +469,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(managedSignerService.ensureFeeGrants).toHaveBeenCalledWith({
         address: deployment.address,
         isTrialing: deployment.walletIsTrialing,
-        createdAt: deployment.walletCreatedAt
+        createdAt: deployment.walletCreatedAt,
+        activatedAt: deployment.walletActivatedAt
       });
       expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
     });

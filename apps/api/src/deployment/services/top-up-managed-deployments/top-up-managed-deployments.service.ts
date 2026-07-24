@@ -123,8 +123,8 @@ export class TopUpManagedDeploymentsService {
 
     try {
       if (!options.dryRun) {
-        const { address, walletIsTrialing: isTrialing, walletCreatedAt: createdAt } = ownerInputs[0].deployment;
-        const feeAllowance = await this.managedSignerService.ensureFeeGrants({ address, isTrialing, createdAt });
+        const { address, walletIsTrialing: isTrialing, walletCreatedAt: createdAt, walletActivatedAt: activatedAt } = ownerInputs[0].deployment;
+        const feeAllowance = await this.managedSignerService.ensureFeeGrants({ address, isTrialing, createdAt, activatedAt });
 
         if (feeAllowance <= 0) {
           this.instrumentation.recordChainTxError({

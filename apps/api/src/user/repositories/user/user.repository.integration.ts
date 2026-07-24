@@ -2,7 +2,10 @@ import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { UserWalletRepository } from "@src/billing/repositories";
 import { UserRepository } from "./user.repository";
+
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 describe(UserRepository.name, () => {
   describe("markAsActive", () => {
@@ -97,6 +100,27 @@ describe(UserRepository.name, () => {
     });
   });
 
+  describe("findTrialUsersByFingerprint", () => {
+    it("matches only users whose trial wallet is activated", async () => {
+      const { userRepository, createTestUser } = setup();
+      const userWalletRepository = container.resolve(UserWalletRepository);
+      const fingerprint = faker.string.alphanumeric(24);
+
+      const activatedTrialUser = await createTestUser({ lastFingerprint: fingerprint });
+      const activatedWallet = await userWalletRepository.create({ userId: activatedTrialUser.id, address: createAkashAddress() });
+      await userWalletRepository.claimActivation(activatedWallet.id);
+
+      const registeredOnlyUser = await createTestUser({ lastFingerprint: fingerprint });
+      await userWalletRepository.create({ userId: registeredOnlyUser.id, address: createAkashAddress() });
+
+      const currentUser = await createTestUser({ lastFingerprint: fingerprint });
+
+      const matches = await userRepository.findTrialUsersByFingerprint(fingerprint, currentUser.id);
+
+      expect(matches).toEqual([{ id: activatedTrialUser.id }]);
+    });
+  });
+
   let cleanup: () => Promise<void>;
   afterEach(async () => {
     await cleanup?.();
@@ -128,7 +152,7 @@ describe(UserRepository.name, () => {
       }
     };
 
-    async function createTestUser(overrides: { lastActiveAt?: Date | null; lastIp?: string } = {}) {
+    async function createTestUser(overrides: { lastActiveAt?: Date | null; lastIp?: string; lastFingerprint?: string } = {}) {
       const user = await userRepository.create({
         id: faker.string.uuid(),
         ...newUserInput(),

@@ -4,6 +4,7 @@ import { singleton } from "tsyringe";
 
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
+import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { getPostgresError, isUniqueViolation } from "@src/core/repositories/base.repository";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
@@ -18,7 +19,8 @@ export class UserService {
     private readonly logger: LoggerService,
     private readonly notificationService: NotificationService,
     private readonly auth0: Auth0Service,
-    private readonly emailVerificationCodeService: EmailVerificationCodeService
+    private readonly emailVerificationCodeService: EmailVerificationCodeService,
+    private readonly walletInitializer: WalletInitializerService
   ) {}
 
   async registerUser(data: RegisterUserInput): Promise<{
@@ -58,6 +60,10 @@ export class UserService {
     if (wasInserted) {
       this.analyticsService.track(user.id, "account_created", { category: "user" });
     }
+
+    await this.walletInitializer.ensureWallet(user.id).catch(error => {
+      this.logger.error({ event: "FAILED_TO_ENSURE_USER_WALLET", id: user.id, error });
+    });
 
     const result = await this.notificationService.createDefaultChannel(user).catch(error => ({ error }));
 

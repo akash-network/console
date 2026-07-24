@@ -13471,6 +13471,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             },
             "description": "Trial started successfully and wallet created",
           },
+          "409": {
+            "description": "Trial provisioning is already in progress for this user; retry shortly",
+          },
         },
         "security": [],
         "summary": "Start a trial period for a user",

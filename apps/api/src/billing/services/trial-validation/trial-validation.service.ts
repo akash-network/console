@@ -74,8 +74,8 @@ export class TrialValidationService {
     return userWallet.isTrialing ? this.config.get("MANAGED_WALLET_TRIAL_MIN_TOP_UP_AMOUNT") : STANDARD_TOP_UP_MIN_AMOUNT_USD;
   }
 
-  validateTopUpAmount(userWallet: Pick<UserWalletOutput, "isTrialing"> | undefined, amountUsd: number) {
-    if (!userWallet) return;
+  validateTopUpAmount(userWallet: Pick<UserWalletOutput, "isTrialing" | "activatedAt"> | undefined, amountUsd: number) {
+    if (!userWallet?.activatedAt) return;
     const min = this.getTopUpMinAmountUsd(userWallet);
     assert(
       amountUsd >= min,

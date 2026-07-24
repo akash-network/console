@@ -16,32 +16,33 @@ describe(RefillService.name, () => {
     const userId = "test-user-id";
     const amountUsd = 100;
 
-    it("should top up existing wallet", async () => {
+    it("should top up existing activated wallet", async () => {
       const { service, userWalletRepository, managedUserWalletService, managedSignerService, balancesService, walletInitializerService, analyticsService } =
         setup();
       const existingWallet = createUserWallet({ userId });
-      userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
+      walletInitializerService.ensureWallet.mockResolvedValue(existingWallet);
+      userWalletRepository.claimActivation.mockResolvedValue(undefined);
       managedUserWalletService.authorizeSpending.mockResolvedValue();
       balancesService.retrieveDeploymentLimit.mockResolvedValue(5000);
       balancesService.refreshUserWalletLimits.mockResolvedValue();
 
       await service.topUpWallet(amountUsd, userId);
 
-      expect(userWalletRepository.findOneBy).toHaveBeenCalledWith({ userId });
+      expect(walletInitializerService.ensureWallet).toHaveBeenCalledWith(userId);
       expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
         address: existingWallet.address,
         limits: { deployment: 1005000, fees: 1000 }
       });
       expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledWith(existingWallet);
       expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(existingWallet, { endTrial: true });
-      expect(walletInitializerService.initialize).not.toHaveBeenCalled();
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up", expect.objectContaining({ amount_cents: amountUsd, amount_usd: 1 }));
     });
 
     it("attaches payment context to the balance_top_up analytics event", async () => {
-      const { service, userWalletRepository, managedUserWalletService, balancesService, analyticsService } = setup();
+      const { service, userWalletRepository, managedUserWalletService, balancesService, analyticsService, walletInitializerService } = setup();
       const existingWallet = createUserWallet({ userId });
-      userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
+      walletInitializerService.ensureWallet.mockResolvedValue(existingWallet);
+      userWalletRepository.claimActivation.mockResolvedValue(undefined);
       managedUserWalletService.authorizeSpending.mockResolvedValue();
       balancesService.retrieveDeploymentLimit.mockResolvedValue(5000);
       balancesService.refreshUserWalletLimits.mockResolvedValue();
@@ -70,9 +71,10 @@ describe(RefillService.name, () => {
     });
 
     it("does not end trial when endTrial option is false", async () => {
-      const { service, userWalletRepository, managedUserWalletService, balancesService } = setup();
+      const { service, userWalletRepository, managedUserWalletService, balancesService, walletInitializerService } = setup();
       const existingWallet = createUserWallet({ userId });
-      userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
+      walletInitializerService.ensureWallet.mockResolvedValue(existingWallet);
+      userWalletRepository.claimActivation.mockResolvedValue(undefined);
       managedUserWalletService.authorizeSpending.mockResolvedValue();
       balancesService.retrieveDeploymentLimit.mockResolvedValue(5000);
       balancesService.refreshUserWalletLimits.mockResolvedValue();
@@ -82,25 +84,26 @@ describe(RefillService.name, () => {
       expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(existingWallet, { endTrial: false });
     });
 
-    it("should create new wallet when none exists", async () => {
+    it("activates a non-activated wallet on first funding", async () => {
       const { service, userWalletRepository, walletInitializerService, balancesService, managedUserWalletService, managedSignerService, analyticsService } =
         setup();
-      const newWallet = createUserWallet({ userId });
-      userWalletRepository.findOneBy.mockResolvedValue(undefined);
-      walletInitializerService.initialize.mockResolvedValue(newWallet);
+      const wallet = createUserWallet({ userId, activatedAt: null });
+      const activatedWallet = { ...wallet, activatedAt: new Date() };
+      walletInitializerService.ensureWallet.mockResolvedValue(wallet);
+      userWalletRepository.claimActivation.mockResolvedValue(activatedWallet);
       managedUserWalletService.authorizeSpending.mockResolvedValue();
       balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
       balancesService.refreshUserWalletLimits.mockResolvedValue();
 
       await service.topUpWallet(amountUsd, userId);
 
-      expect(userWalletRepository.findOneBy).toHaveBeenCalledWith({ userId });
+      expect(walletInitializerService.ensureWallet).toHaveBeenCalledWith(userId);
+      expect(userWalletRepository.claimActivation).toHaveBeenCalledWith(wallet.id);
       expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
-        address: newWallet.address,
+        address: wallet.address,
         limits: { deployment: 1000000, fees: 1000 }
       });
-      expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(newWallet, { endTrial: true });
-      expect(walletInitializerService.initialize).toHaveBeenCalledWith(userId);
+      expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(activatedWallet, { endTrial: true });
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up", expect.objectContaining({ amount_cents: amountUsd, amount_usd: 1 }));
     });
 

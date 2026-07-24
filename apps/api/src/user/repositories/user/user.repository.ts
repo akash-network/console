@@ -1,5 +1,5 @@
 import { Trace } from "@akashnetwork/instrumentation";
-import { and, eq, isNull, lt, ne, or, SQL, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, lt, ne, or, SQL, sql } from "drizzle-orm";
 import { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
@@ -99,7 +99,7 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     return this.pg
       .select({ id: this.table.id })
       .from(this.table)
-      .innerJoin(UserWallets, and(eq(UserWallets.userId, this.table.id), eq(UserWallets.isTrialing, true)))
+      .innerJoin(UserWallets, and(eq(UserWallets.userId, this.table.id), eq(UserWallets.isTrialing, true), isNotNull(UserWallets.activatedAt)))
       .where(and(eq(this.table.lastFingerprint, fingerprint), ne(this.table.id, excludeUserId)));
   }
 

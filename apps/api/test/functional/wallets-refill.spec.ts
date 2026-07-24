@@ -31,17 +31,19 @@ describe("Wallets Refill", () => {
   });
 
   describe("console refill-wallets", () => {
-    it("refills wallets low on fee allowance", async () => {
-      const wallets = await setup();
+    it("refills activated wallets low on fee allowance and skips non-activated ones", async () => {
+      const { activatedWallets, nonActivatedWallet } = await setup();
 
       await walletController.refillWallets();
 
       await Promise.all(
-        wallets.map(async wallet => {
+        activatedWallets.map(async wallet => {
           const walletRecord = await userWalletRepository.findById(wallet.id);
           expect(walletRecord?.feeAllowance).toBe(config.FEE_ALLOWANCE_REFILL_AMOUNT);
         })
       );
+      const nonActivatedRecord = await userWalletRepository.findById(nonActivatedWallet.id);
+      expect(nonActivatedRecord?.feeAllowance).toBe(config.FEE_ALLOWANCE_REFILL_THRESHOLD);
     });
   });
 
@@ -59,22 +61,32 @@ describe("Wallets Refill", () => {
       .reply(200, createDeploymentGrantResponseSeed({ amount: String(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT) }));
 
     const NUMBER_OF_WALLETS = 5;
-    return Promise.all(
-      Array.from({ length: NUMBER_OF_WALLETS }).map(async (_, index) => {
-        const user = await userRepository.create({});
-        const address = createAkashAddress();
-        const [wallet] = await db
-          .insert(userWalletsTable)
-          .values({
-            userId: user.id,
-            address,
-            isTrialing: index === NUMBER_OF_WALLETS - 1,
-            deploymentAllowance: String(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT),
-            feeAllowance: String(config.FEE_ALLOWANCE_REFILL_THRESHOLD)
-          })
-          .returning();
-        return wallet;
-      })
+    const activatedWallets = await Promise.all(
+      Array.from({ length: NUMBER_OF_WALLETS }).map(async (_, index) =>
+        createWallet({
+          isTrialing: index === NUMBER_OF_WALLETS - 1,
+          activatedAt: new Date()
+        })
+      )
     );
+    const nonActivatedWallet = await createWallet({ isTrialing: true, activatedAt: null });
+
+    return { activatedWallets, nonActivatedWallet };
+
+    async function createWallet(input: { isTrialing: boolean; activatedAt: Date | null }) {
+      const user = await userRepository.create({});
+      const [wallet] = await db
+        .insert(userWalletsTable)
+        .values({
+          userId: user.id,
+          address: createAkashAddress(),
+          isTrialing: input.isTrialing,
+          activatedAt: input.activatedAt,
+          deploymentAllowance: String(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT),
+          feeAllowance: String(config.FEE_ALLOWANCE_REFILL_THRESHOLD)
+        })
+        .returning();
+      return wallet;
+    }
   }
 });

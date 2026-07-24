@@ -20,14 +20,16 @@ describe(ManagedUserWalletService.name, () => {
     it("throws 402 when wallet address is missing", async () => {
       const { service, signer } = setup();
 
-      await expect(service.refillWalletFees(signer, { address: null, isTrialing: false, createdAt: faker.date.past() })).rejects.toMatchObject({
+      await expect(
+        service.refillWalletFees(signer, { address: null, isTrialing: false, createdAt: faker.date.past(), activatedAt: null })
+      ).rejects.toMatchObject({
         status: 402
       });
     });
 
     it("authorizes fee spending without expiration for non-trialing wallet", async () => {
       const { service, signer, config, rpcMessageService } = setup();
-      const wallet = { address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past() };
+      const wallet = { address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past(), activatedAt: null };
 
       await service.refillWalletFees(signer, wallet);
 
@@ -43,7 +45,7 @@ describe(ManagedUserWalletService.name, () => {
     it("authorizes fee spending with expiration for trialing wallet in trial window", async () => {
       const { service, signer, config, rpcMessageService } = setup();
       const createdAt = subDays(new Date(), 1);
-      const wallet = { address: createAkashAddress(), isTrialing: true, createdAt };
+      const wallet = { address: createAkashAddress(), isTrialing: true, createdAt, activatedAt: null };
 
       await service.refillWalletFees(signer, wallet);
 
@@ -58,7 +60,7 @@ describe(ManagedUserWalletService.name, () => {
     it("authorizes fee spending without expiration for trialing wallet outside trial window", async () => {
       const { service, signer, config, rpcMessageService } = setup();
       const createdAt = subDays(new Date(), config.TRIAL_ALLOWANCE_EXPIRATION_DAYS + 1);
-      const wallet = { address: createAkashAddress(), isTrialing: true, createdAt };
+      const wallet = { address: createAkashAddress(), isTrialing: true, createdAt, activatedAt: null };
 
       await service.refillWalletFees(signer, wallet);
 
@@ -68,12 +70,27 @@ describe(ManagedUserWalletService.name, () => {
         })
       );
     });
+
+    it("anchors the trial window to activation time when the wallet was created long before the trial started", async () => {
+      const { service, signer, config, rpcMessageService } = setup();
+      const createdAt = subDays(new Date(), config.TRIAL_ALLOWANCE_EXPIRATION_DAYS + 30);
+      const activatedAt = subDays(new Date(), 1);
+      const wallet = { address: createAkashAddress(), isTrialing: true, createdAt, activatedAt };
+
+      await service.refillWalletFees(signer, wallet);
+
+      expect(rpcMessageService.getFeesAllowanceGrantMsg).toHaveBeenCalledWith(
+        expect.objectContaining({
+          expiration: addDays(activatedAt, config.TRIAL_ALLOWANCE_EXPIRATION_DAYS)
+        })
+      );
+    });
   });
 
   describe("fee grant silent-drop recovery", () => {
     it("verifies the grant landed after a batched revoke+grant tx", async () => {
       const { service, signer, rpcMessageService, authzHttpService, logger } = setup();
-      const wallet = { address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past() };
+      const wallet = { address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past(), activatedAt: null };
 
       authzHttpService.hasFeeAllowance.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
@@ -88,7 +105,7 @@ describe(ManagedUserWalletService.name, () => {
 
     it("re-issues the grant when the post-tx check reports it missing", async () => {
       const { service, signer, rpcMessageService, authzHttpService, logger } = setup();
-      const wallet = { address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past() };
+      const wallet = { address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past(), activatedAt: null };
       const grantMsg = { typeUrl: "/fee-grant", value: {} } as unknown as EncodeObject;
 
       rpcMessageService.getFeesAllowanceGrantMsg.mockReturnValue(grantMsg);
@@ -109,7 +126,7 @@ describe(ManagedUserWalletService.name, () => {
 
     it("throws BadGateway after the retry policy is exhausted", async () => {
       const { service, signer, authzHttpService, logger } = setup();
-      const wallet = { address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past() };
+      const wallet = { address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past(), activatedAt: null };
 
       authzHttpService.hasFeeAllowance.mockResolvedValueOnce(true).mockResolvedValue(false);
 
@@ -123,7 +140,7 @@ describe(ManagedUserWalletService.name, () => {
 
     it("skips post-tx verification when no prior allowance existed", async () => {
       const { service, signer, rpcMessageService, authzHttpService, logger } = setup();
-      const wallet = { address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past() };
+      const wallet = { address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past(), activatedAt: null };
 
       authzHttpService.hasFeeAllowance.mockResolvedValue(false);
 

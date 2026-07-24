@@ -32,6 +32,9 @@ const route = createRoute({
           schema: WalletResponseNo3DSOutputSchema
         }
       }
+    },
+    409: {
+      description: "Trial provisioning is already in progress for this user; retry shortly"
     }
   }
 });
