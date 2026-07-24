@@ -22,6 +22,7 @@ import {
 import type { StripeTransactionOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { CouponRedemptionService } from "@src/billing/services/coupon-redemption/coupon-redemption.service";
+import { CustomerService } from "@src/billing/services/customer/customer.service";
 import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { StripeService, TOP_UP_IDEMPOTENCY_KEY_PREFIX } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
@@ -41,7 +42,8 @@ export class StripeController {
     private readonly trialActivationJobService: TrialActivationJobService,
     private readonly transactionReporting: TransactionReportingService,
     private readonly paymentMethodService: PaymentMethodService,
-    private readonly couponRedemptionService: CouponRedemptionService
+    private readonly couponRedemptionService: CouponRedemptionService,
+    private readonly customerService: CustomerService
   ) {}
 
   @Protected([{ action: "read", subject: "StripePayment" }])
@@ -53,7 +55,7 @@ export class StripeController {
   async createSetupIntent(): Promise<{ data: { clientSecret: string | null } }> {
     const { currentUser } = this.authService;
 
-    const stripeCustomerId = await this.stripe.getStripeCustomerId(currentUser);
+    const stripeCustomerId = await this.customerService.getStripeCustomerId(currentUser);
     const userWallet = await this.userWalletRepository.findOneByUserId(currentUser.id);
     const isFreeTrial = userWallet?.isTrialing ?? true;
 
@@ -269,6 +271,6 @@ export class StripeController {
 
     assert(currentUser.stripeCustomerId, 400, "Payment method is not configured for this user");
 
-    await this.stripe.updateCustomerOrganization(currentUser.stripeCustomerId, input.organization);
+    await this.customerService.updateCustomerOrganization(currentUser.stripeCustomerId, input.organization);
   }
 }

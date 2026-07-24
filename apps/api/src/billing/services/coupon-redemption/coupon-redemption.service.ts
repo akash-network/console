@@ -4,7 +4,7 @@ import { inject, singleton } from "tsyringe";
 
 import { STRIPE_CLIENT } from "@src/billing/providers/stripe-client.provider";
 import { StripeTransactionOutput } from "@src/billing/repositories";
-import { StripeService } from "@src/billing/services/stripe/stripe.service";
+import { CustomerService } from "@src/billing/services/customer/customer.service";
 import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import type { UserOutput } from "@src/user/repositories/user/user.repository";
@@ -15,7 +15,7 @@ export class CouponRedemptionService {
 
   constructor(
     @inject(STRIPE_CLIENT) private readonly stripe: Stripe,
-    private readonly stripeService: StripeService,
+    private readonly customerService: CustomerService,
     private readonly stripeTransactionService: StripeTransactionService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -128,7 +128,7 @@ export class CouponRedemptionService {
     // Ensure the user has a Stripe customer only once the coupon is known to be redeemable. Brand-new
     // accounts may not have one yet since it is created lazily by the add-payment-method flow (see
     // getStripeCustomerId); provisioning it earlier would create customers for invalid/unsupported coupons.
-    const stripeCustomerId = await this.stripeService.getStripeCustomerId(currentUser);
+    const stripeCustomerId = await this.customerService.getStripeCustomerId(currentUser);
 
     let invoice: Stripe.Invoice | undefined;
 
