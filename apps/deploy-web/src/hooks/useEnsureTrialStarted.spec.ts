@@ -25,15 +25,6 @@ describe(useEnsureTrialStarted.name, () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  it("fires when a wallet row exists but is not yet initialized (no address)", () => {
-    const create = vi.fn();
-    const { dependencies } = setup({ wallet: { address: null } as never, isLoading: false, create });
-
-    renderHook(() => useEnsureTrialStarted(dependencies));
-
-    expect(create).toHaveBeenCalledTimes(1);
-  });
-
   it("does not fire while another mutation is in flight", () => {
     const create = vi.fn();
     const { dependencies } = setup({ wallet: undefined, isLoading: true, create });

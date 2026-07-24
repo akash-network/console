@@ -43,7 +43,7 @@ export type EnsureTrialStartedResult = {
  */
 export const useEnsureTrialStarted = (d = DEPENDENCIES): EnsureTrialStartedResult => {
   const { wallet, create, isLoading, createError, resetCreate, refetch } = d.useManagedWallet();
-  const isWalletReady = !!wallet?.address;
+  const isWalletReady = !!wallet;
   const isStartingTrial = d.useIsMutating({ mutationKey: QueryKeys.getManagedWalletCreateMutationKey() }) > 0;
 
   useEffect(() => {
