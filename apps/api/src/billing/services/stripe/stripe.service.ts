@@ -6,7 +6,7 @@ import { inject, singleton } from "tsyringe";
 
 import { extractFingerprint } from "@src/billing/lib/payment-method/extract-fingerprint";
 import { STRIPE_CLIENT } from "@src/billing/providers/stripe-client.provider";
-import { PaymentMethodRepository, StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
+import { PaymentMethodRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { type UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
@@ -41,7 +41,6 @@ export class StripeService {
     private readonly billingConfig: BillingConfigService,
     private readonly userRepository: UserRepository,
     private readonly paymentMethodRepository: PaymentMethodRepository,
-    private readonly stripeTransactionRepository: StripeTransactionRepository,
     @inject(STRIPE_CLIENT) private readonly stripe: Stripe,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -89,184 +88,6 @@ export class StripeService {
       expand: ["data.promotion.coupon"]
     });
     return { promotionCodes: promotionCodes.data };
-  }
-
-  async findPromotionCodeByCode(code: string): Promise<Stripe.PromotionCode | undefined> {
-    const { data: promotionCodes } = await this.stripe.promotionCodes.list({
-      code,
-      expand: ["data.promotion.coupon"]
-    });
-
-    return promotionCodes[0];
-  }
-
-  async applyCoupon(
-    currentUser: UserOutput,
-    couponCode: string
-  ): Promise<{
-    coupon: Stripe.Coupon | Stripe.PromotionCode;
-    amountAdded: number;
-    transactionId: string;
-    transactionStatus: StripeTransactionOutput["status"];
-  }> {
-    const promotionCode = await this.findPromotionCodeByCode(couponCode);
-
-    if (promotionCode) {
-      const coupon = promotionCode.promotion.coupon;
-
-      if (typeof coupon === "string" || !coupon) {
-        throw new Error("Promotion code coupon was not expanded");
-      }
-
-      return this.applyCouponOrPromotionCode({
-        currentUser,
-        couponOrPromotion: promotionCode,
-        coupon,
-        updateField: "promotion_code",
-        updateId: promotionCode.id
-      });
-    }
-
-    // If no promotion code found, try to find a matching coupon
-    const { coupons } = await this.listCoupons();
-    const matchingCoupon = coupons.find(coupon => coupon.id === couponCode);
-
-    if (matchingCoupon) {
-      return this.applyCouponOrPromotionCode({
-        currentUser,
-        couponOrPromotion: matchingCoupon,
-        coupon: matchingCoupon,
-        updateField: "coupon",
-        updateId: matchingCoupon.id
-      });
-    }
-
-    throw new Error("No valid promotion code or coupon found with the provided code");
-  }
-
-  private async applyCouponOrPromotionCode({
-    currentUser,
-    couponOrPromotion,
-    coupon,
-    updateField,
-    updateId
-  }: {
-    currentUser: UserOutput;
-    couponOrPromotion: Stripe.Coupon | Stripe.PromotionCode;
-    coupon: Stripe.Coupon;
-    updateField: "promotion_code" | "coupon";
-    updateId: string;
-  }): Promise<{
-    coupon: Stripe.Coupon | Stripe.PromotionCode;
-    amountAdded: number;
-    transactionId: string;
-    transactionStatus: StripeTransactionOutput["status"];
-  }> {
-    this.loggerService.info({
-      event: "APPLYING_COUPON",
-      couponId: coupon.id,
-      valid: coupon.valid,
-      redeem_by: coupon.redeem_by,
-      max_redemptions: coupon.max_redemptions,
-      times_redeemed: coupon.times_redeemed,
-      updateField,
-      updateId
-    });
-
-    if (!coupon.valid) {
-      throw new Error(updateField === "promotion_code" ? "Promotion code is invalid or expired" : "Coupon is invalid or expired");
-    }
-
-    if (coupon.percent_off) {
-      throw new Error("Percentage-based coupons are not supported. Only fixed amount coupons are allowed.");
-    }
-
-    if (!coupon.amount_off) {
-      throw new Error("Invalid coupon type. Only fixed amount coupons are supported.");
-    }
-
-    const amountToAdd = coupon.amount_off; // amount_off is already in cents
-
-    // Ensure the user has a Stripe customer only once the coupon is known to be redeemable. Brand-new
-    // accounts may not have one yet since it is created lazily by the add-payment-method flow (see
-    // getStripeCustomerId); provisioning it earlier would create customers for invalid/unsupported coupons.
-    const stripeCustomerId = await this.getStripeCustomerId(currentUser);
-
-    let invoice: Stripe.Invoice | undefined;
-
-    try {
-      invoice = await this.stripe.invoices.create({
-        customer: stripeCustomerId,
-        auto_advance: false,
-        ...(updateField === "promotion_code" ? { discounts: [{ promotion_code: updateId }] } : { discounts: [{ coupon: updateId }] })
-      });
-
-      this.loggerService.info({
-        event: "INVOICE_CREATED_WITH_DISCOUNT",
-        userId: currentUser.id,
-        invoiceId: invoice.id,
-        discountType: updateField
-      });
-
-      await this.stripe.invoiceItems.create({
-        amount: amountToAdd,
-        customer: stripeCustomerId,
-        invoice: invoice.id,
-        currency: "usd",
-        description: "Akash Network Console"
-      });
-
-      invoice = await this.stripe.invoices.finalizeInvoice(invoice.id);
-
-      this.loggerService.info({
-        event: "INVOICE_FINALIZED_AND_PAID",
-        userId: currentUser.id,
-        invoiceId: invoice.id,
-        status: invoice.status,
-        amountDue: invoice.amount_due,
-        amountPaid: invoice.amount_paid
-      });
-
-      const transaction = await this.stripeTransactionRepository.create({
-        userId: currentUser.id,
-        type: "coupon_claim",
-        status: "pending",
-        amount: amountToAdd,
-        currency: coupon.currency ?? "usd",
-        stripeCouponId: coupon.id,
-        stripePromotionCodeId: updateField === "promotion_code" ? updateId : undefined,
-        stripeInvoiceId: invoice.id,
-        description: `Coupon: ${coupon.name || coupon.id}`
-      });
-
-      return { coupon: couponOrPromotion, amountAdded: amountToAdd / 100, transactionId: transaction.id, transactionStatus: transaction.status };
-    } catch (error) {
-      let isInvoiceRolledBack: boolean | undefined;
-
-      if (invoice?.id) {
-        isInvoiceRolledBack = await this.stripe.invoices
-          .voidInvoice(invoice.id)
-          .then(() => true)
-          .catch(() => false);
-      }
-
-      this.loggerService.error({
-        event: "COUPON_APPLICATION_FAILED",
-        userId: currentUser.id,
-        couponId: updateId,
-        error,
-        isInvoiceRolledBack
-      });
-
-      throw error;
-    }
-  }
-
-  async listCoupons() {
-    const coupons = await this.stripe.coupons.list({
-      limit: 100
-    });
-    return { coupons: coupons.data };
   }
 
   async getCoupon(couponId: string) {
