@@ -3,13 +3,11 @@ import assert from "http-assert";
 import { Lifecycle, scoped } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import { UserWalletOutput, UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
+import { UserWalletOutput, UserWalletPublicOutput, UserWalletRepository, WalletInitialized } from "@src/billing/repositories";
 
 export interface GetWalletOptions {
   userId: string;
 }
-
-export type WalletInitialized = Omit<UserWalletOutput, "address"> & { address: string };
 
 @scoped(Lifecycle.ResolutionScoped)
 export class WalletReaderService {
@@ -21,7 +19,9 @@ export class WalletReaderService {
   async getWallets(query: GetWalletOptions): Promise<UserWalletPublicOutput[]> {
     const wallets = await this.userWalletRepository.accessibleBy(this.authService.ability, "read").find(query);
 
-    return wallets.filter(wallet => wallet.activatedAt).map(wallet => this.userWalletRepository.toPublic(wallet));
+    return wallets
+      .filter((wallet): wallet is WalletInitialized => wallet.activatedAt !== null && wallet.address !== null)
+      .map(wallet => this.userWalletRepository.toPublic(wallet));
   }
 
   async getWalletByUserId(userId: string): Promise<WalletInitialized>;

@@ -22,10 +22,12 @@ export type UserWalletOutput = Omit<DbUserWalletOutput, "feeAllowance" | "deploy
   feeAllowance: number;
 };
 
+export type WalletInitialized = Omit<UserWalletOutput, "address"> & { address: string };
+
 export interface UserWalletPublicOutput {
   id: UserWalletOutput["id"];
   userId: UserWalletOutput["userId"];
-  address: UserWalletOutput["address"];
+  address: WalletInitialized["address"];
   creditAmount: UserWalletOutput["creditAmount"];
   isTrialing: boolean;
   createdAt: UserWalletOutput["createdAt"];
@@ -164,7 +166,7 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return dbInput;
   }
 
-  toPublic(output: UserWalletOutput): UserWalletPublicOutput {
+  toPublic(output: WalletInitialized): UserWalletPublicOutput {
     return {
       id: output.id,
       userId: output.userId,

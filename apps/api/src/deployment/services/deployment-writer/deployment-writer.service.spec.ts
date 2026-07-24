@@ -3,10 +3,11 @@ import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@a
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
 
+import type { WalletInitialized } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
-import type { WalletInitialized, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
+import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { LoggerService } from "@src/core";
 import type { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";

@@ -3,10 +3,11 @@ import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { UserWalletOutput } from "@src/billing/repositories";
+import { WalletInitialized } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
-import { WalletInitialized, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
+import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { LoggerService } from "@src/core";
 import {
   CreateDeploymentRequest,
