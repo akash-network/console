@@ -373,25 +373,25 @@ describe(StripeController.name, () => {
 
   describe("validatePaymentMethodAfter3DS", () => {
     it("validates the payment method after confirming ownership", async () => {
-      const { controller, stripe, user } = setup();
+      const { controller, stripe, paymentMethodService, user } = setup();
       stripe.retrievePaymentMethod.mockResolvedValue(mock<Stripe.Response<Stripe.PaymentMethod>>({ customer: user.stripeCustomerId }));
-      stripe.validatePaymentMethodAfter3DS.mockResolvedValue({ success: true });
+      paymentMethodService.validatePaymentMethodAfter3DS.mockResolvedValue({ success: true });
 
       const result = await controller.validatePaymentMethodAfter3DS({ data: { paymentMethodId: "pm_1", paymentIntentId: "pi_1" } });
 
       expect(stripe.retrievePaymentMethod).toHaveBeenCalledWith("pm_1");
-      expect(stripe.validatePaymentMethodAfter3DS).toHaveBeenCalledWith(user.stripeCustomerId, "pm_1", "pi_1");
+      expect(paymentMethodService.validatePaymentMethodAfter3DS).toHaveBeenCalledWith(user.stripeCustomerId, "pm_1", "pi_1");
       expect(result).toEqual({ success: true });
     });
 
     it("rejects when the payment method belongs to another customer", async () => {
-      const { controller, stripe } = setup();
+      const { controller, stripe, paymentMethodService } = setup();
       stripe.retrievePaymentMethod.mockResolvedValue(mock<Stripe.Response<Stripe.PaymentMethod>>({ customer: "cus_someoneelse" }));
 
       await expect(controller.validatePaymentMethodAfter3DS({ data: { paymentMethodId: "pm_1", paymentIntentId: "pi_1" } })).rejects.toMatchObject({
         status: 403
       });
-      expect(stripe.validatePaymentMethodAfter3DS).not.toHaveBeenCalled();
+      expect(paymentMethodService.validatePaymentMethodAfter3DS).not.toHaveBeenCalled();
     });
   });
 

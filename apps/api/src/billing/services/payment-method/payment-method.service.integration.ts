@@ -7,6 +7,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { PaymentMethodRepository } from "@src/billing/repositories";
 import type { PayingUser } from "@src/billing/services/paying-user/paying-user";
+import type { UserRepository } from "@src/user/repositories/user/user.repository";
 import { PaymentMethodService } from "./payment-method.service";
 
 import { generateDatabasePaymentMethod } from "@test/seeders/database-payment-method.seeder";
@@ -134,10 +135,11 @@ describe(PaymentMethodService.name, () => {
   function setup() {
     const paymentMethodRepository = mock<PaymentMethodRepository>();
     paymentMethodRepository.accessibleBy.mockReturnValue(paymentMethodRepository);
+    const userRepository = mock<UserRepository>();
 
     const stripe = new Stripe(`sk_test_${faker.string.alphanumeric(32)}`, { apiVersion: "2025-10-29.clover", httpClient: Stripe.createFetchHttpClient() });
 
-    const service = new PaymentMethodService(stripe, paymentMethodRepository, () => mock<LoggerService>());
+    const service = new PaymentMethodService(stripe, paymentMethodRepository, userRepository, () => mock<LoggerService>());
 
     return { service, stripe, paymentMethodRepository };
   }
