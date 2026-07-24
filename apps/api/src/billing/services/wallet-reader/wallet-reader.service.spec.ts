@@ -38,14 +38,7 @@ describe(WalletReaderService.name, () => {
       accessibleBy() {
         return this as unknown as UserWalletRepository;
       },
-      toPublic: value => ({
-        id: value.id,
-        userId: value.userId,
-        address: value.address,
-        creditAmount: value.creditAmount,
-        isTrialing: !!value.isTrialing,
-        createdAt: value.createdAt
-      })
+      toPublic: value => ({ ...value, isTrialing: !!value.isTrialing })
     }) as unknown as UserWalletRepository;
     const authService = mock<AuthService>({ ability: {} });
 

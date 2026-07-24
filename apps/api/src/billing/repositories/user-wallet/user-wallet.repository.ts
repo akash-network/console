@@ -1,6 +1,6 @@
 import { Trace } from "@akashnetwork/instrumentation";
 import subDays from "date-fns/subDays";
-import { and, count, eq, gt, inArray, isNotNull, isNull, lte, or } from "drizzle-orm";
+import { and, count, eq, gt, inArray, isNotNull, lte, or } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -83,13 +83,7 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
   }
 
   async claimActivation(id: UserWalletOutput["id"]): Promise<UserWalletOutput | undefined> {
-    const [claimed] = await this.cursor
-      .update(this.table)
-      .set({ activatedAt: new Date() })
-      .where(this.whereAccessibleBy(and(eq(this.table.id, id), isNull(this.table.activatedAt))))
-      .returning();
-
-    return claimed ? this.toOutput(claimed) : undefined;
+    return this.updateBy({ id, activatedAt: null }, { activatedAt: new Date() }, { returning: true });
   }
 
   async findDrainingWallets(thresholds: { fee: number; trialExpirationDays: number }) {

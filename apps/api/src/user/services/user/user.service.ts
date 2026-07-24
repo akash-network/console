@@ -61,14 +61,15 @@ export class UserService {
       this.analyticsService.track(user.id, "account_created", { category: "user" });
     }
 
-    await this.walletInitializer.ensureWallet(user.id).catch(error => {
-      this.logger.error({ event: "FAILED_TO_ENSURE_USER_WALLET", id: user.id, error });
-    });
+    const [, channelResult] = await Promise.all([
+      this.walletInitializer.ensureWallet(user.id).catch(error => {
+        this.logger.error({ event: "FAILED_TO_ENSURE_USER_WALLET", id: user.id, error });
+      }),
+      this.notificationService.createDefaultChannel(user).catch(error => ({ error }))
+    ]);
 
-    const result = await this.notificationService.createDefaultChannel(user).catch(error => ({ error }));
-
-    if (result?.error) {
-      this.logger.error({ event: "FAILED_TO_CREATE_DEFAULT_NOTIFICATION_CHANNEL", id: user.id, error: result.error });
+    if (channelResult?.error) {
+      this.logger.error({ event: "FAILED_TO_CREATE_DEFAULT_NOTIFICATION_CHANNEL", id: user.id, error: channelResult.error });
     }
 
     if (!data.emailVerified && user.email) {
