@@ -86,7 +86,7 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     const [claimed] = await this.cursor
       .update(this.table)
       .set({ activatedAt: new Date() })
-      .where(and(eq(this.table.id, id), isNull(this.table.activatedAt)))
+      .where(this.whereAccessibleBy(and(eq(this.table.id, id), isNull(this.table.activatedAt))))
       .returning();
 
     return claimed ? this.toOutput(claimed) : undefined;

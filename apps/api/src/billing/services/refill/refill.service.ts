@@ -1,7 +1,5 @@
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { PromisePool } from "@supercharge/promise-pool";
-import addDays from "date-fns/addDays";
-import subDays from "date-fns/subDays";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
@@ -54,19 +52,7 @@ export class RefillService {
   }
 
   private async refillWalletFees(userWallet: UserWalletOutput) {
-    const trialWindowStart = subDays(new Date(), this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS);
-    const trialStartedAt = userWallet.activatedAt ?? userWallet.createdAt;
-    const isInTrialWindow = userWallet.isTrialing && trialStartedAt && trialStartedAt > trialWindowStart;
-
-    const expiration = isInTrialWindow && trialStartedAt ? addDays(trialStartedAt, this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS) : undefined;
-
-    await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
-      address: userWallet.address!,
-      limits: {
-        fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
-      },
-      expiration
-    });
+    await this.managedUserWalletService.refillWalletFees(this.managedSignerService, userWallet);
     await this.balancesService.refreshUserWalletLimits(userWallet);
   }
 
