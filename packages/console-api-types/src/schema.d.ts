@@ -7642,8 +7642,7 @@ export interface operations {
     parameters: {
       query?: {
         limit?: number;
-        startingAfter?: string;
-        endingBefore?: string;
+        offset?: number;
         startDate?: string;
         endDate?: string;
       };
@@ -7663,52 +7662,22 @@ export interface operations {
             data: {
               transactions: {
                 id: string;
+                /** @enum {string} */
+                type: "payment_intent" | "coupon_claim" | "manual_credit";
                 amount: number;
+                amountRefunded: number;
                 bonusAmount?: number;
                 currency: string;
                 status: string;
                 created: number;
-                paymentMethod: {
-                  type: string;
-                  validated?: boolean;
-                  isDefault?: boolean;
-                  card?: {
-                    brand: string | null;
-                    last4: string | null;
-                    exp_month: number;
-                    exp_year: number;
-                    funding?: string | null;
-                    country?: string | null;
-                    network?: string | null;
-                    three_d_secure_usage?: {
-                      supported?: boolean | null;
-                    } | null;
-                  } | null;
-                  link?: {
-                    email?: string | null;
-                  } | null;
-                  billing_details?: {
-                    address?: {
-                      city: string | null;
-                      country: string | null;
-                      line1: string | null;
-                      line2: string | null;
-                      postal_code: string | null;
-                      state: string | null;
-                    } | null;
-                    email?: string | null;
-                    name?: string | null;
-                    phone?: string | null;
-                  };
-                } | null;
+                cardBrand?: string | null;
+                cardLast4?: string | null;
+                stripeInvoiceId?: string | null;
                 receiptUrl?: string | null;
                 description?: string | null;
-                metadata?: {
-                  [key: string]: string;
-                } | null;
               }[];
+              totalCount: number;
               hasMore: boolean;
-              nextPage?: string | null;
             };
           };
         };

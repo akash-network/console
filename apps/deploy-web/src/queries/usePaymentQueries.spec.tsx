@@ -106,19 +106,16 @@ describe("usePaymentQueries", () => {
   });
 
   it("fetches payment transactions", async () => {
-    const mockTransactions = {
-      transactions: createMockItems(createMockTransaction, 2)
-    };
-    const stripeService = mock<StripeService>({
-      getCustomerTransactions: vi.fn().mockResolvedValue(mockTransactions)
-    });
+    const transactions = createMockItems(createMockTransaction, 2);
+    const listStripeTransactions = vi.fn().mockResolvedValue({ data: { transactions, totalCount: 2, hasMore: false } });
+    const api = createProxy({ v1: { listStripeTransactions } }) as unknown as ApiService;
     const { result } = setupQuery(() => usePaymentTransactionsQuery({ limit: 2 }), {
-      services: { stripe: () => stripeService }
+      services: { api: () => api }
     });
     await vi.waitFor(() => {
-      expect(stripeService.getCustomerTransactions).toHaveBeenCalledWith({ limit: 2 });
+      expect(listStripeTransactions).toHaveBeenCalledWith(expect.objectContaining({ limit: 2 }));
       expect(result.current.isSuccess).toBe(true);
-      expect(result.current.data?.transactions).toEqual(mockTransactions.transactions);
+      expect(result.current.data?.transactions).toEqual(transactions);
     });
   });
 
@@ -142,8 +139,9 @@ describe("usePaymentQueries", () => {
       const stripeService = mock<StripeService>({
         confirmPayment: vi.fn().mockResolvedValue(mockPaymentResponse)
       });
+      const api = createProxy({ v1: { listStripeTransactions: vi.fn() } }) as unknown as ApiService;
       const { result, queryClient } = setupQueryWithClient(() => usePaymentMutations(), {
-        services: { stripe: () => stripeService }
+        services: { stripe: () => stripeService, api: () => api }
       });
 
       const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
@@ -159,7 +157,7 @@ describe("usePaymentQueries", () => {
       await vi.waitFor(() => {
         expect(stripeService.confirmPayment).toHaveBeenCalled();
         expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: QueryKeys.getPaymentMethodsKey() });
-        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: QueryKeys.getPaymentTransactionsKey() });
+        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: api.v1.listStripeTransactions.getKey() });
       });
     });
 
@@ -168,8 +166,9 @@ describe("usePaymentQueries", () => {
       const stripeService = mock<StripeService>({
         confirmPayment: vi.fn().mockResolvedValue(mockPaymentResponse)
       });
+      const api = createProxy({ v1: { listStripeTransactions: vi.fn() } }) as unknown as ApiService;
       const { result, queryClient } = setupQueryWithClient(() => usePaymentMutations(), {
-        services: { stripe: () => stripeService }
+        services: { stripe: () => stripeService, api: () => api }
       });
 
       const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
@@ -184,7 +183,7 @@ describe("usePaymentQueries", () => {
 
       await vi.waitFor(() => {
         expect(stripeService.confirmPayment).toHaveBeenCalled();
-        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: QueryKeys.getPaymentTransactionsKey() });
+        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: api.v1.listStripeTransactions.getKey() });
       });
       expect(invalidateQueriesSpy).not.toHaveBeenCalledWith({ queryKey: QueryKeys.getPaymentMethodsKey() });
     });

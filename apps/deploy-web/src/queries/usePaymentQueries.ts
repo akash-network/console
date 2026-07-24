@@ -3,7 +3,6 @@ import type {
   ApplyCouponParams,
   ConfirmPaymentParams,
   ConfirmPaymentResponse,
-  CustomerTransactionsResponse,
   PaymentMethod,
   SetupIntentResponse,
   ThreeDSecureAuthParams
@@ -43,6 +42,10 @@ export const useDefaultPaymentMethodQuery = (
   });
 };
 
+type ListStripeTransactionsResponse = paths["/v1/stripe/transactions"]["get"]["responses"][200]["content"]["application/json"];
+
+export type BillingTransaction = ListStripeTransactionsResponse["data"]["transactions"][number];
+
 export interface UsePaymentTransactionsOptions {
   limit?: number;
   offset?: number | null;
@@ -50,18 +53,17 @@ export interface UsePaymentTransactionsOptions {
   endDate?: Date | null;
 }
 
-export const usePaymentTransactionsQuery = (
-  options?: UsePaymentTransactionsOptions,
-  queryOptions?: Omit<UseQueryOptions<CustomerTransactionsResponse>, "queryKey" | "queryFn">
-) => {
-  const { stripe } = useServices();
-  return useQuery({
-    ...queryOptions,
-    queryKey: QueryKeys.getPaymentTransactionsKey(options),
-    queryFn: async () => {
-      return await stripe.getCustomerTransactions(options);
-    }
-  });
+export const usePaymentTransactionsQuery = ({ limit, offset, startDate, endDate }: UsePaymentTransactionsOptions = {}) => {
+  const { api } = useServices();
+  return api.v1.listStripeTransactions.useQuery(
+    {
+      limit,
+      offset: offset ?? undefined,
+      startDate: startDate?.toISOString(),
+      endDate: endDate?.toISOString()
+    },
+    { select: response => response.data }
+  );
 };
 
 export const useSetupIntentMutation = () => {
@@ -92,7 +94,7 @@ export const usePaymentMutations = () => {
       });
     },
     onSuccess: response => {
-      queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentTransactionsKey() });
+      queryClient.invalidateQueries({ queryKey: api.v1.listStripeTransactions.getKey() });
 
       if (!response.requiresAction) {
         queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });

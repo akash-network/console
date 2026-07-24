@@ -1,11 +1,9 @@
 import React from "react";
-import type { BillingTransaction } from "@akashnetwork/http-sdk";
+import { ApiError } from "@akashnetwork/openapi-sdk";
 import type { PaginationState } from "@tanstack/react-table";
-import type { AxiosError } from "axios";
 import { describe, expect, it, type MockedFunction, vi } from "vitest";
-import { mock } from "vitest-mock-extended";
 
-import type { usePaymentTransactionsQuery } from "@src/queries";
+import type { BillingTransaction, usePaymentTransactionsQuery } from "@src/queries";
 import type { ChildrenProps } from "./BillingContainer";
 import { BillingContainer } from "./BillingContainer";
 
@@ -28,12 +26,9 @@ describe(BillingContainer.name, () => {
     expect(child.isError).toBe(true);
   });
 
-  it("passes error object if queryError is axios error", async () => {
-    const axiosError = mock<AxiosError>({
-      isAxiosError: true,
-      response: { data: { message: "fail" } }
-    });
-    const { child } = await setup({ queryError: axiosError });
+  it("surfaces the API error message when the query fails", async () => {
+    const apiError = new ApiError(500, { message: "fail" }, "GET /v1/stripe/transactions → 500");
+    const { child } = await setup({ queryError: apiError });
     expect(child.errorMessage).toBe("fail");
   });
 
@@ -69,7 +64,7 @@ describe(BillingContainer.name, () => {
       data: { transactions: BillingTransaction[]; hasMore: boolean; totalCount: number };
       isFetching: boolean;
       isError: boolean;
-      queryError: AxiosError;
+      queryError: Error;
     }> = {}
   ) {
     const useDefaultData = !Object.prototype.hasOwnProperty.call(overrides, "data");

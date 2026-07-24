@@ -85,7 +85,7 @@ export const operations = {
       method: "get",
       operationId: "listStripeTransactions",
       pathParams: [],
-      queryParams: ["limit", "startingAfter", "endingBefore", "startDate", "endDate"],
+      queryParams: ["limit", "offset", "startDate", "endDate"],
       hasBody: false
     },
     exportStripeTransactions: {

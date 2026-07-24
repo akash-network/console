@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import type { BillingTransaction } from "@akashnetwork/http-sdk";
+import { ApiError, extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
 import { useToast } from "@akashnetwork/ui/hooks";
 import type { PaginationState } from "@tanstack/react-table";
 import axios from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
+import type { BillingTransaction } from "@src/queries";
 import { usePaymentTransactionsQuery } from "@src/queries";
 import { createDateRange } from "@src/utils/dateUtils";
 import { downloadCsv } from "@src/utils/domUtils";
@@ -56,8 +57,8 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
   });
 
   React.useEffect(() => {
-    if (axios.isAxiosError(queryError)) {
-      setErrorMessage(queryError.response?.data.message || "An error occurred while fetching payment transactions.");
+    if (queryError instanceof ApiError) {
+      setErrorMessage(extractApiErrorMessage(queryError) || "An error occurred while fetching payment transactions.");
     }
   }, [queryError]);
 

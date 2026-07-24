@@ -1,5 +1,6 @@
-import type { BillingTransaction } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
+
+import type { BillingTransaction } from "@src/queries";
 
 export const createMockPaymentMethod = (overrides = {}) => ({
   id: `pm_${faker.string.alphanumeric(24)}`,
