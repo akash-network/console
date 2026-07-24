@@ -126,11 +126,11 @@ export class RefillService {
   /**
    * Returns the user's wallet, creating and activating it as needed —
    * funding with real money must activate a wallet even when the user never started a trial.
-   * The activation claim no-ops for already-activated wallets.
+   * The activation stamp no-ops for already-activated wallets.
    */
   private async ensureActivatedWallet(userId: UserWalletOutput["userId"]) {
     const userWallet = await this.walletInitializerService.ensureWallet(userId);
 
-    return (await this.userWalletRepository.claimActivation(userWallet.id)) ?? userWallet;
+    return (await this.userWalletRepository.markActivated(userWallet.id)) ?? userWallet;
   }
 }

@@ -58,12 +58,14 @@ export class WalletInitializerService {
         claimedWallet.id,
         {
           deploymentAllowance: chainWallet.limits.deployment,
-          feeAllowance: chainWallet.limits.fees
+          feeAllowance: chainWallet.limits.fees,
+          activatedAt: new Date(),
+          activationClaimedAt: null
         },
         { returning: true }
       );
     } catch (error) {
-      await this.userWalletRepository.updateById(claimedWallet.id, { activatedAt: null });
+      await this.userWalletRepository.releaseActivationClaim(claimedWallet.id, claimedWallet.activationClaimedAt!);
       throw error;
     }
 

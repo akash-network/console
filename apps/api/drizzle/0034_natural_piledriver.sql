@@ -1,0 +1,1 @@
+ALTER TABLE "user_wallets" ADD COLUMN "activation_claimed_at" timestamp with time zone;

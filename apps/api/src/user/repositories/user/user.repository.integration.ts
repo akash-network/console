@@ -108,7 +108,7 @@ describe(UserRepository.name, () => {
 
       const activatedTrialUser = await createTestUser({ lastFingerprint: fingerprint });
       const activatedWallet = await userWalletRepository.create({ userId: activatedTrialUser.id, address: createAkashAddress() });
-      await userWalletRepository.claimActivation(activatedWallet.id);
+      await userWalletRepository.markActivated(activatedWallet.id);
 
       const registeredOnlyUser = await createTestUser({ lastFingerprint: fingerprint });
       await userWalletRepository.create({ userId: registeredOnlyUser.id, address: createAkashAddress() });

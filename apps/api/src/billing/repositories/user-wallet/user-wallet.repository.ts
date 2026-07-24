@@ -1,6 +1,7 @@
 import { Trace } from "@akashnetwork/instrumentation";
 import subDays from "date-fns/subDays";
-import { and, count, eq, gt, inArray, isNotNull, isNull, lte, or } from "drizzle-orm";
+import subMinutes from "date-fns/subMinutes";
+import { and, count, eq, gt, inArray, isNotNull, isNull, lt, lte, or } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -33,6 +34,9 @@ export interface UserWalletPublicOutput {
 
 @singleton()
 export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallets"], UserWalletInput, UserWalletOutput> {
+  /** Comfortably above the worst observed trial provisioning time (two funding txs behind a load balancer). */
+  static readonly ACTIVATION_CLAIM_STALE_AFTER_MINUTES = 5;
+
   constructor(
     @InjectPg() protected readonly pg: ApiPgDatabase,
     @InjectPgTable("UserWallets") protected readonly table: ApiPgTables["UserWallets"],
@@ -82,14 +86,50 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return this.toOutput(item);
   }
 
+  /**
+   * Grants the caller an exclusive right to provision a not-yet-activated wallet. Returns undefined when the wallet
+   * is already activated or another attempt holds a live claim. A claim older than the stale cutoff is considered
+   * abandoned (crashed or hung attempt) and can be taken over.
+   */
   async claimActivation(id: UserWalletOutput["id"]): Promise<UserWalletOutput | undefined> {
+    const staleClaimCutoff = subMinutes(new Date(), UserWalletRepository.ACTIVATION_CLAIM_STALE_AFTER_MINUTES);
     const [claimed] = await this.cursor
       .update(this.table)
-      .set({ activatedAt: new Date() })
-      .where(this.whereAccessibleBy(and(eq(this.table.id, id), isNull(this.table.activatedAt))))
+      .set({ activationClaimedAt: new Date() })
+      .where(
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.id, id),
+            isNull(this.table.activatedAt),
+            or(isNull(this.table.activationClaimedAt), lt(this.table.activationClaimedAt, staleClaimCutoff))
+          )
+        )
+      )
       .returning();
 
     return claimed ? this.toOutput(claimed) : undefined;
+  }
+
+  /**
+   * Releases only the claim identified by `claimedAt`, so a slow failed attempt cannot clobber
+   * a claim taken over by a newer attempt in the meantime.
+   */
+  async releaseActivationClaim(id: UserWalletOutput["id"], claimedAt: Date): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({ activationClaimedAt: null })
+      .where(this.whereAccessibleBy(and(eq(this.table.id, id), eq(this.table.activationClaimedAt, claimedAt))));
+  }
+
+  /** Stamps activation directly, without the claim/provision cycle. No-ops for already-activated wallets. */
+  async markActivated(id: UserWalletOutput["id"]): Promise<UserWalletOutput | undefined> {
+    const [activated] = await this.cursor
+      .update(this.table)
+      .set({ activatedAt: new Date(), activationClaimedAt: null })
+      .where(this.whereAccessibleBy(and(eq(this.table.id, id), isNull(this.table.activatedAt))))
+      .returning();
+
+    return activated ? this.toOutput(activated) : undefined;
   }
 
   async findDrainingWallets(thresholds: { fee: number; trialExpirationDays: number }) {

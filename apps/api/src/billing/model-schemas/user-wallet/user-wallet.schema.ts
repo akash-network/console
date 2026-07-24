@@ -14,6 +14,7 @@ export const UserWallets = pgTable("user_wallets", {
   feeAllowance: allowance("fee_allowance"),
   isTrialing: boolean("trial").default(true),
   activatedAt: timestamp("activated_at", { withTimezone: true }),
+  activationClaimedAt: timestamp("activation_claimed_at", { withTimezone: true }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });

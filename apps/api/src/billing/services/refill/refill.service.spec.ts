@@ -21,7 +21,7 @@ describe(RefillService.name, () => {
         setup();
       const existingWallet = createUserWallet({ userId });
       walletInitializerService.ensureWallet.mockResolvedValue(existingWallet);
-      userWalletRepository.claimActivation.mockResolvedValue(undefined);
+      userWalletRepository.markActivated.mockResolvedValue(undefined);
       managedUserWalletService.authorizeSpending.mockResolvedValue();
       balancesService.retrieveDeploymentLimit.mockResolvedValue(5000);
       balancesService.refreshUserWalletLimits.mockResolvedValue();
@@ -42,7 +42,7 @@ describe(RefillService.name, () => {
       const { service, userWalletRepository, managedUserWalletService, balancesService, analyticsService, walletInitializerService } = setup();
       const existingWallet = createUserWallet({ userId });
       walletInitializerService.ensureWallet.mockResolvedValue(existingWallet);
-      userWalletRepository.claimActivation.mockResolvedValue(undefined);
+      userWalletRepository.markActivated.mockResolvedValue(undefined);
       managedUserWalletService.authorizeSpending.mockResolvedValue();
       balancesService.retrieveDeploymentLimit.mockResolvedValue(5000);
       balancesService.refreshUserWalletLimits.mockResolvedValue();
@@ -74,7 +74,7 @@ describe(RefillService.name, () => {
       const { service, userWalletRepository, managedUserWalletService, balancesService, walletInitializerService } = setup();
       const existingWallet = createUserWallet({ userId });
       walletInitializerService.ensureWallet.mockResolvedValue(existingWallet);
-      userWalletRepository.claimActivation.mockResolvedValue(undefined);
+      userWalletRepository.markActivated.mockResolvedValue(undefined);
       managedUserWalletService.authorizeSpending.mockResolvedValue();
       balancesService.retrieveDeploymentLimit.mockResolvedValue(5000);
       balancesService.refreshUserWalletLimits.mockResolvedValue();
@@ -90,7 +90,7 @@ describe(RefillService.name, () => {
       const wallet = createUserWallet({ userId, activatedAt: null });
       const activatedWallet = { ...wallet, activatedAt: new Date() };
       walletInitializerService.ensureWallet.mockResolvedValue(wallet);
-      userWalletRepository.claimActivation.mockResolvedValue(activatedWallet);
+      userWalletRepository.markActivated.mockResolvedValue(activatedWallet);
       managedUserWalletService.authorizeSpending.mockResolvedValue();
       balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
       balancesService.refreshUserWalletLimits.mockResolvedValue();
@@ -98,7 +98,7 @@ describe(RefillService.name, () => {
       await service.topUpWallet(amountUsd, userId);
 
       expect(walletInitializerService.ensureWallet).toHaveBeenCalledWith(userId);
-      expect(userWalletRepository.claimActivation).toHaveBeenCalledWith(wallet.id);
+      expect(userWalletRepository.markActivated).toHaveBeenCalledWith(wallet.id);
       expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
         address: wallet.address,
         limits: { deployment: 1000000, fees: 1000 }
