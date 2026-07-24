@@ -39,11 +39,8 @@ export const useManagedWallet = () => {
   }, [signedInUser?.id, queried, created, setIsSignedInWithTrial]);
 
   useEffect(() => {
-    if (wallet && isCreated) {
-      updateStorageManagedWallet({ ...wallet, selected: true });
-    } else if (wallet) {
-      updateStorageManagedWallet(wallet);
-    }
+    if (!wallet) return;
+    updateStorageManagedWallet(isCreated ? { ...wallet, selected: true } : wallet);
   }, [isCreated, wallet]);
 
   useEffect(() => {
