@@ -156,7 +156,7 @@ describe(WalletInitializerService.name, () => {
       const claimedAt = new Date();
       const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet, isNew: false });
       const claimActivation = vi.fn().mockResolvedValue({ ...wallet, activationClaimedAt: claimedAt });
-      const releaseActivationClaim = vi.fn();
+      const releaseActivationClaim = vi.fn().mockResolvedValue(undefined);
       const updateWalletById = vi.fn().mockImplementation(async (id, patch) => ({ ...wallet, ...patch }));
       const deleteWalletById = vi.fn();
 
@@ -167,8 +167,26 @@ describe(WalletInitializerService.name, () => {
       await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId)).rejects.toThrow("Failed to authorize trial");
 
       expect(releaseActivationClaim).toHaveBeenCalledWith(wallet.id, claimedAt);
-      expect(updateWalletById).not.toHaveBeenCalledWith(wallet.id, { activatedAt: null });
+      expect(updateWalletById).not.toHaveBeenCalled();
       expect(deleteWalletById).not.toHaveBeenCalled();
+      expect(di.resolve(DomainEventsService).publish).not.toHaveBeenCalled();
+    });
+
+    it("surfaces the original provisioning error even when releasing the claim fails", async () => {
+      const userId = "test-user-id";
+      const wallet = createUserWallet({ userId, activatedAt: null });
+      const claimedAt = new Date();
+      const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet, isNew: false });
+      const claimActivation = vi.fn().mockResolvedValue({ ...wallet, activationClaimedAt: claimedAt });
+      const releaseActivationClaim = vi.fn().mockRejectedValue(new Error("Failed to release claim"));
+
+      const di = setup({ getOrCreateWallet, claimActivation, releaseActivationClaim });
+      const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
+      managedUserWalletService.createAndAuthorizeTrialSpending.mockRejectedValue(new Error("Failed to authorize trial"));
+
+      await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId)).rejects.toThrow("Failed to authorize trial");
+
+      expect(releaseActivationClaim).toHaveBeenCalledWith(wallet.id, claimedAt);
       expect(di.resolve(DomainEventsService).publish).not.toHaveBeenCalled();
     });
 
@@ -248,7 +266,7 @@ describe(WalletInitializerService.name, () => {
         updateById: input?.updateWalletById,
         deleteById: input?.deleteWalletById ?? vi.fn(),
         claimActivation: input?.claimActivation,
-        releaseActivationClaim: input?.releaseActivationClaim ?? vi.fn(),
+        releaseActivationClaim: input?.releaseActivationClaim ?? vi.fn().mockResolvedValue(undefined),
         accessibleBy() {
           return this as unknown as UserWalletRepository;
         },

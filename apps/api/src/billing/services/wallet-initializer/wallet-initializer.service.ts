@@ -1,3 +1,4 @@
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
@@ -14,6 +15,8 @@ import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wa
 
 @singleton()
 export class WalletInitializerService {
+  private readonly logger = createOtelLogger({ context: WalletInitializerService.name });
+
   constructor(
     private readonly walletManager: ManagedUserWalletService,
     private readonly managedSignerService: ManagedSignerService,
@@ -65,7 +68,9 @@ export class WalletInitializerService {
         { returning: true }
       );
     } catch (error) {
-      await this.userWalletRepository.releaseActivationClaim(claimedWallet.id, claimedWallet.activationClaimedAt!);
+      await this.userWalletRepository
+        .releaseActivationClaim(claimedWallet.id, claimedWallet.activationClaimedAt!)
+        .catch(releaseError => this.logger.error({ event: "TRIAL_CLAIM_RELEASE_ERROR", walletId: claimedWallet.id, error: releaseError }));
       throw error;
     }
 
