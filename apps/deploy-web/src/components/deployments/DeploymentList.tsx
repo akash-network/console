@@ -21,6 +21,7 @@ import { NextSeo } from "next-seo";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { LinkTo } from "@src/components/shared/LinkTo";
+import { useServices } from "@src/context/ServicesProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
@@ -38,6 +39,7 @@ import { DeploymentListRow } from "./DeploymentListRow";
 
 export const DeploymentList: React.FunctionComponent = () => {
   const { address, signAndBroadcastTx, isWalletLoaded, isWalletConnected } = useWallet();
+  const { deploymentLocalStorage } = useServices();
   const { data: providers, isFetching: isLoadingProviders } = useProviderList();
   const { data: deployments, isFetching: isLoadingDeployments, refetch: getDeployments } = useDeploymentList(address, { enabled: false });
   const [pageIndex, setPageIndex] = useState(0);
@@ -120,6 +122,8 @@ export const DeploymentList: React.FunctionComponent = () => {
       const messages = selectedItemIds.map(dseq => TransactionMessageData.getCloseDeploymentMsg(address, `${dseq}`));
       const response = await signAndBroadcastTx(messages);
       if (response) {
+        selectedItemIds.forEach(dseq => deploymentLocalStorage.delete(address, `${dseq}`));
+
         getDeployments();
         clearSelection();
       }
