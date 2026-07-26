@@ -6492,7 +6492,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "limit",
             "required": false,
             "schema": {
-              "default": 1000,
+              "default": 100,
+              "maximum": 100,
               "minimum": 1,
               "type": "number",
             },
