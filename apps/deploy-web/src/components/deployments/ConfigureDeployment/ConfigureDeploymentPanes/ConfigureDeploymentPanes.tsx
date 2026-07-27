@@ -7,10 +7,11 @@ import type { ConfigurationLock } from "../ConfigurationPane/configurationLock";
 import { ConfigurationPane } from "../ConfigurationPane/ConfigurationPane";
 import { DeploymentPane } from "../DeploymentPane/DeploymentPane";
 import { MarketplacePane } from "../MarketplacePane/MarketplacePane";
+import { PaneLockBanner } from "../PaneLockBanner/PaneLockBanner";
 import { SdlPreviewPane } from "../SdlPreviewPane/SdlPreviewPane";
 import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
 
-export const DEPENDENCIES = { DeploymentPane, ConfigurationPane, MarketplacePane, SdlPreviewPane, useFlag };
+export const DEPENDENCIES = { DeploymentPane, ConfigurationPane, MarketplacePane, PaneLockBanner, SdlPreviewPane, useFlag };
 
 type Props = {
   sdl: string;
@@ -63,32 +64,25 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
 
   return (
     <div className="grid h-full min-h-0 flex-1 auto-cols-fr grid-flow-col grid-cols-[auto_minmax(560px,1fr)] grid-rows-1 border-t border-zinc-300 dark:border-zinc-700">
-      <div className="grid min-h-0 grid-flow-col grid-cols-[auto_360px] grid-rows-1 divide-x divide-zinc-300 dark:divide-zinc-700">
-        <div className="min-h-0">
-          <d.DeploymentPane
-            selectedServiceId={selectedServiceId}
-            onSelectService={onSelectService}
-            locked={isLocked}
-            isClosing={isClosing}
-            onCancelAndEdit={onCancelAndEdit}
-            phase={phase}
-            selections={selections}
-            selectedPlacementId={selectedPlacementId}
-            sdl={sdl}
-            dseq={dseq}
-            deploymentName={deploymentName}
-            onDeploymentNameChange={onDeploymentNameChange}
-          />
-        </div>
-        <div className="min-h-0">
-          <d.ConfigurationPane
-            selectedServiceId={selectedServiceId}
-            locked={configurationLock}
-            isClosing={isClosing}
-            onCancelAndEdit={onCancelAndEdit}
-            actions={configurationActions}
-          />
-        </div>
+      <div className="grid min-h-0 grid-cols-[auto_360px] grid-rows-[auto_auto_1fr]">
+        <d.DeploymentPane
+          selectedServiceId={selectedServiceId}
+          onSelectService={onSelectService}
+          locked={isLocked}
+          phase={phase}
+          selections={selections}
+          selectedPlacementId={selectedPlacementId}
+          sdl={sdl}
+          dseq={dseq}
+          deploymentName={deploymentName}
+          onDeploymentNameChange={onDeploymentNameChange}
+        />
+        <d.ConfigurationPane selectedServiceId={selectedServiceId} locked={configurationLock} actions={configurationActions} />
+        {isLocked && (
+          <div className="col-start-1 col-end-3 row-start-2">
+            <d.PaneLockBanner onCancelAndEdit={onCancelAndEdit} isClosing={isClosing} />
+          </div>
+        )}
       </div>
       <div className="min-h-0 border-l border-zinc-300 dark:border-zinc-700">
         <d.MarketplacePane

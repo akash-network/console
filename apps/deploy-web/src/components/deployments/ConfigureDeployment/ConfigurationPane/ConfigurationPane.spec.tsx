@@ -10,7 +10,6 @@ import type { ConfigurationLock } from "./configurationLock";
 import { ConfigurationPane, DEPENDENCIES } from "./ConfigurationPane";
 
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(ConfigurationPane.name, () => {
@@ -107,16 +106,6 @@ describe(ConfigurationPane.name, () => {
     expect(screen.getByLabelText("Storage")).toHaveValue(9);
   });
 
-  it("shows the lock banner with cancel-and-edit while locked", async () => {
-    const onCancelAndEdit = vi.fn();
-    const values = defaultServiceWithPlacement({ title: "api" });
-    setup({ values, selectedServiceId: values.services[0].id, locked: "onchain", onCancelAndEdit });
-
-    await userEvent.click(screen.getByRole("button", { name: /cancel and edit/i }));
-
-    expect(onCancelAndEdit).toHaveBeenCalled();
-  });
-
   it("locks the structural sections but leaves the image editable while only the on-chain fields are locked", () => {
     const ImageSection = vi.fn(() => null);
     const HardwareSection = vi.fn(() => null);
@@ -154,7 +143,6 @@ describe(ConfigurationPane.name, () => {
     values: SdlBuilderFormValuesType;
     selectedServiceId: string;
     locked?: ConfigurationLock;
-    onCancelAndEdit?: () => void;
     actions?: ReactNode;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
@@ -167,7 +155,6 @@ describe(ConfigurationPane.name, () => {
         <ConfigurationPane
           selectedServiceId={input.selectedServiceId}
           locked={input.locked}
-          onCancelAndEdit={input.onCancelAndEdit}
           actions={input.actions}
           dependencies={MockComponents(DEPENDENCIES, input.dependencies)}
         />
