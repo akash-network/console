@@ -5,6 +5,8 @@ on:
     # Run daily at 15:00 UTC
     - cron: "0 15 * * *"
   workflow_dispatch:
+  repository_dispatch:
+    types: [awesome-akash-updated]
 
 permissions:
   contents: read
