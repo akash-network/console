@@ -11,7 +11,10 @@ describe("middleware", () => {
   it("sets a report-only CSP header with a host-allowlist script-src by default", () => {
     const { response } = setup({ path: "/deployments" });
 
-    expect(response.headers.get("Content-Security-Policy-Report-Only")).toContain("script-src 'self'");
+    const csp = response.headers.get("Content-Security-Policy-Report-Only");
+    expect(csp).toContain("script-src 'self' 'unsafe-inline'");
+    expect(csp).not.toContain("'strict-dynamic'");
+    expect(csp).not.toContain("'nonce-");
     expect(response.headers.get("Content-Security-Policy")).toBeNull();
   });
 

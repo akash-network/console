@@ -56,6 +56,10 @@ describe("csp", () => {
       expect(scriptSrc).toContain("'self'");
       expect(scriptSrc).toContain("'unsafe-inline'");
       expect(scriptSrc).toContain("https://www.googletagmanager.com");
+      expect(scriptSrc).toContain("https://www.google-analytics.com");
+      expect(scriptSrc).toContain("https://*.google-analytics.com");
+      expect(scriptSrc).toContain("https://pxl.growth-channel.net");
+      expect(scriptSrc).toContain("https://challenges.cloudflare.com");
       expect(scriptSrc).toContain("https://js.stripe.com");
       expect(scriptSrc).not.toContain("'strict-dynamic'");
       expect(scriptSrc).not.toContain("'nonce-");
