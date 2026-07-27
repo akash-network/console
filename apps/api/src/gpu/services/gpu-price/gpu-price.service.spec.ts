@@ -385,6 +385,75 @@ describe(GpuPriceService.name, () => {
       expect(result.models[0].providerAvailability.providers).toBeUndefined();
     });
 
+    it("returns a JSON-serializable debug payload for v1beta5 bids", async () => {
+      const provider = createProvider();
+      const gpu = createGpuType({
+        vendor: "nvidia",
+        model: "a100",
+        providers: [provider]
+      });
+
+      const bidData = createMsgCreateBidV5({
+        provider: provider.owner,
+        gpuVendor: "nvidia",
+        gpuModel: "a100"
+      });
+
+      const days = [createDay({ aktPrice: 3.0 })];
+      const deployment = createDeploymentWithBid({
+        dayId: days[0].id,
+        bidData: bidData.encoded,
+        bidType: `/akash.market.v1beta5.MsgCreateBid`
+      });
+
+      const { service } = setup({
+        gpusForPricing: [gpu],
+        deploymentsWithGpu: [deployment],
+        days
+      });
+
+      const result = await service.getGpuPrices(true);
+
+      expect(result.models[0].providersWithBestBid).toHaveLength(1);
+      expect(() => JSON.stringify(result)).not.toThrow();
+    });
+
+    it("does not serve the debug payload to non-debug requests from the shared cache", async () => {
+      const provider = createProvider();
+      const gpu = createGpuType({
+        vendor: "nvidia",
+        model: "a100",
+        providers: [provider]
+      });
+
+      const bidData = createMsgCreateBidV5({
+        provider: provider.owner,
+        gpuVendor: "nvidia",
+        gpuModel: "a100"
+      });
+
+      const days = [createDay({ aktPrice: 3.0 })];
+      const deployment = createDeploymentWithBid({
+        dayId: days[0].id,
+        bidData: bidData.encoded,
+        bidType: `/akash.market.v1beta5.MsgCreateBid`
+      });
+
+      const { service } = setup({
+        gpusForPricing: [gpu],
+        deploymentsWithGpu: [deployment],
+        days
+      });
+
+      const debugResult = await service.getGpuPrices(true);
+      const publicResult = await service.getGpuPrices(false);
+
+      expect(debugResult.models[0].providersWithBestBid).toBeDefined();
+      expect(publicResult.models[0].providersWithBestBid).toBeUndefined();
+      expect(publicResult.models[0].bidCount).toBeUndefined();
+      expect(() => JSON.stringify(publicResult)).not.toThrow();
+    });
+
     it("sorts GPU models by vendor, model, ram, interface", async () => {
       const gpus = [
         createGpuType({ vendor: "nvidia", model: "h100", ram: "80Gi", interface: "sxm" }),
