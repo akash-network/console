@@ -62,7 +62,15 @@ describe("TrackingScripts", () => {
     expect(window.dataLayer).toBeUndefined();
   });
 
-  function setup(input: { nodeEnv?: "development" | "production" | "test"; trackingEnabled?: boolean; growthChannelEnabled?: boolean }) {
+  it("does not load GTM when no GTM container id is configured", () => {
+    setup({ gtmId: undefined });
+
+    expect(document.getElementById("gtm")).toBeNull();
+    expect(document.querySelector("noscript")).toBeNull();
+    expect(window.dataLayer).toBeUndefined();
+  });
+
+  function setup(input: { nodeEnv?: "development" | "production" | "test"; trackingEnabled?: boolean; growthChannelEnabled?: boolean; gtmId?: string }) {
     document.querySelectorAll("#gtm, #growth-channel-script-retargeting, #growth-channel-script-console, noscript").forEach(element => element.remove());
     delete window.dataLayer;
 
@@ -72,7 +80,7 @@ describe("TrackingScripts", () => {
           NEXT_PUBLIC_NODE_ENV: input.nodeEnv ?? "production",
           NEXT_PUBLIC_TRACKING_ENABLED: input.trackingEnabled ?? true,
           NEXT_PUBLIC_GROWTH_CHANNEL_TRACKING_ENABLED: input.growthChannelEnabled ?? false,
-          NEXT_PUBLIC_GTM_ID: "GTM-TEST123"
+          NEXT_PUBLIC_GTM_ID: "gtmId" in input ? input.gtmId : "GTM-TEST123"
         }
       });
 

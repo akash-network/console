@@ -13,7 +13,7 @@ const GTM_SCRIPT_ID = "gtm";
  * so the dataLayer is seeded directly and gtm.js loads as an allowlisted external script.
  */
 function loadGoogleTagManager(gtmId?: string) {
-  if (document.getElementById(GTM_SCRIPT_ID)) return;
+  if (!gtmId || document.getElementById(GTM_SCRIPT_ID)) return;
 
   window.dataLayer = window.dataLayer || [];
   window.dataLayer.push({ "gtm.start": new Date().getTime(), event: "gtm.js" });
