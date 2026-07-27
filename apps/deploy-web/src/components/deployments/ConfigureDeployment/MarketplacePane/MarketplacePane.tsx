@@ -35,7 +35,7 @@ export const MarketplacePane: FC<Props> = ({
   const { offers, isLoading, isError, isInvalid } = d.usePlacementOffers({ phase, dseq: dseq ?? undefined, sdl, placementName, region });
   const { query, setQuery, clear, filteredProviders, isSearchActive } = d.useProviderSearch(offers);
   const hasFailedWithoutData = isError && offers.length === 0;
-  const gpuCount = d.useDeploymentGpuCount();
+  const gpuCount = d.useDeploymentGpuCount(selectedPlacementId);
 
   return (
     <section aria-labelledby="configure-marketplace-pane-heading" className="flex h-full min-h-0 flex-col">

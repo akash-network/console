@@ -11,11 +11,19 @@ export function useDeploymentResourceSummary(): string {
   return useMemo(() => formatDeploymentResources(aggregateDeploymentResources(services ?? [])), [services]);
 }
 
-/** Total GPUs requested across the current spec — the same count every provider bids on, so it applies to every marketplace row. */
-export function useDeploymentGpuCount(): number {
+/**
+ * Total GPUs requested — the same count every provider bids on, so it applies to every marketplace row.
+ * Scope to a single placement by passing its id; without one, counts GPUs across the whole spec. The
+ * marketplace shows bids per placement, so it must pass the viewed placement's id or a multi-placement spec
+ * leaks another placement's GPU count into this one.
+ */
+export function useDeploymentGpuCount(placementId?: string): number {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const services = useWatch({ control, name: "services" });
-  return useMemo(() => aggregateDeploymentResources(services ?? []).gpu, [services]);
+  return useMemo(() => {
+    const scoped = placementId ? (services ?? []).filter(service => service.placementId === placementId) : services ?? [];
+    return aggregateDeploymentResources(scoped).gpu;
+  }, [services, placementId]);
 }
 
 /**

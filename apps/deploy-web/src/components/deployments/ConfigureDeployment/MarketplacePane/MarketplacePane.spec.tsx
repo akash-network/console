@@ -41,6 +41,12 @@ describe(MarketplacePane.name, () => {
     expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ gpuCount: 0 }), expect.anything());
   });
 
+  it("scopes the GPU count to the placement it renders bids for", () => {
+    const { useDeploymentGpuCount } = setup({ selectedPlacementId: "placement-2", offers: [buildOffer()] });
+
+    expect(useDeploymentGpuCount).toHaveBeenCalledWith("placement-2");
+  });
+
   it("renders an error message and no table when offers fail to load with no data", () => {
     const { MarketplaceProvidersTable } = setup({ isError: true });
 
@@ -128,12 +134,13 @@ describe(MarketplacePane.name, () => {
         {selectedBidId ? "selected" : "select"}
       </button>
     ));
+    const useDeploymentGpuCount = vi.fn(() => input.gpuCount ?? 0);
     const dependencies: typeof DEPENDENCIES = {
       usePlacementOffers: usePlacementOffers as never,
       useProviderSearch: useProviderSearch as never,
       MarketplaceProvidersTable: MarketplaceProvidersTable as never,
       ProviderSearchInput,
-      useDeploymentGpuCount: vi.fn(() => input.gpuCount ?? 0)
+      useDeploymentGpuCount
     };
     const user = userEvent.setup();
 
@@ -150,6 +157,6 @@ describe(MarketplacePane.name, () => {
         dependencies={dependencies}
       />
     );
-    return { usePlacementOffers, useProviderSearch, MarketplaceProvidersTable, user };
+    return { usePlacementOffers, useProviderSearch, MarketplaceProvidersTable, useDeploymentGpuCount, user };
   }
 });
