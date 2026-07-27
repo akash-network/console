@@ -50,6 +50,17 @@ describe("csp", () => {
   });
 
   describe("buildContentSecurityPolicy", () => {
+    it("allows first-party and vendor scripts via a host allowlist without a nonce or strict-dynamic", () => {
+      const { scriptSrc } = setup({});
+
+      expect(scriptSrc).toContain("'self'");
+      expect(scriptSrc).toContain("'unsafe-inline'");
+      expect(scriptSrc).toContain("https://www.googletagmanager.com");
+      expect(scriptSrc).toContain("https://js.stripe.com");
+      expect(scriptSrc).not.toContain("'strict-dynamic'");
+      expect(scriptSrc).not.toContain("'nonce-");
+    });
+
     it("includes origins derived from the provided env values", () => {
       const { connectSrc } = setup({
         amplitudeProxyUrl: "https://console-proxy.akash.network/collect",
@@ -156,10 +167,11 @@ describe("csp", () => {
   });
 
   function setup(input: ContentSecurityPolicyInput) {
-    const policy = buildContentSecurityPolicy("test-nonce", input);
+    const policy = buildContentSecurityPolicy(input);
     const directives = Object.fromEntries(policy.split("; ").map(directive => [directive.split(" ")[0], directive]));
     return {
       policy,
+      scriptSrc: directives["script-src"],
       connectSrc: directives["connect-src"],
       imgSrc: directives["img-src"],
       reportUri: directives["report-uri"],

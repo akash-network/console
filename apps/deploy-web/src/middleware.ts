@@ -3,7 +3,7 @@ import { netConfig } from "@akashnetwork/net";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { buildContentSecurityPolicy, generateNonce, getContentSecurityPolicyHeaderName, getContentSecurityPolicyReportHeaders } from "./lib/csp/csp";
+import { buildContentSecurityPolicy, getContentSecurityPolicyHeaderName, getContentSecurityPolicyReportHeaders } from "./lib/csp/csp";
 
 const { MAINTENANCE_MODE } = process.env;
 const logger = new LoggerService({ name: "middleware" });
@@ -11,7 +11,6 @@ const logger = new LoggerService({ name: "middleware" });
 const networkRpcAndApiUrls = netConfig.getSupportedNetworks().flatMap(network => [netConfig.getBaseRpcUrl(network), netConfig.getBaseAPIUrl(network)]);
 
 export function middleware(request: NextRequest) {
-  const nonce = generateNonce();
   const contentSecurityPolicyInput = {
     mainnetApiUrl: process.env.NEXT_PUBLIC_BASE_API_MAINNET_URL,
     testnetApiUrl: process.env.NEXT_PUBLIC_BASE_API_TESTNET_URL,
@@ -23,7 +22,7 @@ export function middleware(request: NextRequest) {
     templatesUrl: process.env.NEXT_PUBLIC_BASE_TEMPLATES_URL,
     networkRpcAndApiUrls
   };
-  const contentSecurityPolicy = buildContentSecurityPolicy(nonce, contentSecurityPolicyInput);
+  const contentSecurityPolicy = buildContentSecurityPolicy(contentSecurityPolicyInput);
   const contentSecurityPolicyHeaderName = getContentSecurityPolicyHeaderName();
   const contentSecurityPolicyReportHeaders = getContentSecurityPolicyReportHeaders(contentSecurityPolicyInput);
 
@@ -45,11 +44,7 @@ export function middleware(request: NextRequest) {
     return redirectResponse;
   }
 
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-nonce", nonce);
-  requestHeaders.set(contentSecurityPolicyHeaderName, contentSecurityPolicy);
-
-  const res = NextResponse.next({ request: { headers: requestHeaders } });
+  const res = NextResponse.next();
   setContentSecurityPolicyHeaders(res, contentSecurityPolicyHeaderName, contentSecurityPolicy, contentSecurityPolicyReportHeaders);
 
   const cookieName = "unleash-session-id";

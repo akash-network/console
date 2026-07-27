@@ -3,8 +3,6 @@ const CSP_HEADER_REPORT_ONLY = "Content-Security-Policy-Report-Only";
 const CSP_REPORT_ENDPOINT_NAME = "csp-endpoint";
 const CSP_REPORT_MAX_AGE_SECONDS = 10886400;
 
-const NONCE_BYTE_LENGTH = 16;
-
 const isDevelopment = process.env.NODE_ENV !== "production";
 
 /**
@@ -81,22 +79,13 @@ export function toSentrySecurityReportUri(dsn?: string): string | undefined {
   }
 }
 
-/**
- * Uses Web Crypto (available on the Edge/standard middleware runtime) since Node's
- * `crypto` module is not guaranteed to be available where the middleware executes.
- */
-export function generateNonce() {
-  const bytes = new Uint8Array(NONCE_BYTE_LENGTH);
-  crypto.getRandomValues(bytes);
-  return btoa(String.fromCharCode(...bytes));
-}
-
-export function buildContentSecurityPolicy(nonce: string, input: ContentSecurityPolicyInput) {
+export function buildContentSecurityPolicy(input: ContentSecurityPolicyInput) {
   const scriptSrc = [
     "'self'",
-    `'nonce-${nonce}'`,
-    "'strict-dynamic'",
+    "'unsafe-inline'",
     "https://www.googletagmanager.com",
+    "https://www.google-analytics.com",
+    "https://*.google-analytics.com",
     "https://pxl.growth-channel.net",
     "https://challenges.cloudflare.com",
     "https://js.stripe.com"
