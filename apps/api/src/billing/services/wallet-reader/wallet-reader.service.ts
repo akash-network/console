@@ -20,7 +20,7 @@ export class WalletReaderService {
     const wallets = await this.userWalletRepository.accessibleBy(this.authService.ability, "read").find(query);
 
     return wallets
-      .filter((wallet): wallet is WalletInitialized => wallet.activatedAt !== null && wallet.address !== null)
+      .filter((wallet): wallet is WalletInitialized => wallet.activatedAt !== null && !!wallet.address)
       .map(wallet => this.userWalletRepository.toPublic(wallet));
   }
 

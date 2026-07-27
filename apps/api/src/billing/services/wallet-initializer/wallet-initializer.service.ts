@@ -3,7 +3,7 @@ import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { TrialStarted } from "@src/billing/events/trial-started";
-import { UserWalletOutput, UserWalletPublicOutput, UserWalletRepository, WalletInitialized } from "@src/billing/repositories";
+import { type UserWalletOutput, type UserWalletPublicOutput, UserWalletRepository, type WalletInitialized } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
@@ -90,7 +90,7 @@ export class WalletInitializerService {
     if (wallet.address) return { ...wallet, address: wallet.address };
 
     const { address } = await this.walletManager.createWallet({ addressIndex: wallet.id });
-    const updatedWallet = await this.userWalletRepository.updateById(wallet.id, { address }, { returning: true });
+    const updatedWallet = await repository.updateById(wallet.id, { address }, { returning: true });
     return { ...updatedWallet, address };
   }
 }
