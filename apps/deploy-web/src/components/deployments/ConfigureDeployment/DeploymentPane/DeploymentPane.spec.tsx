@@ -72,13 +72,10 @@ describe("DeploymentPane", () => {
     expect(onSelectService).toHaveBeenCalledWith("new-service-id");
   });
 
-  it("shows the lock banner and disables adding placements while locked", async () => {
-    const onCancelAndEdit = vi.fn();
-    setup({ locked: true, onCancelAndEdit });
+  it("disables adding placements while locked", () => {
+    setup({ locked: true });
 
     expect(screen.getByRole("button", { name: "Add Placement" })).toBeDisabled();
-    await userEvent.click(screen.getByRole("button", { name: /cancel and edit/i }));
-    expect(onCancelAndEdit).toHaveBeenCalled();
   });
 
   it("keeps placements selectable but blocks removing them while locked", () => {
@@ -105,7 +102,6 @@ describe("DeploymentPane", () => {
     placements?: ReturnType<typeof defaultPlacement>[];
     onSelectService?: (serviceId: string) => void;
     locked?: boolean;
-    onCancelAndEdit?: () => void;
     deploymentName?: string;
     onDeploymentNameChange?: (value: string) => void;
     dependencies?: Partial<typeof DEPENDENCIES>;
@@ -125,7 +121,6 @@ describe("DeploymentPane", () => {
           selectedServiceId=""
           onSelectService={input.onSelectService ?? vi.fn()}
           locked={input.locked}
-          onCancelAndEdit={input.onCancelAndEdit}
           phase="configuring"
           selections={{}}
           selectedPlacementId=""

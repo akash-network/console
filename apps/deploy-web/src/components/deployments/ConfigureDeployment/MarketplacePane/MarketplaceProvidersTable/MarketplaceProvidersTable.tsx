@@ -6,14 +6,13 @@ import type { Column, Row, SortingState } from "@tanstack/react-table";
 import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 
-import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
-import { ShortenedValue } from "@src/components/shared/ShortenedValue";
 import type { PlacementOffer } from "@src/queries/usePlacementOffers";
-import { PRICE_DISPLAY_PRECISION, udenomToDenom } from "@src/utils/mathHelpers";
 import { providerDisplayName } from "@src/utils/providerUtils";
 import type { ProviderUptime } from "./ProviderUptimeCell/deriveProviderUptime";
 import { useProvidersUptime } from "./ProviderUptimeCell/deriveProviderUptime";
 import { ProviderUptimeCell } from "./ProviderUptimeCell/ProviderUptimeCell";
+import { MarketplaceCostCell } from "./MarketplaceCostCell";
+import { MarketplaceProviderCell } from "./MarketplaceProviderCell";
 
 const columnHelper = createColumnHelper<PlacementOffer>();
 
@@ -42,8 +41,10 @@ interface Props {
   onClearSearch?: () => void;
   selectedBidId?: string;
   onSelect?: (bidId: string) => void;
-  /** When true the cost column renders an hourly rate (GPU specs); otherwise a monthly rate, so inexpensive CPU-only deployments don't round to `$0.00/hr`. */
-  showCostAsHourly?: boolean;
+  /** False disables every Select button — bids are only selectable while quoting, not while the deployment is being created, closed (cancelled), or deployed. */
+  isSelectable?: boolean;
+  /** Total GPUs the spec requests. Above zero, the cost column headlines an hourly rate (GPU specs); at zero it shows a monthly rate, so inexpensive CPU-only deployments don't round to `$0.00/hr`. Also drives the per-hour-per-GPU tooltip line. */
+  gpuCount?: number;
 }
 
 export const MarketplaceProvidersTable: FC<Props> = ({
@@ -53,7 +54,8 @@ export const MarketplaceProvidersTable: FC<Props> = ({
   onClearSearch,
   selectedBidId,
   onSelect,
-  showCostAsHourly = false
+  isSelectable = true,
+  gpuCount = 0
 }) => {
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -63,8 +65,8 @@ export const MarketplaceProvidersTable: FC<Props> = ({
   /** Cost only makes sense once bids arrive: a submitted bid is priced and a closed/expired one keeps its last price, but a screened-only candidate has none. */
   const showCost = providers.some(provider => !!provider.price);
   const columns = useMemo(
-    () => buildColumns(uptimeByOwner, { selectedBidId, onSelect, showCost, showStatus: isMerged, showCostAsHourly }),
-    [uptimeByOwner, selectedBidId, onSelect, showCost, isMerged, showCostAsHourly]
+    () => buildColumns(uptimeByOwner, { selectedBidId, onSelect, isSelectable, showCost, showStatus: isMerged, gpuCount }),
+    [uptimeByOwner, selectedBidId, onSelect, isSelectable, showCost, isMerged, gpuCount]
   );
 
   const table = useReactTable({
@@ -166,7 +168,7 @@ function ProvidersTableSkeleton() {
         </TableHeader>
         <TableBody>
           {Array.from({ length: SKELETON_ROW_COUNT }, (_, rowIndex) => (
-            <TableRow key={rowIndex} className="h-[52px] hover:bg-transparent">
+            <TableRow key={rowIndex} className="h-16 hover:bg-transparent">
               {SKELETON_COLUMNS.map(column => (
                 <TableCell key={column.id} className="py-2 pl-4 pr-2">
                   <Skeleton className={cn("h-4", column.barWidth)} />
@@ -190,16 +192,13 @@ function isNonSelectable(state: PlacementOffer["offerState"]): boolean {
   return state === "closed" || state === "unavailable";
 }
 
-/** One marketplace row. Selectable rows read normally; closed/expired and never-bid rows are muted (which also greys their price). Cell content (price vs "—", Select vs status badge) comes from the column defs. */
+/** One marketplace row. Selectable rows read normally; closed/expired and never-bid rows are muted (which also greys their price). Cell content (price vs "—", Select vs status badge) comes from the column defs. Two-line Provider and Cost cells set the taller row height. */
 function OfferRow({ row }: { row: Row<PlacementOffer> }) {
   const isDisabled = isNonSelectable(row.original.offerState);
   return (
-    <TableRow className={cn("h-[52px]", isDisabled && "text-muted-foreground hover:bg-transparent")}>
+    <TableRow className={cn("h-16", isDisabled && "text-muted-foreground hover:bg-transparent")}>
       {row.getVisibleCells().map(cell => (
-        <TableCell
-          key={cell.id}
-          className={cn("py-2 pl-4 pr-2 text-sm", cell.column.id === "hostUri" && "truncate", !isDisabled && "font-medium text-foreground")}
-        >
+        <TableCell key={cell.id} className={cn("py-2 pl-4 pr-2 text-sm", !isDisabled && "font-medium text-foreground")}>
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
         </TableCell>
       ))}
@@ -231,13 +230,13 @@ function SortableHeader({ column, title }: { column: Column<PlacementOffer, unkn
 /** Builds the columns, closing over the per-provider uptime derived once in the component. Every column is an accessor so it sorts; the trailing status column is display-only. */
 function buildColumns(
   uptimeByOwner: Map<string, ProviderUptime>,
-  selection: { selectedBidId?: string; onSelect?: (bidId: string) => void; showCost: boolean; showStatus: boolean; showCostAsHourly: boolean }
+  selection: { selectedBidId?: string; onSelect?: (bidId: string) => void; isSelectable: boolean; showCost: boolean; showStatus: boolean; gpuCount: number }
 ) {
   return [
     columnHelper.accessor(providerDisplayName, {
       id: "hostUri",
       header: ({ column }) => <SortableHeader column={column} title="Provider" />,
-      cell: info => <ShortenedValue value={info.getValue()} maxLength={40} headLength={14} />
+      cell: info => <MarketplaceProviderCell offer={info.row.original} />
     }),
     columnHelper.accessor("location", {
       header: ({ column }) => <SortableHeader column={column} title="Region" />,
@@ -256,14 +255,7 @@ function buildColumns(
             cell: ({ row }) => {
               const { price } = row.original;
               if (!price) return <span className="text-muted-foreground">{NO_REGION}</span>;
-              return (
-                <PricePerTimeUnit
-                  denom={price.denom}
-                  perBlockValue={udenomToDenom(price.amount, PRICE_DISPLAY_PRECISION)}
-                  showAsHourly={selection.showCostAsHourly}
-                  abbreviated
-                />
-              );
+              return <MarketplaceCostCell price={price} gpuCount={selection.gpuCount} />;
             }
           })
         ]
@@ -284,7 +276,7 @@ function buildColumns(
                   type="button"
                   size="sm"
                   variant={isSelected ? "default" : "outline"}
-                  disabled={isSelected}
+                  disabled={isSelected || !selection.isSelectable}
                   aria-label={isSelected ? `Selected ${providerDisplayName(offer)}` : `Select ${providerDisplayName(offer)}`}
                   onClick={() => selection.onSelect?.(offer.bidId!)}
                 >

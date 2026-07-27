@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { PlacementOffer } from "@src/queries/usePlacementOffers";
+import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
 import { ProviderSearchInput } from "./ProviderSearchInput/ProviderSearchInput";
 import type { DEPENDENCIES } from "./MarketplacePane";
 import { MarketplacePane } from "./MarketplacePane";
@@ -29,16 +30,34 @@ describe(MarketplacePane.name, () => {
     expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ providers: offers, isLoading: false }), expect.anything());
   });
 
-  it("tells the table to show hourly cost when the spec uses a GPU", () => {
-    const { MarketplaceProvidersTable } = setup({ hasGpu: true, offers: [buildOffer()] });
+  it("passes the spec's GPU count to the table", () => {
+    const { MarketplaceProvidersTable } = setup({ gpuCount: 8, offers: [buildOffer()] });
 
-    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ showCostAsHourly: true }), expect.anything());
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ gpuCount: 8 }), expect.anything());
   });
 
-  it("tells the table to show monthly cost for a CPU-only spec", () => {
-    const { MarketplaceProvidersTable } = setup({ hasGpu: false, offers: [buildOffer()] });
+  it("passes a zero GPU count for a CPU-only spec", () => {
+    const { MarketplaceProvidersTable } = setup({ gpuCount: 0, offers: [buildOffer()] });
 
-    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ showCostAsHourly: false }), expect.anything());
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ gpuCount: 0 }), expect.anything());
+  });
+
+  it("allows provider selection only while quoting", () => {
+    const { MarketplaceProvidersTable } = setup({ phase: "quoting", offers: [buildOffer()] });
+
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ isSelectable: true }), expect.anything());
+  });
+
+  it("blocks provider selection while the deployment is being cancelled", () => {
+    const { MarketplaceProvidersTable } = setup({ phase: "closing", offers: [buildOffer()] });
+
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ isSelectable: false }), expect.anything());
+  });
+
+  it("scopes the GPU count to the placement it renders bids for", () => {
+    const { useDeploymentGpuCount } = setup({ selectedPlacementId: "placement-2", offers: [buildOffer()] });
+
+    expect(useDeploymentGpuCount).toHaveBeenCalledWith("placement-2");
   });
 
   it("renders an error message and no table when offers fail to load with no data", () => {
@@ -96,7 +115,7 @@ describe(MarketplacePane.name, () => {
       sdl?: string;
       placementName?: string;
       region?: string;
-      phase?: "configuring" | "creating" | "quoting" | "error";
+      phase?: DeploymentFlowPhase;
       dseq?: string | null;
       offers?: PlacementOffer[];
       filteredProviders?: PlacementOffer[];
@@ -104,7 +123,7 @@ describe(MarketplacePane.name, () => {
       isError?: boolean;
       isInvalid?: boolean;
       isSearchActive?: boolean;
-      hasGpu?: boolean;
+      gpuCount?: number;
       selectedPlacementId?: string;
       selectedBidId?: string;
       onSelectProvider?: (placementId: string, bidId: string) => void;
@@ -128,12 +147,13 @@ describe(MarketplacePane.name, () => {
         {selectedBidId ? "selected" : "select"}
       </button>
     ));
+    const useDeploymentGpuCount = vi.fn(() => input.gpuCount ?? 0);
     const dependencies: typeof DEPENDENCIES = {
       usePlacementOffers: usePlacementOffers as never,
       useProviderSearch: useProviderSearch as never,
       MarketplaceProvidersTable: MarketplaceProvidersTable as never,
       ProviderSearchInput,
-      useDeploymentHasGpu: vi.fn(() => input.hasGpu ?? false)
+      useDeploymentGpuCount
     };
     const user = userEvent.setup();
 
@@ -150,6 +170,6 @@ describe(MarketplacePane.name, () => {
         dependencies={dependencies}
       />
     );
-    return { usePlacementOffers, useProviderSearch, MarketplaceProvidersTable, user };
+    return { usePlacementOffers, useProviderSearch, MarketplaceProvidersTable, useDeploymentGpuCount, user };
   }
 });

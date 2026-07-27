@@ -74,13 +74,14 @@ describe(MarketplaceProvidersTable.name, () => {
     expect(within(rows[2]).getByText("up.example")).toBeInTheDocument();
   });
 
-  it("displays the organization name when present", () => {
-    setup({ providers: [buildOffer({ organization: "Polaris Compute", hostUri: "https://a.example:8443" })] });
+  it("displays the organization name with the actual host beneath it", () => {
+    setup({ providers: [buildOffer({ organization: "Polaris Compute", hostUri: "https://provider.wdc.com:8443" })] });
 
     expect(screen.getByText("Polaris Compute")).toBeInTheDocument();
+    expect(screen.getByText("provider.wdc.com")).toBeInTheDocument();
   });
 
-  it("falls back to the host name when organization is absent", () => {
+  it("falls back to the host name when organization is absent and shows no duplicate host beneath it", () => {
     setup({ providers: [buildOffer({ organization: null, hostUri: "https://a.example:8443" })] });
 
     expect(screen.getByText("a.example")).toBeInTheDocument();
@@ -90,6 +91,14 @@ describe(MarketplaceProvidersTable.name, () => {
     setup({ providers: [buildOffer({ organization: null, hostUri: "", owner: "akash1bidder" })] });
 
     expect(screen.getByText("akash1bidder")).toBeInTheDocument();
+  });
+
+  it("links the provider name to its detail page in a new tab", () => {
+    setup({ providers: [buildOffer({ organization: "Polaris Compute", hostUri: "https://a.example:8443", owner: "akash1prov" })] });
+
+    const link = screen.getByRole("link", { name: "Polaris Compute" });
+    expect(link).toHaveAttribute("href", expect.stringContaining("/providers/akash1prov"));
+    expect(link).toHaveAttribute("target", "_blank");
   });
 
   it("shows a search empty state with a clear action when a search excludes all rows", async () => {
@@ -130,14 +139,16 @@ describe(MarketplaceProvidersTable.name, () => {
     expect(screen.getByText("Cost")).toBeInTheDocument();
   });
 
-  it("shows the cost per hour when the spec uses a GPU", () => {
-    setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" })], showCostAsHourly: true });
+  it("shows both hourly and monthly cost for a GPU spec", () => {
+    setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" })], gpuCount: 8 });
     expect(screen.getByText("/hr")).toBeInTheDocument();
+    expect(screen.getByText("/month")).toBeInTheDocument();
   });
 
-  it("shows the cost per month for a CPU-only spec so an inexpensive deployment doesn't read as $0.00/hr", () => {
-    setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" })], showCostAsHourly: false });
+  it("shows only the monthly cost for a CPU-only spec so an inexpensive deployment doesn't read as $0.00/hr", () => {
+    setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" })], gpuCount: 0 });
     expect(screen.getByText("/month")).toBeInTheDocument();
+    expect(screen.queryByText("/hr")).not.toBeInTheDocument();
   });
 
   it("shows only Provider, Region, and Uptime while every offer is still searching", () => {
@@ -155,6 +166,11 @@ describe(MarketplaceProvidersTable.name, () => {
     const { onSelect, user } = setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" })] });
     await user.click(screen.getByRole("button", { name: "Select akash1a" }));
     expect(onSelect).toHaveBeenCalledWith("akash1a/1/1/1");
+  });
+
+  it("disables every Select button when selection is turned off", () => {
+    setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" })], isSelectable: false });
+    expect(screen.getByRole("button", { name: "Select akash1a" })).toBeDisabled();
   });
 
   it("marks the selected offer's row and makes its button non-clickable", () => {
@@ -312,7 +328,8 @@ describe(MarketplaceProvidersTable.name, () => {
     isSearchActive?: boolean;
     onClearSearch?: () => void;
     selectedBidId?: string;
-    showCostAsHourly?: boolean;
+    isSelectable?: boolean;
+    gpuCount?: number;
   }) {
     const onSelect = vi.fn();
     const user = userEvent.setup();
@@ -327,7 +344,8 @@ describe(MarketplaceProvidersTable.name, () => {
               onClearSearch={input.onClearSearch}
               selectedBidId={input.selectedBidId}
               onSelect={onSelect}
-              showCostAsHourly={input.showCostAsHourly}
+              isSelectable={input.isSelectable}
+              gpuCount={input.gpuCount}
             />
           </TooltipProvider>
         </IntlProvider>

@@ -4,7 +4,6 @@ import { Button, CustomTooltip } from "@akashnetwork/ui/components";
 import { InfoCircle, Plus, SidebarCollapse, SidebarExpand } from "iconoir-react";
 
 import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
-import { PaneLockBanner } from "../PaneLockBanner/PaneLockBanner";
 import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
 import { DeploymentNameField } from "./DeploymentNameField/DeploymentNameField";
 import { PlacementCard } from "./PlacementCard/PlacementCard";
@@ -17,10 +16,8 @@ export const DEPENDENCIES = { PlacementCard, usePlacementManager, usePlacementsW
 type Props = {
   selectedServiceId: string;
   onSelectService: (serviceId: string) => void;
-  /** While quotes are active the pane is locked: placements/services stay selectable, but SDL-mutating controls are disabled and a lock banner is shown. */
+  /** While quotes are active the pane is locked: placements/services stay selectable, but SDL-mutating controls are disabled. The lock banner itself is rendered once across both spec panes by the parent. */
   locked?: boolean;
-  isClosing?: boolean;
-  onCancelAndEdit?: () => void;
   phase: DeploymentFlowPhase;
   selections: Record<string, string>;
   selectedPlacementId: string;
@@ -35,8 +32,6 @@ export const DeploymentPane: FC<Props> = ({
   selectedServiceId,
   onSelectService,
   locked = false,
-  isClosing = false,
-  onCancelAndEdit,
   phase,
   selections,
   selectedPlacementId,
@@ -53,7 +48,7 @@ export const DeploymentPane: FC<Props> = ({
 
   if (minimized) {
     return (
-      <aside aria-label="Deployment pane (minimized)" className="flex h-full min-h-0 w-[48px] flex-col items-center pt-2">
+      <aside aria-label="Deployment pane (minimized)" className="col-start-1 row-start-1 row-end-4 flex h-full min-h-0 w-[48px] flex-col items-center pt-2">
         <Button type="button" variant="ghost" onClick={toggle} aria-label="Show deployment pane" className="h-8 w-8 rounded p-0 text-foreground">
           <SidebarExpand className="h-5 w-5" />
         </Button>
@@ -62,8 +57,8 @@ export const DeploymentPane: FC<Props> = ({
   }
 
   return (
-    <section aria-labelledby="configure-deployment-pane-heading" className="flex h-full min-h-0 w-[231px] flex-col">
-      <header className="flex h-[52px] shrink-0 items-center justify-between gap-2 border-b border-zinc-300 px-4 dark:border-zinc-700">
+    <section aria-labelledby="configure-deployment-pane-heading" className="col-start-1 row-start-1 row-end-4 grid h-full min-h-0 w-[231px] grid-rows-subgrid">
+      <header className="flex h-[52px] items-center justify-between gap-2 border-b border-zinc-300 px-4 dark:border-zinc-700">
         <h2 id="configure-deployment-pane-heading" className="font-mono text-sm font-medium uppercase text-muted-foreground">
           1. Deployment
         </h2>
@@ -71,8 +66,7 @@ export const DeploymentPane: FC<Props> = ({
           <SidebarCollapse className="h-5 w-5" />
         </Button>
       </header>
-      {locked ? <PaneLockBanner onCancelAndEdit={onCancelAndEdit ?? noop} isClosing={isClosing} /> : null}
-      <div className="flex-1 space-y-6 overflow-y-auto p-4">
+      <div className="row-start-3 min-h-0 space-y-6 overflow-y-auto p-4">
         <d.DeploymentNameField value={deploymentName} onChange={onDeploymentNameChange} disabled={locked} />
         <d.ReclamationSection locked={locked} />
         <div className="space-y-2">
@@ -125,9 +119,6 @@ export const DeploymentPane: FC<Props> = ({
     </section>
   );
 };
-
-/** Fallback when the pane is locked without a cancel handler (defensive; the parent always supplies one while locked). */
-function noop() {}
 
 /**
  * Derives the selection badge state for a single placement chip. Badges run from the moment quotes are

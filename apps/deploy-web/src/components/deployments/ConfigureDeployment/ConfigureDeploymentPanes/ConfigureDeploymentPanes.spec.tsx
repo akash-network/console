@@ -77,25 +77,29 @@ describe("ConfigureDeploymentPanes", () => {
     );
   });
 
-  it("locks both spec panes and supplies cancel-and-edit while not configuring", () => {
-    const { DeploymentPane, ConfigurationPane } = setup({ phase: "quoting" });
+  it("locks both spec panes and shows a single cancel-and-edit banner while not configuring", () => {
+    const { DeploymentPane, ConfigurationPane, PaneLockBanner } = setup({ phase: "quoting" });
 
-    expect(DeploymentPane).toHaveBeenCalledWith(expect.objectContaining({ locked: true, onCancelAndEdit: expect.any(Function) }), expect.anything());
-    expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ locked: "onchain", onCancelAndEdit: expect.any(Function) }), expect.anything());
+    expect(DeploymentPane).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
+    expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ locked: "onchain" }), expect.anything());
+    expect(PaneLockBanner).toHaveBeenCalledTimes(1);
+    expect(PaneLockBanner).toHaveBeenCalledWith(expect.objectContaining({ onCancelAndEdit: expect.any(Function) }), expect.anything());
   });
 
-  it("flags close progress to both spec panes while closing", () => {
-    const { DeploymentPane, ConfigurationPane } = setup({ phase: "closing" });
+  it("flags close progress on the shared lock banner while closing", () => {
+    const { DeploymentPane, ConfigurationPane, PaneLockBanner } = setup({ phase: "closing" });
 
-    expect(DeploymentPane).toHaveBeenCalledWith(expect.objectContaining({ locked: true, isClosing: true }), expect.anything());
-    expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ locked: "all", isClosing: true }), expect.anything());
+    expect(DeploymentPane).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
+    expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ locked: "all" }), expect.anything());
+    expect(PaneLockBanner).toHaveBeenCalledWith(expect.objectContaining({ isClosing: true }), expect.anything());
   });
 
-  it("leaves both spec panes unlocked while configuring", () => {
-    const { DeploymentPane, ConfigurationPane } = setup({ phase: "configuring" });
+  it("leaves both spec panes unlocked and hides the lock banner while configuring", () => {
+    const { DeploymentPane, ConfigurationPane, PaneLockBanner } = setup({ phase: "configuring" });
 
     expect(DeploymentPane).toHaveBeenCalledWith(expect.objectContaining({ locked: false }), expect.anything());
     expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ locked: undefined }), expect.anything());
+    expect(PaneLockBanner).not.toHaveBeenCalled();
   });
 
   it("locks every configuration card while the deployment is being created", () => {
@@ -139,10 +143,12 @@ describe("ConfigureDeploymentPanes", () => {
     const DeploymentPane = vi.fn(() => <div data-testid="deployment-pane-mock" />);
     const ConfigurationPane = vi.fn(() => <div data-testid="configuration-pane-mock" />);
     const MarketplacePane = vi.fn(() => <div data-testid="marketplace-pane-mock" />);
+    const PaneLockBanner = vi.fn(() => <div data-testid="pane-lock-banner-mock" />);
     const dependencies: typeof DEPENDENCIES = {
       DeploymentPane: DeploymentPane as never,
       ConfigurationPane: ConfigurationPane as never,
       MarketplacePane: MarketplacePane as never,
+      PaneLockBanner: PaneLockBanner as never,
       SdlPreviewPane: SdlPreviewPane as never,
       useFlag: (() => input.isSdlPreviewEnabled ?? false) as never
     };
@@ -174,6 +180,6 @@ describe("ConfigureDeploymentPanes", () => {
       </JotaiStoreProvider>
     );
 
-    return { SdlPreviewPane, DeploymentPane, ConfigurationPane, MarketplacePane, unmount };
+    return { SdlPreviewPane, DeploymentPane, ConfigurationPane, MarketplacePane, PaneLockBanner, unmount };
   }
 });

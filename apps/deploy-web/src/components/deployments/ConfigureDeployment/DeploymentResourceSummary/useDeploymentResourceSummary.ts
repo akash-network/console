@@ -12,12 +12,25 @@ export function useDeploymentResourceSummary(): string {
 }
 
 /**
+ * Total GPUs requested — the same count every provider bids on, so it applies to every marketplace row.
+ * Scope to a single placement by passing its id; without one, counts GPUs across the whole spec. The
+ * marketplace shows bids per placement, so it must pass the viewed placement's id or a multi-placement spec
+ * leaks another placement's GPU count into this one.
+ */
+export function useDeploymentGpuCount(placementId?: string): number {
+  const { control } = useFormContext<SdlBuilderFormValuesType>();
+  const services = useWatch({ control, name: "services" });
+  return useMemo(() => {
+    const scoped = placementId ? (services ?? []).filter(service => service.placementId === placementId) : services ?? [];
+    return aggregateDeploymentResources(scoped).gpu;
+  }, [services, placementId]);
+}
+
+/**
  * True when the current spec requests any GPU. Drives GPU-vs-CPU-only presentation choices — notably the
  * marketplace cost unit, which shows hourly for GPU (meaningful at that scale) and monthly for CPU-only (so an
  * inexpensive deployment reads as e.g. `$30/month` rather than rounding to `$0.00/hr`).
  */
 export function useDeploymentHasGpu(): boolean {
-  const { control } = useFormContext<SdlBuilderFormValuesType>();
-  const services = useWatch({ control, name: "services" });
-  return useMemo(() => aggregateDeploymentResources(services ?? []).gpu > 0, [services]);
+  return useDeploymentGpuCount() > 0;
 }
