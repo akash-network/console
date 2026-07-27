@@ -15,10 +15,10 @@ import dynamic from "next/dynamic";
 import Router from "next/router";
 import { NavigationGuardProvider } from "next-navigation-guard";
 import type { NextSeoProps } from "next-seo/lib/types";
-import { ThemeProvider } from "next-themes";
 import NProgress from "nprogress";
 
 import { RequireAuth } from "@src/components/auth/RequireAuth/RequireAuth";
+import { AppThemeProvider } from "@src/components/layout/AppThemeProvider";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
 import { RequireOnboarding } from "@src/components/onboarding/RequireOnboarding/RequireOnboarding";
@@ -89,7 +89,7 @@ function AppRoot(props: Props & { children: React.ReactNode }) {
           <CustomIntlProvider>
             <JotaiProvider store={store}>
               <QueryClientProvider client={queryClient}>
-                <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
+                <AppThemeProvider>
                   <ColorModeProvider>
                     <CustomSnackbarProvider>
                       <TooltipProvider>
@@ -104,7 +104,7 @@ function AppRoot(props: Props & { children: React.ReactNode }) {
                       </TooltipProvider>
                     </CustomSnackbarProvider>
                   </ColorModeProvider>
-                </ThemeProvider>
+                </AppThemeProvider>
               </QueryClientProvider>
             </JotaiProvider>
           </CustomIntlProvider>

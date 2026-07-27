@@ -6,6 +6,14 @@ const CSP_REPORT_MAX_AGE_SECONDS = 10886400;
 const isDevelopment = process.env.NODE_ENV !== "production";
 
 /**
+ * sha256 of the inline anti-FOUC script next-themes renders for AppThemeProvider's exact props, allowing
+ * it without 'unsafe-inline' (static Pages Router HTML cannot carry a nonce). AppThemeProvider.spec.tsx
+ * recomputes the hash from the rendered provider and reports the new value when a next-themes upgrade or
+ * prop change alters the script.
+ */
+export const THEME_SCRIPT_HASH = "'sha256-eMuh8xiwcX72rRYNAGENurQBAcH7kLlAUQcoOri3BIo='";
+
+/**
  * Third-party endpoints the app connects to directly (Stripe, Cloudflare, Google, Growth Channel, Amplitude); these never vary by environment.
  * Amplitude core events are proxied via NEXT_PUBLIC_AMPLITUDE_PROXY_URL, but Session Replay (config + ingest) and the no-proxy fallback hit
  * `*.amplitude.com` subdomains directly, so the wildcard is required regardless of the proxy setting.
@@ -82,9 +90,8 @@ export function toSentrySecurityReportUri(dsn?: string): string | undefined {
 export function buildContentSecurityPolicy(input: ContentSecurityPolicyInput) {
   const scriptSrc = [
     "'self'",
-    "'unsafe-inline'",
+    THEME_SCRIPT_HASH,
     "https://www.googletagmanager.com",
-    "https://www.google-analytics.com",
     "https://*.google-analytics.com",
     "https://pxl.growth-channel.net",
     "https://challenges.cloudflare.com",

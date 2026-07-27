@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { THEME_SCRIPT_HASH } from "@src/lib/csp/csp";
 import { middleware } from "@src/middleware";
 
 describe("middleware", () => {
@@ -12,7 +13,10 @@ describe("middleware", () => {
     const { response } = setup({ path: "/deployments" });
 
     const csp = response.headers.get("Content-Security-Policy-Report-Only");
-    expect(csp).toContain("script-src 'self' 'unsafe-inline'");
+    const scriptSrc = csp?.split("; ").find(directive => directive.startsWith("script-src "));
+    expect(scriptSrc).toContain("'self'");
+    expect(scriptSrc).toContain(THEME_SCRIPT_HASH);
+    expect(scriptSrc).not.toContain("'unsafe-inline'");
     expect(csp).not.toContain("'strict-dynamic'");
     expect(csp).not.toContain("'nonce-");
     expect(response.headers.get("Content-Security-Policy")).toBeNull();
