@@ -3,7 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
 import type { JobPayload } from "@src/core";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { InitialDeploymentFundingService } from "@src/deployment/services/initial-deployment-funding/initial-deployment-funding.service";
 import { FundDeploymentHandler } from "./fund-deployment.handler";
 
@@ -33,9 +33,10 @@ describe(FundDeploymentHandler.name, () => {
       fundOnLeaseStarted: vi.fn().mockResolvedValue(undefined),
       ...params?.initialDeploymentFundingService
     });
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger: CreateLogger = () => logger;
 
-    const handler = new FundDeploymentHandler(initialDeploymentFundingService, logger);
+    const handler = new FundDeploymentHandler(initialDeploymentFundingService, createLogger);
 
     return { handler, initialDeploymentFundingService, logger };
   }

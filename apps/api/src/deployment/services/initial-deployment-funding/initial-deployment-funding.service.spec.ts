@@ -8,10 +8,10 @@ import type { BillingConfigService } from "@src/billing/services/billing-config/
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
-import type { LoggerService } from "@src/core";
+import type { CreateLogger } from "@src/core";
 import type { DrainingDeploymentOutput } from "@src/deployment/repositories/lease/lease.repository";
-import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
-import type { DrainingDeploymentService } from "../draining-deployment/draining-deployment.service";
+import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
+import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { InitialDeploymentFundingService } from "./initial-deployment-funding.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
@@ -69,6 +69,31 @@ describe(InitialDeploymentFundingService.name, () => {
     });
     expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(1, [depositMessage]);
     expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ walletId: 1 });
+  });
+
+  it("throws and skips the wallet reload when the deposit tx fails on-chain", async () => {
+    const { service, drainingDeploymentService, balancesService, managedSignerService, walletReloadJobService, logger } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    balancesService.getFreshLimits.mockResolvedValue({ fee: 100000, deployment: 1000000 });
+    managedSignerService.executeDerivedTx.mockResolvedValue({ code: 5, hash: "TESTHASH", rawLog: "insufficient funds" });
+
+    await expect(service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" })).rejects.toThrow("insufficient funds");
+
+    expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_TX_FAILED", code: 5, txHash: "TESTHASH" }));
+  });
+
+  it("falls back to a descriptive error when the failed deposit tx has no raw log", async () => {
+    const { service, drainingDeploymentService, balancesService, managedSignerService } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    balancesService.getFreshLimits.mockResolvedValue({ fee: 100000, deployment: 1000000 });
+    managedSignerService.executeDerivedTx.mockResolvedValue({ code: 5, hash: "TESTHASH", rawLog: "" });
+
+    await expect(service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" })).rejects.toThrow(
+      "Deposit tx TESTHASH failed on-chain with code 5"
+    );
   });
 
   it("clamps the deposit to the fresh deployment limit", async () => {
@@ -141,11 +166,13 @@ describe(InitialDeploymentFundingService.name, () => {
     const billingConfig = mockConfigService<BillingConfigService>({ DEPLOYMENT_GRANT_DENOM: "uakt" });
     const deploymentConfig = mockConfigService<DeploymentConfigService>({ AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 24 });
     const walletReloadJobService = mock<WalletReloadJobService>();
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger: CreateLogger = () => logger;
 
     blockHttpService.getCurrentHeight.mockResolvedValue(CURRENT_HEIGHT);
     userWalletRepository.findById.mockResolvedValue(createUserWallet({ id: 1, address: "akash1owner" }));
     managedSignerService.ensureFeeGrants.mockResolvedValue(100000);
+    managedSignerService.executeDerivedTx.mockResolvedValue({ code: 0, hash: "TESTHASH", rawLog: "[]" });
 
     const service = new InitialDeploymentFundingService(
       blockHttpService,
@@ -157,7 +184,7 @@ describe(InitialDeploymentFundingService.name, () => {
       billingConfig,
       deploymentConfig,
       walletReloadJobService,
-      logger
+      createLogger
     );
 
     return {

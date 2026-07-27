@@ -1,4 +1,4 @@
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
 import { RpcMessageService } from "@src/billing/services";
@@ -7,10 +7,10 @@ import { BillingConfigService } from "@src/billing/services/billing-config/billi
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
-import { LoggerService } from "@src/core";
-import { averageBlockCountInAnHour } from "@src/utils/constants";
-import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
-import { DrainingDeploymentService } from "../draining-deployment/draining-deployment.service";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
+import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
+import { averageBlockCountInAnHour, COSMOS_TX_CODE_OK } from "@src/utils/constants";
 
 export interface FundOnLeaseStartedInput {
   walletId: number;
@@ -25,6 +25,8 @@ export interface FundOnLeaseStartedInput {
  */
 @singleton()
 export class InitialDeploymentFundingService {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly blockHttpService: BlockHttpService,
     private readonly drainingDeploymentService: DrainingDeploymentService,
@@ -35,15 +37,15 @@ export class InitialDeploymentFundingService {
     private readonly billingConfig: BillingConfigService,
     private readonly deploymentConfig: DeploymentConfigService,
     private readonly walletReloadJobService: WalletReloadJobService,
-    private readonly logger: LoggerService
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    this.logger.setContext(InitialDeploymentFundingService.name);
+    this.logger = createLogger({ context: InitialDeploymentFundingService.name });
   }
 
   /**
-   * Throws when the lease is not yet visible over chain REST so the job queue
-   * retries with backoff through the indexing lag. Every other early exit is
-   * terminal: the hourly cron remains the safety net.
+   * Throws when the lease is not yet visible over chain REST (indexing lag) or
+   * when the deposit tx fails on-chain, so the job queue retries with backoff.
+   * Every other early exit is terminal: the hourly cron remains the safety net.
    */
   async fundOnLeaseStarted({ walletId, address, dseq }: FundOnLeaseStartedInput): Promise<void> {
     const currentHeight = await this.blockHttpService.getCurrentHeight();
@@ -103,7 +105,13 @@ export class InitialDeploymentFundingService {
       signer: address
     });
 
-    await this.managedSignerService.executeDerivedTx(walletId, [message]);
+    const tx = await this.managedSignerService.executeDerivedTx(walletId, [message]);
+
+    if (tx.code !== COSMOS_TX_CODE_OK) {
+      this.logger.error({ event: "INITIAL_FUNDING_TX_FAILED", dseq, address, txHash: tx.hash, code: tx.code, rawLog: tx.rawLog });
+      throw new Error(tx.rawLog || `Deposit tx ${tx.hash} failed on-chain with code ${tx.code}`);
+    }
+
     await this.walletReloadJobService.scheduleImmediate({ walletId });
 
     this.logger.info({ event: "INITIAL_FUNDING_DEPOSITED", dseq, address, amount, blockRate: deployment.blockRate });
