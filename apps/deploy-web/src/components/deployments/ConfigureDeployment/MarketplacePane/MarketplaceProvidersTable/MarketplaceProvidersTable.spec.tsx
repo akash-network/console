@@ -168,6 +168,11 @@ describe(MarketplaceProvidersTable.name, () => {
     expect(onSelect).toHaveBeenCalledWith("akash1a/1/1/1");
   });
 
+  it("disables every Select button when selection is turned off", () => {
+    setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" })], isSelectable: false });
+    expect(screen.getByRole("button", { name: "Select akash1a" })).toBeDisabled();
+  });
+
   it("marks the selected offer's row and makes its button non-clickable", () => {
     setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" })], selectedBidId: "akash1a/1/1/1" });
     expect(screen.getByRole("button", { name: /selected/i })).toBeDisabled();
@@ -323,6 +328,7 @@ describe(MarketplaceProvidersTable.name, () => {
     isSearchActive?: boolean;
     onClearSearch?: () => void;
     selectedBidId?: string;
+    isSelectable?: boolean;
     gpuCount?: number;
   }) {
     const onSelect = vi.fn();
@@ -338,6 +344,7 @@ describe(MarketplaceProvidersTable.name, () => {
               onClearSearch={input.onClearSearch}
               selectedBidId={input.selectedBidId}
               onSelect={onSelect}
+              isSelectable={input.isSelectable}
               gpuCount={input.gpuCount}
             />
           </TooltipProvider>

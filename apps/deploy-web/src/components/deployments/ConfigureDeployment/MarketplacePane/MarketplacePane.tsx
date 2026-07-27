@@ -68,6 +68,7 @@ export const MarketplacePane: FC<Props> = ({
             onClearSearch={clear}
             selectedBidId={selectedBidId}
             onSelect={bidId => onSelectProvider(selectedPlacementId, bidId)}
+            isSelectable={phase === "quoting"}
             gpuCount={gpuCount}
           />
         )}

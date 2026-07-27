@@ -41,11 +41,22 @@ interface Props {
   onClearSearch?: () => void;
   selectedBidId?: string;
   onSelect?: (bidId: string) => void;
+  /** False disables every Select button — bids are only selectable while quoting, not while the deployment is being created, closed (cancelled), or deployed. */
+  isSelectable?: boolean;
   /** Total GPUs the spec requests. Above zero, the cost column headlines an hourly rate (GPU specs); at zero it shows a monthly rate, so inexpensive CPU-only deployments don't round to `$0.00/hr`. Also drives the per-hour-per-GPU tooltip line. */
   gpuCount?: number;
 }
 
-export const MarketplaceProvidersTable: FC<Props> = ({ providers, isLoading, isSearchActive, onClearSearch, selectedBidId, onSelect, gpuCount = 0 }) => {
+export const MarketplaceProvidersTable: FC<Props> = ({
+  providers,
+  isLoading,
+  isSearchActive,
+  onClearSearch,
+  selectedBidId,
+  onSelect,
+  isSelectable = true,
+  gpuCount = 0
+}) => {
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const uptimeByOwner = useProvidersUptime(providers);
@@ -54,8 +65,8 @@ export const MarketplaceProvidersTable: FC<Props> = ({ providers, isLoading, isS
   /** Cost only makes sense once bids arrive: a submitted bid is priced and a closed/expired one keeps its last price, but a screened-only candidate has none. */
   const showCost = providers.some(provider => !!provider.price);
   const columns = useMemo(
-    () => buildColumns(uptimeByOwner, { selectedBidId, onSelect, showCost, showStatus: isMerged, gpuCount }),
-    [uptimeByOwner, selectedBidId, onSelect, showCost, isMerged, gpuCount]
+    () => buildColumns(uptimeByOwner, { selectedBidId, onSelect, isSelectable, showCost, showStatus: isMerged, gpuCount }),
+    [uptimeByOwner, selectedBidId, onSelect, isSelectable, showCost, isMerged, gpuCount]
   );
 
   const table = useReactTable({
@@ -219,7 +230,7 @@ function SortableHeader({ column, title }: { column: Column<PlacementOffer, unkn
 /** Builds the columns, closing over the per-provider uptime derived once in the component. Every column is an accessor so it sorts; the trailing status column is display-only. */
 function buildColumns(
   uptimeByOwner: Map<string, ProviderUptime>,
-  selection: { selectedBidId?: string; onSelect?: (bidId: string) => void; showCost: boolean; showStatus: boolean; gpuCount: number }
+  selection: { selectedBidId?: string; onSelect?: (bidId: string) => void; isSelectable: boolean; showCost: boolean; showStatus: boolean; gpuCount: number }
 ) {
   return [
     columnHelper.accessor(providerDisplayName, {
@@ -265,7 +276,7 @@ function buildColumns(
                   type="button"
                   size="sm"
                   variant={isSelected ? "default" : "outline"}
-                  disabled={isSelected}
+                  disabled={isSelected || !selection.isSelectable}
                   aria-label={isSelected ? `Selected ${providerDisplayName(offer)}` : `Select ${providerDisplayName(offer)}`}
                   onClick={() => selection.onSelect?.(offer.bidId!)}
                 >

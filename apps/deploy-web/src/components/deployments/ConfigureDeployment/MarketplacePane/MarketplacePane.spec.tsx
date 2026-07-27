@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { PlacementOffer } from "@src/queries/usePlacementOffers";
+import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
 import { ProviderSearchInput } from "./ProviderSearchInput/ProviderSearchInput";
 import type { DEPENDENCIES } from "./MarketplacePane";
 import { MarketplacePane } from "./MarketplacePane";
@@ -39,6 +40,18 @@ describe(MarketplacePane.name, () => {
     const { MarketplaceProvidersTable } = setup({ gpuCount: 0, offers: [buildOffer()] });
 
     expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ gpuCount: 0 }), expect.anything());
+  });
+
+  it("allows provider selection only while quoting", () => {
+    const { MarketplaceProvidersTable } = setup({ phase: "quoting", offers: [buildOffer()] });
+
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ isSelectable: true }), expect.anything());
+  });
+
+  it("blocks provider selection while the deployment is being cancelled", () => {
+    const { MarketplaceProvidersTable } = setup({ phase: "closing", offers: [buildOffer()] });
+
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ isSelectable: false }), expect.anything());
   });
 
   it("scopes the GPU count to the placement it renders bids for", () => {
@@ -102,7 +115,7 @@ describe(MarketplacePane.name, () => {
       sdl?: string;
       placementName?: string;
       region?: string;
-      phase?: "configuring" | "creating" | "quoting" | "error";
+      phase?: DeploymentFlowPhase;
       dseq?: string | null;
       offers?: PlacementOffer[];
       filteredProviders?: PlacementOffer[];
