@@ -166,6 +166,10 @@ export class UserService {
   async subscribeToNewsletter(userId: string) {
     await this.userRepository.updateById(userId, { subscribedToNewsletter: true });
   }
+
+  async skipOnboarding(userId: string) {
+    await this.userRepository.updateBy({ id: userId, onboardingSkippedAt: null }, { onboardingSkippedAt: new Date() });
+  }
 }
 
 function adjustUsername(wantedUsername: string) {

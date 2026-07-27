@@ -18,6 +18,7 @@ export function createUser({
   lastIp = faker.internet.ip(),
   lastUserAgent = faker.internet.userAgent(),
   lastFingerprint = faker.word.noun(),
+  onboardingSkippedAt = null,
   createdAt = faker.date.recent(),
   trial = false
 }: Partial<UserOutput> = {}): UserOutput {
@@ -37,6 +38,7 @@ export function createUser({
     lastIp,
     lastUserAgent,
     lastFingerprint,
+    onboardingSkippedAt,
     createdAt,
     trial
   };

@@ -11,7 +11,8 @@ export const UserSchema = z.object({
   subscribedToNewsletter: z.boolean(),
   youtubeUsername: z.string().optional().nullable(),
   twitterUsername: z.string().optional().nullable(),
-  githubUsername: z.string().optional().nullable()
+  githubUsername: z.string().optional().nullable(),
+  onboardingSkippedAt: z.string().datetime().nullable().optional()
 });
 
 export type UserSchema = z.infer<typeof UserSchema>;

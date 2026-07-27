@@ -77,4 +77,10 @@ export class UserController {
     const userId = this.authService.currentUser.id;
     await this.userService.subscribeToNewsletter(userId);
   }
+
+  async skipOnboarding() {
+    assert(this.authService.currentUser?.id, 401);
+    const userId = this.authService.currentUser.id;
+    await this.userService.skipOnboarding(userId);
+  }
 }

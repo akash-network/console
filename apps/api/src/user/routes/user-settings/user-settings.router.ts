@@ -135,3 +135,24 @@ userSettingsRouter.openapi(subscribeToNewsletterRoute, async function subscribeT
   await container.resolve(UserController).subscribeToNewsletter();
   return c.body(null, 204);
 });
+
+const skipOnboardingRoute = createRoute({
+  method: "post",
+  path: "/v1/user/skipOnboarding",
+  summary: "Skip onboarding",
+  tags: ["Users"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  responses: {
+    204: {
+      description: "Onboarding skipped"
+    },
+    401: {
+      description: "Unauthorized"
+    }
+  }
+});
+
+userSettingsRouter.openapi(skipOnboardingRoute, async function skipOnboarding(c) {
+  await container.resolve(UserController).skipOnboarding();
+  return c.body(null, 204);
+});

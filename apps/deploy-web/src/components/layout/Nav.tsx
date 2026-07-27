@@ -6,6 +6,7 @@ import type { ClassValue } from "clsx";
 import { Menu, Xmark } from "iconoir-react";
 import Link from "next/link";
 
+import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
 import useCookieTheme from "@src/hooks/useTheme";
 import { HackathonCouponNavEntry } from "./HackathonCouponNavEntry/HackathonCouponNavEntry";
@@ -51,7 +52,8 @@ export const Nav = ({
 
         {minimal ? (
           // Onboarding: no sidebar drawer, so the reduced menu is the only logout path and must show on mobile too.
-          <div style={{ height: `${ACCOUNT_BAR_HEIGHT}px` }} className="flex items-center">
+          <div style={{ height: `${ACCOUNT_BAR_HEIGHT}px` }} className="flex items-center gap-2">
+            <SkipOnboardingButton source="auto_deploy" />
             <AccountMenu minimal />
           </div>
         ) : (

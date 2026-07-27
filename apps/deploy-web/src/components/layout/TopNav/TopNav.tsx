@@ -17,6 +17,7 @@ import { Cloud, CreditCard, Key, Menu, MessageAlert, MultiplePages, NavArrowDown
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
 import { useFlag } from "@src/hooks/useFlag";
 import useCookieTheme from "@src/hooks/useTheme";
 import { useUser } from "@src/hooks/useUser";
@@ -27,7 +28,7 @@ import { TopBanner } from "../TopBanner";
 import { usePublishHeaderHeight } from "../usePublishHeaderHeight";
 import { TopNavAccountMenu } from "./TopNavAccountMenu";
 
-export const DEPENDENCIES = { useUser, useFlag, usePathname, useCookieTheme, TopBanner, HackathonCouponNavEntry, TopNavAccountMenu };
+export const DEPENDENCIES = { useUser, useFlag, usePathname, useCookieTheme, TopBanner, HackathonCouponNavEntry, TopNavAccountMenu, SkipOnboardingButton };
 
 interface Props {
   dependencies?: typeof DEPENDENCIES;
@@ -113,6 +114,8 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
               <d.HackathonCouponNavEntry />
             </div>
           )}
+
+          {minimal && <d.SkipOnboardingButton source="auto_deploy" />}
 
           <div className={cn({ "hidden md:block": showNavLinks })}>
             <d.TopNavAccountMenu minimal={minimal} />

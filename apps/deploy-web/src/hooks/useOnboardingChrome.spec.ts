@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 import type { DEPENDENCIES } from "@src/hooks/useOnboardingChrome";
 import { useOnboardingChrome } from "@src/hooks/useOnboardingChrome";
 import type { AppError } from "@src/types";
+import type { CustomUserProfile } from "@src/types/user";
 
 import { renderHook } from "@testing-library/react";
 
@@ -93,6 +94,14 @@ describe(useOnboardingChrome.name, () => {
     expect(result.current).toEqual({ isStripped: false });
   });
 
+  it("shows full chrome for a user who has skipped onboarding, even on the configure route with no leases", () => {
+    const { dependencies } = setup({ pathname: "/new-deployment/configure", leaseCount: 0, onboardingSkippedAt: "2026-07-27T00:00:00.000Z" });
+
+    const { result } = renderHook(() => useOnboardingChrome(dependencies));
+
+    expect(result.current).toEqual({ isStripped: false });
+  });
+
   function setup(input: {
     pathname: string;
     leaseCount?: number;
@@ -101,6 +110,7 @@ describe(useOnboardingChrome.name, () => {
     isWalletLoading?: boolean;
     hasManagedWallet?: boolean;
     managedWalletError?: AppError;
+    onboardingSkippedAt?: string | null;
   }) {
     const useWallet: typeof DEPENDENCIES.useWallet = () =>
       mock<ReturnType<typeof DEPENDENCIES.useWallet>>({
@@ -116,7 +126,11 @@ describe(useOnboardingChrome.name, () => {
         isError: (input.isLeasesError ?? false) as never,
         data: (input.isLeasesError ? undefined : (input.leaseCount ?? 0) > 0) as never
       })) as typeof DEPENDENCIES.useLeaseExistenceQuery;
+    const useUser: typeof DEPENDENCIES.useUser = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useUser>>({
+        user: mock<CustomUserProfile>({ onboardingSkippedAt: input.onboardingSkippedAt ?? null })
+      });
 
-    return { dependencies: { useWallet, usePathname, useLeaseExistenceQuery } };
+    return { dependencies: { useWallet, usePathname, useLeaseExistenceQuery, useUser } };
   }
 });

@@ -13,6 +13,7 @@ import { BONUS_PERCENT, MAX_BONUS } from "@src/components/billing-usage/FirstPur
 import { DeploymentTemplatePickerCard } from "@src/components/deployments/DeploymentTemplatePickerCard/DeploymentTemplatePickerCard";
 import { AkashConsoleLogo } from "@src/components/icons/AkashConsoleLogo";
 import { AccountMenu } from "@src/components/layout/AccountMenu";
+import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
@@ -40,6 +41,7 @@ export const DEPENDENCIES = {
   DeploymentTemplatePickerCard,
   AddCreditsSheet,
   AccountMenu,
+  SkipOnboardingButton,
   Button
 };
 
@@ -121,6 +123,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </d.Button>
               )}
+              <d.SkipOnboardingButton source="picker" />
               <d.AccountMenu minimal />
             </div>
           </div>
