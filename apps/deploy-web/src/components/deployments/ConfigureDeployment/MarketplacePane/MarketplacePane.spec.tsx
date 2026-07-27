@@ -29,16 +29,16 @@ describe(MarketplacePane.name, () => {
     expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ providers: offers, isLoading: false }), expect.anything());
   });
 
-  it("tells the table to show hourly cost when the spec uses a GPU", () => {
-    const { MarketplaceProvidersTable } = setup({ hasGpu: true, offers: [buildOffer()] });
+  it("passes the spec's GPU count to the table", () => {
+    const { MarketplaceProvidersTable } = setup({ gpuCount: 8, offers: [buildOffer()] });
 
-    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ showCostAsHourly: true }), expect.anything());
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ gpuCount: 8 }), expect.anything());
   });
 
-  it("tells the table to show monthly cost for a CPU-only spec", () => {
-    const { MarketplaceProvidersTable } = setup({ hasGpu: false, offers: [buildOffer()] });
+  it("passes a zero GPU count for a CPU-only spec", () => {
+    const { MarketplaceProvidersTable } = setup({ gpuCount: 0, offers: [buildOffer()] });
 
-    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ showCostAsHourly: false }), expect.anything());
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ gpuCount: 0 }), expect.anything());
   });
 
   it("renders an error message and no table when offers fail to load with no data", () => {
@@ -104,7 +104,7 @@ describe(MarketplacePane.name, () => {
       isError?: boolean;
       isInvalid?: boolean;
       isSearchActive?: boolean;
-      hasGpu?: boolean;
+      gpuCount?: number;
       selectedPlacementId?: string;
       selectedBidId?: string;
       onSelectProvider?: (placementId: string, bidId: string) => void;
@@ -133,7 +133,7 @@ describe(MarketplacePane.name, () => {
       useProviderSearch: useProviderSearch as never,
       MarketplaceProvidersTable: MarketplaceProvidersTable as never,
       ProviderSearchInput,
-      useDeploymentHasGpu: vi.fn(() => input.hasGpu ?? false)
+      useDeploymentGpuCount: vi.fn(() => input.gpuCount ?? 0)
     };
     const user = userEvent.setup();
 

@@ -16,22 +16,16 @@ type Props = {
 };
 
 export const PriceEstimateTooltip: React.FunctionComponent<Props> = ({ value, denom, showAsHourly = false }) => {
-  const _value = udenomToDenom(typeof value === "string" ? parseFloat(value) : value, 10);
-  const perHourValue = _value * (60 / averageBlockTime) * 60;
-  const perDayValue = _value * (60 / averageBlockTime) * 60 * 24;
-  const perMonthValue = _value * (60 / averageBlockTime) * 60 * 24 * averageDaysInMonth;
+  const denomValue = udenomToDenom(typeof value === "string" ? parseFloat(value) : value, 10);
+  const perHourValue = denomValue * (60 / averageBlockTime) * 60;
+  const perDayValue = perHourValue * 24;
+  const perMonthValue = perHourValue * 24 * averageDaysInMonth;
 
   return (
     <CustomTooltip
       title={
         <div>
-          <span className="text-sm text-muted-foreground">Price estimation:</span>
-          <div>
-            <strong>
-              <PriceValue value={_value} denom={denom} />
-            </strong>
-            &nbsp; per block (~{averageBlockTime}sec.)
-          </div>
+          <span className="text-sm text-muted-foreground">Price breakdown</span>
 
           {showAsHourly && (
             <div>
