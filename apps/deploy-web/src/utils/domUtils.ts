@@ -14,7 +14,6 @@ interface ScriptOptions {
   noModule?: boolean;
   referrerPolicy?: ReferrerPolicy;
   id?: string;
-  innerHTML?: string;
 }
 
 function scriptExists(id: string): boolean {
