@@ -14010,7 +14010,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "endDate",
             "required": false,
             "schema": {
-              "default": "2025-07-03",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31",
               "format": "date",
@@ -14136,7 +14135,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "endDate",
             "required": false,
             "schema": {
-              "default": "2025-07-03",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31",
               "format": "date",
