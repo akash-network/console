@@ -4,7 +4,7 @@ import "../styles/index.css";
 import { cn } from "@akashnetwork/ui/utils";
 import { GeistSans } from "geist/font/sans";
 import type { Metadata, Viewport } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import GoogleAnalytics from "@/components/layout/CustomGoogleAnalytics";
 import Providers from "@/components/layout/CustomProviders";
@@ -89,13 +89,14 @@ async function getTheme() {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const theme = (await getTheme()) as string;
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
     <html lang="en" className={theme} style={{ colorScheme: theme }} suppressHydrationWarning>
       <GoogleAnalytics />
 
       <body className={cn("min-h-screen bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
-        <Providers>
+        <Providers nonce={nonce}>
           <Nav />
           <div className="flex min-h-[calc(100vh-60px)] flex-col justify-between">
             {children}

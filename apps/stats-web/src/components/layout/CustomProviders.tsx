@@ -14,14 +14,14 @@ import { PricingProvider } from "@/context/PricingProvider";
 import { customColors } from "@/lib/colors";
 import { store } from "@/store/global.store";
 
-function Providers({ children }: React.PropsWithChildren) {
+function Providers({ children, nonce }: React.PropsWithChildren<{ nonce?: string }>) {
   const [queryClient] = useState(() => new QueryClient());
 
   return (
     <CustomIntlProvider>
       <QueryClientProvider client={queryClient}>
         <Provider store={store}>
-          <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
+          <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange nonce={nonce}>
             <CustomSnackbarProvider>
               <PricingProvider>
                 <TooltipProvider>
