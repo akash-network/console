@@ -72,13 +72,16 @@ export class GpuPriceService {
 
         // Determine the message version and decode accordingly
         let decodedBid: MsgCreateBidV4 | MsgCreateBidV5;
+        let decodedBidJson: unknown;
         let provider: string;
 
         if (x.type.includes("v1beta5")) {
           decodedBid = this.#typeRegistry.decode({ typeUrl: `/${MsgCreateBidV5.$type}`, value: x.data }) as MsgCreateBidV5;
+          decodedBidJson = MsgCreateBidV5.toJSON(decodedBid);
           provider = decodedBid.id?.provider || "";
         } else {
           decodedBid = this.#typeRegistry.decode({ typeUrl: `/${MsgCreateBidV4.$type}`, value: x.data }) as MsgCreateBidV4;
+          decodedBidJson = MsgCreateBidV4.toJSON(decodedBid);
           provider = decodedBid.provider || "";
         }
 
@@ -123,7 +126,7 @@ export class GpuPriceService {
               .reduce((a: number, b: number) => a + b, 0),
             gpus: bidGpus
           },
-          data: decodedBid
+          data: decodedBidJson
         } as GpuBidType;
 
         const gpu = bid.deployment.gpus[0];

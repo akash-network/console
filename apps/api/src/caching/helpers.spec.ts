@@ -227,6 +227,26 @@ describe("Memoize Function", () => {
       expect(cacheKeys).toContain("TestClass#testMethod#test#456");
     });
 
+    it("includes boolean arguments in cache key", async () => {
+      setup();
+
+      class TestClass {
+        @Memoize()
+        async testMethod(_arg1: string, _arg2: boolean) {
+          return "test";
+        }
+      }
+
+      const instance = new TestClass();
+      await instance.testMethod("test", true);
+      await instance.testMethod("test", false);
+
+      const cacheKeys = cacheEngine.getKeys();
+      expect(cacheKeys).toHaveLength(2);
+      expect(cacheKeys).toContain("TestClass#testMethod#test#true");
+      expect(cacheKeys).toContain("TestClass#testMethod#test#false");
+    });
+
     it("should filter out other types of arguments from cache key", async () => {
       setup();
 
