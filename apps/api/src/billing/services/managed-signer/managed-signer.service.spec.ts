@@ -10,6 +10,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
+import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
@@ -229,6 +230,120 @@ describe(ManagedSignerService.name, () => {
         createdAt: expect.any(String),
         isFirstLease: false
       });
+    });
+
+    it("publishes FundDeploymentCommand with a singleton key when a non-trialing wallet creates a lease", async () => {
+      const wallet = createUserWallet({
+        userId: "user-123",
+        feeAllowance: 100,
+        deploymentAllowance: 100,
+        isTrialing: false
+      });
+      const user = createUser({ userId: "user-123" });
+      const leaseMessage: EncodeObject = {
+        typeUrl: MsgCreateLease.$type,
+        value: MsgCreateLease.fromPartial({
+          bidId: {
+            dseq: 123,
+            owner: "akash1test",
+            gseq: 1,
+            oseq: 1,
+            provider: "akash1test"
+          }
+        })
+      };
+
+      const { service, domainEvents } = setup({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
+          code: 0,
+          hash: "tx-hash",
+          rawLog: "success"
+        }),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
+        publish: vi.fn().mockResolvedValue(undefined)
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [leaseMessage]);
+
+      const fundCall = vi.mocked(domainEvents.publish).mock.calls.find(([event]) => event instanceof FundDeploymentCommand);
+      const [fundCommand, options] = fundCall as [FundDeploymentCommand, { singletonKey: string }];
+      expect(fundCommand.data).toEqual({
+        userId: "user-123",
+        walletId: wallet.id,
+        address: wallet.address,
+        dseq: "123"
+      });
+      expect(options).toEqual({ singletonKey: `FundDeploymentCommand.123.${wallet.id}` });
+    });
+
+    it("does not publish FundDeploymentCommand when a trialing wallet creates a lease", async () => {
+      const wallet = createUserWallet({
+        userId: "user-123",
+        feeAllowance: 100,
+        deploymentAllowance: 100,
+        isTrialing: true
+      });
+      const user = createUser({ userId: "user-123" });
+      const leaseMessage: EncodeObject = {
+        typeUrl: MsgCreateLease.$type,
+        value: MsgCreateLease.fromPartial({
+          bidId: {
+            dseq: 123,
+            owner: "akash1test",
+            gseq: 1,
+            oseq: 1,
+            provider: "akash1test"
+          }
+        })
+      };
+
+      const { service, domainEvents } = setup({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
+          code: 0,
+          hash: "tx-hash",
+          rawLog: "success"
+        }),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
+        publish: vi.fn().mockResolvedValue(undefined)
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [leaseMessage]);
+
+      expect(domainEvents.publish).not.toHaveBeenCalledWith(expect.any(FundDeploymentCommand), expect.anything());
+    });
+
+    it("does not publish FundDeploymentCommand for transactions without a lease message", async () => {
+      const wallet = createUserWallet({
+        userId: "user-123",
+        feeAllowance: 100,
+        deploymentAllowance: 100,
+        isTrialing: false
+      });
+      const user = createUser({ userId: "user-123" });
+      const deploymentMessage: EncodeObject = {
+        typeUrl: MsgCreateDeployment.$type,
+        value: MsgCreateDeployment.fromPartial({})
+      };
+
+      const { service, domainEvents } = setup({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
+          code: 0,
+          hash: "tx-hash",
+          rawLog: "success"
+        }),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
+        publish: vi.fn().mockResolvedValue(undefined)
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage]);
+
+      expect(domainEvents.publish).not.toHaveBeenCalled();
     });
 
     it("throws and skips side-effects when the broadcast tx lands on-chain with a non-zero code", async () => {

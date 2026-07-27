@@ -13,6 +13,7 @@ import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
+import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
@@ -144,6 +145,19 @@ export class ManagedSignerService {
           dseq: createLeaseMessage.value.bidId!.dseq.toString()
         })
       );
+
+      if (!userWallet.isTrialing) {
+        const dseq = createLeaseMessage.value.bidId!.dseq.toString();
+        await this.domainEvents.publish(
+          new FundDeploymentCommand({
+            userId: userWallet.userId,
+            walletId: userWallet.id,
+            address: userWallet.address!,
+            dseq
+          }),
+          { singletonKey: `${FundDeploymentCommand.name}.${dseq}.${userWallet.id}` }
+        );
+      }
     }
 
     await this.balancesService.refreshUserWalletLimits(userWallet);
