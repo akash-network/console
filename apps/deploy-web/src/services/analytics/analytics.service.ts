@@ -146,6 +146,20 @@ const AMPLITUDE_USER_PROPERTIES_MAP = {
   managedWallet: "managed_wallet"
 };
 
+const AMPLITUDE_PAGE_VIEWED_EVENT = "[Amplitude] Page Viewed";
+const AMPLITUDE_PAGE_TITLE_PROPERTY = "[Amplitude] Page Title";
+const AMPLITUDE_LOCATION_PROPERTIES = ["[Amplitude] Page Path", "[Amplitude] Page URL", "[Amplitude] Page Location"] as const;
+
+/**
+ * Deployment detail views embed the deployment sequence in both the page title (`Deployment detail #12345 |
+ * Akash Console`, sometimes digit-masked by Amplitude as `#*****5`) and the URL (`/deployments/12345`), so the
+ * inbuilt page-view event records a unique title and path per deployment and its views cannot be aggregated.
+ * Collapsing the sequence to a static value lets every deployment detail view be filtered as a single page.
+ */
+const DEPLOYMENT_SEQUENCE_TITLE_MARKER = / #[\d*]+/;
+const DEPLOYMENT_SEQUENCE_PATH = /\/deployments\/\d+/g;
+const STATIC_DEPLOYMENT_PATH = "/deployments/[dseq]";
+
 const isBrowser = typeof window !== "undefined";
 
 export type Amplitude = Pick<typeof amplitude, "init" | "Identify" | "identify" | "track" | "setUserId" | "add" | "flush">;
@@ -218,6 +232,7 @@ export class AnalyticsService {
 
     const sessionReplayTracking = sessionReplayPlugin();
     this.amplitudeClient.add(sessionReplayTracking);
+    this.amplitudeClient.add(createStaticDeploymentPageViewPlugin());
 
     this.amplitudeClient.init(this.options.amplitude.apiKey, undefined, initOptions);
     this.amplitudeInitialized = true;
@@ -280,4 +295,35 @@ export class AnalyticsService {
 
     return [GA_EVENTS[eventName as keyof typeof GA_EVENTS] || eventName, eventProperties];
   }
+}
+
+function createStaticDeploymentPageViewPlugin(): amplitude.Types.EnrichmentPlugin {
+  return {
+    name: "static-deployment-page-view",
+    type: "enrichment",
+    execute: async event => {
+      if (event.event_type !== AMPLITUDE_PAGE_VIEWED_EVENT) {
+        return event;
+      }
+
+      const properties = event.event_properties;
+      if (!properties) {
+        return event;
+      }
+
+      const title = properties[AMPLITUDE_PAGE_TITLE_PROPERTY];
+      if (typeof title === "string") {
+        properties[AMPLITUDE_PAGE_TITLE_PROPERTY] = title.replace(DEPLOYMENT_SEQUENCE_TITLE_MARKER, "");
+      }
+
+      for (const property of AMPLITUDE_LOCATION_PROPERTIES) {
+        const value = properties[property];
+        if (typeof value === "string") {
+          properties[property] = value.replace(DEPLOYMENT_SEQUENCE_PATH, STATIC_DEPLOYMENT_PATH);
+        }
+      }
+
+      return event;
+    }
+  };
 }

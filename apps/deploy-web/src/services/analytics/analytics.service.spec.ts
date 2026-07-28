@@ -215,6 +215,85 @@ describe(AnalyticsService.name, () => {
     });
   });
 
+  describe("static deployment page views", () => {
+    it("strips the deployment sequence from the page title so every deployment detail view shares one title", async () => {
+      const plugin = setupPageViewPlugin();
+
+      const event = await plugin.execute({
+        event_type: "[Amplitude] Page Viewed",
+        event_properties: { "[Amplitude] Page Title": "Deployment detail #10244913 | Akash Console" }
+      });
+
+      expect(event.event_properties["[Amplitude] Page Title"]).toBe("Deployment detail | Akash Console");
+    });
+
+    it("strips a digit-masked deployment sequence from the page title", async () => {
+      const plugin = setupPageViewPlugin();
+
+      const event = await plugin.execute({
+        event_type: "[Amplitude] Page Viewed",
+        event_properties: { "[Amplitude] Page Title": "Deployment detail #*****5 | Akash Console" }
+      });
+
+      expect(event.event_properties["[Amplitude] Page Title"]).toBe("Deployment detail | Akash Console");
+    });
+
+    it("collapses the deployment sequence in page path, url and location so every view shares one page", async () => {
+      const plugin = setupPageViewPlugin();
+
+      const event = await plugin.execute({
+        event_type: "[Amplitude] Page Viewed",
+        event_properties: {
+          "[Amplitude] Page Path": "/deployments/1785249677934",
+          "[Amplitude] Page URL": "http://localhost:3000/deployments/1785249677934",
+          "[Amplitude] Page Location": "http://localhost:3000/deployments/1785249677934?tab=LEASES"
+        }
+      });
+
+      expect(event.event_properties["[Amplitude] Page Path"]).toBe("/deployments/[dseq]");
+      expect(event.event_properties["[Amplitude] Page URL"]).toBe("http://localhost:3000/deployments/[dseq]");
+      expect(event.event_properties["[Amplitude] Page Location"]).toBe("http://localhost:3000/deployments/[dseq]?tab=LEASES");
+    });
+
+    it("leaves pages without a deployment sequence unchanged", async () => {
+      const plugin = setupPageViewPlugin();
+
+      const event = await plugin.execute({
+        event_type: "[Amplitude] Page Viewed",
+        event_properties: { "[Amplitude] Page Title": "Deployments | Akash Console", "[Amplitude] Page Path": "/deployments" }
+      });
+
+      expect(event.event_properties["[Amplitude] Page Title"]).toBe("Deployments | Akash Console");
+      expect(event.event_properties["[Amplitude] Page Path"]).toBe("/deployments");
+    });
+
+    it("ignores events that are not inbuilt page views", async () => {
+      const plugin = setupPageViewPlugin();
+
+      const event = await plugin.execute({
+        event_type: "create_deployment",
+        event_properties: { "[Amplitude] Page Path": "/deployments/1785249677934" }
+      });
+
+      expect(event.event_properties["[Amplitude] Page Path"]).toBe("/deployments/1785249677934");
+    });
+
+    function setupPageViewPlugin() {
+      const add = vi.fn();
+      const service = setup({
+        amplitude: { add },
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.identify({ id: faker.string.uuid() });
+
+      return add.mock.calls.map(call => call[0]).find(plugin => plugin?.name === "static-deployment-page-view");
+    }
+  });
+
   describe("flush", () => {
     it("sends queued events immediately when Amplitude is enabled", () => {
       const flush = vi.fn();
