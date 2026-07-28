@@ -61,6 +61,18 @@ describe(useCreateDeployment.name, () => {
     expect(mutate).toHaveBeenCalledWith(VARIABLES, expect.objectContaining({ onError, onSuccess }));
   });
 
+  it("drops a held create so it never fires even after the wallet becomes ready", () => {
+    const { result, mutate, rerender } = setup({ isWalletReady: false });
+
+    result.current.mutate(VARIABLES, { onSuccess: vi.fn() });
+    expect(mutate).not.toHaveBeenCalled();
+
+    result.current.dropPending();
+    rerender({ isWalletReady: true });
+
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
   function setup(initialProps: UseCreateDeploymentOptions) {
     const mutate = vi.fn();
     const mutation = mock<ReturnType<typeof DEPENDENCIES.useCreateDeploymentMutation>>({ mutate: mutate as never });

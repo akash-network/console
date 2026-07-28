@@ -125,7 +125,10 @@ export type AnalyticsEvent =
   | "configure_cpu_count_changed"
   | "configure_sdl_imported"
   | "configure_sdl_downloaded"
-  | "configure_sdl_copied";
+  | "configure_sdl_copied"
+  | "cancel_during_create"
+  | "close_deployment_failed"
+  | "cancelled_deployment_auto_close_failed";
 
 export type AnalyticsCategory = "user" | "billing" | "deployments" | "wallet" | "sdl_builder" | "transactions" | "profile" | "settings" | "onboarding";
 

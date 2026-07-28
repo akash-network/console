@@ -34,11 +34,14 @@ export type UseCreateDeploymentOptions = {
  * (not `gatedMutate`) owns the fail-on-error decision, reading the latest `trialError`. That lets a retry which
  * resets the trial (clearing `trialError`) rescue the held create — it flushes when the re-attempted trial
  * provisions — instead of the create failing against a stale error captured at click time.
+ *
+ * `dropPending()` abandons a still-held create so a cancel during the trial wait really cancels it; a create that has
+ * already flushed is out of reach here and is instead neutralized by the flow's stale-attempt auto-close.
  */
 export function useCreateDeployment(
   { isWalletReady, trialError }: UseCreateDeploymentOptions,
   d: typeof DEPENDENCIES = DEPENDENCIES
-): CreateDeploymentMutation {
+): CreateDeploymentMutation & { dropPending: () => void } {
   const mutation = d.useCreateDeploymentMutation();
   const { mutate } = mutation;
   const pendingRef = useRef<{ variables: MutateVariables; options?: MutateOptions } | null>(null);
@@ -69,5 +72,9 @@ export function useCreateDeployment(
     [isWalletReady, mutate]
   );
 
-  return useMemo(() => ({ ...mutation, mutate: gatedMutate }), [mutation, gatedMutate]);
+  const dropPending = useCallback(function dropPending() {
+    pendingRef.current = null;
+  }, []);
+
+  return useMemo(() => ({ ...mutation, mutate: gatedMutate, dropPending }), [mutation, gatedMutate, dropPending]);
 }

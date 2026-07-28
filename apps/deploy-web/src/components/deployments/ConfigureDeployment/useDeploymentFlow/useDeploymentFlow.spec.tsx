@@ -1,4 +1,5 @@
 import type { PropsWithChildren } from "react";
+import { ApiError } from "@akashnetwork/openapi-sdk";
 import { createStore, Provider as JotaiStoreProvider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
@@ -621,24 +622,158 @@ describe(useDeploymentFlow.name, () => {
     }
   });
 
+  describe("cancel and edit close reliability", () => {
+    it("stays in configuring and auto-closes the deployment when cancelled while it is still being created", () => {
+      const replace = vi.fn();
+      let resolveCreate: ((result: { data: { dseq: string; manifest: string } }) => void) | undefined;
+      const createMutate = vi.fn((_args, options) => {
+        resolveCreate = options.onSuccess;
+      });
+      const { result, closeDeployment } = setup({ replace, createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      expect(result.current.phase).toBe("creating");
+
+      act(() => result.current.actions.cancelAndEdit());
+      expect(result.current.phase).toBe("configuring");
+
+      act(() => resolveCreate?.({ data: { dseq: "999", manifest: "m" } }));
+
+      expect(result.current.phase).toBe("configuring");
+      expect(result.current.dseq).toBeNull();
+      expect(closeDeployment.mutate).toHaveBeenCalledWith({ dseq: "999" }, expect.any(Object));
+      expect(replace.mock.calls.every(([url]) => !String(url).includes("/configure/999"))).toBe(true);
+    });
+
+    it("drops the held create when cancelled during create", () => {
+      const { result, createDeployment } = setup({ createMutate: vi.fn() });
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(createDeployment.dropPending).toHaveBeenCalledTimes(1);
+    });
+
+    it("tracks cancel_during_create when cancelling while the deployment is being created", () => {
+      const { result, analyticsService } = setup({ createMutate: vi.fn() });
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(analyticsService.track).toHaveBeenCalledWith("cancel_during_create", { category: "deployments" });
+    });
+
+    it("tracks cancelled_deployment_auto_close_failed when the late auto-close fails", () => {
+      let resolveCreate: ((result: { data: { dseq: string; manifest: string } }) => void) | undefined;
+      const createMutate = vi.fn((_args, options) => {
+        resolveCreate = options.onSuccess;
+      });
+      const closeMutate = vi.fn((_args, options) => options.onError?.(new Error("auto close boom")));
+      const { result, analyticsService } = setup({ createMutate, closeMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => resolveCreate?.({ data: { dseq: "999", manifest: "m" } }));
+
+      expect(analyticsService.track).toHaveBeenCalledWith("cancelled_deployment_auto_close_failed", { category: "deployments", dseq: "999" });
+    });
+
+    it("closes the still-open deployment before creating when requesting quotes with a live dseq", () => {
+      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({}));
+      const createMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { dseq: "1000", manifest: "m" } }));
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+
+      expect(closeMutate).toHaveBeenCalledWith({ dseq: "777" }, expect.any(Object));
+      expect(createMutate).toHaveBeenCalledWith({ data: { sdl: "sdl", deposit: expect.any(Number) } }, expect.any(Object));
+      expect(result.current.dseq).toBe("1000");
+      expect(result.current.phase).toBe("quoting");
+    });
+
+    it("does not create and surfaces a close error when the pre-create close is verified still open", () => {
+      const closeMutate = vi.fn((_args, options) => options.onError?.(new Error("close boom")));
+      const getDeploymentMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { deployment: { state: "active" } } }));
+      const createMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, getDeploymentMutate, createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+
+      expect(result.current.phase).toBe("error");
+      expect(result.current.error?.kind).toBe("close");
+      expect(result.current.dseq).toBe("777");
+      expect(createMutate).not.toHaveBeenCalled();
+    });
+
+    it("returns to configuring without error when a failed close is verified already closed", () => {
+      const closeMutate = vi.fn((_args, options) => options.onError?.(new Error("close boom")));
+      const getDeploymentMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { deployment: { state: "closed" } } }));
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, getDeploymentMutate });
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(result.current.phase).toBe("configuring");
+      expect(result.current.error).toBeUndefined();
+      expect(result.current.dseq).toBeNull();
+    });
+
+    it("returns to configuring without error when a failed close verifies as a 404", () => {
+      const closeMutate = vi.fn((_args, options) => options.onError?.(new Error("close boom")));
+      const getDeploymentMutate = vi.fn((_args, options) => options.onError?.(new ApiError(404, undefined, "GET deployment → 404")));
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, getDeploymentMutate });
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(result.current.phase).toBe("configuring");
+      expect(result.current.error).toBeUndefined();
+      expect(result.current.dseq).toBeNull();
+    });
+
+    it("keeps the deployment editable in error when a failed close is verified still open", () => {
+      const closeMutate = vi.fn((_args, options) => options.onError?.(new Error("close boom")));
+      const getDeploymentMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { deployment: { state: "active" } } }));
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, getDeploymentMutate });
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(result.current.phase).toBe("error");
+      expect(result.current.error?.kind).toBe("close");
+      expect(result.current.dseq).toBe("777");
+    });
+
+    it("tracks close_deployment_failed with the verified outcome on a failed close", () => {
+      const closeMutate = vi.fn((_args, options) => options.onError?.(new Error("close boom")));
+      const getDeploymentMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { deployment: { state: "closed" } } }));
+      const { result, analyticsService } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, getDeploymentMutate });
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(analyticsService.track).toHaveBeenCalledWith("close_deployment_failed", { category: "deployments", dseq: "777", verifiedClosed: true });
+    });
+  });
+
   function setup(input: {
     intent?: { sdlStrategy: "default" | "edit"; bidStrategy: "auto" | "select"; dseq?: string; templateId?: string; draftId?: string; vm?: boolean };
     replace?: ReturnType<typeof vi.fn>;
     createMutate?: ReturnType<typeof vi.fn>;
     closeMutate?: ReturnType<typeof vi.fn>;
+    getDeploymentMutate?: ReturnType<typeof vi.fn>;
   }) {
     const intent = { vm: false, ...(input.intent ?? { sdlStrategy: "edit" as const, bidStrategy: "select" as const, dseq: undefined }) };
-    const services = mockServices({ closeDeployment: mockMutation(input.closeMutate) });
+    const closeDeployment = mockMutation(input.closeMutate);
+    const getDeployment = mockMutation(input.getDeploymentMutate);
+    const services = mockServices({ closeDeployment, getDeployment });
+    const createDeployment = mock<ReturnType<typeof DEPENDENCIES.useCreateDeployment>>({ mutate: (input.createMutate ?? vi.fn()) as never });
     const dependencies: typeof DEPENDENCIES = {
       useServices: (() => services) as never,
-      useCreateDeployment: (() => mock<ReturnType<typeof DEPENDENCIES.useCreateDeployment>>({ mutate: (input.createMutate ?? vi.fn()) as never })) as never,
+      useCreateDeployment: (() => createDeployment) as never,
       useListBids: (() => ({ data: { data: [] }, isLoading: false, isError: false })) as never,
       useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: (input.replace ?? vi.fn()) as never })) as never,
       useQueryClient: (() => mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>()) as never,
       manifestFromSdl: () => "manifest",
       deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 })
     };
-    return { ...renderDeploymentFlow(intent, dependencies), analyticsService: services.analyticsService };
+    return { ...renderDeploymentFlow(intent, dependencies), analyticsService: services.analyticsService, createDeployment, closeDeployment, getDeployment };
   }
 
   function renderFlow(input?: {
@@ -676,11 +811,13 @@ describe(useDeploymentFlow.name, () => {
     closeDeployment?: ReturnType<typeof mockMutation>;
     createLease?: ReturnType<typeof mockMutation>;
     updateDeployment?: ReturnType<typeof mockMutation>;
+    getDeployment?: ReturnType<typeof mockMutation>;
   }) {
     const services = mockDeep<ReturnType<typeof DEPENDENCIES.useServices>>();
     services.api.v1.closeDeployment.useMutation.mockReturnValue((mutations?.closeDeployment ?? mockMutation()) as never);
     services.api.v1.createLease.useMutation.mockReturnValue((mutations?.createLease ?? mockMutation()) as never);
     services.api.v1.updateDeployment.useMutation.mockReturnValue((mutations?.updateDeployment ?? mockMutation()) as never);
+    services.api.v1.getDeployment.useMutation.mockReturnValue((mutations?.getDeployment ?? mockMutation()) as never);
     return services;
   }
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
+import { extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useRouter } from "next/router";
@@ -18,6 +18,9 @@ import type { BidStrategy, DeploymentIntent } from "./deploymentIntent";
 
 export type DeploymentFlowPhase = "configuring" | "creating" | "quoting" | "closing" | "deploying" | "error";
 
+/** Which step failed, so the form can title the error toast correctly. A close failure reads differently from a failed quote request. */
+export type FlowErrorKind = "create" | "close" | "no-providers";
+
 /** The live bids the flow polls while quoting (react-query-backed). Element shape derived from the shared `listBids` query. */
 export type DeploymentBids = NonNullable<ReturnType<typeof useListBids>["data"]>["data"];
 
@@ -35,7 +38,7 @@ export interface DeploymentFlowState {
   /** True once the lease is created; the deploy overlay completes its progress before the brief redirect to the deployment. */
   deploySucceeded: boolean;
   deployError?: { message?: string };
-  error?: { message?: string };
+  error?: { message?: string; kind?: FlowErrorKind };
 }
 
 export interface DeploymentFlowActions {
@@ -107,13 +110,14 @@ export function useDeploymentFlow(
   const closeDeployment = api.v1.closeDeployment.useMutation();
   const createLease = api.v1.createLease.useMutation();
   const updateDeployment = api.v1.updateDeployment.useMutation();
+  const getDeployment = api.v1.getDeployment.useMutation();
   const queryClient = dependencies.useQueryClient();
   const settingsId = useAtomValue(settingsIdAtom);
 
   const [phase, setPhase] = useState<DeploymentFlowPhase>(intent.dseq ? "quoting" : "configuring");
   const [dseq, setDseq] = useState<string | null>(intent.dseq ?? null);
   const [bidStrategy, setBidStrategyState] = useState<BidStrategy>(intent.bidStrategy);
-  const [error, setError] = useState<{ message?: string } | undefined>(undefined);
+  const [error, setError] = useState<{ message?: string; kind?: FlowErrorKind } | undefined>(undefined);
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [manifest, setManifest] = useState<string | null>(null);
   const [deployError, setDeployError] = useState<{ message?: string } | undefined>(undefined);
@@ -125,6 +129,12 @@ export function useDeploymentFlow(
   /** Read in the async create-success callback so a create resolving after a strategy switch uses the current value. */
   const bidStrategyRef = useRef(bidStrategy);
   bidStrategyRef.current = bidStrategy;
+
+  /**
+   * Bumped on every requestQuotes and on a cancel that predates create resolution. A create whose captured attempt is
+   * stale was cancelled mid-flight, so its late success auto-closes the just-created deployment instead of resuming.
+   */
+  const createAttemptRef = useRef(0);
 
   /** Held in a ref so the no-providers timeout calls the latest `cancelAndEdit` without re-arming the timer each render. */
   const cancelAndEditRef = useRef<() => void>();
@@ -179,7 +189,7 @@ export function useDeploymentFlow(
          */
         function timeOutWithoutProviders() {
           if (intentRef.current.sdlStrategy === "default" && bidStrategyRef.current === "auto") {
-            setError({ message: NO_PROVIDERS_MESSAGE });
+            setError({ message: NO_PROVIDERS_MESSAGE, kind: "no-providers" });
             setPhase("error");
             return;
           }
@@ -195,38 +205,119 @@ export function useDeploymentFlow(
     [phase, hasOpenBids]
   );
 
+  /** The success teardown, shared by a clean close and by a close whose failure verified the deployment is actually gone. */
+  const finishClose = useCallback(function finishClose() {
+    setDseq(null);
+    setSelections({});
+    setManifest(null);
+    setDeployError(undefined);
+    setDeploySucceeded(false);
+    setPhase("configuring");
+  }, []);
+
   /**
-   * Caches the SDL under the settings id + dseq at create time (the create response omits `owner`) so an in-progress
-   * deployment can resume into the flow after a reload — the same key the detail page reads.
+   * Settles an ambiguous close failure with a single live-chain read. tx-signer stops polling (~36s) only after the tx
+   * TTL (30s) has expired, so a reported failure is often a false negative and one refetch is decisive: no indexer lag,
+   * and no window left for the tx to still land. A closed deployment or a 404 means it is gone, so the caller's success
+   * path runs; anything else is a real failure, surfaced as a close error with the deployment left editable.
    */
-  const requestQuotes = useCallback(
-    function requestQuotes(sdl: string) {
-      providersEverBidRef.current = false;
-      bidsReceivedTrackedRef.current = false;
-      setPhase("creating");
-      setError(undefined);
-      createDeployment.mutate(
-        { data: { sdl, deposit: DEFAULT_DEPOSIT } },
+  const verifyCloseOutcome = useCallback(
+    function verifyCloseOutcome(dseqToVerify: string, cause: unknown, onActuallyClosed: () => void) {
+      function settle(verifiedClosed: boolean) {
+        analyticsService.track("close_deployment_failed", { category: "deployments", dseq: dseqToVerify, verifiedClosed });
+        if (verifiedClosed) {
+          onActuallyClosed();
+          return;
+        }
+        setError({ message: extractApiErrorMessage(cause) ?? undefined, kind: "close" });
+        setPhase("error");
+      }
+      getDeployment.mutate(
+        { dseq: dseqToVerify },
         {
-          onSuccess: function onCreated(result: { data: { dseq: string; manifest: string } }) {
-            setDseq(result.data.dseq);
-            setManifest(result.data.manifest);
-            setSelections({});
-            setDeployError(undefined);
-            setDeploySucceeded(false);
-            setPhase("quoting");
-            analyticsService.track("create_deployment", { category: "deployments", label: "Create deployment in wizard", dseq: result.data.dseq });
-            cacheDeployedSdl(deploymentLocalStorage, settingsId, result.data.dseq, sdl);
-            router.replace(buildConfigureUrl(intentRef.current, result.data.dseq, bidStrategyRef.current), undefined, { shallow: true });
+          onSuccess: function onVerified(result: { data: { deployment: { state: string } } }) {
+            settle(result.data.deployment.state === "closed");
           },
-          onError: function onCreateFailed(cause: unknown) {
-            setError({ message: extractApiErrorMessage(cause) ?? undefined });
-            setPhase("error");
+          onError: function onVerifyFailed(verifyError: unknown) {
+            settle(isApiError(verifyError) && verifyError.status === 404);
           }
         }
       );
     },
-    [createDeployment, router, deploymentLocalStorage, settingsId, analyticsService]
+    [getDeployment, analyticsService]
+  );
+
+  /**
+   * Caches the SDL under the settings id + dseq at create time (the create response omits `owner`) so an in-progress
+   * deployment can resume into the flow after a reload, under the same key the detail page reads. When a previous
+   * deployment is still open (a prior close failed), it is closed first so the single-open-deployment invariant holds.
+   */
+  const requestQuotes = useCallback(
+    function requestQuotes(sdl: string) {
+      const attempt = ++createAttemptRef.current;
+      providersEverBidRef.current = false;
+      bidsReceivedTrackedRef.current = false;
+      setError(undefined);
+
+      function create() {
+        setPhase("creating");
+        createDeployment.mutate(
+          { data: { sdl, deposit: DEFAULT_DEPOSIT } },
+          {
+            onSuccess: function onCreated(result: { data: { dseq: string; manifest: string } }) {
+              if (attempt !== createAttemptRef.current) {
+                closeDeployment.mutate(
+                  { dseq: result.data.dseq },
+                  {
+                    onError: function trackAutoCloseFailure() {
+                      analyticsService.track("cancelled_deployment_auto_close_failed", { category: "deployments", dseq: result.data.dseq });
+                    }
+                  }
+                );
+                return;
+              }
+              setDseq(result.data.dseq);
+              setManifest(result.data.manifest);
+              setSelections({});
+              setDeployError(undefined);
+              setDeploySucceeded(false);
+              setPhase("quoting");
+              analyticsService.track("create_deployment", { category: "deployments", label: "Create deployment in wizard", dseq: result.data.dseq });
+              cacheDeployedSdl(deploymentLocalStorage, settingsId, result.data.dseq, sdl);
+              router.replace(buildConfigureUrl(intentRef.current, result.data.dseq, bidStrategyRef.current), undefined, { shallow: true });
+            },
+            onError: function onCreateFailed(cause: unknown) {
+              if (attempt !== createAttemptRef.current) return;
+              setError({ message: extractApiErrorMessage(cause) ?? undefined, kind: "create" });
+              setPhase("error");
+            }
+          }
+        );
+      }
+
+      if (dseq) {
+        setPhase("creating");
+        closeDeployment.mutate(
+          { dseq },
+          {
+            onSuccess: function onPriorClosed() {
+              setDseq(null);
+              create();
+            },
+            onError: function onPriorCloseFailed(cause: unknown) {
+              verifyCloseOutcome(dseq, cause, function createAfterVerifiedClose() {
+                setDseq(null);
+                create();
+              });
+            }
+          }
+        );
+        return;
+      }
+
+      create();
+    },
+    [createDeployment, closeDeployment, dseq, router, deploymentLocalStorage, settingsId, analyticsService, verifyCloseOutcome]
   );
 
   /** Drops the dseq from the URL immediately, not on close-success, so a returning user never sees the abandoned deployment while the close is in flight. */
@@ -234,6 +325,10 @@ export function useDeploymentFlow(
     function cancelAndEdit() {
       router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategy), undefined, { shallow: true });
       if (!dseq) {
+        if (phase === "creating") analyticsService.track("cancel_during_create", { category: "deployments" });
+        createAttemptRef.current += 1;
+        createDeployment.dropPending();
+        setError(undefined);
         setPhase("configuring");
         return;
       }
@@ -242,22 +337,14 @@ export function useDeploymentFlow(
       closeDeployment.mutate(
         { dseq },
         {
-          onSuccess: function onClosed() {
-            setDseq(null);
-            setSelections({});
-            setManifest(null);
-            setDeployError(undefined);
-            setDeploySucceeded(false);
-            setPhase("configuring");
-          },
+          onSuccess: finishClose,
           onError: function onCloseFailed(cause: unknown) {
-            setError({ message: extractApiErrorMessage(cause) ?? undefined });
-            setPhase("error");
+            verifyCloseOutcome(dseq, cause, finishClose);
           }
         }
       );
     },
-    [closeDeployment, dseq, router, bidStrategy]
+    [closeDeployment, dseq, phase, router, bidStrategy, analyticsService, createDeployment, finishClose, verifyCloseOutcome]
   );
   cancelAndEditRef.current = cancelAndEdit;
 
