@@ -62,6 +62,7 @@ export class DeploymentWriterService {
 
   public async close(wallet: WalletInitialized, dseq: string): Promise<void> {
     const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+    if (deployment.deployment.state === "closed") return;
     const message = this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.deployment.id.dseq);
     await this.signerService.executeDecodedTxByUserWallet(wallet, [message]);
   }

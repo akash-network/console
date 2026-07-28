@@ -143,6 +143,19 @@ describe(DeploymentWriterService.name, () => {
       expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledWith(wallet.address, "100");
       expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(wallet, [closeMsg]);
     });
+
+    it("does not broadcast a close tx when the deployment is already closed", async () => {
+      const { service, signerService, rpcMessageService, deploymentReaderService } = setup();
+      deploymentReaderService.findByWalletAndDseq.mockResolvedValue({
+        ...deploymentData,
+        deployment: { ...deploymentData.deployment, state: "closed" }
+      });
+
+      await service.close(wallet, "100");
+
+      expect(rpcMessageService.getCloseDeploymentMsg).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+    });
   });
 
   describe("deposit", () => {
