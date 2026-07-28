@@ -5,9 +5,15 @@ on:
     # Run daily at 15:00 UTC
     - cron: "0 15 * * *"
   workflow_dispatch:
+  repository_dispatch:
+    types: [awesome-akash-updated]
 
 permissions:
   contents: read
+
+concurrency:
+  group: akash-templates-publisher
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy-templates:
