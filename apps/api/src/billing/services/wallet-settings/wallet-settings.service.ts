@@ -112,9 +112,22 @@ export class WalletSettingService {
   }
 
   async #arrangeSchedule(prev?: WalletSettingOutput, next?: WalletSettingOutput) {
-    if (!prev?.autoReloadEnabled && next?.autoReloadEnabled) {
-      await this.walletReloadJobService.scheduleForWalletSetting(next, { withCleanup: true });
+    if (!next?.autoReloadEnabled) {
+      return;
     }
+
+    if (!prev?.autoReloadEnabled) {
+      await this.walletReloadJobService.scheduleForWalletSetting(next, { withCleanup: true });
+      return;
+    }
+
+    if (this.#hasReloadValuesChanged(prev, next)) {
+      await this.walletReloadJobService.scheduleForWalletSetting(next);
+    }
+  }
+
+  #hasReloadValuesChanged(prev: WalletSettingOutput, next: WalletSettingOutput) {
+    return prev.autoReloadThreshold !== next.autoReloadThreshold || prev.autoReloadAmount !== next.autoReloadAmount;
   }
 
   async deleteWalletSetting(userId: string): Promise<void> {

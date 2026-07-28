@@ -7144,6 +7144,10 @@ export interface operations {
           "application/json": {
             data: {
               autoReloadEnabled: boolean;
+              /** @description USD credit balance at or below which an automatic top-up is triggered. */
+              autoReloadThreshold: number;
+              /** @description USD amount charged to the default payment method on each automatic top-up. */
+              autoReloadAmount: number;
             };
           };
         };
@@ -7169,6 +7173,10 @@ export interface operations {
         "application/json": {
           data: {
             autoReloadEnabled: boolean;
+            /** @description USD credit balance at or below which an automatic top-up is triggered (minimum 5, maximum 10000). Defaults are applied on create when omitted. */
+            autoReloadThreshold?: number;
+            /** @description USD amount charged on each automatic top-up (minimum 20, maximum 10000). Defaults are applied on create when omitted. */
+            autoReloadAmount?: number;
           };
         };
       };
@@ -7183,6 +7191,10 @@ export interface operations {
           "application/json": {
             data: {
               autoReloadEnabled: boolean;
+              /** @description USD credit balance at or below which an automatic top-up is triggered. */
+              autoReloadThreshold: number;
+              /** @description USD amount charged to the default payment method on each automatic top-up. */
+              autoReloadAmount: number;
             };
           };
         };
@@ -7208,6 +7220,10 @@ export interface operations {
         "application/json": {
           data: {
             autoReloadEnabled: boolean;
+            /** @description USD credit balance at or below which an automatic top-up is triggered (minimum 5, maximum 10000). Defaults are applied on create when omitted. */
+            autoReloadThreshold?: number;
+            /** @description USD amount charged on each automatic top-up (minimum 20, maximum 10000). Defaults are applied on create when omitted. */
+            autoReloadAmount?: number;
           };
         };
       };
@@ -7222,6 +7238,10 @@ export interface operations {
           "application/json": {
             data: {
               autoReloadEnabled: boolean;
+              /** @description USD credit balance at or below which an automatic top-up is triggered. */
+              autoReloadThreshold: number;
+              /** @description USD amount charged to the default payment method on each automatic top-up. */
+              autoReloadAmount: number;
             };
           };
         };

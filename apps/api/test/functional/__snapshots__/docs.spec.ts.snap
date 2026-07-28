@@ -15119,12 +15119,22 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "properties": {
                     "data": {
                       "properties": {
+                        "autoReloadAmount": {
+                          "description": "USD amount charged to the default payment method on each automatic top-up.",
+                          "type": "number",
+                        },
                         "autoReloadEnabled": {
                           "type": "boolean",
+                        },
+                        "autoReloadThreshold": {
+                          "description": "USD credit balance at or below which an automatic top-up is triggered.",
+                          "type": "number",
                         },
                       },
                       "required": [
                         "autoReloadEnabled",
+                        "autoReloadThreshold",
+                        "autoReloadAmount",
                       ],
                       "type": "object",
                     },
@@ -15165,8 +15175,20 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "properties": {
                   "data": {
                     "properties": {
+                      "autoReloadAmount": {
+                        "description": "USD amount charged on each automatic top-up (minimum 20, maximum 10000). Defaults are applied on create when omitted.",
+                        "maximum": 10000,
+                        "minimum": 20,
+                        "type": "number",
+                      },
                       "autoReloadEnabled": {
                         "type": "boolean",
+                      },
+                      "autoReloadThreshold": {
+                        "description": "USD credit balance at or below which an automatic top-up is triggered (minimum 5, maximum 10000). Defaults are applied on create when omitted.",
+                        "maximum": 10000,
+                        "minimum": 5,
+                        "type": "number",
                       },
                     },
                     "required": [
@@ -15191,12 +15213,22 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "properties": {
                     "data": {
                       "properties": {
+                        "autoReloadAmount": {
+                          "description": "USD amount charged to the default payment method on each automatic top-up.",
+                          "type": "number",
+                        },
                         "autoReloadEnabled": {
                           "type": "boolean",
+                        },
+                        "autoReloadThreshold": {
+                          "description": "USD credit balance at or below which an automatic top-up is triggered.",
+                          "type": "number",
                         },
                       },
                       "required": [
                         "autoReloadEnabled",
+                        "autoReloadThreshold",
+                        "autoReloadAmount",
                       ],
                       "type": "object",
                     },
@@ -15237,8 +15269,20 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "properties": {
                   "data": {
                     "properties": {
+                      "autoReloadAmount": {
+                        "description": "USD amount charged on each automatic top-up (minimum 20, maximum 10000). Defaults are applied on create when omitted.",
+                        "maximum": 10000,
+                        "minimum": 20,
+                        "type": "number",
+                      },
                       "autoReloadEnabled": {
                         "type": "boolean",
+                      },
+                      "autoReloadThreshold": {
+                        "description": "USD credit balance at or below which an automatic top-up is triggered (minimum 5, maximum 10000). Defaults are applied on create when omitted.",
+                        "maximum": 10000,
+                        "minimum": 5,
+                        "type": "number",
                       },
                     },
                     "required": [
@@ -15263,12 +15307,22 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "properties": {
                     "data": {
                       "properties": {
+                        "autoReloadAmount": {
+                          "description": "USD amount charged to the default payment method on each automatic top-up.",
+                          "type": "number",
+                        },
                         "autoReloadEnabled": {
                           "type": "boolean",
+                        },
+                        "autoReloadThreshold": {
+                          "description": "USD credit balance at or below which an automatic top-up is triggered.",
+                          "type": "number",
                         },
                       },
                       "required": [
                         "autoReloadEnabled",
+                        "autoReloadThreshold",
+                        "autoReloadAmount",
                       ],
                       "type": "object",
                     },

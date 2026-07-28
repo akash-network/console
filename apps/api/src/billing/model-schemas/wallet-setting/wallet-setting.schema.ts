@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { boolean, index, integer, pgTable, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, numeric, pgTable, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 
 import { UserWallets } from "@src/billing/model-schemas/user-wallet/user-wallet.schema";
 import { Users } from "@src/user/model-schemas";
@@ -18,6 +18,8 @@ export const WalletSetting = pgTable(
       .references(() => Users.id, { onDelete: "cascade" })
       .notNull(),
     autoReloadEnabled: boolean("auto_reload_enabled").default(false).notNull(),
+    autoReloadThreshold: numeric("auto_reload_threshold", { precision: 20, scale: 2, mode: "number" }).notNull().default(20),
+    autoReloadAmount: numeric("auto_reload_amount", { precision: 20, scale: 2, mode: "number" }).notNull().default(100),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow()
   },

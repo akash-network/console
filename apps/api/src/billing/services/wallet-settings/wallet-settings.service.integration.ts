@@ -147,6 +147,40 @@ describe(WalletSettingService.name, () => {
       );
     });
 
+    it("schedules an immediate check when reload values change while enabled", async () => {
+      const { user, walletSetting, walletSettingRepository, walletReloadJobService, jobId, service } = setup();
+      const enabledPrev = { ...walletSetting, autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100 };
+      const updated = { ...enabledPrev, autoReloadThreshold: 30 };
+      walletSettingRepository.findByUserId.mockResolvedValue(enabledPrev);
+      walletSettingRepository.updateById.mockResolvedValue(updated as any);
+      walletReloadJobService.scheduleForWalletSetting.mockResolvedValue(jobId);
+
+      await service.upsertWalletSetting(user.id, { autoReloadThreshold: 30 });
+
+      expect(walletReloadJobService.scheduleForWalletSetting).toHaveBeenCalledWith(expect.objectContaining({ id: updated.id, userId: user.id }));
+    });
+
+    it("does not schedule a check when reload values are unchanged while enabled", async () => {
+      const { user, walletSetting, walletSettingRepository, walletReloadJobService, service } = setup();
+      const enabledSetting = { ...walletSetting, autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100 };
+      walletSettingRepository.findByUserId.mockResolvedValue(enabledSetting);
+      walletSettingRepository.updateById.mockResolvedValue(enabledSetting as any);
+
+      await service.upsertWalletSetting(user.id, { autoReloadEnabled: true });
+
+      expect(walletReloadJobService.scheduleForWalletSetting).not.toHaveBeenCalled();
+    });
+
+    it("throws when enabling without a default payment method", async () => {
+      const { user, walletSetting, walletSettingRepository, paymentMethodService, service } = setup();
+      walletSettingRepository.findByUserId.mockResolvedValue({ ...walletSetting, autoReloadEnabled: false });
+      paymentMethodService.getDefaultPaymentMethod.mockResolvedValue(undefined);
+
+      await expect(() => service.upsertWalletSetting(user.id, { autoReloadEnabled: true })).rejects.toThrow(
+        "Default payment method is required to enable automatic wallet balance reload"
+      );
+    });
+
     it("throws 404 when user wallet not found during create", async () => {
       const { user, userWalletRepository, walletSettingRepository, service } = setup();
       walletSettingRepository.findByUserId.mockResolvedValue(undefined);

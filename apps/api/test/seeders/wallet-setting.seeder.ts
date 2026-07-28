@@ -8,8 +8,8 @@ export const generateWalletSetting = (overrides: Partial<WalletSettingOutput>) =
     userId: faker.string.uuid(),
     walletId: faker.number.int({ min: 1, max: 1000 }),
     autoReloadEnabled: faker.datatype.boolean(),
-    autoReloadThreshold: faker.number.float({ min: 0, max: 1000, fractionDigits: 2 }),
-    autoReloadAmount: faker.number.float({ min: 0, max: 1000, fractionDigits: 2 }),
+    autoReloadThreshold: faker.number.float({ min: 5, max: 1000, fractionDigits: 2 }),
+    autoReloadAmount: faker.number.float({ min: 20, max: 1000, fractionDigits: 2 }),
     createdAt: faker.date.recent(),
     updatedAt: faker.date.recent(),
     ...overrides
