@@ -165,6 +165,17 @@ describe(ChainErrorService.name, () => {
       expect(appErr.message).toBe("Failed to create deployment: Unit price exceeds the maximum allowed by the network");
     });
 
+    it("returns 400 for account closed error", async () => {
+      const { service } = setup();
+      const err = new Error(
+        "Query failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: 0: account closed [cosmos/cosmos-sdk@v0.53.6/baseapp/baseapp.go:1052] with gas used: '34881': unknown request"
+      );
+
+      const appErr = await service.toAppError(err, encodeMessages);
+      expect(appErr).toBeInstanceOf(BadRequest);
+      expect(appErr.message).toBe("Deployment closed");
+    });
+
     it("returns 402 for insufficient balance error", async () => {
       const { service } = setup();
       const err = new Error(
@@ -248,6 +259,24 @@ describe(ChainErrorService.name, () => {
 
       const appErr = await service.toAppError(err, encodeMessages);
       expect(appErr).toBe(err);
+    });
+  });
+
+  describe("isDeploymentClosedError", () => {
+    it("returns true for a raw chain account closed message", () => {
+      const { service } = setup();
+      const err = new Error("Query failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: 0: account closed");
+      expect(service.isDeploymentClosedError(err)).toBe(true);
+    });
+
+    it("returns true for a mapped Deployment closed message", () => {
+      const { service } = setup();
+      expect(service.isDeploymentClosedError(new Error("Deployment closed"))).toBe(true);
+    });
+
+    it("returns false for unrelated errors", () => {
+      const { service } = setup();
+      expect(service.isDeploymentClosedError(new Error("insufficient funds: 10uakt is smaller than 20uakt"))).toBe(false);
     });
   });
 

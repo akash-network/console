@@ -150,7 +150,6 @@ export class ManagedSignerService {
         const dseq = createLeaseMessage.value.bidId!.dseq.toString();
         await this.domainEvents.publish(
           new FundDeploymentCommand({
-            userId: userWallet.userId,
             walletId: userWallet.id,
             address: userWallet.address!,
             dseq

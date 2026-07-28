@@ -18,6 +18,15 @@ describe(ChainErrorService.name, () => {
     expect(service.getChainErrorStatus("Deployment closed")).toBe(400);
   });
 
+  it("returns 400 for account closed error", () => {
+    const { service } = setup();
+    expect(
+      service.getChainErrorStatus(
+        "Query failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: 0: account closed [cosmos/cosmos-sdk@v0.53.6/baseapp/baseapp.go:1052] with gas used: '34881': unknown request"
+      )
+    ).toBe(400);
+  });
+
   it("returns 400 for invalid coin denominations error", () => {
     const { service } = setup();
     expect(service.getChainErrorStatus("invalid coin denominations")).toBe(400);

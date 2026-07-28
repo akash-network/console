@@ -270,7 +270,6 @@ describe(ManagedSignerService.name, () => {
       const fundCall = vi.mocked(domainEvents.publish).mock.calls.find(([event]) => event instanceof FundDeploymentCommand);
       const [fundCommand, options] = fundCall as [FundDeploymentCommand, { singletonKey: string }];
       expect(fundCommand.data).toEqual({
-        userId: "user-123",
         walletId: wallet.id,
         address: wallet.address,
         dseq: "123"

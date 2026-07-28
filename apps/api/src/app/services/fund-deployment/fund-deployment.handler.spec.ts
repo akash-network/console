@@ -12,7 +12,6 @@ describe(FundDeploymentHandler.name, () => {
     const { handler, initialDeploymentFundingService } = setup();
 
     const payload: JobPayload<FundDeploymentCommand> = {
-      userId: "user-1",
       walletId: 1,
       address: "akash1abc",
       dseq: "123",

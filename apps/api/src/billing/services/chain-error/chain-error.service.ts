@@ -22,6 +22,10 @@ export class ChainErrorService {
       code: 400,
       message: "Deployment closed"
     },
+    "account closed": {
+      code: 400,
+      message: "Deployment closed"
+    },
     "invalid coin denominations": {
       code: 400,
       message: "Invalid coin denominations"
@@ -110,6 +114,10 @@ export class ChainErrorService {
 
     const status = cause.response.status;
     return status >= 500 ? status : undefined;
+  }
+
+  public isDeploymentClosedError(error: Error): boolean {
+    return /account closed|deployment closed/i.test(error.message);
   }
 
   public async isMasterWalletInsufficientFundsError(error: Error) {

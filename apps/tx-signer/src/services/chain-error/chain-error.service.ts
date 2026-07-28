@@ -6,6 +6,7 @@ export class ChainErrorService {
     "insufficient funds": 400,
     "deposit too low": 400,
     "deployment closed": 400,
+    "account closed": 400,
     "invalid coin denominations": 400,
     "invalid gpu attributes": 400,
     "invalid: deployment version": 400,
