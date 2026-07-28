@@ -19,6 +19,9 @@ import { DEPLOYMENT_CONFIG, type DeploymentConfig } from "@src/deployment/config
 import { GpuService } from "@src/gpu/services/gpu.service";
 import { sdlTemplateWithRam, sdlTemplateWithRamAndInterface } from "./sdl-templates";
 
+/** Close settlement gas grows with bids placed between simulation and inclusion; matches tx-signer GAS_DEFAULT_MULTIPLIER (PR #3501). */
+const GAS_MULTIPLIER = 2;
+
 @singleton()
 export class GpuBidsCreatorService {
   readonly #deploymentConfig: DeploymentConfig;
@@ -72,7 +75,7 @@ export class GpuBidsCreatorService {
   private async signAndBroadcast(address: string, client: SigningStargateClient, messages: readonly EncodeObject[]) {
     const simulation = await client.simulate(address, messages, "");
 
-    const fee = calculateFee(Math.round(simulation * 1.35), `${this.config.get("AVERAGE_GAS_PRICE")}uakt`);
+    const fee = calculateFee(Math.round(simulation * GAS_MULTIPLIER), `${this.config.get("AVERAGE_GAS_PRICE")}uakt`);
 
     const txRaw = await client.sign(address, messages, fee, "");
 

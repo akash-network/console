@@ -3,7 +3,7 @@ import "@test/mocks/logger-service.mock";
 import type { QueryBidsResponse } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { BlockHttpService } from "@akashnetwork/http-sdk";
 import type { Registry } from "@cosmjs/proto-signing";
-import type { SigningStargateClient } from "@cosmjs/stargate";
+import { calculateFee, type SigningStargateClient } from "@cosmjs/stargate";
 import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
@@ -225,6 +225,15 @@ describe(GpuBidsCreatorService.name, () => {
       const result = await service["signAndBroadcast"]("akash1owner", signingClient, []);
 
       expect(result).toEqual(expect.objectContaining({ code: 0 }));
+    });
+
+    it("doubles the simulated gas when calculating the fee", async () => {
+      const { service, signingClient } = setup();
+      signingClient.simulate.mockResolvedValue(205481);
+
+      await service["signAndBroadcast"]("akash1owner", signingClient, []);
+
+      expect(calculateFee).toHaveBeenCalledWith(410962, "0.025uakt");
     });
   });
 
