@@ -771,6 +771,27 @@ describe(useDeploymentFlow.name, () => {
       expect(result.current.phase).toBe("configuring");
       expect(result.current.dseq).toBeNull();
     });
+
+    it("drops a stale pre-create close verification instead of clobbering a cancelled-and-reconfigured session", () => {
+      const closeCalls: Array<{ onSuccess?: (result: unknown) => void; onError?: (cause: unknown) => void }> = [];
+      const closeMutate = vi.fn((_args, options) => closeCalls.push(options));
+      const verifyCalls: Array<(result: { data: { deployment: { state: string } } }) => void> = [];
+      const getDeploymentMutate = vi.fn((_args, options) => verifyCalls.push(options.onSuccess));
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, getDeploymentMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      act(() => closeCalls[0]?.onError?.(new Error("close boom")));
+      expect(result.current.phase).toBe("creating");
+
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => closeCalls[1]?.onSuccess?.({}));
+      expect(result.current.phase).toBe("configuring");
+
+      act(() => verifyCalls[0]?.({ data: { deployment: { state: "active" } } }));
+
+      expect(result.current.phase).toBe("configuring");
+      expect(result.current.error).toBeUndefined();
+    });
   });
 
   function setup(input: {

@@ -220,11 +220,14 @@ export function useDeploymentFlow(
    * Settles an ambiguous close failure with a single live-chain read. tx-signer stops polling (~36s) only after the tx
    * TTL (30s) has expired, so a reported failure is often a false negative and one refetch is decisive: no indexer lag,
    * and no window left for the tx to still land. A closed deployment or a 404 means it is gone, so the caller's success
-   * path runs; anything else is a real failure, surfaced as a close error with the deployment left editable.
+   * path runs; anything else is a real failure, surfaced as a close error with the deployment left editable. The read is
+   * async, so `attempt` pins it to its originating flow: a cancel or re-quote that superseded it drops the settle rather
+   * than clobbering the newer session back into an error.
    */
   const verifyCloseOutcome = useCallback(
-    function verifyCloseOutcome(dseqToVerify: string, cause: unknown, onActuallyClosed: () => void) {
+    function verifyCloseOutcome(dseqToVerify: string, cause: unknown, attempt: number, onActuallyClosed: () => void) {
       function settle(verifiedClosed: boolean) {
+        if (attempt !== createAttemptRef.current) return;
         analyticsService.track("close_deployment_failed", { category: "deployments", dseq: dseqToVerify, verifiedClosed });
         if (verifiedClosed) {
           onActuallyClosed();
@@ -307,7 +310,7 @@ export function useDeploymentFlow(
               create();
             },
             onError: function onPriorCloseFailed(cause: unknown) {
-              verifyCloseOutcome(dseq, cause, function createAfterVerifiedClose() {
+              verifyCloseOutcome(dseq, cause, attempt, function createAfterVerifiedClose() {
                 setDseq(null);
                 create();
               });
@@ -336,12 +339,13 @@ export function useDeploymentFlow(
       }
       setPhase("closing");
       setError(undefined);
+      const attempt = createAttemptRef.current;
       closeDeployment.mutate(
         { dseq },
         {
           onSuccess: finishClose,
           onError: function onCloseFailed(cause: unknown) {
-            verifyCloseOutcome(dseq, cause, finishClose);
+            verifyCloseOutcome(dseq, cause, attempt, finishClose);
           }
         }
       );
