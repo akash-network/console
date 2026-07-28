@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: akash-templates-publisher
+  cancel-in-progress: false
+
 jobs:
   build-and-deploy-templates:
     runs-on: [self-hosted, akash]
