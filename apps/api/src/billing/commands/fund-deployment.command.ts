@@ -9,7 +9,6 @@ export class FundDeploymentCommand implements Job {
 
   constructor(
     public readonly data: {
-      userId: string;
       walletId: number;
       address: string;
       dseq: string;

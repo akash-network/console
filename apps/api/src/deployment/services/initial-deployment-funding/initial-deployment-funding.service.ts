@@ -52,7 +52,6 @@ export class InitialDeploymentFundingService {
    * Every other early exit is terminal: the hourly cron remains the safety net.
    */
   async fundOnLeaseStarted({ walletId, address, dseq }: FundOnLeaseStartedInput): Promise<void> {
-    const currentHeight = await this.blockHttpService.getCurrentHeight();
     const [deployment] = await this.drainingDeploymentService.findLeases(Number.MAX_SAFE_INTEGER, address, [dseq]);
 
     if (!deployment) {
@@ -64,6 +63,7 @@ export class InitialDeploymentFundingService {
       return;
     }
 
+    const currentHeight = await this.blockHttpService.getCurrentHeight();
     const lookAheadHeight = currentHeight + averageBlockCountInAnHour * this.deploymentConfig.get("AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H");
 
     if (deployment.predictedClosedHeight > lookAheadHeight) {
