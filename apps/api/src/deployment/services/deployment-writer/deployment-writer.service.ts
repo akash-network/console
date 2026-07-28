@@ -84,11 +84,23 @@ export class DeploymentWriterService {
     return this.close(wallet, dseq);
   }
 
+  /**
+   * Idempotent close: an already-`closed` deployment is a no-op. The state read is a check→broadcast window, so a
+   * concurrent close (a user cancel racing the cleanup cron, or two overlapping cleanup runs) can settle it between
+   * the read and the broadcast; the losing tx then fails on an already-closed deployment. Re-read once on failure and
+   * treat a now-closed deployment as success, otherwise surface the original error.
+   */
   public async close(wallet: WalletInitialized, dseq: string): Promise<void> {
     const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
     if (deployment.deployment.state === "closed") return;
     const message = this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.deployment.id.dseq);
-    await this.signerService.executeDecodedTxByUserWallet(wallet, [message]);
+    try {
+      await this.signerService.executeDecodedTxByUserWallet(wallet, [message]);
+    } catch (error) {
+      const latest = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq).catch(() => null);
+      if (latest?.deployment.state === "closed") return;
+      throw error;
+    }
   }
 
   public async deposit(options: { userId: string; dseq: string; amount: number }): Promise<GetDeploymentResponse["data"]> {

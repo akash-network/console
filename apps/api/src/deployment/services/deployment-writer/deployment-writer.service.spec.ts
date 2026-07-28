@@ -189,6 +189,34 @@ describe(DeploymentWriterService.name, () => {
       expect(rpcMessageService.getCloseDeploymentMsg).not.toHaveBeenCalled();
       expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
     });
+
+    it("treats a failed close tx as success when a re-read shows the deployment already closed", async () => {
+      const { service, signerService, deploymentReaderService } = setup();
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(new Error("deployment already closed"));
+      deploymentReaderService.findByWalletAndDseq
+        .mockResolvedValueOnce(deploymentData)
+        .mockResolvedValueOnce({ ...deploymentData, deployment: { ...deploymentData.deployment, state: "closed" } });
+
+      await expect(service.close(wallet, "100")).resolves.toBeUndefined();
+    });
+
+    it("re-throws the original close error when a re-read shows the deployment is still open", async () => {
+      const { service, signerService, deploymentReaderService } = setup();
+      const closeError = new Error("close boom");
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(closeError);
+      deploymentReaderService.findByWalletAndDseq.mockResolvedValue(deploymentData);
+
+      await expect(service.close(wallet, "100")).rejects.toBe(closeError);
+    });
+
+    it("re-throws the original close error when the post-failure re-read also fails", async () => {
+      const { service, signerService, deploymentReaderService } = setup();
+      const closeError = new Error("close boom");
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(closeError);
+      deploymentReaderService.findByWalletAndDseq.mockResolvedValueOnce(deploymentData).mockRejectedValueOnce(new Error("indexer unavailable"));
+
+      await expect(service.close(wallet, "100")).rejects.toBe(closeError);
+    });
   });
 
   describe("deposit", () => {

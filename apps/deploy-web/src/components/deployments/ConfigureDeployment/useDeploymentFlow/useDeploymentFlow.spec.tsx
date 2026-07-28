@@ -750,6 +750,27 @@ describe(useDeploymentFlow.name, () => {
 
       expect(analyticsService.track).toHaveBeenCalledWith("close_deployment_failed", { category: "deployments", dseq: "777", verifiedClosed: true });
     });
+
+    it("does not spawn a deployment when cancelled while the pre-create close is still in flight", () => {
+      const closeCallbacks: Array<(result: unknown) => void> = [];
+      const closeMutate = vi.fn((_args, options) => closeCallbacks.push(options.onSuccess));
+      const createMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      expect(result.current.phase).toBe("creating");
+      expect(closeMutate).toHaveBeenCalledTimes(1);
+
+      act(() => result.current.actions.cancelAndEdit());
+      expect(result.current.phase).toBe("closing");
+
+      act(() => closeCallbacks[0]?.({}));
+      expect(createMutate).not.toHaveBeenCalled();
+
+      act(() => closeCallbacks[1]?.({}));
+      expect(result.current.phase).toBe("configuring");
+      expect(result.current.dseq).toBeNull();
+    });
   });
 
   function setup(input: {

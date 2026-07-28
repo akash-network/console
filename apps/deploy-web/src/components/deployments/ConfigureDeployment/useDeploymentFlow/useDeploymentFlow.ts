@@ -131,8 +131,9 @@ export function useDeploymentFlow(
   bidStrategyRef.current = bidStrategy;
 
   /**
-   * Bumped on every requestQuotes and on a cancel that predates create resolution. A create whose captured attempt is
-   * stale was cancelled mid-flight, so its late success auto-closes the just-created deployment instead of resuming.
+   * Bumped on every requestQuotes and every cancel, so any create from a superseded attempt is treated as stale: one
+   * not yet started (still behind a pre-create close) is skipped in `create()`, and one already in flight has its late
+   * success auto-close the just-created deployment instead of resuming.
    */
   const createAttemptRef = useRef(0);
 
@@ -260,6 +261,7 @@ export function useDeploymentFlow(
       setError(undefined);
 
       function create() {
+        if (attempt !== createAttemptRef.current) return;
         setPhase("creating");
         createDeployment.mutate(
           { data: { sdl, deposit: DEFAULT_DEPOSIT } },
@@ -324,9 +326,9 @@ export function useDeploymentFlow(
   const cancelAndEdit = useCallback(
     function cancelAndEdit() {
       router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategy), undefined, { shallow: true });
+      createAttemptRef.current += 1;
       if (!dseq) {
         if (phase === "creating") analyticsService.track("cancel_during_create", { category: "deployments" });
-        createAttemptRef.current += 1;
         createDeployment.dropPending();
         setError(undefined);
         setPhase("configuring");
