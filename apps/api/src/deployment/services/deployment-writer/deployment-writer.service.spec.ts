@@ -7,10 +7,12 @@ import type { BillingConfigService } from "@src/billing/services/billing-config/
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import type { WalletInitialized, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
+import type { LoggerService } from "@src/core";
 import type { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import type { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
+import type { StaleManagedDeploymentsCleanerService } from "../stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
 import { DeploymentWriterService } from "./deployment-writer.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
@@ -116,6 +118,37 @@ describe(DeploymentWriterService.name, () => {
       await service.create({ userId: "user-1", sdl: "sdl-2.0", deposit: 5 });
 
       expect(rpcMessageService.getCreateDeploymentMsg.mock.calls[0][0].reclamation).toBeUndefined();
+    });
+
+    it("reclaims trial orphans with age 0 before signing the create when the wallet is trialing", async () => {
+      const { service, staleDeploymentsCleaner, signerService, walletReaderService } = setup();
+      walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, isTrialing: true });
+
+      await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
+
+      expect(staleDeploymentsCleaner.cleanUpForWallet).toHaveBeenCalledWith(expect.objectContaining({ id: wallet.id, address: wallet.address }), 0);
+      expect(staleDeploymentsCleaner.cleanUpForWallet.mock.invocationCallOrder[0]).toBeLessThan(
+        signerService.executeDerivedDecodedTxByUserId.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("does not reclaim orphans for a non-trial create", async () => {
+      const { service, staleDeploymentsCleaner } = setup();
+
+      await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
+
+      expect(staleDeploymentsCleaner.cleanUpForWallet).not.toHaveBeenCalled();
+    });
+
+    it("still creates the deployment when the orphan cleanup fails", async () => {
+      const { service, staleDeploymentsCleaner, signerService, walletReaderService } = setup();
+      walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, isTrialing: true });
+      staleDeploymentsCleaner.cleanUpForWallet.mockRejectedValue(new Error("cleanup boom"));
+
+      const result = await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
+
+      expect(result.dseq).toBeDefined();
+      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalled();
     });
   });
 
@@ -240,6 +273,8 @@ describe(DeploymentWriterService.name, () => {
     const providerService = mock<ProviderService>();
     const deploymentReaderService = mock<DeploymentReaderService>();
     const walletReaderService = mock<WalletReaderService>();
+    const staleDeploymentsCleaner = mock<StaleManagedDeploymentsCleanerService>();
+    const logger = mock<LoggerService>();
 
     walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
     sdlService.generateManifest.mockReturnValue({ ok: true, value: manifestValue } as any);
@@ -253,7 +288,9 @@ describe(DeploymentWriterService.name, () => {
       billingConfig,
       providerService,
       deploymentReaderService,
-      walletReaderService
+      walletReaderService,
+      staleDeploymentsCleaner,
+      logger
     );
 
     return {
@@ -264,7 +301,9 @@ describe(DeploymentWriterService.name, () => {
       billingConfig,
       providerService,
       deploymentReaderService,
-      walletReaderService
+      walletReaderService,
+      staleDeploymentsCleaner,
+      logger
     };
   }
 });

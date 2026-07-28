@@ -46,11 +46,11 @@ export class StaleManagedDeploymentsCleanerService {
     });
   }
 
-  private async cleanUpForWallet(wallet: UserWalletOutput) {
+  async cleanUpForWallet(wallet: UserWalletOutput, maxLiveBlocks: number = this.MAX_LIVE_BLOCKS) {
     const currentHeight = await this.blockRepository.getLatestProcessedHeight();
     const deployments = await this.deploymentRepository.findStaleDeployments({
       owner: wallet.address!,
-      createdHeight: currentHeight - this.MAX_LIVE_BLOCKS
+      createdHeight: currentHeight - maxLiveBlocks
     });
 
     const messages = deployments.map(deployment => this.rpcMessageService.getCloseDeploymentMsg(wallet.address!, deployment.dseq));
