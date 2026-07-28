@@ -2136,10 +2136,14 @@
                         "emailVerified",
                         "subscribedToNewsletter"
                       ]
+                    },
+                    "isNewUser": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
-                    "data"
+                    "data",
+                    "isNewUser"
                   ]
                 }
               }

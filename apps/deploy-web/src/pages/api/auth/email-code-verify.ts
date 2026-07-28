@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { setAccountCreatedCookie } from "@src/lib/analytics/account-created-cookie";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import { verifyCaptcha } from "@src/middleware/verify-captcha/verify-captcha";
 
@@ -22,8 +23,9 @@ export default defineApiHandler({
     const result = await services.sessionService.verifyEmailCode({ email: body.email, code: body.code });
 
     if (result.ok) {
-      await services.sessionService.createLocalUser(result.val);
+      const { isNewUser } = await services.sessionService.createLocalUser(result.val);
       await services.setSession(req, res, result.val);
+      if (isNewUser) setAccountCreatedCookie(res);
       res.status(204).end();
       return;
     }

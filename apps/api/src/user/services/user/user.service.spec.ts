@@ -59,28 +59,28 @@ describe(UserService.name, () => {
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "FAILED_TO_SEND_INITIAL_VERIFICATION_CODE", id: user.id, error: sendError }));
     });
 
-    it("tracks account_created when the user was newly created", async () => {
+    it("returns isNewUser true when the user was newly created", async () => {
       const user = createUser({ emailVerified: true, email: "test@example.com" });
-      const { service, userRepository, analyticsService, notificationService } = setup();
+      const { service, userRepository, notificationService } = setup();
 
       userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
 
-      await service.registerUser(createRegisterInput({ emailVerified: true }));
+      const result = await service.registerUser(createRegisterInput({ emailVerified: true }));
 
-      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "account_created", { category: "user" });
+      expect(result.isNewUser).toBe(true);
     });
 
-    it("does not track account_created when the user already existed", async () => {
+    it("returns isNewUser false when the user already existed", async () => {
       const user = createUser({ emailVerified: true, email: "test@example.com" });
-      const { service, userRepository, analyticsService, notificationService } = setup();
+      const { service, userRepository, notificationService } = setup();
 
       userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
 
-      await service.registerUser(createRegisterInput({ emailVerified: true }));
+      const result = await service.registerUser(createRegisterInput({ emailVerified: true }));
 
-      expect(analyticsService.track).not.toHaveBeenCalled();
+      expect(result.isNewUser).toBe(false);
     });
 
     it("ensures the user has a wallet even when the user already existed", async () => {

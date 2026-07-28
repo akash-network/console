@@ -77,11 +77,13 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
 
   function deployTemplate(templateId: string) {
     analyticsService.track("onboarding_deploy_click", { category: "onboarding", option: templateId });
+    analyticsService.flush();
     redirectToConfigure(templateId);
   }
 
   function trackCustomImageDeploy() {
     analyticsService.track("onboarding_deploy_click", { category: "onboarding", option: "custom-image" });
+    analyticsService.flush();
   }
 
   function openSkipTrialCredits() {

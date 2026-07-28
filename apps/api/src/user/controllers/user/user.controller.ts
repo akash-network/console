@@ -26,7 +26,7 @@ export class UserController {
     const { req, env, var: httpVars } = this.httpContext;
     const userId = await this.userAuthTokenService.getValidUserId(req.header("authorization") || "", env);
     assert(userId, 401, "Invalid or expired token");
-    const user = await this.userService.registerUser({
+    const { isNewUser, ...user } = await this.userService.registerUser({
       userId,
       wantedUsername: data.wantedUsername,
       email: data.email,
@@ -36,7 +36,7 @@ export class UserController {
       userAgent: httpVars.clientInfo?.userAgent,
       fingerprint: httpVars.clientInfo?.fingerprint
     });
-    return { data: user };
+    return { data: user, isNewUser };
   }
 
   @Protected([{ action: "read", subject: "User" }])

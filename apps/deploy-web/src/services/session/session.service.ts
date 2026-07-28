@@ -109,7 +109,7 @@ export class SessionService {
 
     if (result.ok) {
       const session = result.val;
-      const userSettings = await this.createLocalUser(result.val);
+      const { userSettings } = await this.createLocalUser(result.val);
       session.user = { ...session.user, nickname: userSettings.username };
       return Ok(session);
     }
@@ -132,13 +132,13 @@ export class SessionService {
   /**
    * This method calls idempotent API call to create a local user in the database.
    */
-  async createLocalUser(session: Session): Promise<UserSettings> {
+  async createLocalUser(session: Session): Promise<{ userSettings: UserSettings; isNewUser: boolean }> {
     const user_metadata = session.user["https://console.akash.network/user_metadata"];
     const headers: Record<string, string> = {
       Authorization: `Bearer ${session.accessToken}`
     };
 
-    const userSettings = await this.#consoleApiHttpClient.post<{ data: UserSettings }>(
+    const response = await this.#consoleApiHttpClient.post<{ data: UserSettings; isNewUser: boolean }>(
       "/v1/register-user",
       {
         wantedUsername: session.user.nickname,
@@ -151,7 +151,7 @@ export class SessionService {
       }
     );
 
-    return userSettings.data.data;
+    return { userSettings: response.data.data, isNewUser: response.data.isNewUser };
   }
 
   async getLocalUserDetails(session: Session): Promise<UserSettings> {

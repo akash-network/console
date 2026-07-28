@@ -4,6 +4,7 @@ import { Err, Ok } from "ts-results";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { ACCOUNT_CREATED_COOKIE } from "@src/lib/analytics/account-created-cookie";
 import { Session } from "@src/lib/auth0";
 import type { NextApiRequestWithServices } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import { REQ_SERVICES_KEY } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
@@ -24,6 +25,28 @@ describe("POST /api/auth/email-code-verify", () => {
     expect(setSession).toHaveBeenCalled();
     expect(sessionService.createLocalUser.mock.invocationCallOrder[0]).toBeLessThan(setSession.mock.invocationCallOrder[0]);
     expect(res.status).toHaveBeenCalledWith(204);
+  });
+
+  it("sets the account-created cookie when the user is newly created", async () => {
+    const session = Object.assign(new Session({ sub: "auth0|email|abc", email: "user@example.com" }), { accessToken: "at" });
+    const { res } = await callHandler({
+      body: { email: "user@example.com", code: "123456", captchaToken: "tok" },
+      verifyResult: Ok(session),
+      isNewUser: true
+    });
+
+    expect(res.setHeader).toHaveBeenCalledWith("Set-Cookie", [expect.stringContaining(`${ACCOUNT_CREATED_COOKIE}=1`)]);
+  });
+
+  it("does not set the account-created cookie for an existing user", async () => {
+    const session = Object.assign(new Session({ sub: "auth0|email|abc", email: "user@example.com" }), { accessToken: "at" });
+    const { res } = await callHandler({
+      body: { email: "user@example.com", code: "123456", captchaToken: "tok" },
+      verifyResult: Ok(session),
+      isNewUser: false
+    });
+
+    expect(res.setHeader).not.toHaveBeenCalledWith("Set-Cookie", expect.anything());
   });
 
   it("does not set the session if createLocalUser throws", async () => {
@@ -74,6 +97,7 @@ describe("POST /api/auth/email-code-verify", () => {
     body: object;
     verifyResult?: Awaited<ReturnType<SessionService["verifyEmailCode"]>>;
     createLocalUserError?: Error;
+    isNewUser?: boolean;
     expectThrow?: boolean;
   }) {
     const sessionService = mock<SessionService>();
@@ -83,7 +107,7 @@ describe("POST /api/auth/email-code-verify", () => {
     if (input.createLocalUserError) {
       sessionService.createLocalUser.mockRejectedValue(input.createLocalUserError);
     } else {
-      sessionService.createLocalUser.mockResolvedValue({ username: "user", subscribedToNewsletter: false });
+      sessionService.createLocalUser.mockResolvedValue({ userSettings: { username: "user", subscribedToNewsletter: false }, isNewUser: input.isNewUser ?? false });
     }
 
     const logger = mock<LoggerService>();

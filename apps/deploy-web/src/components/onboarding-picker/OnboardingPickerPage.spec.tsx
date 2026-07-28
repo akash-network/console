@@ -343,6 +343,23 @@ describe(OnboardingPickerPage.name, () => {
     expect(analyticsService.track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding", option: "custom-image" });
   });
 
+  it("flushes the deploy click before redirecting so it survives the navigation", () => {
+    const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
+    const { analyticsService } = setup({ dependencies: { DeploymentTemplatePickerCard } });
+
+    act(() => getCard(DeploymentTemplatePickerCard, "Hello world").onDeploy!());
+
+    expect(analyticsService.flush).toHaveBeenCalled();
+  });
+
+  it("flushes the deploy click when the custom-image Deploy image link is clicked", () => {
+    const { analyticsService } = setup({});
+
+    act(() => fireEvent.click(screen.getByRole("link", { name: /deploy image/i })));
+
+    expect(analyticsService.flush).toHaveBeenCalled();
+  });
+
   it("tracks skipping the trial as an add-credits click", () => {
     const Button = vi.fn(ComponentMock);
     const { analyticsService } = setup({ isTrialing: true, dependencies: { Button: Button as unknown as typeof DEPENDENCIES.Button } });
