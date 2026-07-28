@@ -5,6 +5,7 @@ import type { UserWalletRepository } from "@src/billing/repositories";
 import type { RpcMessageService } from "@src/billing/services";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
@@ -82,6 +83,48 @@ describe(InitialDeploymentFundingService.name, () => {
 
     expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_TX_FAILED", code: 5, txHash: "TESTHASH" }));
+  });
+
+  it("skips terminally when the deposit is rejected because the deployment escrow is closed", async () => {
+    const { service, drainingDeploymentService, balancesService, managedSignerService, chainErrorService, walletReloadJobService, logger } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    balancesService.getFreshLimits.mockResolvedValue({ fee: 100000, deployment: 1000000 });
+    managedSignerService.executeDerivedTx.mockRejectedValue(new Error("Deployment closed"));
+    chainErrorService.isDeploymentClosedError.mockReturnValue(true);
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_SKIPPED", reason: "DEPLOYMENT_CLOSED" }));
+    expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
+  });
+
+  it("rethrows deposit errors unrelated to a closed deployment", async () => {
+    const { service, drainingDeploymentService, balancesService, managedSignerService, walletReloadJobService, logger } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    balancesService.getFreshLimits.mockResolvedValue({ fee: 100000, deployment: 1000000 });
+    managedSignerService.executeDerivedTx.mockRejectedValue(new Error("Bad status on response: 503"));
+
+    await expect(service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" })).rejects.toThrow("Bad status on response: 503");
+
+    expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_SKIPPED" }));
+    expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
+  });
+
+  it("skips terminally when the deposit tx lands with a closed account in the raw log", async () => {
+    const { service, drainingDeploymentService, balancesService, managedSignerService, chainErrorService, walletReloadJobService, logger } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    balancesService.getFreshLimits.mockResolvedValue({ fee: 100000, deployment: 1000000 });
+    managedSignerService.executeDerivedTx.mockResolvedValue({ code: 5, hash: "TESTHASH", rawLog: "account closed" });
+    chainErrorService.isDeploymentClosedError.mockReturnValue(true);
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_SKIPPED", reason: "DEPLOYMENT_CLOSED", txHash: "TESTHASH" }));
+    expect(logger.error).not.toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_TX_FAILED" }));
+    expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
   });
 
   it("falls back to a descriptive error when the failed deposit tx has no raw log", async () => {
@@ -166,6 +209,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const billingConfig = mockConfigService<BillingConfigService>({ DEPLOYMENT_GRANT_DENOM: "uakt" });
     const deploymentConfig = mockConfigService<DeploymentConfigService>({ AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 24 });
     const walletReloadJobService = mock<WalletReloadJobService>();
+    const chainErrorService = mock<ChainErrorService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger: CreateLogger = () => logger;
 
@@ -173,6 +217,7 @@ describe(InitialDeploymentFundingService.name, () => {
     userWalletRepository.findById.mockResolvedValue(createUserWallet({ id: 1, address: "akash1owner" }));
     managedSignerService.ensureFeeGrants.mockResolvedValue(100000);
     managedSignerService.executeDerivedTx.mockResolvedValue({ code: 0, hash: "TESTHASH", rawLog: "[]" });
+    chainErrorService.isDeploymentClosedError.mockReturnValue(false);
 
     const service = new InitialDeploymentFundingService(
       blockHttpService,
@@ -184,6 +229,7 @@ describe(InitialDeploymentFundingService.name, () => {
       billingConfig,
       deploymentConfig,
       walletReloadJobService,
+      chainErrorService,
       createLogger
     );
 
@@ -196,6 +242,7 @@ describe(InitialDeploymentFundingService.name, () => {
       managedSignerService,
       userWalletRepository,
       walletReloadJobService,
+      chainErrorService,
       logger
     };
   }
