@@ -73,6 +73,7 @@ export type AnalyticsEvent =
   | "user_profile_template_tab"
   | "user_settings_save"
   | "anonymous_user_created"
+  | "account_created"
   | "trial_started"
   | "trial_completed"
   | "create_api_key"
@@ -147,7 +148,7 @@ const AMPLITUDE_USER_PROPERTIES_MAP = {
 
 const isBrowser = typeof window !== "undefined";
 
-export type Amplitude = Pick<typeof amplitude, "init" | "Identify" | "identify" | "track" | "setUserId" | "add">;
+export type Amplitude = Pick<typeof amplitude, "init" | "Identify" | "identify" | "track" | "setUserId" | "add" | "flush">;
 
 export class AnalyticsService {
   private readonly STORAGE_KEY = "analytics_values_cache";
@@ -262,6 +263,14 @@ export class AnalyticsService {
       const [name, props] = this.transformGaEvent(eventName, eventProperties);
       this.getDataLayer()?.push({ ...props, event: name });
     }
+  }
+
+  flush(): void {
+    if (!isBrowser || !this.isAmplitudeEnabled) {
+      return;
+    }
+
+    this.amplitudeClient.flush();
   }
 
   private transformGaEvent(eventName: AnalyticsEvent, eventProperties: EventProperties): [string, Record<string, unknown>] {

@@ -16,7 +16,8 @@ const registerUserInputSchema = z.object({
 export type RegisterUserInput = z.infer<typeof registerUserInputSchema>;
 
 const registerUserResponseSchema = z.object({
-  data: UserSchema
+  data: UserSchema,
+  isNewUser: z.boolean()
 });
 export type RegisterUserResponse = z.infer<typeof registerUserResponseSchema>;
 

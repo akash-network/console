@@ -35,6 +35,7 @@ export class UserService {
     youtubeUsername: string | null;
     twitterUsername: string | null;
     githubUsername: string | null;
+    isNewUser: boolean;
   }> {
     const userDetails = {
       userId: data.userId,
@@ -56,10 +57,6 @@ export class UserService {
       username: user.username,
       email: user.email
     });
-
-    if (wasInserted) {
-      this.analyticsService.track(user.id, "account_created", { category: "user" });
-    }
 
     await this.walletInitializer.ensureWallet(user.id).catch(error => {
       this.logger.error({ event: "FAILED_TO_ENSURE_USER_WALLET", id: user.id, error });
@@ -91,7 +88,8 @@ export class UserService {
       subscribedToNewsletter,
       youtubeUsername,
       twitterUsername,
-      githubUsername
+      githubUsername,
+      isNewUser: wasInserted
     } as Awaited<ReturnType<this["registerUser"]>>;
   }
 

@@ -286,7 +286,7 @@ describe(SessionService.name, () => {
       };
 
       const { service, consoleApiHttpClient } = setup();
-      consoleApiHttpClient.post.mockResolvedValueOnce({ data: { data: expectedSettings } });
+      consoleApiHttpClient.post.mockResolvedValueOnce({ data: { data: expectedSettings, isNewUser: true } });
 
       const result = await service.createLocalUser(session);
 
@@ -302,7 +302,7 @@ describe(SessionService.name, () => {
           headers: { Authorization: "Bearer local-access-token" }
         }
       );
-      expect(result).toEqual(expectedSettings);
+      expect(result).toEqual({ userSettings: expectedSettings, isNewUser: true });
     });
   });
 

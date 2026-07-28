@@ -215,6 +215,38 @@ describe(AnalyticsService.name, () => {
     });
   });
 
+  describe("flush", () => {
+    it("sends queued events immediately when Amplitude is enabled", () => {
+      const flush = vi.fn();
+      const service = setup({
+        amplitude: { flush },
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.flush();
+
+      expect(flush).toHaveBeenCalled();
+    });
+
+    it("does not flush when Amplitude is disabled", () => {
+      const flush = vi.fn();
+      const service = setup({
+        amplitude: { flush },
+        options: {
+          amplitude: { enabled: false, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.flush();
+
+      expect(flush).not.toHaveBeenCalled();
+    });
+  });
+
   function setup(params: {
     amplitude?: Mocked<Amplitude>;
     dataLayer?: Record<string, unknown>[];
@@ -230,6 +262,7 @@ describe(AnalyticsService.name, () => {
       track: vi.fn(),
       setUserId: vi.fn(),
       add: vi.fn(),
+      flush: vi.fn(),
       ...(params.amplitude ?? {})
     };
     const storage = params.storage ?? {

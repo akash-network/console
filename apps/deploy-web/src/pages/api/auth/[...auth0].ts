@@ -4,6 +4,7 @@ import { isAxiosError } from "axios";
 import { once } from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 
+import { setAccountCreatedCookie } from "@src/lib/analytics/account-created-cookie";
 import type { Session } from "@src/lib/auth0";
 import { CallbackHandlerError, IdentityProviderError, MissingStateCookieError } from "@src/lib/auth0";
 import { handleAuth, handleCallback, handleLogin, handleLogout } from "@src/lib/auth0";
@@ -42,8 +43,9 @@ const authHandler = once((services: AppServices) =>
         await handleCallback(req, res, {
           afterCallback: async (req: NextApiRequest, res: NextApiResponse, session: Session) => {
             try {
-              const userSettings = await services.sessionService.createLocalUser(session);
+              const { userSettings, isNewUser } = await services.sessionService.createLocalUser(session);
               session.user = { ...session.user, ...userSettings };
+              if (isNewUser) setAccountCreatedCookie(res);
             } catch (error) {
               services.errorHandler.reportError({ error, tags: { category: "auth0" } });
             }

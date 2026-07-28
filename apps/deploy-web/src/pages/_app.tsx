@@ -18,6 +18,7 @@ import type { NextSeoProps } from "next-seo/lib/types";
 import { ThemeProvider } from "next-themes";
 import NProgress from "nprogress";
 
+import { AccountCreatedTracker } from "@src/components/analytics/AccountCreatedTracker/AccountCreatedTracker";
 import { RequireAuth } from "@src/components/auth/RequireAuth/RequireAuth";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
@@ -54,6 +55,7 @@ const App: React.FunctionComponent<Props> = props => {
     <AppRoot {...props}>
       <>
         <UserProviders>
+          <AccountCreatedTracker />
           <RequireAuth isPublic={isPublic}>
             <FlagProvider>
               <WalletProvider>
