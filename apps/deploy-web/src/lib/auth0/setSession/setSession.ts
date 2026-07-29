@@ -18,8 +18,21 @@ import { getSession as auth0GetSession } from "@auth0/nextjs-auth0"; // eslint-d
 // @ts-expect-error - access to internal function via webpack alias in next.config.js#72
 import * as sessionModule from "@auth0/nextjs-auth0/session";
 // @ts-expect-error - access to internal function via webpack alias in next.config.js#72
-import * as updateSessionModule from "@auth0/nextjs-auth0/update-session";
+import * as updateSessionModuleNamespace from "@auth0/nextjs-auth0/update-session";
 import type { NextApiRequest, NextApiResponse } from "next";
+
+/**
+ * Turbopack seals ESM namespaces of CJS modules (getter-only `default`), so patching
+ * requires the raw mutable exports object via `require`. Webpack and vitest expose
+ * mutable namespaces, where `require` is unavailable, hence the runtime detection.
+ */
+function getMutableUpdateSessionModule(): typeof updateSessionModuleNamespace {
+  const descriptor = Object.getOwnPropertyDescriptor(updateSessionModuleNamespace, "default");
+  const isSealed = descriptor?.get && !descriptor.set && !descriptor.writable;
+  return isSealed ? require("@auth0/nextjs-auth0/update-session") : updateSessionModuleNamespace; // eslint-disable-line @typescript-eslint/no-require-imports
+}
+
+const updateSessionModule = getMutableUpdateSessionModule();
 
 const originalUpdateSessionFactory = updateSessionModule.default;
 let globalSessionCache: SessionCache | undefined;

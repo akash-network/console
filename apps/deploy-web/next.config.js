@@ -53,6 +53,27 @@ const nextConfig = {
     ignoreDuringBuilds: true
   },
   transpilePackages,
+  /**
+   * Only the local raw-TS barrels: barrel-optimizing CJS packages (e.g. @nivo/*)
+   * rewrites imports to their dist files and breaks the webpack prod build on
+   * ESM externals. MUI, lucide-react etc. are already in Next's default list.
+   */
+  experimental: {
+    optimizePackageImports: ["@akashnetwork/ui/components", "@akashnetwork/ui/hooks", "@akashnetwork/ui/context", "@akashnetwork/ui/utils"]
+  },
+  /**
+   * Dev-only (next dev --turbopack). Mirrors the webpack customizations below,
+   * which Turbopack ignores; prod builds still go through the webpack fn.
+   * The prettier stubs are intentionally not mirrored: they only trim the prod
+   * bundle, and Turbopack rejects empty stubs for named imports.
+   */
+  turbopack: {
+    resolveAlias: {
+      "pino-pretty": { browser: "./src/stubs/empty.ts" },
+      "@auth0/nextjs-auth0/session": "../../node_modules/@auth0/nextjs-auth0/dist/session/index.js",
+      "@auth0/nextjs-auth0/update-session": "../../node_modules/@auth0/nextjs-auth0/dist/session/update-session.js"
+    }
+  },
   i18n: {
     locales: ["en-US"],
     defaultLocale: "en-US"

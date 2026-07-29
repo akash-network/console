@@ -1,9 +1,9 @@
-.auto-button {
+.autoButton {
   overflow: hidden;
   z-index: 0;
 }
 
-.auto-button::before {
+.autoButton::before {
   content: "";
   position: absolute;
   left: 0;
@@ -15,6 +15,6 @@
   transition: width var(--timeout, 5s) linear;
 }
 
-.auto-button.started::before {
+.autoButton.started::before {
   width: 100%;
 }
