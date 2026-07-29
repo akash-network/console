@@ -34,14 +34,15 @@ describe(useSkipOnboarding.name, () => {
     expect(analyticsService.track).toHaveBeenCalledWith("onboarding_skipped", { category: "onboarding", source: "auto_deploy" });
   });
 
-  it("navigates even when the session refresh fails", async () => {
-    const { result, push } = setup({ checkSessionRejects: true });
+  it("reports the error and does not navigate when the session refresh fails", async () => {
+    const { result, push, errorHandler } = setup({ checkSessionRejects: true });
 
     await act(async () => {
       await result.current.skip("picker");
     });
 
-    expect(push).toHaveBeenCalledWith("/deployments");
+    expect(push).not.toHaveBeenCalled();
+    expect(errorHandler.reportError).toHaveBeenCalledWith(expect.objectContaining({ tags: { category: "onboarding" } }));
   });
 
   it("does not navigate or refresh the session when persisting the flag fails", async () => {

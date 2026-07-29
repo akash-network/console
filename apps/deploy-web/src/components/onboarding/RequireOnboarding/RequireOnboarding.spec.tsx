@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { CustomUserProfile } from "@src/types/user";
 import { DEPENDENCIES, RequireOnboarding } from "./RequireOnboarding";
 
 import { render, screen } from "@testing-library/react";
@@ -157,7 +158,7 @@ describe(RequireOnboarding.name, () => {
       ...DEPENDENCIES,
       useUser: (() =>
         mock<ReturnType<typeof DEPENDENCIES.useUser>>({
-          user: props.loggedOut ? undefined : ({ userId: props.userId ?? "u1", onboardingSkippedAt: props.onboardingSkippedAt ?? null } as never),
+          user: props.loggedOut ? undefined : mock<CustomUserProfile>({ userId: props.userId ?? "u1", onboardingSkippedAt: props.onboardingSkippedAt ?? null }),
           isLoading: false
         })) as typeof DEPENDENCIES.useUser,
       useWallet: (() =>

@@ -16,7 +16,8 @@ export const DEPENDENCIES = {
  * Permanently skips the onboarding flow: records the intent in analytics, persists the server-side flag, refreshes the
  * profile so the onboarding gate stops routing the user back in, then lands them on the deployments list. The profile
  * refresh is awaited before navigating to avoid a race where the gate bounces a still-flagless user back to onboarding;
- * a failed refresh still navigates because the server is the source of truth and the next session load self-heals.
+ * a failed refresh reports the error and stays put — the gate would still see a flagless user and bounce the navigation
+ * anyway, and since the flag is already persisted the user can retry or simply reload to get through.
  */
 export function useSkipOnboarding(dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
   const { consoleApiHttpClient, analyticsService, urlService, errorHandler } = useServices();
@@ -38,10 +39,16 @@ export function useSkipOnboarding(dependencies: typeof DEPENDENCIES = DEPENDENCI
         return;
       }
 
-      await checkSession().catch(() => undefined);
+      try {
+        await checkSession();
+      } catch (error) {
+        errorHandler.reportError({ error, tags: { category: "onboarding" } });
+        return;
+      }
+
       router.push(urlService.deploymentList());
     },
-    [analyticsService, mutateAsync, checkSession, router, urlService]
+    [analyticsService, mutateAsync, checkSession, router, urlService, errorHandler]
   );
 
   return { skip, isSkipping: isPending };

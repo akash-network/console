@@ -16,24 +16,36 @@ import { TopBanner } from "./TopBanner";
 import { usePublishHeaderHeight } from "./usePublishHeaderHeight";
 import { WalletStatus } from "./WalletStatus";
 
+export const DEPENDENCIES = {
+  useCookieTheme,
+  usePublishHeaderHeight,
+  TopBanner,
+  HackathonCouponNavEntry,
+  AccountMenu,
+  WalletStatus,
+  SkipOnboardingButton
+};
+
 export const Nav = ({
   isMobileOpen,
   handleDrawerToggle,
   className,
-  minimal = false
+  minimal = false,
+  dependencies: d = DEPENDENCIES
 }: React.PropsWithChildren<{
   isMobileOpen: boolean;
   handleDrawerToggle: () => void;
   className?: ClassValue;
   minimal?: boolean;
+  dependencies?: typeof DEPENDENCIES;
 }>) => {
-  const theme = useCookieTheme();
+  const theme = d.useCookieTheme();
   const headerRef = useRef<HTMLElement>(null);
-  usePublishHeaderHeight(headerRef);
+  d.usePublishHeaderHeight(headerRef);
 
   return (
     <header ref={headerRef} className={cn("fixed left-0 right-0 top-0 z-50 border-b border-border bg-header", className, REMOVE_SCROLL_CLASS_NAMES.zeroRight)}>
-      <TopBanner />
+      <d.TopBanner />
 
       <div className="flex h-14 items-center justify-between pl-4 pr-4">
         {!!theme && (
@@ -53,19 +65,19 @@ export const Nav = ({
         {minimal ? (
           // Onboarding: no sidebar drawer, so the reduced menu is the only logout path and must show on mobile too.
           <div style={{ height: `${ACCOUNT_BAR_HEIGHT}px` }} className="flex items-center gap-2">
-            <SkipOnboardingButton source="auto_deploy" />
-            <AccountMenu minimal />
+            <d.SkipOnboardingButton source="auto_deploy" />
+            <d.AccountMenu minimal />
           </div>
         ) : (
           <div style={{ height: `${ACCOUNT_BAR_HEIGHT}px` }} className="hidden items-center md:flex">
             <div className="flex items-center gap-2">
-              <HackathonCouponNavEntry />
+              <d.HackathonCouponNavEntry />
 
               <div className="ml-4 flex items-center gap-2">
-                <WalletStatus />
+                <d.WalletStatus />
               </div>
 
-              <AccountMenu />
+              <d.AccountMenu />
             </div>
           </div>
         )}

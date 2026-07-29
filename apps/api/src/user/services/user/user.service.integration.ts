@@ -202,7 +202,7 @@ describe(UserService.name, () => {
 
       const user = await userRepository.create({
         userId: faker.string.uuid(),
-        username: `test-user-${Date.now()}`,
+        username: `test-user-${faker.string.uuid()}`,
         email: faker.internet.email(),
         emailVerified: false,
         subscribedToNewsletter: false,
@@ -232,7 +232,7 @@ describe(UserService.name, () => {
 
       const user = await userRepository.create({
         userId: faker.string.uuid(),
-        username: `test-user-${Date.now()}`,
+        username: `test-user-${faker.string.uuid()}`,
         email: faker.internet.email(),
         emailVerified: false,
         subscribedToNewsletter: false
@@ -258,7 +258,7 @@ describe(UserService.name, () => {
 
       const user = await userRepository.create({
         userId: faker.string.uuid(),
-        username: `test-user-${Date.now()}`,
+        username: `test-user-${faker.string.uuid()}`,
         email: faker.internet.email(),
         emailVerified: false,
         subscribedToNewsletter: false
@@ -323,7 +323,7 @@ describe(UserService.name, () => {
 
       const user = await userRepository.create({
         userId: faker.string.uuid(),
-        username: `test-user-${Date.now()}`,
+        username: `test-user-${faker.string.uuid()}`,
         email: faker.internet.email(),
         emailVerified: false,
         subscribedToNewsletter: false
@@ -341,7 +341,7 @@ describe(UserService.name, () => {
       const { service, userRepository } = setup();
       const user = await userRepository.create({
         userId: faker.string.uuid(),
-        username: `test-user-${Date.now()}`,
+        username: `test-user-${faker.string.uuid()}`,
         email: faker.internet.email(),
         emailVerified: false,
         subscribedToNewsletter: false
@@ -357,7 +357,7 @@ describe(UserService.name, () => {
       const { service, userRepository } = setup();
       const user = await userRepository.create({
         userId: faker.string.uuid(),
-        username: `test-user-${Date.now()}`,
+        username: `test-user-${faker.string.uuid()}`,
         email: faker.internet.email(),
         emailVerified: false,
         subscribedToNewsletter: false
