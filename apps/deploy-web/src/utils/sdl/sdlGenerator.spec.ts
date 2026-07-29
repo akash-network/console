@@ -132,6 +132,34 @@ describe("sdlGenerator", () => {
       expect(parsed.reclamation).toEqual({ min_window: minWindow });
     });
 
+    it("emits every args token as its own array element", () => {
+      const service = buildLogCollectorService({
+        title: "web",
+        image: "nginx:latest",
+        command: { command: "/tini\n-s\n--", arg: "bash\n-c\nmkdir -p /data; apt update; sleep infinity;" }
+      });
+      const parsed = yaml.load(generateSdl(buildFormValues(service))) as { services: Record<string, { command?: string[]; args?: string[] }> };
+
+      expect(parsed.services.web.command).toEqual(["/tini", "-s", "--"]);
+      expect(parsed.services.web.args).toEqual(["bash", "-c", "mkdir -p /data; apt update; sleep infinity;"]);
+    });
+
+    it("emits args without a command when only args are set", () => {
+      const service = buildLogCollectorService({ title: "web", image: "nginx:latest", command: { command: "", arg: "--port\n8080" } });
+      const parsed = yaml.load(generateSdl(buildFormValues(service))) as { services: Record<string, { command?: string[]; args?: string[] }> };
+
+      expect(parsed.services.web).not.toHaveProperty("command");
+      expect(parsed.services.web.args).toEqual(["--port", "8080"]);
+    });
+
+    it("does not emit args when the arg field is blank", () => {
+      const service = buildLogCollectorService({ title: "web", image: "nginx:latest", command: { command: "nginx", arg: "" } });
+      const parsed = yaml.load(generateSdl(buildFormValues(service))) as { services: Record<string, { command?: string[]; args?: string[] }> };
+
+      expect(parsed.services.web.command).toEqual(["nginx"]);
+      expect(parsed.services.web).not.toHaveProperty("args");
+    });
+
     function buildLogCollectorService(overrides?: Partial<ServiceType>): ServiceType {
       return {
         id: overrides?.title ? `${overrides.title}-id` : "web-log-collector",

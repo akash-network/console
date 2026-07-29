@@ -99,7 +99,7 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
 
       service.command = {
         command: parseSvcCommand(svc.command),
-        arg: svc.args ? svc.args[0] : ""
+        arg: parseSvcCommand(svc.args)
       };
 
       service.env =

@@ -32,10 +32,9 @@ type Props = {
 
 /**
  * "Commands" card. Edits `services.${serviceIndex}.command.{command,arg}` on the
- * shared deployment model — the container's CMD/ENTRYPOINT override. The command
- * textarea holds one argv token per line (the SDL generator tokenizes by line);
- * leaving it blank keeps the image's default. Arguments are emitted as the SDL
- * `args` list only when a command is set.
+ * shared deployment model, the container's CMD/ENTRYPOINT override. Both textareas
+ * hold one argv token per line (the SDL generator tokenizes by line); leaving them
+ * blank keeps the image's defaults.
  *
  * The card is non-collapsible: its header summarizes the current command (or notes the
  * image default) and clicking it opens a Dialog for editing. Changes are committed on
@@ -117,7 +116,7 @@ export const CommandsCard: FC<Props> = ({ serviceIndex, locked = false, dependen
                     id={`command-arg-${serviceIndex}`}
                     aria-label="Arguments"
                     rows={4}
-                    placeholder="Example: apt-get update; apt-get install -y --no-install-recommends -- ssh;"
+                    placeholder={"One token per line. Example:\n-c\necho hello"}
                     value={arg.field.value ?? ""}
                     onChange={event => arg.field.onChange(event.target.value)}
                     spellCheck={false}
