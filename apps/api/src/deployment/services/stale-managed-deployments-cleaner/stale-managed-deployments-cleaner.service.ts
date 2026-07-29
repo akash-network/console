@@ -1,12 +1,14 @@
-import { createOtelLogger } from "@akashnetwork/logging/otel";
+import type { EncodeObject } from "@cosmjs/proto-signing";
 import { secondsInMinute } from "date-fns/constants";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService, RpcMessageService } from "@src/billing/services";
+import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { BlockRepository } from "@src/chain/repositories/block.repository";
+import { LoggerService } from "@src/core";
 import { ErrorService } from "@src/core/services/error/error.service";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { CleanUpStaleDeploymentsParams } from "@src/deployment/types/state-deployments";
@@ -14,8 +16,6 @@ import { averageBlockTime } from "@src/utils/constants";
 
 @singleton()
 export class StaleManagedDeploymentsCleanerService {
-  private readonly logger = createOtelLogger({ context: StaleManagedDeploymentsCleanerService.name });
-
   private readonly MAX_LIVE_BLOCKS = Math.floor((10 * secondsInMinute) / averageBlockTime);
 
   constructor(
@@ -26,8 +26,12 @@ export class StaleManagedDeploymentsCleanerService {
     private readonly managedSignerService: ManagedSignerService,
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly managedUserWalletService: ManagedUserWalletService,
-    private readonly errorService: ErrorService
-  ) {}
+    private readonly errorService: ErrorService,
+    private readonly chainErrorService: ChainErrorService,
+    private readonly logger: LoggerService
+  ) {
+    this.logger.setContext(StaleManagedDeploymentsCleanerService.name);
+  }
 
   async cleanup(options: CleanUpStaleDeploymentsParams) {
     await this.userWalletRepository.paginate({ limit: options.concurrency || 10 }, async wallets => {
@@ -62,22 +66,38 @@ export class StaleManagedDeploymentsCleanerService {
     this.logger.info({ event: "DEPLOYMENT_CLEAN_UP", owner: wallet.address });
 
     try {
-      await this.managedSignerService.executeDerivedTx(wallet.id, messages);
+      await this.closeDeployments(wallet, messages);
       this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address });
-    } catch (error: any) {
-      if (error.message.includes("not allowed to pay fees")) {
-        await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
-          address: wallet.address!,
-          limits: {
-            fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
-          }
+    } catch (error) {
+      if (error instanceof Error && this.chainErrorService.isUnsettleableDeploymentError(error)) {
+        this.logger.error({
+          event: "DEPLOYMENT_CLEAN_UP_UNSETTLEABLE",
+          reason: "Deployment escrow cannot be settled yet; chain rejects close until it settles",
+          owner: wallet.address
         });
+        return;
+      }
 
-        await this.managedSignerService.executeDerivedTx(wallet.id, messages);
-        this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address });
-      } else {
+      throw error;
+    }
+  }
+
+  private async closeDeployments(wallet: UserWalletOutput, messages: EncodeObject[]) {
+    try {
+      await this.managedSignerService.executeDerivedTx(wallet.id, messages);
+    } catch (error: any) {
+      if (!error.message.includes("not allowed to pay fees")) {
         throw error;
       }
+
+      await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
+        address: wallet.address!,
+        limits: {
+          fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
+        }
+      });
+
+      await this.managedSignerService.executeDerivedTx(wallet.id, messages);
     }
   }
 }

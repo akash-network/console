@@ -3,6 +3,7 @@ import { singleton } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { Job, JOB_NAME, JobHandler, JobPayload, JobQueueService, LoggerService } from "@src/core";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { RESOLVED_MARKER } from "@src/notifications/services/notification-data-resolver/notification-data-resolver.service";
@@ -33,7 +34,8 @@ export class CloseTrialDeploymentHandler implements JobHandler<CloseTrialDeploym
     private readonly jobQueueService: JobQueueService,
     private readonly deploymentWriterService: DeploymentWriterService,
     private readonly deploymentService: DeploymentHttpService,
-    private readonly billingConfig: BillingConfigService
+    private readonly billingConfig: BillingConfigService,
+    private readonly chainErrorService: ChainErrorService
   ) {}
 
   async handle(payload: JobPayload<CloseTrialDeployment>): Promise<void> {
@@ -115,7 +117,23 @@ export class CloseTrialDeploymentHandler implements JobHandler<CloseTrialDeploym
       return;
     }
 
-    await this.deploymentWriterService.close({ ...wallet, address }, payload.dseq);
+    try {
+      await this.deploymentWriterService.close({ ...wallet, address }, payload.dseq);
+    } catch (error) {
+      if (error instanceof Error && this.chainErrorService.isUnsettleableDeploymentError(error)) {
+        this.logger.error({
+          event: "CLOSE_TRIAL_DEPLOYMENT_UNSETTLEABLE",
+          reason: "Deployment escrow cannot be settled yet; chain rejects close until it settles",
+          job: CloseTrialDeployment[JOB_NAME],
+          walletId: payload.walletId,
+          dseq: payload.dseq,
+          owner: address,
+          userId: wallet.userId
+        });
+        return;
+      }
+      throw error;
+    }
 
     await this.jobQueueService.enqueue(
       new NotificationJob({

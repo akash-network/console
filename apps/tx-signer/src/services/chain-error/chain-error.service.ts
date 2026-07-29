@@ -18,6 +18,7 @@ export class ChainErrorService {
     "order not open": 400,
     "invalid unit price": 400,
     "insufficient balance": 402,
+    "negative decimal coin amount": 400,
     "bad status on response: 502": 503,
     "bad status on response: 503": 503,
     "bad status on response: 504": 503

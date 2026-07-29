@@ -7,6 +7,8 @@ import { singleton } from "tsyringe";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 
+const ESCROW_SETTLEMENT_UNDERFLOW_MESSAGE = "negative decimal coin amount" as const;
+
 @singleton()
 export class ChainErrorService {
   private readonly ERRORS = {
@@ -69,6 +71,10 @@ export class ChainErrorService {
     "insufficient balance": {
       code: 402,
       message: "Insufficient balance"
+    },
+    [ESCROW_SETTLEMENT_UNDERFLOW_MESSAGE]: {
+      code: 400,
+      message: "Deployment escrow cannot be settled yet"
     }
   };
 
@@ -118,6 +124,12 @@ export class ChainErrorService {
 
   public isDeploymentClosedError(error: Error): boolean {
     return /account closed|deployment closed/i.test(error.message);
+  }
+
+  public isUnsettleableDeploymentError(error: Error): boolean {
+    const originalError = (error as { originalError?: unknown }).originalError;
+    const messages = [error.message, originalError instanceof Error ? originalError.message : undefined];
+    return messages.some(message => message?.toLowerCase().includes(ESCROW_SETTLEMENT_UNDERFLOW_MESSAGE));
   }
 
   public async isMasterWalletInsufficientFundsError(error: Error) {
