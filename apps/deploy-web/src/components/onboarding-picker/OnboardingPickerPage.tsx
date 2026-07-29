@@ -75,25 +75,33 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
     router.push(urlService.configureDeployment({ templateId, sdlStrategy: "default", bidStrategy: "auto" }));
   }
 
-  function deployTemplate(templateId: string) {
-    analyticsService.track("onboarding_deploy_click", { category: "onboarding", option: templateId });
+  function trackDeployClick(option: string) {
+    analyticsService.track("onboarding_deploy_click", { category: "onboarding", option });
     analyticsService.flush();
+  }
+
+  function deployTemplate(templateId: string) {
+    trackDeployClick(templateId);
     redirectToConfigure(templateId);
   }
 
+  /** The LLM card reports the same deploy click whether it deploys or is credit-gated; the gated path is told apart downstream by the add-credits sheet events that follow rather than a distinct click event. */
+  function deployLlmChatbot() {
+    trackDeployClick(TEMPLATE_IDS.llmChatbot);
+    if (isLlmAvailable) {
+      redirectToConfigure(TEMPLATE_IDS.llmChatbot);
+    } else {
+      setAddCreditsSheetReason("unlock-gpu");
+    }
+  }
+
   function trackCustomImageDeploy() {
-    analyticsService.track("onboarding_deploy_click", { category: "onboarding", option: "custom-image" });
-    analyticsService.flush();
+    trackDeployClick("custom-image");
   }
 
-  function openSkipTrialCredits() {
-    analyticsService.track("onboarding_add_credits_click", { category: "onboarding", reason: "skip-trial" });
+  function skipTrial() {
+    analyticsService.track("onboarding_skip_trial_click", { category: "onboarding" });
     setAddCreditsSheetReason("skip-trial");
-  }
-
-  function openGpuUnlockCredits() {
-    analyticsService.track("onboarding_add_credits_click", { category: "onboarding", reason: "unlock-gpu" });
-    setAddCreditsSheetReason("unlock-gpu");
   }
 
   return (
@@ -177,7 +185,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
                 ctaVariant="outline"
                 heroImageSrc="/images/onboarding/llm-chatbot.png"
                 heroImageAlt="LLM chatbot template"
-                onDeploy={() => (isLlmAvailable ? deployTemplate(TEMPLATE_IDS.llmChatbot) : openGpuUnlockCredits())}
+                onDeploy={deployLlmChatbot}
               />
             </div>
 
@@ -198,7 +206,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
 
               {(isTrialing || !wallet?.creditAmount) && (
                 <div className="text-center">
-                  <d.Button onClick={openSkipTrialCredits} variant="ghost">
+                  <d.Button onClick={skipTrial} variant="ghost">
                     Skip the trial - unlock Console
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </d.Button>

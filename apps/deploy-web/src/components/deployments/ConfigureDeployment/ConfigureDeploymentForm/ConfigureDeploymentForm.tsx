@@ -214,15 +214,28 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
    */
   function selectProviderAndAdvance(placementId: string, bidId: string) {
     flow.actions.selectProvider(placementId, bidId);
-    const nextServiceId = nextUndoneServiceId(placements, services, { ...flow.selections, [placementId]: bidId }, placementsWithBids);
+    const selections = { ...flow.selections, [placementId]: bidId };
+    const nextServiceId = nextUndoneServiceId(placements, services, selections, placementsWithBids);
     if (nextServiceId) {
       setSelectedServiceId(nextServiceId);
     } else {
-      setReviewOpen(true);
+      openReview(selections);
     }
   }
 
+  /** Takes `selections` explicitly: the auto-open path fires in the same tick as the final `selectProvider`, before that selection lands in `flow.selections`, so the closure value would undercount by one. */
+  function openReview(selections: Record<string, string>) {
+    analyticsService.track("review_deploy_opened", {
+      category: "deployments",
+      dseq: flow.dseq,
+      placementCount: placements.length,
+      selectionCount: Object.keys(selections).length
+    });
+    setReviewOpen(true);
+  }
+
   function closeReview() {
+    analyticsService.track("review_deploy_dismissed", { category: "deployments", dseq: flow.dseq });
     setReviewOpen(false);
   }
 
@@ -268,7 +281,12 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
           <div className="px-6 pt-6">
             <d.ConfigureDeploymentBackButton />
             <div className="mt-2">
-              <d.ConfigureDeploymentHeader flow={headerFlow} sdl={liveSdl} onDeploy={() => setReviewOpen(true)} allPlacementsHaveBids={allPlacementsHaveBids} />
+              <d.ConfigureDeploymentHeader
+                flow={headerFlow}
+                sdl={liveSdl}
+                onDeploy={() => openReview(flow.selections)}
+                allPlacementsHaveBids={allPlacementsHaveBids}
+              />
             </div>
           </div>
           <div className="relative mt-6 flex min-h-0 flex-1 overflow-x-auto">
@@ -305,6 +323,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
           selections={flow.selections}
           onBack={closeReview}
           onConfirm={() => {
+            analyticsService.track("review_deploy_confirmed", { category: "deployments", dseq: flow.dseq });
             setReviewOpen(false);
             flow.actions.deploy(liveSdl);
           }}

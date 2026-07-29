@@ -112,7 +112,7 @@ export type AnalyticsEvent =
   | "log_collector_disabled"
   | "log_collector_deployed"
   | "onboarding_deploy_click"
-  | "onboarding_add_credits_click"
+  | "onboarding_skip_trial_click"
   | "add_credits_opened"
   | "add_credits_amount_selected"
   | "add_credits_payment_method_selected"
@@ -128,7 +128,10 @@ export type AnalyticsEvent =
   | "configure_sdl_copied"
   | "cancel_during_create"
   | "close_deployment_failed"
-  | "cancelled_deployment_auto_close_failed";
+  | "cancelled_deployment_auto_close_failed"
+  | "review_deploy_opened"
+  | "review_deploy_confirmed"
+  | "review_deploy_dismissed";
 
 export type AnalyticsCategory = "user" | "billing" | "deployments" | "wallet" | "sdl_builder" | "transactions" | "profile" | "settings" | "onboarding";
 
@@ -163,25 +166,85 @@ const DEPLOYMENT_SEQUENCE_TITLE_MARKER = / #[\d*]+/;
 const DEPLOYMENT_SEQUENCE_PATH = /\/deployments\/\d+/g;
 const STATIC_DEPLOYMENT_PATH = "/deployments/[dseq]";
 
+const UTM_PARAM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"] as const;
+
 const isBrowser = typeof window !== "undefined";
 
 export type Amplitude = Pick<typeof amplitude, "init" | "Identify" | "identify" | "track" | "setUserId" | "add" | "flush">;
 
 export class AnalyticsService {
   private readonly STORAGE_KEY = "analytics_values_cache";
+  private readonly UTM_STORAGE_KEY = "analytics_utm";
 
   private readonly valuesCache: Map<string, string> = this.loadSwitchValuesFromStorage();
 
   private readonly isAmplitudeEnabled: boolean;
   private amplitudeInitialized = false;
 
+  /** First-touch UTM params, stamped onto every tracked event so acquisition funnels can be attributed to a campaign. */
+  private readonly utmProperties: Record<string, string>;
+
   constructor(
     private readonly options: AnalyticsOptions,
     private readonly amplitudeClient: Amplitude = amplitude,
     private readonly getDataLayer: () => Record<string, unknown>[] | undefined = () => (isBrowser ? window.dataLayer : undefined),
-    private readonly storage: Pick<Storage, "getItem" | "setItem"> | undefined = isBrowser ? window.localStorage : undefined
+    private readonly storage: Pick<Storage, "getItem" | "setItem"> | undefined = isBrowser ? window.localStorage : undefined,
+    private readonly getLocationSearch: () => string = () => (isBrowser ? window.location.search : "")
   ) {
     this.isAmplitudeEnabled = this.options.amplitude.enabled;
+    this.utmProperties = this.captureFirstTouchUtm();
+  }
+
+  /**
+   * Captures `utm_*` from the first UTM-bearing visit and freezes it: once a snapshot is stored it is returned
+   * unchanged, so a later visit from a different campaign can't blend its params into the original acquisition touch.
+   */
+  private captureFirstTouchUtm(): Record<string, string> {
+    if (!isBrowser) {
+      return {};
+    }
+
+    const storedUtm = this.readStoredUtm();
+    if (Object.keys(storedUtm).length > 0) {
+      return storedUtm;
+    }
+
+    const urlUtm = this.readUrlUtm();
+    if (Object.keys(urlUtm).length > 0) {
+      this.storage?.setItem(this.UTM_STORAGE_KEY, JSON.stringify(urlUtm));
+    }
+
+    return urlUtm;
+  }
+
+  private readUrlUtm(): Record<string, string> {
+    const params = new URLSearchParams(this.getLocationSearch());
+    return this.pickUtmParams(key => params.get(key));
+  }
+
+  private readStoredUtm(): Record<string, string> {
+    const stored = this.storage?.getItem(this.UTM_STORAGE_KEY);
+    if (!stored) {
+      return {};
+    }
+
+    try {
+      const parsed = JSON.parse(stored) as Record<string, unknown>;
+      return this.pickUtmParams(key => (typeof parsed[key] === "string" ? (parsed[key] as string) : null));
+    } catch {
+      return {};
+    }
+  }
+
+  private pickUtmParams(getValue: (key: string) => string | null): Record<string, string> {
+    const utm: Record<string, string> = {};
+    for (const key of UTM_PARAM_KEYS) {
+      const value = getValue(key);
+      if (value) {
+        utm[key] = value;
+      }
+    }
+    return utm;
   }
 
   private loadSwitchValuesFromStorage() {
@@ -271,14 +334,15 @@ export class AnalyticsService {
 
     const analyticsTarget = typeof eventPropertiesOrTarget === "string" ? eventPropertiesOrTarget : target;
     const eventProperties = typeof eventPropertiesOrTarget === "object" ? eventPropertiesOrTarget : {};
+    const enrichedProperties = { ...this.utmProperties, ...eventProperties };
 
     if (this.isAmplitudeEnabled && (!analyticsTarget || analyticsTarget === "Amplitude")) {
       this.initAmplitude();
-      this.amplitudeClient.track(eventName, eventProperties);
+      this.amplitudeClient.track(eventName, enrichedProperties);
     }
 
     if (this.options.ga.enabled && (!analyticsTarget || analyticsTarget === "GA")) {
-      const [name, props] = this.transformGaEvent(eventName, eventProperties);
+      const [name, props] = this.transformGaEvent(eventName, enrichedProperties);
       this.getDataLayer()?.push({ ...props, event: name });
     }
   }

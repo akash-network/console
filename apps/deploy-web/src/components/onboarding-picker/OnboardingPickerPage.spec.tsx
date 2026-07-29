@@ -360,26 +360,26 @@ describe(OnboardingPickerPage.name, () => {
     expect(analyticsService.flush).toHaveBeenCalled();
   });
 
-  it("tracks skipping the trial as an add-credits click", () => {
+  it("tracks a dedicated skip-trial click when skipping the trial", () => {
     const Button = vi.fn(ComponentMock);
     const { analyticsService } = setup({ isTrialing: true, dependencies: { Button: Button as unknown as typeof DEPENDENCIES.Button } });
 
     const skipButton = Button.mock.calls.at(-1)![0] as ButtonProps;
     act(() => (skipButton.onClick as () => void)());
 
-    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_add_credits_click", { category: "onboarding", reason: "skip-trial" });
+    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_skip_trial_click", { category: "onboarding" });
   });
 
-  it("tracks the add-credits-to-unlock click on the gated LLM card", () => {
+  it("tracks a deploy click with the llm option when the gated LLM card is clicked while trialing", () => {
     const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
     const { analyticsService } = setup({ isTrialing: true, dependencies: { DeploymentTemplatePickerCard } });
 
     act(() => getCard(DeploymentTemplatePickerCard, "LLM Chatbot").onDeploy!());
 
-    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_add_credits_click", { category: "onboarding", reason: "unlock-gpu" });
+    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding", option: LLM_ID });
   });
 
-  it("does not track a deploy click when the llm auto-deploys after adding credits", () => {
+  it("fires the gated LLM deploy click once and does not re-fire it when the sheet completes", () => {
     const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
     const AddCreditsSheet = vi.fn(ComponentMock);
     const { analyticsService } = setup({ isTrialing: true, dependencies: { DeploymentTemplatePickerCard, AddCreditsSheet } });
@@ -387,7 +387,8 @@ describe(OnboardingPickerPage.name, () => {
     act(() => getCard(DeploymentTemplatePickerCard, "LLM Chatbot").onDeploy!());
     act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onDone(100, "Acme"));
 
-    expect(analyticsService.track).not.toHaveBeenCalledWith("onboarding_deploy_click", expect.anything());
+    const deployClicks = analyticsService.track.mock.calls.filter(call => call[0] === "onboarding_deploy_click");
+    expect(deployClicks).toHaveLength(1);
   });
 
   function getCard(DeploymentTemplatePickerCard: ReturnType<typeof vi.fn>, title: string) {

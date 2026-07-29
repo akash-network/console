@@ -215,6 +215,80 @@ describe(AnalyticsService.name, () => {
     });
   });
 
+  describe("utm attribution", () => {
+    it("stamps utm params from the landing url onto tracked events in both services", () => {
+      const track = vi.fn();
+      const dataLayer: Record<string, unknown>[] = [];
+      const service = setup({
+        amplitude: { track },
+        dataLayer,
+        locationSearch: "?utm_source=twitter&utm_campaign=launch",
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: true, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.track("onboarding_deploy_click", { category: "onboarding" });
+
+      expect(track).toHaveBeenCalledWith("onboarding_deploy_click", {
+        category: "onboarding",
+        utm_source: "twitter",
+        utm_campaign: "launch"
+      });
+      expect(dataLayer).toContainEqual({ event: "onboarding_deploy_click", category: "onboarding", utm_source: "twitter", utm_campaign: "launch" });
+    });
+
+    it("persists the captured utm params under the utm storage key", () => {
+      const setItem = vi.fn();
+      setup({
+        storage: { getItem: vi.fn(), setItem },
+        locationSearch: "?utm_source=twitter",
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      expect(setItem).toHaveBeenCalledWith("analytics_utm", JSON.stringify({ utm_source: "twitter" }));
+    });
+
+    it("freezes the first-touch snapshot and ignores params from a later visit", () => {
+      const track = vi.fn();
+      const setItem = vi.fn();
+      const service = setup({
+        amplitude: { track },
+        storage: { getItem: key => (key === "analytics_utm" ? JSON.stringify({ utm_source: "google" }) : null), setItem },
+        locationSearch: "?utm_source=twitter&utm_medium=cpc",
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.track("onboarding_deploy_click", { category: "onboarding" });
+
+      expect(track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding", utm_source: "google" });
+      expect(setItem).not.toHaveBeenCalledWith("analytics_utm", expect.anything());
+    });
+
+    it("does not stamp any utm params when the landing url carries none", () => {
+      const track = vi.fn();
+      const service = setup({
+        amplitude: { track },
+        locationSearch: "",
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.track("onboarding_deploy_click", { category: "onboarding" });
+
+      expect(track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding" });
+    });
+  });
+
   describe("static deployment page views", () => {
     it("strips the deployment sequence from the page title so every deployment detail view shares one title", async () => {
       const plugin = setupPageViewPlugin();
@@ -331,6 +405,7 @@ describe(AnalyticsService.name, () => {
     dataLayer?: Record<string, unknown>[];
     options?: AnalyticsOptions;
     storage?: Pick<Storage, "getItem" | "setItem">;
+    locationSearch?: string;
   }) {
     const amplitude = {
       init: vi.fn(),
@@ -357,7 +432,8 @@ describe(AnalyticsService.name, () => {
       },
       amplitude,
       () => dataLayer,
-      storage
+      storage,
+      () => params.locationSearch ?? ""
     );
   }
 });
