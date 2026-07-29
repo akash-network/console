@@ -12,7 +12,14 @@ import type { ApiProviderList } from "@src/types/provider";
 import { leaseToDto } from "@src/utils/deploymentDetailUtils";
 import { setupQuery } from "../../tests/unit/query-client";
 import { QueryKeys } from "./queryKeys";
-import { type LeaseStatusDto, USE_LEASE_STATUS_DEPENDENCIES, useAllLeases, useDeploymentLeaseList, useLeaseStatus } from "./useLeaseQuery";
+import {
+  type LeaseStatusDto,
+  USE_LEASE_STATUS_DEPENDENCIES,
+  useAllLeases,
+  useDeploymentLeaseList,
+  useLeaseExistenceQuery,
+  useLeaseStatus
+} from "./useLeaseQuery";
 
 import { act } from "@testing-library/react";
 import { buildProvider } from "@tests/seeders/provider";
@@ -261,6 +268,59 @@ describe("useLeaseQuery", () => {
       expect(queries[0].queryKey).toContain("ALL_LEASES");
       expect(queries[0].queryKey).toContain("test-address");
     });
+  });
+
+  describe("useLeaseExistenceQuery", () => {
+    it("returns true when the address has at least one lease", async () => {
+      const { result } = setupLeaseExistence({ leases: mockLeases });
+
+      await vi.waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
+      expect(result.current.data).toBe(true);
+    });
+
+    it("returns false when the address has no leases", async () => {
+      const { result } = setupLeaseExistence({ leases: [] });
+
+      await vi.waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
+      expect(result.current.data).toBe(false);
+    });
+
+    it("requests a single lease without a total count", async () => {
+      const { result, chainApiHttpClient } = setupLeaseExistence({ leases: mockLeases });
+
+      await vi.waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
+      expect(chainApiHttpClient.get).toHaveBeenCalledTimes(1);
+      expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("filters.owner=test-address"));
+      expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("pagination.limit=1"));
+      expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("pagination.count_total=false"));
+    });
+
+    it("keys under the all-leases prefix so deploy-success invalidation refreshes it", () => {
+      expect(QueryKeys.getLeaseExistenceKey("test-address").slice(0, 2)).toEqual(QueryKeys.getAllLeasesKey("test-address"));
+    });
+
+    function setupLeaseExistence(input: { leases: unknown[] }) {
+      const chainApiHttpClient = mock<FallbackableHttpClient>({
+        get: vi.fn().mockResolvedValue({
+          data: {
+            leases: input.leases,
+            pagination: { next_key: null }
+          }
+        })
+      } as unknown as FallbackableHttpClient);
+      const { result } = setupQuery(() => useLeaseExistenceQuery("test-address"), {
+        services: {
+          chainApiHttpClient: () => chainApiHttpClient
+        }
+      });
+      return { result, chainApiHttpClient };
+    }
   });
 
   describe("useLeaseStatus", () => {

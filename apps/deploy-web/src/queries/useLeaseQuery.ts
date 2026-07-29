@@ -71,6 +71,26 @@ export function useAllLeases(address: string, options = {}) {
   });
 }
 
+/**
+ * Answers "has this address ever had a lease?" with a single limit-1 request, unlike
+ * `useAllLeases` which pages through the address's full lease history. Boot gates
+ * (`RequireOnboarding`, `useOnboardingChrome`) only need this boolean, so they can
+ * unblock without paying for the full paginated fetch.
+ */
+export function useLeaseExistenceQuery(address: string, options: Omit<UseQueryOptions<boolean>, "queryKey" | "queryFn"> = {}) {
+  const { chainApiHttpClient } = useServices();
+
+  return useQuery({
+    queryKey: QueryKeys.getLeaseExistenceKey(address),
+    queryFn: async () => {
+      const url = `${ApiUrlService.leaseList("", address, "")}&pagination.limit=1&pagination.count_total=false`;
+      const response = await chainApiHttpClient.get<{ leases: RpcLease[] }>(url);
+      return response.data.leases.length > 0;
+    },
+    ...options
+  });
+}
+
 export function useLeaseStatus(
   params: {
     provider?: ApiProviderList | null;

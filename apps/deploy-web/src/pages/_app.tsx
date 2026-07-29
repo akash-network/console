@@ -25,7 +25,7 @@ import { PageHead } from "@src/components/layout/PageHead";
 import { RequireOnboarding } from "@src/components/onboarding/RequireOnboarding/RequireOnboarding";
 import { UserProviders } from "@src/components/user/UserProviders/UserProviders";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
-import { FlagProvider } from "@src/context/FlagProvider/FlagProvider";
+import { FlagProvider, WaitForFeatureFlags } from "@src/context/FlagProvider/FlagProvider";
 import { PaymentPollingProvider } from "@src/context/PaymentPollingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { RootContainerProvider, useRootContainer } from "@src/context/ServicesProvider/RootContainerProvider";
@@ -62,7 +62,9 @@ const App: React.FunctionComponent<Props> = props => {
                 <PaymentPollingProvider>
                   <NavigationGuardProvider>
                     <RequireOnboarding isPublic={isPublic}>
-                      <Component {...pageProps} />
+                      <WaitForFeatureFlags>
+                        <Component {...pageProps} />
+                      </WaitForFeatureFlags>
                     </RequireOnboarding>
                   </NavigationGuardProvider>
                 </PaymentPollingProvider>

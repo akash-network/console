@@ -110,13 +110,13 @@ describe(useOnboardingChrome.name, () => {
         managedWalletError: input.managedWalletError
       });
     const usePathname: typeof DEPENDENCIES.usePathname = () => input.pathname;
-    const useAllLeases = (() =>
-      mock<ReturnType<typeof DEPENDENCIES.useAllLeases>>({
+    const useLeaseExistenceQuery = (() =>
+      mock<ReturnType<typeof DEPENDENCIES.useLeaseExistenceQuery>>({
         isLoading: (input.isLeasesLoading ?? false) as never,
         isError: (input.isLeasesError ?? false) as never,
-        data: (input.isLeasesError ? undefined : Array.from({ length: input.leaseCount ?? 0 })) as never
-      })) as typeof DEPENDENCIES.useAllLeases;
+        data: (input.isLeasesError ? undefined : (input.leaseCount ?? 0) > 0) as never
+      })) as typeof DEPENDENCIES.useLeaseExistenceQuery;
 
-    return { dependencies: { useWallet, usePathname, useAllLeases } };
+    return { dependencies: { useWallet, usePathname, useLeaseExistenceQuery } };
   }
 });

@@ -141,12 +141,12 @@ describe(RequireOnboarding.name, () => {
           isWalletLoading: props.isWalletLoading ?? false,
           isWalletInitializing: props.isWalletInitializing ?? false
         })) as typeof DEPENDENCIES.useWallet,
-      useAllLeases: (() =>
-        mock<ReturnType<typeof DEPENDENCIES.useAllLeases>>({
-          data: props.leasesError ? (undefined as never) : props.leases ? (Array.from({ length: props.leases }) as never) : [],
+      useLeaseExistenceQuery: (() =>
+        mock<ReturnType<typeof DEPENDENCIES.useLeaseExistenceQuery>>({
+          data: (props.leasesError ? undefined : (props.leases ?? 0) > 0) as never,
           isLoading: (props.leasesLoading ?? false) as never,
           isError: (props.leasesError ?? false) as never
-        })) as typeof DEPENDENCIES.useAllLeases,
+        })) as typeof DEPENDENCIES.useLeaseExistenceQuery,
       useReturnTo: (() => mock<ReturnType<typeof DEPENDENCIES.useReturnTo>>({ returnTo: props.returnTo ?? "/" })) as typeof DEPENDENCIES.useReturnTo,
       useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ asPath: props.path, pathname: props.path, replace })) as typeof DEPENDENCIES.useRouter
     });
