@@ -54,7 +54,7 @@ export const CommandFormModal: React.FunctionComponent<Props> = ({ control, serv
           render={({ field }) => (
             <Textarea
               aria-label="Args"
-              placeholder="Example: apt-get update; apt-get install -y --no-install-recommends -- ssh;"
+              placeholder={"One token per line. Example:\n-c\necho hello"}
               label="Arguments"
               inputClassName="mt-2 w-full px-4 py-2 text-sm"
               value={field.value}

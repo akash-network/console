@@ -45,6 +45,11 @@ describe("sdlImport", () => {
     it("joins every command element with a newline, dropping empty lines", () => {
       expect(parseSvcCommand(["sh", "-c", "echo 'foo'", "", "echo 'bar'"])).toEqual("sh\n-c\necho 'foo'\necho 'bar'");
     });
+
+    it("preserves falsy scalar tokens parsed from unquoted YAML values", () => {
+      expect(parseSvcCommand(["--retries", 0, "done"])).toEqual("--retries\n0\ndone");
+      expect(parseSvcCommand(["--verbose", false])).toEqual("--verbose\nfalse");
+    });
   });
 
   describe("importSimpleSdl", () => {
@@ -218,8 +223,8 @@ describe("sdlImport", () => {
       expect(parsed.services.web.params?.tee).toBe("cpu");
     });
 
-    it("imports an SDL, regenerates it, and produces semantically equal output", () => {
-      const yml = fs.readFileSync(path.resolve(__dirname, "../../../tests/mocks/two-services-sdl.yml"), "utf8");
+    it.each(["two-services-sdl.yml", "tini-multi-args-sdl.yml"])("imports %s, regenerates it, and produces semantically equal output", mockFile => {
+      const yml = fs.readFileSync(path.resolve(__dirname, `../../../tests/mocks/${mockFile}`), "utf8");
       const formValues = importSimpleSdl(yml);
       const regenerated = generateSdl(formValues);
 
@@ -233,55 +238,22 @@ describe("sdlImport", () => {
       { command: ["bash", "-lc"], args: ["./run.sh"] },
       { command: ["sh", "-c"], args: ["echo hi"] },
       { command: ["sh", "-c", "echo foo"], args: undefined },
-      { command: ["bash", "-c"], args: ["run"] }
+      { command: ["bash", "-c"], args: ["run"] },
+      { command: ["/tini", "-s", "--"], args: ["bash", "-c", "mkdir -p /runpod-volume; apt update; sleep infinity;"] },
+      { command: ["node"], args: ["server.js", "--port", "8080"] }
     ])("preserves command $command and args $args without forcing a shell wrapper", ({ command, args }) => {
       const formCommand = parseSvcCommand(command);
-      const formArg = args ? args[0] : "";
+      const formArg = parseSvcCommand(args);
 
       const rebuiltCommand = buildCommand(formCommand.trim());
-      const rebuiltArgs = formArg ? [formArg] : undefined;
+      const rebuiltArgs = formArg ? buildCommand(formArg.trim()) : undefined;
 
       expect(rebuiltCommand).toEqual(command);
       expect(rebuiltArgs).toEqual(args);
     });
 
     it("does not emit an args key when a service has a command but no args", () => {
-      const yml = [
-        "version: '2.0'",
-        "services:",
-        "  web:",
-        "    image: nginx:1.0",
-        "    command:",
-        "      - sh",
-        "      - -c",
-        "      - echo hello",
-        "    expose:",
-        "      - port: 80",
-        "        as: 80",
-        "        to:",
-        "          - global: true",
-        "profiles:",
-        "  compute:",
-        "    web:",
-        "      resources:",
-        "        cpu:",
-        "          units: 0.5",
-        "        memory:",
-        "          size: 512Mi",
-        "        storage:",
-        "          - size: 512Mi",
-        "  placement:",
-        "    dcloud:",
-        "      pricing:",
-        "        web:",
-        "          denom: uact",
-        "          amount: 1000",
-        "deployment:",
-        "  web:",
-        "    dcloud:",
-        "      profile: web",
-        "      count: 1"
-      ].join("\n");
+      const yml = sdlWithCommandBlock(["    command:", "      - sh", "      - -c", "      - echo hello"]);
 
       const regenerated = generateSdl(importSimpleSdl(yml));
       const parsed = yaml.load(regenerated) as { services: Record<string, { command?: unknown }> };
@@ -289,8 +261,73 @@ describe("sdlImport", () => {
       expect(parsed.services.web.command).toEqual(["sh", "-c", "echo hello"]);
       expect(parsed.services.web).not.toHaveProperty("args");
     });
+
+    it("round-trips every args element through import and regenerate", () => {
+      const yml = sdlWithCommandBlock([
+        "    command:",
+        "      - /tini",
+        "      - -s",
+        "      - --",
+        "    args:",
+        "      - bash",
+        "      - -c",
+        "      - mkdir -p /runpod-volume; apt update; sleep infinity;"
+      ]);
+
+      const regenerated = generateSdl(importSimpleSdl(yml));
+      const parsed = yaml.load(regenerated) as { services: Record<string, { command?: string[]; args?: string[] }> };
+
+      expect(parsed.services.web.command).toEqual(["/tini", "-s", "--"]);
+      expect(parsed.services.web.args).toEqual(["bash", "-c", "mkdir -p /runpod-volume; apt update; sleep infinity;"]);
+    });
+
+    it("round-trips args when the service has no command", () => {
+      const yml = sdlWithCommandBlock(["    args:", "      - --port", "      - '8080'"]);
+
+      const regenerated = generateSdl(importSimpleSdl(yml));
+      const parsed = yaml.load(regenerated) as { services: Record<string, { command?: string[]; args?: string[] }> };
+
+      expect(parsed.services.web).not.toHaveProperty("command");
+      expect(parsed.services.web.args).toEqual(["--port", "8080"]);
+    });
   });
 });
+
+/** Complete single-service SDL with the given lines spliced into the `web` service block. */
+const sdlWithCommandBlock = (serviceLines: string[]) =>
+  [
+    "version: '2.0'",
+    "services:",
+    "  web:",
+    "    image: nginx:1.0",
+    ...serviceLines,
+    "    expose:",
+    "      - port: 80",
+    "        as: 80",
+    "        to:",
+    "          - global: true",
+    "profiles:",
+    "  compute:",
+    "    web:",
+    "      resources:",
+    "        cpu:",
+    "          units: 0.5",
+    "        memory:",
+    "          size: 512Mi",
+    "        storage:",
+    "          - size: 512Mi",
+    "  placement:",
+    "    dcloud:",
+    "      pricing:",
+    "        web:",
+    "          denom: uact",
+    "          amount: 1000",
+    "deployment:",
+    "  web:",
+    "    dcloud:",
+    "      profile: web",
+    "      count: 1"
+  ].join("\n");
 
 const teeSdl = (tee: "cpu" | "cpu-gpu") =>
   [

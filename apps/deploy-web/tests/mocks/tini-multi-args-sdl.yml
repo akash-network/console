@@ -1,0 +1,56 @@
+---
+version: "2.0"
+services:
+  app:
+    image: ghcr.io/example/app:latest
+    expose:
+      - port: 22
+        as: 22
+        to:
+          - global: true
+    command:
+      - /tini
+      - -s
+      - --
+    args:
+      - bash
+      - -c
+      - >-
+        mkdir -p /data/volume;
+        export POD_ID=akash-$AKASH_DEPLOYMENT_SEQUENCE;
+        mkdir -p /var/cache/apt/archives/partial;
+        mkdir -p /data/models;
+        bash scripts/set_mounts.sh;
+        apt update;
+        DEBIAN_FRONTEND=noninteractive apt-get install tmux rsync vim openssh-server -y;
+        mkdir -p ~/.ssh; cd $_; chmod 700 ~/.ssh; echo "$PUBLIC_KEY" >> authorized_keys;
+        chmod 700 authorized_keys; service ssh start;
+        printf "set-option -g set-titles on\nset-option -g set-titles-string \"#{session_name} - #{host}\"\nset-option -g status-left-length 60" > ~/.tmux.conf;
+        cd /app;
+        SESSION_NAME=$POD_ID-$HOSTNAME
+        tmux new-session -d -s my_session "cd /app; uv run scripts/init_download_models.py; ./scripts/watchdog.sh";
+        tmux split-window -t my_session "cd /app; sleep 100; uv run scripts/init_download_models.py secondary";
+        tmux split-window -t my_session "cd /app; pip3 install nvitop; nvitop; bash";
+        tmux rename-session -t my_session "$POD_ID-$HOSTNAME-$AKASH_CLUSTER_PUBLIC_HOSTNAME";
+        sleep infinity;
+profiles:
+  compute:
+    app:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          - size: 512Mi
+  placement:
+    dcloud:
+      pricing:
+        app:
+          denom: uact
+          amount: 1000
+deployment:
+  app:
+    dcloud:
+      profile: app
+      count: 1

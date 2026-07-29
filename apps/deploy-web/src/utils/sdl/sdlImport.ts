@@ -7,7 +7,8 @@ import { CustomValidationError } from "../deploymentData";
 import { capitalizeFirstLetter } from "../stringUtils";
 import { defaultHttpOptions } from "./data";
 
-export const parseSvcCommand = (command?: string | string[]): string => {
+/** YAML parses unquoted scalars like `0` or `false` into native types, so tokens are stringified instead of filtered as falsy. */
+export const parseSvcCommand = (command?: string | (string | number | boolean)[]): string => {
   if (!command) {
     return "";
   }
@@ -16,7 +17,11 @@ export const parseSvcCommand = (command?: string | string[]): string => {
     return parseSvcCommand([command]);
   }
 
-  return command.filter(Boolean).join("\n");
+  return command
+    .filter(token => token !== null && token !== undefined)
+    .map(String)
+    .filter(token => token.length > 0)
+    .join("\n");
 };
 
 /**
@@ -99,7 +104,7 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
 
       service.command = {
         command: parseSvcCommand(svc.command),
-        arg: svc.args ? svc.args[0] : ""
+        arg: parseSvcCommand(svc.args)
       };
 
       service.env =

@@ -5,9 +5,9 @@ import type { ExposeType, PlacementType, ProfileGpuModelType, SdlBuilderFormValu
 import { defaultHttpOptions } from "./data";
 
 /**
- * Converts the Command form field (one command-array token per line) into the
- * SDL `command` array. Tokens are trimmed and empty lines dropped. The user's
- * command is preserved verbatim — no shell wrapper (e.g. `sh -c`) is forced.
+ * Converts the Command and Arguments form fields (one array token per line) into
+ * the SDL `command`/`args` arrays. Tokens are trimmed and empty lines dropped. The
+ * user's tokens are preserved verbatim; no shell wrapper (e.g. `sh -c`) is forced.
  */
 export const buildCommand = (command: string): string[] => {
   return command
@@ -110,11 +110,11 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
     const trimmedCommand = service.command?.command?.trim();
     if (trimmedCommand) {
       sdl.services[service.title].command = buildCommand(trimmedCommand);
+    }
 
-      const arg = service.command?.arg;
-      if (arg) {
-        sdl.services[service.title].args = [arg];
-      }
+    const trimmedArg = service.command?.arg?.trim();
+    if (trimmedArg) {
+      sdl.services[service.title].args = buildCommand(trimmedArg);
     }
 
     if ((service.env?.length || 0) > 0) {
