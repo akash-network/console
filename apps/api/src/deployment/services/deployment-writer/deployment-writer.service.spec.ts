@@ -7,10 +7,12 @@ import type { BillingConfigService } from "@src/billing/services/billing-config/
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import type { WalletInitialized, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
+import type { LoggerService } from "@src/core";
 import type { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import type { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
+import type { StaleManagedDeploymentsCleanerService } from "../stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
 import { DeploymentWriterService } from "./deployment-writer.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
@@ -117,6 +119,37 @@ describe(DeploymentWriterService.name, () => {
 
       expect(rpcMessageService.getCreateDeploymentMsg.mock.calls[0][0].reclamation).toBeUndefined();
     });
+
+    it("reclaims trial orphans with age 0 before signing the create when the wallet is trialing", async () => {
+      const { service, staleDeploymentsCleaner, signerService, walletReaderService } = setup();
+      walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, isTrialing: true });
+
+      await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
+
+      expect(staleDeploymentsCleaner.cleanUpForWallet).toHaveBeenCalledWith(expect.objectContaining({ id: wallet.id, address: wallet.address }), 0);
+      expect(staleDeploymentsCleaner.cleanUpForWallet.mock.invocationCallOrder[0]).toBeLessThan(
+        signerService.executeDerivedDecodedTxByUserId.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("does not reclaim orphans for a non-trial create", async () => {
+      const { service, staleDeploymentsCleaner } = setup();
+
+      await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
+
+      expect(staleDeploymentsCleaner.cleanUpForWallet).not.toHaveBeenCalled();
+    });
+
+    it("still creates the deployment when the orphan cleanup fails", async () => {
+      const { service, staleDeploymentsCleaner, signerService, walletReaderService } = setup();
+      walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, isTrialing: true });
+      staleDeploymentsCleaner.cleanUpForWallet.mockRejectedValue(new Error("cleanup boom"));
+
+      const result = await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
+
+      expect(result.dseq).toBeDefined();
+      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalled();
+    });
   });
 
   describe("closeByUserIdAndDseq", () => {
@@ -142,6 +175,47 @@ describe(DeploymentWriterService.name, () => {
 
       expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledWith(wallet.address, "100");
       expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(wallet, [closeMsg]);
+    });
+
+    it("does not broadcast a close tx when the deployment is already closed", async () => {
+      const { service, signerService, rpcMessageService, deploymentReaderService } = setup();
+      deploymentReaderService.findByWalletAndDseq.mockResolvedValue({
+        ...deploymentData,
+        deployment: { ...deploymentData.deployment, state: "closed" }
+      });
+
+      await service.close(wallet, "100");
+
+      expect(rpcMessageService.getCloseDeploymentMsg).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+    });
+
+    it("treats a failed close tx as success when a re-read shows the deployment already closed", async () => {
+      const { service, signerService, deploymentReaderService } = setup();
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(new Error("deployment already closed"));
+      deploymentReaderService.findByWalletAndDseq
+        .mockResolvedValueOnce(deploymentData)
+        .mockResolvedValueOnce({ ...deploymentData, deployment: { ...deploymentData.deployment, state: "closed" } });
+
+      await expect(service.close(wallet, "100")).resolves.toBeUndefined();
+    });
+
+    it("re-throws the original close error when a re-read shows the deployment is still open", async () => {
+      const { service, signerService, deploymentReaderService } = setup();
+      const closeError = new Error("close boom");
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(closeError);
+      deploymentReaderService.findByWalletAndDseq.mockResolvedValue(deploymentData);
+
+      await expect(service.close(wallet, "100")).rejects.toBe(closeError);
+    });
+
+    it("re-throws the original close error when the post-failure re-read also fails", async () => {
+      const { service, signerService, deploymentReaderService } = setup();
+      const closeError = new Error("close boom");
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(closeError);
+      deploymentReaderService.findByWalletAndDseq.mockResolvedValueOnce(deploymentData).mockRejectedValueOnce(new Error("indexer unavailable"));
+
+      await expect(service.close(wallet, "100")).rejects.toBe(closeError);
     });
   });
 
@@ -227,6 +301,8 @@ describe(DeploymentWriterService.name, () => {
     const providerService = mock<ProviderService>();
     const deploymentReaderService = mock<DeploymentReaderService>();
     const walletReaderService = mock<WalletReaderService>();
+    const staleDeploymentsCleaner = mock<StaleManagedDeploymentsCleanerService>();
+    const logger = mock<LoggerService>();
 
     walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
     sdlService.generateManifest.mockReturnValue({ ok: true, value: manifestValue } as any);
@@ -240,7 +316,9 @@ describe(DeploymentWriterService.name, () => {
       billingConfig,
       providerService,
       deploymentReaderService,
-      walletReaderService
+      walletReaderService,
+      staleDeploymentsCleaner,
+      logger
     );
 
     return {
@@ -251,7 +329,9 @@ describe(DeploymentWriterService.name, () => {
       billingConfig,
       providerService,
       deploymentReaderService,
-      walletReaderService
+      walletReaderService,
+      staleDeploymentsCleaner,
+      logger
     };
   }
 });

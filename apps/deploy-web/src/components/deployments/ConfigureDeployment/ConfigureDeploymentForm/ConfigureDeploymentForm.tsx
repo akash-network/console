@@ -27,7 +27,7 @@ import { ReviewAndDeployModal } from "../ReviewAndDeployModal/ReviewAndDeployMod
 import { SdlImportExport } from "../SdlImportExport/SdlImportExport";
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
-import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
+import type { DeploymentFlow, FlowErrorKind } from "../useDeploymentFlow/useDeploymentFlow";
 import { useDeploymentName } from "../useDeploymentName/useDeploymentName";
 
 export const DEPENDENCIES = {
@@ -173,17 +173,9 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
 
   useEffect(
     function toastFlowError() {
-      // Surfaces a failed quote request or the no-providers timeout, both of which flip the header/panes back to
-      // editable with no other cue. Guarded on identity so it fires once per new error, not on every re-render.
       if (flow.error && flow.error !== lastToastedFlowError.current) {
-        enqueueSnackbar(
-          <d.Snackbar
-            title="Couldn't get provider quotes"
-            subTitle={flow.error.message ?? "Something went wrong. Please adjust your deployment and try again."}
-            iconVariant="error"
-          />,
-          { variant: "error" }
-        );
+        const { title, fallback } = flowErrorToastCopy(flow.error.kind);
+        enqueueSnackbar(<d.Snackbar title={title} subTitle={flow.error.message ?? fallback} iconVariant="error" />, { variant: "error" });
       }
       lastToastedFlowError.current = flow.error;
     },
@@ -371,6 +363,20 @@ function getImportErrorMessage(error: unknown): string {
     return "The deployment couldn't be loaded because its SDL is invalid.";
   }
   return "The deployment couldn't be loaded.";
+}
+
+/**
+ * Title and subtitle-fallback for the flow-error toast. A failed close gets its own copy that reassures the user the
+ * stranded deployment is not lost: requesting quotes again closes it first, so no manual recovery is needed.
+ */
+function flowErrorToastCopy(kind: FlowErrorKind | undefined): { title: string; fallback: string } {
+  if (kind === "close") {
+    return {
+      title: "Couldn't close the deployment",
+      fallback: "Your previous deployment is still closing. It will be closed automatically when you request quotes again."
+    };
+  }
+  return { title: "Couldn't get provider quotes", fallback: "Something went wrong. Please adjust your deployment and try again." };
 }
 
 /** Regenerates the preview SDL, keeping the last good output while the form is mid-edit. */

@@ -7,6 +7,7 @@ import { BillingConfigService } from "@src/billing/services/billing-config/billi
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import { WalletInitialized, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
+import { LoggerService } from "@src/core";
 import {
   CreateDeploymentRequest,
   CreateDeploymentResponse,
@@ -17,6 +18,7 @@ import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { denomToUdenom } from "@src/utils/math";
 import { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
+import { StaleManagedDeploymentsCleanerService } from "../stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
 
 @singleton()
 export class DeploymentWriterService {
@@ -27,12 +29,18 @@ export class DeploymentWriterService {
     private readonly billingConfig: BillingConfigService,
     private readonly providerService: ProviderService,
     private readonly deploymentReaderService: DeploymentReaderService,
-    private readonly walletReaderService: WalletReaderService
+    private readonly walletReaderService: WalletReaderService,
+    private readonly staleDeploymentsCleaner: StaleManagedDeploymentsCleanerService,
+    private readonly logger: LoggerService
   ) {}
 
   public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
     const manifest = this.#parseManifest(input.sdl, { isTrialing: !!wallet.isTrialing });
+
+    if (wallet.isTrialing) {
+      await this.reclaimTrialOrphanedDeployments(wallet);
+    }
 
     const dseq = Date.now();
     const manifestVersion = await this.sdlService.generateManifestVersion(manifest.groups);
@@ -55,15 +63,44 @@ export class DeploymentWriterService {
     };
   }
 
+  /**
+   * Reclaims escrow from a trial wallet's orphaned (open, lease-less) deployments before a new create, so a stranded
+   * trial user whose earlier close failed can deploy again without waiting for the periodic cleanup job. It runs
+   * before the create tx so the freed deployment allowance is available when the create's balance check runs.
+   * Best-effort: a cleanup failure never blocks the create, which then proceeds and may 402 exactly as it would today.
+   * Age 0 also closes an actively-quoting lease-less deployment of the same trial user, acceptable since a trial
+   * balance cannot fund two deployments at once.
+   */
+  private async reclaimTrialOrphanedDeployments(wallet: WalletInitialized): Promise<void> {
+    try {
+      await this.staleDeploymentsCleaner.cleanUpForWallet(wallet, 0);
+    } catch (error) {
+      this.logger.warn({ event: "TRIAL_ORPHAN_CLEANUP_FAILED", address: wallet.address, error });
+    }
+  }
+
   public async closeByUserIdAndDseq(userId: string, dseq: string): Promise<void> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     return this.close(wallet, dseq);
   }
 
+  /**
+   * Idempotent close: an already-`closed` deployment is a no-op. The state read is a check→broadcast window, so a
+   * concurrent close (a user cancel racing the cleanup cron, or two overlapping cleanup runs) can settle it between
+   * the read and the broadcast; the losing tx then fails on an already-closed deployment. Re-read once on failure and
+   * treat a now-closed deployment as success, otherwise surface the original error.
+   */
   public async close(wallet: WalletInitialized, dseq: string): Promise<void> {
     const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+    if (deployment.deployment.state === "closed") return;
     const message = this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.deployment.id.dseq);
-    await this.signerService.executeDecodedTxByUserWallet(wallet, [message]);
+    try {
+      await this.signerService.executeDecodedTxByUserWallet(wallet, [message]);
+    } catch (error) {
+      const latest = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq).catch(() => null);
+      if (latest?.deployment.state === "closed") return;
+      throw error;
+    }
   }
 
   public async deposit(options: { userId: string; dseq: string; amount: number }): Promise<GetDeploymentResponse["data"]> {

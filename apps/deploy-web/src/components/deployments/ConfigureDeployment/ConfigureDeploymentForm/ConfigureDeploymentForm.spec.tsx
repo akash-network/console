@@ -9,7 +9,7 @@ import { defaultService } from "@src/utils/sdl/data";
 import { ConfigurationPane } from "../ConfigurationPane/ConfigurationPane";
 import { usePlacementManager } from "../DeploymentPane/usePlacementManager/usePlacementManager";
 import { importDeploymentState } from "../importDeploymentState/importDeploymentState";
-import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
+import type { DeploymentFlow, FlowErrorKind } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./ConfigureDeploymentForm";
 import { ConfigureDeploymentForm, firstBidReadyServiceId, nextUndoneServiceId } from "./ConfigureDeploymentForm";
 
@@ -307,6 +307,20 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" }));
   });
 
+  it("titles the toast as a close failure when the flow error is a close error", () => {
+    const { enqueueSnackbar } = setup({ initialSdl: undefined, flowError: { message: "still closing", kind: "close" } });
+
+    const toast = enqueueSnackbar.mock.calls[0][0] as { props: { title: string } };
+    expect(toast.props.title).toBe("Couldn't close the deployment");
+  });
+
+  it("keeps the quotes-error title for a non-close flow error", () => {
+    const { enqueueSnackbar } = setup({ initialSdl: undefined, flowError: { message: "No providers", kind: "no-providers" } });
+
+    const toast = enqueueSnackbar.mock.calls[0][0] as { props: { title: string } };
+    expect(toast.props.title).toBe("Couldn't get provider quotes");
+  });
+
   it("resets the trial before re-requesting quotes when a previous trial start terminally errored", () => {
     const { ConfigureDeploymentHeader, requestQuotes, retryTrial } = setup({ initialSdl: undefined, trialError: new Error("trial boom") });
     const headerFlow = (ConfigureDeploymentHeader as ReturnType<typeof vi.fn>).mock.calls[0][0].flow as DeploymentFlow;
@@ -422,7 +436,7 @@ describe(ConfigureDeploymentForm.name, () => {
     Panes?: typeof SdlProbePanes;
     draftId?: string;
     deploySucceeded?: boolean;
-    flowError?: { message?: string };
+    flowError?: { message?: string; kind?: FlowErrorKind };
     trialError?: unknown;
     vm?: boolean;
     phase?: DeploymentFlow["phase"];
