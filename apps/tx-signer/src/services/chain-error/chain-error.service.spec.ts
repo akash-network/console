@@ -97,6 +97,13 @@ describe(ChainErrorService.name, () => {
     ).toBe(402);
   });
 
+  it("returns 400 for escrow settlement underflow panic", () => {
+    const { service } = setup();
+    expect(
+      service.getChainErrorStatus("Query failed with (6): rpc error: code = Unknown desc = recovered: negative decimal coin amount: -2.000000000000000000")
+    ).toBe(400);
+  });
+
   it("returns 503 for bad status on response 502 error", () => {
     const { service } = setup();
     expect(service.getChainErrorStatus("Bad status on response: 502")).toBe(503);

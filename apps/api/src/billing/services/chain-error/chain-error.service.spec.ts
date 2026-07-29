@@ -208,6 +208,15 @@ describe(ChainErrorService.name, () => {
       expect(appErr.message).toBe("Insufficient balance");
     });
 
+    it("returns 400 for escrow settlement underflow panic", async () => {
+      const { service } = setup();
+      const err = new Error("Query failed with (6): rpc error: code = Unknown desc = recovered: negative decimal coin amount: -2.000000000000000000");
+
+      const appErr = await service.toAppError(err, encodeMessages);
+      expect(appErr).toBeInstanceOf(BadRequest);
+      expect(appErr.message).toBe("Deployment escrow cannot be settled yet");
+    });
+
     it("returns 502 when cause is an AxiosError with 502 status", async () => {
       const { service } = setup();
       const axiosError = new AxiosError("Request failed", "ERR_BAD_RESPONSE", undefined, undefined, {
@@ -277,6 +286,30 @@ describe(ChainErrorService.name, () => {
     it("returns false for unrelated errors", () => {
       const { service } = setup();
       expect(service.isDeploymentClosedError(new Error("insufficient funds: 10uakt is smaller than 20uakt"))).toBe(false);
+    });
+  });
+
+  describe("isUnsettleableDeploymentError", () => {
+    it("returns true for the escrow settlement underflow panic", () => {
+      const { service } = setup();
+      const err = new Error("Query failed with (6): rpc error: code = Unknown desc = recovered: negative decimal coin amount: -2.000000000000000000");
+
+      expect(service.isUnsettleableDeploymentError(err)).toBe(true);
+    });
+
+    it("returns true for an error already normalized by toAppError", async () => {
+      const { service } = setup();
+      const rawPanic = new Error("Query failed with (6): rpc error: code = Unknown desc = recovered: negative decimal coin amount: -2.000000000000000000");
+      const appError = await service.toAppError(rawPanic, []);
+
+      expect(appError.message).toBe("Deployment escrow cannot be settled yet");
+      expect(service.isUnsettleableDeploymentError(appError)).toBe(true);
+    });
+
+    it("returns false for an unrelated error", () => {
+      const { service } = setup();
+
+      expect(service.isUnsettleableDeploymentError(new Error("insufficient balance"))).toBe(false);
     });
   });
 
