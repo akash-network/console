@@ -151,7 +151,26 @@ editor.createWebWorker = opts => {
   return createWebWorker(opts);
 };
 
-export * from "monaco-editor/esm/vs/editor/editor.api.js";
+/**
+ * Named re-exports instead of `export *`: monaco is a CJS external in the SSR
+ * graph, so Turbopack cannot enumerate `export *` statically and warns on
+ * every dev compile. Keep in sync with editor.api.js exports.
+ */
+export {
+  CancellationTokenSource,
+  Emitter,
+  KeyCode,
+  KeyMod,
+  MarkerTag,
+  Position,
+  Range,
+  Selection,
+  SelectionDirection,
+  Token,
+  Uri,
+  editor,
+  languages
+} from "monaco-editor/esm/vs/editor/editor.api.js";
 
 /**
  * Workers code taken from node_modules/monaco-editor/esm/vs/common/workers.js

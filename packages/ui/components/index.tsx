@@ -45,7 +45,6 @@ export * from "./toggle-group";
 export * from "./tooltip";
 export * from "./data-table";
 export * from "./charts";
-export * from "./auto-button";
 // Folders
 export * from "./spinner";
 export * from "./custom";
