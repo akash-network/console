@@ -74,18 +74,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const { user } = d.useUser();
   const { data: paymentMethods = [] } = d.usePaymentMethodsQuery({ enabled: !!user?.stripeCustomerId });
   const { minDeposit } = d.useChainParam();
-  const {
-    analyticsService,
-    urlService,
-    deploymentLocalStorage,
-    errorHandler,
-    windowLocation,
-    windowHistory,
-    template: templateService,
-    networkStore,
-    publicConfig
-  } = d.useServices();
-  const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore();
+  const { analyticsService, urlService, deploymentLocalStorage, errorHandler, windowLocation, windowHistory, template: templateService } = d.useServices();
   const wallet = d.useWallet();
   const notificator = d.useNotificator();
   const { navigateBack } = d.useReturnTo({ defaultReturnTo: "/" });
@@ -164,10 +153,6 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   );
 
   const handleStartTrial = useCallback(() => {
-    if (selectedNetworkId !== publicConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID) {
-      setSelectedNetworkId(publicConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID);
-    }
-
     analyticsService.track("onboarding_free_trial_started", {
       category: "onboarding"
     });
@@ -185,18 +170,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
     } else {
       router.push(urlService.newSignup({ fromSignup: "true" }));
     }
-  }, [
-    analyticsService,
-    handleStepComplete,
-    user?.userId,
-    user?.emailVerified,
-    handleStepChange,
-    router,
-    urlService,
-    selectedNetworkId,
-    publicConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID,
-    setSelectedNetworkId
-  ]);
+  }, [analyticsService, handleStepComplete, user?.userId, user?.emailVerified, handleStepChange, router, urlService]);
 
   const handlePaymentMethodComplete = useCallback(() => {
     if (paymentMethods.length > 0) {

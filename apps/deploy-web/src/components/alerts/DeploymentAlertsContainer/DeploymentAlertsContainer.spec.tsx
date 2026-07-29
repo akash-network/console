@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ChildrenProps, ContainerInput } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
 import { DeploymentAlertsContainer } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
-import { USDC_IBC_DENOMS } from "@src/config/denom.config";
+import { UACT_DENOM } from "@src/config/denom.config";
 import { queryClient } from "@src/queries";
 import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
 import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
@@ -134,8 +134,8 @@ describe(DeploymentAlertsContainer.name, () => {
 
   async function setup() {
     const rpcDeployment = buildRpcDeployment({
-      denom: USDC_IBC_DENOMS["mainnet"],
-      escrow_account: { state: { funds: [{ denom: USDC_IBC_DENOMS["mainnet"], amount: "5000000.000000000000000000" }] } }
+      denom: UACT_DENOM,
+      escrow_account: { state: { funds: [{ denom: UACT_DENOM, amount: "5000000.000000000000000000" }] } }
     });
     const deployment = deploymentToDto(rpcDeployment);
     const dseq = deployment.dseq;
