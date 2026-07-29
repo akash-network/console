@@ -57,19 +57,20 @@ export function WaitForFeatureFlags({
       return;
     }
 
-    const markReady = () => {
-      clearTimeout(timerId);
-      setIsReady(true);
-    };
-    const timerId = setTimeout(markReady, UNLEASH_READY_TIMEOUT_MS);
-    client.once("ready", markReady);
-    client.once("error", markReady);
-
-    return () => {
+    const stopWaiting = () => {
       clearTimeout(timerId);
       client.off("ready", markReady);
       client.off("error", markReady);
     };
+    const markReady = () => {
+      stopWaiting();
+      setIsReady(true);
+    };
+    const timerId = setTimeout(markReady, UNLEASH_READY_TIMEOUT_MS);
+    client.on("ready", markReady);
+    client.on("error", markReady);
+
+    return stopWaiting;
   }, [client]);
 
   if (!isReady) {

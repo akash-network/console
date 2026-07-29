@@ -88,6 +88,15 @@ describe(WaitForFeatureFlags.name, () => {
     }
   });
 
+  it("unsubscribes from both client events once readiness resolves", () => {
+    const { client, fire } = setup({ isReady: false });
+
+    act(() => fire("ready"));
+
+    expect(client.off).toHaveBeenCalledWith("ready", expect.any(Function));
+    expect(client.off).toHaveBeenCalledWith("error", expect.any(Function));
+  });
+
   it("unsubscribes from client events on unmount", () => {
     const { client, unmount } = setup({ isReady: false });
 
@@ -115,7 +124,7 @@ describe(WaitForFeatureFlags.name, () => {
     const listeners: Record<string, () => void> = {};
     const client = mock<ReturnType<typeof WAIT_FOR_FEATURE_FLAGS_DEPENDENCIES.useUnleashClient>>();
     client.isReady.mockReturnValue(input.isReady);
-    client.once.mockImplementation((event, callback) => {
+    client.on.mockImplementation((event, callback) => {
       listeners[event] = callback as () => void;
       return client;
     });
