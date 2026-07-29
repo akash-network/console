@@ -182,7 +182,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({
   );
 };
 
-export const Loading: React.FunctionComponent<{ text: string; testId?: string }> = ({ text, testId }) => {
+export const Loading: React.FunctionComponent<{ text?: string; testId?: string }> = ({ text, testId }) => {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center pb-12 pt-12" data-testid={testId}>
       <AkashLoadingMark />

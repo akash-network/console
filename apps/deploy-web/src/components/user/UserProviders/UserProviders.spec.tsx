@@ -4,6 +4,7 @@ import { type AxiosInstance } from "axios";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { BootLoadingProvider } from "@src/context/BootLoadingProvider/BootLoadingProvider";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { UserTracker } from "@src/services/user-tracker/user-tracker.service";
 import type { CustomUserProfile } from "@src/types/user";
@@ -103,11 +104,13 @@ describe(UserProviders.name, () => {
     const Content = input?.Content || ComponentMock;
     let id = 0;
     const genContent = () => (
-      <TestContainerProvider services={services}>
-        <UserProviders key={++id}>
-          <Content>content</Content>
-        </UserProviders>
-      </TestContainerProvider>
+      <BootLoadingProvider>
+        <TestContainerProvider services={services}>
+          <UserProviders key={++id}>
+            <Content>content</Content>
+          </UserProviders>
+        </TestContainerProvider>
+      </BootLoadingProvider>
     );
 
     const result = render(genContent());

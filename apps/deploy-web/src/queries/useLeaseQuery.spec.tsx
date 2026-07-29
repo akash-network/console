@@ -1,3 +1,4 @@
+import type { LeaseHttpService } from "@akashnetwork/http-sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { describe, expect, it, vi } from "vitest";
@@ -272,7 +273,7 @@ describe("useLeaseQuery", () => {
 
   describe("useLeaseExistenceQuery", () => {
     it("returns true when the address has at least one lease", async () => {
-      const { result } = setupLeaseExistence({ leases: mockLeases });
+      const { result } = setupLeaseExistence({ hasLeases: true });
 
       await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -281,7 +282,7 @@ describe("useLeaseQuery", () => {
     });
 
     it("returns false when the address has no leases", async () => {
-      const { result } = setupLeaseExistence({ leases: [] });
+      const { result } = setupLeaseExistence({ hasLeases: false });
 
       await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -289,37 +290,30 @@ describe("useLeaseQuery", () => {
       expect(result.current.data).toBe(false);
     });
 
-    it("requests a single lease without a total count", async () => {
-      const { result, chainApiHttpClient } = setupLeaseExistence({ leases: mockLeases });
+    it("asks the lease service about the queried address", async () => {
+      const { result, leaseHttpService } = setupLeaseExistence({ hasLeases: true });
 
       await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
-      expect(chainApiHttpClient.get).toHaveBeenCalledTimes(1);
-      expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("filters.owner=test-address"));
-      expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("pagination.limit=1"));
-      expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("pagination.count_total=false"));
+      expect(leaseHttpService.hasLeases).toHaveBeenCalledWith("test-address");
     });
 
     it("keys under the all-leases prefix so deploy-success invalidation refreshes it", () => {
-      expect(QueryKeys.getLeaseExistenceKey("test-address").slice(0, 2)).toEqual(QueryKeys.getAllLeasesKey("test-address"));
+      const allLeasesKey = QueryKeys.getAllLeasesKey("test-address");
+
+      expect(QueryKeys.getLeaseExistenceKey("test-address").slice(0, allLeasesKey.length)).toEqual(allLeasesKey);
     });
 
-    function setupLeaseExistence(input: { leases: unknown[] }) {
-      const chainApiHttpClient = mock<FallbackableHttpClient>({
-        get: vi.fn().mockResolvedValue({
-          data: {
-            leases: input.leases,
-            pagination: { next_key: null }
-          }
-        })
-      } as unknown as FallbackableHttpClient);
+    function setupLeaseExistence(input: { hasLeases: boolean }) {
+      const leaseHttpService = mock<LeaseHttpService>();
+      leaseHttpService.hasLeases.mockResolvedValue(input.hasLeases);
       const { result } = setupQuery(() => useLeaseExistenceQuery("test-address"), {
         services: {
-          chainApiHttpClient: () => chainApiHttpClient
+          leaseHttpService: () => leaseHttpService
         }
       });
-      return { result, chainApiHttpClient };
+      return { result, leaseHttpService };
     }
   });
 

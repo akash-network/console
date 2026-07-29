@@ -98,12 +98,11 @@ describe(WaitForFeatureFlags.name, () => {
   });
 
   function setup(input: { isReady: boolean }) {
-    const listeners = new Map<string, Array<() => void>>();
+    const listeners: Record<string, () => void> = {};
     const client = mock<ReturnType<typeof WAIT_FOR_FEATURE_FLAGS_DEPENDENCIES.useUnleashClient>>();
     client.isReady.mockReturnValue(input.isReady);
     client.once.mockImplementation((event, callback) => {
-      const callbacks = listeners.get(event) ?? [];
-      listeners.set(event, [...callbacks, callback as () => void]);
+      listeners[event] = callback as () => void;
       return client;
     });
 
@@ -116,7 +115,7 @@ describe(WaitForFeatureFlags.name, () => {
     return {
       client,
       unmount,
-      fire: (event: string) => listeners.get(event)?.forEach(callback => callback())
+      fire: (event: string) => listeners[event]?.()
     };
   }
 });

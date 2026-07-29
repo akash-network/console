@@ -10,5 +10,5 @@ interface LoadingBlockerProps {
 }
 
 export const LoadingBlocker: FCWithChildren<LoadingBlockerProps> = ({ children, isLoading, testId, text }) => {
-  return isLoading ? <Loading text={text || ""} testId={testId} /> : <>{children}</>;
+  return isLoading ? <Loading text={text} testId={testId} /> : <>{children}</>;
 };

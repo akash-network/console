@@ -11,7 +11,7 @@ import { AkashLoadingMark } from "@src/components/layout/AkashLoadingMark";
  */
 export const BOOT_LOADING_GRACE_MS = 150;
 
-/** How long the background curtain fades out once boot finishes. Must match the `duration-500` class below. */
+/** How long the background curtain fades out once boot finishes. */
 export const BOOT_LOADING_FADE_MS = 500;
 
 type BootLoadingContextValue = {
@@ -39,24 +39,17 @@ export function BootLoadingProvider({ children }: Props) {
   useEffect(() => {
     if (pendingCount > 0) {
       setIsBooting(true);
-      return;
-    }
-
-    const graceTimer = setTimeout(() => setIsBooting(false), BOOT_LOADING_GRACE_MS);
-    return () => clearTimeout(graceTimer);
-  }, [pendingCount]);
-
-  useEffect(() => {
-    if (isBooting) {
       setIsMounted(true);
       return;
     }
 
-    if (!isMounted) return;
-
-    const fadeTimer = setTimeout(() => setIsMounted(false), BOOT_LOADING_FADE_MS);
-    return () => clearTimeout(fadeTimer);
-  }, [isBooting, isMounted]);
+    const graceTimer = setTimeout(() => setIsBooting(false), BOOT_LOADING_GRACE_MS);
+    const unmountTimer = setTimeout(() => setIsMounted(false), BOOT_LOADING_GRACE_MS + BOOT_LOADING_FADE_MS);
+    return () => {
+      clearTimeout(graceTimer);
+      clearTimeout(unmountTimer);
+    };
+  }, [pendingCount]);
 
   return (
     <BootLoadingContext.Provider value={{ begin, end }}>
@@ -64,8 +57,9 @@ export function BootLoadingProvider({ children }: Props) {
       {isMounted && (
         <div
           data-testid="app-boot-loading"
+          style={{ transitionDuration: `${BOOT_LOADING_FADE_MS}ms` }}
           className={cn(
-            "fixed inset-0 z-50 flex items-center justify-center bg-background transition-opacity duration-500 motion-reduce:transition-none",
+            "fixed inset-0 z-50 flex items-center justify-center bg-background transition-opacity motion-reduce:transition-none",
             isBooting ? "opacity-100" : "pointer-events-none opacity-0"
           )}
         >

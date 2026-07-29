@@ -8,7 +8,12 @@ html {
 body {
   height: calc(100% - 57px) !important;
   padding: 0 !important;
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-family:
+    var(--font-geist-sans),
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    sans-serif;
 }
 
 .text-truncate {
@@ -126,38 +131,6 @@ body {
   pointer-events: all !important;
 }
 
-
 .monaco-editor {
   position: absolute !important;
-}
-
-/* Initial app loading — pulsing Akash mark (see AkashLoadingMark). Fills are theme tokens so it follows light/dark. */
-.akash-loading-mark path {
-  fill: hsl(var(--border));
-  animation: akash-loading-shard 1.8s linear infinite;
-}
-
-@keyframes akash-loading-shard {
-  0% {
-    fill: hsl(var(--border));
-  }
-  14% {
-    fill: hsl(var(--foreground));
-  }
-  46% {
-    fill: hsl(var(--foreground));
-  }
-  72% {
-    fill: hsl(var(--border));
-  }
-  100% {
-    fill: hsl(var(--border));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .akash-loading-mark path {
-    animation: none;
-    fill: hsl(var(--foreground));
-  }
 }

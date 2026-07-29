@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { useRouter } from "next/router";
 
-import { Loading } from "@src/components/layout/Layout";
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
+import { BootLoading } from "@src/context/BootLoadingProvider/BootLoadingProvider";
 import { UrlService } from "@src/utils/urlUtils";
 
 export const DEPENDENCIES = { useRouter, UrlService };
@@ -39,6 +39,6 @@ export function RedirectMappableBuilderToConfigure({ children, dependencies: d =
     [shouldRedirect, templateId, router, d.UrlService]
   );
 
-  if (shouldRedirect) return <Loading text="" />;
+  if (shouldRedirect) return <BootLoading />;
   return <>{children}</>;
 }
