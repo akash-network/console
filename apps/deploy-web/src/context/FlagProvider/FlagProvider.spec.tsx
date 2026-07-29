@@ -97,6 +97,20 @@ describe(WaitForFeatureFlags.name, () => {
     expect(client.off).toHaveBeenCalledWith("error", expect.any(Function));
   });
 
+  it("clears the ready timeout on unmount so it cannot fire afterwards", () => {
+    vi.useFakeTimers();
+    try {
+      const { unmount } = setup({ isReady: false });
+      expect(vi.getTimerCount()).toBe(1);
+
+      unmount();
+
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   function setup(input: { isReady: boolean }) {
     const listeners: Record<string, () => void> = {};
     const client = mock<ReturnType<typeof WAIT_FOR_FEATURE_FLAGS_DEPENDENCIES.useUnleashClient>>();

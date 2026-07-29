@@ -38,11 +38,12 @@ describe(BootLoadingProvider.name, () => {
   it("keeps the overlay mounted across a gate handoff", () => {
     vi.useFakeTimers();
     try {
-      const { rerender } = setup({ children: <BootLoading key="first" /> });
+      const { rerender } = setup({ children: <BootLoading /> });
       expect(screen.getByTestId("app-boot-loading")).toBeInTheDocument();
 
-      rerender(<BootLoading key="second" />);
-      act(() => vi.advanceTimersByTime(BOOT_LOADING_GRACE_MS * 2));
+      rerender(<div>between gates</div>);
+      act(() => vi.advanceTimersByTime(BOOT_LOADING_GRACE_MS - 1));
+      rerender(<BootLoading />);
 
       expect(screen.getByTestId("app-boot-loading")).toBeInTheDocument();
       expect(screen.getByRole("status", { name: /loading/i })).toBeInTheDocument();

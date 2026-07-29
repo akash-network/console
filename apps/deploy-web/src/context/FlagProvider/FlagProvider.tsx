@@ -3,9 +3,9 @@ import { useEffect, useState } from "react";
 import { FlagProvider as FlagProviderOriginal, useUnleashClient } from "@unleash/nextjs";
 
 import { BootLoading } from "@src/context/BootLoadingProvider/BootLoadingProvider";
+import { useServices } from "@src/context/ServicesProvider";
 import { useUser } from "@src/hooks/useUser";
 import type { FCWithChildren } from "@src/types/component";
-import { useServices } from "../ServicesProvider";
 
 const COMPONENTS = {
   FlagProvider: FlagProviderOriginal,
@@ -57,22 +57,18 @@ export function WaitForFeatureFlags({
       return;
     }
 
-    let callback: (() => void) | undefined;
-    if (!client.isReady()) {
-      callback = () => {
-        if (timerId) clearTimeout(timerId);
-        setIsReady(true);
-      };
-      const timerId = setTimeout(callback, UNLEASH_READY_TIMEOUT_MS);
-      client.once("ready", callback);
-      client.once("error", callback);
-    }
+    const markReady = () => {
+      clearTimeout(timerId);
+      setIsReady(true);
+    };
+    const timerId = setTimeout(markReady, UNLEASH_READY_TIMEOUT_MS);
+    client.once("ready", markReady);
+    client.once("error", markReady);
 
     return () => {
-      if (callback) {
-        client.off("ready", callback);
-        client.off("error", callback);
-      }
+      clearTimeout(timerId);
+      client.off("ready", markReady);
+      client.off("error", markReady);
     };
   }, [client]);
 
