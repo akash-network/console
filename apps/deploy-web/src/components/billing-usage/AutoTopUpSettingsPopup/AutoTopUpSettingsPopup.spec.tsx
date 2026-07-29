@@ -163,8 +163,6 @@ describe(AutoTopUpSettingsPopup.name, () => {
     const useSnackbar: typeof DEPENDENCIES.useSnackbar = () =>
       ({ enqueueSnackbar: input.enqueueSnackbar ?? vi.fn(), closeSnackbar: vi.fn() }) as unknown as ReturnType<typeof DEPENDENCIES.useSnackbar>;
 
-    const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ topUpMinAmountUsd: 20 });
-
     const paymentMethod = mock<PaymentMethod>({
       card: { brand: "visa", last4: "5720", exp_month: 5, exp_year: 30 } as PaymentMethod["card"]
     });
@@ -180,7 +178,6 @@ describe(AutoTopUpSettingsPopup.name, () => {
       useForm,
       zodResolver,
       useSnackbar,
-      useWallet,
       useDefaultPaymentMethodQuery,
       useWalletSettingsMutations
     };

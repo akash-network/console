@@ -10,7 +10,6 @@ import { useSnackbar } from "notistack";
 import { z } from "zod";
 
 import { getPaymentMethodDisplay } from "@src/components/shared/PaymentMethodCard/PaymentMethodCard";
-import { useWallet } from "@src/context/WalletProvider/WalletProvider";
 import { useDefaultPaymentMethodQuery, useWalletSettingsMutations } from "@src/queries";
 
 export const DEFAULT_AUTO_RELOAD_THRESHOLD = 20;
@@ -22,25 +21,26 @@ const AUTO_RELOAD_THRESHOLD_MIN_USD = 5;
 /** Mirrors the max bound on both fields in the backend's WalletSettingsInputSchema so over-limit values fail inline instead of as a generic 400. */
 const AUTO_RELOAD_MAX_USD = 10_000;
 
-const createAutoTopUpSchema = (amountMinUsd: number) =>
-  z.object({
-    autoReloadThreshold: z.coerce
-      .number()
-      .min(AUTO_RELOAD_THRESHOLD_MIN_USD, `Minimum threshold is $${AUTO_RELOAD_THRESHOLD_MIN_USD}`)
-      .max(AUTO_RELOAD_MAX_USD, `Maximum threshold is $${AUTO_RELOAD_MAX_USD}`),
-    autoReloadAmount: z.coerce
-      .number()
-      .min(amountMinUsd, `Minimum amount is $${amountMinUsd}`)
-      .max(AUTO_RELOAD_MAX_USD, `Maximum amount is $${AUTO_RELOAD_MAX_USD}`)
-  });
+/** Mirrors STANDARD_TOP_UP_MIN_AMOUNT_USD — the fixed floor the backend applies to every recurring auto-top-up charge, independent of the trial-aware one-time top-up minimum. */
+const AUTO_RELOAD_AMOUNT_MIN_USD = 20;
 
-type AutoTopUpFormValues = z.infer<ReturnType<typeof createAutoTopUpSchema>>;
+const autoTopUpSchema = z.object({
+  autoReloadThreshold: z.coerce
+    .number()
+    .min(AUTO_RELOAD_THRESHOLD_MIN_USD, `Minimum threshold is $${AUTO_RELOAD_THRESHOLD_MIN_USD}`)
+    .max(AUTO_RELOAD_MAX_USD, `Maximum threshold is $${AUTO_RELOAD_MAX_USD}`),
+  autoReloadAmount: z.coerce
+    .number()
+    .min(AUTO_RELOAD_AMOUNT_MIN_USD, `Minimum amount is $${AUTO_RELOAD_AMOUNT_MIN_USD}`)
+    .max(AUTO_RELOAD_MAX_USD, `Maximum amount is $${AUTO_RELOAD_MAX_USD}`)
+});
+
+type AutoTopUpFormValues = z.infer<typeof autoTopUpSchema>;
 
 export const DEPENDENCIES = {
   useForm,
   zodResolver,
   useSnackbar,
-  useWallet,
   useDefaultPaymentMethodQuery,
   useWalletSettingsMutations
 };
@@ -64,12 +64,8 @@ export const AutoTopUpSettingsPopup: React.FC<AutoTopUpSettingsPopupProps> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const { enqueueSnackbar } = d.useSnackbar();
-  const { topUpMinAmountUsd } = d.useWallet();
   const { data: defaultPaymentMethod } = d.useDefaultPaymentMethodQuery();
   const { upsertWalletSettings } = d.useWalletSettingsMutations();
-
-  const amountMinUsd = topUpMinAmountUsd ?? DEFAULT_AUTO_RELOAD_THRESHOLD;
-  const schema = useMemo(() => createAutoTopUpSchema(amountMinUsd), [amountMinUsd]);
 
   const defaultValues = useMemo<AutoTopUpFormValues>(
     () => ({
@@ -80,7 +76,7 @@ export const AutoTopUpSettingsPopup: React.FC<AutoTopUpSettingsPopupProps> = ({
   );
 
   const form = d.useForm<AutoTopUpFormValues>({
-    resolver: d.zodResolver(schema),
+    resolver: d.zodResolver(autoTopUpSchema),
     defaultValues
   });
 
@@ -158,7 +154,7 @@ export const AutoTopUpSettingsPopup: React.FC<AutoTopUpSettingsPopupProps> = ({
                 {...field}
                 type="number"
                 step="0.01"
-                label={`Purchase this amount (minimum $${amountMinUsd})`}
+                label={`Purchase this amount (minimum $${AUTO_RELOAD_AMOUNT_MIN_USD})`}
                 startIcon={<div className="pl-3 text-sm text-muted-foreground">$</div>}
               />
             )}
