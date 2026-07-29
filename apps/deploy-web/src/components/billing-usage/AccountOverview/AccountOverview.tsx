@@ -244,7 +244,7 @@ export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DE
                   variant="ghost"
                   size="icon"
                   aria-label="Edit auto top-up settings"
-                  disabled={!hasPaymentMethod}
+                  disabled={isReloadChangeDisabled || !walletSettings?.autoReloadEnabled}
                   onClick={() => setAutoTopUpPopup({ open: true, enableOnSave: false })}
                 >
                   <d.Edit className="h-4 w-4" />

@@ -185,6 +185,29 @@ describe(AccountOverview.name, () => {
       expect(screen.getByText(/Add a payment method/)).toBeInTheDocument();
     });
 
+    it("disables the edit button while auto top-up is off so saving cannot silently re-enable it", () => {
+      setup({
+        isFixedThresholdEnabled: true,
+        defaultPaymentMethod: { id: "pm_123" },
+        isLoading: false,
+        walletSettings: { autoReloadEnabled: false }
+      });
+
+      expect(screen.getByRole("button", { name: /edit auto top-up settings/i })).toBeDisabled();
+    });
+
+    it("disables the edit button while a settings update is in flight", () => {
+      setup({
+        isFixedThresholdEnabled: true,
+        defaultPaymentMethod: { id: "pm_123" },
+        isLoading: false,
+        walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100 },
+        isPending: true
+      });
+
+      expect(screen.getByRole("button", { name: /edit auto top-up settings/i })).toBeDisabled();
+    });
+
     it("does not disable auto top-up when the confirmation is cancelled", async () => {
       const upsertMutate = vi.fn();
       setup({
@@ -271,6 +294,7 @@ describe(AccountOverview.name, () => {
     confirmResult?: boolean;
     upsertMutate?: ReturnType<typeof vi.fn>;
     enqueueSnackbar?: ReturnType<typeof vi.fn>;
+    isPending?: boolean;
   }) {
     const mockReplace = input.routerReplace ?? vi.fn();
     const mockSearchParams = { get: vi.fn(input.searchParamsGet ?? (() => null)) };
@@ -305,7 +329,7 @@ describe(AccountOverview.name, () => {
       useWalletSettingsQuery: vi.fn(() => ({ data: input.walletSettings ?? { autoReloadEnabled: false } })),
       useWeeklyDeploymentCostQuery: vi.fn(() => ({ data: 5 })),
       useWalletSettingsMutations: vi.fn(() => ({
-        upsertWalletSettings: { mutate: upsertMutate, isPending: false }
+        upsertWalletSettings: { mutate: upsertMutate, isPending: input.isPending ?? false }
       })),
       usePopup: vi.fn(() => ({ confirm: vi.fn().mockResolvedValue(input.confirmResult ?? true) })),
       useSearchParams: vi.fn(() => mockSearchParams),

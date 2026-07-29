@@ -54,6 +54,28 @@ describe(AutoTopUpSettingsPopup.name, () => {
     expect(upsertMutate).not.toHaveBeenCalled();
   });
 
+  it("blocks submit and shows an error when the amount is above the maximum", async () => {
+    const upsertMutate = vi.fn();
+    setup({ upsertMutate });
+
+    fireEvent.change(amountInput(), { target: { value: "20000" } });
+    await submit();
+
+    expect(screen.getByText(/Maximum amount is \$10000/)).toBeInTheDocument();
+    expect(upsertMutate).not.toHaveBeenCalled();
+  });
+
+  it("blocks submit and shows an error when the threshold is above the maximum", async () => {
+    const upsertMutate = vi.fn();
+    setup({ upsertMutate });
+
+    fireEvent.change(thresholdInput(), { target: { value: "20000" } });
+    await submit();
+
+    expect(screen.getByText(/Maximum threshold is \$10000/)).toBeInTheDocument();
+    expect(upsertMutate).not.toHaveBeenCalled();
+  });
+
   it("saves the enabled flag with values in enable-on-save mode", async () => {
     const upsertMutate = vi.fn();
     setup({ enableOnSave: true, threshold: 20, amount: 100, upsertMutate });

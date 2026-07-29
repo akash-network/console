@@ -19,10 +19,19 @@ export const DEFAULT_AUTO_RELOAD_AMOUNT = 100;
 /** Matches AkashML's minimum credit-balance threshold. */
 const AUTO_RELOAD_THRESHOLD_MIN_USD = 5;
 
+/** Mirrors the max bound on both fields in the backend's WalletSettingsInputSchema so over-limit values fail inline instead of as a generic 400. */
+const AUTO_RELOAD_MAX_USD = 10_000;
+
 const createAutoTopUpSchema = (amountMinUsd: number) =>
   z.object({
-    autoReloadThreshold: z.coerce.number().min(AUTO_RELOAD_THRESHOLD_MIN_USD, `Minimum threshold is $${AUTO_RELOAD_THRESHOLD_MIN_USD}`),
-    autoReloadAmount: z.coerce.number().min(amountMinUsd, `Minimum amount is $${amountMinUsd}`)
+    autoReloadThreshold: z.coerce
+      .number()
+      .min(AUTO_RELOAD_THRESHOLD_MIN_USD, `Minimum threshold is $${AUTO_RELOAD_THRESHOLD_MIN_USD}`)
+      .max(AUTO_RELOAD_MAX_USD, `Maximum threshold is $${AUTO_RELOAD_MAX_USD}`),
+    autoReloadAmount: z.coerce
+      .number()
+      .min(amountMinUsd, `Minimum amount is $${amountMinUsd}`)
+      .max(AUTO_RELOAD_MAX_USD, `Maximum amount is $${AUTO_RELOAD_MAX_USD}`)
   });
 
 type AutoTopUpFormValues = z.infer<ReturnType<typeof createAutoTopUpSchema>>;
