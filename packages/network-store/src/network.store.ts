@@ -10,6 +10,13 @@ interface NetworkStoreOptions {
   defaultNetworkId: Network["id"];
   apiBaseUrl: string;
   store?: ReturnType<typeof getDefaultStore>;
+  /**
+   * Pins the store to `defaultNetworkId`: `selectedNetworkId` becomes a constant, its setter throws, and a
+   * `?network=` URL param is ignored (a fixed store has no other network to switch to). Single-network apps
+   * (deploy-web is managed-wallet-only) set this so the network can neither be switched nor drift out of
+   * localStorage. Omit for multi-network apps (stats-web) that switch at runtime.
+   */
+  fixed?: boolean;
 }
 
 interface NetworksStore {
@@ -28,9 +35,14 @@ export class NetworkStore {
   private readonly allNetworks: Network[];
   readonly networksStore = atom<NetworksStore>({ isLoading: true, error: undefined, data: [] });
 
-  private readonly selectedNetworkIdStore = atomWithStorage<Network["id"]>(this.STORAGE_KEY, this.options.defaultNetworkId, undefined, {
-    getOnInit: true
-  });
+  private readonly selectedNetworkIdStore = this.options.fixed
+    ? atom<Network["id"], [Network["id"]], void>(
+        () => this.options.defaultNetworkId,
+        () => {
+          throw new Error(`Cannot change network: the store is fixed to "${this.options.defaultNetworkId}".`);
+        }
+      )
+    : atomWithStorage<Network["id"]>(this.STORAGE_KEY, this.options.defaultNetworkId, undefined, { getOnInit: true });
 
   private readonly selectedNetworkStore = atom<Network, [Network], void>(
     get => {
@@ -90,6 +102,7 @@ export class NetworkStore {
   }
 
   initiateNetworkFromUrl(url: URL): void {
+    if (this.options.fixed) return;
     if (!url.searchParams.has("network")) return;
 
     const raw = url.searchParams.get("network");
@@ -118,6 +131,10 @@ export class NetworkStore {
   useSelectedNetworkIdStore({ reloadOnChange } = { reloadOnChange: false }): [Network["id"], (networkId: Network["id"]) => void] {
     const [networkId, setNetworkId] = useAtom(this.selectedNetworkIdStore);
 
+    if (this.options.fixed && reloadOnChange) {
+      throw new Error(`Cannot reload on network change: the store is fixed to "${this.options.defaultNetworkId}".`);
+    }
+
     if (reloadOnChange) {
       return [
         networkId,
@@ -127,9 +144,9 @@ export class NetworkStore {
           window.location.href = url.toString();
         }
       ];
-    } else {
-      return [networkId, setNetworkId];
     }
+
+    return [networkId, setNetworkId];
   }
 
   useSelectedNetworkId(): Network["id"] {

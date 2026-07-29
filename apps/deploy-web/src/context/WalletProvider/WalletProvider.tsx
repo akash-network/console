@@ -9,7 +9,6 @@ import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
 import { useBalances } from "@src/queries/useBalancesQuery";
-import networkStore from "@src/store/networkStore";
 import type { AppError } from "@src/types";
 import { getStorageManagedWallet, updateStorageManagedWallet } from "@src/utils/walletUtils";
 import { useServices } from "../ServicesProvider";
@@ -47,7 +46,7 @@ export const WalletProviderContext = React.createContext<ContextType>({} as Cont
  * WalletProvider is a client only component
  */
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { analyticsService, publicConfig: appConfig, urlService, windowLocation } = useServices();
+  const { analyticsService, publicConfig: appConfig, urlService } = useServices();
 
   const [, setSettingsId] = useAtom(settingsIdAtom);
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
@@ -64,7 +63,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const username = managedWallet?.username;
   const isWalletConnected = !!managedWallet?.isWalletConnected;
   const { refetch: refetchBalances } = useBalances(walletAddress);
-  const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore();
   const isLoading = deriveWalletIsLoading({
     hasAuthenticatedUserId: !!user?.userId,
     isManagedWalletLoading
@@ -85,13 +83,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     setSettingsId(walletAddress || null);
   }, [walletAddress, setSettingsId]);
-
-  // Reload in place (not nav home) so a successful deploy doesn't bounce the user back to `/`.
-  useEffect(() => {
-    if (selectedNetworkId === appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID) return;
-    setSelectedNetworkId(appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID);
-    windowLocation.reload();
-  }, [selectedNetworkId, appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID, setSelectedNetworkId, windowLocation]);
 
   function connectManagedWallet() {
     if (!managedWallet) {
@@ -128,10 +119,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     setIsWalletLoaded(true);
-
-    if (selectedNetworkId !== networkId) {
-      setSelectedNetworkId(networkId);
-    }
   }
 
   return (
