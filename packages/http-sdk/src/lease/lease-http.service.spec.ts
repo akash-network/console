@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { HttpClient } from "../utils/httpClient";
 import type { RestAkashLeaseListResponse, RpcLease } from "./lease-http.service";
@@ -48,9 +49,8 @@ describe(LeaseHttpService.name, () => {
         pagination: input?.pagination ?? { next_key: null, total: "0" }
       }
     };
-    const httpClient = {
-      get: vi.fn().mockResolvedValue(response)
-    } as unknown as HttpClient & { get: ReturnType<typeof vi.fn> };
+    const httpClient = mock<HttpClient>();
+    httpClient.get.mockResolvedValue(response);
     const service = new LeaseHttpService(httpClient);
     return { service, httpClient };
   }
