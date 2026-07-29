@@ -41,7 +41,7 @@
       "drizzle": false
     },
     "apps/deploy-web": {
-      "entry": ["next.config.js", "postcss.config.js", "src/pages/**/*.tsx", "src/pages/**/*.ts"],
+      "entry": ["next.config.js", "postcss.config.js", "src/pages/**/*.tsx", "src/pages/**/*.ts", "src/stubs/empty.ts"],
       "ignoreDependencies": [
         "sharp",
         "@nivo/core",
