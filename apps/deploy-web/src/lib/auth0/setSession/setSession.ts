@@ -28,7 +28,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
  */
 function getMutableUpdateSessionModule(): typeof updateSessionModuleNamespace {
   const descriptor = Object.getOwnPropertyDescriptor(updateSessionModuleNamespace, "default");
-  const isSealed = descriptor?.get && !descriptor.set && !descriptor.writable;
+  const isSealed = descriptor?.get && !descriptor.set;
   return isSealed ? require("@auth0/nextjs-auth0/update-session") : updateSessionModuleNamespace; // eslint-disable-line @typescript-eslint/no-require-imports
 }
 

@@ -23,8 +23,15 @@ const withPWA = require("next-pwa")({
 const { withSentryConfig } = require("@sentry/nextjs");
 const path = require("path");
 const CopyPlugin = require("copy-webpack-plugin");
+const { sdlSchemaSourcePath } = require("./scripts/copy-sdl-schema");
 
 const transpilePackages = ["geist", "@akashnetwork/ui", "@auth0/nextjs-auth0"];
+
+/** Aliases to auth0 internals patched by ./src/lib/auth0/setSession/setSession.ts, shared by the webpack and turbopack configs. */
+const auth0SessionAliases = {
+  "@auth0/nextjs-auth0/session": path.join(require.resolve("@auth0/nextjs-auth0"), "..", "session", "index.js"),
+  "@auth0/nextjs-auth0/update-session": path.join(require.resolve("@auth0/nextjs-auth0"), "..", "session", "update-session.js")
+};
 
 /**
  * @type {import('next').NextConfig}
@@ -70,8 +77,7 @@ const nextConfig = {
   turbopack: {
     resolveAlias: {
       "pino-pretty": { browser: "./src/stubs/empty.ts" },
-      "@auth0/nextjs-auth0/session": "../../node_modules/@auth0/nextjs-auth0/dist/session/index.js",
-      "@auth0/nextjs-auth0/update-session": "../../node_modules/@auth0/nextjs-auth0/dist/session/update-session.js"
+      ...Object.fromEntries(Object.entries(auth0SessionAliases).map(([specifier, filePath]) => [specifier, path.relative(__dirname, filePath)]))
     }
   },
   i18n: {
@@ -100,15 +106,13 @@ const nextConfig = {
     };
 
     if (options.isServer) {
-      // see ./src/lib/auth0/setSession/setSession.ts for more details
-      config.resolve.alias["@auth0/nextjs-auth0/session"] = path.join(require.resolve("@auth0/nextjs-auth0"), "..", "session", "index.js");
-      config.resolve.alias["@auth0/nextjs-auth0/update-session"] = path.join(require.resolve("@auth0/nextjs-auth0"), "..", "session", "update-session.js");
+      Object.assign(config.resolve.alias, auth0SessionAliases);
     } else {
       config.plugins.push(
         new CopyPlugin({
           patterns: [
             {
-              from: path.join(require.resolve("@akashnetwork/chain-sdk"), "..", "..", "sdl-schema.yaml"),
+              from: sdlSchemaSourcePath,
               to: "../public/sdl-schema.yaml"
             }
           ]
