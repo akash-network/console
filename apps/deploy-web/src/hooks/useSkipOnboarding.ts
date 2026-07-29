@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
@@ -14,41 +14,42 @@ export const DEPENDENCIES = {
 
 /**
  * Permanently skips the onboarding flow: records the intent in analytics, persists the server-side flag, refreshes the
- * profile so the onboarding gate stops routing the user back in, then lands them on the deployments list. The profile
- * refresh is awaited before navigating to avoid a race where the gate bounces a still-flagless user back to onboarding;
- * a failed refresh reports the error and stays put — the gate would still see a flagless user and bounce the navigation
- * anyway, and since the flag is already persisted the user can retry or simply reload to get through.
+ * profile, then lands the user on the deployments list. Navigation waits until the refreshed profile actually carries
+ * the skip flag — the onboarding gate reads that same profile, so navigating any earlier would bounce right back into
+ * the funnel. This also covers the profile route failing open with a flagless 200 (it swallows its internal user
+ * lookup's errors), which a resolved `checkSession()` alone cannot reveal. Any failure reports the error and stays
+ * put: the flag is already persisted server-side, so retrying the (idempotent) skip or reloading gets the user
+ * through. The whole persist-and-refresh sequence runs inside the mutation so `isSkipping` disables the trigger for
+ * its full duration.
  */
 export function useSkipOnboarding(dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
   const { consoleApiHttpClient, analyticsService, urlService, errorHandler } = useServices();
-  const { checkSession } = dependencies.useUser();
+  const { user, checkSession } = dependencies.useUser();
   const router = dependencies.useRouter();
+  const [isAwaitingSkippedProfile, setIsAwaitingSkippedProfile] = useState(false);
 
   const { mutateAsync, isPending } = useMutation({
-    mutationFn: () => consoleApiHttpClient.post("/v1/user/skipOnboarding"),
+    mutationFn: async (source: SkipOnboardingSource) => {
+      analyticsService.track("onboarding_skipped", { category: "onboarding", source });
+      await consoleApiHttpClient.post("/v1/user/skipOnboarding");
+      await checkSession();
+    },
+    onSuccess: () => setIsAwaitingSkippedProfile(true),
     onError: error => errorHandler.reportError({ error, tags: { category: "onboarding" } })
   });
 
+  useEffect(
+    function navigateOnceProfileCarriesSkipFlag() {
+      if (isAwaitingSkippedProfile && user?.onboardingSkippedAt) router.push(urlService.deploymentList());
+    },
+    [isAwaitingSkippedProfile, user?.onboardingSkippedAt, router, urlService]
+  );
+
   const skip = useCallback(
     async (source: SkipOnboardingSource) => {
-      analyticsService.track("onboarding_skipped", { category: "onboarding", source });
-
-      try {
-        await mutateAsync();
-      } catch {
-        return;
-      }
-
-      try {
-        await checkSession();
-      } catch (error) {
-        errorHandler.reportError({ error, tags: { category: "onboarding" } });
-        return;
-      }
-
-      router.push(urlService.deploymentList());
+      await mutateAsync(source).catch(() => undefined);
     },
-    [analyticsService, mutateAsync, checkSession, router, urlService, errorHandler]
+    [mutateAsync]
   );
 
   return { skip, isSkipping: isPending };
