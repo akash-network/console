@@ -45,6 +45,11 @@ describe("sdlImport", () => {
     it("joins every command element with a newline, dropping empty lines", () => {
       expect(parseSvcCommand(["sh", "-c", "echo 'foo'", "", "echo 'bar'"])).toEqual("sh\n-c\necho 'foo'\necho 'bar'");
     });
+
+    it("preserves falsy scalar tokens parsed from unquoted YAML values", () => {
+      expect(parseSvcCommand(["--retries", 0, "done"])).toEqual("--retries\n0\ndone");
+      expect(parseSvcCommand(["--verbose", false])).toEqual("--verbose\nfalse");
+    });
   });
 
   describe("importSimpleSdl", () => {
