@@ -24,6 +24,7 @@ import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
 import { RequireOnboarding } from "@src/components/onboarding/RequireOnboarding/RequireOnboarding";
 import { UserProviders } from "@src/components/user/UserProviders/UserProviders";
+import { BootLoadingProvider } from "@src/context/BootLoadingProvider/BootLoadingProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { FlagProvider, WaitForFeatureFlags } from "@src/context/FlagProvider/FlagProvider";
 import { PaymentPollingProvider } from "@src/context/PaymentPollingProvider";
@@ -53,7 +54,7 @@ const App: React.FunctionComponent<Props> = props => {
 
   return (
     <AppRoot {...props}>
-      <>
+      <BootLoadingProvider>
         <UserProviders>
           <AccountCreatedTracker />
           <RequireAuth isPublic={isPublic}>
@@ -72,7 +73,7 @@ const App: React.FunctionComponent<Props> = props => {
             </FlagProvider>
           </RequireAuth>
         </UserProviders>
-      </>
+      </BootLoadingProvider>
     </AppRoot>
   );
 };

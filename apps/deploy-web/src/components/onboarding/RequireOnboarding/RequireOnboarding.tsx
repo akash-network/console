@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { useRouter } from "next/router";
 
-import { Loading } from "@src/components/layout/Layout";
+import { BootLoading } from "@src/context/BootLoadingProvider/BootLoadingProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useReturnTo } from "@src/hooks/useReturnTo/useReturnTo";
 import { useUser } from "@src/hooks/useUser";
@@ -87,7 +87,7 @@ function LeaseBasedGate({
   );
 
   if (decision === "render") return <>{children}</>;
-  return <Loading text="" />;
+  return <BootLoading />;
 }
 
 /**

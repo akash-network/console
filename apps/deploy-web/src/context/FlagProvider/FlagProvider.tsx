@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { FlagProvider as FlagProviderOriginal, useUnleashClient } from "@unleash/nextjs";
 
-import { Loading } from "@src/components/layout/Layout";
+import { BootLoading } from "@src/context/BootLoadingProvider/BootLoadingProvider";
 import { useUser } from "@src/hooks/useUser";
 import type { FCWithChildren } from "@src/types/component";
 import { useServices } from "../ServicesProvider";
@@ -77,7 +77,7 @@ export function WaitForFeatureFlags({
   }, [client]);
 
   if (!isReady) {
-    return <Loading text="" />;
+    return <BootLoading />;
   }
   return <>{children}</>;
 }
