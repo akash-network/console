@@ -24,8 +24,9 @@ import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
 import { RequireOnboarding } from "@src/components/onboarding/RequireOnboarding/RequireOnboarding";
 import { UserProviders } from "@src/components/user/UserProviders/UserProviders";
+import { BootLoadingProvider } from "@src/context/BootLoadingProvider/BootLoadingProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
-import { FlagProvider } from "@src/context/FlagProvider/FlagProvider";
+import { FlagProvider, WaitForFeatureFlags } from "@src/context/FlagProvider/FlagProvider";
 import { PaymentPollingProvider } from "@src/context/PaymentPollingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { RootContainerProvider, useRootContainer } from "@src/context/ServicesProvider/RootContainerProvider";
@@ -53,7 +54,7 @@ const App: React.FunctionComponent<Props> = props => {
 
   return (
     <AppRoot {...props}>
-      <>
+      <BootLoadingProvider>
         <UserProviders>
           <AccountCreatedTracker />
           <RequireAuth isPublic={isPublic}>
@@ -62,7 +63,9 @@ const App: React.FunctionComponent<Props> = props => {
                 <PaymentPollingProvider>
                   <NavigationGuardProvider>
                     <RequireOnboarding isPublic={isPublic}>
-                      <Component {...pageProps} />
+                      <WaitForFeatureFlags>
+                        <Component {...pageProps} />
+                      </WaitForFeatureFlags>
                     </RequireOnboarding>
                   </NavigationGuardProvider>
                 </PaymentPollingProvider>
@@ -70,7 +73,7 @@ const App: React.FunctionComponent<Props> = props => {
             </FlagProvider>
           </RequireAuth>
         </UserProviders>
-      </>
+      </BootLoadingProvider>
     </AppRoot>
   );
 };

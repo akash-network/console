@@ -1,4 +1,4 @@
-import { Loading } from "@src/components/layout/Layout";
+import { BootLoading } from "@src/context/BootLoadingProvider/BootLoadingProvider";
 import FourOhFour from "@src/pages/404";
 
 type UseCheck = () => {
@@ -11,7 +11,7 @@ export const Guard = <P extends object>(Component: React.ComponentType<P>, useCh
     const { canVisit, isLoading } = useCheck();
 
     if (isLoading) {
-      return <Loading text="" />;
+      return <BootLoading />;
     }
 
     if (canVisit) {

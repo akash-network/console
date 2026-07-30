@@ -1,9 +1,9 @@
 import { usePathname } from "next/navigation";
 
 import { useWallet } from "@src/context/WalletProvider";
-import { useAllLeases } from "@src/queries/useLeaseQuery";
+import { useLeaseExistenceQuery } from "@src/queries/useLeaseQuery";
 
-export const DEPENDENCIES = { useWallet, usePathname, useAllLeases };
+export const DEPENDENCIES = { useWallet, usePathname, useLeaseExistenceQuery };
 
 /**
  * Routes that get the stripped onboarding chrome. Matched with `startsWith`, so this
@@ -22,8 +22,8 @@ export type OnboardingChromeState = {
  *
  * "Onboarding" here means the user's *first* deployment — chrome is stripped only until they have a lease, the
  * same signal the onboarding gate uses (see `RequireOnboarding`). A trial user who has already deployed keeps the
- * full chrome when creating further deployments; trial status alone is not onboarding. The lease query is shared
- * (same key) with the gate, so it's usually cached and resolves without a spinner.
+ * full chrome when creating further deployments; trial status alone is not onboarding. The lease-existence query
+ * is shared (same key) with the gate, so it's usually cached and resolves without a spinner.
  */
 export const useOnboardingChrome = (d: typeof DEPENDENCIES = DEPENDENCIES): OnboardingChromeState => {
   const { address, hasManagedWallet, managedWalletError } = d.useWallet();
@@ -32,9 +32,9 @@ export const useOnboardingChrome = (d: typeof DEPENDENCIES = DEPENDENCIES): Onbo
   const isRelevant = !!pathname && ONBOARDING_CHROME_PATHS.some(path => pathname.startsWith(path));
   const hasWallet = hasManagedWallet && !!address;
 
-  const leasesQuery = d.useAllLeases(address, { enabled: isRelevant && hasWallet });
-  const isOnboarded = hasWallet && (leasesQuery.data?.length ?? 0) > 0;
-  const leasesErrored = hasWallet && leasesQuery.isError;
+  const leaseExistenceQuery = d.useLeaseExistenceQuery(address, { enabled: isRelevant && hasWallet });
+  const isOnboarded = hasWallet && !!leaseExistenceQuery.data;
+  const leasesErrored = hasWallet && leaseExistenceQuery.isError;
 
   // A wallet error — or a leases error that leaves onboarding unknowable (an undefined result is not "no leases") —
   // makes the funnel decision unresolvable, so fail open to the full chrome rather than trap a possibly-onboarded

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import React, { useEffect } from "react";
 import { useRouter } from "next/router";
 
-import { Loading } from "@src/components/layout/Layout";
+import { BootLoading } from "@src/context/BootLoadingProvider/BootLoadingProvider";
 import { useUser } from "@src/hooks/useUser";
 import { UrlService } from "@src/utils/urlUtils";
 
@@ -39,5 +39,5 @@ export const RequireAuth = ({ isPublic, children, dependencies: d = DEPENDENCIES
   );
 
   if (canRender) return <>{children}</>;
-  return <Loading text="" />;
+  return <BootLoading />;
 };

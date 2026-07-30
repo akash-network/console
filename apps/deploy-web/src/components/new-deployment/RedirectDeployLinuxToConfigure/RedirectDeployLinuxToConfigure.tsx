@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/router";
 
-import { Loading } from "@src/components/layout/Layout";
+import { BootLoading } from "@src/context/BootLoadingProvider/BootLoadingProvider";
 import { UrlService } from "@src/utils/urlUtils";
 
 export const DEPENDENCIES = { useRouter, UrlService };
@@ -25,5 +25,5 @@ export function RedirectDeployLinuxToConfigure({ dependencies: d = DEPENDENCIES 
     [router, d.UrlService]
   );
 
-  return <Loading text="" />;
+  return <BootLoading />;
 }

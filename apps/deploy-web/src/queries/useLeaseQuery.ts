@@ -71,6 +71,25 @@ export function useAllLeases(address: string, options = {}) {
   });
 }
 
+/**
+ * Answers "has this address ever had a lease?" with the SDK's single limit-1 request, unlike
+ * `useAllLeases` which pages through the address's full lease history. Boot gates
+ * (`RequireOnboarding`, `useOnboardingChrome`) only need this boolean, so they can
+ * unblock without paying for the full paginated fetch. A `true` answer never goes stale
+ * (a lease cannot un-exist); while `false`, default staleness keeps refetching on focus
+ * so a first deploy made outside this tab is still picked up.
+ */
+export function useLeaseExistenceQuery(address: string, options: Omit<UseQueryOptions<boolean>, "queryKey" | "queryFn"> = {}) {
+  const { leaseHttpService } = useServices();
+
+  return useQuery({
+    queryKey: QueryKeys.getLeaseExistenceKey(address),
+    queryFn: () => leaseHttpService.hasLeases(address),
+    staleTime: query => (query.state.data ? Infinity : 0),
+    ...options
+  });
+}
+
 export function useLeaseStatus(
   params: {
     provider?: ApiProviderList | null;

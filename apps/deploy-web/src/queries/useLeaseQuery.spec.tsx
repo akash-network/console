@@ -1,3 +1,4 @@
+import type { LeaseHttpService } from "@akashnetwork/http-sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { describe, expect, it, vi } from "vitest";
@@ -12,7 +13,14 @@ import type { ApiProviderList } from "@src/types/provider";
 import { leaseToDto } from "@src/utils/deploymentDetailUtils";
 import { setupQuery } from "../../tests/unit/query-client";
 import { QueryKeys } from "./queryKeys";
-import { type LeaseStatusDto, USE_LEASE_STATUS_DEPENDENCIES, useAllLeases, useDeploymentLeaseList, useLeaseStatus } from "./useLeaseQuery";
+import {
+  type LeaseStatusDto,
+  USE_LEASE_STATUS_DEPENDENCIES,
+  useAllLeases,
+  useDeploymentLeaseList,
+  useLeaseExistenceQuery,
+  useLeaseStatus
+} from "./useLeaseQuery";
 
 import { act } from "@testing-library/react";
 import { buildProvider } from "@tests/seeders/provider";
@@ -261,6 +269,52 @@ describe("useLeaseQuery", () => {
       expect(queries[0].queryKey).toContain("ALL_LEASES");
       expect(queries[0].queryKey).toContain("test-address");
     });
+  });
+
+  describe("useLeaseExistenceQuery", () => {
+    it("returns true when the address has at least one lease", async () => {
+      const { result } = setupLeaseExistence({ hasLeases: true });
+
+      await vi.waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
+      expect(result.current.data).toBe(true);
+    });
+
+    it("returns false when the address has no leases", async () => {
+      const { result } = setupLeaseExistence({ hasLeases: false });
+
+      await vi.waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
+      expect(result.current.data).toBe(false);
+    });
+
+    it("asks the lease service about the queried address", async () => {
+      const { result, leaseHttpService } = setupLeaseExistence({ hasLeases: true });
+
+      await vi.waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
+      expect(leaseHttpService.hasLeases).toHaveBeenCalledWith("test-address");
+    });
+
+    it("keys under the all-leases prefix so deploy-success invalidation refreshes it", () => {
+      const allLeasesKey = QueryKeys.getAllLeasesKey("test-address");
+
+      expect(QueryKeys.getLeaseExistenceKey("test-address").slice(0, allLeasesKey.length)).toEqual(allLeasesKey);
+    });
+
+    function setupLeaseExistence(input: { hasLeases: boolean }) {
+      const leaseHttpService = mock<LeaseHttpService>();
+      leaseHttpService.hasLeases.mockResolvedValue(input.hasLeases);
+      const { result } = setupQuery(() => useLeaseExistenceQuery("test-address"), {
+        services: {
+          leaseHttpService: () => leaseHttpService
+        }
+      });
+      return { result, leaseHttpService };
+    }
   });
 
   describe("useLeaseStatus", () => {

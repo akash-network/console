@@ -26,7 +26,8 @@
   },
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.5",
+    "vitest-mock-extended": "^4.0.0"
   },
   "peerDependencies": {
     "@cosmjs/proto-signing": "~0.38.0",

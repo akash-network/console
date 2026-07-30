@@ -4,11 +4,11 @@ import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { useRouter } from "next/router";
 
-import { Loading } from "@src/components/layout/Layout";
+import { BootLoading } from "@src/context/BootLoadingProvider/BootLoadingProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useReturnTo } from "@src/hooks/useReturnTo/useReturnTo";
 import { useUser } from "@src/hooks/useUser";
-import { useAllLeases } from "@src/queries/useLeaseQuery";
+import { useLeaseExistenceQuery } from "@src/queries/useLeaseQuery";
 
 const ONBOARDING_ROUTE = "/onboarding";
 
@@ -20,7 +20,7 @@ const ONBOARDING_ALLOWED_PREFIXES = ["/new-deployment/configure"];
 export const DEPENDENCIES = {
   useUser,
   useWallet,
-  useAllLeases,
+  useLeaseExistenceQuery,
   useReturnTo,
   useRouter
 };
@@ -56,10 +56,10 @@ function LeaseBasedGate({
   const { returnTo } = d.useReturnTo({ defaultReturnTo: "/" });
 
   const hasWallet = hasManagedWallet && !!address;
-  const leasesQuery = d.useAllLeases(address, { enabled: hasWallet });
-  const isLeasesLoading = hasWallet && leasesQuery.isLoading;
-  const leasesErrored = hasWallet && leasesQuery.isError;
-  const isOnboarded = hasWallet && (leasesQuery.data?.length ?? 0) > 0;
+  const leaseExistenceQuery = d.useLeaseExistenceQuery(address, { enabled: hasWallet });
+  const isLeasesLoading = hasWallet && leaseExistenceQuery.isLoading;
+  const leasesErrored = hasWallet && leaseExistenceQuery.isError;
+  const isOnboarded = hasWallet && !!leaseExistenceQuery.data;
 
   const path = router.asPath.split("?")[0];
   const isOnOnboarding = path === ONBOARDING_ROUTE;
@@ -87,7 +87,7 @@ function LeaseBasedGate({
   );
 
   if (decision === "render") return <>{children}</>;
-  return <Loading text="" />;
+  return <BootLoading />;
 }
 
 /**

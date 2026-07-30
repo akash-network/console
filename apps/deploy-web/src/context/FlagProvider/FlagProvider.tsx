@@ -2,15 +2,14 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { FlagProvider as FlagProviderOriginal, useUnleashClient } from "@unleash/nextjs";
 
-import { Loading } from "@src/components/layout/Layout";
+import { BootLoading } from "@src/context/BootLoadingProvider/BootLoadingProvider";
+import { useServices } from "@src/context/ServicesProvider";
 import { useUser } from "@src/hooks/useUser";
 import type { FCWithChildren } from "@src/types/component";
-import { useServices } from "../ServicesProvider";
 
 const COMPONENTS = {
   FlagProvider: FlagProviderOriginal,
-  useUser,
-  WaitForFeatureFlags
+  useUser
 };
 
 export type Props = { components?: typeof COMPONENTS };
@@ -30,13 +29,26 @@ export const FlagProvider: FCWithChildren<Props> = ({ children, components: c = 
         fetch: isEnableAll ? () => new Response(JSON.stringify({ toggles: [] })) : undefined
       }}
     >
-      <c.WaitForFeatureFlags>{children}</c.WaitForFeatureFlags>
+      {children}
     </c.FlagProvider>
   );
 };
 
-function WaitForFeatureFlags({ children }: { children: ReactNode }) {
-  const client = useUnleashClient();
+/** Fail open with default flag values if Unleash never answers, rather than block the app forever. */
+export const UNLEASH_READY_TIMEOUT_MS = 10_000;
+
+export const WAIT_FOR_FEATURE_FLAGS_DEPENDENCIES = {
+  useUnleashClient
+};
+
+export function WaitForFeatureFlags({
+  children,
+  dependencies: d = WAIT_FOR_FEATURE_FLAGS_DEPENDENCIES
+}: {
+  children: ReactNode;
+  dependencies?: typeof WAIT_FOR_FEATURE_FLAGS_DEPENDENCIES;
+}) {
+  const client = d.useUnleashClient();
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
@@ -45,27 +57,24 @@ function WaitForFeatureFlags({ children }: { children: ReactNode }) {
       return;
     }
 
-    let callback: (() => void) | undefined;
-    if (!client.isReady()) {
-      callback = () => {
-        if (timerId) clearTimeout(timerId);
-        setIsReady(true);
-      };
-      const timerId = setTimeout(callback, 10_000);
-      client.once("ready", callback);
-      client.once("error", callback);
-    }
-
-    return () => {
-      if (callback) {
-        client.off("ready", callback);
-        client.off("error", callback);
-      }
+    const stopWaiting = () => {
+      clearTimeout(timerId);
+      client.off("ready", markReady);
+      client.off("error", markReady);
     };
+    const markReady = () => {
+      stopWaiting();
+      setIsReady(true);
+    };
+    const timerId = setTimeout(markReady, UNLEASH_READY_TIMEOUT_MS);
+    client.on("ready", markReady);
+    client.on("error", markReady);
+
+    return stopWaiting;
   }, [client]);
 
   if (!isReady) {
-    return <Loading text="Loading application..." />;
+    return <BootLoading />;
   }
   return <>{children}</>;
 }
