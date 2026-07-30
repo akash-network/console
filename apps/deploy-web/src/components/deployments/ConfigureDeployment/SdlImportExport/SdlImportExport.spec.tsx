@@ -9,6 +9,7 @@ import { SdlImportExport } from "./SdlImportExport";
 
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { ComponentMock } from "@tests/unit/mocks";
 
 const IMPORTED_STATE: ImportedDeploymentState = { values: mock<SdlBuilderFormValuesType>(), sdl: "imported-sdl", selectedServiceId: "svc-1" };
 
@@ -104,7 +105,7 @@ describe(SdlImportExport.name, () => {
   });
 
   function openMenu() {
-    return userEvent.click(screen.getByRole("button", { name: "SDL import and export" }));
+    return userEvent.click(screen.getByRole("button", { name: "Import or export config" }));
   }
 
   function setup(input: { sdl?: string; deploymentName?: string; canImport?: boolean; canCopy?: boolean }) {
@@ -132,7 +133,8 @@ describe(SdlImportExport.name, () => {
           useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
           Snackbar: () => null,
           saveAs,
-          copyTextToClipboard
+          copyTextToClipboard,
+          CustomNoDivTooltip: ComponentMock
         }}
       />
     );
