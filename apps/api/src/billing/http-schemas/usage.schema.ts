@@ -24,8 +24,8 @@ export const GetUsageHistoryQuerySchema = z
       return { ...data, startDate: data.startDate, endDate };
     }
 
-    const startDate = new Date(endDate);
-    startDate.setDate(startDate.getDate() - 30);
+    const startDate = new Date(`${endDate}T00:00:00.000Z`);
+    startDate.setUTCDate(startDate.getUTCDate() - 30);
 
     return { ...data, startDate: startDate.toISOString().split("T")[0], endDate };
   })
