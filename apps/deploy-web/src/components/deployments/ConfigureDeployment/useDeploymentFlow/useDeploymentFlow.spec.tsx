@@ -134,7 +134,6 @@ describe(useDeploymentFlow.name, () => {
       const services = mockServices();
       const dependencies: typeof DEPENDENCIES = {
         useServices: (() => services) as never,
-        useCreateDeployment: (() => mockMutation()) as never,
         useListBids: (() => ({ data: { data: bids }, isLoading: false, isError: false })) as never,
         useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: vi.fn(), push: vi.fn() })) as never,
         useQueryClient: (() => mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>()) as never,
@@ -645,15 +644,6 @@ describe(useDeploymentFlow.name, () => {
       expect(replace.mock.calls.every(([url]) => !String(url).includes("/configure/999"))).toBe(true);
     });
 
-    it("drops the held create when cancelled during create", () => {
-      const { result, createDeployment } = setup({ createMutate: vi.fn() });
-
-      act(() => result.current.actions.requestQuotes("sdl"));
-      act(() => result.current.actions.cancelAndEdit());
-
-      expect(createDeployment.dropPending).toHaveBeenCalledTimes(1);
-    });
-
     it("tracks cancel_during_create when cancelling while the deployment is being created", () => {
       const { result, analyticsService } = setup({ createMutate: vi.fn() });
 
@@ -802,13 +792,12 @@ describe(useDeploymentFlow.name, () => {
     getDeploymentMutate?: ReturnType<typeof vi.fn>;
   }) {
     const intent = { vm: false, ...(input.intent ?? { sdlStrategy: "edit" as const, bidStrategy: "select" as const, dseq: undefined }) };
+    const createDeployment = mockMutation(input.createMutate);
     const closeDeployment = mockMutation(input.closeMutate);
     const getDeployment = mockMutation(input.getDeploymentMutate);
-    const services = mockServices({ closeDeployment, getDeployment });
-    const createDeployment = mock<ReturnType<typeof DEPENDENCIES.useCreateDeployment>>({ mutate: (input.createMutate ?? vi.fn()) as never });
+    const services = mockServices({ createDeployment, closeDeployment, getDeployment });
     const dependencies: typeof DEPENDENCIES = {
       useServices: (() => services) as never,
-      useCreateDeployment: (() => createDeployment) as never,
       useListBids: (() => ({ data: { data: [] }, isLoading: false, isError: false })) as never,
       useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: (input.replace ?? vi.fn()) as never })) as never,
       useQueryClient: (() => mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>()) as never,
@@ -831,10 +820,14 @@ describe(useDeploymentFlow.name, () => {
     const intent: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, vm: false, ...input?.intent };
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: vi.fn(), push: vi.fn() });
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
-    const services = mockServices({ closeDeployment: input?.closeDeployment, createLease: input?.createLease, updateDeployment: input?.updateDeployment });
+    const services = mockServices({
+      createDeployment: input?.createDeployment,
+      closeDeployment: input?.closeDeployment,
+      createLease: input?.createLease,
+      updateDeployment: input?.updateDeployment
+    });
     const dependencies: typeof DEPENDENCIES = {
       useServices: (() => services) as never,
-      useCreateDeployment: (() => input?.createDeployment ?? mockMutation()) as never,
       useListBids: (() => ({ data: { data: input?.listBids ?? [] }, isLoading: false, isError: false })) as never,
       useRouter: () => router,
       useQueryClient: (() => queryClient) as never,
@@ -850,12 +843,14 @@ describe(useDeploymentFlow.name, () => {
   }
 
   function mockServices(mutations?: {
+    createDeployment?: ReturnType<typeof mockMutation>;
     closeDeployment?: ReturnType<typeof mockMutation>;
     createLease?: ReturnType<typeof mockMutation>;
     updateDeployment?: ReturnType<typeof mockMutation>;
     getDeployment?: ReturnType<typeof mockMutation>;
   }) {
     const services = mockDeep<ReturnType<typeof DEPENDENCIES.useServices>>();
+    services.api.v1.createDeployment.useMutation.mockReturnValue((mutations?.createDeployment ?? mockMutation()) as never);
     services.api.v1.closeDeployment.useMutation.mockReturnValue((mutations?.closeDeployment ?? mockMutation()) as never);
     services.api.v1.createLease.useMutation.mockReturnValue((mutations?.createLease ?? mockMutation()) as never);
     services.api.v1.updateDeployment.useMutation.mockReturnValue((mutations?.updateDeployment ?? mockMutation()) as never);

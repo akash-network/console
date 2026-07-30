@@ -291,37 +291,6 @@ describe(AddCreditsForm.name, () => {
     expect(onDone).not.toHaveBeenCalled();
   });
 
-  it("defers confirmPayment until the wallet is ready", async () => {
-    const confirmPayment = vi.fn().mockResolvedValue({ success: true });
-    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1", organization: "Acme" });
-    const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
-
-    const { rerender } = setup({
-      status: "success",
-      clientSecret: "seti_secret",
-      confirmPayment,
-      isWalletReady: false,
-      dependencies: { AddCreditsNewPaymentMethodFields }
-    });
-
-    fireEvent.click(screen.getByRole("radio", { name: "100" }));
-
-    await act(async () => {
-      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
-    });
-
-    expect(addPaymentMethod).toHaveBeenCalledTimes(1);
-    expect(confirmPayment).not.toHaveBeenCalled();
-
-    await act(async () => {
-      rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, isWalletReady: true });
-    });
-
-    await waitFor(() =>
-      expect(confirmPayment).toHaveBeenCalledWith({ userId: "user_1", paymentMethodId: "pm_1", amount: 100, idempotencyKey: expect.any(String) })
-    );
-  });
-
   it("does not call the API when addPaymentMethod resolves null", async () => {
     const confirmPayment = vi.fn();
     const onDone = vi.fn();
@@ -988,7 +957,6 @@ describe(AddCreditsForm.name, () => {
     isTrialing?: boolean;
     isPolling?: boolean;
     lastOutcome?: ReturnType<typeof DEPENDENCIES.usePaymentPolling>["lastOutcome"];
-    isWalletReady?: boolean;
     walletBalanceUsd?: number;
     paymentMethods?: PaymentMethod[];
     isLoadingMethods?: boolean;
@@ -1068,7 +1036,6 @@ describe(AddCreditsForm.name, () => {
     return (
       <AddCreditsForm
         onDone={input.onDone ?? vi.fn()}
-        isWalletReady={input.isWalletReady ?? true}
         onProcessingChange={input.onProcessingChange}
         dependencies={{
           AddCreditsAmountFields,

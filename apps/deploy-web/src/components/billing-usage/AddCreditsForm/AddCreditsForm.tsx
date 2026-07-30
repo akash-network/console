@@ -65,7 +65,6 @@ export const DEPENDENCIES = {
 
 interface AddCreditsFormProps {
   onDone: (amount: number, organization?: string, bonusAmount?: number) => void;
-  isWalletReady?: boolean;
   onProcessingChange?: (isProcessing: boolean) => void;
   dependencies?: typeof DEPENDENCIES;
 }
@@ -80,14 +79,15 @@ interface PendingCharge {
 }
 
 /**
- * Orchestrates the Add Credits flow: collecting a payment method is always
- * allowed, but the charge waits until the managed wallet is ready. Saved
- * payment methods are offered when the user has any (default pre-selected),
- * with new-card entry as a fallback or explicit choice. On submit it resolves
- * the payment method (saved id, or the swappable child for a new card) and
- * stores it as a pending charge; a reactive effect fires confirmPayment once
- * the wallet is ready, hands off to the 3D Secure popup when required, then
- * waits for payment polling to confirm settlement before notifying the caller
+ * Orchestrates the Add Credits flow. Saved payment methods are offered when
+ * the user has any (default pre-selected), with new-card entry as a fallback
+ * or explicit choice. On submit it resolves the payment method (saved id, or
+ * the swappable child for a new card) and stores it as a pending charge; a
+ * reactive effect fires confirmPayment immediately — the managed wallet may
+ * still be provisioning, in which case the server replies with a retriable
+ * `wallet_provisioning` 409 that the payment mutation retries with backoff
+ * until activation lands. It hands off to the 3D Secure popup when required,
+ * then waits for payment polling to confirm settlement before notifying the caller
  * through onDone. A poll that exhausts without confirmation is NOT completion:
  * the charge may still settle, so the form releases its in-flight state
  * without onDone and the attempt stays replayable. A new card is confirmed
@@ -95,7 +95,7 @@ interface PendingCharge {
  * saved payment method instead of re-confirming a consumed intent. Each charge
  * carries a replay-safe idempotency key managed by useTopUpAttemptKey.
  */
-export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChange, dependencies: d = DEPENDENCIES }: AddCreditsFormProps) {
+export function AddCreditsForm({ onDone, onProcessingChange, dependencies: d = DEPENDENCIES }: AddCreditsFormProps) {
   const { data: setupIntent, mutate: createSetupIntent, status: setupIntentStatus, reset: resetSetupIntent } = d.useSetupIntentMutation();
   const { user } = d.useUser();
   const { pollForPayment, isPolling, lastOutcome } = d.usePaymentPolling();
@@ -119,9 +119,9 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
   const paymentMethodRef = useRef<PaymentMethodSourceHandle>(null);
   /** Payment method already confirmed against the current SetupIntent; reused on retry because a SetupIntent can only be confirmed once. */
   const confirmedNewCardRef = useRef<{ paymentMethodId: string; organization?: string } | null>(null);
-  const wasPollingRef = useRef<boolean>(false);
   /** Last payment-method type reported to analytics, so the payment element's frequent change events don't re-fire the same type. */
   const lastPaymentTypeRef = useRef<string | null>(null);
+  const wasPollingRef = useRef<boolean>(false);
 
   const amount = useMemo(() => Number(amountInput.predefinedAmount || amountInput.customAmount) || 0, [amountInput.predefinedAmount, amountInput.customAmount]);
   const amountError = amount > 0 && amount < topUpMinAmountUsd ? `Minimum amount is $${topUpMinAmountUsd}` : undefined;
@@ -269,13 +269,13 @@ export function AddCreditsForm({ onDone, isWalletReady = true, onProcessingChang
   );
 
   useEffect(
-    function chargeWhenWalletReady() {
-      if (!charge || charge.status !== "pending" || charge.amount < topUpMinAmountUsd || !isWalletReady) return;
+    function chargePendingTopUp() {
+      if (!charge || charge.status !== "pending" || charge.amount < topUpMinAmountUsd) return;
 
       setCharge({ ...charge, status: "charging" });
       void performCharge(charge);
     },
-    [charge, isWalletReady, topUpMinAmountUsd, performCharge]
+    [charge, topUpMinAmountUsd, performCharge]
   );
 
   useEffect(

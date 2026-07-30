@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
+import { extractApiErrorCode, extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useRouter } from "next/router";
@@ -12,8 +12,8 @@ import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
 import { ManifestYaml } from "@src/utils/deploymentData/helpers";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { UrlService } from "@src/utils/urlUtils";
+import { WALLET_PROVISIONING_ERROR_CODE, walletProvisioningRetry } from "@src/utils/walletProvisioning";
 import { aggregateDeploymentResources } from "../DeploymentResourceSummary/deploymentResources";
-import { useCreateDeployment } from "../useCreateDeployment/useCreateDeployment";
 import type { BidStrategy, DeploymentIntent } from "./deploymentIntent";
 
 export type DeploymentFlowPhase = "configuring" | "creating" | "quoting" | "closing" | "deploying" | "error";
@@ -60,13 +60,6 @@ export type DeploymentFlow = DeploymentFlowState & { actions: DeploymentFlowActi
 
 interface UseDeploymentFlowInput {
   intent: DeploymentIntent;
-  /**
-   * Whether the trial wallet can broadcast. Threaded into the create step so requesting quotes waits for the trial
-   * to provision instead of failing; defaults to ready so callers with a real wallet (or tests) fire immediately.
-   */
-  isWalletReady?: boolean;
-  /** A terminal start-trial failure, surfaced so a held create fails instead of waiting forever. */
-  trialError?: unknown;
 }
 
 /** Default escrow deposit in USD (ACT maps 1:1 to USD). Matches `DEFAULT_DEPOSIT_USD` in the phased flow so a trial grant covers it. */
@@ -84,9 +77,12 @@ const NO_BIDS_TIMEOUT_MS = 60 * 1000;
 /** Error surfaced when a deployment draws no provider bids at all within {@link NO_BIDS_TIMEOUT_MS}. */
 const NO_PROVIDERS_MESSAGE = "No providers are available for this deployment right now. Try adjusting your deployment and requesting quotes again.";
 
+/** Surfaced when the create-deployment retry budget is exhausted while the trial wallet is still provisioning server-side. */
+const WALLET_PROVISIONING_TIMEOUT_MESSAGE =
+  "Your account is still being set up. Please try again in a few minutes, or contact support if this keeps happening.";
+
 export const DEPENDENCIES = {
   useServices,
-  useCreateDeployment,
   useListBids,
   useRouter,
   useQueryClient,
@@ -100,13 +96,10 @@ export const DEPENDENCIES = {
  * lives in react-query via `usePlacementOffers`. Resumes in `quoting` when the URL already carries
  * a dseq, so a reload picks up live bids rather than restarting.
  */
-export function useDeploymentFlow(
-  { intent, isWalletReady = true, trialError }: UseDeploymentFlowInput,
-  dependencies: typeof DEPENDENCIES = DEPENDENCIES
-): DeploymentFlow {
+export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependencies: typeof DEPENDENCIES = DEPENDENCIES): DeploymentFlow {
   const { api, deploymentLocalStorage, analyticsService } = dependencies.useServices();
   const router = dependencies.useRouter();
-  const createDeployment = dependencies.useCreateDeployment({ isWalletReady, trialError });
+  const createDeployment = api.v1.createDeployment.useMutation(walletProvisioningRetry);
   const closeDeployment = api.v1.closeDeployment.useMutation();
   const createLease = api.v1.createLease.useMutation();
   const updateDeployment = api.v1.updateDeployment.useMutation();
@@ -293,7 +286,11 @@ export function useDeploymentFlow(
             },
             onError: function onCreateFailed(cause: unknown) {
               if (attempt !== createAttemptRef.current) return;
-              setError({ message: extractApiErrorMessage(cause) ?? undefined, kind: "create" });
+              const message =
+                extractApiErrorCode(cause) === WALLET_PROVISIONING_ERROR_CODE
+                  ? WALLET_PROVISIONING_TIMEOUT_MESSAGE
+                  : extractApiErrorMessage(cause) ?? undefined;
+              setError({ message, kind: "create" });
               setPhase("error");
             }
           }
@@ -332,7 +329,6 @@ export function useDeploymentFlow(
       createAttemptRef.current += 1;
       if (!dseq) {
         if (phase === "creating") analyticsService.track("cancel_during_create", { category: "deployments" });
-        createDeployment.dropPending();
         setError(undefined);
         setPhase("configuring");
         return;
@@ -419,6 +415,7 @@ export function useDeploymentFlow(
         }
         analyticsService.track("send_manifest", { category: "deployments", label: "Send manifest after creating lease", dseq: activeDseq });
         cacheDeployedSdl(deploymentLocalStorage, owner, activeDseq, sdl);
+        queryClient.invalidateQueries({ queryKey: QueryKeys.getLeaseExistenceKey(owner) });
         queryClient.invalidateQueries({ queryKey: QueryKeys.getAllLeasesKey(owner) });
         queryClient.invalidateQueries({ queryKey: QueryKeys.getDeploymentListKey(owner) });
         setDeploySucceeded(true);

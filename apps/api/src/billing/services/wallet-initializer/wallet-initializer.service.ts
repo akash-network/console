@@ -1,9 +1,9 @@
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
-import { AuthService } from "@src/auth/services/auth.service";
 import { TrialStarted } from "@src/billing/events/trial-started";
 import { UserWalletOutput, UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
+import { TrialActivationInstrumentationService } from "@src/billing/services/activate-trial/trial-activation-instrumentation.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
@@ -18,21 +18,12 @@ export class WalletInitializerService {
     private readonly walletManager: ManagedUserWalletService,
     private readonly managedSignerService: ManagedSignerService,
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly authService: AuthService,
     private readonly domainEvents: DomainEventsService,
     private readonly featureFlagsService: FeatureFlagsService,
     private readonly stripeService: StripeService,
-    private readonly userRepository: UserRepository
+    private readonly userRepository: UserRepository,
+    private readonly trialActivationInstrumentation: TrialActivationInstrumentationService
   ) {}
-
-  async startTrial(userId: string): Promise<UserWalletPublicOutput> {
-    const { currentUser } = this.authService;
-
-    assert(currentUser.emailVerified, 400, "Email not verified");
-    await this.#assertNoDuplicateFingerprint(currentUser);
-
-    return this.initializeAndGrantTrialLimits(userId);
-  }
 
   async #assertNoDuplicateFingerprint(user: UserOutput): Promise<void> {
     if (!this.stripeService.isProduction) return;
@@ -43,31 +34,39 @@ export class WalletInitializerService {
     assert(usersWithSameFingerprint.length === 0, 400, "Unable to start trial. Please contact support for assistance.");
   }
 
+  /**
+   * Provisions the trial: grants on-chain deployment/fee allowances and marks the wallet activated. Runs from a
+   * background job (no request context), so it resolves the user itself and enforces the trial preconditions —
+   * email verified and no duplicate fingerprint — that used to live in the removed start-trial endpoint.
+   *
+   * `activatedAt` is set only after the grants land, so it doubles as the spend gate's "ready" signal: a deploy
+   * arriving mid-provisioning sees no `activatedAt` and gets a retriable 409 rather than a bare 402 off empty
+   * allowances. Concurrency is handled upstream — the ActivateTrial queue is `policy: singleton`, so at most one
+   * job per user is ever active — and the grants are idempotent (revoke-then-regrant / authz overwrite), so a
+   * crashed job just re-runs on retry and re-converges to the same limits. No claim or rollback needed.
+   */
   async initializeAndGrantTrialLimits(userId: string): Promise<UserWalletPublicOutput> {
-    const userWallet = await this.#ensureWalletVia(this.userWalletRepository.accessibleBy(this.authService.ability, "create"), userId);
+    const user = await this.userRepository.findById(userId);
+    assert(user, 404, "User Not Found");
+    assert(user.emailVerified, 400, "Email not verified");
+    await this.#assertNoDuplicateFingerprint(user);
 
+    const userWallet = await this.ensureWallet(userId);
     if (userWallet.activatedAt) return this.userWalletRepository.toPublic(userWallet);
 
-    const claimedWallet = await this.userWalletRepository.claimActivation(userWallet.id);
-    assert(claimedWallet, 409, "Trial provisioning is already in progress");
-
-    let activatedWallet: UserWalletOutput;
-    try {
-      const chainWallet = await this.walletManager.createAndAuthorizeTrialSpending(this.managedSignerService, { addressIndex: claimedWallet.id });
-      activatedWallet = await this.userWalletRepository.updateById(
-        claimedWallet.id,
-        {
-          deploymentAllowance: chainWallet.limits.deployment,
-          feeAllowance: chainWallet.limits.fees
-        },
-        { returning: true }
-      );
-    } catch (error) {
-      await this.userWalletRepository.updateById(claimedWallet.id, { activatedAt: null });
-      throw error;
-    }
+    const chainWallet = await this.walletManager.createAndAuthorizeTrialSpending(this.managedSignerService, { addressIndex: userWallet.id });
+    const activatedWallet = await this.userWalletRepository.updateById(
+      userWallet.id,
+      {
+        deploymentAllowance: chainWallet.limits.deployment,
+        feeAllowance: chainWallet.limits.fees,
+        activatedAt: new Date()
+      },
+      { returning: true }
+    );
 
     await this.domainEvents.publish(new TrialStarted({ userId }));
+    this.trialActivationInstrumentation.recordActivated(userId, Date.now() - new Date(activatedWallet.createdAt).getTime());
 
     return this.userWalletRepository.toPublic(activatedWallet);
   }

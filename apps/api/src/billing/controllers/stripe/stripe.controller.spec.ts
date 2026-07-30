@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import createError from "http-errors";
 import type Stripe from "stripe";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
@@ -14,6 +15,7 @@ import type { StripeService } from "@src/billing/services/stripe/stripe.service"
 import type { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
 import type { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import type { TransactionReportingService } from "@src/billing/services/transaction-reporting/transaction-reporting.service";
+import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import { StripeController } from "./stripe.controller";
 
@@ -22,6 +24,18 @@ import { createUser } from "@test/seeders/user.seeder";
 
 describe(StripeController.name, () => {
   describe("confirmPayment", () => {
+    it("throws a retriable 409 without charging when the wallet is still provisioning", async () => {
+      const { controller, stripeTransaction, trialActivationJobService, userWalletRepository, user } = setup();
+      userWalletRepository.findOneByUserId.mockResolvedValue(mock<UserWalletOutput>({ activatedAt: null }));
+      trialActivationJobService.assertActivated.mockRejectedValue(createError(409, "provisioning", { errorCode: "wallet_provisioning" }));
+
+      await expect(controller.confirmPayment({ userId: user.id, paymentMethodId: faker.string.uuid(), amount: 100 })).rejects.toMatchObject({
+        status: 409,
+        errorCode: "wallet_provisioning"
+      });
+      expect(stripeTransaction.createPaymentIntent).not.toHaveBeenCalled();
+    });
+
     it("returns transactionId and transactionStatus on successful payment", async () => {
       const { controller, stripeTransaction, paymentMethodService, user } = setup();
       const transactionId = faker.string.uuid();
@@ -263,6 +277,18 @@ describe(StripeController.name, () => {
   });
 
   describe("applyCoupon", () => {
+    it("throws a retriable 409 without redeeming when the wallet is still provisioning", async () => {
+      const { controller, couponRedemptionService, trialActivationJobService, userWalletRepository, user } = setup();
+      userWalletRepository.findOneByUserId.mockResolvedValue(mock<UserWalletOutput>({ activatedAt: null }));
+      trialActivationJobService.assertActivated.mockRejectedValue(createError(409, "provisioning", { errorCode: "wallet_provisioning" }));
+
+      await expect(controller.applyCoupon({ couponId: faker.string.alphanumeric(10), userId: user.id })).rejects.toMatchObject({
+        status: 409,
+        errorCode: "wallet_provisioning"
+      });
+      expect(couponRedemptionService.redeemCoupon).not.toHaveBeenCalled();
+    });
+
     it("returns transactionId and transactionStatus on successful coupon", async () => {
       const { controller, couponRedemptionService, user } = setup();
       const transactionId = faker.string.uuid();
@@ -441,6 +467,7 @@ describe(StripeController.name, () => {
     const stripeErrorService = mock<StripeErrorService>();
     const userWalletRepository = mock<UserWalletRepository>();
     const trialValidationService = mock<TrialValidationService>();
+    const trialActivationJobService = mock<TrialActivationJobService>();
     const transactionReporting = mock<TransactionReportingService>();
     const controller = new StripeController(
       stripe,
@@ -449,6 +476,7 @@ describe(StripeController.name, () => {
       stripeErrorService,
       userWalletRepository,
       trialValidationService,
+      trialActivationJobService,
       transactionReporting,
       paymentMethodService,
       couponRedemptionService
@@ -465,6 +493,7 @@ describe(StripeController.name, () => {
       stripeErrorService,
       userWalletRepository,
       trialValidationService,
+      trialActivationJobService,
       user
     };
   }

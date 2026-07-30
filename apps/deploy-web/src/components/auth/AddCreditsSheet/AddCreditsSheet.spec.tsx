@@ -89,12 +89,6 @@ describe(AddCreditsSheet.name, () => {
     expect(analyticsService.track).not.toHaveBeenCalledWith("add_credits_cancelled", expect.anything());
   });
 
-  it("forwards isWalletReady to the tabs", () => {
-    const { dependencies } = setup({ open: true, isWalletReady: false });
-
-    expect(dependencies.AddCreditsTabs).toHaveBeenCalledWith(expect.objectContaining({ isWalletReady: false }), expect.anything());
-  });
-
   it("threads the initial tab to the tabs", () => {
     const { dependencies } = setup({ open: true, initialTab: "coupon" });
 
@@ -137,7 +131,6 @@ describe(AddCreditsSheet.name, () => {
     onOpenChange?: (open: boolean) => void;
     onDone?: (amount: number, organization?: string) => void;
     onRedeemed?: () => void;
-    isWalletReady?: boolean;
     initialTab?: "purchase" | "coupon";
     description?: React.ReactNode;
     context?: string;
@@ -153,7 +146,6 @@ describe(AddCreditsSheet.name, () => {
         onOpenChange={input.onOpenChange ?? vi.fn()}
         onDone={input.onDone ?? vi.fn()}
         onRedeemed={input.onRedeemed}
-        isWalletReady={input.isWalletReady}
         initialTab={input.initialTab}
         description={input.description}
         context={input.context}

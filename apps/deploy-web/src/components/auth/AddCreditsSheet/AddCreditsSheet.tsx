@@ -24,7 +24,6 @@ interface AddCreditsSheetProps {
   onOpenChange: (open: boolean) => void;
   onDone: (amount: number, organization?: string, bonusAmount?: number) => void;
   onRedeemed?: () => void;
-  isWalletReady?: boolean;
   initialTab?: AddCreditsTab;
   description?: React.ReactNode;
   /** Where the sheet was opened from (e.g. the onboarding reason); sent with the lifecycle events for funnel segmentation. */
@@ -37,7 +36,6 @@ export function AddCreditsSheet({
   onOpenChange,
   onDone,
   onRedeemed,
-  isWalletReady,
   initialTab,
   description = DEFAULT_DESCRIPTION,
   context,
@@ -87,15 +85,7 @@ export function AddCreditsSheet({
           <d.SheetDescription className="text-sm leading-5 text-muted-foreground">{description}</d.SheetDescription>
         </d.SheetHeader>
 
-        {open && (
-          <d.AddCreditsTabs
-            initialTab={initialTab}
-            onDone={completePurchase}
-            onRedeemed={completeRedemption}
-            isWalletReady={isWalletReady}
-            onProcessingChange={setIsProcessing}
-          />
-        )}
+        {open && <d.AddCreditsTabs initialTab={initialTab} onDone={completePurchase} onRedeemed={completeRedemption} onProcessingChange={setIsProcessing} />}
       </d.SheetContent>
     </d.Sheet>
   );

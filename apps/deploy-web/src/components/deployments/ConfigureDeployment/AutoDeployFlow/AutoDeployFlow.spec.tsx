@@ -15,13 +15,12 @@ type FlowResult = ReturnType<typeof DEPENDENCIES.useAutoDeploymentFlow>;
 const CONTACT_SUPPORT_URL = "https://akash.network/discord";
 
 describe(AutoDeployFlow.name, () => {
-  it("drives the autopilot with the shared flow, trial readiness, and the resolved SDL", () => {
+  it("drives the autopilot with the shared flow and the resolved SDL", () => {
     const useAutoDeploymentFlow = vi.fn(() => buildAutopilot());
-    const trialError = new Error("trial failed");
     const flow = mock<DeploymentFlow>();
-    setup({ sdl: "sdl-content", flow, isWalletReady: true, trialError, useAutoDeploymentFlow });
+    setup({ sdl: "sdl-content", flow, useAutoDeploymentFlow });
 
-    expect(useAutoDeploymentFlow).toHaveBeenCalledWith({ sdl: "sdl-content", isWalletReady: true, trialError, resumeLeases: [], flow });
+    expect(useAutoDeploymentFlow).toHaveBeenCalledWith({ sdl: "sdl-content", resumeLeases: [], flow });
   });
 
   it("forwards the guard's resolved live leases to the flow so it can re-send the manifest", () => {
@@ -60,26 +59,6 @@ describe(AutoDeployFlow.name, () => {
     sceneProps().onTryAgain?.();
 
     expect(tryAgain).toHaveBeenCalledTimes(1);
-  });
-
-  it("resets the trial before restarting when the trial has errored, so the retry is not a dead-end", () => {
-    const tryAgain = vi.fn();
-    const retryTrial = vi.fn();
-    const { sceneProps } = setup({ autopilot: { tryAgain }, isWalletReady: false, trialError: new Error("trial failed"), retryTrial });
-
-    sceneProps().onTryAgain?.();
-
-    expect(retryTrial).toHaveBeenCalledTimes(1);
-    expect(tryAgain).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not reset the trial on retry when there was no trial error", () => {
-    const retryTrial = vi.fn();
-    const { sceneProps } = setup({ autopilot: { tryAgain: vi.fn() }, isWalletReady: true, retryTrial });
-
-    sceneProps().onTryAgain?.();
-
-    expect(retryTrial).not.toHaveBeenCalled();
   });
 
   it("stops the autopilot and switches to manual bid selection when the user chooses a provider", () => {
@@ -125,9 +104,6 @@ describe(AutoDeployFlow.name, () => {
       sdl?: string;
       resume?: ResumeResolution;
       flow?: DeploymentFlow;
-      isWalletReady?: boolean;
-      trialError?: unknown;
-      retryTrial?: () => void;
       contactSupportUrl?: string;
       autopilot?: Partial<FlowResult>;
       useAutoDeploymentFlow?: typeof DEPENDENCIES.useAutoDeploymentFlow;
@@ -147,9 +123,6 @@ describe(AutoDeployFlow.name, () => {
         sdl={input.sdl ?? "sdl-content"}
         resume={input.resume ?? { activeLeases: [] }}
         flow={input.flow ?? mock<DeploymentFlow>()}
-        isWalletReady={input.isWalletReady ?? true}
-        trialError={input.trialError}
-        retryTrial={input.retryTrial ?? vi.fn()}
         dependencies={{
           Layout: ComponentMock,
           PhasedDeployProgressScene,

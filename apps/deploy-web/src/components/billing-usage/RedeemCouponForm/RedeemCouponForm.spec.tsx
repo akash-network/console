@@ -73,15 +73,6 @@ describe(RedeemCouponForm.name, () => {
     expect(applyCoupon).not.toHaveBeenCalled();
   });
 
-  it("disables the redeem button and shows a hint while the wallet is not ready", () => {
-    setup({ isWalletReady: false });
-
-    typeCoupon("AKASH-1234-5678");
-
-    expect(redeemButton()).toBeDisabled();
-    expect(screen.getByText(/setting up your account/i)).toBeInTheDocument();
-  });
-
   it("reports processing to the parent while the coupon is being applied", () => {
     const onProcessingChange = vi.fn();
 
@@ -155,7 +146,6 @@ describe(RedeemCouponForm.name, () => {
     isApplyingCoupon?: boolean;
     pollForPayment?: ReturnType<typeof DEPENDENCIES.usePaymentPolling>["pollForPayment"];
     isPolling?: boolean;
-    isWalletReady?: boolean;
     onProcessingChange?: (isProcessing: boolean) => void;
     onRedeemed?: () => void;
   }) {
@@ -195,12 +185,7 @@ describe(RedeemCouponForm.name, () => {
     // element reference; the mocked polling hook reads `pollingRef` at call time.
     const build = () => (
       <IntlProvider locale="en-US" defaultLocale="en-US">
-        <RedeemCouponForm
-          isWalletReady={input.isWalletReady ?? true}
-          onProcessingChange={input.onProcessingChange}
-          onRedeemed={input.onRedeemed}
-          dependencies={dependencies}
-        />
+        <RedeemCouponForm onProcessingChange={input.onProcessingChange} onRedeemed={input.onRedeemed} dependencies={dependencies} />
       </IntlProvider>
     );
 

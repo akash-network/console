@@ -70,7 +70,6 @@ describe(AddCreditsTabs.name, () => {
     initialTab?: "purchase" | "coupon";
     onDone?: (amount: number, organization?: string) => void;
     onRedeemed?: () => void;
-    isWalletReady?: boolean;
     onProcessingChange?: (isProcessing: boolean) => void;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
@@ -79,7 +78,6 @@ describe(AddCreditsTabs.name, () => {
         initialTab={input.initialTab}
         onDone={input.onDone ?? vi.fn()}
         onRedeemed={input.onRedeemed}
-        isWalletReady={input.isWalletReady ?? true}
         onProcessingChange={input.onProcessingChange}
         dependencies={{
           Tabs,

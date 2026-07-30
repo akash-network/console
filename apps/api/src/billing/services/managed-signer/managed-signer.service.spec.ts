@@ -5,6 +5,7 @@ import type { LeaseHttpService } from "@akashnetwork/http-sdk";
 import type { MongoAbility } from "@casl/ability";
 import { createMongoAbility } from "@casl/ability";
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
+import createError from "http-errors";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -17,6 +18,7 @@ import type { BalancesService } from "@src/billing/services/balances/balances.se
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import type { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
+import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { LoggerService } from "@src/core";
@@ -598,6 +600,29 @@ describe(ManagedSignerService.name, () => {
       expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
     });
 
+    it("delegates spend-time activation to the guard and surfaces its retriable 409", async () => {
+      const wallet = createUserWallet({ userId: "user-123", activatedAt: null });
+      const user = createUser({ userId: "user-123" });
+      const deploymentMessage = {
+        typeUrl: MsgCreateDeployment.$type,
+        value: Buffer.from(JSON.stringify({ id: { dseq: "123", owner: wallet.address } })).toString("base64")
+      };
+
+      const { service, trialActivationJobService, txManagerService } = setup({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        decode: vi.fn().mockReturnValue({ id: { dseq: "123", owner: wallet.address } })
+      });
+      trialActivationJobService.assertActivated.mockRejectedValue(createError(409, "provisioning", { errorCode: "wallet_provisioning" }));
+
+      await expect(service.executeDerivedEncodedTxByUserId("user-123", [deploymentMessage])).rejects.toMatchObject({
+        status: 409,
+        errorCode: "wallet_provisioning"
+      });
+      expect(trialActivationJobService.assertActivated).toHaveBeenCalledWith(wallet);
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+    });
+
     it("throws 400 with message index and typeUrl when a message fails to decode", async () => {
       const decodeError = new Error("illegal tag: field no 0 wire type 7");
       const badMessage = {
@@ -741,6 +766,7 @@ describe(ManagedSignerService.name, () => {
       managedUserWalletService: mock<ManagedUserWalletService>({
         refillWalletFees: vi.fn()
       }),
+      trialActivationJobService: mock<TrialActivationJobService>(),
       logger: mock<LoggerService>({
         setContext: vi.fn(),
         error: vi.fn()
@@ -765,6 +791,7 @@ describe(ManagedSignerService.name, () => {
       mocks.leaseHttpService,
       mocks.walletReloadJobService,
       mocks.managedUserWalletService,
+      mocks.trialActivationJobService,
       mocks.logger
     );
 

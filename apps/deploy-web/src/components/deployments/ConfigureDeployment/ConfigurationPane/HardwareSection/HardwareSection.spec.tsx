@@ -112,7 +112,7 @@ describe(HardwareSection.name, () => {
 
     setup({ dependencies: { GpuCard, AddCreditsSheet, useTrialGate } });
 
-    expect(AddCreditsSheet).toHaveBeenLastCalledWith(expect.objectContaining({ open: false, isWalletReady: true }), expect.anything());
+    expect(AddCreditsSheet).toHaveBeenLastCalledWith(expect.objectContaining({ open: false }), expect.anything());
 
     act(() => requestUnlock());
 

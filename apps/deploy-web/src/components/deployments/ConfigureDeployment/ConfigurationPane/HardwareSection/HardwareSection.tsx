@@ -60,7 +60,7 @@ type Props = {
  */
 export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   d.useRevalidateUniqueness(`services.${serviceIndex}.profile.storage`, storageUniquenessKey);
-  const { isRestricted, isWalletReady } = d.useTrialGate();
+  const { isRestricted } = d.useTrialGate();
   const [isUnlockOpen, setIsUnlockOpen] = useState(false);
 
   const openUnlock = () => setIsUnlockOpen(true);
@@ -99,7 +99,7 @@ export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, depen
         <d.PersistentStorageCard serviceIndex={serviceIndex} locked={locked} />
       </div>
 
-      <d.AddCreditsSheet open={isUnlockOpen} onOpenChange={setIsUnlockOpen} isWalletReady={isWalletReady} onDone={closeUnlock} />
+      <d.AddCreditsSheet open={isUnlockOpen} onOpenChange={setIsUnlockOpen} onDone={closeUnlock} />
     </div>
   );
 };

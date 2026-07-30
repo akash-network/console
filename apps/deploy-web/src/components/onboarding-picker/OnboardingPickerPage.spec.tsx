@@ -69,20 +69,6 @@ describe(OnboardingPickerPage.name, () => {
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: SPACE_AGENT_ID, sdlStrategy: "default", bidStrategy: "auto" }));
   });
 
-  it("renders an error alert when trial start fails terminally", () => {
-    const useEnsureTrialStarted: () => EnsureTrialStartedResult = () =>
-      mock<EnsureTrialStartedResult>({ isWalletReady: false, isLoading: false, error: new Error("boom") });
-    setup({ dependencies: { useEnsureTrialStarted } });
-
-    expect(screen.getByText(/We couldn't set up your trial/i)).toBeInTheDocument();
-  });
-
-  it("does not render the error alert when trial start has not failed", () => {
-    setup();
-
-    expect(screen.queryByText(/We couldn't set up your trial/i)).not.toBeInTheDocument();
-  });
-
   it("labels the LLM card with the unlock CTA when the user is still trialing", () => {
     const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
     setup({ isTrialing: true, dependencies: { DeploymentTemplatePickerCard } });
@@ -105,7 +91,7 @@ describe(OnboardingPickerPage.name, () => {
       isTrialing: true,
       dependencies: {
         DeploymentTemplatePickerCard,
-        useEnsureTrialStarted: () => mock<EnsureTrialStartedResult>({ isWalletReady: false, isLoading: true, error: null })
+        useEnsureTrialStarted: () => mock<EnsureTrialStartedResult>({ wallet: undefined, isWalletReady: false, isLoading: true })
       }
     });
 
@@ -134,19 +120,6 @@ describe(OnboardingPickerPage.name, () => {
     act(() => getCard(DeploymentTemplatePickerCard, "LLM Chatbot").onDeploy!());
 
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: LLM_ID, sdlStrategy: "default", bidStrategy: "auto" }));
-  });
-
-  it("forwards isWalletReady to the verification sheet", () => {
-    const AddCreditsSheet = vi.fn(ComponentMock);
-    setup({
-      isTrialing: true,
-      dependencies: {
-        AddCreditsSheet,
-        useEnsureTrialStarted: () => mock<EnsureTrialStartedResult>({ isWalletReady: false, isLoading: true, error: null })
-      }
-    });
-
-    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).isWalletReady).toBe(false);
   });
 
   it("closes the verification sheet when the sheet requests to close", () => {
@@ -378,8 +351,7 @@ describe(OnboardingPickerPage.name, () => {
     const useEnsureTrialStarted: typeof DEPENDENCIES.useEnsureTrialStarted = vi.fn(() =>
       mock<EnsureTrialStartedResult>({
         isWalletReady: true,
-        isLoading: false,
-        error: null
+        isLoading: false
       })
     );
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing });
