@@ -108,7 +108,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-6">
           {!minimal && (
             <div className="hidden md:block">
               <d.HackathonCouponNavEntry />
