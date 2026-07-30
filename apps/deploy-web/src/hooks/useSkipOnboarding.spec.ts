@@ -100,14 +100,19 @@ describe(useSkipOnboarding.name, () => {
 
     const analyticsService = mock<AnalyticsService>();
     const errorHandler = mock<ErrorHandlerService>();
-    const checkSession = vi.fn(
-      input?.checkSession ?? (input?.checkSessionRejects ? () => Promise.reject(new Error("refresh failed")) : () => Promise.resolve())
-    );
+
+    let onboardingSkippedAt: string | null = null;
+    const refreshedOnboardingSkippedAt = input?.refreshedOnboardingSkippedAt === undefined ? "2026-07-30T00:00:00Z" : input.refreshedOnboardingSkippedAt;
+    const refreshProfile = () => {
+      onboardingSkippedAt = refreshedOnboardingSkippedAt;
+      return Promise.resolve();
+    };
+    const checkSession = vi.fn(input?.checkSession ?? (input?.checkSessionRejects ? () => Promise.reject(new Error("refresh failed")) : refreshProfile));
     const push = vi.fn();
 
     const useUser: typeof DEPENDENCIES.useUser = () =>
       mock<ReturnType<typeof DEPENDENCIES.useUser>>({
-        user: { onboardingSkippedAt: input?.refreshedOnboardingSkippedAt === undefined ? "2026-07-30T00:00:00Z" : input.refreshedOnboardingSkippedAt },
+        user: { onboardingSkippedAt },
         checkSession
       });
     const useRouter: typeof DEPENDENCIES.useRouter = () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push });
