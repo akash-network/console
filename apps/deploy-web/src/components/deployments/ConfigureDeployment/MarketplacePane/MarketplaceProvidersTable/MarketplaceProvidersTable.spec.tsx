@@ -101,6 +101,13 @@ describe(MarketplaceProvidersTable.name, () => {
     expect(link).toHaveAttribute("target", "_blank");
   });
 
+  it("renders the provider name as plain text, not a link, when provider links are hidden", () => {
+    setup({ providers: [buildOffer({ organization: "Polaris Compute", hostUri: "https://a.example:8443", owner: "akash1prov" })], showProviderLink: false });
+
+    expect(screen.getByText("Polaris Compute")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Polaris Compute" })).not.toBeInTheDocument();
+  });
+
   it("shows a search empty state with a clear action when a search excludes all rows", async () => {
     const onClearSearch = vi.fn();
     setup({ providers: [], isSearchActive: true, onClearSearch });
@@ -330,6 +337,7 @@ describe(MarketplaceProvidersTable.name, () => {
     selectedBidId?: string;
     isSelectable?: boolean;
     gpuCount?: number;
+    showProviderLink?: boolean;
   }) {
     const onSelect = vi.fn();
     const user = userEvent.setup();
@@ -346,6 +354,7 @@ describe(MarketplaceProvidersTable.name, () => {
               onSelect={onSelect}
               isSelectable={input.isSelectable}
               gpuCount={input.gpuCount}
+              showProviderLink={input.showProviderLink ?? true}
             />
           </TooltipProvider>
         </IntlProvider>

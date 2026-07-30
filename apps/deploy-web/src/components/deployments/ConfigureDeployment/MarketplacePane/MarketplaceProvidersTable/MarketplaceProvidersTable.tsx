@@ -45,6 +45,8 @@ interface Props {
   isSelectable?: boolean;
   /** Total GPUs the spec requests. Above zero, the cost column headlines an hourly rate (GPU specs); at zero it shows a monthly rate, so inexpensive CPU-only deployments don't round to `$0.00/hr`. Also drives the per-hour-per-GPU tooltip line. */
   gpuCount?: number;
+  /** Whether provider names link to their detail pages. */
+  showProviderLink: boolean;
 }
 
 export const MarketplaceProvidersTable: FC<Props> = ({
@@ -55,7 +57,8 @@ export const MarketplaceProvidersTable: FC<Props> = ({
   selectedBidId,
   onSelect,
   isSelectable = true,
-  gpuCount = 0
+  gpuCount = 0,
+  showProviderLink
 }) => {
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -65,8 +68,8 @@ export const MarketplaceProvidersTable: FC<Props> = ({
   /** Cost only makes sense once bids arrive: a submitted bid is priced and a closed/expired one keeps its last price, but a screened-only candidate has none. */
   const showCost = providers.some(provider => !!provider.price);
   const columns = useMemo(
-    () => buildColumns(uptimeByOwner, { selectedBidId, onSelect, isSelectable, showCost, showStatus: isMerged, gpuCount }),
-    [uptimeByOwner, selectedBidId, onSelect, isSelectable, showCost, isMerged, gpuCount]
+    () => buildColumns(uptimeByOwner, { selectedBidId, onSelect, isSelectable, showCost, showStatus: isMerged, gpuCount, showProviderLink }),
+    [uptimeByOwner, selectedBidId, onSelect, isSelectable, showCost, isMerged, gpuCount, showProviderLink]
   );
 
   const table = useReactTable({
@@ -230,13 +233,21 @@ function SortableHeader({ column, title }: { column: Column<PlacementOffer, unkn
 /** Builds the columns, closing over the per-provider uptime derived once in the component. Every column is an accessor so it sorts; the trailing status column is display-only. */
 function buildColumns(
   uptimeByOwner: Map<string, ProviderUptime>,
-  selection: { selectedBidId?: string; onSelect?: (bidId: string) => void; isSelectable: boolean; showCost: boolean; showStatus: boolean; gpuCount: number }
+  selection: {
+    selectedBidId?: string;
+    onSelect?: (bidId: string) => void;
+    isSelectable: boolean;
+    showCost: boolean;
+    showStatus: boolean;
+    gpuCount: number;
+    showProviderLink: boolean;
+  }
 ) {
   return [
     columnHelper.accessor(providerDisplayName, {
       id: "hostUri",
       header: ({ column }) => <SortableHeader column={column} title="Provider" />,
-      cell: info => <MarketplaceProviderCell offer={info.row.original} />
+      cell: info => <MarketplaceProviderCell offer={info.row.original} showProviderLink={selection.showProviderLink} />
     }),
     columnHelper.accessor("location", {
       header: ({ column }) => <SortableHeader column={column} title="Region" />,

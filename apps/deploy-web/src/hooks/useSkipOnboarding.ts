@@ -14,7 +14,7 @@ export const DEPENDENCIES = {
 
 /**
  * Permanently skips the onboarding flow: records the intent in analytics, persists the server-side flag, refreshes the
- * profile, then lands the user on the deployments list. Navigation waits until the refreshed profile actually carries
+ * profile, then lands the user on the new-deployment page. Navigation waits until the refreshed profile actually carries
  * the skip flag — the onboarding gate reads that same profile, so navigating any earlier would bounce right back into
  * the funnel. This also covers the profile route failing open with a flagless 200 (it swallows its internal user
  * lookup's errors), which a resolved `checkSession()` alone cannot reveal. Any failure reports the error and stays
@@ -40,7 +40,7 @@ export function useSkipOnboarding(dependencies: typeof DEPENDENCIES = DEPENDENCI
 
   useEffect(
     function navigateOnceProfileCarriesSkipFlag() {
-      if (isAwaitingSkippedProfile && user?.onboardingSkippedAt) router.push(urlService.deploymentList());
+      if (isAwaitingSkippedProfile && user?.onboardingSkippedAt) router.push(urlService.newDeployment());
     },
     [isAwaitingSkippedProfile, user?.onboardingSkippedAt, router, urlService]
   );

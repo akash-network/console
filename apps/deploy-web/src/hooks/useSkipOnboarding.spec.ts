@@ -11,7 +11,7 @@ import { setupQuery } from "../../tests/unit/query-client";
 import { act } from "@testing-library/react";
 
 describe(useSkipOnboarding.name, () => {
-  it("tracks the event, persists the flag, refreshes the session, then navigates to the deployments list", async () => {
+  it("tracks the event, persists the flag, refreshes the session, then navigates to the new-deployment page", async () => {
     const { result, consoleApiHttpClient, analyticsService, checkSession, push } = setup();
 
     await act(async () => {
@@ -21,7 +21,7 @@ describe(useSkipOnboarding.name, () => {
     expect(analyticsService.track).toHaveBeenCalledWith("onboarding_skipped", { category: "onboarding", source: "picker" });
     expect(consoleApiHttpClient.post).toHaveBeenCalledWith("/v1/user/skipOnboarding");
     expect(checkSession).toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith("/deployments");
+    expect(push).toHaveBeenCalledWith("/new-deployment");
   });
 
   it("forwards the auto_deploy source to analytics", async () => {

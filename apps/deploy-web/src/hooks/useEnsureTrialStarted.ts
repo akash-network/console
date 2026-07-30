@@ -1,5 +1,4 @@
 import { useCallback, useEffect } from "react";
-import type { ApiManagedWalletOutput } from "@akashnetwork/http-sdk";
 import { useIsMutating } from "@tanstack/react-query";
 
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
@@ -11,7 +10,6 @@ export const DEPENDENCIES = {
 };
 
 export type EnsureTrialStartedResult = {
-  wallet: ApiManagedWalletOutput | undefined;
   isWalletReady: boolean;
   isLoading: boolean;
   error: ReturnType<typeof useManagedWallet>["createError"];
@@ -56,5 +54,5 @@ export const useEnsureTrialStarted = (d = DEPENDENCIES): EnsureTrialStartedResul
 
   const retryTrial = useCallback(() => resetCreate(), [resetCreate]);
 
-  return { isWalletReady, isLoading, error: createError, refreshWallet: refetch, retryTrial, wallet: wallet as ApiManagedWalletOutput | undefined };
+  return { isWalletReady, isLoading, error: createError, refreshWallet: refetch, retryTrial };
 };
