@@ -350,6 +350,42 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(screen.queryByRole("button", { name: "back to marketplace" })).not.toBeInTheDocument();
   });
 
+  it("tracks the review modal opening from the header deploy action", () => {
+    const { ConfigureDeploymentHeader, analyticsService } = setup({ initialSdl: VALID_SDL });
+    const onDeploy = (ConfigureDeploymentHeader as ReturnType<typeof vi.fn>).mock.calls[0][0].onDeploy as () => void;
+
+    act(() => onDeploy());
+
+    expect(analyticsService.track).toHaveBeenCalledWith("review_deploy_opened", expect.objectContaining({ category: "deployments" }));
+  });
+
+  it("reports the completed selection count when the modal auto-opens after the last provider is picked", async () => {
+    const { analyticsService } = setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes });
+
+    await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+
+    expect(analyticsService.track).toHaveBeenCalledWith("review_deploy_opened", expect.objectContaining({ placementCount: 1, selectionCount: 1 }));
+  });
+
+  it("tracks the review confirmation and starts the deploy when Confirm and deploy is clicked", async () => {
+    const { flow, analyticsService } = setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes });
+
+    await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+    await userEvent.click(screen.getByRole("button", { name: "confirm and deploy" }));
+
+    expect(analyticsService.track).toHaveBeenCalledWith("review_deploy_confirmed", expect.objectContaining({ category: "deployments" }));
+    expect(flow.actions.deploy).toHaveBeenCalled();
+  });
+
+  it("tracks a dismissal when the review modal is closed via Back", async () => {
+    const { analyticsService } = setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes });
+
+    await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+    await userEvent.click(screen.getByRole("button", { name: "back to marketplace" }));
+
+    expect(analyticsService.track).toHaveBeenCalledWith("review_deploy_dismissed", expect.objectContaining({ category: "deployments" }));
+  });
+
   it("seeds an ssh-ready vm service on a vm entry with no carried-in SDL", () => {
     setup({ initialSdl: undefined, vm: true, Panes: VmStateProbePanes });
 
@@ -453,11 +489,16 @@ describe(ConfigureDeploymentForm.name, () => {
     const requestQuotes = vi.fn();
     const retryTrial = vi.fn();
     const setDeploymentName = vi.fn();
-    const ReviewAndDeployModal = vi.fn((props: { open: boolean; onBack: () => void }) =>
+    const ReviewAndDeployModal = vi.fn((props: { open: boolean; onBack: () => void; onConfirm: () => void }) =>
       props.open ? (
-        <button type="button" onClick={props.onBack}>
-          back to marketplace
-        </button>
+        <div>
+          <button type="button" onClick={props.onBack}>
+            back to marketplace
+          </button>
+          <button type="button" onClick={props.onConfirm}>
+            confirm and deploy
+          </button>
+        </div>
       ) : null
     );
     const useConfigureDraft = vi.fn(() =>
