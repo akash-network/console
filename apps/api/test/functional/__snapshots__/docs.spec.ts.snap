@@ -13232,6 +13232,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "id": {
                           "type": "string",
                         },
+                        "onboardingSkippedAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "stripeCustomerId": {
                           "nullable": true,
                           "type": "string",
@@ -14411,6 +14416,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "id": {
                           "type": "string",
                         },
+                        "onboardingSkippedAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "stripeCustomerId": {
                           "nullable": true,
                           "type": "string",
@@ -14619,6 +14629,30 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           },
         ],
         "summary": "Save template description",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/v1/user/skipOnboarding": {
+      "post": {
+        "responses": {
+          "204": {
+            "description": "Onboarding skipped",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Skip onboarding",
         "tags": [
           "Users",
         ],

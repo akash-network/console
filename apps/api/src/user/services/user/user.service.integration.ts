@@ -202,7 +202,7 @@ describe(UserService.name, () => {
 
       const user = await userRepository.create({
         userId: faker.string.uuid(),
-        username: `test-user-${Date.now()}`,
+        username: `test-user-${faker.string.uuid()}`,
         email: faker.internet.email(),
         emailVerified: false,
         subscribedToNewsletter: false,
@@ -232,7 +232,7 @@ describe(UserService.name, () => {
 
       const user = await userRepository.create({
         userId: faker.string.uuid(),
-        username: `test-user-${Date.now()}`,
+        username: `test-user-${faker.string.uuid()}`,
         email: faker.internet.email(),
         emailVerified: false,
         subscribedToNewsletter: false
@@ -258,7 +258,7 @@ describe(UserService.name, () => {
 
       const user = await userRepository.create({
         userId: faker.string.uuid(),
-        username: `test-user-${Date.now()}`,
+        username: `test-user-${faker.string.uuid()}`,
         email: faker.internet.email(),
         emailVerified: false,
         subscribedToNewsletter: false
@@ -323,7 +323,7 @@ describe(UserService.name, () => {
 
       const user = await userRepository.create({
         userId: faker.string.uuid(),
-        username: `test-user-${Date.now()}`,
+        username: `test-user-${faker.string.uuid()}`,
         email: faker.internet.email(),
         emailVerified: false,
         subscribedToNewsletter: false
@@ -333,6 +333,43 @@ describe(UserService.name, () => {
 
       const updatedUser = await userRepository.findById(user.id);
       expect(updatedUser?.subscribedToNewsletter).toBe(true);
+    });
+  });
+
+  describe("skipOnboarding", () => {
+    it("sets onboardingSkippedAt when it has not been set", async () => {
+      const { service, userRepository } = setup();
+      const user = await userRepository.create({
+        userId: faker.string.uuid(),
+        username: `test-user-${faker.string.uuid()}`,
+        email: faker.internet.email(),
+        emailVerified: false,
+        subscribedToNewsletter: false
+      });
+
+      await service.skipOnboarding(user.id);
+
+      const updatedUser = await userRepository.findById(user.id);
+      expect(updatedUser?.onboardingSkippedAt).toBeInstanceOf(Date);
+    });
+
+    it("preserves the original timestamp when called again", async () => {
+      const { service, userRepository } = setup();
+      const user = await userRepository.create({
+        userId: faker.string.uuid(),
+        username: `test-user-${faker.string.uuid()}`,
+        email: faker.internet.email(),
+        emailVerified: false,
+        subscribedToNewsletter: false
+      });
+
+      await service.skipOnboarding(user.id);
+      const firstSkippedAt = (await userRepository.findById(user.id))?.onboardingSkippedAt;
+
+      await service.skipOnboarding(user.id);
+      const secondSkippedAt = (await userRepository.findById(user.id))?.onboardingSkippedAt;
+
+      expect(secondSkippedAt).toEqual(firstSkippedAt);
     });
   });
 

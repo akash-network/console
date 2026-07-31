@@ -14,6 +14,7 @@ export interface UserSettings {
   planCode?: PlanCode;
   plan?: IPlan;
   emailVerified?: boolean;
+  onboardingSkippedAt?: string | null;
 }
 
 export type CustomUserProfile = UserProfile & UserSettings;

@@ -42,6 +42,12 @@ describe(MarketplacePane.name, () => {
     expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ gpuCount: 0 }), expect.anything());
   });
 
+  it("hides provider links from the table until the user is onboarded", () => {
+    const { MarketplaceProvidersTable } = setup({ isOnboarded: false, offers: [buildOffer()] });
+
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ showProviderLink: false }), expect.anything());
+  });
+
   it("allows provider selection only while quoting", () => {
     const { MarketplaceProvidersTable } = setup({ phase: "quoting", offers: [buildOffer()] });
 
@@ -124,6 +130,7 @@ describe(MarketplacePane.name, () => {
       isInvalid?: boolean;
       isSearchActive?: boolean;
       gpuCount?: number;
+      isOnboarded?: boolean;
       selectedPlacementId?: string;
       selectedBidId?: string;
       onSelectProvider?: (placementId: string, bidId: string) => void;
@@ -153,7 +160,8 @@ describe(MarketplacePane.name, () => {
       useProviderSearch: useProviderSearch as never,
       MarketplaceProvidersTable: MarketplaceProvidersTable as never,
       ProviderSearchInput,
-      useDeploymentGpuCount
+      useDeploymentGpuCount,
+      useIsOnboarded: () => input.isOnboarded ?? true
     };
     const user = userEvent.setup();
 

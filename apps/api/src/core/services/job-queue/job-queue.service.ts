@@ -227,6 +227,7 @@ export class JobQueueService implements Disposable {
                 youtubeUsername: null,
                 twitterUsername: null,
                 githubUsername: null,
+                onboardingSkippedAt: null,
                 userId: "system:bg-job-user",
                 username: "___bg_job_user___",
                 trial: false

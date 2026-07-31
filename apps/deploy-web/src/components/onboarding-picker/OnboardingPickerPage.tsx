@@ -13,6 +13,7 @@ import { BONUS_PERCENT, MAX_BONUS } from "@src/components/billing-usage/FirstPur
 import { DeploymentTemplatePickerCard } from "@src/components/deployments/DeploymentTemplatePickerCard/DeploymentTemplatePickerCard";
 import { AkashConsoleLogo } from "@src/components/icons/AkashConsoleLogo";
 import { AccountMenu } from "@src/components/layout/AccountMenu";
+import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
@@ -40,6 +41,7 @@ export const DEPENDENCIES = {
   DeploymentTemplatePickerCard,
   AddCreditsSheet,
   AccountMenu,
+  SkipOnboardingButton,
   Button
 };
 
@@ -52,8 +54,8 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   const { isTrialing } = d.useWallet();
   const { publicConfig, urlService, analyticsService } = d.useServices();
   const trialCreditsAmount = publicConfig.NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT;
-  const [addCreditsSheetReason, setAddCreditsSheetReason] = useState<"unlock-gpu" | "skip-trial" | "hackathon-coupon" | null>(null);
-  const { isWalletReady, error: trialError, wallet } = d.useEnsureTrialStarted();
+  const [addCreditsSheetReason, setAddCreditsSheetReason] = useState<"unlock-gpu" | "hackathon-coupon" | null>(null);
+  const { isWalletReady, error: trialError } = d.useEnsureTrialStarted();
   const isHackathonsEnabled = d.useFlag("hackathons");
   const isLlmGated = isTrialing || !isWalletReady;
   const isLlmAvailable = !isLlmGated;
@@ -97,11 +99,6 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
 
   function trackCustomImageDeploy() {
     trackDeployClick("custom-image");
-  }
-
-  function skipTrial() {
-    analyticsService.track("onboarding_skip_trial_click", { category: "onboarding" });
-    setAddCreditsSheetReason("skip-trial");
   }
 
   return (
@@ -204,14 +201,9 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
                 </Button>
               </div>
 
-              {(isTrialing || !wallet?.creditAmount) && (
-                <div className="text-center">
-                  <d.Button onClick={skipTrial} variant="ghost">
-                    Skip the trial - unlock Console
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </d.Button>
-                </div>
-              )}
+              <div className="text-center">
+                <d.SkipOnboardingButton source="picker" />
+              </div>
             </div>
           </div>
         </div>
@@ -226,8 +218,6 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
           onDone={() => {
             if (addCreditsSheetReason === "unlock-gpu") {
               redirectToConfigure(TEMPLATE_IDS.llmChatbot);
-            } else if (addCreditsSheetReason === "skip-trial") {
-              router.push(urlService.configureDeployment());
             } else {
               setAddCreditsSheetReason(null);
             }
