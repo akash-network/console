@@ -16,6 +16,7 @@
 # Migrations, runtime config, images
 /apps/*/drizzle/ @akash-network/console
 /apps/*/env/ @akash-network/console
+**/.env* @akash-network/console
 **/Dockerfile* @akash-network/console
 
 # Public API surface

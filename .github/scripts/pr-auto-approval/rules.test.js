@@ -75,6 +75,14 @@ describe("evaluate", () => {
       assert.equal(decision.outcome, "approved");
     });
 
+    test("accepts JavaScript test suffixes and repository-root test directories", () => {
+      const decision = setup({
+        title: "test(ci): cover auto-approval rules",
+        files: [file(".github/scripts/pr-auto-approval/rules.test.js"), file("tests/helpers.js"), file("test/setup.mjs")]
+      });
+      assert.equal(decision.outcome, "approved");
+    });
+
     test("skips a test PR touching non-test files", () => {
       const decision = setup({
         title: "test(api): cover wallet top-up",
@@ -124,6 +132,14 @@ describe("evaluate", () => {
       const decision = setup({
         title: "fix(deploy-web): guard empty deployment list",
         files: [file("apps/deploy-web/src/components/DeploymentList.tsx"), file("apps/deploy-web/src/components/DeploymentList.spec.tsx")]
+      });
+      assert.deepEqual(decision, { outcome: "approved", reason: "bug fix within approved scope that includes test changes" });
+    });
+
+    test("counts a JavaScript test file as regression evidence", () => {
+      const decision = setup({
+        title: "fix(ci): correct auto-approval rule",
+        files: [file(".github/scripts/pr-auto-approval/rules.js"), file(".github/scripts/pr-auto-approval/rules.test.js")]
       });
       assert.deepEqual(decision, { outcome: "approved", reason: "bug fix within approved scope that includes test changes" });
     });

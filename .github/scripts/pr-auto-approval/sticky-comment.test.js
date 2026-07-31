@@ -99,6 +99,46 @@ describe("syncStickyComment", () => {
     assert.match(calls.created[0].body, /code-owned paths/);
   });
 
+  test("escapes filenames so a crafted path cannot break out of the code span", async () => {
+    const { calls, sync } = setup({ comments: [] });
+    const maliciousFile = "apps/api/src/billing/a`[click](http://evil.com)`b.ts";
+
+    await sync({
+      decision: {
+        outcome: "blocked",
+        blockers: [{ id: "code-owned-paths", message: "owned", files: [maliciousFile] }]
+      },
+      dismissed: false
+    });
+
+    const body = calls.created[0].body;
+    assert.ok(body.includes(`  - \`\` ${maliciousFile} \`\``), "filename should be wrapped in a padded double-backtick code span");
+    assert.ok(!body.includes(`  - \`${maliciousFile}\``), "must not use the naive single-backtick span the payload can break out of");
+  });
+
+  test("deletes a stale blocked comment when the PR is no longer blocked or dismissed", async () => {
+    const { calls, sync } = setup({
+      comments: [stickyComment(42, `${STICKY_MARKER}\nblocked by code-owned-paths`)]
+    });
+
+    await sync({ decision: { outcome: "skipped", reason: "PR changes non-test files" }, dismissed: false });
+
+    assert.equal(calls.deleted.length, 1);
+    assert.equal(calls.deleted[0].comment_id, 42);
+    assert.equal(calls.created.length, 0);
+    assert.equal(calls.updated.length, 0);
+  });
+
+  test("stays silent when skipped with no prior comment", async () => {
+    const { calls, sync } = setup({ comments: [] });
+
+    await sync({ decision: { outcome: "skipped", reason: "PR changes non-test files" }, dismissed: false });
+
+    assert.equal(calls.deleted.length, 0);
+    assert.equal(calls.created.length, 0);
+    assert.equal(calls.updated.length, 0);
+  });
+
   test("ignores marker-less and non-bot comments when locating the sticky comment", async () => {
     const { calls, sync } = setup({
       comments: [
@@ -118,7 +158,7 @@ describe("syncStickyComment", () => {
   }
 
   function setup(input) {
-    const calls = { created: [], updated: [] };
+    const calls = { created: [], updated: [], deleted: [] };
     const github = {
       paginate: async (fn, params) => fn(params),
       rest: {
@@ -129,6 +169,9 @@ describe("syncStickyComment", () => {
           },
           updateComment: async params => {
             calls.updated.push(params);
+          },
+          deleteComment: async params => {
+            calls.deleted.push(params);
           }
         }
       }

@@ -18,6 +18,10 @@ permissions:
   contents: read
   pull-requests: write
 
+concurrency:
+  group: pr-auto-approval-${{ github.event.workflow_run.head_sha || inputs.pr-number }}
+  cancel-in-progress: false
+
 jobs:
   check-whether-to-approve:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
@@ -30,7 +34,7 @@ jobs:
         with:
           persist-credentials: false
           sparse-checkout: |
-            ./.github
+            .github
       - name: Get associated PR
         id: associated-pr
         if: github.event_name == 'workflow_run'
@@ -148,8 +152,8 @@ jobs:
           PR_NUMBER: ${{ steps.associated-pr.outputs.number || steps.dispatch-pr.outputs.number }}
           DISMISSAL_REASON: ${{ steps.evaluate.outputs.dismissal-reason }}
         run: | # shell
-          review_id=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" --paginate \
-            --jq '[.[] | select(.user.login == "github-actions[bot]" and .state == "APPROVED")] | last | .id // empty'
+          review_id=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" --paginate --slurp \
+            | jq -r '[.[][] | select(.user.login == "github-actions[bot]" and .state == "APPROVED")] | last | .id // empty'
           );
 
           if [ -z "$review_id" ]; then
@@ -161,7 +165,7 @@ jobs:
             echo "dismissed=true" >> "$GITHUB_OUTPUT";
           fi
       - name: Sync review-blockers comment
-        if: (steps.evaluate.outputs.outcome == 'blocked' || steps.evaluate.outputs.outcome == 'approved' || steps.dismiss.outputs.dismissed == 'true') && inputs.dry-run != true
+        if: steps.evaluate.outputs.outcome != '' && inputs.dry-run != true
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           PR_NUMBER: ${{ steps.associated-pr.outputs.number || steps.dispatch-pr.outputs.number }}

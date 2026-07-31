@@ -93,6 +93,13 @@ describe("repository CODEOWNERS policy pins", () => {
     assert.equal(owners.isOwned("apps/api/Dockerfile"), true);
   });
 
+  test("env files outside env directories are owned wherever they live", () => {
+    assert.equal(owners.isOwned("apps/api/.env.production"), true);
+    assert.equal(owners.isOwned("apps/deploy-web/.env.local.sample"), true);
+    assert.equal(owners.isOwned(".env.example"), true);
+    assert.equal(owners.isOwned(".env"), true);
+  });
+
   test("public API surface is owned", () => {
     assert.equal(owners.isOwned("apps/api/src/routes/index.ts"), true);
     assert.equal(owners.isOwned("apps/api/src/routers/apiRouter.ts"), true);

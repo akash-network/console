@@ -2,7 +2,7 @@ const { parse } = require("./codeowners");
 
 const APPROVABLE_TYPE_PATTERN = /^(chore|test|docs|fix|refactor)[:(]/;
 const ALLOWED_SIZE_LABELS = ["size: XS", "size: S", "size: M"];
-const TEST_FILE_PATTERN = /(\.(spec|test|integration|e2e)\.(ts|tsx)$)|\/tests?\//;
+const TEST_FILE_PATTERN = /(\.(spec|test|integration|e2e)\.[cm]?[jt]sx?$)|(^|\/)tests?\//;
 const TEST_CONFIG_PATTERN = /(jest|vitest|playwright)\.config\.[tj]s$/;
 const IMAGE_FILE_PATTERN = /\.(png|jpg|jpeg|gif|svg|webp|ico|bmp)$/i;
 const SOURCE_CODE_PATTERN = /^(apps|packages)\/.*\.(ts|tsx|js|jsx)$/;
