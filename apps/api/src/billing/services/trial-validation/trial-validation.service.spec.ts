@@ -142,7 +142,7 @@ describe(TrialValidationService.name, () => {
                 resource: {
                   id: 1,
                   gpu: {
-                    units: { val: new Uint8Array([1]) },
+                    units: { val: BigInt(1) },
                     attributes: [{ key: `vendor/${vendor}/model/${model}`, value: "true" }]
                   }
                 },

@@ -20,6 +20,12 @@ import type { GpuConfig } from "../../config/env.config";
 import { GPU_CONFIG } from "../../providers/config.provider";
 import { DayRepository } from "../../repositories/day.repository";
 
+/** Resource quantities decode as bigint from chain-sdk (v1beta5) bids but as Uint8Array from akash-api (v1beta4). */
+function resourceValToInt(val: Uint8Array | bigint | undefined): number {
+  if (typeof val === "bigint") return Number(val);
+  return val ? parseInt(uint8arrayToString(val)) : 0;
+}
+
 @injectable()
 export class GpuPriceService {
   readonly #gpuConfig: GpuConfig;
@@ -93,7 +99,7 @@ export class GpuPriceService {
         if (isUakt && (!day || !day.aktPrice)) return; // uakt bids need AKT price for USD conversion
 
         const bidGpus = decodedBid.resourcesOffer
-          .filter((x: any) => (x.resources?.gpu?.units?.val ? parseInt(uint8arrayToString(x.resources.gpu.units.val)) : 0) > 0)
+          .filter((x: any) => resourceValToInt(x.resources?.gpu?.units?.val) > 0)
           .flatMap((r: any) => (r.resources?.gpu?.attributes ? this.getGpusFromAttributes(r.resources.gpu.attributes) : []));
 
         // Ignore bids for deployments with more than 1 GPU
@@ -114,15 +120,13 @@ export class GpuPriceService {
           monthlyPriceUakt: isUakt ? this.blockPriceToMonthlyUakt(priceAmount) : aktPrice ? this.blockPriceToMonthlyUakt(priceAmount / aktPrice) : null,
           deployment: {
             owner: d.owner,
-            cpuUnits: decodedBid.resourcesOffer
-              .flatMap((r: any) => (r.resources?.cpu?.units?.val ? parseInt(uint8arrayToString(r.resources.cpu.units.val)) : 0))
-              .reduce((a: number, b: number) => a + b, 0),
+            cpuUnits: decodedBid.resourcesOffer.flatMap((r: any) => resourceValToInt(r.resources?.cpu?.units?.val)).reduce((a: number, b: number) => a + b, 0),
             memoryUnits: decodedBid.resourcesOffer
-              .flatMap((r: any) => (r.resources?.memory?.quantity?.val ? parseInt(uint8arrayToString(r.resources.memory.quantity.val)) : 0))
+              .flatMap((r: any) => resourceValToInt(r.resources?.memory?.quantity?.val))
               .reduce((a: number, b: number) => a + b, 0),
             storageUnits: decodedBid.resourcesOffer
               .flatMap((r: any) => r.resources?.storage)
-              .map((s: any) => (s?.quantity?.val ? parseInt(uint8arrayToString(s.quantity.val)) : 0))
+              .map((s: any) => resourceValToInt(s?.quantity?.val))
               .reduce((a: number, b: number) => a + b, 0),
             gpus: bidGpus
           },
