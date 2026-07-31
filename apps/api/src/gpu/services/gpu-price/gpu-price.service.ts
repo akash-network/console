@@ -23,7 +23,8 @@ import { DayRepository } from "../../repositories/day.repository";
 /** Resource quantities decode as bigint from chain-sdk (v1beta5) bids but as Uint8Array from akash-api (v1beta4). */
 function resourceValToInt(val: Uint8Array | bigint | undefined): number {
   if (typeof val === "bigint") return Number(val);
-  return val ? parseInt(uint8arrayToString(val)) : 0;
+  if (!val || val.length === 0) return 0;
+  return parseInt(uint8arrayToString(val), 10);
 }
 
 @injectable()

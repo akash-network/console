@@ -142,6 +142,7 @@ describe(GpuPriceService.name, () => {
       const bestBid = result.models[0].providersWithBestBid![0].bestBid;
       expect(bestBid.deployment.cpuUnits).toBe(2000);
       expect(bestBid.deployment.memoryUnits).toBe(1073741824);
+      expect(bestBid.deployment.storageUnits).toBe(10737418240);
       expect(bestBid.deployment.gpus).toHaveLength(1);
     });
 
