@@ -125,6 +125,15 @@ describe("evaluate", () => {
       assert.equal(decision.outcome, "skipped");
       assert.match(decision.reason, /code files/);
     });
+
+    test("skips a chore touching .mjs or .cjs source files", () => {
+      const decision = setup({
+        title: "chore(dx): tweak eslint config",
+        files: [file("apps/api/eslint.config.mjs")]
+      });
+      assert.equal(decision.outcome, "skipped");
+      assert.match(decision.reason, /code files/);
+    });
   });
 
   describe("fix PRs", () => {

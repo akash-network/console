@@ -19,7 +19,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: pr-auto-approval-${{ github.event.workflow_run.head_sha || inputs.pr-number }}
+  group: pr-auto-approval-${{ github.event.workflow_run.pull_requests[0].number || inputs.pr-number }}
   cancel-in-progress: false
 
 jobs:
