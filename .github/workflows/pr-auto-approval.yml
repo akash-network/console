@@ -4,6 +4,15 @@ on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr-number:
+        description: PR number to evaluate
+        required: true
+      dry-run:
+        description: Evaluate and log the decision only; skip approve/dismiss/comment
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -11,7 +20,7 @@ permissions:
 
 jobs:
   check-whether-to-approve:
-    if: github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     permissions:
       contents: read
       pull-requests: write
@@ -19,61 +28,62 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           sparse-checkout: |
-            ./.github/actions
+            ./.github
       - name: Get associated PR
         id: associated-pr
+        if: github.event_name == 'workflow_run'
         uses: ./.github/actions/associated-pr
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
-      - name: Evaluate auto-approval criteria
-        id: evaluate
-        if: steps.associated-pr.outputs.number != '' && steps.associated-pr.outputs.closed != 'true'
+      - name: Resolve PR (dispatch)
+        id: dispatch-pr
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          PR_NUMBER: ${{ steps.associated-pr.outputs.number }}
-          PR_TITLE: ${{ steps.associated-pr.outputs.title }}
-          PR_LABELS: ${{ steps.associated-pr.outputs.labels }}
-          PR_AUTHOR: ${{ steps.associated-pr.outputs.author }}
-          PR_HEAD_REPO: ${{ steps.associated-pr.outputs.head_repo }}
+          PR_NUMBER: ${{ inputs.pr-number }}
         with:
           script: | # js
-            const prNumber = parseInt(process.env.PR_NUMBER || "");
-            const baseRepo = `${context.repo.owner}/${context.repo.repo}`;
-            const headRepo = process.env.PR_HEAD_REPO ?? "";
-            if (headRepo && headRepo !== baseRepo) {
-              core.info("Skipping: PR is from a fork");
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: parseInt(process.env.PR_NUMBER, 10),
+            });
+            core.setOutput("number", pr.number);
+            core.setOutput("title", pr.title);
+            core.setOutput("author", pr.user.login);
+            core.setOutput("head_repo", pr.head.repo?.full_name || "");
+            core.setOutput("labels", JSON.stringify((pr.labels || []).map(l => l.name)));
+            core.setOutput("closed", pr.closed_at ? "true" : "false");
+            core.setOutput("draft", pr.draft ? "true" : "false");
+      - name: Evaluate auto-approval criteria
+        id: evaluate
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PR_NUMBER: ${{ steps.associated-pr.outputs.number || steps.dispatch-pr.outputs.number }}
+          PR_TITLE: ${{ steps.associated-pr.outputs.title || steps.dispatch-pr.outputs.title }}
+          PR_LABELS: ${{ steps.associated-pr.outputs.labels || steps.dispatch-pr.outputs.labels }}
+          PR_AUTHOR: ${{ steps.associated-pr.outputs.author || steps.dispatch-pr.outputs.author }}
+          PR_HEAD_REPO: ${{ steps.associated-pr.outputs.head_repo || steps.dispatch-pr.outputs.head_repo }}
+          PR_DRAFT: ${{ steps.associated-pr.outputs.draft || steps.dispatch-pr.outputs.draft }}
+          PR_CLOSED: ${{ steps.associated-pr.outputs.closed || steps.dispatch-pr.outputs.closed }}
+        with:
+          script: | # js
+            const fs = require("fs");
+            const { evaluate } = require("./.github/scripts/pr-auto-approval/rules.js");
+
+            const prNumber = parseInt(process.env.PR_NUMBER || "", 10);
+            if (!prNumber) {
+              core.info("No PR associated with this run, skipping");
               return;
             }
-
-            const login = process.env.PR_AUTHOR ?? "";
-            if (/bot/i.test(login)) {
-              core.info(`Skipping: author "${login}" appears to be a bot`);
-              return;
-            }
-
-            const labels = JSON.parse(process.env.PR_LABELS || "[]");
-            core.info(`PR labels: ${labels.join(", ")}`);
-
-            if (!labels.includes("experienced-contributor")) {
-              core.info("Skipping: missing experienced-contributor label");
-              return;
-            }
-
-            const allowedSizes = ["size: XS", "size: S", "size: M"];
-            if (!allowedSizes.some(size => labels.includes(size))) {
-              core.info("Skipping: missing required size label (XS, S, or M)");
-              return;
-            }
-
-            const title = process.env.PR_TITLE ?? "";
-            const isChore = title.startsWith("chore:") || title.startsWith("chore(");
-            const isTest = title.startsWith("test:") || title.startsWith("test(");
-            const isDocs = title.startsWith("docs:") || title.startsWith("docs(");
-
-            if (!isChore && !isTest && !isDocs) {
-              core.info(`Skipping: commit is not one of these types: chore, test, or docs`);
-              return;
+            if (process.env.PR_CLOSED === "true") {
+              if (context.eventName !== "workflow_dispatch") {
+                core.info("PR is closed, skipping");
+                return;
+              }
+              core.info("PR is closed, evaluating anyway (manual dispatch replay)");
             }
 
             const files = await github.paginate(github.rest.pulls.listFiles, {
@@ -82,45 +92,37 @@ jobs:
               pull_number: prNumber,
               per_page: 100,
             });
-            const filenames = files.map(f => f.filename);
 
-            if (isTest) {
-              const testFilePattern = /(\.(spec|integration)\.(ts|tsx)$|\/tests?\/)|(jest|vitest)\.config\.[tj]s$/;
-              const onlyTestFiles = filenames.every(f => testFilePattern.test(f));
-              if (!onlyTestFiles) {
-                core.info("Skipping test: PR changes non-test files");
-                return;
-              }
+            const decision = evaluate({
+              title: process.env.PR_TITLE ?? "",
+              labels: JSON.parse(process.env.PR_LABELS || "[]"),
+              authorLogin: process.env.PR_AUTHOR ?? "",
+              headRepo: process.env.PR_HEAD_REPO ?? "",
+              baseRepo: `${context.repo.owner}/${context.repo.repo}`,
+              isDraft: process.env.PR_DRAFT === "true",
+              files: files.map(f => ({
+                filename: f.filename,
+                status: f.status,
+                previous_filename: f.previous_filename,
+                changes: f.changes,
+              })),
+              codeownersContent: fs.readFileSync(".github/CODEOWNERS", "utf8"),
+            });
 
-              core.setOutput("approval-reason", "all changes are related to tests");
-            } else if (isDocs) {
-              const imagePattern = /\.(png|jpg|jpeg|gif|svg|webp|ico|bmp)$/i;
-              const docsFilePattern = f => f.endsWith(".md") || imagePattern.test(f);
-              const onlyDocFiles = filenames.every(docsFilePattern);
-              if (!onlyDocFiles) {
-                core.info("Skipping docs: PR changes non-documentation files");
-                return;
-              }
+            core.info(`Auto-approval decision: ${JSON.stringify(decision, null, 2)}`);
+            core.setOutput("outcome", decision.outcome);
+            core.setOutput("decision", JSON.stringify(decision));
+            core.setOutput("approval-reason", decision.outcome === "approved" ? decision.reason : "");
 
-              core.setOutput("approval-reason", "all changes are related to documentation");
-            } else if (isChore) {
-              const sourceCodeFile = /\.(ts|tsx|js|jsx)$/;
-              const touchesCode = filenames.some(f => {
-                return sourceCodeFile.test(f) && (f.includes("/packages/") || f.includes("/apps/"));
-              });
-              if (touchesCode) {
-                core.info("Skipping chore: PR touches code files in packages/ or apps/");
-                return;
-              }
-
-              core.setOutput("approval-reason", "chore that does not touch source code files");
-            }
-
+            const dismissalReason = decision.outcome === "blocked"
+              ? `auto-approval blockers: ${decision.blockers.map(b => b.id).join(", ")}`
+              : decision.reason ?? "";
+            core.setOutput("dismissal-reason", dismissalReason);
       - name: Approve PR
-        if: steps.evaluate.outputs.approval-reason != ''
+        if: steps.evaluate.outputs.outcome == 'approved' && inputs.dry-run != true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ steps.associated-pr.outputs.number }}
+          PR_NUMBER: ${{ steps.associated-pr.outputs.number || steps.dispatch-pr.outputs.number }}
           APPROVAL_REASON: ${{ steps.evaluate.outputs.approval-reason }}
         run: | # shell
           should_skip=$(gh pr view "$PR_NUMBER" \
@@ -138,3 +140,41 @@ jobs:
           else
             gh pr review "$PR_NUMBER" -R "$GITHUB_REPOSITORY" --approve --body "Auto-approved: $APPROVAL_REASON."
           fi
+      - name: Dismiss stale approval
+        id: dismiss
+        if: steps.evaluate.outputs.outcome != '' && steps.evaluate.outputs.outcome != 'approved' && inputs.dry-run != true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.associated-pr.outputs.number || steps.dispatch-pr.outputs.number }}
+          DISMISSAL_REASON: ${{ steps.evaluate.outputs.dismissal-reason }}
+        run: | # shell
+          review_id=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews" --paginate \
+            --jq '[.[] | select(.user.login == "github-actions[bot]" and .state == "APPROVED")] | last | .id // empty'
+          );
+
+          if [ -z "$review_id" ]; then
+            echo "No active bot approval to dismiss";
+            echo "dismissed=false" >> "$GITHUB_OUTPUT";
+          else
+            gh api -X PUT "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/reviews/$review_id/dismissals" \
+              -f message="Auto-approval revoked: $DISMISSAL_REASON";
+            echo "dismissed=true" >> "$GITHUB_OUTPUT";
+          fi
+      - name: Sync review-blockers comment
+        if: (steps.evaluate.outputs.outcome == 'blocked' || steps.evaluate.outputs.outcome == 'approved' || steps.dismiss.outputs.dismissed == 'true') && inputs.dry-run != true
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PR_NUMBER: ${{ steps.associated-pr.outputs.number || steps.dispatch-pr.outputs.number }}
+          DECISION: ${{ steps.evaluate.outputs.decision }}
+          DISMISSED: ${{ steps.dismiss.outputs.dismissed }}
+        with:
+          script: | # js
+            const { syncStickyComment } = require("./.github/scripts/pr-auto-approval/sticky-comment.js");
+            await syncStickyComment(
+              { github, context, core },
+              {
+                prNumber: parseInt(process.env.PR_NUMBER, 10),
+                decision: JSON.parse(process.env.DECISION),
+                dismissed: process.env.DISMISSED === "true",
+              }
+            );

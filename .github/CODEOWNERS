@@ -2,9 +2,27 @@
 /.helm/ @akash-network/console
 .codecov.yml @akash-network/console
 /script/ @akash-network/console
-/apps/*/src/ @akash-network/console
-/packages/*/src/ @akash-network/console
 /config @akash-network/console
+
+# Critical business flows
+/apps/tx-signer/ @akash-network/console
+/apps/api/src/auth/ @akash-network/console
+/apps/api/src/billing/ @akash-network/console
+/apps/deploy-web/src/lib/auth0/ @akash-network/console
+/apps/deploy-web/src/pages/api/ @akash-network/console
+/packages/database/ @akash-network/console
+/packages/docker/ @akash-network/console
+
+# Migrations, runtime config, images
+/apps/*/drizzle/ @akash-network/console
+/apps/*/env/ @akash-network/console
+**/Dockerfile* @akash-network/console
+
+# Public API surface
+/apps/api/src/routes/ @akash-network/console
+/apps/api/src/routers/ @akash-network/console
+/apps/api/src/*/routes/ @akash-network/console
+/apps/api/swagger/openapi.json @akash-network/console
 
 # Exclude test files from code ownership
 *.spec.ts
