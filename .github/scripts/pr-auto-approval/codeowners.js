@@ -56,7 +56,7 @@ function translateGlob(body) {
       source += "[^/]";
       i += 1;
     } else {
-      source += body[i].replace(/[.+^${}()|[\]\\]/, "\\$&");
+      source += body[i].replace(/[.+^${}()|[\]\\]/g, "\\$&");
       i += 1;
     }
   }
