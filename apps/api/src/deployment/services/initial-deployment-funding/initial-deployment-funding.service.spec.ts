@@ -14,6 +14,7 @@ import type { DrainingDeploymentOutput } from "@src/deployment/repositories/leas
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { InitialDeploymentFundingService } from "./initial-deployment-funding.service";
+import type { InitialDeploymentFundingInstrumentationService } from "./initial-deployment-funding-instrumentation.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
@@ -32,27 +33,27 @@ describe(InitialDeploymentFundingService.name, () => {
   });
 
   it("skips funding when the deployment is closed", async () => {
-    const { service, drainingDeploymentService, managedSignerService, logger } = setup();
+    const { service, drainingDeploymentService, managedSignerService, instrumentation } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ closedHeight: 900 })]);
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
     expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
-    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_SKIPPED", reason: "DEPLOYMENT_CLOSED" }));
+    expect(instrumentation.recordSkipped).toHaveBeenCalledWith("deployment_closed", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
   });
 
   it("skips funding when the deployment already has more runway than the look-ahead window", async () => {
-    const { service, drainingDeploymentService, managedSignerService, logger } = setup();
+    const { service, drainingDeploymentService, managedSignerService, instrumentation } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ predictedClosedHeight: LOOK_AHEAD_HEIGHT + 1 })]);
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
     expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
-    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_SKIPPED", reason: "SUFFICIENT_RUNWAY" }));
+    expect(instrumentation.recordSkipped).toHaveBeenCalledWith("sufficient_runway", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
   });
 
   it("deposits the calculated top-up amount and schedules a wallet reload", async () => {
-    const { service, drainingDeploymentService, balancesService, rpcMessageService, managedSignerService, walletReloadJobService } = setup();
+    const { service, drainingDeploymentService, balancesService, rpcMessageService, managedSignerService, walletReloadJobService, instrumentation } = setup();
     const depositMessage = { typeUrl: "/akash.escrow.v1.MsgAccountDeposit", value: {} };
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
@@ -70,6 +71,7 @@ describe(InitialDeploymentFundingService.name, () => {
     });
     expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(1, [depositMessage]);
     expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ walletId: 1 });
+    expect(instrumentation.recordDeposit).toHaveBeenCalledWith(500000, "uakt", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
   });
 
   it("throws and skips the wallet reload when the deposit tx fails on-chain", async () => {
@@ -86,7 +88,7 @@ describe(InitialDeploymentFundingService.name, () => {
   });
 
   it("skips terminally when the deposit is rejected because the deployment escrow is closed", async () => {
-    const { service, drainingDeploymentService, balancesService, managedSignerService, chainErrorService, walletReloadJobService, logger } = setup();
+    const { service, drainingDeploymentService, balancesService, managedSignerService, chainErrorService, walletReloadJobService, instrumentation } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
     balancesService.getFreshLimits.mockResolvedValue({ fee: 100000, deployment: 1000000 });
@@ -95,12 +97,12 @@ describe(InitialDeploymentFundingService.name, () => {
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
-    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_SKIPPED", reason: "DEPLOYMENT_CLOSED" }));
+    expect(instrumentation.recordSkipped).toHaveBeenCalledWith("deployment_closed", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
     expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
   });
 
   it("rethrows deposit errors unrelated to a closed deployment", async () => {
-    const { service, drainingDeploymentService, balancesService, managedSignerService, walletReloadJobService, logger } = setup();
+    const { service, drainingDeploymentService, balancesService, managedSignerService, walletReloadJobService, instrumentation } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
     balancesService.getFreshLimits.mockResolvedValue({ fee: 100000, deployment: 1000000 });
@@ -108,12 +110,13 @@ describe(InitialDeploymentFundingService.name, () => {
 
     await expect(service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" })).rejects.toThrow("Bad status on response: 503");
 
-    expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_SKIPPED" }));
+    expect(instrumentation.recordSkipped).not.toHaveBeenCalled();
     expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
   });
 
   it("skips terminally when the deposit tx lands with a closed account in the raw log", async () => {
-    const { service, drainingDeploymentService, balancesService, managedSignerService, chainErrorService, walletReloadJobService, logger } = setup();
+    const { service, drainingDeploymentService, balancesService, managedSignerService, chainErrorService, walletReloadJobService, instrumentation, logger } =
+      setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
     balancesService.getFreshLimits.mockResolvedValue({ fee: 100000, deployment: 1000000 });
@@ -122,7 +125,7 @@ describe(InitialDeploymentFundingService.name, () => {
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
-    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_SKIPPED", reason: "DEPLOYMENT_CLOSED", txHash: "TESTHASH" }));
+    expect(instrumentation.recordSkipped).toHaveBeenCalledWith("deployment_closed", expect.objectContaining({ txHash: "TESTHASH" }));
     expect(logger.error).not.toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_TX_FAILED" }));
     expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
   });
@@ -151,7 +154,7 @@ describe(InitialDeploymentFundingService.name, () => {
   });
 
   it("skips funding when the deployment limit is exhausted", async () => {
-    const { service, drainingDeploymentService, balancesService, managedSignerService, logger } = setup();
+    const { service, drainingDeploymentService, balancesService, managedSignerService, instrumentation } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
     balancesService.getFreshLimits.mockResolvedValue({ fee: 100000, deployment: 0 });
@@ -159,11 +162,11 @@ describe(InitialDeploymentFundingService.name, () => {
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
     expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
-    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_INSUFFICIENT_BALANCE" }));
+    expect(instrumentation.recordSkipped).toHaveBeenCalledWith("insufficient_balance", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
   });
 
   it("skips funding when the wallet is not found", async () => {
-    const { service, drainingDeploymentService, balancesService, userWalletRepository, managedSignerService, logger } = setup();
+    const { service, drainingDeploymentService, balancesService, userWalletRepository, managedSignerService, instrumentation } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
     balancesService.getFreshLimits.mockResolvedValue({ fee: 100000, deployment: 1000000 });
@@ -172,11 +175,11 @@ describe(InitialDeploymentFundingService.name, () => {
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
     expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
-    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_WALLET_NOT_FOUND" }));
+    expect(instrumentation.recordSkipped).toHaveBeenCalledWith("wallet_not_found", expect.objectContaining({ walletId: 1, dseq: "123" }));
   });
 
   it("skips funding when the fee allowance is exhausted", async () => {
-    const { service, drainingDeploymentService, balancesService, managedSignerService, logger } = setup();
+    const { service, drainingDeploymentService, balancesService, managedSignerService, instrumentation } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
     balancesService.getFreshLimits.mockResolvedValue({ fee: 100000, deployment: 1000000 });
@@ -185,7 +188,7 @@ describe(InitialDeploymentFundingService.name, () => {
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
     expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
-    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_NO_FEE_ALLOWANCE" }));
+    expect(instrumentation.recordSkipped).toHaveBeenCalledWith("no_fee_allowance", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
   });
 
   function createDrainingDeployment(overrides: Partial<DrainingDeploymentOutput> = {}): DrainingDeploymentOutput {
@@ -210,6 +213,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const deploymentConfig = mockConfigService<DeploymentConfigService>({ AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 24 });
     const walletReloadJobService = mock<WalletReloadJobService>();
     const chainErrorService = mock<ChainErrorService>();
+    const instrumentation = mock<InitialDeploymentFundingInstrumentationService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger: CreateLogger = () => logger;
 
@@ -230,6 +234,7 @@ describe(InitialDeploymentFundingService.name, () => {
       deploymentConfig,
       walletReloadJobService,
       chainErrorService,
+      instrumentation,
       createLogger
     );
 
@@ -243,6 +248,7 @@ describe(InitialDeploymentFundingService.name, () => {
       userWalletRepository,
       walletReloadJobService,
       chainErrorService,
+      instrumentation,
       logger
     };
   }
