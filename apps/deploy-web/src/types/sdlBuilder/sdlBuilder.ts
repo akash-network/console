@@ -155,6 +155,8 @@ export const ProfileSchema = z
     hasGpu: z.boolean().optional(),
     gpu: z.number({ invalid_type_error: "GPU amount is required." }).optional(),
     gpuModels: z.array(ProfileGpuModelSchema).optional(),
+    // GPU interconnect opt-in. Presence = enabled; `group` set = explicit named group, absent = implicit "auto" group.
+    interconnect: z.object({ group: z.string().optional() }).optional(),
     ram: z.number({ invalid_type_error: "RAM is required." }),
     ramUnit: z.string().min(1, { message: "RAM unit is required." }),
     storage: z.array(ServiceStorageSchema).min(1, { message: "Storage is required." })

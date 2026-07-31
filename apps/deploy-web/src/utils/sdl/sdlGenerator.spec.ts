@@ -42,6 +42,30 @@ describe("sdlGenerator", () => {
       });
     });
 
+    it("emits gpu.attributes.interconnect as an empty array for an implicit opt-in", () => {
+      const result = generateSdl(buildFormValues(buildGpuService({ interconnect: {} })));
+
+      expect(gpuAttributesOf(result).interconnect).toEqual([]);
+    });
+
+    it("emits gpu.attributes.interconnect with the group for an explicit opt-in", () => {
+      const result = generateSdl(buildFormValues(buildGpuService({ interconnect: { group: "pair0" } })));
+
+      expect(gpuAttributesOf(result).interconnect).toEqual({ group: "pair0" });
+    });
+
+    it("does not emit an interconnect attribute when the gpu profile did not opt in", () => {
+      const result = generateSdl(buildFormValues(buildGpuService({ interconnect: undefined })));
+
+      expect(gpuAttributesOf(result)).not.toHaveProperty("interconnect");
+    });
+
+    it("emits the interconnect attribute before vendor to match the canonical key order", () => {
+      const result = generateSdl(buildFormValues(buildGpuService({ interconnect: {} })));
+
+      expect(Object.keys(gpuAttributesOf(result))).toEqual(["interconnect", "vendor"]);
+    });
+
     it("injects location-region attribute when placement.region is set", () => {
       const formValues = buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" }));
       formValues.placements[0].region = "us-west";
@@ -187,6 +211,33 @@ describe("sdlGenerator", () => {
         placements: [placement],
         services
       } as SdlBuilderFormValuesType;
+    }
+
+    function buildGpuService(opts: { interconnect?: { group?: string } }): ServiceType {
+      return {
+        id: "web-id",
+        title: "web",
+        image: "tensorflow/tensorflow:latest-gpu",
+        profile: {
+          cpu: 1,
+          ram: 2,
+          ramUnit: "Gi",
+          storage: [{ size: 10, unit: "Gi", isPersistent: false }],
+          hasGpu: true,
+          gpu: 1,
+          gpuModels: [{ vendor: "nvidia", name: "a100", memory: "80Gi", interface: "sxm" }],
+          interconnect: opts.interconnect
+        },
+        expose: [{ port: 8080, as: 80, global: true, to: [] }],
+        placementId: "p-1",
+        pricing: { amount: 1000, denom: "uakt" },
+        count: 1
+      } as ServiceType;
+    }
+
+    function gpuAttributesOf(sdl: string): Record<string, unknown> {
+      const parsed = yaml.load(sdl) as { profiles: { compute: Record<string, { resources: { gpu: { attributes: Record<string, unknown> } } }> } };
+      return parsed.profiles.compute.web.resources.gpu.attributes;
     }
   });
 

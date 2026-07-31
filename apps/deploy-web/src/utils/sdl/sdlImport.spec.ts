@@ -213,6 +213,24 @@ describe("sdlImport", () => {
 
       expect(services[0].params).toBeUndefined();
     });
+
+    it("captures an implicit gpu interconnect opt-in onto the profile model", () => {
+      const { services } = importSimpleSdl(interconnectSdl("implicit"));
+
+      expect(services[0].profile.interconnect).toEqual({});
+    });
+
+    it("captures an explicit gpu interconnect group onto the profile model", () => {
+      const { services } = importSimpleSdl(interconnectSdl("explicit"));
+
+      expect(services[0].profile.interconnect).toEqual({ group: "pair0" });
+    });
+
+    it("leaves profile.interconnect undefined when the gpu has no interconnect attribute", () => {
+      const { services } = importSimpleSdl(interconnectSdl("none"));
+
+      expect(services[0].profile.interconnect).toBeUndefined();
+    });
   });
 
   describe("SDL roundtrip", () => {
@@ -221,6 +239,37 @@ describe("sdlImport", () => {
       const parsed = yaml.load(regenerated) as { services: Record<string, { params?: { tee?: string } }> };
 
       expect(parsed.services.web.params?.tee).toBe("cpu");
+    });
+
+    it("preserves an implicit gpu interconnect opt-in when importing then regenerating the SDL", () => {
+      const regenerated = generateSdl(importSimpleSdl(interconnectSdl("implicit")));
+      const gpu = gpuOf(regenerated);
+
+      expect(gpu.attributes.interconnect).toEqual([]);
+    });
+
+    it("preserves an explicit gpu interconnect group when importing then regenerating the SDL", () => {
+      const regenerated = generateSdl(importSimpleSdl(interconnectSdl("explicit")));
+      const gpu = gpuOf(regenerated);
+
+      expect(gpu.attributes.interconnect).toEqual({ group: "pair0" });
+    });
+
+    it("preserves the interconnect placement capability and fabric pin through the round-trip", () => {
+      const regenerated = generateSdl(importSimpleSdl(interconnectSdl("explicit", { fabric: "infiniband" })));
+      const parsed = yaml.load(regenerated) as { profiles: { placement: Record<string, { attributes?: Record<string, string> }> } };
+
+      expect(parsed.profiles.placement.dcloud.attributes).toMatchObject({
+        "capabilities/gpu-interconnect": "true",
+        "capabilities/gpu-interconnect/fabric/infiniband": "true"
+      });
+    });
+
+    it("does not emit an interconnect attribute for a gpu service that did not opt in", () => {
+      const regenerated = generateSdl(importSimpleSdl(interconnectSdl("none")));
+      const gpu = gpuOf(regenerated);
+
+      expect(gpu.attributes).not.toHaveProperty("interconnect");
     });
 
     it.each(["two-services-sdl.yml", "tini-multi-args-sdl.yml"])("imports %s, regenerates it, and produces semantically equal output", mockFile => {
@@ -354,6 +403,73 @@ const teeSdl = (tee: "cpu" | "cpu-gpu") =>
     "          - size: 512Mi",
     "  placement:",
     "    dcloud:",
+    "      pricing:",
+    "        web:",
+    "          denom: uakt",
+    "          amount: 1000",
+    "deployment:",
+    "  web:",
+    "    dcloud:",
+    "      profile: web",
+    "      count: 1"
+  ].join("\n");
+
+/** Reads the generated GPU resource block for the `web` service. */
+const gpuOf = (sdl: string) => {
+  const parsed = yaml.load(sdl) as { profiles: { compute: Record<string, { resources: { gpu: { attributes: Record<string, unknown> } } }> } };
+  return parsed.profiles.compute.web.resources.gpu;
+};
+
+const interconnectAttributeLines: Record<"implicit" | "explicit" | "none", string[]> = {
+  implicit: ["            interconnect: []"],
+  explicit: ["            interconnect:", "              group: pair0"],
+  none: []
+};
+
+/**
+ * Single GPU service SDL that opts into interconnect via `gpu.attributes.interconnect`
+ * ("implicit" → `[]`, "explicit" → `{ group: pair0 }`, "none" → no interconnect attribute),
+ * paired with the required `capabilities/gpu-interconnect` placement attribute and an optional fabric pin.
+ */
+const interconnectSdl = (form: "implicit" | "explicit" | "none", opts?: { fabric?: string }) =>
+  [
+    'version: "2.0"',
+    "services:",
+    "  web:",
+    "    image: tensorflow/tensorflow:latest-gpu",
+    "    expose:",
+    "      - port: 8080",
+    "        as: 80",
+    "        to:",
+    "          - global: true",
+    "profiles:",
+    "  compute:",
+    "    web:",
+    "      resources:",
+    "        cpu:",
+    "          units: 1",
+    "        memory:",
+    "          size: 2Gi",
+    "        storage:",
+    "          - size: 10Gi",
+    "        gpu:",
+    "          units: 1",
+    "          attributes:",
+    ...interconnectAttributeLines[form],
+    "            vendor:",
+    "              nvidia:",
+    "                - model: a100",
+    "                  ram: 80Gi",
+    "                  interface: sxm",
+    "  placement:",
+    "    dcloud:",
+    ...(form === "none"
+      ? []
+      : [
+          "      attributes:",
+          '        capabilities/gpu-interconnect: "true"',
+          ...(opts?.fabric ? [`        capabilities/gpu-interconnect/fabric/${opts.fabric}: "true"`] : [])
+        ]),
     "      pricing:",
     "        web:",
     "          denom: uakt",
