@@ -11,7 +11,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { UrlService } from "@src/utils/urlUtils";
 
-const SKILL_INSTALL_COMMANDS = ["/plugin marketplace add akash-network/akash-skill", "/plugin install akash-network@akash-network"];
+const SKILL_INSTALL_COMMANDS = ["npx skills add akash-network/akash-skill --skill akash"];
 const AI_AGENTS_DOCS_URL = "https://akash.network/docs/getting-started/ai-agents/";
 
 export const AgentModePanel: React.FunctionComponent = () => {
@@ -51,7 +51,7 @@ export const AgentModePanel: React.FunctionComponent = () => {
             <AgentModeStep
               index={1}
               title="Install the Akash skill"
-              description="In Claude Code, Codex, or OpenCode:"
+              description="From your terminal — works with Claude Code, Cursor, Codex, OpenCode, and more:"
               action={
                 <div className="space-y-2">
                   {SKILL_INSTALL_COMMANDS.map(command => (
