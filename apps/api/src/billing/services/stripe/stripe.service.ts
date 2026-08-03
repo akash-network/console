@@ -17,14 +17,6 @@ interface StripePrices {
  */
 export const STRIPE_CURRENCY = "usd";
 
-/**
- * Namespace prefix the confirm-payment controller adds to client attempt keys so top-up
- * idempotency keys never collide with other flows'. Whether a reused key tolerates a changed
- * amount is an explicit policy the caller passes to StripeTransactionService, not something
- * inferred from this prefix.
- */
-export const TOP_UP_IDEMPOTENCY_KEY_PREFIX = "topup_";
-
 @singleton()
 export class StripeService {
   readonly isProduction = this.billingConfig.get("STRIPE_SECRET_KEY").startsWith("sk_live");

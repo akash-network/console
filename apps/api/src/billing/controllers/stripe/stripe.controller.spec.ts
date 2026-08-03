@@ -15,9 +15,9 @@ import { type PaymentMethod } from "@src/billing/services/payment-method/payment
 import type { StripeService } from "@src/billing/services/stripe/stripe.service";
 import type { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
 import type { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
+import type { TopUpService } from "@src/billing/services/top-up/top-up.service";
 import type { TransactionReportingService } from "@src/billing/services/transaction-reporting/transaction-reporting.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
-import type { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import { StripeController } from "./stripe.controller";
 
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
@@ -25,211 +25,58 @@ import { createUser } from "@test/seeders/user.seeder";
 
 describe(StripeController.name, () => {
   describe("confirmPayment", () => {
-    it("throws a retriable 409 without charging when the wallet is still provisioning", async () => {
-      const { controller, stripeTransaction, trialActivationJobService, userWalletRepository, user } = setup();
-      userWalletRepository.findOneByUserId.mockResolvedValue(mock<UserWalletOutput>({ activatedAt: null }));
-      trialActivationJobService.assertActivated.mockRejectedValue(createError(409, "provisioning", { errorCode: "wallet_provisioning" }));
-
-      await expect(controller.confirmPayment({ userId: user.id, paymentMethodId: faker.string.uuid(), amount: 100 })).rejects.toMatchObject({
-        status: 409,
-        errorCode: "wallet_provisioning"
-      });
-      expect(stripeTransaction.createPaymentIntent).not.toHaveBeenCalled();
-    });
-
-    it("returns transactionId and transactionStatus on successful payment", async () => {
-      const { controller, stripeTransaction, paymentMethodService, user } = setup();
-      const transactionId = faker.string.uuid();
-
-      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
-      stripeTransaction.createPaymentIntent.mockResolvedValue({
-        success: true,
-        paymentIntentId: faker.string.uuid(),
-        transactionId,
-        transactionStatus: "pending"
-      });
+    it("delegates to TopUpService and wraps the result in a data envelope", async () => {
+      const { controller, topUpService, authService, user } = setup();
+      const data = { success: true as const, transactionId: faker.string.uuid(), transactionStatus: "pending" as const };
+      topUpService.topUp.mockResolvedValue(data);
 
       const result = await controller.confirmPayment({
         userId: user.id,
-        paymentMethodId: faker.string.uuid(),
-        amount: 100
-      });
-
-      expect(result).toEqual({
-        data: {
-          success: true,
-          transactionId,
-          transactionStatus: "pending"
-        }
-      });
-    });
-
-    it("resolves transaction when awaitResolved is true", async () => {
-      const { controller, stripeTransaction, paymentMethodService, user } = setup();
-      const transactionId = faker.string.uuid();
-      const resolvedTransaction = generateDatabaseStripeTransaction({ id: transactionId, status: "succeeded" });
-
-      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
-      stripeTransaction.createPaymentIntent.mockResolvedValue({
-        success: true,
-        paymentIntentId: faker.string.uuid(),
-        transactionId,
-        transactionStatus: "pending"
-      });
-      stripeTransaction.resolveTransaction.mockResolvedValue(resolvedTransaction);
-
-      const result = await controller.confirmPayment({
-        userId: user.id,
-        paymentMethodId: faker.string.uuid(),
+        paymentMethodId: "pm_1",
         amount: 100,
+        idempotencyKey: "key_1",
         awaitResolved: true
       });
 
-      expect(stripeTransaction.resolveTransaction).toHaveBeenCalledWith(transactionId);
-      expect(result).toEqual({
-        data: {
-          success: true,
-          transactionId,
-          transactionStatus: "succeeded"
-        }
-      });
-    });
-
-    it("invokes trial-min validation before contacting Stripe", async () => {
-      const { controller, stripeTransaction, userWalletRepository, trialValidationService, paymentMethodService, user } = setup();
-      const wallet = mock<UserWalletOutput>({ isTrialing: true });
-      userWalletRepository.findOneByUserId.mockResolvedValue(wallet);
-      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
-      stripeTransaction.createPaymentIntent.mockResolvedValue({
-        success: true,
-        paymentIntentId: faker.string.uuid(),
-        transactionId: faker.string.uuid(),
-        transactionStatus: "pending"
-      });
-
-      await controller.confirmPayment({
-        userId: user.id,
-        paymentMethodId: faker.string.uuid(),
-        amount: 100
-      });
-
-      expect(trialValidationService.validateTopUpAmount).toHaveBeenCalledWith(wallet, 100);
-    });
-
-    it("propagates the trial-min rejection without ever calling Stripe", async () => {
-      const { controller, stripeTransaction, userWalletRepository, trialValidationService, paymentMethodService, user } = setup();
-      const wallet = mock<UserWalletOutput>({ isTrialing: true });
-      userWalletRepository.findOneByUserId.mockResolvedValue(wallet);
-      const trialError = Object.assign(new Error("First top-up must be at least $100 while on the free trial."), { status: 402 });
-      trialValidationService.validateTopUpAmount.mockImplementation(() => {
-        throw trialError;
-      });
-
-      await expect(
-        controller.confirmPayment({
-          userId: user.id,
-          paymentMethodId: faker.string.uuid(),
-          amount: 50
-        })
-      ).rejects.toBe(trialError);
-      expect(paymentMethodService.hasPaymentMethod).not.toHaveBeenCalled();
-      expect(stripeTransaction.createPaymentIntent).not.toHaveBeenCalled();
-    });
-
-    it("forwards an undefined wallet to trial-min validation when no wallet exists", async () => {
-      const { controller, stripeTransaction, userWalletRepository, trialValidationService, paymentMethodService, user } = setup();
-      userWalletRepository.findOneByUserId.mockResolvedValue(undefined);
-      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
-      stripeTransaction.createPaymentIntent.mockResolvedValue({
-        success: true,
-        paymentIntentId: faker.string.uuid(),
-        transactionId: faker.string.uuid(),
-        transactionStatus: "pending"
-      });
-
-      await controller.confirmPayment({
-        userId: user.id,
-        paymentMethodId: faker.string.uuid(),
-        amount: 50
-      });
-
-      expect(trialValidationService.validateTopUpAmount).toHaveBeenCalledWith(undefined, 50);
-    });
-
-    it("returns 3DS data with transactionId and transactionStatus", async () => {
-      const { controller, stripeTransaction, paymentMethodService, user } = setup();
-      const transactionId = faker.string.uuid();
-      const paymentIntentId = faker.string.uuid();
-      const clientSecret = faker.string.alphanumeric(32);
-
-      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
-      stripeTransaction.createPaymentIntent.mockResolvedValue({
-        success: false,
-        requiresAction: true,
-        clientSecret,
-        paymentIntentId,
-        transactionId,
-        transactionStatus: "requires_action"
-      });
-
-      const result = await controller.confirmPayment({
-        userId: user.id,
-        paymentMethodId: faker.string.uuid(),
-        amount: 100
-      });
-
-      expect(result).toEqual({
-        data: {
-          success: false,
-          requiresAction: true,
-          clientSecret,
-          paymentIntentId,
-          transactionId,
-          transactionStatus: "requires_action"
-        }
-      });
-    });
-
-    it("namespaces the client attempt key with the user id before calling Stripe", async () => {
-      const { controller, stripeTransaction, paymentMethodService, user } = setup();
-      const clientKey = faker.string.uuid();
-
-      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
-      stripeTransaction.createPaymentIntent.mockResolvedValue({
-        success: true,
-        paymentIntentId: faker.string.uuid(),
-        transactionId: faker.string.uuid(),
-        transactionStatus: "pending"
-      });
-
-      await controller.confirmPayment({
-        userId: user.id,
-        paymentMethodId: faker.string.uuid(),
+      expect(topUpService.topUp).toHaveBeenCalledWith(authService.getCurrentPayingUser(), {
         amount: 100,
-        idempotencyKey: clientKey
+        paymentMethodId: "pm_1",
+        idempotencyKey: "key_1",
+        awaitResolved: true
       });
-
-      expect(stripeTransaction.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: `topup_${user.id}_${clientKey}` }));
+      expect(result).toEqual({ data });
     });
 
-    it("passes no idempotency key to Stripe when the client sends none", async () => {
-      const { controller, stripeTransaction, paymentMethodService, user } = setup();
+    it("throws a 500 without charging when there is no current paying user", async () => {
+      const { controller, topUpService, authService } = setup();
+      authService.getCurrentPayingUser.mockReturnValue(undefined as unknown as PayingUser);
 
-      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
-      stripeTransaction.createPaymentIntent.mockResolvedValue({
-        success: true,
-        paymentIntentId: faker.string.uuid(),
-        transactionId: faker.string.uuid(),
-        transactionStatus: "pending"
+      await expect(controller.confirmPayment({ userId: faker.string.uuid(), paymentMethodId: "pm_1", amount: 100 })).rejects.toMatchObject({
+        status: 500
       });
+      expect(topUpService.topUp).not.toHaveBeenCalled();
+    });
 
-      await controller.confirmPayment({
-        userId: user.id,
-        paymentMethodId: faker.string.uuid(),
-        amount: 100
-      });
+    it("maps a known payment error through StripeErrorService", async () => {
+      const { controller, topUpService, stripeErrorService, user } = setup();
+      const rawError = new Error("Payment not successful");
+      const mappedError = createError(402, "Payment not successful");
+      topUpService.topUp.mockRejectedValue(rawError);
+      stripeErrorService.isKnownError.mockReturnValue(true);
+      stripeErrorService.toAppError.mockReturnValue(mappedError);
 
-      expect(stripeTransaction.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: undefined }));
+      await expect(controller.confirmPayment({ userId: user.id, paymentMethodId: "pm_1", amount: 100 })).rejects.toBe(mappedError);
+      expect(stripeErrorService.toAppError).toHaveBeenCalledWith(rawError, "payment");
+    });
+
+    it("rethrows an unknown error unchanged", async () => {
+      const { controller, topUpService, stripeErrorService, user } = setup();
+      const rawError = new Error("boom");
+      topUpService.topUp.mockRejectedValue(rawError);
+      stripeErrorService.isKnownError.mockReturnValue(false);
+
+      await expect(controller.confirmPayment({ userId: user.id, paymentMethodId: "pm_1", amount: 100 })).rejects.toBe(rawError);
+      expect(stripeErrorService.toAppError).not.toHaveBeenCalled();
     });
   });
 
@@ -462,22 +309,22 @@ describe(StripeController.name, () => {
     const couponRedemptionService = mock<CouponRedemptionService>();
     const customerService = mock<CustomerService>();
     const stripeTransaction = mock<StripeTransactionService>();
+    const topUpService = mock<TopUpService>();
     const authService = mock<AuthService>({
       currentUser: user
     });
     authService.getCurrentPayingUser.mockReturnValue(payingUser);
     const stripeErrorService = mock<StripeErrorService>();
     const userWalletRepository = mock<UserWalletRepository>();
-    const trialValidationService = mock<TrialValidationService>();
     const trialActivationJobService = mock<TrialActivationJobService>();
     const transactionReporting = mock<TransactionReportingService>();
     const controller = new StripeController(
       stripe,
       stripeTransaction,
+      topUpService,
       authService,
       stripeErrorService,
       userWalletRepository,
-      trialValidationService,
       trialActivationJobService,
       transactionReporting,
       paymentMethodService,
@@ -493,10 +340,10 @@ describe(StripeController.name, () => {
       couponRedemptionService,
       customerService,
       stripeTransaction,
+      topUpService,
       authService,
       stripeErrorService,
       userWalletRepository,
-      trialValidationService,
       trialActivationJobService,
       user
     };
