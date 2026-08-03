@@ -9,6 +9,7 @@ import type { FirstPurchaseBonusService } from "@src/billing/services/first-purc
 import type { RefillService } from "@src/billing/services/refill/refill.service";
 import { IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE, PAYMENT_IN_PROGRESS_ERROR_MESSAGE } from "@src/billing/services/stripe-error/stripe-error.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
+import type { UserRepository } from "@src/user/repositories/user/user.repository";
 import { StripeTransactionService } from "./stripe-transaction.service";
 
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
@@ -463,6 +464,7 @@ describe(StripeTransactionService.name, () => {
       mock<RefillService>(),
       mock<FirstPurchaseBonusService>(),
       timerService,
+      mock<UserRepository>(),
       () => mock<LoggerService>()
     );
 

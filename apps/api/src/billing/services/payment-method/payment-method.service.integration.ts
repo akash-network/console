@@ -12,6 +12,7 @@ import { PaymentMethodService } from "./payment-method.service";
 
 import { generateDatabasePaymentMethod } from "@test/seeders/database-payment-method.seeder";
 import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
+import { createTestUser } from "@test/seeders/user-test.seeder";
 
 /**
  * These cover the `@WithTransaction` methods, which open a real DB transaction and so can't run as
@@ -132,6 +133,65 @@ describe(PaymentMethodService.name, () => {
     });
   });
 
+  describe("syncAttachedFromEvent", () => {
+    it("resolves the paying user and upserts the attached payment method", async () => {
+      const { service, paymentMethodRepository, userRepository } = setup();
+      const mockUser = createTestUser({ stripeCustomerId: "cus_123" });
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      paymentMethodRepository.upsert.mockResolvedValue({
+        paymentMethod: { ...generateDatabasePaymentMethod({ paymentMethodId: "pm_1" }), isDefault: false },
+        isNew: true
+      });
+
+      await service.syncAttachedFromEvent(createPaymentMethodAttachedEvent({ id: "pm_1", customer: "cus_123", fingerprint: "fp_1" }));
+
+      expect(userRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: "cus_123" });
+      expect(paymentMethodRepository.upsert).toHaveBeenCalledWith({ userId: mockUser.id, fingerprint: "fp_1", paymentMethodId: "pm_1" });
+    });
+
+    it("returns early without resolving the user when the customer id is missing", async () => {
+      const { service, paymentMethodRepository, userRepository } = setup();
+
+      await service.syncAttachedFromEvent(createPaymentMethodAttachedEvent({ id: "pm_1", customer: null, fingerprint: "fp_1" }));
+
+      expect(userRepository.findOneBy).not.toHaveBeenCalled();
+      expect(paymentMethodRepository.upsert).not.toHaveBeenCalled();
+    });
+
+    it("returns early without upserting when the user is not found", async () => {
+      const { service, paymentMethodRepository, userRepository } = setup();
+      userRepository.findOneBy.mockResolvedValue(undefined);
+
+      await service.syncAttachedFromEvent(createPaymentMethodAttachedEvent({ id: "pm_1", customer: "cus_unknown", fingerprint: "fp_1" }));
+
+      expect(userRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: "cus_unknown" });
+      expect(paymentMethodRepository.upsert).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("removeDetachedFromEvent", () => {
+    it("resolves the user and deletes the local record for a known customer", async () => {
+      const { service, paymentMethodRepository, userRepository } = setup();
+      const mockUser = createTestUser({ stripeCustomerId: "cus_123" });
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      paymentMethodRepository.deleteByFingerprint.mockResolvedValue(generateDatabasePaymentMethod({ paymentMethodId: "pm_1" }));
+
+      await service.removeDetachedFromEvent(createPaymentMethodDetachedEvent({ id: "pm_1", customer: "cus_123", fingerprint: "fp_1" }));
+
+      expect(userRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: "cus_123" });
+      expect(paymentMethodRepository.deleteByFingerprint).toHaveBeenCalledWith("fp_1", "pm_1", mockUser.id);
+    });
+
+    it("returns early without deleting when the user is not found", async () => {
+      const { service, paymentMethodRepository, userRepository } = setup();
+      userRepository.findOneBy.mockResolvedValue(undefined);
+
+      await service.removeDetachedFromEvent(createPaymentMethodDetachedEvent({ id: "pm_1", customer: "cus_unknown", fingerprint: "fp_1" }));
+
+      expect(paymentMethodRepository.deleteByFingerprint).not.toHaveBeenCalled();
+    });
+  });
+
   function setup() {
     const paymentMethodRepository = mock<PaymentMethodRepository>();
     paymentMethodRepository.accessibleBy.mockReturnValue(paymentMethodRepository);
@@ -141,6 +201,26 @@ describe(PaymentMethodService.name, () => {
 
     const service = new PaymentMethodService(stripe, paymentMethodRepository, userRepository, () => mock<LoggerService>());
 
-    return { service, stripe, paymentMethodRepository };
+    return { service, stripe, paymentMethodRepository, userRepository };
+  }
+
+  function createPaymentMethodAttachedEvent(params: { id: string; customer: string | null; fingerprint?: string }): Stripe.PaymentMethodAttachedEvent {
+    return {
+      id: "evt_1",
+      type: "payment_method.attached",
+      data: {
+        object: { id: params.id, customer: params.customer, type: "card", card: { fingerprint: params.fingerprint ?? "fp_abc" } } as Stripe.PaymentMethod
+      }
+    } as Stripe.PaymentMethodAttachedEvent;
+  }
+
+  function createPaymentMethodDetachedEvent(params: { id: string; customer: string | null; fingerprint?: string }): Stripe.PaymentMethodDetachedEvent {
+    return {
+      id: "evt_1",
+      type: "payment_method.detached",
+      data: {
+        object: { id: params.id, customer: params.customer, type: "card", card: { fingerprint: params.fingerprint ?? "fp_abc" } } as Stripe.PaymentMethod
+      }
+    } as Stripe.PaymentMethodDetachedEvent;
   }
 });

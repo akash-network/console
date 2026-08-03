@@ -11,7 +11,7 @@ import { STRIPE_CLIENT } from "@src/billing/providers/stripe-client.provider";
 import { PaymentMethodRepository } from "@src/billing/repositories";
 import { type CreateLogger, LOGGER_FACTORY, WithTransaction } from "@src/core";
 import { type UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
-import type { PayingUser } from "../paying-user/paying-user";
+import { assertIsPayingUser, type PayingUser } from "../paying-user/paying-user";
 
 export type PaymentMethod = Stripe.PaymentMethod & { validated: boolean; isDefault: boolean };
 
@@ -137,6 +137,74 @@ export class PaymentMethodService {
       },
       { timeout: 3_000 }
     );
+  }
+
+  async syncAttachedFromEvent(event: Stripe.PaymentMethodAttachedEvent): Promise<void> {
+    const paymentMethod = event.data.object;
+    const customerId = paymentMethod.customer as string;
+
+    if (!customerId) {
+      this.loggerService.error({
+        event: "PAYMENT_METHOD_MISSING_CUSTOMER_ID",
+        paymentMethodId: paymentMethod.id
+      });
+      return;
+    }
+
+    const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
+    if (!user) {
+      this.loggerService.error({
+        event: "USER_NOT_FOUND_FOR_PAYMENT_METHOD",
+        customerId,
+        paymentMethodId: paymentMethod.id
+      });
+      return;
+    }
+
+    assertIsPayingUser(user);
+
+    const result = await this.syncAttached({ user, paymentMethod });
+    if (!result) {
+      return;
+    }
+
+    this.loggerService.info({
+      event: "PAYMENT_METHOD_ATTACHED",
+      paymentMethodId: paymentMethod.id,
+      userId: user.id,
+      isDefault: result.isDefault,
+      wasAlreadyProcessed: !result.isNew
+    });
+  }
+
+  async removeDetachedFromEvent(event: Stripe.PaymentMethodDetachedEvent): Promise<void> {
+    const paymentMethod = event.data.object;
+    const customerId = paymentMethod.customer || event.data.previous_attributes?.customer;
+
+    if (!customerId) {
+      this.loggerService.warn({
+        event: "PAYMENT_METHOD_DETACHED_NO_CUSTOMER_ID",
+        paymentMethodId: paymentMethod.id
+      });
+      return;
+    }
+
+    const currentUser = await this.userRepository.findOneBy({ stripeCustomerId: customerId as string });
+    if (!currentUser) {
+      this.loggerService.warn({
+        event: "PAYMENT_METHOD_DETACHED_NO_USER",
+        paymentMethodId: paymentMethod.id
+      });
+      return;
+    }
+
+    const deleted = await this.removeDetached({ userId: currentUser.id, paymentMethod });
+
+    this.loggerService.info({
+      event: "PAYMENT_METHOD_DETACHED",
+      paymentMethodId: paymentMethod.id,
+      deleted
+    });
   }
 
   @WithTransaction()
