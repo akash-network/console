@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { StripeTransactionOutput } from "@src/billing/repositories";
-import type { StripeService } from "@src/billing/services/stripe/stripe.service";
+import type { CustomerService } from "@src/billing/services/customer/customer.service";
 import type { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { CouponRedemptionService } from "./coupon-redemption.service";
 
@@ -71,9 +71,9 @@ describe(CouponRedemptionService.name, () => {
     });
 
     it("provisions a Stripe customer via getStripeCustomerId before redeeming when the account has none", async () => {
-      const { service, stripe, stripeService, stripeTransactionService } = setup();
+      const { service, stripe, customerService, stripeTransactionService } = setup();
       const mockUser = createTestUser({ stripeCustomerId: null });
-      stripeService.getStripeCustomerId.mockResolvedValue("cus_new_456");
+      customerService.getStripeCustomerId.mockResolvedValue("cus_new_456");
       const mockCoupon = createTestCoupon({ id: "coupon_new", amount_off: 1000, percent_off: null, valid: true, currency: "usd", name: "New User Coupon" });
       const mockPromotionCode = createTestPromotionCode({ id: "promo_new", promotion: { type: "coupon", coupon: mockCoupon } });
       const mockInvoice = createTestInvoice({ id: "in_new", status: "draft" });
@@ -85,7 +85,7 @@ describe(CouponRedemptionService.name, () => {
 
       await service.redeemCoupon(mockUser, mockPromotionCode.code);
 
-      expect(stripeService.getStripeCustomerId).toHaveBeenCalledWith(mockUser);
+      expect(customerService.getStripeCustomerId).toHaveBeenCalledWith(mockUser);
       expect(stripe.invoices.create).toHaveBeenCalledWith({
         customer: "cus_new_456",
         auto_advance: false,
@@ -179,18 +179,18 @@ describe(CouponRedemptionService.name, () => {
     });
 
     it("does not provision a Stripe customer when no matching code is found", async () => {
-      const { service, stripe, stripeService } = setup();
+      const { service, stripe, customerService } = setup();
       const mockUser = createTestUser({ stripeCustomerId: null });
       vi.spyOn(stripe.promotionCodes, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PromotionCode>>);
       vi.spyOn(stripe.coupons, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Coupon>>);
 
       await expect(service.redeemCoupon(mockUser, "INVALID_CODE")).rejects.toThrow("No valid promotion code or coupon found with the provided code");
 
-      expect(stripeService.getStripeCustomerId).not.toHaveBeenCalled();
+      expect(customerService.getStripeCustomerId).not.toHaveBeenCalled();
     });
 
     it("does not provision a Stripe customer when the coupon is unsupported", async () => {
-      const { service, stripeService } = setup();
+      const { service, customerService } = setup();
       const mockUser = createTestUser({ stripeCustomerId: null });
       const mockCoupon = createTestCoupon({ percent_off: 20, amount_off: null, valid: true });
       vi.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(undefined);
@@ -200,7 +200,7 @@ describe(CouponRedemptionService.name, () => {
         "Percentage-based coupons are not supported. Only fixed amount coupons are allowed."
       );
 
-      expect(stripeService.getStripeCustomerId).not.toHaveBeenCalled();
+      expect(customerService.getStripeCustomerId).not.toHaveBeenCalled();
     });
 
     it("voids the invoice and does not record a transaction when the invoice flow fails", async () => {
@@ -224,16 +224,16 @@ describe(CouponRedemptionService.name, () => {
 
   function setup() {
     const stripe = new Stripe(`sk_test_${faker.string.alphanumeric(32)}`, { apiVersion: "2025-10-29.clover", httpClient: Stripe.createFetchHttpClient() });
-    const stripeService = mock<StripeService>();
+    const customerService = mock<CustomerService>();
     const stripeTransactionService = mock<StripeTransactionService>();
 
-    stripeService.getStripeCustomerId.mockImplementation(async user => user.stripeCustomerId ?? "cus_provisioned");
+    customerService.getStripeCustomerId.mockImplementation(async user => user.stripeCustomerId ?? "cus_provisioned");
     stripeTransactionService.recordCouponClaim.mockResolvedValue(
       mock<StripeTransactionOutput>({ id: "test-transaction-id", status: "pending", type: "coupon_claim" })
     );
 
-    const service = new CouponRedemptionService(stripe, stripeService, stripeTransactionService, () => mock<LoggerService>());
+    const service = new CouponRedemptionService(stripe, customerService, stripeTransactionService, () => mock<LoggerService>());
 
-    return { service, stripe, stripeService, stripeTransactionService };
+    return { service, stripe, customerService, stripeTransactionService };
   }
 });
