@@ -27,6 +27,7 @@ import { StripeService, TOP_UP_IDEMPOTENCY_KEY_PREFIX } from "@src/billing/servi
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
 import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { TransactionReportingService } from "@src/billing/services/transaction-reporting/transaction-reporting.service";
+import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 @singleton()
 export class StripeController {
@@ -37,6 +38,7 @@ export class StripeController {
     private readonly stripeErrorService: StripeErrorService,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly trialValidationService: TrialValidationService,
+    private readonly trialActivationJobService: TrialActivationJobService,
     private readonly transactionReporting: TransactionReportingService,
     private readonly paymentMethodService: PaymentMethodService,
     private readonly couponRedemptionService: CouponRedemptionService
@@ -105,6 +107,7 @@ export class StripeController {
     assert(currentUser, 500, "Payment account not properly configured. Please contact support.");
 
     const userWallet = await this.userWalletRepository.findOneByUserId(currentUser.id);
+    await this.trialActivationJobService.assertActivated({ userId: currentUser.id, activatedAt: userWallet?.activatedAt });
     this.trialValidationService.validateTopUpAmount(userWallet, params.amount);
 
     try {
@@ -168,6 +171,9 @@ export class StripeController {
 
     assert(params.couponId, 400, "Coupon ID is required");
     assert(params.userId, 400, "User ID is required");
+
+    const userWallet = await this.userWalletRepository.findOneByUserId(currentUser.id);
+    await this.trialActivationJobService.assertActivated({ userId: currentUser.id, activatedAt: userWallet?.activatedAt });
 
     try {
       const result = await this.couponRedemptionService.redeemCoupon(currentUser, params.couponId);

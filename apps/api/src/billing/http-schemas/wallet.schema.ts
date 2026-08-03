@@ -56,9 +56,9 @@ export const UpdateWalletSettingsRequestSchema = z.object({
   data: WalletSettingsSchema
 });
 
+export type StartTrialRequestInput = z.infer<typeof StartTrialRequestInputSchema>;
 export type WalletOutputResponse = z.infer<typeof WalletResponseOutputSchema>;
 export type WalletListOutputResponse = z.infer<typeof WalletListResponseOutputSchema>;
-export type StartTrialRequestInput = z.infer<typeof StartTrialRequestInputSchema>;
 export type WalletSettingsResponse = z.infer<typeof WalletSettingsResponseSchema>;
 export type CreateWalletSettingsRequest = z.infer<typeof CreateWalletSettingsRequestSchema>;
 export type UpdateWalletSettingsRequest = z.infer<typeof UpdateWalletSettingsRequestSchema>;

@@ -13378,7 +13378,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/start-trial": {
       "post": {
-        "description": "Creates a managed wallet for a user and initiates a trial period. Returns wallet information and trial status.",
+        "description": "Ensures the user's managed wallet exists and enqueues background trial activation. Kept for backward compatibility; trial activation now runs server-side off registration/verification.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -13478,10 +13478,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "Trial started successfully and wallet created",
-          },
-          "409": {
-            "description": "Trial provisioning is already in progress for this user; retry shortly",
+            "description": "Wallet ensured and trial activation enqueued",
           },
         },
         "security": [],

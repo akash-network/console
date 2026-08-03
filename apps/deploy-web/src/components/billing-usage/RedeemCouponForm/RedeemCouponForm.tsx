@@ -35,7 +35,6 @@ export const DEPENDENCIES = {
 };
 
 interface RedeemCouponFormProps {
-  isWalletReady?: boolean;
   onProcessingChange?: (isProcessing: boolean) => void;
   onRedeemed?: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -50,7 +49,7 @@ interface RedeemCouponFormProps {
  * alert shows briefly and then `onRedeemed` fires to close the sheet. Failures and
  * no-credit coupons keep the sheet open for another attempt.
  */
-export function RedeemCouponForm({ isWalletReady = true, onProcessingChange, onRedeemed, dependencies: d = DEPENDENCIES }: RedeemCouponFormProps) {
+export function RedeemCouponForm({ onProcessingChange, onRedeemed, dependencies: d = DEPENDENCIES }: RedeemCouponFormProps) {
   const { user } = d.useUser();
   const { pollForPayment, isPolling } = d.usePaymentPolling();
   const {
@@ -69,7 +68,7 @@ export function RedeemCouponForm({ isWalletReady = true, onProcessingChange, onR
 
   const isProcessing = isApplyingCoupon || isPolling;
   const coupon = form.watch("coupon");
-  const canSubmit = coupon.trim().length > 0 && isWalletReady && !isProcessing;
+  const canSubmit = coupon.trim().length > 0 && !isProcessing;
 
   useEffect(
     function reportProcessing() {
@@ -175,12 +174,9 @@ export function RedeemCouponForm({ isWalletReady = true, onProcessingChange, onR
           </Alert>
         )}
 
-        <div className="space-y-2">
-          <LoadingButton type="submit" className="w-full" loading={isProcessing} disabled={!canSubmit}>
-            Redeem coupon
-          </LoadingButton>
-          {!isWalletReady && <p className="text-center text-sm text-muted-foreground">Setting up your account…</p>}
-        </div>
+        <LoadingButton type="submit" className="w-full" loading={isProcessing} disabled={!canSubmit}>
+          Redeem coupon
+        </LoadingButton>
       </form>
     </Form>
   );

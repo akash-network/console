@@ -96,6 +96,11 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
   const pollingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPollingRef = useRef<boolean>(false);
   const attemptCountRef = useRef<number>(0);
+  /**
+   * Payment baseline captured lazily: the balance/trial queries can still be loading when polling starts, so
+   * `pollForPayment`'s eager snapshot may be stale. Re-establish the balance baseline and the trialing latch on
+   * the first poll tick that carries real data, then measure settlement against that.
+   */
   const initialBalanceRef = useRef<number | null>(null);
   const wasTrialingRef = useRef<boolean>(wasTrialing);
   const initialTrialingRef = useRef<boolean>(wasTrialing);
@@ -212,6 +217,13 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
         return;
       }
 
+      if (initialBalanceRef.current == null && currentBalance != null) {
+        initialBalanceRef.current = currentBalance.totalUsd;
+      }
+      if (!initialTrialingRef.current && wasTrialing) {
+        initialTrialingRef.current = true;
+      }
+
       const balanceIncreased = currentBalance != null && initialBalanceRef.current != null && currentBalance.totalUsd > initialBalanceRef.current;
       const trialFlipped = initialTrialingRef.current && !wasTrialing;
 
@@ -256,14 +268,11 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
     [isPolling, wasTrialing, stopPolling, enqueueSnackbar, d]
   );
 
-  useEffect(
-    function stopPollingOnUnmount() {
-      return () => {
-        stopPolling();
-      };
-    },
-    [stopPolling]
-  );
+  const stopPollingRef = useRef(stopPolling);
+  stopPollingRef.current = stopPolling;
+  useEffect(function stopPollingOnRealUnmount() {
+    return () => stopPollingRef.current();
+  }, []);
 
   const contextValue: PaymentPollingContextType = {
     pollForPayment,

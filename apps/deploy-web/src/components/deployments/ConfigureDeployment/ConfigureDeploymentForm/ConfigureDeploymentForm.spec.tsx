@@ -321,26 +321,6 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(toast.props.title).toBe("Couldn't get provider quotes");
   });
 
-  it("resets the trial before re-requesting quotes when a previous trial start terminally errored", () => {
-    const { ConfigureDeploymentHeader, requestQuotes, retryTrial } = setup({ initialSdl: undefined, trialError: new Error("trial boom") });
-    const headerFlow = (ConfigureDeploymentHeader as ReturnType<typeof vi.fn>).mock.calls[0][0].flow as DeploymentFlow;
-
-    headerFlow.actions.requestQuotes("sdl-x");
-
-    expect(retryTrial).toHaveBeenCalledTimes(1);
-    expect(requestQuotes).toHaveBeenCalledWith("sdl-x");
-  });
-
-  it("does not reset the trial when re-requesting quotes without a prior trial error", () => {
-    const { ConfigureDeploymentHeader, requestQuotes, retryTrial } = setup({ initialSdl: undefined });
-    const headerFlow = (ConfigureDeploymentHeader as ReturnType<typeof vi.fn>).mock.calls[0][0].flow as DeploymentFlow;
-
-    headerFlow.actions.requestQuotes("sdl-x");
-
-    expect(retryTrial).not.toHaveBeenCalled();
-    expect(requestQuotes).toHaveBeenCalledWith("sdl-x");
-  });
-
   it("closes the review modal when it is dismissed via Back", async () => {
     setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes });
 
@@ -473,7 +453,6 @@ describe(ConfigureDeploymentForm.name, () => {
     draftId?: string;
     deploySucceeded?: boolean;
     flowError?: { message?: string; kind?: FlowErrorKind };
-    trialError?: unknown;
     vm?: boolean;
     phase?: DeploymentFlow["phase"];
   }) {
@@ -487,7 +466,6 @@ describe(ConfigureDeploymentForm.name, () => {
     const save = vi.fn<(sdl: string, name?: string) => void>();
     const clear = vi.fn<() => void>();
     const requestQuotes = vi.fn();
-    const retryTrial = vi.fn();
     const setDeploymentName = vi.fn();
     const ReviewAndDeployModal = vi.fn((props: { open: boolean; onBack: () => void; onConfirm: () => void }) =>
       props.open ? (
@@ -539,8 +517,6 @@ describe(ConfigureDeploymentForm.name, () => {
         initialName={input.initialName}
         intent={{ sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, draftId: input.draftId, vm: input.vm ?? false }}
         flow={flow}
-        trialError={input.trialError}
-        retryTrial={retryTrial}
         dependencies={dependencies}
       />
     );
@@ -555,7 +531,6 @@ describe(ConfigureDeploymentForm.name, () => {
       save,
       clear,
       requestQuotes,
-      retryTrial,
       analyticsService
     };
   }

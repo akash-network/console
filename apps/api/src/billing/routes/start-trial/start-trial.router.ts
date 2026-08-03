@@ -12,7 +12,8 @@ const route = createRoute({
   method: "post",
   path: "/v1/start-trial",
   summary: "Start a trial period for a user",
-  description: "Creates a managed wallet for a user and initiates a trial period. Returns wallet information and trial status.",
+  description:
+    "Ensures the user's managed wallet exists and enqueues background trial activation. Kept for backward compatibility; trial activation now runs server-side off registration/verification.",
   tags: ["Wallet"],
   security: SECURITY_NONE,
   request: {
@@ -26,15 +27,12 @@ const route = createRoute({
   },
   responses: {
     200: {
-      description: "Trial started successfully and wallet created",
+      description: "Wallet ensured and trial activation enqueued",
       content: {
         "application/json": {
           schema: WalletResponseNo3DSOutputSchema
         }
       }
-    },
-    409: {
-      description: "Trial provisioning is already in progress for this user; retry shortly"
     }
   }
 });

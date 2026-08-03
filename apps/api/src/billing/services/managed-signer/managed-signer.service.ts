@@ -18,6 +18,7 @@ import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deploymen
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
+import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { LoggerService } from "@src/core";
@@ -49,6 +50,7 @@ export class ManagedSignerService {
     private readonly leaseHttpService: LeaseHttpService,
     private readonly walletReloadJobService: WalletReloadJobService,
     private readonly managedUserWalletService: ManagedUserWalletService,
+    private readonly trialActivationJobService: TrialActivationJobService,
     private readonly logger: LoggerService
   ) {
     this.logger.setContext(ManagedSignerService.name);
@@ -108,6 +110,7 @@ export class ManagedSignerService {
     transactionHash: string;
     rawLog: string;
   }> {
+    await this.#assertActivatedForSpending(userWallet, messages);
     await this.#validateBalances(userWallet, messages);
     await Promise.all([
       this.anonymousValidateService.validateLeaseProvidersAuditors(messages, userWallet),
@@ -175,11 +178,26 @@ export class ManagedSignerService {
   }
 
   async #ensureAutoReloadSchedule(userId: UserWalletOutput["userId"], messages: EncodeObject[]) {
-    const hasSpendingTx = messages.some(message => SPENDING_TXS.some(msg => message.typeUrl.endsWith(msg.$type)));
-
-    if (hasSpendingTx) {
+    if (this.#hasSpendingTx(messages)) {
       await this.walletReloadJobService.scheduleImmediate({ userId });
     }
+  }
+
+  #hasSpendingTx(messages: EncodeObject[]): boolean {
+    return messages.some(message => SPENDING_TXS.some(msg => message.typeUrl.endsWith(msg.$type)));
+  }
+
+  /**
+   * A managed wallet gets its address at registration but can only broadcast a spending tx once the trial is
+   * activated and its on-chain grants are provisioned (in the background, see {@link WalletInitializerService}).
+   * When a spend arrives before then we re-request activation (a self-heal for a wallet whose proactive job never
+   * ran) and reject with a retriable 409, so the client waits for provisioning instead of surfacing the terminal
+   * chain error a missing grant would otherwise produce.
+   */
+  async #assertActivatedForSpending(userWallet: UserWalletOutput, messages: EncodeObject[]) {
+    if (!this.#hasSpendingTx(messages)) return;
+
+    await this.trialActivationJobService.assertActivated(userWallet);
   }
 
   /**

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useEffect, useState } from "react";
-import { Alert, AlertDescription, Button } from "@akashnetwork/ui/components";
+import { Button } from "@akashnetwork/ui/components";
 import { ArrowRight } from "lucide-react";
 import Head from "next/head";
 import Link from "next/link";
@@ -55,7 +55,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   const { publicConfig, urlService, analyticsService } = d.useServices();
   const trialCreditsAmount = publicConfig.NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT;
   const [addCreditsSheetReason, setAddCreditsSheetReason] = useState<"unlock-gpu" | "hackathon-coupon" | null>(null);
-  const { isWalletReady, error: trialError } = d.useEnsureTrialStarted();
+  const { isWalletReady } = d.useEnsureTrialStarted();
   const isHackathonsEnabled = d.useFlag("hackathons");
   const isLlmGated = isTrialing || !isWalletReady;
   const isLlmAvailable = !isLlmGated;
@@ -135,14 +135,6 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
               </p>
             </div>
 
-            {trialError && (
-              <Alert variant="destructive">
-                <AlertDescription>
-                  We couldn&apos;t set up your trial. Please refresh the page to try again, or contact support if the issue persists.
-                </AlertDescription>
-              </Alert>
-            )}
-
             <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-3">
               <d.DeploymentTemplatePickerCard
                 recommended
@@ -212,7 +204,6 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
           open={addCreditsSheetReason !== null}
           context={addCreditsSheetReason ?? undefined}
           onOpenChange={open => setAddCreditsSheetReason(open ? "unlock-gpu" : null)}
-          isWalletReady={isWalletReady}
           onRedeemed={() => setAddCreditsSheetReason(null)}
           initialTab={addCreditsSheetReason === "hackathon-coupon" ? "coupon" : "purchase"}
           onDone={() => {

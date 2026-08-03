@@ -17,17 +17,12 @@ describe(DeploymentFlowProvider.name, () => {
     expect(useDeploymentFlow).toHaveBeenCalledWith(expect.objectContaining({ intent }));
   });
 
-  it("exposes the flow and trial handles to its children", () => {
+  it("exposes the flow to its children", () => {
     const flow = mock<DeploymentFlow>();
-    const retryTrial = vi.fn();
-    const trialError = new Error("trial failed");
-    const { getContext } = setup({ flow, trial: { isWalletReady: true, error: trialError, retryTrial } });
+    const { getContext } = setup({ flow });
 
     const context = getContext() as DeploymentFlowContext;
     expect(context.flow).toBe(flow);
-    expect(context.isWalletReady).toBe(true);
-    expect(context.trialError).toBe(trialError);
-    expect(context.retryTrial).toBe(retryTrial);
   });
 
   it("renders its children", () => {
@@ -40,21 +35,9 @@ describe(DeploymentFlowProvider.name, () => {
     return { sdlStrategy: "default", bidStrategy: "auto", dseq, vm: false };
   }
 
-  function setup(input: {
-    intent?: DeploymentIntent;
-    flow?: DeploymentFlow;
-    trial?: { isWalletReady?: boolean; error?: Error | null; retryTrial?: () => void };
-    useDeploymentFlow?: typeof DEPENDENCIES.useDeploymentFlow;
-  }) {
+  function setup(input: { intent?: DeploymentIntent; flow?: DeploymentFlow; useDeploymentFlow?: typeof DEPENDENCIES.useDeploymentFlow }) {
     const flow = input.flow ?? mock<DeploymentFlow>();
     const useDeploymentFlow = input.useDeploymentFlow ?? vi.fn(() => flow);
-    const trial = mock<ReturnType<typeof DEPENDENCIES.useEnsureTrialStarted>>({
-      isWalletReady: input.trial?.isWalletReady ?? false,
-      retryTrial: input.trial?.retryTrial ?? vi.fn()
-    });
-    // Assigned after construction: an Error passed inside the mock<T>() partial gets auto-mocked, losing its identity.
-    trial.error = input.trial?.error ?? null;
-    const useEnsureTrialStarted: typeof DEPENDENCIES.useEnsureTrialStarted = () => trial;
 
     let context: DeploymentFlowContext | undefined;
     const renderChild = (received: DeploymentFlowContext) => {
@@ -63,10 +46,7 @@ describe(DeploymentFlowProvider.name, () => {
     };
 
     render(
-      <DeploymentFlowProvider
-        intent={input.intent ?? intentFor(undefined)}
-        dependencies={{ useDeploymentFlow: useDeploymentFlow as never, useEnsureTrialStarted }}
-      >
+      <DeploymentFlowProvider intent={input.intent ?? intentFor(undefined)} dependencies={{ useDeploymentFlow: useDeploymentFlow as never }}>
         {renderChild}
       </DeploymentFlowProvider>
     );

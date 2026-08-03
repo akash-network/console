@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
 
 import type { DeploymentFlow, DeploymentFlowPhase } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
 import type { DeployPhase, DeployPhaseId, DeployProgressState } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
@@ -12,14 +11,6 @@ import { DeploymentGroups } from "@src/utils/deploymentData/helpers";
 
 type Options = {
   sdl: string;
-  /**
-   * Whether the trial wallet is initialized server-side and ready to broadcast deployments. While `false`, the
-   * autopilot holds off on firing the create action — the user keeps seeing "Creating deployment" while the trial
-   * spins up behind the scenes. Required so callers can't accidentally stall the flow by omitting the readiness signal.
-   */
-  isWalletReady: boolean;
-  /** If the trial-start mutation has terminally errored, the flow projects to the error state instead of waiting forever. */
-  trialError?: unknown;
   /**
    * Live (non-closed) leases already on chain for a resumed deployment, resolved once by the `ResumeDeploymentGuard`
    * and passed in so the flow reconstructs a selection per already-leased group and lets the idempotent server
@@ -97,10 +88,7 @@ export const DEPENDENCIES = {
  * idempotent server create-lease re-sends the manifest), the phased progress-bar animation, and the matched-provider
  * address. `flow.phase` is projected onto the three-step create → match → prepare progress UI.
  */
-export function useAutoDeploymentFlow(
-  { sdl, isWalletReady, trialError, resumeLeases = [], flow }: Options,
-  dependencies: typeof DEPENDENCIES = DEPENDENCIES
-): Result {
+export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options, dependencies: typeof DEPENDENCIES = DEPENDENCIES): Result {
   const sdlRef = useRef(sdl);
   sdlRef.current = sdl;
 
@@ -194,11 +182,11 @@ export function useAutoDeploymentFlow(
       // requestQuotes moves the flow off "configuring" synchronously, so the phase guard alone prevents a re-fire.
       // The flow lives in the parent provider now, so on mount this child effect runs before the flow's own effects;
       // that's inert here — those effects early-return unless phase === "quoting", and the mount phase is "configuring".
-      if (flow.phase !== "configuring" || trialError || !isWalletReady) return;
+      if (flow.phase !== "configuring") return;
       flow.actions.requestQuotes(sdlRef.current);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [flow.phase, isWalletReady, trialError, retryToken]
+    [flow.phase, retryToken]
   );
 
   useEffect(
@@ -237,8 +225,8 @@ export function useAutoDeploymentFlow(
     [flow.phase, allGroupsSelected, flow.deployError, autopilotStopped]
   );
 
-  const projected = projectPhase(flow.phase, flow.deploySucceeded, !!trialError, !!flow.deployError);
-  const errorMessage = trialError ? extractApiErrorMessage(trialError) ?? undefined : flow.deployError?.message ?? flow.error?.message;
+  const projected = projectPhase(flow.phase, flow.deploySucceeded, !!flow.deployError);
+  const errorMessage = flow.deployError?.message ?? flow.error?.message;
 
   const phaseIndex = getPhaseIndex(projected);
   const { progressPercent, phases } = useDeployPhaseProgress(phaseIndex, { succeeded: projected === "success", resetKey: retryToken });
@@ -274,8 +262,8 @@ export function useAutoDeploymentFlow(
 type ProjectedPhase = DeployPhaseId | "success" | "error";
 
 /** Projects the manual flow's phase onto the three-step auto progress UI (create → match → prepare) plus success/error. */
-function projectPhase(phase: DeploymentFlowPhase, deploySucceeded: boolean, trialErrored: boolean, deployErrored: boolean): ProjectedPhase {
-  if (trialErrored || deployErrored || phase === "error") return "error";
+function projectPhase(phase: DeploymentFlowPhase, deploySucceeded: boolean, deployErrored: boolean): ProjectedPhase {
+  if (deployErrored || phase === "error") return "error";
   if (deploySucceeded) return "success";
   switch (phase) {
     // `closing` in the auto flow only ever happens as the first step of "Try again" — tearing down the old deployment

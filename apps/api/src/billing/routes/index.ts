@@ -1,4 +1,3 @@
-export * from "@src/billing/routes/start-trial/start-trial.router";
 export * from "@src/billing/routes/get-wallet-list/get-wallet-list.router";
 export * from "@src/billing/routes/sign-and-broadcast-tx/sign-and-broadcast-tx.router";
 export * from "@src/billing/routes/stripe-webhook/stripe-webhook.router";
@@ -8,5 +7,6 @@ export * from "@src/billing/routes/stripe-customers/stripe-customers.router";
 export * from "@src/billing/routes/stripe-transactions/stripe-transactions.router";
 export * from "@src/billing/routes/stripe-payment-methods/stripe-payment-methods.router";
 export * from "@src/billing/routes/get-balances/get-balances.router";
+export * from "@src/billing/routes/start-trial/start-trial.router";
 export * from "@src/billing/routes/usage/usage.router";
 export * from "@src/billing/routes/wallet-settings/wallet-settings.router";

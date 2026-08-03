@@ -1,5 +1,4 @@
 import { useCallback, useState } from "react";
-import { ApiError } from "@akashnetwork/openapi-sdk";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -19,40 +18,10 @@ const DSEQ = "12345";
 const BID_ID = `${PROVIDER_OWNER}/${DSEQ}/1/1`;
 
 describe(useAutoDeploymentFlow.name, () => {
-  it("starts in the creating phase with the first phase active", () => {
-    const { result } = setup({ isWalletReady: false });
-
-    expect(result.current.state.kind).toBe("creating");
-    expect(result.current.phases[0].status).toBe("active");
-    expect(result.current.phases[1].status).toBe("pending");
-    expect(result.current.phases[2].status).toBe("pending");
-  });
-
-  it("fires requestQuotes with the current SDL once the wallet is ready", async () => {
+  it("fires requestQuotes with the current SDL on mount when the flow is configuring", async () => {
     const { flow } = setup({ sdl: "sdl-content" });
 
     await vi.waitFor(() => expect(flow.actions.requestQuotes).toHaveBeenCalledWith("sdl-content"));
-  });
-
-  it("stays in creating without firing requestQuotes while the trial wallet is not yet ready", async () => {
-    const { result, flow } = setup({ isWalletReady: false });
-
-    await new Promise(resolve => setTimeout(resolve, 50));
-
-    expect(result.current.state.kind).toBe("creating");
-    expect(flow.actions.requestQuotes).not.toHaveBeenCalled();
-  });
-
-  it("projects to error without firing requestQuotes when the trial has terminally errored", async () => {
-    const { result, flow } = setup({
-      isWalletReady: false,
-      trialError: new ApiError(400, { message: "Email not verified" }, "POST /v1/wallets/start-trial → 400")
-    });
-
-    await vi.waitFor(() => expect(result.current.state.kind).toBe("error"));
-
-    expect(result.current.state).toEqual({ kind: "error", message: "Email not verified" });
-    expect(flow.actions.requestQuotes).not.toHaveBeenCalled();
   });
 
   it("projects the underlying quoting phase to matching, with creating completed", async () => {
@@ -260,8 +229,6 @@ describe(useAutoDeploymentFlow.name, () => {
     requiredGseqs?: number[];
     resumeLeases?: Array<{ dseq: string; gseq: number; oseq: number; provider: string }>;
     providerProxyRequest?: ReturnType<typeof vi.fn>;
-    isWalletReady?: boolean;
-    trialError?: unknown;
   }) {
     vi.spyOn(globalThis, "requestAnimationFrame").mockReturnValue(1);
     vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => undefined);
@@ -378,8 +345,6 @@ describe(useAutoDeploymentFlow.name, () => {
         return useAutoDeploymentFlow(
           {
             sdl: input?.sdl ?? "sdl-content",
-            isWalletReady: input?.isWalletReady ?? true,
-            trialError: input?.trialError,
             resumeLeases: input?.resumeLeases,
             flow
           },

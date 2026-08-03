@@ -114,26 +114,11 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
 
         return (
           <d.DeploymentFlowProvider key={draft.draftId} intent={resolvedIntent}>
-            {({ flow, isWalletReady, trialError, retryTrial }) =>
+            {({ flow }) =>
               isAutoDeploy && initialSdl ? (
-                <d.AutoDeployFlow
-                  templateName={templateName}
-                  sdl={initialSdl}
-                  resume={resume}
-                  flow={flow}
-                  isWalletReady={isWalletReady}
-                  trialError={trialError}
-                  retryTrial={retryTrial}
-                />
+                <d.AutoDeployFlow templateName={templateName} sdl={initialSdl} resume={resume} flow={flow} />
               ) : (
-                <d.ConfigureDeploymentForm
-                  initialSdl={initialSdl}
-                  initialName={initialName}
-                  intent={resolvedIntent}
-                  flow={flow}
-                  trialError={trialError}
-                  retryTrial={retryTrial}
-                />
+                <d.ConfigureDeploymentForm initialSdl={initialSdl} initialName={initialName} intent={resolvedIntent} flow={flow} />
               )
             }
           </d.DeploymentFlowProvider>
