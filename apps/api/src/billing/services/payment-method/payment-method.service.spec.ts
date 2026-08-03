@@ -7,7 +7,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { PaymentMethodRepository } from "@src/billing/repositories";
 import type { PayingUser } from "@src/billing/services/paying-user/paying-user";
-import type { UserOutput } from "@src/user/repositories/user/user.repository";
+import type { UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
 import { PaymentMethodService } from "./payment-method.service";
 
 import { generateDatabasePaymentMethod } from "@test/seeders/database-payment-method.seeder";
@@ -91,14 +91,102 @@ describe(PaymentMethodService.name, () => {
     });
   });
 
+  describe("validatePaymentMethodAfter3DS", () => {
+    const CUSTOMER_ID = "cus_123";
+    const PAYMENT_METHOD_ID = "pm_123";
+    const PAYMENT_INTENT_ID = "pi_123";
+
+    const givenPaymentIntent = (overrides: Partial<Stripe.PaymentIntent>) =>
+      asResponse(mock<Stripe.PaymentIntent>({ id: PAYMENT_INTENT_ID, customer: CUSTOMER_ID, payment_method: PAYMENT_METHOD_ID, ...overrides }));
+
+    it("marks the payment method as validated when the intent succeeded", async () => {
+      const { service, stripe, paymentMethodRepository, userRepository } = setup();
+      userRepository.findOneBy.mockResolvedValue(mock<UserOutput>({ id: "user_123", stripeCustomerId: CUSTOMER_ID }));
+      vi.spyOn(stripe.paymentIntents, "retrieve").mockResolvedValue(givenPaymentIntent({ status: "succeeded" }));
+
+      const result = await service.validatePaymentMethodAfter3DS(CUSTOMER_ID, PAYMENT_METHOD_ID, PAYMENT_INTENT_ID);
+
+      expect(result).toEqual({ success: true });
+      expect(stripe.paymentIntents.retrieve).toHaveBeenCalledWith(PAYMENT_INTENT_ID);
+      expect(paymentMethodRepository.markAsValidated).toHaveBeenCalledWith(PAYMENT_METHOD_ID, "user_123");
+    });
+
+    it("marks the payment method as validated when the intent requires capture", async () => {
+      const { service, stripe, paymentMethodRepository, userRepository } = setup();
+      userRepository.findOneBy.mockResolvedValue(mock<UserOutput>({ id: "user_123", stripeCustomerId: CUSTOMER_ID }));
+      vi.spyOn(stripe.paymentIntents, "retrieve").mockResolvedValue(givenPaymentIntent({ status: "requires_capture" }));
+
+      const result = await service.validatePaymentMethodAfter3DS(CUSTOMER_ID, PAYMENT_METHOD_ID, PAYMENT_INTENT_ID);
+
+      expect(result).toEqual({ success: true });
+      expect(paymentMethodRepository.markAsValidated).toHaveBeenCalledWith(PAYMENT_METHOD_ID, "user_123");
+    });
+
+    it("returns success false without validating when the intent is not successful", async () => {
+      const { service, stripe, paymentMethodRepository } = setup();
+      vi.spyOn(stripe.paymentIntents, "retrieve").mockResolvedValue(givenPaymentIntent({ status: "requires_payment_method" }));
+
+      const result = await service.validatePaymentMethodAfter3DS(CUSTOMER_ID, PAYMENT_METHOD_ID, PAYMENT_INTENT_ID);
+
+      expect(result).toEqual({ success: false });
+      expect(paymentMethodRepository.markAsValidated).not.toHaveBeenCalled();
+    });
+
+    it("returns success without marking when no user matches the customer", async () => {
+      const { service, stripe, paymentMethodRepository, userRepository } = setup();
+      userRepository.findOneBy.mockResolvedValue(undefined);
+      vi.spyOn(stripe.paymentIntents, "retrieve").mockResolvedValue(givenPaymentIntent({ status: "succeeded" }));
+
+      const result = await service.validatePaymentMethodAfter3DS(CUSTOMER_ID, PAYMENT_METHOD_ID, PAYMENT_INTENT_ID);
+
+      expect(result).toEqual({ success: true });
+      expect(paymentMethodRepository.markAsValidated).not.toHaveBeenCalled();
+    });
+
+    it("propagates the failure when persisting the validation throws", async () => {
+      const { service, stripe, paymentMethodRepository, userRepository } = setup();
+      userRepository.findOneBy.mockResolvedValue(mock<UserOutput>({ id: "user_123", stripeCustomerId: CUSTOMER_ID }));
+      paymentMethodRepository.markAsValidated.mockRejectedValue(new Error("db unavailable"));
+      vi.spyOn(stripe.paymentIntents, "retrieve").mockResolvedValue(givenPaymentIntent({ status: "succeeded" }));
+
+      await expect(service.validatePaymentMethodAfter3DS(CUSTOMER_ID, PAYMENT_METHOD_ID, PAYMENT_INTENT_ID)).rejects.toThrow("db unavailable");
+    });
+
+    it("rethrows when the payment intent cannot be retrieved", async () => {
+      const { service, stripe } = setup();
+      vi.spyOn(stripe.paymentIntents, "retrieve").mockRejectedValue(new Error("Payment intent not found"));
+
+      await expect(service.validatePaymentMethodAfter3DS(CUSTOMER_ID, PAYMENT_METHOD_ID, PAYMENT_INTENT_ID)).rejects.toThrow("Payment intent not found");
+    });
+
+    it("rejects when the intent belongs to a different customer", async () => {
+      const { service, stripe } = setup();
+      vi.spyOn(stripe.paymentIntents, "retrieve").mockResolvedValue(givenPaymentIntent({ status: "succeeded", customer: "cus_other" }));
+
+      await expect(service.validatePaymentMethodAfter3DS(CUSTOMER_ID, PAYMENT_METHOD_ID, PAYMENT_INTENT_ID)).rejects.toThrow(
+        "Payment intent does not belong to the user"
+      );
+    });
+
+    it("rejects when the intent references a different payment method", async () => {
+      const { service, stripe } = setup();
+      vi.spyOn(stripe.paymentIntents, "retrieve").mockResolvedValue(givenPaymentIntent({ status: "succeeded", payment_method: "pm_other" }));
+
+      await expect(service.validatePaymentMethodAfter3DS(CUSTOMER_ID, PAYMENT_METHOD_ID, PAYMENT_INTENT_ID)).rejects.toThrow(
+        "Payment intent does not reference the provided payment method"
+      );
+    });
+  });
+
   function setup() {
     const paymentMethodRepository = mock<PaymentMethodRepository>();
     paymentMethodRepository.accessibleBy.mockReturnValue(paymentMethodRepository);
+    const userRepository = mock<UserRepository>();
 
     const stripe = new Stripe(`sk_test_${faker.string.alphanumeric(32)}`, { apiVersion: "2025-10-29.clover", httpClient: Stripe.createFetchHttpClient() });
 
-    const service = new PaymentMethodService(stripe, paymentMethodRepository, () => mock<LoggerService>());
+    const service = new PaymentMethodService(stripe, paymentMethodRepository, userRepository, () => mock<LoggerService>());
 
-    return { service, stripe, paymentMethodRepository };
+    return { service, stripe, paymentMethodRepository, userRepository };
   }
 });
