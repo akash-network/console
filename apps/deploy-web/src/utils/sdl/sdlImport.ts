@@ -72,6 +72,7 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
         cpu: compute.resources.cpu.units,
         gpu: compute.resources.gpu ? compute.resources.gpu.units : 0,
         gpuModels: compute.resources.gpu ? getGpuModels(compute.resources.gpu.attributes.vendor) : [],
+        interconnect: compute.resources.gpu ? getGpuInterconnect(compute.resources.gpu.attributes) : undefined,
         hasGpu: !!compute.resources.gpu,
         ram: getResourceDigit(compute.resources.memory.size),
         ramUnit: getResourceUnit(compute.resources.memory.size),
@@ -204,6 +205,18 @@ const getResourceDigit = (size: string): number => {
 const getResourceUnit = (size: string): string => {
   const match = size.match(/[a-zA-Z]+/g);
   return match ? capitalizeFirstLetter(match[0]) : "";
+};
+
+/**
+ * Reads the GPU interconnect opt-in from `gpu.attributes.interconnect`: an empty array (implicit `auto`
+ * group) maps to `{}`, an explicit `{ group }` keeps the name, and an absent attribute leaves it off.
+ */
+const getGpuInterconnect = (attributes: { interconnect?: unknown }): { group?: string } | undefined => {
+  const interconnect = attributes?.interconnect;
+  if (interconnect === undefined || interconnect === null) return undefined;
+  if (Array.isArray(interconnect)) return {};
+  const group = (interconnect as { group?: unknown }).group;
+  return typeof group === "string" ? { group } : {};
 };
 
 const getGpuModels = (vendor: { [key: string]: { model: string; ram: string; interface: string }[] }): ProfileGpuModelType[] => {
