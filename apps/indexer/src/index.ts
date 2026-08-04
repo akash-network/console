@@ -1,8 +1,9 @@
 import "@akashnetwork/env-loader";
 
 import { activeChain, chainDefinitions } from "@akashnetwork/database/chainDefinitions";
+import { serve } from "@hono/node-server";
 import * as Sentry from "@sentry/node";
-import express from "express";
+import { Hono } from "hono";
 import { setTimeout as sleep } from "node:timers/promises";
 
 import packageJson from "../package.json";
@@ -22,7 +23,7 @@ import { updateProviderUptime } from "./tasks/providerUptimeTracker";
 import { updateUsdSpending } from "./tasks/usdSpendingTracker";
 import { Scheduler } from "./scheduler";
 
-const app = express();
+const app = new Hono();
 
 const { PORT = 3079 } = process.env;
 
@@ -51,7 +52,7 @@ const scheduler = new Scheduler({
   }
 });
 
-app.get("/status", async (req, res) => {
+app.get("/status", async c => {
   try {
     const version = packageJson.version;
     const tasksStatus = scheduler.getTasksStatus();
@@ -66,20 +67,20 @@ app.get("/status", async (req, res) => {
       external: bytesToHumanReadableSize(memoryInBytes.external)
     };
 
-    res.send({ version, ...cacheSize, memory, activeNodeCount, tasks: tasksStatus, sync: syncStatus });
+    return c.json({ version, ...cacheSize, memory, activeNodeCount, tasks: tasksStatus, sync: syncStatus });
   } catch (err) {
     Sentry.captureException(err);
-    res.status(500).send("An error occurred");
+    return c.text("An error occurred", 500);
   }
 });
 
-app.get("/nodes", async (req, res) => {
+app.get("/nodes", async c => {
   try {
     const nodeStatus = nodeAccessor.getNodeStatus();
-    res.send(nodeStatus);
+    return c.json(nodeStatus);
   } catch (err) {
     Sentry.captureException(err);
-    res.status(500).send("An error occurred");
+    return c.text("An error occurred", 500);
   }
 });
 
@@ -149,7 +150,7 @@ async function initApp() {
       throw "Invalid execution mode";
     }
 
-    app.listen(PORT, () => {
+    serve({ fetch: app.fetch, port: Number(PORT) }, () => {
       console.log("server started at http://localhost:" + PORT);
     });
   } catch (err) {
