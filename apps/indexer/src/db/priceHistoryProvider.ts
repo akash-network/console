@@ -21,7 +21,8 @@ export const syncPriceHistory = async (): Promise<void> => {
   const response = await fetch(endpointUrl);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch market data from ${endpointUrl}. Request failed with status code ${response.status}`);
+    const body = (await response.text()).slice(0, 500);
+    throw new Error(`Failed to fetch market data from ${endpointUrl}. Request failed with status code ${response.status}: ${body}`);
   }
 
   const data = (await response.json()) as PriceHistoryResponse;
