@@ -1,19 +1,20 @@
 import "@akashnetwork/env-loader";
 
 import { activeChain, chainDefinitions } from "@akashnetwork/database/chainDefinitions";
-import { serve } from "@hono/node-server";
 import * as Sentry from "@sentry/node";
 import { Hono } from "hono";
 import { setTimeout as sleep } from "node:timers/promises";
 
 import packageJson from "../package.json";
 import { getSyncStatus, syncBlocks } from "./chain/chainSync";
-import { getCacheSize } from "./chain/dataStore";
+import { closeCaches, getCacheSize } from "./chain/dataStore";
 import { nodeAccessor } from "./chain/nodeAccessor";
 import { statsProcessor } from "./chain/statsProcessor";
 import { initDatabase } from "./db/buildDatabase";
+import { sequelize } from "./db/dbConnection";
 import { fetchValidatorKeybaseInfos } from "./db/keybaseProvider";
 import { syncPriceHistory } from "./db/priceHistoryProvider";
+import { startServer } from "./lib/start-server/start-server";
 import { updateProvidersLocation } from "./providers/ipLocationProvider";
 import { syncProvidersInfo } from "./providers/providerStatusProvider";
 import { ExecutionMode, executionMode, isProd } from "./shared/constants";
@@ -52,7 +53,31 @@ const scheduler = new Scheduler({
   }
 });
 
-app.get("/status", async c => {
+interface AcquiredResource {
+  name: string;
+  dispose: () => Promise<void> | void;
+}
+
+const acquiredResources: AcquiredResource[] = [];
+
+function disposeOnShutdown(resource: AcquiredResource) {
+  acquiredResources.push(resource);
+}
+
+/** Disposes in reverse acquisition order so producers stop before the stores they write to are closed. */
+async function disposeAcquiredResources() {
+  for (const resource of [...acquiredResources].reverse()) {
+    try {
+      await resource.dispose();
+      console.log(`Disposed "${resource.name}"`);
+    } catch (error) {
+      console.error(`Failed to dispose "${resource.name}"`, error);
+      Sentry.captureException(error);
+    }
+  }
+}
+
+app.get("/status", async (c) => {
   try {
     const version = packageJson.version;
     const tasksStatus = scheduler.getTasksStatus();
@@ -121,45 +146,47 @@ function startScheduler() {
  * Load from backup if exists for current version
  */
 async function initApp() {
-  try {
-    if (env.STANDBY) {
-      console.log("STANDBY mode enabled. Doing nothing.");
+  if (env.STANDBY) {
+    console.log("STANDBY mode enabled. Doing nothing.");
 
-      while (true) {
-        await sleep(5_000);
-      }
+    while (true) {
+      await sleep(5_000);
     }
+  }
 
-    const activeChainCode = process.env.ACTIVE_CHAIN;
-    if (!activeChainCode || !(activeChainCode in chainDefinitions)) {
-      throw new Error(`Unknown chain with code: ${process.env.ACTIVE_CHAIN}`);
-    }
+  const activeChainCode = process.env.ACTIVE_CHAIN;
+  if (!activeChainCode || !(activeChainCode in chainDefinitions)) {
+    throw new Error(`Unknown chain with code: ${process.env.ACTIVE_CHAIN}`);
+  }
 
-    await initDatabase();
-    await nodeAccessor.loadNodeStatus();
+  await initDatabase();
+  disposeOnShutdown({ name: "database", dispose: () => sequelize.close() });
+  disposeOnShutdown({ name: "block cache", dispose: () => closeCaches() });
 
-    if (executionMode === ExecutionMode.RebuildStats) {
-      await statsProcessor.rebuildStatsTables();
-    } else if (executionMode === ExecutionMode.RebuildAll) {
-      console.time("Rebuilding all");
-      await syncBlocks();
-      console.timeEnd("Rebuilding all");
-    } else if (executionMode === ExecutionMode.SyncOnly) {
-      startScheduler();
-    } else {
-      throw "Invalid execution mode";
-    }
+  await nodeAccessor.loadNodeStatus();
+  disposeOnShutdown({ name: "node accessor", dispose: () => nodeAccessor.stop() });
 
-    serve({ fetch: app.fetch, port: Number(PORT) }, () => {
-      console.log("server started at http://localhost:" + PORT);
-    });
-  } catch (err) {
-    console.error("Error while initializing app", err);
-
-    Sentry.captureException(err);
+  if (executionMode === ExecutionMode.RebuildStats) {
+    await statsProcessor.rebuildStatsTables();
+  } else if (executionMode === ExecutionMode.RebuildAll) {
+    console.time("Rebuilding all");
+    await syncBlocks();
+    console.timeEnd("Rebuilding all");
+  } else if (executionMode === ExecutionMode.SyncOnly) {
+    startScheduler();
+    disposeOnShutdown({ name: "scheduler", dispose: () => scheduler.stop() });
+  } else {
+    throw "Invalid execution mode";
   }
 }
 
-initApp();
+startServer(app, console, process, {
+  port: Number(PORT),
+  beforeStart: initApp,
+  onStop: disposeAcquiredResources
+}).catch(error => {
+  console.error("Error while initializing app", error);
+  Sentry.captureException(error);
+});
 
 export default app;

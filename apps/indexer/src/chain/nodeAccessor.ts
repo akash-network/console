@@ -15,6 +15,7 @@ const savedNodeInfoPath = dataFolderPath + "/nodeStatus.json";
 class NodeAccessor {
   private nodes: NodeInfo[];
   private settings: NodeAccessorSettings;
+  private saveStatusInterval: NodeJS.Timeout | null = null;
 
   constructor(settings: NodeAccessorSettings) {
     this.settings = settings;
@@ -63,7 +64,17 @@ class NodeAccessor {
       }
     }
 
-    setInterval(() => this.saveNodeStatus(), 30_000);
+    this.saveStatusInterval = setInterval(() => this.saveNodeStatus(), 30_000);
+  }
+
+  public async stop(): Promise<void> {
+    if (this.saveStatusInterval) {
+      clearInterval(this.saveStatusInterval);
+      this.saveStatusInterval = null;
+    }
+
+    await this.waitForAllFinished();
+    await this.saveNodeStatus();
   }
 
   public async getBlock(height: number) {
