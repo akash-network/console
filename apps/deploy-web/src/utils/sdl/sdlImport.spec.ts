@@ -255,6 +255,13 @@ describe("sdlImport", () => {
       expect(gpu.attributes.interconnect).toEqual({ group: "pair0" });
     });
 
+    it("preserves an explicitly empty gpu interconnect group when importing then regenerating the SDL", () => {
+      const regenerated = generateSdl(importSimpleSdl(interconnectSdl("explicit-empty")));
+      const gpu = gpuOf(regenerated);
+
+      expect(gpu.attributes.interconnect).toEqual({ group: "" });
+    });
+
     it("preserves the interconnect placement capability and fabric pin through the round-trip", () => {
       const regenerated = generateSdl(importSimpleSdl(interconnectSdl("explicit", { fabric: "infiniband" })));
       const parsed = yaml.load(regenerated) as { profiles: { placement: Record<string, { attributes?: Record<string, string> }> } };
@@ -420,18 +427,19 @@ const gpuOf = (sdl: string) => {
   return parsed.profiles.compute.web.resources.gpu;
 };
 
-const interconnectAttributeLines: Record<"implicit" | "explicit" | "none", string[]> = {
+const interconnectAttributeLines: Record<"implicit" | "explicit" | "explicit-empty" | "none", string[]> = {
   implicit: ["            interconnect: []"],
   explicit: ["            interconnect:", "              group: pair0"],
+  "explicit-empty": ["            interconnect:", '              group: ""'],
   none: []
 };
 
 /**
  * Single GPU service SDL that opts into interconnect via `gpu.attributes.interconnect`
- * ("implicit" → `[]`, "explicit" → `{ group: pair0 }`, "none" → no interconnect attribute),
- * paired with the required `capabilities/gpu-interconnect` placement attribute and an optional fabric pin.
+ * ("implicit" → `[]`, "explicit" → `{ group: pair0 }`, "explicit-empty" → `{ group: "" }`, "none" → no interconnect
+ * attribute), paired with the required `capabilities/gpu-interconnect` placement attribute and an optional fabric pin.
  */
-const interconnectSdl = (form: "implicit" | "explicit" | "none", opts?: { fabric?: string }) =>
+const interconnectSdl = (form: "implicit" | "explicit" | "explicit-empty" | "none", opts?: { fabric?: string }) =>
   [
     'version: "2.0"',
     "services:",

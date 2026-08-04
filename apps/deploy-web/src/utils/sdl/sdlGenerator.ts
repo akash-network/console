@@ -23,7 +23,7 @@ export const buildCommand = (command: string): string[] => {
 const buildGpuAttributes = (interconnect: { group?: string } | undefined): Record<string, any> => {
   const attributes: Record<string, any> = {};
   if (interconnect) {
-    attributes.interconnect = interconnect.group ? { group: interconnect.group } : [];
+    attributes.interconnect = interconnect.group !== undefined ? { group: interconnect.group } : [];
   }
   attributes.vendor = {};
   return attributes;

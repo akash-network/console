@@ -54,6 +54,12 @@ describe("sdlGenerator", () => {
       expect(gpuAttributesOf(result).interconnect).toEqual({ group: "pair0" });
     });
 
+    it("preserves an explicitly empty group rather than collapsing it to an implicit opt-in", () => {
+      const result = generateSdl(buildFormValues(buildGpuService({ interconnect: { group: "" } })));
+
+      expect(gpuAttributesOf(result).interconnect).toEqual({ group: "" });
+    });
+
     it("does not emit an interconnect attribute when the gpu profile did not opt in", () => {
       const result = generateSdl(buildFormValues(buildGpuService({ interconnect: undefined })));
 
