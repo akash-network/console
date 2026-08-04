@@ -508,20 +508,20 @@ export class AkashStatsIndexer extends Indexer {
         await DeploymentGroupResource.create(
           {
             deploymentGroupId: createdGroup.id,
-            cpuUnits: parseInt(uint8arrayToString(groupResource.resource?.cpu?.units?.val) || "0"),
-            gpuUnits: parseInt(uint8arrayToString(groupResource.resource?.gpu?.units?.val) || "0"),
+            cpuUnits: Number(groupResource.resource?.cpu?.units?.val ?? 0),
+            gpuUnits: Number(groupResource.resource?.gpu?.units?.val ?? 0),
             gpuVendor: gpuVendor,
             gpuModel: gpuModel,
-            memoryQuantity: parseInt(uint8arrayToString(groupResource.resource?.memory?.quantity?.val) || "0"),
+            memoryQuantity: Number(groupResource.resource?.memory?.quantity?.val ?? 0),
             ephemeralStorageQuantity:
               groupResource.resource?.storage
                 ?.filter(x => !isPersistentStorage(x))
-                .map(x => parseInt(uint8arrayToString(x.quantity?.val) || "0"))
+                .map(x => Number(x.quantity?.val ?? 0))
                 .reduce((a, b) => a + b, 0) ?? 0,
             persistentStorageQuantity:
               groupResource.resource?.storage
                 ?.filter(x => isPersistentStorage(x))
-                .map(x => parseInt(uint8arrayToString(x.quantity?.val) || "0"))
+                .map(x => Number(x.quantity?.val ?? 0))
                 .reduce((a, b) => a + b, 0) ?? 0,
             count: groupResource.count,
             price: parseFloat(groupResource.price?.amount ?? "0") // TODO: handle denom

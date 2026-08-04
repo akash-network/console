@@ -642,18 +642,18 @@ describe("GPU API", () => {
                   resources: {
                     cpu: {
                       units: {
-                        val: Buffer.from("1000000")
+                        val: BigInt("1000000")
                       }
                     },
                     memory: {
                       quantity: {
-                        val: Buffer.from("1024")
+                        val: BigInt("1024")
                       }
                     },
                     storage: [
                       {
                         quantity: {
-                          val: Buffer.from("1024")
+                          val: BigInt("1024")
                         }
                       }
                     ],
@@ -665,7 +665,7 @@ describe("GPU API", () => {
                         }
                       ],
                       units: {
-                        val: Buffer.from("2")
+                        val: BigInt("2")
                       }
                     }
                   }
@@ -706,18 +706,18 @@ describe("GPU API", () => {
                   resources: {
                     cpu: {
                       units: {
-                        val: Buffer.from("1000000")
+                        val: BigInt("1000000")
                       }
                     },
                     memory: {
                       quantity: {
-                        val: Buffer.from("1024")
+                        val: BigInt("1024")
                       }
                     },
                     storage: [
                       {
                         quantity: {
-                          val: Buffer.from("1024")
+                          val: BigInt("1024")
                         }
                       }
                     ],
@@ -729,7 +729,7 @@ describe("GPU API", () => {
                         }
                       ],
                       units: {
-                        val: Buffer.from("2")
+                        val: BigInt("2")
                       }
                     }
                   }

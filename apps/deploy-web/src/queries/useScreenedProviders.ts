@@ -95,7 +95,7 @@ export function useScreenedProviders({ sdl, placementName, enabled = true }: Use
  * when the SDL is incomplete/invalid (e.g. mid-edit) or the placement isn't in it yet, so the caller can
  * fall back to the full catalog. `signedBy` forces audited-only screening; `attributes` are passed through
  * from the placement and carry the `location-region` filter (and any other declared attribute). The proto
- * JSON encodes resource values as base64 integer strings, which the screening endpoint accepts.
+ * JSON encodes resource values as decimal integer strings, which the screening endpoint accepts.
  */
 export function buildPlacementScreeningRequest(rawSdl: string, placementName: string): ScreeningRequestBody | null {
   if (!rawSdl) return null;

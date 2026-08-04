@@ -41,7 +41,7 @@ describe(BlockedGpuService.name, () => {
                 resource: {
                   id: 1,
                   gpu: {
-                    units: { val: new Uint8Array([1]) },
+                    units: { val: BigInt(1) },
                     attributes: [{ key: "vendor/nvidia/model/h100", value: "true" }]
                   }
                 },
