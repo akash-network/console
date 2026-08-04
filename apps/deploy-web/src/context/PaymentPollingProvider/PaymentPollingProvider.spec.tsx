@@ -41,6 +41,23 @@ describe(PaymentPollingProvider.name, () => {
     expect(refetchBalance.mock.calls.length).toBe(initialCallCount);
   });
 
+  it("enqueues a single loading snackbar when polling is triggered twice in the same tick", async () => {
+    const { enqueueSnackbar, cleanup } = setup({
+      isTrialing: false,
+      balance: { totalUsd: 100 },
+      isWalletBalanceLoading: false
+    });
+
+    await act(async () => {
+      screen.getByTestId("start-polling-twice").click();
+    });
+
+    const loadingSnackbarCalls = enqueueSnackbar.mock.calls.filter(([, options]) => options?.persist === true);
+    expect(loadingSnackbarCalls).toHaveLength(1);
+
+    cleanup();
+  });
+
   it("shows loading snackbar when polling starts", async () => {
     const { enqueueSnackbar } = setup({
       isTrialing: false,
@@ -440,6 +457,15 @@ describe(PaymentPollingProvider.name, () => {
           </button>
           <button data-testid="start-polling-coupon" onClick={() => pollForPayment({ variant: "coupon" })}>
             Start Coupon Polling
+          </button>
+          <button
+            data-testid="start-polling-twice"
+            onClick={() => {
+              pollForPayment();
+              pollForPayment();
+            }}
+          >
+            Start Polling Twice
           </button>
           <button data-testid="stop-polling" onClick={stopPolling}>
             Stop Polling

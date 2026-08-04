@@ -148,9 +148,10 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
     refetchManagedWallet();
   }, [stopPolling, enqueueSnackbar, refetchBalance, refetchManagedWallet, d]);
 
+  /** Guards on the ref, not `isPolling` state, so two calls in the same tick can't each enqueue a persistent loading snackbar (the second would orphan the first, leaving it stuck on screen). */
   const pollForPayment = useCallback(
     (options?: { initialBalance?: number | null; variant?: PaymentPollingVariant }) => {
-      if (isPolling) {
+      if (isPollingRef.current) {
         return;
       }
 
@@ -175,7 +176,7 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
       // Start the first poll immediately
       executePoll();
     },
-    [isPolling, currentBalance, executePoll, enqueueSnackbar, wasTrialing, d]
+    [currentBalance, executePoll, enqueueSnackbar, wasTrialing, d]
   );
 
   useEffect(
