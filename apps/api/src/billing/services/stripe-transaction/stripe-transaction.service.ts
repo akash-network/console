@@ -7,13 +7,30 @@ import { inject, singleton } from "tsyringe";
 
 import { PaymentIntentResult } from "@src/billing/http-schemas/stripe.schema";
 import { STRIPE_CLIENT } from "@src/billing/providers/stripe-client.provider";
-import { SETTLED_TRANSACTION_STATUSES, StripeTransactionInput, StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
+import {
+  SETTLED_TRANSACTION_STATUSES,
+  StripeTransactionInput,
+  StripeTransactionOutput,
+  StripeTransactionRepository,
+  TRIAL_PRESERVING_TRANSACTION_TYPES
+} from "@src/billing/repositories";
 import { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { STRIPE_CURRENCY } from "@src/billing/services/stripe/stripe.service";
 import { IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE, PAYMENT_IN_PROGRESS_ERROR_MESSAGE } from "@src/billing/services/stripe-error/stripe-error.service";
 import { type CreateLogger, LOGGER_FACTORY, WithTransaction } from "@src/core";
 import { TimerService } from "@src/core/services/timer/timer.service";
+import { UserRepository } from "@src/user/repositories/user/user.repository";
+
+/**
+ * A granted first-purchase bonus that the webhook dispatcher turns into a {@link FirstPurchaseBonusGranted}
+ * domain event once the settling transaction has committed. Returned only when a bonus was actually granted.
+ */
+export interface FirstPurchaseBonusGrant {
+  userId: string;
+  bonusAmountCents: number;
+  paidAmountCents: number;
+}
 
 /**
  * How a reused idempotency key should react when the requested amount differs from the amount
@@ -42,6 +59,7 @@ export class StripeTransactionService {
     private readonly refillService: RefillService,
     private readonly firstPurchaseBonusService: FirstPurchaseBonusService,
     private readonly timerService: TimerService,
+    private readonly userRepository: UserRepository,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.loggerService = createLogger({ context: StripeTransactionService.name });
@@ -457,29 +475,203 @@ export class StripeTransactionService {
     return bonusAmount;
   }
 
+  async settlePaymentIntent(event: Stripe.PaymentIntentSucceededEvent): Promise<FirstPurchaseBonusGrant | undefined> {
+    const paymentIntent = event.data.object;
+    const customerId = paymentIntent.customer as string;
+
+    if (paymentIntent.metadata.type === "payment_method_validation") {
+      this.loggerService.info({
+        event: "SKIP_PAYMENT_METHOD_VALIDATION_PROCESSING",
+        paymentIntentId: paymentIntent.id
+      });
+      return;
+    }
+
+    const transaction = paymentIntent.metadata.internal_transaction_id
+      ? await this.stripeTransactionRepository.findById(paymentIntent.metadata.internal_transaction_id)
+      : await this.stripeTransactionRepository.findByPaymentIntentId(paymentIntent.id);
+
+    assert(transaction, 500, "Failed to find existing transaction for payment intent", {
+      paymentIntentId: paymentIntent.id,
+      stripeTransactionId: paymentIntent.metadata.internal_transaction_id
+    });
+
+    const chargeId = paymentIntent.latest_charge
+      ? typeof paymentIntent.latest_charge === "string"
+        ? paymentIntent.latest_charge
+        : paymentIntent.latest_charge.id
+      : undefined;
+
+    return this.#settleFromWebhook({
+      customerId,
+      transaction,
+      chargeId,
+      paymentMethodType: paymentIntent.payment_method_types?.[0],
+      paymentAmount: paymentIntent.amount_received ?? paymentIntent.amount,
+      stripePaymentIntentId: paymentIntent.id,
+      eventDescription: `payment_intent ${paymentIntent.id}`
+    });
+  }
+
+  async settleInvoice(event: Stripe.InvoicePaidEvent | Stripe.InvoicePaymentSucceededEvent): Promise<FirstPurchaseBonusGrant | undefined> {
+    const invoice = event.data.object;
+    const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id ?? null;
+
+    const transaction = await this.stripeTransactionRepository.findByInvoiceId(invoice.id);
+    if (!transaction) {
+      // Double-credit guard: ordinary charged invoices have no pre-created row (only the coupon-claim
+      // and admin manual-credit paths pre-create one), so they no-op here.
+      this.loggerService.info({
+        event: "INVOICE_NO_MATCHING_TRANSACTION",
+        invoiceId: invoice.id
+      });
+      return;
+    }
+
+    const payment = invoice.payments?.data[0]?.payment;
+    const chargeId = payment?.charge ? (typeof payment.charge === "string" ? payment.charge : payment.charge.id) : undefined;
+    const stripePaymentIntentId = payment?.payment_intent
+      ? typeof payment.payment_intent === "string"
+        ? payment.payment_intent
+        : payment.payment_intent.id
+      : undefined;
+    // A granted manual credit must not graduate a trial user; every other invoice (coupon claims,
+    // card purchases) leaves endTrial undefined so RefillService's default ends the trial.
+    const endTrial = TRIAL_PRESERVING_TRANSACTION_TYPES.has(transaction.type) ? false : undefined;
+
+    return this.#settleFromWebhook({
+      customerId,
+      transaction,
+      chargeId,
+      paymentMethodType: undefined,
+      paymentAmount: transaction.amount,
+      stripePaymentIntentId,
+      eventDescription: `invoice ${invoice.id}`,
+      endTrial
+    });
+  }
+
+  /**
+   * Credits the wallet for a settled Stripe charge: resolves the owning user, enriches the row with the
+   * charge's card details, and records the succeeded transaction. Returns the first-purchase bonus grant
+   * (if any) so the caller can publish the domain event after this commits — publishing it here would risk
+   * firing on a rolled-back grant.
+   */
+  async #settleFromWebhook(params: {
+    customerId: string | null;
+    transaction: StripeTransactionOutput;
+    chargeId: string | undefined;
+    paymentMethodType: string | undefined;
+    paymentAmount: number;
+    stripePaymentIntentId: string | undefined;
+    eventDescription: string;
+    endTrial?: boolean;
+  }): Promise<FirstPurchaseBonusGrant | undefined> {
+    if (!params.customerId) {
+      this.loggerService.error({
+        event: "PAYMENT_MISSING_CUSTOMER_ID",
+        description: params.eventDescription
+      });
+      return;
+    }
+
+    const user = await this.userRepository.findOneBy({ stripeCustomerId: params.customerId });
+    if (!user) {
+      this.loggerService.error({
+        event: "USER_NOT_FOUND",
+        customerId: params.customerId,
+        description: params.eventDescription
+      });
+      return;
+    }
+
+    let cardBrand: string | undefined;
+    let cardLast4: string | undefined;
+    let receiptUrl: string | undefined;
+
+    if (params.chargeId) {
+      try {
+        const charge = await this.stripe.charges.retrieve(params.chargeId);
+        cardBrand = charge.payment_method_details?.card?.brand ?? undefined;
+        cardLast4 = charge.payment_method_details?.card?.last4 ?? undefined;
+        receiptUrl = charge.receipt_url ?? undefined;
+      } catch (error) {
+        this.loggerService.warn({
+          event: "CHARGE_DETAILS_FETCH_FAILED",
+          chargeId: params.chargeId,
+          error
+        });
+      }
+    }
+
+    const bonusAmountCents = await this.settleSucceededTransaction({
+      transactionId: params.transaction.id,
+      chargeId: params.chargeId,
+      paymentMethodType: params.paymentMethodType,
+      cardBrand,
+      cardLast4,
+      receiptUrl,
+      stripePaymentIntentId: params.stripePaymentIntentId,
+      paymentAmount: params.paymentAmount,
+      userId: user.id,
+      eventDescription: params.eventDescription,
+      endTrial: params.endTrial
+    });
+
+    return bonusAmountCents > 0 ? { userId: user.id, bonusAmountCents, paidAmountCents: params.paymentAmount } : undefined;
+  }
+
   @WithTransaction()
-  async markPaymentIntentFailed(paymentIntentId: string, errorMessage: string): Promise<void> {
-    await this.stripeTransactionRepository.updateByPaymentIntentId(paymentIntentId, {
+  async failPaymentIntent(event: Stripe.PaymentIntentPaymentFailedEvent): Promise<void> {
+    const paymentIntent = event.data.object;
+    const errorMessage = paymentIntent.last_payment_error?.message ?? "Payment failed";
+
+    await this.stripeTransactionRepository.updateByPaymentIntentId(paymentIntent.id, {
       status: "failed",
       errorMessage
     });
 
     this.loggerService.warn({
       event: "PAYMENT_INTENT_FAILED",
-      paymentIntentId,
+      paymentIntentId: paymentIntent.id,
       errorMessage
     });
   }
 
   @WithTransaction()
-  async markPaymentIntentCanceled(paymentIntentId: string): Promise<void> {
-    await this.stripeTransactionRepository.updateByPaymentIntentId(paymentIntentId, {
+  async cancelPaymentIntent(event: Stripe.PaymentIntentCanceledEvent): Promise<void> {
+    const paymentIntent = event.data.object;
+
+    await this.stripeTransactionRepository.updateByPaymentIntentId(paymentIntent.id, {
       status: "canceled"
     });
 
     this.loggerService.info({
       event: "PAYMENT_INTENT_CANCELED",
-      paymentIntentId
+      paymentIntentId: paymentIntent.id
+    });
+  }
+
+  async refundCharge(event: Stripe.ChargeRefundedEvent): Promise<void> {
+    const charge = event.data.object;
+    const customerId = charge.customer as string;
+
+    if (!customerId) {
+      this.loggerService.error({ event: "CHARGE_REFUNDED_MISSING_CUSTOMER_ID", chargeId: charge.id });
+      return;
+    }
+
+    const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
+    if (!user) {
+      this.loggerService.error({ event: "CHARGE_REFUNDED_USER_NOT_FOUND", customerId, chargeId: charge.id });
+      return;
+    }
+
+    await this.applyRefund({
+      chargeId: charge.id,
+      amountRefunded: charge.amount_refunded,
+      fullyRefunded: charge.refunded,
+      userId: user.id
     });
   }
 
