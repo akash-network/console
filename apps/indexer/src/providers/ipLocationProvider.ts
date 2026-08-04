@@ -1,5 +1,4 @@
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
-import axios from "axios";
 import dns from "dns/promises";
 import { isIP } from "net";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -7,19 +6,20 @@ import { setTimeout as sleep } from "node:timers/promises";
 const IpLookupDelay = 2_000;
 
 async function getIpLocation(ip: string) {
-  const response = await axios.get(`http://ip-api.com/json/${ip}`);
+  const response = await fetch(`http://ip-api.com/json/${ip}`);
+  const data = await response.json();
 
-  if (response.data.status !== "success") {
+  if (data.status !== "success") {
     throw new Error(`Could not get location for ip ${ip}`);
   }
 
   return {
-    region: response.data.regionName,
-    regionCode: response.data.region,
-    country: response.data.country,
-    countryCode: response.data.countryCode,
-    lat: response.data.lat,
-    lon: response.data.lon
+    region: data.regionName,
+    regionCode: data.region,
+    country: data.country,
+    countryCode: data.countryCode,
+    lat: data.lat,
+    lon: data.lon
   };
 }
 

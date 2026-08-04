@@ -1,29 +1,24 @@
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
-import axios from "axios";
-import https from "https";
 
+import { fetchAllowingSelfSignedCerts } from "@src/shared/utils/fetch";
 import type { ProviderStatusInfo } from "./types";
 
 export async function fetchProviderStatusFromREST(provider: Provider, timeout: number): Promise<ProviderStatusInfo> {
-  const httpsAgent = new https.Agent({
-    rejectUnauthorized: false
-  });
-
-  const response = await axios.get(provider.hostUri + "/status", {
-    httpsAgent: httpsAgent,
-    timeout: timeout
+  const response = await fetchAllowingSelfSignedCerts(provider.hostUri + "/status", {
+    signal: AbortSignal.timeout(timeout)
   });
 
   if (response.status !== 200) throw "Invalid response status: " + response.status;
 
-  const activeResources = sumResources(response.data.cluster.inventory.active);
-  const pendingResources = sumResources(response.data.cluster.inventory.pending);
-  const availableResources = sumResources(response.data.cluster.inventory.available);
+  const data = await response.json();
+  const activeResources = sumResources(data.cluster.inventory.active);
+  const pendingResources = sumResources(data.cluster.inventory.pending);
+  const availableResources = sumResources(data.cluster.inventory.available);
 
   return {
     resources: {
-      deploymentCount: response.data.manifest.deployments,
-      leaseCount: response.data.cluster.leases,
+      deploymentCount: data.manifest.deployments,
+      leaseCount: data.cluster.leases,
       activeCPU: activeResources.cpu,
       activeGPU: activeResources.gpu,
       activeMemory: activeResources.memory,
