@@ -10,6 +10,7 @@ import type { ManagedSignerService } from "@src/billing/services/managed-signer/
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import type { CreateLogger } from "@src/core";
+import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DrainingDeploymentOutput } from "@src/deployment/repositories/lease/lease.repository";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
@@ -70,6 +71,33 @@ describe(InitialDeploymentFundingService.name, () => {
     });
     expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(1, [depositMessage]);
     expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ walletId: 1 });
+  });
+
+  it("skips funding when auto top-up is disabled for the deployment", async () => {
+    const { service, drainingDeploymentService, balancesService, userWalletRepository, deploymentSettingRepository, managedSignerService, logger } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    balancesService.getFreshLimits.mockResolvedValue({ fee: 100000, deployment: 1000000 });
+    userWalletRepository.findById.mockResolvedValue(createUserWallet({ id: 1, address: "akash1owner", userId: "user-1" }));
+    deploymentSettingRepository.findOneBy.mockResolvedValue(mock<DeploymentSettingsOutput>({ autoTopUpEnabled: false }));
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(deploymentSettingRepository.findOneBy).toHaveBeenCalledWith({ userId: "user-1", dseq: "123" });
+    expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_SKIPPED", reason: "AUTO_TOP_UP_DISABLED" }));
+  });
+
+  it("funds the deployment when auto top-up is explicitly enabled", async () => {
+    const { service, drainingDeploymentService, balancesService, deploymentSettingRepository, managedSignerService } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    balancesService.getFreshLimits.mockResolvedValue({ fee: 100000, deployment: 1000000 });
+    deploymentSettingRepository.findOneBy.mockResolvedValue(mock<DeploymentSettingsOutput>({ autoTopUpEnabled: true }));
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(1, expect.anything());
   });
 
   it("throws and skips the wallet reload when the deposit tx fails on-chain", async () => {
@@ -206,6 +234,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const rpcMessageService = mock<RpcMessageService>();
     const managedSignerService = mock<ManagedSignerService>();
     const userWalletRepository = mock<UserWalletRepository>();
+    const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     const billingConfig = mockConfigService<BillingConfigService>({ DEPLOYMENT_GRANT_DENOM: "uakt" });
     const deploymentConfig = mockConfigService<DeploymentConfigService>({ AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 24 });
     const walletReloadJobService = mock<WalletReloadJobService>();
@@ -226,6 +255,7 @@ describe(InitialDeploymentFundingService.name, () => {
       rpcMessageService,
       managedSignerService,
       userWalletRepository,
+      deploymentSettingRepository,
       billingConfig,
       deploymentConfig,
       walletReloadJobService,
@@ -241,6 +271,7 @@ describe(InitialDeploymentFundingService.name, () => {
       rpcMessageService,
       managedSignerService,
       userWalletRepository,
+      deploymentSettingRepository,
       walletReloadJobService,
       chainErrorService,
       logger
