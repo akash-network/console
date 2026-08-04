@@ -9,6 +9,19 @@ class HttpResponseError extends Error {
   }
 }
 
+/** Reads the error body once so the connection returns to the undici pool, keeping raw text when it isn't JSON. */
+async function toHttpResponseError(response: Response) {
+  return new HttpResponseError(response.status, parseJsonOrKeepText(await response.text()));
+}
+
+function parseJsonOrKeepText(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
 const RateLimitWaitingPeriod = 2 * 60_000; // 2 minutes
 const LateNodeWaitingPeriod = 5 * 60_000; // 5 minutes
 const UnavailableShortWaitingPeriod = 1 * 60_000; // 1 minutes
@@ -109,7 +122,7 @@ export class NodeInfo {
     try {
       const response = await fetch(`${this.url}/status`, { signal: AbortSignal.timeout(QueryTimeout) });
 
-      if (!response.ok) throw new HttpResponseError(response.status);
+      if (!response.ok) throw await toHttpResponseError(response);
 
       const data = (await response.json()) as any;
       this.status = NodeStatus.OK;
@@ -176,10 +189,7 @@ export class NodeInfo {
     try {
       const response = await fetch(`${this.url}${path}`, { signal: AbortSignal.timeout(QueryTimeout) });
 
-      if (!response.ok) {
-        const body = await response.json().catch(() => undefined);
-        throw new HttpResponseError(response.status, body);
-      }
+      if (!response.ok) throw await toHttpResponseError(response);
 
       const data = (await response.json()) as any;
       this.successCount++;
