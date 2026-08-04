@@ -5,9 +5,19 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 const IpLookupDelay = 2_000;
 
+interface IpApiResponse {
+  status: string;
+  regionName: string;
+  region: string;
+  country: string;
+  countryCode: string;
+  lat: number;
+  lon: number;
+}
+
 async function getIpLocation(ip: string) {
   const response = await fetch(`http://ip-api.com/json/${ip}`);
-  const data = await response.json();
+  const data = (await response.json()) as IpApiResponse;
 
   if (data.status !== "success") {
     throw new Error(`Could not get location for ip ${ip}`);

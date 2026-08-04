@@ -10,7 +10,7 @@ export async function fetchProviderStatusFromREST(provider: Provider, timeout: n
 
   if (response.status !== 200) throw "Invalid response status: " + response.status;
 
-  const data = await response.json();
+  const data = (await response.json()) as RestStatusResponse;
   const activeResources = sumResources(data.cluster.inventory.active);
   const pendingResources = sumResources(data.cluster.inventory.pending);
   const availableResources = sumResources(data.cluster.inventory.available);
@@ -51,7 +51,23 @@ interface RestNodeResource {
   storage?: RestSizeValue;
 }
 
-function sumResources(resources: RestNodeResource[] | { nodes?: RestNodeResource[] } | null | undefined) {
+type RestInventory = RestNodeResource[] | { nodes?: RestNodeResource[] } | null | undefined;
+
+interface RestStatusResponse {
+  cluster: {
+    leases: number;
+    inventory: {
+      active: RestInventory;
+      pending: RestInventory;
+      available: RestInventory;
+    };
+  };
+  manifest: {
+    deployments: number;
+  };
+}
+
+function sumResources(resources: RestInventory) {
   const resourcesArr: RestNodeResource[] = Array.isArray(resources) ? resources : resources?.nodes ?? [];
 
   return resourcesArr

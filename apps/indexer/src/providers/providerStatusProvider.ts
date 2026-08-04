@@ -54,7 +54,7 @@ export async function syncProvidersInfo(): Promise<void> {
 
         if (!versionResponse.ok) throw new Error("Request failed with status code " + versionResponse.status);
 
-        const versionData: ProviderVersionEndpointResponseType = await versionResponse.json();
+        const versionData = (await versionResponse.json()) as ProviderVersionEndpointResponseType;
 
         akashVersion = semver.valid(versionData.akash.version);
         cosmosVersion = semver.valid("cosmosSdkVersion" in versionData.akash ? versionData.akash.cosmosSdkVersion : versionData.akash.cosmos_sdk_version);

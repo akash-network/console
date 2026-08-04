@@ -111,7 +111,7 @@ export class NodeInfo {
 
       if (!response.ok) throw new HttpResponseError(response.status);
 
-      const data = await response.json();
+      const data = (await response.json()) as any;
       this.status = NodeStatus.OK;
       this.earliestBlockHeight = parseInt(data.result.sync_info.earliest_block_height);
     } catch (err: any) {
@@ -181,7 +181,7 @@ export class NodeInfo {
         throw new HttpResponseError(response.status, body);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as any;
       this.successCount++;
       return data;
     } catch (err: any) {
