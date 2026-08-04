@@ -74,6 +74,20 @@ describe(InitialDeploymentFundingService.name, () => {
     expect(instrumentation.recordDeposit).toHaveBeenCalledWith(500000, "uakt", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
   });
 
+  it("records the deposit and tolerates a wallet reload scheduling failure without failing the job", async () => {
+    const { service, drainingDeploymentService, balancesService, managedSignerService, walletReloadJobService, instrumentation, logger } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    balancesService.getFreshLimits.mockResolvedValue({ fee: 100000, deployment: 1000000 });
+    managedSignerService.executeDerivedTx.mockResolvedValue({ code: 0, hash: "TESTHASH", rawLog: "[]" });
+    walletReloadJobService.scheduleImmediate.mockRejectedValue(new Error("Failed to schedule wallet balance reload check"));
+
+    await expect(service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" })).resolves.toBeUndefined();
+
+    expect(instrumentation.recordDeposit).toHaveBeenCalledWith(500000, "uakt", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_WALLET_RELOAD_SCHEDULE_FAILED", walletId: 1, dseq: "123" }));
+  });
+
   it("throws and skips the wallet reload when the deposit tx fails on-chain", async () => {
     const { service, drainingDeploymentService, balancesService, managedSignerService, walletReloadJobService, logger } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);

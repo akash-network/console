@@ -133,8 +133,22 @@ export class InitialDeploymentFundingService {
       throw txError;
     }
 
-    await this.walletReloadJobService.scheduleImmediate({ walletId });
-
     this.instrumentation.recordDeposit(amount, denom, { dseq, address, blockRate: deployment.blockRate });
+
+    await this.scheduleWalletReload({ walletId, dseq, address });
+  }
+
+  /**
+   * The deposit is already final on-chain by the time we schedule the follow-up
+   * wallet reload check, so a scheduling failure must not fail the funding job:
+   * a retry would skip the now-funded deployment (sufficient runway) and
+   * misreport a deposit failure. The hourly top-up cron remains the safety net.
+   */
+  private async scheduleWalletReload({ walletId, dseq, address }: { walletId: number; dseq: string; address: string }): Promise<void> {
+    try {
+      await this.walletReloadJobService.scheduleImmediate({ walletId });
+    } catch (error) {
+      this.logger.error({ event: "INITIAL_FUNDING_WALLET_RELOAD_SCHEDULE_FAILED", walletId, dseq, address, error });
+    }
   }
 }

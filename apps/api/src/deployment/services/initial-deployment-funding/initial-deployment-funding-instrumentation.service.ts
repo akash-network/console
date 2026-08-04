@@ -67,7 +67,7 @@ export class InitialDeploymentFundingInstrumentationService {
   recordJobSucceeded(durationMs: number): void {
     this.jobCompletions.add(1, { status: "success" });
     this.jobDuration.record(durationMs, { status: "success" });
-    this.logger.info({ event: "INITIAL_FUNDING_JOB_COMPLETED", durationMs, status: "success" });
+    this.emitLog("info", { event: "INITIAL_FUNDING_JOB_COMPLETED", durationMs, status: "success" });
   }
 
   recordJobFailed(durationMs: number, error: unknown): void {
@@ -76,17 +76,31 @@ export class InitialDeploymentFundingInstrumentationService {
 
     this.jobCompletions.add(1, { status: "failure", reason, retriable });
     this.jobDuration.record(durationMs, { status: "failure" });
-    this.logger.error({ event: "INITIAL_FUNDING_JOB_FAILED", durationMs, reason, retriable, error });
+    this.emitLog("error", { event: "INITIAL_FUNDING_JOB_FAILED", durationMs, reason, retriable, error });
   }
 
   recordDeposit(amount: number, denom: string, logContext: Record<string, unknown>): void {
     this.deposits.add(1);
     this.depositAmount.record(amount, { denom });
-    this.logger.info({ ...logContext, event: "INITIAL_FUNDING_DEPOSITED", amount, denom });
+    this.emitLog("info", { ...logContext, event: "INITIAL_FUNDING_DEPOSITED", amount, denom });
   }
 
   recordSkipped(reason: FundingSkipReason, logContext: Record<string, unknown>): void {
     this.skips.add(1, { reason });
-    this.logger[SKIP_LOG_LEVEL[reason]]({ ...logContext, event: "INITIAL_FUNDING_SKIPPED", reason });
+    this.emitLog(SKIP_LOG_LEVEL[reason], { ...logContext, event: "INITIAL_FUNDING_SKIPPED", reason });
+  }
+
+  /**
+   * Telemetry must never break the funding job. This runs on pg-boss, so a
+   * synchronous logger failure escaping a record* call would mark an
+   * already-completed deposit as failed and trigger a retry. Metrics are
+   * emitted before logging because the OTel spec guarantees they never throw.
+   */
+  private emitLog(level: "info" | "warn" | "error", payload: Record<string, unknown>): void {
+    try {
+      this.logger[level](payload);
+    } catch {
+      return;
+    }
   }
 }

@@ -87,6 +87,50 @@ describe(InitialDeploymentFundingInstrumentationService.name, () => {
     });
   });
 
+  describe("when the logger throws", () => {
+    it("still records job completion metrics and does not propagate the failure", () => {
+      const { service, jobCompletions, jobDuration } = setup();
+      mockLogger.info.mockImplementationOnce(() => {
+        throw new Error("logger down");
+      });
+
+      expect(() => service.recordJobSucceeded(1234)).not.toThrow();
+      expect(jobCompletions.add).toHaveBeenCalledWith(1, { status: "success" });
+      expect(jobDuration.record).toHaveBeenCalledWith(1234, { status: "success" });
+    });
+
+    it("still records deposit metrics and does not propagate the failure", () => {
+      const { service, deposits, depositAmount } = setup();
+      mockLogger.info.mockImplementationOnce(() => {
+        throw new Error("logger down");
+      });
+
+      expect(() => service.recordDeposit(500000, "uakt", { dseq: "123" })).not.toThrow();
+      expect(deposits.add).toHaveBeenCalledWith(1);
+      expect(depositAmount.record).toHaveBeenCalledWith(500000, { denom: "uakt" });
+    });
+
+    it("still records failure metrics and does not propagate the failure", () => {
+      const { service, jobCompletions } = setup();
+      mockLogger.error.mockImplementationOnce(() => {
+        throw new Error("logger down");
+      });
+
+      expect(() => service.recordJobFailed(50, new Error("boom"))).not.toThrow();
+      expect(jobCompletions.add).toHaveBeenCalledWith(1, { status: "failure", reason: "deposit_tx_failed", retriable: false });
+    });
+
+    it("still records skip metrics and does not propagate the failure", () => {
+      const { service, skips } = setup();
+      mockLogger.warn.mockImplementationOnce(() => {
+        throw new Error("logger down");
+      });
+
+      expect(() => service.recordSkipped("insufficient_balance", { dseq: "123" })).not.toThrow();
+      expect(skips.add).toHaveBeenCalledWith(1, { reason: "insufficient_balance" });
+    });
+  });
+
   describe("classifyFailure", () => {
     it("classifies a lease-not-visible error, case-insensitively", () => {
       expect(classifyFailure(new Error("deployment is Not Visible On Chain Yet"))).toBe("lease_not_visible");
