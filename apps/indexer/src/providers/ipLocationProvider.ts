@@ -17,6 +17,11 @@ interface IpApiResponse {
 
 async function getIpLocation(ip: string) {
   const response = await fetch(`http://ip-api.com/json/${ip}`);
+
+  if (!response.ok) {
+    throw new Error(`Could not get location for ip ${ip}. Request failed with status code ${response.status}`);
+  }
+
   const data = (await response.json()) as IpApiResponse;
 
   if (data.status !== "success") {
