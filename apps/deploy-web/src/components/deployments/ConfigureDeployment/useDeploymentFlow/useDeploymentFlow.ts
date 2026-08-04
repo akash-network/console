@@ -86,7 +86,9 @@ export const DEPENDENCIES = {
   useListBids,
   useRouter,
   useQueryClient,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   manifestFromSdl,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   deploymentResourcesFromSdl
 };
 

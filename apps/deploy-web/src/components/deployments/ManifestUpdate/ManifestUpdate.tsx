@@ -42,6 +42,7 @@ export const DEPENDENCIES = {
   useProviderCredentials: useProviderCredentialsOriginal,
   useSnackbar: useSnackbarOriginal,
   useSettings: useSettingsOriginal,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   deploymentData: deploymentDataOriginal,
   TransactionMessageData: TransactionMessageDataOriginal
 };

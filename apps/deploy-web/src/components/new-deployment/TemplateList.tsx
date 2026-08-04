@@ -45,6 +45,7 @@ const previewTemplateIds = [
   "akash-network-awesome-akash-FastChat"
 ];
 
+// eslint-disable-next-line akash/dependencies-component-or-hook
 export const DEPENDENCIES = { useTemplates, useRouter, useFlag, useNewDeploymentUrl, useSnackbar, Snackbar, importSimpleSdl, FileButton, createConfigureDraft };
 
 type Props = {

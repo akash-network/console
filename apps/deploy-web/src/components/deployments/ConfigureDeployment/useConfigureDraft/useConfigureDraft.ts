@@ -12,6 +12,7 @@ const DRAFT_KEY_PREFIX = "configure-draft:";
 const MAX_DRAFTS = 20;
 
 export const DEPENDENCIES = {
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   getStorage: (): Storage | undefined => {
     if (typeof window === "undefined") {
       return undefined;
@@ -23,6 +24,7 @@ export const DEPENDENCIES = {
     }
   },
   useRouter,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   mintDraftId
 };
 

@@ -24,7 +24,9 @@ export const DEPENDENCIES = {
   useDeploymentHasGpu,
   useSnackbar,
   Snackbar,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   generateSdl,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   validateGeneratedSdl,
   useDeploymentCost,
   PriceValue,

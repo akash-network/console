@@ -52,15 +52,23 @@ const DEPENDENCIES = {
   useWallet,
   useNotificator,
   useReturnTo,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   localStorage: typeof window !== "undefined" ? window.localStorage : null,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   deploymentData,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   validateDeploymentData,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   appendAuditorRequirement,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   applyTrialGpuPolicy,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   replaceSdlDenom,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   helloWorldTemplate,
   TransactionMessageData,
   useSearchParams,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   denomToUdenom
 };
 

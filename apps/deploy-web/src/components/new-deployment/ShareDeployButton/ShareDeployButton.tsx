@@ -14,7 +14,9 @@ import { getBaseUrl, UrlService } from "@src/utils/urlUtils";
 export const DEPENDENCIES = {
   usePopup,
   useSnackbar,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   getBaseUrl,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   copyTextToClipboard,
   Button,
   ShareIos

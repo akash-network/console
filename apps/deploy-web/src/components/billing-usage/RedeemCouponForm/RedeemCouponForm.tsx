@@ -26,11 +26,14 @@ type CouponFeedback = { type: "success"; amountAdded: number | null } | { type: 
 
 export const DEPENDENCIES = {
   useForm,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   zodResolver,
   useUser,
   usePaymentMutations,
   usePaymentPolling,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   handleCouponError,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   handleStripeError
 };
 

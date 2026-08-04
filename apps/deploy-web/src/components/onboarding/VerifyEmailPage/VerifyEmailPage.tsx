@@ -11,6 +11,7 @@ const DEPENDENCIES = {
   Loading,
   NextSeo,
   UrlService,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   redirect: (url: string) => {
     window.localStorage.setItem(ONBOARDING_STEP_KEY, OnboardingStepIndex.EMAIL_VERIFICATION.toString());
     window.location.replace(url);

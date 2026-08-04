@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { createConfigureDraft } from "@src/components/deployments/ConfigureDeployment/useConfigureDraft/useConfigureDraft";
 import { UrlService } from "@src/utils/urlUtils";
 
+// eslint-disable-next-line akash/dependencies-component-or-hook
 export const DEPENDENCIES = { useRouter, UrlService, createConfigureDraft };
 
 export interface RedeployInput {

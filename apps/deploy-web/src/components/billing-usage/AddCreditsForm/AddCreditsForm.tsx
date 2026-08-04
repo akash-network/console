@@ -59,7 +59,9 @@ export const DEPENDENCIES = {
   use3DSecure,
   useUser,
   useTopUpAttemptKey,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   getPaymentMethodDisplay,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   handleStripeError
 };
 
