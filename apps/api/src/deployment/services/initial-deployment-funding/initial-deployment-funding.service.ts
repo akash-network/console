@@ -11,6 +11,7 @@ import { BlockHttpService } from "@src/chain/services/block-http/block-http.serv
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
+import { InitialDeploymentFundingInstrumentationService } from "@src/deployment/services/initial-deployment-funding/initial-deployment-funding-instrumentation.service";
 import { averageBlockCountInAnHour, COSMOS_TX_CODE_OK } from "@src/utils/constants";
 
 export interface FundOnLeaseStartedInput {
@@ -39,6 +40,7 @@ export class InitialDeploymentFundingService {
     private readonly deploymentConfig: DeploymentConfigService,
     private readonly walletReloadJobService: WalletReloadJobService,
     private readonly chainErrorService: ChainErrorService,
+    private readonly instrumentation: InitialDeploymentFundingInstrumentationService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: InitialDeploymentFundingService.name });
@@ -59,7 +61,7 @@ export class InitialDeploymentFundingService {
     }
 
     if (deployment.closedHeight) {
-      this.logger.info({ event: "INITIAL_FUNDING_SKIPPED", reason: "DEPLOYMENT_CLOSED", dseq, address });
+      this.instrumentation.recordSkipped("deployment_closed", { dseq, address });
       return;
     }
 
@@ -67,9 +69,7 @@ export class InitialDeploymentFundingService {
     const lookAheadHeight = currentHeight + averageBlockCountInAnHour * this.deploymentConfig.get("AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H");
 
     if (deployment.predictedClosedHeight > lookAheadHeight) {
-      this.logger.info({
-        event: "INITIAL_FUNDING_SKIPPED",
-        reason: "SUFFICIENT_RUNWAY",
+      this.instrumentation.recordSkipped("sufficient_runway", {
         dseq,
         address,
         predictedClosedHeight: deployment.predictedClosedHeight,
@@ -83,28 +83,29 @@ export class InitialDeploymentFundingService {
     const amount = Math.min(desiredAmount, deploymentLimit);
 
     if (amount <= 0) {
-      this.logger.warn({ event: "INITIAL_FUNDING_INSUFFICIENT_BALANCE", dseq, address, desiredAmount, deploymentLimit });
+      this.instrumentation.recordSkipped("insufficient_balance", { dseq, address, desiredAmount, deploymentLimit });
       return;
     }
 
     const userWallet = await this.userWalletRepository.findById(walletId);
 
     if (!userWallet) {
-      this.logger.error({ event: "INITIAL_FUNDING_WALLET_NOT_FOUND", walletId, dseq });
+      this.instrumentation.recordSkipped("wallet_not_found", { walletId, dseq });
       return;
     }
 
     const feeAllowance = await this.managedSignerService.ensureFeeGrants(userWallet);
 
     if (feeAllowance <= 0) {
-      this.logger.warn({ event: "INITIAL_FUNDING_NO_FEE_ALLOWANCE", dseq, address });
+      this.instrumentation.recordSkipped("no_fee_allowance", { dseq, address });
       return;
     }
 
+    const denom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
     const message = this.rpcMessageService.getDepositDeploymentMsg({
       dseq: Number(dseq),
       amount,
-      denom: this.billingConfig.get("DEPLOYMENT_GRANT_DENOM"),
+      denom,
       owner: address,
       signer: address
     });
@@ -114,7 +115,7 @@ export class InitialDeploymentFundingService {
       tx = await this.managedSignerService.executeDerivedTx(walletId, [message]);
     } catch (error) {
       if (error instanceof Error && this.chainErrorService.isDeploymentClosedError(error)) {
-        this.logger.info({ event: "INITIAL_FUNDING_SKIPPED", reason: "DEPLOYMENT_CLOSED", dseq, address, error: error.message });
+        this.instrumentation.recordSkipped("deployment_closed", { dseq, address, error: error.message });
         return;
       }
       throw error;
@@ -124,7 +125,7 @@ export class InitialDeploymentFundingService {
       const txError = new Error(tx.rawLog || `Deposit tx ${tx.hash} failed on-chain with code ${tx.code}`);
 
       if (this.chainErrorService.isDeploymentClosedError(txError)) {
-        this.logger.info({ event: "INITIAL_FUNDING_SKIPPED", reason: "DEPLOYMENT_CLOSED", dseq, address, txHash: tx.hash });
+        this.instrumentation.recordSkipped("deployment_closed", { dseq, address, txHash: tx.hash });
         return;
       }
 
@@ -132,8 +133,27 @@ export class InitialDeploymentFundingService {
       throw txError;
     }
 
-    await this.walletReloadJobService.scheduleImmediate({ walletId });
+    this.instrumentation.recordDeposit(amount, denom, { dseq, address, blockRate: deployment.blockRate });
 
-    this.logger.info({ event: "INITIAL_FUNDING_DEPOSITED", dseq, address, amount, blockRate: deployment.blockRate });
+    await this.scheduleWalletReload({ walletId, dseq, address });
+  }
+
+  /**
+   * The deposit is already final on-chain by the time we schedule the follow-up
+   * wallet reload check, so a scheduling failure must not fail the funding job:
+   * a retry would skip the now-funded deployment (sufficient runway) and
+   * misreport a deposit failure. The failure log is best effort for the same
+   * reason. The hourly top-up cron remains the safety net.
+   */
+  private async scheduleWalletReload({ walletId, dseq, address }: { walletId: number; dseq: string; address: string }): Promise<void> {
+    try {
+      await this.walletReloadJobService.scheduleImmediate({ walletId });
+    } catch (error) {
+      try {
+        this.logger.error({ event: "INITIAL_FUNDING_WALLET_RELOAD_SCHEDULE_FAILED", walletId, dseq, address, error });
+      } catch {
+        return;
+      }
+    }
   }
 }
