@@ -55,7 +55,7 @@ describe(WalletInitializerService.name, () => {
       await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId);
 
       expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: orphanWallet.id });
-      expect(updateWalletById).toHaveBeenCalledWith(orphanWallet.id, { address: derivedAddress }, { returning: true });
+      expect(updateWalletById).toHaveBeenCalledWith(orphanWallet.id, { address: derivedAddress });
     });
 
     it("returns the current state without chain calls when the wallet is already activated", async () => {
@@ -162,7 +162,7 @@ describe(WalletInitializerService.name, () => {
 
       expect(getOrCreateWallet).toHaveBeenCalledWith({ userId });
       expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: bareWallet.id });
-      expect(updateWalletById).toHaveBeenCalledWith(bareWallet.id, { address: derivedAddress }, { returning: true });
+      expect(updateWalletById).toHaveBeenCalledWith(bareWallet.id, { address: derivedAddress });
       expect(result.address).toBe(derivedAddress);
     });
 

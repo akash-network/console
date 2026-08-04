@@ -3,7 +3,7 @@ import assert from "http-assert";
 import { Lifecycle, scoped } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import { UserWalletOutput, UserWalletPublicOutput, UserWalletRepository, WalletInitialized } from "@src/billing/repositories";
+import { isWalletInitialized, UserWalletOutput, UserWalletPublicOutput, UserWalletRepository, WalletInitialized } from "@src/billing/repositories";
 
 export interface GetWalletOptions {
   userId: string;
@@ -20,7 +20,7 @@ export class WalletReaderService {
     const wallets = await this.userWalletRepository.accessibleBy(this.authService.ability, "read").find(query);
 
     return wallets
-      .filter((wallet): wallet is WalletInitialized => wallet.activatedAt !== null && !!wallet.address)
+      .filter((wallet): wallet is WalletInitialized => wallet.activatedAt !== null && isWalletInitialized(wallet))
       .map(wallet => this.userWalletRepository.toPublic(wallet));
   }
 
