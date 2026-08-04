@@ -21,7 +21,6 @@ interface AddCreditsTabsProps {
   initialTab?: AddCreditsTab;
   onDone: (amount: number, organization?: string, bonusAmount?: number) => void;
   onRedeemed?: () => void;
-  isWalletReady?: boolean;
   onProcessingChange?: (isProcessing: boolean) => void;
   dependencies?: typeof DEPENDENCIES;
 }
@@ -35,14 +34,7 @@ interface AddCreditsTabsProps {
  * trigger is disabled while a flow is in progress so the user cannot navigate
  * away mid-transaction.
  */
-export function AddCreditsTabs({
-  initialTab = "purchase",
-  onDone,
-  onRedeemed,
-  isWalletReady,
-  onProcessingChange,
-  dependencies: d = DEPENDENCIES
-}: AddCreditsTabsProps) {
+export function AddCreditsTabs({ initialTab = "purchase", onDone, onRedeemed, onProcessingChange, dependencies: d = DEPENDENCIES }: AddCreditsTabsProps) {
   const [activeTab, setActiveTab] = useState<AddCreditsTab>(initialTab);
   // Only the active tab is mounted (Radix unmounts inactive content), so a
   // single flag tracks whichever child is currently reporting.
@@ -74,11 +66,11 @@ export function AddCreditsTabs({
       </d.TabsList>
 
       <d.TabsContent value="purchase">
-        <d.AddCreditsForm onDone={onDone} isWalletReady={isWalletReady} onProcessingChange={setIsProcessing} />
+        <d.AddCreditsForm onDone={onDone} onProcessingChange={setIsProcessing} />
       </d.TabsContent>
 
       <d.TabsContent value="coupon">
-        <d.RedeemCouponForm isWalletReady={isWalletReady} onProcessingChange={setIsProcessing} onRedeemed={onRedeemed} />
+        <d.RedeemCouponForm onProcessingChange={setIsProcessing} onRedeemed={onRedeemed} />
       </d.TabsContent>
     </d.Tabs>
   );

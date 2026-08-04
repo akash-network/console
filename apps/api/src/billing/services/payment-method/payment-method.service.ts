@@ -10,8 +10,8 @@ import { extractFingerprint } from "@src/billing/lib/payment-method/extract-fing
 import { STRIPE_CLIENT } from "@src/billing/providers/stripe-client.provider";
 import { PaymentMethodRepository } from "@src/billing/repositories";
 import { type CreateLogger, LOGGER_FACTORY, WithTransaction } from "@src/core";
-import type { UserOutput } from "@src/user/repositories/user/user.repository";
-import type { PayingUser } from "../paying-user/paying-user";
+import { type UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
+import { assertIsPayingUser, type PayingUser } from "../paying-user/paying-user";
 
 export type PaymentMethod = Stripe.PaymentMethod & { validated: boolean; isDefault: boolean };
 
@@ -22,6 +22,7 @@ export class PaymentMethodService {
   constructor(
     @inject(STRIPE_CLIENT) private readonly stripe: Stripe,
     private readonly paymentMethodRepository: PaymentMethodRepository,
+    private readonly userRepository: UserRepository,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.loggerService = createLogger({ context: PaymentMethodService.name });
@@ -138,6 +139,74 @@ export class PaymentMethodService {
     );
   }
 
+  async syncAttachedFromEvent(event: Stripe.PaymentMethodAttachedEvent): Promise<void> {
+    const paymentMethod = event.data.object;
+    const customerId = paymentMethod.customer as string;
+
+    if (!customerId) {
+      this.loggerService.error({
+        event: "PAYMENT_METHOD_MISSING_CUSTOMER_ID",
+        paymentMethodId: paymentMethod.id
+      });
+      return;
+    }
+
+    const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
+    if (!user) {
+      this.loggerService.error({
+        event: "USER_NOT_FOUND_FOR_PAYMENT_METHOD",
+        customerId,
+        paymentMethodId: paymentMethod.id
+      });
+      return;
+    }
+
+    assertIsPayingUser(user);
+
+    const result = await this.syncAttached({ user, paymentMethod });
+    if (!result) {
+      return;
+    }
+
+    this.loggerService.info({
+      event: "PAYMENT_METHOD_ATTACHED",
+      paymentMethodId: paymentMethod.id,
+      userId: user.id,
+      isDefault: result.isDefault,
+      wasAlreadyProcessed: !result.isNew
+    });
+  }
+
+  async removeDetachedFromEvent(event: Stripe.PaymentMethodDetachedEvent): Promise<void> {
+    const paymentMethod = event.data.object;
+    const customerId = paymentMethod.customer || event.data.previous_attributes?.customer;
+
+    if (!customerId) {
+      this.loggerService.warn({
+        event: "PAYMENT_METHOD_DETACHED_NO_CUSTOMER_ID",
+        paymentMethodId: paymentMethod.id
+      });
+      return;
+    }
+
+    const currentUser = await this.userRepository.findOneBy({ stripeCustomerId: customerId as string });
+    if (!currentUser) {
+      this.loggerService.warn({
+        event: "PAYMENT_METHOD_DETACHED_NO_USER",
+        paymentMethodId: paymentMethod.id
+      });
+      return;
+    }
+
+    const deleted = await this.removeDetached({ userId: currentUser.id, paymentMethod });
+
+    this.loggerService.info({
+      event: "PAYMENT_METHOD_DETACHED",
+      paymentMethodId: paymentMethod.id,
+      deleted
+    });
+  }
+
   @WithTransaction()
   async syncAttached(params: { user: PayingUser; paymentMethod: Stripe.PaymentMethod }): Promise<{ isNew: boolean; isDefault: boolean } | undefined> {
     const { user, paymentMethod } = params;
@@ -194,5 +263,81 @@ export class PaymentMethodService {
     const deletedPaymentMethod = await this.paymentMethodRepository.deleteByFingerprint(fingerprint, paymentMethod.id, userId);
 
     return !!deletedPaymentMethod;
+  }
+
+  async validatePaymentMethodAfter3DS(customerId: string, paymentMethodId: string, paymentIntentId: string): Promise<{ success: boolean }> {
+    try {
+      const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+
+      const paymentIntentCustomerId = typeof paymentIntent.customer === "string" ? paymentIntent.customer : paymentIntent.customer?.id;
+      assert(paymentIntentCustomerId === customerId, 403, "Payment intent does not belong to the user");
+
+      const paymentIntentPaymentMethodId = typeof paymentIntent.payment_method === "string" ? paymentIntent.payment_method : paymentIntent.payment_method?.id;
+      assert(paymentIntentPaymentMethodId === paymentMethodId, 403, "Payment intent does not reference the provided payment method");
+
+      if (paymentIntent.status === "succeeded" || paymentIntent.status === "requires_capture") {
+        await this.markPaymentMethodAsValidated(customerId, paymentMethodId, paymentIntentId);
+
+        this.loggerService.info({
+          event: "PAYMENT_METHOD_VALIDATED_AFTER_3DS",
+          customerId,
+          paymentMethodId,
+          paymentIntentId,
+          status: paymentIntent.status
+        });
+
+        return { success: true };
+      }
+
+      this.loggerService.warn({
+        event: "PAYMENT_INTENT_NOT_SUCCESSFUL_AFTER_3DS",
+        customerId,
+        paymentMethodId,
+        paymentIntentId,
+        status: paymentIntent.status
+      });
+
+      return { success: false };
+    } catch (error) {
+      this.loggerService.error({
+        event: "FAILED_TO_CHECK_PAYMENT_INTENT_AFTER_3DS",
+        customerId,
+        paymentMethodId,
+        paymentIntentId,
+        error
+      });
+      throw error;
+    }
+  }
+
+  private async markPaymentMethodAsValidated(customerId: string, paymentMethodId: string, paymentIntentId: string): Promise<void> {
+    try {
+      const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
+      if (!user) {
+        this.loggerService.error({
+          event: "USER_NOT_FOUND_FOR_VALIDATION",
+          customerId,
+          paymentMethodId
+        });
+        return;
+      }
+
+      await this.paymentMethodRepository.markAsValidated(paymentMethodId, user.id);
+      this.loggerService.info({
+        event: "PAYMENT_METHOD_VALIDATED",
+        customerId,
+        userId: user.id,
+        paymentMethodId,
+        paymentIntentId
+      });
+    } catch (error) {
+      this.loggerService.error({
+        event: "PAYMENT_METHOD_VALIDATION_UPDATE_FAILED",
+        customerId,
+        paymentMethodId,
+        error
+      });
+      throw error;
+    }
   }
 }

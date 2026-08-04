@@ -1,60 +1,26 @@
-import { useCallback, useEffect } from "react";
 import type { ApiManagedWalletOutput } from "@akashnetwork/http-sdk";
-import { useIsMutating } from "@tanstack/react-query";
 
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
-import { QueryKeys } from "@src/queries/queryKeys";
 
 export const DEPENDENCIES = {
-  useManagedWallet,
-  useIsMutating
+  useManagedWallet
 };
 
 export type EnsureTrialStartedResult = {
   wallet: ApiManagedWalletOutput | undefined;
   isWalletReady: boolean;
   isLoading: boolean;
-  error: ReturnType<typeof useManagedWallet>["createError"];
-  refreshWallet: ReturnType<typeof useManagedWallet>["refetch"];
-  /**
-   * Clears a terminal start-trial failure so the trial can be re-attempted. A terminal `createError` is otherwise
-   * sticky for the session (React Query keeps a settled mutation's error until it's reset), which would make every
-   * downstream deploy retry a dead-end. Resetting drops `createError`, which lets the effect below fire `create()`
-   * again. Wire it into the deploy retry affordances (the configure header, the auto flow's "Try again").
-   */
-  retryTrial: () => void;
 };
 
 /**
- * Auto-starts the user's trial in the background, without requiring an explicit
- * "Start Trial" click. Assumes the user is authenticated (and therefore email-verified
- * via passwordless) by the time this runs — the auth guard ensures that upstream.
- *
- * Within-mutation retries are handled by React Query (see `useCreateManagedWalletMutation`);
- * we stop firing once the mutation terminally errors so we don't infinite-loop. A terminal error is
- * recovered explicitly via {@link EnsureTrialStartedResult.retryTrial} (wired to the deploy retry buttons),
- * not by auto-refiring here.
- *
- * The start survives navigation: the mutation's local pending flag resets when this hook remounts on a new page
- * (e.g. onboarding → configure), so instead we gate on the globally-observed in-flight state via `useIsMutating`.
- * That keeps a create that began on a previous page from re-firing here while it's still running.
- *
- * Use only on pages that are part of the onboarding redesign — the call is unguarded.
+ * Reports the managed (trial) wallet and whether it exists yet. The trial is provisioned server-side by a background
+ * job (triggered when the user registers/verifies), so there is nothing to start from the client — this only reports
+ * readiness. `isWalletReady` means the wallet exists and can broadcast; whether it can actually *spend* (the trial is
+ * activated on chain) is enforced by the API, which returns a retriable `wallet_provisioning` 409 on the spend until
+ * activation lands.
  */
 export const useEnsureTrialStarted = (d = DEPENDENCIES): EnsureTrialStartedResult => {
-  const { wallet, create, isLoading, createError, resetCreate, refetch } = d.useManagedWallet();
-  const isWalletReady = !!wallet;
-  const isStartingTrial = d.useIsMutating({ mutationKey: QueryKeys.getManagedWalletCreateMutationKey() }) > 0;
+  const { wallet, isLoading } = d.useManagedWallet();
 
-  useEffect(() => {
-    if (isWalletReady) return;
-    if (isLoading) return;
-    if (createError) return;
-    if (isStartingTrial) return;
-    create();
-  }, [isWalletReady, isLoading, createError, isStartingTrial, create]);
-
-  const retryTrial = useCallback(() => resetCreate(), [resetCreate]);
-
-  return { isWalletReady, isLoading, error: createError, refreshWallet: refetch, retryTrial, wallet: wallet as ApiManagedWalletOutput | undefined };
+  return { isWalletReady: !!wallet?.address, isLoading, wallet: wallet as ApiManagedWalletOutput | undefined };
 };

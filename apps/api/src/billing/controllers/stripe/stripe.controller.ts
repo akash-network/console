@@ -22,24 +22,28 @@ import {
 import type { StripeTransactionOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { CouponRedemptionService } from "@src/billing/services/coupon-redemption/coupon-redemption.service";
+import { CustomerService } from "@src/billing/services/customer/customer.service";
 import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
-import { StripeService, TOP_UP_IDEMPOTENCY_KEY_PREFIX } from "@src/billing/services/stripe/stripe.service";
+import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
 import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
+import { TopUpService } from "@src/billing/services/top-up/top-up.service";
 import { TransactionReportingService } from "@src/billing/services/transaction-reporting/transaction-reporting.service";
-import { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
+import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 @singleton()
 export class StripeController {
   constructor(
     private readonly stripe: StripeService,
     private readonly stripeTransaction: StripeTransactionService,
+    private readonly topUpService: TopUpService,
     private readonly authService: AuthService,
     private readonly stripeErrorService: StripeErrorService,
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly trialValidationService: TrialValidationService,
+    private readonly trialActivationJobService: TrialActivationJobService,
     private readonly transactionReporting: TransactionReportingService,
     private readonly paymentMethodService: PaymentMethodService,
-    private readonly couponRedemptionService: CouponRedemptionService
+    private readonly couponRedemptionService: CouponRedemptionService,
+    private readonly customerService: CustomerService
   ) {}
 
   @Protected([{ action: "read", subject: "StripePayment" }])
@@ -51,7 +55,7 @@ export class StripeController {
   async createSetupIntent(): Promise<{ data: { clientSecret: string | null } }> {
     const { currentUser } = this.authService;
 
-    const stripeCustomerId = await this.stripe.getStripeCustomerId(currentUser);
+    const stripeCustomerId = await this.customerService.getStripeCustomerId(currentUser);
     const userWallet = await this.userWalletRepository.findOneByUserId(currentUser.id);
     const isFreeTrial = userWallet?.isTrialing ?? true;
 
@@ -104,47 +108,15 @@ export class StripeController {
 
     assert(currentUser, 500, "Payment account not properly configured. Please contact support.");
 
-    const userWallet = await this.userWalletRepository.findOneByUserId(currentUser.id);
-    this.trialValidationService.validateTopUpAmount(userWallet, params.amount);
-
     try {
-      assert(await this.paymentMethodService.hasPaymentMethod(params.paymentMethodId, currentUser), 403, "Payment method does not belong to the user");
-
-      const result = await this.stripeTransaction.createPaymentIntent({
-        userId: currentUser.id,
-        customer: currentUser.stripeCustomerId,
-        payment_method: params.paymentMethodId,
+      const data = await this.topUpService.topUp(currentUser, {
         amount: params.amount,
-        confirm: true,
-        idempotencyKey: params.idempotencyKey ? `${TOP_UP_IDEMPOTENCY_KEY_PREFIX}${currentUser.id}_${params.idempotencyKey}` : undefined,
-        onAmountMismatch: "reject"
+        paymentMethodId: params.paymentMethodId,
+        idempotencyKey: params.idempotencyKey,
+        awaitResolved: params.awaitResolved
       });
 
-      // Handle 3D Secure authentication requirement
-      if (result.requiresAction && result.clientSecret && result.paymentIntentId) {
-        return {
-          data: {
-            success: false,
-            requiresAction: true,
-            clientSecret: result.clientSecret,
-            paymentIntentId: result.paymentIntentId,
-            transactionId: result.transactionId,
-            transactionStatus: result.transactionStatus
-          }
-        };
-      }
-
-      // If payment was not successful and it's not a 3D Secure case, throw an error
-      if (!result.success) {
-        throw new Error("Payment not successful");
-      }
-
-      if (params.awaitResolved) {
-        const transaction = await this.stripeTransaction.resolveTransaction(result.transactionId);
-        return { data: { success: true, transactionId: result.transactionId, transactionStatus: transaction.status } };
-      }
-
-      return { data: { success: true, transactionId: result.transactionId, transactionStatus: result.transactionStatus } };
+      return { data };
     } catch (error) {
       if (this.stripeErrorService.isKnownError(error, "payment")) {
         throw this.stripeErrorService.toAppError(error, "payment");
@@ -168,6 +140,9 @@ export class StripeController {
 
     assert(params.couponId, 400, "Coupon ID is required");
     assert(params.userId, 400, "User ID is required");
+
+    const userWallet = await this.userWalletRepository.findOneByUserId(currentUser.id);
+    await this.trialActivationJobService.assertActivated({ userId: currentUser.id, activatedAt: userWallet?.activatedAt });
 
     try {
       const result = await this.couponRedemptionService.redeemCoupon(currentUser, params.couponId);
@@ -247,7 +222,7 @@ export class StripeController {
       const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
       assert(customerId === currentUser.stripeCustomerId, 403, "Payment method does not belong to the user");
 
-      return await this.stripe.validatePaymentMethodAfter3DS(currentUser.stripeCustomerId, paymentMethodId, paymentIntentId);
+      return await this.paymentMethodService.validatePaymentMethodAfter3DS(currentUser.stripeCustomerId, paymentMethodId, paymentIntentId);
     } catch (error: unknown) {
       if (this.stripeErrorService.isKnownError(error, "payment")) {
         throw this.stripeErrorService.toAppError(error, "payment");
@@ -263,6 +238,6 @@ export class StripeController {
 
     assert(currentUser.stripeCustomerId, 400, "Payment method is not configured for this user");
 
-    await this.stripe.updateCustomerOrganization(currentUser.stripeCustomerId, input.organization);
+    await this.customerService.updateCustomerOrganization(currentUser.stripeCustomerId, input.organization);
   }
 }

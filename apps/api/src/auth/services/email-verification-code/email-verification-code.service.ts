@@ -4,6 +4,7 @@ import { singleton } from "tsyringe";
 
 import { EmailVerificationCodeRepository } from "@src/auth/repositories/email-verification-code/email-verification-code.repository";
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
+import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { emailVerificationCodeNotification } from "@src/notifications/services/notification-templates/email-verification-code-notification";
@@ -24,6 +25,7 @@ export class EmailVerificationCodeService {
     private readonly auth0Service: Auth0Service,
     private readonly notificationService: NotificationService,
     private readonly userRepository: UserRepository,
+    private readonly trialActivationJobService: TrialActivationJobService,
     private readonly logger: LoggerService
   ) {}
 
@@ -75,6 +77,9 @@ export class EmailVerificationCodeService {
     }
 
     await this.userRepository.updateById(userInternalId, { emailVerified: true });
+    await this.trialActivationJobService.schedule(userInternalId).catch(error => {
+      this.logger.error({ event: "FAILED_TO_SCHEDULE_TRIAL_ACTIVATION", userId: userInternalId, error });
+    });
 
     try {
       await this.auth0Service.markEmailVerified(user.userId);

@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import type { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
+import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
@@ -202,7 +203,7 @@ describe(UserService.name, () => {
 
       const user = await userRepository.create({
         userId: faker.string.uuid(),
-        username: `test-user-${Date.now()}`,
+        username: `test-user-${faker.string.uuid()}`,
         email: faker.internet.email(),
         emailVerified: false,
         subscribedToNewsletter: false,
@@ -232,7 +233,7 @@ describe(UserService.name, () => {
 
       const user = await userRepository.create({
         userId: faker.string.uuid(),
-        username: `test-user-${Date.now()}`,
+        username: `test-user-${faker.string.uuid()}`,
         email: faker.internet.email(),
         emailVerified: false,
         subscribedToNewsletter: false
@@ -258,7 +259,7 @@ describe(UserService.name, () => {
 
       const user = await userRepository.create({
         userId: faker.string.uuid(),
-        username: `test-user-${Date.now()}`,
+        username: `test-user-${faker.string.uuid()}`,
         email: faker.internet.email(),
         emailVerified: false,
         subscribedToNewsletter: false
@@ -323,7 +324,7 @@ describe(UserService.name, () => {
 
       const user = await userRepository.create({
         userId: faker.string.uuid(),
-        username: `test-user-${Date.now()}`,
+        username: `test-user-${faker.string.uuid()}`,
         email: faker.internet.email(),
         emailVerified: false,
         subscribedToNewsletter: false
@@ -333,6 +334,43 @@ describe(UserService.name, () => {
 
       const updatedUser = await userRepository.findById(user.id);
       expect(updatedUser?.subscribedToNewsletter).toBe(true);
+    });
+  });
+
+  describe("skipOnboarding", () => {
+    it("sets onboardingSkippedAt when it has not been set", async () => {
+      const { service, userRepository } = setup();
+      const user = await userRepository.create({
+        userId: faker.string.uuid(),
+        username: `test-user-${faker.string.uuid()}`,
+        email: faker.internet.email(),
+        emailVerified: false,
+        subscribedToNewsletter: false
+      });
+
+      await service.skipOnboarding(user.id);
+
+      const updatedUser = await userRepository.findById(user.id);
+      expect(updatedUser?.onboardingSkippedAt).toBeInstanceOf(Date);
+    });
+
+    it("preserves the original timestamp when called again", async () => {
+      const { service, userRepository } = setup();
+      const user = await userRepository.create({
+        userId: faker.string.uuid(),
+        username: `test-user-${faker.string.uuid()}`,
+        email: faker.internet.email(),
+        emailVerified: false,
+        subscribedToNewsletter: false
+      });
+
+      await service.skipOnboarding(user.id);
+      const firstSkippedAt = (await userRepository.findById(user.id))?.onboardingSkippedAt;
+
+      await service.skipOnboarding(user.id);
+      const secondSkippedAt = (await userRepository.findById(user.id))?.onboardingSkippedAt;
+
+      expect(secondSkippedAt).toEqual(firstSkippedAt);
     });
   });
 
@@ -355,7 +393,8 @@ describe(UserService.name, () => {
       mock<EmailVerificationCodeService>({
         sendCode: vi.fn().mockResolvedValue({ codeSentAt: new Date().toISOString() })
       }),
-      walletInitializerService
+      walletInitializerService,
+      mock<TrialActivationJobService>({ schedule: vi.fn().mockResolvedValue(undefined) })
     );
 
     return { service, analyticsService, logger, auth0Service, userRepository, walletInitializerService };

@@ -1,10 +1,19 @@
 "use client";
 import type { FC } from "react";
 import { useState } from "react";
-import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, Snackbar } from "@akashnetwork/ui/components";
+import {
+  Button,
+  CustomNoDivTooltip,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Snackbar
+} from "@akashnetwork/ui/components";
 import { copyTextToClipboard } from "@akashnetwork/ui/utils";
 import { saveAs } from "file-saver";
-import { MoreHoriz } from "iconoir-react";
+import { Settings } from "iconoir-react";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -14,7 +23,10 @@ import { ImportSdlDialog } from "./ImportSdlDialog";
 /** Narrowed to the single call signature used here so tests can supply a plain stub. */
 const saveBlobAs: (data: Blob, filename: string) => void = saveAs;
 
-export const DEPENDENCIES = { ImportSdlDialog, useServices, useSnackbar, Snackbar, saveAs: saveBlobAs, copyTextToClipboard };
+/** Names the menu trigger for both the visible tooltip and the accessible label, so the two can't drift apart. */
+const MENU_TRIGGER_LABEL = "Import or export config";
+
+export const DEPENDENCIES = { ImportSdlDialog, useServices, useSnackbar, Snackbar, saveAs: saveBlobAs, copyTextToClipboard, CustomNoDivTooltip };
 
 type Props = {
   /** The live SDL — exactly what Deploy would submit — used as the export source. */
@@ -58,11 +70,13 @@ export const SdlImportExport: FC<Props> = ({ sdl, deploymentName, canImport, onI
   return (
     <>
       <DropdownMenu modal={false}>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="rounded-full" aria-label="SDL import and export">
-            <MoreHoriz />
-          </Button>
-        </DropdownMenuTrigger>
+        <d.CustomNoDivTooltip title={MENU_TRIGGER_LABEL}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="rounded-full" aria-label={MENU_TRIGGER_LABEL}>
+              <Settings />
+            </Button>
+          </DropdownMenuTrigger>
+        </d.CustomNoDivTooltip>
         <DropdownMenuContent align="end">
           <DropdownMenuItem disabled={!canImport} onClick={() => setImportOpen(true)}>
             Import Config

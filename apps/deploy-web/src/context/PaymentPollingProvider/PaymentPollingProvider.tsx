@@ -96,6 +96,11 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
   const pollingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPollingRef = useRef<boolean>(false);
   const attemptCountRef = useRef<number>(0);
+  /**
+   * Payment baseline captured lazily: the balance/trial queries can still be loading when polling starts, so
+   * `pollForPayment`'s eager snapshot may be stale. Re-establish the balance baseline and the trialing latch on
+   * the first poll tick that carries real data, then measure settlement against that.
+   */
   const initialBalanceRef = useRef<number | null>(null);
   const wasTrialingRef = useRef<boolean>(wasTrialing);
   const initialTrialingRef = useRef<boolean>(wasTrialing);
@@ -143,9 +148,10 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
     refetchManagedWallet();
   }, [stopPolling, enqueueSnackbar, refetchBalance, refetchManagedWallet, d]);
 
+  /** Guards on the ref, not `isPolling` state, so two calls in the same tick can't each enqueue a persistent loading snackbar (the second would orphan the first, leaving it stuck on screen). */
   const pollForPayment = useCallback(
     (options?: { initialBalance?: number | null; variant?: PaymentPollingVariant }) => {
-      if (isPolling) {
+      if (isPollingRef.current) {
         return;
       }
 
@@ -170,7 +176,7 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
       // Start the first poll immediately
       executePoll();
     },
-    [isPolling, currentBalance, executePoll, enqueueSnackbar, wasTrialing, d]
+    [currentBalance, executePoll, enqueueSnackbar, wasTrialing, d]
   );
 
   useEffect(
@@ -210,6 +216,13 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
     function checkForPaymentCompletion() {
       if (!isPolling || hasSignaledSuccessRef.current) {
         return;
+      }
+
+      if (initialBalanceRef.current == null && currentBalance != null) {
+        initialBalanceRef.current = currentBalance.totalUsd;
+      }
+      if (!initialTrialingRef.current && wasTrialing) {
+        initialTrialingRef.current = true;
       }
 
       const balanceIncreased = currentBalance != null && initialBalanceRef.current != null && currentBalance.totalUsd > initialBalanceRef.current;
@@ -256,14 +269,11 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
     [isPolling, wasTrialing, stopPolling, enqueueSnackbar, d]
   );
 
-  useEffect(
-    function stopPollingOnUnmount() {
-      return () => {
-        stopPolling();
-      };
-    },
-    [stopPolling]
-  );
+  const stopPollingRef = useRef(stopPolling);
+  stopPollingRef.current = stopPolling;
+  useEffect(function stopPollingOnRealUnmount() {
+    return () => stopPollingRef.current();
+  }, []);
 
   const contextValue: PaymentPollingContextType = {
     pollForPayment,

@@ -4,6 +4,7 @@ import { singleton } from "tsyringe";
 
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
+import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { getPostgresError, isUniqueViolation } from "@src/core/repositories/base.repository";
@@ -20,7 +21,8 @@ export class UserService {
     private readonly notificationService: NotificationService,
     private readonly auth0: Auth0Service,
     private readonly emailVerificationCodeService: EmailVerificationCodeService,
-    private readonly walletInitializer: WalletInitializerService
+    private readonly walletInitializer: WalletInitializerService,
+    private readonly trialActivationJobService: TrialActivationJobService
   ) {}
 
   async registerUser(data: RegisterUserInput): Promise<{
@@ -61,6 +63,12 @@ export class UserService {
     await this.walletInitializer.ensureWallet(user.id).catch(error => {
       this.logger.error({ event: "FAILED_TO_ENSURE_USER_WALLET", id: user.id, error });
     });
+
+    if (user.emailVerified) {
+      await this.trialActivationJobService.schedule(user.id).catch(error => {
+        this.logger.error({ event: "FAILED_TO_SCHEDULE_TRIAL_ACTIVATION", id: user.id, error });
+      });
+    }
 
     const result = await this.notificationService.createDefaultChannel(user).catch(error => ({ error }));
 
@@ -129,6 +137,12 @@ export class UserService {
 
     assert(user, 404);
 
+    if (user.emailVerified) {
+      await this.trialActivationJobService.schedule(user.id).catch(error => {
+        this.logger.error({ event: "FAILED_TO_SCHEDULE_TRIAL_ACTIVATION", id: user.id, error });
+      });
+    }
+
     return user;
   }
 
@@ -165,6 +179,10 @@ export class UserService {
 
   async subscribeToNewsletter(userId: string) {
     await this.userRepository.updateById(userId, { subscribedToNewsletter: true });
+  }
+
+  async skipOnboarding(userId: string) {
+    await this.userRepository.updateBy({ id: userId, onboardingSkippedAt: null }, { onboardingSkippedAt: new Date() });
   }
 }
 

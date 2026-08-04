@@ -112,7 +112,7 @@ export type AnalyticsEvent =
   | "log_collector_disabled"
   | "log_collector_deployed"
   | "onboarding_deploy_click"
-  | "onboarding_skip_trial_click"
+  | "onboarding_skipped"
   | "add_credits_opened"
   | "add_credits_amount_selected"
   | "add_credits_payment_method_selected"

@@ -15,7 +15,7 @@ export interface paths {
     put?: never;
     /**
      * Start a trial period for a user
-     * @description Creates a managed wallet for a user and initiates a trial period. Returns wallet information and trial status.
+     * @description Ensures the user's managed wallet exists and enqueues background trial activation. Kept for backward compatibility; trial activation now runs server-side off registration/verification.
      */
     post: {
       parameters: {
@@ -34,7 +34,7 @@ export interface paths {
         };
       };
       responses: {
-        /** @description Trial started successfully and wallet created */
+        /** @description Wallet ensured and trial activation enqueued */
         200: {
           headers: {
             [name: string]: unknown;
@@ -58,13 +58,6 @@ export interface paths {
               };
             };
           };
-        };
-        /** @description Trial provisioning is already in progress for this user; retry shortly */
-        409: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
         };
       };
     };
@@ -696,7 +689,10 @@ export interface paths {
                 youtubeUsername?: string | null;
                 twitterUsername?: string | null;
                 githubUsername?: string | null;
+                /** Format: date-time */
+                onboardingSkippedAt?: string | null;
               };
+              isNewUser: boolean;
             };
           };
         };
@@ -744,6 +740,8 @@ export interface paths {
                 youtubeUsername?: string | null;
                 twitterUsername?: string | null;
                 githubUsername?: string | null;
+                /** Format: date-time */
+                onboardingSkippedAt?: string | null;
               };
             };
           };
@@ -926,6 +924,47 @@ export interface paths {
       responses: {
         /** @description Subscribed successfully */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/user/skipOnboarding": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Skip onboarding */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Onboarding skipped */
+        204: {
           headers: {
             [name: string]: unknown;
           };

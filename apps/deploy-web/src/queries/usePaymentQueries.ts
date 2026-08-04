@@ -12,6 +12,7 @@ import type { UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
+import { walletProvisioningRetry } from "@src/utils/walletProvisioning";
 import { QueryKeys } from "./queryKeys";
 
 export const usePaymentMethodsQuery = (options?: Omit<UseQueryOptions<PaymentMethod[]>, "queryKey" | "queryFn">) => {
@@ -85,6 +86,7 @@ export const usePaymentMutations = () => {
   const queryClient = useQueryClient();
 
   const confirmPayment = useMutation({
+    ...walletProvisioningRetry,
     mutationFn: async ({ userId, paymentMethodId, amount, idempotencyKey }: ConfirmPaymentParams): Promise<ConfirmPaymentResponse> => {
       return await stripe.confirmPayment({
         userId,
@@ -116,6 +118,7 @@ export const usePaymentMutations = () => {
   });
 
   const applyCoupon = useMutation({
+    ...walletProvisioningRetry,
     mutationFn: async ({ coupon, userId }: ApplyCouponParams) => {
       const response = await stripe.applyCoupon(coupon, userId);
       return response;

@@ -84,6 +84,7 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return this.toOutput(item);
   }
 
+  /** Atomically stamps `activatedAt` if unset (no-op returning undefined once activated). Used by the real-funding path, where paying activates a wallet that never started a trial. */
   async claimActivation(id: UserWalletOutput["id"]): Promise<UserWalletOutput | undefined> {
     const [claimed] = await this.cursor
       .update(this.table)

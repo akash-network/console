@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import type { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
+import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
@@ -111,6 +112,17 @@ describe(UserService.name, () => {
     });
   });
 
+  describe("skipOnboarding", () => {
+    it("persists the skip time with a set-if-null guard so it is written once and never overwritten", async () => {
+      const userId = faker.string.uuid();
+      const { service, userRepository } = setup();
+
+      await service.skipOnboarding(userId);
+
+      expect(userRepository.updateBy).toHaveBeenCalledWith({ id: userId, onboardingSkippedAt: null }, { onboardingSkippedAt: expect.any(Date) });
+    });
+  });
+
   function setup() {
     const userRepository = mock<UserRepository>();
     const analyticsService = mock<AnalyticsService>();
@@ -121,6 +133,7 @@ describe(UserService.name, () => {
     const walletInitializerService = mock<WalletInitializerService>({
       ensureWallet: vi.fn().mockResolvedValue(createUserWallet())
     });
+    const trialActivationJobService = mock<TrialActivationJobService>({ schedule: vi.fn().mockResolvedValue(undefined) });
 
     const service = new UserService(
       userRepository,
@@ -129,7 +142,8 @@ describe(UserService.name, () => {
       notificationService,
       auth0Service,
       emailVerificationCodeService,
-      walletInitializerService
+      walletInitializerService,
+      trialActivationJobService
     );
 
     return { service, userRepository, analyticsService, logger, notificationService, auth0Service, emailVerificationCodeService, walletInitializerService };

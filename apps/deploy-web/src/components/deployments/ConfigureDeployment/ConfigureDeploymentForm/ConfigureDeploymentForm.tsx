@@ -1,6 +1,6 @@
 "use client";
 import type { FC } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -56,14 +56,10 @@ type Props = {
   intent: DeploymentIntent;
   /** The shared base flow, created once by the `DeploymentFlowProvider`; this form drives it via the header/panes. */
   flow: DeploymentFlow;
-  /** A terminal start-trial failure, surfaced so a held quote request fails instead of waiting forever. */
-  trialError: unknown;
-  /** Clears a terminal start-trial failure so requesting quotes again re-attempts the trial first. */
-  retryTrial: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, intent, flow, trialError, retryTrial, dependencies: d = DEPENDENCIES }) => {
+export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, intent, flow, dependencies: d = DEPENDENCIES }) => {
   const [initialState] = useState(() => getInitialState(initialSdl, intent.vm));
   const [liveSdl, setLiveSdl] = useState(initialState.sdl);
   const [previewSdl, setPreviewSdl] = useState(initialState.sdl);
@@ -255,24 +251,6 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   /** Import is only meaningful while the deployment is still editable; export stays available in every phase. */
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
 
-  const requestQuotes = flow.actions.requestQuotes;
-  /**
-   * A terminal start-trial error is sticky, so requesting quotes again after one would otherwise fail straight
-   * back to the error state. Reset the trial first (re-attempting it); the create is held until the fresh trial
-   * provisions, then flushed.
-   */
-  const requestQuotesAfterTrialRetry = useCallback(
-    (sdl: string) => {
-      if (trialError) retryTrial();
-      requestQuotes(sdl);
-    },
-    [trialError, retryTrial, requestQuotes]
-  );
-  const headerFlow = useMemo(
-    () => ({ ...flow, actions: { ...flow.actions, requestQuotes: requestQuotesAfterTrialRetry } }),
-    [flow, requestQuotesAfterTrialRetry]
-  );
-
   return (
     <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col">
       <d.NextSeo title="Configure your deployment" />
@@ -282,7 +260,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
             <d.ConfigureDeploymentBackButton />
             <div className="mt-2">
               <d.ConfigureDeploymentHeader
-                flow={headerFlow}
+                flow={flow}
                 sdl={liveSdl}
                 onDeploy={() => openReview(flow.selections)}
                 allPlacementsHaveBids={allPlacementsHaveBids}

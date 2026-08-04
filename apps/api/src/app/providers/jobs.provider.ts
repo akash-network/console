@@ -1,5 +1,6 @@
 import { container } from "tsyringe";
 
+import { ActivateTrialHandler } from "@src/billing/services/activate-trial/activate-trial.handler";
 import { WalletBalanceReloadCheckHandler } from "@src/billing/services/wallet-balance-reload-check/wallet-balance-reload-check.handler";
 import type { AppInitializer } from "@src/core/providers/app-initializer";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
@@ -25,7 +26,8 @@ container.register(APP_INITIALIZER, {
         container.resolve(EnableDeploymentAlertHandler),
         container.resolve(FundDeploymentHandler),
         container.resolve(WalletBalanceReloadCheckHandler),
-        container.resolve(FirstPurchaseBonusGrantedHandler)
+        container.resolve(FirstPurchaseBonusGrantedHandler),
+        container.resolve(ActivateTrialHandler)
       ]);
     }
   } satisfies AppInitializer

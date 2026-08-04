@@ -154,9 +154,7 @@ describe(ConfigureDeployment.name, () => {
   }) {
     const ConfigureDeploymentForm = vi.fn(() => <div data-testid="form-mock" />);
     const AutoDeployFlow = vi.fn(() => <div data-testid="auto-mock" />);
-    const DeploymentFlowProvider = vi.fn(({ children }) => (
-      <>{children({ flow: mock<DeploymentFlow>(), isWalletReady: true, trialError: undefined, retryTrial: vi.fn() })}</>
-    ));
+    const DeploymentFlowProvider = vi.fn(({ children }) => <>{children({ flow: mock<DeploymentFlow>() })}</>);
     const enqueueSnackbar = vi.fn();
     const usePublicTemplate = vi.fn(() => mock<ReturnType<typeof DEPENDENCIES.usePublicTemplate>>(input.template as never));
     const save = vi.fn();

@@ -36,50 +36,6 @@ The monorepo contains multiple applications and shared packages:
 - `packages/releaser` - Release management utilities
 - `packages/ui` - Shared UI components
 
-### Tech Stack
-
-- **Node.js**: >= 24.14.1 (enforced via Volta)
-- **Package Manager**: npm 11.11.0
-- **Framework**: Next.js 14.x, Hono, Nest.js
-- **Database**: PostgreSQL with Drizzle ORM and legacy sequelize
-- **Monorepo**: npm workspaces
-- **Testing**: Vitest (primary), Jest (legacy in indexer & provider-console), Playwright (e2e), React Testing Library
-- **Styling**: Material-UI, Emotion, Tailwind CSS
-- **State**: React Query, Jotai
-- **Blockchain**: Cosmos, Akash network
-
-### Building the Project
-
-#### Using Docker Compose (Recommended for Development)
-
-Build production images:
-```bash
-npm run dc:build
-```
-
-Run services in development mode:
-```bash
-npm run dc:up:dev
-```
-
-Run specific service with dependencies:
-```bash
-npm run dc:up:dev -- deploy-web
-```
-
-Stop all services:
-```bash
-npm run dc:down
-```
-
-#### Building Individual Applications
-
-Each application has its own build script. Navigate to the app directory and run:
-```bash
-cd apps/<app-name>
-npm run build
-```
-
 ### Running Tests
 
 IMPORTANT: Before pushing, ALWAYS run in the affected app:
@@ -179,71 +135,9 @@ cd apps/<app-name>
 npm test
 ```
 
-### TypeScript Configuration
-
-All projects use **strict TypeScript** with the following key settings:
-- `"strict": true` - Enables all strict type checking options
-- `"noImplicitAny": true` - Prevents implicit `any` types
-- Type checking is enforced via `validate:types` scripts in packages
-
-**Type checking packages:**
-```bash
-# Check all packages
-npm run validate:types -w ./packages
-
-# Check specific package
-cd packages/<package-name>
-npm run validate:types
-```
-
-**Type checking applications:**
-```bash
-cd apps/<app-name>
-# or
-npx tsc --noEmit
-```
-
 ### Linting
 
-The project uses **ESLint** with a shared configuration from `packages/dev-config`. All code is automatically linted on commit via `lint-staged` and `husky`.
-
-#### Running Linting
-
-**From the root:**
-```bash
-# Lint entire monorepo
-npm run lint
-
-# Auto-fix linting issues
-npm run lint:fix
-```
-
-**In individual applications/packages:**
-```bash
-cd apps/<app-name>
-npm run lint
-
-# Most apps also support auto-fix
-npm run lint -- --fix
-```
-
-#### Linting Configuration
-
-- **Base config**: `packages/dev-config/.eslintrc.base.js` - Common rules for all projects
-- **TypeScript config**: `packages/dev-config/.eslintrc.ts.js` - TypeScript-specific rules
-- **Next.js config**: `packages/dev-config/.eslintrc.next.js` - Next.js-specific rules for web apps
-- **Root config**: `.eslintrc.js` - Monorepo-wide overrides
-
-##### Key Linting Rules
-
-- **Import sorting**: Enforced via `eslint-plugin-simple-import-sort`
-- **Import validation**: `eslint-plugin-import-x` checks for:
-  - Extraneous dependencies
-  - Circular dependencies
-  - Self-imports
-  - Useless path segments
-- **TypeScript**: Enforces consistent type imports and warns on `any` types
-- **Custom rules**: `eslint-plugin-akash` includes project-specific rules (e.g., `akash/no-mnemonic`)
+ESLint config lives in `packages/dev-config`; lint runs on commit via `lint-staged`/`husky`. Note the custom `eslint-plugin-akash` rules (e.g. `akash/no-mnemonic`).
 
 ### Commits
 
@@ -290,12 +184,6 @@ myRouter.openapi(myRoute, async function routeGetExample(c) {
 - Repositories extend `BaseRepository<T, Input, Output>` from `@src/core/repositories/base.repository`
 - Built-in CRUD, pagination, CASL ability-based row filtering, and Drizzle ORM transaction support
 - Use `DrizzleAbility` for authorization at the data layer
-
-## Path Aliases
-
-All backend apps use these TypeScript path aliases (defined in `tsconfig.build.json`):
-- `@src/*` → `./src/*`
-- `@test/*` → `./test/*`
 
 ## Test File Conventions
 

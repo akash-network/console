@@ -20,7 +20,7 @@ type Props = {
 
 export function HackathonCouponNavEntry({ dependencies: d = DEPENDENCIES }: Props) {
   const isHackathonsEnabled = d.useFlag("hackathons");
-  const { isTrialing, isWalletLoaded, address } = d.useWallet();
+  const { isTrialing } = d.useWallet();
   const [open, setOpen] = useState(false);
 
   if (!isHackathonsEnabled || !isTrialing) return null;
@@ -32,7 +32,7 @@ export function HackathonCouponNavEntry({ dependencies: d = DEPENDENCIES }: Prop
         <ArrowRight className="ml-2 h-4 w-4" />
       </Button>
 
-      <d.AddCreditsSheet open={open} onOpenChange={setOpen} initialTab="coupon" isWalletReady={isWalletLoaded && !!address} onDone={() => setOpen(false)} />
+      <d.AddCreditsSheet open={open} onOpenChange={setOpen} initialTab="coupon" onDone={() => setOpen(false)} />
     </>
   );
 }

@@ -1,5 +1,6 @@
 import type { FC } from "react";
 
+import { useIsOnboarded } from "@src/hooks/useIsOnboarded";
 import { usePlacementOffers } from "@src/queries/usePlacementOffers";
 import { useDeploymentGpuCount } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
 import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
@@ -7,7 +8,7 @@ import { MarketplaceProvidersTable } from "./MarketplaceProvidersTable/Marketpla
 import { useProviderSearch } from "./MarketplaceProvidersTable/useProviderSearch/useProviderSearch";
 import { ProviderSearchInput } from "./ProviderSearchInput/ProviderSearchInput";
 
-export const DEPENDENCIES = { usePlacementOffers, useProviderSearch, MarketplaceProvidersTable, ProviderSearchInput, useDeploymentGpuCount };
+export const DEPENDENCIES = { usePlacementOffers, useProviderSearch, MarketplaceProvidersTable, ProviderSearchInput, useDeploymentGpuCount, useIsOnboarded };
 
 interface Props {
   sdl: string;
@@ -36,6 +37,8 @@ export const MarketplacePane: FC<Props> = ({
   const { query, setQuery, clear, filteredProviders, isSearchActive } = d.useProviderSearch(offers);
   const hasFailedWithoutData = isError && offers.length === 0;
   const gpuCount = d.useDeploymentGpuCount(selectedPlacementId);
+  /** Provider names link out only once the user is onboarded: the route gate bounces a not-yet-onboarded user back into the funnel, so the link would dead-end. */
+  const showProviderLink = d.useIsOnboarded();
 
   return (
     <section aria-labelledby="configure-marketplace-pane-heading" className="flex h-full min-h-0 flex-col">
@@ -70,6 +73,7 @@ export const MarketplacePane: FC<Props> = ({
             onSelect={bidId => onSelectProvider(selectedPlacementId, bidId)}
             isSelectable={phase === "quoting"}
             gpuCount={gpuCount}
+            showProviderLink={showProviderLink}
           />
         )}
       </div>

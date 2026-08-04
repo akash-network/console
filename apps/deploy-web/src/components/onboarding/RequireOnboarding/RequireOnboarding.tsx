@@ -60,6 +60,7 @@ function LeaseBasedGate({
   const isLeasesLoading = hasWallet && leaseExistenceQuery.isLoading;
   const leasesErrored = hasWallet && leaseExistenceQuery.isError;
   const isOnboarded = hasWallet && !!leaseExistenceQuery.data;
+  const hasSkippedOnboarding = !!user?.onboardingSkippedAt;
 
   const path = router.asPath.split("?")[0];
   const isOnOnboarding = path === ONBOARDING_ROUTE;
@@ -74,6 +75,7 @@ function LeaseBasedGate({
     leasesErrored,
     isAuthenticated: !!user?.userId,
     isOnboarded,
+    hasSkippedOnboarding,
     isOnOnboarding,
     isAllowed
   });
@@ -103,6 +105,10 @@ function LeaseBasedGate({
  * leases *error* leaves onboarding unknowable (an undefined result is not "no leases"), so we fail open and render
  * where the user is rather than eject a genuinely onboarded user into the first-deploy funnel on a transient
  * chain-API blip.
+ *
+ * A user who has explicitly skipped onboarding (`hasSkippedOnboarding`) is treated exactly like an onboarded one, and
+ * this is known as soon as identity is (before the leases query), so a skipper never waits on leases and is never
+ * sent back into the funnel.
  */
 function decideLeaseGate(input: {
   isPublic: boolean;
@@ -111,6 +117,7 @@ function decideLeaseGate(input: {
   leasesErrored: boolean;
   isAuthenticated: boolean;
   isOnboarded: boolean;
+  hasSkippedOnboarding: boolean;
   isOnOnboarding: boolean;
   isAllowed: boolean;
 }): GateDecision {
@@ -118,7 +125,7 @@ function decideLeaseGate(input: {
   if (input.isAllowed) return "render";
   if (!input.identityKnown) return "loading";
   if (!input.isAuthenticated) return "render";
-  if (input.isOnboarded) return input.isOnOnboarding ? "toReturn" : "render";
+  if (input.isOnboarded || input.hasSkippedOnboarding) return input.isOnOnboarding ? "toReturn" : "render";
   if (input.isOnOnboarding) return "render";
   if (!input.leasesSettled) return "loading";
   if (input.leasesErrored) return "render";

@@ -1,4 +1,4 @@
-import { and, count, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, count, eq, ne, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 import { uuidv4 } from "unleash-client/lib/uuidv4";
 
@@ -24,41 +24,10 @@ export class PaymentMethodRepository extends BaseRepository<Table, PaymentMethod
     return new PaymentMethodRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
-  async findOthersTrialingByFingerprint(fingerprints: string[], userId: string) {
-    const item = await this.cursor.query.PaymentMethods.findMany({
-      where: this.whereAccessibleBy(and(inArray(this.table.fingerprint, fingerprints), ne(this.table.userId, userId))),
-      with: {
-        user: {
-          with: {
-            userWallets: {
-              columns: {
-                isTrialing: true
-              }
-            }
-          }
-        }
-      }
-    });
-
-    if (item && item.some(item => item.user?.userWallets?.isTrialing)) {
-      return this.toOutputList(item);
-    }
-
-    return undefined;
-  }
-
   async findByUserId(userId: PaymentMethodOutput["userId"]) {
     return this.toOutputList(
       await this.cursor.query.PaymentMethods.findMany({
         where: this.whereAccessibleBy(eq(this.table.userId, userId))
-      })
-    );
-  }
-
-  async findValidatedByUserId(userId: PaymentMethodOutput["userId"]) {
-    return this.toOutputList(
-      await this.cursor.query.PaymentMethods.findMany({
-        where: this.whereAccessibleBy(and(eq(this.table.userId, userId), eq(this.table.isValidated, true)))
       })
     );
   }

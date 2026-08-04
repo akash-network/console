@@ -32,9 +32,13 @@ test.describe("Managed wallet notification channels", () => {
     });
 
     await test.step("verify channel appears in list", async () => {
-      await notificationChannelsPage.ensureOnTheLastPage();
       const row = notificationChannelsPage.getChannelRow(channelName);
-      await expect(row).toBeVisible({ timeout: 10_000 });
+
+      await expect(async () => {
+        await notificationChannelsPage.ensureOnTheLastPage();
+        await expect(row).toBeVisible({ timeout: 3_000 });
+      }).toPass({ timeout: 20_000 });
+
       await expect(row).toContainText("email");
       await expect(row).toContainText(channelEmail);
     });

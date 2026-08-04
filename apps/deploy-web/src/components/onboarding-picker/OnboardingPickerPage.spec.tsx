@@ -1,4 +1,3 @@
-import type { ApiManagedWalletOutput } from "@akashnetwork/http-sdk";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import { describe, expect, it, vi } from "vitest";
@@ -70,20 +69,6 @@ describe(OnboardingPickerPage.name, () => {
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: SPACE_AGENT_ID, sdlStrategy: "default", bidStrategy: "auto" }));
   });
 
-  it("renders an error alert when trial start fails terminally", () => {
-    const useEnsureTrialStarted: () => EnsureTrialStartedResult = () =>
-      mock<EnsureTrialStartedResult>({ wallet: undefined, isWalletReady: false, isLoading: false, error: new Error("boom") });
-    setup({ dependencies: { useEnsureTrialStarted } });
-
-    expect(screen.getByText(/We couldn't set up your trial/i)).toBeInTheDocument();
-  });
-
-  it("does not render the error alert when trial start has not failed", () => {
-    setup();
-
-    expect(screen.queryByText(/We couldn't set up your trial/i)).not.toBeInTheDocument();
-  });
-
   it("labels the LLM card with the unlock CTA when the user is still trialing", () => {
     const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
     setup({ isTrialing: true, dependencies: { DeploymentTemplatePickerCard } });
@@ -106,7 +91,7 @@ describe(OnboardingPickerPage.name, () => {
       isTrialing: true,
       dependencies: {
         DeploymentTemplatePickerCard,
-        useEnsureTrialStarted: () => mock<EnsureTrialStartedResult>({ wallet: undefined, isWalletReady: false, isLoading: true, error: null })
+        useEnsureTrialStarted: () => mock<EnsureTrialStartedResult>({ wallet: undefined, isWalletReady: false, isLoading: true })
       }
     });
 
@@ -135,19 +120,6 @@ describe(OnboardingPickerPage.name, () => {
     act(() => getCard(DeploymentTemplatePickerCard, "LLM Chatbot").onDeploy!());
 
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: LLM_ID, sdlStrategy: "default", bidStrategy: "auto" }));
-  });
-
-  it("forwards isWalletReady to the verification sheet", () => {
-    const AddCreditsSheet = vi.fn(ComponentMock);
-    setup({
-      isTrialing: true,
-      dependencies: {
-        AddCreditsSheet,
-        useEnsureTrialStarted: () => mock<EnsureTrialStartedResult>({ wallet: undefined, isWalletReady: false, isLoading: true, error: null })
-      }
-    });
-
-    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).isWalletReady).toBe(false);
   });
 
   it("closes the verification sheet when the sheet requests to close", () => {
@@ -190,55 +162,18 @@ describe(OnboardingPickerPage.name, () => {
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: LLM_ID, sdlStrategy: "default", bidStrategy: "auto" }));
   });
 
-  it("renders a button to skip the trial and unlock Console while trialing", () => {
-    setup({ isTrialing: true, wallet: mock<ApiManagedWalletOutput>({ creditAmount: 100 }) });
+  it("renders the skip-onboarding button in the body with the picker source", () => {
+    const SkipOnboardingButton = vi.fn(ComponentMock);
+    setup({ dependencies: { SkipOnboardingButton } });
 
-    expect(screen.getByText(/Skip the trial - unlock Console/i)).toBeInTheDocument();
+    expect((SkipOnboardingButton.mock.calls.at(-1)![0] as { source?: string }).source).toBe("picker");
   });
 
-  it("hides the skip-the-trial button once the user is no longer trialing and the wallet is funded", () => {
-    setup({ isTrialing: false, wallet: mock<ApiManagedWalletOutput>({ creditAmount: 100 }) });
+  it("keeps the skip-onboarding button visible after the trial ends", () => {
+    const SkipOnboardingButton = vi.fn(ComponentMock);
+    setup({ isTrialing: false, dependencies: { SkipOnboardingButton } });
 
-    expect(screen.queryByText(/Skip the trial - unlock Console/i)).not.toBeInTheDocument();
-  });
-
-  it("renders the skip-the-trial button when the wallet has no credit even after the trial has ended", () => {
-    setup({ isTrialing: false, wallet: mock<ApiManagedWalletOutput>({ creditAmount: 0 }) });
-
-    expect(screen.getByText(/Skip the trial - unlock Console/i)).toBeInTheDocument();
-  });
-
-  it("renders the skip-the-trial button when no wallet exists yet and the trial has ended", () => {
-    setup({ isTrialing: false, wallet: undefined });
-
-    expect(screen.getByText(/Skip the trial - unlock Console/i)).toBeInTheDocument();
-  });
-
-  it("opens the verification sheet when the skip-the-trial button is clicked", () => {
-    const push = vi.fn();
-    // Button is a forwardRef component; a plain mock can't satisfy its ref type, so cast the override only.
-    const Button = vi.fn(ComponentMock);
-    const AddCreditsSheet = vi.fn(ComponentMock);
-    setup({ isTrialing: true, push, dependencies: { Button: Button as unknown as typeof DEPENDENCIES.Button, AddCreditsSheet } });
-
-    const skipButton = Button.mock.calls.at(-1)![0] as ButtonProps;
-    act(() => (skipButton.onClick as () => void)());
-
-    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(true);
-    expect(push).not.toHaveBeenCalled();
-  });
-
-  it("redirects to the configure view when the verification sheet completes after skipping the trial", () => {
-    const push = vi.fn();
-    const Button = vi.fn(ComponentMock);
-    const AddCreditsSheet = vi.fn(ComponentMock);
-    setup({ isTrialing: true, push, dependencies: { Button: Button as unknown as typeof DEPENDENCIES.Button, AddCreditsSheet } });
-
-    const skipButton = Button.mock.calls.at(-1)![0] as ButtonProps;
-    act(() => (skipButton.onClick as () => void)());
-    act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onDone(100, "Acme"));
-
-    expect(push).toHaveBeenCalledWith(UrlService.configureDeployment());
+    expect(SkipOnboardingButton).toHaveBeenCalled();
   });
 
   it("renders a 'Hackathon? click here' header link while trialing when the hackathons flag is on", () => {
@@ -360,16 +295,6 @@ describe(OnboardingPickerPage.name, () => {
     expect(analyticsService.flush).toHaveBeenCalled();
   });
 
-  it("tracks a dedicated skip-trial click when skipping the trial", () => {
-    const Button = vi.fn(ComponentMock);
-    const { analyticsService } = setup({ isTrialing: true, dependencies: { Button: Button as unknown as typeof DEPENDENCIES.Button } });
-
-    const skipButton = Button.mock.calls.at(-1)![0] as ButtonProps;
-    act(() => (skipButton.onClick as () => void)());
-
-    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_skip_trial_click", { category: "onboarding" });
-  });
-
   it("tracks a deploy click with the llm option when the gated LLM card is clicked while trialing", () => {
     const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
     const { analyticsService } = setup({ isTrialing: true, dependencies: { DeploymentTemplatePickerCard } });
@@ -412,7 +337,6 @@ describe(OnboardingPickerPage.name, () => {
       isTrialing?: boolean;
       isHackathonsEnabled?: boolean;
       trialCreditsAmount?: number;
-      wallet?: EnsureTrialStartedResult["wallet"];
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
@@ -421,16 +345,13 @@ describe(OnboardingPickerPage.name, () => {
     const isTrialing = input.isTrialing ?? true;
     const isHackathonsEnabled = input.isHackathonsEnabled ?? false;
     const trialCreditsAmount = input.trialCreditsAmount ?? 100;
-    const wallet = "wallet" in input ? input.wallet : mock<ApiManagedWalletOutput>({ creditAmount: 100 });
 
     const useRouter: typeof DEPENDENCIES.useRouter = vi.fn(() => mock<AppRouterInstance>({ push, replace }));
     const useSearchParams: typeof DEPENDENCIES.useSearchParams = () => new URLSearchParams(input.searchParams ?? "") as ReadonlyURLSearchParams;
     const useEnsureTrialStarted: typeof DEPENDENCIES.useEnsureTrialStarted = vi.fn(() =>
       mock<EnsureTrialStartedResult>({
-        wallet,
         isWalletReady: true,
-        isLoading: false,
-        error: null
+        isLoading: false
       })
     );
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing });

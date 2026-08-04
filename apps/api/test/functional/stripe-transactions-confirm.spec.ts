@@ -4,13 +4,16 @@ import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
-import { StripeTransactionRepository } from "@src/billing/repositories";
+import { StripeTransactionRepository, UserWalletRepository } from "@src/billing/repositories";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
+
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 describe("Stripe transactions confirm", () => {
   const userRepository = container.resolve(UserRepository);
   const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
+  const userWalletRepository = container.resolve(UserWalletRepository);
   const userAuthTokenService = container.resolve(UserAuthTokenService);
 
   afterEach(() => {
@@ -119,6 +122,8 @@ describe("Stripe transactions confirm", () => {
   async function setup() {
     const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
     const user = await userRepository.create({ userId: faker.string.uuid(), stripeCustomerId });
+    const wallet = await userWalletRepository.create({ userId: user.id, address: createAkashAddress() });
+    await userWalletRepository.updateById(wallet.id, { activatedAt: new Date(), isTrialing: false });
     const token = faker.string.alphanumeric(40);
     const paymentMethodId = `pm_${faker.string.alphanumeric(24)}`;
 

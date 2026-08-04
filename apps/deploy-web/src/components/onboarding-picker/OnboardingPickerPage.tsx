@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useEffect, useState } from "react";
-import { Alert, AlertDescription, Button } from "@akashnetwork/ui/components";
+import { Button } from "@akashnetwork/ui/components";
 import { ArrowRight } from "lucide-react";
 import Head from "next/head";
 import Link from "next/link";
@@ -13,6 +13,7 @@ import { BONUS_PERCENT, MAX_BONUS } from "@src/components/billing-usage/FirstPur
 import { DeploymentTemplatePickerCard } from "@src/components/deployments/DeploymentTemplatePickerCard/DeploymentTemplatePickerCard";
 import { AkashConsoleLogo } from "@src/components/icons/AkashConsoleLogo";
 import { AccountMenu } from "@src/components/layout/AccountMenu";
+import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
@@ -40,6 +41,7 @@ export const DEPENDENCIES = {
   DeploymentTemplatePickerCard,
   AddCreditsSheet,
   AccountMenu,
+  SkipOnboardingButton,
   Button
 };
 
@@ -52,8 +54,8 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   const { isTrialing } = d.useWallet();
   const { publicConfig, urlService, analyticsService } = d.useServices();
   const trialCreditsAmount = publicConfig.NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT;
-  const [addCreditsSheetReason, setAddCreditsSheetReason] = useState<"unlock-gpu" | "skip-trial" | "hackathon-coupon" | null>(null);
-  const { isWalletReady, error: trialError, wallet } = d.useEnsureTrialStarted();
+  const [addCreditsSheetReason, setAddCreditsSheetReason] = useState<"unlock-gpu" | "hackathon-coupon" | null>(null);
+  const { isWalletReady } = d.useEnsureTrialStarted();
   const isHackathonsEnabled = d.useFlag("hackathons");
   const isLlmGated = isTrialing || !isWalletReady;
   const isLlmAvailable = !isLlmGated;
@@ -99,11 +101,6 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
     trackDeployClick("custom-image");
   }
 
-  function skipTrial() {
-    analyticsService.track("onboarding_skip_trial_click", { category: "onboarding" });
-    setAddCreditsSheetReason("skip-trial");
-  }
-
   return (
     <>
       <Head>
@@ -137,14 +134,6 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
                 {MAX_BONUS}. Pick a template to get a live URL in about 30 seconds.
               </p>
             </div>
-
-            {trialError && (
-              <Alert variant="destructive">
-                <AlertDescription>
-                  We couldn&apos;t set up your trial. Please refresh the page to try again, or contact support if the issue persists.
-                </AlertDescription>
-              </Alert>
-            )}
 
             <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-3">
               <d.DeploymentTemplatePickerCard
@@ -204,14 +193,9 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
                 </Button>
               </div>
 
-              {(isTrialing || !wallet?.creditAmount) && (
-                <div className="text-center">
-                  <d.Button onClick={skipTrial} variant="ghost">
-                    Skip the trial - unlock Console
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </d.Button>
-                </div>
-              )}
+              <div className="text-center">
+                <d.SkipOnboardingButton source="picker" />
+              </div>
             </div>
           </div>
         </div>
@@ -220,14 +204,11 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
           open={addCreditsSheetReason !== null}
           context={addCreditsSheetReason ?? undefined}
           onOpenChange={open => setAddCreditsSheetReason(open ? "unlock-gpu" : null)}
-          isWalletReady={isWalletReady}
           onRedeemed={() => setAddCreditsSheetReason(null)}
           initialTab={addCreditsSheetReason === "hackathon-coupon" ? "coupon" : "purchase"}
           onDone={() => {
             if (addCreditsSheetReason === "unlock-gpu") {
               redirectToConfigure(TEMPLATE_IDS.llmChatbot);
-            } else if (addCreditsSheetReason === "skip-trial") {
-              router.push(urlService.configureDeployment());
             } else {
               setAddCreditsSheetReason(null);
             }

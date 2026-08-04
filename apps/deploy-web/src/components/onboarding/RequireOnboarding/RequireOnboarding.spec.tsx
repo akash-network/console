@@ -2,9 +2,12 @@ import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { CustomUserProfile } from "@src/types/user";
 import { DEPENDENCIES, RequireOnboarding } from "./RequireOnboarding";
 
 import { render, screen } from "@testing-library/react";
+
+const SKIPPED_AT = "2026-07-27T00:00:00.000Z";
 
 describe(RequireOnboarding.name, () => {
   it("shows loading until the initial wallet lookup and leases resolve", () => {
@@ -100,6 +103,30 @@ describe(RequireOnboarding.name, () => {
     expect(screen.getByText("child")).toBeInTheDocument();
   });
 
+  it("renders children for a skipped user on an app route with no leases", () => {
+    const { replace } = setup({ address: "akash1", hasManagedWallet: true, leases: 0, path: "/deployments", onboardingSkippedAt: SKIPPED_AT });
+    expect(screen.getByText("child")).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("redirects a skipped user away from /onboarding to returnTo", () => {
+    const { replace } = setup({
+      address: "akash1",
+      hasManagedWallet: true,
+      leases: 0,
+      path: "/onboarding",
+      returnTo: "/deployments",
+      onboardingSkippedAt: SKIPPED_AT
+    });
+    expect(replace).toHaveBeenCalledWith("/deployments");
+  });
+
+  it("renders a skipped user immediately on an app route without waiting for leases", () => {
+    const { replace } = setup({ address: "akash1", hasManagedWallet: true, leasesLoading: true, path: "/deployments", onboardingSkippedAt: SKIPPED_AT });
+    expect(screen.getByText("child")).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
   function setup(input: {
     path: string;
     isPublic?: boolean;
@@ -114,6 +141,7 @@ describe(RequireOnboarding.name, () => {
     leasesLoading?: boolean;
     leasesError?: boolean;
     returnTo?: string;
+    onboardingSkippedAt?: string | null;
   }) {
     const replace = vi.fn();
     let mountCount = 0;
@@ -130,7 +158,7 @@ describe(RequireOnboarding.name, () => {
       ...DEPENDENCIES,
       useUser: (() =>
         mock<ReturnType<typeof DEPENDENCIES.useUser>>({
-          user: props.loggedOut ? undefined : ({ userId: props.userId ?? "u1" } as never),
+          user: props.loggedOut ? undefined : mock<CustomUserProfile>({ userId: props.userId ?? "u1", onboardingSkippedAt: props.onboardingSkippedAt ?? null }),
           isLoading: false
         })) as typeof DEPENDENCIES.useUser,
       useWallet: (() =>

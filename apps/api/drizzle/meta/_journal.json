@@ -239,6 +239,13 @@
       "when": 1784819171143,
       "tag": "0033_long_solo",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1785154240079,
+      "tag": "0034_add_onboarding_skipped_at",
+      "breakpoints": true
     }
   ]
 }
