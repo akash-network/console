@@ -42,8 +42,10 @@ export const GpuInterconnectCard: FC<Props> = ({ serviceIndex, locked = false, d
 
   const isEnabled = !!interconnect;
 
-  // Enabling turns the GPU card on, but the user can still turn GPU back off afterwards — surface the
-  // resulting mismatch since an interconnect only filters providers for a service that requests GPUs.
+  /**
+   * Enabling turns the GPU card on, but the user can still turn GPU back off afterwards — surface the
+   * resulting mismatch since an interconnect only filters providers for a service that requests GPUs.
+   */
   const gpuMismatch = isEnabled && !hasGpu;
 
   const hasParticipatingSibling = hasOtherInterconnectService(services, serviceIndex);
