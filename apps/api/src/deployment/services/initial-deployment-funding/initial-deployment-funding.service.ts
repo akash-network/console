@@ -9,6 +9,7 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { InitialDeploymentFundingInstrumentationService } from "@src/deployment/services/initial-deployment-funding/initial-deployment-funding-instrumentation.service";
@@ -36,6 +37,7 @@ export class InitialDeploymentFundingService {
     private readonly rpcMessageService: RpcMessageService,
     private readonly managedSignerService: ManagedSignerService,
     private readonly userWalletRepository: UserWalletRepository,
+    private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly billingConfig: BillingConfigService,
     private readonly deploymentConfig: DeploymentConfigService,
     private readonly walletReloadJobService: WalletReloadJobService,
@@ -91,6 +93,13 @@ export class InitialDeploymentFundingService {
 
     if (!userWallet) {
       this.instrumentation.recordSkipped("wallet_not_found", { walletId, dseq });
+      return;
+    }
+
+    const deploymentSetting = await this.deploymentSettingRepository.findOneBy({ userId: userWallet.userId, dseq });
+
+    if (deploymentSetting && !deploymentSetting.autoTopUpEnabled) {
+      this.logger.info({ event: "INITIAL_FUNDING_SKIPPED", reason: "AUTO_TOP_UP_DISABLED", dseq, address });
       return;
     }
 
