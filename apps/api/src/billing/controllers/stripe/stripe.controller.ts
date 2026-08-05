@@ -176,6 +176,8 @@ export class StripeController {
       const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
       assert(customerId === currentUser.stripeCustomerId, 403, "Payment method does not belong to the user");
 
+      await this.paymentMethodService.assertRemovable(paymentMethodId, currentUser.id);
+
       await this.stripe.detachPaymentMethod(paymentMethodId);
     } catch (error: unknown) {
       if (this.stripeErrorService.isKnownError(error, "payment")) {

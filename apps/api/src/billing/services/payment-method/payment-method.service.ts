@@ -7,7 +7,7 @@ import { inject, singleton } from "tsyringe";
 
 import { extractFingerprint } from "@src/billing/lib/payment-method/extract-fingerprint";
 import { STRIPE_CLIENT } from "@src/billing/providers/stripe-client.provider";
-import { type PaymentMethodOutput, PaymentMethodRepository } from "@src/billing/repositories";
+import { type PaymentMethodOutput, PaymentMethodRepository, WalletSettingRepository } from "@src/billing/repositories";
 import { type CreateLogger, LOGGER_FACTORY, WithTransaction } from "@src/core";
 import { type UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
 import { assertIsPayingUser, type PayingUser } from "../paying-user/paying-user";
@@ -22,6 +22,7 @@ export class PaymentMethodService {
     @inject(STRIPE_CLIENT) private readonly stripe: Stripe,
     private readonly paymentMethodRepository: PaymentMethodRepository,
     private readonly userRepository: UserRepository,
+    private readonly walletSettingRepository: WalletSettingRepository,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.loggerService = createLogger({ context: PaymentMethodService.name });
@@ -224,6 +225,18 @@ export class PaymentMethodService {
         error
       });
     }
+  }
+
+  async assertRemovable(paymentMethodId: string, userId: string): Promise<void> {
+    const local = await this.paymentMethodRepository.findOneBy({ userId, paymentMethodId });
+
+    if (!local?.isDefault) {
+      return;
+    }
+
+    const settings = await this.walletSettingRepository.findByUserId(userId);
+
+    assert(!settings?.autoReloadEnabled, 409, "Cannot remove the default payment method while auto reload is enabled");
   }
 
   async hasPaymentMethod(paymentMethodId: string, user: UserOutput): Promise<boolean> {

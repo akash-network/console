@@ -197,13 +197,14 @@ describe(StripeController.name, () => {
   });
 
   describe("removePaymentMethod", () => {
-    it("detaches the payment method without checking trial status", async () => {
-      const { controller, stripe, userWalletRepository, user } = setup();
+    it("detaches the payment method after asserting it is removable", async () => {
+      const { controller, stripe, paymentMethodService, userWalletRepository, user } = setup();
       const paymentMethodId = faker.string.uuid();
       stripe.retrievePaymentMethod.mockResolvedValue(mock<Stripe.Response<Stripe.PaymentMethod>>({ customer: user.stripeCustomerId }));
 
       await controller.removePaymentMethod(paymentMethodId);
 
+      expect(paymentMethodService.assertRemovable).toHaveBeenCalledWith(paymentMethodId, user.id);
       expect(stripe.detachPaymentMethod).toHaveBeenCalledWith(paymentMethodId);
       expect(userWalletRepository.findOneByUserId).not.toHaveBeenCalled();
     });
@@ -214,6 +215,16 @@ describe(StripeController.name, () => {
       stripe.retrievePaymentMethod.mockResolvedValue(mock<Stripe.Response<Stripe.PaymentMethod>>({ customer: "cus_someoneelse" }));
 
       await expect(controller.removePaymentMethod(paymentMethodId)).rejects.toMatchObject({ status: 403 });
+      expect(stripe.detachPaymentMethod).not.toHaveBeenCalled();
+    });
+
+    it("does not detach when the payment method is not removable", async () => {
+      const { controller, stripe, paymentMethodService, user } = setup();
+      const paymentMethodId = faker.string.uuid();
+      stripe.retrievePaymentMethod.mockResolvedValue(mock<Stripe.Response<Stripe.PaymentMethod>>({ customer: user.stripeCustomerId }));
+      paymentMethodService.assertRemovable.mockRejectedValue(createError(409, "Cannot remove the default payment method while auto reload is enabled"));
+
+      await expect(controller.removePaymentMethod(paymentMethodId)).rejects.toMatchObject({ status: 409 });
       expect(stripe.detachPaymentMethod).not.toHaveBeenCalled();
     });
   });
