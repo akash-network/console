@@ -8,14 +8,13 @@ import {
   ProviderSnapshotStorage
 } from "@akashnetwork/database/dbSchemas/akash";
 import { asyncify, eachLimit } from "async";
-import axios from "axios";
 import { add, differenceInDays, differenceInHours, differenceInMinutes, isSameDay } from "date-fns";
-import https from "https";
 import semver from "semver";
 import { Op } from "sequelize";
 
 import { sequelize } from "@src/db/dbConnection";
 import { toUTC } from "@src/shared/utils/date";
+import { fetchAllowingSelfSignedCerts } from "@src/shared/utils/fetch";
 import { fetchProviderStatusFromGRPC } from "./statusEndpointHandlers/grpc";
 import { fetchProviderStatusFromREST } from "./statusEndpointHandlers/rest";
 import type { ProviderStatusInfo, ProviderVersionEndpointResponseType } from "./statusEndpointHandlers/types";
@@ -38,10 +37,6 @@ export async function syncProvidersInfo(): Promise<void> {
     order: [["nextCheckDate", "ASC"]]
   });
 
-  const httpsAgent = new https.Agent({
-    rejectUnauthorized: false
-  });
-
   let doneCount = 0;
   await eachLimit(
     providers,
@@ -53,15 +48,16 @@ export async function syncProvidersInfo(): Promise<void> {
       let cosmosVersion: string | null = null;
 
       try {
-        const versionResponse = await axios.get<ProviderVersionEndpointResponseType>(provider.hostUri + "/version", {
-          httpsAgent: httpsAgent,
-          timeout: StatusCallTimeout
+        const versionResponse = await fetchAllowingSelfSignedCerts(provider.hostUri + "/version", {
+          signal: AbortSignal.timeout(StatusCallTimeout)
         });
 
-        akashVersion = semver.valid(versionResponse.data.akash.version);
-        cosmosVersion = semver.valid(
-          "cosmosSdkVersion" in versionResponse.data.akash ? versionResponse.data.akash.cosmosSdkVersion : versionResponse.data.akash.cosmos_sdk_version
-        );
+        if (!versionResponse.ok) throw new Error("Request failed with status code " + versionResponse.status);
+
+        const versionData = (await versionResponse.json()) as ProviderVersionEndpointResponseType;
+
+        akashVersion = semver.valid(versionData.akash.version);
+        cosmosVersion = semver.valid("cosmosSdkVersion" in versionData.akash ? versionData.akash.cosmosSdkVersion : versionData.akash.cosmos_sdk_version);
 
         if (akashVersion && semver.gte(akashVersion, "0.5.0-0")) {
           providerStatus = await fetchProviderStatusFromGRPC(provider, StatusCallTimeout);

@@ -1,7 +1,6 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
 import { Day } from "@akashnetwork/database/dbSchemas/base";
 import { isSameDay } from "date-fns";
-import fetch from "node-fetch";
 
 interface PriceHistoryResponse {
   prices: Array<Array<number>>;
@@ -20,7 +19,13 @@ export const syncPriceHistory = async (): Promise<void> => {
   console.log("Fetching latest market data from " + endpointUrl);
 
   const response = await fetch(endpointUrl);
-  const data: PriceHistoryResponse = await response.json();
+
+  if (!response.ok) {
+    const body = (await response.text()).slice(0, 500);
+    throw new Error(`Failed to fetch market data from ${endpointUrl}. Request failed with status code ${response.status}: ${body}`);
+  }
+
+  const data = (await response.json()) as PriceHistoryResponse;
   const apiPrices = data.prices.map(pDate => ({
     date: pDate[0],
     price: pDate[1]

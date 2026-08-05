@@ -1,25 +1,41 @@
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
-import axios from "axios";
 import dns from "dns/promises";
 import { isIP } from "net";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const IpLookupDelay = 2_000;
 
-async function getIpLocation(ip: string) {
-  const response = await axios.get(`http://ip-api.com/json/${ip}`);
+interface IpApiResponse {
+  status: string;
+  regionName: string;
+  region: string;
+  country: string;
+  countryCode: string;
+  lat: number;
+  lon: number;
+}
 
-  if (response.data.status !== "success") {
+async function getIpLocation(ip: string) {
+  const response = await fetch(`http://ip-api.com/json/${ip}`);
+
+  if (!response.ok) {
+    const body = (await response.text()).slice(0, 500);
+    throw new Error(`Could not get location for ip ${ip}. Request failed with status code ${response.status}: ${body}`);
+  }
+
+  const data = (await response.json()) as IpApiResponse;
+
+  if (data.status !== "success") {
     throw new Error(`Could not get location for ip ${ip}`);
   }
 
   return {
-    region: response.data.regionName,
-    regionCode: response.data.region,
-    country: response.data.country,
-    countryCode: response.data.countryCode,
-    lat: response.data.lat,
-    lon: response.data.lon
+    region: data.regionName,
+    regionCode: data.region,
+    country: data.country,
+    countryCode: data.countryCode,
+    lat: data.lat,
+    lon: data.lon
   };
 }
 

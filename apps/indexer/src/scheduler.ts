@@ -1,5 +1,4 @@
 import humanInterval from "human-interval";
-import fetch from "node-fetch";
 
 import { getPrettyTime } from "./shared/utils/date";
 
