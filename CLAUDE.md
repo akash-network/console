@@ -14,7 +14,7 @@ The monorepo contains multiple applications and shared packages:
 - `apps/api` - Hono + OpenAPI REST API with tsyringe DI
 - `apps/deploy-web` - Next.js frontend for deploying on Akash Network
 - `apps/stats-web` - Next.js frontend for network statistics
-- `apps/indexer` - Node.js blockchain indexer (Express, no DI)
+- `apps/indexer` - Node.js blockchain indexer (Hono, no DI)
 - `apps/notifications` - NestJS service for handling notifications (NestJS built-in DI)
 - `apps/log-collector` - Standalone log collector (vanilla Node.js + tsyringe)
 - `apps/provider-proxy` - Hono service for proxying requests to providers (manual factory DI)
