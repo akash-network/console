@@ -162,14 +162,66 @@ export class PaymentMethodService {
 
     const remote = customer.invoice_settings.default_payment_method;
 
-    if (typeof remote === "object" && remote && local) {
+    if (typeof remote === "object" && remote && local && remote.id === local.paymentMethodId) {
       return { ...remote, validated: local.isValidated, isDefault: local.isDefault };
-    } else {
-      this.loggerService.warn({
-        event: "STRIPE_PAYMENT_METHOD_OUT_OF_SYNC",
+    }
+
+    if (local) {
+      return this.#healDefaultPaymentMethodDrift(user, local);
+    }
+
+    this.loggerService.warn({
+      event: "STRIPE_PAYMENT_METHOD_OUT_OF_SYNC",
+      userId: user.id,
+      remoteId: typeof remote === "string" ? remote : remote?.id
+    });
+  }
+
+  /**
+   * The local default is the source of truth. When Stripe's default is missing or points elsewhere,
+   * re-push the local default to Stripe. If the card is gone from Stripe (detached or deleted), the
+   * local row is stale, so drop it. Never throws: this runs inside the reload charging job and the
+   * wallet-settings enable validation, where a Stripe hiccup must not fail the whole operation.
+   */
+  async #healDefaultPaymentMethodDrift(user: PayingUser, local: PaymentMethodOutput): Promise<PaymentMethod | undefined> {
+    try {
+      const remotePaymentMethod = await this.stripe.paymentMethods.retrieve(local.paymentMethodId);
+      const customerId = typeof remotePaymentMethod.customer === "string" ? remotePaymentMethod.customer : remotePaymentMethod.customer?.id;
+
+      if (customerId !== user.stripeCustomerId) {
+        await this.paymentMethodRepository.deleteByFingerprint(local.fingerprint, local.paymentMethodId, user.id);
+        this.loggerService.warn({
+          event: "DEFAULT_PAYMENT_METHOD_STALE_REMOVED",
+          userId: user.id,
+          paymentMethodId: local.paymentMethodId
+        });
+        return;
+      }
+
+      await this.markRemotePaymentMethodAsDefault(local.paymentMethodId, user);
+      this.loggerService.info({
+        event: "DEFAULT_PAYMENT_METHOD_DRIFT_HEALED",
         userId: user.id,
-        remoteId: typeof remote === "string" ? remote : remote?.id,
-        localId: local?.paymentMethodId
+        paymentMethodId: local.paymentMethodId
+      });
+
+      return { ...remotePaymentMethod, validated: local.isValidated, isDefault: local.isDefault };
+    } catch (error) {
+      if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") {
+        await this.paymentMethodRepository.deleteByFingerprint(local.fingerprint, local.paymentMethodId, user.id);
+        this.loggerService.warn({
+          event: "DEFAULT_PAYMENT_METHOD_STALE_REMOVED",
+          userId: user.id,
+          paymentMethodId: local.paymentMethodId
+        });
+        return;
+      }
+
+      this.loggerService.warn({
+        event: "DEFAULT_PAYMENT_METHOD_HEAL_FAILED",
+        userId: user.id,
+        paymentMethodId: local.paymentMethodId,
+        error
       });
     }
   }
