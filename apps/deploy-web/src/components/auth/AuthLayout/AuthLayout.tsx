@@ -14,7 +14,9 @@ const DEPLOYMENT_GUIDE_URL = "https://akash.network/docs/getting-started/quick-s
 export const DEPENDENCIES = {
   Globe,
   AkashConsoleLogo,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   REGION_MARKERS,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   DEPLOYMENT_GUIDE_URL
 };
 

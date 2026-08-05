@@ -1,5 +1,5 @@
-const HOOK_NAME = /^use[A-Z0-9]/;
-const COMPONENT_NAME = /^[A-Z]/;
+const HOOK_NAME = /^use[A-Z0-9][A-Za-z0-9]*$/;
+const COMPONENT_NAME = /^[A-Z][A-Za-z0-9]*$/;
 const GUIDANCE =
   "The DEPENDENCIES map may only contain React components (PascalCase) or hooks (use-prefixed). Inject services via the useServices hook instead.";
 
