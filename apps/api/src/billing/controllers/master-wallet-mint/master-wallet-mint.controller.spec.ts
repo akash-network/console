@@ -7,14 +7,14 @@ import { MasterWalletMintController } from "./master-wallet-mint.controller";
 
 describe(MasterWalletMintController.name, () => {
   describe("mint", () => {
-    it("should delegate to service and return result", async () => {
+    it("delegates to service and returns result", async () => {
       const { controller, masterWalletMintService } = setup();
-      masterWalletMintService.mintIfNeeded.mockResolvedValue(Ok.EMPTY);
+      masterWalletMintService.mintExcessAkt.mockResolvedValue(Ok.EMPTY);
 
       const result = await controller.mint({ dryRun: false });
 
       expect(result).toEqual(Ok.EMPTY);
-      expect(masterWalletMintService.mintIfNeeded).toHaveBeenCalledWith({ dryRun: false });
+      expect(masterWalletMintService.mintExcessAkt).toHaveBeenCalledWith({ dryRun: false });
     });
   });
 
