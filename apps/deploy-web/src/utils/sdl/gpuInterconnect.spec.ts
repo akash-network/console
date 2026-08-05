@@ -57,6 +57,10 @@ describe(withoutGpuInterconnectCapability.name, () => {
 
     expect(withoutGpuInterconnectCapability(attributes)).toBe(attributes);
   });
+
+  it("preserves undefined instead of allocating an empty array", () => {
+    expect(withoutGpuInterconnectCapability(undefined)).toBeUndefined();
+  });
 });
 
 describe(hasOtherInterconnectService.name, () => {

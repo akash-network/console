@@ -36,10 +36,12 @@ export function withGpuInterconnectCapability(attributes: PlacementAttributeType
  * fabric pin would over-filter providers on a deployment that no longer requests
  * the interconnect at all.
  */
-export function withoutGpuInterconnectCapability(attributes: PlacementAttributeType[] | undefined): PlacementAttributeType[] {
-  const rows = attributes ?? [];
-  const remaining = rows.filter(attribute => attribute.key !== GPU_INTERCONNECT_CAPABILITY_KEY && !attribute.key.startsWith(GPU_INTERCONNECT_FABRIC_PREFIX));
-  return remaining.length === rows.length ? rows : remaining;
+export function withoutGpuInterconnectCapability(attributes: PlacementAttributeType[] | undefined): PlacementAttributeType[] | undefined {
+  if (!attributes) return attributes;
+  const remaining = attributes.filter(
+    attribute => attribute.key !== GPU_INTERCONNECT_CAPABILITY_KEY && !attribute.key.startsWith(GPU_INTERCONNECT_FABRIC_PREFIX)
+  );
+  return remaining.length === attributes.length ? attributes : remaining;
 }
 
 /** True when any service other than `selfIndex` on the same placement still opts into the interconnect. */
