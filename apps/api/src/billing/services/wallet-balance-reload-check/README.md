@@ -18,7 +18,7 @@ A user configures two values on their wallet settings:
 
 ### The rule
 
-```
+```text
 if (balance <= autoReloadThreshold) {
   charge max(autoReloadAmount, $20)
 }

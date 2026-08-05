@@ -6,6 +6,7 @@ import { singleton } from "tsyringe";
 import { STANDARD_TOP_UP_MIN_AMOUNT_USD } from "@src/billing/config";
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balance.schema";
+import { centsToUsd } from "@src/billing/lib/currency/currency";
 import { UserWalletOutput, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { type PaymentMethod, PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
@@ -180,8 +181,8 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
 
   async #tryToReloadOnFixedThreshold(resources: AllResources & { job: JobMeta }): Promise<void> {
     const { balance } = resources;
-    const threshold = resources.walletSetting.autoReloadThreshold;
-    const reloadAmount = Math.max(resources.walletSetting.autoReloadAmount, STANDARD_TOP_UP_MIN_AMOUNT_USD);
+    const threshold = centsToUsd(resources.walletSetting.autoReloadThreshold);
+    const reloadAmount = Math.max(centsToUsd(resources.walletSetting.autoReloadAmount), STANDARD_TOP_UP_MIN_AMOUNT_USD);
     const log = {
       walletAddress: resources.wallet.address,
       balance,

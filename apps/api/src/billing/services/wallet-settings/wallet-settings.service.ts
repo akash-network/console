@@ -2,6 +2,7 @@ import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { centsToUsd, usdToCents } from "@src/billing/lib/currency/currency";
 import { UserWalletRepository, type WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
@@ -29,7 +30,9 @@ export class WalletSettingService {
   async getWalletSetting(userId: string): Promise<WalletSettingOutput | undefined> {
     const { ability } = this.authService;
 
-    return await this.walletSettingRepository.accessibleBy(ability, "read").findByUserId(userId);
+    const setting = await this.walletSettingRepository.accessibleBy(ability, "read").findByUserId(userId);
+
+    return setting && this.#toDomainSetting(setting);
   }
 
   @WithTransaction()
@@ -42,7 +45,7 @@ export class WalletSettingService {
 
     await this.#arrangeSchedule(mutationResult.prev, mutationResult.next);
 
-    return mutationResult.next!;
+    return this.#toDomainSetting(mutationResult.next!);
   }
 
   async #update(userId: UserOutput["id"], settings: WalletSettingInput): Promise<{ prev?: WalletSettingOutput; next?: WalletSettingOutput }> {
@@ -55,7 +58,7 @@ export class WalletSettingService {
     }
 
     await this.#validate({ next: settings, userId });
-    const next = await this.walletSettingRepository.accessibleBy(ability, "update").updateById(prev.id, settings, { returning: true });
+    const next = await this.walletSettingRepository.accessibleBy(ability, "update").updateById(prev.id, this.#toStoredSettings(settings), { returning: true });
 
     if (!next) {
       return {};
@@ -76,7 +79,7 @@ export class WalletSettingService {
         next: await this.walletSettingRepository.accessibleBy(this.authService.ability, "create").create({
           userId,
           walletId: userWallet.id,
-          ...settings
+          ...this.#toStoredSettings(settings)
         })
       };
     } catch (error: unknown) {
@@ -128,6 +131,22 @@ export class WalletSettingService {
 
   #hasReloadValuesChanged(prev: WalletSettingOutput, next: WalletSettingOutput) {
     return prev.autoReloadThreshold !== next.autoReloadThreshold || prev.autoReloadAmount !== next.autoReloadAmount;
+  }
+
+  #toStoredSettings(settings: WalletSettingInput): WalletSettingInput {
+    return {
+      ...settings,
+      ...(settings.autoReloadThreshold !== undefined && { autoReloadThreshold: usdToCents(settings.autoReloadThreshold) }),
+      ...(settings.autoReloadAmount !== undefined && { autoReloadAmount: usdToCents(settings.autoReloadAmount) })
+    };
+  }
+
+  #toDomainSetting(setting: WalletSettingOutput): WalletSettingOutput {
+    return {
+      ...setting,
+      autoReloadThreshold: centsToUsd(setting.autoReloadThreshold),
+      autoReloadAmount: centsToUsd(setting.autoReloadAmount)
+    };
   }
 
   async deleteWalletSetting(userId: string): Promise<void> {

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
+import { usdToCents } from "@src/billing/lib/currency/currency";
 import type { WalletSettingRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
@@ -354,8 +355,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const { handler, stripeTransactionService, drainingDeploymentService, instrumentationService, job, jobMeta } = setup({
         fixedThresholdEnabled: true,
         balance: 10,
-        autoReloadThreshold: 20,
-        autoReloadAmount: 100
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100
       });
 
       await handler.handle(job, jobMeta);
@@ -382,8 +383,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const { handler, stripeTransactionService, job, jobMeta } = setup({
         fixedThresholdEnabled: true,
         balance: 20,
-        autoReloadThreshold: 20,
-        autoReloadAmount: 100
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100
       });
 
       await handler.handle(job, jobMeta);
@@ -395,8 +396,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const { handler, stripeTransactionService, instrumentationService, job, jobMeta } = setup({
         fixedThresholdEnabled: true,
         balance: 20.01,
-        autoReloadThreshold: 20,
-        autoReloadAmount: 100
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100
       });
 
       await handler.handle(job, jobMeta);
@@ -414,8 +415,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const { handler, stripeTransactionService, drainingDeploymentService, job, jobMeta } = setup({
         fixedThresholdEnabled: true,
         balance: 0,
-        autoReloadThreshold: 20,
-        autoReloadAmount: 100
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100
       });
 
       await handler.handle(job, jobMeta);
@@ -428,8 +429,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const { handler, stripeTransactionService, job, jobMeta } = setup({
         fixedThresholdEnabled: true,
         balance: 5,
-        autoReloadThreshold: 20,
-        autoReloadAmount: 15
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 15
       });
 
       await handler.handle(job, jobMeta);
@@ -442,8 +443,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const { handler, stripeTransactionService, instrumentationService, job, jobMeta } = setup({
         fixedThresholdEnabled: true,
         balance: 10,
-        autoReloadThreshold: 20,
-        autoReloadAmount: 100
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100
       });
       stripeTransactionService.createPaymentIntent.mockRejectedValue(error);
 
@@ -463,8 +464,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     jobId?: string | null;
     walletSettingNotFound?: boolean;
     autoReloadEnabled?: boolean;
-    autoReloadThreshold?: number;
-    autoReloadAmount?: number;
+    autoReloadThresholdUsd?: number;
+    autoReloadAmountUsd?: number;
     fixedThresholdEnabled?: boolean;
     user?: ReturnType<typeof createUser>;
     wallet?: ReturnType<typeof createUserWallet>;
@@ -483,8 +484,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       userId: user.id,
       walletId: wallet.id,
       autoReloadEnabled: input?.autoReloadEnabled ?? true,
-      ...(input?.autoReloadThreshold !== undefined && { autoReloadThreshold: input.autoReloadThreshold }),
-      ...(input?.autoReloadAmount !== undefined && { autoReloadAmount: input.autoReloadAmount })
+      ...(input?.autoReloadThresholdUsd !== undefined && { autoReloadThreshold: usdToCents(input.autoReloadThresholdUsd) }),
+      ...(input?.autoReloadAmountUsd !== undefined && { autoReloadAmount: usdToCents(input.autoReloadAmountUsd) })
     });
     const walletSettingWithWallet = {
       ...walletSetting,

@@ -5,7 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
-import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
+import { centsToUsd } from "@src/billing/lib/currency/currency";
+import type { UserWalletRepository, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { type PaymentMethod } from "@src/billing/services/payment-method/payment-method.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
@@ -53,7 +54,7 @@ describe(WalletSettingService.name, () => {
         autoReloadEnabled: false
       });
 
-      expect(result).toEqual(updatedSetting);
+      expect(result).toEqual(toPublicSetting(updatedSetting));
       expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(user.id);
       expect(walletSettingRepository.updateById).toHaveBeenCalledWith(publicSetting.id, { autoReloadEnabled: false }, { returning: true });
     });
@@ -73,7 +74,7 @@ describe(WalletSettingService.name, () => {
         autoReloadEnabled: true
       });
 
-      expect(result).toEqual(newSetting);
+      expect(result).toEqual(toPublicSetting(newSetting));
       expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(user.id);
       expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(user.id);
       expect(walletSettingRepository.create).toHaveBeenCalledWith({
@@ -105,7 +106,7 @@ describe(WalletSettingService.name, () => {
         autoReloadEnabled: true
       });
 
-      expect(result).toEqual(newSetting);
+      expect(result).toEqual(toPublicSetting(newSetting));
       expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(user.id);
       expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(user.id);
       expect(walletSettingRepository.create).toHaveBeenCalledWith({
@@ -130,7 +131,7 @@ describe(WalletSettingService.name, () => {
         autoReloadEnabled: true
       });
 
-      expect(result).toEqual(updatedSetting);
+      expect(result).toEqual(toPublicSetting(updatedSetting));
       expect(walletSettingRepository.updateById).toHaveBeenCalledWith(
         existingSetting.id,
         {
@@ -149,8 +150,8 @@ describe(WalletSettingService.name, () => {
 
     it("schedules an immediate check when reload values change while enabled", async () => {
       const { user, walletSetting, walletSettingRepository, walletReloadJobService, jobId, service } = setup();
-      const enabledPrev = { ...walletSetting, autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100 };
-      const updated = { ...enabledPrev, autoReloadThreshold: 30 };
+      const enabledPrev = { ...walletSetting, autoReloadEnabled: true, autoReloadThreshold: 2000, autoReloadAmount: 10000 };
+      const updated = { ...enabledPrev, autoReloadThreshold: 3000 };
       walletSettingRepository.findByUserId.mockResolvedValue(enabledPrev);
       walletSettingRepository.updateById.mockResolvedValue(updated as any);
       walletReloadJobService.scheduleForWalletSetting.mockResolvedValue(jobId);
@@ -162,13 +163,31 @@ describe(WalletSettingService.name, () => {
 
     it("does not schedule a check when reload values are unchanged while enabled", async () => {
       const { user, walletSetting, walletSettingRepository, walletReloadJobService, service } = setup();
-      const enabledSetting = { ...walletSetting, autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100 };
+      const enabledSetting = { ...walletSetting, autoReloadEnabled: true, autoReloadThreshold: 2000, autoReloadAmount: 10000 };
       walletSettingRepository.findByUserId.mockResolvedValue(enabledSetting);
       walletSettingRepository.updateById.mockResolvedValue(enabledSetting as any);
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: true });
 
       expect(walletReloadJobService.scheduleForWalletSetting).not.toHaveBeenCalled();
+    });
+
+    it("persists reload amounts as integer cents and returns them in dollars", async () => {
+      const { user, walletSetting, walletSettingRepository, walletReloadJobService, jobId, service } = setup();
+      const existingSetting = { ...walletSetting, autoReloadEnabled: true };
+      walletSettingRepository.findByUserId.mockResolvedValue(existingSetting);
+      walletSettingRepository.updateById.mockResolvedValue({ ...existingSetting, autoReloadThreshold: 2500, autoReloadAmount: 15000 } as any);
+      walletReloadJobService.scheduleForWalletSetting.mockResolvedValue(jobId);
+
+      const result = await service.upsertWalletSetting(user.id, { autoReloadThreshold: 25, autoReloadAmount: 150 });
+
+      expect(walletSettingRepository.updateById).toHaveBeenCalledWith(
+        existingSetting.id,
+        { autoReloadThreshold: 2500, autoReloadAmount: 15000 },
+        { returning: true }
+      );
+      expect(result.autoReloadThreshold).toBe(25);
+      expect(result.autoReloadAmount).toBe(150);
     });
 
     it("throws when enabling without a default payment method", async () => {
@@ -243,7 +262,7 @@ describe(WalletSettingService.name, () => {
       user: userWithStripe,
       userWallet,
       walletSetting,
-      publicSetting: walletSetting,
+      publicSetting: toPublicSetting(walletSetting),
       walletSettingRepository,
       userWalletRepository,
       userRepository,
@@ -255,3 +274,11 @@ describe(WalletSettingService.name, () => {
     };
   }
 });
+
+function toPublicSetting(setting: WalletSettingOutput): WalletSettingOutput {
+  return {
+    ...setting,
+    autoReloadThreshold: centsToUsd(setting.autoReloadThreshold),
+    autoReloadAmount: centsToUsd(setting.autoReloadAmount)
+  };
+}

@@ -1,2 +1,2 @@
-ALTER TABLE "wallet_settings" ADD COLUMN "auto_reload_threshold" numeric(20, 2) DEFAULT 20 NOT NULL;--> statement-breakpoint
-ALTER TABLE "wallet_settings" ADD COLUMN "auto_reload_amount" numeric(20, 2) DEFAULT 100 NOT NULL;
+ALTER TABLE "wallet_settings" ADD COLUMN "auto_reload_threshold" integer DEFAULT 2000 NOT NULL;--> statement-breakpoint
+ALTER TABLE "wallet_settings" ADD COLUMN "auto_reload_amount" integer DEFAULT 10000 NOT NULL;

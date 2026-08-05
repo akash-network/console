@@ -1,5 +1,5 @@
 {
-  "id": "3d1e508c-8c34-431c-aa00-d12c0087f6f8",
+  "id": "c956c0bc-db50-48a0-970c-7a2e9f1630d9",
   "prevId": "15befea9-f731-44fd-8390-2236155dc978",
   "version": "7",
   "dialect": "postgresql",
@@ -666,17 +666,17 @@
         },
         "auto_reload_threshold": {
           "name": "auto_reload_threshold",
-          "type": "numeric(20, 2)",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "default": 20
+          "default": 2000
         },
         "auto_reload_amount": {
           "name": "auto_reload_amount",
-          "type": "numeric(20, 2)",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "default": 100
+          "default": 10000
         },
         "created_at": {
           "name": "created_at",
