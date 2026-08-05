@@ -30,6 +30,7 @@ import { StripeTransactionService } from "@src/billing/services/stripe-transacti
 import { TopUpService } from "@src/billing/services/top-up/top-up.service";
 import { TransactionReportingService } from "@src/billing/services/transaction-reporting/transaction-reporting.service";
 import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
+import { WalletSettingService } from "@src/billing/services/wallet-settings/wallet-settings.service";
 @singleton()
 export class StripeController {
   constructor(
@@ -43,7 +44,8 @@ export class StripeController {
     private readonly transactionReporting: TransactionReportingService,
     private readonly paymentMethodService: PaymentMethodService,
     private readonly couponRedemptionService: CouponRedemptionService,
-    private readonly customerService: CustomerService
+    private readonly customerService: CustomerService,
+    private readonly walletSettingService: WalletSettingService
   ) {}
 
   @Protected([{ action: "read", subject: "StripePayment" }])
@@ -176,9 +178,13 @@ export class StripeController {
       const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
       assert(customerId === currentUser.stripeCustomerId, 403, "Payment method does not belong to the user");
 
-      await this.paymentMethodService.assertRemovable(paymentMethodId, currentUser.id);
+      const wasDefault = await this.paymentMethodService.isDefaultPaymentMethod(paymentMethodId, currentUser.id);
 
       await this.stripe.detachPaymentMethod(paymentMethodId);
+
+      if (wasDefault) {
+        await this.walletSettingService.disableAutoReload(currentUser.id);
+      }
     } catch (error: unknown) {
       if (this.stripeErrorService.isKnownError(error, "payment")) {
         throw this.stripeErrorService.toAppError(error, "payment");

@@ -6,6 +6,7 @@ import { UserWalletRepository, type WalletSettingOutput, WalletSettingRepository
 import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { WithTransaction } from "@src/core";
+import { LoggerService } from "@src/core/providers/logging.provider";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 
@@ -23,8 +24,11 @@ export class WalletSettingService {
     private readonly userRepository: UserRepository,
     private readonly paymentMethodService: PaymentMethodService,
     private readonly authService: AuthService,
-    private readonly walletReloadJobService: WalletReloadJobService
-  ) {}
+    private readonly walletReloadJobService: WalletReloadJobService,
+    private readonly logger: LoggerService
+  ) {
+    this.logger.setContext(WalletSettingService.name);
+  }
 
   async getWalletSetting(userId: string): Promise<WalletSettingOutput | undefined> {
     const { ability } = this.authService;
@@ -43,6 +47,19 @@ export class WalletSettingService {
     await this.#arrangeSchedule(mutationResult.prev, mutationResult.next);
 
     return mutationResult.next!;
+  }
+
+  async disableAutoReload(userId: UserOutput["id"]): Promise<void> {
+    const { ability } = this.authService;
+    const setting = await this.walletSettingRepository.accessibleBy(ability, "read").findByUserId(userId);
+
+    if (!setting?.autoReloadEnabled) {
+      return;
+    }
+
+    await this.walletSettingRepository.accessibleBy(ability, "update").updateById(setting.id, { autoReloadEnabled: false });
+    await this.walletReloadJobService.cancelCreatedByUserId(userId);
+    this.logger.info({ event: "AUTO_RELOAD_DISABLED", reason: "DEFAULT_PAYMENT_METHOD_REMOVED", userId });
   }
 
   async #update(userId: UserOutput["id"], settings: WalletSettingInput): Promise<{ prev?: WalletSettingOutput; next?: WalletSettingOutput }> {

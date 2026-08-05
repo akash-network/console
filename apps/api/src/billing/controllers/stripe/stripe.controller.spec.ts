@@ -18,6 +18,7 @@ import type { StripeTransactionService } from "@src/billing/services/stripe-tran
 import type { TopUpService } from "@src/billing/services/top-up/top-up.service";
 import type { TransactionReportingService } from "@src/billing/services/transaction-reporting/transaction-reporting.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
+import type { WalletSettingService } from "@src/billing/services/wallet-settings/wallet-settings.service";
 import { StripeController } from "./stripe.controller";
 
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
@@ -197,35 +198,51 @@ describe(StripeController.name, () => {
   });
 
   describe("removePaymentMethod", () => {
-    it("detaches the payment method after asserting it is removable", async () => {
-      const { controller, stripe, paymentMethodService, userWalletRepository, user } = setup();
+    it("disables auto reload after detaching when the removed method is the default", async () => {
+      const { controller, stripe, paymentMethodService, walletSettingService, user } = setup();
       const paymentMethodId = faker.string.uuid();
       stripe.retrievePaymentMethod.mockResolvedValue(mock<Stripe.Response<Stripe.PaymentMethod>>({ customer: user.stripeCustomerId }));
+      paymentMethodService.isDefaultPaymentMethod.mockResolvedValue(true);
 
       await controller.removePaymentMethod(paymentMethodId);
 
-      expect(paymentMethodService.assertRemovable).toHaveBeenCalledWith(paymentMethodId, user.id);
+      expect(paymentMethodService.isDefaultPaymentMethod).toHaveBeenCalledWith(paymentMethodId, user.id);
       expect(stripe.detachPaymentMethod).toHaveBeenCalledWith(paymentMethodId);
-      expect(userWalletRepository.findOneByUserId).not.toHaveBeenCalled();
+      expect(walletSettingService.disableAutoReload).toHaveBeenCalledWith(user.id);
+      expect(stripe.detachPaymentMethod.mock.invocationCallOrder[0]).toBeLessThan(walletSettingService.disableAutoReload.mock.invocationCallOrder[0]);
+    });
+
+    it("does not disable auto reload when the removed method is not the default", async () => {
+      const { controller, stripe, paymentMethodService, walletSettingService, user } = setup();
+      const paymentMethodId = faker.string.uuid();
+      stripe.retrievePaymentMethod.mockResolvedValue(mock<Stripe.Response<Stripe.PaymentMethod>>({ customer: user.stripeCustomerId }));
+      paymentMethodService.isDefaultPaymentMethod.mockResolvedValue(false);
+
+      await controller.removePaymentMethod(paymentMethodId);
+
+      expect(stripe.detachPaymentMethod).toHaveBeenCalledWith(paymentMethodId);
+      expect(walletSettingService.disableAutoReload).not.toHaveBeenCalled();
     });
 
     it("rejects when the payment method does not belong to the user", async () => {
-      const { controller, stripe } = setup();
+      const { controller, stripe, walletSettingService } = setup();
       const paymentMethodId = faker.string.uuid();
       stripe.retrievePaymentMethod.mockResolvedValue(mock<Stripe.Response<Stripe.PaymentMethod>>({ customer: "cus_someoneelse" }));
 
       await expect(controller.removePaymentMethod(paymentMethodId)).rejects.toMatchObject({ status: 403 });
       expect(stripe.detachPaymentMethod).not.toHaveBeenCalled();
+      expect(walletSettingService.disableAutoReload).not.toHaveBeenCalled();
     });
 
-    it("does not detach when the payment method is not removable", async () => {
-      const { controller, stripe, paymentMethodService, user } = setup();
+    it("does not disable auto reload when the detach fails", async () => {
+      const { controller, stripe, paymentMethodService, walletSettingService, user } = setup();
       const paymentMethodId = faker.string.uuid();
       stripe.retrievePaymentMethod.mockResolvedValue(mock<Stripe.Response<Stripe.PaymentMethod>>({ customer: user.stripeCustomerId }));
-      paymentMethodService.assertRemovable.mockRejectedValue(createError(409, "Cannot remove the default payment method while auto reload is enabled"));
+      paymentMethodService.isDefaultPaymentMethod.mockResolvedValue(true);
+      stripe.detachPaymentMethod.mockRejectedValue(new Error("detach failed"));
 
-      await expect(controller.removePaymentMethod(paymentMethodId)).rejects.toMatchObject({ status: 409 });
-      expect(stripe.detachPaymentMethod).not.toHaveBeenCalled();
+      await expect(controller.removePaymentMethod(paymentMethodId)).rejects.toThrow("detach failed");
+      expect(walletSettingService.disableAutoReload).not.toHaveBeenCalled();
     });
   });
 
@@ -330,6 +347,7 @@ describe(StripeController.name, () => {
     const userWalletRepository = mock<UserWalletRepository>();
     const trialActivationJobService = mock<TrialActivationJobService>();
     const transactionReporting = mock<TransactionReportingService>();
+    const walletSettingService = mock<WalletSettingService>();
     const controller = new StripeController(
       stripe,
       stripeTransaction,
@@ -341,7 +359,8 @@ describe(StripeController.name, () => {
       transactionReporting,
       paymentMethodService,
       couponRedemptionService,
-      customerService
+      customerService,
+      walletSettingService
     );
     container.register(AuthService, { useValue: authService });
 
@@ -357,6 +376,7 @@ describe(StripeController.name, () => {
       stripeErrorService,
       userWalletRepository,
       trialActivationJobService,
+      walletSettingService,
       user
     };
   }
