@@ -18,8 +18,8 @@ const mockUseTheme = vi.fn(() => ({
   systemTheme: "light" as "light" | "dark" | undefined
 }));
 
-const MockPaymentMethodsRow = ({ paymentMethod, onSetPaymentMethodAsDefault, onRemovePaymentMethod, isAutoReloadEnabled }: PaymentMethodsRowProps) => (
-  <tr data-testid={`payment-method-row-${paymentMethod.id}`} data-auto-reload={isAutoReloadEnabled}>
+const MockPaymentMethodsRow = ({ paymentMethod, onSetPaymentMethodAsDefault, onRemovePaymentMethod }: PaymentMethodsRowProps) => (
+  <tr data-testid={`payment-method-row-${paymentMethod.id}`}>
     <td>
       <span>{paymentMethod.card?.last4}</span>
       <button onClick={() => onSetPaymentMethodAsDefault(paymentMethod.id)}>Set as Default</button>
@@ -405,7 +405,6 @@ function setup(
     setupIntent?: SetupIntentResponse;
     onAddCardSuccess?: Mock;
     isInProgress?: boolean;
-    isAutoReloadEnabled?: boolean;
     dependencies?: typeof DEPENDENCIES;
   } = {}
 ) {
@@ -420,7 +419,6 @@ function setup(
     setupIntent: undefined,
     onAddCardSuccess: vi.fn(),
     isInProgress: false,
-    isAutoReloadEnabled: false,
     dependencies: mockDependencies
   };
 

@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from "react";
+import { usePopup } from "@akashnetwork/ui/context";
 
 import { usePaymentMethodsQuery, usePaymentMutations, useRefreshPaymentMethods, useSetupIntentMutation, useWalletSettingsQuery } from "@src/queries";
 import type { PaymentMethodsViewProps } from "../PaymentMethodsView/PaymentMethodsView";
@@ -8,7 +9,8 @@ const DEPENDENCIES = {
   usePaymentMutations,
   useRefreshPaymentMethods,
   useSetupIntentMutation,
-  useWalletSettingsQuery
+  useWalletSettingsQuery,
+  usePopup
 };
 
 type PaymentMethodsContainerProps = {
@@ -22,6 +24,7 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
   const isAutoReloadEnabled = walletSettings?.autoReloadEnabled ?? isWalletSettingsLoading;
   const paymentMutations = d.usePaymentMutations();
   const refreshPaymentMethods = d.useRefreshPaymentMethods();
+  const { confirm } = d.usePopup();
   const { data: setupIntent, mutate: createSetupIntent, reset: resetSetupIntent } = d.useSetupIntentMutation();
   const [showAddPaymentMethod, setShowAddPaymentMethod] = useState(false);
 
@@ -33,10 +36,30 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
   );
 
   const onRemovePaymentMethod = useCallback(
-    (id: string) => {
+    async (id: string) => {
+      const paymentMethod = paymentMethods.find(method => method.id === id);
+      const willDisableAutoTopUp = !!paymentMethod?.isDefault && isAutoReloadEnabled;
+
+      const isConfirmed = await confirm(
+        willDisableAutoTopUp
+          ? {
+              title: "Remove default payment method?",
+              message:
+                "Removing it will turn off Auto Top-Up. Your deployments may stop if your credit balance runs out, and no automatic charges will be made. You can turn Auto Top-Up back on after setting another card as default."
+            }
+          : {
+              title: "Remove payment method?",
+              message: "This payment method will be removed from your account."
+            }
+      );
+
+      if (!isConfirmed) {
+        return;
+      }
+
       paymentMutations.removePaymentMethod.mutate(id);
     },
-    [paymentMutations.removePaymentMethod]
+    [confirm, paymentMethods, isAutoReloadEnabled, paymentMutations.removePaymentMethod]
   );
 
   const onAddCardSuccess = async () => {
@@ -68,8 +91,7 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
         setShowAddPaymentMethod,
         setupIntent,
         onAddCardSuccess,
-        isInProgress,
-        isAutoReloadEnabled
+        isInProgress
       })}
     </>
   );

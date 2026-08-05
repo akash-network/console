@@ -232,20 +232,10 @@ describe(PaymentMethodsRow.name, () => {
       expect(mockOnSetPaymentMethodAsDefault).toHaveBeenCalledWith("pm_sole");
     });
 
-    it("hides 'Remove' for default payment method when auto-reload is enabled", () => {
-      setup({
-        paymentMethod: createMockPaymentMethod({ isDefault: true }),
-        isAutoReloadEnabled: true
-      });
-
-      expect(screen.queryByRole("button")).not.toBeInTheDocument();
-    });
-
-    it("shows 'Remove' for non-default payment method when auto-reload is enabled", async () => {
+    it("calls onRemovePaymentMethod for the default payment method", async () => {
       const user = userEvent.setup();
-      setup({
-        paymentMethod: createMockPaymentMethod({ isDefault: false }),
-        isAutoReloadEnabled: true
+      const { mockOnRemovePaymentMethod } = setup({
+        paymentMethod: createMockPaymentMethod({ id: "pm_default", isDefault: true })
       });
 
       const button = screen.getByRole("button");
@@ -254,6 +244,10 @@ describe(PaymentMethodsRow.name, () => {
       await vi.waitFor(() => {
         expect(screen.getByText("Remove")).toBeInTheDocument();
       });
+
+      await user.click(screen.getByText("Remove"));
+
+      expect(mockOnRemovePaymentMethod).toHaveBeenCalledWith("pm_default");
     });
   });
 
@@ -440,7 +434,6 @@ describe(PaymentMethodsRow.name, () => {
                 })}
                 onSetPaymentMethodAsDefault={vi.fn()}
                 onRemovePaymentMethod={vi.fn()}
-                isAutoReloadEnabled={false}
                 dependencies={mockDependencies}
               />
             </tbody>
@@ -471,7 +464,6 @@ function setup(
     paymentMethod?: PaymentMethod;
     onSetPaymentMethodAsDefault?: Mock;
     onRemovePaymentMethod?: Mock;
-    isAutoReloadEnabled?: boolean;
     dependencies?: typeof mockDependencies;
   } = {}
 ) {
@@ -479,7 +471,6 @@ function setup(
     paymentMethod: createMockPaymentMethod(),
     onSetPaymentMethodAsDefault: vi.fn(),
     onRemovePaymentMethod: vi.fn(),
-    isAutoReloadEnabled: false,
     dependencies: mockDependencies
   };
 
