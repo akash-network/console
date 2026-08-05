@@ -2,7 +2,7 @@ import React from "react";
 import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk";
 import { describe, expect, it, type MockedFunction, vi } from "vitest";
 
-import type { usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation, useWalletSettingsQuery } from "@src/queries";
+import type { usePaymentMethodsQuery, usePaymentMutations, useRefreshPaymentMethods, useSetupIntentMutation, useWalletSettingsQuery } from "@src/queries";
 import type { PaymentMethodsViewProps } from "../PaymentMethodsView/PaymentMethodsView";
 import { PaymentMethodsContainer } from "./PaymentMethodsContainer";
 
@@ -72,12 +72,11 @@ describe(PaymentMethodsContainer.name, () => {
     expect(child.setupIntent).toEqual(setupIntent);
   });
 
-  it("sets showAddPaymentMethod to false and refetches payment methods when onAddCardSuccess is called", async () => {
-    const { childCapturer, mockRefetchPaymentMethods } = await setup();
+  it("sets showAddPaymentMethod to false and refreshes payment methods when onAddCardSuccess is called", async () => {
+    const { childCapturer, mockRefreshPaymentMethods } = await setup();
 
     let child = await childCapturer.awaitChild(() => true);
 
-    // First, open the add payment method dialog
     await act(async () => {
       child.onAddPaymentMethod();
     });
@@ -85,7 +84,6 @@ describe(PaymentMethodsContainer.name, () => {
     child = await childCapturer.awaitChild(c => c.showAddPaymentMethod === true);
     expect(child.showAddPaymentMethod).toBe(true);
 
-    // Then call onAddCardSuccess
     await act(async () => {
       await child.onAddCardSuccess();
     });
@@ -93,7 +91,7 @@ describe(PaymentMethodsContainer.name, () => {
     child = await childCapturer.awaitChild(c => c.showAddPaymentMethod === false);
 
     expect(child.showAddPaymentMethod).toBe(false);
-    expect(mockRefetchPaymentMethods).toHaveBeenCalled();
+    expect(mockRefreshPaymentMethods).toHaveBeenCalled();
   });
 
   it("allows setShowAddPaymentMethod to update state", async () => {
@@ -191,7 +189,7 @@ describe(PaymentMethodsContainer.name, () => {
     const isRemovePaymentMethodPending = overrides.isRemovePaymentMethodPending ?? false;
     const setupIntent = overrides.setupIntent;
 
-    const mockRefetchPaymentMethods = vi.fn();
+    const mockRefreshPaymentMethods = vi.fn().mockResolvedValue(undefined);
     const mockSetPaymentMethodAsDefault = {
       mutate: vi.fn(),
       isPending: isSetPaymentMethodAsDefaultPending
@@ -206,14 +204,15 @@ describe(PaymentMethodsContainer.name, () => {
     const mockedUsePaymentMethodsQuery = vi.fn(() => ({
       data: paymentMethods,
       isLoading: isLoadingPaymentMethods,
-      isRefetching: isRefetchingPaymentMethods,
-      refetch: mockRefetchPaymentMethods
+      isRefetching: isRefetchingPaymentMethods
     })) as unknown as MockedFunction<typeof usePaymentMethodsQuery>;
 
     const mockedUsePaymentMutations = vi.fn(() => ({
       setPaymentMethodAsDefault: mockSetPaymentMethodAsDefault,
       removePaymentMethod: mockRemovePaymentMethod
     })) as unknown as MockedFunction<typeof usePaymentMutations>;
+
+    const mockedUseRefreshPaymentMethods = vi.fn(() => mockRefreshPaymentMethods) as unknown as MockedFunction<typeof useRefreshPaymentMethods>;
 
     const mockedUseSetupIntentMutation = vi.fn(() => ({
       data: setupIntent,
@@ -233,6 +232,7 @@ describe(PaymentMethodsContainer.name, () => {
     const dependencies = {
       usePaymentMethodsQuery: mockedUsePaymentMethodsQuery,
       usePaymentMutations: mockedUsePaymentMutations,
+      useRefreshPaymentMethods: mockedUseRefreshPaymentMethods,
       useSetupIntentMutation: mockedUseSetupIntentMutation,
       useWalletSettingsQuery: mockedUseWalletSettingsQuery
     };
@@ -247,7 +247,7 @@ describe(PaymentMethodsContainer.name, () => {
       paymentMethods,
       child,
       childCapturer,
-      mockRefetchPaymentMethods,
+      mockRefreshPaymentMethods,
       mockSetPaymentMethodAsDefault,
       mockRemovePaymentMethod,
       mockCreateSetupIntent,

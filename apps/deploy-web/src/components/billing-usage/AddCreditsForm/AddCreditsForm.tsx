@@ -14,7 +14,6 @@ import {
   SelectValue,
   Skeleton
 } from "@akashnetwork/ui/components";
-import { useQueryClient } from "@tanstack/react-query";
 
 import type { AddCreditsAmountValue } from "@src/components/billing-usage/AddCreditsAmountFields/AddCreditsAmountFields";
 import { AddCreditsAmountFields } from "@src/components/billing-usage/AddCreditsAmountFields/AddCreditsAmountFields";
@@ -29,7 +28,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { use3DSecure } from "@src/hooks/use3DSecure";
 import { useUser } from "@src/hooks/useUser";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
-import { QueryKeys, usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries";
+import { usePaymentMethodsQuery, usePaymentMutations, useRefreshPaymentMethods, useSetupIntentMutation } from "@src/queries";
 import { handleStripeError } from "@src/utils/stripeErrorHandler";
 import { useTopUpAttemptKey } from "./useTopUpAttemptKey/useTopUpAttemptKey";
 
@@ -52,7 +51,7 @@ export const DEPENDENCIES = {
   usePaymentMethodsQuery,
   usePaymentMutations,
   usePaymentPolling,
-  useQueryClient,
+  useRefreshPaymentMethods,
   useServices,
   useWallet,
   useWalletBalance,
@@ -104,7 +103,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, dependencies: d = D
   const { stripe, analyticsService } = d.useServices();
   const { isTrialing, topUpMinAmountUsd } = d.useWallet();
   const { balance } = d.useWalletBalance();
-  const queryClient = d.useQueryClient();
+  const refreshPaymentMethods = d.useRefreshPaymentMethods();
   const { data: paymentMethods, isLoading: isLoadingMethods, isError: isMethodsError } = d.usePaymentMethodsQuery();
   const {
     confirmPayment: { mutateAsync: confirmPayment }
@@ -205,10 +204,10 @@ export function AddCreditsForm({ onDone, onProcessingChange, dependencies: d = D
 
       if (confirmedNewCardRef.current) {
         // confirmSetup already saved the card even though the charge failed; surface it in the saved-methods list.
-        queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });
+        refreshPaymentMethods();
       }
     },
-    [queryClient]
+    [refreshPaymentMethods]
   );
 
   const threeDSecure = d.use3DSecure({

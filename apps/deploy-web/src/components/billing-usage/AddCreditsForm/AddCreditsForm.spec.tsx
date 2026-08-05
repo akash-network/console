@@ -5,7 +5,6 @@ import { mock } from "vitest-mock-extended";
 
 import { getPaymentMethodDisplay } from "@src/components/shared/PaymentMethodCard/PaymentMethodCard";
 import type { WalletBalance } from "@src/hooks/useWalletBalance";
-import { QueryKeys } from "@src/queries";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import { handleStripeError } from "@src/utils/stripeErrorHandler";
 import { AddCreditsAmountFields } from "../AddCreditsAmountFields/AddCreditsAmountFields";
@@ -489,8 +488,8 @@ describe(AddCreditsForm.name, () => {
     expect(confirmPayment).toHaveBeenLastCalledWith({ userId: "user_1", paymentMethodId: "pm_new", amount: 100, idempotencyKey: expect.any(String) });
   });
 
-  it("invalidates the payment methods query when a new-card charge fails", async () => {
-    const invalidateQueries = vi.fn();
+  it("refreshes the payment methods when a new-card charge fails", async () => {
+    const refreshPaymentMethods = vi.fn().mockResolvedValue(undefined);
     const confirmPayment = vi.fn().mockRejectedValue(new Error("declined"));
     const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_new" });
     const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
@@ -499,7 +498,7 @@ describe(AddCreditsForm.name, () => {
       status: "success",
       clientSecret: "seti_secret",
       confirmPayment,
-      invalidateQueries,
+      refreshPaymentMethods,
       dependencies: { AddCreditsNewPaymentMethodFields }
     });
 
@@ -509,7 +508,7 @@ describe(AddCreditsForm.name, () => {
       fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
     });
 
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: QueryKeys.getPaymentMethodsKey() });
+    expect(refreshPaymentMethods).toHaveBeenCalled();
   });
 
   it("recreates the setup intent when 'Add new payment method' is re-selected after a card was confirmed", async () => {
@@ -945,7 +944,7 @@ describe(AddCreditsForm.name, () => {
     clientSecret?: string;
     mutate?: ReturnType<typeof DEPENDENCIES.useSetupIntentMutation>["mutate"];
     reset?: ReturnType<typeof DEPENDENCIES.useSetupIntentMutation>["reset"];
-    invalidateQueries?: ReturnType<typeof DEPENDENCIES.useQueryClient>["invalidateQueries"];
+    refreshPaymentMethods?: ReturnType<typeof DEPENDENCIES.useRefreshPaymentMethods>;
     getCustomerTransactions?: ReturnType<typeof DEPENDENCIES.useServices>["stripe"]["getCustomerTransactions"];
     topUpMinAmountUsd?: number;
     confirmPayment?: ReturnType<typeof DEPENDENCIES.usePaymentMutations>["confirmPayment"]["mutateAsync"];
@@ -1002,10 +1001,8 @@ describe(AddCreditsForm.name, () => {
         balance: input.walletBalanceUsd != null ? mock<WalletBalance>({ totalUsd: input.walletBalanceUsd }) : null
       });
 
-    const useQueryClient: typeof DEPENDENCIES.useQueryClient = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>({
-        invalidateQueries: input.invalidateQueries ?? vi.fn()
-      });
+    const refreshPaymentMethods = input.refreshPaymentMethods ?? vi.fn().mockResolvedValue(undefined);
+    const useRefreshPaymentMethods: typeof DEPENDENCIES.useRefreshPaymentMethods = () => refreshPaymentMethods;
 
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({
@@ -1054,7 +1051,7 @@ describe(AddCreditsForm.name, () => {
           usePaymentMethodsQuery,
           usePaymentMutations,
           usePaymentPolling,
-          useQueryClient,
+          useRefreshPaymentMethods,
           useServices,
           useWallet,
           useWalletBalance,
