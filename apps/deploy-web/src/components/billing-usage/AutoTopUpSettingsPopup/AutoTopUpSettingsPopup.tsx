@@ -139,7 +139,7 @@ export const AutoTopUpSettingsPopup: React.FC<AutoTopUpSettingsPopupProps> = ({
                 {...field}
                 type="number"
                 step="0.01"
-                label={`When credit balance goes below (minimum $${AUTO_RELOAD_THRESHOLD_MIN_USD})`}
+                label={`When credit balance drops to or below (minimum $${AUTO_RELOAD_THRESHOLD_MIN_USD})`}
                 description="If your current balance is at or below the threshold you set, your top-up will kick in shortly after you save."
                 startIcon={<div className="pl-3 text-sm text-muted-foreground">$</div>}
               />

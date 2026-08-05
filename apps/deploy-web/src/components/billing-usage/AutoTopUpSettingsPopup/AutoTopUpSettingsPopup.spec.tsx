@@ -137,7 +137,7 @@ describe(AutoTopUpSettingsPopup.name, () => {
   });
 
   function thresholdInput() {
-    return screen.getByLabelText(/when credit balance goes below/i) as HTMLInputElement;
+    return screen.getByLabelText(/when credit balance drops to or below/i) as HTMLInputElement;
   }
 
   function amountInput() {
