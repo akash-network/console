@@ -3,9 +3,15 @@ const CSP_HEADER_REPORT_ONLY = "Content-Security-Policy-Report-Only";
 const CSP_REPORT_ENDPOINT_NAME = "csp-endpoint";
 const CSP_REPORT_MAX_AGE_SECONDS = 10886400;
 
-const NONCE_BYTE_LENGTH = 16;
-
 const isDevelopment = process.env.NODE_ENV !== "production";
+
+/**
+ * sha256 of the inline anti-FOUC script next-themes renders for AppThemeProvider's exact props, allowing
+ * it without 'unsafe-inline' (static Pages Router HTML cannot carry a nonce). AppThemeProvider.spec.tsx
+ * recomputes the hash from the rendered provider and reports the new value when a next-themes upgrade or
+ * prop change alters the script.
+ */
+export const THEME_SCRIPT_HASH = "'sha256-eMuh8xiwcX72rRYNAGENurQBAcH7kLlAUQcoOri3BIo='";
 
 /**
  * Third-party endpoints the app connects to directly (Stripe, Cloudflare, Google, Growth Channel, Amplitude); these never vary by environment.
@@ -81,22 +87,12 @@ export function toSentrySecurityReportUri(dsn?: string): string | undefined {
   }
 }
 
-/**
- * Uses Web Crypto (available on the Edge/standard middleware runtime) since Node's
- * `crypto` module is not guaranteed to be available where the middleware executes.
- */
-export function generateNonce() {
-  const bytes = new Uint8Array(NONCE_BYTE_LENGTH);
-  crypto.getRandomValues(bytes);
-  return btoa(String.fromCharCode(...bytes));
-}
-
-export function buildContentSecurityPolicy(nonce: string, input: ContentSecurityPolicyInput) {
+export function buildContentSecurityPolicy(input: ContentSecurityPolicyInput) {
   const scriptSrc = [
     "'self'",
-    `'nonce-${nonce}'`,
-    "'strict-dynamic'",
+    THEME_SCRIPT_HASH,
     "https://www.googletagmanager.com",
+    "https://*.google-analytics.com",
     "https://pxl.growth-channel.net",
     "https://challenges.cloudflare.com",
     "https://js.stripe.com"

@@ -4,7 +4,41 @@ import { useEffect } from "react";
 import { useServices } from "@src/context/ServicesProvider";
 import { addScriptToBody } from "@src/utils/domUtils";
 
-export const TrackingScripts = () => {
+export const DEPENDENCIES = { useServices };
+
+const GTM_SCRIPT_ID = "gtm";
+
+/**
+ * Bootstraps GTM without the stock inline snippet — deploy-web's CSP script-src has no 'unsafe-inline',
+ * so the dataLayer is seeded directly and gtm.js loads as an allowlisted external script.
+ */
+function loadGoogleTagManager(gtmId?: string) {
+  if (!gtmId || document.getElementById(GTM_SCRIPT_ID)) return;
+
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ "gtm.start": new Date().getTime(), event: "gtm.js" });
+  addScriptToBody({
+    id: GTM_SCRIPT_ID,
+    src: `https://www.googletagmanager.com/gtm.js?id=${gtmId}`,
+    async: true
+  });
+  appendGtmNoscriptFallback(gtmId);
+}
+
+function appendGtmNoscriptFallback(gtmId?: string) {
+  const gtmNoscript = document.createElement("noscript");
+  const gtmIframe = document.createElement("iframe");
+  gtmIframe.src = `https://www.googletagmanager.com/ns.html?id=${gtmId}`;
+  gtmIframe.height = "0";
+  gtmIframe.width = "0";
+  gtmIframe.style.display = "none";
+  gtmIframe.style.visibility = "hidden";
+  gtmNoscript.appendChild(gtmIframe);
+  document.body.appendChild(gtmNoscript);
+}
+
+export const TrackingScripts = ({ dependencies = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES }) => {
+  const { useServices } = dependencies;
   const { publicConfig } = useServices();
   const isProduction = publicConfig.NEXT_PUBLIC_NODE_ENV === "production";
 
@@ -13,33 +47,10 @@ export const TrackingScripts = () => {
     const shouldShowGrowthChannel = publicConfig.NEXT_PUBLIC_GROWTH_CHANNEL_TRACKING_ENABLED;
 
     if (isProduction && shouldShowTracking) {
-      // Google Tag Manager
-      addScriptToBody({
-        id: "gtm",
-        type: "text/javascript",
-        innerHTML: `
-          (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-          new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-          j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-          'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-          })(window,document,'script','dataLayer','${publicConfig.NEXT_PUBLIC_GTM_ID}');
-        `
-      });
-
-      // GTM noscript fallback
-      const gtmNoscript = document.createElement("noscript");
-      const gtmIframe = document.createElement("iframe");
-      gtmIframe.src = `https://www.googletagmanager.com/ns.html?id=${publicConfig.NEXT_PUBLIC_GTM_ID}`;
-      gtmIframe.height = "0";
-      gtmIframe.width = "0";
-      gtmIframe.style.display = "none";
-      gtmIframe.style.visibility = "hidden";
-      gtmNoscript.appendChild(gtmIframe);
-      document.body.appendChild(gtmNoscript);
+      loadGoogleTagManager(publicConfig.NEXT_PUBLIC_GTM_ID);
     }
 
     if (isProduction && shouldShowTracking && shouldShowGrowthChannel) {
-      // Growth Channel tracking
       addScriptToBody({
         src: "https://pxl.growth-channel.net/s/8d425860-cf3c-49cf-a459-069a7dc7b1f8",
         async: true,
