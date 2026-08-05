@@ -227,29 +227,16 @@ export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DE
               </div>
             )}
             <d.CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <div className="flex items-center gap-1">
-                <h3 className="text-sm font-medium leading-none text-muted-foreground">{isFixedThresholdEnabled ? "Auto Top-Up" : "Auto Recharge"}</h3>
-                <d.CustomTooltip
-                  title={
-                    isFixedThresholdEnabled
-                      ? "Automatically charge your default payment method a fixed amount whenever your balance drops to or below your chosen threshold."
-                      : "Automatically add credits to your account using your default payment method to keep deployments running."
-                  }
-                >
-                  <InfoCircle className="h-4 w-4 cursor-pointer text-muted-foreground" />
-                </d.CustomTooltip>
-              </div>
-              {isFixedThresholdEnabled && (
-                <d.Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Edit auto top-up settings"
-                  disabled={isReloadChangeDisabled || !walletSettings?.autoReloadEnabled}
-                  onClick={() => setAutoTopUpPopup({ open: true, enableOnSave: false })}
-                >
-                  <d.Edit className="h-4 w-4" />
-                </d.Button>
-              )}
+              <h3 className="text-sm font-medium leading-none text-muted-foreground">{isFixedThresholdEnabled ? "Auto Top-Up" : "Auto Recharge"}</h3>
+              <d.CustomTooltip
+                title={
+                  isFixedThresholdEnabled
+                    ? "Automatically charge your default payment method a fixed amount whenever your balance drops to or below your chosen threshold."
+                    : "Automatically add credits to your account using your default payment method to keep deployments running."
+                }
+              >
+                <InfoCircle className="h-4 w-4 cursor-pointer text-muted-foreground" />
+              </d.CustomTooltip>
             </d.CardHeader>
             <d.CardContent>
               <div className="flex flex-col gap-2">
@@ -267,16 +254,28 @@ export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DE
                   </p>
                 ) : isFixedThresholdEnabled ? (
                   walletSettings?.autoReloadEnabled ? (
-                    <p className="text-sm text-muted-foreground">
-                      Top up{" "}
-                      <span className="font-medium text-foreground">
-                        <d.FormattedNumber value={autoReloadAmount} style="currency" currency="USD" />
-                      </span>{" "}
-                      when balance ≤{" "}
-                      <span className="font-medium text-foreground">
-                        <d.FormattedNumber value={autoReloadThreshold} style="currency" currency="USD" />
-                      </span>
-                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm text-muted-foreground">
+                        Top up{" "}
+                        <span className="font-medium text-foreground">
+                          <d.FormattedNumber value={autoReloadAmount} style="currency" currency="USD" />
+                        </span>{" "}
+                        when balance ≤{" "}
+                        <span className="font-medium text-foreground">
+                          <d.FormattedNumber value={autoReloadThreshold} style="currency" currency="USD" />
+                        </span>
+                      </p>
+                      <d.Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        aria-label="Edit auto top-up settings"
+                        disabled={isReloadChangeDisabled}
+                        onClick={() => setAutoTopUpPopup({ open: true, enableOnSave: false })}
+                      >
+                        <d.Edit className="h-4 w-4" />
+                      </d.Button>
+                    </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">Add funds automatically</p>
                   )

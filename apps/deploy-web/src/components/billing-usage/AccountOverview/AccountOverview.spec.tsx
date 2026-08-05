@@ -177,15 +177,15 @@ describe(AccountOverview.name, () => {
       expect(dependencies.AutoTopUpSettingsPopup).toHaveBeenCalledWith(expect.objectContaining({ open: true, enableOnSave: false }), expect.anything());
     });
 
-    it("disables the switch and edit button without a payment method", () => {
+    it("disables the switch and hides the edit button without a payment method", () => {
       setup({ isFixedThresholdEnabled: true, defaultPaymentMethod: undefined, isLoading: false });
 
       expect(screen.getByRole("switch")).toBeDisabled();
-      expect(screen.getByRole("button", { name: /edit auto top-up settings/i })).toBeDisabled();
+      expect(screen.queryByRole("button", { name: /edit auto top-up settings/i })).not.toBeInTheDocument();
       expect(screen.getByText(/Add a payment method/)).toBeInTheDocument();
     });
 
-    it("disables the edit button while auto top-up is off so saving cannot silently re-enable it", () => {
+    it("hides the edit button while auto top-up is off", () => {
       setup({
         isFixedThresholdEnabled: true,
         defaultPaymentMethod: { id: "pm_123" },
@@ -193,7 +193,7 @@ describe(AccountOverview.name, () => {
         walletSettings: { autoReloadEnabled: false }
       });
 
-      expect(screen.getByRole("button", { name: /edit auto top-up settings/i })).toBeDisabled();
+      expect(screen.queryByRole("button", { name: /edit auto top-up settings/i })).not.toBeInTheDocument();
     });
 
     it("disables the edit button while a settings update is in flight", () => {
