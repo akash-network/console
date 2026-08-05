@@ -83,7 +83,6 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
                       paymentMethod={paymentMethod}
                       onSetPaymentMethodAsDefault={onSetPaymentMethodAsDefault}
                       onRemovePaymentMethod={onRemovePaymentMethod}
-                      hasOtherPaymentMethods={data.length > 1}
                       isAutoReloadEnabled={isAutoReloadEnabled}
                     />
                   ))}
