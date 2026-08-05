@@ -27,7 +27,15 @@ module.exports = {
           }
 
           const name = getPropertyName(property);
-          if (name === null || isReactComponentOrHook(name)) continue;
+          if (name === null) {
+            context.report({
+              node: property,
+              message: `Computed or dynamic keys are not allowed in the DEPENDENCIES map. List each React component or hook under a static name. ${GUIDANCE}`
+            });
+            continue;
+          }
+
+          if (isReactComponentOrHook(name)) continue;
 
           context.report({
             node: property,
@@ -46,13 +54,14 @@ module.exports = {
  * @returns {boolean}
  */
 function isDependenciesMap(node) {
-  return node.id.type === "Identifier" && node.id.name === "DEPENDENCIES" && node.init?.type === "ObjectExpression";
+  return node.parent?.kind === "const" && node.id.type === "Identifier" && node.id.name === "DEPENDENCIES" && node.init?.type === "ObjectExpression";
 }
 
 /**
  * Returns the local name a DEPENDENCIES entry is exposed under (identifier or
  * string-literal key), which is how it is later referenced as `d.<name>`.
- * Returns null for computed or otherwise unnamed keys, which the rule skips.
+ * Returns null for computed or otherwise dynamic keys, which the rule rejects
+ * because they cannot be statically verified as components or hooks.
  * @param {object} property - ESTree Property node.
  * @returns {string | null}
  */
