@@ -10,7 +10,6 @@ export const buildWallet = (overrides: Partial<WalletProviderContextType> = {}):
   walletName: faker.internet.username(),
   isWalletConnected: true,
   isWalletLoaded: true,
-  connectManagedWallet: vi.fn(),
   logout: vi.fn(),
   signAndBroadcastTx: vi.fn(),
   isManaged: true,
@@ -22,6 +21,5 @@ export const buildWallet = (overrides: Partial<WalletProviderContextType> = {}):
   creditAmount: faker.number.float({ min: 0, max: 1000 }),
   topUpMinAmountUsd: 20,
   hasManagedWallet: true,
-  managedWalletError: undefined,
   ...overrides
 });

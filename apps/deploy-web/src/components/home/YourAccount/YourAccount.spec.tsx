@@ -299,7 +299,6 @@ describe(YourAccount.name, () => {
         walletName: "",
         isWalletConnected: !!input.wallet?.address,
         isWalletLoaded: true,
-        connectManagedWallet: vi.fn(),
         logout: vi.fn(),
         signAndBroadcastTx: vi.fn(),
         isManaged: true,

@@ -260,7 +260,6 @@ describe(DeploymentDetailTopBar.name, () => {
         walletName: "test",
         isWalletConnected: true,
         isWalletLoaded: true,
-        connectManagedWallet: vi.fn(),
         logout: vi.fn(),
         isWalletLoading: false,
         isWalletInitializing: false,

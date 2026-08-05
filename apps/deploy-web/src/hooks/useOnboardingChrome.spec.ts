@@ -3,7 +3,6 @@ import { mock } from "vitest-mock-extended";
 
 import type { DEPENDENCIES } from "@src/hooks/useOnboardingChrome";
 import { useOnboardingChrome } from "@src/hooks/useOnboardingChrome";
-import type { AppError } from "@src/types";
 import type { CustomUserProfile } from "@src/types/user";
 
 import { renderHook } from "@testing-library/react";
@@ -73,19 +72,6 @@ describe(useOnboardingChrome.name, () => {
     expect(result.current).toEqual({ isStripped: true });
   });
 
-  it("shows full chrome when the wallet errors", () => {
-    const { dependencies } = setup({
-      pathname: "/new-deployment/configure",
-      leaseCount: 0,
-      hasManagedWallet: false,
-      managedWalletError: mock<AppError>()
-    });
-
-    const { result } = renderHook(() => useOnboardingChrome(dependencies));
-
-    expect(result.current).toEqual({ isStripped: false });
-  });
-
   it("shows full chrome when the leases query errors for an existing wallet", () => {
     const { dependencies } = setup({ pathname: "/new-deployment/configure", isLeasesError: true });
 
@@ -109,15 +95,13 @@ describe(useOnboardingChrome.name, () => {
     isLeasesError?: boolean;
     isWalletLoading?: boolean;
     hasManagedWallet?: boolean;
-    managedWalletError?: AppError;
     onboardingSkippedAt?: string | null;
   }) {
     const useWallet: typeof DEPENDENCIES.useWallet = () =>
       mock<ReturnType<typeof DEPENDENCIES.useWallet>>({
         address: "akash1test",
         isWalletLoading: input.isWalletLoading ?? false,
-        hasManagedWallet: input.hasManagedWallet ?? true,
-        managedWalletError: input.managedWalletError
+        hasManagedWallet: input.hasManagedWallet ?? true
       });
     const usePathname: typeof DEPENDENCIES.usePathname = () => input.pathname;
     const useLeaseExistenceQuery = (() =>

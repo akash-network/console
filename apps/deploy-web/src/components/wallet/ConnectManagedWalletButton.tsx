@@ -27,7 +27,7 @@ export const ConnectManagedWalletButton: React.FunctionComponent<Props> = ({ cla
   const router = d.useRouter();
 
   const handleClick: React.MouseEventHandler = useCallback(() => {
-    router.push(UrlService.onboarding());
+    router.push(UrlService.onboardingPicker());
   }, [router]);
 
   if (hasManagedWallet) {
