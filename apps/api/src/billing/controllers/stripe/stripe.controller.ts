@@ -95,7 +95,7 @@ export class StripeController {
     const currentUser = this.authService.getCurrentPayingUser({ strict: false });
 
     if (currentUser) {
-      const paymentMethods = await this.paymentMethodService.getPaymentMethods(currentUser.id, currentUser.stripeCustomerId, this.authService.ability);
+      const paymentMethods = await this.paymentMethodService.getPaymentMethods(currentUser, this.authService.ability);
       return { data: paymentMethods };
     }
 

@@ -19,20 +19,76 @@ const asResponse = <T>(value: T) => value as unknown as Stripe.Response<T>;
 
 describe(PaymentMethodService.name, () => {
   describe("getPaymentMethods", () => {
+    const payingUser = () => mock<PayingUser>({ id: TEST_CONSTANTS.USER_ID, stripeCustomerId: TEST_CONSTANTS.CUSTOMER_ID });
+
     it("returns remote methods merged with local validated/default flags, newest first", async () => {
       const { service, stripe, paymentMethodRepository } = setup();
       const newer = generatePaymentMethod({ id: TEST_CONSTANTS.PAYMENT_METHOD_ID, created: 1757992768, card: { fingerprint: "fp_a" } });
       const older = generatePaymentMethod({ id: "pm_456", created: 1757991776, card: { fingerprint: "fp_b" } });
-      vi.spyOn(stripe.paymentMethods, "list").mockResolvedValue({ data: [older, newer] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PaymentMethod>>);
-      paymentMethodRepository.findByUserId.mockResolvedValue([]);
+      vi.spyOn(stripe.paymentMethods, "list").mockResolvedValue({
+        data: [older, newer],
+        has_more: false
+      } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PaymentMethod>>);
+      paymentMethodRepository.findByUserId.mockResolvedValue([
+        generateDatabasePaymentMethod({ paymentMethodId: newer.id, fingerprint: "fp_a", isDefault: true, isValidated: true }),
+        generateDatabasePaymentMethod({ paymentMethodId: older.id, fingerprint: "fp_b" })
+      ]);
 
-      const result = await service.getPaymentMethods(TEST_CONSTANTS.USER_ID, TEST_CONSTANTS.CUSTOMER_ID, ability);
+      const result = await service.getPaymentMethods(payingUser(), ability);
 
       expect(stripe.paymentMethods.list).toHaveBeenCalledWith({ customer: TEST_CONSTANTS.CUSTOMER_ID });
+      expect(paymentMethodRepository.deleteByFingerprint).not.toHaveBeenCalled();
       expect(result).toEqual([
-        { ...newer, validated: false, isDefault: false },
+        { ...newer, validated: true, isDefault: true },
         { ...older, validated: false, isDefault: false }
       ]);
+    });
+
+    it("warns without repairing when an unsynced remote method has no fingerprint", async () => {
+      const { service, stripe, paymentMethodRepository } = setup();
+      const unfingerprintable = generatePaymentMethod({ type: "us_bank_account", card: null } as unknown as Parameters<typeof generatePaymentMethod>[0]);
+      vi.spyOn(stripe.paymentMethods, "list").mockResolvedValue({
+        data: [unfingerprintable],
+        has_more: false
+      } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PaymentMethod>>);
+      paymentMethodRepository.findByUserId.mockResolvedValue([]);
+
+      const result = await service.getPaymentMethods(payingUser(), ability);
+
+      expect(paymentMethodRepository.deleteByFingerprint).not.toHaveBeenCalled();
+      expect(result).toEqual([{ ...unfingerprintable, validated: false, isDefault: false }]);
+    });
+
+    it("removes stale local rows absent from Stripe when the list is complete", async () => {
+      const { service, stripe, paymentMethodRepository } = setup();
+      const stale = generateDatabasePaymentMethod({ paymentMethodId: "pm_stale", fingerprint: "fp_stale" });
+      vi.spyOn(stripe.paymentMethods, "list").mockResolvedValue({
+        data: [],
+        has_more: false
+      } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PaymentMethod>>);
+      paymentMethodRepository.findByUserId.mockResolvedValueOnce([stale]).mockResolvedValueOnce([]);
+
+      const result = await service.getPaymentMethods(payingUser(), ability);
+
+      expect(paymentMethodRepository.deleteByFingerprint).toHaveBeenCalledWith("fp_stale", "pm_stale", TEST_CONSTANTS.USER_ID);
+      expect(result).toEqual([]);
+    });
+
+    it("keeps local rows absent from a truncated Stripe list", async () => {
+      const { service, stripe, paymentMethodRepository } = setup();
+      const onPage = generatePaymentMethod({ id: "pm_on_page", card: { fingerprint: "fp_on_page" } });
+      const local = generateDatabasePaymentMethod({ paymentMethodId: onPage.id, fingerprint: "fp_on_page" });
+      const offPage = generateDatabasePaymentMethod({ paymentMethodId: "pm_off_page", fingerprint: "fp_off_page" });
+      vi.spyOn(stripe.paymentMethods, "list").mockResolvedValue({
+        data: [onPage],
+        has_more: true
+      } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PaymentMethod>>);
+      paymentMethodRepository.findByUserId.mockResolvedValue([local, offPage]);
+
+      const result = await service.getPaymentMethods(payingUser(), ability);
+
+      expect(paymentMethodRepository.deleteByFingerprint).not.toHaveBeenCalled();
+      expect(result).toEqual([{ ...onPage, validated: false, isDefault: false }]);
     });
   });
 

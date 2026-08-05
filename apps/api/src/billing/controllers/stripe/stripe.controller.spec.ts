@@ -281,12 +281,13 @@ describe(StripeController.name, () => {
 
   describe("getPaymentMethods", () => {
     it("returns the current user's payment methods", async () => {
-      const { controller, paymentMethodService } = setup();
+      const { controller, authService, paymentMethodService } = setup();
       const methods = [mock<PaymentMethod>({ id: "pm_1", isDefault: true })];
       paymentMethodService.getPaymentMethods.mockResolvedValue(methods);
 
       const result = await controller.getPaymentMethods();
 
+      expect(paymentMethodService.getPaymentMethods).toHaveBeenCalledWith(authService.getCurrentPayingUser(), authService.ability);
       expect(result).toEqual({ data: methods });
     });
 
