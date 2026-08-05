@@ -14,6 +14,7 @@ export type GlobeMarker = {
 };
 
 export const DEPENDENCIES = {
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   createGlobe,
   useTheme: useCookieTheme
 };

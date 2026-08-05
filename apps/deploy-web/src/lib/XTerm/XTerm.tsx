@@ -15,6 +15,7 @@ import { copyTextToClipboard } from "@src/utils/copyClipboard";
 
 const logger = LoggerService.forContext("XTerm");
 
+// eslint-disable-next-line akash/dependencies-component-or-hook
 export const DEPENDENCIES = { Terminal, FitAddon, useTheme, copyTextToClipboard };
 
 export interface IProps {

@@ -14,6 +14,7 @@ const COOLDOWN_DURATION = 60;
 
 export const DEPENDENCIES = {
   useNotificator,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   extractErrorMessage
 };
 

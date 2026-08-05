@@ -36,6 +36,7 @@ const BLOCKCHAIN_STATUS_POLL_INTERVAL_MS = 5 * 60_000;
 export const DEPENDENCIES = {
   useRootContainer,
   usePreviousRoute,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   migrateLocalStorage
 };
 

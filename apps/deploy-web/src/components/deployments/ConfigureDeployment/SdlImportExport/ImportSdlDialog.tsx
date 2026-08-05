@@ -23,6 +23,7 @@ import { importDeploymentState, isKnownSdlParserError, NoVisibleServiceError } f
 /** An SDL well over any real deployment is almost certainly the wrong file; reject before reading it into memory. */
 const MAX_SDL_FILE_BYTES = 512 * 1024;
 
+// eslint-disable-next-line akash/dependencies-component-or-hook
 export const DEPENDENCIES = { SDLEditor, FileButton, importDeploymentState };
 
 type Props = {

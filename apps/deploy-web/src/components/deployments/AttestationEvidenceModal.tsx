@@ -19,6 +19,7 @@ type AttestationReportStatus = AttestationReportVerdict["status"];
 
 export const DEPENDENCIES = {
   useAttestationQuoteMutation,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   saveFile: saveFileInBrowser as (data: Blob, filename?: string) => void
 };
 

@@ -7,6 +7,7 @@ export const DEPENDENCIES = {
   useRouter,
   useSearchParams,
   useServices,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   window: typeof window === "undefined" ? undefined : window
 };
 

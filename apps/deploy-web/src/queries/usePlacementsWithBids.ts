@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
 import { getPlacementGseq } from "@src/utils/sdl/placementGseq";
 
+// eslint-disable-next-line akash/dependencies-component-or-hook
 export const DEPENDENCIES = { useListBids, getPlacementGseq };
 
 interface Input {

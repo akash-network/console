@@ -5,6 +5,7 @@ export default [
   {
     files: ["**/*.ts", "**/*.tsx"],
     rules: {
+      "akash/dependencies-component-or-hook": ["error"],
       "no-restricted-imports": [
         "error",
         {

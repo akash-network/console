@@ -18,7 +18,9 @@ export const DEPENDENCIES = {
   RemoteApiError,
   Spinner,
   VerificationCodeInput,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   markCodeSent,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   readCodeSentAt,
   useMutation
 };
