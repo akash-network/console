@@ -16,13 +16,25 @@ class NodeAccessor {
   private nodes: NodeInfo[];
   private settings: NodeAccessorSettings;
   private saveStatusInterval: NodeJS.Timeout | null = null;
+  private pendingSave: Promise<void> | null = null;
 
   constructor(settings: NodeAccessorSettings) {
     this.settings = settings;
     this.nodes = activeChain.rpcNodes.map(x => new NodeInfo(x, settings.maxConcurrentQueryPerNode));
   }
 
-  private async saveNodeStatus() {
+  /**
+   * Saves are serialized because the periodic interval and the final save in `stop()` write to the
+   * same file: overlapping writes would interleave and leave a corrupted `nodeStatus.json`.
+   */
+  private saveNodeStatus(): Promise<void> {
+    const save = (this.pendingSave?.catch(() => undefined) ?? Promise.resolve()).then(() => this.writeNodeStatusFile());
+    this.pendingSave = save;
+
+    return save;
+  }
+
+  private async writeNodeStatusFile() {
     console.log("Saving node status...");
     const statuses = this.nodes.map(x => x.getSavedNodeInfo());
 
