@@ -18,6 +18,11 @@ describe("envSchema", () => {
       const result = setup({ MASTER_WALLET_AKT_RESERVE: "2000000000" });
       expect(result.success).toBe(true);
     });
+
+    it("accepts zero", () => {
+      const result = setup({ MASTER_WALLET_AKT_RESERVE: "0" });
+      expect(result.success).toBe(true);
+    });
   });
 
   describe("MASTER_WALLET_MAX_MINT_UAKT", () => {
@@ -33,6 +38,11 @@ describe("envSchema", () => {
 
     it("accepts a non-negative integer", () => {
       const result = setup({ MASTER_WALLET_MAX_MINT_UAKT: "5000000000" });
+      expect(result.success).toBe(true);
+    });
+
+    it("accepts zero", () => {
+      const result = setup({ MASTER_WALLET_MAX_MINT_UAKT: "0" });
       expect(result.success).toBe(true);
     });
   });
