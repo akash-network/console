@@ -2,6 +2,7 @@ import React from "react";
 import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk";
 import type { usePopup } from "@akashnetwork/ui/context";
 import { describe, expect, it, type MockedFunction, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { usePaymentMethodsQuery, usePaymentMutations, useRefreshPaymentMethods, useSetupIntentMutation, useWalletSettingsQuery } from "@src/queries";
 import type { PaymentMethodsViewProps } from "../PaymentMethodsView/PaymentMethodsView";
@@ -266,7 +267,7 @@ describe(PaymentMethodsContainer.name, () => {
     })) as unknown as MockedFunction<typeof useWalletSettingsQuery>;
 
     const mockConfirm = vi.fn().mockResolvedValue(overrides.confirmResult ?? true);
-    const mockedUsePopup = vi.fn(() => ({ confirm: mockConfirm })) as unknown as MockedFunction<typeof usePopup>;
+    const mockedUsePopup: typeof usePopup = () => mock<ReturnType<typeof usePopup>>({ confirm: mockConfirm });
 
     const dependencies = {
       usePaymentMethodsQuery: mockedUsePaymentMethodsQuery,
