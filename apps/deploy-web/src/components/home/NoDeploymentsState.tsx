@@ -2,14 +2,11 @@
 import React from "react";
 import { Button, Card, CardContent } from "@akashnetwork/ui/components";
 import { MultiplePages, Rocket } from "iconoir-react";
-import { useAtom } from "jotai";
 import Link from "next/link";
 
 import { WalletConnectionButtons } from "@src/components/wallet/WalletConnectionButtons";
 import { useServices } from "@src/context/ServicesProvider";
-import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
-import walletStore from "@src/store/walletStore";
 
 type Props = {
   onDeployClick: () => void;
@@ -21,8 +18,6 @@ type Props = {
 export const NoDeploymentsState: React.FC<Props> = ({ onDeployClick, hasDeployments = false, isWalletConnected = true, showTemplatesButton = true }) => {
   const { urlService } = useServices();
   const newDeploymentUrl = useNewDeploymentUrl();
-  const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
-  const { user } = useCustomUser();
 
   const title = hasDeployments ? "No active deployments." : "No deployments yet.";
 
@@ -33,10 +28,6 @@ export const NoDeploymentsState: React.FC<Props> = ({ onDeployClick, hasDeployme
           <Rocket className="rotate-45 text-muted-foreground" />
         </div>
         <h3 className="mb-2 text-xl">{title}</h3>
-
-        {isSignedInWithTrial && !user && (
-          <p className="mb-4 text-center text-sm text-muted-foreground">If you are expecting to see some, you may need to sign in or connect a wallet</p>
-        )}
 
         {showTemplatesButton && (
           <p className="mb-6 text-center text-muted-foreground">
