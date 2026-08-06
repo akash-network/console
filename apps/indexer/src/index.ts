@@ -1,6 +1,7 @@
 import "@akashnetwork/env-loader";
 
 import { activeChain, chainDefinitions } from "@akashnetwork/database/chainDefinitions";
+import { LoggerService } from "@akashnetwork/logging";
 import * as Sentry from "@sentry/node";
 import { Hono } from "hono";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -25,6 +26,7 @@ import { updateUsdSpending } from "./tasks/usdSpendingTracker";
 import { Scheduler } from "./scheduler";
 
 const app = new Hono();
+const logger = LoggerService.forContext("Indexer");
 
 const { PORT = 3079 } = process.env;
 
@@ -69,15 +71,15 @@ async function disposeAcquiredResources() {
   for (const resource of [...acquiredResources].reverse()) {
     try {
       await resource.dispose();
-      console.log(`Disposed "${resource.name}"`);
+      logger.info({ event: "RESOURCE_DISPOSED", resource: resource.name });
     } catch (error) {
-      console.error(`Failed to dispose "${resource.name}"`, error);
+      logger.error({ event: "RESOURCE_DISPOSE_ERROR", resource: resource.name, error });
       Sentry.captureException(error);
     }
   }
 }
 
-app.get("/status", async (c) => {
+app.get("/status", async c => {
   try {
     const version = packageJson.version;
     const tasksStatus = scheduler.getTasksStatus();
@@ -159,9 +161,9 @@ async function initApp() {
     throw new Error(`Unknown chain with code: ${process.env.ACTIVE_CHAIN}`);
   }
 
-  await initDatabase();
   disposeOnShutdown({ name: "database", dispose: () => sequelize.close() });
   disposeOnShutdown({ name: "block cache", dispose: () => closeCaches() });
+  await initDatabase();
 
   await nodeAccessor.loadNodeStatus();
   disposeOnShutdown({ name: "node accessor", dispose: () => nodeAccessor.stop() });
@@ -180,12 +182,12 @@ async function initApp() {
   }
 }
 
-startServer(app, console, process, {
+startServer(app, logger, process, {
   port: Number(PORT),
   beforeStart: initApp,
   onStop: disposeAcquiredResources
 }).catch(error => {
-  console.error("Error while initializing app", error);
+  logger.error({ event: "APP_INIT_ERROR", error });
   Sentry.captureException(error);
 });
 
