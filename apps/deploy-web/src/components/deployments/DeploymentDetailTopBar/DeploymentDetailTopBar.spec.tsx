@@ -229,7 +229,7 @@ describe(DeploymentDetailTopBar.name, () => {
     onDeploymentClose?: () => void;
     previousRoute?: string | null;
     router?: { back?: () => void; push?: () => void };
-    wallet?: { isManaged?: boolean; denom?: string; signAndBroadcastTx?: () => Promise<boolean> };
+    wallet?: { denom?: string; signAndBroadcastTx?: () => Promise<boolean> };
     analyticsTrack?: ReturnType<typeof vi.fn>;
     redeploy?: ReturnType<typeof vi.fn>;
     localNotes?: {

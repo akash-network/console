@@ -93,14 +93,15 @@ function LeaseBasedGate({
 }
 
 /**
- * Resolves the lease-based gate's action, in priority order. Public pages always render (RequireAuth owns auth).
- * Allow-list pages (configure, a deployment detail) render *immediately*, ahead of the identity/wallet wait and
+ * Resolves the lease-based gate's action, in priority order. Public pages always render (RequireAuth owns auth,
+ * and the WalletProvider boot gate guarantees the wallet lookup has settled before this gate mounts).
+ * Allow-list pages (configure, a deployment detail) render *immediately*, ahead of the identity wait and
  * the leases query, because they own their own loading UX (e.g. the auto-deploy progress overlay). The
  * `/onboarding` picker likewise renders once identity is known without waiting for leases: its trial wallet
  * provisions in the background, and the leases query flips to loading the moment that wallet's address appears,
  * which would otherwise flash the full-screen loader and remount the page (including an open Add Credits sheet).
  * An already-onboarded user who lands on `/onboarding` is still sent back where they came from, but only once
- * leases resolve (they render the picker until then). Everywhere else first waits until user + wallet identity is
+ * leases resolve (they render the picker until then). Everywhere else first waits until user identity is
  * known, then for leases to settle: an onboarded user renders, a not-onboarded user is sent to `/onboarding`. A
  * leases *error* leaves onboarding unknowable (an undefined result is not "no leases"), so we fail open and render
  * where the user is rather than eject a genuinely onboarded user into the first-deploy funnel on a transient
