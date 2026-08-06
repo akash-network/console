@@ -9,6 +9,7 @@ import { shutdownServer } from "./shutdown-server";
 describe(shutdownServer.name, () => {
   it("closes the server ", async () => {
     const server = mock<ServerType>({
+      listening: true,
       close: vi.fn().mockImplementation(cb => cb())
     });
     const appLogger = mock<ServerLogger>();
@@ -24,6 +25,7 @@ describe(shutdownServer.name, () => {
   it("logs error if server close fails", async () => {
     const error = new Error("Failed to close server");
     const server = mock<ServerType>({
+      listening: true,
       close: vi.fn().mockImplementation(cb => cb(error))
     });
     const appLogger = mock<ServerLogger>();
@@ -41,6 +43,7 @@ describe(shutdownServer.name, () => {
   it("logs error if server close throws", async () => {
     const error = new Error("Failed to close server");
     const server = mock<ServerType>({
+      listening: true,
       close: vi.fn().mockImplementation(() => {
         throw error;
       }) as Mock
@@ -60,6 +63,7 @@ describe(shutdownServer.name, () => {
   it("logs error if onShutdown callback fails", async () => {
     const error = new Error("Failed to dispose container");
     const server = mock<ServerType>({
+      listening: true,
       close: vi.fn().mockImplementation(cb => cb())
     });
     const appLogger = mock<ServerLogger>();

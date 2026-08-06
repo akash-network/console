@@ -11,8 +11,12 @@ import { ON_APP_START, ON_APP_STOP } from "./app-initializer";
 import { startServer } from "./start-server";
 
 describe("startServer", () => {
-  afterEach(() => {
-    startedServer?.close();
+  afterEach(async () => {
+    const server = startedServer;
+    startedServer = undefined;
+    if (server) {
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
   });
 
   it("starts server with all initialization steps", async () => {
@@ -57,7 +61,29 @@ describe("startServer", () => {
 
     expect(processEvents.on).toHaveBeenCalledWith("SIGTERM", expect.any(Function));
     expect(processEvents.on).toHaveBeenCalledWith("SIGINT", expect.any(Function));
-    expect(processEvents.on).toHaveBeenCalledWith("exit", expect.any(Function));
+  });
+
+  it("registers shutdown handlers before running startup steps", async () => {
+    const processEvents = new EventEmitter();
+    const on = vi.spyOn(processEvents, "on");
+    const beforeStart = vi.fn().mockResolvedValue(undefined);
+    const { start } = setup({ beforeStart, processEvents });
+
+    await start();
+
+    expect(on.mock.invocationCallOrder[0]).toBeLessThan(beforeStart.mock.invocationCallOrder[0]);
+  });
+
+  it("stops app without starting the server when a signal arrives while starting up", async () => {
+    const { start, onStop, processEvents, logger } = setup({ beforeStart: () => delay(50) });
+
+    const starting = start();
+    processEvents.emit("SIGTERM");
+    const server = await starting;
+
+    expect(onStop).toHaveBeenCalled();
+    expect(server).toBeUndefined();
+    expect(logger.info).toHaveBeenCalledWith({ event: "SERVER_START_ABORTED" });
   });
 
   it("stops app when server is closed", async () => {
@@ -133,30 +159,41 @@ describe("startServer", () => {
     expect(onStop).toHaveBeenCalled();
   });
 
-  it("stops app when process receives exit signal", async () => {
-    const { start, onStop, processEvents } = setup();
-
-    const server = await start();
-    const closeServer = vi.spyOn(server!, "close");
-    processEvents.emit("exit");
-    await delay(10);
-
-    expect(closeServer).toHaveBeenCalled();
-    expect(onStop).toHaveBeenCalled();
-  });
-
   it("stops app only once when process receives multiple signals", async () => {
     const { start, onStop, processEvents } = setup();
 
     const server = await start();
     const closeServer = vi.spyOn(server!, "close");
-    processEvents.emit("exit");
     processEvents.emit("SIGINT");
     processEvents.emit("SIGTERM");
+    processEvents.emit("SIGINT");
     await delay(10);
 
     expect(closeServer).toHaveBeenCalledTimes(1);
     expect(onStop).toHaveBeenCalledTimes(1);
+  });
+
+  it("forces exit when shutdown exceeds its deadline", async () => {
+    const onShutdownTimeout = vi.fn();
+    const { start, logger, processEvents } = setup({ onStop: () => delay(100), shutdownTimeoutMs: 10, onShutdownTimeout });
+
+    await start();
+    processEvents.emit("SIGTERM");
+    await delay(50);
+
+    expect(onShutdownTimeout).toHaveBeenCalledTimes(1);
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "APP_SHUTDOWN_TIMEOUT", reason: "SIGTERM" }));
+  });
+
+  it("does not force exit when shutdown completes within its deadline", async () => {
+    const onShutdownTimeout = vi.fn();
+    const { start, processEvents } = setup({ shutdownTimeoutMs: 1_000, onShutdownTimeout });
+
+    await start();
+    processEvents.emit("SIGTERM");
+    await delay(10);
+
+    expect(onShutdownTimeout).not.toHaveBeenCalled();
   });
 
   it("logs error when app.fetch throws an error", async () => {
@@ -197,17 +234,27 @@ describe("startServer", () => {
   });
 
   let startedServer: ServerType | undefined;
-  function setup(input?: { beforeStart?: () => Promise<void>; port?: number; initializers?: AppInitializer[]; onStop?: () => Promise<void> }) {
+  function setup(input?: {
+    beforeStart?: () => Promise<void>;
+    port?: number;
+    initializers?: AppInitializer[];
+    onStop?: () => Promise<void>;
+    processEvents?: EventEmitter;
+    shutdownTimeoutMs?: number;
+    onShutdownTimeout?: () => void;
+  }) {
     const app = mock<Hono<any>>();
     const logger = mock<ServerLogger>();
-    const processEvents = new EventEmitter();
+    const processEvents = input?.processEvents ?? new EventEmitter();
     const onStop = vi.fn(input?.onStop ?? (async () => undefined));
 
     const options = {
       port: input?.port ?? 0,
       beforeStart: input?.beforeStart,
       initializers: input?.initializers,
-      onStop
+      onStop,
+      shutdownTimeoutMs: input?.shutdownTimeoutMs,
+      onShutdownTimeout: input?.onShutdownTimeout ?? vi.fn()
     };
 
     const start = async () => {

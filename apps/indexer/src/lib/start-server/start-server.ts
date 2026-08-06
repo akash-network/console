@@ -9,6 +9,12 @@ import { shutdownServer } from "../shutdown-server/shutdown-server";
 import type { AppInitializer } from "./app-initializer";
 import { ON_APP_START, ON_APP_STOP } from "./app-initializer";
 
+/** Containers usually allow 30s before SIGKILL, so bail out well before that to keep logs flushable. */
+const DEFAULT_SHUTDOWN_TIMEOUT_MS = 10_000;
+
+/** Exit code signalling that shutdown did not finish within its deadline. */
+const SHUTDOWN_TIMEOUT_EXIT_CODE = 1;
+
 /**
  * Runs `onAppStart` hooks of the given initializers
  * Starts hono server
@@ -26,9 +32,13 @@ export async function startServer(
     beforeStart?: () => Promise<void>;
     initializers?: AppInitializer[];
     onStop?: () => void | Promise<void>;
+    shutdownTimeoutMs?: number;
+    onShutdownTimeout?: () => void;
   }
 ): Promise<ServerType | undefined> {
   const initializers = options.initializers ?? [];
+  const shutdownTimeoutMs = options.shutdownTimeoutMs ?? DEFAULT_SHUTDOWN_TIMEOUT_MS;
+  const forceExit = options.onShutdownTimeout ?? (() => process.exit(SHUTDOWN_TIMEOUT_EXIT_CODE));
   const stopAppOnce = once(async () => {
     logger.info({ event: "APP_STOPPING" });
     await runLoggingError(() => options.onStop?.(), logger, "APP_STOP_ERROR");
@@ -36,17 +46,38 @@ export async function startServer(
   });
 
   let server: ServerType | undefined;
+  let isShuttingDown = false;
   const shutdown = once(async (reason: string) => {
+    isShuttingDown = true;
     logger.info({ event: "APP_SERVER_SHUTDOWN_REQUESTED", reason });
-    if (server) {
-      await shutdownServer(server, logger, stopAppOnce);
-    } else {
-      await stopAppOnce();
+    const forceExitTimer = setTimeout(() => {
+      logger.error({ event: "APP_SHUTDOWN_TIMEOUT", reason, shutdownTimeoutMs });
+      forceExit();
+    }, shutdownTimeoutMs);
+    forceExitTimer.unref();
+
+    try {
+      if (server) {
+        await shutdownServer(server, logger, stopAppOnce);
+      } else {
+        await stopAppOnce();
+      }
+    } finally {
+      clearTimeout(forceExitTimer);
     }
   });
+
+  processEvents.on("SIGTERM", () => shutdown("SIGTERM"));
+  processEvents.on("SIGINT", () => shutdown("SIGINT"));
+
   try {
     await options.beforeStart?.();
     await Promise.all(initializers.map(initializer => initializer[ON_APP_START]()));
+
+    if (isShuttingDown) {
+      logger.info({ event: "SERVER_START_ABORTED" });
+      return undefined;
+    }
 
     logger.info({ event: "SERVER_STARTING", url: `http://localhost:${options.port}`, NODE_OPTIONS: process.env.NODE_OPTIONS });
     server = serve({
@@ -62,9 +93,6 @@ export async function startServer(
     });
 
     server.on("close", stopAppOnce);
-    processEvents.on("SIGTERM", () => shutdown("SIGTERM"));
-    processEvents.on("SIGINT", () => shutdown("SIGINT"));
-    processEvents.on("exit", exitCode => shutdown(`EXIT:${exitCode}`));
     return server;
   } catch (error) {
     logger.error({ event: "SERVER_START_ERROR", error });
