@@ -43,6 +43,7 @@ interface HealthchecksConfig {
 export class Scheduler {
   private tasks: Map<string, TaskDef> = new Map();
   private config: SchedulerConfig = {};
+  private intervals: NodeJS.Timeout[] = [];
 
   constructor(config?: SchedulerConfig) {
     this.config = {
@@ -79,7 +80,7 @@ export class Scheduler {
         this.runTask(task);
       }
 
-      setInterval(() => {
+      const interval = setInterval(() => {
         const runningTask = this.tasks.get(task.name);
         if (!runningTask) return;
 
@@ -91,7 +92,21 @@ export class Scheduler {
         console.log(`Starting task "${task.name}"`);
         this.runTask(runningTask);
       }, task.interval);
+      this.intervals.push(interval);
     }
+  }
+
+  public async stop(): Promise<void> {
+    for (const interval of this.intervals) {
+      clearInterval(interval);
+    }
+    this.intervals = [];
+
+    const runningTasks = Array.from(this.tasks.values())
+      .map(task => task.runningPromise)
+      .filter((promise): promise is Promise<void> => promise !== null);
+
+    await Promise.allSettled(runningTasks);
   }
 
   private runTask(runningTask: TaskDef): void {
