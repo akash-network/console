@@ -79,13 +79,6 @@ export const GetStartedStepper: React.FunctionComponent<{ dependencies?: typeof 
         </StepLabel>
 
         <StepContent>
-          {!isWalletConnected && (
-            <p className="text-muted-foreground">
-              You can pay using either USD (fiat) or with crypto ($AKT or $USDC). To pay with USD, click "Start Trial". To pay with crypto, click "Connect
-              Wallet"
-            </p>
-          )}
-
           {isWalletConnected && !isManagedWallet && (
             <div className="my-4 flex items-center space-x-2">
               <Check className="text-green-600" />
