@@ -95,7 +95,7 @@ export class StripeController {
     const currentUser = this.authService.getCurrentPayingUser({ strict: false });
 
     if (currentUser) {
-      const paymentMethods = await this.paymentMethodService.getPaymentMethods(currentUser.id, currentUser.stripeCustomerId, this.authService.ability);
+      const paymentMethods = await this.paymentMethodService.getPaymentMethods(currentUser, this.authService.ability);
       return { data: paymentMethods };
     }
 
@@ -175,6 +175,8 @@ export class StripeController {
       const paymentMethod = await this.stripe.retrievePaymentMethod(paymentMethodId);
       const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
       assert(customerId === currentUser.stripeCustomerId, 403, "Payment method does not belong to the user");
+
+      await this.paymentMethodService.assertRemovable(paymentMethodId, currentUser.id);
 
       await this.stripe.detachPaymentMethod(paymentMethodId);
     } catch (error: unknown) {

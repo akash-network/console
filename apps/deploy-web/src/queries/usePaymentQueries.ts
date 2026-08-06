@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import type { paths } from "@akashnetwork/console-api-types";
 import type {
   ApplyCouponParams,
@@ -81,9 +82,26 @@ export const useSetupIntentMutation = () => {
   });
 };
 
+/**
+ * Refreshes the payment-methods list, then the default-payment-method query. The order is load
+ * bearing: the awaited list refetch resolves only after the server-side read-repair in
+ * getPaymentMethods has committed, so the following default fetch observes the healed state rather
+ * than the stale drift it was about to repair.
+ */
+export const useRefreshPaymentMethods = () => {
+  const { api } = useServices();
+  const queryClient = useQueryClient();
+
+  return useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });
+    await queryClient.invalidateQueries({ queryKey: api.v1.getDefaultPaymentMethod.getKey() });
+  }, [api, queryClient]);
+};
+
 export const usePaymentMutations = () => {
   const { stripe, api } = useServices();
   const queryClient = useQueryClient();
+  const refreshPaymentMethods = useRefreshPaymentMethods();
 
   const confirmPayment = useMutation({
     ...walletProvisioningRetry,
@@ -99,7 +117,7 @@ export const usePaymentMutations = () => {
       queryClient.invalidateQueries({ queryKey: api.v1.listStripeTransactions.getKey() });
 
       if (!response.requiresAction) {
-        queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });
+        refreshPaymentMethods();
       }
     }
   });
@@ -112,8 +130,7 @@ export const usePaymentMutations = () => {
       });
     },
     onSuccess: () => {
-      // Invalidate payment methods after 3DS validation
-      queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });
+      refreshPaymentMethods();
     }
   });
 
@@ -131,8 +148,7 @@ export const usePaymentMutations = () => {
       return response;
     },
     onSuccess: () => {
-      // Invalidate payment methods after removal
-      queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });
+      refreshPaymentMethods();
     }
   });
 
@@ -142,8 +158,7 @@ export const usePaymentMutations = () => {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });
-      queryClient.invalidateQueries({ queryKey: api.v1.getDefaultPaymentMethod.getKey() });
+      refreshPaymentMethods();
     }
   });
 

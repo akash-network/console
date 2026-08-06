@@ -1,11 +1,12 @@
 import React, { useCallback, useState } from "react";
 
-import { usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation, useWalletSettingsQuery } from "@src/queries";
+import { usePaymentMethodsQuery, usePaymentMutations, useRefreshPaymentMethods, useSetupIntentMutation, useWalletSettingsQuery } from "@src/queries";
 import type { PaymentMethodsViewProps } from "../PaymentMethodsView/PaymentMethodsView";
 
 const DEPENDENCIES = {
   usePaymentMethodsQuery,
   usePaymentMutations,
+  useRefreshPaymentMethods,
   useSetupIntentMutation,
   useWalletSettingsQuery
 };
@@ -16,15 +17,11 @@ type PaymentMethodsContainerProps = {
 };
 
 export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = ({ children, dependencies: d = DEPENDENCIES }) => {
-  const {
-    data: paymentMethods = [],
-    isLoading: isLoadingPaymentMethods,
-    refetch: refetchPaymentMethods,
-    isRefetching: isRefetchingPaymentMethods
-  } = d.usePaymentMethodsQuery();
+  const { data: paymentMethods = [], isLoading: isLoadingPaymentMethods, isRefetching: isRefetchingPaymentMethods } = d.usePaymentMethodsQuery();
   const { data: walletSettings, isLoading: isWalletSettingsLoading } = d.useWalletSettingsQuery();
   const isAutoReloadEnabled = walletSettings?.autoReloadEnabled ?? isWalletSettingsLoading;
   const paymentMutations = d.usePaymentMutations();
+  const refreshPaymentMethods = d.useRefreshPaymentMethods();
   const { data: setupIntent, mutate: createSetupIntent, reset: resetSetupIntent } = d.useSetupIntentMutation();
   const [showAddPaymentMethod, setShowAddPaymentMethod] = useState(false);
 
@@ -44,7 +41,7 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
 
   const onAddCardSuccess = async () => {
     setShowAddPaymentMethod(false);
-    refetchPaymentMethods();
+    await refreshPaymentMethods();
   };
 
   const onAddPaymentMethod = useCallback(() => {

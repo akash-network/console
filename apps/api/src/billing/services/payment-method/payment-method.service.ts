@@ -1,14 +1,13 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import type { AnyAbility } from "@casl/ability";
 import assert from "http-assert";
-import difference from "lodash/difference";
 import keyBy from "lodash/keyBy";
 import Stripe from "stripe";
 import { inject, singleton } from "tsyringe";
 
 import { extractFingerprint } from "@src/billing/lib/payment-method/extract-fingerprint";
 import { STRIPE_CLIENT } from "@src/billing/providers/stripe-client.provider";
-import { PaymentMethodRepository } from "@src/billing/repositories";
+import { type PaymentMethodOutput, PaymentMethodRepository, WalletSettingRepository } from "@src/billing/repositories";
 import { type CreateLogger, LOGGER_FACTORY, WithTransaction } from "@src/core";
 import { type UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
 import { assertIsPayingUser, type PayingUser } from "../paying-user/paying-user";
@@ -23,42 +22,147 @@ export class PaymentMethodService {
     @inject(STRIPE_CLIENT) private readonly stripe: Stripe,
     private readonly paymentMethodRepository: PaymentMethodRepository,
     private readonly userRepository: UserRepository,
+    private readonly walletSettingRepository: WalletSettingRepository,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.loggerService = createLogger({ context: PaymentMethodService.name });
   }
 
-  async getPaymentMethods(userId: string, customerId: string, ability: AnyAbility): Promise<PaymentMethod[]> {
+  async getPaymentMethods(user: PayingUser, ability: AnyAbility): Promise<PaymentMethod[]> {
     const [remotes, locals] = await Promise.all([
-      this.stripe.paymentMethods.list({ customer: customerId }),
-      this.paymentMethodRepository.accessibleBy(ability, "read").findByUserId(userId)
+      this.stripe.paymentMethods.list({ customer: user.stripeCustomerId }),
+      this.paymentMethodRepository.accessibleBy(ability, "read").findByUserId(user.id)
     ]);
 
-    const localById = keyBy(locals, "paymentMethodId");
-    const remoteIds: string[] = [];
+    const reconciledLocals = await this.#reconcilePaymentMethods({ user, ability, remotes, locals });
+    const localById = keyBy(reconciledLocals, "paymentMethodId");
 
     const merged = remotes.data
-      .map(remote => {
-        remoteIds.push(remote.id);
-        return {
-          ...remote,
-          validated: !!localById[remote.id]?.isValidated,
-          isDefault: !!localById[remote.id]?.isDefault
-        };
-      })
+      .map(remote => ({
+        ...remote,
+        validated: !!localById[remote.id]?.isValidated,
+        isDefault: !!localById[remote.id]?.isDefault
+      }))
       .sort((a, b) => b.created - a.created);
 
-    const outOfSyncIds = difference(remoteIds, Object.keys(localById));
+    const unsyncableIds = remotes.data.filter(remote => !localById[remote.id] && !extractFingerprint(remote)).map(remote => remote.id);
 
-    if (outOfSyncIds.length) {
+    if (unsyncableIds.length) {
       this.loggerService.warn({
         event: "STRIPE_PAYMENT_METHOD_OUT_OF_SYNC",
-        userId,
-        outOfSyncIds
+        userId: user.id,
+        outOfSyncIds: unsyncableIds
       });
     }
 
     return merged;
+  }
+
+  async #reconcilePaymentMethods(params: {
+    user: PayingUser;
+    ability: AnyAbility;
+    remotes: Stripe.ApiList<Stripe.PaymentMethod>;
+    locals: PaymentMethodOutput[];
+  }): Promise<PaymentMethodOutput[]> {
+    const { user, ability, remotes, locals } = params;
+    const remoteIds = new Set(remotes.data.map(remote => remote.id));
+
+    const staleRemoved = await this.#removeStaleLocalPaymentMethods({ userId: user.id, locals, remoteIds, hasMore: remotes.has_more });
+    const repaired = await this.#repairUnsyncedRemotePaymentMethods({ user, remotes: remotes.data, locals });
+
+    if (!staleRemoved && !repaired) {
+      return locals;
+    }
+
+    return this.paymentMethodRepository.accessibleBy(ability, "read").findByUserId(user.id);
+  }
+
+  /**
+   * Deletes local rows whose payment method is absent from Stripe, e.g. left over from a missed
+   * payment_method.detached webhook. Stale rows inflate countByUserId and break first-card default
+   * detection on the next add. Guarded on !hasMore because Stripe pages the list at 10: against a
+   * truncated page a still-attached method would be wrongly deleted.
+   */
+  async #removeStaleLocalPaymentMethods(params: { userId: string; locals: PaymentMethodOutput[]; remoteIds: Set<string>; hasMore: boolean }): Promise<boolean> {
+    const { userId, locals, remoteIds, hasMore } = params;
+
+    if (hasMore) {
+      return false;
+    }
+
+    const stale = locals.filter(local => !remoteIds.has(local.paymentMethodId));
+
+    if (!stale.length) {
+      return false;
+    }
+
+    const removedIds: string[] = [];
+
+    for (const local of stale) {
+      try {
+        await this.paymentMethodRepository.deleteByFingerprint(local.fingerprint, local.paymentMethodId, userId);
+        removedIds.push(local.paymentMethodId);
+      } catch (error) {
+        this.loggerService.error({
+          event: "PAYMENT_METHOD_STALE_REMOVE_FAILED",
+          userId,
+          paymentMethodId: local.paymentMethodId,
+          error
+        });
+      }
+    }
+
+    if (removedIds.length) {
+      this.loggerService.info({
+        event: "PAYMENT_METHOD_STALE_REMOVED",
+        userId,
+        paymentMethodIds: removedIds
+      });
+    }
+
+    return removedIds.length > 0;
+  }
+
+  /**
+   * Creates the missing local row for remote methods that never got one, e.g. a missed
+   * payment_method.attached webhook (always the case in local dev). syncAttached is idempotent and
+   * pushes the Stripe default for a first card, so this heals the sync on read. Oldest first so the
+   * genuine first card wins the default. Never lets a single failure fail the whole read.
+   */
+  async #repairUnsyncedRemotePaymentMethods(params: { user: PayingUser; remotes: Stripe.PaymentMethod[]; locals: PaymentMethodOutput[] }): Promise<boolean> {
+    const { user, remotes, locals } = params;
+    const localIds = new Set(locals.map(local => local.paymentMethodId));
+    const unsynced = remotes.filter(remote => !localIds.has(remote.id) && extractFingerprint(remote)).sort((a, b) => a.created - b.created);
+
+    if (!unsynced.length) {
+      return false;
+    }
+
+    const repairedIds: string[] = [];
+
+    for (const remote of unsynced) {
+      try {
+        await this.syncAttached({ user, paymentMethod: remote });
+        repairedIds.push(remote.id);
+      } catch (error) {
+        this.loggerService.error({
+          event: "PAYMENT_METHOD_READ_REPAIR_FAILED",
+          userId: user.id,
+          paymentMethodId: remote.id,
+          error
+        });
+      }
+    }
+
+    if (repairedIds.length) {
+      this.loggerService.info({
+        event: "PAYMENT_METHOD_READ_REPAIRED",
+        userId: user.id,
+        paymentMethodIds: repairedIds
+      });
+    }
+
+    return repairedIds.length > 0;
   }
 
   async getDefaultPaymentMethod(user: PayingUser, ability: AnyAbility): Promise<PaymentMethod | undefined> {
@@ -73,16 +177,88 @@ export class PaymentMethodService {
 
     const remote = customer.invoice_settings.default_payment_method;
 
-    if (typeof remote === "object" && remote && local) {
+    if (typeof remote === "object" && remote && local && remote.id === local.paymentMethodId) {
       return { ...remote, validated: local.isValidated, isDefault: local.isDefault };
-    } else {
-      this.loggerService.warn({
-        event: "STRIPE_PAYMENT_METHOD_OUT_OF_SYNC",
+    }
+
+    if (local) {
+      return this.#healDefaultPaymentMethodDrift(user, local);
+    }
+
+    this.loggerService.warn({
+      event: "STRIPE_PAYMENT_METHOD_OUT_OF_SYNC",
+      userId: user.id,
+      remoteId: typeof remote === "string" ? remote : remote?.id
+    });
+  }
+
+  /**
+   * The local default is the source of truth. When Stripe's default is missing or points elsewhere,
+   * re-push the local default to Stripe. If the card is gone from Stripe (detached or deleted), the
+   * local row is stale, so drop it. Never throws: this runs inside the reload charging job and the
+   * wallet-settings enable validation, where a Stripe hiccup must not fail the whole operation.
+   */
+  async #healDefaultPaymentMethodDrift(user: PayingUser, local: PaymentMethodOutput): Promise<PaymentMethod | undefined> {
+    try {
+      const remotePaymentMethod = await this.stripe.paymentMethods.retrieve(local.paymentMethodId, undefined, { timeout: 3_000 });
+      const customerId = typeof remotePaymentMethod.customer === "string" ? remotePaymentMethod.customer : remotePaymentMethod.customer?.id;
+
+      if (customerId !== user.stripeCustomerId) {
+        await this.#removeStaleDefaultPaymentMethod(user, local);
+        return;
+      }
+
+      await this.markRemotePaymentMethodAsDefault(local.paymentMethodId, user);
+      this.loggerService.info({
+        event: "DEFAULT_PAYMENT_METHOD_DRIFT_HEALED",
         userId: user.id,
-        remoteId: typeof remote === "string" ? remote : remote?.id,
-        localId: local?.paymentMethodId
+        paymentMethodId: local.paymentMethodId
+      });
+
+      return { ...remotePaymentMethod, validated: local.isValidated, isDefault: local.isDefault };
+    } catch (error) {
+      if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") {
+        await this.#removeStaleDefaultPaymentMethod(user, local);
+        return;
+      }
+
+      this.loggerService.warn({
+        event: "DEFAULT_PAYMENT_METHOD_HEAL_FAILED",
+        userId: user.id,
+        paymentMethodId: local.paymentMethodId,
+        error
       });
     }
+  }
+
+  async #removeStaleDefaultPaymentMethod(user: PayingUser, local: PaymentMethodOutput): Promise<void> {
+    try {
+      await this.paymentMethodRepository.deleteByFingerprint(local.fingerprint, local.paymentMethodId, user.id);
+      this.loggerService.warn({
+        event: "DEFAULT_PAYMENT_METHOD_STALE_REMOVED",
+        userId: user.id,
+        paymentMethodId: local.paymentMethodId
+      });
+    } catch (error) {
+      this.loggerService.warn({
+        event: "DEFAULT_PAYMENT_METHOD_STALE_REMOVE_FAILED",
+        userId: user.id,
+        paymentMethodId: local.paymentMethodId,
+        error
+      });
+    }
+  }
+
+  async assertRemovable(paymentMethodId: string, userId: string): Promise<void> {
+    const local = await this.paymentMethodRepository.findOneBy({ userId, paymentMethodId });
+
+    if (!local?.isDefault) {
+      return;
+    }
+
+    const settings = await this.walletSettingRepository.findByUserId(userId);
+
+    assert(!settings?.autoReloadEnabled, 409, "Cannot remove the default payment method while auto reload is enabled");
   }
 
   async hasPaymentMethod(paymentMethodId: string, user: UserOutput): Promise<boolean> {
