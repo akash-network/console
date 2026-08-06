@@ -5,7 +5,7 @@ import { CpuIcon, PackageOpenIcon } from "lucide-react";
 
 import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
 import { useFlag } from "@src/hooks/useFlag";
-import { isTrialBlockedGpuSelection, isTrialGpuRestrictionActive } from "@src/utils/deploymentData/v1beta3";
+import { isTrialBlockedGpuSelection, isTrialGpuInterconnectRestrictionActive, isTrialGpuRestrictionActive } from "@src/utils/deploymentData/v1beta3";
 import { useRevalidateUniqueness } from "../../DeploymentPane/useRevalidateUniqueness/useRevalidateUniqueness";
 import { computeResourcesTooltip, presetsTooltip } from "../cardTooltips";
 import { ComputeResourcesCard } from "../ComputeResourcesCard/ComputeResourcesCard";
@@ -87,7 +87,14 @@ export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, depen
 
         <d.GpuCard serviceIndex={serviceIndex} locked={locked} isBlockedModel={isBlockedModel} onUnlock={openUnlock} />
 
-        {d.useFlag("ui_gpu_interconnect") && <d.GpuInterconnectCard serviceIndex={serviceIndex} locked={locked} />}
+        {d.useFlag("ui_gpu_interconnect") && (
+          <d.GpuInterconnectCard
+            serviceIndex={serviceIndex}
+            locked={locked}
+            isTrialBlocked={isRestricted && !locked && isTrialGpuInterconnectRestrictionActive()}
+            onUnlock={openUnlock}
+          />
+        )}
 
         <d.CollapsibleCard locked={locked} title="Compute Resources" icon={<CpuIcon className="h-4 w-4" />} infoTooltip={computeResourcesTooltip}>
           <d.ComputeResourcesCard serviceIndex={serviceIndex} locked={locked} />

@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { TooltipProvider } from "@akashnetwork/ui/components";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { PlacementAttributeType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultPlacement, defaultService, defaultServiceWithPlacement } from "@src/utils/sdl/data";
@@ -157,6 +157,52 @@ describe(GpuInterconnectCard.name, () => {
     expect(screen.getByText("GPU interconnect is off.")).toBeInTheDocument();
   });
 
+  it("disables the switch for a trial-blocked wallet while off", () => {
+    setup({ isTrialBlocked: true });
+
+    expect(screen.getByRole("switch", { name: "Enable GPU interconnect" })).toBeDisabled();
+  });
+
+  it("shows the trial warning with an unlock CTA that opens the add-credits sheet", async () => {
+    const onUnlock = vi.fn();
+    setup({ isTrialBlocked: true, onUnlock });
+
+    await userEvent.click(screen.getByRole("button", { name: "Expand GPU Interconnect" }));
+    expect(screen.getByText(/isn't available on a free trial/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /unlock gpu interconnect/i }));
+
+    expect(onUnlock).toHaveBeenCalled();
+  });
+
+  it("keeps the switch usable for an imported interconnect so a trial-blocked wallet can turn it off", async () => {
+    const { getValues } = setup({
+      isTrialBlocked: true,
+      interconnect: {},
+      attributes: [{ id: "c1", key: GPU_INTERCONNECT_CAPABILITY_KEY, value: "true" }]
+    });
+
+    const interconnectSwitch = screen.getByRole("switch", { name: "Enable GPU interconnect" });
+    expect(interconnectSwitch).toBeEnabled();
+
+    await userEvent.click(interconnectSwitch);
+
+    expect(getValues().services[0].profile.interconnect).toBeUndefined();
+    expect(getValues().placements[0].attributes).toEqual([]);
+  });
+
+  it("warns that an imported interconnect would be rejected for a trial-blocked wallet", () => {
+    setup({ isTrialBlocked: true, interconnect: {} });
+
+    expect(screen.getByText(/would be rejected/i)).toBeInTheDocument();
+  });
+
+  it("does not show the trial warning when the wallet is not blocked", () => {
+    setup({ interconnect: {} });
+
+    expect(screen.queryByText(/free trial/i)).not.toBeInTheDocument();
+  });
+
   function setup(input: {
     interconnect?: { group?: string };
     profile?: Partial<ServiceType["profile"]>;
@@ -164,6 +210,8 @@ describe(GpuInterconnectCard.name, () => {
     attributes?: PlacementAttributeType[];
     sibling?: "same-placement" | "other-placement";
     locked?: boolean;
+    isTrialBlocked?: boolean;
+    onUnlock?: () => void;
   }) {
     const base = defaultServiceWithPlacement();
     const placements: SdlBuilderFormValuesType["placements"] = [{ ...base.placements[0], attributes: input.attributes ?? [] }];
@@ -193,7 +241,7 @@ describe(GpuInterconnectCard.name, () => {
     render(
       <Wrapper>
         <TooltipProvider>
-          <GpuInterconnectCard serviceIndex={0} locked={input.locked} />
+          <GpuInterconnectCard serviceIndex={0} locked={input.locked} isTrialBlocked={input.isTrialBlocked} onUnlock={input.onUnlock} />
         </TooltipProvider>
       </Wrapper>
     );

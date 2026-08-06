@@ -154,6 +154,18 @@ export function isTrialGpuRestrictionActive(blockedModels: readonly string[] = b
 }
 
 /**
+ * Whether the managed-wallet trial GPU interconnect restriction is switched on. A dedicated boolean, separate
+ * from the blocked-model list: the interconnect is a capability, not a model, so it cannot be expressed there.
+ * Mirrors the API's MANAGED_WALLET_TRIAL_GPU_INTERCONNECT_BLOCKED setting, which rejects trial interconnect
+ * deployments server-side.
+ */
+export function isTrialGpuInterconnectRestrictionActive(
+  isBlocked: boolean = browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_TRIAL_GPU_INTERCONNECT_BLOCKED
+): boolean {
+  return isBlocked;
+}
+
+/**
  * Whether a form's GPU selection would be blocked for a trial on the configure screen — the submit guard in
  * `ConfigureDeploymentHeader` uses this because enabling the GPU card leaves the model at the empty default
  * *without ever opening the (locked) picker*, so the presentational lock alone cannot stop an empty-model

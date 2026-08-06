@@ -53,7 +53,8 @@ export const browserEnvSchema = z.object({
     )
     .refine(entries => entries.every(entry => /^[a-z0-9._-]+\/[a-z0-9._-]+$/.test(entry)), {
       message: "NEXT_PUBLIC_MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS entries must be in 'vendor/model' format"
-    })
+    }),
+  NEXT_PUBLIC_MANAGED_WALLET_TRIAL_GPU_INTERCONNECT_BLOCKED: coercedBoolean().optional().default("true")
 });
 
 export const serverEnvSchema = browserEnvSchema.extend({

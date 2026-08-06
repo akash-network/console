@@ -51,6 +51,10 @@ export const envSchema = z.object({
     .refine(entries => entries.every(entry => /^[a-z0-9._-]+\/[a-z0-9._-]+$/.test(entry)), {
       message: "MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS entries must be in 'vendor/model' format"
     }),
+  MANAGED_WALLET_TRIAL_GPU_INTERCONNECT_BLOCKED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform(val => val === "true"),
   MASTER_WALLET_TARGET_ACT_BALANCE: z.number({ coerce: true }).default(10_000_000_000),
   TX_SIGNER_BASE_URL: z.string()
 });

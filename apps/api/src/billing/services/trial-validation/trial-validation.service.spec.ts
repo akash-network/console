@@ -123,6 +123,56 @@ describe(TrialValidationService.name, () => {
     });
   });
 
+  describe("validateDeploymentGpuInterconnect", () => {
+    it("skips validation when wallet is not trialing", async () => {
+      const wallet = createUserWallet({ isTrialing: false });
+      const { service } = setupInterconnect();
+
+      await expect(service.validateDeploymentGpuInterconnect([createInterconnectDeploymentMessage("auto")], wallet)).resolves.toBeUndefined();
+    });
+
+    it("skips validation when the restriction is disabled", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupInterconnect({ interconnectBlocked: false });
+
+      await expect(service.validateDeploymentGpuInterconnect([createInterconnectDeploymentMessage("auto")], wallet)).resolves.toBeUndefined();
+    });
+
+    it("allows a trial deployment that does not request an interconnect", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupInterconnect();
+
+      await expect(service.validateDeploymentGpuInterconnect([createDeploymentMessageWithGpu("nvidia", "rtx-4090")], wallet)).resolves.toBeUndefined();
+    });
+
+    it("rejects a trial deployment with 402 when an implicit interconnect group is requested", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupInterconnect();
+
+      await expect(service.validateDeploymentGpuInterconnect([createInterconnectDeploymentMessage("auto")], wallet)).rejects.toMatchObject({
+        status: 402,
+        message: expect.stringContaining("GPU interconnect not available on free trial")
+      });
+    });
+
+    it("rejects a trial deployment with 402 when an explicit interconnect group is requested", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupInterconnect();
+
+      await expect(service.validateDeploymentGpuInterconnect([createInterconnectDeploymentMessage("pair0")], wallet)).rejects.toMatchObject({
+        status: 402,
+        message: expect.stringContaining("GPU interconnect not available on free trial")
+      });
+    });
+
+    it("passes when there are no MsgCreateDeployment messages", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupInterconnect();
+
+      await expect(service.validateDeploymentGpuInterconnect([createLeaseMessage()], wallet)).resolves.toBeUndefined();
+    });
+  });
+
   function createDeploymentMessage(): EncodeObject {
     return {
       typeUrl: `/${MsgCreateDeployment.$type}`,
@@ -131,6 +181,17 @@ describe(TrialValidationService.name, () => {
   }
 
   function createDeploymentMessageWithGpu(vendor: string, model: string): EncodeObject {
+    return createDeploymentMessageWithGpuAttributes([{ key: `vendor/${vendor}/model/${model}`, value: "true" }]);
+  }
+
+  function createInterconnectDeploymentMessage(group: string): EncodeObject {
+    return createDeploymentMessageWithGpuAttributes([
+      { key: "vendor/nvidia/model/rtx-4090", value: "true" },
+      { key: "interconnect/group", value: group }
+    ]);
+  }
+
+  function createDeploymentMessageWithGpuAttributes(attributes: { key: string; value: string }[]): EncodeObject {
     return {
       typeUrl: `/${MsgCreateDeployment.$type}`,
       value: MsgCreateDeployment.fromPartial({
@@ -143,7 +204,7 @@ describe(TrialValidationService.name, () => {
                   id: 1,
                   gpu: {
                     units: { val: BigInt(1) },
-                    attributes: [{ key: `vendor/${vendor}/model/${model}`, value: "true" }]
+                    attributes
                   }
                 },
                 count: 1
@@ -264,5 +325,16 @@ describe(TrialValidationService.name, () => {
     const blockedGpuService = new BlockedGpuService(blockedGpuConfig);
     const service = new TrialValidationService(config, providerRepository, bidHttpService, blockedGpuService);
     return { service, config, providerRepository, bidHttpService, blockedGpuService };
+  }
+
+  function setupInterconnect(input?: { interconnectBlocked?: boolean }) {
+    const config = mockConfigService<BillingConfigService>({
+      MANAGED_WALLET_TRIAL_GPU_INTERCONNECT_BLOCKED: input?.interconnectBlocked ?? true
+    });
+    const providerRepository = mock<ProviderRepository>();
+    const bidHttpService = mock<BidHttpService>();
+    const blockedGpuService = mock<BlockedGpuService>();
+    const service = new TrialValidationService(config, providerRepository, bidHttpService, blockedGpuService);
+    return { service };
   }
 });

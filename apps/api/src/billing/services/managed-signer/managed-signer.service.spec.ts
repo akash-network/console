@@ -511,6 +511,42 @@ describe(ManagedSignerService.name, () => {
 
       expect(anonymousValidateService.validateLeaseProvidersAuditors).toHaveBeenCalledWith(messages, wallet);
     });
+
+    it("validates deployment gpu interconnect for the wallet", async () => {
+      const wallet = createUserWallet({
+        userId: "user-123",
+        feeAllowance: 100,
+        deploymentAllowance: 100,
+        isTrialing: true
+      });
+      const user = createUser({ userId: "user-123" });
+      const messages: EncodeObject[] = [
+        {
+          typeUrl: MsgCreateLease.$type,
+          value: MsgCreateLease.fromPartial({
+            bidId: {
+              dseq: 123,
+              provider: "akash1provider"
+            }
+          })
+        }
+      ];
+
+      const { service, anonymousValidateService } = setup({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
+          code: 0,
+          hash: "tx-hash",
+          rawLog: "success"
+        }),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined)
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", messages);
+
+      expect(anonymousValidateService.validateDeploymentGpuInterconnect).toHaveBeenCalledWith(messages, wallet);
+    });
   });
 
   describe("executeDerivedEncodedTxByUserId", () => {

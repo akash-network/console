@@ -5,6 +5,7 @@ import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
+import { sdlRequestsGpuInterconnect } from "@src/deployment/utils/gpu-interconnect/gpu-interconnect";
 
 @singleton()
 export class SdlService {
@@ -59,6 +60,21 @@ export class SdlService {
               keyword: "gpu",
               params: { blocked: blockedRequested },
               message: `${this.blockedGpuService.formatList(blockedRequested)} not available on free trial: Add funds to unlock GPU access`
+            }
+          ]
+        };
+      }
+
+      if (this.#config.MANAGED_WALLET_TRIAL_GPU_INTERCONNECT_BLOCKED && sdlRequestsGpuInterconnect(potentiallyInvalidSDL)) {
+        return {
+          ok: false,
+          value: [
+            {
+              schemaPath: "",
+              instancePath: "/profiles/compute",
+              keyword: "gpu-interconnect",
+              params: {},
+              message: "GPU interconnect not available on free trial: Add funds to unlock GPU interconnect"
             }
           ]
         };

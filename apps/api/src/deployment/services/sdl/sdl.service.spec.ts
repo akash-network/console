@@ -208,6 +208,48 @@ deployment:
       count: 1
 `;
 
+const SDL_WITH_GPU_INTERCONNECT = (interconnect: string) => `
+version: "2.0"
+services:
+  web:
+    image: nginx
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          size: 1Gi
+        gpu:
+          units: 1
+          attributes:
+            interconnect: ${interconnect}
+            vendor:
+              nvidia:
+                - model: rtx-4090
+  placement:
+    westcoast:
+      attributes:
+        capabilities/gpu-interconnect: "true"
+      pricing:
+        web:
+          denom: uakt
+          amount: 1000
+deployment:
+  web:
+    westcoast:
+      profile: web
+      count: 2
+`;
+
 const SDL_WITH_VARS = `
 version: "2.0"
 services:
@@ -438,6 +480,36 @@ describe(SdlService.name, () => {
       expect(result.ok).toBe(true);
     });
 
+    it("rejects SDL that requests an implicit GPU interconnect for trialing wallets", () => {
+      const { result } = setup({ sdl: SDL_WITH_GPU_INTERCONNECT("[]"), isTrialing: true });
+
+      expect(result).toMatchObject({
+        ok: false,
+        value: [expect.objectContaining({ message: expect.stringContaining("GPU interconnect not available on free trial") })]
+      });
+    });
+
+    it("rejects SDL that requests an explicit GPU interconnect group for trialing wallets", () => {
+      const { result } = setup({ sdl: SDL_WITH_GPU_INTERCONNECT("{ group: pair0 }"), isTrialing: true });
+
+      expect(result).toMatchObject({
+        ok: false,
+        value: [expect.objectContaining({ message: expect.stringContaining("GPU interconnect not available on free trial") })]
+      });
+    });
+
+    it("does not enforce the interconnect block for non-trialing wallets", () => {
+      const { result } = setup({ sdl: SDL_WITH_GPU_INTERCONNECT("[]"), isTrialing: false });
+
+      expect(result.ok).toBe(true);
+    });
+
+    it("allows a trialing interconnect SDL when the restriction is disabled", () => {
+      const { result } = setup({ sdl: SDL_WITH_GPU_INTERCONNECT("[]"), isTrialing: true, interconnectBlocked: false });
+
+      expect(result.ok).toBe(true);
+    });
+
     describe("confidential compute (tee)", () => {
       it("projects a cpu tee selection into the manifest sent to the provider", () => {
         const { result } = setup({ sdl: SDL_WITH_TEE("cpu") });
@@ -471,10 +543,18 @@ describe(SdlService.name, () => {
     });
   });
 
-  function setup(input?: { sdl?: string; allowedAuditors?: string[]; deploymentGrantDenom?: string; blockedGpuModels?: string[]; isTrialing?: boolean }) {
+  function setup(input?: {
+    sdl?: string;
+    allowedAuditors?: string[];
+    deploymentGrantDenom?: string;
+    blockedGpuModels?: string[];
+    isTrialing?: boolean;
+    interconnectBlocked?: boolean;
+  }) {
     const config = {
       DEPLOYMENT_GRANT_DENOM: input?.deploymentGrantDenom ?? "uakt",
-      MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: input?.allowedAuditors ?? []
+      MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: input?.allowedAuditors ?? [],
+      MANAGED_WALLET_TRIAL_GPU_INTERCONNECT_BLOCKED: input?.interconnectBlocked ?? true
     } as BillingConfig;
 
     const blockedGpuConfig = mockConfigService<BillingConfigService>({

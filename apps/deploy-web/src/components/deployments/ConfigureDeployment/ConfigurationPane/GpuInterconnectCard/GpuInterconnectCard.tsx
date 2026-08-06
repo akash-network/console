@@ -8,12 +8,25 @@ import type { SdlBuilderFormValuesType } from "@src/types";
 import { defaultGpuModel } from "@src/utils/sdl/data";
 import { hasOtherInterconnectService, withGpuInterconnectCapability, withoutGpuInterconnectCapability } from "@src/utils/sdl/gpuInterconnect";
 import { gpuInterconnectTooltip } from "../cardTooltips";
+import { UnlockGpusButton } from "../UnlockGpusButton/UnlockGpusButton";
 
-export const DEPENDENCIES = { CollapsibleCard, Alert };
+export const DEPENDENCIES = { CollapsibleCard, Alert, UnlockGpusButton };
+
+/** Hover explanation for the trial unlock CTA; mirrors the phrasing of the high-end GPU unlock copy. */
+const INTERCONNECT_UNLOCK_EXPLANATION =
+  "GPU interconnect isn't included in your free trial. Add credits to unlock it, along with longer runtimes and the full Console.";
 
 type Props = {
   serviceIndex: number;
   locked?: boolean;
+  /**
+   * True when the current (trial) user cannot request a GPU interconnect: the switch is locked while off and a
+   * warning with an add-credits CTA is shown. An interconnect imported already ON stays switchable so the user
+   * can turn it off to deploy. Defaults to `false` so existing consumers/tests keep the unrestricted behavior.
+   */
+  isTrialBlocked?: boolean;
+  /** Opens the add-credits (unlock) sheet owned by the HardwareSection. */
+  onUnlock?: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -31,8 +44,12 @@ type Props = {
  * imported explicit group (`{ group: "x" }`) simply shows as ON, and toggling it
  * off and on collapses it to the implicit `{}` group (explicit group editing is
  * out of scope here, see CON-692).
+ *
+ * Trial wallets cannot enable the interconnect (`isTrialBlocked`): the switch is
+ * disabled while off and an add-credits CTA is shown; the API enforces the same
+ * restriction on every deployment write path.
  */
-export const GpuInterconnectCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
+export const GpuInterconnectCard: FC<Props> = ({ serviceIndex, locked = false, isTrialBlocked = false, onUnlock, dependencies: d = DEPENDENCIES }) => {
   const { control, getValues, setValue } = useFormContext<SdlBuilderFormValuesType>();
   const interconnect = useWatch({ control, name: `services.${serviceIndex}.profile.interconnect` });
   const hasGpu = useWatch({ control, name: `services.${serviceIndex}.profile.hasGpu` });
@@ -86,6 +103,7 @@ export const GpuInterconnectCard: FC<Props> = ({ serviceIndex, locked = false, d
 
   const toggleInterconnect = useCallback(
     (checked: boolean) => {
+      if (checked && isTrialBlocked) return;
       setValue(`services.${serviceIndex}.profile.interconnect`, checked ? {} : undefined, { shouldDirty: true });
       if (checked) {
         enableGpu();
@@ -94,7 +112,7 @@ export const GpuInterconnectCard: FC<Props> = ({ serviceIndex, locked = false, d
         setPlacementCapability(false);
       }
     },
-    [enableGpu, getValues, serviceIndex, setPlacementCapability, setValue]
+    [enableGpu, getValues, isTrialBlocked, serviceIndex, setPlacementCapability, setValue]
   );
 
   return (
@@ -106,27 +124,41 @@ export const GpuInterconnectCard: FC<Props> = ({ serviceIndex, locked = false, d
       isToggled={isEnabled}
       onToggle={toggleInterconnect}
       toggleAriaLabel="Enable GPU interconnect"
-      toggleDisabled={locked}
+      toggleDisabled={locked || (isTrialBlocked && !isEnabled)}
     >
-      {isEnabled ? (
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            This service requests a high-bandwidth GPU-to-GPU interconnect; only interconnect-capable providers will bid.
-          </p>
-          {showSingleNodeHint && (
+      <div className="space-y-4">
+        {isEnabled ? (
+          <>
             <p className="text-sm text-muted-foreground">
-              A GPU interconnect links GPUs across 2+ nodes. Increase the replica count under Runtime for a multi-node workload.
+              This service requests a high-bandwidth GPU-to-GPU interconnect; only interconnect-capable providers will bid.
             </p>
-          )}
-          {gpuMismatch && (
-            <d.Alert variant="warning" className="p-4 text-sm">
-              A GPU interconnect needs GPU resources on this service. Enable the GPU card above so interconnect-capable providers can bid.
-            </d.Alert>
-          )}
-        </div>
-      ) : (
-        <p className="text-sm text-muted-foreground">GPU interconnect is off.</p>
-      )}
+            {showSingleNodeHint && (
+              <p className="text-sm text-muted-foreground">
+                A GPU interconnect links GPUs across 2+ nodes. Increase the replica count under Runtime for a multi-node workload.
+              </p>
+            )}
+            {gpuMismatch && (
+              <d.Alert variant="warning" className="p-4 text-sm">
+                A GPU interconnect needs GPU resources on this service. Enable the GPU card above so interconnect-capable providers can bid.
+              </d.Alert>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">GPU interconnect is off.</p>
+        )}
+        {isTrialBlocked && (
+          <d.Alert variant="warning" className="p-4">
+            <div className="flex flex-col items-start gap-2 text-sm">
+              <p>
+                {isEnabled
+                  ? "GPU interconnect isn't available on a free trial, so this deployment would be rejected. Add credits to unlock it, or turn it off."
+                  : "GPU interconnect isn't available on a free trial. Add credits to unlock it."}
+              </p>
+              <d.UnlockGpusButton onUnlock={onUnlock} prominent label="Unlock GPU interconnect" explanation={INTERCONNECT_UNLOCK_EXPLANATION} />
+            </div>
+          </d.Alert>
+        )}
+      </div>
     </d.CollapsibleCard>
   );
 };
