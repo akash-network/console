@@ -425,8 +425,7 @@ describe(PaymentPollingProvider.name, () => {
         wallet: {
           ...buildManagedWallet({ isTrialing: state.isTrialing }),
           username: "Managed Wallet" as const,
-          isWalletConnected: true,
-          isWalletLoaded: true,
+
           selected: true,
           creditAmount: 0
         },

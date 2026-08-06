@@ -30,7 +30,7 @@ export const DEPENDENCIES = {
 
 export const GetStartedStepper: React.FunctionComponent<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
   const [activeStep, setActiveStep] = useState(0);
-  const { isWalletConnected, isTrialing } = d.useWallet();
+  const { hasWallet, isTrialing } = d.useWallet();
   const { balance: walletBalance } = d.useWalletBalance();
   const { minDeposit } = d.useChainParam();
   const aktBalance = walletBalance ? uaktToAKT(walletBalance.balanceUAKT) : 0;
@@ -92,21 +92,21 @@ export const GetStartedStepper: React.FunctionComponent<{ dependencies?: typeof 
             Next
           </Button>
 
-          {isWalletConnected && isTrialing && (
+          {hasWallet && isTrialing && (
             <div className="my-4 flex items-center space-x-2">
               <Check className="text-green-600" />
               <span>Trialing</span>
             </div>
           )}
 
-          {isWalletConnected && !isTrialing && (
+          {hasWallet && !isTrialing && (
             <div className="my-4 flex items-center space-x-2">
               <Check className="text-green-600" />
               <span>Billing is set up</span>
             </div>
           )}
 
-          {!isWalletConnected && (
+          {!hasWallet && (
             <div className="my-4 flex items-center space-x-2">
               <XmarkCircleSolid className="text-destructive" />
               <span>Billing is not set up</span>

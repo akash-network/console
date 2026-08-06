@@ -19,7 +19,7 @@ const YourAccount = dynamic(() => import("./YourAccount/YourAccount").then(m => 
 });
 
 export function HomeContainer() {
-  const { address, isWalletLoaded } = useWallet();
+  const { address } = useWallet();
   const [activeDeployments, setActiveDeployments] = useState<DeploymentDto[]>([]);
   const { getDeploymentName } = useLocalNotes();
   const {
@@ -63,10 +63,10 @@ export function HomeContainer() {
   }, [address, isSettingsInit]);
 
   useEffect(() => {
-    if (isWalletLoaded && isSettingsInit) {
+    if (isSettingsInit) {
       getDeployments();
     }
-  }, [isSettingsInit, isWalletLoaded, getDeployments, apiEndpoint, address]);
+  }, [isSettingsInit, getDeployments, apiEndpoint, address]);
 
   return (
     <Layout

@@ -8,7 +8,6 @@ import { cn } from "@akashnetwork/ui/utils";
 
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
 import { useSettings } from "@src/context/SettingsProvider";
-import { useWallet } from "@src/context/WalletProvider";
 import { useOnboardingChrome } from "@src/hooks/useOnboardingChrome";
 import { useTopBanner } from "@src/hooks/useTopBanner";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
@@ -22,14 +21,12 @@ export const DEPENDENCIES = {
   TrackingScripts,
   useOnboardingChrome,
   useSettings,
-  useTopBanner,
-  useWallet
+  useTopBanner
 };
 
 type Props = {
   isLoading?: boolean;
   isUsingSettings?: boolean;
-  isUsingWallet?: boolean;
   disableContainer?: boolean;
   containerClassName?: string;
   background?: "default" | "white";
@@ -37,16 +34,7 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-const Layout: React.FunctionComponent<Props> = ({
-  children,
-  isLoading,
-  isUsingSettings,
-  isUsingWallet,
-  disableContainer,
-  containerClassName,
-  background,
-  dependencies
-}) => {
+const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, disableContainer, containerClassName, background, dependencies }) => {
   const [locale, setLocale] = useState("en-US");
 
   useEffect(() => {
@@ -60,7 +48,6 @@ const Layout: React.FunctionComponent<Props> = ({
       <LayoutApp
         isLoading={isLoading}
         isUsingSettings={isUsingSettings}
-        isUsingWallet={isUsingWallet}
         disableContainer={disableContainer}
         containerClassName={containerClassName}
         background={background}
@@ -76,15 +63,13 @@ const LayoutApp: React.FunctionComponent<Props> = ({
   children,
   isLoading = false,
   isUsingSettings,
-  isUsingWallet,
   disableContainer,
   containerClassName = "",
   background = "default",
   dependencies: d = DEPENDENCIES
 }) => {
-  const { LinearLoadingSkeleton, TopNav, TrackingScripts, useOnboardingChrome, useSettings, useTopBanner, useWallet } = d;
+  const { LinearLoadingSkeleton, TopNav, TrackingScripts, useOnboardingChrome, useSettings, useTopBanner } = d;
   const { isSettingsInit } = useSettings();
-  const { isWalletLoaded } = useWallet();
   const { hasBanner } = useTopBanner();
   const { isStripped } = useOnboardingChrome();
 
@@ -100,11 +85,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({
 
               <ErrorBoundary FallbackComponent={ErrorFallback}>
                 {!isUsingSettings || isSettingsInit ? (
-                  !isUsingWallet || isWalletLoaded ? (
-                    <div className={cn({ ["container p-6 pb-8"]: !disableContainer }, containerClassName)}>{children}</div>
-                  ) : (
-                    <Loading text="Loading wallet..." />
-                  )
+                  <div className={cn({ ["container p-6 pb-8"]: !disableContainer }, containerClassName)}>{children}</div>
                 ) : (
                   <Loading text="Loading settings..." />
                 )}

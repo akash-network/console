@@ -22,7 +22,7 @@ interface PaymentMethodStepProps {
   cardToDelete?: string;
   isLoading: boolean;
   isRemoving: boolean;
-  managedWalletError?: AppError;
+  walletError?: AppError;
   onSuccess: (organization?: string) => void;
   onRemovePaymentMethod: (paymentMethodId: string) => void;
   onConfirmRemovePaymentMethod: () => Promise<void>;
@@ -46,7 +46,7 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
   cardToDelete: _cardToDelete,
   isLoading,
   isRemoving,
-  managedWalletError,
+  walletError,
   onSuccess,
   onRemovePaymentMethod,
   onConfirmRemovePaymentMethod,
@@ -120,7 +120,7 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
         onStartTrial={onNext}
         isLoading={isLoading}
         isRemoving={isRemoving}
-        managedWalletError={managedWalletError}
+        walletError={walletError}
         hasPaymentMethod={hasPaymentMethod}
       />
 

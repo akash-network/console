@@ -52,20 +52,20 @@ function LeaseBasedGate({
 }: Required<Pick<Props, "children">> & { isPublic?: boolean; dependencies: typeof DEPENDENCIES }) {
   const router = d.useRouter();
   const { user, isLoading: isUserLoading } = d.useUser();
-  const { address, hasManagedWallet, isWalletInitializing } = d.useWallet();
+  const { address, hasWallet } = d.useWallet();
   const { returnTo } = d.useReturnTo({ defaultReturnTo: "/" });
 
-  const hasWallet = hasManagedWallet && !!address;
-  const leaseExistenceQuery = d.useLeaseExistenceQuery(address, { enabled: hasWallet });
-  const isLeasesLoading = hasWallet && leaseExistenceQuery.isLoading;
-  const leasesErrored = hasWallet && leaseExistenceQuery.isError;
-  const isOnboarded = hasWallet && !!leaseExistenceQuery.data;
+  const hasWalletAddress = hasWallet && !!address;
+  const leaseExistenceQuery = d.useLeaseExistenceQuery(address, { enabled: hasWalletAddress });
+  const isLeasesLoading = hasWalletAddress && leaseExistenceQuery.isLoading;
+  const leasesErrored = hasWalletAddress && leaseExistenceQuery.isError;
+  const isOnboarded = hasWalletAddress && !!leaseExistenceQuery.data;
   const hasSkippedOnboarding = !!user?.onboardingSkippedAt;
 
   const path = router.asPath.split("?")[0];
   const isOnOnboarding = path === ONBOARDING_ROUTE;
   const isAllowed = ONBOARDING_ALLOWED_PREFIXES.some(prefix => path.startsWith(prefix)) || isDeploymentDetail(path);
-  const identityKnown = !isUserLoading && !isWalletInitializing;
+  const identityKnown = !isUserLoading;
   const leasesSettled = !isLeasesLoading;
 
   const decision = decideLeaseGate({

@@ -3,7 +3,8 @@ import { mock } from "vitest-mock-extended";
 
 import { BootLoadingProvider } from "@src/context/BootLoadingProvider/BootLoadingProvider";
 import type { CustomUserProfile } from "@src/types/user";
-import { DEPENDENCIES, WalletProvider } from "./WalletProvider";
+import type { ContextType } from "./WalletProvider";
+import { DEPENDENCIES, useWallet, WalletProvider } from "./WalletProvider";
 
 import { render, screen } from "@testing-library/react";
 import { buildManagedWallet } from "@tests/seeders/managedWallet";
@@ -19,16 +20,17 @@ describe(WalletProvider.name, () => {
   });
 
   it("renders children once the wallet lookup settles with a wallet", () => {
-    setup({ user: registeredUser(), managedWallet: { isInitializing: false, wallet: decoratedWallet() } });
+    setup({ user: registeredUser(), managedWallet: { isInitializing: false, wallet: buildManagedWallet() } });
 
     expect(screen.getByTestId("child")).toBeInTheDocument();
     expect(screen.queryByTestId("app-boot-loading")).not.toBeInTheDocument();
   });
 
   it("renders children when the lookup settles with no wallet", () => {
-    setup({ user: registeredUser(), managedWallet: { isInitializing: false, wallet: undefined } });
+    const { probed } = setup({ user: registeredUser(), managedWallet: { isInitializing: false, wallet: undefined } });
 
     expect(screen.getByTestId("child")).toBeInTheDocument();
+    expect(probed.current?.hasWallet).toBe(false);
   });
 
   it("does not block anonymous users while the wallet query loads", () => {
@@ -39,10 +41,11 @@ describe(WalletProvider.name, () => {
   });
 
   it("keeps children mounted while a trial wallet is being created", () => {
-    setup({ user: registeredUser(), managedWallet: { isInitializing: false, isLoading: true, wallet: undefined } });
+    const { probed } = setup({ user: registeredUser(), managedWallet: { isInitializing: false, isCreating: true, wallet: undefined } });
 
     expect(screen.getByTestId("child")).toBeInTheDocument();
     expect(screen.queryByTestId("app-boot-loading")).not.toBeInTheDocument();
+    expect(probed.current?.isWalletCreating).toBe(true);
   });
 
   it("mounts children when the lookup transitions from loading to settled", () => {
@@ -50,7 +53,7 @@ describe(WalletProvider.name, () => {
 
     expect(screen.queryByTestId("child")).not.toBeInTheDocument();
 
-    rerenderWithManagedWallet({ isInitializing: false, wallet: decoratedWallet() });
+    rerenderWithManagedWallet({ isInitializing: false, wallet: buildManagedWallet() });
 
     expect(screen.getByTestId("child")).toBeInTheDocument();
   });
@@ -62,9 +65,46 @@ describe(WalletProvider.name, () => {
   });
 
   it("renders the transaction modal once settled", () => {
-    setup({ user: registeredUser(), managedWallet: { isInitializing: false, wallet: decoratedWallet() } });
+    setup({ user: registeredUser(), managedWallet: { isInitializing: false, wallet: buildManagedWallet() } });
 
     expect(screen.getByTestId("tx-modal")).toBeInTheDocument();
+  });
+
+  it("exposes the settled wallet through useWallet", () => {
+    const wallet = buildManagedWallet({ isTrialing: true, creditAmount: 42 });
+    const { probed } = setup({ user: registeredUser(), managedWallet: { isInitializing: false, wallet } });
+
+    expect(probed.current).toMatchObject({
+      address: wallet.address,
+      hasWallet: true,
+      isWalletCreating: false,
+      isTrialing: true,
+      creditAmount: 42,
+      topUpMinAmountUsd: 20
+    });
+  });
+
+  it("creates a wallet only when none exists", () => {
+    const { probed, managedWalletMock } = setup({ user: registeredUser(), managedWallet: { isInitializing: false, wallet: undefined } });
+
+    probed.current?.createWallet();
+
+    expect(managedWalletMock.create).toHaveBeenCalled();
+  });
+
+  it("does not create a wallet when one already exists", () => {
+    const { probed, managedWalletMock } = setup({ user: registeredUser(), managedWallet: { isInitializing: false, wallet: buildManagedWallet() } });
+
+    probed.current?.createWallet();
+
+    expect(managedWalletMock.create).not.toHaveBeenCalled();
+  });
+
+  it("surfaces the wallet creation error as walletError", () => {
+    const createError = new Error("creation failed");
+    const { probed } = setup({ user: registeredUser(), managedWallet: { isInitializing: false, wallet: undefined, createError } });
+
+    expect(probed.current?.walletError).toBe(createError);
   });
 
   function registeredUser() {
@@ -75,25 +115,37 @@ describe(WalletProvider.name, () => {
     return mock<CustomUserProfile>({ id: "internal-id", userId: undefined });
   }
 
-  function decoratedWallet() {
-    return { ...buildManagedWallet(), isWalletLoaded: true, selected: true };
+  function buildManagedWalletHookResult(overrides?: Partial<ManagedWalletHookResult>): ManagedWalletHookResult {
+    return Object.assign(mock<ManagedWalletHookResult>(), {
+      wallet: undefined,
+      isLoading: false,
+      isCreating: false,
+      isInitializing: false,
+      isFetching: false,
+      createError: null,
+      ...overrides
+    });
   }
 
   function setup(input: { user?: CustomUserProfile; managedWallet?: Partial<ManagedWalletHookResult> }) {
-    let managedWallet = mock<ManagedWalletHookResult>(input.managedWallet);
+    let managedWalletMock = buildManagedWalletHookResult(input.managedWallet);
+    const probed: { current: ContextType | undefined } = { current: undefined };
+
+    function Probe() {
+      probed.current = useWallet();
+      return <div data-testid="child" />;
+    }
 
     const dependencies: typeof DEPENDENCIES = {
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.user }),
-      useManagedWallet: () => managedWallet,
+      useManagedWallet: () => managedWalletMock,
       useBalances: () => mock<ReturnType<typeof DEPENDENCIES.useBalances>>(),
       useSignAndBroadcast: () => ({ signAndBroadcastTx: vi.fn(), loadingState: undefined }),
       useServices: () =>
         mock<ReturnType<typeof DEPENDENCIES.useServices>>({
           analyticsService: mock<ReturnType<typeof DEPENDENCIES.useServices>["analyticsService"]>(),
-          urlService: mock<ReturnType<typeof DEPENDENCIES.useServices>["urlService"]>(),
           publicConfig: mock<ReturnType<typeof DEPENDENCIES.useServices>["publicConfig"]>({ NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID: "sandbox" })
         }),
-      useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>(),
       TransactionModal: vi.fn(() => <div data-testid="tx-modal" />),
       BootLoading: DEPENDENCIES.BootLoading
     };
@@ -101,7 +153,7 @@ describe(WalletProvider.name, () => {
     const renderTree = () => (
       <BootLoadingProvider>
         <WalletProvider dependencies={dependencies}>
-          <div data-testid="child" />
+          <Probe />
         </WalletProvider>
       </BootLoadingProvider>
     );
@@ -110,8 +162,10 @@ describe(WalletProvider.name, () => {
 
     return {
       ...view,
+      probed,
+      managedWalletMock,
       rerenderWithManagedWallet: (next: Partial<ManagedWalletHookResult>) => {
-        managedWallet = mock<ManagedWalletHookResult>(next);
+        managedWalletMock = buildManagedWalletHookResult(next);
         view.rerender(renderTree());
       }
     };

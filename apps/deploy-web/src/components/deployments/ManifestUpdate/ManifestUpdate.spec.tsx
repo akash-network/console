@@ -1,12 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ContextType } from "@src/context/WalletProvider";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { DeploymentStorageService } from "@src/services/deployment-storage/deployment-storage.service";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import { DEPENDENCIES, ManifestUpdate } from "./ManifestUpdate";
 
 import { act, render, screen, waitFor } from "@testing-library/react";
+import { buildWallet } from "@tests/seeders/wallet";
 import { ComponentMock, MockComponents } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
@@ -153,7 +155,7 @@ describe(ManifestUpdate.name, () => {
   it("sends update transaction and manifest when hash differs", async () => {
     const ButtonMock = vi.fn(ComponentMock);
     const closeManifestEditor = vi.fn();
-    const signAndBroadcastTx = vi.fn().mockResolvedValue(true);
+    const signAndBroadcastTx = vi.fn(() => Promise.resolve(true));
     const { providerProxy, analyticsService } = setup({
       editedManifest: "version: '2.0'",
       deployment: { dseq: "123", state: "active", hash: "different-hash" },
@@ -162,8 +164,7 @@ describe(ManifestUpdate.name, () => {
       providers: [{ owner: "provider1", hostUri: "https://provider1.com" }],
       wallet: {
         address: "akash1abc",
-        signAndBroadcastTx,
-        isManaged: false
+        signAndBroadcastTx
       },
       dependencies: {
         Button: ButtonMock,
@@ -208,7 +209,7 @@ describe(ManifestUpdate.name, () => {
     const base64Hash = hashBytes.toString("base64");
     const ButtonMock = vi.fn(ComponentMock);
     const closeManifestEditor = vi.fn();
-    const signAndBroadcastTx = vi.fn();
+    const signAndBroadcastTx = vi.fn(() => Promise.resolve(true));
     const { providerProxy } = setup({
       editedManifest: "version: '2.0'",
       deployment: { dseq: "123", state: "active", hash: base64Hash },
@@ -217,8 +218,7 @@ describe(ManifestUpdate.name, () => {
       providers: [{ owner: "provider1", hostUri: "https://provider1.com" }],
       wallet: {
         address: "akash1abc",
-        signAndBroadcastTx,
-        isManaged: false
+        signAndBroadcastTx
       },
       dependencies: {
         Button: ButtonMock,
@@ -309,7 +309,7 @@ describe(ManifestUpdate.name, () => {
     closeManifestEditor?: () => void;
     onManifestChange?: (value: string) => void;
     providers?: Array<Partial<{ owner: string; hostUri: string }>>;
-    wallet?: Partial<{ address: string; signAndBroadcastTx: ReturnType<typeof vi.fn>; isManaged: boolean }>;
+    wallet?: Partial<{ address: string; signAndBroadcastTx: ContextType["signAndBroadcastTx"] }>;
     providerCredentials?: Partial<{ details: { usable: boolean; isExpired: boolean; type: "jwt"; value: string | null; error: Error | null } }>;
     deploymentLocalStorage?: Partial<{ get: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> }>;
     dependencies?: Partial<typeof DEPENDENCIES>;
@@ -323,23 +323,10 @@ describe(ManifestUpdate.name, () => {
     };
 
     const useWallet: typeof DEPENDENCIES.useWallet = () =>
-      ({
+      buildWallet({
         address: input?.wallet?.address || "akash1test",
-        signAndBroadcastTx: input?.wallet?.signAndBroadcastTx || vi.fn(),
-        isManaged: true,
-        walletName: "",
-        isWalletConnected: true,
-        isWalletLoaded: true,
-        connectManagedWallet: vi.fn(),
-        logout: vi.fn(),
-        isWalletLoading: false,
-        isWalletInitializing: false,
-        isTrialing: false,
-        isOnboarding: false,
-        topUpMinAmountUsd: 20,
-        hasManagedWallet: false,
-        denom: "uact"
-      }) as ReturnType<typeof DEPENDENCIES.useWallet>;
+        signAndBroadcastTx: input?.wallet?.signAndBroadcastTx || vi.fn(() => Promise.resolve(true))
+      });
 
     const useProviderList: typeof DEPENDENCIES.useProviderList = () =>
       ({

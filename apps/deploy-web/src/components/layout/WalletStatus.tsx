@@ -20,15 +20,14 @@ interface Props {
 }
 
 export function WalletStatus({ dependencies: d = DEPENDENCIES }: Props = {}) {
-  const { isWalletLoaded, isWalletConnected, isWalletLoading, isTrialing } = d.useWallet();
+  const { hasWallet, isTrialing } = d.useWallet();
   const { balance: walletBalance, isLoading: isWalletBalanceLoading } = d.useWalletBalance();
   const isLoadingBalance = isWalletBalanceLoading && !walletBalance;
-  const isInit = isWalletLoaded && !isWalletLoading && !isLoadingBalance;
 
   return (
     <>
-      {isInit ? (
-        isWalletConnected ? (
+      {!isLoadingBalance ? (
+        hasWallet ? (
           <div className="flex w-full items-center">
             <div className="w-full py-2">
               <DropdownMenu modal={false}>

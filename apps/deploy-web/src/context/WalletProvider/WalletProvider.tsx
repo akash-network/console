@@ -1,8 +1,7 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { useAtom } from "jotai";
-import { useRouter } from "next/navigation";
 
 import { TransactionModal } from "@src/components/layout/TransactionModal";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
@@ -23,30 +22,23 @@ export const DEPENDENCIES = {
   useBalances,
   useSignAndBroadcast,
   useServices,
-  useRouter,
   TransactionModal,
   BootLoading
 };
 
 export type ContextType = {
   address: string;
-  walletName: string;
-  isWalletConnected: boolean;
-  isWalletLoaded: boolean;
-  connectManagedWallet: () => void;
-  logout: () => void;
+  /** True once the server-side wallet record exists. The address may still be empty while provisioning. */
+  hasWallet: boolean;
+  /** True while a trial wallet creation is in flight, from any hook instance. */
+  isWalletCreating: boolean;
+  createWallet: () => void;
   signAndBroadcastTx: (msgs: EncodeObject[]) => Promise<boolean>;
-  isManaged: true;
   denom: string;
-  isWalletLoading: boolean;
-  /** True only during the initial wallet-existence lookup, not while a trial is being provisioned. */
-  isWalletInitializing: boolean;
   isTrialing: boolean;
-  isOnboarding: boolean;
   creditAmount?: number;
   topUpMinAmountUsd: number;
-  hasManagedWallet: boolean;
-  managedWalletError?: AppError;
+  walletError?: AppError;
 };
 
 /**
@@ -61,36 +53,29 @@ export const WalletProviderContext = React.createContext<ContextType>({} as Cont
  * it would blank the app mid-onboarding.
  */
 export const WalletProvider: React.FC<{ children: React.ReactNode; dependencies?: typeof DEPENDENCIES }> = ({ children, dependencies: d = DEPENDENCIES }) => {
-  const { analyticsService, publicConfig: appConfig, urlService } = d.useServices();
+  const { analyticsService, publicConfig: appConfig } = d.useServices();
 
   const [, setSettingsId] = useAtom(settingsIdAtom);
-  const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
-  const router = d.useRouter();
   const { user } = d.useUser();
   const {
     wallet: managedWallet,
-    isLoading: isManagedWalletLoading,
     isInitializing: isManagedWalletInitializing,
+    isCreating: isWalletCreating,
     create: createManagedWallet,
-    createError: managedWalletError
+    createError
   } = d.useManagedWallet();
   const walletAddress = managedWallet?.address;
-  const username = managedWallet?.username;
-  const isWalletConnected = !!managedWallet?.isWalletConnected;
+  const hasWallet = !!managedWallet;
   const { refetch: refetchBalances } = d.useBalances(walletAddress);
-  const isLoading = deriveWalletIsLoading({
-    hasAuthenticatedUserId: !!user?.userId,
-    isManagedWalletLoading
-  });
   const isInitializing = deriveWalletIsLoading({
     hasAuthenticatedUserId: !!user?.userId,
     isManagedWalletLoading: isManagedWalletInitializing
   });
   const { signAndBroadcastTx, loadingState } = d.useSignAndBroadcast({ refetchBalances });
 
-  useWhen(walletAddress, loadWallet);
+  useWhen(walletAddress, syncStorageWallet);
 
-  useWhen(isWalletConnected, () => {
+  useWhen(hasWallet, () => {
     analyticsService.identify({ managedWallet: true });
     analyticsService.trackSwitch("connect_wallet", "managed", "Amplitude");
   });
@@ -99,24 +84,14 @@ export const WalletProvider: React.FC<{ children: React.ReactNode; dependencies?
     setSettingsId(walletAddress || null);
   }, [walletAddress, setSettingsId]);
 
-  function connectManagedWallet() {
+  function createWallet() {
     if (!managedWallet) {
       createManagedWallet();
     }
   }
 
-  function logout() {
-    analyticsService.track("disconnect_wallet", {
-      category: "wallet",
-      label: "Disconnect wallet"
-    });
-
-    router.push(urlService.home());
-  }
-
-  async function loadWallet(): Promise<void> {
+  function syncStorageWallet(): void {
     if (!managedWallet?.userId || !walletAddress) {
-      setIsWalletLoaded(true);
       return;
     }
 
@@ -132,30 +107,21 @@ export const WalletProvider: React.FC<{ children: React.ReactNode; dependencies?
         selected: true
       });
     }
-
-    setIsWalletLoaded(true);
   }
 
   return (
     <WalletProviderContext.Provider
       value={{
         address: walletAddress as string,
-        walletName: username as string,
-        isWalletConnected,
-        isWalletLoaded,
-        connectManagedWallet,
-        logout,
+        hasWallet,
+        isWalletCreating,
+        createWallet,
         signAndBroadcastTx,
-        isManaged: true,
         denom: managedWallet?.denom ?? "",
-        isWalletLoading: isLoading,
-        isWalletInitializing: isInitializing,
         isTrialing: !!managedWallet?.isTrialing,
-        isOnboarding: !!user?.userId && !!managedWallet?.isTrialing,
         creditAmount: managedWallet?.creditAmount,
         topUpMinAmountUsd: managedWallet?.topUpMinAmountUsd ?? 20,
-        hasManagedWallet: !!managedWallet,
-        managedWalletError
+        walletError: createError
       }}
     >
       {isInitializing ? (
@@ -174,10 +140,4 @@ export const WalletProvider: React.FC<{ children: React.ReactNode; dependencies?
 // Hook
 export function useWallet() {
   return { ...React.useContext(WalletProviderContext) };
-}
-
-export function useIsManagedWalletUser() {
-  const { isManaged: canVisit, isWalletLoading: isLoading } = useWallet();
-
-  return { canVisit, isLoading };
 }

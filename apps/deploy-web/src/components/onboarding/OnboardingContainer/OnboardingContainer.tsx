@@ -89,10 +89,10 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
 
   useEffect(() => {
     const savedStep = d.localStorage?.getItem(ONBOARDING_STEP_KEY);
-    if (!wallet.isWalletLoading && wallet.hasManagedWallet && !savedStep) {
+    if (!wallet.isWalletCreating && wallet.hasWallet && !savedStep) {
       navigateBack();
     }
-  }, [wallet.isWalletLoading, wallet.hasManagedWallet, d.localStorage, navigateBack]);
+  }, [wallet.isWalletCreating, wallet.hasWallet, d.localStorage, navigateBack]);
 
   useEffect(() => {
     const savedStep = d.localStorage?.getItem(ONBOARDING_STEP_KEY);
@@ -283,7 +283,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
           });
 
           d.localStorage?.removeItem(ONBOARDING_STEP_KEY);
-          wallet.connectManagedWallet();
+          wallet.createWallet();
           router.replace(urlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
         }
       } catch {

@@ -27,23 +27,23 @@ export type OnboardingChromeState = {
  * is shared (same key) with the gate, so it's usually cached and resolves without a spinner.
  */
 export const useOnboardingChrome = (d: typeof DEPENDENCIES = DEPENDENCIES): OnboardingChromeState => {
-  const { address, hasManagedWallet, managedWalletError } = d.useWallet();
+  const { address, hasWallet, walletError } = d.useWallet();
   const { user } = d.useUser();
   const pathname = d.usePathname();
 
   const isRelevant = !!pathname && ONBOARDING_CHROME_PATHS.some(path => pathname.startsWith(path));
-  const hasWallet = hasManagedWallet && !!address;
+  const hasWalletAddress = hasWallet && !!address;
   const hasSkippedOnboarding = !!user?.onboardingSkippedAt;
 
-  const leaseExistenceQuery = d.useLeaseExistenceQuery(address, { enabled: isRelevant && hasWallet });
-  const isOnboarded = hasWallet && !!leaseExistenceQuery.data;
-  const leasesErrored = hasWallet && leaseExistenceQuery.isError;
+  const leaseExistenceQuery = d.useLeaseExistenceQuery(address, { enabled: isRelevant && hasWalletAddress });
+  const isOnboarded = hasWalletAddress && !!leaseExistenceQuery.data;
+  const leasesErrored = hasWalletAddress && leaseExistenceQuery.isError;
 
   // A wallet error — or a leases error that leaves onboarding unknowable (an undefined result is not "no leases") —
   // makes the funnel decision unresolvable, so fail open to the full chrome rather than trap a possibly-onboarded
   // user in the stripped funnel. Mirrors the gate's fail-open on a transient chain-API blip. A user who has skipped
   // onboarding is treated as onboarded, so their chrome is never stripped when they return to the configure route.
-  if (!isRelevant || managedWalletError || leasesErrored || hasSkippedOnboarding) {
+  if (!isRelevant || walletError || leasesErrored || hasSkippedOnboarding) {
     return { isStripped: false };
   }
 

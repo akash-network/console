@@ -10,6 +10,6 @@ export const DEPENDENCIES = { useWallet };
  * on this screen. What a restriction actually blocks (e.g. specific GPU models) is decided by the consumer.
  */
 export function useTrialGate(dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
-  const { isTrialing, hasManagedWallet } = dependencies.useWallet();
-  return { isRestricted: isTrialing || !hasManagedWallet, isWalletReady: hasManagedWallet };
+  const { isTrialing, hasWallet } = dependencies.useWallet();
+  return { isRestricted: isTrialing || !hasWallet, isWalletReady: hasWallet };
 }

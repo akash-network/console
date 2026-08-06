@@ -114,7 +114,6 @@ describe(ManifestEdit.name, () => {
 
     setup({
       editedManifest: "some-manifest",
-      isManaged: true,
       DeploymentDepositModal,
       SDLEditor,
       hasComponents: ["yml-editor"],
@@ -177,7 +176,6 @@ describe(ManifestEdit.name, () => {
 
     setup({
       editedManifest: sdlWithUsdcDenom,
-      isManaged: true,
       walletDenom: "uact",
       setEditedManifest
     });
@@ -224,7 +222,6 @@ describe(ManifestEdit.name, () => {
     selectedTemplate?: { title: string; code: string; category: string; description: string; name?: string };
     isGitProviderTemplate?: boolean;
     isBlockchainDown?: boolean;
-    isManaged?: boolean;
     walletDenom?: string;
     hasComponents?: string[];
     templateId?: string | null;
@@ -270,10 +267,7 @@ describe(ManifestEdit.name, () => {
       }),
       useWallet: (() => ({
         address: "akash123",
-        walletName: "test",
-        isWalletConnected: true,
-        isWalletLoaded: true,
-        isManaged: true,
+
         isTrialing: false,
         denom: input?.walletDenom,
         signAndBroadcastTx: vi.fn().mockResolvedValue({})

@@ -37,7 +37,7 @@ import { Title } from "../shared/Title";
 import { DeploymentListRow } from "./DeploymentListRow";
 
 export const DeploymentList: React.FunctionComponent = () => {
-  const { address, signAndBroadcastTx, isWalletLoaded, isWalletConnected } = useWallet();
+  const { address, signAndBroadcastTx, hasWallet } = useWallet();
   const { data: providers, isFetching: isLoadingProviders } = useProviderList();
   const { data: deployments, isFetching: isLoadingDeployments, refetch: getDeployments } = useDeploymentList(address, { enabled: false });
   const [pageIndex, setPageIndex] = useState(0);
@@ -64,10 +64,10 @@ export const DeploymentList: React.FunctionComponent = () => {
   });
 
   useEffect(() => {
-    if (isWalletLoaded && isSettingsInit) {
+    if (isSettingsInit) {
       getDeployments();
     }
-  }, [isWalletLoaded, isSettingsInit, getDeployments, apiEndpoint, address]);
+  }, [isSettingsInit, getDeployments, apiEndpoint, address]);
 
   useEffect(() => {
     if (deployments) {
@@ -138,9 +138,9 @@ export const DeploymentList: React.FunctionComponent = () => {
   };
 
   return (
-    <Layout isLoading={isLoadingDeployments || isLoadingProviders} isUsingSettings isUsingWallet>
+    <Layout isLoading={isLoadingDeployments || isLoadingProviders} isUsingSettings>
       <NextSeo title="Deployments" />
-      {deployments && deployments.length > 0 && isWalletConnected && (
+      {deployments && deployments.length > 0 && hasWallet && (
         <div className="flex flex-wrap items-center pb-6">
           <>
             <Title>Deployments</Title>

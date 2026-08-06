@@ -104,7 +104,7 @@ describe("PaymentMethodsDisplay", () => {
         }
       };
 
-      setup({ managedWalletError: httpError });
+      setup({ walletError: httpError });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("Your payment was declined")).toBeInTheDocument();
@@ -113,7 +113,7 @@ describe("PaymentMethodsDisplay", () => {
     it("renders error alert with Error object", () => {
       const errorObject = new Error("Network connection failed");
 
-      setup({ managedWalletError: errorObject });
+      setup({ walletError: errorObject });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("Network connection failed")).toBeInTheDocument();
@@ -126,7 +126,7 @@ describe("PaymentMethodsDisplay", () => {
         code: "invalid_card"
       };
 
-      setup({ managedWalletError: structuredError });
+      setup({ walletError: structuredError });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("Invalid payment method")).toBeInTheDocument();
@@ -135,21 +135,21 @@ describe("PaymentMethodsDisplay", () => {
     it("renders error alert with string error", () => {
       const stringError = "Something went wrong" as unknown as AppError;
 
-      setup({ managedWalletError: stringError });
+      setup({ walletError: stringError });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("Something went wrong")).toBeInTheDocument();
     });
 
     it("renders fallback error message for null error", () => {
-      setup({ managedWalletError: null });
+      setup({ walletError: null });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("An error occurred while starting your trial. Please try again.")).toBeInTheDocument();
     });
 
     it("renders fallback error message for undefined error", () => {
-      setup({ managedWalletError: undefined });
+      setup({ walletError: undefined });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("An error occurred while starting your trial. Please try again.")).toBeInTheDocument();
@@ -158,7 +158,7 @@ describe("PaymentMethodsDisplay", () => {
     it("renders fallback error message for empty object error", () => {
       const emptyError = {} as unknown as AppError;
 
-      setup({ managedWalletError: emptyError });
+      setup({ walletError: emptyError });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("An error occurred while starting your trial. Please try again.")).toBeInTheDocument();
@@ -182,7 +182,7 @@ describe("PaymentMethodsDisplay", () => {
         }
       };
 
-      setup({ managedWalletError: complexError });
+      setup({ walletError: complexError });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("Your card has insufficient funds")).toBeInTheDocument();
@@ -191,7 +191,7 @@ describe("PaymentMethodsDisplay", () => {
     it("renders error alert with error object without message", () => {
       const errorWithoutMessage = new Error();
 
-      setup({ managedWalletError: errorWithoutMessage });
+      setup({ walletError: errorWithoutMessage });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("An error occurred. Please try again.")).toBeInTheDocument();
@@ -204,7 +204,7 @@ describe("PaymentMethodsDisplay", () => {
         code: "unknown"
       };
 
-      setup({ managedWalletError: structuredErrorWithoutMessage });
+      setup({ walletError: structuredErrorWithoutMessage });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("An error occurred. Please try again.")).toBeInTheDocument();
@@ -318,7 +318,7 @@ describe("PaymentMethodsDisplay", () => {
       onStartTrial?: jest.Mock;
       isLoading?: boolean;
       isRemoving?: boolean;
-      managedWalletError?: AppError;
+      walletError?: AppError;
       hasPaymentMethod?: boolean;
     } = {}
   ) {

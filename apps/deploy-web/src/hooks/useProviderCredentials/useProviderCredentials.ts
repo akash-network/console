@@ -38,7 +38,7 @@ export type UseProviderCredentialsDependencies = {
 };
 
 export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UseProviderCredentialsDependencies = {}): UseProviderCredentialsResult {
-  const { isWalletConnected, address } = d.useWallet();
+  const { hasWallet, address } = d.useWallet();
   const { accessToken, generateToken, isTokenExpired, isHydrated } = d.useProviderJwt();
   const notificator = d.useNotificator();
 
@@ -85,9 +85,9 @@ export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UsePr
   }, [claimInFlight, releaseInFlight]);
 
   useEffect(() => {
-    if (!isWalletConnected || !isHydrated || isUsable || error) return;
+    if (!hasWallet || !isHydrated || isUsable || error) return;
     ensureToken().catch(() => {});
-  }, [isWalletConnected, isHydrated, isUsable, error, ensureToken]);
+  }, [hasWallet, isHydrated, isUsable, error, ensureToken]);
 
   const credentials = useMemo(
     () =>

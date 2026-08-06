@@ -102,7 +102,7 @@ describe("OnboardingContainer", () => {
   });
 
   it("should redirect to deployment and connect managed wallet when onboarding is completed", async () => {
-    const { child, mockRouter, mockUrlService, mockConnectManagedWallet } = setup();
+    const { child, mockRouter, mockUrlService, mockCreateWallet } = setup();
 
     const { onComplete } = child.mock.calls[0][0];
     await act(async () => {
@@ -114,12 +114,12 @@ describe("OnboardingContainer", () => {
       dseq: "123"
     });
     expect(mockRouter.replace).toHaveBeenCalledWith("/deployments/new");
-    expect(mockConnectManagedWallet).toHaveBeenCalled();
+    expect(mockCreateWallet).toHaveBeenCalled();
   });
 
   it("should redirect to home when user has managed wallet and no saved step", async () => {
     const { mockNavigateBack } = setup({
-      wallet: { hasManagedWallet: true, isWalletLoading: false }
+      wallet: { hasWallet: true, isWalletCreating: false }
     });
 
     await act(async () => {
@@ -131,7 +131,7 @@ describe("OnboardingContainer", () => {
 
   it("should not redirect when user has managed wallet but has saved step", async () => {
     const { mockRouter } = setup({
-      wallet: { hasManagedWallet: true, isWalletLoading: false },
+      wallet: { hasWallet: true, isWalletCreating: false },
       savedStep: "2"
     });
 
@@ -168,7 +168,7 @@ describe("OnboardingContainer", () => {
 
   it("replaces uakt with managed denom when completing onboarding", async () => {
     const { child, mockNewDeploymentData } = setup({
-      wallet: { hasManagedWallet: true, isManaged: true, denom: "ibc/usdc" }
+      wallet: { hasWallet: true, denom: "ibc/usdc" }
     });
 
     const { onComplete } = child.mock.calls[0][0];
@@ -182,7 +182,7 @@ describe("OnboardingContainer", () => {
 
   it("does not replace uakt when managed denom is uakt", async () => {
     const { child, mockNewDeploymentData } = setup({
-      wallet: { hasManagedWallet: true, isManaged: true, denom: "uakt" }
+      wallet: { hasWallet: true, denom: "uakt" }
     });
 
     const { onComplete } = child.mock.calls[0][0];
@@ -196,7 +196,7 @@ describe("OnboardingContainer", () => {
 
   it("uses act min deposit when managed denom is uact", async () => {
     const { child, mockDenomToUdenom } = setup({
-      wallet: { hasManagedWallet: true, isManaged: true, denom: "uact" }
+      wallet: { hasWallet: true, denom: "uact" }
     });
 
     const { onComplete } = child.mock.calls[0][0];
@@ -209,7 +209,7 @@ describe("OnboardingContainer", () => {
 
   it("uses act min deposit when managed denom is ibc", async () => {
     const { child, mockDenomToUdenom } = setup({
-      wallet: { hasManagedWallet: true, isManaged: true, denom: "ibc/usdc" }
+      wallet: { hasWallet: true, denom: "ibc/usdc" }
     });
 
     const { onComplete } = child.mock.calls[0][0];
@@ -222,7 +222,7 @@ describe("OnboardingContainer", () => {
 
   it("does not replace uakt for self-custody wallet", async () => {
     const { child, mockNewDeploymentData } = setup({
-      wallet: { hasManagedWallet: false }
+      wallet: { hasWallet: false }
     });
 
     const { onComplete } = child.mock.calls[0][0];
@@ -239,7 +239,7 @@ describe("OnboardingContainer", () => {
     input: {
       paymentMethods?: Array<{ id: string; type: string }>;
       user?: { emailVerified?: boolean; userId?: string };
-      wallet?: { hasManagedWallet?: boolean; isWalletLoading?: boolean; isManaged?: boolean; denom?: string };
+      wallet?: { hasWallet?: boolean; isWalletCreating?: boolean; denom?: string };
       windowLocation?: Partial<Location>;
       windowHistory?: Partial<History>;
       savedStep?: string;
@@ -276,7 +276,7 @@ describe("OnboardingContainer", () => {
     const mockAnalyticsService = mock<AnalyticsService>();
     const mockRouter = mock<Router>();
     const authService = mock<AuthService>();
-    const mockConnectManagedWallet = vi.fn();
+    const mockCreateWallet = vi.fn();
     const mockSignAndBroadcastTx = vi.fn().mockResolvedValue({ transactionHash: "mock-hash" });
 
     const mockUrlService = {
@@ -318,11 +318,10 @@ describe("OnboardingContainer", () => {
     });
     const mockUseRouter = vi.fn().mockReturnValue(mockRouter);
     const mockUseWallet = vi.fn().mockReturnValue({
-      hasManagedWallet: input.wallet?.hasManagedWallet || false,
-      isWalletLoading: input.wallet?.isWalletLoading || false,
-      isManaged: input.wallet?.isManaged || false,
+      hasWallet: input.wallet?.hasWallet || false,
+      isWalletCreating: input.wallet?.isWalletCreating || false,
       denom: input.wallet?.denom,
-      connectManagedWallet: mockConnectManagedWallet,
+      createWallet: mockCreateWallet,
       address: "akash1test",
       signAndBroadcastTx: mockSignAndBroadcastTx
     });
@@ -438,7 +437,7 @@ describe("OnboardingContainer", () => {
       mockDenomToUdenom,
       mockUseServices,
       mockUseRouter,
-      mockConnectManagedWallet,
+      mockCreateWallet,
       mockNavigateBack,
       mockNavigateWithReturnTo,
       mockLocalStorage,

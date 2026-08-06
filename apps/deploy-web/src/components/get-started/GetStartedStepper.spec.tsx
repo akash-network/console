@@ -8,7 +8,7 @@ import { MockComponents } from "@tests/unit/mocks";
 describe(GetStartedStepper.name, () => {
   it("displays USD balance", () => {
     setup({
-      isWalletConnected: true,
+      hasWallet: true,
       balanceUAKT: 10_000_000,
       balanceUUSDC: 5_000_000
     });
@@ -18,28 +18,28 @@ describe(GetStartedStepper.name, () => {
   });
 
   it("shows billing set up when wallet is connected and not trialing", () => {
-    setup({ isWalletConnected: true });
+    setup({ hasWallet: true });
 
     expect(screen.queryByText("Billing is set up")).toBeInTheDocument();
   });
 
   it("shows trialing indicator when wallet is connected and trialing", () => {
-    setup({ isWalletConnected: true, isTrialing: true });
+    setup({ hasWallet: true, isTrialing: true });
 
     expect(screen.queryByText("Trialing")).toBeInTheDocument();
     expect(screen.queryByText("Billing is set up")).not.toBeInTheDocument();
   });
 
   it("shows billing not set up when wallet is disconnected", () => {
-    setup({ isWalletConnected: false });
+    setup({ hasWallet: false });
 
     expect(screen.queryByText("Billing is not set up")).toBeInTheDocument();
   });
 
-  function setup(input?: { isWalletConnected?: boolean; isTrialing?: boolean; balanceUAKT?: number; balanceUUSDC?: number; balanceUACT?: number }) {
+  function setup(input?: { hasWallet?: boolean; isTrialing?: boolean; balanceUAKT?: number; balanceUUSDC?: number; balanceUACT?: number }) {
     const deps = MockComponents(DEPENDENCIES, {
       useWallet: vi.fn(() => ({
-        isWalletConnected: input?.isWalletConnected ?? false,
+        hasWallet: input?.hasWallet ?? false,
         isTrialing: input?.isTrialing ?? false,
         address: "akash1test"
       })) as unknown as (typeof DEPENDENCIES)["useWallet"],
