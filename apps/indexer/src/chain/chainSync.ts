@@ -6,7 +6,6 @@ import { fromBase64 } from "@cosmjs/encoding";
 import { decodeTxRaw } from "@cosmjs/proto-signing";
 import { asyncify, eachLimit } from "async";
 import { differenceInSeconds, isEqual } from "date-fns";
-import { sha256 } from "js-sha256";
 import { randomUUID } from "node:crypto";
 import { Op } from "sequelize";
 
@@ -16,6 +15,7 @@ import { ExecutionMode, executionMode, isProd, lastBlockToSync } from "@src/shar
 import type { BlockResultType } from "@src/shared/types";
 import { decodeIfBase64 } from "@src/shared/utils/base64";
 import { env } from "@src/shared/utils/env";
+import { getTransactionHash } from "@src/shared/utils/hash";
 import * as benchmark from "../shared/utils/benchmark";
 import {
   blockHeightToKey,
@@ -220,7 +220,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
 
     for (let txIndex = 0; txIndex < txs.length; ++txIndex) {
       const tx = txs[txIndex];
-      const hash = sha256(Buffer.from(tx, "base64")).toUpperCase();
+      const hash = getTransactionHash(tx);
       const txId = randomUUID();
 
       const decodedTx = decodeTxRaw(fromBase64(tx));
