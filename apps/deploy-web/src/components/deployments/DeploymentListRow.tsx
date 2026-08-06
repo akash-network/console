@@ -30,12 +30,11 @@ import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConf
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useRealTimeLeft } from "@src/hooks/useRealTimeLeft";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
-import { useDenomData } from "@src/hooks/useWalletBalance";
 import { useAllLeases, useLeaseStatus } from "@src/queries/useLeaseQuery";
 import type { LeaseDto, NamedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import { getAvgCostPerMonth, getTimeLeft } from "@src/utils/priceUtils";
+import { getTimeLeft } from "@src/utils/priceUtils";
 import { getLeaseCloseReasonLabel, getReclamationDeadline, isLeaseLive, isProviderReclaimed, isReclaiming } from "@src/utils/reclamationUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
@@ -67,7 +66,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const [open, setOpen] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const { changeDeploymentName, getDeploymentData } = useLocalNotes();
-  const { address, signAndBroadcastTx, isManaged: isManagedWallet, isTrialing } = useWallet();
+  const { address, signAndBroadcastTx, isTrialing } = useWallet();
   const isActive = deployment.state === "active";
   const { data: leases, isLoading: isLoadingLeases } = useAllLeases(address, { enabled: !!deployment && isActive });
   const filteredLeases = leases?.filter(l => l.dseq === deployment.dseq);
@@ -93,9 +92,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const isRunningOutOfFunds = escrowBalance && escrowBalance <= 0;
   const amountSpent = isActive && hasActiveLeases ? realTimeLeft?.amountSpent : parseFloat(deployment.transferred.amount);
   const isValidTimeLeft = isActive && hasActiveLeases && isValid(realTimeLeft?.timeLeft);
-  const avgCost = udenomToDenom(getAvgCostPerMonth(deploymentCost || 0));
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
-  const denomData = useDenomData(deployment.escrowAccount.state.funds[0]?.denom || "");
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
   const providersByOwner = useMemo(() => keyBy(providers, p => p.owner), [providers]);
   const lease = filteredLeases?.find(lease => !!(lease?.provider && providersByOwner[lease.provider]));
@@ -208,25 +205,16 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
         <TableCell className="text-center">
           <div className="inline-flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
             {isActive && !!deploymentCost && (
-              <CustomTooltip
-                disabled={isManagedWallet}
-                title={
-                  <span>
-                    {avgCost} {denomData?.label} / month
-                  </span>
-                }
-              >
-                <div className={`flex items-center ${isManagedWallet ? "" : "cursor-help"}`}>
-                  <CalendarArrowDown className="mr-2 text-xs" />
-                  <PricePerTimeUnit
-                    denom={deployment.escrowAccount.state.funds[0]?.denom || ""}
-                    perBlockValue={udenomToDenom(deploymentCost, 10)}
-                    className="whitespace-nowrap"
-                    showAsHourly={hasGpu}
-                  />
-                  <PriceEstimateTooltip denom={deployment.escrowAccount.state.funds[0]?.denom || ""} value={deploymentCost} showAsHourly={hasGpu} />
-                </div>
-              </CustomTooltip>
+              <div className="flex items-center">
+                <CalendarArrowDown className="mr-2 text-xs" />
+                <PricePerTimeUnit
+                  denom={deployment.escrowAccount.state.funds[0]?.denom || ""}
+                  perBlockValue={udenomToDenom(deploymentCost, 10)}
+                  className="whitespace-nowrap"
+                  showAsHourly={hasGpu}
+                />
+                <PriceEstimateTooltip denom={deployment.escrowAccount.state.funds[0]?.denom || ""} value={deploymentCost} showAsHourly={hasGpu} />
+              </div>
             )}
             {isActive && !!escrowBalanceInDenom && !!escrowBalance && (
               <CustomTooltip
@@ -235,21 +223,13 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                     <div className="space-x-2">
                       <span>Balance:</span>
                       <strong>
-                        {isManagedWallet ? (
-                          <PriceValue denom={deployment.escrowAccount.state.funds[0]?.denom || ""} value={escrowBalanceInDenom} />
-                        ) : (
-                          `${escrowBalanceInDenom} ${denomData?.label}`
-                        )}
+                        <PriceValue denom={deployment.escrowAccount.state.funds[0]?.denom || ""} value={escrowBalanceInDenom} />
                       </strong>
                     </div>
                     <div className="space-x-2">
                       <span>Spent:</span>
                       <strong>
-                        {isManagedWallet ? (
-                          <PriceValue denom={deployment.escrowAccount.state.funds[0]?.denom || ""} value={udenomToDenom(amountSpent || 0, 2)} />
-                        ) : (
-                          `${udenomToDenom(amountSpent || 0, 2)} ${denomData?.label}`
-                        )}
+                        <PriceValue denom={deployment.escrowAccount.state.funds[0]?.denom || ""} value={udenomToDenom(amountSpent || 0, 2)} />
                       </strong>
                     </div>
                     <br />

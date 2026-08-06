@@ -6,32 +6,24 @@ import type { ActionButton } from "@akashnetwork/ui/components";
 import { Alert, Form, FormField, FormInput, Popup, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 
 import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
 import { useServices } from "@src/context/ServicesProvider";
-import { useWallet } from "@src/context/WalletProvider";
 import { useAddFundsVerifiedLoginRequiredEventHandler } from "@src/hooks/useAddFundsVerifiedLoginRequiredEventHandler";
-import { useMintACT } from "@src/hooks/useMintACT/useMintACT";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useDenomData, useWalletBalance } from "@src/hooks/useWalletBalance";
-import { useBmeParams } from "@src/queries/useBmeQuery";
 import type { ServiceType } from "@src/types";
-import { denomToUdenom, roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
-import { TransactionModal } from "../../layout/TransactionModal";
+import { denomToUdenom, roundDecimal } from "@src/utils/mathHelpers";
 import { LeaseSpecDetail } from "../../shared/LeaseSpecDetail";
 import { LinkTo } from "../../shared/LinkTo";
 
 export const DEPENDENCIES = {
   useServices,
-  useWallet,
   useWalletBalance,
   usePricing,
   useDenomData,
-  useMintACT,
-  useBmeParams,
   useAddFundsVerifiedLoginRequiredEventHandler,
   useRouter
 };
@@ -69,19 +61,13 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
   dependencies: d = DEPENDENCIES
 }) => {
   const { analyticsService, urlService } = d.useServices();
-  const { isManaged } = d.useWallet();
   const { balance: walletBalance } = d.useWalletBalance();
   const pricing = d.usePricing();
   const depositData = d.useDenomData(denom);
-  const { mint, isLoading: isMinting, isSuccess: isMintSuccess, error: mintError } = d.useMintACT();
-  const { data: bmeParams } = d.useBmeParams();
   const whenLoggedInAndVerified = d.useAddFundsVerifiedLoginRequiredEventHandler();
   const router = d.useRouter();
   const formRef = useRef<HTMLFormElement>(null);
-  const onSubmitRef = useRef(onSubmit);
-  onSubmitRef.current = onSubmit;
   const [selectedPreset, setSelectedPreset] = useState<string>("");
-  const [pendingDeposit, setPendingDeposit] = useState<number | null>(null);
   const form = useForm<z.infer<typeof formSchema>>({
     defaultValues: { amount: 0 },
     resolver: zodResolver(formSchema)
@@ -92,23 +78,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
   const isACT = denom === UACT_DENOM;
   const isBelowMin = !disableMin && depositData !== null && amount > 0 && amount < (depositData?.min ?? 0);
   const isACTBalanceInsufficient = depositData !== null && amount > (depositData?.balance ?? 0);
-  const isTotalBalanceInsufficient = useMemo(() => {
-    if (isManaged || !isACT || !walletBalance || !pricing.price) return false;
-
-    const actBalance = udenomToDenom(walletBalance.balanceUACT);
-    if (amount <= actBalance) return false;
-
-    const deficit = amount - actBalance;
-    const mintAmount = Math.max(deficit, bmeParams?.minMintAct ?? 0);
-    const aktCostForMint = (mintAmount / pricing.price) * 1.02;
-    const aktBalance = udenomToDenom(walletBalance.balanceUAKT);
-
-    return aktCostForMint > aktBalance;
-  }, [isManaged, isACT, walletBalance, pricing.price, amount, bmeParams?.minMintAct]);
-
-  const willAutoMint = !isManaged && isACT && isACTBalanceInsufficient && !isTotalBalanceInsufficient;
-  const isSubmitDisabled =
-    !amount || !walletBalance || isBelowMin || isMinting || (isACT && isManaged && isACTBalanceInsufficient) || isTotalBalanceInsufficient;
+  const isSubmitDisabled = !amount || !walletBalance || isBelowMin || (isACT && isACTBalanceInsufficient);
 
   useEffect(
     function setMinAmount() {
@@ -117,19 +87,6 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
       }
     },
     [depositData, amount, disableMin, setValue]
-  );
-
-  useEffect(
-    function submitAfterMint() {
-      if (pendingDeposit === null || isMinting) return;
-
-      if (isMintSuccess) {
-        onSubmitRef.current(pendingDeposit);
-      }
-
-      setPendingDeposit(null);
-    },
-    [pendingDeposit, isMintSuccess, isMinting]
   );
 
   const selectPreset = useCallback(
@@ -155,22 +112,10 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
     ({ amount: submittedAmount }: z.infer<typeof formSchema>) => {
       if (isSubmitDisabled) return;
 
-      const amountInDenom = roundDecimal((isManaged && denom === UAKT_DENOM ? pricing.usdToAkt(submittedAmount) : submittedAmount) || 0, 6);
-      const deposit = denomToUdenom(amountInDenom);
-
-      if (willAutoMint) {
-        const deficit = deposit - denomToUdenom(depositData?.balance ?? 0);
-        if (deficit <= 0) {
-          onSubmit(deposit);
-          return;
-        }
-        setPendingDeposit(deposit);
-        mint(deficit);
-      } else {
-        onSubmit(deposit);
-      }
+      const amountInDenom = roundDecimal((denom === UAKT_DENOM ? pricing.usdToAkt(submittedAmount) : submittedAmount) || 0, 6);
+      onSubmit(denomToUdenom(amountInDenom));
     },
-    [isSubmitDisabled, isManaged, denom, pricing, onSubmit, willAutoMint, depositData?.balance, mint]
+    [isSubmitDisabled, denom, pricing, onSubmit]
   );
 
   const submitForm: MouseEventHandler = useCallback(
@@ -182,10 +127,9 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
   );
 
   const trackAndClose = useCallback(() => {
-    if (isMinting) return;
     analyticsService.track("close_deposit_modal", "Amplitude");
     onCancel();
-  }, [analyticsService, onCancel, isMinting]);
+  }, [analyticsService, onCancel]);
 
   const navigateToCheckout = useCallback(() => {
     router.push(urlService.billing({ openPayment: true }));
@@ -203,196 +147,153 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
   const actions = useMemo(
     () =>
       [
-        ...(isManaged
-          ? [
-              {
-                label: "Buy credits",
-                color: "primary",
-                variant: "ghost",
-                side: "left",
-                onClick: trackAndNavigateToCheckout,
-                "data-testid": "deposit-modal-buy-credits-button"
-              }
-            ]
-          : []),
+        {
+          label: "Buy credits",
+          color: "primary",
+          variant: "ghost",
+          side: "left",
+          onClick: trackAndNavigateToCheckout,
+          "data-testid": "deposit-modal-buy-credits-button"
+        },
         {
           label: "Cancel",
           color: "primary",
           variant: "outline",
           side: "right",
-          disabled: isMinting,
           onClick: trackAndClose
         },
         {
-          label: isMinting ? "Minting ACT..." : "Continue",
+          label: "Continue",
           color: "secondary",
           variant: "default",
           side: "right",
           disabled: isSubmitDisabled,
-          isLoading: isMinting,
           onClick: submitForm,
           "data-testid": "deposit-modal-continue-button"
         }
       ] as ActionButton[],
-    [isManaged, trackAndNavigateToCheckout, trackAndClose, isSubmitDisabled, isMinting, submitForm]
+    [trackAndNavigateToCheckout, trackAndClose, isSubmitDisabled, submitForm]
   );
 
   return (
-    <>
-      <Popup
-        fullWidth
-        open
-        variant="custom"
-        actions={actions}
-        onClose={trackAndClose}
-        enableCloseOnBackdropClick={!isMinting}
-        title={
-          (title || subtitle) && (
-            <div className="flex flex-col gap-1.5">
-              {title && <span>{title}</span>}
-              {subtitle && <div className="text-sm font-normal text-muted-foreground">{subtitle}</div>}
-            </div>
-          )
-        }
-      >
-        <div className="space-y-4">
-          {services.length > 0 && (
-            <div className="max-h-[300px] space-y-4 overflow-auto">
-              {services.map(service => (
-                <Alert key={service.title}>
-                  <div className="mb-2 break-all text-sm">
-                    <span className="font-bold">{service.title}</span>:{service.image}
-                  </div>
-                  <div className="flex items-center space-x-4 whitespace-nowrap">
-                    <LeaseSpecDetail type="cpu" className="flex-shrink-0" value={service.profile?.cpu} />
-                    {!!service.profile?.gpu && <LeaseSpecDetail type="gpu" className="flex-shrink-0" value={service.profile?.gpu} />}
-                    <LeaseSpecDetail type="ram" className="flex-shrink-0" value={`${service.profile?.ram} ${service.profile?.ramUnit}`} />
-                    <LeaseSpecDetail
-                      type="storage"
-                      className="flex-shrink-0"
-                      value={`${service.profile?.storage?.[0]?.size ?? "-"} ${service.profile?.storage?.[0]?.unit ?? ""}`}
-                    />
-                  </div>
-                </Alert>
-              ))}
-            </div>
-          )}
-
-          <Form {...form}>
-            <form onSubmit={handleSubmit(convertAndSubmitDeposit)} ref={formRef}>
-              {isACT ? (
-                <div className="w-full space-y-4">
-                  <div>
-                    <div className="mb-2 text-sm font-medium">{isManaged ? "Select the credits amount" : "Select amount of ACT"}</div>
-                    <RadioGroup value={selectedPreset} onValueChange={selectPreset} className="flex gap-3">
-                      {DEPOSIT_PRESETS.map(preset => (
-                        <label
-                          key={preset}
-                          className={cn(
-                            "flex flex-1 cursor-pointer items-center gap-3 rounded-lg border p-3",
-                            selectedPreset === String(preset) ? "border-primary bg-muted" : "border-border"
-                          )}
-                        >
-                          <RadioGroupItem value={String(preset)} />
-                          <span className="text-sm font-medium">{isManaged ? `$${preset}` : preset}</span>
-                        </label>
-                      ))}
-                    </RadioGroup>
-                  </div>
-
-                  <FormField
-                    control={control}
-                    name="amount"
-                    render={({ field }) => (
-                      <FormInput
-                        {...field}
-                        type="number"
-                        label={
-                          <span>
-                            Or enter custom amount{" "}
-                            <span className="text-muted-foreground">(minimum {isManaged ? `$${depositData?.min ?? 0}` : `${depositData?.min ?? 0} ACT`})</span>
-                          </span>
-                        }
-                        placeholder="Enter here"
-                        min={0}
-                        step={0.000001}
-                        onChange={e => clearPresetAndUpdateAmount(e, field.onChange)}
-                      />
-                    )}
+    <Popup
+      fullWidth
+      open
+      variant="custom"
+      actions={actions}
+      onClose={trackAndClose}
+      enableCloseOnBackdropClick
+      title={
+        (title || subtitle) && (
+          <div className="flex flex-col gap-1.5">
+            {title && <span>{title}</span>}
+            {subtitle && <div className="text-sm font-normal text-muted-foreground">{subtitle}</div>}
+          </div>
+        )
+      }
+    >
+      <div className="space-y-4">
+        {services.length > 0 && (
+          <div className="max-h-[300px] space-y-4 overflow-auto">
+            {services.map(service => (
+              <Alert key={service.title}>
+                <div className="mb-2 break-all text-sm">
+                  <span className="font-bold">{service.title}</span>:{service.image}
+                </div>
+                <div className="flex items-center space-x-4 whitespace-nowrap">
+                  <LeaseSpecDetail type="cpu" className="flex-shrink-0" value={service.profile?.cpu} />
+                  {!!service.profile?.gpu && <LeaseSpecDetail type="gpu" className="flex-shrink-0" value={service.profile?.gpu} />}
+                  <LeaseSpecDetail type="ram" className="flex-shrink-0" value={`${service.profile?.ram} ${service.profile?.ramUnit}`} />
+                  <LeaseSpecDetail
+                    type="storage"
+                    className="flex-shrink-0"
+                    value={`${service.profile?.storage?.[0]?.size ?? "-"} ${service.profile?.storage?.[0]?.unit ?? ""}`}
                   />
+                </div>
+              </Alert>
+            ))}
+          </div>
+        )}
 
-                  <div
-                    className={cn("text-sm", isACTBalanceInsufficient || isBelowMin ? "text-destructive" : "text-muted-foreground")}
-                    data-testid="act-balance-display"
-                  >
-                    {isBelowMin
-                      ? isManaged
-                        ? `Minimum deposit amount is $${depositData?.min}`
-                        : `Minimum deposit amount is ${depositData?.min} ACT`
-                      : isManaged
-                        ? `Current Balance: $${depositData?.balance?.toFixed(2)}`
-                        : `Current Balance: ${depositData?.balance?.toFixed(2)} ACT`}
-                  </div>
+        <Form {...form}>
+          <form onSubmit={handleSubmit(convertAndSubmitDeposit)} ref={formRef}>
+            {isACT ? (
+              <div className="w-full space-y-4">
+                <div>
+                  <div className="mb-2 text-sm font-medium">Select the credits amount</div>
+                  <RadioGroup value={selectedPreset} onValueChange={selectPreset} className="flex gap-3">
+                    {DEPOSIT_PRESETS.map(preset => (
+                      <label
+                        key={preset}
+                        className={cn(
+                          "flex flex-1 cursor-pointer items-center gap-3 rounded-lg border p-3",
+                          selectedPreset === String(preset) ? "border-primary bg-muted" : "border-border"
+                        )}
+                      >
+                        <RadioGroupItem value={String(preset)} />
+                        <span className="text-sm font-medium">${preset}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                </div>
 
-                  {isTotalBalanceInsufficient && (
-                    <Alert className="bg-transparent px-4 py-3" data-testid="act-insufficient-total-balance">
-                      <div className="flex items-start gap-3 text-sm">
-                        <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                        <span className="text-muted-foreground">
-                          Your combined AKT and ACT balance is too low. Add AKT to your wallet to mint ACT for this deployment.
+                <FormField
+                  control={control}
+                  name="amount"
+                  render={({ field }) => (
+                    <FormInput
+                      {...field}
+                      type="number"
+                      label={
+                        <span>
+                          Or enter custom amount <span className="text-muted-foreground">(minimum ${depositData?.min ?? 0})</span>
                         </span>
-                      </div>
-                    </Alert>
+                      }
+                      placeholder="Enter here"
+                      min={0}
+                      step={0.000001}
+                      onChange={e => clearPresetAndUpdateAmount(e, field.onChange)}
+                    />
                   )}
+                />
 
-                  {willAutoMint && (
-                    <Alert className="bg-transparent px-4 py-3" data-testid="act-auto-mint-notice">
-                      <div className="flex items-start gap-3 text-sm">
-                        <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                        <span className="text-muted-foreground">Your balance is too low. We&apos;ll automatically mint ACT to cover this deployment.</span>
-                      </div>
-                    </Alert>
-                  )}
-
-                  {mintError && (
-                    <Alert variant="destructive" className="px-4 py-3 text-sm" data-testid="act-mint-error">
-                      {mintError}
-                    </Alert>
-                  )}
+                <div
+                  className={cn("text-sm", isACTBalanceInsufficient || isBelowMin ? "text-destructive" : "text-muted-foreground")}
+                  data-testid="act-balance-display"
+                >
+                  {isBelowMin ? `Minimum deposit amount is $${depositData?.min}` : `Current Balance: $${depositData?.balance?.toFixed(2)}`}
                 </div>
-              ) : (
-                <div className="w-full">
-                  <FormField
-                    control={control}
-                    name="amount"
-                    render={({ field }) => (
-                      <FormInput
-                        {...field}
-                        type="number"
-                        label={
-                          <div className="mb-1 flex items-center justify-between">
-                            <span>Amount</span>
-                            <LinkTo onClick={fillMaxAmount} className="text-xs">
-                              Balance: {depositData?.balance} {depositData?.label}
-                            </LinkTo>
-                          </div>
-                        }
-                        autoFocus
-                        min={!disableMin ? depositData?.min : 0}
-                        step={0.000001}
-                        max={depositData?.max}
-                        startIcon={<div className="pl-2 text-xs">{depositData?.label}</div>}
-                      />
-                    )}
-                  />
-                </div>
-              )}
-            </form>
-          </Form>
-        </div>
-      </Popup>
-
-      <TransactionModal state={isMinting ? "mintingACT" : undefined} />
-    </>
+              </div>
+            ) : (
+              <div className="w-full">
+                <FormField
+                  control={control}
+                  name="amount"
+                  render={({ field }) => (
+                    <FormInput
+                      {...field}
+                      type="number"
+                      label={
+                        <div className="mb-1 flex items-center justify-between">
+                          <span>Amount</span>
+                          <LinkTo onClick={fillMaxAmount} className="text-xs">
+                            Balance: {depositData?.balance} {depositData?.label}
+                          </LinkTo>
+                        </div>
+                      }
+                      autoFocus
+                      min={!disableMin ? depositData?.min : 0}
+                      step={0.000001}
+                      max={depositData?.max}
+                      startIcon={<div className="pl-2 text-xs">{depositData?.label}</div>}
+                    />
+                  )}
+                />
+              </div>
+            )}
+          </form>
+        </Form>
+      </div>
+    </Popup>
   );
 };

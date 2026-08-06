@@ -34,7 +34,6 @@ describe(YourAccount.name, () => {
 
     expect(AccountHeaderMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        isManagedWallet: true,
         isBlockchainDown: false
       }),
       expect.anything()
@@ -70,8 +69,7 @@ describe(YourAccount.name, () => {
     expect(AccountStatsCardsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         walletBalance,
-        activeDeploymentsCount: 0,
-        isManagedWallet: true
+        activeDeploymentsCount: 0
       }),
       expect.anything()
     );
@@ -260,18 +258,6 @@ describe(YourAccount.name, () => {
     );
   });
 
-  it("passes isManagedWallet from wallet context to AccountHeader", () => {
-    const AccountHeaderMock = vi.fn(ComponentMock);
-    setup({
-      wallet: { address: "akash1abc", isManaged: true },
-      dependencies: {
-        AccountHeader: AccountHeaderMock
-      }
-    });
-
-    expect(AccountHeaderMock).toHaveBeenCalledWith(expect.objectContaining({ isManagedWallet: true }), expect.anything());
-  });
-
   function setup(
     input: {
       isLoadingBalances?: boolean;
@@ -279,7 +265,7 @@ describe(YourAccount.name, () => {
       activeDeployments?: Array<DeploymentDto>;
       leases?: Array<LeaseDto> | null;
       providers?: Array<ApiProviderList>;
-      wallet?: { address?: string; isManaged?: boolean };
+      wallet?: { address?: string };
       pricing?: { price?: number; isLoaded?: boolean };
       usdcDenom?: string;
       dependencies?: Partial<typeof DEPENDENCIES>;

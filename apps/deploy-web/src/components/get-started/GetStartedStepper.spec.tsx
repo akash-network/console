@@ -6,21 +6,9 @@ import { render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(GetStartedStepper.name, () => {
-  it("displays AKT and ACT balance for custodial wallet", () => {
+  it("displays USD balance", () => {
     setup({
       isWalletConnected: true,
-      isManagedWallet: false,
-      balanceUAKT: 10_000_000,
-      balanceUACT: 7_000_000
-    });
-
-    expect(screen.queryByText((_, el) => el?.tagName === "SPAN" && /You have 10 AKT and 7 ACT/.test(el.textContent ?? ""))).toBeInTheDocument();
-  });
-
-  it("displays USD balance for managed wallet", () => {
-    setup({
-      isWalletConnected: true,
-      isManagedWallet: true,
       balanceUAKT: 10_000_000,
       balanceUUSDC: 5_000_000
     });
@@ -29,24 +17,29 @@ describe(GetStartedStepper.name, () => {
     expect(screen.queryByText(/AKT and/)).not.toBeInTheDocument();
   });
 
+  it("shows billing set up when wallet is connected and not trialing", () => {
+    setup({ isWalletConnected: true });
+
+    expect(screen.queryByText("Billing is set up")).toBeInTheDocument();
+  });
+
+  it("shows trialing indicator when wallet is connected and trialing", () => {
+    setup({ isWalletConnected: true, isTrialing: true });
+
+    expect(screen.queryByText("Trialing")).toBeInTheDocument();
+    expect(screen.queryByText("Billing is set up")).not.toBeInTheDocument();
+  });
+
   it("shows billing not set up when wallet is disconnected", () => {
     setup({ isWalletConnected: false });
 
     expect(screen.queryByText("Billing is not set up")).toBeInTheDocument();
   });
 
-  function setup(input?: {
-    isWalletConnected?: boolean;
-    isManagedWallet?: boolean;
-    isTrialing?: boolean;
-    balanceUAKT?: number;
-    balanceUUSDC?: number;
-    balanceUACT?: number;
-  }) {
+  function setup(input?: { isWalletConnected?: boolean; isTrialing?: boolean; balanceUAKT?: number; balanceUUSDC?: number; balanceUACT?: number }) {
     const deps = MockComponents(DEPENDENCIES, {
       useWallet: vi.fn(() => ({
         isWalletConnected: input?.isWalletConnected ?? false,
-        isManaged: input?.isManagedWallet ?? false,
         isTrialing: input?.isTrialing ?? false,
         address: "akash1test"
       })) as unknown as (typeof DEPENDENCIES)["useWallet"],

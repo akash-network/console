@@ -50,14 +50,14 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   const [activeTab, setActiveTab] = useState<Tab>("LEASES");
 
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
-  const { address, isWalletLoaded, isManaged } = useWallet();
+  const { address, isWalletLoaded } = useWallet();
   const { isSettingsInit } = useSettings();
   const [leaseRefs, setLeaseRefs] = useState<Array<any>>([]);
   const [deploymentManifest, setDeploymentManifest] = useState<string | null>(null);
   const isRemoteDeploy = sdlAnalyzer.hasCiCdImage(editedManifest);
   const repo: string | null = isRemoteDeploy ? extractRepositoryUrl(editedManifest) : null;
   const { user } = useUser();
-  const isAlertsEnabled = useFlag("alerts") && !!user?.userId && isManaged;
+  const isAlertsEnabled = useFlag("alerts") && !!user?.userId;
   const [badgedTabs, setBadgedTabs] = useState<Partial<Record<Tab, boolean>>>({});
 
   const { data: deployment, isFetching: isLoadingDeployment, refetch: getDeploymentDetail, error: deploymentError } = useDeploymentDetail(address, dseq);

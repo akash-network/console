@@ -13,7 +13,6 @@ export type AnalyticsUser = {
   id?: string;
   anonymous?: boolean;
   emailVerified?: boolean;
-  custodialWallet?: boolean;
   managedWallet?: boolean;
 };
 
@@ -148,7 +147,6 @@ const AMPLITUDE_USER_PROPERTIES_MAP = {
   id: "user_id",
   anonymous: "is_anonymous",
   emailVerified: "is_email_verified",
-  custodialWallet: "custodial_wallet",
   managedWallet: "managed_wallet"
 };
 
@@ -304,7 +302,7 @@ export class AnalyticsService {
     this.amplitudeInitialized = true;
   }
 
-  trackSwitch(eventName: "connect_wallet", value: "managed" | "custodial", target?: AnalyticsTarget): void;
+  trackSwitch(eventName: "connect_wallet", value: "managed", target?: AnalyticsTarget): void;
   trackSwitch(eventName: AnalyticsEvent, value: string, target?: AnalyticsTarget) {
     if (!isBrowser) {
       return;

@@ -15,7 +15,6 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
   Input,
-  Snackbar,
   Spinner
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
@@ -70,7 +69,6 @@ export const DEPENDENCIES = {
   DropdownMenuContent,
   DropdownMenuTrigger,
   Input,
-  Snackbar,
   Spinner,
   CustomNextSeo,
   CustomDropdownLinkItem,
@@ -117,7 +115,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
   const [selectedBids, setSelectedBids] = useState<{ [gseq: string]: BidDto }>({});
   const [filteredBids, setFilteredBids] = useState<Array<string>>([]);
   const [search, setSearch] = useState("");
-  const { address, signAndBroadcastTx, isManaged, isTrialing } = d.useWallet();
+  const { address, signAndBroadcastTx, isTrialing } = d.useWallet();
   const providerCredentials = d.useProviderCredentials();
   const router = d.useRouter();
   const [numberOfRequests, setNumberOfRequests] = useState(0);
@@ -165,7 +163,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
   const smallScreen = d.useMediaQuery(muiTheme.breakpoints.down("md"));
 
   const allClosed = (bids?.length || 0) > 0 && bids?.every(bid => bid.state === "closed");
-  const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
+  const { enqueueSnackbar } = d.useSnackbar();
   const { closeDeploymentConfirm } = d.useManagedDeploymentConfirm();
 
   useEffect(() => {
@@ -194,13 +192,6 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
     if (!localDeploymentData || !localDeploymentData.manifest) {
       return;
     }
-
-    const sendManifestNotification =
-      !isManaged &&
-      enqueueSnackbar(<Snackbar title="Deploying! 🚀" subTitle="Please wait a few seconds..." showLoading />, {
-        variant: "info",
-        autoHideDuration: null
-      });
 
     try {
       const yamlJson = yaml.load(localDeploymentData.manifest);
@@ -237,13 +228,9 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
         tags: { category: "deployments.create-lease" }
       });
     } finally {
-      if (sendManifestNotification) {
-        closeSnackbar(sendManifestNotification);
-      }
-
       setIsSendingManifest(false);
     }
-  }, [selectedBids, dseq, providers, isManaged, enqueueSnackbar, closeSnackbar, router, address, deploymentLocalStorage, providerCredentials]);
+  }, [selectedBids, dseq, providers, enqueueSnackbar, router, address, deploymentLocalStorage, providerCredentials]);
 
   // Filter bids
   useEffect(() => {
