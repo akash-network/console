@@ -19,6 +19,7 @@ import type { TopUpService } from "@src/billing/services/top-up/top-up.service";
 import type { TransactionReportingService } from "@src/billing/services/transaction-reporting/transaction-reporting.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { WalletSettingService } from "@src/billing/services/wallet-settings/wallet-settings.service";
+import type { LoggerService } from "@src/core/providers/logging.provider";
 import { StripeController } from "./stripe.controller";
 
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
@@ -244,6 +245,19 @@ describe(StripeController.name, () => {
       await expect(controller.removePaymentMethod(paymentMethodId)).rejects.toThrow("detach failed");
       expect(walletSettingService.disableAutoReload).not.toHaveBeenCalled();
     });
+
+    it("does not fail the request when disabling auto reload throws after detaching the default method", async () => {
+      const { controller, stripe, paymentMethodService, walletSettingService, logger, user } = setup();
+      const paymentMethodId = faker.string.uuid();
+      stripe.retrievePaymentMethod.mockResolvedValue(mock<Stripe.Response<Stripe.PaymentMethod>>({ customer: user.stripeCustomerId }));
+      paymentMethodService.isDefaultPaymentMethod.mockResolvedValue(true);
+      walletSettingService.disableAutoReload.mockRejectedValue(new Error("db down"));
+
+      await expect(controller.removePaymentMethod(paymentMethodId)).resolves.toBeUndefined();
+
+      expect(stripe.detachPaymentMethod).toHaveBeenCalledWith(paymentMethodId);
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "AUTO_RELOAD_DISABLE_AFTER_REMOVAL_FAILED", userId: user.id }));
+    });
   });
 
   describe("getDefaultPaymentMethod", () => {
@@ -348,6 +362,7 @@ describe(StripeController.name, () => {
     const trialActivationJobService = mock<TrialActivationJobService>();
     const transactionReporting = mock<TransactionReportingService>();
     const walletSettingService = mock<WalletSettingService>();
+    const logger = mock<LoggerService>();
     const controller = new StripeController(
       stripe,
       stripeTransaction,
@@ -360,7 +375,8 @@ describe(StripeController.name, () => {
       paymentMethodService,
       couponRedemptionService,
       customerService,
-      walletSettingService
+      walletSettingService,
+      logger
     );
     container.register(AuthService, { useValue: authService });
 
@@ -377,6 +393,7 @@ describe(StripeController.name, () => {
       userWalletRepository,
       trialActivationJobService,
       walletSettingService,
+      logger,
       user
     };
   }
