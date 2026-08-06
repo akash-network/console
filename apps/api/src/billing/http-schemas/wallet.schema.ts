@@ -4,7 +4,7 @@ import { STANDARD_TOP_UP_MIN_AMOUNT_USD } from "@src/billing/config";
 
 const AUTO_RELOAD_THRESHOLD_MIN_USD = 5;
 
-/** Upper bounds keep oversized input from overflowing the numeric(20, 2) columns (a 500) or being charged verbatim to the card. */
+/** Upper bounds stop an oversized value from being charged verbatim to the card. */
 const AUTO_RELOAD_THRESHOLD_MAX_USD = 10_000;
 const AUTO_RELOAD_AMOUNT_MAX_USD = 10_000;
 
