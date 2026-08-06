@@ -203,6 +203,105 @@ describe(GpuInterconnectCard.name, () => {
     expect(screen.queryByText(/free trial/i)).not.toBeInTheDocument();
   });
 
+  it("shows an imported explicit group name in the group input", () => {
+    setup({ interconnect: { group: "pair0" } });
+
+    expect(screen.getByLabelText("Interconnect group")).toHaveValue("pair0");
+  });
+
+  it("writes an explicit group as the user types", async () => {
+    const { getValues } = setup({ interconnect: {} });
+
+    await userEvent.type(screen.getByLabelText("Interconnect group"), "pair0");
+
+    expect(getValues().services[0].profile.interconnect).toEqual({ group: "pair0" });
+  });
+
+  it("returns to the implicit group when the name is cleared", async () => {
+    const { getValues } = setup({ interconnect: { group: "pair0" } });
+
+    await userEvent.clear(screen.getByLabelText("Interconnect group"));
+
+    expect(getValues().services[0].profile.interconnect).toEqual({});
+  });
+
+  it("warns that the group name auto is reserved", () => {
+    setup({ interconnect: { group: "auto" } });
+
+    expect(screen.getByText(/reserved for the automatic group/i)).toBeInTheDocument();
+  });
+
+  it("warns when services on the placement mix automatic and named groups", () => {
+    setup({ interconnect: { group: "pair0" }, sibling: "same-placement" });
+
+    expect(screen.getByText(/mix automatic and named interconnect groups/i)).toBeInTheDocument();
+  });
+
+  it("does not warn about mixing when the differently-formed service is on another placement", () => {
+    setup({ interconnect: { group: "pair0" }, sibling: "other-placement" });
+
+    expect(screen.queryByText(/mix automatic and named interconnect groups/i)).not.toBeInTheDocument();
+  });
+
+  it("pins the selected fabric on the placement", async () => {
+    const { getValues } = setup({ interconnect: {}, attributes: [{ id: "c1", key: GPU_INTERCONNECT_CAPABILITY_KEY, value: "true" }] });
+
+    await userEvent.click(screen.getByRole("radio", { name: "InfiniBand" }));
+
+    expect(getValues().placements[0].attributes).toEqual([
+      { id: "c1", key: GPU_INTERCONNECT_CAPABILITY_KEY, value: "true" },
+      { id: expect.any(String), key: `${GPU_INTERCONNECT_FABRIC_PREFIX}infiniband`, value: "true" }
+    ]);
+  });
+
+  it("replaces the pinned fabric when another is selected", async () => {
+    const { getValues } = setup({ interconnect: {}, attributes: [{ id: "f1", key: `${GPU_INTERCONNECT_FABRIC_PREFIX}infiniband`, value: "true" }] });
+
+    await userEvent.click(screen.getByRole("radio", { name: "RoCE" }));
+
+    expect(getValues().placements[0].attributes).toEqual([{ id: expect.any(String), key: `${GPU_INTERCONNECT_FABRIC_PREFIX}roce`, value: "true" }]);
+  });
+
+  it("preselects an imported fabric pin", () => {
+    setup({ interconnect: {}, attributes: [{ id: "f1", key: `${GPU_INTERCONNECT_FABRIC_PREFIX}roce`, value: "true" }] });
+
+    expect(screen.getByRole("radio", { name: "RoCE" })).toBeChecked();
+  });
+
+  it("defaults the fabric to Any when nothing is pinned", () => {
+    setup({ interconnect: {} });
+
+    expect(screen.getByRole("radio", { name: "Any" })).toBeChecked();
+  });
+
+  it("removes the fabric pin when Any is selected", async () => {
+    const { getValues } = setup({
+      interconnect: {},
+      attributes: [
+        { id: "c1", key: GPU_INTERCONNECT_CAPABILITY_KEY, value: "true" },
+        { id: "f1", key: `${GPU_INTERCONNECT_FABRIC_PREFIX}infiniband`, value: "true" }
+      ]
+    });
+
+    await userEvent.click(screen.getByRole("radio", { name: "Any" }));
+
+    expect(getValues().placements[0].attributes).toEqual([{ id: "c1", key: GPU_INTERCONNECT_CAPABILITY_KEY, value: "true" }]);
+  });
+
+  it("disables the advanced controls for a trial-blocked wallet", () => {
+    setup({ isTrialBlocked: true, interconnect: {} });
+
+    expect(screen.getByLabelText("Interconnect group")).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "InfiniBand" })).toBeDisabled();
+  });
+
+  it("disables the advanced controls while the pane is locked", () => {
+    setup({ interconnect: {}, locked: true });
+
+    expect(screen.getByLabelText("Interconnect group")).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "InfiniBand" })).toBeDisabled();
+  });
+
   function setup(input: {
     interconnect?: { group?: string };
     profile?: Partial<ServiceType["profile"]>;

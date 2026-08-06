@@ -1,20 +1,37 @@
 import type { FC } from "react";
 import { useCallback } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
-import { Alert, CollapsibleCard } from "@akashnetwork/ui/components";
+import { Alert, CollapsibleCard, Input, Label, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
 import { NetworkIcon } from "lucide-react";
 
-import type { SdlBuilderFormValuesType } from "@src/types";
+import type { PlacementAttributeType, SdlBuilderFormValuesType } from "@src/types";
 import { defaultGpuModel } from "@src/utils/sdl/data";
-import { hasOtherInterconnectService, withGpuInterconnectCapability, withoutGpuInterconnectCapability } from "@src/utils/sdl/gpuInterconnect";
+import type { GpuInterconnectFabric } from "@src/utils/sdl/gpuInterconnect";
+import {
+  getGpuInterconnectFabric,
+  hasMixedInterconnectGroupForms,
+  hasOtherInterconnectService,
+  withGpuInterconnectCapability,
+  withGpuInterconnectFabric,
+  withoutGpuInterconnectCapability
+} from "@src/utils/sdl/gpuInterconnect";
 import { gpuInterconnectTooltip } from "../cardTooltips";
 import { UnlockGpusButton } from "../UnlockGpusButton/UnlockGpusButton";
 
-export const DEPENDENCIES = { CollapsibleCard, Alert, UnlockGpusButton };
+export const DEPENDENCIES = { CollapsibleCard, Alert, Input, Label, RadioGroup, RadioGroupItem, UnlockGpusButton };
 
 /** Hover explanation for the trial unlock CTA; mirrors the phrasing of the high-end GPU unlock copy. */
 const INTERCONNECT_UNLOCK_EXPLANATION =
   "GPU interconnect isn't included in your free trial. Add credits to unlock it, along with longer runtimes and the full Console.";
+
+/** "any" = no fabric pin, the provider chooses; the two pinned choices emit a placement capability. */
+type FabricChoice = GpuInterconnectFabric | "any";
+
+const FABRIC_OPTIONS: { value: FabricChoice; label: string; description: string }[] = [
+  { value: "any", label: "Any", description: "Let the provider choose the interconnect fabric." },
+  { value: "infiniband", label: "InfiniBand", description: "Only providers offering an InfiniBand fabric will bid." },
+  { value: "roce", label: "RoCE", description: "Only providers offering an RDMA over Converged Ethernet fabric will bid." }
+];
 
 type Props = {
   serviceIndex: number;
@@ -40,10 +57,14 @@ type Props = {
  * bid. Disabling clears the opt-in and removes the placement capability (plus
  * any fabric pins) unless another service on the same placement still opts in.
  *
- * The card never mutates on mount, preserving the SDL import round-trip: an
- * imported explicit group (`{ group: "x" }`) simply shows as ON, and toggling it
- * off and on collapses it to the implicit `{}` group (explicit group editing is
- * out of scope here, see CON-692).
+ * While enabled, the body offers the advanced controls: an optional explicit
+ * group name (empty = the implicit "auto" group; `auto` itself is reserved and
+ * only warned about here, the SDL validator rejects it with the same guidance)
+ * and a fabric choice that pins `capabilities/gpu-interconnect/fabric/<fabric>`
+ * on the placement — a per-placement setting shared by sibling services, with
+ * "Any" leaving the fabric to the provider.
+ *
+ * The card never mutates on mount, preserving the SDL import round-trip.
  *
  * Trial wallets cannot enable the interconnect (`isTrialBlocked`): the switch is
  * disabled while off and an add-credits CTA is shown; the API enforces the same
@@ -54,10 +75,18 @@ export const GpuInterconnectCard: FC<Props> = ({ serviceIndex, locked = false, i
   const interconnect = useWatch({ control, name: `services.${serviceIndex}.profile.interconnect` });
   const hasGpu = useWatch({ control, name: `services.${serviceIndex}.profile.hasGpu` });
   const count = useWatch({ control, name: `services.${serviceIndex}.count` });
+  const placementId = useWatch({ control, name: `services.${serviceIndex}.placementId` });
   const watchedServices = useWatch({ control, name: "services" });
   const services = Array.isArray(watchedServices) ? (watchedServices as SdlBuilderFormValuesType["services"]) : [];
+  const watchedPlacements = useWatch({ control, name: "placements" });
+  const placements = Array.isArray(watchedPlacements) ? (watchedPlacements as SdlBuilderFormValuesType["placements"]) : [];
 
   const isEnabled = !!interconnect;
+  const controlsDisabled = locked || isTrialBlocked;
+  const fabric = getGpuInterconnectFabric(placements.find(placement => placement.id === placementId)?.attributes);
+
+  const groupIsReserved = interconnect?.group === "auto";
+  const hasMixedForms = isEnabled && hasMixedInterconnectGroupForms(services, serviceIndex);
 
   /**
    * Enabling turns the GPU card on, but the user can still turn GPU back off afterwards — surface the
@@ -86,19 +115,40 @@ export const GpuInterconnectCard: FC<Props> = ({ serviceIndex, locked = false, i
     }
   }, [getValues, serviceIndex, setValue]);
 
-  const setPlacementCapability = useCallback(
-    (enabled: boolean) => {
-      const placementId = getValues(`services.${serviceIndex}.placementId`);
-      const placementIndex = getValues("placements").findIndex(placement => placement.id === placementId);
+  const updatePlacementAttributes = useCallback(
+    (transform: (attributes: PlacementAttributeType[] | undefined) => PlacementAttributeType[] | undefined) => {
+      const currentPlacementId = getValues(`services.${serviceIndex}.placementId`);
+      const placementIndex = getValues("placements").findIndex(placement => placement.id === currentPlacementId);
       if (placementIndex < 0) return;
 
       const attributes = getValues(`placements.${placementIndex}.attributes`);
-      const nextAttributes = enabled ? withGpuInterconnectCapability(attributes) : withoutGpuInterconnectCapability(attributes);
+      const nextAttributes = transform(attributes);
       if (nextAttributes !== attributes) {
         setValue(`placements.${placementIndex}.attributes`, nextAttributes, { shouldDirty: true });
       }
     },
     [getValues, serviceIndex, setValue]
+  );
+
+  const setPlacementCapability = useCallback(
+    (enabled: boolean) => {
+      updatePlacementAttributes(attributes => (enabled ? withGpuInterconnectCapability(attributes) : withoutGpuInterconnectCapability(attributes)));
+    },
+    [updatePlacementAttributes]
+  );
+
+  const setFabric = useCallback(
+    (choice: FabricChoice) => {
+      updatePlacementAttributes(attributes => withGpuInterconnectFabric(attributes, choice === "any" ? undefined : choice));
+    },
+    [updatePlacementAttributes]
+  );
+
+  const setGroup = useCallback(
+    (name: string) => {
+      setValue(`services.${serviceIndex}.profile.interconnect`, name === "" ? {} : { group: name }, { shouldDirty: true });
+    },
+    [serviceIndex, setValue]
   );
 
   const toggleInterconnect = useCallback(
@@ -142,6 +192,58 @@ export const GpuInterconnectCard: FC<Props> = ({ serviceIndex, locked = false, i
                 A GPU interconnect needs GPU resources on this service. Enable the GPU card above so interconnect-capable providers can bid.
               </d.Alert>
             )}
+            <div className="space-y-2">
+              <d.Input
+                id={`interconnect-group-${serviceIndex}`}
+                label="Interconnect group"
+                value={interconnect?.group ?? ""}
+                onChange={event => setGroup(event.target.value)}
+                placeholder="auto"
+                disabled={controlsDisabled}
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave empty for the automatic group. Services that opt in without a name share one group per placement.
+              </p>
+            </div>
+            {groupIsReserved && (
+              <d.Alert variant="warning" className="p-4 text-sm">
+                The group name &quot;auto&quot; is reserved for the automatic group. Leave the field empty instead, or pick a different name.
+              </d.Alert>
+            )}
+            {hasMixedForms && (
+              <d.Alert variant="warning" className="p-4 text-sm">
+                Services on this placement mix automatic and named interconnect groups, which is rejected at deploy time. Use one form for every service on the
+                placement.
+              </d.Alert>
+            )}
+            <div className="space-y-2">
+              <d.Label>Fabric</d.Label>
+              <d.RadioGroup
+                aria-label="Interconnect fabric"
+                value={fabric ?? "any"}
+                onValueChange={value => setFabric(value as FabricChoice)}
+                className="gap-3"
+                disabled={controlsDisabled}
+              >
+                {FABRIC_OPTIONS.map(option => {
+                  const id = `interconnect-fabric-${serviceIndex}-${option.value}`;
+                  return (
+                    <d.Label
+                      key={option.value}
+                      htmlFor={id}
+                      className="flex items-start gap-3 rounded-md border border-zinc-200 p-3 font-normal dark:border-zinc-800"
+                    >
+                      <d.RadioGroupItem id={id} value={option.value} aria-label={option.label} disabled={controlsDisabled} className="mt-0.5" />
+                      <span className="flex flex-col gap-0.5">
+                        <span className="text-sm font-medium">{option.label}</span>
+                        <span className="text-xs text-muted-foreground">{option.description}</span>
+                      </span>
+                    </d.Label>
+                  );
+                })}
+              </d.RadioGroup>
+              <p className="text-xs text-muted-foreground">The fabric applies to the whole placement, including sibling services that opt in.</p>
+            </div>
           </>
         ) : (
           <p className="text-sm text-muted-foreground">GPU interconnect is off.</p>
