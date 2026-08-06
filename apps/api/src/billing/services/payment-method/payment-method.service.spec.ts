@@ -5,7 +5,7 @@ import Stripe from "stripe";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { PaymentMethodRepository, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
+import type { PaymentMethodRepository } from "@src/billing/repositories";
 import type { PayingUser } from "@src/billing/services/paying-user/paying-user";
 import type { UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
 import { PaymentMethodService } from "./payment-method.service";
@@ -289,37 +289,27 @@ describe(PaymentMethodService.name, () => {
     });
   });
 
-  describe("assertRemovable", () => {
-    it("throws 409 when removing the default method while auto reload is enabled", async () => {
-      const { service, paymentMethodRepository, walletSettingRepository } = setup();
+  describe("isDefaultPaymentMethod", () => {
+    it("returns true when the local record is the default", async () => {
+      const { service, paymentMethodRepository } = setup();
       paymentMethodRepository.findOneBy.mockResolvedValue(generateDatabasePaymentMethod({ paymentMethodId: "pm_1", isDefault: true }));
-      walletSettingRepository.findByUserId.mockResolvedValue(mock<WalletSettingOutput>({ autoReloadEnabled: true }));
 
-      await expect(service.assertRemovable("pm_1", "user_1")).rejects.toMatchObject({ status: 409 });
+      expect(await service.isDefaultPaymentMethod("pm_1", "user_1")).toBe(true);
+      expect(paymentMethodRepository.findOneBy).toHaveBeenCalledWith({ userId: "user_1", paymentMethodId: "pm_1" });
     });
 
-    it("resolves when removing the default method while auto reload is disabled", async () => {
-      const { service, paymentMethodRepository, walletSettingRepository } = setup();
-      paymentMethodRepository.findOneBy.mockResolvedValue(generateDatabasePaymentMethod({ paymentMethodId: "pm_1", isDefault: true }));
-      walletSettingRepository.findByUserId.mockResolvedValue(mock<WalletSettingOutput>({ autoReloadEnabled: false }));
-
-      await expect(service.assertRemovable("pm_1", "user_1")).resolves.toBeUndefined();
-    });
-
-    it("resolves for a non-default method even when auto reload is enabled", async () => {
-      const { service, paymentMethodRepository, walletSettingRepository } = setup();
+    it("returns false when the local record is not the default", async () => {
+      const { service, paymentMethodRepository } = setup();
       paymentMethodRepository.findOneBy.mockResolvedValue(generateDatabasePaymentMethod({ paymentMethodId: "pm_1", isDefault: false }));
 
-      await expect(service.assertRemovable("pm_1", "user_1")).resolves.toBeUndefined();
-      expect(walletSettingRepository.findByUserId).not.toHaveBeenCalled();
+      expect(await service.isDefaultPaymentMethod("pm_1", "user_1")).toBe(false);
     });
 
-    it("resolves when the default method has no wallet settings row", async () => {
-      const { service, paymentMethodRepository, walletSettingRepository } = setup();
-      paymentMethodRepository.findOneBy.mockResolvedValue(generateDatabasePaymentMethod({ paymentMethodId: "pm_1", isDefault: true }));
-      walletSettingRepository.findByUserId.mockResolvedValue(undefined);
+    it("returns false when there is no local record", async () => {
+      const { service, paymentMethodRepository } = setup();
+      paymentMethodRepository.findOneBy.mockResolvedValue(undefined);
 
-      await expect(service.assertRemovable("pm_1", "user_1")).resolves.toBeUndefined();
+      expect(await service.isDefaultPaymentMethod("pm_1", "user_1")).toBe(false);
     });
   });
 
@@ -414,13 +404,12 @@ describe(PaymentMethodService.name, () => {
     const paymentMethodRepository = mock<PaymentMethodRepository>();
     paymentMethodRepository.accessibleBy.mockReturnValue(paymentMethodRepository);
     const userRepository = mock<UserRepository>();
-    const walletSettingRepository = mock<WalletSettingRepository>();
     const logger = mock<LoggerService>();
 
     const stripe = new Stripe(`sk_test_${faker.string.alphanumeric(32)}`, { apiVersion: "2025-10-29.clover", httpClient: Stripe.createFetchHttpClient() });
 
-    const service = new PaymentMethodService(stripe, paymentMethodRepository, userRepository, walletSettingRepository, () => logger);
+    const service = new PaymentMethodService(stripe, paymentMethodRepository, userRepository, () => logger);
 
-    return { service, stripe, paymentMethodRepository, userRepository, walletSettingRepository, logger };
+    return { service, stripe, paymentMethodRepository, userRepository, logger };
   }
 });

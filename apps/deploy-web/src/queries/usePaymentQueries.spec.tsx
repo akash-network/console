@@ -229,12 +229,12 @@ describe("usePaymentQueries", () => {
       });
     });
 
-    it("removes payment method and invalidates the methods and default queries", async () => {
+    it("removes payment method and invalidates the methods, default and wallet settings queries", async () => {
       const mockRemovedPaymentMethod = createMockRemovedPaymentMethod();
       const stripeService = mock<StripeService>({
         removePaymentMethod: vi.fn().mockResolvedValue(mockRemovedPaymentMethod)
       });
-      const api = createProxy({ v1: { getDefaultPaymentMethod: vi.fn() } }) as unknown as ApiService;
+      const api = createProxy({ v1: { getDefaultPaymentMethod: vi.fn(), getWalletSettings: vi.fn() } }) as unknown as ApiService;
       const { result, queryClient } = setupQueryWithClient(() => usePaymentMutations(), {
         services: { stripe: () => stripeService, api: () => api }
       });
@@ -249,6 +249,7 @@ describe("usePaymentQueries", () => {
         expect(stripeService.removePaymentMethod).toHaveBeenCalledWith(mockRemovedPaymentMethod.id);
         expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: QueryKeys.getPaymentMethodsKey() });
         expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: api.v1.getDefaultPaymentMethod.getKey() });
+        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: api.v1.getWalletSettings.getKey() });
       });
     });
 

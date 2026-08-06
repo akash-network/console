@@ -26,7 +26,7 @@ export const DEPENDENCIES = {
 export type PaymentMethodsViewProps = {
   data: PaymentMethod[];
   onSetPaymentMethodAsDefault: (id: string) => void;
-  onRemovePaymentMethod: (id: string) => void;
+  onRemovePaymentMethod: (id: string) => Promise<void> | void;
   onAddPaymentMethod: () => void;
   isLoadingPaymentMethods: boolean;
   showAddPaymentMethod: boolean;
@@ -34,7 +34,6 @@ export type PaymentMethodsViewProps = {
   setupIntent: SetupIntentResponse | undefined;
   onAddCardSuccess: () => void;
   isInProgress: boolean;
-  isAutoReloadEnabled: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -49,7 +48,6 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
   setupIntent,
   onAddCardSuccess,
   isInProgress,
-  isAutoReloadEnabled,
   dependencies: d = DEPENDENCIES
 }) => {
   const { resolvedTheme } = d.useTheme();
@@ -83,7 +81,6 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
                       paymentMethod={paymentMethod}
                       onSetPaymentMethodAsDefault={onSetPaymentMethodAsDefault}
                       onRemovePaymentMethod={onRemovePaymentMethod}
-                      isAutoReloadEnabled={isAutoReloadEnabled}
                     />
                   ))}
                 </d.TableBody>

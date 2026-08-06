@@ -149,6 +149,7 @@ export const usePaymentMutations = () => {
     },
     onSuccess: () => {
       refreshPaymentMethods();
+      queryClient.invalidateQueries({ queryKey: api.v1.getWalletSettings.getKey() });
     }
   });
 

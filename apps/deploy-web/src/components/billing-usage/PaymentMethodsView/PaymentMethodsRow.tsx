@@ -22,7 +22,6 @@ export type PaymentMethodsRowProps = {
   paymentMethod: PaymentMethod;
   onSetPaymentMethodAsDefault: (id: string) => void;
   onRemovePaymentMethod: (id: string) => void;
-  isAutoReloadEnabled: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -30,7 +29,6 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
   paymentMethod,
   onSetPaymentMethodAsDefault,
   onRemovePaymentMethod,
-  isAutoReloadEnabled,
   dependencies: d = DEPENDENCIES
 }) => {
   const [open, setOpen] = useState(false);
@@ -97,9 +95,6 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
   }, [onRemovePaymentMethod, paymentMethod.id]);
 
   const canSetAsDefault = !paymentMethod.isDefault;
-  const isDefaultBlockedByAutoReload = paymentMethod.isDefault && isAutoReloadEnabled;
-  const canRemove = !isDefaultBlockedByAutoReload;
-  const showActions = canSetAsDefault || canRemove;
 
   return (
     <d.TableRow className="flex border-0 py-2 hover:bg-transparent">
@@ -107,39 +102,35 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
         {paymentMethodLabel} {defaultBadge}
       </d.TableCell>
       {validUntilContent && <d.TableCell className="flex flex-grow items-center justify-end">Valid until {validUntilContent}</d.TableCell>}
-      {showActions && (
-        <d.TableCell className="min-h-[72px] min-w-[72px]">
-          <d.DropdownMenu modal={false} open={open}>
-            <d.DropdownMenuTrigger asChild>
-              <d.Button onClick={openMenu} size="icon" variant="ghost" className="rounded-full">
-                <MoreHoriz />
-              </d.Button>
-            </d.DropdownMenuTrigger>
-            <d.DropdownMenuContent
-              align="end"
-              onMouseLeave={() => setOpen(false)}
-              onClick={e => {
-                e.stopPropagation();
-              }}
-            >
-              <d.ClickAwayListener onClickAway={() => setOpen(false)}>
-                <div>
-                  {canSetAsDefault && (
-                    <d.CustomDropdownLinkItem onClick={setPaymentAsDefault} icon={<CheckCircle fontSize="small" />}>
-                      Set as default
-                    </d.CustomDropdownLinkItem>
-                  )}
-                  {canRemove && (
-                    <d.CustomDropdownLinkItem onClick={removePaymentMethod} icon={<Trash fontSize="small" />}>
-                      Remove
-                    </d.CustomDropdownLinkItem>
-                  )}
-                </div>
-              </d.ClickAwayListener>
-            </d.DropdownMenuContent>
-          </d.DropdownMenu>
-        </d.TableCell>
-      )}
+      <d.TableCell className="min-h-[72px] min-w-[72px]">
+        <d.DropdownMenu modal={false} open={open}>
+          <d.DropdownMenuTrigger asChild>
+            <d.Button onClick={openMenu} size="icon" variant="ghost" className="rounded-full">
+              <MoreHoriz />
+            </d.Button>
+          </d.DropdownMenuTrigger>
+          <d.DropdownMenuContent
+            align="end"
+            onMouseLeave={() => setOpen(false)}
+            onClick={e => {
+              e.stopPropagation();
+            }}
+          >
+            <d.ClickAwayListener onClickAway={() => setOpen(false)}>
+              <div>
+                {canSetAsDefault && (
+                  <d.CustomDropdownLinkItem onClick={setPaymentAsDefault} icon={<CheckCircle fontSize="small" />}>
+                    Set as default
+                  </d.CustomDropdownLinkItem>
+                )}
+                <d.CustomDropdownLinkItem onClick={removePaymentMethod} icon={<Trash fontSize="small" />}>
+                  Remove
+                </d.CustomDropdownLinkItem>
+              </div>
+            </d.ClickAwayListener>
+          </d.DropdownMenuContent>
+        </d.DropdownMenu>
+      </d.TableCell>
     </d.TableRow>
   );
 };

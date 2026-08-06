@@ -9,6 +9,7 @@ import type { UserWalletRepository, WalletSettingRepository } from "@src/billing
 import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { type PaymentMethod } from "@src/billing/services/payment-method/payment-method.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
+import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { UserRepository } from "@src/user/repositories";
 import { WalletSettingService } from "./wallet-settings.service";
 
@@ -171,6 +172,39 @@ describe(WalletSettingService.name, () => {
     });
   });
 
+  describe("disableAutoReload", () => {
+    it("disables auto reload and cancels the pending reload job", async () => {
+      const { user, walletSettingRepository, walletReloadJobService, service } = setup();
+      const enabledSetting = generateWalletSetting({ userId: user.id, autoReloadEnabled: true });
+      walletSettingRepository.findByUserId.mockResolvedValue(enabledSetting);
+
+      await service.disableAutoReload(user.id);
+
+      expect(walletSettingRepository.updateById).toHaveBeenCalledWith(enabledSetting.id, { autoReloadEnabled: false });
+      expect(walletReloadJobService.cancelCreatedByUserId).toHaveBeenCalledWith(user.id);
+    });
+
+    it("does nothing when auto reload is already disabled", async () => {
+      const { user, walletSettingRepository, walletReloadJobService, service } = setup();
+      walletSettingRepository.findByUserId.mockResolvedValue(generateWalletSetting({ userId: user.id, autoReloadEnabled: false }));
+
+      await service.disableAutoReload(user.id);
+
+      expect(walletSettingRepository.updateById).not.toHaveBeenCalled();
+      expect(walletReloadJobService.cancelCreatedByUserId).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when the user has no wallet settings", async () => {
+      const { user, walletSettingRepository, walletReloadJobService, service } = setup();
+      walletSettingRepository.findByUserId.mockResolvedValue(undefined);
+
+      await service.disableAutoReload(user.id);
+
+      expect(walletSettingRepository.updateById).not.toHaveBeenCalled();
+      expect(walletReloadJobService.cancelCreatedByUserId).not.toHaveBeenCalled();
+    });
+  });
+
   function setup() {
     const user = createUser();
     const userWithStripe = { ...user, stripeCustomerId: faker.string.uuid() };
@@ -196,13 +230,15 @@ describe(WalletSettingService.name, () => {
     const walletReloadJobService = mock<WalletReloadJobService>({
       scheduleForWalletSetting: vi.fn().mockResolvedValue(jobId)
     });
+    const logger = mock<LoggerService>();
     const service = new WalletSettingService(
       walletSettingRepository,
       userWalletRepository,
       userRepository,
       paymentMethodService,
       authService,
-      walletReloadJobService
+      walletReloadJobService,
+      logger
     );
 
     return {
