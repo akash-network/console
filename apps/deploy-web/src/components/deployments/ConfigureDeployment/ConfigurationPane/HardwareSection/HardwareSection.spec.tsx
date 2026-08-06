@@ -9,15 +9,20 @@ describe(HardwareSection.name, () => {
   it("renders each hardware row for the selected service", () => {
     const PresetsCard = vi.fn(() => null);
     const GpuCard = vi.fn(() => null);
+    const GpuInterconnectCard = vi.fn(() => null);
     const ComputeResourcesCard = vi.fn(() => null);
     const PersistentStorageCard = vi.fn(() => null);
     const RamStorageCard = vi.fn(() => null);
     const ConfidentialComputeCard = vi.fn(() => null);
 
-    setup({ serviceIndex: 2, dependencies: { PresetsCard, GpuCard, ComputeResourcesCard, PersistentStorageCard, RamStorageCard, ConfidentialComputeCard } });
+    setup({
+      serviceIndex: 2,
+      dependencies: { PresetsCard, GpuCard, GpuInterconnectCard, ComputeResourcesCard, PersistentStorageCard, RamStorageCard, ConfidentialComputeCard }
+    });
 
     expect(PresetsCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
     expect(GpuCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
+    expect(GpuInterconnectCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
     expect(ComputeResourcesCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
     expect(PersistentStorageCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
     expect(RamStorageCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
@@ -27,17 +32,36 @@ describe(HardwareSection.name, () => {
   it("forwards the locked state to every hardware card", () => {
     const PresetsCard = vi.fn(() => null);
     const GpuCard = vi.fn(() => null);
+    const GpuInterconnectCard = vi.fn(() => null);
     const ComputeResourcesCard = vi.fn(() => null);
     const PersistentStorageCard = vi.fn(() => null);
     const RamStorageCard = vi.fn(() => null);
 
-    setup({ locked: true, dependencies: { PresetsCard, GpuCard, ComputeResourcesCard, PersistentStorageCard, RamStorageCard } });
+    setup({ locked: true, dependencies: { PresetsCard, GpuCard, GpuInterconnectCard, ComputeResourcesCard, PersistentStorageCard, RamStorageCard } });
 
     expect(PresetsCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
     expect(GpuCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
+    expect(GpuInterconnectCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
     expect(ComputeResourcesCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
     expect(PersistentStorageCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
     expect(RamStorageCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
+  });
+
+  it("hides the GPU interconnect card while the ui_gpu_interconnect flag is off", () => {
+    const GpuInterconnectCard = vi.fn(() => null);
+    const useFlag = () => false;
+
+    setup({ dependencies: { GpuInterconnectCard, useFlag } });
+
+    expect(GpuInterconnectCard).not.toHaveBeenCalled();
+  });
+
+  it("gates the GPU interconnect card on the ui_gpu_interconnect flag", () => {
+    const useFlag = vi.fn(() => true);
+
+    setup({ dependencies: { useFlag } });
+
+    expect(useFlag).toHaveBeenCalledWith("ui_gpu_interconnect");
   });
 
   it("passes an isBlockedModel predicate and unlock handler to the GPU cards", () => {
@@ -122,6 +146,7 @@ describe(HardwareSection.name, () => {
   function setup(input: { serviceIndex?: number; locked?: boolean; dependencies?: Partial<typeof DEPENDENCIES> }) {
     const dependencies = MockComponents(DEPENDENCIES, {
       useTrialGate: () => ({ isRestricted: false, isWalletReady: false }),
+      useFlag: () => true,
       ...input.dependencies
     });
     render(<HardwareSection serviceIndex={input.serviceIndex ?? 0} locked={input.locked} dependencies={dependencies} />);

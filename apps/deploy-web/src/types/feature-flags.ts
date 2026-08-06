@@ -8,6 +8,7 @@ export type FeatureFlag =
   | "auto_credit_reload"
   | "ui_sdl_preview_panel"
   | "ui_build_and_deploy"
+  | "ui_gpu_interconnect"
   | "ui_agent_mode_deploy"
   | "hackathons"
   | "ui_top_nav";
