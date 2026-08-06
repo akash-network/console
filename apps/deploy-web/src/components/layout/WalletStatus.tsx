@@ -7,13 +7,11 @@ import { NavArrowDown, Wallet } from "iconoir-react";
 import { useWallet } from "@src/context/WalletProvider";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { ManagedWalletPopup } from "../wallet/ManagedWalletPopup/ManagedWalletPopup";
-import { WalletConnectionButtons } from "../wallet/WalletConnectionButtons";
 
 export const DEPENDENCIES = {
   useWallet,
   useWalletBalance,
   ManagedWalletPopup,
-  WalletConnectionButtons,
   FormattedNumber
 };
 
@@ -64,9 +62,7 @@ export function WalletStatus({ dependencies: d = DEPENDENCIES }: Props = {}) {
               </DropdownMenu>
             </div>
           </div>
-        ) : (
-          <d.WalletConnectionButtons className="w-full justify-center" />
-        )
+        ) : null
       ) : (
         <div className="flex items-center space-x-2 rounded-md border bg-accent px-4 py-2">
           <Skeleton className="h-4 w-4 rounded-full bg-muted-foreground/20" />

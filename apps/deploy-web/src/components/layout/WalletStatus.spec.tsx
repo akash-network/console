@@ -17,11 +17,9 @@ describe(WalletStatus.name, () => {
     expect(screen.queryByLabelText("Connected wallet name and balance")).not.toBeInTheDocument();
   });
 
-  it("renders the WalletConnectionButtons when no wallet is connected", () => {
-    const WalletConnectionButtons = vi.fn(ComponentMock);
-    setup({ isWalletConnected: false, dependencies: { WalletConnectionButtons } });
+  it("renders nothing when no wallet is connected", () => {
+    setup({ isWalletConnected: false });
 
-    expect(WalletConnectionButtons).toHaveBeenCalled();
     expect(screen.queryByLabelText("Connected wallet name and balance")).not.toBeInTheDocument();
   });
 
@@ -78,7 +76,6 @@ describe(WalletStatus.name, () => {
           refetch: vi.fn()
         }) as unknown as ReturnType<typeof DEPENDENCIES.useWalletBalance>,
       ManagedWalletPopup: vi.fn(ComponentMock) as unknown as typeof DEPENDENCIES.ManagedWalletPopup,
-      WalletConnectionButtons: vi.fn(ComponentMock) as unknown as typeof DEPENDENCIES.WalletConnectionButtons,
       FormattedNumber: ({ value }: { value: number }) => <span>${value}</span>,
       ...input.dependencies
     } as unknown as typeof DEPENDENCIES;

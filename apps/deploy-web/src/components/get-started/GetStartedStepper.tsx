@@ -19,14 +19,12 @@ import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ExternalLink } from "../shared/ExternalLink";
-import { WalletConnectionButtons } from "../wallet/WalletConnectionButtons";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
 
 export const DEPENDENCIES = {
   useWallet,
   useWalletBalance,
   useChainParam,
-  WalletConnectionButtons,
   AddFundsLink
 };
 
@@ -132,13 +130,9 @@ export const GetStartedStepper: React.FunctionComponent<{ dependencies?: typeof 
           )}
 
           {!isWalletConnected && (
-            <div>
-              <div className="my-4 flex items-center space-x-2">
-                <XmarkCircleSolid className="text-destructive" />
-                <span>Billing is not set up</span>
-              </div>
-
-              <d.WalletConnectionButtons className="gap-2" connectManagedWalletButtonClassName="mr-2 w-full md:w-auto" />
+            <div className="my-4 flex items-center space-x-2">
+              <XmarkCircleSolid className="text-destructive" />
+              <span>Billing is not set up</span>
             </div>
           )}
 
