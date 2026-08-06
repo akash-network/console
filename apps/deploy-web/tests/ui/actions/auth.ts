@@ -8,8 +8,6 @@ import type { Auth0ManagementService } from "../services/auth0-management.servic
 import type { EmailVerificationStrategy } from "../services/email-verification";
 import { MailsacCodeVerificationStrategy } from "../services/email-verification/mailsac-code.strategy";
 
-import { OnboardingPage } from "@tests/ui/pages/OnboardingPage";
-
 /** Which credential mechanism a flow authenticates with. */
 export type AuthType = "passwordless" | "email-password";
 
@@ -109,8 +107,6 @@ async function registerWithEmailPassword(page: Page, deps: { auth0: Auth0Managem
 
   const created = await deps.auth0.getUserByEmail(email);
   if (!created) throw new Error(`Auth0 user was not created for ${email}`);
-
-  await new OnboardingPage(page).startFreeTrial();
 
   await deps.emailVerification.verify({ context: page.context(), email, userId: created.user_id, sinceMs });
   await page.waitForURL(url => !url.pathname.includes("/login"), { timeout: 30_000 });

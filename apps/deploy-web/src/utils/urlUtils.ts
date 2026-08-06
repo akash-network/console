@@ -85,7 +85,6 @@ export const UrlService = {
   newSignup: ({ returnTo, ...extraReturnToParams }: ReturnableOptions & Record<string, string> = {}) =>
     getSafeReturnableUrl(`/login${appendSearchParams({ tab: "signup" })}`, returnTo, extraReturnToParams),
   logout: () => "/api/auth/logout",
-  onboarding: ({ returnTo }: ReturnableOptions = {}) => getSafeReturnableUrl("/signup", returnTo),
   template: (id: string) => `/template/${id}`,
 
   // Deploy
