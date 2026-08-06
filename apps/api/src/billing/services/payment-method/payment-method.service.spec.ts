@@ -90,6 +90,39 @@ describe(PaymentMethodService.name, () => {
       expect(paymentMethodRepository.deleteByFingerprint).not.toHaveBeenCalled();
       expect(result).toEqual([{ ...onPage, validated: false, isDefault: false }]);
     });
+
+    it("reports only the successfully repaired ids when one repair throws", async () => {
+      const { service, stripe, paymentMethodRepository, logger } = setup();
+      const older = generatePaymentMethod({ id: "pm_older", created: 1, card: { fingerprint: "fp_older" } });
+      const newer = generatePaymentMethod({ id: "pm_newer", created: 2, card: { fingerprint: "fp_newer" } });
+      vi.spyOn(stripe.paymentMethods, "list").mockResolvedValue({
+        data: [older, newer],
+        has_more: false
+      } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PaymentMethod>>);
+      paymentMethodRepository.findByUserId.mockResolvedValue([]);
+      vi.spyOn(service, "syncAttached").mockResolvedValueOnce({ isNew: true, isDefault: true }).mockRejectedValueOnce(new Error("db unavailable"));
+
+      await service.getPaymentMethods(payingUser(), ability);
+
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "PAYMENT_METHOD_READ_REPAIRED", paymentMethodIds: ["pm_older"] }));
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "PAYMENT_METHOD_READ_REPAIR_FAILED", paymentMethodId: "pm_newer" }));
+    });
+
+    it("does not fail the read when removing a stale local row throws", async () => {
+      const { service, stripe, paymentMethodRepository, logger } = setup();
+      const stale = generateDatabasePaymentMethod({ paymentMethodId: "pm_stale", fingerprint: "fp_stale" });
+      vi.spyOn(stripe.paymentMethods, "list").mockResolvedValue({
+        data: [],
+        has_more: false
+      } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PaymentMethod>>);
+      paymentMethodRepository.findByUserId.mockResolvedValue([stale]);
+      paymentMethodRepository.deleteByFingerprint.mockRejectedValue(new Error("db unavailable"));
+
+      const result = await service.getPaymentMethods(payingUser(), ability);
+
+      expect(result).toEqual([]);
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "PAYMENT_METHOD_STALE_REMOVE_FAILED", paymentMethodId: "pm_stale" }));
+    });
   });
 
   describe("getDefaultPaymentMethod", () => {
@@ -125,11 +158,12 @@ describe(PaymentMethodService.name, () => {
         invoice_settings: { default_payment_method: null }
       } as unknown as Stripe.Response<Stripe.Customer>);
       paymentMethodRepository.findDefaultByUserId.mockResolvedValue(local);
-      vi.spyOn(stripe.paymentMethods, "retrieve").mockResolvedValue(asResponse(remotePaymentMethod));
+      const retrieve = vi.spyOn(stripe.paymentMethods, "retrieve").mockResolvedValue(asResponse(remotePaymentMethod));
       const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(mock<Stripe.Response<Stripe.Customer>>());
 
       const result = await service.getDefaultPaymentMethod(mock<PayingUser>({ id: "user_1", stripeCustomerId: "cus_1" }), ability);
 
+      expect(retrieve).toHaveBeenCalledWith("pm_1", undefined, { timeout: 3_000 });
       expect(update).toHaveBeenCalledWith("cus_1", { invoice_settings: { default_payment_method: "pm_1" } }, { timeout: 3_000 });
       expect(result).toEqual({ ...remotePaymentMethod, validated: local.isValidated, isDefault: local.isDefault });
     });
@@ -185,6 +219,28 @@ describe(PaymentMethodService.name, () => {
 
       expect(paymentMethodRepository.deleteByFingerprint).toHaveBeenCalledWith("fp_1", "pm_1", "user_1");
       expect(result).toBeUndefined();
+    });
+
+    it("returns undefined without throwing when removing the stale local default fails", async () => {
+      const { service, stripe, paymentMethodRepository, logger } = setup();
+      const local = generateDatabasePaymentMethod({ paymentMethodId: "pm_1", fingerprint: "fp_1" });
+      vi.spyOn(stripe.customers, "retrieve").mockResolvedValue({
+        invoice_settings: { default_payment_method: null }
+      } as unknown as Stripe.Response<Stripe.Customer>);
+      paymentMethodRepository.findDefaultByUserId.mockResolvedValue(local);
+      vi.spyOn(stripe.paymentMethods, "retrieve").mockRejectedValue(
+        new Stripe.errors.StripeInvalidRequestError({
+          type: "invalid_request_error",
+          code: "resource_missing",
+          message: "No such PaymentMethod"
+        } as Stripe.StripeRawError)
+      );
+      paymentMethodRepository.deleteByFingerprint.mockRejectedValue(new Error("db unavailable"));
+
+      const result = await service.getDefaultPaymentMethod(mock<PayingUser>({ id: "user_1", stripeCustomerId: "cus_1" }), ability);
+
+      expect(result).toBeUndefined();
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEFAULT_PAYMENT_METHOD_STALE_REMOVE_FAILED", paymentMethodId: "pm_1" }));
     });
 
     it("returns undefined without removing the local default when the Stripe push fails", async () => {
@@ -359,11 +415,12 @@ describe(PaymentMethodService.name, () => {
     paymentMethodRepository.accessibleBy.mockReturnValue(paymentMethodRepository);
     const userRepository = mock<UserRepository>();
     const walletSettingRepository = mock<WalletSettingRepository>();
+    const logger = mock<LoggerService>();
 
     const stripe = new Stripe(`sk_test_${faker.string.alphanumeric(32)}`, { apiVersion: "2025-10-29.clover", httpClient: Stripe.createFetchHttpClient() });
 
-    const service = new PaymentMethodService(stripe, paymentMethodRepository, userRepository, walletSettingRepository, () => mock<LoggerService>());
+    const service = new PaymentMethodService(stripe, paymentMethodRepository, userRepository, walletSettingRepository, () => logger);
 
-    return { service, stripe, paymentMethodRepository, userRepository, walletSettingRepository };
+    return { service, stripe, paymentMethodRepository, userRepository, walletSettingRepository, logger };
   }
 });

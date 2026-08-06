@@ -96,17 +96,31 @@ export class PaymentMethodService {
       return false;
     }
 
+    const removedIds: string[] = [];
+
     for (const local of stale) {
-      await this.paymentMethodRepository.deleteByFingerprint(local.fingerprint, local.paymentMethodId, userId);
+      try {
+        await this.paymentMethodRepository.deleteByFingerprint(local.fingerprint, local.paymentMethodId, userId);
+        removedIds.push(local.paymentMethodId);
+      } catch (error) {
+        this.loggerService.error({
+          event: "PAYMENT_METHOD_STALE_REMOVE_FAILED",
+          userId,
+          paymentMethodId: local.paymentMethodId,
+          error
+        });
+      }
     }
 
-    this.loggerService.info({
-      event: "PAYMENT_METHOD_STALE_REMOVED",
-      userId,
-      paymentMethodIds: stale.map(local => local.paymentMethodId)
-    });
+    if (removedIds.length) {
+      this.loggerService.info({
+        event: "PAYMENT_METHOD_STALE_REMOVED",
+        userId,
+        paymentMethodIds: removedIds
+      });
+    }
 
-    return true;
+    return removedIds.length > 0;
   }
 
   /**
@@ -124,12 +138,12 @@ export class PaymentMethodService {
       return false;
     }
 
-    let repaired = false;
+    const repairedIds: string[] = [];
 
     for (const remote of unsynced) {
       try {
         await this.syncAttached({ user, paymentMethod: remote });
-        repaired = true;
+        repairedIds.push(remote.id);
       } catch (error) {
         this.loggerService.error({
           event: "PAYMENT_METHOD_READ_REPAIR_FAILED",
@@ -140,15 +154,15 @@ export class PaymentMethodService {
       }
     }
 
-    if (repaired) {
+    if (repairedIds.length) {
       this.loggerService.info({
         event: "PAYMENT_METHOD_READ_REPAIRED",
         userId: user.id,
-        paymentMethodIds: unsynced.map(remote => remote.id)
+        paymentMethodIds: repairedIds
       });
     }
 
-    return repaired;
+    return repairedIds.length > 0;
   }
 
   async getDefaultPaymentMethod(user: PayingUser, ability: AnyAbility): Promise<PaymentMethod | undefined> {
@@ -186,16 +200,11 @@ export class PaymentMethodService {
    */
   async #healDefaultPaymentMethodDrift(user: PayingUser, local: PaymentMethodOutput): Promise<PaymentMethod | undefined> {
     try {
-      const remotePaymentMethod = await this.stripe.paymentMethods.retrieve(local.paymentMethodId);
+      const remotePaymentMethod = await this.stripe.paymentMethods.retrieve(local.paymentMethodId, undefined, { timeout: 3_000 });
       const customerId = typeof remotePaymentMethod.customer === "string" ? remotePaymentMethod.customer : remotePaymentMethod.customer?.id;
 
       if (customerId !== user.stripeCustomerId) {
-        await this.paymentMethodRepository.deleteByFingerprint(local.fingerprint, local.paymentMethodId, user.id);
-        this.loggerService.warn({
-          event: "DEFAULT_PAYMENT_METHOD_STALE_REMOVED",
-          userId: user.id,
-          paymentMethodId: local.paymentMethodId
-        });
+        await this.#removeStaleDefaultPaymentMethod(user, local);
         return;
       }
 
@@ -209,17 +218,30 @@ export class PaymentMethodService {
       return { ...remotePaymentMethod, validated: local.isValidated, isDefault: local.isDefault };
     } catch (error) {
       if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") {
-        await this.paymentMethodRepository.deleteByFingerprint(local.fingerprint, local.paymentMethodId, user.id);
-        this.loggerService.warn({
-          event: "DEFAULT_PAYMENT_METHOD_STALE_REMOVED",
-          userId: user.id,
-          paymentMethodId: local.paymentMethodId
-        });
+        await this.#removeStaleDefaultPaymentMethod(user, local);
         return;
       }
 
       this.loggerService.warn({
         event: "DEFAULT_PAYMENT_METHOD_HEAL_FAILED",
+        userId: user.id,
+        paymentMethodId: local.paymentMethodId,
+        error
+      });
+    }
+  }
+
+  async #removeStaleDefaultPaymentMethod(user: PayingUser, local: PaymentMethodOutput): Promise<void> {
+    try {
+      await this.paymentMethodRepository.deleteByFingerprint(local.fingerprint, local.paymentMethodId, user.id);
+      this.loggerService.warn({
+        event: "DEFAULT_PAYMENT_METHOD_STALE_REMOVED",
+        userId: user.id,
+        paymentMethodId: local.paymentMethodId
+      });
+    } catch (error) {
+      this.loggerService.warn({
+        event: "DEFAULT_PAYMENT_METHOD_STALE_REMOVE_FAILED",
         userId: user.id,
         paymentMethodId: local.paymentMethodId,
         error

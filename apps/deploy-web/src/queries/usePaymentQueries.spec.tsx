@@ -281,7 +281,7 @@ describe("usePaymentQueries", () => {
       });
     });
 
-    it("sets payment method as default and invalidates the methods query before the default query", async () => {
+    it("waits for the methods invalidation to settle before invalidating the default query", async () => {
       const mockPaymentMethod = createMockPaymentMethod({ isDefault: true });
       const stripeService = mock<StripeService>({
         setPaymentMethodAsDefault: vi.fn().mockResolvedValue(mockPaymentMethod)
@@ -291,15 +291,27 @@ describe("usePaymentQueries", () => {
         services: { stripe: () => stripeService, api: () => api }
       });
 
-      const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
+      let resolveMethodsInvalidation!: () => void;
+      const methodsInvalidation = new Promise<void>(resolve => {
+        resolveMethodsInvalidation = resolve;
+      });
+      const invalidateQueriesSpy = vi
+        .spyOn(queryClient, "invalidateQueries")
+        .mockImplementationOnce(() => methodsInvalidation)
+        .mockResolvedValue(undefined);
 
       await act(async () => {
         await result.current.setPaymentMethodAsDefault.mutateAsync("pm_123");
       });
 
       await vi.waitFor(() => {
-        expect(stripeService.setPaymentMethodAsDefault).toHaveBeenCalledWith({ id: "pm_123" });
         expect(invalidateQueriesSpy).toHaveBeenNthCalledWith(1, { queryKey: QueryKeys.getPaymentMethodsKey() });
+      });
+      expect(invalidateQueriesSpy).toHaveBeenCalledTimes(1);
+
+      resolveMethodsInvalidation();
+
+      await vi.waitFor(() => {
         expect(invalidateQueriesSpy).toHaveBeenNthCalledWith(2, { queryKey: api.v1.getDefaultPaymentMethod.getKey() });
       });
     });
