@@ -126,28 +126,28 @@ describe(TrialValidationService.name, () => {
   describe("validateDeploymentGpuInterconnect", () => {
     it("skips validation when wallet is not trialing", async () => {
       const wallet = createUserWallet({ isTrialing: false });
-      const { service } = setupInterconnect();
+      const { service } = setupGpu({ blockedGpuModels: ["nvidia/h100"] });
 
       await expect(service.validateDeploymentGpuInterconnect([createInterconnectDeploymentMessage("auto")], wallet)).resolves.toBeUndefined();
     });
 
-    it("skips validation when the restriction is disabled", async () => {
+    it("skips validation when the blocked-set is empty", async () => {
       const wallet = createUserWallet({ isTrialing: true });
-      const { service } = setupInterconnect({ interconnectBlocked: false });
+      const { service } = setupGpu({ blockedGpuModels: [] });
 
       await expect(service.validateDeploymentGpuInterconnect([createInterconnectDeploymentMessage("auto")], wallet)).resolves.toBeUndefined();
     });
 
     it("allows a trial deployment that does not request an interconnect", async () => {
       const wallet = createUserWallet({ isTrialing: true });
-      const { service } = setupInterconnect();
+      const { service } = setupGpu({ blockedGpuModels: ["nvidia/h100"] });
 
       await expect(service.validateDeploymentGpuInterconnect([createDeploymentMessageWithGpu("nvidia", "rtx-4090")], wallet)).resolves.toBeUndefined();
     });
 
     it("rejects a trial deployment with 402 when an implicit interconnect group is requested", async () => {
       const wallet = createUserWallet({ isTrialing: true });
-      const { service } = setupInterconnect();
+      const { service } = setupGpu({ blockedGpuModels: ["nvidia/h100"] });
 
       await expect(service.validateDeploymentGpuInterconnect([createInterconnectDeploymentMessage("auto")], wallet)).rejects.toMatchObject({
         status: 402,
@@ -157,7 +157,7 @@ describe(TrialValidationService.name, () => {
 
     it("rejects a trial deployment with 402 when an explicit interconnect group is requested", async () => {
       const wallet = createUserWallet({ isTrialing: true });
-      const { service } = setupInterconnect();
+      const { service } = setupGpu({ blockedGpuModels: ["nvidia/h100"] });
 
       await expect(service.validateDeploymentGpuInterconnect([createInterconnectDeploymentMessage("pair0")], wallet)).rejects.toMatchObject({
         status: 402,
@@ -167,7 +167,7 @@ describe(TrialValidationService.name, () => {
 
     it("passes when there are no MsgCreateDeployment messages", async () => {
       const wallet = createUserWallet({ isTrialing: true });
-      const { service } = setupInterconnect();
+      const { service } = setupGpu({ blockedGpuModels: ["nvidia/h100"] });
 
       await expect(service.validateDeploymentGpuInterconnect([createLeaseMessage()], wallet)).resolves.toBeUndefined();
     });
@@ -325,16 +325,5 @@ describe(TrialValidationService.name, () => {
     const blockedGpuService = new BlockedGpuService(blockedGpuConfig);
     const service = new TrialValidationService(config, providerRepository, bidHttpService, blockedGpuService);
     return { service, config, providerRepository, bidHttpService, blockedGpuService };
-  }
-
-  function setupInterconnect(input?: { interconnectBlocked?: boolean }) {
-    const config = mockConfigService<BillingConfigService>({
-      MANAGED_WALLET_TRIAL_GPU_INTERCONNECT_BLOCKED: input?.interconnectBlocked ?? true
-    });
-    const providerRepository = mock<ProviderRepository>();
-    const bidHttpService = mock<BidHttpService>();
-    const blockedGpuService = mock<BlockedGpuService>();
-    const service = new TrialValidationService(config, providerRepository, bidHttpService, blockedGpuService);
-    return { service };
   }
 });

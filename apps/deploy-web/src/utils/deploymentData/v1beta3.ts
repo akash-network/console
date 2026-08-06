@@ -145,24 +145,13 @@ export function isTrialBlockedGpuSelection(
 
 /**
  * Whether the managed-wallet trial GPU restriction is switched on at all (any model is blocklisted). This is the
- * signal for "trials cannot use high-end GPUs", used to gate confidential-compute GPU (cpu-gpu) on its own merit
- * rather than deriving it from a specific model or the stricter "any" selection rule. When the blocklist is empty
- * the whole restriction (SDL stripping + per-bid filtering) is a no-op, so nothing GPU-related is gated.
+ * signal for "trials cannot use high-end GPUs", used to gate confidential-compute GPU (cpu-gpu) and the GPU
+ * interconnect on their own merit rather than deriving them from a specific model or the stricter "any" selection
+ * rule. When the blocklist is empty the whole restriction (SDL stripping + per-bid filtering + interconnect
+ * blocking) is a no-op, so nothing GPU-related is gated.
  */
 export function isTrialGpuRestrictionActive(blockedModels: readonly string[] = browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS): boolean {
   return blockedModels.length > 0;
-}
-
-/**
- * Whether the managed-wallet trial GPU interconnect restriction is switched on. A dedicated boolean, separate
- * from the blocked-model list: the interconnect is a capability, not a model, so it cannot be expressed there.
- * Mirrors the API's MANAGED_WALLET_TRIAL_GPU_INTERCONNECT_BLOCKED setting, which rejects trial interconnect
- * deployments server-side.
- */
-export function isTrialGpuInterconnectRestrictionActive(
-  isBlocked: boolean = browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_TRIAL_GPU_INTERCONNECT_BLOCKED
-): boolean {
-  return isBlocked;
 }
 
 /**

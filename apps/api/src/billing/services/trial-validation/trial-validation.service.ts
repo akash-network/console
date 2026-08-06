@@ -104,7 +104,7 @@ export class TrialValidationService {
   @Trace()
   async validateDeploymentGpuInterconnect(messages: EncodeObject[], userWallet: UserWalletOutput) {
     if (!userWallet.isTrialing) return;
-    if (!this.config.get("MANAGED_WALLET_TRIAL_GPU_INTERCONNECT_BLOCKED")) return;
+    if (!this.blockedGpuService.hasBlockedModels()) return;
 
     const requestsInterconnect = messages
       .filter(message => message.typeUrl === `/${MsgCreateDeployment.$type}`)

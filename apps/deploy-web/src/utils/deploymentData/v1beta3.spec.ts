@@ -9,7 +9,6 @@ import {
   hasTrialBlockedGpu,
   isTrialBlockedGpuModel,
   isTrialBlockedGpuSelection,
-  isTrialGpuInterconnectRestrictionActive,
   isTrialGpuRestrictionActive,
   NewDeploymentData,
   replaceSdlDenom
@@ -261,16 +260,6 @@ describe(isTrialGpuRestrictionActive.name, () => {
 
   it("is inactive when the blocklist is empty", () => {
     expect(isTrialGpuRestrictionActive([])).toBe(false);
-  });
-});
-
-describe(isTrialGpuInterconnectRestrictionActive.name, () => {
-  it("is active when the interconnect block is enabled", () => {
-    expect(isTrialGpuInterconnectRestrictionActive(true)).toBe(true);
-  });
-
-  it("is inactive when the interconnect block is disabled", () => {
-    expect(isTrialGpuInterconnectRestrictionActive(false)).toBe(false);
   });
 });
 

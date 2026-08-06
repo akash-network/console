@@ -65,7 +65,7 @@ export class SdlService {
         };
       }
 
-      if (this.#config.MANAGED_WALLET_TRIAL_GPU_INTERCONNECT_BLOCKED && sdlRequestsGpuInterconnect(potentiallyInvalidSDL)) {
+      if (this.blockedGpuService.hasBlockedModels() && sdlRequestsGpuInterconnect(potentiallyInvalidSDL)) {
         return {
           ok: false,
           value: [

@@ -5,7 +5,7 @@ import { CpuIcon, PackageOpenIcon } from "lucide-react";
 
 import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
 import { useFlag } from "@src/hooks/useFlag";
-import { isTrialBlockedGpuSelection, isTrialGpuInterconnectRestrictionActive, isTrialGpuRestrictionActive } from "@src/utils/deploymentData/v1beta3";
+import { isTrialBlockedGpuSelection, isTrialGpuRestrictionActive } from "@src/utils/deploymentData/v1beta3";
 import { useRevalidateUniqueness } from "../../DeploymentPane/useRevalidateUniqueness/useRevalidateUniqueness";
 import { computeResourcesTooltip, presetsTooltip } from "../cardTooltips";
 import { ComputeResourcesCard } from "../ComputeResourcesCard/ComputeResourcesCard";
@@ -91,7 +91,7 @@ export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, depen
           <d.GpuInterconnectCard
             serviceIndex={serviceIndex}
             locked={locked}
-            isTrialBlocked={isRestricted && !locked && isTrialGpuInterconnectRestrictionActive()}
+            isTrialBlocked={isRestricted && !locked && isTrialGpuRestrictionActive()}
             onUnlock={openUnlock}
           />
         )}

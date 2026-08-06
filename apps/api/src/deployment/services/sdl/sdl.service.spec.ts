@@ -481,7 +481,7 @@ describe(SdlService.name, () => {
     });
 
     it("rejects SDL that requests an implicit GPU interconnect for trialing wallets", () => {
-      const { result } = setup({ sdl: SDL_WITH_GPU_INTERCONNECT("[]"), isTrialing: true });
+      const { result } = setup({ sdl: SDL_WITH_GPU_INTERCONNECT("[]"), blockedGpuModels: ["nvidia/h100"], isTrialing: true });
 
       expect(result).toMatchObject({
         ok: false,
@@ -490,7 +490,7 @@ describe(SdlService.name, () => {
     });
 
     it("rejects SDL that requests an explicit GPU interconnect group for trialing wallets", () => {
-      const { result } = setup({ sdl: SDL_WITH_GPU_INTERCONNECT("{ group: pair0 }"), isTrialing: true });
+      const { result } = setup({ sdl: SDL_WITH_GPU_INTERCONNECT("{ group: pair0 }"), blockedGpuModels: ["nvidia/h100"], isTrialing: true });
 
       expect(result).toMatchObject({
         ok: false,
@@ -499,13 +499,13 @@ describe(SdlService.name, () => {
     });
 
     it("does not enforce the interconnect block for non-trialing wallets", () => {
-      const { result } = setup({ sdl: SDL_WITH_GPU_INTERCONNECT("[]"), isTrialing: false });
+      const { result } = setup({ sdl: SDL_WITH_GPU_INTERCONNECT("[]"), blockedGpuModels: ["nvidia/h100"], isTrialing: false });
 
       expect(result.ok).toBe(true);
     });
 
-    it("allows a trialing interconnect SDL when the restriction is disabled", () => {
-      const { result } = setup({ sdl: SDL_WITH_GPU_INTERCONNECT("[]"), isTrialing: true, interconnectBlocked: false });
+    it("allows a trialing interconnect SDL when the GPU trial restriction is inactive", () => {
+      const { result } = setup({ sdl: SDL_WITH_GPU_INTERCONNECT("[]"), blockedGpuModels: [], isTrialing: true });
 
       expect(result.ok).toBe(true);
     });
@@ -543,18 +543,10 @@ describe(SdlService.name, () => {
     });
   });
 
-  function setup(input?: {
-    sdl?: string;
-    allowedAuditors?: string[];
-    deploymentGrantDenom?: string;
-    blockedGpuModels?: string[];
-    isTrialing?: boolean;
-    interconnectBlocked?: boolean;
-  }) {
+  function setup(input?: { sdl?: string; allowedAuditors?: string[]; deploymentGrantDenom?: string; blockedGpuModels?: string[]; isTrialing?: boolean }) {
     const config = {
       DEPLOYMENT_GRANT_DENOM: input?.deploymentGrantDenom ?? "uakt",
-      MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: input?.allowedAuditors ?? [],
-      MANAGED_WALLET_TRIAL_GPU_INTERCONNECT_BLOCKED: input?.interconnectBlocked ?? true
+      MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: input?.allowedAuditors ?? []
     } as BillingConfig;
 
     const blockedGpuConfig = mockConfigService<BillingConfigService>({
