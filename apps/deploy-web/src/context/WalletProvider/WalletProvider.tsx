@@ -11,10 +11,22 @@ import { useWhen } from "@src/hooks/useWhen";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import type { AppError } from "@src/types";
 import { getStorageManagedWallet, updateStorageManagedWallet } from "@src/utils/walletUtils";
+import { BootLoading } from "../BootLoadingProvider/BootLoadingProvider";
 import { useServices } from "../ServicesProvider";
 import { settingsIdAtom } from "../SettingsProvider/settingsStore";
 import { deriveWalletIsLoading } from "./deriveWalletIsLoading";
 import { useSignAndBroadcast } from "./useSignAndBroadcast";
+
+export const DEPENDENCIES = {
+  useUser,
+  useManagedWallet,
+  useBalances,
+  useSignAndBroadcast,
+  useServices,
+  useRouter,
+  TransactionModal,
+  BootLoading
+};
 
 export type ContextType = {
   address: string;
@@ -43,26 +55,29 @@ export type ContextType = {
 export const WalletProviderContext = React.createContext<ContextType>({} as ContextType);
 
 /**
- * WalletProvider is a client only component
+ * WalletProvider is a client only component. It blocks rendering of its children behind the shared
+ * boot overlay until the initial wallet-existence lookup settles, so consumers never observe an
+ * unsettled wallet. The gate deliberately ignores wallet creation (trial provisioning) — gating on
+ * it would blank the app mid-onboarding.
  */
-export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { analyticsService, publicConfig: appConfig, urlService } = useServices();
+export const WalletProvider: React.FC<{ children: React.ReactNode; dependencies?: typeof DEPENDENCIES }> = ({ children, dependencies: d = DEPENDENCIES }) => {
+  const { analyticsService, publicConfig: appConfig, urlService } = d.useServices();
 
   const [, setSettingsId] = useAtom(settingsIdAtom);
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
-  const router = useRouter();
-  const { user } = useUser();
+  const router = d.useRouter();
+  const { user } = d.useUser();
   const {
     wallet: managedWallet,
     isLoading: isManagedWalletLoading,
     isInitializing: isManagedWalletInitializing,
     create: createManagedWallet,
     createError: managedWalletError
-  } = useManagedWallet();
+  } = d.useManagedWallet();
   const walletAddress = managedWallet?.address;
   const username = managedWallet?.username;
   const isWalletConnected = !!managedWallet?.isWalletConnected;
-  const { refetch: refetchBalances } = useBalances(walletAddress);
+  const { refetch: refetchBalances } = d.useBalances(walletAddress);
   const isLoading = deriveWalletIsLoading({
     hasAuthenticatedUserId: !!user?.userId,
     isManagedWalletLoading
@@ -71,7 +86,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     hasAuthenticatedUserId: !!user?.userId,
     isManagedWalletLoading: isManagedWalletInitializing
   });
-  const { signAndBroadcastTx, loadingState } = useSignAndBroadcast({ refetchBalances });
+  const { signAndBroadcastTx, loadingState } = d.useSignAndBroadcast({ refetchBalances });
 
   useWhen(walletAddress, loadWallet);
 
@@ -143,9 +158,15 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         managedWalletError
       }}
     >
-      {children}
+      {isInitializing ? (
+        <d.BootLoading />
+      ) : (
+        <>
+          {children}
 
-      <TransactionModal state={loadingState} />
+          <d.TransactionModal state={loadingState} />
+        </>
+      )}
     </WalletProviderContext.Provider>
   );
 };
