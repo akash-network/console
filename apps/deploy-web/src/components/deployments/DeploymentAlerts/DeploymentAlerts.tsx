@@ -5,7 +5,6 @@ import { FormProvider, useForm } from "react-hook-form";
 import { LoadingButton } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { merge } from "lodash";
-import isEqual from "lodash/isEqual";
 import { z } from "zod";
 
 import type {
@@ -111,7 +110,7 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
     resolver: zodResolver(strictSchema)
   });
 
-  const { isDirty } = form.formState;
+  const { isDirty, dirtyFields } = form.formState;
 
   useEffect(() => {
     onStateChange?.({ hasChanges: !disabled && isDirty });
@@ -121,11 +120,11 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
     const { deploymentBalance, deploymentClosed } = form.getValues();
     const payload: Partial<FullAlertsInput> = {};
 
-    if (!isEqual(providedValues.deploymentBalance, deploymentBalance)) {
+    if (dirtyFields.deploymentBalance) {
       payload.deploymentBalance = deploymentBalance;
     }
 
-    if (!isEqual(providedValues.deploymentClosed, deploymentClosed)) {
+    if (dirtyFields.deploymentClosed) {
       payload.deploymentClosed = deploymentClosed;
     }
 
@@ -133,7 +132,7 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
     if (nextValues) {
       form.reset(assignDefaults(nextValues.alerts));
     }
-  }, [providedValues.deploymentBalance, providedValues.deploymentClosed, upsert, form, assignDefaults]);
+  }, [dirtyFields.deploymentBalance, dirtyFields.deploymentClosed, form, upsert, assignDefaults]);
 
   return (
     <FormProvider {...form}>
