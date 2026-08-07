@@ -92,7 +92,15 @@ describe("DeploymentAlerts", () => {
     expect((screen.getByRole("button", { name: /save changes/i }) as HTMLButtonElement).disabled).toBe(false);
   });
 
-  function setup(input: { data?: ChildrenProps["data"]; maxBalanceThreshold?: number; disabled?: boolean } = {}) {
+  it("disables the save button while a save is in flight", () => {
+    setup({ isSaving: true });
+
+    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentBalance.enabled"]' }));
+
+    expect((screen.getByRole("button", { name: /save changes/i }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  function setup(input: { data?: ChildrenProps["data"]; maxBalanceThreshold?: number; disabled?: boolean; isSaving?: boolean } = {}) {
     const channel1Id = faker.string.uuid();
     const channel2Id = faker.string.uuid();
 
@@ -131,6 +139,7 @@ describe("DeploymentAlerts", () => {
       notificationChannels: [buildNotificationChannel({ id: channel1Id }), buildNotificationChannel({ id: channel2Id })],
       upsert: vi.fn(),
       disabled: input.disabled,
+      isSaving: input.isSaving ?? false,
       data:
         "data" in input
           ? input.data
