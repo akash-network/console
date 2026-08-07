@@ -16,6 +16,7 @@ import { DeploymentAlerts } from "@src/components/deployments/DeploymentAlerts/D
 import { useServices } from "@src/context/ServicesProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
 import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
 import { useFlag } from "@src/hooks/useFlag";
 import { useNavigationGuard } from "@src/hooks/useNavigationGuard/useNavigationGuard";
@@ -111,6 +112,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
 
   const isActive = deployment?.state === "active" && leases?.some(isLeaseLive);
   const declaredTeeTypes = useDeclaredTeeTypes(deployment);
+  const declaredInterconnect = useDeclaredGpuInterconnect(deployment);
 
   const tabs = useMemo(() => {
     const tabs: { label: string; value: Tab; badged?: boolean }[] = [
@@ -250,7 +252,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
         <>
           <ReclamationBanner leases={leases} dseq={dseq} />
 
-          <DeploymentSubHeader deployment={deployment} leases={leases} teeTypes={declaredTeeTypes} />
+          <DeploymentSubHeader deployment={deployment} leases={leases} teeTypes={declaredTeeTypes} interconnect={declaredInterconnect} />
 
           <Tabs value={activeTab} onValueChange={value => changeTab(value as Tab)}>
             <TabsList
