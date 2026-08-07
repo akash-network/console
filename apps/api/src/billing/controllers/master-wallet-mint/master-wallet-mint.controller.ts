@@ -8,6 +8,6 @@ export class MasterWalletMintController {
   constructor(private readonly masterWalletMintService: MasterWalletMintService) {}
 
   async mint(options: DryRunOptions) {
-    return this.masterWalletMintService.mintIfNeeded(options);
+    return this.masterWalletMintService.mintExcessAkt(options);
   }
 }

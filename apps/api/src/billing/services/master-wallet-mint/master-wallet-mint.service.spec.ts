@@ -18,228 +18,212 @@ import { createBmeLedgerRecord, createBmeLedgerResponse } from "@test/seeders/bm
 import { createDenomExchangeRate } from "@test/seeders/denom-exchange-rate.seeder";
 
 describe(MasterWalletMintService.name, () => {
-  describe("mintIfNeeded", () => {
-    it("should skip minting when ACT balance exceeds target", async () => {
-      const { service, txManagerService } = setup({
-        targetActBalance: 10_000_000_000,
-        balances: { uact: 15_000_000_000, uakt: 50_000_000_000 }
+  describe("mintExcessAkt", () => {
+    it("skips when a previous mint is still settling", async () => {
+      const { service, chainSdk, txManagerService } = setup({
+        balances: { uact: 5_000_000_000, uakt: 50_000_000_000 }
       });
+      chainSdk.akash.bme.v1.getLedgerRecords.mockResolvedValueOnce(createBmeLedgerResponse({ records: [createBmeLedgerRecord({ status: 1 })] }));
 
-      const result = await service.mintIfNeeded();
+      const result = await service.mintExcessAkt();
 
       expect(result).toEqual(Ok.EMPTY);
+      expect(chainSdk.cosmos.bank.v1beta1.getAllBalances).not.toHaveBeenCalled();
       expect(txManagerService.signAndBroadcastWithFundingWallet).not.toHaveBeenCalled();
     });
 
-    it("should skip minting when ACT balance equals target", async () => {
-      const { service, txManagerService } = setup({
-        targetActBalance: 10_000_000_000,
-        balances: { uact: 10_000_000_000, uakt: 50_000_000_000 }
+    it("warns and skips when AKT balance is below the reserve", async () => {
+      const { service, txManagerService, denomExchangeService } = setup({
+        aktReserve: 2_000_000_000,
+        balances: { uact: 5_000_000_000, uakt: 1_500_000_000 }
       });
 
-      const result = await service.mintIfNeeded();
+      const result = await service.mintExcessAkt();
 
       expect(result).toEqual(Ok.EMPTY);
+      expect(denomExchangeService.getExchangeRateToUSD).not.toHaveBeenCalled();
       expect(txManagerService.signAndBroadcastWithFundingWallet).not.toHaveBeenCalled();
     });
 
-    it("should mint with 5% price slippage margin on AKT to burn", async () => {
-      const { service, masterAddress, chainSdk, rpcMessageService } = setup({
-        targetActBalance: 10_000_000_000,
-        balances: { uact: 5_000_000_000, uakt: 99_999_999_999 },
+    it("skips when AKT balance exactly equals the reserve", async () => {
+      const { service, txManagerService, denomExchangeService } = setup({
+        aktReserve: 2_000_000_000,
+        balances: { uact: 5_000_000_000, uakt: 2_000_000_000 }
+      });
+
+      const result = await service.mintExcessAkt();
+
+      expect(result).toEqual(Ok.EMPTY);
+      expect(denomExchangeService.getExchangeRateToUSD).not.toHaveBeenCalled();
+      expect(txManagerService.signAndBroadcastWithFundingWallet).not.toHaveBeenCalled();
+    });
+
+    it("skips when excess is below the BME minimum mint", async () => {
+      const { service, txManagerService } = setup({
+        aktReserve: 2_000_000_000,
+        balances: { uact: 5_000_000_000, uakt: 2_010_000_000 },
         aktPrice: 0.5
       });
-      mockBalancesOnce(chainSdk, { uact: 10_100_000_000, uakt: 89_499_999_999 });
 
-      const result = await service.mintIfNeeded();
+      const result = await service.mintExcessAkt();
 
       expect(result).toEqual(Ok.EMPTY);
-      // deficit = 10_000_000_000 - 5_000_000_000 = 5_000_000_000 uact
-      // aktToBurn = ceil(5_000_000_000 / 0.5 * 1.05) = 10_500_000_000
+      expect(txManagerService.signAndBroadcastWithFundingWallet).not.toHaveBeenCalled();
+    });
+
+    it("burns the full excess above the reserve when under the per-run cap", async () => {
+      const { service, masterAddress, chainSdk, rpcMessageService } = setup({
+        aktReserve: 2_000_000_000,
+        maxMintUakt: 5_000_000_000,
+        balances: { uact: 5_000_000_000, uakt: 6_000_000_000 },
+        aktPrice: 0.5
+      });
+      mockBalancesOnce(chainSdk, { uact: 7_000_000_000, uakt: 2_000_000_000 });
+
+      const result = await service.mintExcessAkt();
+
+      expect(result).toEqual(Ok.EMPTY);
       expect(rpcMessageService.getMintACTMsg).toHaveBeenCalledWith({
         owner: masterAddress,
-        amount: 10_500_000_000
+        amount: 6_000_000_000 - 2_000_000_000
       });
     });
 
-    it("should fail when AKT balance is insufficient to cover mint", async () => {
-      const { service } = setup({
-        targetActBalance: 10_000_000_000,
-        balances: { uact: 5_000_000_000, uakt: 100 },
+    it("caps the burn at the per-run maximum when excess exceeds it", async () => {
+      const { service, masterAddress, chainSdk, rpcMessageService } = setup({
+        aktReserve: 2_000_000_000,
+        maxMintUakt: 5_000_000_000,
+        balances: { uact: 5_000_000_000, uakt: 50_000_000_000 },
         aktPrice: 0.5
       });
+      mockBalancesOnce(chainSdk, { uact: 8_000_000_000, uakt: 45_000_000_000 });
 
-      const result = await service.mintIfNeeded();
+      const result = await service.mintExcessAkt();
+
+      expect(result).toEqual(Ok.EMPTY);
+      expect(rpcMessageService.getMintACTMsg).toHaveBeenCalledWith({
+        owner: masterAddress,
+        amount: 5_000_000_000
+      });
+    });
+
+    it("falls back to default minimum mint when uact denom is absent from BME params", async () => {
+      const { service, bmeHttpService, chainSdk, rpcMessageService, masterAddress } = setup({
+        aktReserve: 2_000_000_000,
+        balances: { uact: 5_000_000_000, uakt: 2_100_000_000 },
+        aktPrice: 0.5
+      });
+      bmeHttpService.getParams.mockResolvedValue({ params: { min_mint: [{ denom: "uother", amount: "500000" }] } });
+      mockBalancesOnce(chainSdk, { uact: 6_000_000_000, uakt: 2_000_000_000 });
+
+      const result = await service.mintExcessAkt();
+
+      expect(result).toEqual(Ok.EMPTY);
+      expect(rpcMessageService.getMintACTMsg).toHaveBeenCalledWith({
+        owner: masterAddress,
+        amount: 100_000_000
+      });
+    });
+
+    it("fails when AKT price is invalid", async () => {
+      const { service, denomExchangeService } = setup({
+        balances: { uact: 5_000_000_000, uakt: 6_000_000_000 }
+      });
+      denomExchangeService.getExchangeRateToUSD.mockResolvedValue(createDenomExchangeRate({ price: 0 }));
+
+      const result = await service.mintExcessAkt();
 
       expect(result.err).toBe(true);
-      expect(result.val).toContain("Insufficient AKT balance");
+      expect(result.val).toBe("Invalid AKT price: 0");
     });
 
-    it("should wait for ledger settlement before confirming mint", async () => {
-      const { service, chainSdk } = setup({
-        targetActBalance: 10_000_000_000,
-        balances: { uact: 5_000_000_000, uakt: 99_999_999_999 },
+    it("fails when mint transaction returns a non-zero code", async () => {
+      const { service, txManagerService } = setup({
+        balances: { uact: 5_000_000_000, uakt: 6_000_000_000 },
         aktPrice: 0.5
       });
-      mockBalancesOnce(chainSdk, { uact: 10_100_000_000, uakt: 89_799_999_999 });
+      txManagerService.signAndBroadcastWithFundingWallet.mockResolvedValue({ code: 11, hash: "FAIL", rawLog: "insufficient funds" });
+
+      const result = await service.mintExcessAkt();
+
+      expect(result.err).toBe(true);
+      expect(result.val).toBe("Transaction failed with code 11: insufficient funds");
+    });
+
+    it("waits for ledger settlement before confirming mint", async () => {
+      const { service, chainSdk } = setup({
+        balances: { uact: 5_000_000_000, uakt: 6_000_000_000 },
+        aktPrice: 0.5
+      });
+      mockBalancesOnce(chainSdk, { uact: 7_000_000_000, uakt: 2_000_000_000 });
 
       const pendingRecord = createBmeLedgerRecord({ status: 1 });
       chainSdk.akash.bme.v1.getLedgerRecords
+        .mockResolvedValueOnce(createBmeLedgerResponse())
         .mockResolvedValueOnce(createBmeLedgerResponse({ records: [pendingRecord] }))
         .mockResolvedValueOnce(createBmeLedgerResponse());
 
-      const result = await service.mintIfNeeded();
+      const result = await service.mintExcessAkt();
 
       expect(result).toEqual(Ok.EMPTY);
-      expect(chainSdk.akash.bme.v1.getLedgerRecords).toHaveBeenCalledTimes(2);
+      expect(chainSdk.akash.bme.v1.getLedgerRecords).toHaveBeenCalledTimes(3);
     });
 
-    it("should fail when ledger settlement times out", async () => {
+    it("fails when ledger settlement times out", async () => {
       const { service, chainSdk } = setup({
-        targetActBalance: 10_000_000_000,
-        balances: { uact: 5_000_000_000, uakt: 99_999_999_999 },
+        balances: { uact: 5_000_000_000, uakt: 6_000_000_000 },
         aktPrice: 0.5
       });
+      chainSdk.akash.bme.v1.getLedgerRecords.mockResolvedValueOnce(createBmeLedgerResponse());
+      chainSdk.akash.bme.v1.getLedgerRecords.mockResolvedValue(createBmeLedgerResponse({ records: [createBmeLedgerRecord({ status: 1 })] }));
 
-      const pendingRecord = createBmeLedgerRecord({ status: 1 });
-      chainSdk.akash.bme.v1.getLedgerRecords.mockResolvedValue(createBmeLedgerResponse({ records: [pendingRecord] }));
-
-      const result = await service.mintIfNeeded();
+      const result = await service.mintExcessAkt();
 
       expect(result.err).toBe(true);
       expect(result.val).toBe("Ledger polling timed out waiting for mint settlement");
     });
 
-    it("should fail when ACT balance stays below target after retries", async () => {
+    it("keeps polling until ACT balance reaches expected after mint", async () => {
       const { service, chainSdk } = setup({
-        targetActBalance: 10_000_000_000,
-        balances: { uact: 5_000_000_000, uakt: 99_999_999_999 },
+        balances: { uact: 5_000_000_000, uakt: 6_000_000_000 },
+        aktPrice: 0.5
+      });
+      mockBalancesOnce(chainSdk, { uact: 5_000_000_000, uakt: 2_000_000_000 });
+      mockBalancesOnce(chainSdk, { uact: 7_000_000_000, uakt: 2_000_000_000 });
+
+      const result = await service.mintExcessAkt();
+
+      expect(result).toEqual(Ok.EMPTY);
+      expect(chainSdk.cosmos.bank.v1beta1.getAllBalances).toHaveBeenCalledTimes(3);
+    });
+
+    it("fails when ACT balance stays below expected after retries", async () => {
+      const { service, chainSdk } = setup({
+        balances: { uact: 5_000_000_000, uakt: 6_000_000_000 },
         aktPrice: 0.5
       });
       chainSdk.cosmos.bank.v1beta1.getAllBalances.mockResolvedValue(
         createBankBalancesResponse({
           balances: [
             { denom: "uact", amount: String(5_000_000_000) },
-            { denom: "uakt", amount: String(96_123_572) }
+            { denom: "uakt", amount: String(2_000_000_000) }
           ]
         })
       );
 
-      const result = await service.mintIfNeeded();
+      const result = await service.mintExcessAkt();
 
       expect(result.err).toBe(true);
       expect(result.val).toBe("ACT balance still below expected after mint");
     });
 
-    it("should fail when AKT price is invalid", async () => {
-      const { service, denomExchangeService } = setup({
-        targetActBalance: 10_000_000_000,
-        balances: { uact: 5_000_000_000, uakt: 99_999_999_999 }
-      });
-      denomExchangeService.getExchangeRateToUSD.mockResolvedValue(createDenomExchangeRate({ price: 0 }));
-
-      const result = await service.mintIfNeeded();
-
-      expect(result.err).toBe(true);
-      expect(result.val).toBe("Invalid AKT price: 0");
-    });
-
-    it("should fail when mint transaction returns a non-zero code", async () => {
+    it("skips broadcasting when dry-run is enabled", async () => {
       const { service, txManagerService } = setup({
-        targetActBalance: 10_000_000_000,
-        balances: { uact: 5_000_000_000, uakt: 99_999_999_999 },
-        aktPrice: 0.5
-      });
-      txManagerService.signAndBroadcastWithFundingWallet.mockResolvedValue({ code: 11, hash: "FAIL", rawLog: "insufficient funds" });
-
-      const result = await service.mintIfNeeded();
-
-      expect(result.err).toBe(true);
-      expect(result.val).toBe("Transaction failed with code 11: insufficient funds");
-    });
-
-    it("should cap burn amount and scale expected ACT when AKT partially covers the mint", async () => {
-      const { service, chainSdk, rpcMessageService, masterAddress } = setup({
-        targetActBalance: 10_000_000_000,
-        balances: { uact: 5_000_000_000, uakt: 5_200_000_000 },
-        aktPrice: 0.5
-      });
-      mockBalancesOnce(chainSdk, { uact: 7_500_000_000, uakt: 0 });
-
-      const result = await service.mintIfNeeded();
-
-      expect(result).toEqual(Ok.EMPTY);
-      // available = 5_200_000_000 - 100_000_000 reserve = 5_100_000_000 (< 10_500_000_000 requested)
-      // expected ACT = floor(5_100_000_000 * 0.5 / 1.05) = 2_428_571_428
-      // expectedActBalance = 5_000_000_000 + 2_428_571_428 = 7_428_571_428
-      expect(rpcMessageService.getMintACTMsg).toHaveBeenCalledWith({
-        owner: masterAddress,
-        amount: 5_100_000_000
-      });
-    });
-
-    it("should bump mint amount to the BME minimum when deficit is smaller", async () => {
-      const { service, chainSdk, rpcMessageService, masterAddress } = setup({
-        targetActBalance: 10_000_000_000,
-        balances: { uact: 9_999_000_000, uakt: 99_999_999_999 },
-        aktPrice: 0.5
-      });
-      mockBalancesOnce(chainSdk, { uact: 10_009_000_000, uakt: 0 });
-
-      const result = await service.mintIfNeeded();
-
-      expect(result).toEqual(Ok.EMPTY);
-      // deficit = 1_000_000 uact, BME minMintUact = 10_000_000
-      // aktToBurn = ceil(10_000_000 / 0.5 * 1.05) = 21_000_000
-      expect(rpcMessageService.getMintACTMsg).toHaveBeenCalledWith({
-        owner: masterAddress,
-        amount: 21_000_000
-      });
-    });
-
-    it("should fall back to default minimum mint when uact denom is absent from BME params", async () => {
-      const { service, bmeHttpService, chainSdk, rpcMessageService, masterAddress } = setup({
-        targetActBalance: 10_000_000_000,
-        balances: { uact: 9_999_000_000, uakt: 99_999_999_999 },
-        aktPrice: 0.5
-      });
-      bmeHttpService.getParams.mockResolvedValue({ params: { min_mint: [{ denom: "uother", amount: "500000" }] } });
-      mockBalancesOnce(chainSdk, { uact: 10_009_000_000, uakt: 0 });
-
-      const result = await service.mintIfNeeded();
-
-      expect(result).toEqual(Ok.EMPTY);
-      // fallback minMintUact = 10_000_000; aktToBurn = ceil(10_000_000 / 0.5 * 1.05) = 21_000_000
-      expect(rpcMessageService.getMintACTMsg).toHaveBeenCalledWith({
-        owner: masterAddress,
-        amount: 21_000_000
-      });
-    });
-
-    it("should keep polling until ACT balance reaches expected after mint", async () => {
-      const { service, chainSdk } = setup({
-        targetActBalance: 10_000_000_000,
-        balances: { uact: 5_000_000_000, uakt: 99_999_999_999 },
-        aktPrice: 0.5
-      });
-      mockBalancesOnce(chainSdk, { uact: 5_000_000_000, uakt: 89_799_999_999 });
-      mockBalancesOnce(chainSdk, { uact: 10_100_000_000, uakt: 89_799_999_999 });
-
-      const result = await service.mintIfNeeded();
-
-      expect(result).toEqual(Ok.EMPTY);
-      // 1 initial fetch + 2 verification polls
-      expect(chainSdk.cosmos.bank.v1beta1.getAllBalances).toHaveBeenCalledTimes(3);
-    });
-
-    it("should skip broadcasting when dry-run is enabled", async () => {
-      const { service, txManagerService } = setup({
-        targetActBalance: 10_000_000_000,
-        balances: { uact: 5_000_000_000, uakt: 99_999_999_999 },
+        balances: { uact: 5_000_000_000, uakt: 6_000_000_000 },
         aktPrice: 0.5
       });
 
-      const result = await service.mintIfNeeded({ dryRun: true });
+      const result = await service.mintExcessAkt({ dryRun: true });
 
       expect(result).toEqual(Ok.EMPTY);
       expect(txManagerService.signAndBroadcastWithFundingWallet).not.toHaveBeenCalled();
@@ -257,9 +241,10 @@ describe(MasterWalletMintService.name, () => {
     );
   }
 
-  function setup(input: { targetActBalance: number; balances?: { uact: number; uakt: number }; aktPrice?: number }) {
+  function setup(input: { aktReserve?: number; maxMintUakt?: number; balances?: { uact: number; uakt: number }; aktPrice?: number }) {
     const billingConfig = mock<BillingConfigService>();
-    billingConfig.get.calledWith("MASTER_WALLET_TARGET_ACT_BALANCE").mockReturnValue(input.targetActBalance);
+    billingConfig.get.calledWith("MASTER_WALLET_AKT_RESERVE").mockReturnValue(input.aktReserve ?? 2_000_000_000);
+    billingConfig.get.calledWith("MASTER_WALLET_MAX_MINT_UAKT").mockReturnValue(input.maxMintUakt ?? 5_000_000_000);
 
     const masterAddress = createAkashAddress();
     const txManagerService = mock<TxManagerService>();
