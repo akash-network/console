@@ -51,7 +51,13 @@ export function getGroupGpuInterconnect(group: DeploymentGroup | undefined | nul
   const enabled = attributes.some(attribute => attribute?.key === GPU_INTERCONNECT_CAPABILITY_KEY && attribute?.value === ENABLED_VALUE);
   if (!enabled) return { enabled: false };
 
-  const fabricAttribute = attributes.find(attribute => attribute?.key?.startsWith(GPU_INTERCONNECT_FABRIC_PREFIX) && attribute?.value === ENABLED_VALUE);
+  const fabricAttribute = attributes.find(
+    attribute =>
+      typeof attribute?.key === "string" &&
+      attribute.key.startsWith(GPU_INTERCONNECT_FABRIC_PREFIX) &&
+      attribute.key.length > GPU_INTERCONNECT_FABRIC_PREFIX.length &&
+      attribute.value === ENABLED_VALUE
+  );
   const fabric = fabricAttribute?.key.slice(GPU_INTERCONNECT_FABRIC_PREFIX.length) || undefined;
 
   return { enabled: true, fabric };

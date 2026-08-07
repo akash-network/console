@@ -56,6 +56,24 @@ describe(getGroupGpuInterconnect.name, () => {
     expect(getGroupGpuInterconnect(group)).toEqual({ enabled: true, fabric: undefined });
   });
 
+  it("skips an empty fabric suffix and selects a later valid fabric pin", () => {
+    const group = buildGroupWithAttributes([
+      { key: CAPABILITY_KEY, value: "true" },
+      { key: FABRIC_PREFIX, value: "true" },
+      { key: `${FABRIC_PREFIX}infiniband`, value: "true" }
+    ]);
+    expect(getGroupGpuInterconnect(group)).toEqual({ enabled: true, fabric: "infiniband" });
+  });
+
+  it("ignores a non-string attribute key without throwing", () => {
+    const attributes = [
+      { key: CAPABILITY_KEY, value: "true" },
+      { key: 123, value: "true" }
+    ] as unknown as { key: string; value: string }[];
+    const group = buildGroupWithAttributes(attributes);
+    expect(getGroupGpuInterconnect(group)).toEqual({ enabled: true, fabric: undefined });
+  });
+
   it("returns not enabled for a missing or malformed group", () => {
     expect(getGroupGpuInterconnect(undefined)).toEqual({ enabled: false });
     expect(getGroupGpuInterconnect(null)).toEqual({ enabled: false });
