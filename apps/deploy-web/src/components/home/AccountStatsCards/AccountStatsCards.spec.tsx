@@ -19,7 +19,7 @@ describe(AccountStatsCards.name, () => {
   it("renders deployment escrow USD", () => {
     setup({ walletBalance: buildWalletBalance({ totalDeploymentEscrowUSD: 42.0 }) });
 
-    expect(screen.getByText(/used in deployments/)).toBeInTheDocument();
+    expect(screen.getByText("$42.00 used in deployments")).toBeInTheDocument();
   });
 
   it("does not render AKT or USDC or ACT cards", () => {
