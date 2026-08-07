@@ -20,7 +20,6 @@ import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
 import { useFlag } from "@src/hooks/useFlag";
 import { useNavigationGuard } from "@src/hooks/useNavigationGuard/useNavigationGuard";
 import { useUser } from "@src/hooks/useUser";
-import { useWhen } from "@src/hooks/useWhen";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
@@ -212,10 +211,6 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
     enabled: isAlertsEnabled && !!badgedTabs.ALERTS,
     message: "You have unsaved alert configuration changes that will be lost. Would you like to continue?",
     skipWhen: params => params.to.startsWith(`/deployments/${dseq}`)
-  });
-
-  useWhen(deployment?.state !== "active", () => {
-    setBadgedTabs({});
   });
 
   return (
