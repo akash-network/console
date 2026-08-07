@@ -1,6 +1,6 @@
 "use client";
 
-import { type FC, useCallback, useEffect, useMemo } from "react";
+import { type FC, useCallback, useEffect, useMemo, useRef } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { LoadingButton } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -73,10 +73,14 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const isDeploymentClosedEnabled = d.useFlag("ui_deployment_closed_alert");
+  const isBalanceSectionDirty = useRef(false);
   const strictSchema = useMemo(() => {
     return schema.extend({
       deploymentBalance: z.object({
-        threshold: z.number().max(maxBalanceThreshold, "Threshold must be less than or equal to the current balance").min(0, "Threshold must be greater than 0")
+        threshold: z
+          .number()
+          .min(0, "Threshold must be greater than 0")
+          .refine(value => !isBalanceSectionDirty.current || value <= maxBalanceThreshold, "Threshold must be less than or equal to the current balance")
       })
     });
   }, [maxBalanceThreshold]);
@@ -114,15 +118,12 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
   const { isDirty, dirtyFields } = form.formState;
 
   useEffect(() => {
-    onStateChange?.({ hasChanges: !disabled && isDirty });
-  }, [isDirty, disabled, onStateChange]);
+    isBalanceSectionDirty.current = !!dirtyFields.deploymentBalance;
+  }, [dirtyFields.deploymentBalance]);
 
   useEffect(() => {
-    if (!dirtyFields.deploymentBalance?.threshold) {
-      form.resetField("deploymentBalance.threshold", { defaultValue: providedValues.deploymentBalance.threshold });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [providedValues.deploymentBalance.threshold]);
+    onStateChange?.({ hasChanges: !disabled && isDirty });
+  }, [isDirty, disabled, onStateChange]);
 
   const submit = useCallback(async () => {
     const { deploymentBalance, deploymentClosed } = form.getValues();

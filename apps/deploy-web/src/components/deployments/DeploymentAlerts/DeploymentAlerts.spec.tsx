@@ -79,6 +79,22 @@ describe("DeploymentAlerts", () => {
     });
   });
 
+  it("saves an unrelated edit when a saved threshold now exceeds the dropped balance", async () => {
+    const { componentProps, rerender } = setup({ maxBalanceThreshold: 1000 });
+
+    rerender({ maxBalanceThreshold: 50 });
+
+    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentClosed.enabled"]' }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+    });
+
+    expect(componentProps.upsert).toHaveBeenCalledWith({
+      alerts: { deploymentClosed: expect.objectContaining({ enabled: false }) }
+    });
+  });
+
   it("does not flag unsaved changes when the escrow balance drops on close", () => {
     const { componentProps, rerender } = setup({ data: undefined, maxBalanceThreshold: 1000 });
 
