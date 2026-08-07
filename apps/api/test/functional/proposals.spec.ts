@@ -27,7 +27,7 @@ describe("Proposals", () => {
           submitTime: "2023-08-05T10:00:00.000000000Z",
           votingStartTime: "0001-01-01T00:00:00Z",
           votingEndTime: "0001-01-01T00:00:00Z",
-          totalDeposit: 500000000
+          totalDeposit: 0
         },
         {
           id: 3,
@@ -144,7 +144,7 @@ describe("Proposals", () => {
       });
     });
 
-    it("resolves a proposal without messages and voting times", async () => {
+    it("resolves a proposal without messages, deposit and voting times", async () => {
       setup();
 
       const response = await app.request("/v1/proposals/4");
@@ -159,7 +159,7 @@ describe("Proposals", () => {
         submitTime: "2023-08-05T10:00:00.000000000Z",
         votingStartTime: "0001-01-01T00:00:00Z",
         votingEndTime: "0001-01-01T00:00:00Z",
-        totalDeposit: 500000000,
+        totalDeposit: 0,
         tally: {
           yes: 0,
           abstain: 0,
@@ -340,8 +340,8 @@ describe("Proposals", () => {
     proposer: GOV_AUTHORITY
   };
 
-  /** protojson omits empty repeated fields, so a zero-message proposal arrives without a `messages` key. */
-  const omittedMessagesProposal = {
+  /** protojson omits empty repeated fields, so a zero-message zero-deposit proposal arrives without `messages` and `total_deposit` keys. */
+  const omittedRepeatedFieldsProposal = {
     id: "4",
     status: "PROPOSAL_STATUS_DEPOSIT_PERIOD",
     final_tally_result: {
@@ -352,12 +352,6 @@ describe("Proposals", () => {
     },
     submit_time: "2023-08-05T10:00:00.000000000Z",
     deposit_end_time: "2023-08-19T10:00:00.000000000Z",
-    total_deposit: [
-      {
-        denom: "uakt",
-        amount: "500000000"
-      }
-    ],
     voting_start_time: null,
     voting_end_time: null,
     metadata: "",
@@ -371,7 +365,7 @@ describe("Proposals", () => {
       .persist()
       .get("/cosmos/gov/v1/proposals?pagination.limit=1000")
       .reply(200, {
-        proposals: [softwareUpgradeProposal, multiMessageProposal, legacyParamChangeProposal, omittedMessagesProposal],
+        proposals: [softwareUpgradeProposal, multiMessageProposal, legacyParamChangeProposal, omittedRepeatedFieldsProposal],
         pagination: {
           next_key: null,
           total: "4"
@@ -394,7 +388,7 @@ describe("Proposals", () => {
 
     nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL).persist().get("/cosmos/gov/v1/proposals/3").reply(200, { proposal: legacyParamChangeProposal });
 
-    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL).persist().get("/cosmos/gov/v1/proposals/4").reply(200, { proposal: omittedMessagesProposal });
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL).persist().get("/cosmos/gov/v1/proposals/4").reply(200, { proposal: omittedRepeatedFieldsProposal });
 
     nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()

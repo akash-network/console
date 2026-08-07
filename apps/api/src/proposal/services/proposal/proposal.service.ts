@@ -21,7 +21,7 @@ export class ProposalService {
       submitTime: x.submit_time,
       votingStartTime: x.voting_start_time ?? UNSET_TIMESTAMP,
       votingEndTime: x.voting_end_time ?? UNSET_TIMESTAMP,
-      totalDeposit: parseInt(x.total_deposit[0]?.amount || "0")
+      totalDeposit: parseInt(x.total_deposit?.[0]?.amount || "0")
     }));
 
     const sortedProposals = proposals.sort((a, b) => b.id - a.id);
@@ -60,7 +60,7 @@ export class ProposalService {
         submitTime: proposalFromCosmos.submit_time,
         votingStartTime: proposalFromCosmos.voting_start_time ?? UNSET_TIMESTAMP,
         votingEndTime: proposalFromCosmos.voting_end_time ?? UNSET_TIMESTAMP,
-        totalDeposit: parseInt(proposalFromCosmos.total_deposit[0]?.amount || "0"),
+        totalDeposit: parseInt(proposalFromCosmos.total_deposit?.[0]?.amount || "0"),
         tally: { ...tally, total: tally.yes + tally.abstain + tally.no + tally.noWithVeto },
         paramChanges: (proposalFromCosmos.messages ?? [])
           .filter(message => message["@type"] === MSG_EXEC_LEGACY_CONTENT_TYPE)

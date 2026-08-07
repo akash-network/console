@@ -175,7 +175,8 @@ export type CosmosGovProposal = {
   final_tally_result?: CosmosGovTallyResult;
   submit_time: string;
   deposit_end_time: string;
-  total_deposit: {
+  /** protojson omits empty repeated fields, so zero-deposit proposals may lack this key entirely. */
+  total_deposit?: {
     denom: string;
     amount: string;
   }[];
