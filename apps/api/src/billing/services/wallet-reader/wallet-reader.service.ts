@@ -3,7 +3,13 @@ import assert from "http-assert";
 import { Lifecycle, scoped } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import { isWalletInitialized, UserWalletOutput, UserWalletPublicOutput, UserWalletRepository, WalletInitialized } from "@src/billing/repositories";
+import {
+  isWalletInitialized,
+  type UserWalletOutput,
+  type UserWalletPublicOutput,
+  UserWalletRepository,
+  type WalletInitialized
+} from "@src/billing/repositories";
 
 export interface GetWalletOptions {
   userId: string;
