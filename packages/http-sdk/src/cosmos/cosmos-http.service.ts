@@ -90,19 +90,19 @@ export class CosmosHttpService {
   }
 
   async getProposals(): Promise<CosmosGovProposalsResponse["proposals"]> {
-    const { proposals } = extractData(await this.httpClient.get<CosmosGovProposalsResponse>(`/cosmos/gov/v1beta1/proposals?pagination.limit=1000`));
+    const { proposals } = extractData(await this.httpClient.get<CosmosGovProposalsResponse>(`/cosmos/gov/v1/proposals?pagination.limit=1000`));
 
     return proposals;
   }
 
   async getProposal(id: number): Promise<CosmosGovProposalResponse["proposal"]> {
-    const { proposal } = extractData(await this.httpClient.get<CosmosGovProposalResponse>(`/cosmos/gov/v1beta1/proposals/${id}`));
+    const { proposal } = extractData(await this.httpClient.get<CosmosGovProposalResponse>(`/cosmos/gov/v1/proposals/${id}`));
 
     return proposal;
   }
 
   async getProposalTally(id: number): Promise<RestGovProposalsTallyResponse["tally"]> {
-    const { tally } = extractData(await this.httpClient.get<RestGovProposalsTallyResponse>(`/cosmos/gov/v1beta1/proposals/${id}/tally`));
+    const { tally } = extractData(await this.httpClient.get<RestGovProposalsTallyResponse>(`/cosmos/gov/v1/proposals/${id}/tally`));
 
     return tally;
   }

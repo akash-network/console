@@ -146,35 +146,50 @@ export type CosmosDistributionValidatorsCommissionResponse = {
   };
 };
 
-export type CosmosGovProposalsResponse = {
-  proposals: {
-    proposal_id: string;
-    content: {
-      "@type": string;
-      title: string;
-      description: string;
-      changes: {
-        subspace: string;
-        key: string;
-        value: string;
-      }[];
-    };
-    status: string;
-    final_tally_result: {
-      yes: string;
-      abstain: string;
-      no: string;
-      no_with_veto: string;
-    };
-    submit_time: string;
-    deposit_end_time: string;
-    total_deposit: {
-      denom: string;
-      amount: string;
+export type CosmosGovProposalMessage = {
+  "@type": string;
+  content?: {
+    "@type": string;
+    title?: string;
+    description?: string;
+    changes?: {
+      subspace: string;
+      key: string;
+      value: string;
     }[];
-    voting_start_time: string;
-    voting_end_time: string;
+  };
+};
+
+export type CosmosGovTallyResult = {
+  yes_count: string;
+  abstain_count: string;
+  no_count: string;
+  no_with_veto_count: string;
+};
+
+export type CosmosGovProposal = {
+  id: string;
+  /** protojson omits empty repeated fields, so zero-message proposals may lack this key entirely. */
+  messages?: CosmosGovProposalMessage[];
+  status: string;
+  final_tally_result?: CosmosGovTallyResult;
+  submit_time: string;
+  deposit_end_time: string;
+  /** protojson omits empty repeated fields, so zero-deposit proposals may lack this key entirely. */
+  total_deposit?: {
+    denom: string;
+    amount: string;
   }[];
+  voting_start_time: string | null;
+  voting_end_time: string | null;
+  metadata: string;
+  title: string;
+  summary: string;
+  proposer: string;
+};
+
+export type CosmosGovProposalsResponse = {
+  proposals: CosmosGovProposal[];
   pagination: {
     next_key: string | null;
     total: string;
@@ -182,41 +197,9 @@ export type CosmosGovProposalsResponse = {
 };
 
 export type CosmosGovProposalResponse = {
-  proposal: {
-    proposal_id: string;
-    content: {
-      "@type": string;
-      title: string;
-      description: string;
-      changes: {
-        subspace: string;
-        key: string;
-        value: string;
-      }[];
-    };
-    status: string;
-    final_tally_result?: {
-      yes: string;
-      abstain: string;
-      no: string;
-      no_with_veto: string;
-    };
-    submit_time: string;
-    deposit_end_time: string;
-    total_deposit: {
-      denom: string;
-      amount: string;
-    }[];
-    voting_start_time: string;
-    voting_end_time: string;
-  };
+  proposal: CosmosGovProposal;
 };
 
 export type RestGovProposalsTallyResponse = {
-  tally: {
-    yes: string;
-    abstain: string;
-    no: string;
-    no_with_veto: string;
-  };
+  tally: CosmosGovTallyResult;
 };
