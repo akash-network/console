@@ -159,7 +159,9 @@ describe(WalletSettingService.name, () => {
 
       await service.upsertWalletSetting(user.id, { autoReloadThreshold: 30 });
 
-      expect(walletReloadJobService.scheduleForWalletSetting).toHaveBeenCalledWith(expect.objectContaining({ id: updated.id, userId: user.id }));
+      expect(walletReloadJobService.scheduleForWalletSetting).toHaveBeenCalledWith(expect.objectContaining({ id: updated.id, userId: user.id }), {
+        withCleanup: true
+      });
     });
 
     it("does not schedule a check when reload values are unchanged while enabled", async () => {

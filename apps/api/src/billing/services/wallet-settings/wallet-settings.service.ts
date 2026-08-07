@@ -142,7 +142,7 @@ export class WalletSettingService {
     }
 
     if (this.#hasReloadValuesChanged(prev, next)) {
-      await this.walletReloadJobService.scheduleForWalletSetting(next);
+      await this.walletReloadJobService.scheduleForWalletSetting(next, { withCleanup: true });
     }
   }
 

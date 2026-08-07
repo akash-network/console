@@ -22,7 +22,7 @@ export class WalletReloadJobService {
         : await this.walletSettingRepository.findOneBy({ walletId: input.walletId });
 
     if (walletSetting?.autoReloadEnabled) {
-      await this.scheduleForWalletSetting(walletSetting);
+      await this.scheduleForWalletSetting(walletSetting, { withCleanup: true });
       return true;
     }
 

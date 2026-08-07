@@ -49,6 +49,10 @@ describe(WalletReloadJobService.name, () => {
 
       expect(result).toBe(true);
       expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(userId);
+      expect(jobQueueService.cancelCreatedBy).toHaveBeenCalledWith({
+        name: WalletBalanceReloadCheck.name,
+        singletonKey: `${WalletBalanceReloadCheck.name}.${walletSetting.userId}`
+      });
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(
         expect.any(WalletBalanceReloadCheck),
         expect.objectContaining({
@@ -69,6 +73,10 @@ describe(WalletReloadJobService.name, () => {
       expect(result).toBe(true);
       expect(walletSettingRepository.findOneBy).toHaveBeenCalledWith({ walletId });
       expect(walletSettingRepository.findByUserId).not.toHaveBeenCalled();
+      expect(jobQueueService.cancelCreatedBy).toHaveBeenCalledWith({
+        name: WalletBalanceReloadCheck.name,
+        singletonKey: `${WalletBalanceReloadCheck.name}.${walletSetting.userId}`
+      });
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(
         expect.any(WalletBalanceReloadCheck),
         expect.objectContaining({
