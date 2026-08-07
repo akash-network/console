@@ -87,7 +87,14 @@ export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, depen
 
         <d.GpuCard serviceIndex={serviceIndex} locked={locked} isBlockedModel={isBlockedModel} onUnlock={openUnlock} />
 
-        {d.useFlag("ui_gpu_interconnect") && <d.GpuInterconnectCard serviceIndex={serviceIndex} locked={locked} />}
+        {d.useFlag("ui_gpu_interconnect") && (
+          <d.GpuInterconnectCard
+            serviceIndex={serviceIndex}
+            locked={locked}
+            isTrialBlocked={isRestricted && !locked && isTrialGpuRestrictionActive()}
+            onUnlock={openUnlock}
+          />
+        )}
 
         <d.CollapsibleCard locked={locked} title="Compute Resources" icon={<CpuIcon className="h-4 w-4" />} infoTooltip={computeResourcesTooltip}>
           <d.ComputeResourcesCard serviceIndex={serviceIndex} locked={locked} />

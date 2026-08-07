@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { TooltipProvider } from "@akashnetwork/ui/components";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { PlacementAttributeType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultPlacement, defaultService, defaultServiceWithPlacement } from "@src/utils/sdl/data";
@@ -157,6 +157,151 @@ describe(GpuInterconnectCard.name, () => {
     expect(screen.getByText("GPU interconnect is off.")).toBeInTheDocument();
   });
 
+  it("disables the switch for a trial-blocked wallet while off", () => {
+    setup({ isTrialBlocked: true });
+
+    expect(screen.getByRole("switch", { name: "Enable GPU interconnect" })).toBeDisabled();
+  });
+
+  it("shows the trial warning with an unlock CTA that opens the add-credits sheet", async () => {
+    const onUnlock = vi.fn();
+    setup({ isTrialBlocked: true, onUnlock });
+
+    await userEvent.click(screen.getByRole("button", { name: "Expand GPU Interconnect" }));
+    expect(screen.getByText(/isn't available on a free trial/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /unlock gpu interconnect/i }));
+
+    expect(onUnlock).toHaveBeenCalled();
+  });
+
+  it("keeps the switch usable for an imported interconnect so a trial-blocked wallet can turn it off", async () => {
+    const { getValues } = setup({
+      isTrialBlocked: true,
+      interconnect: {},
+      attributes: [{ id: "c1", key: GPU_INTERCONNECT_CAPABILITY_KEY, value: "true" }]
+    });
+
+    const interconnectSwitch = screen.getByRole("switch", { name: "Enable GPU interconnect" });
+    expect(interconnectSwitch).toBeEnabled();
+
+    await userEvent.click(interconnectSwitch);
+
+    expect(getValues().services[0].profile.interconnect).toBeUndefined();
+    expect(getValues().placements[0].attributes).toEqual([]);
+  });
+
+  it("warns that an imported interconnect would be rejected for a trial-blocked wallet", () => {
+    setup({ isTrialBlocked: true, interconnect: {} });
+
+    expect(screen.getByText(/would be rejected/i)).toBeInTheDocument();
+  });
+
+  it("does not show the trial warning when the wallet is not blocked", () => {
+    setup({ interconnect: {} });
+
+    expect(screen.queryByText(/free trial/i)).not.toBeInTheDocument();
+  });
+
+  it("shows an imported explicit group name in the group input", () => {
+    setup({ interconnect: { group: "pair0" } });
+
+    expect(screen.getByLabelText("Interconnect group")).toHaveValue("pair0");
+  });
+
+  it("writes an explicit group as the user types", async () => {
+    const { getValues } = setup({ interconnect: {} });
+
+    await userEvent.type(screen.getByLabelText("Interconnect group"), "pair0");
+
+    expect(getValues().services[0].profile.interconnect).toEqual({ group: "pair0" });
+  });
+
+  it("returns to the implicit group when the name is cleared", async () => {
+    const { getValues } = setup({ interconnect: { group: "pair0" } });
+
+    await userEvent.clear(screen.getByLabelText("Interconnect group"));
+
+    expect(getValues().services[0].profile.interconnect).toEqual({});
+  });
+
+  it("warns that the group name auto is reserved", () => {
+    setup({ interconnect: { group: "auto" } });
+
+    expect(screen.getByText(/reserved for the automatic group/i)).toBeInTheDocument();
+  });
+
+  it("warns when services on the placement mix automatic and named groups", () => {
+    setup({ interconnect: { group: "pair0" }, sibling: "same-placement" });
+
+    expect(screen.getByText(/mix automatic and named interconnect groups/i)).toBeInTheDocument();
+  });
+
+  it("does not warn about mixing when the differently-formed service is on another placement", () => {
+    setup({ interconnect: { group: "pair0" }, sibling: "other-placement" });
+
+    expect(screen.queryByText(/mix automatic and named interconnect groups/i)).not.toBeInTheDocument();
+  });
+
+  it("pins the selected fabric on the placement", async () => {
+    const { getValues } = setup({ interconnect: {}, attributes: [{ id: "c1", key: GPU_INTERCONNECT_CAPABILITY_KEY, value: "true" }] });
+
+    await userEvent.click(screen.getByRole("radio", { name: "InfiniBand" }));
+
+    expect(getValues().placements[0].attributes).toEqual([
+      { id: "c1", key: GPU_INTERCONNECT_CAPABILITY_KEY, value: "true" },
+      { id: expect.any(String), key: `${GPU_INTERCONNECT_FABRIC_PREFIX}infiniband`, value: "true" }
+    ]);
+  });
+
+  it("replaces the pinned fabric when another is selected", async () => {
+    const { getValues } = setup({ interconnect: {}, attributes: [{ id: "f1", key: `${GPU_INTERCONNECT_FABRIC_PREFIX}infiniband`, value: "true" }] });
+
+    await userEvent.click(screen.getByRole("radio", { name: "RoCE" }));
+
+    expect(getValues().placements[0].attributes).toEqual([{ id: expect.any(String), key: `${GPU_INTERCONNECT_FABRIC_PREFIX}roce`, value: "true" }]);
+  });
+
+  it("preselects an imported fabric pin", () => {
+    setup({ interconnect: {}, attributes: [{ id: "f1", key: `${GPU_INTERCONNECT_FABRIC_PREFIX}roce`, value: "true" }] });
+
+    expect(screen.getByRole("radio", { name: "RoCE" })).toBeChecked();
+  });
+
+  it("defaults the fabric to Any when nothing is pinned", () => {
+    setup({ interconnect: {} });
+
+    expect(screen.getByRole("radio", { name: "Any" })).toBeChecked();
+  });
+
+  it("removes the fabric pin when Any is selected", async () => {
+    const { getValues } = setup({
+      interconnect: {},
+      attributes: [
+        { id: "c1", key: GPU_INTERCONNECT_CAPABILITY_KEY, value: "true" },
+        { id: "f1", key: `${GPU_INTERCONNECT_FABRIC_PREFIX}infiniband`, value: "true" }
+      ]
+    });
+
+    await userEvent.click(screen.getByRole("radio", { name: "Any" }));
+
+    expect(getValues().placements[0].attributes).toEqual([{ id: "c1", key: GPU_INTERCONNECT_CAPABILITY_KEY, value: "true" }]);
+  });
+
+  it("disables the advanced controls for a trial-blocked wallet", () => {
+    setup({ isTrialBlocked: true, interconnect: {} });
+
+    expect(screen.getByLabelText("Interconnect group")).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "InfiniBand" })).toBeDisabled();
+  });
+
+  it("disables the advanced controls while the pane is locked", () => {
+    setup({ interconnect: {}, locked: true });
+
+    expect(screen.getByLabelText("Interconnect group")).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "InfiniBand" })).toBeDisabled();
+  });
+
   function setup(input: {
     interconnect?: { group?: string };
     profile?: Partial<ServiceType["profile"]>;
@@ -164,6 +309,8 @@ describe(GpuInterconnectCard.name, () => {
     attributes?: PlacementAttributeType[];
     sibling?: "same-placement" | "other-placement";
     locked?: boolean;
+    isTrialBlocked?: boolean;
+    onUnlock?: () => void;
   }) {
     const base = defaultServiceWithPlacement();
     const placements: SdlBuilderFormValuesType["placements"] = [{ ...base.placements[0], attributes: input.attributes ?? [] }];
@@ -193,7 +340,7 @@ describe(GpuInterconnectCard.name, () => {
     render(
       <Wrapper>
         <TooltipProvider>
-          <GpuInterconnectCard serviceIndex={0} locked={input.locked} />
+          <GpuInterconnectCard serviceIndex={0} locked={input.locked} isTrialBlocked={input.isTrialBlocked} onUnlock={input.onUnlock} />
         </TooltipProvider>
       </Wrapper>
     );

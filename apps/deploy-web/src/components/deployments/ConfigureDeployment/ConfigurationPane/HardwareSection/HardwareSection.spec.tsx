@@ -105,6 +105,33 @@ describe(HardwareSection.name, () => {
     expect(ConfidentialComputeCard).toHaveBeenCalledWith(expect.objectContaining({ isGpuBlocked: false }), expect.anything());
   });
 
+  it("passes isTrialBlocked and an unlock handler to the GPU interconnect card for a trial", () => {
+    const GpuInterconnectCard = vi.fn(() => null);
+    const useTrialGate = () => ({ isRestricted: true, isWalletReady: true });
+
+    setup({ dependencies: { GpuInterconnectCard, useTrialGate } });
+
+    expect(GpuInterconnectCard).toHaveBeenCalledWith(expect.objectContaining({ isTrialBlocked: true, onUnlock: expect.any(Function) }), expect.anything());
+  });
+
+  it("does not block the GPU interconnect card when the trial restriction is not in force", () => {
+    const GpuInterconnectCard = vi.fn(() => null);
+    const useTrialGate = () => ({ isRestricted: false, isWalletReady: true });
+
+    setup({ dependencies: { GpuInterconnectCard, useTrialGate } });
+
+    expect(GpuInterconnectCard).toHaveBeenCalledWith(expect.objectContaining({ isTrialBlocked: false }), expect.anything());
+  });
+
+  it("does not block the GPU interconnect card while the pane is locked so the trial warning never fights the read-only quote view", () => {
+    const GpuInterconnectCard = vi.fn(() => null);
+    const useTrialGate = () => ({ isRestricted: true, isWalletReady: true });
+
+    setup({ locked: true, dependencies: { GpuInterconnectCard, useTrialGate } });
+
+    expect(GpuInterconnectCard).toHaveBeenCalledWith(expect.objectContaining({ isTrialBlocked: false }), expect.anything());
+  });
+
   it("blocks nothing while the pane is locked", () => {
     const GpuCard = vi.fn<typeof DEPENDENCIES.GpuCard>(() => null);
     const useTrialGate = () => ({ isRestricted: true, isWalletReady: true });
