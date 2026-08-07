@@ -62,7 +62,7 @@ export class ProposalService {
         votingEndTime: proposalFromCosmos.voting_end_time ?? UNSET_TIMESTAMP,
         totalDeposit: parseInt(proposalFromCosmos.total_deposit[0]?.amount || "0"),
         tally: { ...tally, total: tally.yes + tally.abstain + tally.no + tally.noWithVeto },
-        paramChanges: proposalFromCosmos.messages
+        paramChanges: (proposalFromCosmos.messages ?? [])
           .filter(message => message["@type"] === MSG_EXEC_LEGACY_CONTENT_TYPE)
           .flatMap(message => message.content?.changes ?? [])
           .map(change => ({

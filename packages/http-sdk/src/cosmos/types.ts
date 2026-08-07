@@ -169,7 +169,8 @@ export type CosmosGovTallyResult = {
 
 export type CosmosGovProposal = {
   id: string;
-  messages: CosmosGovProposalMessage[];
+  /** protojson omits empty repeated fields, so zero-message proposals may lack this key entirely. */
+  messages?: CosmosGovProposalMessage[];
   status: string;
   final_tally_result?: CosmosGovTallyResult;
   submit_time: string;
