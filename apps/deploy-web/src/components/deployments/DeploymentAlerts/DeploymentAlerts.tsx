@@ -117,6 +117,13 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
     onStateChange?.({ hasChanges: !disabled && isDirty });
   }, [isDirty, disabled, onStateChange]);
 
+  useEffect(() => {
+    if (!dirtyFields.deploymentBalance?.threshold) {
+      form.resetField("deploymentBalance.threshold", { defaultValue: providedValues.deploymentBalance.threshold });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [providedValues.deploymentBalance.threshold]);
+
   const submit = useCallback(async () => {
     const { deploymentBalance, deploymentClosed } = form.getValues();
     const payload: Partial<FullAlertsInput> = {};
