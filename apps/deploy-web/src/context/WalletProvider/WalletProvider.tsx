@@ -9,7 +9,6 @@ import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
 import { useBalances } from "@src/queries/useBalancesQuery";
-import type { AppError } from "@src/types";
 import { getStorageManagedWallet, updateStorageManagedWallet } from "@src/utils/walletUtils";
 import { useServices } from "../ServicesProvider";
 import { settingsIdAtom } from "../SettingsProvider/settingsStore";
@@ -21,7 +20,6 @@ export type ContextType = {
   walletName: string;
   isWalletConnected: boolean;
   isWalletLoaded: boolean;
-  connectManagedWallet: () => void;
   logout: () => void;
   signAndBroadcastTx: (msgs: EncodeObject[]) => Promise<boolean>;
   isManaged: true;
@@ -34,7 +32,6 @@ export type ContextType = {
   creditAmount?: number;
   topUpMinAmountUsd: number;
   hasManagedWallet: boolean;
-  managedWalletError?: AppError;
 };
 
 /**
@@ -52,13 +49,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
   const router = useRouter();
   const { user } = useUser();
-  const {
-    wallet: managedWallet,
-    isLoading: isManagedWalletLoading,
-    isInitializing: isManagedWalletInitializing,
-    create: createManagedWallet,
-    createError: managedWalletError
-  } = useManagedWallet();
+  const { wallet: managedWallet, isLoading: isManagedWalletLoading, isInitializing: isManagedWalletInitializing } = useManagedWallet();
   const walletAddress = managedWallet?.address;
   const username = managedWallet?.username;
   const isWalletConnected = !!managedWallet?.isWalletConnected;
@@ -83,12 +74,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     setSettingsId(walletAddress || null);
   }, [walletAddress, setSettingsId]);
-
-  function connectManagedWallet() {
-    if (!managedWallet) {
-      createManagedWallet();
-    }
-  }
 
   function logout() {
     analyticsService.track("disconnect_wallet", {
@@ -128,7 +113,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         walletName: username as string,
         isWalletConnected,
         isWalletLoaded,
-        connectManagedWallet,
         logout,
         signAndBroadcastTx,
         isManaged: true,
@@ -139,8 +123,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isOnboarding: !!user?.userId && !!managedWallet?.isTrialing,
         creditAmount: managedWallet?.creditAmount,
         topUpMinAmountUsd: managedWallet?.topUpMinAmountUsd ?? 20,
-        hasManagedWallet: !!managedWallet,
-        managedWalletError
+        hasManagedWallet: !!managedWallet
       }}
     >
       {children}

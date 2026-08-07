@@ -10,16 +10,16 @@ describe(VerifyEmailPage.name, () => {
   it("shows redirect loading text", () => {
     setup();
 
-    expect(screen.queryByText("Redirecting to email verification...")).toBeInTheDocument();
+    expect(screen.queryByText("Redirecting...")).toBeInTheDocument();
   });
 
-  it("redirects to onboarding with email verification step", () => {
+  it("redirects home", () => {
     const { redirect } = setup();
 
-    expect(redirect).toHaveBeenCalledWith("/signup?return-to=%2F");
+    expect(redirect).toHaveBeenCalledWith("/");
   });
 
-  function setup(input: { onboardingUrl?: string } = {}) {
+  function setup(input: { homeUrl?: string } = {}) {
     const redirect = vi.fn();
 
     const dependencies = {
@@ -27,7 +27,7 @@ describe(VerifyEmailPage.name, () => {
       Loading: ({ text }: { text: string }) => <div>{text}</div>,
       NextSeo: () => null,
       UrlService: {
-        onboarding: vi.fn(() => input.onboardingUrl ?? "/signup?return-to=%2F")
+        home: vi.fn(() => input.homeUrl ?? "/")
       },
       redirect
     } as unknown as ComponentProps<typeof VerifyEmailPage>["dependencies"];

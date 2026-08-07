@@ -117,7 +117,7 @@ export const useReturnTo = <TDefaultReturnTo extends string | null | undefined =
     if (lowerPath.startsWith("/new-deployment") || lowerPath.startsWith("/deploy-linux") || lowerPath.startsWith("/deployments/")) {
       return "deployment";
     }
-    if (lowerPath.startsWith("/signup") || lowerPath.startsWith("/onboarding")) {
+    if (lowerPath.startsWith("/onboarding")) {
       return "onboarding";
     }
     if (lowerPath.startsWith("/login")) {

@@ -17,11 +17,7 @@ export class HomePage {
    */
   async isCurrentPage(): Promise<boolean> {
     await new AppNav(this.page).accountMenuButton().waitFor({ state: "visible", timeout: 30_000 });
-    return !/^\/(onboarding|signup)/.test(new URL(this.page.url()).pathname);
-  }
-
-  async startTrial() {
-    await this.page.getByRole("button", { name: /start trial/i }).click();
+    return !/^\/onboarding/.test(new URL(this.page.url()).pathname);
   }
 
   async openSignIn() {

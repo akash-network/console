@@ -2,8 +2,6 @@ import React, { useEffect } from "react";
 import { NextSeo } from "next-seo";
 
 import Layout, { Loading } from "@src/components/layout/Layout";
-import { OnboardingStepIndex } from "@src/components/onboarding/OnboardingContainer/OnboardingContainer";
-import { ONBOARDING_STEP_KEY } from "@src/services/storage/keys";
 import { UrlService } from "@src/utils/urlUtils";
 
 const DEPENDENCIES = {
@@ -13,7 +11,6 @@ const DEPENDENCIES = {
   UrlService,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   redirect: (url: string) => {
-    window.localStorage.setItem(ONBOARDING_STEP_KEY, OnboardingStepIndex.EMAIL_VERIFICATION.toString());
     window.location.replace(url);
   }
 };
@@ -24,13 +21,13 @@ type VerifyEmailPageProps = {
 
 export function VerifyEmailPage({ dependencies: d = DEPENDENCIES }: VerifyEmailPageProps) {
   useEffect(() => {
-    d.redirect(d.UrlService.onboarding({ returnTo: "/" }));
+    d.redirect(d.UrlService.home());
   }, [d]);
 
   return (
     <d.Layout>
       <d.NextSeo title="Email Verification" />
-      <d.Loading text="Redirecting to email verification..." />
+      <d.Loading text="Redirecting..." />
     </d.Layout>
   );
 }
