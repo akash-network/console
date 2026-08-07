@@ -29,15 +29,8 @@ export const useManagedWallet = () => {
   const isLoading = isInitialLoading || isCreatingFromAnyInstance;
 
   useEffect(() => {
-    if (!wallet?.address) {
-      return;
-    }
-
-    if (isCreated) {
-      updateStorageManagedWallet({ ...wallet, selected: true });
-    } else {
-      updateStorageManagedWallet(wallet);
-    }
+    if (!wallet) return;
+    updateStorageManagedWallet(isCreated ? { ...wallet, selected: true } : wallet);
   }, [isCreated, wallet]);
 
   useEffect(() => {

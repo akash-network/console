@@ -12,29 +12,27 @@ export const GetUsageHistoryQuerySchema = z
       description: "Start date (YYYY-MM-DD). Defaults to 30 days before endDate",
       example: "2024-01-01"
     }),
-    endDate: z
-      .string()
-      .date()
-      .default(() => new Date().toISOString().split("T")[0])
-      .openapi({
-        description: "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
-        example: "2024-01-31"
-      })
+    endDate: z.string().date().optional().openapi({
+      description: "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
+      example: "2024-01-31"
+    })
   })
   .transform(data => {
+    const endDate = data.endDate ?? new Date().toISOString().split("T")[0];
+
     if (data.startDate) {
-      return data;
+      return { ...data, startDate: data.startDate, endDate };
     }
 
-    const endDate = new Date(data.endDate);
-    endDate.setDate(endDate.getDate() - 30);
+    const startDate = new Date(`${endDate}T00:00:00.000Z`);
+    startDate.setUTCDate(startDate.getUTCDate() - 30);
 
-    return { ...data, startDate: endDate.toISOString().split("T")[0] };
+    return { ...data, startDate: startDate.toISOString().split("T")[0], endDate };
   })
   .refine(
     data => {
-      const end = new Date(data.endDate!);
-      const start = new Date(data.startDate!);
+      const end = new Date(data.endDate);
+      const start = new Date(data.startDate);
 
       const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
 

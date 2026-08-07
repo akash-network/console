@@ -2,7 +2,7 @@ import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { TrialStarted } from "@src/billing/events/trial-started";
-import { UserWalletOutput, UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
+import { isWalletInitialized, type UserWalletPublicOutput, UserWalletRepository, type WalletInitialized } from "@src/billing/repositories";
 import { TrialActivationInstrumentationService } from "@src/billing/services/activate-trial/trial-activation-instrumentation.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
@@ -68,27 +68,21 @@ export class WalletInitializerService {
     await this.domainEvents.publish(new TrialStarted({ userId }));
     this.trialActivationInstrumentation.recordActivated(userId, Date.now() - new Date(activatedWallet.createdAt).getTime());
 
-    return this.userWalletRepository.toPublic(activatedWallet);
+    return this.userWalletRepository.toPublic({ ...activatedWallet, address: userWallet.address });
   }
 
   /**
    * Idempotently guarantees the user has a wallet row with a derived address.
    * Address derivation is pure (no chain transaction), so this is safe to run on every registration.
-   */
-  async ensureWallet(userId: string): Promise<UserWalletOutput> {
-    return this.#ensureWalletVia(this.userWalletRepository, userId);
-  }
-
-  /**
    * Concurrent calls may both derive the address, but derivation is deterministic per wallet id,
    * so the two updates write the same value and the operation stays idempotent.
    */
-  async #ensureWalletVia(repository: UserWalletRepository, userId: string): Promise<UserWalletOutput> {
-    const { wallet } = await repository.getOrCreate({ userId });
-
-    if (wallet.address) return wallet;
+  async ensureWallet(userId: string): Promise<WalletInitialized> {
+    const { wallet } = await this.userWalletRepository.getOrCreate({ userId });
+    if (isWalletInitialized(wallet)) return wallet;
 
     const { address } = await this.walletManager.createWallet({ addressIndex: wallet.id });
-    return await this.userWalletRepository.updateById(wallet.id, { address }, { returning: true });
+    await this.userWalletRepository.updateById(wallet.id, { address });
+    return { ...wallet, address };
   }
 }

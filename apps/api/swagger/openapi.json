@@ -14,7 +14,7 @@
     "/v1/start-trial": {
       "post": {
         "summary": "Start a trial period for a user",
-        "description": "Creates a managed wallet for a user and initiates a trial period. This endpoint handles payment method validation and may require 3D Secure authentication for certain payment methods. Returns wallet information and trial status.",
+        "description": "Ensures the user's managed wallet exists and enqueues background trial activation. Kept for backward compatibility; trial activation now runs server-side off registration/verification.",
         "tags": [
           "Wallet"
         ],
@@ -46,7 +46,7 @@
         },
         "responses": {
           "200": {
-            "description": "Trial started successfully and wallet created",
+            "description": "Wallet ensured and trial activation enqueued",
             "content": {
               "application/json": {
                 "schema": {
@@ -56,19 +56,16 @@
                       "type": "object",
                       "properties": {
                         "id": {
-                          "type": "number",
-                          "nullable": true
+                          "type": "number"
                         },
                         "userId": {
-                          "type": "string",
-                          "nullable": true
+                          "type": "string"
                         },
                         "creditAmount": {
                           "type": "number"
                         },
                         "address": {
-                          "type": "string",
-                          "nullable": true
+                          "type": "string"
                         },
                         "denom": {
                           "type": "string"
@@ -81,83 +78,7 @@
                           "description": "Minimum USD amount accepted by the next paid top-up for this wallet."
                         },
                         "createdAt": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "requires3DS": {
-                          "type": "boolean"
-                        },
-                        "clientSecret": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "paymentIntentId": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "paymentMethodId": {
-                          "type": "string",
-                          "nullable": true
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "userId",
-                        "creditAmount",
-                        "address",
-                        "denom",
-                        "isTrialing",
-                        "topUpMinAmountUsd",
-                        "createdAt"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ]
-                }
-              }
-            }
-          },
-          "202": {
-            "description": "3D Secure authentication required to complete trial setup",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "number",
-                          "nullable": true
-                        },
-                        "userId": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "creditAmount": {
-                          "type": "number"
-                        },
-                        "address": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "denom": {
                           "type": "string"
-                        },
-                        "isTrialing": {
-                          "type": "boolean"
-                        },
-                        "topUpMinAmountUsd": {
-                          "type": "number",
-                          "description": "Minimum USD amount accepted by the next paid top-up for this wallet."
-                        },
-                        "createdAt": {
-                          "type": "string",
-                          "nullable": true
                         },
                         "requires3DS": {
                           "type": "boolean"
@@ -238,19 +159,16 @@
                         "type": "object",
                         "properties": {
                           "id": {
-                            "type": "number",
-                            "nullable": true
+                            "type": "number"
                           },
                           "userId": {
-                            "type": "string",
-                            "nullable": true
+                            "type": "string"
                           },
                           "creditAmount": {
                             "type": "number"
                           },
                           "address": {
-                            "type": "string",
-                            "nullable": true
+                            "type": "string"
                           },
                           "denom": {
                             "type": "string"
@@ -263,8 +181,7 @@
                             "description": "Minimum USD amount accepted by the next paid top-up for this wallet."
                           },
                           "createdAt": {
-                            "type": "string",
-                            "nullable": true
+                            "type": "string"
                           },
                           "requires3DS": {
                             "type": "boolean"
@@ -1533,6 +1450,10 @@
                       },
                       "awaitResolved": {
                         "type": "boolean"
+                      },
+                      "idempotencyKey": {
+                        "type": "string",
+                        "format": "uuid"
                       }
                     },
                     "required": [
@@ -1917,7 +1838,6 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "default": "2026-07-20",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -2043,7 +1963,6 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "default": "2026-07-20",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -2180,6 +2099,11 @@
                         "githubUsername": {
                           "type": "string",
                           "nullable": true
+                        },
+                        "onboardingSkippedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
                         }
                       },
                       "required": [
@@ -2268,6 +2192,11 @@
                         "githubUsername": {
                           "type": "string",
                           "nullable": true
+                        },
+                        "onboardingSkippedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
                         }
                       },
                       "required": [
@@ -2461,6 +2390,30 @@
         "responses": {
           "200": {
             "description": "Subscribed successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/v1/user/skipOnboarding": {
+      "post": {
+        "summary": "Skip onboarding",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Onboarding skipped"
           },
           "401": {
             "description": "Unauthorized"

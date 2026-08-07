@@ -5,7 +5,8 @@ import { AxiosError } from "axios";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { WalletInitialized, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
+import type { WalletInitialized } from "@src/billing/repositories";
+import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { FallbackDeploymentReaderService } from "@src/deployment/services/fallback-deployment-reader/fallback-deployment-reader.service";
 import type { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
