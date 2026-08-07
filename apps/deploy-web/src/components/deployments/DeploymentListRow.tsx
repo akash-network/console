@@ -229,7 +229,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                     <div className="space-x-2">
                       <span>Spent:</span>
                       <strong>
-                        <PriceValue denom={deployment.escrowAccount.state.funds[0]?.denom || ""} value={udenomToDenom(amountSpent || 0, 2)} />
+                        <PriceValue denom={deployment.escrowAccount.state.funds[0]?.denom || ""} value={udenomToDenom(amountSpent || 0, 6)} />
                       </strong>
                     </div>
                     <br />
