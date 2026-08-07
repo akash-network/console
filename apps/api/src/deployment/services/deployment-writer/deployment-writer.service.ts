@@ -2,7 +2,7 @@ import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
-import { UserWalletOutput, WalletInitialized } from "@src/billing/repositories";
+import type { UserWalletOutput, WalletInitialized } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
