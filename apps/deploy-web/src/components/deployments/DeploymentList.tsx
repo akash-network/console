@@ -208,12 +208,7 @@ export const DeploymentList: React.FunctionComponent = () => {
       )}
 
       {filteredDeployments?.length === 0 && !isLoadingDeployments && !search && (
-        <NoDeploymentsState
-          onDeployClick={onDeployClick}
-          hasDeployments={Boolean(deployments && deployments.length > 0)}
-          isWalletConnected={isWalletConnected}
-          showTemplatesButton
-        />
+        <NoDeploymentsState onDeployClick={onDeployClick} hasDeployments={Boolean(deployments && deployments.length > 0)} showTemplatesButton />
       )}
 
       {(!filteredDeployments || filteredDeployments?.length === 0) && isLoadingDeployments && !search && (

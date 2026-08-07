@@ -1,18 +1,14 @@
 import { useEffect, useMemo } from "react";
 import type { ApiManagedWalletOutput } from "@akashnetwork/http-sdk";
 import { useIsMutating } from "@tanstack/react-query";
-import { useAtom } from "jotai";
 
 import { useUser } from "@src/hooks/useUser";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { useCreateManagedWalletMutation, useManagedWalletQuery } from "@src/queries/useManagedWalletQuery";
-import walletStore from "@src/store/walletStore";
 import { ensureUserManagedWalletOwnership, updateStorageManagedWallet } from "@src/utils/walletUtils";
-import { useCustomUser } from "./useCustomUser";
 
 export const useManagedWallet = () => {
   const { user } = useUser();
-  const { user: signedInUser } = useCustomUser();
   const { data: queried, isLoading: isInitialLoading, isFetching, refetch } = useManagedWalletQuery(user?.id);
   const {
     mutate: create,
@@ -30,13 +26,6 @@ export const useManagedWallet = () => {
   const isCreatingManagedWallet = useIsMutating({ mutationKey: QueryKeys.getManagedWalletCreateMutationKey() }) > 0;
   const wallet = useMemo(() => (queried || created) as ApiManagedWalletOutput, [queried, created]);
   const isLoading = isInitialLoading || isCreating || isCreatingManagedWallet;
-  const [, setIsSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
-
-  useEffect(() => {
-    if (signedInUser?.id && (!!queried || !!created)) {
-      setIsSignedInWithTrial(true);
-    }
-  }, [signedInUser?.id, queried, created, setIsSignedInWithTrial]);
 
   useEffect(() => {
     if (!wallet?.address) {
