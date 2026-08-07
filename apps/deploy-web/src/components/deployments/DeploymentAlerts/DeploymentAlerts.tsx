@@ -1,6 +1,6 @@
 "use client";
 
-import { type FC, useCallback, useEffect, useMemo, useState } from "react";
+import { type FC, useCallback, useEffect, useMemo } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { LoadingButton } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -111,22 +111,14 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
     resolver: zodResolver(strictSchema)
   });
 
-  const [hasChanges, setHasChanges] = useState(false);
-  const values = form.watch();
+  const { isDirty } = form.formState;
 
   useEffect(() => {
-    if (!onStateChange) {
-      return;
-    }
-    const hasChangesNext = !isEqual(providedValues, values);
-    if (hasChanges !== hasChangesNext) {
-      setHasChanges(hasChangesNext);
-      onStateChange({ hasChanges: hasChangesNext });
-    }
-  }, [providedValues, onStateChange, values, hasChanges]);
+    onStateChange?.({ hasChanges: !disabled && isDirty });
+  }, [isDirty, disabled, onStateChange]);
 
   const submit = useCallback(async () => {
-    const { deploymentBalance, deploymentClosed } = values;
+    const { deploymentBalance, deploymentClosed } = form.getValues();
     const payload: Partial<FullAlertsInput> = {};
 
     if (!isEqual(providedValues.deploymentBalance, deploymentBalance)) {
@@ -141,7 +133,7 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
     if (nextValues) {
       form.reset(assignDefaults(nextValues.alerts));
     }
-  }, [values, providedValues.deploymentBalance, providedValues.deploymentClosed, upsert, form, assignDefaults]);
+  }, [providedValues.deploymentBalance, providedValues.deploymentClosed, upsert, form, assignDefaults]);
 
   return (
     <FormProvider {...form}>
@@ -149,7 +141,7 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
         <div className="my-6 flex items-center text-xl font-semibold">
           <h3 className="mr-6">Configure Alerts</h3>
           {!disabled && (
-            <LoadingButton type="submit" loading={isLoading} disabled={!hasChanges} size="sm">
+            <LoadingButton type="submit" loading={isLoading} disabled={!isDirty} size="sm">
               Save Changes
             </LoadingButton>
           )}
