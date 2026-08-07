@@ -92,13 +92,18 @@ async function registerPasswordless(page: Page): Promise<string> {
   return email;
 }
 
+/**
+ * Registers a new user via the email + password escape hatch (/login?auth=password).
+ * password-signup sets the session cookie server-side, so the user is signed in and redirected
+ * straight off /login with no OTP step — unlike passwordless, so this must not wait on a
+ * verification-code screen.
+ */
 async function registerWithEmailPassword(page: Page, deps: { auth0: Auth0ManagementService; emailVerification: EmailVerificationStrategy }): Promise<string> {
   const email = deps.emailVerification.generateEmail();
   const auth = new AuthPage(page);
 
   await page.goto(`${testEnvConfig.BASE_URL}/login?tab=signup&auth=password`);
 
-  const sinceMs = Date.now();
   const signupResponse = page.waitForResponse(response => response.url().endsWith("/api/auth/password-signup") && response.ok(), {
     timeout: 30_000
   });
@@ -108,7 +113,6 @@ async function registerWithEmailPassword(page: Page, deps: { auth0: Auth0Managem
   const created = await deps.auth0.getUserByEmail(email);
   if (!created) throw new Error(`Auth0 user was not created for ${email}`);
 
-  await deps.emailVerification.verify({ context: page.context(), email, userId: created.user_id, sinceMs });
   await page.waitForURL(url => !url.pathname.includes("/login"), { timeout: 30_000 });
 
   return email;
