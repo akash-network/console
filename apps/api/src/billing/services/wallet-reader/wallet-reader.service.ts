@@ -43,12 +43,8 @@ export class WalletReaderService {
       return userWallet;
     }
 
-    const { address } = userWallet;
-    assert(address, 403, "UserWallet is not initialized");
+    assert(isWalletInitialized(userWallet), 403, "UserWallet is not initialized");
 
-    return {
-      ...userWallet,
-      address
-    };
+    return userWallet;
   }
 }
