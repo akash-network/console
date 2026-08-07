@@ -2,14 +2,7 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "tags": ["-lintignore"],
   "exclude": ["exports", "types", "enumMembers"],
-  "ignoreBinaries": [
-    "dc",
-    "drizzle-kit",
-    "eslint",
-    "prettier",
-    "tsc",
-    "script/safe-deps-install.sh"
-  ],
+  "ignoreBinaries": ["dc", "drizzle-kit", "eslint", "prettier", "tsc", "script/safe-deps-install.sh"],
   "ignoreDependencies": [
     "@akashnetwork/releaser",
     "@typescript-eslint/eslint-plugin",
@@ -22,32 +15,18 @@
   ],
   "workspaces": {
     ".": {
-      "entry": [".eslintrc.js", ".prettierrc.js"],
-      "ignoreDependencies": [
-        "@interchain-ui/react",
-        "drizzle-orm",
-        "nock",
-        "pg",
-        "eslint-plugin-import-x",
-        "vitest"
-      ]
+      "entry": [".eslintrc.js", ".prettierrc.js", ".github/scripts/**/*.js"],
+      "ignoreDependencies": ["@interchain-ui/react", "drizzle-orm", "nock", "pg", "eslint-plugin-import-x", "vitest"]
     },
     "apps/api": {
       "entry": ["scripts/buildAkashTemplatesCache.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"],
-      "ignore": [
-        "test/seeders/balance.seeder.ts"
-      ],
+      "ignore": ["test/seeders/balance.seeder.ts"],
       "drizzle": false
     },
     "apps/deploy-web": {
       "entry": ["next.config.js", "postcss.config.js", "src/pages/**/*.tsx", "src/pages/**/*.ts", "src/stubs/empty.ts"],
-      "ignoreDependencies": [
-        "sharp",
-        "@nivo/core",
-        "@react-spring/web",
-        "webpack"
-      ]
+      "ignoreDependencies": ["sharp", "@nivo/core", "@react-spring/web", "webpack"]
     },
     "apps/stats-web": {
       "entry": ["src/app/**/*.tsx", "src/app/**/*.ts"],
@@ -90,13 +69,7 @@
       "ignoreDependencies": ["@akashnetwork/dev-config"]
     },
     "packages/dev-config": {
-      "entry": [
-        ".eslintrc.base.js",
-        ".eslintrc.ts.js",
-        ".eslintrc.next.js",
-        "tsup-plugins.ts",
-        "eslint-plugin-akash/index.js"
-      ],
+      "entry": [".eslintrc.base.js", ".eslintrc.ts.js", ".eslintrc.next.js", "tsup-plugins.ts", "eslint-plugin-akash/index.js"],
       "ignoreDependencies": ["eslint-plugin-akash", "next"]
     },
     "packages/env-loader": {},
