@@ -39,7 +39,6 @@ type AutoTopUpFormValues = z.infer<typeof autoTopUpSchema>;
 
 export const DEPENDENCIES = {
   useForm,
-  zodResolver,
   useSnackbar,
   useDefaultPaymentMethodQuery,
   useWalletSettingsMutations
@@ -76,7 +75,7 @@ export const AutoTopUpSettingsPopup: React.FC<AutoTopUpSettingsPopupProps> = ({
   );
 
   const form = d.useForm<AutoTopUpFormValues>({
-    resolver: d.zodResolver(autoTopUpSchema),
+    resolver: zodResolver(autoTopUpSchema),
     defaultValues
   });
 

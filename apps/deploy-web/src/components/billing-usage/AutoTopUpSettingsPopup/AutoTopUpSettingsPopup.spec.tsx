@@ -1,7 +1,6 @@
 import React from "react";
 import { useForm } from "react-hook-form";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -176,7 +175,6 @@ describe(AutoTopUpSettingsPopup.name, () => {
 
     const dependencies = {
       useForm,
-      zodResolver,
       useSnackbar,
       useDefaultPaymentMethodQuery,
       useWalletSettingsMutations
