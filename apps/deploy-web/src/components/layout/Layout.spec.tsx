@@ -26,9 +26,14 @@ describe("Layout", () => {
     expect(screen.getByText("page content")).toBeInTheDocument();
   });
 
+  it("renders the top navigation", () => {
+    const { dependencies } = setup({});
+
+    expect(dependencies.TopNav).toHaveBeenCalledWith(expect.objectContaining({ minimal: false }), expect.anything());
+  });
+
   function setup(input: { isLoading?: boolean; children?: ReactNode }) {
     const dependencies = MockComponents(DEPENDENCIES, {
-      useFlag: () => false,
       useOnboardingChrome: () => mock<ReturnType<typeof DEPENDENCIES.useOnboardingChrome>>({ isStripped: false }),
       useSettings: () => mock<ReturnType<typeof DEPENDENCIES.useSettings>>({ isSettingsInit: true }),
       useTopBanner: () => mock<ReturnType<typeof DEPENDENCIES.useTopBanner>>({ hasBanner: false }),

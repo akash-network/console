@@ -10,5 +10,4 @@ export type FeatureFlag =
   | "ui_build_and_deploy"
   | "ui_gpu_interconnect"
   | "ui_agent_mode_deploy"
-  | "hackathons"
-  | "ui_top_nav";
+  | "hackathons";
