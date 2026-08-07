@@ -23,6 +23,7 @@ export const DEPENDENCIES = {
   FormInput,
   LoadingButton,
   RemoteApiError,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   markCodeSent,
   useForm,
   useMutation

@@ -18,7 +18,7 @@ export const DEPENDENCIES = {
 
 export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}): UseProviderJwtResult {
   const { storedWalletsService, consoleApiHttpClient } = d.useServices();
-  const { isWalletConnected } = d.useWallet();
+  const { hasWallet } = d.useWallet();
   const { user } = d.useUser();
   const userId = user?.id;
   const [accessToken, setAccessToken] = useAtom(JWT_TOKEN_ATOM);
@@ -50,8 +50,8 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
   }, [accessToken, jwtTokenManager]);
 
   const generateToken = useCallback(async (): Promise<string> => {
-    if (!isWalletConnected) {
-      throw new Error("Cannot generate JWT: wallet is not connected");
+    if (!hasWallet) {
+      throw new Error("Cannot generate JWT: user has no wallet");
     }
     if (!userId) {
       throw new Error("Cannot generate JWT: user is not authenticated");
@@ -71,12 +71,12 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
     storedWalletsService.updateStorageManagedWallet({ userId, token });
     setAccessToken(token);
     return token;
-  }, [isWalletConnected, userId, consoleApiHttpClient, storedWalletsService, setAccessToken]);
+  }, [hasWallet, userId, consoleApiHttpClient, storedWalletsService, setAccessToken]);
 
   const generateScopedProviderToken = useCallback(
     async ({ provider, scope }: { provider: string; scope: readonly string[] }): Promise<string> => {
-      if (!isWalletConnected) {
-        throw new Error("Cannot generate JWT: wallet is not connected");
+      if (!hasWallet) {
+        throw new Error("Cannot generate JWT: user has no wallet");
       }
       if (!userId) {
         throw new Error("Cannot generate JWT: user is not authenticated");
@@ -96,7 +96,7 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
       // single-provider token (e.g. for the attestation-quote endpoint), not the shared global token.
       return response.data.data.token;
     },
-    [isWalletConnected, userId, consoleApiHttpClient]
+    [hasWallet, userId, consoleApiHttpClient]
   );
 
   return useMemo(

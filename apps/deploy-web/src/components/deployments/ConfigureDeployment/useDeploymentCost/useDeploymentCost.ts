@@ -5,6 +5,7 @@ import { parseBidId } from "@src/utils/bids/bidId";
 import { PRICE_DISPLAY_PRECISION, udenomToDenom } from "@src/utils/mathHelpers";
 import { getPlacementGseq } from "@src/utils/sdl/placementGseq";
 
+// eslint-disable-next-line akash/dependencies-component-or-hook
 export const DEPENDENCIES = { useListBids, getPlacementGseq };
 
 interface Input {
@@ -35,10 +36,7 @@ type BidEntry = NonNullable<ReturnType<typeof useListBids>["data"]>["data"][numb
  * single denom per deployment (chain-guaranteed), labelling it with the first open bid's denom like the review
  * modal's total.
  */
-export function useDeploymentCost(
-  { dseq, sdl, placements, selections }: Input,
-  dependencies: typeof DEPENDENCIES = DEPENDENCIES
-): DeploymentCost | null {
+export function useDeploymentCost({ dseq, sdl, placements, selections }: Input, dependencies: typeof DEPENDENCIES = DEPENDENCIES): DeploymentCost | null {
   const bidsQuery = dependencies.useListBids(dseq);
   const bids = bidsQuery.data?.data;
 

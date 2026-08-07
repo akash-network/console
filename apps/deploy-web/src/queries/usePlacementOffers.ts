@@ -36,6 +36,7 @@ interface UsePlacementOffersResult {
   isInvalid: boolean;
 }
 
+// eslint-disable-next-line akash/dependencies-component-or-hook
 export const DEPENDENCIES = { useScreenedProviders, useListBids, useProviderList, getPlacementGseq };
 
 /**

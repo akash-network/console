@@ -52,20 +52,20 @@ function LeaseBasedGate({
 }: Required<Pick<Props, "children">> & { isPublic?: boolean; dependencies: typeof DEPENDENCIES }) {
   const router = d.useRouter();
   const { user, isLoading: isUserLoading } = d.useUser();
-  const { address, hasManagedWallet, isWalletInitializing } = d.useWallet();
+  const { address, hasWallet } = d.useWallet();
   const { returnTo } = d.useReturnTo({ defaultReturnTo: "/" });
 
-  const hasWallet = hasManagedWallet && !!address;
-  const leaseExistenceQuery = d.useLeaseExistenceQuery(address, { enabled: hasWallet });
-  const isLeasesLoading = hasWallet && leaseExistenceQuery.isLoading;
-  const leasesErrored = hasWallet && leaseExistenceQuery.isError;
-  const isOnboarded = hasWallet && !!leaseExistenceQuery.data;
+  const hasWalletAddress = hasWallet && !!address;
+  const leaseExistenceQuery = d.useLeaseExistenceQuery(address, { enabled: hasWalletAddress });
+  const isLeasesLoading = hasWalletAddress && leaseExistenceQuery.isLoading;
+  const leasesErrored = hasWalletAddress && leaseExistenceQuery.isError;
+  const isOnboarded = hasWalletAddress && !!leaseExistenceQuery.data;
   const hasSkippedOnboarding = !!user?.onboardingSkippedAt;
 
   const path = router.asPath.split("?")[0];
   const isOnOnboarding = path === ONBOARDING_ROUTE;
   const isAllowed = ONBOARDING_ALLOWED_PREFIXES.some(prefix => path.startsWith(prefix)) || isDeploymentDetail(path);
-  const identityKnown = !isUserLoading && !isWalletInitializing;
+  const identityKnown = !isUserLoading;
   const leasesSettled = !isLeasesLoading;
 
   const decision = decideLeaseGate({
@@ -93,14 +93,15 @@ function LeaseBasedGate({
 }
 
 /**
- * Resolves the lease-based gate's action, in priority order. Public pages always render (RequireAuth owns auth).
- * Allow-list pages (configure, a deployment detail) render *immediately*, ahead of the identity/wallet wait and
+ * Resolves the lease-based gate's action, in priority order. Public pages always render (RequireAuth owns auth,
+ * and the WalletProvider boot gate guarantees the wallet lookup has settled before this gate mounts).
+ * Allow-list pages (configure, a deployment detail) render *immediately*, ahead of the identity wait and
  * the leases query, because they own their own loading UX (e.g. the auto-deploy progress overlay). The
  * `/onboarding` picker likewise renders once identity is known without waiting for leases: its trial wallet
  * provisions in the background, and the leases query flips to loading the moment that wallet's address appears,
  * which would otherwise flash the full-screen loader and remount the page (including an open Add Credits sheet).
  * An already-onboarded user who lands on `/onboarding` is still sent back where they came from, but only once
- * leases resolve (they render the picker until then). Everywhere else first waits until user + wallet identity is
+ * leases resolve (they render the picker until then). Everywhere else first waits until user identity is
  * known, then for leases to settle: an onboarded user renders, a not-onboarded user is sent to `/onboarding`. A
  * leases *error* leaves onboarding unknowable (an undefined result is not "no leases"), so we fail open and render
  * where the user is rather than eject a genuinely onboarded user into the first-deploy funnel on a transient

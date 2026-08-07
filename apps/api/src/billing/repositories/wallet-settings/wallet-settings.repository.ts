@@ -9,17 +9,9 @@ type Table = ApiPgTables["WalletSetting"];
 type DbWalletSettingInput = ApiPgTables["WalletSetting"]["$inferInsert"];
 type DbWalletSettingOutput = ApiPgTables["WalletSetting"]["$inferSelect"];
 
-export type WalletSettingInput = Partial<
-  Omit<DbWalletSettingInput, "autoReloadThreshold" | "autoReloadAmount"> & {
-    autoReloadThreshold: number;
-    autoReloadAmount: number;
-  }
->;
+export type WalletSettingInput = Partial<DbWalletSettingInput>;
 
-export type WalletSettingOutput = Omit<DbWalletSettingOutput, "autoReloadThreshold" | "autoReloadAmount"> & {
-  autoReloadThreshold?: number;
-  autoReloadAmount?: number;
-};
+export type WalletSettingOutput = DbWalletSettingOutput;
 
 @singleton()
 export class WalletSettingRepository extends BaseRepository<Table, WalletSettingInput, WalletSettingOutput> {

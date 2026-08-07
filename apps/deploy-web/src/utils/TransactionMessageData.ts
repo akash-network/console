@@ -1,4 +1,4 @@
-import { MsgAccountDeposit, MsgMintACT, Scope, Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { MsgAccountDeposit, Scope, Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { MsgSend } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
@@ -91,20 +91,6 @@ export class TransactionMessageData {
             amount: amount.toString()
           }
         ]
-      })
-    };
-  }
-
-  static getMintACTMsg(owner: string, amount: number, denom: string) {
-    return {
-      typeUrl: `/${MsgMintACT.$type}`,
-      value: MsgMintACT.fromPartial({
-        owner,
-        to: owner,
-        coinsToBurn: {
-          denom,
-          amount: amount.toString()
-        }
       })
     };
   }

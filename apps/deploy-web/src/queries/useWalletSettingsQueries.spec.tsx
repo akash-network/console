@@ -35,7 +35,7 @@ function setupQueryWithClient<T>(hook: () => T, options?: RenderAppHookOptions) 
 describe("useWalletSettingsQueries", () => {
   describe(useWalletSettingsQuery.name, () => {
     it("returns wallet settings data on success", async () => {
-      const settings = { autoReloadEnabled: true };
+      const settings = { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100 };
       const getWalletSettings = vi.fn().mockResolvedValue({ data: settings });
       const api = createProxy({ v1: { getWalletSettings } }) as unknown as ApiService;
 
@@ -82,7 +82,7 @@ describe("useWalletSettingsQueries", () => {
 
   describe(useWalletSettingsMutations.name, () => {
     it("updates wallet settings and invalidates the query", async () => {
-      const params = { data: { autoReloadEnabled: true } };
+      const params = { data: { autoReloadEnabled: true, autoReloadThreshold: 25, autoReloadAmount: 150 } };
       const { result, queryClient, api, v1 } = setupMutations();
       const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
 

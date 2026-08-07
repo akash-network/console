@@ -16,6 +16,19 @@ export const buildCommand = (command: string): string[] => {
     .filter(Boolean);
 };
 
+/**
+ * Builds the GPU `attributes` map with `interconnect` emitted before `vendor` to match the canonical SDL
+ * key order. The interconnect key is present only when the profile opted in (`[]` implicit, `{ group }` explicit).
+ */
+const buildGpuAttributes = (interconnect: { group?: string } | undefined): Record<string, any> => {
+  const attributes: Record<string, any> = {};
+  if (interconnect) {
+    attributes.interconnect = interconnect.group !== undefined ? { group: interconnect.group } : [];
+  }
+  attributes.vendor = {};
+  return attributes;
+};
+
 export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
   const sdl: Record<string, any> = { version: "2.0", services: {}, profiles: { compute: {}, placement: {} }, deployment: {} };
 
@@ -140,9 +153,7 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
     if (service.profile.hasGpu) {
       sdl.profiles.compute[service.title].resources.gpu = {
         units: service.profile.gpu,
-        attributes: {
-          vendor: {}
-        }
+        attributes: buildGpuAttributes(service.profile.interconnect)
       };
 
       const vendors =

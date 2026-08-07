@@ -10,12 +10,11 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 
 type Props = {
-  isManagedWallet: boolean;
   onDeployClick: () => void;
   isBlockchainDown: boolean;
 };
 
-export const AccountHeader: React.FC<Props> = ({ isManagedWallet, onDeployClick, isBlockchainDown }) => {
+export const AccountHeader: React.FC<Props> = ({ onDeployClick, isBlockchainDown }) => {
   const { urlService } = useServices();
   const newDeploymentUrl = useNewDeploymentUrl();
 
@@ -23,15 +22,13 @@ export const AccountHeader: React.FC<Props> = ({ isManagedWallet, onDeployClick,
     <div className="flex items-center justify-between">
       <h3 className="text-xl">Your account</h3>
       <div className="flex gap-4">
-        {isManagedWallet && (
-          <AddFundsLink
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "flex items-center gap-2")}
-            href={urlService.billing({ openPayment: true })}
-          >
-            <Plus className="h-4 w-4" />
-            <span className="whitespace-nowrap">Add Funds</span>
-          </AddFundsLink>
-        )}
+        <AddFundsLink
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "flex items-center gap-2")}
+          href={urlService.billing({ openPayment: true })}
+        >
+          <Plus className="h-4 w-4" />
+          <span className="whitespace-nowrap">Add Funds</span>
+        </AddFundsLink>
         <Link
           href={newDeploymentUrl()}
           className={cn(buttonVariants({ variant: "default", size: "sm" }), "flex items-center gap-2", isBlockchainDown && "pointer-events-none opacity-50")}

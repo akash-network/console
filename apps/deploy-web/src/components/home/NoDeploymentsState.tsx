@@ -2,27 +2,20 @@
 import React from "react";
 import { Button, Card, CardContent } from "@akashnetwork/ui/components";
 import { MultiplePages, Rocket } from "iconoir-react";
-import { useAtom } from "jotai";
 import Link from "next/link";
 
-import { WalletConnectionButtons } from "@src/components/wallet/WalletConnectionButtons";
 import { useServices } from "@src/context/ServicesProvider";
-import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
-import walletStore from "@src/store/walletStore";
 
 type Props = {
   onDeployClick: () => void;
   hasDeployments?: boolean;
-  isWalletConnected?: boolean;
   showTemplatesButton?: boolean;
 };
 
-export const NoDeploymentsState: React.FC<Props> = ({ onDeployClick, hasDeployments = false, isWalletConnected = true, showTemplatesButton = true }) => {
+export const NoDeploymentsState: React.FC<Props> = ({ onDeployClick, hasDeployments = false, showTemplatesButton = true }) => {
   const { urlService } = useServices();
   const newDeploymentUrl = useNewDeploymentUrl();
-  const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
-  const { user } = useCustomUser();
 
   const title = hasDeployments ? "No active deployments." : "No deployments yet.";
 
@@ -34,36 +27,28 @@ export const NoDeploymentsState: React.FC<Props> = ({ onDeployClick, hasDeployme
         </div>
         <h3 className="mb-2 text-xl">{title}</h3>
 
-        {isSignedInWithTrial && !user && (
-          <p className="mb-4 text-center text-sm text-muted-foreground">If you are expecting to see some, you may need to sign in or connect a wallet</p>
-        )}
-
         {showTemplatesButton && (
           <p className="mb-6 text-center text-muted-foreground">
             Use one of our most popular templates below or create your first deployment using our SDL builder.
           </p>
         )}
 
-        {isWalletConnected ? (
-          <div className="flex gap-4">
-            <Button onClick={onDeployClick} asChild>
-              <Link href={newDeploymentUrl()}>
-                <Rocket className="mr-2 h-4 w-4 rotate-45" />
-                Create Deployment
+        <div className="flex gap-4">
+          <Button onClick={onDeployClick} asChild>
+            <Link href={newDeploymentUrl()}>
+              <Rocket className="mr-2 h-4 w-4 rotate-45" />
+              Create Deployment
+            </Link>
+          </Button>
+          {showTemplatesButton && (
+            <Button variant="outline" asChild>
+              <Link href={urlService.templates()}>
+                <MultiplePages className="mr-2 h-4 w-4" />
+                Explore Templates
               </Link>
             </Button>
-            {showTemplatesButton && (
-              <Button variant="outline" asChild>
-                <Link href={urlService.templates()}>
-                  <MultiplePages className="mr-2 h-4 w-4" />
-                  Explore Templates
-                </Link>
-              </Button>
-            )}
-          </div>
-        ) : (
-          <WalletConnectionButtons className="mt-4 justify-center" />
-        )}
+          )}
+        </div>
       </CardContent>
     </Card>
   );

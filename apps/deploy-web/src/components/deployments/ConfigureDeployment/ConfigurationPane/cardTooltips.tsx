@@ -86,6 +86,15 @@ export const confidentialComputeTooltip = (
   </>
 );
 
+export const gpuInterconnectTooltip = (
+  <>
+    Request a high-bandwidth GPU-to-GPU interconnect (e.g. InfiniBand) between the nodes running this service, for multi-node workloads like NCCL training.
+    <br />
+    <br />
+    Enabling adds a placement capability so only interconnect-capable providers bid on this deployment. It also turns on the GPU card for this service.
+  </>
+);
+
 export const dockerImageTooltip = (
   <>
     Docker image of the container.

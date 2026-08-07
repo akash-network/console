@@ -4,6 +4,7 @@ import type { DeploymentDto } from "@src/types/deployment";
 import { DEPENDENCIES, DeploymentDetailTopBar } from "./DeploymentDetailTopBar";
 
 import { act, render, screen } from "@testing-library/react";
+import { buildWallet } from "@tests/seeders/wallet";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(DeploymentDetailTopBar.name, () => {
@@ -228,7 +229,7 @@ describe(DeploymentDetailTopBar.name, () => {
     onDeploymentClose?: () => void;
     previousRoute?: string | null;
     router?: { back?: () => void; push?: () => void };
-    wallet?: { isManaged?: boolean; denom?: string; signAndBroadcastTx?: () => Promise<boolean> };
+    wallet?: { denom?: string; signAndBroadcastTx?: () => Promise<boolean> };
     analyticsTrack?: ReturnType<typeof vi.fn>;
     redeploy?: ReturnType<typeof vi.fn>;
     localNotes?: {
@@ -252,23 +253,13 @@ describe(DeploymentDetailTopBar.name, () => {
         selectedDeploymentDseq: null,
         selectDeployment: vi.fn()
       })) as typeof DEPENDENCIES.useLocalNotes,
-      useWallet: vi.fn(() => ({
-        signAndBroadcastTx: input?.wallet?.signAndBroadcastTx ?? vi.fn(() => Promise.resolve(true)),
-        isManaged: true,
-        denom: input?.wallet?.denom ?? "uact",
-        address: "akash1test",
-        walletName: "test",
-        isWalletConnected: true,
-        isWalletLoaded: true,
-        connectManagedWallet: vi.fn(),
-        logout: vi.fn(),
-        isWalletLoading: false,
-        isWalletInitializing: false,
-        isTrialing: false,
-        isOnboarding: false,
-        topUpMinAmountUsd: 20,
-        hasManagedWallet: false
-      })) as typeof DEPENDENCIES.useWallet,
+      useWallet: vi.fn(() =>
+        buildWallet({
+          signAndBroadcastTx: input?.wallet?.signAndBroadcastTx ?? vi.fn(() => Promise.resolve(true)),
+          denom: input?.wallet?.denom ?? "uact",
+          address: "akash1test"
+        })
+      ) as typeof DEPENDENCIES.useWallet,
       usePricing: vi.fn(() => ({
         isLoaded: true,
         isLoading: false,

@@ -41,7 +41,7 @@ type Props = {
  * by that flow's built-in redirect.
  */
 export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dependencies: d = DEPENDENCIES }) => {
-  const { publicConfig } = d.useServices();
+  const { publicConfig, analyticsService } = d.useServices();
   const { state, progressPercent, phases, matchedProviderAddress, tryAgain, stopAutopilot } = d.useAutoDeploymentFlow({
     sdl,
     resumeLeases: resume.activeLeases,
@@ -61,6 +61,7 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
           window.open(publicConfig.NEXT_PUBLIC_CONTACT_SUPPORT_URL, "_blank", "noopener,noreferrer");
         }}
         onChooseProvider={() => {
+          analyticsService.track("onboarding_choose_provider_click", { category: "onboarding", templateName });
           // Halt the autopilot before flipping to manual: the bid-strategy change only unmounts this flow once the URL
           // propagates, so stopping here keeps the autopilot from leasing the shared deployment during that window.
           stopAutopilot();

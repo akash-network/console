@@ -49,17 +49,18 @@ describe(ProviderProxyService.name, () => {
               expose: [],
               credentials: undefined,
               params: undefined,
+              interconnectGroup: "",
               resources: {
                 id: 1,
                 cpu: {
                   units: {
-                    val: new TextEncoder().encode("0.5")
+                    val: BigInt(500)
                   },
                   attributes: []
                 },
                 memory: {
                   quantity: {
-                    val: new TextEncoder().encode("512Mi")
+                    val: BigInt(536870912)
                   },
                   attributes: []
                 },
@@ -67,7 +68,7 @@ describe(ProviderProxyService.name, () => {
                   {
                     name: "test",
                     quantity: {
-                      val: new TextEncoder().encode("512Mi")
+                      val: BigInt(536870912)
                     },
                     attributes: []
                   }

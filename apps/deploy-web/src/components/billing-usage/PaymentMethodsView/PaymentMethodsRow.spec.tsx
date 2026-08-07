@@ -142,7 +142,7 @@ describe(PaymentMethodsRow.name, () => {
       expect(screen.queryByText("Default")).not.toBeInTheDocument();
     });
 
-    it("renders dropdown menu button when hasOtherPaymentMethods is true and payment method is not default", () => {
+    it("renders dropdown menu button when payment method is not default", () => {
       setup({
         paymentMethod: createMockPaymentMethod({
           isDefault: false
@@ -151,14 +151,6 @@ describe(PaymentMethodsRow.name, () => {
 
       const button = screen.getByRole("button");
       expect(button).toBeInTheDocument();
-    });
-
-    it("renders dropdown menu button for the only payment method", () => {
-      setup({
-        hasOtherPaymentMethods: false
-      });
-
-      expect(screen.getByRole("button")).toBeInTheDocument();
     });
 
     it("renders dropdown menu button for default payment method", () => {
@@ -210,8 +202,7 @@ describe(PaymentMethodsRow.name, () => {
     it("shows only 'Remove' for default payment method", async () => {
       const user = userEvent.setup();
       setup({
-        paymentMethod: createMockPaymentMethod({ isDefault: true }),
-        hasOtherPaymentMethods: true
+        paymentMethod: createMockPaymentMethod({ isDefault: true })
       });
 
       const button = screen.getByRole("button");
@@ -223,38 +214,28 @@ describe(PaymentMethodsRow.name, () => {
       });
     });
 
-    it("shows only 'Remove' for the only payment method", async () => {
+    it("shows 'Set as default' for a sole non-default payment method", async () => {
       const user = userEvent.setup();
-      setup({
-        paymentMethod: createMockPaymentMethod({ isDefault: true }),
-        hasOtherPaymentMethods: false
+      const { mockOnSetPaymentMethodAsDefault } = setup({
+        paymentMethod: createMockPaymentMethod({ id: "pm_sole", isDefault: false })
       });
 
       const button = screen.getByRole("button");
       await user.click(button);
 
       await vi.waitFor(() => {
-        expect(screen.queryByText("Set as default")).not.toBeInTheDocument();
-        expect(screen.getByText("Remove")).toBeInTheDocument();
-      });
-    });
-
-    it("hides 'Remove' for default payment method when auto-reload is enabled", () => {
-      setup({
-        paymentMethod: createMockPaymentMethod({ isDefault: true }),
-        hasOtherPaymentMethods: true,
-        isAutoReloadEnabled: true
+        expect(screen.getByText("Set as default")).toBeInTheDocument();
       });
 
-      expect(screen.queryByRole("button")).not.toBeInTheDocument();
+      await user.click(screen.getByText("Set as default"));
+
+      expect(mockOnSetPaymentMethodAsDefault).toHaveBeenCalledWith("pm_sole");
     });
 
-    it("shows 'Remove' for non-default payment method when auto-reload is enabled", async () => {
+    it("calls onRemovePaymentMethod for the default payment method", async () => {
       const user = userEvent.setup();
-      setup({
-        paymentMethod: createMockPaymentMethod({ isDefault: false }),
-        hasOtherPaymentMethods: true,
-        isAutoReloadEnabled: true
+      const { mockOnRemovePaymentMethod } = setup({
+        paymentMethod: createMockPaymentMethod({ id: "pm_default", isDefault: true })
       });
 
       const button = screen.getByRole("button");
@@ -263,6 +244,10 @@ describe(PaymentMethodsRow.name, () => {
       await vi.waitFor(() => {
         expect(screen.getByText("Remove")).toBeInTheDocument();
       });
+
+      await user.click(screen.getByText("Remove"));
+
+      expect(mockOnRemovePaymentMethod).toHaveBeenCalledWith("pm_default");
     });
   });
 
@@ -449,8 +434,6 @@ describe(PaymentMethodsRow.name, () => {
                 })}
                 onSetPaymentMethodAsDefault={vi.fn()}
                 onRemovePaymentMethod={vi.fn()}
-                hasOtherPaymentMethods={true}
-                isAutoReloadEnabled={false}
                 dependencies={mockDependencies}
               />
             </tbody>
@@ -481,8 +464,6 @@ function setup(
     paymentMethod?: PaymentMethod;
     onSetPaymentMethodAsDefault?: Mock;
     onRemovePaymentMethod?: Mock;
-    hasOtherPaymentMethods?: boolean;
-    isAutoReloadEnabled?: boolean;
     dependencies?: typeof mockDependencies;
   } = {}
 ) {
@@ -490,8 +471,6 @@ function setup(
     paymentMethod: createMockPaymentMethod(),
     onSetPaymentMethodAsDefault: vi.fn(),
     onRemovePaymentMethod: vi.fn(),
-    hasOtherPaymentMethods: true,
-    isAutoReloadEnabled: false,
     dependencies: mockDependencies
   };
 

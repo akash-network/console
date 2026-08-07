@@ -1,8 +1,10 @@
 import React from "react";
 import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk";
+import type { usePopup } from "@akashnetwork/ui/context";
 import { describe, expect, it, type MockedFunction, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
-import type { usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation, useWalletSettingsQuery } from "@src/queries";
+import type { usePaymentMethodsQuery, usePaymentMutations, useRefreshPaymentMethods, useSetupIntentMutation, useWalletSettingsQuery } from "@src/queries";
 import type { PaymentMethodsViewProps } from "../PaymentMethodsView/PaymentMethodsView";
 import { PaymentMethodsContainer } from "./PaymentMethodsContainer";
 
@@ -36,13 +38,22 @@ describe(PaymentMethodsContainer.name, () => {
     expect(mockSetPaymentMethodAsDefault.mutate).toHaveBeenCalledWith(paymentMethodId);
   });
 
-  it("calls removePaymentMethod mutation when onRemovePaymentMethod is invoked", async () => {
+  it("calls removePaymentMethod mutation when the removal is confirmed", async () => {
     const { child, mockRemovePaymentMethod } = await setup();
     const paymentMethodId = "pm_123456";
 
-    child.onRemovePaymentMethod(paymentMethodId);
+    await child.onRemovePaymentMethod(paymentMethodId);
 
     expect(mockRemovePaymentMethod.mutate).toHaveBeenCalledWith(paymentMethodId);
+  });
+
+  it("does not remove the payment method when the confirmation is cancelled", async () => {
+    const { child, mockRemovePaymentMethod, mockConfirm } = await setup({ confirmResult: false });
+
+    await child.onRemovePaymentMethod("pm_123456");
+
+    expect(mockConfirm).toHaveBeenCalled();
+    expect(mockRemovePaymentMethod.mutate).not.toHaveBeenCalled();
   });
 
   it("initializes showAddPaymentMethod as false", async () => {
@@ -72,12 +83,11 @@ describe(PaymentMethodsContainer.name, () => {
     expect(child.setupIntent).toEqual(setupIntent);
   });
 
-  it("sets showAddPaymentMethod to false and refetches payment methods when onAddCardSuccess is called", async () => {
-    const { childCapturer, mockRefetchPaymentMethods } = await setup();
+  it("sets showAddPaymentMethod to false and refreshes payment methods when onAddCardSuccess is called", async () => {
+    const { childCapturer, mockRefreshPaymentMethods } = await setup();
 
     let child = await childCapturer.awaitChild(() => true);
 
-    // First, open the add payment method dialog
     await act(async () => {
       child.onAddPaymentMethod();
     });
@@ -85,7 +95,6 @@ describe(PaymentMethodsContainer.name, () => {
     child = await childCapturer.awaitChild(c => c.showAddPaymentMethod === true);
     expect(child.showAddPaymentMethod).toBe(true);
 
-    // Then call onAddCardSuccess
     await act(async () => {
       await child.onAddCardSuccess();
     });
@@ -93,7 +102,7 @@ describe(PaymentMethodsContainer.name, () => {
     child = await childCapturer.awaitChild(c => c.showAddPaymentMethod === false);
 
     expect(child.showAddPaymentMethod).toBe(false);
-    expect(mockRefetchPaymentMethods).toHaveBeenCalled();
+    expect(mockRefreshPaymentMethods).toHaveBeenCalled();
   });
 
   it("allows setShowAddPaymentMethod to update state", async () => {
@@ -151,24 +160,49 @@ describe(PaymentMethodsContainer.name, () => {
     expect(child.isInProgress).toBe(true);
   });
 
-  it("passes isAutoReloadEnabled as false when wallet settings have auto-reload disabled", async () => {
-    const { child } = await setup({ autoReloadEnabled: false });
-    expect(child.isAutoReloadEnabled).toBe(false);
+  it("warns that auto top-up turns off when removing the default payment method while auto reload is enabled", async () => {
+    const { child, mockConfirm, mockRemovePaymentMethod } = await setup({
+      paymentMethods: [createMockPaymentMethod({ id: "pm_default", isDefault: true })],
+      autoReloadEnabled: true
+    });
+
+    await child.onRemovePaymentMethod("pm_default");
+
+    expect(mockConfirm).toHaveBeenCalledWith(expect.objectContaining({ title: "Remove default payment method?" }));
+    expect(mockRemovePaymentMethod.mutate).toHaveBeenCalledWith("pm_default");
   });
 
-  it("passes isAutoReloadEnabled as true when wallet settings have auto-reload enabled", async () => {
-    const { child } = await setup({ autoReloadEnabled: true });
-    expect(child.isAutoReloadEnabled).toBe(true);
+  it("shows the plain removal confirmation for a non-default payment method while auto reload is enabled", async () => {
+    const { child, mockConfirm } = await setup({
+      paymentMethods: [createMockPaymentMethod({ id: "pm_other", isDefault: false })],
+      autoReloadEnabled: true
+    });
+
+    await child.onRemovePaymentMethod("pm_other");
+
+    expect(mockConfirm).toHaveBeenCalledWith(expect.objectContaining({ title: "Remove payment method?" }));
   });
 
-  it("passes isAutoReloadEnabled as false when wallet settings data is undefined and not loading", async () => {
-    const { child } = await setup();
-    expect(child.isAutoReloadEnabled).toBe(false);
+  it("shows the plain removal confirmation for the default payment method when auto reload is disabled", async () => {
+    const { child, mockConfirm } = await setup({
+      paymentMethods: [createMockPaymentMethod({ id: "pm_default", isDefault: true })],
+      autoReloadEnabled: false
+    });
+
+    await child.onRemovePaymentMethod("pm_default");
+
+    expect(mockConfirm).toHaveBeenCalledWith(expect.objectContaining({ title: "Remove payment method?" }));
   });
 
-  it("passes isAutoReloadEnabled as true when wallet settings are still loading", async () => {
-    const { child } = await setup({ isWalletSettingsLoading: true });
-    expect(child.isAutoReloadEnabled).toBe(true);
+  it("warns about auto top-up for the default payment method while wallet settings are still loading", async () => {
+    const { child, mockConfirm } = await setup({
+      paymentMethods: [createMockPaymentMethod({ id: "pm_default", isDefault: true })],
+      isWalletSettingsLoading: true
+    });
+
+    await child.onRemovePaymentMethod("pm_default");
+
+    expect(mockConfirm).toHaveBeenCalledWith(expect.objectContaining({ title: "Remove default payment method?" }));
   });
 
   async function setup(
@@ -181,6 +215,7 @@ describe(PaymentMethodsContainer.name, () => {
       setupIntent: SetupIntentResponse;
       autoReloadEnabled: boolean;
       isWalletSettingsLoading: boolean;
+      confirmResult: boolean;
     }> = {}
   ) {
     const useDefaultPaymentMethods = !Object.prototype.hasOwnProperty.call(overrides, "paymentMethods");
@@ -191,7 +226,7 @@ describe(PaymentMethodsContainer.name, () => {
     const isRemovePaymentMethodPending = overrides.isRemovePaymentMethodPending ?? false;
     const setupIntent = overrides.setupIntent;
 
-    const mockRefetchPaymentMethods = vi.fn();
+    const mockRefreshPaymentMethods = vi.fn().mockResolvedValue(undefined);
     const mockSetPaymentMethodAsDefault = {
       mutate: vi.fn(),
       isPending: isSetPaymentMethodAsDefaultPending
@@ -206,14 +241,15 @@ describe(PaymentMethodsContainer.name, () => {
     const mockedUsePaymentMethodsQuery = vi.fn(() => ({
       data: paymentMethods,
       isLoading: isLoadingPaymentMethods,
-      isRefetching: isRefetchingPaymentMethods,
-      refetch: mockRefetchPaymentMethods
+      isRefetching: isRefetchingPaymentMethods
     })) as unknown as MockedFunction<typeof usePaymentMethodsQuery>;
 
     const mockedUsePaymentMutations = vi.fn(() => ({
       setPaymentMethodAsDefault: mockSetPaymentMethodAsDefault,
       removePaymentMethod: mockRemovePaymentMethod
     })) as unknown as MockedFunction<typeof usePaymentMutations>;
+
+    const mockedUseRefreshPaymentMethods = vi.fn(() => mockRefreshPaymentMethods) as unknown as MockedFunction<typeof useRefreshPaymentMethods>;
 
     const mockedUseSetupIntentMutation = vi.fn(() => ({
       data: setupIntent,
@@ -230,11 +266,16 @@ describe(PaymentMethodsContainer.name, () => {
       isLoading: overrides.isWalletSettingsLoading ?? false
     })) as unknown as MockedFunction<typeof useWalletSettingsQuery>;
 
+    const mockConfirm = vi.fn().mockResolvedValue(overrides.confirmResult ?? true);
+    const mockedUsePopup: typeof usePopup = () => mock<ReturnType<typeof usePopup>>({ confirm: mockConfirm });
+
     const dependencies = {
       usePaymentMethodsQuery: mockedUsePaymentMethodsQuery,
       usePaymentMutations: mockedUsePaymentMutations,
+      useRefreshPaymentMethods: mockedUseRefreshPaymentMethods,
       useSetupIntentMutation: mockedUseSetupIntentMutation,
-      useWalletSettingsQuery: mockedUseWalletSettingsQuery
+      useWalletSettingsQuery: mockedUseWalletSettingsQuery,
+      usePopup: mockedUsePopup
     };
 
     const childCapturer = createContainerTestingChildCapturer<PaymentMethodsViewProps>();
@@ -247,11 +288,12 @@ describe(PaymentMethodsContainer.name, () => {
       paymentMethods,
       child,
       childCapturer,
-      mockRefetchPaymentMethods,
+      mockRefreshPaymentMethods,
       mockSetPaymentMethodAsDefault,
       mockRemovePaymentMethod,
       mockCreateSetupIntent,
-      mockResetSetupIntent
+      mockResetSetupIntent,
+      mockConfirm
     };
   }
 });

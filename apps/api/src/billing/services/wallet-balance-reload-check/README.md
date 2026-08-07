@@ -2,191 +2,90 @@
 
 ## Overview
 
-This job worker automatically reloads user wallet balances when they're running low relative to projected deployment costs for deployments with auto top-up enabled. It runs daily and proactively reloads funds when the balance can only cover less than 25% of the next 7 days of deployment costs.
+This job worker automatically tops up a user's credit balance when it drops to or below a user-configured threshold. When a user has auto top-up enabled, the handler charges their default payment method a fixed amount as soon as the balance reaches the trigger point.
 
-## Core Logic
+The algorithm is selected by the `auto_reload_fixed_threshold` feature flag:
 
-### The Problem
+- **Flag ON** — fixed threshold/amount (the algorithm described below). This is the target behavior.
+- **Flag OFF** — legacy predicted-spend algorithm (documented at the end; removed once the flag is cleaned up).
 
-Users need sufficient funds to keep their deployments with auto top-up enabled running. Without auto-reload, deployments would stop when funds run out, requiring manual intervention.
+## Fixed-threshold algorithm (primary)
 
-### The Solution
+A user configures two values on their wallet settings:
 
-1. **Calculate** how much money is needed to keep all deployments with auto top-up enabled running for 7 days
-2. **Compare** current balance with 25% of that cost (threshold check)
-3. **Reload** if balance is below threshold (with a $20 minimum)
-4. **Schedule** the next check for 24 hours from now
+- **`autoReloadThreshold`** — the credit balance at or below which a top-up fires. Default **$20**, minimum $5.
+- **`autoReloadAmount`** — the fixed amount charged on each top-up. Default **$100**, minimum $20 (`STANDARD_TOP_UP_MIN_AMOUNT_USD`).
 
-### Key Design Decisions
+### The rule
 
-**Why check daily?**
-
-- Daily checks allow proactive reloading before funds run critically low
-- Catches issues quickly if deployment costs spike
-- Balances responsiveness with system load
-
-**Why calculate costs for 7 days?**
-
-- Provides a meaningful projection window for deployment costs
-- Ensures reloads cover a full week of operations for deployments with auto top-up enabled
-- Balances UX (users don't get charged too frequently) with transaction costs
-- Reduces the number of payment transactions while maintaining adequate coverage
-
-**Why reload at 25% threshold?**
-
-- Reloads when balance can only cover less than ~1.75 days (25% of 7 days)
-- Provides a safety margin before funds run out
-- Prevents emergency situations
-
-## When Does the Check Run?
-
-The handler runs in four scenarios:
-
-1. **When feature is enabled**: Immediately when a user enables auto-reload
-2. **When deployment auto top-up is enabled**: Immediately when a user enables auto top-up on a deployment
-3. **Scheduled checks**: Every 24 hours (1 day) for users with auto-reload enabled
-4. **Immediate triggers**: When a user creates a deployment or makes a deposit
-
-When auto-reload is enabled, the first check runs immediately. When deployment auto top-up is enabled, an immediate check is scheduled to ensure the wallet balance can cover the new deployment costs. Subsequent checks run on a daily schedule. Immediate triggers (deployments/deposits) ensure the balance is checked right after spending or depositing funds, rather than waiting for the next scheduled check.
-
-## Sequence Diagram
-
-```
-User enables auto-reload
-    │
-    ▼
-WalletSettingService schedules immediate check
-    │
-    ├─► [OR] User enables deployment auto top-up
-    │   │
-    │   ▼
-    │   DeploymentSettingService.scheduleImmediate()
-    │   │
-    │   ▼
-    │   WalletReloadJobService.scheduleImmediate()
-    │
-    ├─► [OR] User creates deployment / makes deposit
-    │   │
-    │   ▼
-    │   ManagedSignerService.scheduleImmediate()
-    │   │
-    │   ▼
-    │   WalletSettingService cancels existing job
-    │   │
-    │   ▼
-    │   WalletSettingService enqueues immediate check
-    │
-    ▼
-[Immediately when enabled, OR when deployment auto top-up enabled, OR 24 hours later for scheduled checks, OR immediately on deployment/deposit]
-    │
-    ▼
-WalletBalanceReloadCheckHandler.handle()
-    │
-    ├─► Collect Resources
-    │   ├─► Get wallet setting (verify auto-reload enabled)
-    │   ├─► Get user wallet (verify initialized)
-    │   ├─► Get user (verify Stripe customer ID)
-    │   ├─► Get default payment method
-    │   ├─► Get available balance excluding escrow (in USD)
-    │   └─► Calculate cost for 7 days ahead (deployments with auto top-up enabled)
-    │
-    ├─► Try to Reload
-    │   ├─► Compare: balance >= 25% of 7-day cost?
-    │   │   ├─► YES: Skip reload, log "RELOAD_SKIPPED"
-    │   │   └─► NO: Continue (balance can only cover < ~1.75 days)
-    │   │
-    │   ├─► Calculate reload amount
-    │   │   └─► max(7-day-cost - balance, $20)
-    │   │
-    │   └─► Create Stripe payment intent
-    │       └─► Charge user's default payment method
-    │
-    └─► Schedule Next Check
-        ├─► Enqueue job for 24 hours from now
-        └─► Update wallet setting with new job ID
+```text
+if (balance <= autoReloadThreshold) {
+  charge max(autoReloadAmount, $20)
+}
 ```
 
-## Reload Threshold Logic
+The comparison is **inclusive**: a balance exactly at the threshold triggers a top-up. The `max(..., $20)` is a defensive clamp — there is no DB CHECK constraint, so the handler guarantees Stripe's minimum even if a smaller amount was somehow persisted.
 
-The handler reloads when:
+The check is a pure balance comparison. It fires even when the user has no active deployments, and it does not project future spend. The balance compared is the deployment-grant balance in USD (`getDeploymentBalanceInFiat`) — the same "Available Balance" shown on the billing page.
 
-```
-balance < 0.25 * costUntilTargetDateInFiat
-```
+### Worked examples (defaults: threshold $20, amount $100)
 
-This means: reload when balance can only cover less than 25% of the 7-day cost projection (~1.75 days).
+| Balance | Threshold | Amount | Outcome |
+| ------- | --------- | ------ | ------- |
+| $20.00  | $20       | $100   | `balance <= threshold` → **charge $100** |
+| $20.01  | $20       | $100   | `balance > threshold` → **skip** |
+| $0.00   | $20       | $100   | **charge $100** (fires with no deployments) |
+| $5.00   | $20       | $15\*  | **charge $20** (clamped to the $20 minimum) |
 
-**Example scenarios:**
+\* An amount below $20 should never persist (zod rejects it on write); the clamp is defensive only.
 
-1. **Balance: $10, 7-day Cost: $40**
+## When does the check run?
 
-   - 25% threshold: $10
-   - Balance ($10) >= threshold ($10) → **Skip reload** (exactly at threshold)
+Checks are **spend-event-driven**, not fixed to a daily cadence. A check is enqueued:
 
-2. **Balance: $9, 7-day Cost: $40**
+1. When a user enables auto top-up (immediate, prefilled from the settings dialog).
+2. When a user changes their threshold or amount while enabled (immediate — backs the dialog's "top-up runs shortly after saving").
+3. After every spending broadcast, after initial deployment funding, and after each escrow top-up cycle.
+4. On a self-rescheduled 24h job that acts only as a safety net.
 
-   - 25% threshold: $10
-   - Balance ($9) < threshold ($10) → **Reload**
-   - Reload amount: max($40 - $9, $20) = $31
+Because pg-boss's `singleton` policy uniqueness applies only to *active* jobs, an immediate enqueue is never swallowed by the pending daily safety-net job. Top-ups therefore happen within seconds of the balance crossing the threshold.
 
-3. **Balance: $5, 7-day Cost: $20**
+## Validation flow
 
-   - 25% threshold: $5
-   - Balance ($5) >= threshold ($5) → **Skip reload** (exactly at threshold)
-
-4. **Balance: $4, 7-day Cost: $20**
-   - 25% threshold: $5
-   - Balance ($4) < threshold ($5) → **Reload**
-   - Reload amount: max($20 - $4, $20) = $20 (minimum applies)
-
-## Cost Calculation
-
-The handler calculates the **unfunded** cost for all active deployments with auto top-up enabled — i.e. only the portion not already covered by escrow:
-
-1. Gets all auto-top-up deployments for the user's wallet
-2. For each deployment that would close before the target date (7 days from now):
-   - Finds when it would close (predicted closed height, when escrow runs out)
-   - Calculates blocks needed from closure to target date
-   - Multiplies by block rate to get the unfunded cost
-3. Sums all unfunded costs (deployments whose escrow lasts beyond 7 days are excluded)
-
-**Note**: Only deployments with auto top-up enabled are considered in the cost calculation.
-
-**Target date**: 7 days from now (`RELOAD_COVERAGE_PERIOD_IN_MS`)
-
-## Reload Amount Calculation
-
-```
-reloadAmount = max(costUntilTargetDateInFiat - balance, $20)
-```
-
-The reload amount ensures the balance can cover the full 7-day cost projection, with a $20 minimum to prevent tiny charges and meet Stripe's requirements.
-
-## Validation Flow
-
-Before processing, the handler validates:
+Before charging, the handler validates:
 
 1. ✅ Wallet setting exists
 2. ✅ Auto-reload is enabled
 3. ✅ Wallet is initialized (has address)
-4. ✅ User has Stripe customer ID
+4. ✅ User has a Stripe customer ID
 5. ✅ Default payment method exists
 
-If any validation fails, the handler logs an error and skips processing (doesn't throw).
+If any validation fails, the handler logs and skips processing (does not throw).
 
-## Key Constants
+## Payment intent
 
-- **Check Interval**: 24 hours (1 day) - how often the job runs
-- **Reload Coverage Period**: 7 days - period for which costs are calculated
-- **Minimum Coverage Percentage**: 25% - triggers reload when balance falls below this percentage of 7-day cost
-- **Minimum Reload**: $20 USD - prevents tiny charges
+The charge uses a job-scoped idempotency key (`WalletBalanceReloadCheck.<jobId>`), `confirm: true`, and `onAmountMismatch: "tolerate"`. Tolerate keeps retries safe when the computed amount differs between attempts — e.g. settings were edited or the feature flag flipped between the original charge and a retry under the reused key.
 
-**Note**: These constants can be fine-tuned based on real-life UX data and user feedback to optimize the balance between user experience, transaction frequency, and system efficiency.
+## What happens on failure?
 
-## What Happens on Failure?
+- **Payment fails**: Error is logged and re-thrown (job fails, will retry).
+- **Validation fails**: Error is logged, job completes successfully (no retry needed).
+- **Scheduling next check fails**: Error is logged and re-thrown.
 
-- **Payment fails**: Error is logged and re-thrown (job fails, will retry)
-- **Validation fails**: Error is logged, job completes successfully (no retry needed)
-- **Job ID update fails**: Error is logged, job completes (next check still scheduled)
+**Observability**: alerts fire on failures even when the job ends successfully on validation errors, so the team can react promptly.
 
-**Observability**: Observability is configured to alert on any issues when failures happen. Even when the job ends successfully on validation errors, alerts are triggered so the team can react and ensure issues are fixed promptly.
+---
+
+## Legacy predicted-spend algorithm (behind the flag, `auto_reload_fixed_threshold` OFF)
+
+> This section describes the pre-CON-717 behavior. It is retained only while the flag is being rolled out and is removed by the flag-cleanup follow-up.
+
+The legacy path predicts upcoming spend instead of comparing against a fixed threshold:
+
+1. **Calculate** the unfunded cost to keep all auto-top-up deployments running for the next 7 days (`RELOAD_COVERAGE_PERIOD_IN_MS`), excluding the portion already covered by escrow.
+2. **Compare** the balance against 25% of that projection (`MIN_COVERAGE_PERCENTAGE`). Reload when `balance < 0.25 * costUntilTargetDate` (~1.75 days of coverage remaining).
+3. **Charge** `max(costUntilTargetDate - balance, $20)`.
+4. **Skip** entirely when the projected cost is 0 (no active auto-top-up deployments).
+5. **Schedule** the next check 24 hours out.
+
+Legacy key constants: Check Interval 24h, Reload Coverage Period 7 days, Minimum Coverage Percentage 25%, Minimum Reload $20.

@@ -1,18 +1,14 @@
 import { useEffect, useMemo } from "react";
 import type { ApiManagedWalletOutput } from "@akashnetwork/http-sdk";
 import { useIsMutating } from "@tanstack/react-query";
-import { useAtom } from "jotai";
 
 import { useUser } from "@src/hooks/useUser";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { useCreateManagedWalletMutation, useManagedWalletQuery } from "@src/queries/useManagedWalletQuery";
-import walletStore from "@src/store/walletStore";
 import { ensureUserManagedWalletOwnership, updateStorageManagedWallet } from "@src/utils/walletUtils";
-import { useCustomUser } from "./useCustomUser";
 
 export const useManagedWallet = () => {
   const { user } = useUser();
-  const { user: signedInUser } = useCustomUser();
   const { data: queried, isLoading: isInitialLoading, isFetching, refetch } = useManagedWalletQuery(user?.id);
   const {
     mutate: create,
@@ -29,14 +25,8 @@ export const useManagedWallet = () => {
   // treat a provisioning trial as "no wallet" and bounce the user to /signup mid-provision.
   const isCreatingManagedWallet = useIsMutating({ mutationKey: QueryKeys.getManagedWalletCreateMutationKey() }) > 0;
   const wallet = useMemo(() => (queried || created) as ApiManagedWalletOutput, [queried, created]);
-  const isLoading = isInitialLoading || isCreating || isCreatingManagedWallet;
-  const [, setIsSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
-
-  useEffect(() => {
-    if (signedInUser?.id && (!!queried || !!created)) {
-      setIsSignedInWithTrial(true);
-    }
-  }, [signedInUser?.id, queried, created, setIsSignedInWithTrial]);
+  const isCreatingFromAnyInstance = isCreating || isCreatingManagedWallet;
+  const isLoading = isInitialLoading || isCreatingFromAnyInstance;
 
   useEffect(() => {
     if (!wallet) return;
@@ -50,7 +40,6 @@ export const useManagedWallet = () => {
   }, [user]);
 
   return useMemo(() => {
-    const isConfigured = !!wallet;
     return {
       create: () => {
         if (!user?.id) {
@@ -59,19 +48,15 @@ export const useManagedWallet = () => {
 
         create(user.id);
       },
-      wallet: wallet
-        ? {
-            ...wallet,
-            username: wallet.username,
-            isWalletConnected: isConfigured,
-            isWalletLoaded: isConfigured,
-            selected: true
-          }
-        : undefined,
+      wallet: wallet || undefined,
       isLoading,
       /**
+       * True while a trial wallet creation is in flight, regardless of which hook instance fired it.
+       */
+      isCreating: isCreatingFromAnyInstance,
+      /**
        * True only during the initial wallet-existence lookup — never while a trial wallet is being created.
-       * Consumers gating on "do we yet know the user's wallet situation?" (the onboarding gate) use this so a
+       * Consumers gating on "do we yet know the user's wallet situation?" (the wallet boot gate) use this so a
        * provisioning trial reads as known identity and doesn't blank the page with a full-screen loader.
        */
       isInitializing: isInitialLoading,
@@ -80,5 +65,5 @@ export const useManagedWallet = () => {
       resetCreate,
       refetch
     };
-  }, [wallet, isLoading, isInitialLoading, isFetching, createError, resetCreate, refetch, user?.id, create]);
+  }, [wallet, isLoading, isCreatingFromAnyInstance, isInitialLoading, isFetching, createError, resetCreate, refetch, user?.id, create]);
 };

@@ -70,6 +70,7 @@ function getRequiredGseqs(sdl: string): number[] {
 export const DEPENDENCIES = {
   useProviderList,
   useFirstReachableProvider,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   getRequiredGseqs
 };
 

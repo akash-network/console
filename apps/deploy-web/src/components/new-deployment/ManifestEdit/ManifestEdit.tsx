@@ -417,7 +417,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
           title="Confirm deployment creation?"
           subtitle={
             <span>
-              <d.DeploymentMinimumEscrowAlertText denom={sdlDenom} />
+              <d.DeploymentMinimumEscrowAlertText />
               <d.LinkTo
                 onClick={ev => handleDocClick(ev, "https://akash.network/docs/getting-started/intro-to-akash/payments/#escrow-accounts")}
                 className="text-gray-500 no-underline hover:underline disabled:text-gray-300"

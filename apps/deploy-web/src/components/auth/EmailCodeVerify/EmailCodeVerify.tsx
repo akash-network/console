@@ -4,11 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Spinner } from "@akashnetwork/ui/components";
 import { useMutation } from "@tanstack/react-query";
 
-import type { VerificationCodeInputRef } from "@src/components/onboarding/steps/EmailVerificationStep/VerificationCodeInput";
-import { VerificationCodeInput } from "@src/components/onboarding/steps/EmailVerificationStep/VerificationCodeInput";
 import { RemoteApiError } from "@src/components/shared/RemoteApiError/RemoteApiError";
 import { useServices } from "@src/context/ServicesProvider";
 import { markCodeSent, readCodeSentAt } from "../PasswordlessAuth/withPersistedPasswordlessFlow";
+import type { VerificationCodeInputRef } from "./VerificationCodeInput";
+import { VerificationCodeInput } from "./VerificationCodeInput";
 
 /** Resend cooldown in seconds, applied on arrival and after each manual resend. */
 export const RESEND_COOLDOWN_SEC = 30;
@@ -18,7 +18,9 @@ export const DEPENDENCIES = {
   RemoteApiError,
   Spinner,
   VerificationCodeInput,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   markCodeSent,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   readCodeSentAt,
   useMutation
 };

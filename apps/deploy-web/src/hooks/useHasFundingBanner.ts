@@ -13,8 +13,8 @@ export const DEPENDENCIES = { useUser, useWallet, useOnboardingChrome };
  */
 export function useHasFundingBanner(dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
   const { user } = dependencies.useUser();
-  const { isTrialing, isWalletLoading } = dependencies.useWallet();
+  const { isTrialing } = dependencies.useWallet();
   const { isStripped } = dependencies.useOnboardingChrome();
 
-  return !!user?.id && !isWalletLoading && isTrialing && !isStripped;
+  return !!user?.id && isTrialing && !isStripped;
 }

@@ -2,10 +2,10 @@ import { forwardRef, useImperativeHandle } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { VerificationCodeInputRef } from "@src/components/onboarding/steps/EmailVerificationStep/VerificationCodeInput";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { AuthService } from "@src/services/auth/auth/auth.service";
 import { DEPENDENCIES, EmailCodeVerify, RESEND_COOLDOWN_SEC } from "./EmailCodeVerify";
+import type { VerificationCodeInputRef } from "./VerificationCodeInput";
 
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

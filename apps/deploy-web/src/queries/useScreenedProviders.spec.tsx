@@ -190,7 +190,7 @@ describe("buildPlacementScreeningRequest", () => {
     const request = buildPlacementScreeningRequest(SMALL_PRESET_SDL_NO_IMAGE, "dcloud");
 
     expect(request).not.toBeNull();
-    expect(atob(request?.resources[0].resource.cpu.units.val ?? "")).toBe("1000");
+    expect(request?.resources[0].resource.cpu.units.val).toBe("1000");
   });
 
   it("returns null when the placement is not in the SDL", () => {

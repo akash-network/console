@@ -12,7 +12,7 @@ import { setupQuery } from "@tests/unit/query-client";
 describe(useProviderCredentials.name, () => {
   it("returns usable JWT credentials when token is fresh", () => {
     const { result } = setup({
-      wallet: { isWalletConnected: true },
+      wallet: { hasWallet: true },
       providerJwt: { accessToken: "fresh-token", isTokenExpired: false }
     });
 
@@ -27,7 +27,7 @@ describe(useProviderCredentials.name, () => {
 
   it("marks credentials unusable when token is missing", () => {
     const { result } = setup({
-      wallet: { isWalletConnected: true },
+      wallet: { hasWallet: true },
       providerJwt: { accessToken: null, isTokenExpired: false, generateToken: vi.fn().mockResolvedValue("new-token") }
     });
 
@@ -36,7 +36,7 @@ describe(useProviderCredentials.name, () => {
 
   it("marks credentials unusable when token is expired", () => {
     const { result } = setup({
-      wallet: { isWalletConnected: true },
+      wallet: { hasWallet: true },
       providerJwt: { accessToken: "stale-token", isTokenExpired: true, generateToken: vi.fn().mockResolvedValue("new-token") }
     });
 
@@ -47,7 +47,7 @@ describe(useProviderCredentials.name, () => {
     const generateToken = vi.fn().mockResolvedValue("new-token");
 
     setup({
-      wallet: { isWalletConnected: true },
+      wallet: { hasWallet: true },
       providerJwt: { accessToken: null, isTokenExpired: false, generateToken }
     });
 
@@ -58,7 +58,7 @@ describe(useProviderCredentials.name, () => {
     const generateToken = vi.fn().mockResolvedValue("new-token");
 
     setup({
-      wallet: { isWalletConnected: false },
+      wallet: { hasWallet: false },
       providerJwt: { accessToken: null, isTokenExpired: false, generateToken }
     });
 
@@ -69,7 +69,7 @@ describe(useProviderCredentials.name, () => {
   it("ensureToken returns existing token when fresh", async () => {
     const generateToken = vi.fn().mockResolvedValue("new-token");
     const { result } = setup({
-      wallet: { isWalletConnected: true },
+      wallet: { hasWallet: true },
       providerJwt: { accessToken: "fresh-token", isTokenExpired: false, generateToken }
     });
 
@@ -82,7 +82,7 @@ describe(useProviderCredentials.name, () => {
   it("ensureToken generates a new token when current one is expired", async () => {
     const generateToken = vi.fn().mockResolvedValue("fresh-token");
     const { result } = setup({
-      wallet: { isWalletConnected: true },
+      wallet: { hasWallet: true },
       providerJwt: { accessToken: "stale-token", isTokenExpired: true, generateToken }
     });
 
@@ -95,7 +95,7 @@ describe(useProviderCredentials.name, () => {
   it("ensureToken deduplicates concurrent generation requests", async () => {
     const generateToken = vi.fn().mockResolvedValue("fresh-token");
     const { result } = setup({
-      wallet: { isWalletConnected: true },
+      wallet: { hasWallet: true },
       providerJwt: { accessToken: null, isTokenExpired: false, generateToken }
     });
 
@@ -108,7 +108,7 @@ describe(useProviderCredentials.name, () => {
     const generateToken = vi.fn().mockResolvedValue("new-token");
 
     setup({
-      wallet: { isWalletConnected: true },
+      wallet: { hasWallet: true },
       providerJwt: { accessToken: null, isTokenExpired: false, generateToken, isHydrated: false }
     });
 
@@ -120,7 +120,7 @@ describe(useProviderCredentials.name, () => {
     const generateToken = vi.fn().mockResolvedValue("new-token");
 
     setup({
-      wallet: { isWalletConnected: true },
+      wallet: { hasWallet: true },
       providerJwt: { accessToken: null, isTokenExpired: false, generateToken, isHydrated: true }
     });
 
@@ -136,7 +136,7 @@ describe(useProviderCredentials.name, () => {
     const notificatorError = vi.fn();
 
     const { result } = setup({
-      wallet: { isWalletConnected: true },
+      wallet: { hasWallet: true },
       providerJwt: { accessToken: null, isTokenExpired: false, generateToken },
       notificator: { error: notificatorError }
     });
@@ -154,7 +154,7 @@ describe(useProviderCredentials.name, () => {
     const notificatorError = vi.fn();
 
     const { result } = setup({
-      wallet: { isWalletConnected: true },
+      wallet: { hasWallet: true },
       providerJwt: { accessToken: null, isTokenExpired: false, generateToken },
       notificator: { error: notificatorError }
     });
@@ -172,7 +172,7 @@ describe(useProviderCredentials.name, () => {
     const addressRef = { current: "akash1aaa" };
 
     const { result, rerender } = setup({
-      wallet: { isWalletConnected: true },
+      wallet: { hasWallet: true },
       providerJwt: { accessToken: null, isTokenExpired: false, generateToken },
       addressRef
     });
@@ -200,7 +200,7 @@ describe(useProviderCredentials.name, () => {
           ...DEPENDENCIES,
           useWallet: () =>
             mock<ReturnType<typeof useWallet>>({
-              isWalletConnected: true,
+              hasWallet: true,
               ...input?.wallet,
               address: input?.addressRef?.current ?? input?.wallet?.address ?? "akash1aaa"
             }),

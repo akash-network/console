@@ -1,6 +1,13 @@
 import { Validator } from "@akashnetwork/database/dbSchemas/base";
-import fetch from "node-fetch";
 import { Op } from "sequelize";
+
+interface KeybaseLookupResponse {
+  status: { name: string };
+  them: Array<{
+    basics?: { username?: string };
+    pictures?: { primary?: { url?: string } };
+  }>;
+}
 
 export async function fetchValidatorKeybaseInfos(): Promise<void> {
   const validators = await Validator.findAll({
@@ -20,7 +27,7 @@ export async function fetchValidatorKeybaseInfos(): Promise<void> {
       const response = await fetch(`https://keybase.io/_/api/1.0/user/lookup.json?key_suffix=${validator.identity}`);
 
       if (response.status === 200) {
-        const data = await response.json();
+        const data = (await response.json()) as KeybaseLookupResponse;
 
         if (data.status.name === "OK" && data.them.length > 0) {
           validator.keybaseUsername = data.them[0].basics?.username;

@@ -73,6 +73,15 @@ describe(AutoDeployFlow.name, () => {
     expect(setBidStrategy).toHaveBeenCalledWith("select");
   });
 
+  it("tracks the choose-provider click with the template name when the user switches to manual selection", () => {
+    const flow = mock<DeploymentFlow>({ actions: mock<DeploymentFlow["actions"]>({ setBidStrategy: vi.fn() }) });
+    const { sceneProps, analyticsService } = setup({ flow, templateName: "my-app" });
+
+    sceneProps().onChooseProvider?.();
+
+    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_choose_provider_click", { category: "onboarding", templateName: "my-app" });
+  });
+
   it("opens the configured contact-support URL when the scene requests support", () => {
     const open = vi.spyOn(window, "open").mockImplementation(() => null);
     const { sceneProps } = setup({ contactSupportUrl: "https://support.example" });
@@ -112,9 +121,11 @@ describe(AutoDeployFlow.name, () => {
   ) {
     const PhasedDeployProgressScene = input.dependencies?.PhasedDeployProgressScene ?? vi.fn(ComponentMock);
     const useAutoDeploymentFlow: typeof DEPENDENCIES.useAutoDeploymentFlow = input.useAutoDeploymentFlow ?? (() => buildAutopilot(input.autopilot));
+    const analyticsService = mock<ReturnType<typeof DEPENDENCIES.useServices>["analyticsService"]>();
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({
-        publicConfig: { NEXT_PUBLIC_CONTACT_SUPPORT_URL: input.contactSupportUrl ?? CONTACT_SUPPORT_URL }
+        publicConfig: { NEXT_PUBLIC_CONTACT_SUPPORT_URL: input.contactSupportUrl ?? CONTACT_SUPPORT_URL },
+        analyticsService
       });
 
     render(
@@ -133,6 +144,6 @@ describe(AutoDeployFlow.name, () => {
       />
     );
 
-    return { sceneProps: () => (PhasedDeployProgressScene as ReturnType<typeof vi.fn>).mock.calls[0][0] as SceneProps };
+    return { analyticsService, sceneProps: () => (PhasedDeployProgressScene as ReturnType<typeof vi.fn>).mock.calls[0][0] as SceneProps };
   }
 });

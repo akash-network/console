@@ -58,14 +58,49 @@ describe(WalletBalanceReloadCheckInstrumentationService.name, () => {
     });
   });
 
+  describe("recordReloadTriggered", () => {
+    it("records the coverage ratio and projected cost on the legacy path and logs the reload", () => {
+      const { service, histograms } = setup();
+      const logContext = { walletAddress: faker.string.alphanumeric(44), balance: 10 };
+
+      service.recordReloadTriggered({ amount: 40, coverageRatio: 0.2, projectedCost: 50, logContext });
+
+      expect(histograms.wallet_balance_reload_check_balance_coverage_ratio.record).toHaveBeenCalledWith(0.2);
+      expect(histograms.wallet_balance_reload_check_projected_cost_usd.record).toHaveBeenCalledWith(50);
+      expect(mockLogger.info).toHaveBeenCalledWith(expect.objectContaining({ ...logContext, amount: 40, event: "WALLET_BALANCE_RELOADED" }));
+    });
+
+    it("omits the projected cost histogram on the fixed-threshold path", () => {
+      const { service, histograms } = setup();
+
+      service.recordReloadTriggered({ amount: 100, coverageRatio: 0.5, logContext: { threshold: 20 } });
+
+      expect(histograms.wallet_balance_reload_check_balance_coverage_ratio.record).toHaveBeenCalledWith(0.5);
+      expect(histograms.wallet_balance_reload_check_projected_cost_usd.record).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("recordReloadSkipped", () => {
+    it("increments the skipped counter with the reason and logs the skip", () => {
+      const { service, counters } = setup();
+
+      service.recordReloadSkipped({ reason: "sufficient_balance", coverageRatio: 1.5, logContext: { threshold: 20 } });
+
+      expect(counters.wallet_balance_reload_check_reloads_skipped_total.add).toHaveBeenCalledWith(1, { reason: "sufficient_balance" });
+      expect(mockLogger.info).toHaveBeenCalledWith(expect.objectContaining({ threshold: 20, event: "WALLET_BALANCE_RELOAD_SKIPPED" }));
+    });
+  });
+
   function setup() {
     const metricsService = mock<MetricsService>();
+    const histograms: Record<string, ReturnType<typeof mock<Histogram>>> = {};
+    const counters: Record<string, ReturnType<typeof mock<Counter>>> = {};
     metricsService.getMeter.mockReturnValue(mock());
-    metricsService.createCounter.mockReturnValue(mock<Counter>());
-    metricsService.createHistogram.mockReturnValue(mock<Histogram>());
+    metricsService.createCounter.mockImplementation((_meter, name) => (counters[name] = mock<Counter>()));
+    metricsService.createHistogram.mockImplementation((_meter, name) => (histograms[name] = mock<Histogram>()));
 
     const service = new WalletBalanceReloadCheckInstrumentationService(metricsService);
 
-    return { service };
+    return { service, histograms, counters };
   }
 });

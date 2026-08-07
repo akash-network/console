@@ -12,32 +12,25 @@ import Link from "next/link";
 
 import { AddFundsLink } from "@src/components/user/AddFundsLink";
 import { useWallet } from "@src/context/WalletProvider";
-import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { RouteStep } from "@src/types/route-steps.type";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import { uaktToAKT } from "@src/utils/priceUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ExternalLink } from "../shared/ExternalLink";
-import { WalletConnectionButtons } from "../wallet/WalletConnectionButtons";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
 
 export const DEPENDENCIES = {
   useWallet,
   useWalletBalance,
-  useChainParam,
-  WalletConnectionButtons,
   AddFundsLink
 };
 
 export const GetStartedStepper: React.FunctionComponent<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
   const [activeStep, setActiveStep] = useState(0);
-  const { isWalletConnected, isManaged: isManagedWallet, isTrialing } = d.useWallet();
+  const { hasWallet, isTrialing } = d.useWallet();
   const { balance: walletBalance } = d.useWalletBalance();
-  const { minDeposit } = d.useChainParam();
-  const aktBalance = walletBalance ? uaktToAKT(walletBalance.balanceUAKT) : 0;
-  const usdcBalance = walletBalance ? udenomToDenom(walletBalance.balanceUUSDC) : 0;
-  const actBalance = walletBalance ? udenomToDenom(walletBalance.balanceUACT) : 0;
+  /** Managed credit can sit in USDC or ACT; both are USD-pegged 1:1. */
+  const usdBalance = walletBalance ? udenomToDenom(walletBalance.balanceUUSDC + walletBalance.balanceUACT) : 0;
 
   useEffect(() => {
     const getStartedStep = localStorage.getItem("getStartedStep");
@@ -81,92 +74,52 @@ export const GetStartedStepper: React.FunctionComponent<{ dependencies?: typeof 
         </StepLabel>
 
         <StepContent>
-          {!isWalletConnected && (
-            <p className="text-muted-foreground">
-              You can pay using either USD (fiat) or with crypto ($AKT or $USDC). To pay with USD, click "Start Trial". To pay with crypto, click "Connect
-              Wallet"
-            </p>
-          )}
-
-          {isWalletConnected && !isManagedWallet && (
-            <div className="my-4 flex items-center space-x-2">
-              <Check className="text-green-600" />
-              <span>Wallet is installed</span>{" "}
-            </div>
-          )}
-
-          {!isManagedWallet && (
-            <p className="text-muted-foreground">
-              You need at least {minDeposit.act} ACT in your wallet to deploy on Akash. If you don't have {minDeposit.act} ACT, you can switch to the sandbox or
-              ask help in our <ExternalLink href="https://discord.gg/akash" text="Discord" />.
-            </p>
-          )}
-
           <div className="flex items-center space-x-4">
-            {isManagedWallet && (
-              <div className="flex items-start gap-2">
-                <d.AddFundsLink className={cn("hover:no-underline", buttonVariants({ variant: "default" }))} href={UrlService.billing({ openPayment: true })}>
-                  <HandCard className="text-xs" />
-                  <span className="m-2 whitespace-nowrap">Add Funds</span>
-                </d.AddFundsLink>
-              </div>
-            )}
+            <div className="flex items-start gap-2">
+              <d.AddFundsLink className={cn("hover:no-underline", buttonVariants({ variant: "default" }))} href={UrlService.billing({ openPayment: true })}>
+                <HandCard className="text-xs" />
+                <span className="m-2 whitespace-nowrap">Add Funds</span>
+              </d.AddFundsLink>
+            </div>
           </div>
 
           <Button className="mt-4" variant="default" onClick={handleNext}>
             Next
           </Button>
 
-          {isWalletConnected && isTrialing && (
+          {hasWallet && isTrialing && (
             <div className="my-4 flex items-center space-x-2">
               <Check className="text-green-600" />
               <span>Trialing</span>
             </div>
           )}
 
-          {isWalletConnected && isManagedWallet && !isTrialing && (
+          {hasWallet && !isTrialing && (
             <div className="my-4 flex items-center space-x-2">
               <Check className="text-green-600" />
               <span>Billing is set up</span>
             </div>
           )}
 
-          {!isWalletConnected && (
-            <div>
-              <div className="my-4 flex items-center space-x-2">
-                <XmarkCircleSolid className="text-destructive" />
-                <span>Billing is not set up</span>
-              </div>
-
-              <d.WalletConnectionButtons className="gap-2" connectManagedWalletButtonClassName="mr-2 w-full md:w-auto" />
+          {!hasWallet && (
+            <div className="my-4 flex items-center space-x-2">
+              <XmarkCircleSolid className="text-destructive" />
+              <span>Billing is not set up</span>
             </div>
           )}
 
           {walletBalance && (
             <div className="my-4 flex items-center space-x-2">
-              {aktBalance >= minDeposit.akt || actBalance >= minDeposit.act ? (
+              {usdBalance > 0 ? (
                 <Check className="text-green-600" />
               ) : (
-                <CustomTooltip
-                  title={
-                    <>
-                      If you don&apos;t have {minDeposit.act} ACT, you can request some tokens to get started on our{" "}
-                      <ExternalLink href="https://discord.gg/akash" text="Discord" />.
-                    </>
-                  }
-                >
+                <CustomTooltip title="Add funds to your account to start deploying.">
                   <WarningCircle className="text-warning" />
                 </CustomTooltip>
               )}
-              {isManagedWallet ? (
-                <span>
-                  You have <strong>${usdcBalance}</strong>
-                </span>
-              ) : (
-                <span>
-                  You have <strong>{aktBalance}</strong> AKT and <strong>{actBalance}</strong> ACT
-                </span>
-              )}
+              <span>
+                You have <strong>${usdBalance}</strong>
+              </span>
             </div>
           )}
         </StepContent>

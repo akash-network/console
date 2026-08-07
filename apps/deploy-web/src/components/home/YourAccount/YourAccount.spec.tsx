@@ -7,6 +7,7 @@ import type { ApiProviderList } from "@src/types/provider";
 import { DEPENDENCIES, YourAccount } from "./YourAccount";
 
 import { render, screen } from "@testing-library/react";
+import { buildWallet } from "@tests/seeders/wallet";
 import { ComponentMock, MockComponents } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
@@ -34,7 +35,6 @@ describe(YourAccount.name, () => {
 
     expect(AccountHeaderMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        isManagedWallet: true,
         isBlockchainDown: false
       }),
       expect.anything()
@@ -70,8 +70,7 @@ describe(YourAccount.name, () => {
     expect(AccountStatsCardsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         walletBalance,
-        activeDeploymentsCount: 0,
-        isManagedWallet: true
+        activeDeploymentsCount: 0
       }),
       expect.anything()
     );
@@ -260,18 +259,6 @@ describe(YourAccount.name, () => {
     );
   });
 
-  it("passes isManagedWallet from wallet context to AccountHeader", () => {
-    const AccountHeaderMock = vi.fn(ComponentMock);
-    setup({
-      wallet: { address: "akash1abc", isManaged: true },
-      dependencies: {
-        AccountHeader: AccountHeaderMock
-      }
-    });
-
-    expect(AccountHeaderMock).toHaveBeenCalledWith(expect.objectContaining({ isManagedWallet: true }), expect.anything());
-  });
-
   function setup(
     input: {
       isLoadingBalances?: boolean;
@@ -279,7 +266,7 @@ describe(YourAccount.name, () => {
       activeDeployments?: Array<DeploymentDto>;
       leases?: Array<LeaseDto> | null;
       providers?: Array<ApiProviderList>;
-      wallet?: { address?: string; isManaged?: boolean };
+      wallet?: { address?: string };
       pricing?: { price?: number; isLoaded?: boolean };
       usdcDenom?: string;
       dependencies?: Partial<typeof DEPENDENCIES>;
@@ -294,23 +281,10 @@ describe(YourAccount.name, () => {
       }) as unknown as ReturnType<typeof DEPENDENCIES.useSettings>;
 
     const useWallet: typeof DEPENDENCIES.useWallet = () =>
-      ({
+      buildWallet({
         address: input.wallet?.address ?? "",
-        walletName: "",
-        isWalletConnected: !!input.wallet?.address,
-        isWalletLoaded: true,
-        connectManagedWallet: vi.fn(),
-        logout: vi.fn(),
-        signAndBroadcastTx: vi.fn(),
-        isManaged: true,
-        denom: "uact",
-        isWalletLoading: false,
-        isWalletInitializing: false,
-        isTrialing: false,
-        isOnboarding: false,
-        topUpMinAmountUsd: 20,
-        hasManagedWallet: false
-      }) as ReturnType<typeof DEPENDENCIES.useWallet>;
+        hasWallet: !!input.wallet?.address
+      });
 
     const useUsdcDenom: typeof DEPENDENCIES.useUsdcDenom = () => input.usdcDenom ?? "ibc/usdc-test-denom";
 

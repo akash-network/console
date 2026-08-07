@@ -30,6 +30,9 @@ import { StripeTransactionService } from "@src/billing/services/stripe-transacti
 import { TopUpService } from "@src/billing/services/top-up/top-up.service";
 import { TransactionReportingService } from "@src/billing/services/transaction-reporting/transaction-reporting.service";
 import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
+import { WalletSettingService } from "@src/billing/services/wallet-settings/wallet-settings.service";
+import { LoggerService } from "@src/core/providers/logging.provider";
+
 @singleton()
 export class StripeController {
   constructor(
@@ -43,8 +46,12 @@ export class StripeController {
     private readonly transactionReporting: TransactionReportingService,
     private readonly paymentMethodService: PaymentMethodService,
     private readonly couponRedemptionService: CouponRedemptionService,
-    private readonly customerService: CustomerService
-  ) {}
+    private readonly customerService: CustomerService,
+    private readonly walletSettingService: WalletSettingService,
+    private readonly logger: LoggerService
+  ) {
+    this.logger.setContext(StripeController.name);
+  }
 
   @Protected([{ action: "read", subject: "StripePayment" }])
   async findPrices(): Promise<StripePricesOutputResponse> {
@@ -95,7 +102,7 @@ export class StripeController {
     const currentUser = this.authService.getCurrentPayingUser({ strict: false });
 
     if (currentUser) {
-      const paymentMethods = await this.paymentMethodService.getPaymentMethods(currentUser.id, currentUser.stripeCustomerId, this.authService.ability);
+      const paymentMethods = await this.paymentMethodService.getPaymentMethods(currentUser, this.authService.ability);
       return { data: paymentMethods };
     }
 
@@ -176,13 +183,32 @@ export class StripeController {
       const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
       assert(customerId === currentUser.stripeCustomerId, 403, "Payment method does not belong to the user");
 
+      const wasDefault = await this.paymentMethodService.isDefaultPaymentMethod(paymentMethodId, currentUser.id);
+
       await this.stripe.detachPaymentMethod(paymentMethodId);
+
+      if (wasDefault) {
+        await this.#disableAutoReloadAfterDefaultRemoval(currentUser.id);
+      }
     } catch (error: unknown) {
       if (this.stripeErrorService.isKnownError(error, "payment")) {
         throw this.stripeErrorService.toAppError(error, "payment");
       }
 
       throw error;
+    }
+  }
+
+  /**
+   * The Stripe detach already succeeded and can't be replayed (a retry 403s on the now customer-less
+   * method), so a failed auto reload disable must not fail the request. The stale "enabled with no
+   * default card" state self-heals on the next default payment method read.
+   */
+  async #disableAutoReloadAfterDefaultRemoval(userId: string): Promise<void> {
+    try {
+      await this.walletSettingService.disableAutoReload(userId);
+    } catch (error) {
+      this.logger.error({ event: "AUTO_RELOAD_DISABLE_AFTER_REMOVAL_FAILED", userId, error });
     }
   }
 

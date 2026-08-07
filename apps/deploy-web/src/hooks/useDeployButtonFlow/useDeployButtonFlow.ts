@@ -3,6 +3,7 @@ import { useSearchParams as useSearchParamsOriginal } from "next/navigation";
 
 export const DEPENDENCIES = {
   useSearchParams: useSearchParamsOriginal,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
   window: typeof window === "undefined" ? undefined : window
 };
 

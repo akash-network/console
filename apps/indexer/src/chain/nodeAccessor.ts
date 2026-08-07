@@ -127,8 +127,7 @@ class NodeAccessor {
     try {
       return await node.query(path, height);
     } catch (err: any) {
-      err.message = "[NodeAccessError] " + err.message;
-      throw err;
+      throw new Error("[NodeAccessError] " + err.message, { cause: err });
     }
   }
 

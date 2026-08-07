@@ -105,6 +105,47 @@ describe(GpuPriceService.name, () => {
       expect(result.models[0].priceUakt?.currency).toBe("uakt");
     });
 
+    it("parses v1beta5 resource units that decode as bigint", async () => {
+      const provider = createProvider();
+      const gpu = createGpuType({
+        vendor: "nvidia",
+        model: "a100",
+        ram: "80Gi",
+        interface: "pcie",
+        providers: [provider]
+      });
+
+      const bidData = createMsgCreateBidV5({
+        provider: provider.owner,
+        gpuVendor: "nvidia",
+        gpuModel: "a100",
+        gpuRam: "80Gi",
+        gpuInterface: "pcie",
+        cpuUnits: 2000
+      });
+
+      const days = [createDay({ aktPrice: 3.0 })];
+      const deployment = createDeploymentWithBid({
+        dayId: days[0].id,
+        bidData: bidData.encoded,
+        bidType: `/akash.market.v1beta5.MsgCreateBid`
+      });
+
+      const { service } = setup({
+        gpusForPricing: [gpu],
+        deploymentsWithGpu: [deployment],
+        days
+      });
+
+      const result = await service.getGpuPrices(true);
+
+      const bestBid = result.models[0].providersWithBestBid![0].bestBid;
+      expect(bestBid.deployment.cpuUnits).toBe(2000);
+      expect(bestBid.deployment.memoryUnits).toBe(1073741824);
+      expect(bestBid.deployment.storageUnits).toBe(10737418240);
+      expect(bestBid.deployment.gpus).toHaveLength(1);
+    });
+
     it("ignores bids with IBC denomination", async () => {
       const provider = createProvider();
       const gpu = createGpuType({
@@ -723,13 +764,13 @@ describe(GpuPriceService.name, () => {
             id: 1,
             cpu: {
               units: {
-                val: new TextEncoder().encode(cpuUnits.toString())
+                val: BigInt(cpuUnits)
               },
               attributes: []
             },
             memory: {
               quantity: {
-                val: new TextEncoder().encode(memoryUnits.toString())
+                val: BigInt(memoryUnits)
               },
               attributes: []
             },
@@ -737,14 +778,14 @@ describe(GpuPriceService.name, () => {
               {
                 name: "default",
                 quantity: {
-                  val: new TextEncoder().encode(storageUnits.toString())
+                  val: BigInt(storageUnits)
                 },
                 attributes: []
               }
             ],
             gpu: {
               units: {
-                val: new TextEncoder().encode(gpuCount.toString())
+                val: BigInt(gpuCount)
               },
               attributes: gpuAttributes
             },
@@ -794,13 +835,13 @@ describe(GpuPriceService.name, () => {
             id: 1,
             cpu: {
               units: {
-                val: new TextEncoder().encode(cpuUnits.toString())
+                val: BigInt(cpuUnits)
               },
               attributes: []
             },
             memory: {
               quantity: {
-                val: new TextEncoder().encode(memoryUnits.toString())
+                val: BigInt(memoryUnits)
               },
               attributes: []
             },
@@ -808,14 +849,14 @@ describe(GpuPriceService.name, () => {
               {
                 name: "default",
                 quantity: {
-                  val: new TextEncoder().encode(storageUnits.toString())
+                  val: BigInt(storageUnits)
                 },
                 attributes: []
               }
             ],
             gpu: {
               units: {
-                val: new TextEncoder().encode(input.gpuTypes.length.toString())
+                val: BigInt(input.gpuTypes.length)
               },
               attributes: gpuAttributes
             },

@@ -10,54 +10,44 @@ import { render, screen } from "@testing-library/react";
 const SKIPPED_AT = "2026-07-27T00:00:00.000Z";
 
 describe(RequireOnboarding.name, () => {
-  it("shows loading until the initial wallet lookup and leases resolve", () => {
-    setup({ isWalletInitializing: true, path: "/deployments" });
-    expect(screen.queryByText("child")).not.toBeInTheDocument();
-  });
-
-  it("renders the page while a trial is being provisioned instead of a full-screen loader", () => {
-    setup({ hasManagedWallet: false, isWalletLoading: true, isWalletInitializing: false, path: "/new-deployment/configure" });
-    expect(screen.getByText("child")).toBeInTheDocument();
-  });
-
-  it("renders an allow-list route immediately while the initial wallet lookup is still loading (uninterrupted deploy overlay)", () => {
-    setup({ isWalletInitializing: true, path: "/new-deployment/configure" });
+  it("renders the configure page for a user with no wallet instead of a full-screen loader", () => {
+    setup({ hasWallet: false, path: "/new-deployment/configure" });
     expect(screen.getByText("child")).toBeInTheDocument();
   });
 
   it("renders children for an onboarded user on an app route", () => {
-    setup({ address: "akash1", hasManagedWallet: true, leases: 1, path: "/deployments" });
+    setup({ address: "akash1", hasWallet: true, leases: 1, path: "/deployments" });
     expect(screen.getByText("child")).toBeInTheDocument();
   });
 
   it("redirects a not-onboarded user off an app route to /onboarding", () => {
-    const { replace } = setup({ address: "akash1", hasManagedWallet: true, leases: 0, path: "/deployments" });
+    const { replace } = setup({ address: "akash1", hasWallet: true, leases: 0, path: "/deployments" });
     expect(replace).toHaveBeenCalledWith("/onboarding");
     expect(screen.queryByText("child")).not.toBeInTheDocument();
   });
 
   it("redirects a user with no wallet to /onboarding", () => {
-    const { replace } = setup({ hasManagedWallet: false, path: "/deployments" });
+    const { replace } = setup({ hasWallet: false, path: "/deployments" });
     expect(replace).toHaveBeenCalledWith("/onboarding");
   });
 
   it("lets a not-onboarded user stay on the configure route", () => {
-    setup({ address: "akash1", hasManagedWallet: true, leases: 0, path: "/new-deployment/configure" });
+    setup({ address: "akash1", hasWallet: true, leases: 0, path: "/new-deployment/configure" });
     expect(screen.getByText("child")).toBeInTheDocument();
   });
 
   it("lets a not-onboarded user stay on a deployment detail route", () => {
-    setup({ address: "akash1", hasManagedWallet: true, leases: 0, path: "/deployments/123" });
+    setup({ address: "akash1", hasWallet: true, leases: 0, path: "/deployments/123" });
     expect(screen.getByText("child")).toBeInTheDocument();
   });
 
   it("lets a not-onboarded user render the onboarding picker", () => {
-    setup({ address: "akash1", hasManagedWallet: true, leases: 0, path: "/onboarding" });
+    setup({ address: "akash1", hasWallet: true, leases: 0, path: "/onboarding" });
     expect(screen.getByText("child")).toBeInTheDocument();
   });
 
   it("keeps an allow-list route mounted while leases load after the wallet arrives (no loader flash / remount mid-deploy)", () => {
-    const { replace } = setup({ address: "akash1", hasManagedWallet: true, leasesLoading: true, path: "/new-deployment/configure" });
+    const { replace } = setup({ address: "akash1", hasWallet: true, leasesLoading: true, path: "/new-deployment/configure" });
     expect(screen.getByText("child")).toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
   });
@@ -66,15 +56,14 @@ describe(RequireOnboarding.name, () => {
     // Render the picker before the trial wallet has an address, then have the address arrive while leases load —
     // the exact regression this PR fixes. The child must never unmount/remount and we must never redirect.
     const { replace, getChildMountCount, rerender } = setup({
-      hasManagedWallet: true,
+      hasWallet: true,
       address: "",
-      isWalletLoading: true,
       path: "/onboarding"
     });
     expect(screen.getByText("child")).toBeInTheDocument();
     const mountsBeforeWallet = getChildMountCount();
 
-    rerender({ address: "akash1", isWalletLoading: false, leasesLoading: true });
+    rerender({ address: "akash1", hasWallet: true, leasesLoading: true });
 
     expect(screen.getByText("child")).toBeInTheDocument();
     expect(getChildMountCount()).toBe(mountsBeforeWallet);
@@ -82,18 +71,18 @@ describe(RequireOnboarding.name, () => {
   });
 
   it("still waits for leases on a non-allow-list route while they load", () => {
-    setup({ address: "akash1", hasManagedWallet: true, leasesLoading: true, path: "/deployments" });
+    setup({ address: "akash1", hasWallet: true, leasesLoading: true, path: "/deployments" });
     expect(screen.queryByText("child")).not.toBeInTheDocument();
   });
 
   it("renders in place when the leases query errors instead of ejecting the user to onboarding", () => {
-    const { replace } = setup({ address: "akash1", hasManagedWallet: true, leasesError: true, path: "/deployments" });
+    const { replace } = setup({ address: "akash1", hasWallet: true, leasesError: true, path: "/deployments" });
     expect(screen.getByText("child")).toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
   });
 
   it("redirects an onboarded user away from /onboarding to returnTo", () => {
-    const { replace } = setup({ address: "akash1", hasManagedWallet: true, leases: 1, path: "/onboarding", returnTo: "/deployments" });
+    const { replace } = setup({ address: "akash1", hasWallet: true, leases: 1, path: "/onboarding", returnTo: "/deployments" });
     expect(replace).toHaveBeenCalledWith("/deployments");
   });
 
@@ -104,7 +93,7 @@ describe(RequireOnboarding.name, () => {
   });
 
   it("renders children for a skipped user on an app route with no leases", () => {
-    const { replace } = setup({ address: "akash1", hasManagedWallet: true, leases: 0, path: "/deployments", onboardingSkippedAt: SKIPPED_AT });
+    const { replace } = setup({ address: "akash1", hasWallet: true, leases: 0, path: "/deployments", onboardingSkippedAt: SKIPPED_AT });
     expect(screen.getByText("child")).toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
   });
@@ -112,7 +101,7 @@ describe(RequireOnboarding.name, () => {
   it("redirects a skipped user away from /onboarding to returnTo", () => {
     const { replace } = setup({
       address: "akash1",
-      hasManagedWallet: true,
+      hasWallet: true,
       leases: 0,
       path: "/onboarding",
       returnTo: "/deployments",
@@ -122,7 +111,7 @@ describe(RequireOnboarding.name, () => {
   });
 
   it("renders a skipped user immediately on an app route without waiting for leases", () => {
-    const { replace } = setup({ address: "akash1", hasManagedWallet: true, leasesLoading: true, path: "/deployments", onboardingSkippedAt: SKIPPED_AT });
+    const { replace } = setup({ address: "akash1", hasWallet: true, leasesLoading: true, path: "/deployments", onboardingSkippedAt: SKIPPED_AT });
     expect(screen.getByText("child")).toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
   });
@@ -133,10 +122,7 @@ describe(RequireOnboarding.name, () => {
     loggedOut?: boolean;
     userId?: string;
     address?: string;
-    hasManagedWallet?: boolean;
-    isWalletConnected?: boolean;
-    isWalletLoading?: boolean;
-    isWalletInitializing?: boolean;
+    hasWallet?: boolean;
     leases?: number;
     leasesLoading?: boolean;
     leasesError?: boolean;
@@ -164,10 +150,7 @@ describe(RequireOnboarding.name, () => {
       useWallet: (() =>
         mock<ReturnType<typeof DEPENDENCIES.useWallet>>({
           address: props.address ?? "",
-          hasManagedWallet: props.hasManagedWallet ?? false,
-          isWalletConnected: props.isWalletConnected ?? false,
-          isWalletLoading: props.isWalletLoading ?? false,
-          isWalletInitializing: props.isWalletInitializing ?? false
+          hasWallet: props.hasWallet ?? false
         })) as typeof DEPENDENCIES.useWallet,
       useLeaseExistenceQuery: (() =>
         mock<ReturnType<typeof DEPENDENCIES.useLeaseExistenceQuery>>({

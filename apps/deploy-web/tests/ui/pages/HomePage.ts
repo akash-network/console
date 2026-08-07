@@ -11,9 +11,9 @@ export class HomePage {
   }
 
   /**
-   * Waits for the authenticated shell to settle (the account menu rendered, present in both the sidebar and top
-   * nav) and resolves true when the app stayed on home rather than redirecting to onboarding or signup, i.e. the
-   * current user is an existing, onboarded one.
+   * Waits for the authenticated shell to settle (the account menu rendered in the top nav) and resolves true
+   * when the app stayed on home rather than redirecting to onboarding or signup, i.e. the current user is an
+   * existing, onboarded one.
    */
   async isCurrentPage(): Promise<boolean> {
     await new AppNav(this.page).accountMenuButton().waitFor({ state: "visible", timeout: 30_000 });

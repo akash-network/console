@@ -38,6 +38,7 @@ const loadJSZip = async (): Promise<{ new (): JSZipInstance }> => {
 /** Narrowed to the single call signature used here so tests can supply a plain stub. */
 const saveBlobAs: (data: Blob, filename: string) => void = saveAs;
 
+// eslint-disable-next-line akash/dependencies-component-or-hook
 export const DEPENDENCIES = { CollapsibleCard, QuantityStepper, CodeSnippet, generateSSHKeyPair, useSnackbar, saveAs: saveBlobAs, loadJSZip };
 
 type Props = {

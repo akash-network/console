@@ -11,6 +11,7 @@ import { UnlockGpusButton } from "../UnlockGpusButton/UnlockGpusButton";
 import type { HardwarePreset, HardwarePresetGroup } from "./hardwarePresets";
 import { applyPreset, detectPreset, formatPresetSpecs, HARDWARE_PRESET_GROUP_LABELS, HARDWARE_PRESET_GROUP_ORDER, hardwarePresets } from "./hardwarePresets";
 
+// eslint-disable-next-line akash/dependencies-component-or-hook
 export const DEPENDENCIES = { hardwarePresets, useServices };
 
 type Props = {

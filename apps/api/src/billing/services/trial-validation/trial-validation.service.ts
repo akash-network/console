@@ -6,14 +6,14 @@ import { EncodeObject } from "@cosmjs/proto-signing";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
+import { STANDARD_TOP_UP_MIN_AMOUNT_USD } from "@src/billing/config";
 import type { UserWalletOutput } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { AUDITOR, TRIAL_ATTRIBUTE, TRIAL_REGISTERED_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
+import { groupSpecsRequestGpuInterconnect } from "@src/deployment/utils/gpu-interconnect/gpu-interconnect";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import type { UserOutput } from "@src/user/repositories";
-
-const STANDARD_TOP_UP_MIN_AMOUNT_USD = 20;
 
 @singleton()
 export class TrialValidationService {
@@ -98,6 +98,18 @@ export class TrialValidationService {
 
       assert(false, 402, `${this.blockedGpuService.formatList(blocked)} not available on free trial: Add funds to unlock GPU access`);
     }
+  }
+
+  @Trace()
+  async validateDeploymentGpuInterconnect(messages: EncodeObject[], userWallet: UserWalletOutput) {
+    if (!userWallet.isTrialing) return;
+    if (!this.blockedGpuService.hasBlockedModels()) return;
+
+    const requestsInterconnect = messages
+      .filter(message => message.typeUrl === `/${MsgCreateDeployment.$type}`)
+      .some(message => groupSpecsRequestGpuInterconnect((message.value as MsgCreateDeployment).groups));
+
+    assert(!requestsInterconnect, 402, "GPU interconnect not available on free trial: Add funds to unlock GPU interconnect");
   }
 
   @Trace()

@@ -118,7 +118,6 @@ describe("SdlBuilder", () => {
         }),
       useWallet: () =>
         mock<ReturnType<typeof DEPENDENCIES.useWallet>>({
-          isManaged: true,
           denom: "uact"
         }),
       useSdlServiceManager: () =>

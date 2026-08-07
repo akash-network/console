@@ -94,8 +94,6 @@ describe("walletUtils", () => {
 
       const result = updateStorageManagedWallet(wallet);
 
-      expect(result?.name).toBe("Managed Wallet");
-      expect(result?.isManaged).toBe(true);
       expect(result?.address).toBe(WALLET_ADDRESS_1);
       expect(result?.selected).toBe(true);
 

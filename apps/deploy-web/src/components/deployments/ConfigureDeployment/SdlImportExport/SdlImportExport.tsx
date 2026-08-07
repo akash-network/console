@@ -26,6 +26,7 @@ const saveBlobAs: (data: Blob, filename: string) => void = saveAs;
 /** Names the menu trigger for both the visible tooltip and the accessible label, so the two can't drift apart. */
 const MENU_TRIGGER_LABEL = "Import or export config";
 
+// eslint-disable-next-line akash/dependencies-component-or-hook
 export const DEPENDENCIES = { ImportSdlDialog, useServices, useSnackbar, Snackbar, saveAs: saveBlobAs, copyTextToClipboard, CustomNoDivTooltip };
 
 type Props = {

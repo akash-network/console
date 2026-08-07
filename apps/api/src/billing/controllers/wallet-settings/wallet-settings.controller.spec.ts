@@ -50,6 +50,25 @@ describe(WalletSettingController.name, () => {
         autoReloadEnabled: true
       });
     });
+
+    it("passes threshold and amount through to the service", async () => {
+      const { user, walletSettingService, controller, walletSetting } = setup();
+      walletSettingService.upsertWalletSetting.mockResolvedValue(walletSetting);
+
+      await controller.createWalletSettings({
+        data: {
+          autoReloadEnabled: true,
+          autoReloadThreshold: 25,
+          autoReloadAmount: 150
+        }
+      });
+
+      expect(walletSettingService.upsertWalletSetting).toHaveBeenCalledWith(user.id, {
+        autoReloadEnabled: true,
+        autoReloadThreshold: 25,
+        autoReloadAmount: 150
+      });
+    });
   });
 
   describe("updateWalletSettings", () => {

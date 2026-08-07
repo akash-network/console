@@ -5,7 +5,6 @@ import type { Message as MessageEntity } from "@akashnetwork/database/dbSchemas/
 import { Transaction, TransactionEvent, TransactionEventAttribute } from "@akashnetwork/database/dbSchemas/base";
 import { fromBase64 } from "@cosmjs/encoding";
 import { decodeTxRaw } from "@cosmjs/proto-signing";
-import { sha256 } from "js-sha256";
 import type { Transaction as DbTransaction } from "sequelize";
 import { Op } from "sequelize";
 
@@ -14,6 +13,7 @@ import { sequelize } from "@src/db/dbConnection";
 import { activeIndexers, indexersMsgTypes } from "@src/indexers";
 import { lastBlockToSync } from "@src/shared/constants";
 import * as benchmark from "@src/shared/utils/benchmark";
+import { getTransactionHash } from "@src/shared/utils/hash";
 import { decodeMsg } from "@src/shared/utils/protobuf";
 import { setMissingBlock } from "./chainSync"; // eslint-disable-line import-x/no-cycle
 import { getGenesis } from "./genesisImporter";
@@ -172,7 +172,7 @@ class StatsProcessor {
 
           for (const transaction of block.transactions) {
             const decodeTimer = benchmark.startTimer("decodeTx");
-            const tx = blockData.block.data.txs.find(t => sha256(Buffer.from(t, "base64")).toUpperCase() === transaction.hash);
+            const tx = blockData.block.data.txs.find(t => getTransactionHash(t) === transaction.hash);
             if (!tx) {
               throw new Error(`Transaction ${transaction.hash} not found in block ${block.height}`);
             }

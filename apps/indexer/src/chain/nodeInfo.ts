@@ -1,5 +1,26 @@
-import axios from "axios";
 import { setTimeout as sleep } from "node:timers/promises";
+
+class HttpResponseError extends Error {
+  constructor(
+    readonly status: number,
+    readonly body?: any
+  ) {
+    super("Request failed with status code " + status);
+  }
+}
+
+/** Reads the error body once so the connection returns to the undici pool, keeping raw text when it isn't JSON. */
+async function toHttpResponseError(response: Response) {
+  return new HttpResponseError(response.status, parseJsonOrKeepText(await response.text()));
+}
+
+function parseJsonOrKeepText(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
 
 const RateLimitWaitingPeriod = 2 * 60_000; // 2 minutes
 const LateNodeWaitingPeriod = 5 * 60_000; // 5 minutes
@@ -98,22 +119,24 @@ export class NodeInfo {
   }
 
   public async updateStatus(): Promise<void> {
-    return axios
-      .get(`${this.url}/status`, { timeout: QueryTimeout })
-      .then(res => {
-        this.status = NodeStatus.OK;
-        this.earliestBlockHeight = parseInt(res.data.result.sync_info.earliest_block_height);
-      })
-      .catch(err => {
-        this.status = NodeStatus.UNAVAILABLE;
-        this.latestError = err.message || "Unknown error";
+    try {
+      const response = await fetch(`${this.url}/status`, { signal: AbortSignal.timeout(QueryTimeout) });
 
-        if (err.response?.status === HttpCodes.TOO_MANY_REQUESTS) {
-          this.handleRateLimiting();
-        } else {
-          this.handleUnavailable();
-        }
-      });
+      if (!response.ok) throw await toHttpResponseError(response);
+
+      const data = (await response.json()) as any;
+      this.status = NodeStatus.OK;
+      this.earliestBlockHeight = parseInt(data.result.sync_info.earliest_block_height);
+    } catch (err: any) {
+      this.status = NodeStatus.UNAVAILABLE;
+      this.latestError = err.message || "Unknown error";
+
+      if (err instanceof HttpResponseError && err.status === HttpCodes.TOO_MANY_REQUESTS) {
+        this.handleRateLimiting();
+      } else {
+        this.handleUnavailable();
+      }
+    }
   }
 
   public isAvailable(height?: number): boolean {
@@ -164,14 +187,18 @@ export class NodeInfo {
     }
 
     try {
-      const response = await axios.get(`${this.url}${path}`, { timeout: QueryTimeout });
+      const response = await fetch(`${this.url}${path}`, { signal: AbortSignal.timeout(QueryTimeout) });
+
+      if (!response.ok) throw await toHttpResponseError(response);
+
+      const data = (await response.json()) as any;
       this.successCount++;
-      return response.data;
+      return data;
     } catch (err: any) {
-      const rpcError = err.response?.data?.error?.data;
+      const rpcError = err instanceof HttpResponseError ? err.body?.error?.data : undefined;
       let error = err.message || "Unknown error";
 
-      if (err.response?.status === HttpCodes.TOO_MANY_REQUESTS) {
+      if (err instanceof HttpResponseError && err.status === HttpCodes.TOO_MANY_REQUESTS) {
         this.handleRateLimiting();
       } else if (height && rpcError) {
         if (/^height \d+ must be less than or equal to the current blockchain height \d+$/i.test(rpcError)) {

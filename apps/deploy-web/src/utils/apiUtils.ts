@@ -8,9 +8,6 @@ export class ApiUrlService {
   static depositParams(apiEndpoint: string) {
     return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/params`;
   }
-  static certificatesList(apiEndpoint: string, address: string) {
-    return `${apiEndpoint}/akash/cert/${networkStore.certVersion}/certificates/list?filter.state=valid&filter.owner=${address}`;
-  }
   static deploymentList(apiEndpoint: string, address: string, isActive?: boolean) {
     return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/list?filters.owner=${address}${isActive ? "&filters.state=active" : ""}`;
   }
@@ -55,15 +52,6 @@ export class ApiUrlService {
   }
   static unbonding(apiEndpoint: string, address: string) {
     return `${apiEndpoint}/cosmos/staking/v1beta1/delegators/${address}/unbonding_delegations`;
-  }
-  static granterGrants(apiEndpoint: string, address: string) {
-    return `${apiEndpoint}/cosmos/authz/v1beta1/grants/granter/${address}`;
-  }
-  static allowancesIssued(apiEndpoint: string, address: string) {
-    return `${apiEndpoint}/cosmos/feegrant/v1beta1/issued/${address}`;
-  }
-  static allowancesGranted(apiEndpoint: string, address: string) {
-    return `${apiEndpoint}/cosmos/feegrant/v1beta1/allowances/${address}`;
   }
   static dashboardData() {
     return `${this.baseApiUrl}/v1/dashboard-data`;

@@ -1,1 +1,1 @@
-export { useWallet, useIsManagedWalletUser, WalletProvider, type ContextType } from "./WalletProvider";
+export { useWallet, WalletProvider, type ContextType } from "./WalletProvider";

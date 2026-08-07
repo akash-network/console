@@ -18,6 +18,8 @@ export const WalletSetting = pgTable(
       .references(() => Users.id, { onDelete: "cascade" })
       .notNull(),
     autoReloadEnabled: boolean("auto_reload_enabled").default(false).notNull(),
+    autoReloadThreshold: integer("auto_reload_threshold").notNull().default(2000),
+    autoReloadAmount: integer("auto_reload_amount").notNull().default(10000),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow()
   },
