@@ -12,8 +12,6 @@ export interface ManagedLocalWallet {
   address: string;
   token?: string;
   selected: boolean;
-  name: "Managed Wallet";
-  isManaged: true;
   userId: string;
   creditAmount: number;
   isTrialing: boolean;
@@ -51,7 +49,7 @@ export function getStorageManagedWallet(userId?: string, networkId?: NetworkId):
   }
 }
 
-type ManagedWalletUpdate = { userId: string } & Partial<Omit<ManagedLocalWallet, "userId" | "name" | "isManaged">>;
+type ManagedWalletUpdate = { userId: string } & Partial<Omit<ManagedLocalWallet, "userId">>;
 
 export function updateStorageManagedWallet(update: ManagedWalletUpdate): ManagedLocalWallet | undefined {
   const networkId = browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID;
@@ -77,8 +75,6 @@ export function updateStorageManagedWallet(update: ManagedWalletUpdate): Managed
     creditAmount,
     isTrialing,
     userId: update.userId,
-    name: "Managed Wallet",
-    isManaged: true,
     selected: typeof update.selected === "boolean" ? update.selected : prev?.selected ?? false
   };
 

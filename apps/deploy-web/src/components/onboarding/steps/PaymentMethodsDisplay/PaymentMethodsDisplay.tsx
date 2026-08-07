@@ -15,7 +15,7 @@ interface PaymentMethodsDisplayProps {
   onStartTrial: () => void;
   isLoading: boolean;
   isRemoving: boolean;
-  managedWalletError?: AppError;
+  walletError?: AppError;
   hasPaymentMethod: boolean;
 }
 
@@ -25,7 +25,7 @@ export const PaymentMethodsDisplay: React.FC<PaymentMethodsDisplayProps> = ({
   onStartTrial,
   isLoading,
   isRemoving,
-  managedWalletError,
+  walletError,
   hasPaymentMethod
 }) => {
   return (
@@ -42,7 +42,7 @@ export const PaymentMethodsDisplay: React.FC<PaymentMethodsDisplayProps> = ({
         )}
       </div>
 
-      <ErrorAlert error={managedWalletError} />
+      <ErrorAlert error={walletError} />
 
       <TrialStartButton isLoading={isLoading} disabled={!hasPaymentMethod || isLoading} onClick={onStartTrial} />
 

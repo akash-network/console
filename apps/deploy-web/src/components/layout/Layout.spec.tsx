@@ -36,8 +36,7 @@ describe("Layout", () => {
     const dependencies = MockComponents(DEPENDENCIES, {
       useOnboardingChrome: () => mock<ReturnType<typeof DEPENDENCIES.useOnboardingChrome>>({ isStripped: false }),
       useSettings: () => mock<ReturnType<typeof DEPENDENCIES.useSettings>>({ isSettingsInit: true }),
-      useTopBanner: () => mock<ReturnType<typeof DEPENDENCIES.useTopBanner>>({ hasBanner: false }),
-      useWallet: () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isWalletLoaded: true })
+      useTopBanner: () => mock<ReturnType<typeof DEPENDENCIES.useTopBanner>>({ hasBanner: false })
     });
 
     render(

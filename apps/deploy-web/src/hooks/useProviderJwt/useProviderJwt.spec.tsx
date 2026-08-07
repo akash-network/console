@@ -56,7 +56,7 @@ describe(useProviderJwt.name, () => {
     const { result } = setup({
       services: { consoleApiHttpClient: () => consoleApiHttpClient, storedWalletsService: () => storedWalletsService },
       user: { id: userId },
-      wallet: { isWalletConnected: true }
+      wallet: { hasWallet: true }
     });
 
     await result.current.generateToken();
@@ -79,10 +79,10 @@ describe(useProviderJwt.name, () => {
 
     const { result } = setup({
       services: { consoleApiHttpClient: () => consoleApiHttpClient },
-      wallet: { isWalletConnected: false }
+      wallet: { hasWallet: false }
     });
 
-    await expect(result.current.generateToken()).rejects.toThrow(/wallet is not connected/i);
+    await expect(result.current.generateToken()).rejects.toThrow(/user has no wallet/i);
     expect(consoleApiHttpClient.post).not.toHaveBeenCalled();
   });
 
@@ -91,7 +91,7 @@ describe(useProviderJwt.name, () => {
 
     const { result } = setup({
       services: { consoleApiHttpClient: () => consoleApiHttpClient },
-      wallet: { isWalletConnected: true },
+      wallet: { hasWallet: true },
       user: null
     });
 
@@ -113,7 +113,7 @@ describe(useProviderJwt.name, () => {
     const { result } = setup({
       services: { consoleApiHttpClient: () => consoleApiHttpClient, storedWalletsService: () => storedWalletsService },
       user: { id: userId },
-      wallet: { isWalletConnected: true }
+      wallet: { hasWallet: true }
     });
 
     const returned = await result.current.generateScopedProviderToken({ provider: "akash1provider", scope: ["attestation"] });
@@ -138,12 +138,10 @@ describe(useProviderJwt.name, () => {
 
     const { result } = setup({
       services: { consoleApiHttpClient: () => consoleApiHttpClient },
-      wallet: { isWalletConnected: false }
+      wallet: { hasWallet: false }
     });
 
-    await expect(result.current.generateScopedProviderToken({ provider: "akash1provider", scope: ["attestation"] })).rejects.toThrow(
-      /wallet is not connected/i
-    );
+    await expect(result.current.generateScopedProviderToken({ provider: "akash1provider", scope: ["attestation"] })).rejects.toThrow(/user has no wallet/i);
     expect(consoleApiHttpClient.post).not.toHaveBeenCalled();
   });
 
@@ -152,7 +150,7 @@ describe(useProviderJwt.name, () => {
 
     const { result } = setup({
       services: { consoleApiHttpClient: () => consoleApiHttpClient },
-      wallet: { isWalletConnected: true },
+      wallet: { hasWallet: true },
       user: null
     });
 
@@ -218,7 +216,7 @@ describe(useProviderJwt.name, () => {
         useProviderJwt({
           dependencies: {
             ...DEPENDENCIES,
-            useWallet: () => buildWallet({ isWalletConnected: true, ...input?.wallet }),
+            useWallet: () => buildWallet({ hasWallet: true, ...input?.wallet }),
             useUser: () =>
               mock<ReturnType<typeof useUser>>({
                 user: user as CustomUserProfile | undefined

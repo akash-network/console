@@ -10,22 +10,21 @@ import { ComponentMock } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(WalletStatus.name, () => {
-  it("renders skeletons while the wallet is initializing", () => {
-    const { container } = setup({ isWalletLoaded: false });
+  it("renders skeletons while the balance is loading", () => {
+    const { container } = setup({ balance: null, isBalanceLoading: true });
 
     expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
     expect(screen.queryByLabelText("Connected wallet name and balance")).not.toBeInTheDocument();
   });
 
-  it("renders nothing when no wallet is connected", () => {
-    setup({ isWalletConnected: false });
+  it("renders nothing when the user has no wallet", () => {
+    setup({ hasWallet: false });
 
     expect(screen.queryByLabelText("Connected wallet name and balance")).not.toBeInTheDocument();
   });
 
   it("renders the managed deployment-grants balance", () => {
     setup({
-      walletName: "alice-wallet",
       isTrialing: true,
       balance: { totalUsd: 0, totalDeploymentGrantsUSD: 12.34 }
     });
@@ -50,28 +49,22 @@ describe(WalletStatus.name, () => {
   });
 
   function setup(input: {
-    walletName?: string;
-    isWalletLoaded?: boolean;
-    isWalletConnected?: boolean;
+    hasWallet?: boolean;
     isTrialing?: boolean;
-    isWalletLoading?: boolean;
-    balance?: { totalUsd: number; totalDeploymentGrantsUSD: number };
+    balance?: { totalUsd: number; totalDeploymentGrantsUSD: number } | null;
     isBalanceLoading?: boolean;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const wallet = buildWallet({
-      walletName: input.walletName ?? "test-wallet",
-      isWalletLoaded: input.isWalletLoaded ?? true,
-      isWalletConnected: input.isWalletConnected ?? true,
-      isTrialing: input.isTrialing ?? false,
-      isWalletLoading: input.isWalletLoading ?? false
+      hasWallet: input.hasWallet ?? true,
+      isTrialing: input.isTrialing ?? false
     });
 
     const dependencies: typeof DEPENDENCIES = {
       useWallet: () => wallet,
       useWalletBalance: () =>
         ({
-          balance: input.balance ?? { totalUsd: 0, totalDeploymentGrantsUSD: 0 },
+          balance: input.balance === undefined ? { totalUsd: 0, totalDeploymentGrantsUSD: 0 } : input.balance,
           isLoading: input.isBalanceLoading ?? false,
           refetch: vi.fn()
         }) as unknown as ReturnType<typeof DEPENDENCIES.useWalletBalance>,

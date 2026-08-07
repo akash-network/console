@@ -10,8 +10,7 @@ export type LoadingState =
   | "updatingDeployment"
   | "creatingLease"
   | "closingDeployment"
-  | "depositingDeployment"
-  | "mintingACT";
+  | "depositingDeployment";
 
 type Props = {
   state?: LoadingState;
@@ -27,14 +26,12 @@ const TITLES: Record<LoadingState, string> = {
   updatingDeployment: "Updating Deployment",
   creatingLease: "Creating Lease",
   closingDeployment: "Closing Deployment",
-  depositingDeployment: "Depositing Deployment",
-  mintingACT: "Minting ACT"
+  depositingDeployment: "Depositing Deployment"
 };
 
 const DESCRIPTIONS: Partial<Record<LoadingState, string>> = {
   waitingForApproval: "APPROVE OR REJECT TX TO CONTINUE...",
-  broadcasting: "BROADCASTING TRANSACTION...",
-  mintingACT: "This should only take a moment"
+  broadcasting: "BROADCASTING TRANSACTION..."
 };
 
 export const TransactionModal: React.FunctionComponent<Props> = ({ state, onClose }) => {

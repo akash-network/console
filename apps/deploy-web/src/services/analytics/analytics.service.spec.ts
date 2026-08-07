@@ -54,7 +54,7 @@ describe(AnalyticsService.name, () => {
         storage: {
           getItem: vi.fn().mockReturnValue(
             JSON.stringify({
-              connect_wallet: "custodial"
+              connect_wallet: "none"
             })
           ),
           setItem: vi.fn()

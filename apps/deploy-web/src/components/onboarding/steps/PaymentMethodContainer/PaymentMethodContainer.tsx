@@ -33,7 +33,7 @@ export type PaymentMethodContainerProps = {
     isConnectingWallet: boolean;
     isLoading: boolean;
     isRemoving: boolean;
-    managedWalletError?: AppError;
+    walletError?: AppError;
     onSuccess: (organization?: string) => void;
     onRemovePaymentMethod: (paymentMethodId: string) => void;
     onConfirmRemovePaymentMethod: () => Promise<void>;
@@ -59,7 +59,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
   const { data: setupIntent, mutate: createSetupIntent, status: setupIntentStatus, reset: resetSetupIntent } = d.useSetupIntentMutation();
   const { data: paymentMethods = [], refetch: refetchPaymentMethods } = d.usePaymentMethodsQuery();
   const { removePaymentMethod } = d.usePaymentMutations();
-  const { isWalletLoading, hasManagedWallet, managedWalletError } = d.useWallet();
+  const { isWalletCreating, hasWallet, walletError } = d.useWallet();
   const { user } = d.useUser();
   const { stripe, errorHandler } = useServices();
   const notificator = useNotificator();
@@ -146,17 +146,17 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
   }, [user, setupIntentStatus, createSetupIntent]);
 
   useEffect(() => {
-    if (isConnectingWallet && hasManagedWallet && !isWalletLoading) {
+    if (isConnectingWallet && hasWallet && !isWalletCreating) {
       setIsConnectingWallet(false);
       onComplete();
     }
-  }, [isConnectingWallet, hasManagedWallet, isWalletLoading, onComplete]);
+  }, [isConnectingWallet, hasWallet, isWalletCreating, onComplete]);
 
   useEffect(() => {
-    if (isConnectingWallet && managedWalletError) {
+    if (isConnectingWallet && walletError) {
       setIsConnectingWallet(false);
     }
-  }, [isConnectingWallet, managedWalletError]);
+  }, [isConnectingWallet, walletError]);
 
   const handleSuccess = async (organization?: string) => {
     if (organization) {
@@ -236,7 +236,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
     }
   };
 
-  const isLoading = isConnectingWallet || isWalletLoading;
+  const isLoading = isConnectingWallet || isWalletCreating;
 
   return (
     <>
@@ -249,7 +249,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
         isConnectingWallet,
         isLoading,
         isRemoving: removePaymentMethod.isPending,
-        managedWalletError,
+        walletError,
         onSuccess: handleSuccess,
         onRemovePaymentMethod: handleRemovePaymentMethod,
         onConfirmRemovePaymentMethod: confirmRemovePaymentMethod,

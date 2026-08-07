@@ -404,9 +404,7 @@ describe(CreateLease.name, () => {
             BidCountdownTimer: ComponentMock,
             useWallet: (() => ({
               address: input?.walletAddress ?? "akash123",
-              walletName: "test",
-              isWalletConnected: true,
-              isWalletLoaded: true,
+
               isTrialing: input?.isTrialWallet ?? false,
               signAndBroadcastTx: input?.signAndBroadcastTx ?? (() => Promise.resolve({}))
             })) as unknown as (typeof CREATE_LEASE_DEPENDENCIES)["useWallet"],

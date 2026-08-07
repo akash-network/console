@@ -49,16 +49,8 @@ describe(useOnboardingChrome.name, () => {
     expect(result.current).toEqual({ isStripped: false });
   });
 
-  it("strips and renders while the wallet query is still loading instead of holding a spinner", () => {
-    const { dependencies } = setup({ pathname: "/new-deployment/configure", leaseCount: 0, isWalletLoading: true });
-
-    const { result } = renderHook(() => useOnboardingChrome(dependencies));
-
-    expect(result.current).toEqual({ isStripped: true });
-  });
-
   it("strips and renders while the trial wallet is still provisioning instead of holding a spinner", () => {
-    const { dependencies } = setup({ pathname: "/new-deployment/configure", leaseCount: 0, hasManagedWallet: false });
+    const { dependencies } = setup({ pathname: "/new-deployment/configure", leaseCount: 0, hasWallet: false });
 
     const { result } = renderHook(() => useOnboardingChrome(dependencies));
 
@@ -77,8 +69,8 @@ describe(useOnboardingChrome.name, () => {
     const { dependencies } = setup({
       pathname: "/new-deployment/configure",
       leaseCount: 0,
-      hasManagedWallet: false,
-      managedWalletError: mock<AppError>()
+      hasWallet: false,
+      walletError: mock<AppError>()
     });
 
     const { result } = renderHook(() => useOnboardingChrome(dependencies));
@@ -107,17 +99,15 @@ describe(useOnboardingChrome.name, () => {
     leaseCount?: number;
     isLeasesLoading?: boolean;
     isLeasesError?: boolean;
-    isWalletLoading?: boolean;
-    hasManagedWallet?: boolean;
-    managedWalletError?: AppError;
+    hasWallet?: boolean;
+    walletError?: AppError;
     onboardingSkippedAt?: string | null;
   }) {
     const useWallet: typeof DEPENDENCIES.useWallet = () =>
       mock<ReturnType<typeof DEPENDENCIES.useWallet>>({
         address: "akash1test",
-        isWalletLoading: input.isWalletLoading ?? false,
-        hasManagedWallet: input.hasManagedWallet ?? true,
-        managedWalletError: input.managedWalletError
+        hasWallet: input.hasWallet ?? true,
+        walletError: input.walletError
       });
     const usePathname: typeof DEPENDENCIES.usePathname = () => input.pathname;
     const useLeaseExistenceQuery = (() =>

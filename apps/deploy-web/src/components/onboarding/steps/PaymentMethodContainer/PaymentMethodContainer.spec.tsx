@@ -137,16 +137,16 @@ describe("PaymentMethodContainer", () => {
 
   it("should handle wallet connection state changes", () => {
     const { child } = setup({
-      hasManagedWallet: true,
-      isWalletLoading: false
+      hasWallet: true,
+      isWalletCreating: false
     });
 
     // Test that the container properly tracks wallet state
     expect(child.mock.calls[0][0].isLoading).toBe(false);
 
     const { child: loadingChild } = setup({
-      hasManagedWallet: false,
-      isWalletLoading: true
+      hasWallet: false,
+      isWalletCreating: true
     });
 
     expect(loadingChild.mock.calls[0][0].isLoading).toBe(true);
@@ -177,7 +177,7 @@ describe("PaymentMethodContainer", () => {
   });
 
   it("should calculate loading state correctly", () => {
-    const { child } = setup({ isWalletLoading: true });
+    const { child } = setup({ isWalletCreating: true });
 
     expect(child.mock.calls[0][0].isLoading).toBe(true);
   });
@@ -370,13 +370,13 @@ describe("PaymentMethodContainer", () => {
       paymentMethods?: any[];
       setupIntent?: any;
       setupIntentStatus?: "idle" | "pending" | "success" | "error";
-      hasManagedWallet?: boolean;
-      isWalletLoading?: boolean;
+      hasWallet?: boolean;
+      isWalletCreating?: boolean;
       isConnectingWallet?: boolean;
       isRemoving?: boolean;
       onComplete?: Mock;
       user?: { id: string } | null;
-      managedWalletError?: Error;
+      walletError?: Error;
     } = {}
   ) {
     vi.clearAllMocks();
@@ -384,7 +384,7 @@ describe("PaymentMethodContainer", () => {
     const mockCreateSetupIntent = vi.fn();
     const mockRefetchPaymentMethods = vi.fn();
     const mockRemovePaymentMethod = vi.fn();
-    const mockConnectManagedWallet = vi.fn();
+    const mockCreateWalletFromContext = vi.fn();
 
     const mockUseSetupIntentMutation = vi.fn().mockReturnValue({
       data: input.setupIntent,
@@ -406,10 +406,10 @@ describe("PaymentMethodContainer", () => {
     });
 
     const mockUseWallet = vi.fn().mockReturnValue({
-      connectManagedWallet: mockConnectManagedWallet,
-      isWalletLoading: input.isWalletLoading || false,
-      hasManagedWallet: input.hasManagedWallet || false,
-      managedWalletError: input.managedWalletError
+      createWallet: mockCreateWalletFromContext,
+      isWalletCreating: input.isWalletCreating || false,
+      hasWallet: input.hasWallet || false,
+      walletError: input.walletError
     });
 
     const mockCreateWallet = vi.fn().mockResolvedValue({});
@@ -457,8 +457,8 @@ describe("PaymentMethodContainer", () => {
       mockCreateSetupIntent,
       mockRefetchPaymentMethods,
       mockRemovePaymentMethod,
-      mockConnectManagedWallet,
       mockCreateWallet,
+      mockCreateWalletFromContext,
       mockStart3DSecure,
       mockHandle3DSSuccess,
       mockHandle3DSError,

@@ -56,7 +56,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const { settings } = d.useSettings();
-  const { address, isManaged: isManagedWallet } = d.useWallet();
+  const { address } = d.useWallet();
   const usdcIbcDenom = d.useUsdcDenom();
   const totalCpu = activeDeployments.map(d => d.cpuAmount).reduce((a, b) => a + b, 0);
   const totalGpu = activeDeployments.map(d => d.gpuAmount).reduce((a = 0, b = 0) => a + b, 0);
@@ -111,7 +111,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({
     <>
       {address && (
         <div className="space-y-6">
-          <d.AccountHeader isManagedWallet={isManagedWallet} onDeployClick={onDeployClick} isBlockchainDown={settings.isBlockchainDown} />
+          <d.AccountHeader onDeployClick={onDeployClick} isBlockchainDown={settings.isBlockchainDown} />
 
           {isLoadingBalances && !walletBalance ? (
             <div className="flex h-[200px] items-center justify-center">
@@ -123,7 +123,6 @@ export const YourAccount: React.FunctionComponent<Props> = ({
               activeDeploymentsCount={activeDeployments.length}
               costPerMonth={costs?.perMonth}
               costPerHour={costs?.perHour}
-              isManagedWallet={isManagedWallet}
             />
           )}
 

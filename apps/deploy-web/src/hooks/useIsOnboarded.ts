@@ -13,12 +13,12 @@ export const DEPENDENCIES = { useWallet, useUser, useLeaseExistenceQuery };
  * affordances such as links into gated routes, where wrongly hiding is harmless but wrongly showing dead-ends.
  */
 export function useIsOnboarded(d: typeof DEPENDENCIES = DEPENDENCIES): boolean {
-  const { address, hasManagedWallet } = d.useWallet();
+  const { address, hasWallet } = d.useWallet();
   const { user } = d.useUser();
 
-  const hasWallet = hasManagedWallet && !!address;
-  const leaseExistenceQuery = d.useLeaseExistenceQuery(address, { enabled: hasWallet, refetchOnMount: false });
-  const isOnboarded = hasWallet && !!leaseExistenceQuery.data;
+  const hasWalletAddress = hasWallet && !!address;
+  const leaseExistenceQuery = d.useLeaseExistenceQuery(address, { enabled: hasWalletAddress, refetchOnMount: false });
+  const isOnboarded = hasWalletAddress && !!leaseExistenceQuery.data;
   const hasSkippedOnboarding = !!user?.onboardingSkippedAt;
 
   return isOnboarded || hasSkippedOnboarding;

@@ -7,7 +7,6 @@ import { Trash } from "iconoir-react";
 import { ApiKeyDocsBanner } from "@src/components/api-keys/ApiKeyDocsBanner";
 import { CreateApiKeyModal } from "@src/components/api-keys/CreateApiKeyModal";
 import { Title } from "@src/components/shared/Title";
-import { useWallet } from "@src/context/WalletProvider";
 
 interface Props {
   apiKeys: ApiKeyResponse[] | undefined;
@@ -19,7 +18,6 @@ interface Props {
 }
 
 export function ApiKeyList({ apiKeys, onDeleteApiKey, onDeleteClose, isDeleting, apiKeyToDelete, updateApiKeyToDelete }: Props) {
-  const { isManaged } = useWallet();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   return (
@@ -103,7 +101,7 @@ export function ApiKeyList({ apiKeys, onDeleteApiKey, onDeleteClose, isDeleting,
                   </TableRow>
                 ))}
 
-              {(apiKeys?.length === 0 || !isManaged) && (
+              {apiKeys?.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center">
                     No API keys found
