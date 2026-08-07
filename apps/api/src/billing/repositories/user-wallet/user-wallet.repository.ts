@@ -25,7 +25,7 @@ export type UserWalletOutput = Omit<DbUserWalletOutput, "feeAllowance" | "deploy
 export type WalletInitialized = Omit<UserWalletOutput, "address"> & { address: string };
 
 export function isWalletInitialized(wallet: UserWalletOutput): wallet is WalletInitialized {
-  return wallet.address !== null;
+  return !!wallet.address;
 }
 
 export interface UserWalletPublicOutput {

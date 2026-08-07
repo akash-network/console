@@ -166,6 +166,24 @@ describe(WalletInitializerService.name, () => {
       expect(result.address).toBe(derivedAddress);
     });
 
+    it("derives an address when the existing wallet has an empty-string address", async () => {
+      const userId = "test-user-id";
+      const emptyAddressWallet = createUserWallet({ userId, address: "" });
+      const derivedAddress = "akash1derived";
+      const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet: emptyAddressWallet, isNew: false });
+      const updateWalletById = vi.fn().mockImplementation(async (id, patch) => ({ ...emptyAddressWallet, ...patch }));
+
+      const di = setup({ getOrCreateWallet, updateWalletById });
+      const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
+      managedUserWalletService.createWallet.mockResolvedValue({ address: derivedAddress });
+
+      const result = await di.resolve(WalletInitializerService).ensureWallet(userId);
+
+      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: emptyAddressWallet.id });
+      expect(updateWalletById).toHaveBeenCalledWith(emptyAddressWallet.id, { address: derivedAddress });
+      expect(result.address).toBe(derivedAddress);
+    });
+
     it("returns the existing wallet without deriving an address again", async () => {
       const userId = "test-user-id";
       const existingWallet = createUserWallet({ userId });
