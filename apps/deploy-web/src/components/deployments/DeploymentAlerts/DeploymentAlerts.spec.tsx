@@ -145,6 +145,22 @@ describe("DeploymentAlerts", () => {
     expect(componentProps.upsert).not.toHaveBeenCalled();
   });
 
+  it("saves a balance-alert toggle without re-validating an untouched stale threshold", async () => {
+    const { componentProps, rerender } = setup({ maxBalanceThreshold: 1000 });
+
+    rerender({ maxBalanceThreshold: 50 });
+
+    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentBalance.enabled"]' }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+    });
+
+    expect(componentProps.upsert).toHaveBeenCalledWith({
+      alerts: { deploymentBalance: expect.objectContaining({ enabled: false, threshold: 100 }) }
+    });
+  });
+
   function setup(input: { data?: ChildrenProps["data"]; maxBalanceThreshold?: number; disabled?: boolean; isSaving?: boolean } = {}) {
     const channel1Id = faker.string.uuid();
     const channel2Id = faker.string.uuid();

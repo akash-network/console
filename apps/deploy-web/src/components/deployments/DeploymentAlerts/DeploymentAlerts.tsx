@@ -73,12 +73,12 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const isDeploymentClosedEnabled = d.useFlag("ui_deployment_closed_alert");
-  const isBalanceSectionDirty = useRef(false);
+  const isThresholdDirty = useRef(false);
   const strictSchema = useMemo(() => {
     return schema.extend({
       deploymentBalance: schema.shape.deploymentBalance.extend({
         threshold: schema.shape.deploymentBalance.shape.threshold.refine(
-          value => !isBalanceSectionDirty.current || value <= maxBalanceThreshold,
+          value => !isThresholdDirty.current || value <= maxBalanceThreshold,
           "Threshold must be less than or equal to the current balance"
         )
       })
@@ -118,8 +118,8 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
   const { isDirty, dirtyFields } = form.formState;
 
   useEffect(() => {
-    isBalanceSectionDirty.current = !!dirtyFields.deploymentBalance;
-  }, [dirtyFields.deploymentBalance]);
+    isThresholdDirty.current = !!dirtyFields.deploymentBalance?.threshold;
+  }, [dirtyFields.deploymentBalance?.threshold]);
 
   useEffect(() => {
     onStateChange?.({ hasChanges: !disabled && isDirty });
