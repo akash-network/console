@@ -6,14 +6,13 @@ import { EncodeObject } from "@cosmjs/proto-signing";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
+import { STANDARD_TOP_UP_MIN_AMOUNT_USD } from "@src/billing/config";
 import type { UserWalletOutput } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { AUDITOR, TRIAL_ATTRIBUTE, TRIAL_REGISTERED_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import type { UserOutput } from "@src/user/repositories";
-
-const STANDARD_TOP_UP_MIN_AMOUNT_USD = 20;
 
 @singleton()
 export class TrialValidationService {

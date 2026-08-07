@@ -334,10 +334,20 @@
                       "properties": {
                         "autoReloadEnabled": {
                           "type": "boolean"
+                        },
+                        "autoReloadThreshold": {
+                          "type": "number",
+                          "description": "USD credit balance at or below which an automatic top-up is triggered."
+                        },
+                        "autoReloadAmount": {
+                          "type": "number",
+                          "description": "USD amount charged to the default payment method on each automatic top-up."
                         }
                       },
                       "required": [
-                        "autoReloadEnabled"
+                        "autoReloadEnabled",
+                        "autoReloadThreshold",
+                        "autoReloadAmount"
                       ]
                     }
                   },
@@ -379,6 +389,18 @@
                     "properties": {
                       "autoReloadEnabled": {
                         "type": "boolean"
+                      },
+                      "autoReloadThreshold": {
+                        "type": "number",
+                        "minimum": 5,
+                        "maximum": 10000,
+                        "description": "USD credit balance at or below which an automatic top-up is triggered (minimum 5, maximum 10000). Defaults are applied on create when omitted."
+                      },
+                      "autoReloadAmount": {
+                        "type": "number",
+                        "minimum": 20,
+                        "maximum": 10000,
+                        "description": "USD amount charged on each automatic top-up (minimum 20, maximum 10000). Defaults are applied on create when omitted."
                       }
                     },
                     "required": [
@@ -406,10 +428,20 @@
                       "properties": {
                         "autoReloadEnabled": {
                           "type": "boolean"
+                        },
+                        "autoReloadThreshold": {
+                          "type": "number",
+                          "description": "USD credit balance at or below which an automatic top-up is triggered."
+                        },
+                        "autoReloadAmount": {
+                          "type": "number",
+                          "description": "USD amount charged to the default payment method on each automatic top-up."
                         }
                       },
                       "required": [
-                        "autoReloadEnabled"
+                        "autoReloadEnabled",
+                        "autoReloadThreshold",
+                        "autoReloadAmount"
                       ]
                     }
                   },
@@ -451,6 +483,18 @@
                     "properties": {
                       "autoReloadEnabled": {
                         "type": "boolean"
+                      },
+                      "autoReloadThreshold": {
+                        "type": "number",
+                        "minimum": 5,
+                        "maximum": 10000,
+                        "description": "USD credit balance at or below which an automatic top-up is triggered (minimum 5, maximum 10000). Defaults are applied on create when omitted."
+                      },
+                      "autoReloadAmount": {
+                        "type": "number",
+                        "minimum": 20,
+                        "maximum": 10000,
+                        "description": "USD amount charged on each automatic top-up (minimum 20, maximum 10000). Defaults are applied on create when omitted."
                       }
                     },
                     "required": [
@@ -478,10 +522,20 @@
                       "properties": {
                         "autoReloadEnabled": {
                           "type": "boolean"
+                        },
+                        "autoReloadThreshold": {
+                          "type": "number",
+                          "description": "USD credit balance at or below which an automatic top-up is triggered."
+                        },
+                        "autoReloadAmount": {
+                          "type": "number",
+                          "description": "USD amount charged to the default payment method on each automatic top-up."
                         }
                       },
                       "required": [
-                        "autoReloadEnabled"
+                        "autoReloadEnabled",
+                        "autoReloadThreshold",
+                        "autoReloadAmount"
                       ]
                     }
                   },

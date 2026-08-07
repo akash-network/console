@@ -4,12 +4,14 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
+import { usdToCents } from "@src/billing/lib/currency/currency";
 import type { WalletSettingRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import type { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { JobMeta } from "@src/core";
+import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import type { JobPayload } from "../../../core";
 import { WalletBalanceReloadCheckHandler } from "./wallet-balance-reload-check.handler";
@@ -74,14 +76,14 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
         onAmountMismatch: "tolerate"
       });
       expect(instrumentationService.recordReloadTriggered).toHaveBeenCalledWith(
-        expectedReloadAmount,
-        balance,
-        expect.any(Number),
-        costUntilTargetDateInFiat,
         expect.objectContaining({
-          walletAddress: expect.any(String),
-          balance,
-          costUntilTargetDateInFiat
+          amount: expectedReloadAmount,
+          projectedCost: costUntilTargetDateInFiat,
+          logContext: expect.objectContaining({
+            walletAddress: expect.any(String),
+            balance,
+            costUntilTargetDateInFiat
+          })
         })
       );
     });
@@ -131,14 +133,14 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
       expect(instrumentationService.recordReloadSkipped).toHaveBeenCalledWith(
-        balance,
-        expect.any(Number),
-        costUntilTargetDateInFiat,
-        "sufficient_balance",
         expect.objectContaining({
-          walletAddress: expect.any(String),
-          balance,
-          costUntilTargetDateInFiat
+          reason: "sufficient_balance",
+          projectedCost: costUntilTargetDateInFiat,
+          logContext: expect.objectContaining({
+            walletAddress: expect.any(String),
+            balance,
+            costUntilTargetDateInFiat
+          })
         })
       );
     });
@@ -160,16 +162,29 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
       expect(instrumentationService.recordReloadSkipped).toHaveBeenCalledWith(
-        balance,
-        expect.any(Number),
-        costUntilTargetDateInFiat,
-        "sufficient_balance",
         expect.objectContaining({
-          walletAddress: expect.any(String),
-          balance,
-          costUntilTargetDateInFiat
+          reason: "sufficient_balance",
+          projectedCost: costUntilTargetDateInFiat,
+          logContext: expect.objectContaining({
+            walletAddress: expect.any(String),
+            balance,
+            costUntilTargetDateInFiat
+          })
         })
       );
+    });
+
+    it("skips reload when the projected cost is zero", async () => {
+      const { handler, stripeTransactionService, instrumentationService, job, jobMeta } = setup({
+        balance: 10.0,
+        weeklyCostInDenom: 0,
+        weeklyCostInFiat: 0
+      });
+
+      await handler.handle(job, jobMeta);
+
+      expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
+      expect(instrumentationService.recordReloadSkipped).toHaveBeenCalledWith(expect.objectContaining({ reason: "zero_cost" }));
     });
 
     it("schedules next check", async () => {
@@ -335,6 +350,113 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     });
   });
 
+  describe("when the fixed-threshold flag is enabled", () => {
+    it("charges the configured amount when balance is at or below the threshold", async () => {
+      const { handler, stripeTransactionService, drainingDeploymentService, instrumentationService, job, jobMeta } = setup({
+        fixedThresholdEnabled: true,
+        balance: 10,
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100
+      });
+
+      await handler.handle(job, jobMeta);
+
+      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith({
+        userId: expect.any(String),
+        customer: expect.any(String),
+        payment_method: expect.any(String),
+        amount: 100,
+        confirm: true,
+        idempotencyKey: `${WalletBalanceReloadCheck.name}.${jobMeta.id}`,
+        onAmountMismatch: "tolerate"
+      });
+      expect(drainingDeploymentService.calculateAllDeploymentCostUntilDate).not.toHaveBeenCalled();
+      expect(instrumentationService.recordReloadTriggered).toHaveBeenCalledWith(
+        expect.objectContaining({
+          amount: 100,
+          logContext: expect.objectContaining({ balance: 10, threshold: 20, reloadAmount: 100 })
+        })
+      );
+    });
+
+    it("charges when balance equals the threshold", async () => {
+      const { handler, stripeTransactionService, job, jobMeta } = setup({
+        fixedThresholdEnabled: true,
+        balance: 20,
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100
+      });
+
+      await handler.handle(job, jobMeta);
+
+      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ amount: 100 }));
+    });
+
+    it("skips when balance is above the threshold", async () => {
+      const { handler, stripeTransactionService, instrumentationService, job, jobMeta } = setup({
+        fixedThresholdEnabled: true,
+        balance: 20.01,
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100
+      });
+
+      await handler.handle(job, jobMeta);
+
+      expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
+      expect(instrumentationService.recordReloadSkipped).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reason: "sufficient_balance",
+          logContext: expect.objectContaining({ balance: 20.01, threshold: 20 })
+        })
+      );
+    });
+
+    it("reloads even when there are no active deployments", async () => {
+      const { handler, stripeTransactionService, drainingDeploymentService, job, jobMeta } = setup({
+        fixedThresholdEnabled: true,
+        balance: 0,
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100
+      });
+
+      await handler.handle(job, jobMeta);
+
+      expect(drainingDeploymentService.calculateAllDeploymentCostUntilDate).not.toHaveBeenCalled();
+      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ amount: 100 }));
+    });
+
+    it("clamps the charge to the $20 minimum when the stored amount is below it", async () => {
+      const { handler, stripeTransactionService, job, jobMeta } = setup({
+        fixedThresholdEnabled: true,
+        balance: 5,
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 15
+      });
+
+      await handler.handle(job, jobMeta);
+
+      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ amount: 20 }));
+    });
+
+    it("records the failure and rethrows when the payment intent fails", async () => {
+      const error = new Error("Payment failed");
+      const { handler, stripeTransactionService, instrumentationService, job, jobMeta } = setup({
+        fixedThresholdEnabled: true,
+        balance: 10,
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100
+      });
+      stripeTransactionService.createPaymentIntent.mockRejectedValue(error);
+
+      await expect(handler.handle(job, jobMeta)).rejects.toThrow(error);
+
+      expect(instrumentationService.recordReloadFailed).toHaveBeenCalledWith(
+        error,
+        expect.objectContaining({ walletAddress: expect.any(String), balance: 10, threshold: 20, reloadAmount: 100 })
+      );
+    });
+  });
+
   function setup(input?: {
     balance?: number;
     weeklyCostInDenom?: number;
@@ -342,6 +464,9 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     jobId?: string | null;
     walletSettingNotFound?: boolean;
     autoReloadEnabled?: boolean;
+    autoReloadThresholdUsd?: number;
+    autoReloadAmountUsd?: number;
+    fixedThresholdEnabled?: boolean;
     user?: ReturnType<typeof createUser>;
     wallet?: ReturnType<typeof createUserWallet>;
   }) {
@@ -358,7 +483,9 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     const walletSetting = generateWalletSetting({
       userId: user.id,
       walletId: wallet.id,
-      autoReloadEnabled: input?.autoReloadEnabled ?? true
+      autoReloadEnabled: input?.autoReloadEnabled ?? true,
+      ...(input?.autoReloadThresholdUsd !== undefined && { autoReloadThreshold: usdToCents(input.autoReloadThresholdUsd) }),
+      ...(input?.autoReloadAmountUsd !== undefined && { autoReloadAmount: usdToCents(input.autoReloadAmountUsd) })
     });
     const walletSettingWithWallet = {
       ...walletSetting,
@@ -391,6 +518,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       recordValidationError: vi.fn(),
       recordSchedulingError: vi.fn()
     });
+    const featureFlagsService = mock<FeatureFlagsService>();
+    featureFlagsService.isEnabled.mockReturnValue(input?.fixedThresholdEnabled ?? false);
 
     const balance = input?.balance ?? 50.0;
     const weeklyCostInDenom = input?.weeklyCostInDenom ?? 50_000_000;
@@ -419,7 +548,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       paymentMethodService,
       stripeTransactionService,
       drainingDeploymentService,
-      instrumentationService
+      instrumentationService,
+      featureFlagsService
     );
 
     return {
@@ -431,6 +561,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       paymentMethodService,
       stripeTransactionService,
       instrumentationService,
+      featureFlagsService,
       walletSetting,
       walletSettingWithWallet,
       wallet,

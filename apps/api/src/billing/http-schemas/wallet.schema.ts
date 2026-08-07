@@ -1,5 +1,13 @@
 import { z } from "@hono/zod-openapi";
 
+import { STANDARD_TOP_UP_MIN_AMOUNT_USD } from "@src/billing/config";
+
+const AUTO_RELOAD_THRESHOLD_MIN_USD = 5;
+
+/** Upper bounds stop an oversized value from being charged verbatim to the card. */
+const AUTO_RELOAD_THRESHOLD_MAX_USD = 10_000;
+const AUTO_RELOAD_AMOUNT_MAX_USD = 10_000;
+
 const WalletOutputSchema = z.object({
   id: z.number().nullable().openapi({}),
   userId: z.string().nullable().openapi({}),
@@ -40,20 +48,44 @@ export const StartTrialRequestInputSchema = z.object({
   })
 });
 
-export const WalletSettingsSchema = z.object({
-  autoReloadEnabled: z.boolean().openapi({})
+export const WalletSettingsOutputSchema = z.object({
+  autoReloadEnabled: z.boolean().openapi({}),
+  autoReloadThreshold: z.number().openapi({ description: "USD credit balance at or below which an automatic top-up is triggered." }),
+  autoReloadAmount: z.number().openapi({ description: "USD amount charged to the default payment method on each automatic top-up." })
+});
+
+export const WalletSettingsInputSchema = z.object({
+  autoReloadEnabled: z.boolean().openapi({}),
+  autoReloadThreshold: z
+    .number()
+    .min(AUTO_RELOAD_THRESHOLD_MIN_USD)
+    .max(AUTO_RELOAD_THRESHOLD_MAX_USD)
+    .multipleOf(0.01)
+    .optional()
+    .openapi({
+      description: `USD credit balance at or below which an automatic top-up is triggered (minimum ${AUTO_RELOAD_THRESHOLD_MIN_USD}, maximum ${AUTO_RELOAD_THRESHOLD_MAX_USD}). Defaults are applied on create when omitted.`
+    }),
+  autoReloadAmount: z
+    .number()
+    .min(STANDARD_TOP_UP_MIN_AMOUNT_USD)
+    .max(AUTO_RELOAD_AMOUNT_MAX_USD)
+    .multipleOf(0.01)
+    .optional()
+    .openapi({
+      description: `USD amount charged on each automatic top-up (minimum ${STANDARD_TOP_UP_MIN_AMOUNT_USD}, maximum ${AUTO_RELOAD_AMOUNT_MAX_USD}). Defaults are applied on create when omitted.`
+    })
 });
 
 export const WalletSettingsResponseSchema = z.object({
-  data: WalletSettingsSchema
+  data: WalletSettingsOutputSchema
 });
 
 export const CreateWalletSettingsRequestSchema = z.object({
-  data: WalletSettingsSchema
+  data: WalletSettingsInputSchema
 });
 
 export const UpdateWalletSettingsRequestSchema = z.object({
-  data: WalletSettingsSchema
+  data: WalletSettingsInputSchema
 });
 
 export type StartTrialRequestInput = z.infer<typeof StartTrialRequestInputSchema>;

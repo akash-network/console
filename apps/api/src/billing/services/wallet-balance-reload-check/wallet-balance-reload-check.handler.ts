@@ -3,14 +3,18 @@ import { addMilliseconds, millisecondsInHour } from "date-fns";
 import { Err, Ok, Result } from "ts-results";
 import { singleton } from "tsyringe";
 
+import { STANDARD_TOP_UP_MIN_AMOUNT_USD } from "@src/billing/config";
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balance.schema";
+import { centsToUsd } from "@src/billing/lib/currency/currency";
 import { UserWalletOutput, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { type PaymentMethod, PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { JobHandler, JobMeta, JobPayload } from "@src/core";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { Require } from "@src/core/types/require.type";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { isPayingUser, PayingUser } from "../paying-user/paying-user";
@@ -22,7 +26,7 @@ type ValidationError = {
 };
 
 type InitializedWallet = Require<Pick<UserWalletOutput, "address">, "address">;
-type ActionableWalletSetting = Pick<WalletSettingOutput, "id" | "userId">;
+type ActionableWalletSetting = Pick<WalletSettingOutput, "id" | "userId" | "autoReloadThreshold" | "autoReloadAmount">;
 
 type Resources = {
   walletSetting: ActionableWalletSetting;
@@ -56,7 +60,8 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     private readonly paymentMethodService: PaymentMethodService,
     private readonly stripeTransactionService: StripeTransactionService,
     private readonly drainingDeploymentService: DrainingDeploymentService,
-    private readonly instrumentationService: WalletBalanceReloadCheckInstrumentationService
+    private readonly instrumentationService: WalletBalanceReloadCheckInstrumentationService,
+    private readonly featureFlagsService: FeatureFlagsService
   ) {}
 
   async handle(payload: JobPayload<WalletBalanceReloadCheck>, job: JobMeta): Promise<void> {
@@ -167,6 +172,48 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
   }
 
   async #tryToReload(resources: AllResources & { job: JobMeta }): Promise<void> {
+    if (this.featureFlagsService.isEnabled(FeatureFlags.AUTO_RELOAD_FIXED_THRESHOLD)) {
+      return this.#tryToReloadOnFixedThreshold(resources);
+    }
+
+    return this.#tryToReloadOnPredictedSpend(resources);
+  }
+
+  async #tryToReloadOnFixedThreshold(resources: AllResources & { job: JobMeta }): Promise<void> {
+    const { balance } = resources;
+    const threshold = centsToUsd(resources.walletSetting.autoReloadThreshold);
+    const reloadAmount = Math.max(centsToUsd(resources.walletSetting.autoReloadAmount), STANDARD_TOP_UP_MIN_AMOUNT_USD);
+    const log = {
+      walletAddress: resources.wallet.address,
+      balance,
+      threshold,
+      reloadAmount
+    };
+    const coverageRatio = threshold > 0 ? balance / threshold : undefined;
+
+    if (balance > threshold) {
+      this.instrumentationService.recordReloadSkipped({ reason: "sufficient_balance", coverageRatio, logContext: log });
+      return;
+    }
+
+    try {
+      await this.stripeTransactionService.createPaymentIntent({
+        userId: resources.user.id,
+        customer: resources.user.stripeCustomerId,
+        payment_method: resources.paymentMethod.id,
+        amount: reloadAmount,
+        confirm: true,
+        idempotencyKey: `${WalletBalanceReloadCheck.name}.${resources.job.id}`,
+        onAmountMismatch: "tolerate"
+      });
+      this.instrumentationService.recordReloadTriggered({ amount: reloadAmount, coverageRatio, logContext: log });
+    } catch (error) {
+      this.instrumentationService.recordReloadFailed(error, log);
+      throw error;
+    }
+  }
+
+  async #tryToReloadOnPredictedSpend(resources: AllResources & { job: JobMeta }): Promise<void> {
     const reloadTargetDate = addMilliseconds(new Date(), this.#RELOAD_COVERAGE_PERIOD_IN_MS);
     const costUntilTargetDateInDenom = await this.drainingDeploymentService.calculateAllDeploymentCostUntilDate(resources.wallet.address, reloadTargetDate);
     const costUntilTargetDateInFiat = await this.balancesService.toFiatAmount(costUntilTargetDateInDenom);
@@ -177,14 +224,20 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
       costUntilTargetDateInFiat,
       threshold
     };
+    const coverageRatio = costUntilTargetDateInFiat > 0 ? resources.balance / costUntilTargetDateInFiat : undefined;
 
     if (costUntilTargetDateInFiat === 0) {
-      this.instrumentationService.recordReloadSkipped(resources.balance, threshold, costUntilTargetDateInFiat, "zero_cost", log);
+      this.instrumentationService.recordReloadSkipped({ reason: "zero_cost", coverageRatio, projectedCost: costUntilTargetDateInFiat, logContext: log });
       return;
     }
 
     if (resources.balance >= threshold) {
-      this.instrumentationService.recordReloadSkipped(resources.balance, threshold, costUntilTargetDateInFiat, "sufficient_balance", log);
+      this.instrumentationService.recordReloadSkipped({
+        reason: "sufficient_balance",
+        coverageRatio,
+        projectedCost: costUntilTargetDateInFiat,
+        logContext: log
+      });
       return;
     }
 
@@ -200,7 +253,12 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
         idempotencyKey: `${WalletBalanceReloadCheck.name}.${resources.job.id}`,
         onAmountMismatch: "tolerate"
       });
-      this.instrumentationService.recordReloadTriggered(reloadAmountInFiat, resources.balance, threshold, costUntilTargetDateInFiat, log);
+      this.instrumentationService.recordReloadTriggered({
+        amount: reloadAmountInFiat,
+        coverageRatio,
+        projectedCost: costUntilTargetDateInFiat,
+        logContext: log
+      });
     } catch (error) {
       this.instrumentationService.recordReloadFailed(error, log);
       throw error;
