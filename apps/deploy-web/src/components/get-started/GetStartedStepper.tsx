@@ -12,11 +12,9 @@ import Link from "next/link";
 
 import { AddFundsLink } from "@src/components/user/AddFundsLink";
 import { useWallet } from "@src/context/WalletProvider";
-import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { RouteStep } from "@src/types/route-steps.type";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import { uaktToAKT } from "@src/utils/priceUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ExternalLink } from "../shared/ExternalLink";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
@@ -24,7 +22,6 @@ import { QontoConnector, QontoStepIcon } from "./Stepper";
 export const DEPENDENCIES = {
   useWallet,
   useWalletBalance,
-  useChainParam,
   AddFundsLink
 };
 
@@ -32,10 +29,8 @@ export const GetStartedStepper: React.FunctionComponent<{ dependencies?: typeof 
   const [activeStep, setActiveStep] = useState(0);
   const { hasWallet, isTrialing } = d.useWallet();
   const { balance: walletBalance } = d.useWalletBalance();
-  const { minDeposit } = d.useChainParam();
-  const aktBalance = walletBalance ? uaktToAKT(walletBalance.balanceUAKT) : 0;
-  const usdcBalance = walletBalance ? udenomToDenom(walletBalance.balanceUUSDC) : 0;
-  const actBalance = walletBalance ? udenomToDenom(walletBalance.balanceUACT) : 0;
+  /** Managed credit can sit in USDC or ACT; both are USD-pegged 1:1. */
+  const usdBalance = walletBalance ? udenomToDenom(walletBalance.balanceUUSDC + walletBalance.balanceUACT) : 0;
 
   useEffect(() => {
     const getStartedStep = localStorage.getItem("getStartedStep");
@@ -115,22 +110,15 @@ export const GetStartedStepper: React.FunctionComponent<{ dependencies?: typeof 
 
           {walletBalance && (
             <div className="my-4 flex items-center space-x-2">
-              {aktBalance >= minDeposit.akt || actBalance >= minDeposit.act ? (
+              {usdBalance > 0 ? (
                 <Check className="text-green-600" />
               ) : (
-                <CustomTooltip
-                  title={
-                    <>
-                      If you don&apos;t have {minDeposit.act} ACT, you can request some tokens to get started on our{" "}
-                      <ExternalLink href="https://discord.gg/akash" text="Discord" />.
-                    </>
-                  }
-                >
+                <CustomTooltip title="Add funds to your account to start deploying.">
                   <WarningCircle className="text-warning" />
                 </CustomTooltip>
               )}
               <span>
-                You have <strong>${usdcBalance}</strong>
+                You have <strong>${usdBalance}</strong>
               </span>
             </div>
           )}

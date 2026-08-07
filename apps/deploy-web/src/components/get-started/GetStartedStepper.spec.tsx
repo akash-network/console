@@ -1,4 +1,6 @@
+import { TooltipProvider } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { DEPENDENCIES, GetStartedStepper } from "./GetStartedStepper";
 
@@ -9,12 +11,23 @@ describe(GetStartedStepper.name, () => {
   it("displays USD balance", () => {
     setup({
       hasWallet: true,
-      balanceUAKT: 10_000_000,
       balanceUUSDC: 5_000_000
     });
 
-    expect(screen.queryByText(/\$/)).toBeInTheDocument();
+    expect(screen.getByText("$5")).toBeInTheDocument();
     expect(screen.queryByText(/AKT and/)).not.toBeInTheDocument();
+  });
+
+  it("combines USDC and ACT credits into the displayed balance", () => {
+    setup({ hasWallet: true, balanceUUSDC: 5_000_000, balanceUACT: 2_000_000 });
+
+    expect(screen.getByText("$7")).toBeInTheDocument();
+  });
+
+  it("displays a zero balance when the wallet holds no credit", () => {
+    setup({ hasWallet: true, balanceUUSDC: 0 });
+
+    expect(screen.getByText("$0")).toBeInTheDocument();
   });
 
   it("shows billing set up when wallet is connected and not trialing", () => {
@@ -36,29 +49,31 @@ describe(GetStartedStepper.name, () => {
     expect(screen.queryByText("Billing is not set up")).toBeInTheDocument();
   });
 
-  function setup(input?: { hasWallet?: boolean; isTrialing?: boolean; balanceUAKT?: number; balanceUUSDC?: number; balanceUACT?: number }) {
+  function setup(input?: { hasWallet?: boolean; isTrialing?: boolean; balanceUUSDC?: number; balanceUACT?: number }) {
+    const hasBalance = input?.balanceUUSDC !== undefined || input?.balanceUACT !== undefined;
     const deps = MockComponents(DEPENDENCIES, {
-      useWallet: vi.fn(() => ({
-        hasWallet: input?.hasWallet ?? false,
-        isTrialing: input?.isTrialing ?? false,
-        address: "akash1test"
-      })) as unknown as (typeof DEPENDENCIES)["useWallet"],
-      useWalletBalance: vi.fn(() => ({
-        balance:
-          input?.balanceUAKT !== undefined || input?.balanceUUSDC !== undefined || input?.balanceUACT !== undefined
+      useWallet: vi.fn(() =>
+        mock<ReturnType<typeof DEPENDENCIES.useWallet>>({
+          hasWallet: input?.hasWallet ?? false,
+          isTrialing: input?.isTrialing ?? false
+        })
+      ),
+      useWalletBalance: vi.fn(() =>
+        mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>({
+          balance: hasBalance
             ? {
-                balanceUAKT: input?.balanceUAKT ?? 0,
                 balanceUUSDC: input?.balanceUUSDC ?? 0,
                 balanceUACT: input?.balanceUACT ?? 0
               }
-            : undefined,
-        refetch: vi.fn()
-      })) as unknown as (typeof DEPENDENCIES)["useWalletBalance"],
-      useChainParam: vi.fn(() => ({
-        minDeposit: { akt: 5, act: 5 }
-      })) as unknown as (typeof DEPENDENCIES)["useChainParam"]
+            : null
+        })
+      )
     });
 
-    return render(<GetStartedStepper dependencies={deps} />);
+    return render(
+      <TooltipProvider>
+        <GetStartedStepper dependencies={deps} />
+      </TooltipProvider>
+    );
   }
 });
