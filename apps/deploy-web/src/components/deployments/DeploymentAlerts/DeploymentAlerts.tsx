@@ -76,11 +76,11 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
   const isBalanceSectionDirty = useRef(false);
   const strictSchema = useMemo(() => {
     return schema.extend({
-      deploymentBalance: z.object({
-        threshold: z
-          .number()
-          .min(0, "Threshold must be greater than 0")
-          .refine(value => !isBalanceSectionDirty.current || value <= maxBalanceThreshold, "Threshold must be less than or equal to the current balance")
+      deploymentBalance: schema.shape.deploymentBalance.extend({
+        threshold: schema.shape.deploymentBalance.shape.threshold.refine(
+          value => !isBalanceSectionDirty.current || value <= maxBalanceThreshold,
+          "Threshold must be less than or equal to the current balance"
+        )
       })
     });
   }, [maxBalanceThreshold]);

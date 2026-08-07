@@ -132,6 +132,19 @@ describe("DeploymentAlerts", () => {
     expect((screen.getByRole("button", { name: /save changes/i }) as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it("blocks saving an enabled balance alert with no notification channel", async () => {
+    const { componentProps } = setup({ data: undefined });
+
+    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentBalance.enabled"]' }));
+    fireEvent.change(screen.getByRole("combobox", { name: /escrow balance notification channel/i }), { target: { value: "" } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+    });
+
+    expect(componentProps.upsert).not.toHaveBeenCalled();
+  });
+
   function setup(input: { data?: ChildrenProps["data"]; maxBalanceThreshold?: number; disabled?: boolean; isSaving?: boolean } = {}) {
     const channel1Id = faker.string.uuid();
     const channel2Id = faker.string.uuid();
@@ -156,6 +169,7 @@ describe("DeploymentAlerts", () => {
           <div>
             <input type="checkbox" {...register("deploymentBalance.enabled")} aria-label="Enabled" disabled={disabled} />
             <select {...register("deploymentBalance.notificationChannelId")} aria-label="Escrow Balance Notification Channel" disabled={disabled}>
+              <option value="">None</option>
               <option value={channel1Id}>Channel 1</option>
               <option value={channel2Id}>Channel 2</option>
             </select>
