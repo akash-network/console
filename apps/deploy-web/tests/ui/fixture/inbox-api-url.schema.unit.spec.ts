@@ -14,6 +14,7 @@ describe("inboxApiUrlSchema", () => {
   it("accepts http only for loopback hosts used in local development", () => {
     expect(inboxApiUrlSchema.parse("http://localhost:8787")).toBe("http://localhost:8787");
     expect(inboxApiUrlSchema.parse("http://127.0.0.1:8787")).toBe("http://127.0.0.1:8787");
+    expect(inboxApiUrlSchema.parse("http://[::1]:8787")).toBe("http://[::1]:8787");
   });
 
   it("rejects http on a non-loopback host", () => {

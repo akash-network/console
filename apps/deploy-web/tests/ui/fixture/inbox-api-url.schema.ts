@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /** http is tolerated only for these local-dev hosts; every deployed inbox worker URL must be https. */
-const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 /**
  * The bearer token in E2E_INBOX_API_TOKEN is sent to whatever host this resolves to, so the URL is
