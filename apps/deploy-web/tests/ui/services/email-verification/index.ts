@@ -1,14 +1,21 @@
 import { testEnvConfig } from "../../fixture/test-env.config";
 import type { EmailVerificationStrategy } from "./email-verification.strategy";
-import { MailsacCodeVerificationStrategy } from "./mailsac-code.strategy";
+import { InboxCodeVerificationStrategy } from "./inbox-code.strategy";
+import { WorkerInboxClient } from "./worker-inbox.client";
 
 export type { EmailVerificationStrategy } from "./email-verification.strategy";
 
 /**
- * The onboarding user verifies email through the real Mailsac inbox (OTP code), matching the passwordless
- * signup flow. The prior `auth0-ticket` bypass has been removed so the onboarding journey always exercises
- * real email delivery end-to-end.
+ * Email verification reads real Auth0 OTP emails through the self-hosted inbox worker
+ * (tools/e2e-inbox-worker), so signup and passwordless flows exercise real email delivery
+ * end-to-end without depending on a third-party inbox service and its quotas.
  */
 export function createEmailVerificationStrategy(): EmailVerificationStrategy {
-  return new MailsacCodeVerificationStrategy(testEnvConfig.MAILSAC_API_KEY);
+  return new InboxCodeVerificationStrategy(
+    new WorkerInboxClient({
+      apiUrl: testEnvConfig.E2E_INBOX_API_URL,
+      apiToken: testEnvConfig.E2E_INBOX_API_TOKEN,
+      emailDomain: testEnvConfig.E2E_INBOX_EMAIL_DOMAIN
+    })
+  );
 }

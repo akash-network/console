@@ -6,11 +6,11 @@ import { testEnvConfig } from "./fixture/test-env.config";
 import { AuthPagePasswordless } from "./pages/AuthPagePasswordless";
 import { HomePage } from "./pages/HomePage";
 import { OnboardingPage } from "./pages/OnboardingPage";
-import { MailsacCodeVerificationStrategy } from "./services/email-verification/mailsac-code.strategy";
+import { createEmailVerificationStrategy } from "./services/email-verification";
 
 test.describe("Passwordless auth", () => {
   let createdUserId: string | undefined;
-  const otp = new MailsacCodeVerificationStrategy(testEnvConfig.MAILSAC_API_KEY);
+  const otp = createEmailVerificationStrategy();
 
   test.afterEach(async ({ auth0 }) => {
     if (!createdUserId) return;
