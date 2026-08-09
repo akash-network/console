@@ -181,7 +181,7 @@ describe(StripeTransactionService.name, () => {
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
       firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(bonusAmount);
 
-      const grant = await service.settlePaymentIntent(
+      const outcome = await service.settlePaymentIntent(
         createPaymentIntentSucceededEvent({
           id: "pi_123",
           customer: mockUser.stripeCustomerId,
@@ -207,7 +207,7 @@ describe(StripeTransactionService.name, () => {
         }
       });
       expect(firstPurchaseBonusService.trackBonusGranted).toHaveBeenCalledWith(mockUser.id, amount, bonusAmount);
-      expect(grant).toEqual({ userId: mockUser.id, bonusAmountCents: bonusAmount, paidAmountCents: amount });
+      expect(outcome.bonusGrant).toEqual({ userId: mockUser.id, bonusAmountCents: bonusAmount, paidAmountCents: amount });
     });
 
     it("returns undefined and keeps the top-up untouched when no bonus applies", async () => {
@@ -220,7 +220,7 @@ describe(StripeTransactionService.name, () => {
       stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
 
-      const grant = await service.settlePaymentIntent(
+      const outcome = await service.settlePaymentIntent(
         createPaymentIntentSucceededEvent({
           id: "pi_123",
           customer: mockUser.stripeCustomerId,
@@ -236,7 +236,78 @@ describe(StripeTransactionService.name, () => {
       );
       expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, expect.anything());
       expect(firstPurchaseBonusService.trackBonusGranted).not.toHaveBeenCalled();
-      expect(grant).toBeUndefined();
+      expect(outcome.bonusGrant).toBeUndefined();
+    });
+
+    it("returns the auto top-up when the payment intent carries the auto_topup marker", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const mockUser = createTestUser();
+      const amount = 5000;
+      const internalTransaction = generateDatabaseStripeTransaction({ id: "tx-auto", type: "payment_intent", status: "created", amount });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+      refillService.topUpWallet.mockResolvedValue();
+
+      const outcome = await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_auto",
+          customer: mockUser.stripeCustomerId,
+          amount,
+          amount_received: amount,
+          metadata: { internal_transaction_id: internalTransaction.id, auto_topup: "true" }
+        })
+      );
+
+      expect(outcome.autoTopUp).toEqual({ userId: mockUser.id, transactionId: internalTransaction.id, amountCents: amount });
+    });
+
+    it("does not return an auto top-up when the transaction was already settled", async () => {
+      const { service, userRepository, stripeTransactionRepository } = setup();
+      const mockUser = createTestUser();
+      const amount = 5000;
+      const settledTransaction = generateDatabaseStripeTransaction({ id: "tx-auto", type: "payment_intent", status: "succeeded", amount });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(settledTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(settledTransaction);
+
+      const outcome = await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_auto",
+          customer: mockUser.stripeCustomerId,
+          amount,
+          amount_received: amount,
+          metadata: { internal_transaction_id: settledTransaction.id, auto_topup: "true" }
+        })
+      );
+
+      expect(outcome.autoTopUp).toBeUndefined();
+    });
+
+    it("does not return an auto top-up for a manual top-up without the marker", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const mockUser = createTestUser();
+      const amount = 5000;
+      const internalTransaction = generateDatabaseStripeTransaction({ id: "tx-manual", type: "payment_intent", status: "created", amount });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+      refillService.topUpWallet.mockResolvedValue();
+
+      const outcome = await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_manual",
+          customer: mockUser.stripeCustomerId,
+          amount,
+          amount_received: amount,
+          metadata: { internal_transaction_id: internalTransaction.id }
+        })
+      );
+
+      expect(outcome.autoTopUp).toBeUndefined();
     });
   });
 

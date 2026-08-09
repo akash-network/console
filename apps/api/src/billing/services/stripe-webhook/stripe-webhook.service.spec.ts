@@ -1,7 +1,8 @@
 import type Stripe from "stripe";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { AutoTopUpSucceeded } from "@src/billing/events/auto-top-up-succeeded";
 import { FirstPurchaseBonusGranted } from "@src/billing/events/first-purchase-bonus-granted";
 import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import type { StripeService } from "@src/billing/services/stripe/stripe.service";
@@ -77,27 +78,49 @@ describe(StripeWebhookService.name, () => {
 
     it("publishes a first-purchase bonus event when settlePaymentIntent grants one", async () => {
       const { service, stripeTransaction, domainEventsService } = setup("payment_intent.succeeded");
-      const grant = { userId: "user_1", bonusAmountCents: 1500, paidAmountCents: 15000 };
-      stripeTransaction.settlePaymentIntent.mockResolvedValue(grant);
+      const bonusGrant = { userId: "user_1", bonusAmountCents: 1500, paidAmountCents: 15000 };
+      stripeTransaction.settlePaymentIntent.mockResolvedValue({ bonusGrant });
 
       await service.routeStripeEvent("sig", "body");
 
-      expect(domainEventsService.publish).toHaveBeenCalledWith(new FirstPurchaseBonusGranted(grant));
+      expect(domainEventsService.publish).toHaveBeenCalledWith(new FirstPurchaseBonusGranted(bonusGrant));
     });
 
     it("publishes a first-purchase bonus event when settleInvoice grants one", async () => {
       const { service, stripeTransaction, domainEventsService } = setup("invoice.paid");
-      const grant = { userId: "user_1", bonusAmountCents: 1000, paidAmountCents: 10000 };
-      stripeTransaction.settleInvoice.mockResolvedValue(grant);
+      const bonusGrant = { userId: "user_1", bonusAmountCents: 1000, paidAmountCents: 10000 };
+      stripeTransaction.settleInvoice.mockResolvedValue({ bonusGrant });
 
       await service.routeStripeEvent("sig", "body");
 
-      expect(domainEventsService.publish).toHaveBeenCalledWith(new FirstPurchaseBonusGranted(grant));
+      expect(domainEventsService.publish).toHaveBeenCalledWith(new FirstPurchaseBonusGranted(bonusGrant));
     });
 
-    it("does not publish when the settlement returns no grant", async () => {
+    it("publishes an auto-top-up event when settlePaymentIntent settles one", async () => {
       const { service, stripeTransaction, domainEventsService } = setup("payment_intent.succeeded");
-      stripeTransaction.settlePaymentIntent.mockResolvedValue(undefined);
+      const autoTopUp = { userId: "user_1", transactionId: "txn-1", amountCents: 5000 };
+      stripeTransaction.settlePaymentIntent.mockResolvedValue({ autoTopUp });
+
+      await service.routeStripeEvent("sig", "body");
+
+      expect(domainEventsService.publish).toHaveBeenCalledWith(new AutoTopUpSucceeded(autoTopUp));
+    });
+
+    it("publishes both events when the settlement returns a bonus and an auto top-up", async () => {
+      const { service, stripeTransaction, domainEventsService } = setup("payment_intent.succeeded");
+      const bonusGrant = { userId: "user_1", bonusAmountCents: 1500, paidAmountCents: 15000 };
+      const autoTopUp = { userId: "user_1", transactionId: "txn-1", amountCents: 5000 };
+      stripeTransaction.settlePaymentIntent.mockResolvedValue({ bonusGrant, autoTopUp });
+
+      await service.routeStripeEvent("sig", "body");
+
+      expect(domainEventsService.publish).toHaveBeenCalledWith(new FirstPurchaseBonusGranted(bonusGrant));
+      expect(domainEventsService.publish).toHaveBeenCalledWith(new AutoTopUpSucceeded(autoTopUp));
+    });
+
+    it("does not publish when the settlement returns an empty outcome", async () => {
+      const { service, stripeTransaction, domainEventsService } = setup("payment_intent.succeeded");
+      stripeTransaction.settlePaymentIntent.mockResolvedValue({});
 
       await service.routeStripeEvent("sig", "body");
 
@@ -115,7 +138,10 @@ describe(StripeWebhookService.name, () => {
 
   function setup(type: Stripe.Event["type"]) {
     const stripe = mock<StripeService>();
-    const stripeTransaction = mock<StripeTransactionService>();
+    const stripeTransaction = mock<StripeTransactionService>({
+      settlePaymentIntent: vi.fn().mockResolvedValue({}),
+      settleInvoice: vi.fn().mockResolvedValue({})
+    });
     const paymentMethodService = mock<PaymentMethodService>();
     const domainEventsService = mock<DomainEventsService>();
 

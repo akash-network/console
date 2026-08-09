@@ -10,7 +10,7 @@ import { centsToUsd } from "@src/billing/lib/currency/currency";
 import { UserWalletOutput, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { type PaymentMethod, PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
-import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
+import { AUTO_TOP_UP_METADATA_KEY, StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { JobHandler, JobMeta, JobPayload } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
@@ -203,6 +203,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
         payment_method: resources.paymentMethod.id,
         amount: reloadAmount,
         confirm: true,
+        metadata: { [AUTO_TOP_UP_METADATA_KEY]: "true" },
         idempotencyKey: `${WalletBalanceReloadCheck.name}.${resources.job.id}`,
         onAmountMismatch: "tolerate"
       });
@@ -250,6 +251,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
         payment_method: resources.paymentMethod.id,
         amount: reloadAmountInFiat,
         confirm: true,
+        metadata: { [AUTO_TOP_UP_METADATA_KEY]: "true" },
         idempotencyKey: `${WalletBalanceReloadCheck.name}.${resources.job.id}`,
         onAmountMismatch: "tolerate"
       });

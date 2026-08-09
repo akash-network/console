@@ -33,6 +33,32 @@ export interface FirstPurchaseBonusGrant {
 }
 
 /**
+ * Marks a Stripe PaymentIntent created by the automatic wallet-balance reload job. The settlement path
+ * reads it to tell an automatic top-up from a manual "Add Funds" charge so only automatic ones notify.
+ */
+export const AUTO_TOP_UP_METADATA_KEY = "auto_topup";
+
+/**
+ * A settled automatic top-up that the webhook dispatcher turns into an {@link AutoTopUpSucceeded} domain
+ * event once the settling transaction has committed. Present only when a real charge was credited on this
+ * delivery, so retries and replays never notify twice.
+ */
+export interface AutoTopUpSuccess {
+  userId: string;
+  transactionId: string;
+  amountCents: number;
+}
+
+/**
+ * What a webhook settlement produced, for the dispatcher to publish after the transaction commits.
+ * Either field is absent when its event should not fire.
+ */
+export interface SettlementOutcome {
+  bonusGrant?: FirstPurchaseBonusGrant;
+  autoTopUp?: AutoTopUpSuccess;
+}
+
+/**
  * How a reused idempotency key should react when the requested amount differs from the amount
  * recorded on its transaction row. `reject` treats it as a definitive client error; `tolerate`
  * proceeds with the recorded amount.
@@ -414,7 +440,7 @@ export class StripeTransactionService {
     userId: string;
     eventDescription: string;
     endTrial?: boolean;
-  }): Promise<number> {
+  }): Promise<{ settled: boolean; bonusAmount: number }> {
     const transaction = await this.stripeTransactionRepository.findOneByAndLock({ id: params.transactionId });
 
     if (!transaction) {
@@ -423,7 +449,7 @@ export class StripeTransactionService {
         transactionId: params.transactionId,
         description: params.eventDescription
       });
-      return 0;
+      return { settled: false, bonusAmount: 0 };
     }
 
     if (transaction.status === "succeeded") {
@@ -432,7 +458,7 @@ export class StripeTransactionService {
         transactionId: params.transactionId,
         description: params.eventDescription
       });
-      return 0;
+      return { settled: false, bonusAmount: 0 };
     }
 
     const bonusAmount = await this.firstPurchaseBonusService.getEligibleBonusAmount(transaction, params.paymentAmount);
@@ -472,10 +498,10 @@ export class StripeTransactionService {
       });
     }
 
-    return bonusAmount;
+    return { settled: true, bonusAmount };
   }
 
-  async settlePaymentIntent(event: Stripe.PaymentIntentSucceededEvent): Promise<FirstPurchaseBonusGrant | undefined> {
+  async settlePaymentIntent(event: Stripe.PaymentIntentSucceededEvent): Promise<SettlementOutcome> {
     const paymentIntent = event.data.object;
     const customerId = paymentIntent.customer as string;
 
@@ -484,7 +510,7 @@ export class StripeTransactionService {
         event: "SKIP_PAYMENT_METHOD_VALIDATION_PROCESSING",
         paymentIntentId: paymentIntent.id
       });
-      return;
+      return {};
     }
 
     const transaction = paymentIntent.metadata.internal_transaction_id
@@ -509,11 +535,12 @@ export class StripeTransactionService {
       paymentMethodType: paymentIntent.payment_method_types?.[0],
       paymentAmount: paymentIntent.amount_received ?? paymentIntent.amount,
       stripePaymentIntentId: paymentIntent.id,
-      eventDescription: `payment_intent ${paymentIntent.id}`
+      eventDescription: `payment_intent ${paymentIntent.id}`,
+      isAutoTopUp: paymentIntent.metadata[AUTO_TOP_UP_METADATA_KEY] === "true"
     });
   }
 
-  async settleInvoice(event: Stripe.InvoicePaidEvent | Stripe.InvoicePaymentSucceededEvent): Promise<FirstPurchaseBonusGrant | undefined> {
+  async settleInvoice(event: Stripe.InvoicePaidEvent | Stripe.InvoicePaymentSucceededEvent): Promise<SettlementOutcome> {
     const invoice = event.data.object;
     const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id ?? null;
 
@@ -525,7 +552,7 @@ export class StripeTransactionService {
         event: "INVOICE_NO_MATCHING_TRANSACTION",
         invoiceId: invoice.id
       });
-      return;
+      return {};
     }
 
     const payment = invoice.payments?.data[0]?.payment;
@@ -547,15 +574,17 @@ export class StripeTransactionService {
       paymentAmount: transaction.amount,
       stripePaymentIntentId,
       eventDescription: `invoice ${invoice.id}`,
-      endTrial
+      endTrial,
+      isAutoTopUp: false
     });
   }
 
   /**
    * Credits the wallet for a settled Stripe charge: resolves the owning user, enriches the row with the
-   * charge's card details, and records the succeeded transaction. Returns the first-purchase bonus grant
-   * (if any) so the caller can publish the domain event after this commits — publishing it here would risk
-   * firing on a rolled-back grant.
+   * charge's card details, and records the succeeded transaction. Returns the events the caller should
+   * publish after this commits (first-purchase bonus, automatic top-up success) — publishing them here
+   * would risk firing on a rolled-back credit. The auto-top-up event is returned only when this delivery
+   * actually credited the wallet, so retries and replays never notify twice.
    */
   async #settleFromWebhook(params: {
     customerId: string | null;
@@ -566,13 +595,14 @@ export class StripeTransactionService {
     stripePaymentIntentId: string | undefined;
     eventDescription: string;
     endTrial?: boolean;
-  }): Promise<FirstPurchaseBonusGrant | undefined> {
+    isAutoTopUp: boolean;
+  }): Promise<SettlementOutcome> {
     if (!params.customerId) {
       this.loggerService.error({
         event: "PAYMENT_MISSING_CUSTOMER_ID",
         description: params.eventDescription
       });
-      return;
+      return {};
     }
 
     const user = await this.userRepository.findOneBy({ stripeCustomerId: params.customerId });
@@ -582,7 +612,7 @@ export class StripeTransactionService {
         customerId: params.customerId,
         description: params.eventDescription
       });
-      return;
+      return {};
     }
 
     let cardBrand: string | undefined;
@@ -604,7 +634,7 @@ export class StripeTransactionService {
       }
     }
 
-    const bonusAmountCents = await this.settleSucceededTransaction({
+    const { settled, bonusAmount } = await this.settleSucceededTransaction({
       transactionId: params.transaction.id,
       chargeId: params.chargeId,
       paymentMethodType: params.paymentMethodType,
@@ -618,7 +648,10 @@ export class StripeTransactionService {
       endTrial: params.endTrial
     });
 
-    return bonusAmountCents > 0 ? { userId: user.id, bonusAmountCents, paidAmountCents: params.paymentAmount } : undefined;
+    return {
+      bonusGrant: bonusAmount > 0 ? { userId: user.id, bonusAmountCents: bonusAmount, paidAmountCents: params.paymentAmount } : undefined,
+      autoTopUp: settled && params.isAutoTopUp ? { userId: user.id, transactionId: params.transaction.id, amountCents: params.paymentAmount } : undefined
+    };
   }
 
   @WithTransaction()
