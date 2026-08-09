@@ -1,16 +1,19 @@
+import { centsToUsd } from "@src/billing/lib/currency/currency";
 import type { UserOutput } from "@src/user/repositories";
 import type { CreateNotificationInput } from "../notification/notification.service";
 
+/**
+ * `notificationId` is deterministic per settled transaction, so the broker treats it as a singletonKey —
+ * a job retry that reaches the handler twice still yields a single notification.
+ */
 export function autoTopUpSucceededNotification(
   user: UserOutput,
   vars: { transactionId: string; amountCents: number; balanceUsd: number; billingUrl: string }
 ): CreateNotificationInput {
   const formatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
-  const amount = formatter.format(vars.amountCents / 100);
+  const amount = formatter.format(centsToUsd(vars.amountCents));
   const balance = formatter.format(vars.balanceUsd);
   return {
-    // Deterministic per settled transaction: the broker treats this as a singletonKey, so a job retry that
-    // reaches the handler twice still yields a single notification.
     notificationId: `autoTopUpSucceeded.${vars.transactionId}`,
     payload: {
       summary: `Your Akash account was topped up ${amount}`,

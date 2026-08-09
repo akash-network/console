@@ -52,8 +52,16 @@ export class AutoTopUpSucceededHandler implements JobHandler<AutoTopUpSucceeded>
         transactionId: payload.transactionId,
         amountCents: payload.amountCents,
         balanceUsd,
-        billingUrl: this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK")
+        billingUrl: this.#billingUrl()
       })
     );
+  }
+
+  /**
+   * CONSOLE_WEB_PAYMENT_LINK carries `?openPayment=true`, which auto-opens the manual Add-Funds modal.
+   * This is an informational "you were already charged" email, so link to plain billing instead.
+   */
+  #billingUrl(): string {
+    return this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK").split("?")[0];
   }
 }

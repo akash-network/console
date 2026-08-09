@@ -18,14 +18,14 @@ import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 describe(AutoTopUpSucceededHandler.name, () => {
   const payload: EventPayload<AutoTopUpSucceeded> = { userId: "user-123", transactionId: "txn-1", amountCents: 5000, version: 1 };
 
-  it("sends the auto-top-up notification with the resulting balance and billing link", async () => {
+  it("sends the auto-top-up notification with the resulting balance and a plain billing link", async () => {
     const user = createUser({ id: "user-123", email: "user@example.com" });
     const wallet = createUserWallet({ userId: "user-123" });
     const { handler, userWalletRepository, balancesService, notificationService } = setup({
       user,
       wallet,
       balanceUsd: 120.5,
-      billingUrl: "https://console.akash.network/billing"
+      paymentLink: "https://console.akash.network/billing?openPayment=true"
     });
 
     await handler.handle(payload);
@@ -75,7 +75,7 @@ describe(AutoTopUpSucceededHandler.name, () => {
     user: ReturnType<typeof createUser> | null;
     wallet?: ReturnType<typeof createUserWallet>;
     balanceUsd?: number;
-    billingUrl?: string;
+    paymentLink?: string;
   }) {
     const mocks = {
       notificationService: mock<NotificationService>({
@@ -91,7 +91,7 @@ describe(AutoTopUpSucceededHandler.name, () => {
         getDeploymentBalanceInFiat: vi.fn().mockResolvedValue(input.balanceUsd ?? 0)
       }),
       billingConfig: mock<BillingConfigService>({
-        get: vi.fn().mockReturnValue(input.billingUrl ?? "https://console.akash.network/billing")
+        get: vi.fn().mockReturnValue(input.paymentLink ?? "https://console.akash.network/billing?openPayment=true")
       }),
       logger: mock<LoggerService>()
     };
