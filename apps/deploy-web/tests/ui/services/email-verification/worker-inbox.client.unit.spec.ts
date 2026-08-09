@@ -22,7 +22,8 @@ describe(WorkerInboxClient.name, () => {
       const messages = await client.fetchMessages("probe@e2e.example.test");
 
       expect(fetchMock).toHaveBeenCalledWith("https://inbox.test/messages/probe%40e2e.example.test", {
-        headers: { Authorization: "Bearer secret" }
+        headers: { Authorization: "Bearer secret" },
+        signal: expect.any(AbortSignal)
       });
       expect(messages).toEqual([{ id: "m1", receivedMs: 123, subject: "Hi" }]);
     });
@@ -31,6 +32,18 @@ describe(WorkerInboxClient.name, () => {
       const { client } = setup({ response: new Response("nope", { status: 401 }) });
 
       await expect(client.fetchMessages("probe@e2e.example.test")).rejects.toThrow("Inbox worker request failed (401): nope");
+    });
+
+    it("aborts the request when the worker does not respond within the timeout", async () => {
+      vi.useFakeTimers();
+      const { client } = setup({ hangsUntilAborted: true });
+
+      const pending = client.fetchMessages("probe@e2e.example.test");
+      const assertion = expect(pending).rejects.toThrow(/aborted/i);
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      await assertion;
+      vi.useRealTimers();
     });
   });
 
@@ -50,8 +63,14 @@ describe(WorkerInboxClient.name, () => {
     });
   });
 
-  function setup(input?: { messages?: Array<{ id: string; receivedMs: number; subject: string; text: string }>; response?: Response }) {
-    const fetchMock = vi.fn().mockResolvedValue(input?.response ?? Response.json(input?.messages ?? []));
+  function setup(input?: {
+    messages?: Array<{ id: string; receivedMs: number; subject: string; text: string }>;
+    response?: Response;
+    hangsUntilAborted?: boolean;
+  }) {
+    const fetchMock = input?.hangsUntilAborted
+      ? vi.fn((_url: string, init: RequestInit) => hangUntilAborted(init.signal))
+      : vi.fn().mockResolvedValue(input?.response ?? Response.json(input?.messages ?? []));
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new WorkerInboxClient({
@@ -63,3 +82,9 @@ describe(WorkerInboxClient.name, () => {
     return { client, fetchMock };
   }
 });
+
+function hangUntilAborted(signal: AbortSignal | null | undefined): Promise<Response> {
+  return new Promise((_resolve, reject) => {
+    signal?.addEventListener("abort", () => reject(new DOMException("The operation was aborted", "AbortError")));
+  });
+}

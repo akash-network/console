@@ -3,6 +3,10 @@
   "name": "console-e2e-inbox",
   "main": "src/index.ts",
   "compatibility_date": "2025-12-01",
+  "triggers": {
+    // Purge messages past the 24h TTL even when no new mail arrives to trigger the insert-path cleanup.
+    "crons": ["0 * * * *"]
+  },
   "d1_databases": [
     {
       "binding": "DB",

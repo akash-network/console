@@ -2,6 +2,8 @@ import { tmpdir } from "os";
 import path from "path";
 import { z } from "zod";
 
+import { inboxApiUrlSchema } from "./inbox-api-url.schema";
+
 export const testEnvSchema = z.object({
   BASE_URL: z
     .string()
@@ -15,11 +17,7 @@ export const testEnvSchema = z.object({
   AUTH0_M2M_DOMAIN: z.string({ required_error: "Auth0 M2M domain for management API calls (e.g. 'your-tenant.us.auth0.com')" }).trim().min(1),
   AUTH0_M2M_CLIENT_ID: z.string({ required_error: "Auth0 M2M client ID for management API" }).trim().min(1),
   AUTH0_M2M_CLIENT_SECRET: z.string({ required_error: "Auth0 M2M client secret for management API" }).trim().min(1),
-  E2E_INBOX_API_URL: z
-    .string({ required_error: "Base URL of the e2e inbox worker that captures OTP emails (see tools/e2e-inbox-worker)" })
-    .trim()
-    .min(1)
-    .transform(url => url.replace(/\/+$/, "")),
+  E2E_INBOX_API_URL: inboxApiUrlSchema,
   E2E_INBOX_API_TOKEN: z.string({ required_error: "Bearer token for the e2e inbox worker HTTP endpoint" }).trim().min(1),
   E2E_INBOX_EMAIL_DOMAIN: z.string({ required_error: "Email domain routed to the e2e inbox worker (e.g. 'e2e.akash.network')" }).trim().min(1),
   TEST_USER_EMAIL: z.string().optional(),

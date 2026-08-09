@@ -69,12 +69,19 @@ describe("console-e2e-inbox worker", () => {
   describe("fetch handler", () => {
     it("returns messages newest-first", async () => {
       const { getMessages, insertMessageRow } = await setup();
-      await insertMessageRow({ recipient: "ordered@e2e.akash.network", subject: "older", receivedMs: 1_000 });
-      await insertMessageRow({ recipient: "ordered@e2e.akash.network", subject: "newer", receivedMs: 2_000 });
+      await insertMessageRow({ recipient: "ordered@e2e.akash.network", subject: "older", receivedMs: Date.now() - 2 * HOUR_MS });
+      await insertMessageRow({ recipient: "ordered@e2e.akash.network", subject: "newer", receivedMs: Date.now() - HOUR_MS });
 
       const messages = await (await getMessages("ordered@e2e.akash.network")).json<Array<{ subject: string; receivedMs: number }>>();
 
       expect(messages.map(message => message.subject)).toEqual(["newer", "older"]);
+    });
+
+    it("excludes messages older than 24h from reads even without a new email", async () => {
+      const { getMessages, insertMessageRow } = await setup();
+      await insertMessageRow({ recipient: "readcutoff-stale@e2e.akash.network", receivedMs: Date.now() - 25 * HOUR_MS });
+
+      expect(await (await getMessages("readcutoff-stale@e2e.akash.network")).json()).toEqual([]);
     });
 
     it("returns an empty list for an inbox that never received mail", async () => {
@@ -119,6 +126,19 @@ describe("console-e2e-inbox worker", () => {
     });
   });
 
+  describe("scheduled handler", () => {
+    it("deletes messages older than 24h and keeps fresh ones", async () => {
+      const { runScheduled, insertMessageRow, countRows } = await setup();
+      await insertMessageRow({ recipient: "cron-stale@e2e.akash.network", receivedMs: Date.now() - 25 * HOUR_MS });
+      await insertMessageRow({ recipient: "cron-fresh@e2e.akash.network", receivedMs: Date.now() - HOUR_MS });
+
+      await runScheduled();
+
+      expect(await countRows("cron-stale@e2e.akash.network")).toBe(0);
+      expect(await countRows("cron-fresh@e2e.akash.network")).toBe(1);
+    });
+  });
+
   async function setup() {
     const statements = schema
       .split(";")
@@ -147,7 +167,16 @@ describe("console-e2e-inbox worker", () => {
         .run();
     }
 
-    return { deliverEmail, request, getMessages, insertMessageRow };
+    async function countRows(recipient: string): Promise<number> {
+      const row = await env.DB.prepare("SELECT COUNT(*) AS count FROM messages WHERE recipient = ?").bind(recipient).first<{ count: number }>();
+      return row?.count ?? 0;
+    }
+
+    async function runScheduled(): Promise<void> {
+      await worker.scheduled(mock<ScheduledController>(), env);
+    }
+
+    return { deliverEmail, request, getMessages, insertMessageRow, countRows, runScheduled };
   }
 });
 

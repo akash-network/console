@@ -1,11 +1,7 @@
-declare namespace Cloudflare {
-  interface Env {
-    DB: D1Database;
-    INBOX_API_TOKEN: string;
-  }
-}
+import type { Env as WorkerEnv } from "../src/index";
 
-declare module "*.sql?raw" {
-  const content: string;
-  export default content;
+declare global {
+  namespace Cloudflare {
+    interface Env extends WorkerEnv {}
+  }
 }

@@ -17,7 +17,7 @@ Returns messages for the recipient, newest first:
 [{ "id": "…", "receivedMs": 1754000000000, "subject": "…", "text": "…" }]
 ```
 
-Any other path/method returns 404; a missing or wrong token returns 401. Messages older than 24h are purged automatically on each incoming email.
+Any other path/method returns 404; a missing or wrong token returns 401. Messages older than 24h are excluded from reads, and are deleted on each incoming email and by an hourly scheduled cron so nothing lingers if delivery stops.
 
 ## One-time setup
 
