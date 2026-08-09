@@ -179,6 +179,33 @@ describe(JobQueueService.name, () => {
     });
   });
 
+  describe("cancelCreatedBy", () => {
+    it("cancels created jobs on the pg-boss connection when no transaction is active", async () => {
+      const { service, pgBoss, txService } = setup();
+      txService.getConnection.mockReturnValue(undefined);
+      const executeSql = vi.fn().mockResolvedValue({ rows: [{ id: "job-1" }] });
+      const getDb = vi.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql });
+
+      await service.cancelCreatedBy({ name: "test-job", singletonKey: "singleton-1" });
+
+      expect(getDb).toHaveBeenCalled();
+      expect(executeSql).toHaveBeenCalledWith(expect.stringContaining("state = 'cancelled'"), ["test-job", "singleton-1"]);
+    });
+
+    it("cancels created jobs on the ambient transaction connection when one is active", async () => {
+      const { service, pgBoss, txService } = setup();
+      const unsafe = vi.fn().mockResolvedValue([{ id: "job-1" }]);
+      const connection = { unsafe } as unknown as Sql;
+      txService.getConnection.mockReturnValue(connection);
+      const getDb = vi.spyOn(pgBoss, "getDb");
+
+      await service.cancelCreatedBy({ name: "test-job", singletonKey: "singleton-1" });
+
+      expect(unsafe).toHaveBeenCalledWith(expect.stringContaining("state = 'cancelled'"), ["test-job", "singleton-1"]);
+      expect(getDb).not.toHaveBeenCalled();
+    });
+  });
+
   describe("complete()", () => {
     it("completes a job and logs completion", async () => {
       const { service, pgBoss, logger } = setup();
