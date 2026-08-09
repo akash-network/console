@@ -12,6 +12,7 @@ import type { StripeTransactionService } from "@src/billing/services/stripe-tran
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { JobMeta } from "@src/core";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import type { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import type { JobPayload } from "../../../core";
 import { WalletBalanceReloadCheckHandler } from "./wallet-balance-reload-check.handler";
@@ -411,17 +412,38 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       );
     });
 
-    it("reloads even when there are no active deployments", async () => {
-      const { handler, stripeTransactionService, drainingDeploymentService, job, jobMeta } = setup({
+    it("skips the reload when there are no active deployments", async () => {
+      const { handler, stripeTransactionService, instrumentationService, job, jobMeta } = setup({
         fixedThresholdEnabled: true,
         balance: 0,
         autoReloadThresholdUsd: 20,
-        autoReloadAmountUsd: 100
+        autoReloadAmountUsd: 100,
+        activeDeploymentCount: 0
       });
 
       await handler.handle(job, jobMeta);
 
-      expect(drainingDeploymentService.calculateAllDeploymentCostUntilDate).not.toHaveBeenCalled();
+      expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
+      expect(instrumentationService.recordReloadSkipped).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reason: "no_active_deployments",
+          logContext: expect.objectContaining({ balance: 0, threshold: 20 })
+        })
+      );
+    });
+
+    it("charges when at or below the threshold and there is at least one active deployment", async () => {
+      const { handler, stripeTransactionService, deploymentRepository, wallet, job, jobMeta } = setup({
+        fixedThresholdEnabled: true,
+        balance: 10,
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100,
+        activeDeploymentCount: 2
+      });
+
+      await handler.handle(job, jobMeta);
+
+      expect(deploymentRepository.countActiveByOwner).toHaveBeenCalledWith(wallet.address);
       expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ amount: 100 }));
     });
 
@@ -467,6 +489,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     autoReloadThresholdUsd?: number;
     autoReloadAmountUsd?: number;
     fixedThresholdEnabled?: boolean;
+    activeDeploymentCount?: number;
     user?: ReturnType<typeof createUser>;
     wallet?: ReturnType<typeof createUserWallet>;
   }) {
@@ -508,6 +531,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     });
     const walletReloadJobService = mock<WalletReloadJobService>();
     const drainingDeploymentService = mock<DrainingDeploymentService>();
+    const deploymentRepository = mock<DeploymentRepository>();
+    deploymentRepository.countActiveByOwner.mockResolvedValue(input?.activeDeploymentCount ?? 1);
     const paymentMethodService = mock<PaymentMethodService>();
     const stripeTransactionService = mock<StripeTransactionService>();
     const instrumentationService = mock<WalletBalanceReloadCheckInstrumentationService>({
@@ -548,6 +573,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       paymentMethodService,
       stripeTransactionService,
       drainingDeploymentService,
+      deploymentRepository,
       instrumentationService,
       featureFlagsService
     );
@@ -558,6 +584,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       balancesService,
       walletReloadJobService,
       drainingDeploymentService,
+      deploymentRepository,
       paymentMethodService,
       stripeTransactionService,
       instrumentationService,
