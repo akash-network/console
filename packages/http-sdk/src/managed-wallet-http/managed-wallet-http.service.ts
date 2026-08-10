@@ -13,30 +13,11 @@ export interface ApiWalletOutput {
   createdAt: Date;
 }
 
-export interface ApiThreeDSecureAuth {
-  requires3DS: boolean;
-  clientSecret: string;
-  paymentIntentId: string;
-  paymentMethodId: string;
-}
-
-export interface ApiWalletWithOptional3DS extends ApiWalletOutput {
-  requires3DS?: boolean;
-  clientSecret?: string;
-  paymentIntentId?: string;
-  paymentMethodId?: string;
-}
-
 export class ManagedWalletHttpService {
   readonly #httpClient: HttpClient;
 
   constructor(httpClient: HttpClient) {
     this.#httpClient = httpClient;
-  }
-  async createWallet(userId: string): Promise<ApiWalletWithOptional3DS & { username: "Managed Wallet"; isWalletConnected: true }> {
-    const response = await this.#httpClient.post<ApiOutput<ApiWalletWithOptional3DS>>("v1/start-trial", { data: { userId } }, { withCredentials: true });
-
-    return this.addWalletEssentials(extractData(response).data);
   }
 
   async getWallet(input: { [key: string]: string; userId: string }): Promise<ApiManagedWalletOutput | null> {

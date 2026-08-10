@@ -20,7 +20,7 @@ export type EnsureTrialStartedResult = {
  * activation lands.
  */
 export const useEnsureTrialStarted = (d = DEPENDENCIES): EnsureTrialStartedResult => {
-  const { wallet, isLoading } = d.useManagedWallet();
+  const { wallet, isInitializing } = d.useManagedWallet();
 
-  return { isWalletReady: !!wallet?.address, isLoading, wallet: wallet as ApiManagedWalletOutput | undefined };
+  return { isWalletReady: !!wallet?.address, isLoading: isInitializing, wallet: wallet as ApiManagedWalletOutput | undefined };
 };

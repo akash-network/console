@@ -40,14 +40,6 @@ describe(WalletProvider.name, () => {
     expect(screen.queryByTestId("app-boot-loading")).not.toBeInTheDocument();
   });
 
-  it("keeps children mounted while a trial wallet is being created", () => {
-    const { probed } = setup({ user: registeredUser(), managedWallet: { isInitializing: false, isCreating: true, wallet: undefined } });
-
-    expect(screen.getByTestId("child")).toBeInTheDocument();
-    expect(screen.queryByTestId("app-boot-loading")).not.toBeInTheDocument();
-    expect(probed.current?.isWalletCreating).toBe(true);
-  });
-
   it("mounts children when the lookup transitions from loading to settled", () => {
     const { rerenderWithManagedWallet } = setup({ user: registeredUser(), managedWallet: { isInitializing: true, wallet: undefined } });
 
@@ -77,34 +69,10 @@ describe(WalletProvider.name, () => {
     expect(probed.current).toMatchObject({
       address: wallet.address,
       hasWallet: true,
-      isWalletCreating: false,
       isTrialing: true,
       creditAmount: 42,
       topUpMinAmountUsd: 20
     });
-  });
-
-  it("creates a wallet only when none exists", () => {
-    const { probed, managedWalletMock } = setup({ user: registeredUser(), managedWallet: { isInitializing: false, wallet: undefined } });
-
-    probed.current?.createWallet();
-
-    expect(managedWalletMock.create).toHaveBeenCalled();
-  });
-
-  it("does not create a wallet when one already exists", () => {
-    const { probed, managedWalletMock } = setup({ user: registeredUser(), managedWallet: { isInitializing: false, wallet: buildManagedWallet() } });
-
-    probed.current?.createWallet();
-
-    expect(managedWalletMock.create).not.toHaveBeenCalled();
-  });
-
-  it("surfaces the wallet creation error as walletError", () => {
-    const createError = new Error("creation failed");
-    const { probed } = setup({ user: registeredUser(), managedWallet: { isInitializing: false, wallet: undefined, createError } });
-
-    expect(probed.current?.walletError).toBe(createError);
   });
 
   function registeredUser() {
@@ -119,10 +87,8 @@ describe(WalletProvider.name, () => {
     return Object.assign(mock<ManagedWalletHookResult>(), {
       wallet: undefined,
       isLoading: false,
-      isCreating: false,
       isInitializing: false,
       isFetching: false,
-      createError: null,
       ...overrides
     });
   }
