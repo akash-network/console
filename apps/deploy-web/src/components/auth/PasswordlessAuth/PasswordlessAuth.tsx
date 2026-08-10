@@ -8,6 +8,7 @@ import { useRouter } from "next/router";
 
 import type { TurnstileRef } from "@src/components/turnstile/Turnstile";
 import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
+import { BootLoading } from "@src/context/BootLoadingProvider/BootLoadingProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useReturnTo } from "@src/hooks/useReturnTo/useReturnTo";
 import { useUser } from "@src/hooks/useUser";
@@ -18,6 +19,7 @@ import type { PassedFlowProps } from "./withPersistedPasswordlessFlow";
 import { withPersistedPasswordlessFlow } from "./withPersistedPasswordlessFlow";
 
 export const DEPENDENCIES = {
+  BootLoading,
   EmailCodeStart,
   EmailCodeVerify,
   Link,
@@ -36,7 +38,7 @@ interface Props extends PassedFlowProps {
 export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: Props) {
   const { publicConfig, analyticsService } = useServices();
   const { navigateBack } = d.useReturnTo({ defaultReturnTo: "/" });
-  const { checkSession } = d.useUser();
+  const { checkSession, user } = d.useUser();
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
   const [email, setEmail] = useState(props.initialEmail);
@@ -73,24 +75,40 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
     router.replace(query ? `?${query}` : router.pathname, undefined, { shallow: true });
   }, [router, searchParams]);
 
+  /**
+   * Sends a visitor who reached `?step=verify` without an in-flight email (a deep link, or a reload
+   * after the flow was cleared) back to the entry screen. Skipped once authenticated: a successful
+   * verification clears the persisted email and remounts this component (an ancestor provider swaps
+   * on the anon→authed transition) with an empty `email`; firing here would `router.replace` back to
+   * entry and clobber the post-verify `navigateBack()`.
+   */
   useEffect(
     function redirectToEntryWhenEmailMissing() {
+      if (user) return;
       if (screen === "verify" && !email) {
         goBackToEntry();
       }
     },
-    [screen, email, goBackToEntry]
+    [screen, email, goBackToEntry, user]
+  );
+
+  useEffect(
+    function leaveWhenAuthenticated() {
+      if (user) navigateBack();
+    },
+    [user, navigateBack]
   );
 
   const handleVerified = useCallback(async () => {
     onFlowReset();
     await checkSession();
-    navigateBack();
-  }, [checkSession, navigateBack, onFlowReset]);
+  }, [checkSession, onFlowReset]);
 
   const remountActiveScreen = useCallback(() => {
     setScreenKey(value => value + 1);
   }, []);
+
+  if (user) return <d.BootLoading />;
 
   return (
     <>

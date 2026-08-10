@@ -27,6 +27,17 @@ describe("POST /api/auth/email-code-verify", () => {
     expect(res.status).toHaveBeenCalledWith(204);
   });
 
+  it("merges the local user settings into the session before persisting it", async () => {
+    const session = Object.assign(new Session({ sub: "auth0|email|abc", email: "user@example.com" }), { accessToken: "at" });
+    const { setSession } = await callHandler({
+      body: { email: "user@example.com", code: "123456", captchaToken: "tok" },
+      verifyResult: Ok(session),
+      userSettings: { userId: "user-123", username: "alice", subscribedToNewsletter: true }
+    });
+
+    expect(setSession.mock.calls[0][2].user).toEqual(expect.objectContaining({ userId: "user-123", username: "alice", subscribedToNewsletter: true }));
+  });
+
   it("sets the account-created cookie when the user is newly created", async () => {
     const session = Object.assign(new Session({ sub: "auth0|email|abc", email: "user@example.com" }), { accessToken: "at" });
     const { res } = await callHandler({
@@ -98,6 +109,7 @@ describe("POST /api/auth/email-code-verify", () => {
     verifyResult?: Awaited<ReturnType<SessionService["verifyEmailCode"]>>;
     createLocalUserError?: Error;
     isNewUser?: boolean;
+    userSettings?: Awaited<ReturnType<SessionService["createLocalUser"]>>["userSettings"];
     expectThrow?: boolean;
   }) {
     const sessionService = mock<SessionService>();
@@ -107,7 +119,10 @@ describe("POST /api/auth/email-code-verify", () => {
     if (input.createLocalUserError) {
       sessionService.createLocalUser.mockRejectedValue(input.createLocalUserError);
     } else {
-      sessionService.createLocalUser.mockResolvedValue({ userSettings: { username: "user", subscribedToNewsletter: false }, isNewUser: input.isNewUser ?? false });
+      sessionService.createLocalUser.mockResolvedValue({
+        userSettings: input.userSettings ?? { username: "user", subscribedToNewsletter: false },
+        isNewUser: input.isNewUser ?? false
+      });
     }
 
     const logger = mock<LoggerService>();

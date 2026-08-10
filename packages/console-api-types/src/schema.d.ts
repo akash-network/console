@@ -4,94 +4,6 @@
  */
 
 export interface paths {
-  "/v1/start-trial": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Start a trial period for a user
-     * @description Creates a managed wallet for a user and initiates a trial period. This endpoint handles payment method validation and may require 3D Secure authentication for certain payment methods. Returns wallet information and trial status.
-     */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": {
-            data: {
-              userId: string;
-            };
-          };
-        };
-      };
-      responses: {
-        /** @description Trial started successfully and wallet created */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              data: {
-                id: number | null;
-                userId: string | null;
-                creditAmount: number;
-                address: string | null;
-                denom: string;
-                isTrialing: boolean;
-                /** @description Minimum USD amount accepted by the next paid top-up for this wallet. */
-                topUpMinAmountUsd: number;
-                createdAt: string | null;
-                requires3DS?: boolean;
-                clientSecret?: string | null;
-                paymentIntentId?: string | null;
-                paymentMethodId?: string | null;
-              };
-            };
-          };
-        };
-        /** @description 3D Secure authentication required to complete trial setup */
-        202: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              data: {
-                id: number | null;
-                userId: string | null;
-                creditAmount: number;
-                address: string | null;
-                denom: string;
-                isTrialing: boolean;
-                /** @description Minimum USD amount accepted by the next paid top-up for this wallet. */
-                topUpMinAmountUsd: number;
-                createdAt: string | null;
-                requires3DS?: boolean;
-                clientSecret?: string | null;
-                paymentIntentId?: string | null;
-                paymentMethodId?: string | null;
-              };
-            };
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/v1/wallets": {
     parameters: {
       query?: never;
@@ -129,10 +41,6 @@ export interface paths {
                 /** @description Minimum USD amount accepted by the next paid top-up for this wallet. */
                 topUpMinAmountUsd: number;
                 createdAt: string | null;
-                requires3DS?: boolean;
-                clientSecret?: string | null;
-                paymentIntentId?: string | null;
-                paymentMethodId?: string | null;
               }[];
             };
           };

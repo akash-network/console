@@ -145,15 +145,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
     apiUrlService: config.apiUrlService,
     managedWalletService: () => {
       const httpClient = container.applyAxiosInterceptors(createHttpClient(apiConfig), {
-        request: [withUserToken],
-        response: [
-          response => {
-            if (response.config.url === "v1/start-trial" && response.config.method === "post" && response.status === 200) {
-              container.analyticsService.track("trial_started", { category: "billing", label: "Trial Started" });
-            }
-            return response;
-          }
-        ]
+        request: [withUserToken]
       });
       return new ManagedWalletHttpService(httpClient);
     },

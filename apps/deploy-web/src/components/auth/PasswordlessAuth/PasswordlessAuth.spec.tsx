@@ -61,9 +61,9 @@ describe(PasswordlessAuth.name, () => {
     expect(replace).toHaveBeenCalledWith(expect.not.stringContaining("step"), undefined, { shallow: true });
   });
 
-  it("resets the persisted flow, refreshes the session, and navigates back when EmailCodeVerify calls onVerified", async () => {
+  it("resets the persisted flow and refreshes the session when EmailCodeVerify calls onVerified", async () => {
     const EmailCodeVerifyMock = vi.fn(ComponentMock);
-    const { onFlowReset, checkSession, navigateBack } = setup({
+    const { onFlowReset, checkSession } = setup({
       step: "verify",
       initialEmail: "alice@example.com",
       dependencies: { EmailCodeVerify: EmailCodeVerifyMock as never }
@@ -75,7 +75,38 @@ describe(PasswordlessAuth.name, () => {
 
     expect(onFlowReset).toHaveBeenCalled();
     expect(checkSession).toHaveBeenCalled();
+  });
+
+  it("navigates back once the user is authenticated", () => {
+    const { navigateBack } = setup({ authenticated: true });
+
     expect(navigateBack).toHaveBeenCalled();
+  });
+
+  it("renders the boot loader instead of the auth forms when authenticated", () => {
+    const EmailCodeStartMock = vi.fn(ComponentMock);
+    const EmailCodeVerifyMock = vi.fn(ComponentMock);
+    const BootLoadingMock = vi.fn(ComponentMock);
+    setup({
+      authenticated: true,
+      step: "verify",
+      initialEmail: "alice@example.com",
+      dependencies: {
+        EmailCodeStart: EmailCodeStartMock as never,
+        EmailCodeVerify: EmailCodeVerifyMock as never,
+        BootLoading: BootLoadingMock as never
+      }
+    });
+
+    expect(BootLoadingMock).toHaveBeenCalled();
+    expect(EmailCodeStartMock).not.toHaveBeenCalled();
+    expect(EmailCodeVerifyMock).not.toHaveBeenCalled();
+  });
+
+  it("does not redirect to entry for an authenticated user even when the email is missing", () => {
+    const { replace } = setup({ authenticated: true, step: "verify", initialEmail: "" });
+
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("provides a captcha-token getter that resolves to the Turnstile token", async () => {
@@ -113,6 +144,7 @@ describe(PasswordlessAuth.name, () => {
     input: {
       initialEmail?: string;
       step?: string;
+      authenticated?: boolean;
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
@@ -129,7 +161,7 @@ describe(PasswordlessAuth.name, () => {
       mock<ReturnType<typeof DEPENDENCIES.useUser>>({
         checkSession,
         isLoading: false,
-        user: undefined
+        user: input.authenticated ? mock<NonNullable<ReturnType<typeof DEPENDENCIES.useUser>["user"]>>({ userId: "user-1" }) : undefined
       });
     const useReturnTo: typeof DEPENDENCIES.useReturnTo = () =>
       mock<ReturnType<typeof DEPENDENCIES.useReturnTo>>({

@@ -1,78 +1,42 @@
 import type { ManagedWalletHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
-import { useQueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { useCreateManagedWalletMutation, useManagedWalletQuery } from "./useManagedWalletQuery";
+import { useManagedWalletQuery } from "./useManagedWalletQuery";
 
-import { act } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
 
 describe(useManagedWalletQuery.name, () => {
-  describe(useManagedWalletQuery.name, () => {
-    it("should fetch wallet when userId is provided", async () => {
-      const mockData = {
-        userId: faker.string.uuid(),
-        address: faker.finance.ethereumAddress()
-      };
-      const managedWalletService = mock<ManagedWalletHttpService>({
-        getWallet: vi.fn().mockResolvedValue(mockData)
-      });
-
-      const { result } = setupQuery(() => useManagedWalletQuery(mockData.userId), {
-        services: { managedWalletService: () => managedWalletService }
-      });
-
-      await vi.waitFor(() => {
-        expect(managedWalletService.getWallet).toHaveBeenCalledWith({ userId: mockData.userId });
-        expect(result.current.isSuccess).toBe(true);
-        expect(result.current.data).toEqual(mockData);
-      });
+  it("fetches the wallet when userId is provided", async () => {
+    const mockData = {
+      userId: faker.string.uuid(),
+      address: faker.finance.ethereumAddress()
+    };
+    const managedWalletService = mock<ManagedWalletHttpService>({
+      getWallet: vi.fn().mockResolvedValue(mockData)
     });
 
-    it("should not fetch when userId is not provided", () => {
-      const managedWalletService = mock<ManagedWalletHttpService>({
-        getWallet: vi.fn().mockResolvedValue({})
-      });
-      const { result } = setupQuery(() => useManagedWalletQuery(), {
-        services: { managedWalletService: () => managedWalletService }
-      });
+    const { result } = setupQuery(() => useManagedWalletQuery(mockData.userId), {
+      services: { managedWalletService: () => managedWalletService }
+    });
 
-      expect(managedWalletService.getWallet).not.toHaveBeenCalled();
-      expect(result.current.isLoading).toBe(false);
+    await vi.waitFor(() => {
+      expect(managedWalletService.getWallet).toHaveBeenCalledWith({ userId: mockData.userId });
+      expect(result.current.isSuccess).toBe(true);
+      expect(result.current.data).toEqual(mockData);
     });
   });
 
-  describe(useCreateManagedWalletMutation.name, () => {
-    it("should create wallet and update query cache", async () => {
-      const mockData = {
-        userId: faker.string.uuid(),
-        address: faker.finance.ethereumAddress()
-      };
-      const mockManagedWalletService = mock<ManagedWalletHttpService>({
-        createWallet: vi.fn().mockResolvedValue(mockData)
-      });
-
-      const { result } = setupQuery(
-        () => {
-          const mutation = useCreateManagedWalletMutation();
-          const queryClient = useQueryClient();
-
-          return { mutation, queryClient };
-        },
-        {
-          services: { managedWalletService: () => mockManagedWalletService }
-        }
-      );
-
-      await act(async () => result.current.mutation.mutateAsync(mockData.userId));
-
-      await vi.waitFor(() => {
-        expect(mockManagedWalletService.createWallet).toHaveBeenCalledWith(mockData.userId);
-        expect(result.current.mutation.isSuccess).toBe(true);
-        expect(result.current.queryClient.getQueryData(["MANAGED_WALLET", mockData.userId])).toEqual(mockData);
-      });
+  it("does not fetch when userId is not provided", () => {
+    const managedWalletService = mock<ManagedWalletHttpService>({
+      getWallet: vi.fn().mockResolvedValue({})
     });
+    const { result } = setupQuery(() => useManagedWalletQuery(), {
+      services: { managedWalletService: () => managedWalletService }
+    });
+
+    expect(managedWalletService.getWallet).not.toHaveBeenCalled();
+    expect(result.current.isLoading).toBe(false);
   });
 });
