@@ -1,7 +1,6 @@
 name: "e2e Inbox Worker CI"
 
 on:
-  merge_group:
   pull_request:
     branches: ["main", "main-sdk-next"]
     paths:
