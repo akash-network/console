@@ -8,7 +8,7 @@ import { renderHook } from "@testing-library/react";
 
 describe(useEnsureTrialStarted.name, () => {
   it("is ready once the managed wallet has an address", () => {
-    const { dependencies } = setup({ wallet: { address: "akash1..." }, isLoading: false });
+    const { dependencies } = setup({ wallet: { address: "akash1..." }, isInitializing: false });
 
     const { result } = renderHook(() => useEnsureTrialStarted(dependencies));
 
@@ -16,7 +16,7 @@ describe(useEnsureTrialStarted.name, () => {
   });
 
   it("is not ready while the wallet row exists without an address yet", () => {
-    const { dependencies } = setup({ wallet: { address: null }, isLoading: false });
+    const { dependencies } = setup({ wallet: { address: null }, isInitializing: false });
 
     const { result } = renderHook(() => useEnsureTrialStarted(dependencies));
 
@@ -24,7 +24,7 @@ describe(useEnsureTrialStarted.name, () => {
   });
 
   it("is not ready and reports loading when there is no wallet", () => {
-    const { dependencies } = setup({ wallet: undefined, isLoading: true });
+    const { dependencies } = setup({ wallet: undefined, isInitializing: true });
 
     const { result } = renderHook(() => useEnsureTrialStarted(dependencies));
 
@@ -32,11 +32,11 @@ describe(useEnsureTrialStarted.name, () => {
     expect(result.current.isLoading).toBe(true);
   });
 
-  function setup(input: { wallet: { address: string | null } | undefined; isLoading: boolean }) {
+  function setup(input: { wallet: { address: string | null } | undefined; isInitializing: boolean }) {
     const useManagedWallet: typeof DEPENDENCIES.useManagedWallet = () =>
       mock<ReturnType<typeof DEPENDENCIES.useManagedWallet>>({
         wallet: input.wallet as ReturnType<typeof DEPENDENCIES.useManagedWallet>["wallet"],
-        isLoading: input.isLoading
+        isInitializing: input.isInitializing
       });
 
     return { dependencies: { useManagedWallet } };

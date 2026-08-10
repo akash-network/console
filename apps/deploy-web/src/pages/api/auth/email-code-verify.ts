@@ -23,7 +23,8 @@ export default defineApiHandler({
     const result = await services.sessionService.verifyEmailCode({ email: body.email, code: body.code });
 
     if (result.ok) {
-      const { isNewUser } = await services.sessionService.createLocalUser(result.val);
+      const { userSettings, isNewUser } = await services.sessionService.createLocalUser(result.val);
+      result.val.user = { ...result.val.user, ...userSettings };
       await services.setSession(req, res, result.val);
       if (isNewUser) setAccountCreatedCookie(res);
       res.status(204).end();

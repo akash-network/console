@@ -25,6 +25,7 @@ import { useRouter } from "next/navigation";
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
 import { useDepositDeployment } from "@src/hooks/useDepositDeployment/useDepositDeployment";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
@@ -41,6 +42,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { TrialDeploymentBadge } from "../shared";
 import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
+import { GpuInterconnectBadge } from "../shared/GpuInterconnectBadge";
 import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
 import { PricePerTimeUnit } from "../shared/PricePerTimeUnit";
 import { PriceValue } from "../shared/PriceValue";
@@ -80,6 +82,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const reclaimDeadline = reclaimingLease ? getReclamationDeadline(reclaimingLease) : null;
   const closedReasonLabel = closedLease ? getClosedLeaseLabel(closedLease) : null;
   const hasGpu = Boolean(deployment.gpuAmount && deployment.gpuAmount > 0);
+  const interconnect = useDeclaredGpuInterconnect(deployment);
   const timeLeft = getTimeLeft(deploymentCost || 0, deployment.escrowBalance);
   const realTimeLeft = useRealTimeLeft(
     deploymentCost || 0,
@@ -189,6 +192,12 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
         </TableCell>
         <TableCell className="max-w-[100px] text-center">
           <DeploymentName deployment={deployment} deploymentServices={leaseStatus?.services} providerHostUri={provider?.hostUri} />
+
+          {interconnect.enabled && (
+            <div className="mt-2 flex justify-center">
+              <GpuInterconnectBadge interconnect={interconnect} compact />
+            </div>
+          )}
 
           {isTrialing && (
             <div className="mt-2">

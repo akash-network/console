@@ -11,114 +11,6 @@
     "version": "v1"
   },
   "paths": {
-    "/v1/start-trial": {
-      "post": {
-        "summary": "Start a trial period for a user",
-        "description": "Ensures the user's managed wallet exists and enqueues background trial activation. Kept for backward compatibility; trial activation now runs server-side off registration/verification.",
-        "tags": [
-          "Wallet"
-        ],
-        "security": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "data": {
-                    "type": "object",
-                    "properties": {
-                      "userId": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "userId"
-                    ]
-                  }
-                },
-                "required": [
-                  "data"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Wallet ensured and trial activation enqueued",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "number"
-                        },
-                        "userId": {
-                          "type": "string"
-                        },
-                        "creditAmount": {
-                          "type": "number"
-                        },
-                        "address": {
-                          "type": "string"
-                        },
-                        "denom": {
-                          "type": "string"
-                        },
-                        "isTrialing": {
-                          "type": "boolean"
-                        },
-                        "topUpMinAmountUsd": {
-                          "type": "number",
-                          "description": "Minimum USD amount accepted by the next paid top-up for this wallet."
-                        },
-                        "createdAt": {
-                          "type": "string"
-                        },
-                        "requires3DS": {
-                          "type": "boolean"
-                        },
-                        "clientSecret": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "paymentIntentId": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "paymentMethodId": {
-                          "type": "string",
-                          "nullable": true
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "userId",
-                        "creditAmount",
-                        "address",
-                        "denom",
-                        "isTrialing",
-                        "topUpMinAmountUsd",
-                        "createdAt"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/wallets": {
       "get": {
         "summary": "Get a list of wallets",
@@ -182,21 +74,6 @@
                           },
                           "createdAt": {
                             "type": "string"
-                          },
-                          "requires3DS": {
-                            "type": "boolean"
-                          },
-                          "clientSecret": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "paymentIntentId": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "paymentMethodId": {
-                            "type": "string",
-                            "nullable": true
                           }
                         },
                         "required": [

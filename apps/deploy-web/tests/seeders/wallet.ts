@@ -8,13 +8,10 @@ export const genWalletAddress = () => `akash${faker.string.alphanumeric({ length
 export const buildWallet = (overrides: Partial<WalletProviderContextType> = {}): WalletProviderContextType => ({
   address: genWalletAddress(),
   hasWallet: true,
-  isWalletCreating: false,
-  createWallet: vi.fn(),
   signAndBroadcastTx: vi.fn(),
   denom: "uact",
   isTrialing: false,
   creditAmount: faker.number.float({ min: 0, max: 1000 }),
   topUpMinAmountUsd: 20,
-  walletError: undefined,
   ...overrides
 });

@@ -42,8 +42,8 @@ program
 
 program
   .command("mint-act")
-  .description("Mint ACT from AKT on master wallet to maintain target balance")
-  .option("-d, --dry-run", "Log what would be minted without broadcasting", false)
+  .description("Burn master wallet AKT above the fee reserve into ACT, capped per run")
+  .option("-d, --dry-run", "Log what would be burned without broadcasting", false)
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       return container.resolve(MasterWalletMintController).mint(options);

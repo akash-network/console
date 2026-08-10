@@ -4,69 +4,6 @@
  */
 
 export interface paths {
-  "/v1/start-trial": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Start a trial period for a user
-     * @description Ensures the user's managed wallet exists and enqueues background trial activation. Kept for backward compatibility; trial activation now runs server-side off registration/verification.
-     */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": {
-            data: {
-              userId: string;
-            };
-          };
-        };
-      };
-      responses: {
-        /** @description Wallet ensured and trial activation enqueued */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              data: {
-                id: number;
-                userId: string;
-                creditAmount: number;
-                address: string;
-                denom: string;
-                isTrialing: boolean;
-                /** @description Minimum USD amount accepted by the next paid top-up for this wallet. */
-                topUpMinAmountUsd: number;
-                createdAt: string;
-                requires3DS?: boolean;
-                clientSecret?: string | null;
-                paymentIntentId?: string | null;
-                paymentMethodId?: string | null;
-              };
-            };
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/v1/wallets": {
     parameters: {
       query?: never;
@@ -104,10 +41,6 @@ export interface paths {
                 /** @description Minimum USD amount accepted by the next paid top-up for this wallet. */
                 topUpMinAmountUsd: number;
                 createdAt: string;
-                requires3DS?: boolean;
-                clientSecret?: string | null;
-                paymentIntentId?: string | null;
-                paymentMethodId?: string | null;
               }[];
             };
           };

@@ -134,7 +134,8 @@ export class JobQueueService implements Disposable {
   }
 
   async cancelCreatedBy(query: { name: string; singletonKey: string }): Promise<void> {
-    const db = await this.pgBoss.getDb();
+    const connection = this.txService.getConnection();
+    const db = connection ? this.#toTransactionDb(connection) : await this.pgBoss.getDb();
     const schema = this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_SCHEMA");
     const result = (await db.executeSql(
       `
