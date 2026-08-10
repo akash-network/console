@@ -38,6 +38,18 @@ describe("console-e2e-inbox worker", () => {
       expect(messages[0].text).toBe("Your verification code is: 654321");
     });
 
+    it("falls back to the html body when the text part is present but empty", async () => {
+      const { deliverEmail, getMessages } = await setup();
+
+      await deliverEmail({
+        to: "emptytext@e2e.akash.network",
+        mime: multipartAlternativeEmail("emptytext@e2e.akash.network", "", "<p>Your verification code is:</p><h1>654321</h1>")
+      });
+
+      const messages = await (await getMessages("emptytext@e2e.akash.network")).json<Array<{ text: string }>>();
+      expect(messages[0].text).toBe("Your verification code is: 654321");
+    });
+
     it("lowercases the recipient so lookups are case-insensitive", async () => {
       const { deliverEmail, getMessages } = await setup();
 
@@ -201,5 +213,25 @@ function htmlEmail(to: string, htmlBody: string): string {
     "Content-Type: text/html",
     "",
     `<html><body>${htmlBody}</body></html>`
+  ].join("\r\n");
+}
+
+function multipartAlternativeEmail(to: string, textBody: string, htmlBody: string): string {
+  return [
+    "From: no-reply@auth0.com",
+    `To: ${to}`,
+    "Subject: Welcome",
+    `Message-ID: <${crypto.randomUUID()}@example.com>`,
+    'Content-Type: multipart/alternative; boundary="boundary42"',
+    "",
+    "--boundary42",
+    "Content-Type: text/plain; charset=utf-8",
+    "",
+    textBody,
+    "--boundary42",
+    "Content-Type: text/html; charset=utf-8",
+    "",
+    `<html><body>${htmlBody}</body></html>`,
+    "--boundary42--"
   ].join("\r\n");
 }

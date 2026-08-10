@@ -13,7 +13,7 @@ const MESSAGES_PATH = /^\/messages\/([^/]+)$/;
 export default {
   async email(message, env): Promise<void> {
     const parsed = await PostalMime.parse(message.raw);
-    const textBody = parsed.text ?? htmlToText(parsed.html ?? "");
+    const textBody = parsed.text?.trim() ? parsed.text : htmlToText(parsed.html ?? "");
 
     await env.DB.batch([
       purgeExpiredStatement(env),
