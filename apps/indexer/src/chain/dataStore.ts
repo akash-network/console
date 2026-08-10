@@ -44,6 +44,16 @@ export const deleteCache = async function (): Promise<void> {
   console.log("Deleted");
 };
 
+export async function closeCaches(): Promise<void> {
+  const results = await Promise.allSettled([blocksDb.close(), blockResultsDb.close()]);
+
+  results.forEach(result => {
+    if (result.status === "rejected") {
+      console.error("Failed to close cache:", result.reason);
+    }
+  });
+}
+
 export async function getCachedBlockByHeight(height: number): Promise<BlockType | null> {
   try {
     const content = await blocksDb.get(blockHeightToKey(height));
