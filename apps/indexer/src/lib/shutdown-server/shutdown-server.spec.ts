@@ -1,9 +1,9 @@
+import type { LoggerService } from "@akashnetwork/logging";
 import type { ServerType } from "@hono/node-server";
 import type { Mock } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { ServerLogger } from "../server-logger/server-logger";
 import { shutdownServer } from "./shutdown-server";
 
 describe(shutdownServer.name, () => {
@@ -12,7 +12,7 @@ describe(shutdownServer.name, () => {
       listening: true,
       close: vi.fn().mockImplementation(cb => cb())
     });
-    const appLogger = mock<ServerLogger>();
+    const appLogger = mock<LoggerService>();
     const onShutdown = vi.fn();
 
     await shutdownServer(server, appLogger, onShutdown);
@@ -28,7 +28,7 @@ describe(shutdownServer.name, () => {
       listening: true,
       close: vi.fn().mockImplementation(cb => cb(error))
     });
-    const appLogger = mock<ServerLogger>();
+    const appLogger = mock<LoggerService>();
     const onShutdown = vi.fn();
 
     await shutdownServer(server, appLogger, onShutdown);
@@ -48,7 +48,7 @@ describe(shutdownServer.name, () => {
         throw error;
       }) as Mock
     });
-    const appLogger = mock<ServerLogger>();
+    const appLogger = mock<LoggerService>();
     const onShutdown = vi.fn();
 
     await shutdownServer(server, appLogger, onShutdown);
@@ -66,7 +66,7 @@ describe(shutdownServer.name, () => {
       listening: true,
       close: vi.fn().mockImplementation(cb => cb())
     });
-    const appLogger = mock<ServerLogger>();
+    const appLogger = mock<LoggerService>();
     const onShutdown = vi.fn().mockRejectedValue(error);
 
     await shutdownServer(server, appLogger, onShutdown);
@@ -82,7 +82,7 @@ describe(shutdownServer.name, () => {
       listening: false,
       close: vi.fn()
     });
-    const appLogger = mock<ServerLogger>();
+    const appLogger = mock<LoggerService>();
     const onShutdown = vi.fn();
 
     await shutdownServer(server, appLogger, onShutdown);
@@ -96,7 +96,7 @@ describe(shutdownServer.name, () => {
       listening: true,
       close: vi.fn().mockImplementation(cb => cb())
     });
-    const appLogger = mock<ServerLogger>();
+    const appLogger = mock<LoggerService>();
     const onShutdown = vi.fn();
 
     await shutdownServer(server, appLogger, onShutdown);

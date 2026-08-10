@@ -1,3 +1,4 @@
+import type { LoggerService } from "@akashnetwork/logging";
 import type { ServerType } from "@hono/node-server";
 import EventEmitter from "events";
 import type { Hono } from "hono";
@@ -5,7 +6,6 @@ import { setTimeout as delay } from "node:timers/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { ServerLogger } from "../server-logger/server-logger";
 import type { AppInitializer } from "./app-initializer";
 import { ON_APP_START, ON_APP_STOP } from "./app-initializer";
 import { startServer } from "./start-server";
@@ -123,6 +123,24 @@ describe("startServer", () => {
     expect(logger.error).toHaveBeenCalledWith({ event: "APP_STOP_ERROR", error });
   });
 
+  it("calls ON_APP_STOP methods of all initializers when onStop throws synchronously", async () => {
+    const initializers: AppInitializer[] = [{ [ON_APP_START]: vi.fn(), [ON_APP_STOP]: vi.fn().mockResolvedValue(undefined) }];
+    const error = new Error("Failed to stop app");
+    const { start, logger } = setup({
+      initializers,
+      onStop: () => {
+        throw error;
+      }
+    });
+
+    const server = await start();
+    server?.close();
+    await delay(10);
+
+    expect(initializers[0][ON_APP_STOP]).toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith({ event: "APP_STOP_ERROR", error });
+  });
+
   it("logs error when an initializer ON_APP_STOP fails", async () => {
     const error = new Error("Failed to stop initializer");
     const initializers: AppInitializer[] = [{ [ON_APP_START]: vi.fn(), [ON_APP_STOP]: vi.fn().mockRejectedValue(error) }];
@@ -185,6 +203,18 @@ describe("startServer", () => {
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "APP_SHUTDOWN_TIMEOUT", reason: "SIGTERM" }));
   });
 
+  it("forces exit when startup never finishes after a signal", async () => {
+    const onShutdownTimeout = vi.fn();
+    const { start, logger, processEvents } = setup({ beforeStart: () => new Promise<void>(() => undefined), shutdownTimeoutMs: 10, onShutdownTimeout });
+
+    void start();
+    processEvents.emit("SIGTERM");
+    await delay(50);
+
+    expect(onShutdownTimeout).toHaveBeenCalledTimes(1);
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "APP_SHUTDOWN_TIMEOUT", reason: "SIGTERM" }));
+  });
+
   it("does not force exit when shutdown completes within its deadline", async () => {
     const onShutdownTimeout = vi.fn();
     const { start, processEvents } = setup({ shutdownTimeoutMs: 1_000, onShutdownTimeout });
@@ -233,6 +263,66 @@ describe("startServer", () => {
     expect(onStop).toHaveBeenCalled();
   });
 
+  it("skips initializers when a signal arrives while `beforeStart` is running", async () => {
+    const initializers: AppInitializer[] = [{ [ON_APP_START]: vi.fn().mockResolvedValue(undefined) }];
+    const { start, processEvents } = setup({ beforeStart: () => delay(50), initializers });
+
+    const starting = start();
+    processEvents.emit("SIGTERM");
+    await starting;
+
+    expect(initializers[0][ON_APP_START]).not.toHaveBeenCalled();
+  });
+
+  it("stops app only after in flight initializers settle when a signal arrives", async () => {
+    const lifecycle: string[] = [];
+    const initializers: AppInitializer[] = [
+      {
+        [ON_APP_START]: vi.fn(async () => {
+          await delay(50);
+          lifecycle.push("started");
+        })
+      }
+    ];
+    const { start, processEvents } = setup({
+      initializers,
+      onStop: async () => {
+        lifecycle.push("stopped");
+      }
+    });
+
+    const starting = start();
+    await delay(10);
+    processEvents.emit("SIGTERM");
+    await starting;
+
+    expect(lifecycle).toEqual(["started", "stopped"]);
+  });
+
+  it("stops app only after in flight initializers settle when another initializer fails", async () => {
+    const lifecycle: string[] = [];
+    const error = new Error("Failed to start initializer");
+    const initializers: AppInitializer[] = [
+      { [ON_APP_START]: vi.fn().mockRejectedValue(error) },
+      {
+        [ON_APP_START]: vi.fn(async () => {
+          await delay(50);
+          lifecycle.push("started");
+        })
+      }
+    ];
+    const { start } = setup({
+      initializers,
+      onStop: async () => {
+        lifecycle.push("stopped");
+      }
+    });
+
+    await expect(start()).rejects.toThrow(error);
+
+    expect(lifecycle).toEqual(["started", "stopped"]);
+  });
+
   let startedServer: ServerType | undefined;
   function setup(input?: {
     beforeStart?: () => Promise<void>;
@@ -244,7 +334,7 @@ describe("startServer", () => {
     onShutdownTimeout?: () => void;
   }) {
     const app = mock<Hono<any>>();
-    const logger = mock<ServerLogger>();
+    const logger = mock<LoggerService>();
     const processEvents = input?.processEvents ?? new EventEmitter();
     const onStop = vi.fn(input?.onStop ?? (async () => undefined));
 

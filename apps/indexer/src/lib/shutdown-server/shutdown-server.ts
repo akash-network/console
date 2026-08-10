@@ -1,11 +1,10 @@
+import type { LoggerService } from "@akashnetwork/logging";
 import type { ServerType } from "@hono/node-server";
-
-import type { ServerLogger } from "../server-logger/server-logger";
 
 /**
  * Shutdown the server and app services
  */
-export async function shutdownServer(server: ServerType, appLogger: ServerLogger, onShutdown?: () => void | Promise<void>): Promise<void> {
+export async function shutdownServer(server: ServerType, appLogger: LoggerService, onShutdown?: () => void | Promise<void>): Promise<void> {
   return new Promise(resolve => {
     const shutdown = (error?: unknown) => {
       if (error) {

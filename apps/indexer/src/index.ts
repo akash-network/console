@@ -4,7 +4,6 @@ import { activeChain, chainDefinitions } from "@akashnetwork/database/chainDefin
 import { LoggerService } from "@akashnetwork/logging";
 import * as Sentry from "@sentry/node";
 import { Hono } from "hono";
-import { setTimeout as sleep } from "node:timers/promises";
 
 import packageJson from "../package.json";
 import { getSyncStatus, syncBlocks } from "./chain/chainSync";
@@ -150,10 +149,7 @@ function startScheduler() {
 async function initApp() {
   if (env.STANDBY) {
     console.log("STANDBY mode enabled. Doing nothing.");
-
-    while (true) {
-      await sleep(5_000);
-    }
+    return;
   }
 
   const activeChainCode = process.env.ACTIVE_CHAIN;

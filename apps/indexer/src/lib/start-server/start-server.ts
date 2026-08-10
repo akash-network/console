@@ -1,10 +1,10 @@
+import type { LoggerService } from "@akashnetwork/logging";
 import type { ServerType } from "@hono/node-server";
 import { serve } from "@hono/node-server";
 import type EventEmitter from "events";
 import type { Hono } from "hono";
 import { once } from "lodash";
 
-import type { ServerLogger } from "../server-logger/server-logger";
 import { shutdownServer } from "../shutdown-server/shutdown-server";
 import type { AppInitializer } from "./app-initializer";
 import { ON_APP_START, ON_APP_STOP } from "./app-initializer";
@@ -25,7 +25,7 @@ const SHUTDOWN_TIMEOUT_EXIT_CODE = 1;
  */
 export async function startServer(
   app: Hono<any>,
-  logger: ServerLogger,
+  logger: LoggerService,
   processEvents: EventEmitter,
   options: {
     port: number;
@@ -41,12 +41,28 @@ export async function startServer(
   const forceExit = options.onShutdownTimeout ?? (() => process.exit(SHUTDOWN_TIMEOUT_EXIT_CODE));
   const stopAppOnce = once(async () => {
     logger.info({ event: "APP_STOPPING" });
-    await runLoggingError(() => options.onStop?.(), logger, "APP_STOP_ERROR");
-    await Promise.all(initializers.map(initializer => runLoggingError(() => initializer[ON_APP_STOP]?.(), logger, "APP_INITIALIZER_STOP_ERROR")));
+
+    try {
+      await options.onStop?.();
+    } catch (error) {
+      logger.error({ event: "APP_STOP_ERROR", error });
+    }
+
+    const stopResults = await Promise.allSettled(
+      initializers.map(async initializer => {
+        await initializer[ON_APP_STOP]?.();
+      })
+    );
+    stopResults.forEach(result => {
+      if (result.status === "rejected") {
+        logger.error({ event: "APP_INITIALIZER_STOP_ERROR", error: result.reason });
+      }
+    });
   });
 
   let server: ServerType | undefined;
   let isShuttingDown = false;
+  let startupPromise = Promise.resolve();
   const shutdown = once(async (reason: string) => {
     isShuttingDown = true;
     logger.info({ event: "APP_SERVER_SHUTDOWN_REQUESTED", reason });
@@ -57,6 +73,8 @@ export async function startServer(
     forceExitTimer.unref();
 
     try {
+      await startupPromise.catch(() => undefined);
+
       if (server) {
         await shutdownServer(server, logger, stopAppOnce);
       } else {
@@ -66,16 +84,30 @@ export async function startServer(
       clearTimeout(forceExitTimer);
     }
   });
+  const startApp = async () => {
+    await options.beforeStart?.();
+
+    if (isShuttingDown) return;
+
+    const results = await Promise.allSettled(
+      initializers.map(async initializer => {
+        await initializer[ON_APP_START]?.();
+      })
+    );
+    const rejectedResult = results.find(result => result.status === "rejected");
+    if (rejectedResult) throw rejectedResult.reason;
+  };
 
   processEvents.on("SIGTERM", () => shutdown("SIGTERM"));
   processEvents.on("SIGINT", () => shutdown("SIGINT"));
 
   try {
-    await options.beforeStart?.();
-    await Promise.all(initializers.map(initializer => initializer[ON_APP_START]()));
+    startupPromise = startApp();
+    await startupPromise;
 
     if (isShuttingDown) {
       logger.info({ event: "SERVER_START_ABORTED" });
+      await shutdown("SERVER_START_ABORTED");
       return undefined;
     }
 
@@ -98,13 +130,5 @@ export async function startServer(
     logger.error({ event: "SERVER_START_ERROR", error });
     await shutdown("SERVER_START_ERROR");
     throw error;
-  }
-}
-
-async function runLoggingError(action: () => void | Promise<void>, logger: ServerLogger, event: string) {
-  try {
-    await action();
-  } catch (error) {
-    logger.error({ event, error });
   }
 }
