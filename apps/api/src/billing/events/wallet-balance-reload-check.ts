@@ -11,11 +11,13 @@ export class WalletBalanceReloadCheck implements Job {
     public readonly data: {
       userId: UserOutput["id"];
       /**
-       * True when scheduled right after deployment activity (scheduleImmediate) rather than by the
-       * periodic sweep. The fixed-threshold handler skips its no-active-deployments guard for these,
-       * since the triggering deployment may not be in the indexer's Deployment table yet.
+       * Set only when the check is scheduled right after a deployment's lease starts. The
+       * fixed-threshold handler skips its no-active-deployments guard for these, since the
+       * just-started deployment may not be in the indexer's Deployment table yet. Every other
+       * scheduler (periodic sweep, settings lazy-create, spend events) leaves it unset so the
+       * guard runs.
        */
-      immediate?: boolean;
+      triggeredByDeployment?: boolean;
     }
   ) {}
 }

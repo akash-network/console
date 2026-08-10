@@ -15,14 +15,14 @@ export class WalletReloadJobService {
     this.logger.setContext(WalletReloadJobService.name);
   }
 
-  async scheduleImmediate(input: WalletReloadImmediateInput): Promise<boolean> {
+  async scheduleImmediate(input: WalletReloadImmediateInput, options?: { triggeredByDeployment?: boolean }): Promise<boolean> {
     const walletSetting =
       "userId" in input
         ? await this.walletSettingRepository.findByUserId(input.userId)
         : await this.walletSettingRepository.findOneBy({ walletId: input.walletId });
 
     if (walletSetting?.autoReloadEnabled) {
-      await this.scheduleForWalletSetting(walletSetting, { withCleanup: true, immediate: true });
+      await this.scheduleForWalletSetting(walletSetting, { withCleanup: true, triggeredByDeployment: options?.triggeredByDeployment });
       return true;
     }
 
@@ -31,7 +31,7 @@ export class WalletReloadJobService {
 
   async scheduleForWalletSetting(
     walletSetting: Pick<WalletSettingOutput, "id" | "userId">,
-    options?: Pick<EnqueueOptions, "startAfter"> & { withCleanup?: boolean; immediate?: boolean }
+    options?: Pick<EnqueueOptions, "startAfter"> & { withCleanup?: boolean; triggeredByDeployment?: boolean }
   ): Promise<string> {
     if (options?.withCleanup) {
       await this.cancelCreatedByUserId(walletSetting.userId);
@@ -40,7 +40,7 @@ export class WalletReloadJobService {
     const createdJobId = await this.jobQueueService.enqueue(
       new WalletBalanceReloadCheck({
         userId: walletSetting.userId,
-        ...(options?.immediate && { immediate: true })
+        ...(options?.triggeredByDeployment && { triggeredByDeployment: true })
       }),
       {
         singletonKey: `${WalletBalanceReloadCheck.name}.${walletSetting.userId}`,

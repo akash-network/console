@@ -35,7 +35,7 @@ type Resources = {
   user: PayingUser;
 };
 type AllResources = Resources & { balance: GetBalancesResponseOutput["data"]["total"]; paymentMethod: PaymentMethod };
-type ReloadContext = AllResources & { job: JobMeta; immediate: boolean };
+type ReloadContext = AllResources & { job: JobMeta; triggeredByDeployment: boolean };
 
 const millisecondsInDay = 24 * millisecondsInHour;
 
@@ -75,7 +75,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
       const resourcesResult = await this.#collectResources(payload);
 
       if (resourcesResult.ok) {
-        await this.#tryToReload({ ...resourcesResult.val, job, immediate: payload.immediate ?? false });
+        await this.#tryToReload({ ...resourcesResult.val, job, triggeredByDeployment: payload.triggeredByDeployment ?? false });
         await this.#scheduleNextCheck(resourcesResult.val);
         success = true;
       } else {
@@ -199,7 +199,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
       return;
     }
 
-    if (!resources.immediate) {
+    if (!resources.triggeredByDeployment) {
       const activeDeploymentCount = await this.deploymentRepository.countActiveByOwner(resources.wallet.address);
       if (activeDeploymentCount === 0) {
         this.instrumentationService.recordReloadSkipped({ reason: "no_active_deployments", coverageRatio, logContext: log });
