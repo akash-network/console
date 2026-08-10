@@ -1,11 +1,10 @@
 "use client";
 
-import { type FC, useCallback, useEffect, useMemo, useState } from "react";
+import { type FC, useCallback, useEffect, useMemo, useRef } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { LoadingButton } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { merge } from "lodash";
-import isEqual from "lodash/isEqual";
 import { z } from "zod";
 
 import type {
@@ -64,6 +63,7 @@ const DEFAULT_VALUES = {
 
 export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
   isLoading,
+  isSaving,
   data,
   upsert,
   maxBalanceThreshold,
@@ -73,10 +73,14 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const isDeploymentClosedEnabled = d.useFlag("ui_deployment_closed_alert");
+  const isThresholdDirty = useRef(false);
   const strictSchema = useMemo(() => {
     return schema.extend({
-      deploymentBalance: z.object({
-        threshold: z.number().max(maxBalanceThreshold, "Threshold must be less than or equal to the current balance").min(0, "Threshold must be greater than 0")
+      deploymentBalance: schema.shape.deploymentBalance.extend({
+        threshold: schema.shape.deploymentBalance.shape.threshold.refine(
+          value => !isThresholdDirty.current || value <= maxBalanceThreshold,
+          "Threshold must be less than or equal to the current balance"
+        )
       })
     });
   }, [maxBalanceThreshold]);
@@ -111,29 +115,25 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
     resolver: zodResolver(strictSchema)
   });
 
-  const [hasChanges, setHasChanges] = useState(false);
-  const values = form.watch();
+  const { isDirty, dirtyFields } = form.formState;
 
   useEffect(() => {
-    if (!onStateChange) {
-      return;
-    }
-    const hasChangesNext = !isEqual(providedValues, values);
-    if (hasChanges !== hasChangesNext) {
-      setHasChanges(hasChangesNext);
-      onStateChange({ hasChanges: hasChangesNext });
-    }
-  }, [providedValues, onStateChange, values, hasChanges]);
+    isThresholdDirty.current = !!dirtyFields.deploymentBalance?.threshold;
+  }, [dirtyFields.deploymentBalance?.threshold]);
+
+  useEffect(() => {
+    onStateChange?.({ hasChanges: !disabled && isDirty });
+  }, [isDirty, disabled, onStateChange]);
 
   const submit = useCallback(async () => {
-    const { deploymentBalance, deploymentClosed } = values;
+    const { deploymentBalance, deploymentClosed } = form.getValues();
     const payload: Partial<FullAlertsInput> = {};
 
-    if (!isEqual(providedValues.deploymentBalance, deploymentBalance)) {
+    if (dirtyFields.deploymentBalance) {
       payload.deploymentBalance = deploymentBalance;
     }
 
-    if (!isEqual(providedValues.deploymentClosed, deploymentClosed)) {
+    if (dirtyFields.deploymentClosed) {
       payload.deploymentClosed = deploymentClosed;
     }
 
@@ -141,7 +141,7 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
     if (nextValues) {
       form.reset(assignDefaults(nextValues.alerts));
     }
-  }, [values, providedValues.deploymentBalance, providedValues.deploymentClosed, upsert, form, assignDefaults]);
+  }, [dirtyFields.deploymentBalance, dirtyFields.deploymentClosed, form, upsert, assignDefaults]);
 
   return (
     <FormProvider {...form}>
@@ -149,7 +149,7 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
         <div className="my-6 flex items-center text-xl font-semibold">
           <h3 className="mr-6">Configure Alerts</h3>
           {!disabled && (
-            <LoadingButton type="submit" loading={isLoading} disabled={!hasChanges} size="sm">
+            <LoadingButton type="submit" loading={isSaving} disabled={!isDirty || isSaving} size="sm">
               Save Changes
             </LoadingButton>
           )}
