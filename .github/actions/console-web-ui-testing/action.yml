@@ -34,7 +34,7 @@ inputs:
     description: Bearer token for the e2e inbox worker HTTP endpoint
     required: true
   e2e-inbox-email-domain:
-    description: Email domain routed to the e2e inbox worker (e.g. e2e.akash.network)
+    description: Email domain routed to the e2e inbox worker (dedicated domain, e.g. e2e.example.com)
     required: true
   test-user-email:
     description: Pre-registered test user email for authenticated tests

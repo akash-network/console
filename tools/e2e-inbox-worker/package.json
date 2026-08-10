@@ -2,7 +2,7 @@
   "name": "e2e-inbox-worker",
   "version": "0.0.0",
   "private": true,
-  "description": "Cloudflare Email Worker that captures e2e OTP emails (e2e.akash.network) into D1 and serves them over a token-protected HTTP endpoint",
+  "description": "Cloudflare Email Worker that captures e2e OTP emails into D1 and serves them over a token-protected HTTP endpoint",
   "scripts": {
     "db:apply": "wrangler d1 execute console-e2e-inbox --remote --file=./schema.sql",
     "db:apply:local": "wrangler d1 execute console-e2e-inbox --local --file=./schema.sql",

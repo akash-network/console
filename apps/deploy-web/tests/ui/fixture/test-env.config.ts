@@ -19,7 +19,7 @@ export const testEnvSchema = z.object({
   AUTH0_M2M_CLIENT_SECRET: z.string({ required_error: "Auth0 M2M client secret for management API" }).trim().min(1),
   E2E_INBOX_API_URL: inboxApiUrlSchema,
   E2E_INBOX_API_TOKEN: z.string({ required_error: "Bearer token for the e2e inbox worker HTTP endpoint" }).trim().min(1),
-  E2E_INBOX_EMAIL_DOMAIN: z.string({ required_error: "Email domain routed to the e2e inbox worker (e.g. 'e2e.akash.network')" }).trim().min(1),
+  E2E_INBOX_EMAIL_DOMAIN: z.string({ required_error: "Email domain routed to the e2e inbox worker (dedicated domain, e.g. 'e2e.example.com')" }).trim().min(1),
   TEST_USER_EMAIL: z.string().optional(),
   TEST_USER_PASSWORD: z.string().optional()
 });

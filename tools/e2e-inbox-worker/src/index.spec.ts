@@ -13,11 +13,11 @@ describe("console-e2e-inbox worker", () => {
       const { deliverEmail, getMessages } = await setup();
 
       await deliverEmail({
-        to: "probe@e2e.akash.network",
-        mime: plainTextEmail("probe@e2e.akash.network", "Your verification code", "Your verification code is: 123456")
+        to: "probe@example.com",
+        mime: plainTextEmail("probe@example.com", "Your verification code", "Your verification code is: 123456")
       });
 
-      const response = await getMessages("probe@e2e.akash.network");
+      const response = await getMessages("probe@example.com");
       const messages = await response.json<Array<{ subject: string; text: string; receivedMs: number }>>();
       expect(response.status).toBe(200);
       expect(messages).toHaveLength(1);
@@ -30,11 +30,11 @@ describe("console-e2e-inbox worker", () => {
       const { deliverEmail, getMessages } = await setup();
 
       await deliverEmail({
-        to: "htmlonly@e2e.akash.network",
-        mime: htmlEmail("htmlonly@e2e.akash.network", "<style>p{color:red}</style><p>Your verification code is:</p><h1>654321</h1>")
+        to: "htmlonly@example.com",
+        mime: htmlEmail("htmlonly@example.com", "<style>p{color:red}</style><p>Your verification code is:</p><h1>654321</h1>")
       });
 
-      const messages = await (await getMessages("htmlonly@e2e.akash.network")).json<Array<{ text: string }>>();
+      const messages = await (await getMessages("htmlonly@example.com")).json<Array<{ text: string }>>();
       expect(messages[0].text).toBe("Your verification code is: 654321");
     });
 
@@ -42,11 +42,11 @@ describe("console-e2e-inbox worker", () => {
       const { deliverEmail, getMessages } = await setup();
 
       await deliverEmail({
-        to: "emptytext@e2e.akash.network",
-        mime: multipartAlternativeEmail("emptytext@e2e.akash.network", "", "<p>Your verification code is:</p><h1>654321</h1>")
+        to: "emptytext@example.com",
+        mime: multipartAlternativeEmail("emptytext@example.com", "", "<p>Your verification code is:</p><h1>654321</h1>")
       });
 
-      const messages = await (await getMessages("emptytext@e2e.akash.network")).json<Array<{ text: string }>>();
+      const messages = await (await getMessages("emptytext@example.com")).json<Array<{ text: string }>>();
       expect(messages[0].text).toBe("Your verification code is: 654321");
     });
 
@@ -54,52 +54,52 @@ describe("console-e2e-inbox worker", () => {
       const { deliverEmail, getMessages } = await setup();
 
       await deliverEmail({
-        to: "Mixed.Case@E2E.akash.network",
-        mime: plainTextEmail("Mixed.Case@E2E.akash.network", "Hi", "code 111111")
+        to: "Mixed.Case@Example.com",
+        mime: plainTextEmail("Mixed.Case@Example.com", "Hi", "code 111111")
       });
 
-      const messages = await (await getMessages("mixed.case@e2e.akash.network")).json<Array<{ text: string }>>();
+      const messages = await (await getMessages("mixed.case@example.com")).json<Array<{ text: string }>>();
       expect(messages).toHaveLength(1);
     });
 
     it("purges messages older than 24h when a new email arrives", async () => {
       const { deliverEmail, getMessages, insertMessageRow } = await setup();
-      await insertMessageRow({ recipient: "old@e2e.akash.network", receivedMs: Date.now() - 25 * HOUR_MS });
-      await insertMessageRow({ recipient: "recent@e2e.akash.network", receivedMs: Date.now() - HOUR_MS });
+      await insertMessageRow({ recipient: "old@example.com", receivedMs: Date.now() - 25 * HOUR_MS });
+      await insertMessageRow({ recipient: "recent@example.com", receivedMs: Date.now() - HOUR_MS });
 
       await deliverEmail({
-        to: "fresh@e2e.akash.network",
-        mime: plainTextEmail("fresh@e2e.akash.network", "Hi", "code 222222")
+        to: "fresh@example.com",
+        mime: plainTextEmail("fresh@example.com", "Hi", "code 222222")
       });
 
-      expect(await (await getMessages("old@e2e.akash.network")).json()).toEqual([]);
-      expect(await (await getMessages("recent@e2e.akash.network")).json<unknown[]>()).toHaveLength(1);
-      expect(await (await getMessages("fresh@e2e.akash.network")).json<unknown[]>()).toHaveLength(1);
+      expect(await (await getMessages("old@example.com")).json()).toEqual([]);
+      expect(await (await getMessages("recent@example.com")).json<unknown[]>()).toHaveLength(1);
+      expect(await (await getMessages("fresh@example.com")).json<unknown[]>()).toHaveLength(1);
     });
   });
 
   describe("fetch handler", () => {
     it("returns messages newest-first", async () => {
       const { getMessages, insertMessageRow } = await setup();
-      await insertMessageRow({ recipient: "ordered@e2e.akash.network", subject: "older", receivedMs: Date.now() - 2 * HOUR_MS });
-      await insertMessageRow({ recipient: "ordered@e2e.akash.network", subject: "newer", receivedMs: Date.now() - HOUR_MS });
+      await insertMessageRow({ recipient: "ordered@example.com", subject: "older", receivedMs: Date.now() - 2 * HOUR_MS });
+      await insertMessageRow({ recipient: "ordered@example.com", subject: "newer", receivedMs: Date.now() - HOUR_MS });
 
-      const messages = await (await getMessages("ordered@e2e.akash.network")).json<Array<{ subject: string; receivedMs: number }>>();
+      const messages = await (await getMessages("ordered@example.com")).json<Array<{ subject: string; receivedMs: number }>>();
 
       expect(messages.map(message => message.subject)).toEqual(["newer", "older"]);
     });
 
     it("excludes messages older than 24h from reads even without a new email", async () => {
       const { getMessages, insertMessageRow } = await setup();
-      await insertMessageRow({ recipient: "readcutoff-stale@e2e.akash.network", receivedMs: Date.now() - 25 * HOUR_MS });
+      await insertMessageRow({ recipient: "readcutoff-stale@example.com", receivedMs: Date.now() - 25 * HOUR_MS });
 
-      expect(await (await getMessages("readcutoff-stale@e2e.akash.network")).json()).toEqual([]);
+      expect(await (await getMessages("readcutoff-stale@example.com")).json()).toEqual([]);
     });
 
     it("returns an empty list for an inbox that never received mail", async () => {
       const { getMessages } = await setup();
 
-      const response = await getMessages("empty@e2e.akash.network");
+      const response = await getMessages("empty@example.com");
 
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual([]);
@@ -108,7 +108,7 @@ describe("console-e2e-inbox worker", () => {
     it("rejects requests without a token", async () => {
       const { request } = await setup();
 
-      const response = await request("/messages/probe@e2e.akash.network", {});
+      const response = await request("/messages/probe@example.com", {});
 
       expect(response.status).toBe(401);
     });
@@ -116,7 +116,7 @@ describe("console-e2e-inbox worker", () => {
     it("rejects requests with a wrong token", async () => {
       const { request } = await setup();
 
-      const response = await request("/messages/probe@e2e.akash.network", { headers: { Authorization: "Bearer wrong" } });
+      const response = await request("/messages/probe@example.com", { headers: { Authorization: "Bearer wrong" } });
 
       expect(response.status).toBe(401);
     });
@@ -132,7 +132,7 @@ describe("console-e2e-inbox worker", () => {
     it("returns 404 for non-GET methods on the messages path", async () => {
       const { request } = await setup();
 
-      const response = await request("/messages/probe@e2e.akash.network", { method: "POST", headers: { Authorization: "Bearer test-token" } });
+      const response = await request("/messages/probe@example.com", { method: "POST", headers: { Authorization: "Bearer test-token" } });
 
       expect(response.status).toBe(404);
     });
@@ -141,13 +141,13 @@ describe("console-e2e-inbox worker", () => {
   describe("scheduled handler", () => {
     it("deletes messages older than 24h and keeps fresh ones", async () => {
       const { runScheduled, insertMessageRow, countRows } = await setup();
-      await insertMessageRow({ recipient: "cron-stale@e2e.akash.network", receivedMs: Date.now() - 25 * HOUR_MS });
-      await insertMessageRow({ recipient: "cron-fresh@e2e.akash.network", receivedMs: Date.now() - HOUR_MS });
+      await insertMessageRow({ recipient: "cron-stale@example.com", receivedMs: Date.now() - 25 * HOUR_MS });
+      await insertMessageRow({ recipient: "cron-fresh@example.com", receivedMs: Date.now() - HOUR_MS });
 
       await runScheduled();
 
-      expect(await countRows("cron-stale@e2e.akash.network")).toBe(0);
-      expect(await countRows("cron-fresh@e2e.akash.network")).toBe(1);
+      expect(await countRows("cron-stale@example.com")).toBe(0);
+      expect(await countRows("cron-fresh@example.com")).toBe(1);
     });
   });
 
