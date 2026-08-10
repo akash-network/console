@@ -59,6 +59,8 @@ describe(WalletReloadJobService.name, () => {
           singletonKey: `${WalletBalanceReloadCheck.name}.${walletSetting.userId}`
         })
       );
+      const [immediateJob] = jobQueueService.enqueue.mock.calls[0];
+      expect((immediateJob as WalletBalanceReloadCheck).data).toMatchObject({ userId: walletSetting.userId, immediate: true });
     });
 
     it("looks up the wallet setting by walletId when given a walletId", async () => {
@@ -116,6 +118,8 @@ describe(WalletReloadJobService.name, () => {
           singletonKey: `${WalletBalanceReloadCheck.name}.${walletSetting.userId}`
         })
       );
+      const [scheduledJob] = jobQueueService.enqueue.mock.calls[0];
+      expect((scheduledJob as WalletBalanceReloadCheck).data.immediate).toBeUndefined();
       expect(result).toBe(jobId);
     });
 

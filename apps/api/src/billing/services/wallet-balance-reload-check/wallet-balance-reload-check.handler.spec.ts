@@ -432,6 +432,22 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       );
     });
 
+    it("charges on an immediate post-deploy check without consulting the active-deployment count", async () => {
+      const { handler, stripeTransactionService, deploymentRepository, job, jobMeta } = setup({
+        fixedThresholdEnabled: true,
+        balance: 0,
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100,
+        activeDeploymentCount: 0,
+        immediate: true
+      });
+
+      await handler.handle(job, jobMeta);
+
+      expect(deploymentRepository.countActiveByOwner).not.toHaveBeenCalled();
+      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ amount: 100 }));
+    });
+
     it("charges when at or below the threshold and there is at least one active deployment", async () => {
       const { handler, stripeTransactionService, deploymentRepository, wallet, job, jobMeta } = setup({
         fixedThresholdEnabled: true,
@@ -490,6 +506,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     autoReloadAmountUsd?: number;
     fixedThresholdEnabled?: boolean;
     activeDeploymentCount?: number;
+    immediate?: boolean;
     user?: ReturnType<typeof createUser>;
     wallet?: ReturnType<typeof createUserWallet>;
   }) {
@@ -519,7 +536,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     };
     const job: JobPayload<WalletBalanceReloadCheck> = {
       userId: user.id,
-      version: 1
+      version: 1,
+      ...(input?.immediate && { immediate: true })
     };
     const jobMeta: JobMeta = {
       id: faker.string.uuid()

@@ -10,6 +10,12 @@ export class WalletBalanceReloadCheck implements Job {
   constructor(
     public readonly data: {
       userId: UserOutput["id"];
+      /**
+       * True when scheduled right after deployment activity (scheduleImmediate) rather than by the
+       * periodic sweep. The fixed-threshold handler skips its no-active-deployments guard for these,
+       * since the triggering deployment may not be in the indexer's Deployment table yet.
+       */
+      immediate?: boolean;
     }
   ) {}
 }

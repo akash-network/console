@@ -22,7 +22,7 @@ export class WalletReloadJobService {
         : await this.walletSettingRepository.findOneBy({ walletId: input.walletId });
 
     if (walletSetting?.autoReloadEnabled) {
-      await this.scheduleForWalletSetting(walletSetting, { withCleanup: true });
+      await this.scheduleForWalletSetting(walletSetting, { withCleanup: true, immediate: true });
       return true;
     }
 
@@ -31,7 +31,7 @@ export class WalletReloadJobService {
 
   async scheduleForWalletSetting(
     walletSetting: Pick<WalletSettingOutput, "id" | "userId">,
-    options?: Pick<EnqueueOptions, "startAfter"> & { withCleanup?: boolean }
+    options?: Pick<EnqueueOptions, "startAfter"> & { withCleanup?: boolean; immediate?: boolean }
   ): Promise<string> {
     if (options?.withCleanup) {
       await this.cancelCreatedByUserId(walletSetting.userId);
@@ -39,7 +39,8 @@ export class WalletReloadJobService {
 
     const createdJobId = await this.jobQueueService.enqueue(
       new WalletBalanceReloadCheck({
-        userId: walletSetting.userId
+        userId: walletSetting.userId,
+        ...(options?.immediate && { immediate: true })
       }),
       {
         singletonKey: `${WalletBalanceReloadCheck.name}.${walletSetting.userId}`,
