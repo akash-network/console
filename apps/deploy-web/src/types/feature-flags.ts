@@ -9,6 +9,5 @@ export type FeatureFlag =
   | "auto_reload_fixed_threshold"
   | "ui_sdl_preview_panel"
   | "ui_build_and_deploy"
-  | "ui_gpu_interconnect"
   | "ui_agent_mode_deploy"
   | "hackathons";
