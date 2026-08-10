@@ -28,7 +28,7 @@ inputs:
     description: Auth0 M2M client secret
     required: true
   e2e-inbox-api-url:
-    description: Base URL of the e2e inbox worker that captures OTP emails (see tools/e2e-inbox-worker)
+    description: Base URL of the e2e inbox worker that captures OTP emails (see https://github.com/akash-network/e2e-inbox-worker)
     required: true
   e2e-inbox-api-token:
     description: Bearer token for the e2e inbox worker HTTP endpoint

@@ -9,7 +9,7 @@ const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
  * non-empty string, which turns a mistyped/insecure value into a clear config error up front.
  */
 export const inboxApiUrlSchema = z
-  .string({ required_error: "Base URL of the e2e inbox worker that captures OTP emails (see tools/e2e-inbox-worker)" })
+  .string({ required_error: "Base URL of the e2e inbox worker that captures OTP emails (see https://github.com/akash-network/e2e-inbox-worker)" })
   .trim()
   .min(1)
   .transform(url => url.replace(/\/+$/, ""))

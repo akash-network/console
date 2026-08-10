@@ -11,7 +11,7 @@ interface WorkerInboxMessage {
 const REQUEST_TIMEOUT_MS = 10_000;
 
 /**
- * Inbox backed by the self-hosted Cloudflare Email Worker (tools/e2e-inbox-worker): a catch-all
+ * Inbox backed by the self-hosted Cloudflare Email Worker (https://github.com/akash-network/e2e-inbox-worker): a catch-all
  * rule on the e2e email domain stores incoming mail in D1, and this client reads it back through
  * the worker's token-protected HTTP endpoint. The endpoint returns message bodies inline, so
  * `fetchMessageBody` serves from the payload cached by the last `fetchMessages` call.
