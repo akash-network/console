@@ -1,5 +1,6 @@
 import type { Redirect } from "next";
 
+import { isAccessTokenExpired } from "@src/lib/auth0/isAccessTokenExpired/isAccessTokenExpired";
 import type { AppTypedContext } from "../defineServerSideProps/defineServerSideProps";
 
 export async function isFeatureEnabled(featureName: string, context: AppTypedContext): Promise<boolean> {
@@ -11,10 +12,7 @@ export async function isAuthenticated(context: AppTypedContext): Promise<boolean
   const session = await context.getCurrentSession();
   if (!session?.user) return false;
 
-  const accessTokenExpiry = new Date((session.accessTokenExpiresAt || 0) * 1_000);
-  if (accessTokenExpiry <= new Date()) return false;
-
-  return true;
+  return !isAccessTokenExpired(session);
 }
 
 export async function requireAuth(context: AppTypedContext): Promise<{ redirect: Redirect } | undefined> {
@@ -29,9 +27,8 @@ export async function requireAuth(context: AppTypedContext): Promise<{ redirect:
 
 export async function redirectIfAccessTokenExpired(context: AppTypedContext): Promise<{ redirect: Redirect } | true> {
   const session = await context.getCurrentSession();
-  const accessTokenExpiry = new Date((session?.accessTokenExpiresAt || 0) * 1_000);
 
-  if (accessTokenExpiry <= new Date()) {
+  if (isAccessTokenExpired(session)) {
     context.services.logger.warn({
       event: "AUTH0_ACCESS_TOKEN_EXPIRED",
       url: context.req.url,

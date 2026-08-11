@@ -4,6 +4,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 import type { Session } from "@src/lib/auth0";
 import { clearSessionCookies } from "@src/lib/auth0/clearSessionCookies/clearSessionCookies";
+import { isAccessTokenExpired } from "@src/lib/auth0/isAccessTokenExpired/isAccessTokenExpired";
 import type { setSession } from "@src/lib/auth0/setSession/setSession";
 import type { RefreshedTokens, SessionService } from "@src/services/session/session.service";
 
@@ -75,11 +76,6 @@ export function createGetSessionWithRefresh(deps: GetSessionWithRefreshDependenc
 
     return session;
   };
-}
-
-/** Mirrors the expiry predicate of `pageGuards.isAuthenticated` and the auth0 profile handler. */
-function isAccessTokenExpired(session: Session): boolean {
-  return (session.accessTokenExpiresAt || 0) * 1_000 <= Date.now();
 }
 
 /**
