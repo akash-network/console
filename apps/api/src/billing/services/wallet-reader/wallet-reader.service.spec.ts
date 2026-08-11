@@ -21,6 +21,16 @@ describe(WalletReaderService.name, () => {
       expect(result[0].address).toBe(activatedWallet.address);
     });
 
+    it("excludes activated wallets with an empty-string address", async () => {
+      const userId = "test-user-id";
+      const emptyAddressWallet = createUserWallet({ userId, activatedAt: new Date(), address: "" });
+      const { service } = setup({ wallets: [emptyAddressWallet] });
+
+      const result = await service.getWallets({ userId });
+
+      expect(result).toEqual([]);
+    });
+
     it("returns an empty list when the user only has a non-activated wallet", async () => {
       const userId = "test-user-id";
       const nonActivatedWallet = createUserWallet({ userId, activatedAt: null });

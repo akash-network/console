@@ -9,14 +9,14 @@ const AUTO_RELOAD_THRESHOLD_MAX_USD = 10_000;
 const AUTO_RELOAD_AMOUNT_MAX_USD = 10_000;
 
 const WalletOutputSchema = z.object({
-  id: z.number().nullable().openapi({}),
-  userId: z.string().nullable().openapi({}),
+  id: z.number().openapi({}),
+  userId: z.string().openapi({}),
   creditAmount: z.number().openapi({}),
-  address: z.string().nullable().openapi({}),
+  address: z.string().openapi({}),
   denom: z.string().openapi({}),
   isTrialing: z.boolean(),
   topUpMinAmountUsd: z.number().openapi({ description: "Minimum USD amount accepted by the next paid top-up for this wallet." }),
-  createdAt: z.coerce.date().nullable().openapi({})
+  createdAt: z.date().openapi({})
 });
 
 export const WalletListResponseOutputSchema = z.object({

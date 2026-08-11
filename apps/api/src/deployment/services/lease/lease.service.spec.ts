@@ -2,8 +2,9 @@ import type { LeaseHttpService } from "@akashnetwork/http-sdk";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { WalletInitialized } from "@src/billing/repositories";
 import type { ManagedSignerService, RpcMessageService } from "@src/billing/services";
-import type { WalletInitialized, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
+import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";

@@ -11,10 +11,7 @@ export const useManagedWallet = () => {
   const wallet = queried as ApiManagedWalletOutput | undefined;
 
   useEffect(() => {
-    if (!wallet?.address) {
-      return;
-    }
-
+    if (!wallet) return;
     updateStorageManagedWallet(wallet);
   }, [wallet]);
 

@@ -32,15 +32,15 @@ export interface paths {
           content: {
             "application/json": {
               data: {
-                id: number | null;
-                userId: string | null;
+                id: number;
+                userId: string;
                 creditAmount: number;
-                address: string | null;
+                address: string;
                 denom: string;
                 isTrialing: boolean;
                 /** @description Minimum USD amount accepted by the next paid top-up for this wallet. */
                 topUpMinAmountUsd: number;
-                createdAt: string | null;
+                createdAt: string;
               }[];
             };
           };
@@ -622,7 +622,10 @@ export interface paths {
                 youtubeUsername?: string | null;
                 twitterUsername?: string | null;
                 githubUsername?: string | null;
+                /** Format: date-time */
+                onboardingSkippedAt?: string | null;
               };
+              isNewUser: boolean;
             };
           };
         };
@@ -670,6 +673,8 @@ export interface paths {
                 youtubeUsername?: string | null;
                 twitterUsername?: string | null;
                 githubUsername?: string | null;
+                /** Format: date-time */
+                onboardingSkippedAt?: string | null;
               };
             };
           };
@@ -852,6 +857,47 @@ export interface paths {
       responses: {
         /** @description Subscribed successfully */
         200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/user/skipOnboarding": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Skip onboarding */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Onboarding skipped */
+        204: {
           headers: {
             [name: string]: unknown;
           };
@@ -7521,6 +7567,8 @@ export interface operations {
             paymentMethodId: string;
             amount: number;
             awaitResolved?: boolean;
+            /** Format: uuid */
+            idempotencyKey?: string;
           };
         };
       };

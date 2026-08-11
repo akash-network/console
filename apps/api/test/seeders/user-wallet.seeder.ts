@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 
-import type { UserWalletOutput } from "@src/billing/repositories";
+import type { UserWalletOutput, WalletInitialized } from "@src/billing/repositories";
 import { createAkashAddress } from "./akash-address.seeder";
 
 export function createUserWallet({
@@ -26,4 +26,11 @@ export function createUserWallet({
     updatedAt,
     activatedAt
   };
+}
+
+export function createInitializedUserWallet({
+  address = createAkashAddress(),
+  ...input
+}: Partial<UserWalletOutput> & { address?: string } = {}): WalletInitialized {
+  return { ...createUserWallet(input), address };
 }

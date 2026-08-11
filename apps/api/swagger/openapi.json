@@ -51,19 +51,16 @@
                         "type": "object",
                         "properties": {
                           "id": {
-                            "type": "number",
-                            "nullable": true
+                            "type": "number"
                           },
                           "userId": {
-                            "type": "string",
-                            "nullable": true
+                            "type": "string"
                           },
                           "creditAmount": {
                             "type": "number"
                           },
                           "address": {
-                            "type": "string",
-                            "nullable": true
+                            "type": "string"
                           },
                           "denom": {
                             "type": "string"
@@ -76,8 +73,7 @@
                             "description": "Minimum USD amount accepted by the next paid top-up for this wallet."
                           },
                           "createdAt": {
-                            "type": "string",
-                            "nullable": true
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -1331,6 +1327,10 @@
                       },
                       "awaitResolved": {
                         "type": "boolean"
+                      },
+                      "idempotencyKey": {
+                        "type": "string",
+                        "format": "uuid"
                       }
                     },
                     "required": [
@@ -1715,7 +1715,6 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "default": "2026-07-20",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -1841,7 +1840,6 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "default": "2026-07-20",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31"
             },
@@ -1978,6 +1976,11 @@
                         "githubUsername": {
                           "type": "string",
                           "nullable": true
+                        },
+                        "onboardingSkippedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
                         }
                       },
                       "required": [
@@ -2066,6 +2069,11 @@
                         "githubUsername": {
                           "type": "string",
                           "nullable": true
+                        },
+                        "onboardingSkippedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
                         }
                       },
                       "required": [
@@ -2259,6 +2267,30 @@
         "responses": {
           "200": {
             "description": "Subscribed successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/v1/user/skipOnboarding": {
+      "post": {
+        "summary": "Skip onboarding",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Onboarding skipped"
           },
           "401": {
             "description": "Unauthorized"
