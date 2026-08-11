@@ -5,7 +5,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import type { Session } from "@src/lib/auth0";
 import { clearSessionCookies } from "@src/lib/auth0/clearSessionCookies/clearSessionCookies";
 import type { setSession } from "@src/lib/auth0/setSession/setSession";
-import type { SessionService } from "@src/services/session/session.service";
+import type { RefreshedTokens, SessionService } from "@src/services/session/session.service";
 
 export type SessionRequest = (IncomingMessage & { cookies: NextApiRequest["cookies"] }) | NextApiRequest;
 export type SessionResponse = ServerResponse | NextApiResponse;
@@ -52,10 +52,10 @@ export function createGetSessionWithRefresh(deps: GetSessionWithRefreshDependenc
     if (!result.ok) {
       deps.logger.warn({ event: "ACCESS_TOKEN_REFRESH_FAILED", code: result.val.code, error: result.val });
       clearSessionCookies(req as NextApiRequest, res as NextApiResponse);
-      return session;
+      return null;
     }
 
-    Object.assign(session, result.val);
+    mergeRefreshedTokens(session, result.val);
     try {
       await deps.setSession(req as NextApiRequest, res as NextApiResponse, session);
     } catch (error) {
@@ -70,4 +70,13 @@ export function createGetSessionWithRefresh(deps: GetSessionWithRefreshDependenc
 /** Mirrors the expiry predicate of `pageGuards.isAuthenticated` and the auth0 profile handler. */
 function isAccessTokenExpired(session: Session): boolean {
   return (session.accessTokenExpiresAt || 0) * 1_000 <= Date.now();
+}
+
+/**
+ * Auth0 omits `id_token` (and sometimes `scope`) from a refresh-token exchange when the grant lacks
+ * the `openid` scope, so `RefreshedTokens` can carry `undefined` there. Merging those over the
+ * session would wipe still-valid values, so only defined fields are copied.
+ */
+function mergeRefreshedTokens(session: Session, tokens: RefreshedTokens): void {
+  Object.assign(session, Object.fromEntries(Object.entries(tokens).filter(([, value]) => value !== undefined)));
 }

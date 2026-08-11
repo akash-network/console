@@ -19,7 +19,7 @@ interface Props {
  */
 export function SessionExpirySync({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const { checkSession } = d.useUser();
-  const { sessionExpiryNotifier } = useServices();
+  const { sessionExpiryNotifier, logger } = useServices();
   const isReCheckingRef = useRef(false);
 
   useEffect(
@@ -29,12 +29,14 @@ export function SessionExpirySync({ dependencies: d = DEPENDENCIES }: Props = {}
         isReCheckingRef.current = true;
         try {
           await checkSession();
+        } catch (error) {
+          logger.error({ event: "SESSION_RECHECK_FAILED", error });
         } finally {
           isReCheckingRef.current = false;
         }
       });
     },
-    [sessionExpiryNotifier, checkSession]
+    [sessionExpiryNotifier, checkSession, logger]
   );
 
   return null;

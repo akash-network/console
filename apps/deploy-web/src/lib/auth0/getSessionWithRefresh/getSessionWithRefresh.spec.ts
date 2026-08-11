@@ -67,17 +67,30 @@ describe(createGetSessionWithRefresh.name, () => {
     expect(sessionService.refreshAccessToken).toHaveBeenCalledWith("refresh-token");
   });
 
-  it("clears the session cookies and returns the expired session when the refresh fails", async () => {
+  it("clears the session cookies and returns null when the refresh fails", async () => {
     const session = createSession({ accessTokenExpiresAt: NOW_SECONDS - 60 });
     const { getSessionWithRefresh, sessionService, setSession, req, res } = setup({ session });
     sessionService.refreshAccessToken.mockResolvedValue(Err({ code: "invalid_grant", message: "revoked", cause: {} }));
 
     const result = await getSessionWithRefresh(req, res);
 
-    expect(result).toBe(session);
-    expect(result?.accessToken).toBe("expired-access-token");
+    expect(result).toBeNull();
     expect(setSession).not.toHaveBeenCalled();
     expect(res.setHeader).toHaveBeenCalledWith("Set-Cookie", expect.arrayContaining([expect.stringContaining("appSession=;")]));
+  });
+
+  it("keeps the existing idToken and scope when the refresh response omits them", async () => {
+    const session = createSession({ accessTokenExpiresAt: NOW_SECONDS - 60 });
+    session.idToken = "existing-id-token";
+    session.accessTokenScope = "openid profile email offline_access";
+    const { getSessionWithRefresh, sessionService, req, res } = setup({ session });
+    sessionService.refreshAccessToken.mockResolvedValue(Ok({ ...createRefreshedTokens(), idToken: undefined, accessTokenScope: undefined }));
+
+    const result = await getSessionWithRefresh(req, res);
+
+    expect(result?.accessToken).toBe("new-access-token");
+    expect(result?.idToken).toBe("existing-id-token");
+    expect(result?.accessTokenScope).toBe("openid profile email offline_access");
   });
 
   it("still returns the refreshed session when persisting the cookie fails", async () => {

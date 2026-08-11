@@ -1,3 +1,4 @@
+import type { LoggerService } from "@akashnetwork/logging";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -47,9 +48,22 @@ describe(SessionExpirySync.name, () => {
     expect(checkSession).not.toHaveBeenCalled();
   });
 
-  function setup(input: { checkSessionDuration?: "settled" | "pending" } = {}) {
+  it("logs a failed re-check instead of leaking an unhandled rejection", async () => {
+    const { notifier, logger } = setup({ checkSessionDuration: "rejected" });
+
+    await act(async () => notifier.notify());
+
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SESSION_RECHECK_FAILED" }));
+  });
+
+  function setup(input: { checkSessionDuration?: "settled" | "pending" | "rejected" } = {}) {
     const notifier = new SessionExpiryNotifier();
-    const checkSession = vi.fn(() => (input.checkSessionDuration === "pending" ? new Promise<void>(() => undefined) : Promise.resolve()));
+    const logger = mock<LoggerService>();
+    const checkSession = vi.fn(() => {
+      if (input.checkSessionDuration === "pending") return new Promise<void>(() => undefined);
+      if (input.checkSessionDuration === "rejected") return Promise.reject(new Error("network down"));
+      return Promise.resolve();
+    });
     const useUser: typeof DEPENDENCIES.useUser = () =>
       mock<ReturnType<typeof DEPENDENCIES.useUser>>({
         checkSession,
@@ -58,11 +72,11 @@ describe(SessionExpirySync.name, () => {
       });
 
     const { unmount } = render(
-      <TestContainerProvider services={{ sessionExpiryNotifier: () => notifier }}>
+      <TestContainerProvider services={{ sessionExpiryNotifier: () => notifier, logger: () => logger }}>
         <SessionExpirySync dependencies={{ useUser }} />
       </TestContainerProvider>
     );
 
-    return { notifier, checkSession, unmount };
+    return { notifier, checkSession, logger, unmount };
   }
 });

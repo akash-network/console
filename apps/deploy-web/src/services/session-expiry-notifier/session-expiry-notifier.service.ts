@@ -6,16 +6,17 @@ import { isHttpError } from "@akashnetwork/http-sdk";
  * (see `SessionExpirySync`) re-check the session so the client auth state converges with the server.
  */
 export class SessionExpiryNotifier {
-  readonly #listeners = new Set<() => void>();
+  static readonly #EVENT_TYPE = "session-expiry";
+  readonly #target = new EventTarget();
 
   notify(): void {
-    this.#listeners.forEach(listener => listener());
+    this.#target.dispatchEvent(new Event(SessionExpiryNotifier.#EVENT_TYPE));
   }
 
   subscribe(listener: () => void): () => void {
-    this.#listeners.add(listener);
+    this.#target.addEventListener(SessionExpiryNotifier.#EVENT_TYPE, listener);
     return () => {
-      this.#listeners.delete(listener);
+      this.#target.removeEventListener(SessionExpiryNotifier.#EVENT_TYPE, listener);
     };
   }
 }
