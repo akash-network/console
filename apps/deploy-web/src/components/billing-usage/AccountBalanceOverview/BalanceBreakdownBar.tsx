@@ -2,6 +2,7 @@
 import React from "react";
 import { Flash } from "iconoir-react";
 
+import { useCurrencyFormatter } from "@src/hooks/useCurrencyFormatter/useCurrencyFormatter";
 import type { ReservedDeployment } from "./useAccountBalanceOverview";
 
 export type BalanceSegment = {
@@ -16,8 +17,6 @@ export type BalanceSegment = {
   /** Readable solid text color for the legend chip. */
   badgeColor?: string;
 };
-
-const usdFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
 /** Stepped opacity for the reserved ramp: largest deployment is the most opaque, tapering to 0.35. */
 function reservedAlpha(index: number, count: number): number {
@@ -80,7 +79,8 @@ export const BalanceBreakdownBar: React.FunctionComponent<{
   onHover?: (key: string | null) => void;
   threshold?: number | null;
 }> = ({ segments, hoveredKey = null, onHover, threshold = null }) => {
-  const label = segments.map(segment => `${segment.label} ${usdFormatter.format(segment.amountUsd)}`).join(", ");
+  const formatUsd = useCurrencyFormatter();
+  const label = segments.map(segment => `${segment.label} ${formatUsd(segment.amountUsd)}`).join(", ");
   const total = segments.reduce((sum, segment) => sum + segment.amountUsd, 0);
   const available = segments.find(segment => segment.key === "available")?.amountUsd ?? 0;
   const marker = threshold !== null && threshold > 0 && available > 0 && total > 0 ? buildThresholdMarker(threshold, available, total) : null;
@@ -99,7 +99,7 @@ export const BalanceBreakdownBar: React.FunctionComponent<{
                 backgroundColor: segment.color,
                 opacity: hoveredKey && hoveredKey !== segment.key ? 0.35 : 1
               }}
-              title={`${segment.label}: ${usdFormatter.format(segment.amountUsd)}`}
+              title={`${segment.label}: ${formatUsd(segment.amountUsd)}`}
               onMouseEnter={() => onHover?.(segment.key)}
               onMouseLeave={() => onHover?.(null)}
             />
@@ -126,7 +126,7 @@ export const BalanceBreakdownBar: React.FunctionComponent<{
         <p className="flex items-center justify-end gap-1 text-xs text-muted-foreground">
           <Flash className="h-3 w-3" aria-hidden />
           <span>
-            Tops up at <span className="font-medium text-foreground">{usdFormatter.format(marker.threshold)}</span>
+            Tops up at <span className="font-medium text-foreground">{formatUsd(marker.threshold)}</span>
           </span>
         </p>
       )}

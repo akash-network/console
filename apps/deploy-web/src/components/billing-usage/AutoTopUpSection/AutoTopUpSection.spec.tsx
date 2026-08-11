@@ -89,6 +89,12 @@ describe(AutoTopUpSection.name, () => {
       expect(screen.getByText(/Add a payment method/)).toBeInTheDocument();
     });
 
+    it("shows a skeleton instead of the add-payment-method prompt while the payment method query is loading", () => {
+      setup({ isFixedThresholdEnabled: true, defaultPaymentMethod: undefined, isDefaultPaymentMethodLoading: true });
+
+      expect(screen.queryByText(/Add a payment method/)).not.toBeInTheDocument();
+    });
+
     it("opens the add-payment-method flow from the prompt when there is no payment method", () => {
       const openAddPaymentMethod = vi.fn();
       setup({ isFixedThresholdEnabled: true, defaultPaymentMethod: undefined, openAddPaymentMethod });
@@ -164,6 +170,7 @@ describe(AutoTopUpSection.name, () => {
   function setup(input: {
     isFixedThresholdEnabled?: boolean;
     defaultPaymentMethod?: { id: string };
+    isDefaultPaymentMethodLoading?: boolean;
     walletSettings?: { autoReloadEnabled: boolean; autoReloadThreshold?: number; autoReloadAmount?: number };
     weeklyCost?: number;
     confirmResult?: boolean;
@@ -188,7 +195,7 @@ describe(AutoTopUpSection.name, () => {
       ...MockComponents(DEPENDENCIES),
       useFlag: vi.fn(() => input.isFixedThresholdEnabled ?? false),
       useSnackbar: vi.fn(() => ({ enqueueSnackbar })),
-      useDefaultPaymentMethodQuery: vi.fn(() => ({ data: input.defaultPaymentMethod, isLoading: false })),
+      useDefaultPaymentMethodQuery: vi.fn(() => ({ data: input.defaultPaymentMethod, isLoading: input.isDefaultPaymentMethodLoading ?? false })),
       useWalletSettingsQuery: vi.fn(() => ({ data: input.walletSettings ?? { autoReloadEnabled: false }, isLoading: false })),
       useWeeklyDeploymentCostQuery: vi.fn(() => ({ data: input.weeklyCost ?? 5 })),
       useWalletSettingsMutations: vi.fn(() => ({ upsertWalletSettings: { mutate: upsertMutate, isPending: input.isPending ?? false } })),

@@ -48,7 +48,7 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
   const [autoTopUpPopup, setAutoTopUpPopup] = useState<{ open: boolean; enableOnSave: boolean }>({ open: false, enableOnSave: false });
   const isFixedThresholdEnabled = d.useFlag("auto_reload_fixed_threshold");
   const { enqueueSnackbar } = d.useSnackbar();
-  const { data: defaultPaymentMethod } = d.useDefaultPaymentMethodQuery();
+  const { data: defaultPaymentMethod, isLoading: isDefaultPaymentMethodLoading } = d.useDefaultPaymentMethodQuery();
   const { data: walletSettings, isLoading: isWalletSettingsLoading } = d.useWalletSettingsQuery();
   const { data: weeklyCost } = d.useWeeklyDeploymentCostQuery({ enabled: !isFixedThresholdEnabled });
   const { upsertWalletSettings } = d.useWalletSettingsMutations();
@@ -119,7 +119,7 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
   const autoReloadThreshold = walletSettings?.autoReloadThreshold ?? DEFAULT_AUTO_RELOAD_THRESHOLD;
   const autoReloadAmount = walletSettings?.autoReloadAmount ?? DEFAULT_AUTO_RELOAD_AMOUNT;
   const autoReloadEnabled = walletSettings?.autoReloadEnabled ?? false;
-  const isFirstLoad = isWalletSettingsLoading && !walletSettings;
+  const isFirstLoad = (isWalletSettingsLoading && !walletSettings) || (isDefaultPaymentMethodLoading && !defaultPaymentMethod);
 
   const isReloadChangeDisabled = useMemo(() => {
     return !hasPaymentMethod || upsertWalletSettings.isPending;

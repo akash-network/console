@@ -27,9 +27,7 @@ export function useSettingsNavLinks({ dependencies: d = DEPENDENCIES }: { depend
   const isRouteActive = (...prefixes: string[]) => !!pathname && prefixes.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
   return [
-    ...(isBillingUsageEnabled
-      ? [{ title: "Billing", url: UrlService.billing(), isActive: isRouteActive("/billing", "/payment-methods"), icon: CreditCard }]
-      : []),
+    ...(isBillingUsageEnabled ? [{ title: "Billing", url: UrlService.billing(), isActive: isRouteActive("/billing"), icon: CreditCard }] : []),
     { title: "API Keys", url: UrlService.userApiKeys(), isActive: isRouteActive("/user/api-keys"), icon: Key },
     ...(isBillingUsageEnabled ? [{ title: "Usage", url: UrlService.usage(), isActive: isRouteActive("/usage"), icon: StatsUpSquare }] : []),
     ...(isAlertsEnabled ? [{ title: "Alerts", url: UrlService.alerts(), isActive: isRouteActive("/alerts"), icon: MessageAlert }] : [])

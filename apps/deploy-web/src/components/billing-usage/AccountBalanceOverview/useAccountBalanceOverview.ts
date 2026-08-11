@@ -102,7 +102,7 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
     reserved,
     available,
     deployments,
-    activeDeploymentCount: balances?.activeDeployments.length ?? deployments.length,
+    activeDeploymentCount: balances?.activeDeployments.length ?? 0,
     perHour: spend.perHour,
     perMonth: spend.perMonth,
     lastsUntil: hasSpend ? getTimeLeft(spend.perBlockUsd, totalUsd) : null,

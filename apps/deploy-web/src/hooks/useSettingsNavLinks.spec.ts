@@ -24,6 +24,12 @@ describe(useSettingsNavLinks.name, () => {
     expect(links.find(link => link.title === "Billing")?.isActive).toBe(false);
   });
 
+  it("marks Billing active on the billing route", () => {
+    const links = setup({ flags: { billing_usage: true }, pathname: "/billing" });
+
+    expect(links.find(link => link.title === "Billing")?.isActive).toBe(true);
+  });
+
   it("treats sub-routes as active", () => {
     const links = setup({ flags: { alerts: true }, pathname: "/alerts/notification-channels/new" });
 
