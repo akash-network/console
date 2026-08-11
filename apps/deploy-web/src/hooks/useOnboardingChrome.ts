@@ -13,7 +13,7 @@ export const DEPENDENCIES = { useWallet, usePathname, useLeaseExistenceQuery, us
 export const ONBOARDING_CHROME_PATHS = ["/new-deployment/configure"];
 
 export type OnboardingChromeState = {
-  /** Render minimal chrome (no sidebar, logout-only menu, no WalletStatus). */
+  /** Render minimal chrome (no sidebar, logout-only menu). */
   isStripped: boolean;
 };
 

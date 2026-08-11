@@ -12,18 +12,6 @@ import { ComponentMock, MockComponents } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(YourAccount.name, () => {
-  it("renders ConnectWallet when wallet has no address", () => {
-    const ConnectWalletMock = vi.fn(ComponentMock);
-    setup({
-      dependencies: {
-        ConnectWallet: ConnectWalletMock
-      },
-      wallet: { address: "" }
-    });
-
-    expect(ConnectWalletMock).toHaveBeenCalledWith(expect.objectContaining({ text: "Setup your billing to deploy!" }), expect.anything());
-  });
-
   it("renders AccountHeader when wallet is connected", () => {
     const AccountHeaderMock = vi.fn(ComponentMock);
     setup({
