@@ -62,6 +62,26 @@ export function getAvgCostPerMonth(pricePerBlock: number) {
   return (pricePerBlock * averageDaysInMonth * 24 * 60 * 60) / averageBlockTime;
 }
 
+type PricedLease = { price: { denom: string; amount: string | number } };
+
+/**
+ * Sums the per-block price of the given leases in USD. Pass already-live leases and the current AKT price;
+ * AKT is converted at `aktPrice`, while USDC and ACT are treated as 1:1 USD.
+ */
+export function getLeasesCostPerBlockUsd(leases: PricedLease[], aktPrice: number, usdcDenom: string): number {
+  return leases.reduce((total, { price }) => {
+    switch (price.denom) {
+      case UAKT_DENOM:
+        return total + udenomToDenom(price.amount, 10) * aktPrice;
+      case usdcDenom:
+      case UACT_DENOM:
+        return total + udenomToDenom(price.amount, 10);
+      default:
+        return total;
+    }
+  }, 0);
+}
+
 export function getTimeLeft(pricePerBlock: number, balance: number) {
   const blocksLeft = balance / pricePerBlock;
   const timestamp = new Date().getTime();

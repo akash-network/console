@@ -3,7 +3,6 @@ import React, { useMemo } from "react";
 import { Spinner } from "@akashnetwork/ui/components";
 import { useAtom } from "jotai";
 
-import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUsdcDenom } from "@src/hooks/useDenom";
@@ -12,8 +11,7 @@ import type { WalletBalance } from "@src/hooks/useWalletBalance";
 import sdlStore from "@src/store/sdlStore";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
-import { udenomToDenom } from "@src/utils/mathHelpers";
-import { getAvgCostPerMonth } from "@src/utils/priceUtils";
+import { getAvgCostPerMonth, getLeasesCostPerBlockUsd } from "@src/utils/priceUtils";
 import { isLeaseLive } from "@src/utils/reclamationUtils";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { AccountHeader } from "../AccountHeader";
@@ -68,21 +66,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({
   const costs = useMemo(() => {
     if (!leases || !price || !isAktPriceLoaded) return null;
 
-    const activeLeases = leases.filter(isLeaseLive);
-    const totalCostPerBlock = activeLeases
-      .map(x => {
-        switch (x.price.denom) {
-          case UAKT_DENOM:
-            return udenomToDenom(x.price.amount, 10) * price;
-          case usdcIbcDenom:
-          case UACT_DENOM:
-            return udenomToDenom(x.price.amount, 10);
-          default:
-            return 0;
-        }
-      })
-      .reduce((a, b) => a + b, 0);
-
+    const totalCostPerBlock = getLeasesCostPerBlockUsd(leases.filter(isLeaseLive), price, usdcIbcDenom);
     const monthlyAvg = getAvgCostPerMonth(totalCostPerBlock);
 
     return {

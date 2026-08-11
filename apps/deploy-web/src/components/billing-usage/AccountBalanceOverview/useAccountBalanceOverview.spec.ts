@@ -1,0 +1,100 @@
+import { describe, expect, it } from "vitest";
+
+import { UAKT_DENOM } from "@src/config/denom.config";
+import { DEPENDENCIES, useAccountBalanceOverview } from "./useAccountBalanceOverview";
+
+import { renderHook } from "@testing-library/react";
+
+describe(useAccountBalanceOverview.name, () => {
+  it("splits total into available and reserved", () => {
+    const { result } = setup({ totalUsd: 500, reservedUsd: 150 });
+
+    expect(result.current.totalUsd).toBe(500);
+    expect(result.current.reserved).toBe(150);
+    expect(result.current.available).toBe(350);
+  });
+
+  it("never returns negative available", () => {
+    const { result } = setup({ totalUsd: 100, reservedUsd: 150 });
+
+    expect(result.current.available).toBe(0);
+  });
+
+  it("builds a per-deployment reserved breakdown sorted largest-first", () => {
+    const { result } = setup({
+      deployments: [
+        { dseq: "1", fundsUsd: 50 },
+        { dseq: "2", fundsUsd: 100 }
+      ],
+      names: { "2": "llama-chat" }
+    });
+
+    expect(result.current.deployments).toEqual([
+      { dseq: "2", name: "llama-chat", reservedUsd: 100 },
+      { dseq: "1", name: "Deployment 1", reservedUsd: 50 }
+    ]);
+    expect(result.current.activeDeploymentCount).toBe(2);
+  });
+
+  it("reports runway when deployments are actively spending", () => {
+    const { result } = setup({ totalUsd: 500, hasLiveLease: true });
+
+    expect(result.current.runwayDays).toEqual(expect.any(Number));
+    expect(result.current.runwayDays).toBeGreaterThanOrEqual(0);
+    expect(result.current.lastsUntil).toBeInstanceOf(Date);
+  });
+
+  it("has no runway when nothing is being spent", () => {
+    const { result } = setup({ totalUsd: 500, hasLiveLease: false });
+
+    expect(result.current.runwayDays).toBeNull();
+    expect(result.current.lastsUntil).toBeNull();
+  });
+
+  it("passes through the auto reload setting", () => {
+    const { result } = setup({ autoReloadEnabled: true });
+
+    expect(result.current.autoReloadEnabled).toBe(true);
+  });
+
+  it("is loading until the wallet balance resolves", () => {
+    const { result } = setup({ walletBalanceMissing: true });
+
+    expect(result.current.isLoading).toBe(true);
+  });
+
+  function setup(input: {
+    totalUsd?: number;
+    reservedUsd?: number;
+    deployments?: Array<{ dseq: string; fundsUsd: number }>;
+    names?: Record<string, string>;
+    hasLiveLease?: boolean;
+    autoReloadEnabled?: boolean;
+    walletBalanceMissing?: boolean;
+  }) {
+    const activeDeployments = (input.deployments ?? []).map(deployment => ({
+      dseq: deployment.dseq,
+      escrowAccount: { state: { funds: [{ denom: UAKT_DENOM, amount: String(deployment.fundsUsd) }] } }
+    }));
+
+    const leases = input.hasLiveLease ? [{ state: "active", price: { denom: UAKT_DENOM, amount: "1000000" } }] : [];
+
+    const dependencies = {
+      ...DEPENDENCIES,
+      useWallet: () => ({ address: "akash1abc" }),
+      usePricing: () => ({ price: 1, isLoaded: true, udenomToUsd: (amount: string | number) => Number(amount) }),
+      useUsdcDenom: () => "ibc/usdc",
+      useWalletBalance: () => ({
+        balance: input.walletBalanceMissing ? null : { totalUsd: input.totalUsd ?? 0, totalDeploymentEscrowUSD: input.reservedUsd ?? 0 },
+        isLoading: false,
+        refetch: () => undefined
+      }),
+      useBalances: () => ({ data: { activeDeployments } }),
+      useAllLeases: () => ({ data: leases }),
+      useWalletSettingsQuery: () => ({ data: { autoReloadEnabled: input.autoReloadEnabled ?? false } }),
+      useLocalNotes: () => ({ getDeploymentName: (dseq: string | number | null) => input.names?.[String(dseq)] ?? null })
+    } as unknown as typeof DEPENDENCIES;
+
+    return renderHook(() => useAccountBalanceOverview({ dependencies }));
+  }
+});
