@@ -2,15 +2,16 @@ import { eq } from "drizzle-orm";
 import { inject, singleton } from "tsyringe";
 
 import type { EnvConfig } from "@src/config/env.config";
-import { LeadershipLostError, PgAdvisoryLeaderLock } from "@src/db/pg-advisory-leader-lock";
+import { PgAdvisoryLeaderLock } from "@src/db/pg-advisory-leader-lock";
 import { PgClientService } from "@src/db/pg-client.service";
 import { Blocks, IndexerState } from "@src/db/schema";
 import { retryWithBackoff } from "@src/lib/retry-with-backoff/retry-with-backoff";
 import { planBackfill } from "@src/pipeline/backfill-planner";
 import { BlockCommitterService } from "@src/pipeline/block-committer.service";
 import { BlockDecoderService } from "@src/pipeline/block-decoder.service";
+import { ChainContinuityError } from "@src/pipeline/chain-continuity-error";
 import type { DecodedBlock } from "@src/pipeline/decoded-block";
-import { ChainContinuityError } from "@src/pipeline/sync-runner.service";
+import { retryTransient } from "@src/pipeline/transient-retry";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 import type { ChainDatabase } from "@src/providers/db.provider";
 import { CHAIN_DB } from "@src/providers/db.provider";
@@ -21,9 +22,6 @@ import { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
 const BACKFILL_LEADER_LOCK_KEY = 7_431_002;
 const FETCH_RETRY_MAX_ATTEMPTS = 5;
 const FETCH_RETRY_BASE_MS = 1_000;
-const TRANSIENT_RETRY_MAX_ATTEMPTS = 10;
-const TRANSIENT_RETRY_BASE_MS = 1_000;
-const TRANSIENT_RETRY_MAX_MS = 30_000;
 
 @singleton()
 export class BackfillRunnerService {
@@ -186,13 +184,7 @@ export class BackfillRunnerService {
 
   /** Retriable steps (checkpoint reads, tip fetches, idempotent batch commits) survive transient blips instead of failing the whole multi-hour Job; fatal errors propagate. */
   async #retryTransient<T>(operation: () => Promise<T>, logContext: { event: string; height?: number }): Promise<T> {
-    return await retryWithBackoff(operation, {
-      maxAttempts: TRANSIENT_RETRY_MAX_ATTEMPTS,
-      baseDelayMs: TRANSIENT_RETRY_BASE_MS,
-      maxDelayMs: TRANSIENT_RETRY_MAX_MS,
-      shouldRethrow: error => this.#stopped || error instanceof ChainContinuityError || error instanceof LeadershipLostError,
-      onRetry: (error, attempt, delayMs) => this.#logger.warn({ ...logContext, attempt, delayMs, error })
-    });
+    return await retryTransient(operation, { isStopped: () => this.#stopped, logger: this.#logger, logContext });
   }
 
   /** A pool AggregateError means every RPC endpoint already failed once, so retries back off before another full sweep. */

@@ -3,13 +3,14 @@ import { setTimeout as delay } from "node:timers/promises";
 import { inject, singleton } from "tsyringe";
 
 import type { EnvConfig } from "@src/config/env.config";
-import { LeadershipLostError, PgAdvisoryLeaderLock } from "@src/db/pg-advisory-leader-lock";
+import { PgAdvisoryLeaderLock } from "@src/db/pg-advisory-leader-lock";
 import { PgClientService } from "@src/db/pg-client.service";
 import { Blocks, IndexerState } from "@src/db/schema";
-import { retryWithBackoff } from "@src/lib/retry-with-backoff/retry-with-backoff";
 import { BlockCommitterService, SYNC_STREAM } from "@src/pipeline/block-committer.service";
 import { BlockDecoderService } from "@src/pipeline/block-decoder.service";
+import { ChainContinuityError } from "@src/pipeline/chain-continuity-error";
 import type { DecodedBlock } from "@src/pipeline/decoded-block";
+import { retryTransient } from "@src/pipeline/transient-retry";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 import type { ChainDatabase } from "@src/providers/db.provider";
 import { CHAIN_DB } from "@src/providers/db.provider";
@@ -20,12 +21,6 @@ import { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
 const SYNC_LEADER_LOCK_KEY = 7_431_001;
 const PROGRESS_LOG_EVERY_BLOCKS = 100;
 const LEADERSHIP_CHECK_EVERY_BLOCKS = 100;
-const TRANSIENT_RETRY_MAX_ATTEMPTS = 10;
-const TRANSIENT_RETRY_BASE_MS = 1_000;
-const TRANSIENT_RETRY_MAX_MS = 30_000;
-
-/** Parent-hash continuity break; fatal by design so the process halts instead of committing a forked history. */
-export class ChainContinuityError extends Error {}
 
 @singleton()
 export class SyncRunnerService {
@@ -107,15 +102,8 @@ export class SyncRunnerService {
     }
   }
 
-  /** Transient failures (RPC timeouts, connection drops) are retried with capped exponential backoff; persistent ones and fatal errors propagate and halt the process. */
   async #retryTransient<T>(operation: () => Promise<T>, logContext: { event: string; height?: number }): Promise<T> {
-    return await retryWithBackoff(operation, {
-      maxAttempts: TRANSIENT_RETRY_MAX_ATTEMPTS,
-      baseDelayMs: TRANSIENT_RETRY_BASE_MS,
-      maxDelayMs: TRANSIENT_RETRY_MAX_MS,
-      shouldRethrow: error => this.#stopped || error instanceof ChainContinuityError || error instanceof LeadershipLostError,
-      onRetry: (error, attempt, delayMs) => this.#logger.warn({ ...logContext, attempt, delayMs, error })
-    });
+    return await retryTransient(operation, { isStopped: () => this.#stopped, logger: this.#logger, logContext });
   }
 
   async #syncBlock(height: number): Promise<void> {
