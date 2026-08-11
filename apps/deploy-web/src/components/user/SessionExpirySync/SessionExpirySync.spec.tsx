@@ -79,6 +79,15 @@ describe(SessionExpirySync.name, () => {
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SESSION_RECHECK_FAILED" }));
   });
 
+  it("does not log an unrelated error that lands after a clean re-check", async () => {
+    const { notifier, logger, surfaceError } = setup();
+
+    await act(async () => notifier.notify());
+    await act(async () => surfaceError());
+
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
   function setup(input: { checkSessionOutcome?: "success" | "pending" | "rejected" | "error"; initialError?: Error } = {}) {
     const notifier = new SessionExpiryNotifier();
     const logger = mock<LoggerService>();
@@ -106,6 +115,6 @@ describe(SessionExpirySync.name, () => {
       </TestContainerProvider>
     );
 
-    return { notifier, checkSession, logger, unmount };
+    return { notifier, checkSession, logger, unmount, surfaceError: () => surfaceError() };
   }
 });
