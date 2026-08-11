@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
 import { setTimeout as delay } from "node:timers/promises";
-import type postgres from "postgres";
 import { inject, singleton } from "tsyringe";
 
 import type { EnvConfig } from "@src/config/env.config";
+import { PgAdvisoryLeaderLock } from "@src/db/pg-advisory-leader-lock";
 import { PgClientService } from "@src/db/pg-client.service";
 import { Blocks, IndexerState } from "@src/db/schema";
 import { planBackfill } from "@src/pipeline/backfill-planner";
@@ -19,23 +19,20 @@ import { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
 
 /** Arbitrary but fixed application-wide key for the backfill leader pg advisory lock; distinct from the sync leader key so a backfill never contends with live sync. */
 const BACKFILL_LEADER_LOCK_KEY = 7_431_002;
-const LEADERSHIP_RETRY_MS = 5_000;
 const FETCH_RETRY_MAX_ATTEMPTS = 5;
 const FETCH_RETRY_BASE_MS = 1_000;
 
 @singleton()
 export class BackfillRunnerService {
-  readonly #pgClient: PgClientService;
   readonly #db: ChainDatabase;
   readonly #pool: RpcClientPool;
   readonly #decoder: BlockDecoderService;
   readonly #committer: BlockCommitterService;
   readonly #config: EnvConfig;
   readonly #logger: LoggerService;
+  readonly #leaderLock: PgAdvisoryLeaderLock;
 
   #stopped = false;
-  #reserved: postgres.ReservedSql | undefined;
-  #leaderBackendPid: number | undefined;
   #lastHash: Buffer | null = null;
 
   constructor(
@@ -47,7 +44,6 @@ export class BackfillRunnerService {
     @inject(APP_CONFIG) config: EnvConfig,
     @inject(LoggerService) logger: LoggerService
   ) {
-    this.#pgClient = pgClient;
     this.#db = db;
     this.#pool = pool;
     this.#decoder = decoder;
@@ -55,6 +51,12 @@ export class BackfillRunnerService {
     this.#config = config;
     this.#logger = logger;
     this.#logger.setContext("BACKFILL");
+    this.#leaderLock = new PgAdvisoryLeaderLock({
+      client: pgClient.client,
+      lockKey: BACKFILL_LEADER_LOCK_KEY,
+      logger: this.#logger,
+      eventPrefix: "BACKFILL"
+    });
   }
 
   async start(): Promise<void> {
@@ -71,16 +73,7 @@ export class BackfillRunnerService {
 
   async dispose(): Promise<void> {
     this.#stopped = true;
-    this.#releaseReservedLockConnection();
-  }
-
-  /** release() may throw when the pg pool was ended first; the connection is already gone then, which is the goal. */
-  #releaseReservedLockConnection(): void {
-    try {
-      this.#reserved?.release();
-    } catch (error) {
-      this.#logger.debug({ event: "BACKFILL_LOCK_RELEASE_SKIPPED", error });
-    }
+    this.#leaderLock.release();
   }
 
   async #run(): Promise<void> {
@@ -90,7 +83,7 @@ export class BackfillRunnerService {
       throw new Error("BACKFILL_FROM_HEIGHT and BACKFILL_TO_HEIGHT are required for the backfill role");
     }
 
-    await this.#acquireLeadership();
+    await this.#leaderLock.acquire(() => this.#stopped);
 
     if (this.#stopped) {
       return;
@@ -119,6 +112,9 @@ export class BackfillRunnerService {
   /**
    * Fetches up to BACKFILL_CONCURRENCY blocks in parallel while consuming heights strictly in
    * order, so batches handed to the committer are contiguous and ordered by construction.
+   * Prefetched promises get a no-op catch at insertion: a rejection settling before the loop
+   * reaches its height would otherwise crash the process as an unhandled rejection; the real
+   * rejection still surfaces when the loop awaits that height.
    */
   async #backfillRange(startHeight: number, endHeight: number, stream: string): Promise<void> {
     const startedAt = Date.now();
@@ -131,7 +127,9 @@ export class BackfillRunnerService {
     const fillFetchWindow = () => {
       while (fetchHead <= endHeight && inflight.size < this.#config.BACKFILL_CONCURRENCY) {
         const height = fetchHead;
-        inflight.set(height, this.#fetchAndDecode(height));
+        const prefetched = this.#fetchAndDecode(height);
+        prefetched.catch(() => undefined);
+        inflight.set(height, prefetched);
         fetchHead++;
       }
     };
@@ -148,7 +146,7 @@ export class BackfillRunnerService {
         fillFetchWindow();
 
         if (batch.length >= this.#config.BACKFILL_BATCH_SIZE || height === endHeight) {
-          await this.#assertLeadership();
+          await this.#leaderLock.assertHeld();
           await this.#committer.commitBatch(batch, { stream });
           blocksCommitted += batch.length;
           transactionsCommitted += batch.reduce((sum, block) => sum + block.transactions.length, 0);
@@ -236,38 +234,6 @@ export class BackfillRunnerService {
   async #getCheckpointHeight(stream: string): Promise<number | null> {
     const [state] = await this.#db.select().from(IndexerState).where(eq(IndexerState.stream, stream));
     return state?.lastHeight ?? null;
-  }
-
-  async #acquireLeadership(): Promise<void> {
-    this.#reserved = await this.#pgClient.client.reserve();
-
-    while (!this.#stopped) {
-      const [{ acquired }] = await this.#reserved`SELECT pg_try_advisory_lock(${BACKFILL_LEADER_LOCK_KEY}) AS acquired`;
-
-      if (acquired) {
-        const [{ pid }] = await this.#reserved`SELECT pg_backend_pid() AS pid`;
-        this.#leaderBackendPid = pid;
-        this.#logger.info({ event: "BACKFILL_LEADERSHIP_ACQUIRED", backendPid: pid });
-        return;
-      }
-
-      this.#logger.info({ event: "BACKFILL_LEADERSHIP_WAITING" });
-      await delay(LEADERSHIP_RETRY_MS);
-    }
-  }
-
-  /** Advisory locks are session-scoped: a transparent driver reconnect creates a fresh session WITHOUT the lock, so the backend pid is re-checked before each batch commit. */
-  async #assertLeadership(): Promise<void> {
-    if (!this.#reserved) {
-      throw new Error("Reserved advisory-lock connection is gone; halting backfill");
-    }
-
-    const [{ pid }] = await this.#reserved`SELECT pg_backend_pid() AS pid`;
-
-    if (pid !== this.#leaderBackendPid) {
-      this.#logger.error({ event: "BACKFILL_LEADERSHIP_LOST", expectedBackendPid: this.#leaderBackendPid, actualBackendPid: pid });
-      throw new Error(`Advisory-lock session changed (backend pid ${this.#leaderBackendPid} -> ${pid}); halting backfill`);
-    }
   }
 
   async #getTipHeight(): Promise<number> {

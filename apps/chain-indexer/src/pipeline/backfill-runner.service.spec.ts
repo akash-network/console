@@ -147,7 +147,7 @@ describe(BackfillRunnerService.name, () => {
       { release: vi.fn() }
     );
     const pgClient = mock<PgClientService>({
-      client: { reserve: vi.fn().mockResolvedValue(reserved) } as unknown as PgClientService["client"]
+      client: mock<PgClientService["client"]>({ reserve: vi.fn().mockResolvedValue(reserved) })
     });
 
     const dbFake = {

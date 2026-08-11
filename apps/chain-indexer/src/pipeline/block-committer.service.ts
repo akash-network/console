@@ -1,4 +1,5 @@
 import { inArray } from "drizzle-orm";
+import chunk from "lodash/chunk";
 import { inject, singleton } from "tsyringe";
 
 import { Blocks, IndexerState, Messages, MessageTypes, Transactions } from "@src/db/schema";
@@ -69,16 +70,16 @@ export class BlockCommitterService {
     const lastHeight = blocks[blocks.length - 1].height;
 
     await this.#db.transaction(async tx => {
-      for (const chunk of chunked(blockRows, INSERT_CHUNK_SIZE)) {
-        await tx.insert(Blocks).values(chunk).onConflictDoNothing();
+      for (const blockChunk of chunk(blockRows, INSERT_CHUNK_SIZE)) {
+        await tx.insert(Blocks).values(blockChunk).onConflictDoNothing();
       }
 
-      for (const chunk of chunked(transactionRows, INSERT_CHUNK_SIZE)) {
-        await tx.insert(Transactions).values(chunk).onConflictDoNothing();
+      for (const transactionChunk of chunk(transactionRows, INSERT_CHUNK_SIZE)) {
+        await tx.insert(Transactions).values(transactionChunk).onConflictDoNothing();
       }
 
-      for (const chunk of chunked(messageRows, INSERT_CHUNK_SIZE)) {
-        await tx.insert(Messages).values(chunk).onConflictDoNothing();
+      for (const messageChunk of chunk(messageRows, INSERT_CHUNK_SIZE)) {
+        await tx.insert(Messages).values(messageChunk).onConflictDoNothing();
       }
 
       await tx
@@ -138,14 +139,4 @@ export class BlockCommitterService {
       rows.forEach(row => this.#typeIds.set(row.type, row.id));
     }
   }
-}
-
-function chunked<T>(rows: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-
-  for (let start = 0; start < rows.length; start += size) {
-    chunks.push(rows.slice(start, start + size));
-  }
-
-  return chunks;
 }

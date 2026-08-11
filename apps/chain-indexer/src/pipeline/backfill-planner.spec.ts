@@ -21,6 +21,12 @@ describe(planBackfill.name, () => {
     expect(plan).toEqual({ kind: "already-complete" });
   });
 
+  it("reports already-complete even when a lagging node returns a stale tip below the range end", () => {
+    const plan = planBackfill({ fromHeight: 100, toHeight: 200, checkpointHeight: 200, tipHeight: 150 });
+
+    expect(plan).toEqual({ kind: "already-complete" });
+  });
+
   it("rejects a range ending above the chain tip", () => {
     const plan = planBackfill({ fromHeight: 100, toHeight: 2_000, checkpointHeight: null, tipHeight: 1_000 });
 
