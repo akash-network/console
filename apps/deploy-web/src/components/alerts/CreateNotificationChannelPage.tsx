@@ -12,7 +12,7 @@ import { useNavigationGuard } from "@src/hooks/useNavigationGuard/useNavigationG
 import { UrlService } from "@src/utils/urlUtils";
 
 export const CreateNotificationChannelPage: React.FunctionComponent = () => {
-  const goBack = useBackNav(UrlService.notificationChannels());
+  const goBack = useBackNav(UrlService.alerts());
   const navGuard = useNavigationGuard();
 
   return (

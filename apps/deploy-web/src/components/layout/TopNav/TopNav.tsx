@@ -13,12 +13,13 @@ import {
   SheetTrigger
 } from "@akashnetwork/ui/components";
 import { cn, REMOVE_SCROLL_CLASS_NAMES } from "@akashnetwork/ui/utils";
-import { Cloud, CreditCard, Key, Menu, MessageAlert, MultiplePages, NavArrowDown, Server, StatsUpSquare } from "iconoir-react";
+import { Cloud, Menu, MultiplePages, NavArrowDown, Server } from "iconoir-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
 import { useFlag } from "@src/hooks/useFlag";
+import { useSettingsNavLinks } from "@src/hooks/useSettingsNavLinks";
 import useCookieTheme from "@src/hooks/useTheme";
 import { useUser } from "@src/hooks/useUser";
 import { UrlService } from "@src/utils/urlUtils";
@@ -50,8 +51,6 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
   const { user } = d.useUser();
   const isAuthenticated = !!user?.userId;
   const pathname = d.usePathname();
-  const isBillingUsageEnabled = d.useFlag("billing_usage");
-  const isAlertsEnabled = d.useFlag("alerts");
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   const isRouteActive = (...routePrefixes: string[]) => !!pathname && routePrefixes.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`));
@@ -62,12 +61,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
     { title: "Templates", url: UrlService.templates(), isActive: isRouteActive("/templates"), icon: MultiplePages }
   ];
 
-  const settingsLinks: TopNavLink[] = [
-    ...(isBillingUsageEnabled ? [{ title: "Billing", url: UrlService.billing(), isActive: isRouteActive("/billing"), icon: CreditCard }] : []),
-    { title: "API Keys", url: UrlService.userApiKeys(), isActive: isRouteActive("/user/api-keys"), icon: Key },
-    ...(isBillingUsageEnabled ? [{ title: "Usage", url: UrlService.usage(), isActive: isRouteActive("/usage"), icon: StatsUpSquare }] : []),
-    ...(isAlertsEnabled ? [{ title: "Alerts", url: UrlService.alerts(), isActive: isRouteActive("/alerts"), icon: MessageAlert }] : [])
-  ];
+  const settingsLinks = useSettingsNavLinks({ dependencies: { useFlag: d.useFlag, usePathname: d.usePathname } });
   const isSettingsActive = settingsLinks.some(link => link.isActive);
   const showNavLinks = isAuthenticated && !minimal;
 

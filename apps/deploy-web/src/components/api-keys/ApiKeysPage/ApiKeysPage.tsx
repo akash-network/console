@@ -5,11 +5,13 @@ import { useSnackbar } from "notistack";
 
 import { ApiKeyList } from "@src/components/api-keys/ApiKeyList";
 import Layout from "@src/components/layout/Layout";
+import { SettingsLayout } from "@src/components/layout/SettingsLayout/SettingsLayout";
 import { useServices } from "@src/context/ServicesProvider";
 import { useDeleteApiKey, useUserApiKeys } from "@src/queries/useApiKeysQuery";
 
 export const DEPENDENCIES = {
   Layout,
+  SettingsLayout,
   NextSeo,
   ApiKeyList,
   useUserApiKeys,
@@ -51,14 +53,16 @@ export function ApiKeysPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
     <d.Layout isLoading={isLoading}>
       <d.NextSeo title="API Keys" />
 
-      <d.ApiKeyList
-        apiKeys={apiKeys}
-        onDeleteApiKey={onDeleteApiKey}
-        onDeleteClose={onDeleteClose}
-        isDeleting={isDeleting}
-        apiKeyToDelete={apiKeyToDelete}
-        updateApiKeyToDelete={apiKey => setApiKeyToDelete(apiKey)}
-      />
+      <d.SettingsLayout>
+        <d.ApiKeyList
+          apiKeys={apiKeys}
+          onDeleteApiKey={onDeleteApiKey}
+          onDeleteClose={onDeleteClose}
+          isDeleting={isDeleting}
+          apiKeyToDelete={apiKeyToDelete}
+          updateApiKeyToDelete={apiKey => setApiKeyToDelete(apiKey)}
+        />
+      </d.SettingsLayout>
     </d.Layout>
   );
 }
