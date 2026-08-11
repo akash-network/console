@@ -21,15 +21,18 @@ export function SessionExpirySync({ dependencies: d = DEPENDENCIES }: Props = {}
   const { checkSession, error } = d.useUser();
   const { sessionExpiryNotifier, logger } = useServices();
   const isReCheckingRef = useRef(false);
+  const awaitingReCheckOutcomeRef = useRef(false);
 
   useEffect(
     function reCheckSessionOnExpiryNotice() {
       return sessionExpiryNotifier.subscribe(async () => {
         if (isReCheckingRef.current) return;
         isReCheckingRef.current = true;
+        awaitingReCheckOutcomeRef.current = true;
         try {
           await checkSession();
         } catch (thrown) {
+          awaitingReCheckOutcomeRef.current = false;
           logger.error({ event: "SESSION_RECHECK_FAILED", error: thrown });
         } finally {
           isReCheckingRef.current = false;
@@ -40,12 +43,15 @@ export function SessionExpirySync({ dependencies: d = DEPENDENCIES }: Props = {}
   );
 
   /**
-   * Auth0's `checkSession` swallows a failed profile fetch (network error or 5xx) into the hook's
+   * Auth0's `checkSession` swallows a failed profile fetch (network error or 5xx) into the shared
    * `error` state and resolves rather than rejecting, so the catch above never fires for that case.
-   * Observing `error` is what surfaces a real re-check failure to the logs.
+   * `awaitingReCheckOutcomeRef` scopes the log to a re-check this component actually triggered, so an
+   * unrelated auth error (the app-boot profile fetch, the /login re-check) isn't mislabeled here.
    */
   useEffect(
-    function logWhenReCheckSurfacesError() {
+    function reportReCheckOutcome() {
+      if (!awaitingReCheckOutcomeRef.current) return;
+      awaitingReCheckOutcomeRef.current = false;
       if (error) logger.error({ event: "SESSION_RECHECK_FAILED", error });
     },
     [error, logger]

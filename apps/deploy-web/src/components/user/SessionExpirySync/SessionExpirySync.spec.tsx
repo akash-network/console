@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { LoggerService } from "@akashnetwork/logging";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -19,7 +20,7 @@ describe(SessionExpirySync.name, () => {
   });
 
   it("collapses a burst of notifications into a single in-flight re-check", async () => {
-    const { notifier, checkSession } = setup({ checkSessionDuration: "pending" });
+    const { notifier, checkSession } = setup({ checkSessionOutcome: "pending" });
 
     await act(async () => {
       notifier.notify();
@@ -48,13 +49,21 @@ describe(SessionExpirySync.name, () => {
     expect(checkSession).not.toHaveBeenCalled();
   });
 
-  it("logs when the re-check surfaces a session error", () => {
-    const { logger } = setup({ error: new Error("network down") });
+  it("logs when a triggered re-check surfaces a session error", async () => {
+    const { notifier, logger } = setup({ checkSessionOutcome: "error" });
+
+    await act(async () => notifier.notify());
 
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SESSION_RECHECK_FAILED" }));
   });
 
-  it("does not log when the re-check reports no error", async () => {
+  it("does not log an auth error that no re-check triggered", () => {
+    const { logger } = setup({ initialError: new Error("boot profile fetch failed") });
+
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it("does not log when a triggered re-check reports no error", async () => {
     const { notifier, logger } = setup();
 
     await act(async () => notifier.notify());
@@ -63,28 +72,33 @@ describe(SessionExpirySync.name, () => {
   });
 
   it("swallows and logs an unexpected rejection from the re-check", async () => {
-    const { notifier, logger } = setup({ checkSessionDuration: "rejected" });
+    const { notifier, logger } = setup({ checkSessionOutcome: "rejected" });
 
     await act(async () => notifier.notify());
 
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SESSION_RECHECK_FAILED" }));
   });
 
-  function setup(input: { checkSessionDuration?: "settled" | "pending" | "rejected"; error?: Error } = {}) {
+  function setup(input: { checkSessionOutcome?: "success" | "pending" | "rejected" | "error"; initialError?: Error } = {}) {
     const notifier = new SessionExpiryNotifier();
     const logger = mock<LoggerService>();
-    const checkSession = vi.fn(() => {
-      if (input.checkSessionDuration === "pending") return new Promise<void>(() => undefined);
-      if (input.checkSessionDuration === "rejected") return Promise.reject(new Error("network down"));
-      return Promise.resolve();
+    let surfaceError: () => void = () => undefined;
+    const checkSession = vi.fn(async () => {
+      if (input.checkSessionOutcome === "pending") return new Promise<void>(() => undefined);
+      if (input.checkSessionOutcome === "rejected") throw new Error("network down");
+      if (input.checkSessionOutcome === "error") surfaceError();
+      return undefined;
     });
-    const useUser: typeof DEPENDENCIES.useUser = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useUser>>({
+    const useUser: typeof DEPENDENCIES.useUser = () => {
+      const [error, setError] = useState<Error | undefined>(input.initialError);
+      surfaceError = () => setError(new Error("network down"));
+      return mock<ReturnType<typeof DEPENDENCIES.useUser>>({
         checkSession,
         isLoading: false,
         user: undefined,
-        error: input.error
+        error
       });
+    };
 
     const { unmount } = render(
       <TestContainerProvider services={{ sessionExpiryNotifier: () => notifier, logger: () => logger }}>
