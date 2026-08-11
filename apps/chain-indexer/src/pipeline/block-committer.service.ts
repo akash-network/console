@@ -99,8 +99,10 @@ export class BlockCommitterService {
 
   /** The checkpoint advances to the batch's last height, which is only correct when the batch has no gaps or reordering. */
   #verifyContiguous(blocks: DecodedBlock[]): void {
+    const baseHeight = blocks[0].height;
+
     blocks.forEach((block, index) => {
-      const expectedHeight = blocks[0].height + index;
+      const expectedHeight = baseHeight + index;
 
       if (block.height !== expectedHeight) {
         throw new Error(`Non-contiguous batch: expected height ${expectedHeight} at position ${index}, got ${block.height}`);

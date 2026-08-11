@@ -50,8 +50,10 @@ export class BackfillRunnerService {
   }
 
   async start(): Promise<void> {
+    let completed: boolean;
+
     try {
-      await this.#run();
+      completed = await this.#run();
     } catch (error) {
       if (this.#stopped) {
         throw new RunnerInterruptedError("Backfill stopped before completing the range", { cause: error });
@@ -59,7 +61,7 @@ export class BackfillRunnerService {
       throw error;
     }
 
-    if (this.#stopped) {
+    if (!completed) {
       throw new RunnerInterruptedError("Backfill stopped before completing the range");
     }
   }
@@ -68,7 +70,7 @@ export class BackfillRunnerService {
     this.#stopped = true;
   }
 
-  async #run(): Promise<void> {
+  async #run(): Promise<boolean> {
     const { BACKFILL_FROM_HEIGHT: fromHeight, BACKFILL_TO_HEIGHT: toHeight } = this.#config;
 
     if (fromHeight === undefined || toHeight === undefined) {
@@ -76,8 +78,10 @@ export class BackfillRunnerService {
     }
 
     const stream = `backfill:${fromHeight}-${toHeight}`;
-    const checkpointHeight = await this.#retryTransient(() => this.#getCheckpointHeight(stream), { event: "BACKFILL_CHECKPOINT_READ_RETRY" });
-    const tipHeight = await this.#retryTransient(() => this.#getTipHeight(), { event: "BACKFILL_TIP_FETCH_RETRY" });
+    const [checkpointHeight, tipHeight] = await Promise.all([
+      this.#retryTransient(() => this.#getCheckpointHeight(stream), { event: "BACKFILL_CHECKPOINT_READ_RETRY" }),
+      this.#retryTransient(() => this.#getTipHeight(), { event: "BACKFILL_TIP_FETCH_RETRY" })
+    ]);
     const plan = planBackfill({ fromHeight, toHeight, checkpointHeight, tipHeight });
 
     if (plan.kind === "invalid") {
@@ -87,12 +91,14 @@ export class BackfillRunnerService {
 
     if (plan.kind === "already-complete") {
       this.#logger.info({ event: "BACKFILL_ALREADY_COMPLETE", stream, checkpointHeight });
-      return;
+      return true;
     }
 
     await this.#seedContinuityHash(plan.startHeight, checkpointHeight !== null);
     this.#logger.info({ event: "BACKFILL_STARTED", network: this.#config.NETWORK, stream, startHeight: plan.startHeight, endHeight: plan.endHeight });
     await this.#backfillRange(plan.startHeight, plan.endHeight, stream);
+
+    return !this.#stopped;
   }
 
   /**
