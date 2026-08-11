@@ -6,6 +6,7 @@ import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { container } from "tsyringe";
 
 import { createApp } from "@src/app";
+import { envSchema } from "@src/config/env.config";
 import { BackfillRunnerService } from "@src/pipeline/backfill-runner.service";
 import { RunnerInterruptedError } from "@src/pipeline/runner-interrupted-error";
 import { SyncRunnerService } from "@src/pipeline/sync-runner.service";
@@ -15,10 +16,16 @@ import { shutdownServer } from "@src/services/shutdown-server/shutdown-server";
 import { startServer } from "@src/services/start-server/start-server";
 
 export async function bootstrap(): Promise<void> {
+  const logger = createOtelLogger({ context: "APP" });
+
+  if (!validateConfig(logger)) {
+    process.exitCode = 1;
+    return;
+  }
+
   const config = container.resolve(AppConfigService);
   const role = config.get("INDEXER_ROLE");
   const port = config.get("PORT");
-  const logger = createOtelLogger({ context: "APP" });
 
   switch (role) {
     case "sync": {
@@ -39,6 +46,21 @@ export async function bootstrap(): Promise<void> {
       process.exitCode = 1;
     }
   }
+}
+
+/** Validates env eagerly so a misconfigured role (e.g. a backfill Job missing BACKFILL_FROM/TO_HEIGHT) fails with the actual field errors instead of a tsyringe dependency-injection wrapper around the ZodError. */
+function validateConfig(logger: LoggerService): boolean {
+  const result = envSchema.safeParse(process.env);
+
+  if (result.success) {
+    return true;
+  }
+
+  logger.error({
+    event: "CONFIG_INVALID",
+    issues: result.error.issues.map(issue => ({ path: issue.path.join(".") || "(root)", message: issue.message }))
+  });
+  return false;
 }
 
 /**
