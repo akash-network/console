@@ -5,6 +5,7 @@ import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { container } from "tsyringe";
 
 import { createApp } from "@src/app";
+import { BackfillRunnerService } from "@src/pipeline/backfill-runner.service";
 import { SyncRunnerService } from "@src/pipeline/sync-runner.service";
 import { migrateDb } from "@src/providers/db.provider";
 import { AppConfigService } from "@src/services/app-config/app-config.service";
@@ -25,6 +26,20 @@ export async function bootstrap(): Promise<void> {
         await container.resolve(SyncRunnerService).start();
       } catch (error) {
         logger.error({ event: "SYNC_FATAL", error });
+        process.exitCode = 1;
+      }
+
+      await shutdownServer(server, logger);
+      return;
+    }
+    case "backfill": {
+      await migrateDb();
+      const server = await startServer(createApp(), logger, process, { port: config.get("PORT") });
+
+      try {
+        await container.resolve(BackfillRunnerService).start();
+      } catch (error) {
+        logger.error({ event: "BACKFILL_FATAL", error });
         process.exitCode = 1;
       }
 
