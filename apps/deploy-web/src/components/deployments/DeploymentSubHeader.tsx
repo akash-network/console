@@ -21,7 +21,7 @@ import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { TeeType } from "@src/utils/confidentialCompute";
 import type { DeclaredGpuInterconnect } from "@src/utils/gpuInterconnect";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import { isLeaseLive } from "@src/utils/reclamationUtils";
+import { hasLiveGpuLease, isLeaseLive } from "@src/utils/reclamationUtils";
 
 type Props = {
   deployment: DeploymentDto;
@@ -36,7 +36,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
   const isActive = deployment.state === "active";
   const hasLeases = !!leases && leases.length > 0;
   const hasActiveLeases = hasLeases && leases.some(isLeaseLive);
-  const hasGpu = leases?.some(l => isLeaseLive(l) && l.gpuAmount && l.gpuAmount > 0);
+  const hasGpu = hasLiveGpuLease(leases);
   const { isTrialing } = useWallet();
   const { publicConfig: appConfig } = useServices();
 

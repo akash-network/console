@@ -82,6 +82,11 @@ export function isLeaseLive(lease: Pick<LeaseDto, "state">): boolean {
   return lease.state === "active" || lease.state === "reclaiming";
 }
 
+/** Whether any live lease is running on GPU — drives hourly-vs-monthly cost display in the headers. */
+export function hasLiveGpuLease(leases: Pick<LeaseDto, "state" | "gpuAmount">[] | null | undefined): boolean {
+  return !!leases?.some(lease => isLeaseLive(lease) && !!lease.gpuAmount && lease.gpuAmount > 0);
+}
+
 function hasReclamationStarted(lease: Pick<LeaseDto, "reclamation">): boolean {
   const startedAt = lease.reclamation?.startedAt;
   return startedAt !== undefined && Number(startedAt) > 0;

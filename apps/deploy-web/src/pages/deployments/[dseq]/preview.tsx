@@ -1,12 +1,12 @@
 import { z } from "zod";
 
-import { DeploymentDetailRouter } from "@src/components/deployments/DeploymentDetail/DeploymentDetailRouter";
+import { DeploymentDetailPreview } from "@src/components/deployments/DeploymentDetail/DeploymentDetailPreview";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 
-export default DeploymentDetailRouter;
+export default DeploymentDetailPreview;
 
 export const getServerSideProps = defineServerSideProps({
-  route: "/deployments/[dseq]",
+  route: "/deployments/[dseq]/preview",
   schema: z.object({
     params: z.object({
       dseq: z.string().regex(/^\d+$/)
