@@ -12,43 +12,26 @@ import { AppConfigService } from "@src/services/app-config/app-config.service";
 import { shutdownServer } from "@src/services/shutdown-server/shutdown-server";
 import { startServer } from "@src/services/start-server/start-server";
 
+type AppLogger = ReturnType<typeof createOtelLogger>;
+
 export async function bootstrap(): Promise<void> {
   const config = container.resolve(AppConfigService);
   const role = config.get("INDEXER_ROLE");
+  const port = config.get("PORT");
   const logger = createOtelLogger({ context: "APP" });
 
   switch (role) {
     case "sync": {
-      await migrateDb();
-      const server = await startServer(createApp(), logger, process, { port: config.get("PORT") });
-
-      try {
-        await container.resolve(SyncRunnerService).start();
-      } catch (error) {
-        logger.error({ event: "SYNC_FATAL", error });
-        process.exitCode = 1;
-      }
-
-      await shutdownServer(server, logger);
+      await runRunnerBehindServer(() => container.resolve(SyncRunnerService), "SYNC_FATAL", logger, port);
       return;
     }
     case "backfill": {
-      await migrateDb();
-      const server = await startServer(createApp(), logger, process, { port: config.get("PORT") });
-
-      try {
-        await container.resolve(BackfillRunnerService).start();
-      } catch (error) {
-        logger.error({ event: "BACKFILL_FATAL", error });
-        process.exitCode = 1;
-      }
-
-      await shutdownServer(server, logger);
+      await runRunnerBehindServer(() => container.resolve(BackfillRunnerService), "BACKFILL_FATAL", logger, port);
       return;
     }
     case "api": {
       await migrateDb();
-      await startServer(createApp(), logger, process, { port: config.get("PORT") });
+      await startServer(createApp(), logger, process, { port });
       return;
     }
     default: {
@@ -56,4 +39,19 @@ export async function bootstrap(): Promise<void> {
       process.exitCode = 1;
     }
   }
+}
+
+/** Shared runner-role lifecycle: migrate, serve healthz, run to completion or fatal error (exit code 1), then shut the server down so the process can exit. */
+async function runRunnerBehindServer(resolveRunner: () => { start(): Promise<void> }, fatalEvent: string, logger: AppLogger, port: number): Promise<void> {
+  await migrateDb();
+  const server = await startServer(createApp(), logger, process, { port });
+
+  try {
+    await resolveRunner().start();
+  } catch (error) {
+    logger.error({ event: fatalEvent, error });
+    process.exitCode = 1;
+  }
+
+  await shutdownServer(server, logger);
 }

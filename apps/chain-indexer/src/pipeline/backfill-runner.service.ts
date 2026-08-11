@@ -1,11 +1,11 @@
 import { eq } from "drizzle-orm";
-import { setTimeout as delay } from "node:timers/promises";
 import { inject, singleton } from "tsyringe";
 
 import type { EnvConfig } from "@src/config/env.config";
-import { PgAdvisoryLeaderLock } from "@src/db/pg-advisory-leader-lock";
+import { LeadershipLostError, PgAdvisoryLeaderLock } from "@src/db/pg-advisory-leader-lock";
 import { PgClientService } from "@src/db/pg-client.service";
 import { Blocks, IndexerState } from "@src/db/schema";
+import { retryWithBackoff } from "@src/lib/retry-with-backoff/retry-with-backoff";
 import { planBackfill } from "@src/pipeline/backfill-planner";
 import { BlockCommitterService } from "@src/pipeline/block-committer.service";
 import { BlockDecoderService } from "@src/pipeline/block-decoder.service";
@@ -21,6 +21,9 @@ import { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
 const BACKFILL_LEADER_LOCK_KEY = 7_431_002;
 const FETCH_RETRY_MAX_ATTEMPTS = 5;
 const FETCH_RETRY_BASE_MS = 1_000;
+const TRANSIENT_RETRY_MAX_ATTEMPTS = 10;
+const TRANSIENT_RETRY_BASE_MS = 1_000;
+const TRANSIENT_RETRY_MAX_MS = 30_000;
 
 @singleton()
 export class BackfillRunnerService {
@@ -90,8 +93,8 @@ export class BackfillRunnerService {
     }
 
     const stream = `backfill:${fromHeight}-${toHeight}`;
-    const checkpointHeight = await this.#getCheckpointHeight(stream);
-    const tipHeight = await this.#getTipHeight();
+    const checkpointHeight = await this.#retryTransient(() => this.#getCheckpointHeight(stream), { event: "BACKFILL_CHECKPOINT_READ_RETRY" });
+    const tipHeight = await this.#retryTransient(() => this.#getTipHeight(), { event: "BACKFILL_TIP_FETCH_RETRY" });
     const plan = planBackfill({ fromHeight, toHeight, checkpointHeight, tipHeight });
 
     if (plan.kind === "invalid") {
@@ -146,8 +149,14 @@ export class BackfillRunnerService {
         fillFetchWindow();
 
         if (batch.length >= this.#config.BACKFILL_BATCH_SIZE || height === endHeight) {
-          await this.#leaderLock.assertHeld();
-          await this.#committer.commitBatch(batch, { stream });
+          const currentBatch = batch;
+          await this.#retryTransient(
+            async () => {
+              await this.#leaderLock.assertHeld();
+              await this.#committer.commitBatch(currentBatch, { stream });
+            },
+            { event: "BACKFILL_COMMIT_RETRY", height }
+          );
           blocksCommitted += batch.length;
           transactionsCommitted += batch.reduce((sum, block) => sum + block.transactions.length, 0);
           batch = [];
@@ -175,25 +184,31 @@ export class BackfillRunnerService {
     });
   }
 
+  /** Retriable steps (checkpoint reads, tip fetches, idempotent batch commits) survive transient blips instead of failing the whole multi-hour Job; fatal errors propagate. */
+  async #retryTransient<T>(operation: () => Promise<T>, logContext: { event: string; height?: number }): Promise<T> {
+    return await retryWithBackoff(operation, {
+      maxAttempts: TRANSIENT_RETRY_MAX_ATTEMPTS,
+      baseDelayMs: TRANSIENT_RETRY_BASE_MS,
+      maxDelayMs: TRANSIENT_RETRY_MAX_MS,
+      shouldRethrow: error => this.#stopped || error instanceof ChainContinuityError || error instanceof LeadershipLostError,
+      onRetry: (error, attempt, delayMs) => this.#logger.warn({ ...logContext, attempt, delayMs, error })
+    });
+  }
+
   /** A pool AggregateError means every RPC endpoint already failed once, so retries back off before another full sweep. */
   async #fetchAndDecode(height: number): Promise<DecodedBlock> {
-    let attempt = 0;
-
-    while (true) {
-      attempt++;
-      try {
+    return await retryWithBackoff(
+      async () => {
         const [block, blockResults] = await Promise.all([this.#pool.getBlock(height), this.#pool.getBlockResults(height)]);
         return this.#decoder.decode(block, blockResults);
-      } catch (error) {
-        if (this.#stopped || attempt >= FETCH_RETRY_MAX_ATTEMPTS) {
-          throw error;
-        }
-
-        const delayMs = FETCH_RETRY_BASE_MS * 2 ** (attempt - 1);
-        this.#logger.warn({ event: "BACKFILL_FETCH_RETRY", height, attempt, delayMs, error });
-        await delay(delayMs);
+      },
+      {
+        maxAttempts: FETCH_RETRY_MAX_ATTEMPTS,
+        baseDelayMs: FETCH_RETRY_BASE_MS,
+        shouldRethrow: () => this.#stopped,
+        onRetry: (error, attempt, delayMs) => this.#logger.warn({ event: "BACKFILL_FETCH_RETRY", height, attempt, delayMs, error })
       }
-    }
+    );
   }
 
   #verifyContinuity(block: DecodedBlock): void {

@@ -6,6 +6,7 @@ import type { EnvConfig } from "@src/config/env.config";
 import { LeadershipLostError, PgAdvisoryLeaderLock } from "@src/db/pg-advisory-leader-lock";
 import { PgClientService } from "@src/db/pg-client.service";
 import { Blocks, IndexerState } from "@src/db/schema";
+import { retryWithBackoff } from "@src/lib/retry-with-backoff/retry-with-backoff";
 import { BlockCommitterService, SYNC_STREAM } from "@src/pipeline/block-committer.service";
 import { BlockDecoderService } from "@src/pipeline/block-decoder.service";
 import type { DecodedBlock } from "@src/pipeline/decoded-block";
@@ -108,24 +109,13 @@ export class SyncRunnerService {
 
   /** Transient failures (RPC timeouts, connection drops) are retried with capped exponential backoff; persistent ones and fatal errors propagate and halt the process. */
   async #retryTransient<T>(operation: () => Promise<T>, logContext: { event: string; height?: number }): Promise<T> {
-    let attempt = 0;
-
-    while (true) {
-      attempt++;
-      try {
-        return await operation();
-      } catch (error) {
-        const isFatal = error instanceof ChainContinuityError || error instanceof LeadershipLostError;
-
-        if (this.#stopped || isFatal || attempt >= TRANSIENT_RETRY_MAX_ATTEMPTS) {
-          throw error;
-        }
-
-        const delayMs = Math.min(TRANSIENT_RETRY_BASE_MS * 2 ** (attempt - 1), TRANSIENT_RETRY_MAX_MS);
-        this.#logger.warn({ ...logContext, attempt, delayMs, error });
-        await delay(delayMs);
-      }
-    }
+    return await retryWithBackoff(operation, {
+      maxAttempts: TRANSIENT_RETRY_MAX_ATTEMPTS,
+      baseDelayMs: TRANSIENT_RETRY_BASE_MS,
+      maxDelayMs: TRANSIENT_RETRY_MAX_MS,
+      shouldRethrow: error => this.#stopped || error instanceof ChainContinuityError || error instanceof LeadershipLostError,
+      onRetry: (error, attempt, delayMs) => this.#logger.warn({ ...logContext, attempt, delayMs, error })
+    });
   }
 
   async #syncBlock(height: number): Promise<void> {
