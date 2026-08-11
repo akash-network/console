@@ -67,7 +67,7 @@ export class SyncRunnerService {
     this.#logger.info({ event: "SYNC_STARTED", network: this.#config.NETWORK, nextHeight });
 
     while (!this.#stopped) {
-      const tipHeight = await this.#retryTransient(() => this.#getTipHeight(), { event: "SYNC_TIP_FETCH_RETRY" });
+      const tipHeight = await this.#retryTransient(() => this.#pool.getTipHeight(), { event: "SYNC_TIP_FETCH_RETRY" });
 
       if (nextHeight > tipHeight) {
         await delay(this.#config.SYNC_POLL_INTERVAL_MS);
@@ -126,11 +126,6 @@ export class SyncRunnerService {
       return this.#config.SYNC_START_HEIGHT;
     }
 
-    return await this.#getTipHeight();
-  }
-
-  async #getTipHeight(): Promise<number> {
-    const status = await this.#pool.getStatus();
-    return parseInt(status.sync_info.latest_block_height);
+    return await this.#pool.getTipHeight();
   }
 }

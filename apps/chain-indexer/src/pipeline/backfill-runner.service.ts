@@ -80,7 +80,7 @@ export class BackfillRunnerService {
     const stream = `backfill:${fromHeight}-${toHeight}`;
     const [checkpointHeight, tipHeight] = await Promise.all([
       this.#retryTransient(() => this.#getCheckpointHeight(stream), { event: "BACKFILL_CHECKPOINT_READ_RETRY" }),
-      this.#retryTransient(() => this.#getTipHeight(), { event: "BACKFILL_TIP_FETCH_RETRY" })
+      this.#retryTransient(() => this.#pool.getTipHeight(), { event: "BACKFILL_TIP_FETCH_RETRY" })
     ]);
     const plan = planBackfill({ fromHeight, toHeight, checkpointHeight, tipHeight });
 
@@ -96,9 +96,8 @@ export class BackfillRunnerService {
 
     await this.#seedContinuityHash(plan.startHeight, checkpointHeight !== null);
     this.#logger.info({ event: "BACKFILL_STARTED", network: this.#config.NETWORK, stream, startHeight: plan.startHeight, endHeight: plan.endHeight });
-    await this.#backfillRange(plan.startHeight, plan.endHeight, stream);
 
-    return !this.#stopped;
+    return await this.#backfillRange(plan.startHeight, plan.endHeight, stream);
   }
 
   /**
@@ -107,13 +106,18 @@ export class BackfillRunnerService {
    * Prefetched promises get a no-op catch at insertion: a rejection settling before the loop
    * reaches its height would otherwise crash the process as an unhandled rejection; the real
    * rejection still surfaces when the loop awaits that height.
+   *
+   * Returns whether the whole range committed. Completion is tracked by the last committed height
+   * rather than the stopped flag, so a shutdown landing during the final commit still reports the
+   * range as done instead of failing the Job for a spurious retry.
    */
-  async #backfillRange(startHeight: number, endHeight: number, stream: string): Promise<void> {
+  async #backfillRange(startHeight: number, endHeight: number, stream: string): Promise<boolean> {
     const startedAt = Date.now();
     const inflight = new Map<number, Promise<DecodedBlock>>();
     let fetchHead = startHeight;
     let blocksCommitted = 0;
     let transactionsCommitted = 0;
+    let lastCommittedHeight = startHeight - 1;
     let batch: DecodedBlock[] = [];
 
     const fillFetchWindow = () => {
@@ -142,6 +146,7 @@ export class BackfillRunnerService {
           await this.#retryTransient(() => this.#committer.commitBatch(currentBatch, { stream }), { event: "BACKFILL_COMMIT_RETRY", height });
           blocksCommitted += batch.length;
           transactionsCommitted += batch.reduce((sum, block) => sum + block.transactions.length, 0);
+          lastCommittedHeight = height;
           batch = [];
           this.#logger.info({ event: "BACKFILL_PROGRESS", height, endHeight, blocksCommitted });
         }
@@ -150,8 +155,8 @@ export class BackfillRunnerService {
       await Promise.allSettled([...inflight.values()]);
     }
 
-    if (this.#stopped) {
-      return;
+    if (lastCommittedHeight < endHeight) {
+      return false;
     }
 
     const durationMs = Date.now() - startedAt;
@@ -165,6 +170,8 @@ export class BackfillRunnerService {
       durationMs,
       blocksPerSecond: durationMs > 0 ? Math.round((blocksCommitted / durationMs) * 1_000 * 100) / 100 : blocksCommitted
     });
+
+    return true;
   }
 
   /** Retriable steps (checkpoint reads, tip fetches, idempotent batch commits) survive transient blips instead of failing the whole multi-hour Job; fatal errors propagate. */
@@ -230,10 +237,5 @@ export class BackfillRunnerService {
   async #getCheckpointHeight(stream: string): Promise<number | null> {
     const [state] = await this.#db.select().from(IndexerState).where(eq(IndexerState.stream, stream));
     return state?.lastHeight ?? null;
-  }
-
-  async #getTipHeight(): Promise<number> {
-    const status = await this.#pool.getStatus();
-    return parseInt(status.sync_info.latest_block_height);
   }
 }

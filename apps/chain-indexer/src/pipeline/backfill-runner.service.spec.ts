@@ -138,6 +138,17 @@ describe(BackfillRunnerService.name, () => {
     expect(committedHeights(committer)).toEqual([[1, 2]]);
   });
 
+  it("reports completion when stopped during the final commit that covers the range", async () => {
+    const { runner, committer, logger } = setup({ fromHeight: 1, toHeight: 5, batchSize: 5, concurrency: 5 });
+    committer.commitBatch.mockImplementationOnce(async () => {
+      await runner.dispose();
+    });
+
+    await expect(runner.start()).resolves.toBeUndefined();
+    expect(committedHeights(committer)).toEqual([[1, 2, 3, 4, 5]]);
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "BACKFILL_COMPLETED" }));
+  });
+
   function setup(input: {
     fromHeight: number;
     toHeight: number;
@@ -180,7 +191,7 @@ describe(BackfillRunnerService.name, () => {
     let maxActiveFetches = 0;
     let failedOnce = false;
     const pool = mock<RpcClientPool>();
-    pool.getStatus.mockResolvedValue({ sync_info: { latest_block_height: String(input.tipHeight ?? 1_000) } });
+    pool.getTipHeight.mockResolvedValue(input.tipHeight ?? 1_000);
     pool.getBlock.mockImplementation(async height => {
       if (input.failFetchOnceAtHeight === height && !failedOnce) {
         failedOnce = true;

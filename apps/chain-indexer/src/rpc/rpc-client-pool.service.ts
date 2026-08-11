@@ -46,6 +46,11 @@ export class RpcClientPool {
     return await this.#get<RpcStatusResult>("/status");
   }
 
+  async getTipHeight(): Promise<number> {
+    const status = await this.getStatus();
+    return parseInt(status.sync_info.latest_block_height);
+  }
+
   async getBlock(height: number): Promise<RpcBlockResult> {
     return await this.#get<RpcBlockResult>(`/block?height=${height}`);
   }
