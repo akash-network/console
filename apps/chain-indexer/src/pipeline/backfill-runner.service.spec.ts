@@ -1,5 +1,5 @@
 import { setTimeout as delay } from "node:timers/promises";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { envSchema } from "@src/config/env.config";
@@ -8,6 +8,7 @@ import { BackfillRunnerService } from "@src/pipeline/backfill-runner.service";
 import type { BlockCommitterService } from "@src/pipeline/block-committer.service";
 import type { BlockDecoderService } from "@src/pipeline/block-decoder.service";
 import type { DecodedBlock } from "@src/pipeline/decoded-block";
+import { RunnerInterruptedError } from "@src/pipeline/runner-interrupted-error";
 import type { ChainDatabase } from "@src/providers/db.provider";
 import type { LoggerService } from "@src/providers/logging.provider";
 import type { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
@@ -92,12 +93,20 @@ describe(BackfillRunnerService.name, () => {
   });
 
   it("retries a failed fetch and still commits the block", async () => {
-    const { runner, committer, logger } = setup({ fromHeight: 1, toHeight: 2, failFetchOnceAtHeight: 2 });
+    vi.useFakeTimers();
 
-    await runner.start();
+    try {
+      const { runner, committer, logger } = setup({ fromHeight: 1, toHeight: 2, failFetchOnceAtHeight: 2 });
 
-    expect(committedHeights(committer)).toEqual([[1, 2]]);
-    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "BACKFILL_FETCH_RETRY", height: 2, attempt: 1 }));
+      const started = runner.start();
+      await vi.runAllTimersAsync();
+      await started;
+
+      expect(committedHeights(committer)).toEqual([[1, 2]]);
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "BACKFILL_FETCH_RETRY", height: 2, attempt: 1 }));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("logs a completion summary with throughput counters", async () => {
@@ -117,6 +126,16 @@ describe(BackfillRunnerService.name, () => {
         blocksPerSecond: expect.any(Number)
       })
     );
+  });
+
+  it("rejects with RunnerInterruptedError when stopped before the range completes", async () => {
+    const { runner, committer } = setup({ fromHeight: 1, toHeight: 10, batchSize: 2, concurrency: 2 });
+    committer.commitBatch.mockImplementationOnce(async () => {
+      await runner.dispose();
+    });
+
+    await expect(runner.start()).rejects.toThrow(RunnerInterruptedError);
+    expect(committedHeights(committer)).toEqual([[1, 2]]);
   });
 
   function setup(input: {

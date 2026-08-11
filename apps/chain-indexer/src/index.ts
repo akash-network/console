@@ -7,6 +7,7 @@ import { container } from "tsyringe";
 
 import { createApp } from "@src/app";
 import { BackfillRunnerService } from "@src/pipeline/backfill-runner.service";
+import { RunnerInterruptedError } from "@src/pipeline/runner-interrupted-error";
 import { SyncRunnerService } from "@src/pipeline/sync-runner.service";
 import { migrateDb } from "@src/providers/db.provider";
 import { AppConfigService } from "@src/services/app-config/app-config.service";
@@ -40,7 +41,12 @@ export async function bootstrap(): Promise<void> {
   }
 }
 
-/** Shared runner-role lifecycle: migrate, serve healthz, run to completion or fatal error (exit code 1), then shut the server down so the process can exit. */
+/**
+ * Shared runner-role lifecycle: migrate, serve healthz, run to completion, then shut the server
+ * down so the process can exit. A fatal error exits non-zero; a run stopped before finishing
+ * (`RunnerInterruptedError`, e.g. SIGTERM mid-backfill) also exits non-zero so a K8s Job is retried
+ * and resumes from its checkpoint rather than being marked Complete with the range unfinished.
+ */
 async function runRunnerBehindServer(resolveRunner: () => { start(): Promise<void> }, fatalEvent: string, logger: LoggerService, port: number): Promise<void> {
   await migrateDb();
   const server = await startServer(createApp(), logger, process, { port });
@@ -48,7 +54,11 @@ async function runRunnerBehindServer(resolveRunner: () => { start(): Promise<voi
   try {
     await resolveRunner().start();
   } catch (error) {
-    logger.error({ event: fatalEvent, error });
+    if (error instanceof RunnerInterruptedError) {
+      logger.warn({ event: "RUNNER_INTERRUPTED", error });
+    } else {
+      logger.error({ event: fatalEvent, error });
+    }
     process.exitCode = 1;
   }
 

@@ -1,5 +1,3 @@
-import { setTimeout as delay } from "node:timers/promises";
-
 export interface RetryWithBackoffOptions {
   maxAttempts: number;
   baseDelayMs: number;
@@ -27,4 +25,11 @@ export async function retryWithBackoff<T>(operation: () => Promise<T>, options: 
       await delay(delayMs);
     }
   }
+}
+
+/** Global setTimeout rather than node:timers/promises so tests can advance the backoff with vitest fake timers, which do not intercept node:timers/promises. */
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => {
+    setTimeout(resolve, ms);
+  });
 }

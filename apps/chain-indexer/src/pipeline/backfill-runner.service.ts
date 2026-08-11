@@ -9,6 +9,7 @@ import { BlockCommitterService } from "@src/pipeline/block-committer.service";
 import { BlockDecoderService } from "@src/pipeline/block-decoder.service";
 import { ChainContinuityError } from "@src/pipeline/chain-continuity-error";
 import type { DecodedBlock } from "@src/pipeline/decoded-block";
+import { RunnerInterruptedError } from "@src/pipeline/runner-interrupted-error";
 import { retryTransient } from "@src/pipeline/transient-retry";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 import type { ChainDatabase } from "@src/providers/db.provider";
@@ -53,10 +54,13 @@ export class BackfillRunnerService {
       await this.#run();
     } catch (error) {
       if (this.#stopped) {
-        this.#logger.info({ event: "BACKFILL_STOPPED_DURING_SHUTDOWN" });
-        return;
+        throw new RunnerInterruptedError("Backfill stopped before completing the range", { cause: error });
       }
       throw error;
+    }
+
+    if (this.#stopped) {
+      throw new RunnerInterruptedError("Backfill stopped before completing the range");
     }
   }
 
@@ -119,7 +123,7 @@ export class BackfillRunnerService {
     try {
       for (let height = startHeight; height <= endHeight && !this.#stopped; height++) {
         fillFetchWindow();
-        const decoded = await (inflight.get(height) ?? this.#fetchAndDecode(height));
+        const decoded = await inflight.get(height)!;
         inflight.delete(height);
 
         this.#verifyContinuity(decoded);
