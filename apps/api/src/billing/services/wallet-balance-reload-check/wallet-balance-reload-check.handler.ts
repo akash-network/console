@@ -16,6 +16,7 @@ import { JobHandler, JobMeta, JobPayload } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { Require } from "@src/core/types/require.type";
+import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { isPayingUser, PayingUser } from "../paying-user/paying-user";
 import { WalletBalanceReloadCheckInstrumentationService } from "./wallet-balance-reload-check-instrumentation.service";
@@ -34,6 +35,7 @@ type Resources = {
   user: PayingUser;
 };
 type AllResources = Resources & { balance: GetBalancesResponseOutput["data"]["total"]; paymentMethod: PaymentMethod };
+type ReloadContext = AllResources & { job: JobMeta; triggeredByDeployment: boolean };
 
 const millisecondsInDay = 24 * millisecondsInHour;
 
@@ -60,6 +62,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     private readonly paymentMethodService: PaymentMethodService,
     private readonly stripeTransactionService: StripeTransactionService,
     private readonly drainingDeploymentService: DrainingDeploymentService,
+    private readonly deploymentRepository: DeploymentRepository,
     private readonly instrumentationService: WalletBalanceReloadCheckInstrumentationService,
     private readonly featureFlagsService: FeatureFlagsService
   ) {}
@@ -72,7 +75,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
       const resourcesResult = await this.#collectResources(payload);
 
       if (resourcesResult.ok) {
-        await this.#tryToReload({ ...resourcesResult.val, job });
+        await this.#tryToReload({ ...resourcesResult.val, job, triggeredByDeployment: payload.triggeredByDeployment ?? false });
         await this.#scheduleNextCheck(resourcesResult.val);
         success = true;
       } else {
@@ -171,7 +174,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     });
   }
 
-  async #tryToReload(resources: AllResources & { job: JobMeta }): Promise<void> {
+  async #tryToReload(resources: ReloadContext): Promise<void> {
     if (this.featureFlagsService.isEnabled(FeatureFlags.AUTO_RELOAD_FIXED_THRESHOLD)) {
       return this.#tryToReloadOnFixedThreshold(resources);
     }
@@ -179,7 +182,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     return this.#tryToReloadOnPredictedSpend(resources);
   }
 
-  async #tryToReloadOnFixedThreshold(resources: AllResources & { job: JobMeta }): Promise<void> {
+  async #tryToReloadOnFixedThreshold(resources: ReloadContext): Promise<void> {
     const { balance } = resources;
     const threshold = centsToUsd(resources.walletSetting.autoReloadThreshold);
     const reloadAmount = Math.max(centsToUsd(resources.walletSetting.autoReloadAmount), STANDARD_TOP_UP_MIN_AMOUNT_USD);
@@ -194,6 +197,14 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     if (balance > threshold) {
       this.instrumentationService.recordReloadSkipped({ reason: "sufficient_balance", coverageRatio, logContext: log });
       return;
+    }
+
+    if (!resources.triggeredByDeployment) {
+      const activeDeploymentCount = await this.deploymentRepository.countActiveByOwner(resources.wallet.address);
+      if (activeDeploymentCount === 0) {
+        this.instrumentationService.recordReloadSkipped({ reason: "no_active_deployments", coverageRatio, logContext: log });
+        return;
+      }
     }
 
     try {
@@ -213,7 +224,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     }
   }
 
-  async #tryToReloadOnPredictedSpend(resources: AllResources & { job: JobMeta }): Promise<void> {
+  async #tryToReloadOnPredictedSpend(resources: ReloadContext): Promise<void> {
     const reloadTargetDate = addMilliseconds(new Date(), this.#RELOAD_COVERAGE_PERIOD_IN_MS);
     const costUntilTargetDateInDenom = await this.drainingDeploymentService.calculateAllDeploymentCostUntilDate(resources.wallet.address, reloadTargetDate);
     const costUntilTargetDateInFiat = await this.balancesService.toFiatAmount(costUntilTargetDateInDenom);

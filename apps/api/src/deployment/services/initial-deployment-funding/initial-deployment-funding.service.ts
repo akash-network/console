@@ -156,7 +156,7 @@ export class InitialDeploymentFundingService {
    */
   private async scheduleWalletReload({ walletId, dseq, address }: { walletId: number; dseq: string; address: string }): Promise<void> {
     try {
-      await this.walletReloadJobService.scheduleImmediate({ walletId });
+      await this.walletReloadJobService.scheduleImmediate({ walletId }, { triggeredByDeployment: true });
     } catch (error) {
       try {
         this.logger.error({ event: "INITIAL_FUNDING_WALLET_RELOAD_SCHEDULE_FAILED", walletId, dseq, address, error });
