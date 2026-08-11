@@ -3,8 +3,6 @@ import { setTimeout as delay } from "node:timers/promises";
 import { inject, singleton } from "tsyringe";
 
 import type { EnvConfig } from "@src/config/env.config";
-import { PgAdvisoryLeaderLock } from "@src/db/pg-advisory-leader-lock";
-import { PgClientService } from "@src/db/pg-client.service";
 import { Blocks, IndexerState } from "@src/db/schema";
 import { BlockCommitterService, SYNC_STREAM } from "@src/pipeline/block-committer.service";
 import { BlockDecoderService } from "@src/pipeline/block-decoder.service";
@@ -17,10 +15,7 @@ import { CHAIN_DB } from "@src/providers/db.provider";
 import { LoggerService } from "@src/providers/logging.provider";
 import { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
 
-/** Arbitrary but fixed application-wide key for the sync leader pg advisory lock. */
-const SYNC_LEADER_LOCK_KEY = 7_431_001;
 const PROGRESS_LOG_EVERY_BLOCKS = 100;
-const LEADERSHIP_CHECK_EVERY_BLOCKS = 100;
 
 @singleton()
 export class SyncRunnerService {
@@ -30,13 +25,11 @@ export class SyncRunnerService {
   readonly #committer: BlockCommitterService;
   readonly #config: EnvConfig;
   readonly #logger: LoggerService;
-  readonly #leaderLock: PgAdvisoryLeaderLock;
 
   #stopped = false;
   #lastHash: Buffer | null = null;
 
   constructor(
-    @inject(PgClientService) pgClient: PgClientService,
     @inject(CHAIN_DB) db: ChainDatabase,
     @inject(RpcClientPool) pool: RpcClientPool,
     @inject(BlockDecoderService) decoder: BlockDecoderService,
@@ -51,7 +44,6 @@ export class SyncRunnerService {
     this.#config = config;
     this.#logger = logger;
     this.#logger.setContext("SYNC");
-    this.#leaderLock = new PgAdvisoryLeaderLock({ client: pgClient.client, lockKey: SYNC_LEADER_LOCK_KEY, logger: this.#logger, eventPrefix: "SYNC" });
   }
 
   async start(): Promise<void> {
@@ -68,21 +60,13 @@ export class SyncRunnerService {
 
   async dispose(): Promise<void> {
     this.#stopped = true;
-    this.#leaderLock.release();
   }
 
   async #run(): Promise<void> {
-    await this.#leaderLock.acquire(() => this.#stopped);
-
-    if (this.#stopped) {
-      return;
-    }
-
     let nextHeight = await this.#resolveStartHeight();
     this.#logger.info({ event: "SYNC_STARTED", network: this.#config.NETWORK, nextHeight });
 
     while (!this.#stopped) {
-      await this.#leaderLock.assertHeld();
       const tipHeight = await this.#retryTransient(() => this.#getTipHeight(), { event: "SYNC_TIP_FETCH_RETRY" });
 
       if (nextHeight > tipHeight) {
@@ -94,10 +78,6 @@ export class SyncRunnerService {
         const height = nextHeight;
         await this.#retryTransient(() => this.#syncBlock(height), { event: "SYNC_BLOCK_RETRY", height });
         nextHeight++;
-
-        if (nextHeight % LEADERSHIP_CHECK_EVERY_BLOCKS === 0) {
-          await this.#leaderLock.assertHeld();
-        }
       }
     }
   }

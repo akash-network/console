@@ -1,3 +1,5 @@
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
 import { Blocks, IndexerState, Messages, MessageTypes } from "@src/db/schema";
@@ -76,6 +78,15 @@ describe(BlockCommitterService.name, () => {
       expect(insertedRows).toEqual([]);
     });
 
+    it("only ever moves the checkpoint forward on conflict, so concurrent writers cannot regress it", async () => {
+      const { committer, conflictUpdates } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
+
+      await committer.commitBatch([buildBlock([MSG_SEND], 10)], { stream: "backfill:10-10" });
+
+      const checkpointSet = conflictUpdates.find(call => call.table === IndexerState)?.config.set as { lastHeight: SQL };
+      expect(new PgDialect().sqlToQuery(checkpointSet.lastHeight).sql).toBe('GREATEST("indexer_state"."last_height", EXCLUDED.last_height)');
+    });
+
     it("splits large row sets into multiple inserts within the same transaction", async () => {
       const { committer, insertedRows } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
       const manyMessages = Array.from({ length: 2_001 }, () => MSG_SEND);
@@ -91,6 +102,7 @@ describe(BlockCommitterService.name, () => {
   function setup(input?: { selectResults?: Array<Array<{ id: number; type: string }>>; insertReturning?: Array<{ id: number; type: string }> }) {
     const selectResults = [...(input?.selectResults ?? [[]])];
     const insertedRows: Array<{ table: unknown; rows: unknown }> = [];
+    const conflictUpdates: Array<{ table: unknown; config: { set: unknown } }> = [];
 
     const dbFake = {
       select: () => ({ from: () => ({ where: () => Promise.resolve(selectResults.shift() ?? []) }) }),
@@ -102,7 +114,10 @@ describe(BlockCommitterService.name, () => {
               Object.assign(Promise.resolve(), {
                 returning: () => Promise.resolve(input?.insertReturning ?? [])
               }),
-            onConflictDoUpdate: () => Promise.resolve()
+            onConflictDoUpdate: (config: { set: unknown }) => {
+              conflictUpdates.push({ table, config });
+              return Promise.resolve();
+            }
           };
         }
       }),
@@ -110,7 +125,7 @@ describe(BlockCommitterService.name, () => {
     };
 
     const committer = new BlockCommitterService(dbFake as unknown as ChainDatabase);
-    return { committer, insertedRows };
+    return { committer, insertedRows, conflictUpdates };
   }
 
   function buildBlock(typeUrls: string[], height = 10): DecodedBlock {

@@ -1,9 +1,8 @@
 import { setTimeout as delay } from "node:timers/promises";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { envSchema } from "@src/config/env.config";
-import type { PgClientService } from "@src/db/pg-client.service";
 import { Blocks, IndexerState } from "@src/db/schema";
 import { BackfillRunnerService } from "@src/pipeline/backfill-runner.service";
 import type { BlockCommitterService } from "@src/pipeline/block-committer.service";
@@ -142,14 +141,6 @@ describe(BackfillRunnerService.name, () => {
       BACKFILL_CONCURRENCY: String(input.concurrency ?? 10)
     });
 
-    const reserved = Object.assign(
-      vi.fn((strings: TemplateStringsArray) => Promise.resolve(strings.join("?").includes("pg_try_advisory_lock") ? [{ acquired: true }] : [{ pid: 42 }])),
-      { release: vi.fn() }
-    );
-    const pgClient = mock<PgClientService>({
-      client: mock<PgClientService["client"]>({ reserve: vi.fn().mockResolvedValue(reserved) })
-    });
-
     const dbFake = {
       select: () => ({
         from: (table: unknown) => ({
@@ -199,7 +190,7 @@ describe(BackfillRunnerService.name, () => {
 
     const logger = mock<LoggerService>();
 
-    const runner = new BackfillRunnerService(pgClient, dbFake as unknown as ChainDatabase, pool, decoder, committer, config, logger);
+    const runner = new BackfillRunnerService(dbFake as unknown as ChainDatabase, pool, decoder, committer, config, logger);
 
     return { runner, committer, pool, logger, maxObservedConcurrency: () => maxActiveFetches };
   }

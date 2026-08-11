@@ -2,8 +2,6 @@ import { eq } from "drizzle-orm";
 import { inject, singleton } from "tsyringe";
 
 import type { EnvConfig } from "@src/config/env.config";
-import { PgAdvisoryLeaderLock } from "@src/db/pg-advisory-leader-lock";
-import { PgClientService } from "@src/db/pg-client.service";
 import { Blocks, IndexerState } from "@src/db/schema";
 import { retryWithBackoff } from "@src/lib/retry-with-backoff/retry-with-backoff";
 import { planBackfill } from "@src/pipeline/backfill-planner";
@@ -18,8 +16,6 @@ import { CHAIN_DB } from "@src/providers/db.provider";
 import { LoggerService } from "@src/providers/logging.provider";
 import { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
 
-/** Arbitrary but fixed application-wide key for the backfill leader pg advisory lock; distinct from the sync leader key so a backfill never contends with live sync. */
-const BACKFILL_LEADER_LOCK_KEY = 7_431_002;
 const FETCH_RETRY_MAX_ATTEMPTS = 5;
 const FETCH_RETRY_BASE_MS = 1_000;
 
@@ -31,13 +27,11 @@ export class BackfillRunnerService {
   readonly #committer: BlockCommitterService;
   readonly #config: EnvConfig;
   readonly #logger: LoggerService;
-  readonly #leaderLock: PgAdvisoryLeaderLock;
 
   #stopped = false;
   #lastHash: Buffer | null = null;
 
   constructor(
-    @inject(PgClientService) pgClient: PgClientService,
     @inject(CHAIN_DB) db: ChainDatabase,
     @inject(RpcClientPool) pool: RpcClientPool,
     @inject(BlockDecoderService) decoder: BlockDecoderService,
@@ -52,12 +46,6 @@ export class BackfillRunnerService {
     this.#config = config;
     this.#logger = logger;
     this.#logger.setContext("BACKFILL");
-    this.#leaderLock = new PgAdvisoryLeaderLock({
-      client: pgClient.client,
-      lockKey: BACKFILL_LEADER_LOCK_KEY,
-      logger: this.#logger,
-      eventPrefix: "BACKFILL"
-    });
   }
 
   async start(): Promise<void> {
@@ -74,7 +62,6 @@ export class BackfillRunnerService {
 
   async dispose(): Promise<void> {
     this.#stopped = true;
-    this.#leaderLock.release();
   }
 
   async #run(): Promise<void> {
@@ -82,12 +69,6 @@ export class BackfillRunnerService {
 
     if (fromHeight === undefined || toHeight === undefined) {
       throw new Error("BACKFILL_FROM_HEIGHT and BACKFILL_TO_HEIGHT are required for the backfill role");
-    }
-
-    await this.#leaderLock.acquire(() => this.#stopped);
-
-    if (this.#stopped) {
-      return;
     }
 
     const stream = `backfill:${fromHeight}-${toHeight}`;
@@ -148,13 +129,7 @@ export class BackfillRunnerService {
 
         if (batch.length >= this.#config.BACKFILL_BATCH_SIZE || height === endHeight) {
           const currentBatch = batch;
-          await this.#retryTransient(
-            async () => {
-              await this.#leaderLock.assertHeld();
-              await this.#committer.commitBatch(currentBatch, { stream });
-            },
-            { event: "BACKFILL_COMMIT_RETRY", height }
-          );
+          await this.#retryTransient(() => this.#committer.commitBatch(currentBatch, { stream }), { event: "BACKFILL_COMMIT_RETRY", height });
           blocksCommitted += batch.length;
           transactionsCommitted += batch.reduce((sum, block) => sum + block.transactions.length, 0);
           batch = [];

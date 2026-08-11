@@ -1,4 +1,3 @@
-import { LeadershipLostError } from "@src/db/pg-advisory-leader-lock";
 import { retryWithBackoff } from "@src/lib/retry-with-backoff/retry-with-backoff";
 import { ChainContinuityError } from "@src/pipeline/chain-continuity-error";
 import type { LoggerService } from "@src/providers/logging.provider";
@@ -16,7 +15,7 @@ export function retryTransient<T>(
     maxAttempts: MAX_ATTEMPTS,
     baseDelayMs: BASE_DELAY_MS,
     maxDelayMs: MAX_DELAY_MS,
-    shouldRethrow: error => options.isStopped() || error instanceof ChainContinuityError || error instanceof LeadershipLostError,
+    shouldRethrow: error => options.isStopped() || error instanceof ChainContinuityError,
     onRetry: (error, attempt, delayMs) => options.logger.warn({ ...options.logContext, attempt, delayMs, error })
   });
 }

@@ -1,4 +1,4 @@
-import { inArray } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import chunk from "lodash/chunk";
 import { inject, singleton } from "tsyringe";
 
@@ -25,7 +25,12 @@ export class BlockCommitterService {
     await this.commitBatch([block], { stream: SYNC_STREAM });
   }
 
-  /** Commits contiguous blocks and the checkpoint advance in one transaction, so the checkpoint never points past uncommitted data. */
+  /**
+   * Commits contiguous blocks and the checkpoint advance in one transaction, so the checkpoint
+   * never points past uncommitted data. Inserts are conflict-ignoring and the checkpoint only
+   * moves forward, so concurrent writers on the same stream (e.g. two pods overlapping during a
+   * rolling deploy) duplicate work but cannot corrupt data or regress the checkpoint.
+   */
   async commitBatch(blocks: DecodedBlock[], options: { stream: string }): Promise<void> {
     if (blocks.length === 0) {
       return;
@@ -87,7 +92,7 @@ export class BlockCommitterService {
         .values({ stream: options.stream, lastHeight, updatedAt: new Date() })
         .onConflictDoUpdate({
           target: IndexerState.stream,
-          set: { lastHeight, updatedAt: new Date() }
+          set: { lastHeight: sql`GREATEST(${IndexerState.lastHeight}, EXCLUDED.last_height)`, updatedAt: new Date() }
         });
     });
   }
