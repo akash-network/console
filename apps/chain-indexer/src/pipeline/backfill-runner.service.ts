@@ -221,10 +221,14 @@ export class BackfillRunnerService {
    * committed by sync or another backfill, and its absence just leaves the first block unverified.
    */
   async #seedContinuityHash(startHeight: number, isResume: boolean): Promise<void> {
-    const [previousBlock] = await this.#db
-      .select()
-      .from(Blocks)
-      .where(eq(Blocks.height, startHeight - 1));
+    const [previousBlock] = await this.#retryTransient(
+      () =>
+        this.#db
+          .select()
+          .from(Blocks)
+          .where(eq(Blocks.height, startHeight - 1)),
+      { event: "BACKFILL_SEED_READ_RETRY", height: startHeight - 1 }
+    );
 
     if (previousBlock) {
       this.#lastHash = previousBlock.hash;
