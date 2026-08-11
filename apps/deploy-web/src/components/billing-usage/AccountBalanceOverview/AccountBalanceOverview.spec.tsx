@@ -1,9 +1,11 @@
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import { UrlService } from "@src/utils/urlUtils";
 import { AccountBalanceOverview, DEPENDENCIES } from "./AccountBalanceOverview";
 import type { AccountBalanceOverview as AccountBalanceOverviewData } from "./useAccountBalanceOverview";
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(AccountBalanceOverview.name, () => {
@@ -27,25 +29,48 @@ describe(AccountBalanceOverview.name, () => {
     expect(screen.queryByText(/lasts until/)).not.toBeInTheDocument();
   });
 
-  it("explains reserved funds with the running deployment count", () => {
+  it("shows the reserved and available balances with their descriptors", () => {
     setup({ reserved: 1338, available: 1873.2, activeDeploymentCount: 7 });
 
-    expect(screen.getByText(/is reserved to keep your 7 running deployments online/)).toBeInTheDocument();
-    expect(screen.getByText(/is available for new deployments/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Reserved balance")).toHaveTextContent("1338");
+    expect(screen.getByLabelText("Available balance")).toHaveTextContent("1873.2");
+    expect(screen.getByText("Held to keep your 7 deployments running")).toBeInTheDocument();
+    expect(screen.getByText("Free to spend on something new")).toBeInTheDocument();
   });
 
-  it("omits the reserved sentence when nothing is reserved", () => {
-    setup({ reserved: 0, available: 500 });
+  it("uses singular wording when a single deployment is running", () => {
+    setup({ reserved: 100, activeDeploymentCount: 1 });
 
-    expect(screen.queryByText(/is reserved to keep/)).not.toBeInTheDocument();
-    expect(screen.getByText(/is available for new deployments/)).toBeInTheDocument();
+    expect(screen.getByText("Held to keep your 1 deployment running")).toBeInTheDocument();
   });
 
-  it("lists each deployment and the available balance in the legend", () => {
-    setup({ deployments: [{ dseq: "1", name: "llama-chat", reservedUsd: 508.8 }], available: 1873.2 });
+  it("reveals the deployment breakdown only after the collapsible is opened", () => {
+    setup({ deployments: [{ dseq: "1", name: "llama-chat", reservedUsd: 508.8, perHourUsd: 4.24 }], available: 1873.2 });
+
+    expect(screen.queryByText("llama-chat")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /What is reserved/ }));
 
     expect(screen.getByText("llama-chat")).toBeInTheDocument();
-    expect(screen.getByText("Available")).toBeInTheDocument();
+    expect(screen.getByText(/\/hr/)).toBeInTheDocument();
+  });
+
+  it("toggles the breakdown label between closed and open", () => {
+    setup({ deployments: [{ dseq: "1", name: "llama-chat", reservedUsd: 508.8, perHourUsd: 4.24 }] });
+
+    expect(screen.getByRole("button", { name: /What is reserved \(1\)/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /What is reserved/ }));
+
+    expect(screen.getByRole("button", { name: /Hide breakdown/ })).toBeInTheDocument();
+  });
+
+  it("links each deployment badge to its detail page", () => {
+    setup({ deployments: [{ dseq: "42", name: "llama-chat", reservedUsd: 508.8, perHourUsd: 4.24 }] });
+
+    fireEvent.click(screen.getByRole("button", { name: /What is reserved/ }));
+
+    expect(screen.getByRole("link", { name: /llama-chat/ })).toHaveAttribute("href", UrlService.deploymentDetails("42"));
   });
 
   it("reassures when auto recharge is on", () => {
@@ -56,6 +81,12 @@ describe(AccountBalanceOverview.name, () => {
 
   it("stays quiet about auto recharge when it is off", () => {
     setup({ autoReloadEnabled: false });
+
+    expect(screen.queryByText(/Auto Recharge is on/)).not.toBeInTheDocument();
+  });
+
+  it("hides the auto recharge line when the bar already surfaces the top-up threshold", () => {
+    setup({ autoReloadEnabled: true, autoReloadThreshold: 275 });
 
     expect(screen.queryByText(/Auto Recharge is on/)).not.toBeInTheDocument();
   });
@@ -78,6 +109,7 @@ describe(AccountBalanceOverview.name, () => {
       lastsUntil: null,
       runwayDays: null,
       autoReloadEnabled: false,
+      autoReloadThreshold: null,
       isLoading: false,
       ...overview
     };
@@ -89,7 +121,8 @@ describe(AccountBalanceOverview.name, () => {
           {
             ...MockComponents(DEPENDENCIES),
             useAccountBalanceOverview: () => data,
-            FormattedNumber: MockFormattedNumber
+            FormattedNumber: MockFormattedNumber,
+            Link: ({ href, children }: { href: string; children: ReactNode }) => <a href={href}>{children}</a>
           } as unknown as typeof DEPENDENCIES
         }
       />

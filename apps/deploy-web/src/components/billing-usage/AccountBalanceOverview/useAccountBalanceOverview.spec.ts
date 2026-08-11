@@ -30,8 +30,8 @@ describe(useAccountBalanceOverview.name, () => {
     });
 
     expect(result.current.deployments).toEqual([
-      { dseq: "2", name: "llama-chat", reservedUsd: 100 },
-      { dseq: "1", name: "Deployment 1", reservedUsd: 50 }
+      { dseq: "2", name: "llama-chat", reservedUsd: 100, perHourUsd: 0 },
+      { dseq: "1", name: "Deployment 1", reservedUsd: 50, perHourUsd: 0 }
     ]);
     expect(result.current.activeDeploymentCount).toBe(2);
   });
@@ -51,10 +51,41 @@ describe(useAccountBalanceOverview.name, () => {
     expect(result.current.lastsUntil).toBeNull();
   });
 
+  it("computes each deployment's hourly burn rate from its live leases", () => {
+    const { result } = setup({
+      deployments: [
+        { dseq: "1", fundsUsd: 200 },
+        { dseq: "2", fundsUsd: 100 }
+      ],
+      leases: [{ dseq: "1", amountUakt: "1000000" }]
+    });
+
+    expect(result.current.deployments[0].perHourUsd).toBeGreaterThan(0);
+    expect(result.current.deployments[1].perHourUsd).toBe(0);
+  });
+
   it("passes through the auto reload setting", () => {
     const { result } = setup({ autoReloadEnabled: true });
 
     expect(result.current.autoReloadEnabled).toBe(true);
+  });
+
+  it("exposes the auto reload threshold when the fixed-threshold flag and auto reload are both on", () => {
+    const { result } = setup({ fixedThresholdEnabled: true, autoReloadEnabled: true, autoReloadThreshold: 275 });
+
+    expect(result.current.autoReloadThreshold).toBe(275);
+  });
+
+  it("hides the auto reload threshold when the fixed-threshold flag is off", () => {
+    const { result } = setup({ fixedThresholdEnabled: false, autoReloadEnabled: true, autoReloadThreshold: 275 });
+
+    expect(result.current.autoReloadThreshold).toBeNull();
+  });
+
+  it("hides the auto reload threshold when auto reload is off", () => {
+    const { result } = setup({ fixedThresholdEnabled: true, autoReloadEnabled: false, autoReloadThreshold: 275 });
+
+    expect(result.current.autoReloadThreshold).toBeNull();
   });
 
   it("is loading until the wallet balance resolves", () => {
@@ -68,8 +99,11 @@ describe(useAccountBalanceOverview.name, () => {
     reservedUsd?: number;
     deployments?: Array<{ dseq: string; fundsUsd: number }>;
     names?: Record<string, string>;
+    leases?: Array<{ dseq: string; amountUakt?: string }>;
     hasLiveLease?: boolean;
     autoReloadEnabled?: boolean;
+    autoReloadThreshold?: number;
+    fixedThresholdEnabled?: boolean;
     walletBalanceMissing?: boolean;
   }) {
     const activeDeployments = (input.deployments ?? []).map(deployment => ({
@@ -77,13 +111,18 @@ describe(useAccountBalanceOverview.name, () => {
       escrowAccount: { state: { funds: [{ denom: UAKT_DENOM, amount: String(deployment.fundsUsd) }] } }
     }));
 
-    const leases = input.hasLiveLease ? [{ state: "active", price: { denom: UAKT_DENOM, amount: "1000000" } }] : [];
+    const leases = input.leases
+      ? input.leases.map(lease => ({ dseq: lease.dseq, state: "active", price: { denom: UAKT_DENOM, amount: lease.amountUakt ?? "1000000" } }))
+      : input.hasLiveLease
+        ? [{ state: "active", price: { denom: UAKT_DENOM, amount: "1000000" } }]
+        : [];
 
     const dependencies = {
       ...DEPENDENCIES,
       useWallet: () => ({ address: "akash1abc" }),
       usePricing: () => ({ price: 1, isLoaded: true, udenomToUsd: (amount: string | number) => Number(amount) }),
       useUsdcDenom: () => "ibc/usdc",
+      useFlag: () => input.fixedThresholdEnabled ?? false,
       useWalletBalance: () => ({
         balance: input.walletBalanceMissing ? null : { totalUsd: input.totalUsd ?? 0, totalDeploymentEscrowUSD: input.reservedUsd ?? 0 },
         isLoading: false,
@@ -91,7 +130,7 @@ describe(useAccountBalanceOverview.name, () => {
       }),
       useBalances: () => ({ data: { activeDeployments } }),
       useAllLeases: () => ({ data: leases }),
-      useWalletSettingsQuery: () => ({ data: { autoReloadEnabled: input.autoReloadEnabled ?? false } }),
+      useWalletSettingsQuery: () => ({ data: { autoReloadEnabled: input.autoReloadEnabled ?? false, autoReloadThreshold: input.autoReloadThreshold } }),
       useLocalNotes: () => ({ getDeploymentName: (dseq: string | number | null) => input.names?.[String(dseq)] ?? null })
     } as unknown as typeof DEPENDENCIES;
 

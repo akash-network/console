@@ -1,21 +1,21 @@
 import React, { useCallback, useMemo, useState } from "react";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
-import { Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, TableCell, TableRow } from "@akashnetwork/ui/components";
+import { Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@akashnetwork/ui/components";
 import { ClickAwayListener } from "@mui/material";
 import { BadgeCheck, CheckCircle, MoreHoriz, Trash } from "iconoir-react";
+import { CreditCard } from "lucide-react";
 
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
 import { capitalizeFirstLetter } from "@src/utils/stringUtils";
 
 export const DEPENDENCIES = {
-  TableRow,
-  TableCell,
   DropdownMenu,
   DropdownMenuTrigger,
   Button,
   DropdownMenuContent,
   ClickAwayListener,
-  CustomDropdownLinkItem
+  CustomDropdownLinkItem,
+  CreditCard
 };
 
 export type PaymentMethodsRowProps = {
@@ -77,7 +77,7 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
     }
 
     return (
-      <Badge variant="info" className="ml-2 h-4 px-1 py-0 text-xs">
+      <Badge variant="info" className="h-4 px-1 py-0 text-xs">
         <BadgeCheck width="10px" className="mr-1" />
         <small>Default</small>
       </Badge>
@@ -97,15 +97,17 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
   const canSetAsDefault = !paymentMethod.isDefault;
 
   return (
-    <d.TableRow className="flex border-0 py-2 hover:bg-transparent">
-      <d.TableCell className="flex items-center">
-        {paymentMethodLabel} {defaultBadge}
-      </d.TableCell>
-      {validUntilContent && <d.TableCell className="flex flex-grow items-center justify-end">Valid until {validUntilContent}</d.TableCell>}
-      <d.TableCell className="min-h-[72px] min-w-[72px]">
+    <div className="flex items-center gap-3 py-4">
+      <d.CreditCard className="h-6 w-6 shrink-0 text-muted-foreground" />
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <span className="truncate font-medium">{paymentMethodLabel}</span>
+        {defaultBadge}
+      </div>
+      <div className="ml-auto flex items-center gap-2">
+        {validUntilContent && <span className="whitespace-nowrap text-sm text-muted-foreground">Valid until {validUntilContent}</span>}
         <d.DropdownMenu modal={false} open={open}>
           <d.DropdownMenuTrigger asChild>
-            <d.Button onClick={openMenu} size="icon" variant="ghost" className="rounded-full">
+            <d.Button onClick={openMenu} size="icon" variant="ghost" className="rounded-full" aria-label="Payment method actions">
               <MoreHoriz />
             </d.Button>
           </d.DropdownMenuTrigger>
@@ -130,7 +132,7 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
             </d.ClickAwayListener>
           </d.DropdownMenuContent>
         </d.DropdownMenu>
-      </d.TableCell>
-    </d.TableRow>
+      </div>
+    </div>
   );
 };

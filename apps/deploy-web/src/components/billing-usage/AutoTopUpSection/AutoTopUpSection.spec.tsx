@@ -20,20 +20,23 @@ describe(AutoTopUpSection.name, () => {
       expect(screen.getByText("Auto Top-Up")).toBeInTheDocument();
     });
 
-    it("shows the threshold summary with stored values when enabled", () => {
+    it("shows the threshold and top-up amounts when enabled", () => {
       setup({
         isFixedThresholdEnabled: true,
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100 }
       });
 
-      expect(screen.getByText(/Top up/)).toHaveTextContent("Top up 100 when balance ≤ 20");
+      expect(screen.getByText("Threshold")).toBeInTheDocument();
+      expect(screen.getByText("Top up")).toBeInTheDocument();
+      expect(screen.getByText("20")).toBeInTheDocument();
+      expect(screen.getByText("100")).toBeInTheDocument();
     });
 
-    it("shows 'Add funds automatically' when disabled with a payment method", () => {
+    it("prompts to turn on auto top-up when disabled with a payment method", () => {
       setup({ isFixedThresholdEnabled: true, defaultPaymentMethod: { id: "pm_123" }, walletSettings: { autoReloadEnabled: false } });
 
-      expect(screen.getByText("Add funds automatically")).toBeInTheDocument();
+      expect(screen.getByText(/Turn on Auto Top-Up to add funds automatically/)).toBeInTheDocument();
     });
 
     it("opens the settings dialog in enable mode without mutating when the switch is turned on", () => {
@@ -84,6 +87,15 @@ describe(AutoTopUpSection.name, () => {
       expect(screen.getByRole("switch")).toBeDisabled();
       expect(screen.queryByRole("button", { name: /edit auto top-up settings/i })).not.toBeInTheDocument();
       expect(screen.getByText(/Add a payment method/)).toBeInTheDocument();
+    });
+
+    it("opens the add-payment-method flow from the prompt when there is no payment method", () => {
+      const openAddPaymentMethod = vi.fn();
+      setup({ isFixedThresholdEnabled: true, defaultPaymentMethod: undefined, openAddPaymentMethod });
+
+      fireEvent.click(screen.getByText("Add a payment method"));
+
+      expect(openAddPaymentMethod).toHaveBeenCalledTimes(1);
     });
 
     it("disables the edit button while a settings update is in flight", () => {
@@ -158,9 +170,13 @@ describe(AutoTopUpSection.name, () => {
     upsertMutate?: ReturnType<typeof vi.fn>;
     enqueueSnackbar?: ReturnType<typeof vi.fn>;
     isPending?: boolean;
+    perHour?: number;
+    available?: number;
+    openAddPaymentMethod?: ReturnType<typeof vi.fn>;
   }) {
     const upsertMutate = input.upsertMutate ?? vi.fn();
     const enqueueSnackbar = input.enqueueSnackbar ?? vi.fn();
+    const openAddPaymentMethod = input.openAddPaymentMethod ?? vi.fn();
 
     const MockButton = vi.fn(({ children, ...props }: Parameters<typeof DEPENDENCIES.Button>[0]) => <button {...props}>{children}</button>);
     const MockSwitch = vi.fn(({ checked, onCheckedChange, disabled }: Parameters<typeof DEPENDENCIES.Switch>[0]) => (
@@ -173,11 +189,12 @@ describe(AutoTopUpSection.name, () => {
       useFlag: vi.fn(() => input.isFixedThresholdEnabled ?? false),
       useSnackbar: vi.fn(() => ({ enqueueSnackbar })),
       useDefaultPaymentMethodQuery: vi.fn(() => ({ data: input.defaultPaymentMethod, isLoading: false })),
-      useWalletSettingsQuery: vi.fn(() => ({ data: input.walletSettings ?? { autoReloadEnabled: false } })),
+      useWalletSettingsQuery: vi.fn(() => ({ data: input.walletSettings ?? { autoReloadEnabled: false }, isLoading: false })),
       useWeeklyDeploymentCostQuery: vi.fn(() => ({ data: input.weeklyCost ?? 5 })),
       useWalletSettingsMutations: vi.fn(() => ({ upsertWalletSettings: { mutate: upsertMutate, isPending: input.isPending ?? false } })),
+      useAccountBalanceOverview: vi.fn(() => ({ perHour: input.perHour ?? 0, available: input.available ?? 0 })),
+      useBillingActions: vi.fn(() => ({ openAddPaymentMethod })),
       usePopup: vi.fn(() => ({ confirm: vi.fn().mockResolvedValue(input.confirmResult ?? true) })),
-      useServices: vi.fn(() => ({ urlService: { billing: () => "/billing", paymentMethods: () => "/payment-methods" } })),
       Button: MockButton,
       Switch: MockSwitch,
       FormattedNumber: MockFormattedNumber
@@ -185,6 +202,6 @@ describe(AutoTopUpSection.name, () => {
 
     render(<AutoTopUpSection dependencies={dependencies} />);
 
-    return { dependencies, upsertMutate, enqueueSnackbar };
+    return { dependencies, upsertMutate, enqueueSnackbar, openAddPaymentMethod };
   }
 });

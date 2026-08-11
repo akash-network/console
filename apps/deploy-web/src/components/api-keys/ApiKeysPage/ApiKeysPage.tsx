@@ -50,7 +50,7 @@ export function ApiKeysPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
   };
 
   return (
-    <d.Layout isLoading={isLoading}>
+    <d.Layout isLoading={isLoading} disableContainer>
       <d.NextSeo title="API Keys" />
 
       <d.SettingsLayout>

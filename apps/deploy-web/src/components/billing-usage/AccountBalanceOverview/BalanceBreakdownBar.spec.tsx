@@ -31,8 +31,15 @@ describe(buildBalanceSegments.name, () => {
     expect(buildBalanceSegments(deployments([0]), 0)).toEqual([]);
   });
 
+  it("carries each deployment's hourly rate onto its reserved segment but not the available one", () => {
+    const segments = buildBalanceSegments(deployments([120]), 200);
+
+    expect(segments[0].perHourUsd).toBe(1);
+    expect(segments[1].perHourUsd).toBeUndefined();
+  });
+
   function deployments(amounts: number[]): ReservedDeployment[] {
-    return amounts.map((reservedUsd, index) => ({ dseq: `dseq-${index}`, name: `deployment-${index}`, reservedUsd }));
+    return amounts.map((reservedUsd, index) => ({ dseq: `dseq-${index}`, name: `deployment-${index}`, reservedUsd, perHourUsd: reservedUsd / 120 }));
   }
 });
 
@@ -55,7 +62,38 @@ describe(BalanceBreakdownBar.name, () => {
     expect(screen.getByRole("img").getAttribute("aria-label")).toContain("llama");
   });
 
-  function setup(segments: Parameters<typeof BalanceBreakdownBar>[0]["segments"]) {
-    return render(<BalanceBreakdownBar segments={segments} />);
+  it("marks the auto top-up threshold when one is provided", () => {
+    setup(
+      [
+        { key: "d1", label: "llama", amountUsd: 1000, color: "hsl(var(--primary))" },
+        { key: "available", label: "Available", amountUsd: 1000, color: "hsl(var(--success))" }
+      ],
+      250
+    );
+
+    expect(screen.getByText(/Tops up at/)).toHaveTextContent("$250");
+  });
+
+  it("omits the threshold marker when no threshold is provided", () => {
+    setup([{ key: "available", label: "Available", amountUsd: 1000, color: "hsl(var(--success))" }]);
+
+    expect(screen.queryByText(/Tops up at/)).not.toBeInTheDocument();
+  });
+
+  it("positions the marker as the far-right slice of the bar", () => {
+    setup(
+      [
+        { key: "d1", label: "llama", amountUsd: 1000, color: "hsl(var(--primary))" },
+        { key: "available", label: "Available", amountUsd: 1000, color: "hsl(var(--success))" }
+      ],
+      250
+    );
+
+    expect(screen.getByTestId("balance-threshold-hatch").style.width).toBe("12.5%");
+    expect(screen.getByTestId("balance-threshold-line").style.left).toBe("87.5%");
+  });
+
+  function setup(segments: Parameters<typeof BalanceBreakdownBar>[0]["segments"], threshold?: number | null) {
+    return render(<BalanceBreakdownBar segments={segments} threshold={threshold} />);
   }
 });

@@ -10,9 +10,9 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { createMockItems, createMockTransaction } from "@tests/seeders/payment";
 
 describe(BillingView.name, () => {
-  it("shows spinner when fetching", () => {
-    setup({ isFetching: true });
-    expect(screen.getByRole("status")).toBeInTheDocument();
+  it("shows a skeleton on first load", () => {
+    setup({ isLoading: true, data: [] });
+    expect(screen.getByTestId("billing-history-skeleton")).toBeInTheDocument();
   });
 
   it("shows error alert when error", () => {
@@ -30,41 +30,29 @@ describe(BillingView.name, () => {
     setup();
     expect(screen.getByText("History")).toBeInTheDocument();
     expect(screen.getByText("Date")).toBeInTheDocument();
-    expect(screen.getByText("Type")).toBeInTheDocument();
-    expect(screen.getByText("Description")).toBeInTheDocument();
     expect(screen.getByText("Amount")).toBeInTheDocument();
+    expect(screen.getByText("Account source")).toBeInTheDocument();
     expect(screen.getByText("Status")).toBeInTheDocument();
     expect(screen.getByText("Receipt")).toBeInTheDocument();
   });
 
-  it("renders the type badge label for each transaction type", () => {
+  it("falls back to the transaction type as the account source when there is no card", () => {
     setup({
       data: [
-        createMockTransaction({ type: "payment_intent" }),
-        createMockTransaction({ type: "coupon_claim" }),
-        createMockTransaction({ type: "manual_credit" })
+        createMockTransaction({ type: "coupon_claim", cardBrand: null, cardLast4: null }),
+        createMockTransaction({ type: "manual_credit", cardBrand: null, cardLast4: null })
       ]
     });
 
-    expect(screen.getByText("Card Payment")).toBeInTheDocument();
     expect(screen.getByText("Coupon")).toBeInTheDocument();
     expect(screen.getByText("Manual Credit")).toBeInTheDocument();
   });
 
-  it("shows the card brand and last4 under a card payment", () => {
+  it("shows the card brand and last4 as the account source for a card payment", () => {
     setup({ data: [createMockTransaction({ type: "payment_intent", cardBrand: "visa", cardLast4: "4242" })] });
 
     expect(screen.getByText(/Visa/)).toBeInTheDocument();
     expect(screen.getByText(/4242/)).toBeInTheDocument();
-  });
-
-  it("renders the description, falling back to N/A when missing", () => {
-    setup({
-      data: [createMockTransaction({ description: "Wallet top-up" }), createMockTransaction({ description: null })]
-    });
-
-    expect(screen.getByText("Wallet top-up")).toBeInTheDocument();
-    expect(screen.getByText("N/A")).toBeInTheDocument();
   });
 
   it("renders the transaction amount", () => {
@@ -221,6 +209,7 @@ describe(BillingView.name, () => {
       data: props.data ?? defaultData,
       hasMore: false,
       hasPrevious: false,
+      isLoading: false,
       isFetching: false,
       isError: false,
       errorMessage: "",

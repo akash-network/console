@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useLocalNotes } from "@src/components/LocalNoteManager/useLocalNotes";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUsdcDenom } from "@src/hooks/useDenom";
+import { useFlag } from "@src/hooks/useFlag";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useWalletSettingsQuery } from "@src/queries";
@@ -16,6 +17,7 @@ export const DEPENDENCIES = {
   useWallet,
   usePricing,
   useUsdcDenom,
+  useFlag,
   useWalletBalance,
   useBalances,
   useAllLeases,
@@ -27,6 +29,7 @@ export type ReservedDeployment = {
   dseq: string;
   name: string;
   reservedUsd: number;
+  perHourUsd: number;
 };
 
 export type AccountBalanceOverview = {
@@ -41,6 +44,8 @@ export type AccountBalanceOverview = {
   lastsUntil: Date | null;
   runwayDays: number | null;
   autoReloadEnabled: boolean;
+  /** The auto-top-up trigger balance to mark on the bar, or null when no marker should render (flag off, auto-reload off, or unset). */
+  autoReloadThreshold: number | null;
   isLoading: boolean;
 };
 
@@ -50,11 +55,22 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
   const { address } = d.useWallet();
   const { price, isLoaded: isPriceLoaded, udenomToUsd } = d.usePricing();
   const usdcDenom = d.useUsdcDenom();
-  const { balance: walletBalance, isLoading: isWalletBalanceLoading } = d.useWalletBalance();
+  const { balance: walletBalance } = d.useWalletBalance();
   const { data: balances } = d.useBalances(address);
   const { data: leases } = d.useAllLeases(address);
   const { data: walletSettings } = d.useWalletSettingsQuery();
   const { getDeploymentName } = d.useLocalNotes();
+  const isFixedThresholdEnabled = d.useFlag("auto_reload_fixed_threshold");
+
+  const perHourByDseq = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!leases || !isPriceLoaded) return map;
+    for (const lease of leases.filter(isLeaseLive)) {
+      const perBlockUsd = getLeasesCostPerBlockUsd([lease], price ?? 0, usdcDenom);
+      map.set(lease.dseq, (map.get(lease.dseq) ?? 0) + perBlockToHourly(perBlockUsd));
+    }
+    return map;
+  }, [leases, isPriceLoaded, price, usdcDenom]);
 
   const deployments = useMemo<ReservedDeployment[]>(() => {
     if (!balances) return [];
@@ -62,10 +78,11 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
       .map(deployment => ({
         dseq: deployment.dseq,
         name: getDeploymentName(deployment.dseq) ?? `Deployment ${deployment.dseq}`,
-        reservedUsd: deployment.escrowAccount.state.funds.reduce((sum, fund) => sum + udenomToUsd(fund.amount, fund.denom), 0)
+        reservedUsd: deployment.escrowAccount.state.funds.reduce((sum, fund) => sum + udenomToUsd(fund.amount, fund.denom), 0),
+        perHourUsd: perHourByDseq.get(deployment.dseq) ?? 0
       }))
       .sort((a, b) => b.reservedUsd - a.reservedUsd);
-  }, [balances, getDeploymentName, udenomToUsd]);
+  }, [balances, getDeploymentName, udenomToUsd, perHourByDseq]);
 
   const spend = useMemo(() => {
     if (!leases || !isPriceLoaded) return { perBlockUsd: 0, perHour: 0, perMonth: 0 };
@@ -77,6 +94,8 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
   const reserved = walletBalance?.totalDeploymentEscrowUSD ?? 0;
   const available = Math.max(0, totalUsd - reserved);
   const hasSpend = spend.perBlockUsd > 0;
+  const autoReloadEnabled = walletSettings?.autoReloadEnabled ?? false;
+  const autoReloadThreshold = isFixedThresholdEnabled && autoReloadEnabled ? walletSettings?.autoReloadThreshold ?? null : null;
 
   return {
     totalUsd,
@@ -88,7 +107,8 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
     perMonth: spend.perMonth,
     lastsUntil: hasSpend ? getTimeLeft(spend.perBlockUsd, totalUsd) : null,
     runwayDays: hasSpend ? Math.floor(totalUsd / spend.perHour / HOURS_PER_DAY) : null,
-    autoReloadEnabled: walletSettings?.autoReloadEnabled ?? false,
-    isLoading: isWalletBalanceLoading || !walletBalance
+    autoReloadEnabled,
+    autoReloadThreshold,
+    isLoading: !walletBalance
   };
 }

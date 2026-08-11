@@ -8,7 +8,7 @@ import { SettingsLayout } from "@src/components/layout/SettingsLayout/SettingsLa
 
 export const UsagePage: FC = () => {
   return (
-    <Layout containerClassName="flex h-full flex-col justify-between">
+    <Layout disableContainer containerClassName="flex h-full flex-col justify-between">
       <NextSeo title="Usage" />
       <SettingsLayout title="Usage" description="Track your spending and resource usage over time.">
         <UsageContainer>{props => <UsageView {...props} />}</UsageContainer>

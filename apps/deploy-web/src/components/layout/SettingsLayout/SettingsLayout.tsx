@@ -29,7 +29,7 @@ export const SettingsLayout: React.FunctionComponent<Props> = ({ title, descript
   const links = d.useSettingsNavLinks();
 
   return (
-    <div className="flex flex-col gap-6 md:flex-row md:gap-10">
+    <div className="flex w-full flex-col gap-6 p-6 pb-8 md:flex-row md:gap-10">
       <nav aria-label="Settings" className="flex shrink-0 gap-1 overflow-x-auto md:w-48 md:flex-col md:overflow-visible">
         {links.map(link => (
           <d.Link key={link.title} href={link.url} aria-current={link.isActive ? "page" : undefined} className={navLinkClasses(link.isActive)}>
@@ -40,7 +40,7 @@ export const SettingsLayout: React.FunctionComponent<Props> = ({ title, descript
 
       <div className="min-w-0 flex-1">
         {(title || headerActions) && (
-          <div className="flex flex-wrap items-start justify-between gap-4 pb-6">
+          <div className="flex flex-wrap items-end justify-between gap-4 pb-6">
             <div className="space-y-1">
               {title && <d.Title>{title}</d.Title>}
               {description && <p className="text-sm text-muted-foreground">{description}</p>}
