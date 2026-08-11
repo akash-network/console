@@ -43,6 +43,7 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
   const searchParams = d.useSearchParams();
   const [email, setEmail] = useState(props.initialEmail);
   const [screenKey, setScreenKey] = useState(0);
+  const [isSessionRevalidated, setIsSessionRevalidated] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
 
   const screen: "entry" | "verify" = searchParams.get("step") === "verify" ? "verify" : "entry";
@@ -92,11 +93,24 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
     [screen, email, goBackToEntry, user]
   );
 
+  /**
+   * The Auth0 client context can hold a stale user whose server session has already expired (the
+   * session cookie outlives the access token). Trusting it here would `navigateBack()` to a gated
+   * page whose SSR guard bounces straight back to /login — an infinite loop on a boot spinner
+   * (DEPLOY-WEB-2C4). Re-fetching the profile clears a dead user before any navigation decision.
+   */
+  useEffect(
+    function revalidateSessionOnMount() {
+      checkSession().finally(() => setIsSessionRevalidated(true));
+    },
+    [checkSession]
+  );
+
   useEffect(
     function leaveWhenAuthenticated() {
-      if (user) navigateBack();
+      if (isSessionRevalidated && user) navigateBack();
     },
-    [user, navigateBack]
+    [isSessionRevalidated, user, navigateBack]
   );
 
   const handleVerified = useCallback(async () => {

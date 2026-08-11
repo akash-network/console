@@ -129,6 +129,73 @@ export class SessionService {
     });
   }
 
+  async refreshAccessToken(
+    refreshToken: string
+  ): Promise<
+    Result<
+      RefreshedTokens,
+      | { code: "invalid_grant"; message: string; cause: unknown }
+      | { code: "rate_limited"; message: string; retryAfter: number; cause: unknown }
+      | { code: "unknown"; message: string; cause: unknown }
+    >
+  > {
+    const oauthIssuerUrl = new URL(this.#config.ISSUER_BASE_URL);
+
+    const tokenResponse = await this.#externalHttpClient.post(
+      `${oauthIssuerUrl.origin}/oauth/token`,
+      {
+        grant_type: "refresh_token",
+        client_id: this.#config.CLIENT_ID,
+        client_secret: this.#config.CLIENT_SECRET,
+        refresh_token: refreshToken
+      },
+      {
+        validateStatus: notServerError
+      }
+    );
+
+    if (tokenResponse.status === 429) {
+      return Err({
+        code: "rate_limited",
+        message: "Too many attempts. Please try again later.",
+        retryAfter: retryAfterFromHeaders(tokenResponse.headers),
+        cause: extractResponseDetails(tokenResponse)
+      });
+    }
+
+    if (tokenResponse.status >= 400) {
+      if (tokenResponse.data?.error === "invalid_grant") {
+        return Err({
+          code: "invalid_grant",
+          message: tokenResponse.data.error_description || "Refresh token is no longer valid.",
+          cause: extractResponseDetails(tokenResponse)
+        });
+      }
+      return Err({
+        code: "unknown",
+        message: tokenResponse.data?.error_description || "Token refresh failed.",
+        cause: extractResponseDetails(tokenResponse)
+      });
+    }
+
+    const { access_token, id_token, scope, expires_in, refresh_token } = tokenResponse.data;
+    if (!access_token || !Number.isFinite(Number(expires_in))) {
+      return Err({
+        code: "unknown",
+        message: "Token refresh returned an incomplete response.",
+        cause: extractResponseDetails(tokenResponse)
+      });
+    }
+
+    return Ok({
+      accessToken: access_token,
+      accessTokenScope: scope,
+      accessTokenExpiresAt: Math.floor(Date.now() / 1000) + Number(expires_in),
+      refreshToken: refresh_token ?? refreshToken,
+      idToken: id_token
+    });
+  }
+
   /**
    * This method calls idempotent API call to create a local user in the database.
    */
@@ -314,6 +381,15 @@ export class SessionService {
 
     return Ok(undefined);
   }
+}
+
+export interface RefreshedTokens {
+  accessToken: string;
+  accessTokenScope?: string;
+  accessTokenExpiresAt: number;
+  /** The rotated refresh token, or the input one when Auth0 rotation is disabled and none is returned. */
+  refreshToken: string;
+  idToken?: string;
 }
 
 export interface OauthConfig {

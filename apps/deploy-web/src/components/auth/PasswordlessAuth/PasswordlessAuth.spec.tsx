@@ -1,4 +1,5 @@
 import type { ReactNode, RefObject } from "react";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -77,10 +78,30 @@ describe(PasswordlessAuth.name, () => {
     expect(checkSession).toHaveBeenCalled();
   });
 
-  it("navigates back once the user is authenticated", () => {
+  it("navigates back once the user is authenticated and the session is re-validated", async () => {
     const { navigateBack } = setup({ authenticated: true });
 
-    expect(navigateBack).toHaveBeenCalled();
+    await vi.waitFor(() => expect(navigateBack).toHaveBeenCalled());
+  });
+
+  it("does not navigate back before the session re-validation settles", () => {
+    const { navigateBack } = setup({ authenticated: true, sessionRevalidation: "pending" });
+
+    expect(navigateBack).not.toHaveBeenCalled();
+  });
+
+  it("renders the login form instead of navigating back when re-validation clears a stale user", async () => {
+    const EmailCodeStartMock = vi.fn(ComponentMock);
+    const { navigateBack, checkSession } = setup({
+      authenticated: true,
+      sessionRevalidation: "expired",
+      dependencies: { EmailCodeStart: EmailCodeStartMock as never }
+    });
+
+    await vi.waitFor(() => expect(EmailCodeStartMock).toHaveBeenCalled());
+
+    expect(checkSession).toHaveBeenCalled();
+    expect(navigateBack).not.toHaveBeenCalled();
   });
 
   it("renders the boot loader instead of the auth forms when authenticated", () => {
@@ -145,24 +166,35 @@ describe(PasswordlessAuth.name, () => {
       initialEmail?: string;
       step?: string;
       authenticated?: boolean;
+      /** "valid" (default) keeps the user after re-validation, "expired" clears it, "pending" never settles. */
+      sessionRevalidation?: "valid" | "expired" | "pending";
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
     const analyticsService = mock<AnalyticsService>();
     const onEmailChange = vi.fn();
     const onFlowReset = vi.fn();
-    const checkSession = vi.fn(async () => undefined);
     const navigateBack = vi.fn();
     const push = vi.fn();
     const replace = vi.fn();
     const params = new URLSearchParams();
     if (input.step) params.set("step", input.step);
-    const useUser: typeof DEPENDENCIES.useUser = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useUser>>({
+    const initialUser = input.authenticated ? mock<NonNullable<ReturnType<typeof DEPENDENCIES.useUser>["user"]>>({ userId: "user-1" }) : undefined;
+    let clearUser: () => void = () => undefined;
+    const checkSession = vi.fn(async () => {
+      if (input.sessionRevalidation === "pending") return new Promise<undefined>(() => undefined);
+      if (input.sessionRevalidation === "expired") clearUser();
+      return undefined;
+    });
+    const useUser: typeof DEPENDENCIES.useUser = () => {
+      const [user, setUser] = useState(initialUser);
+      clearUser = () => setUser(undefined);
+      return mock<ReturnType<typeof DEPENDENCIES.useUser>>({
         checkSession,
         isLoading: false,
-        user: input.authenticated ? mock<NonNullable<ReturnType<typeof DEPENDENCIES.useUser>["user"]>>({ userId: "user-1" }) : undefined
+        user
       });
+    };
     const useReturnTo: typeof DEPENDENCIES.useReturnTo = () =>
       mock<ReturnType<typeof DEPENDENCIES.useReturnTo>>({
         returnTo: "/",
