@@ -8,6 +8,9 @@ import { CHAIN_DB } from "@src/providers/db.provider";
 
 export const SYNC_STREAM = "sync";
 
+/** Keeps multi-row inserts well under postgres.js's ~65k bind-parameter limit when batches span hundreds of blocks. */
+const INSERT_CHUNK_SIZE = 2_000;
+
 @singleton()
 export class BlockCommitterService {
   readonly #db: ChainDatabase;
@@ -18,61 +21,89 @@ export class BlockCommitterService {
   }
 
   async commit(block: DecodedBlock): Promise<void> {
-    const typeIds = await this.#internMessageTypes(block);
+    await this.commitBatch([block], { stream: SYNC_STREAM });
+  }
 
-    const transactionRows = block.transactions.map(tx => ({
+  /** Commits contiguous blocks and the checkpoint advance in one transaction, so the checkpoint never points past uncommitted data. */
+  async commitBatch(blocks: DecodedBlock[], options: { stream: string }): Promise<void> {
+    if (blocks.length === 0) {
+      return;
+    }
+
+    this.#verifyContiguous(blocks);
+    const typeIds = await this.#internMessageTypes(blocks);
+
+    const blockRows = blocks.map(block => ({
       height: block.height,
-      index: tx.index,
-      hash: tx.hash,
-      code: tx.code,
-      gasUsed: tx.gasUsed,
-      gasWanted: tx.gasWanted,
-      fee: tx.fee
+      datetime: block.datetime,
+      hash: block.hash,
+      parentHash: block.parentHash,
+      proposerAddress: block.proposerAddress,
+      txCount: block.transactions.length
     }));
 
-    const messageRows = block.transactions.flatMap(tx =>
-      tx.messages.map(message => ({
+    const transactionRows = blocks.flatMap(block =>
+      block.transactions.map(tx => ({
         height: block.height,
-        txIndex: tx.index,
-        index: message.index,
-        typeId: typeIds.get(message.typeUrl) as number,
-        body: message.body
+        index: tx.index,
+        hash: tx.hash,
+        code: tx.code,
+        gasUsed: tx.gasUsed,
+        gasWanted: tx.gasWanted,
+        fee: tx.fee
       }))
     );
 
-    await this.#db.transaction(async tx => {
-      await tx
-        .insert(Blocks)
-        .values({
+    const messageRows = blocks.flatMap(block =>
+      block.transactions.flatMap(tx =>
+        tx.messages.map(message => ({
           height: block.height,
-          datetime: block.datetime,
-          hash: block.hash,
-          parentHash: block.parentHash,
-          proposerAddress: block.proposerAddress,
-          txCount: block.transactions.length
-        })
-        .onConflictDoNothing();
+          txIndex: tx.index,
+          index: message.index,
+          typeId: typeIds.get(message.typeUrl) as number,
+          body: message.body
+        }))
+      )
+    );
 
-      if (transactionRows.length > 0) {
-        await tx.insert(Transactions).values(transactionRows).onConflictDoNothing();
+    const lastHeight = blocks[blocks.length - 1].height;
+
+    await this.#db.transaction(async tx => {
+      for (const chunk of chunked(blockRows, INSERT_CHUNK_SIZE)) {
+        await tx.insert(Blocks).values(chunk).onConflictDoNothing();
       }
 
-      if (messageRows.length > 0) {
-        await tx.insert(Messages).values(messageRows).onConflictDoNothing();
+      for (const chunk of chunked(transactionRows, INSERT_CHUNK_SIZE)) {
+        await tx.insert(Transactions).values(chunk).onConflictDoNothing();
+      }
+
+      for (const chunk of chunked(messageRows, INSERT_CHUNK_SIZE)) {
+        await tx.insert(Messages).values(chunk).onConflictDoNothing();
       }
 
       await tx
         .insert(IndexerState)
-        .values({ stream: SYNC_STREAM, lastHeight: block.height, updatedAt: new Date() })
+        .values({ stream: options.stream, lastHeight, updatedAt: new Date() })
         .onConflictDoUpdate({
           target: IndexerState.stream,
-          set: { lastHeight: block.height, updatedAt: new Date() }
+          set: { lastHeight, updatedAt: new Date() }
         });
     });
   }
 
-  async #internMessageTypes(block: DecodedBlock): Promise<Map<string, number>> {
-    const typeUrls = new Set(block.transactions.flatMap(tx => tx.messages.map(message => message.typeUrl)));
+  /** The checkpoint advances to the batch's last height, which is only correct when the batch has no gaps or reordering. */
+  #verifyContiguous(blocks: DecodedBlock[]): void {
+    blocks.forEach((block, index) => {
+      const expectedHeight = blocks[0].height + index;
+
+      if (block.height !== expectedHeight) {
+        throw new Error(`Non-contiguous batch: expected height ${expectedHeight} at position ${index}, got ${block.height}`);
+      }
+    });
+  }
+
+  async #internMessageTypes(blocks: DecodedBlock[]): Promise<Map<string, number>> {
+    const typeUrls = new Set(blocks.flatMap(block => block.transactions.flatMap(tx => tx.messages.map(message => message.typeUrl))));
     const uncached = [...typeUrls].filter(typeUrl => !this.#typeIds.has(typeUrl));
 
     if (uncached.length > 0) {
@@ -107,4 +138,14 @@ export class BlockCommitterService {
       rows.forEach(row => this.#typeIds.set(row.type, row.id));
     }
   }
+}
+
+function chunked<T>(rows: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+
+  for (let start = 0; start < rows.length; start += size) {
+    chunks.push(rows.slice(start, start + size));
+  }
+
+  return chunks;
 }
