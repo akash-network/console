@@ -25,7 +25,9 @@ export interface GetSessionWithRefreshDependencies {
  * only happens once the token is actually expired, and concurrent requests carrying the same
  * refresh token share a single in-flight `/oauth/token` call — with Auth0 refresh-token rotation
  * enabled, configure the tenant's rotation *reuse interval* (30–60s) so cross-instance races don't
- * revoke the token family; a lost race degrades to today's unauthenticated behavior, never an error.
+ * revoke the token family. Only a genuine `invalid_grant` clears the session cookies; a transient
+ * failure (rate limit, Auth0 5xx, network error) leaves them intact so a later request can retry,
+ * and it degrades to unauthenticated behavior rather than surfacing as an SSR error.
  */
 export function createGetSessionWithRefresh(deps: GetSessionWithRefreshDependencies): GetSession {
   const inFlightRefreshes = new Map<string, ReturnType<SessionService["refreshAccessToken"]>>();
@@ -47,11 +49,19 @@ export function createGetSessionWithRefresh(deps: GetSessionWithRefreshDependenc
       return session;
     }
 
-    const result = await refreshOncePerToken(session.refreshToken);
+    let result: Awaited<ReturnType<SessionService["refreshAccessToken"]>>;
+    try {
+      result = await refreshOncePerToken(session.refreshToken);
+    } catch (error) {
+      deps.logger.warn({ event: "ACCESS_TOKEN_REFRESH_ERROR", error });
+      return null;
+    }
 
     if (!result.ok) {
       deps.logger.warn({ event: "ACCESS_TOKEN_REFRESH_FAILED", code: result.val.code, error: result.val });
-      clearSessionCookies(req as NextApiRequest, res as NextApiResponse);
+      if (result.val.code === "invalid_grant") {
+        clearSessionCookies(req as NextApiRequest, res as NextApiResponse);
+      }
       return null;
     }
 

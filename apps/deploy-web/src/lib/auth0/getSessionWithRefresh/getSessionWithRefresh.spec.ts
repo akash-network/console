@@ -79,6 +79,29 @@ describe(createGetSessionWithRefresh.name, () => {
     expect(res.setHeader).toHaveBeenCalledWith("Set-Cookie", expect.arrayContaining([expect.stringContaining("appSession=;")]));
   });
 
+  it("leaves the session cookie intact and returns null on a transient rate-limit failure", async () => {
+    const session = createSession({ accessTokenExpiresAt: NOW_SECONDS - 60 });
+    const { getSessionWithRefresh, sessionService, req, res } = setup({ session });
+    sessionService.refreshAccessToken.mockResolvedValue(Err({ code: "rate_limited", message: "slow down", retryAfter: 30, cause: {} }));
+
+    const result = await getSessionWithRefresh(req, res);
+
+    expect(result).toBeNull();
+    expect(res.setHeader).not.toHaveBeenCalledWith("Set-Cookie", expect.anything());
+  });
+
+  it("leaves the session cookie intact and returns null when the refresh call throws", async () => {
+    const session = createSession({ accessTokenExpiresAt: NOW_SECONDS - 60 });
+    const { getSessionWithRefresh, sessionService, logger, req, res } = setup({ session });
+    sessionService.refreshAccessToken.mockRejectedValue(new Error("network down"));
+
+    const result = await getSessionWithRefresh(req, res);
+
+    expect(result).toBeNull();
+    expect(res.setHeader).not.toHaveBeenCalledWith("Set-Cookie", expect.anything());
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "ACCESS_TOKEN_REFRESH_ERROR" }));
+  });
+
   it("keeps the existing idToken and scope when the refresh response omits them", async () => {
     const session = createSession({ accessTokenExpiresAt: NOW_SECONDS - 60 });
     session.idToken = "existing-id-token";
