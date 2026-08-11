@@ -38,12 +38,14 @@ interface Props extends PassedFlowProps {
 export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: Props) {
   const { publicConfig, analyticsService } = useServices();
   const { navigateBack } = d.useReturnTo({ defaultReturnTo: "/" });
-  const { checkSession, user } = d.useUser();
+  const { checkSession, user, error } = d.useUser();
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
   const [email, setEmail] = useState(props.initialEmail);
   const [screenKey, setScreenKey] = useState(0);
+  const [isSessionRevalidated, setIsSessionRevalidated] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
+  const hadCachedUserOnMountRef = useRef(!!user);
 
   const screen: "entry" | "verify" = searchParams.get("step") === "verify" ? "verify" : "entry";
 
@@ -77,26 +79,51 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
 
   /**
    * Sends a visitor who reached `?step=verify` without an in-flight email (a deep link, or a reload
-   * after the flow was cleared) back to the entry screen. Skipped once authenticated: a successful
-   * verification clears the persisted email and remounts this component (an ancestor provider swaps
-   * on the anon→authed transition) with an empty `email`; firing here would `router.replace` back to
-   * entry and clobber the post-verify `navigateBack()`.
+   * after the flow was cleared) back to the entry screen. Skipped only for a confirmed user (`!error`)
+   * about to leave via `leaveWhenAuthenticated`: a successful verification clears the persisted email
+   * and remounts this component (an ancestor provider swaps on the anon→authed transition) with an
+   * empty `email`; firing here would `router.replace` back to entry and clobber the post-verify
+   * `navigateBack()`. When a re-check errors and retains a stale user, none of the leave guards fire,
+   * so this must still redirect rather than leave a blank screen.
    */
   useEffect(
     function redirectToEntryWhenEmailMissing() {
-      if (user) return;
+      if (user && !error) return;
       if (screen === "verify" && !email) {
         goBackToEntry();
       }
     },
-    [screen, email, goBackToEntry, user]
+    [screen, email, goBackToEntry, user, error]
   );
 
+  /**
+   * The Auth0 client context can hold a stale user whose server session has already expired (the
+   * session cookie outlives the access token). Trusting it here would `navigateBack()` to a gated
+   * page whose SSR guard bounces straight back to /login — an infinite loop on a boot spinner
+   * (DEPLOY-WEB-2C4). When a user is cached, re-fetch the profile to clear a dead one before any
+   * navigation; a logged-out visitor has nothing to revalidate, so skip the redundant round trip.
+   */
+  useEffect(
+    function revalidateSessionOnMount() {
+      if (!hadCachedUserOnMountRef.current) {
+        setIsSessionRevalidated(true);
+        return;
+      }
+      checkSession().finally(() => setIsSessionRevalidated(true));
+    },
+    [checkSession]
+  );
+
+  /**
+   * Auth0's `checkSession` keeps the cached user and only populates `error` when the profile
+   * re-fetch itself fails (network error or 5xx, as opposed to a clean 401 that clears the user).
+   * Gating on `!error` avoids navigating away on a stale user a transient failure couldn't confirm.
+   */
   useEffect(
     function leaveWhenAuthenticated() {
-      if (user) navigateBack();
+      if (isSessionRevalidated && user && !error) navigateBack();
     },
-    [user, navigateBack]
+    [isSessionRevalidated, user, error, navigateBack]
   );
 
   const handleVerified = useCallback(async () => {
@@ -108,7 +135,7 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
     setScreenKey(value => value + 1);
   }, []);
 
-  if (user) return <d.BootLoading />;
+  if (user && !error) return <d.BootLoading />;
 
   return (
     <>

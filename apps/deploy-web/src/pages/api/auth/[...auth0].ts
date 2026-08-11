@@ -9,6 +9,7 @@ import type { Session } from "@src/lib/auth0";
 import { CallbackHandlerError, IdentityProviderError, MissingStateCookieError } from "@src/lib/auth0";
 import { handleAuth, handleCallback, handleLogin, handleLogout } from "@src/lib/auth0";
 import { clearSessionCookies } from "@src/lib/auth0/clearSessionCookies/clearSessionCookies";
+import { isAccessTokenExpired } from "@src/lib/auth0/isAccessTokenExpired/isAccessTokenExpired";
 import { isInvalidSessionError } from "@src/lib/auth0/isInvalidSessionError/isInvalidSessionError";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
@@ -89,8 +90,7 @@ const authHandler = once((services: AppServices) =>
           return;
         }
 
-        const accessTokenExpiry = new Date((session.accessTokenExpiresAt || 0) * 1_000);
-        if (accessTokenExpiry <= new Date()) {
+        if (isAccessTokenExpired(session)) {
           services.logger.info({ event: "AUTH_PROFILE_REQUEST_ACCESS_TOKEN_EXPIRED", url: req.url });
           res.status(401).json({ error: "Not authenticated" });
           return;
