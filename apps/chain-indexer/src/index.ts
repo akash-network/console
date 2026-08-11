@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import "@src/providers";
 
+import type { LoggerService } from "@akashnetwork/logging";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { container } from "tsyringe";
 
@@ -11,8 +12,6 @@ import { migrateDb } from "@src/providers/db.provider";
 import { AppConfigService } from "@src/services/app-config/app-config.service";
 import { shutdownServer } from "@src/services/shutdown-server/shutdown-server";
 import { startServer } from "@src/services/start-server/start-server";
-
-type AppLogger = ReturnType<typeof createOtelLogger>;
 
 export async function bootstrap(): Promise<void> {
   const config = container.resolve(AppConfigService);
@@ -42,7 +41,7 @@ export async function bootstrap(): Promise<void> {
 }
 
 /** Shared runner-role lifecycle: migrate, serve healthz, run to completion or fatal error (exit code 1), then shut the server down so the process can exit. */
-async function runRunnerBehindServer(resolveRunner: () => { start(): Promise<void> }, fatalEvent: string, logger: AppLogger, port: number): Promise<void> {
+async function runRunnerBehindServer(resolveRunner: () => { start(): Promise<void> }, fatalEvent: string, logger: LoggerService, port: number): Promise<void> {
   await migrateDb();
   const server = await startServer(createApp(), logger, process, { port });
 
