@@ -1,6 +1,7 @@
 "use client";
 import type { ReactNode } from "react";
-import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useToast } from "@akashnetwork/ui/hooks";
 import { useTheme } from "next-themes";
 
 import { AddPaymentMethodPopup } from "@src/components/billing-usage/AddPaymentMethodPopup/AddPaymentMethodPopup";
@@ -8,6 +9,7 @@ import { useRefreshPaymentMethods, useSetupIntentMutation } from "@src/queries";
 
 export const DEPENDENCIES = {
   useTheme,
+  useToast,
   useSetupIntentMutation,
   useRefreshPaymentMethods,
   AddPaymentMethodPopup
@@ -24,7 +26,8 @@ export const BillingActionsProvider: React.FunctionComponent<{ children: ReactNo
   dependencies: d = DEPENDENCIES
 }) => {
   const { resolvedTheme } = d.useTheme();
-  const { data: setupIntent, mutate: createSetupIntent, reset: resetSetupIntent } = d.useSetupIntentMutation();
+  const { toast } = d.useToast();
+  const { data: setupIntent, mutate: createSetupIntent, reset: resetSetupIntent, isError: isSetupIntentError } = d.useSetupIntentMutation();
   const refreshPaymentMethods = d.useRefreshPaymentMethods();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -33,6 +36,15 @@ export const BillingActionsProvider: React.FunctionComponent<{ children: ReactNo
     createSetupIntent();
     setIsOpen(true);
   }, [createSetupIntent, resetSetupIntent]);
+
+  useEffect(
+    function notifyAndClosePopupOnSetupIntentError() {
+      if (!isSetupIntentError) return;
+      setIsOpen(false);
+      toast({ title: "Couldn't start adding a payment method", description: "Please try again.", variant: "destructive" });
+    },
+    [isSetupIntentError, toast]
+  );
 
   const onAddCardSuccess = useCallback(async () => {
     setIsOpen(false);
@@ -45,7 +57,7 @@ export const BillingActionsProvider: React.FunctionComponent<{ children: ReactNo
     <BillingActionsContext.Provider value={value}>
       {children}
       <d.AddPaymentMethodPopup
-        open={isOpen}
+        open={isOpen && !isSetupIntentError}
         onClose={() => setIsOpen(false)}
         clientSecret={setupIntent?.clientSecret}
         isDarkMode={resolvedTheme === "dark"}

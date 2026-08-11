@@ -126,6 +126,11 @@ describe(BillingView.name, () => {
     expect(screen.getByText(/Export as CSV/i)).not.toBeDisabled();
   });
 
+  it("disables export button when no date range is selected", () => {
+    setup({ dateRange: null });
+    expect(screen.getByText(/Export as CSV/i)).toBeDisabled();
+  });
+
   it("calls onDateRangeChange when date range start changes", () => {
     const onDateRangeChange = vi.fn();
     setup({

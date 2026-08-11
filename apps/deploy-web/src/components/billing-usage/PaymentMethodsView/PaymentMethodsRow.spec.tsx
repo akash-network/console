@@ -29,8 +29,8 @@ const MockDropdownMenuContent = ({ children, align: _align, onMouseLeave, onClic
   );
 };
 
-const MockButton = ({ children, onClick, size: _size, variant: _variant, className }: any) => (
-  <button onClick={onClick} className={className}>
+const MockButton = ({ children, onClick, size: _size, variant: _variant, className, disabled }: any) => (
+  <button onClick={onClick} className={className} disabled={disabled}>
     {children}
   </button>
 );
@@ -159,6 +159,12 @@ describe(PaymentMethodsRow.name, () => {
       });
 
       expect(screen.getByRole("button")).toBeInTheDocument();
+    });
+
+    it("disables the actions trigger when isDisabled is set", () => {
+      setup({ paymentMethod: createMockPaymentMethod({ isDefault: false }), isDisabled: true });
+
+      expect(screen.getByRole("button")).toBeDisabled();
     });
   });
 
@@ -458,6 +464,7 @@ function setup(
     paymentMethod?: PaymentMethod;
     onSetPaymentMethodAsDefault?: Mock;
     onRemovePaymentMethod?: Mock;
+    isDisabled?: boolean;
     dependencies?: typeof mockDependencies;
   } = {}
 ) {

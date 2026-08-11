@@ -3,7 +3,6 @@ import { ApiError, extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
 import { useToast } from "@akashnetwork/ui/hooks";
 import type { PaginationState } from "@tanstack/react-table";
 import axios from "axios";
-import { endOfToday, subYears } from "date-fns";
 
 import { useServices } from "@src/context/ServicesProvider";
 import type { BillingTransaction } from "@src/queries";
@@ -74,7 +73,8 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
   };
 
   const exportCsv = async () => {
-    const { from: startDate, to: endDate } = dateRange ?? { from: subYears(new Date(), 1), to: endOfToday() };
+    if (!dateRange) return;
+    const { from: startDate, to: endDate } = dateRange;
 
     try {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;

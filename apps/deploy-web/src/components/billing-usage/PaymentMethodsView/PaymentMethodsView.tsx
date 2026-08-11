@@ -66,6 +66,7 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
               <d.PaymentMethodsRow
                 key={paymentMethod.id}
                 paymentMethod={paymentMethod}
+                isDisabled={isInProgress}
                 onSetPaymentMethodAsDefault={onSetPaymentMethodAsDefault}
                 onRemovePaymentMethod={onRemovePaymentMethod}
               />

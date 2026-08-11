@@ -69,14 +69,25 @@ describe("BillingActionsProvider", () => {
     expect(screen.queryByTestId("popup")).not.toBeInTheDocument();
   });
 
-  function setup(input: { setupIntent?: { clientSecret: string }; theme?: string } = {}) {
+  it("keeps the popup closed and toasts when creating the setup intent fails", () => {
+    const { toast } = setup({ isError: true });
+
+    fireEvent.click(screen.getByText("open"));
+
+    expect(screen.queryByTestId("popup")).not.toBeInTheDocument();
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: "destructive" }));
+  });
+
+  function setup(input: { setupIntent?: { clientSecret: string }; theme?: string; isError?: boolean } = {}) {
     const createSetupIntent = vi.fn();
     const resetSetupIntent = vi.fn();
     const refresh = vi.fn().mockResolvedValue(undefined);
+    const toast = vi.fn();
 
     const dependencies = {
       useTheme: () => ({ resolvedTheme: input.theme ?? "light" }),
-      useSetupIntentMutation: () => ({ data: input.setupIntent, mutate: createSetupIntent, reset: resetSetupIntent }),
+      useToast: () => ({ toast }),
+      useSetupIntentMutation: () => ({ data: input.setupIntent, mutate: createSetupIntent, reset: resetSetupIntent, isError: input.isError ?? false }),
       useRefreshPaymentMethods: () => refresh,
       AddPaymentMethodPopup: MockPopup
     } as unknown as typeof DEPENDENCIES;
@@ -87,6 +98,6 @@ describe("BillingActionsProvider", () => {
       </BillingActionsProvider>
     );
 
-    return { createSetupIntent, resetSetupIntent, refresh };
+    return { createSetupIntent, resetSetupIntent, refresh, toast };
   }
 });

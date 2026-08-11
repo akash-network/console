@@ -22,6 +22,7 @@ export type PaymentMethodsRowProps = {
   paymentMethod: PaymentMethod;
   onSetPaymentMethodAsDefault: (id: string) => void;
   onRemovePaymentMethod: (id: string) => void;
+  isDisabled?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -29,6 +30,7 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
   paymentMethod,
   onSetPaymentMethodAsDefault,
   onRemovePaymentMethod,
+  isDisabled = false,
   dependencies: d = DEPENDENCIES
 }) => {
   const [open, setOpen] = useState(false);
@@ -107,7 +109,7 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
         {validUntilContent && <span className="whitespace-nowrap text-sm text-muted-foreground">Valid until {validUntilContent}</span>}
         <d.DropdownMenu modal={false} open={open}>
           <d.DropdownMenuTrigger asChild>
-            <d.Button onClick={openMenu} size="icon" variant="ghost" className="rounded-full" aria-label="Payment method actions">
+            <d.Button onClick={openMenu} disabled={isDisabled} size="icon" variant="ghost" className="rounded-full" aria-label="Payment method actions">
               <MoreHoriz />
             </d.Button>
           </d.DropdownMenuTrigger>

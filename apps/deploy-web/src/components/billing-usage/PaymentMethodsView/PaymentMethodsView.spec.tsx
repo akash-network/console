@@ -8,11 +8,15 @@ import { PaymentMethodsView } from "./PaymentMethodsView";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { createMockPaymentMethod } from "@tests/seeders/payment";
 
-const MockPaymentMethodsRow = ({ paymentMethod, onSetPaymentMethodAsDefault, onRemovePaymentMethod }: PaymentMethodsRowProps) => (
+const MockPaymentMethodsRow = ({ paymentMethod, onSetPaymentMethodAsDefault, onRemovePaymentMethod, isDisabled }: PaymentMethodsRowProps) => (
   <div data-testid={`payment-method-row-${paymentMethod.id}`}>
     <span>{paymentMethod.card?.last4}</span>
-    <button onClick={() => onSetPaymentMethodAsDefault(paymentMethod.id)}>Set as Default</button>
-    <button onClick={() => onRemovePaymentMethod(paymentMethod.id)}>Remove</button>
+    <button disabled={isDisabled} onClick={() => onSetPaymentMethodAsDefault(paymentMethod.id)}>
+      Set as Default
+    </button>
+    <button disabled={isDisabled} onClick={() => onRemovePaymentMethod(paymentMethod.id)}>
+      Remove
+    </button>
   </div>
 );
 
@@ -58,6 +62,13 @@ describe(PaymentMethodsView.name, () => {
     setup({ isInProgress: true });
 
     expect(screen.getByRole("button", { name: "Add Payment Method" })).toBeDisabled();
+  });
+
+  it("disables each row's actions while an operation is in progress", () => {
+    setup({ data: createMockPaymentMethods(), isInProgress: true });
+
+    expect(screen.getAllByText("Set as Default")[0]).toBeDisabled();
+    expect(screen.getAllByText("Remove")[0]).toBeDisabled();
   });
 
   it("shows skeletons and no rows on first load", () => {

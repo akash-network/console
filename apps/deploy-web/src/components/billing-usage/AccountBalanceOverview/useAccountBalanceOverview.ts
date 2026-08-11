@@ -62,14 +62,18 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
   const { getDeploymentName } = d.useLocalNotes();
   const isFixedThresholdEnabled = d.useFlag("auto_reload_fixed_threshold");
 
-  const perHourByDseq = useMemo(() => {
-    const map = new Map<string, number>();
-    if (!leases || !isPriceLoaded) return map;
-    for (const lease of leases.filter(isLeaseLive)) {
+  const { perHourByDseq, spend } = useMemo(() => {
+    const perHourByDseq = new Map<string, number>();
+    if (!leases || !isPriceLoaded) return { perHourByDseq, spend: { perBlockUsd: 0, perHour: 0, perMonth: 0 } };
+
+    const liveLeases = leases.filter(isLeaseLive);
+    for (const lease of liveLeases) {
       const perBlockUsd = getLeasesCostPerBlockUsd([lease], price ?? 0, usdcDenom);
-      map.set(lease.dseq, (map.get(lease.dseq) ?? 0) + perBlockToHourly(perBlockUsd));
+      perHourByDseq.set(lease.dseq, (perHourByDseq.get(lease.dseq) ?? 0) + perBlockToHourly(perBlockUsd));
     }
-    return map;
+
+    const perBlockUsd = getLeasesCostPerBlockUsd(liveLeases, price ?? 0, usdcDenom);
+    return { perHourByDseq, spend: { perBlockUsd, perHour: perBlockToHourly(perBlockUsd), perMonth: getAvgCostPerMonth(perBlockUsd) } };
   }, [leases, isPriceLoaded, price, usdcDenom]);
 
   const deployments = useMemo<ReservedDeployment[]>(() => {
@@ -83,12 +87,6 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
       }))
       .sort((a, b) => b.reservedUsd - a.reservedUsd);
   }, [balances, getDeploymentName, udenomToUsd, perHourByDseq]);
-
-  const spend = useMemo(() => {
-    if (!leases || !isPriceLoaded) return { perBlockUsd: 0, perHour: 0, perMonth: 0 };
-    const perBlockUsd = getLeasesCostPerBlockUsd(leases.filter(isLeaseLive), price ?? 0, usdcDenom);
-    return { perBlockUsd, perHour: perBlockToHourly(perBlockUsd), perMonth: getAvgCostPerMonth(perBlockUsd) };
-  }, [leases, isPriceLoaded, price, usdcDenom]);
 
   const totalUsd = walletBalance?.totalUsd ?? 0;
   const reserved = walletBalance?.totalDeploymentEscrowUSD ?? 0;

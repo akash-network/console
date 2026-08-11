@@ -218,7 +218,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
             />
           </div>
 
-          <Button variant="outline" onClick={onExport} size="sm" className="gap-2" disabled={!data.length}>
+          <Button variant="outline" onClick={onExport} size="sm" className="gap-2" disabled={!data.length || !dateRange}>
             <Download width={16} />
             Export as CSV
           </Button>
