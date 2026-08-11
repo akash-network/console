@@ -18,7 +18,7 @@ export async function startServer<E extends Env>(
     beforeStart?: () => Promise<void>;
     container?: DependencyContainer;
   }
-): Promise<ServerType | undefined> {
+): Promise<ServerType> {
   const container = options.container ?? rootContainer;
   const disposeContainerOnce = once(() => {
     logger.info({ event: "DISPOSING_CONTAINER" });
@@ -36,22 +36,47 @@ export async function startServer<E extends Env>(
       await disposeContainerOnce();
     }
   });
+
   try {
     await options.beforeStart?.();
 
     logger.info({ event: "SERVER_STARTING", url: `http://localhost:${options.port}`, NODE_OPTIONS: process.env.NODE_OPTIONS });
-    server = serve({
+    const startedServer = serve({
       fetch: app.fetch,
       port: options.port
     });
+    server = startedServer;
+    await waitUntilListening(startedServer);
 
-    server.on("close", disposeContainerOnce);
+    startedServer.on("error", error => {
+      logger.error({ event: "SERVER_ERROR", error });
+      void shutdown("SERVER_ERROR");
+    });
+    startedServer.on("close", disposeContainerOnce);
     processEvents.on("SIGTERM", () => shutdown("SIGTERM"));
     processEvents.on("SIGINT", () => shutdown("SIGINT"));
-    processEvents.on("exit", exitCode => shutdown(`EXIT:${exitCode}`));
-    return server;
+
+    return startedServer;
   } catch (error) {
     logger.error({ event: "SERVER_START_ERROR", error });
     await shutdown("SERVER_START_ERROR");
+    throw error;
   }
+}
+
+/** serve() binds asynchronously: failures like EADDRINUSE surface as an "error" event, never as a synchronous throw. */
+function waitUntilListening(server: ServerType): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (server.listening) {
+      resolve();
+      return;
+    }
+
+    const settleOnError = (error: unknown) => reject(error);
+    server.once("error", settleOnError);
+    server.once("listening", () => {
+      server.off("error", settleOnError);
+      resolve();
+    });
+  });
 }

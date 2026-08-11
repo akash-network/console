@@ -19,6 +19,16 @@ import { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
 const SYNC_LEADER_LOCK_KEY = 7_431_001;
 const LEADERSHIP_RETRY_MS = 5_000;
 const PROGRESS_LOG_EVERY_BLOCKS = 100;
+const LEADERSHIP_CHECK_EVERY_BLOCKS = 100;
+const TRANSIENT_RETRY_MAX_ATTEMPTS = 10;
+const TRANSIENT_RETRY_BASE_MS = 1_000;
+const TRANSIENT_RETRY_MAX_MS = 30_000;
+
+/** Parent-hash continuity break; fatal by design so the process halts instead of committing a forked history. */
+export class ChainContinuityError extends Error {}
+
+/** The advisory-lock session was replaced (e.g. a transparent driver reconnect), so another process may hold leadership. */
+export class SyncLeadershipLostError extends Error {}
 
 @singleton()
 export class SyncRunnerService {
@@ -32,6 +42,7 @@ export class SyncRunnerService {
 
   #stopped = false;
   #reserved: postgres.ReservedSql | undefined;
+  #leaderBackendPid: number | undefined;
   #lastHash: Buffer | null = null;
 
   constructor(
@@ -67,10 +78,15 @@ export class SyncRunnerService {
 
   async dispose(): Promise<void> {
     this.#stopped = true;
+    this.#releaseReservedLockConnection();
+  }
+
+  /** release() may throw when the pg pool was ended first; the connection is already gone then, which is the goal. */
+  #releaseReservedLockConnection(): void {
     try {
       this.#reserved?.release();
-    } catch {
-      /** the reserved connection may already be gone when the pool was ended first */
+    } catch (error) {
+      this.#logger.debug({ event: "SYNC_LOCK_RELEASE_SKIPPED", error });
     }
   }
 
@@ -80,7 +96,8 @@ export class SyncRunnerService {
     this.#logger.info({ event: "SYNC_STARTED", network: this.#config.NETWORK, nextHeight });
 
     while (!this.#stopped) {
-      const tipHeight = await this.#getTipHeight();
+      await this.#assertLeadership();
+      const tipHeight = await this.#retryTransient(() => this.#getTipHeight(), { event: "SYNC_TIP_FETCH_RETRY" });
 
       if (nextHeight > tipHeight) {
         await delay(this.#config.SYNC_POLL_INTERVAL_MS);
@@ -88,8 +105,35 @@ export class SyncRunnerService {
       }
 
       while (nextHeight <= tipHeight && !this.#stopped) {
-        await this.#syncBlock(nextHeight);
+        const height = nextHeight;
+        await this.#retryTransient(() => this.#syncBlock(height), { event: "SYNC_BLOCK_RETRY", height });
         nextHeight++;
+
+        if (nextHeight % LEADERSHIP_CHECK_EVERY_BLOCKS === 0) {
+          await this.#assertLeadership();
+        }
+      }
+    }
+  }
+
+  /** Transient failures (RPC timeouts, connection drops) are retried with capped exponential backoff; persistent ones and fatal errors propagate and halt the process. */
+  async #retryTransient<T>(operation: () => Promise<T>, logContext: { event: string; height?: number }): Promise<T> {
+    let attempt = 0;
+
+    while (true) {
+      attempt++;
+      try {
+        return await operation();
+      } catch (error) {
+        const isFatal = error instanceof ChainContinuityError || error instanceof SyncLeadershipLostError;
+
+        if (this.#stopped || isFatal || attempt >= TRANSIENT_RETRY_MAX_ATTEMPTS) {
+          throw error;
+        }
+
+        const delayMs = Math.min(TRANSIENT_RETRY_BASE_MS * 2 ** (attempt - 1), TRANSIENT_RETRY_MAX_MS);
+        this.#logger.warn({ ...logContext, attempt, delayMs, error });
+        await delay(delayMs);
       }
     }
   }
@@ -117,7 +161,7 @@ export class SyncRunnerService {
         expectedParentHash: this.#lastHash.toString("hex"),
         actualParentHash: block.parentHash.toString("hex")
       });
-      throw new Error(`Parent hash mismatch at height ${block.height}; halting sync`);
+      throw new ChainContinuityError(`Parent hash mismatch at height ${block.height}; halting sync`);
     }
   }
 
@@ -128,12 +172,28 @@ export class SyncRunnerService {
       const [{ acquired }] = await this.#reserved`SELECT pg_try_advisory_lock(${SYNC_LEADER_LOCK_KEY}) AS acquired`;
 
       if (acquired) {
-        this.#logger.info({ event: "SYNC_LEADERSHIP_ACQUIRED" });
+        const [{ pid }] = await this.#reserved`SELECT pg_backend_pid() AS pid`;
+        this.#leaderBackendPid = pid;
+        this.#logger.info({ event: "SYNC_LEADERSHIP_ACQUIRED", backendPid: pid });
         return;
       }
 
       this.#logger.info({ event: "SYNC_LEADERSHIP_WAITING" });
       await delay(LEADERSHIP_RETRY_MS);
+    }
+  }
+
+  /** Advisory locks are session-scoped: a transparent driver reconnect creates a fresh session WITHOUT the lock, so the backend pid is re-checked to detect silent leadership loss before more blocks are committed. */
+  async #assertLeadership(): Promise<void> {
+    if (!this.#reserved) {
+      throw new SyncLeadershipLostError("Reserved advisory-lock connection is gone; halting sync");
+    }
+
+    const [{ pid }] = await this.#reserved`SELECT pg_backend_pid() AS pid`;
+
+    if (pid !== this.#leaderBackendPid) {
+      this.#logger.error({ event: "SYNC_LEADERSHIP_LOST", expectedBackendPid: this.#leaderBackendPid, actualBackendPid: pid });
+      throw new SyncLeadershipLostError(`Advisory-lock session changed (backend pid ${this.#leaderBackendPid} -> ${pid}); halting sync`);
     }
   }
 

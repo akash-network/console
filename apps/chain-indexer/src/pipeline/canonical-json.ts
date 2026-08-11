@@ -1,9 +1,12 @@
-function replacer(this: unknown, key: string, value: unknown): unknown {
-  if (typeof value === "bigint") {
-    return value.toString();
+/** JSON.stringify calls toJSON before the replacer, so the pre-toJSON value is read from the holder (`this`) to serialize Buffers as base64 instead of Buffer#toJSON output. */
+function replacer(this: Record<string, unknown>, key: string, value: unknown): unknown {
+  const original = this[key];
+
+  if (typeof original === "bigint") {
+    return original.toString();
   }
-  if (value instanceof Uint8Array) {
-    return Buffer.from(value).toString("base64");
+  if (original instanceof Uint8Array) {
+    return Buffer.from(original).toString("base64");
   }
   return value;
 }

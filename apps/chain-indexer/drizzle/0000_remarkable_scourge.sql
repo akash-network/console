@@ -16,7 +16,7 @@ CREATE TABLE "indexer_state" (
 );
 --> statement-breakpoint
 CREATE TABLE "cosmos"."message_types" (
-	"id" "smallserial" PRIMARY KEY NOT NULL,
+	"id" serial PRIMARY KEY NOT NULL,
 	"type" text NOT NULL
 );
 --> statement-breakpoint
@@ -24,7 +24,7 @@ CREATE TABLE "cosmos"."messages" (
 	"height" bigint NOT NULL,
 	"tx_index" integer NOT NULL,
 	"index" integer NOT NULL,
-	"type_id" smallint NOT NULL,
+	"type_id" integer NOT NULL,
 	"body" jsonb,
 	CONSTRAINT "messages_height_tx_index_index_pk" PRIMARY KEY("height","tx_index","index")
 );

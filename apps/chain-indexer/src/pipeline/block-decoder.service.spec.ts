@@ -63,6 +63,15 @@ describe(BlockDecoderService.name, () => {
     expect(decoded.transactions[0].messages[0].body).toBeNull();
   });
 
+  it("throws when the tx results count does not match the block txs", () => {
+    const { decoder } = setup();
+    const rawTx = buildMsgSendTx();
+
+    expect(() => decoder.decode(buildBlock({ txs: [rawTx.toString("base64")] }), { height: "1234", txs_results: null })).toThrow(
+      "Block 1234 has 1 txs but 0 tx results"
+    );
+  });
+
   it("marks failed transactions with their error code", () => {
     const { decoder } = setup();
     const rawTx = buildMsgSendTx();

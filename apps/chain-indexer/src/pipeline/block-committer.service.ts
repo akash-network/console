@@ -73,18 +73,38 @@ export class BlockCommitterService {
 
   async #internMessageTypes(block: DecodedBlock): Promise<Map<string, number>> {
     const typeUrls = new Set(block.transactions.flatMap(tx => tx.messages.map(message => message.typeUrl)));
-    const missing = [...typeUrls].filter(typeUrl => !this.#typeIds.has(typeUrl));
+    const uncached = [...typeUrls].filter(typeUrl => !this.#typeIds.has(typeUrl));
 
-    if (missing.length > 0) {
-      await this.#db
-        .insert(MessageTypes)
-        .values(missing.map(type => ({ type })))
-        .onConflictDoNothing();
-
-      const rows = await this.#db.select().from(MessageTypes).where(inArray(MessageTypes.type, missing));
-      rows.forEach(row => this.#typeIds.set(row.type, row.id));
+    if (uncached.length > 0) {
+      await this.#cacheTypeIds(uncached);
     }
 
     return this.#typeIds;
+  }
+
+  /** Existing rows are selected before inserting: an insert that conflicts still consumes the id sequence, which would exhaust it across restarts. */
+  async #cacheTypeIds(uncached: string[]): Promise<void> {
+    const existing = await this.#db.select().from(MessageTypes).where(inArray(MessageTypes.type, uncached));
+    existing.forEach(row => this.#typeIds.set(row.type, row.id));
+
+    const missing = uncached.filter(typeUrl => !this.#typeIds.has(typeUrl));
+
+    if (missing.length === 0) {
+      return;
+    }
+
+    const inserted = await this.#db
+      .insert(MessageTypes)
+      .values(missing.map(type => ({ type })))
+      .onConflictDoNothing()
+      .returning();
+    inserted.forEach(row => this.#typeIds.set(row.type, row.id));
+
+    const insertedConcurrently = missing.filter(typeUrl => !this.#typeIds.has(typeUrl));
+
+    if (insertedConcurrently.length > 0) {
+      const rows = await this.#db.select().from(MessageTypes).where(inArray(MessageTypes.type, insertedConcurrently));
+      rows.forEach(row => this.#typeIds.set(row.type, row.id));
+    }
   }
 }

@@ -15,6 +15,10 @@ describe(toCanonicalJson.name, () => {
     expect(toCanonicalJson({ payload: Uint8Array.from([1, 2, 3]) }, 1_000)).toEqual({ payload: Buffer.from([1, 2, 3]).toString("base64") });
   });
 
+  it("converts Buffers to base64 strings instead of Buffer#toJSON output", () => {
+    expect(toCanonicalJson({ payload: Buffer.from([1, 2, 3]) }, 1_000)).toEqual({ payload: Buffer.from([1, 2, 3]).toString("base64") });
+  });
+
   it("returns null when the serialized value exceeds maxBytes", () => {
     expect(toCanonicalJson({ memo: "x".repeat(100) }, 50)).toBeNull();
   });

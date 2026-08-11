@@ -1,4 +1,4 @@
-import { bigint, index, integer, jsonb, pgSchema, pgTable, primaryKey, smallint, smallserial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, index, integer, jsonb, pgSchema, pgTable, primaryKey, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 import { bytea } from "@src/db/bytea";
 
@@ -35,7 +35,7 @@ export const Transactions = cosmosSchema.table(
 export const MessageTypes = cosmosSchema.table(
   "message_types",
   {
-    id: smallserial("id").primaryKey(),
+    id: serial("id").primaryKey(),
     type: text("type").notNull()
   },
   t => [uniqueIndex("message_types_type_idx").on(t.type)]
@@ -47,7 +47,7 @@ export const Messages = cosmosSchema.table(
     height: bigint("height", { mode: "number" }).notNull(),
     txIndex: integer("tx_index").notNull(),
     index: integer("index").notNull(),
-    typeId: smallint("type_id")
+    typeId: integer("type_id")
       .notNull()
       .references(() => MessageTypes.id),
     body: jsonb("body")

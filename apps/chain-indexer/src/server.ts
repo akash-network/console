@@ -1,6 +1,8 @@
+import { createOtelLogger } from "@akashnetwork/logging/otel";
+
 import { bootstrap } from "./index";
 
 void bootstrap().catch(error => {
-  console.error("Failed to bootstrap chain-indexer", error);
+  createOtelLogger({ context: "APP" }).error({ event: "BOOTSTRAP_FAILED", error });
   process.exitCode = 1;
 });

@@ -17,12 +17,16 @@ container.register(CHAIN_DB, {
   useFactory: instancePerContainerCachingFactory(createDatabase)
 });
 
+/** Arbitrary but fixed application-wide key serializing migrateDb() across concurrently starting processes; drizzle's migrator has no locking of its own. */
+const MIGRATION_LOCK_KEY = 7_431_000;
+
 export async function migrateDb(): Promise<void> {
   const config = container.resolve(APP_CONFIG);
   const migrationClient = postgres(config.POSTGRES_DB_URI, { max: 1 });
   const migrationDatabase = drizzle(migrationClient, { schema });
 
   try {
+    await migrationClient`SELECT pg_advisory_lock(${MIGRATION_LOCK_KEY})`;
     await migrate(migrationDatabase, { migrationsFolder: config.DRIZZLE_MIGRATIONS_FOLDER });
   } finally {
     await migrationClient.end();

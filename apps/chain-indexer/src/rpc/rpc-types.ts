@@ -23,11 +23,12 @@ export interface RpcBlockResult {
   };
 }
 
+/** Fields marshaled with proto3 omitempty semantics may be absent when zero (e.g. code 0 on success). */
 export interface RpcTxResult {
-  code: number;
+  code?: number;
   log?: string;
-  gas_used: string;
-  gas_wanted: string;
+  gas_used?: string;
+  gas_wanted?: string;
 }
 
 export interface RpcBlockResultsResult {

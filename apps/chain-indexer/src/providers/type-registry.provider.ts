@@ -9,7 +9,7 @@ import type { GeneratedType } from "@cosmjs/proto-signing";
 import { Registry } from "@cosmjs/proto-signing";
 import { defaultRegistryTypes as stargateDefaultRegistryTypes } from "@cosmjs/stargate";
 import type { InjectionToken } from "tsyringe";
-import { container, inject } from "tsyringe";
+import { container } from "tsyringe";
 
 type DefaultRegistryType = [string, GeneratedType];
 const ibcTypes: DefaultRegistryType[] = stargateDefaultRegistryTypes.filter(([type]) => type.startsWith("/ibc"));
@@ -33,4 +33,3 @@ export const TYPE_REGISTRY: InjectionToken<Registry> = Symbol("TYPE_REGISTRY");
 export type { Registry };
 
 container.register(TYPE_REGISTRY, { useValue: registry });
-export const InjectTypeRegistry = (): ReturnType<typeof inject> => inject(TYPE_REGISTRY);

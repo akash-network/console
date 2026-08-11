@@ -1,5 +1,5 @@
 {
-  "id": "6cc7b5d5-bf47-4e13-a098-4819d0a2863e",
+  "id": "332f29a4-e784-4238-9a9e-7139a844e7e2",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -90,7 +90,7 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "smallserial",
+          "type": "serial",
           "primaryKey": true,
           "notNull": true
         },
@@ -149,7 +149,7 @@
         },
         "type_id": {
           "name": "type_id",
-          "type": "smallint",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true
         },

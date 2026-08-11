@@ -56,11 +56,10 @@ export class HonoErrorHandlerService {
       );
     }
 
-    const message = error instanceof Error ? error.message : "Internal server error";
     return c.json(
       {
         error: "InternalServerError",
-        message,
+        message: "Internal server error",
         code: "internal_server_error",
         type: "server_error"
       },

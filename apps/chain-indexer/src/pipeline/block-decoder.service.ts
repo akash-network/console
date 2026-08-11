@@ -25,6 +25,10 @@ export class BlockDecoderService {
     const rawTxs = block.block.data.txs;
     const txResults = blockResults.txs_results ?? [];
 
+    if (rawTxs.length !== txResults.length) {
+      throw new Error(`Block ${block.block.header.height} has ${rawTxs.length} txs but ${txResults.length} tx results`);
+    }
+
     return {
       height: parseInt(block.block.header.height),
       datetime: new Date(block.block.header.time),
@@ -35,16 +39,16 @@ export class BlockDecoderService {
     };
   }
 
-  #decodeTransaction(rawTxBase64: string, txResult: RpcTxResult | undefined, index: number): DecodedTransaction {
+  #decodeTransaction(rawTxBase64: string, txResult: RpcTxResult, index: number): DecodedTransaction {
     const rawTx = fromBase64(rawTxBase64);
     const decodedTx = decodeTxRaw(rawTx);
 
     return {
       index,
       hash: createHash("sha256").update(rawTx).digest(),
-      code: txResult?.code ?? 0,
-      gasUsed: parseInt(txResult?.gas_used ?? "0"),
-      gasWanted: parseInt(txResult?.gas_wanted ?? "0"),
+      code: txResult.code ?? 0,
+      gasUsed: parseInt(txResult.gas_used ?? "0"),
+      gasWanted: parseInt(txResult.gas_wanted ?? "0"),
       fee: decodedTx.authInfo.fee?.amount.map(({ denom, amount }) => ({ denom, amount })) ?? [],
       messages: decodedTx.body.messages.map((message, messageIndex) => this.#decodeMessage(message, messageIndex))
     };
