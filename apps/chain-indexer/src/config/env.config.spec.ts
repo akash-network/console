@@ -31,6 +31,34 @@ describe("envSchema", () => {
     expect(() => setup({ PORT: "3092.5" })).toThrow();
   });
 
+  describe("when INDEXER_ROLE is backfill", () => {
+    it("requires both backfill heights", () => {
+      expect(() => setup({ INDEXER_ROLE: "backfill" })).toThrow(/BACKFILL_FROM_HEIGHT[\s\S]*BACKFILL_TO_HEIGHT/);
+    });
+
+    it("rejects a range where from is above to", () => {
+      expect(() => setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "100", BACKFILL_TO_HEIGHT: "50" })).toThrow(
+        "BACKFILL_FROM_HEIGHT must be <= BACKFILL_TO_HEIGHT"
+      );
+    });
+
+    it("parses a valid range with concurrency and batch size defaults", () => {
+      const config = setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "100", BACKFILL_TO_HEIGHT: "200" });
+
+      expect(config.BACKFILL_FROM_HEIGHT).toBe(100);
+      expect(config.BACKFILL_TO_HEIGHT).toBe(200);
+      expect(config.BACKFILL_CONCURRENCY).toBe(10);
+      expect(config.BACKFILL_BATCH_SIZE).toBe(200);
+    });
+  });
+
+  it("does not require backfill heights for other roles", () => {
+    const config = setup({ INDEXER_ROLE: "api", BACKFILL_FROM_HEIGHT: "", BACKFILL_TO_HEIGHT: "" });
+
+    expect(config.BACKFILL_FROM_HEIGHT).toBeUndefined();
+    expect(config.BACKFILL_TO_HEIGHT).toBeUndefined();
+  });
+
   function setup(overrides?: Record<string, string>) {
     return envSchema.parse({ POSTGRES_DB_URI: "postgres://unit:unit@localhost:5432/unit", ...overrides });
   }
