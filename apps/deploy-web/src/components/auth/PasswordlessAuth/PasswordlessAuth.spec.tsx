@@ -149,6 +149,12 @@ describe(PasswordlessAuth.name, () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
+  it("redirects to entry on a missing-email verify step when a stale user's re-check errors", async () => {
+    const { replace } = setup({ authenticated: true, sessionRevalidation: "errored", step: "verify", initialEmail: "" });
+
+    await vi.waitFor(() => expect(replace).toHaveBeenCalledWith(expect.not.stringContaining("step"), undefined, { shallow: true }));
+  });
+
   it("provides a captcha-token getter that resolves to the Turnstile token", async () => {
     const EmailCodeStartMock = vi.fn(ComponentMock);
     setup({ dependencies: { EmailCodeStart: EmailCodeStartMock as never } });

@@ -48,7 +48,21 @@ describe(SessionExpirySync.name, () => {
     expect(checkSession).not.toHaveBeenCalled();
   });
 
-  it("logs a failed re-check instead of leaking an unhandled rejection", async () => {
+  it("logs when the re-check surfaces a session error", () => {
+    const { logger } = setup({ error: new Error("network down") });
+
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SESSION_RECHECK_FAILED" }));
+  });
+
+  it("does not log when the re-check reports no error", async () => {
+    const { notifier, logger } = setup();
+
+    await act(async () => notifier.notify());
+
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it("swallows and logs an unexpected rejection from the re-check", async () => {
     const { notifier, logger } = setup({ checkSessionDuration: "rejected" });
 
     await act(async () => notifier.notify());
@@ -56,7 +70,7 @@ describe(SessionExpirySync.name, () => {
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SESSION_RECHECK_FAILED" }));
   });
 
-  function setup(input: { checkSessionDuration?: "settled" | "pending" | "rejected" } = {}) {
+  function setup(input: { checkSessionDuration?: "settled" | "pending" | "rejected"; error?: Error } = {}) {
     const notifier = new SessionExpiryNotifier();
     const logger = mock<LoggerService>();
     const checkSession = vi.fn(() => {
@@ -68,7 +82,8 @@ describe(SessionExpirySync.name, () => {
       mock<ReturnType<typeof DEPENDENCIES.useUser>>({
         checkSession,
         isLoading: false,
-        user: undefined
+        user: undefined,
+        error: input.error
       });
 
     const { unmount } = render(

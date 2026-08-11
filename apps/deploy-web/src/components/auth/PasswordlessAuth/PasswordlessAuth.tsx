@@ -79,19 +79,21 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
 
   /**
    * Sends a visitor who reached `?step=verify` without an in-flight email (a deep link, or a reload
-   * after the flow was cleared) back to the entry screen. Skipped once authenticated: a successful
-   * verification clears the persisted email and remounts this component (an ancestor provider swaps
-   * on the anon→authed transition) with an empty `email`; firing here would `router.replace` back to
-   * entry and clobber the post-verify `navigateBack()`.
+   * after the flow was cleared) back to the entry screen. Skipped only for a confirmed user (`!error`)
+   * about to leave via `leaveWhenAuthenticated`: a successful verification clears the persisted email
+   * and remounts this component (an ancestor provider swaps on the anon→authed transition) with an
+   * empty `email`; firing here would `router.replace` back to entry and clobber the post-verify
+   * `navigateBack()`. When a re-check errors and retains a stale user, none of the leave guards fire,
+   * so this must still redirect rather than leave a blank screen.
    */
   useEffect(
     function redirectToEntryWhenEmailMissing() {
-      if (user) return;
+      if (user && !error) return;
       if (screen === "verify" && !email) {
         goBackToEntry();
       }
     },
-    [screen, email, goBackToEntry, user]
+    [screen, email, goBackToEntry, user, error]
   );
 
   /**

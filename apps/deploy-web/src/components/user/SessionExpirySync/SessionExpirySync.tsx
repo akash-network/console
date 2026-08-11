@@ -18,7 +18,7 @@ interface Props {
  * burst of parallel 401s into a single re-check.
  */
 export function SessionExpirySync({ dependencies: d = DEPENDENCIES }: Props = {}) {
-  const { checkSession } = d.useUser();
+  const { checkSession, error } = d.useUser();
   const { sessionExpiryNotifier, logger } = useServices();
   const isReCheckingRef = useRef(false);
 
@@ -29,14 +29,26 @@ export function SessionExpirySync({ dependencies: d = DEPENDENCIES }: Props = {}
         isReCheckingRef.current = true;
         try {
           await checkSession();
-        } catch (error) {
-          logger.error({ event: "SESSION_RECHECK_FAILED", error });
+        } catch (thrown) {
+          logger.error({ event: "SESSION_RECHECK_FAILED", error: thrown });
         } finally {
           isReCheckingRef.current = false;
         }
       });
     },
     [sessionExpiryNotifier, checkSession, logger]
+  );
+
+  /**
+   * Auth0's `checkSession` swallows a failed profile fetch (network error or 5xx) into the hook's
+   * `error` state and resolves rather than rejecting, so the catch above never fires for that case.
+   * Observing `error` is what surfaces a real re-check failure to the logs.
+   */
+  useEffect(
+    function logWhenReCheckSurfacesError() {
+      if (error) logger.error({ event: "SESSION_RECHECK_FAILED", error });
+    },
+    [error, logger]
   );
 
   return null;
