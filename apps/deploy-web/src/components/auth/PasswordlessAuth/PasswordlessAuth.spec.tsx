@@ -104,6 +104,25 @@ describe(PasswordlessAuth.name, () => {
     expect(navigateBack).not.toHaveBeenCalled();
   });
 
+  it("does not re-check the session when there is no cached user to revalidate", () => {
+    const { checkSession } = setup();
+
+    expect(checkSession).not.toHaveBeenCalled();
+  });
+
+  it("shows the login form without navigating back when re-validation fails transiently", async () => {
+    const EmailCodeStartMock = vi.fn(ComponentMock);
+    const { navigateBack } = setup({
+      authenticated: true,
+      sessionRevalidation: "errored",
+      dependencies: { EmailCodeStart: EmailCodeStartMock as never }
+    });
+
+    await vi.waitFor(() => expect(EmailCodeStartMock).toHaveBeenCalled());
+
+    expect(navigateBack).not.toHaveBeenCalled();
+  });
+
   it("renders the boot loader instead of the auth forms when authenticated", () => {
     const EmailCodeStartMock = vi.fn(ComponentMock);
     const EmailCodeVerifyMock = vi.fn(ComponentMock);
@@ -166,8 +185,11 @@ describe(PasswordlessAuth.name, () => {
       initialEmail?: string;
       step?: string;
       authenticated?: boolean;
-      /** "valid" (default) keeps the user after re-validation, "expired" clears it, "pending" never settles. */
-      sessionRevalidation?: "valid" | "expired" | "pending";
+      /**
+       * "valid" (default) keeps the user after re-validation, "expired" clears it, "pending" never
+       * settles, "errored" keeps the stale user but surfaces an error (transient re-fetch failure).
+       */
+      sessionRevalidation?: "valid" | "expired" | "pending" | "errored";
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
@@ -181,18 +203,23 @@ describe(PasswordlessAuth.name, () => {
     if (input.step) params.set("step", input.step);
     const initialUser = input.authenticated ? mock<NonNullable<ReturnType<typeof DEPENDENCIES.useUser>["user"]>>({ userId: "user-1" }) : undefined;
     let clearUser: () => void = () => undefined;
+    let failRevalidation: () => void = () => undefined;
     const checkSession = vi.fn(async () => {
       if (input.sessionRevalidation === "pending") return new Promise<undefined>(() => undefined);
       if (input.sessionRevalidation === "expired") clearUser();
+      if (input.sessionRevalidation === "errored") failRevalidation();
       return undefined;
     });
     const useUser: typeof DEPENDENCIES.useUser = () => {
       const [user, setUser] = useState(initialUser);
+      const [error, setError] = useState<Error | undefined>(undefined);
       clearUser = () => setUser(undefined);
+      failRevalidation = () => setError(new Error("network down"));
       return mock<ReturnType<typeof DEPENDENCIES.useUser>>({
         checkSession,
         isLoading: false,
-        user
+        user,
+        error
       });
     };
     const useReturnTo: typeof DEPENDENCIES.useReturnTo = () =>

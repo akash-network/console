@@ -38,13 +38,14 @@ interface Props extends PassedFlowProps {
 export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: Props) {
   const { publicConfig, analyticsService } = useServices();
   const { navigateBack } = d.useReturnTo({ defaultReturnTo: "/" });
-  const { checkSession, user } = d.useUser();
+  const { checkSession, user, error } = d.useUser();
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
   const [email, setEmail] = useState(props.initialEmail);
   const [screenKey, setScreenKey] = useState(0);
   const [isSessionRevalidated, setIsSessionRevalidated] = useState(false);
   const turnstileRef = useRef<TurnstileRef>(null);
+  const hadCachedUserOnMountRef = useRef(!!user);
 
   const screen: "entry" | "verify" = searchParams.get("step") === "verify" ? "verify" : "entry";
 
@@ -97,20 +98,30 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
    * The Auth0 client context can hold a stale user whose server session has already expired (the
    * session cookie outlives the access token). Trusting it here would `navigateBack()` to a gated
    * page whose SSR guard bounces straight back to /login — an infinite loop on a boot spinner
-   * (DEPLOY-WEB-2C4). Re-fetching the profile clears a dead user before any navigation decision.
+   * (DEPLOY-WEB-2C4). When a user is cached, re-fetch the profile to clear a dead one before any
+   * navigation; a logged-out visitor has nothing to revalidate, so skip the redundant round trip.
    */
   useEffect(
     function revalidateSessionOnMount() {
+      if (!hadCachedUserOnMountRef.current) {
+        setIsSessionRevalidated(true);
+        return;
+      }
       checkSession().finally(() => setIsSessionRevalidated(true));
     },
     [checkSession]
   );
 
+  /**
+   * Auth0's `checkSession` keeps the cached user and only populates `error` when the profile
+   * re-fetch itself fails (network error or 5xx, as opposed to a clean 401 that clears the user).
+   * Gating on `!error` avoids navigating away on a stale user a transient failure couldn't confirm.
+   */
   useEffect(
     function leaveWhenAuthenticated() {
-      if (isSessionRevalidated && user) navigateBack();
+      if (isSessionRevalidated && user && !error) navigateBack();
     },
-    [isSessionRevalidated, user, navigateBack]
+    [isSessionRevalidated, user, error, navigateBack]
   );
 
   const handleVerified = useCallback(async () => {
@@ -122,7 +133,7 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
     setScreenKey(value => value + 1);
   }, []);
 
-  if (user) return <d.BootLoading />;
+  if (user && !error) return <d.BootLoading />;
 
   return (
     <>
