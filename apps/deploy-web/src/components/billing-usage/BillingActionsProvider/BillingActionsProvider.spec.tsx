@@ -1,5 +1,6 @@
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { BillingActionsProvider, type DEPENDENCIES, useBillingActions } from "./BillingActionsProvider";
 
@@ -84,13 +85,22 @@ describe("BillingActionsProvider", () => {
     const refresh = vi.fn().mockResolvedValue(undefined);
     const toast = vi.fn();
 
-    const dependencies = {
-      useTheme: () => ({ resolvedTheme: input.theme ?? "light" }),
-      useToast: () => ({ toast }),
-      useSetupIntentMutation: () => ({ data: input.setupIntent, mutate: createSetupIntent, reset: resetSetupIntent, isError: input.isError ?? false }),
+    const setupIntentMutation = input.isError
+      ? mock<ReturnType<typeof DEPENDENCIES.useSetupIntentMutation>>({ mutate: createSetupIntent, reset: resetSetupIntent, isError: true, data: undefined })
+      : mock<ReturnType<typeof DEPENDENCIES.useSetupIntentMutation>>({
+          mutate: createSetupIntent,
+          reset: resetSetupIntent,
+          isError: false,
+          data: input.setupIntent
+        });
+
+    const dependencies: typeof DEPENDENCIES = {
+      useTheme: () => mock<ReturnType<typeof DEPENDENCIES.useTheme>>({ resolvedTheme: input.theme ?? "light" }),
+      useToast: () => mock<ReturnType<typeof DEPENDENCIES.useToast>>({ toast }),
+      useSetupIntentMutation: () => setupIntentMutation,
       useRefreshPaymentMethods: () => refresh,
       AddPaymentMethodPopup: MockPopup
-    } as unknown as typeof DEPENDENCIES;
+    };
 
     render(
       <BillingActionsProvider dependencies={dependencies}>

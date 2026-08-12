@@ -48,6 +48,14 @@ const TRANSACTION_TYPE_LABELS: Record<BillingTransaction["type"], string> = {
   manual_credit: "Manual Credit"
 };
 
+const TRANSACTION_TYPE_BADGE_CLASSES: Record<BillingTransaction["type"], string> = {
+  coupon_claim: "bg-blue-100 text-blue-800",
+  manual_credit: "bg-gray-100 text-gray-800",
+  payment_intent: "bg-gray-100 text-gray-800"
+};
+
+const DEFAULT_TRANSACTION_TYPE_BADGE_CLASS = "bg-gray-100 text-gray-800";
+
 const STATUS_BADGE_CLASSES: Record<string, string> = {
   succeeded: "bg-green-100 text-green-800",
   pending: "bg-yellow-100 text-yellow-800",
@@ -60,7 +68,7 @@ const DEFAULT_STATUS_BADGE_CLASS = "bg-gray-100 text-gray-800";
 /** Coupon claims and manual credits top up the wallet, so their amount reads as money in (green +). */
 const isCreditTransaction = (type: BillingTransaction["type"]) => type === "coupon_claim" || type === "manual_credit";
 
-const COLUMN_CLASSES = ["w-32 px-4 py-2", "w-32 px-4 py-2", "w-48 px-4 py-2", "w-28 px-4 py-2", "w-16 px-4 py-2"];
+const COLUMN_CLASSES = ["w-28 px-4 py-2", "w-36 px-4 py-2", "w-32 px-4 py-2", "w-48 px-4 py-2", "w-28 px-4 py-2", "w-16 px-4 py-2"];
 
 export type BillingViewProps = {
   data: BillingTransaction[];
@@ -102,6 +110,30 @@ export const BillingView: React.FC<BillingViewProps> = ({
       header: "Date",
       cell: info => new Date(info.getValue() * 1000).toLocaleDateString()
     }),
+    columnHelper.accessor("type", {
+      header: "Type",
+      cell: info => {
+        const { cardBrand, cardLast4 } = info.row.original;
+        const type = info.getValue();
+        return (
+          <div>
+            <span
+              className={cn(
+                "inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold",
+                TRANSACTION_TYPE_BADGE_CLASSES[type] ?? DEFAULT_TRANSACTION_TYPE_BADGE_CLASS
+              )}
+            >
+              {TRANSACTION_TYPE_LABELS[type] ?? capitalizeFirstLetter(type)}
+            </span>
+            {cardLast4 && (
+              <div className="mt-1 text-xs text-muted-foreground">
+                {cardBrand ? `${capitalizeFirstLetter(cardBrand)} ` : ""}**** {cardLast4}
+              </div>
+            )}
+          </div>
+        );
+      }
+    }),
     columnHelper.accessor("amount", {
       header: "Amount",
       cell: info => {
@@ -127,20 +159,9 @@ export const BillingView: React.FC<BillingViewProps> = ({
         );
       }
     }),
-    columnHelper.display({
-      id: "accountSource",
-      header: "Account source",
-      cell: info => {
-        const { cardBrand, cardLast4, type } = info.row.original;
-        if (cardLast4) {
-          return (
-            <span>
-              {cardBrand ? `${capitalizeFirstLetter(cardBrand)} ` : ""}**** {cardLast4}
-            </span>
-          );
-        }
-        return <span className="text-muted-foreground">{TRANSACTION_TYPE_LABELS[type] ?? capitalizeFirstLetter(type)}</span>;
-      }
+    columnHelper.accessor("description", {
+      header: "Description",
+      cell: info => info.getValue() || "N/A"
     }),
     columnHelper.accessor("status", {
       header: "Status",

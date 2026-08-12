@@ -18,7 +18,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
-import { useFlag } from "@src/hooks/useFlag";
 import { useSettingsNavLinks } from "@src/hooks/useSettingsNavLinks";
 import useCookieTheme from "@src/hooks/useTheme";
 import { useUser } from "@src/hooks/useUser";
@@ -29,7 +28,7 @@ import { TopBanner } from "../TopBanner";
 import { usePublishHeaderHeight } from "../usePublishHeaderHeight";
 import { TopNavAccountMenu } from "./TopNavAccountMenu";
 
-export const DEPENDENCIES = { useUser, useFlag, usePathname, useCookieTheme, TopBanner, HackathonCouponNavEntry, TopNavAccountMenu, SkipOnboardingButton };
+export const DEPENDENCIES = { useUser, usePathname, useCookieTheme, TopBanner, HackathonCouponNavEntry, TopNavAccountMenu, SkipOnboardingButton };
 
 interface Props {
   dependencies?: typeof DEPENDENCIES;
@@ -61,7 +60,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
     { title: "Templates", url: UrlService.templates(), isActive: isRouteActive("/templates"), icon: MultiplePages }
   ];
 
-  const settingsLinks = useSettingsNavLinks({ dependencies: { useFlag: d.useFlag, usePathname: d.usePathname } });
+  const settingsLinks = useSettingsNavLinks({ dependencies: { usePathname: d.usePathname } });
   const isSettingsActive = settingsLinks.some(link => link.isActive);
   const showNavLinks = isAuthenticated && !minimal;
 

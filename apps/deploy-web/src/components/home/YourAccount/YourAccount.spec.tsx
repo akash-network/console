@@ -105,7 +105,6 @@ describe(YourAccount.name, () => {
       walletBalance: createWalletBalance(),
       activeDeployments: [createDeployment()],
       leases: [createLease({ state: "active", denom: UAKT_DENOM, amount: "1000" })],
-      pricing: { price: 3.5, isLoaded: true },
       dependencies: {
         AccountStatsCards: AccountStatsCardsMock
       }
@@ -123,7 +122,6 @@ describe(YourAccount.name, () => {
       walletBalance: createWalletBalance(),
       activeDeployments: [createDeployment()],
       leases: [createLease({ state: "active", denom: "ibc/usdc-denom", amount: "5000" })],
-      pricing: { price: 3.5, isLoaded: true },
       dependencies: {
         AccountStatsCards: AccountStatsCardsMock
       }
@@ -140,7 +138,6 @@ describe(YourAccount.name, () => {
       walletBalance: createWalletBalance(),
       activeDeployments: [createDeployment()],
       leases: [createLease({ state: "active", denom: UACT_DENOM, amount: "2000" })],
-      pricing: { price: 3.5, isLoaded: true },
       dependencies: {
         AccountStatsCards: AccountStatsCardsMock
       }
@@ -156,28 +153,6 @@ describe(YourAccount.name, () => {
       wallet: { address: "akash1abc" },
       walletBalance: createWalletBalance(),
       leases: null,
-      pricing: { price: 3.5, isLoaded: true },
-      dependencies: {
-        AccountStatsCards: AccountStatsCardsMock
-      }
-    });
-
-    expect(AccountStatsCardsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        costPerMonth: undefined,
-        costPerHour: undefined
-      }),
-      expect.anything()
-    );
-  });
-
-  it("returns null costs when price is not loaded", () => {
-    const AccountStatsCardsMock = vi.fn(ComponentMock);
-    setup({
-      wallet: { address: "akash1abc" },
-      walletBalance: createWalletBalance(),
-      leases: [createLease({ state: "active" })],
-      pricing: { price: undefined, isLoaded: false },
       dependencies: {
         AccountStatsCards: AccountStatsCardsMock
       }
@@ -247,7 +222,6 @@ describe(YourAccount.name, () => {
       leases?: Array<LeaseDto> | null;
       providers?: Array<ApiProviderList>;
       wallet?: { address?: string };
-      pricing?: { price?: number; isLoaded?: boolean };
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
@@ -265,18 +239,6 @@ describe(YourAccount.name, () => {
         hasWallet: !!input.wallet?.address
       });
 
-    const usePricing: typeof DEPENDENCIES.usePricing = () =>
-      ({
-        isLoaded: input.pricing?.isLoaded ?? true,
-        isLoading: false,
-        price: input.pricing?.price ?? 3.5,
-        uaktToUSD: vi.fn(),
-        aktToUSD: vi.fn(),
-        usdToAkt: vi.fn(),
-        getPriceForDenom: vi.fn(),
-        udenomToUsd: vi.fn()
-      }) as ReturnType<typeof DEPENDENCIES.usePricing>;
-
     render(
       <TestContainerProvider>
         <YourAccount
@@ -289,7 +251,6 @@ describe(YourAccount.name, () => {
             ...MockComponents(DEPENDENCIES),
             useSettings,
             useWallet,
-            usePricing,
             ...input.dependencies
           }}
         />

@@ -30,29 +30,41 @@ describe(BillingView.name, () => {
     setup();
     expect(screen.getByText("History")).toBeInTheDocument();
     expect(screen.getByText("Date")).toBeInTheDocument();
+    expect(screen.getByText("Type")).toBeInTheDocument();
     expect(screen.getByText("Amount")).toBeInTheDocument();
-    expect(screen.getByText("Account source")).toBeInTheDocument();
+    expect(screen.getByText("Description")).toBeInTheDocument();
     expect(screen.getByText("Status")).toBeInTheDocument();
     expect(screen.getByText("Receipt")).toBeInTheDocument();
   });
 
-  it("falls back to the transaction type as the account source when there is no card", () => {
+  it("renders the type badge label for each transaction type", () => {
     setup({
       data: [
-        createMockTransaction({ type: "coupon_claim", cardBrand: null, cardLast4: null }),
-        createMockTransaction({ type: "manual_credit", cardBrand: null, cardLast4: null })
+        createMockTransaction({ type: "payment_intent" }),
+        createMockTransaction({ type: "coupon_claim" }),
+        createMockTransaction({ type: "manual_credit" })
       ]
     });
 
+    expect(screen.getByText("Card Payment")).toBeInTheDocument();
     expect(screen.getByText("Coupon")).toBeInTheDocument();
     expect(screen.getByText("Manual Credit")).toBeInTheDocument();
   });
 
-  it("shows the card brand and last4 as the account source for a card payment", () => {
+  it("shows the card brand and last4 under a card payment", () => {
     setup({ data: [createMockTransaction({ type: "payment_intent", cardBrand: "visa", cardLast4: "4242" })] });
 
     expect(screen.getByText(/Visa/)).toBeInTheDocument();
     expect(screen.getByText(/4242/)).toBeInTheDocument();
+  });
+
+  it("renders the description, falling back to N/A when missing", () => {
+    setup({
+      data: [createMockTransaction({ description: "Wallet top-up" }), createMockTransaction({ description: null })]
+    });
+
+    expect(screen.getByText("Wallet top-up")).toBeInTheDocument();
+    expect(screen.getByText("N/A")).toBeInTheDocument();
   });
 
   it("renders the transaction amount", () => {

@@ -15,10 +15,9 @@ import { useRouter } from "next/navigation";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import { useFlag } from "@src/hooks/useFlag";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 
-export const DEPENDENCIES = { useCustomUser, useRouter, useFlag };
+export const DEPENDENCIES = { useCustomUser, useRouter };
 
 interface Props {
   dependencies?: typeof DEPENDENCIES;
@@ -30,7 +29,6 @@ export function AccountMenu({ dependencies: d = DEPENDENCIES, minimal = false }:
   const { user, isLoading } = d.useCustomUser();
   const username = user?.username;
   const router = d.useRouter();
-  const isBillingUsageEnabled = d.useFlag("billing_usage");
   const { authService, urlService } = useServices();
 
   return (
@@ -83,7 +81,7 @@ export function AccountMenu({ dependencies: d = DEPENDENCIES, minimal = false }:
                           <CustomDropdownLinkItem onClick={() => router.push(urlService.userFavorites())} icon={<Star />}>
                             Favorites
                           </CustomDropdownLinkItem>
-                          {isBillingUsageEnabled && user?.userId && (
+                          {user?.userId && (
                             <CustomDropdownLinkItem onClick={() => router.push(urlService.billing())} icon={<GraphUp />}>
                               Billing & Usage
                             </CustomDropdownLinkItem>

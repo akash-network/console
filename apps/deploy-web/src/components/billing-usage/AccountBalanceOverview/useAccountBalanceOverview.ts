@@ -5,7 +5,7 @@ import { useLocalNotes } from "@src/components/LocalNoteManager/useLocalNotes";
 import { useWallet } from "@src/context/WalletProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
-import { useWalletBalance } from "@src/hooks/useWalletBalance";
+import { computeWalletBalance } from "@src/hooks/useWalletBalance";
 import { useWalletSettingsQuery } from "@src/queries";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
@@ -16,7 +16,6 @@ export const DEPENDENCIES = {
   useWallet,
   usePricing,
   useFlag,
-  useWalletBalance,
   useBalances,
   useAllLeases,
   useWalletSettingsQuery,
@@ -51,13 +50,17 @@ const HOURS_PER_DAY = 24;
 
 export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}): AccountBalanceOverview {
   const { address } = d.useWallet();
-  const { udenomToUsd } = d.usePricing();
-  const { balance: walletBalance } = d.useWalletBalance();
+  const { isLoaded, price, udenomToUsd } = d.usePricing();
   const { data: balances } = d.useBalances(address);
   const { data: leases } = d.useAllLeases(address);
   const { data: walletSettings } = d.useWalletSettingsQuery();
   const { getDeploymentName } = d.useLocalNotes();
   const isFixedThresholdEnabled = d.useFlag("auto_reload_fixed_threshold");
+
+  const walletBalance = useMemo(
+    () => (isLoaded && balances && price ? computeWalletBalance(balances, price, udenomToUsd) : null),
+    [isLoaded, balances, price, udenomToUsd]
+  );
 
   const { perHourByDseq, spend } = useMemo(() => {
     const perHourByDseq = new Map<string, number>();

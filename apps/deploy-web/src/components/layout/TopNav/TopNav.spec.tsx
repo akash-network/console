@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { FeatureFlag } from "@src/types/feature-flags";
 import { DEPENDENCIES, TopNav } from "./TopNav";
 
 import { render, screen } from "@testing-library/react";
@@ -52,8 +51,8 @@ describe(TopNav.name, () => {
     expect(screen.getByRole("link", { name: "Providers" })).not.toHaveAttribute("aria-current");
   });
 
-  it("shows all settings items when billing and alerts flags are on", async () => {
-    setup({ isAuthenticated: true, flags: { billing_usage: true, alerts: true } });
+  it("shows all settings items", async () => {
+    setup({ isAuthenticated: true });
 
     await userEvent.click(screen.getByRole("button", { name: /settings/i }));
 
@@ -63,18 +62,7 @@ describe(TopNav.name, () => {
     expect(screen.getByRole("menuitem", { name: "Alerts" })).toHaveAttribute("href", "/alerts");
   });
 
-  it("hides flag-gated settings items when flags are off", async () => {
-    setup({ isAuthenticated: true, flags: {} });
-
-    await userEvent.click(screen.getByRole("button", { name: /settings/i }));
-
-    expect(await screen.findByRole("menuitem", { name: "API Keys" })).toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "Billing" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "Usage" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "Alerts" })).not.toBeInTheDocument();
-  });
-
-  function setup(input: { isAuthenticated?: boolean; minimal?: boolean; pathname?: string; flags?: Partial<Record<FeatureFlag, boolean>> }) {
+  function setup(input: { isAuthenticated?: boolean; minimal?: boolean; pathname?: string }) {
     const accountMenu = vi.fn<typeof DEPENDENCIES.TopNavAccountMenu>(() => <></>);
 
     const dependencies = MockComponents(DEPENDENCIES, {
@@ -82,7 +70,6 @@ describe(TopNav.name, () => {
         mock<ReturnType<typeof DEPENDENCIES.useUser>>({
           user: input.isAuthenticated ? { userId: "user-1" } : undefined
         }),
-      useFlag: (flag: FeatureFlag) => input.flags?.[flag] ?? false,
       usePathname: () => input.pathname ?? "/",
       useCookieTheme: () => "light",
       TopNavAccountMenu: accountMenu

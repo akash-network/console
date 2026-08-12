@@ -5,7 +5,6 @@ import { useAtom } from "jotai";
 
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { usePricing } from "@src/hooks/usePricing/usePricing";
 import type { WalletBalance } from "@src/hooks/useWalletBalance";
 import sdlStore from "@src/store/sdlStore";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
@@ -25,8 +24,7 @@ export const DEPENDENCIES = {
   NoDeploymentsState,
   ResourceStatsGrid,
   useSettings,
-  useWallet,
-  usePricing
+  useWallet
 };
 
 type Props = {
@@ -58,10 +56,9 @@ export const YourAccount: React.FunctionComponent<Props> = ({
   const _ram = bytesToShrink(totalMemory);
   const _storage = bytesToShrink(totalStorage);
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
-  const { price, isLoaded: isAktPriceLoaded } = d.usePricing();
 
   const costs = useMemo(() => {
-    if (!leases || !price || !isAktPriceLoaded) return null;
+    if (!leases) return null;
 
     const totalCostPerBlock = getLeasesCostPerBlockUsd(leases.filter(isLeaseLive));
     const monthlyAvg = getAvgCostPerMonth(totalCostPerBlock);
@@ -70,7 +67,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({
       perMonth: monthlyAvg,
       perHour: monthlyAvg / (AVG_AMOUNT_OF_DAYS_IN_MONTH * ONE_DAY_IN_HOURS)
     };
-  }, [leases, price, isAktPriceLoaded]);
+  }, [leases]);
   const userProviders = useMemo(() => {
     if (!leases || !providers) return [];
     const activeLeases = leases.filter(isLeaseLive);

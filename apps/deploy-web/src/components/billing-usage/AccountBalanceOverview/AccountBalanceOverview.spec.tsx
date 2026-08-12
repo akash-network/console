@@ -65,6 +65,40 @@ describe(AccountBalanceOverview.name, () => {
     expect(screen.getByRole("button", { name: /Hide breakdown/ })).toBeInTheDocument();
   });
 
+  it("counts only deployments that still hold reserved funds so the label matches the badges", () => {
+    setup({
+      deployments: [
+        { dseq: "1", name: "llama-chat", reservedUsd: 508.8, perHourUsd: 4.24 },
+        { dseq: "2", name: "drained-app", reservedUsd: 0, perHourUsd: 0 }
+      ]
+    });
+
+    expect(screen.getByRole("button", { name: /What is reserved \(1\)/ })).toBeInTheDocument();
+  });
+
+  it("hides the breakdown toggle when no deployment holds reserved funds", () => {
+    setup({ deployments: [{ dseq: "1", name: "drained-app", reservedUsd: 0, perHourUsd: 0 }] });
+
+    expect(screen.queryByRole("button", { name: /What is reserved/ })).not.toBeInTheDocument();
+  });
+
+  it("clears hover dimming when the hovered deployment disappears mid-hover", () => {
+    const deployments = [
+      { dseq: "1", name: "llama-chat", reservedUsd: 100, perHourUsd: 1 },
+      { dseq: "2", name: "side-api", reservedUsd: 50, perHourUsd: 1 }
+    ];
+    const { rerenderWith } = setup({ deployments, available: 100 });
+
+    fireEvent.click(screen.getByRole("button", { name: /What is reserved/ }));
+    fireEvent.mouseEnter(screen.getByRole("link", { name: /llama-chat/ }).closest("li")!);
+
+    expect(screen.getByRole("link", { name: /side-api/ }).closest("li")).toHaveStyle({ opacity: "0.4" });
+
+    rerenderWith({ deployments: deployments.slice(1), available: 100 });
+
+    expect(screen.getByRole("link", { name: /side-api/ }).closest("li")).toHaveStyle({ opacity: "1" });
+  });
+
   it("links each deployment badge to its detail page", () => {
     setup({ deployments: [{ dseq: "42", name: "llama-chat", reservedUsd: 508.8, perHourUsd: 4.24 }] });
 
@@ -98,34 +132,41 @@ describe(AccountBalanceOverview.name, () => {
   });
 
   function setup(overview: Partial<AccountBalanceOverviewData>) {
-    const data: AccountBalanceOverviewData = {
-      totalUsd: 0,
-      reserved: 0,
-      available: 0,
-      deployments: [],
-      activeDeploymentCount: 0,
-      perHour: 0,
-      perMonth: 0,
-      lastsUntil: null,
-      runwayDays: null,
-      autoReloadEnabled: false,
-      autoReloadThreshold: null,
-      isLoading: false,
-      ...overview
-    };
     const MockFormattedNumber = vi.fn(({ value }: { value: number }) => <>{value}</>);
 
-    return render(
-      <AccountBalanceOverview
-        dependencies={
-          {
-            ...MockComponents(DEPENDENCIES),
-            useAccountBalanceOverview: () => data,
-            FormattedNumber: MockFormattedNumber,
-            Link: ({ href, children }: { href: string; children: ReactNode }) => <a href={href}>{children}</a>
-          } as unknown as typeof DEPENDENCIES
-        }
-      />
-    );
+    const renderView = (partial: Partial<AccountBalanceOverviewData>) => {
+      const data: AccountBalanceOverviewData = {
+        totalUsd: 0,
+        reserved: 0,
+        available: 0,
+        deployments: [],
+        activeDeploymentCount: 0,
+        perHour: 0,
+        perMonth: 0,
+        lastsUntil: null,
+        runwayDays: null,
+        autoReloadEnabled: false,
+        autoReloadThreshold: null,
+        isLoading: false,
+        ...partial
+      };
+
+      return (
+        <AccountBalanceOverview
+          dependencies={
+            {
+              ...MockComponents(DEPENDENCIES),
+              useAccountBalanceOverview: () => data,
+              FormattedNumber: MockFormattedNumber,
+              Link: ({ href, children }: { href: string; children: ReactNode }) => <a href={href}>{children}</a>
+            } as unknown as typeof DEPENDENCIES
+          }
+        />
+      );
+    };
+
+    const view = render(renderView(overview));
+
+    return { ...view, rerenderWith: (next: Partial<AccountBalanceOverviewData>) => view.rerender(renderView(next)) };
   }
 });

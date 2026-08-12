@@ -18,7 +18,6 @@ import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
 import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
-import { useFlag } from "@src/hooks/useFlag";
 import { useNavigationGuard } from "@src/hooks/useNavigationGuard/useNavigationGuard";
 import { useUser } from "@src/hooks/useUser";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
@@ -57,7 +56,7 @@ export const DeploymentDetailLegacy: FC<DeploymentDetailLegacyProps> = ({ dseq }
   const isRemoteDeploy = sdlAnalyzer.hasCiCdImage(editedManifest);
   const repo: string | null = isRemoteDeploy ? extractRepositoryUrl(editedManifest) : null;
   const { user } = useUser();
-  const isAlertsEnabled = useFlag("alerts") && !!user?.userId;
+  const isAlertsEnabled = !!user?.userId;
   const [badgedTabs, setBadgedTabs] = useState<Partial<Record<Tab, boolean>>>({});
 
   const { data: deployment, isFetching: isLoadingDeployment, refetch: getDeploymentDetail, error: deploymentError } = useDeploymentDetail(address, dseq);

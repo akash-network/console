@@ -36,6 +36,20 @@ describe(useAccountBalanceOverview.name, () => {
     expect(result.current.activeDeploymentCount).toBe(2);
   });
 
+  it("keeps reserved in sync with the per-deployment breakdown since both come from the same balances", () => {
+    const { result } = setup({
+      totalUsd: 500,
+      deployments: [
+        { dseq: "1", fundsUsd: 100 },
+        { dseq: "2", fundsUsd: 50 }
+      ]
+    });
+
+    expect(result.current.reserved).toBe(150);
+    expect(result.current.reserved).toBe(result.current.deployments.reduce((sum, deployment) => sum + deployment.reservedUsd, 0));
+    expect(result.current.available).toBe(350);
+  });
+
   it("reports runway when deployments are actively spending", () => {
     const { result } = setup({ totalUsd: 500, hasLiveLease: true });
 
@@ -88,8 +102,8 @@ describe(useAccountBalanceOverview.name, () => {
     expect(result.current.autoReloadThreshold).toBeNull();
   });
 
-  it("is loading until the wallet balance resolves", () => {
-    const { result } = setup({ walletBalanceMissing: true });
+  it("is loading until the balances resolve", () => {
+    const { result } = setup({ balancesMissing: true });
 
     expect(result.current.isLoading).toBe(true);
   });
@@ -104,12 +118,28 @@ describe(useAccountBalanceOverview.name, () => {
     autoReloadEnabled?: boolean;
     autoReloadThreshold?: number;
     fixedThresholdEnabled?: boolean;
-    walletBalanceMissing?: boolean;
+    balancesMissing?: boolean;
   }) {
-    const activeDeployments = (input.deployments ?? []).map(deployment => ({
+    const reservedDeployments = input.deployments ?? (input.reservedUsd ? [{ dseq: "reserved", fundsUsd: input.reservedUsd }] : []);
+    const activeDeployments = reservedDeployments.map(deployment => ({
       dseq: deployment.dseq,
       escrowAccount: { state: { funds: [{ denom: UAKT_DENOM, amount: String(deployment.fundsUsd) }] } }
     }));
+    const reservedTotal = reservedDeployments.reduce((sum, deployment) => sum + deployment.fundsUsd, 0);
+
+    const balances = {
+      balanceUAKT: 0,
+      balanceUUSDC: 0,
+      balanceUACT: (input.totalUsd ?? 0) - reservedTotal,
+      deploymentEscrowUAKT: 0,
+      deploymentEscrowUUSDC: 0,
+      deploymentEscrowUACT: 0,
+      deploymentGrantsUAKT: 0,
+      deploymentGrantsUUSDC: 0,
+      deploymentGrantsUACT: 0,
+      activeDeployments,
+      deploymentGrants: []
+    };
 
     const leases = input.leases
       ? input.leases.map(lease => ({ dseq: lease.dseq, state: "active", price: { denom: UACT_DENOM, amount: lease.amount ?? "1000000" } }))
@@ -122,12 +152,7 @@ describe(useAccountBalanceOverview.name, () => {
       useWallet: () => ({ address: "akash1abc" }),
       usePricing: () => ({ price: 1, isLoaded: true, udenomToUsd: (amount: string | number) => Number(amount) }),
       useFlag: () => input.fixedThresholdEnabled ?? false,
-      useWalletBalance: () => ({
-        balance: input.walletBalanceMissing ? null : { totalUsd: input.totalUsd ?? 0, totalDeploymentEscrowUSD: input.reservedUsd ?? 0 },
-        isLoading: false,
-        refetch: () => undefined
-      }),
-      useBalances: () => ({ data: { activeDeployments } }),
+      useBalances: () => ({ data: input.balancesMissing ? undefined : balances }),
       useAllLeases: () => ({ data: leases }),
       useWalletSettingsQuery: () => ({ data: { autoReloadEnabled: input.autoReloadEnabled ?? false, autoReloadThreshold: input.autoReloadThreshold } }),
       useLocalNotes: () => ({ getDeploymentName: (dseq: string | number | null) => input.names?.[String(dseq)] ?? null })

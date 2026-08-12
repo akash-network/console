@@ -56,6 +56,8 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
   }
 
   const segments = buildBalanceSegments(overview.deployments, overview.available);
+  const reservedSegments = segments.filter(segment => segment.key !== "available");
+  const activeHoveredKey = hoveredKey && segments.some(segment => segment.key === hoveredKey) ? hoveredKey : null;
   const hasRunway = overview.runwayDays !== null && overview.lastsUntil !== null;
 
   return (
@@ -82,7 +84,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
           )}
         </div>
 
-        <d.BalanceBreakdownBar segments={segments} hoveredKey={hoveredKey} onHover={setHoveredKey} threshold={overview.autoReloadThreshold} />
+        <d.BalanceBreakdownBar segments={segments} hoveredKey={activeHoveredKey} onHover={setHoveredKey} threshold={overview.autoReloadThreshold} />
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
@@ -114,7 +116,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
           </div>
         </div>
 
-        {overview.deployments.length > 0 && (
+        {reservedSegments.length > 0 && (
           <div className="border-t pt-4">
             <button
               type="button"
@@ -123,33 +125,31 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
               aria-expanded={isBreakdownOpen}
             >
               {isBreakdownOpen ? <d.NavArrowDown className="h-4 w-4" /> : <d.NavArrowRight className="h-4 w-4" />}
-              {isBreakdownOpen ? "Hide breakdown" : `What is reserved (${overview.deployments.length})`}
+              {isBreakdownOpen ? "Hide breakdown" : `What is reserved (${reservedSegments.length})`}
             </button>
             {isBreakdownOpen && (
               <div className="mt-3 space-y-3">
                 <ul className="flex flex-wrap gap-2">
-                  {segments
-                    .filter(segment => segment.key !== "available")
-                    .map(segment => (
-                      <li
-                        key={segment.key}
-                        className="transition-opacity duration-150"
-                        style={{ opacity: hoveredKey && hoveredKey !== segment.key ? 0.4 : 1 }}
-                        onMouseEnter={() => setHoveredKey(segment.key)}
-                        onMouseLeave={() => setHoveredKey(null)}
+                  {reservedSegments.map(segment => (
+                    <li
+                      key={segment.key}
+                      className="transition-opacity duration-150"
+                      style={{ opacity: activeHoveredKey && activeHoveredKey !== segment.key ? 0.4 : 1 }}
+                      onMouseEnter={() => setHoveredKey(segment.key)}
+                      onMouseLeave={() => setHoveredKey(null)}
+                    >
+                      <d.Link
+                        href={UrlService.deploymentDetails(segment.key)}
+                        className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm"
+                        style={{ backgroundColor: segment.badgeBackground, color: segment.badgeColor }}
                       >
-                        <d.Link
-                          href={UrlService.deploymentDetails(segment.key)}
-                          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm"
-                          style={{ backgroundColor: segment.badgeBackground, color: segment.badgeColor }}
-                        >
-                          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: segment.color }} aria-hidden />
-                          <span className="font-medium">{segment.label}</span>
-                          {segment.perHourUsd !== undefined && <span className="opacity-70">{usd(segment.perHourUsd)}/hr</span>}
-                          <span className="font-semibold">{usd(segment.amountUsd)}</span>
-                        </d.Link>
-                      </li>
-                    ))}
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: segment.color }} aria-hidden />
+                        <span className="font-medium">{segment.label}</span>
+                        {segment.perHourUsd !== undefined && <span className="opacity-70">{usd(segment.perHourUsd)}/hr</span>}
+                        <span className="font-semibold">{usd(segment.amountUsd)}</span>
+                      </d.Link>
+                    </li>
+                  ))}
                 </ul>
                 <p className="text-xs text-muted-foreground">{`Each running deployment keeps a minimum of ${RESERVE_WINDOW_HOURS} hours of its cost in reserve.`}</p>
               </div>
