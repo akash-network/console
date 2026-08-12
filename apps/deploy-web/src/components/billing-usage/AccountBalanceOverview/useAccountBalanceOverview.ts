@@ -49,17 +49,15 @@ const HOURS_PER_DAY = 24;
 
 export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}): AccountBalanceOverview {
   const { address } = d.useWallet();
-  const { isLoaded, price, udenomToUsd } = d.usePricing();
+  const { price, udenomToUsd } = d.usePricing();
   const { data: balances } = d.useBalances(address);
   const { data: leases } = d.useAllLeases(address);
   const { data: walletSettings } = d.useWalletSettingsQuery();
   const { getDeploymentName } = d.useLocalNotes();
   const isFixedThresholdEnabled = d.useFlag("auto_reload_fixed_threshold");
 
-  const walletBalance = useMemo(
-    () => (isLoaded && balances && price ? computeWalletBalance(balances, price, udenomToUsd) : null),
-    [isLoaded, balances, price, udenomToUsd]
-  );
+  /** Not gated on the AKT market price: managed wallets hold ACT/USDC (1:1 USD), and blocking on market data would strand the card on its skeleton during an outage. */
+  const walletBalance = useMemo(() => (balances ? computeWalletBalance(balances, price ?? 0, udenomToUsd) : null), [balances, price, udenomToUsd]);
 
   const { perHourByDseq, spend } = useMemo(() => {
     const perHourByDseq = new Map<string, number>();

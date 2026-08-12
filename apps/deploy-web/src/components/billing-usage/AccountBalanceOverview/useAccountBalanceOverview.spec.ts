@@ -107,6 +107,14 @@ describe(useAccountBalanceOverview.name, () => {
     expect(result.current.isLoading).toBe(true);
   });
 
+  it("still resolves balances when the AKT market price is unavailable", () => {
+    const { result } = setup({ totalUsd: 500, reservedUsd: 150, priceUnavailable: true });
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.totalUsd).toBe(500);
+    expect(result.current.available).toBe(350);
+  });
+
   function setup(input: {
     totalUsd?: number;
     reservedUsd?: number;
@@ -118,6 +126,7 @@ describe(useAccountBalanceOverview.name, () => {
     autoReloadThreshold?: number;
     fixedThresholdEnabled?: boolean;
     balancesMissing?: boolean;
+    priceUnavailable?: boolean;
   }) {
     const reservedDeployments = input.deployments ?? (input.reservedUsd ? [{ dseq: "reserved", fundsUsd: input.reservedUsd }] : []);
     const activeDeployments = reservedDeployments.map(deployment => ({
@@ -149,7 +158,11 @@ describe(useAccountBalanceOverview.name, () => {
     const dependencies = {
       ...DEPENDENCIES,
       useWallet: () => ({ address: "akash1abc" }),
-      usePricing: () => ({ price: 1, isLoaded: true, udenomToUsd: (amount: string | number) => Number(amount) }),
+      usePricing: () => ({
+        price: input.priceUnavailable ? undefined : 1,
+        isLoaded: !input.priceUnavailable,
+        udenomToUsd: (amount: string | number) => Number(amount)
+      }),
       useFlag: () => input.fixedThresholdEnabled ?? false,
       useBalances: () => ({ data: input.balancesMissing ? undefined : balances }),
       useAllLeases: () => ({ data: leases }),
