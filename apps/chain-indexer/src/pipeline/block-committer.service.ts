@@ -3,7 +3,16 @@ import chunk from "lodash/chunk";
 import { inject, singleton } from "tsyringe";
 
 import { INSERT_CHUNK_SIZE } from "@src/db/insert-chunk-size";
-import { Blocks, IndexerState, Messages, MessageTypes, Transactions } from "@src/db/schema";
+import { insertChunked } from "@src/db/insert-chunked";
+import { AccountTxs, Blocks, IndexerState, Messages, MessageTypes, Transactions } from "@src/db/schema";
+import { AccountInterner } from "@src/pipeline/balance/account-interner.service";
+import type { DerivedAccountTx } from "@src/pipeline/balance/account-tx-deriver";
+import { deriveAccountTxs } from "@src/pipeline/balance/account-tx-deriver";
+import type { DerivedBalanceChange } from "@src/pipeline/balance/balance-deriver";
+import { deriveBalanceChanges } from "@src/pipeline/balance/balance-deriver";
+import type { ResolvedBalanceChange } from "@src/pipeline/balance/balance-writer.service";
+import { BalanceWriter } from "@src/pipeline/balance/balance-writer.service";
+import { buildModuleAddressRegistry } from "@src/pipeline/balance/module-address-registry";
 import type { DecodedBlock } from "@src/pipeline/decoded-block";
 import type { ChainDatabase } from "@src/providers/db.provider";
 import { CHAIN_DB } from "@src/providers/db.provider";
@@ -13,10 +22,15 @@ export const SYNC_STREAM = "sync";
 @singleton()
 export class BlockCommitterService {
   readonly #db: ChainDatabase;
+  readonly #interner: AccountInterner;
+  readonly #balanceWriter: BalanceWriter;
+  readonly #moduleRegistry = buildModuleAddressRegistry();
   readonly #typeIds = new Map<string, number>();
 
-  constructor(@inject(CHAIN_DB) db: ChainDatabase) {
+  constructor(@inject(CHAIN_DB) db: ChainDatabase, @inject(AccountInterner) interner: AccountInterner, @inject(BalanceWriter) balanceWriter: BalanceWriter) {
     this.#db = db;
+    this.#interner = interner;
+    this.#balanceWriter = balanceWriter;
   }
 
   async commit(block: DecodedBlock): Promise<void> {
@@ -70,6 +84,12 @@ export class BlockCommitterService {
       )
     );
 
+    const balanceChanges = blocks.flatMap(block => deriveBalanceChanges(block, this.#moduleRegistry));
+    const accountTxs = blocks.flatMap(block => deriveAccountTxs(block));
+    const accountIds = await this.#internAccounts(balanceChanges, accountTxs);
+    const balanceIntents = this.#resolveBalanceChanges(balanceChanges, accountIds);
+    const accountTxRows = this.#resolveAccountTxs(accountTxs, accountIds);
+
     const lastHeight = blocks[blocks.length - 1].height;
 
     await this.#db.transaction(async tx => {
@@ -84,6 +104,9 @@ export class BlockCommitterService {
       for (const messageChunk of chunk(messageRows, INSERT_CHUNK_SIZE)) {
         await tx.insert(Messages).values(messageChunk).onConflictDoNothing();
       }
+
+      await this.#balanceWriter.write(tx, balanceIntents);
+      await insertChunked(tx, AccountTxs, accountTxRows);
 
       await tx
         .insert(IndexerState)
@@ -106,6 +129,52 @@ export class BlockCommitterService {
         throw new Error(`Non-contiguous batch: expected height ${expectedHeight} at position ${index}, got ${block.height}`);
       }
     });
+  }
+
+  /**
+   * Interns every address the batch touches — spenders, receivers, correlated counterparties and tx signers —
+   * on the base connection before the commit transaction, so the ledger and activity rows can reference their
+   * account ids by foreign key.
+   */
+  async #internAccounts(balanceChanges: DerivedBalanceChange[], accountTxs: DerivedAccountTx[]): Promise<Map<string, number>> {
+    const addresses = new Set<string>();
+
+    for (const change of balanceChanges) {
+      addresses.add(change.address);
+      if (change.counterpartyAddress) {
+        addresses.add(change.counterpartyAddress);
+      }
+    }
+    for (const row of accountTxs) {
+      addresses.add(row.address);
+    }
+
+    return this.#interner.resolve(addresses);
+  }
+
+  #resolveBalanceChanges(changes: DerivedBalanceChange[], accountIds: Map<string, number>): ResolvedBalanceChange[] {
+    return changes.map(change => ({
+      accountId: this.#requireId(accountIds, change.address),
+      counterpartyAccountId: change.counterpartyAddress ? accountIds.get(change.counterpartyAddress) ?? null : null,
+      denom: change.denom,
+      delta: change.delta,
+      reason: change.reason,
+      height: change.height,
+      txIndex: change.txIndex,
+      eventIndex: change.eventIndex
+    }));
+  }
+
+  #resolveAccountTxs(rows: DerivedAccountTx[], accountIds: Map<string, number>): (typeof AccountTxs.$inferInsert)[] {
+    return rows.map(row => ({ accountId: this.#requireId(accountIds, row.address), height: row.height, txIndex: row.txIndex, role: row.role }));
+  }
+
+  #requireId(accountIds: Map<string, number>, address: string): number {
+    const accountId = accountIds.get(address);
+    if (accountId === undefined) {
+      throw new Error(`No interned account id for address ${address}`);
+    }
+    return accountId;
   }
 
   async #internMessageTypes(blocks: DecodedBlock[]): Promise<Map<string, number>> {
