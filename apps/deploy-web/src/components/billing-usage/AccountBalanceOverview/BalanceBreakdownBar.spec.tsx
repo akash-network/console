@@ -45,10 +45,12 @@ describe(buildBalanceSegments.name, () => {
 
 describe(BalanceBreakdownBar.name, () => {
   it("renders one element per segment sized by flex-grow", () => {
-    setup([
-      { key: "d1", label: "llama", amountUsd: 100, color: "hsl(var(--primary) / 0.9)" },
-      { key: "available", label: "Available", amountUsd: 300, color: "hsl(var(--success))" }
-    ]);
+    setup({
+      segments: [
+        { key: "d1", label: "llama", amountUsd: 100, color: "hsl(var(--primary) / 0.9)" },
+        { key: "available", label: "Available", amountUsd: 300, color: "hsl(var(--success))" }
+      ]
+    });
 
     const bar = screen.getByRole("img");
     expect(bar.children).toHaveLength(2);
@@ -57,43 +59,43 @@ describe(BalanceBreakdownBar.name, () => {
   });
 
   it("summarizes every segment in the aria-label", () => {
-    setup([{ key: "d1", label: "llama", amountUsd: 100, color: "hsl(var(--primary))" }]);
+    setup({ segments: [{ key: "d1", label: "llama", amountUsd: 100, color: "hsl(var(--primary))" }] });
 
     expect(screen.getByRole("img").getAttribute("aria-label")).toContain("llama");
   });
 
   it("marks the auto top-up threshold when one is provided", () => {
-    setup(
-      [
+    setup({
+      segments: [
         { key: "d1", label: "llama", amountUsd: 1000, color: "hsl(var(--primary))" },
         { key: "available", label: "Available", amountUsd: 1000, color: "hsl(var(--success))" }
       ],
-      250
-    );
+      threshold: 250
+    });
 
     expect(screen.getByText(/Tops up at/)).toHaveTextContent("$250");
   });
 
   it("omits the threshold marker when no threshold is provided", () => {
-    setup([{ key: "available", label: "Available", amountUsd: 1000, color: "hsl(var(--success))" }]);
+    setup({ segments: [{ key: "available", label: "Available", amountUsd: 1000, color: "hsl(var(--success))" }] });
 
     expect(screen.queryByText(/Tops up at/)).not.toBeInTheDocument();
   });
 
   it("positions the marker as the far-right slice of the bar", () => {
-    setup(
-      [
+    setup({
+      segments: [
         { key: "d1", label: "llama", amountUsd: 1000, color: "hsl(var(--primary))" },
         { key: "available", label: "Available", amountUsd: 1000, color: "hsl(var(--success))" }
       ],
-      250
-    );
+      threshold: 250
+    });
 
     expect(screen.getByTestId("balance-threshold-hatch").style.width).toBe("12.5%");
     expect(screen.getByTestId("balance-threshold-line").style.left).toBe("87.5%");
   });
 
-  function setup(segments: Parameters<typeof BalanceBreakdownBar>[0]["segments"], threshold?: number | null) {
-    return render(<BalanceBreakdownBar segments={segments} threshold={threshold} />);
+  function setup(input: { segments: Parameters<typeof BalanceBreakdownBar>[0]["segments"]; threshold?: number | null }) {
+    return render(<BalanceBreakdownBar segments={input.segments} threshold={input.threshold} />);
   }
 });

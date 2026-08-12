@@ -128,7 +128,7 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
   const defaultCardLabel = useMemo(() => {
     const card = (defaultPaymentMethod as PaymentMethod | null | undefined)?.card;
     if (!card) return null;
-    return `${capitalizeFirstLetter(card.brand || "card")} •••• ${card.last4 || ""}`.trim();
+    return `${capitalizeFirstLetter(card.brand || "card")} **** ${card.last4 || ""}`.trim();
   }, [defaultPaymentMethod]);
 
   const nextTopUpDays = useMemo(() => {
