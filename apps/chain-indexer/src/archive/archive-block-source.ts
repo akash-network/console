@@ -1,5 +1,5 @@
 import type { ChunkRange, RawBlockRecord } from "@src/archive/archive-layout";
-import { CHUNK_SIZE, chunkRangeFor, isRangeContained } from "@src/archive/archive-layout";
+import { CHUNK_SIZE, chunkRangeFor, fetchRawBlock, isRangeContained } from "@src/archive/archive-layout";
 import type { BlockArchiveService } from "@src/archive/block-archive.service";
 import type { LoggerService } from "@src/providers/logging.provider";
 import type { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
@@ -43,7 +43,7 @@ export class ArchiveBlockSource {
 
   async getRecord(height: number): Promise<RawBlockRecord> {
     if (!this.#archive.isEnabled()) {
-      return await this.#fetchFromRpc(height);
+      return await fetchRawBlock(this.#pool, height);
     }
 
     const entry = this.#entryFor(height);
@@ -112,7 +112,7 @@ export class ArchiveBlockSource {
       return staged;
     }
 
-    const record = await this.#fetchFromRpc(height);
+    const record = await fetchRawBlock(this.#pool, height);
     if (!entry.chunkEligible) {
       await this.#archive.putStagedBlockIfAbsent(record);
     }
@@ -139,10 +139,7 @@ export class ArchiveBlockSource {
       endHeight: entry.range.end,
       stagedConsumed: entry.stagedHits.size
     });
-  }
-
-  async #fetchFromRpc(height: number): Promise<RawBlockRecord> {
-    const [block, blockResults] = await Promise.all([this.#pool.getBlock(height), this.#pool.getBlockResults(height)]);
-    return { height, block, block_results: blockResults };
+    entry.buffer.clear();
+    entry.stagedHits.clear();
   }
 }

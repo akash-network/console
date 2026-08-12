@@ -137,13 +137,13 @@ export class BlockArchiveService {
    * the cache so the caller's retry re-fetches instead of failing forever.
    */
   #resolveChainId(): Promise<string> {
-    this.#chainId ??= this.#pool.getStatus().then(
-      status => status.node_info.network,
-      error => {
+    this.#chainId ??= this.#pool
+      .getStatus()
+      .then(status => status.node_info.network)
+      .catch(error => {
         this.#chainId = null;
         throw error;
-      }
-    );
+      });
     return this.#chainId;
   }
 }

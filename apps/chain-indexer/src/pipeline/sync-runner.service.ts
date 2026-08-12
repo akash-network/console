@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { setTimeout as delay } from "node:timers/promises";
 import { inject, singleton } from "tsyringe";
 
+import { fetchRawBlock } from "@src/archive/archive-layout";
 import { BlockArchiveService } from "@src/archive/block-archive.service";
 import type { EnvConfig } from "@src/config/env.config";
 import { Blocks, IndexerState } from "@src/db/schema";
@@ -93,13 +94,13 @@ export class SyncRunnerService {
 
   /** The raw payloads are archived before decode and commit, so no block is ever committed without being archived and raw blocks survive even decoder bugs. */
   async #syncBlock(height: number): Promise<void> {
-    const [block, blockResults] = await Promise.all([this.#pool.getBlock(height), this.#pool.getBlockResults(height)]);
+    const record = await fetchRawBlock(this.#pool, height);
 
     if (this.#archive.isEnabled()) {
-      await this.#archive.putStagedBlockIfAbsent({ height, block, block_results: blockResults });
+      await this.#archive.putStagedBlockIfAbsent(record);
     }
 
-    const decoded = this.#decoder.decode(block, blockResults);
+    const decoded = this.#decoder.decode(record.block, record.block_results);
 
     this.#verifyContinuity(decoded);
     await this.#committer.commit(decoded);

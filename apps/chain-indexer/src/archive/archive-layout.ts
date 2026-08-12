@@ -1,3 +1,4 @@
+import type { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
 import type { RpcBlockResult, RpcBlockResultsResult } from "@src/rpc/rpc-types";
 
 export const CHUNK_SIZE = 1_000;
@@ -10,6 +11,12 @@ export interface RawBlockRecord {
   height: number;
   block: RpcBlockResult;
   block_results: RpcBlockResultsResult;
+}
+
+/** Fetches the raw /block and /block_results payloads for a height in parallel and pairs them into one record. */
+export async function fetchRawBlock(pool: RpcClientPool, height: number): Promise<RawBlockRecord> {
+  const [block, blockResults] = await Promise.all([pool.getBlock(height), pool.getBlockResults(height)]);
+  return { height, block, block_results: blockResults };
 }
 
 export interface ChunkRange {

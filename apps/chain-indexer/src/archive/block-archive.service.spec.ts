@@ -6,6 +6,7 @@ import { BlockArchiveService } from "@src/archive/block-archive.service";
 import { envSchema } from "@src/config/env.config";
 import type { LoggerService } from "@src/providers/logging.provider";
 import type { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
+import type { RpcStatusResult } from "@src/rpc/rpc-types";
 
 import { httpError, InMemoryObjectStore } from "@test/fakes/in-memory-object-store";
 
@@ -138,6 +139,16 @@ describe(BlockArchiveService.name, () => {
     pool.getStatus.mockRejectedValueOnce(new Error("rpc down"));
 
     await expect(service.putStagedBlockIfAbsent(buildRecord(1))).rejects.toThrow("rpc down");
+    await expect(service.putStagedBlockIfAbsent(buildRecord(1))).resolves.toBeUndefined();
+
+    expect(pool.getStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it("refetches the chain id after a malformed status response poisons the first call", async () => {
+    const { service, pool } = setup();
+    pool.getStatus.mockResolvedValueOnce({ sync_info: { latest_block_height: "1" } } as unknown as RpcStatusResult);
+
+    await expect(service.putStagedBlockIfAbsent(buildRecord(1))).rejects.toThrow();
     await expect(service.putStagedBlockIfAbsent(buildRecord(1))).resolves.toBeUndefined();
 
     expect(pool.getStatus).toHaveBeenCalledTimes(2);
