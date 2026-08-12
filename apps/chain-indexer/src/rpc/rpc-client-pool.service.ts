@@ -4,7 +4,7 @@ import { inject, singleton } from "tsyringe";
 import type { EnvConfig } from "@src/config/env.config";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 import { LoggerService } from "@src/providers/logging.provider";
-import type { RpcBlockResult, RpcBlockResultsResult, RpcStatusResult } from "@src/rpc/rpc-types";
+import type { RpcBlockResult, RpcBlockResultsResult, RpcGenesisChunkResult, RpcStatusResult } from "@src/rpc/rpc-types";
 
 interface RpcNodeState {
   endpoint: string;
@@ -57,6 +57,10 @@ export class RpcClientPool {
 
   async getBlockResults(height: number): Promise<RpcBlockResultsResult> {
     return await this.#get<RpcBlockResultsResult>(`/block_results?height=${height}`);
+  }
+
+  async getGenesisChunk(chunk: number): Promise<RpcGenesisChunkResult> {
+    return await this.#get<RpcGenesisChunkResult>(`/genesis_chunked?chunk=${chunk}`);
   }
 
   async #get<T>(path: string): Promise<T> {

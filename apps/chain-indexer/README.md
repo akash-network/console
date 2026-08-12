@@ -40,6 +40,12 @@ curl localhost:3092/v1/status
 
 The checkpoint height should advance as blocks land in `cosmos.blocks`, `cosmos.transactions`, and `cosmos.messages`.
 
+## Genesis import
+
+Set `GENESIS_IMPORT=true` to seed genesis state before the first block: accounts, per-denom balances (as `genesis`-reason ledger entries), validators, and staking delegations, all in one transaction. Because balance history is only trustworthy from the network's genesis, a fresh `sync` with the flag on must begin at the genesis height, and a fresh start anywhere else is rejected with a clear error. On sandbox that height is 1 (`SYNC_START_HEIGHT=1`); the height is read from the genesis file itself, so a chain continued from an export uses its continuation height.
+
+The import runs once. A `genesis` checkpoint in `indexer_state` makes a restart skip it, and the seed commits in a single transaction, so an interrupted run rolls back and retries cleanly. Genesis is fetched over RPC `/genesis_chunked` from the same nodes sync uses, and its `chain_id` must match the chain being indexed. Leave the flag unset (the default) and sync tails blocks, transactions, and messages from any height exactly as before.
+
 ## Backfill
 
 The backfill role fills the database over an explicit, inclusive height range and exits when done, so it fits a one-off K8s Job:

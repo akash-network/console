@@ -14,6 +14,13 @@ const rawEnvSchema = z.object({
   /** First height to sync when the database has no checkpoint yet. Defaults to the current chain tip. */
   SYNC_START_HEIGHT: z.preprocess(emptyStringAsUndefined, z.number({ coerce: true }).int().positive().optional()),
   SYNC_POLL_INTERVAL_MS: z.number({ coerce: true }).int().positive().default(3_000),
+  /**
+   * Enables the one-time genesis import (accounts, balances, validators, delegations) before the first block.
+   * When on, a fresh sync must start at the network's genesis height or it is rejected as a mid-chain start.
+   * Off preserves plain block/tx/message tailing from any height. Enum-transform rather than z.coerce.boolean(),
+   * which treats the string "false" as true.
+   */
+  GENESIS_IMPORT: z.preprocess(emptyStringAsUndefined, z.enum(["true", "false"]).default("false")).transform(value => value === "true"),
   /** First height of the backfill range (inclusive). Required when INDEXER_ROLE is "backfill". */
   BACKFILL_FROM_HEIGHT: z.preprocess(emptyStringAsUndefined, z.number({ coerce: true }).int().positive().optional()),
   /** Last height of the backfill range (inclusive). Required when INDEXER_ROLE is "backfill". */

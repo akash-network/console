@@ -1,4 +1,19 @@
-import { bigint, index, integer, jsonb, pgSchema, pgTable, primaryKey, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  bigserial,
+  boolean,
+  index,
+  integer,
+  jsonb,
+  numeric,
+  pgSchema,
+  pgTable,
+  primaryKey,
+  serial,
+  text,
+  timestamp,
+  uniqueIndex
+} from "drizzle-orm/pg-core";
 
 import { bytea } from "@src/db/bytea";
 
@@ -60,3 +75,94 @@ export const IndexerState = pgTable("indexer_state", {
   lastHeight: bigint("last_height", { mode: "number" }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull()
 });
+
+/**
+ * Why an address change happened. Only `genesis` is written today (L-3); the ongoing per-block
+ * reasons (transfer/fee/staking/...) land with the balance ledger in L-4. New values are added via
+ * migration (Postgres allows ALTER TYPE ... ADD VALUE) rather than editing this list retroactively.
+ */
+export const balanceChangeReason = cosmosSchema.enum("balance_change_reason", [
+  "genesis",
+  "transfer",
+  "fee",
+  "reward",
+  "commission",
+  "slash",
+  "gov",
+  "ibc",
+  "escrow",
+  "bme",
+  "mint",
+  "burn"
+]);
+
+/** Addresses interned once and referenced by integer id, mirroring the message_types lookup. */
+export const Accounts = cosmosSchema.table(
+  "accounts",
+  {
+    id: serial("id").primaryKey(),
+    address: text("address").notNull(),
+    accountNumber: bigint("account_number", { mode: "number" }),
+    accountType: text("account_type"),
+    isModuleAccount: boolean("is_module_account").notNull().default(false)
+  },
+  t => [uniqueIndex("accounts_address_idx").on(t.address)]
+);
+
+/** Current per-denom balance for each account, updated in the same transaction as the ledger. */
+export const AccountBalances = cosmosSchema.table(
+  "account_balances",
+  {
+    accountId: integer("account_id")
+      .notNull()
+      .references(() => Accounts.id),
+    denom: text("denom").notNull(),
+    amount: numeric("amount", { precision: 38, scale: 0 }).notNull()
+  },
+  t => [primaryKey({ columns: [t.accountId, t.denom] })]
+);
+
+/** Append-only ledger of balance changes. `numeric(38,0)` never loses precision on u-denom amounts the way DOUBLE does. */
+export const BalanceChanges = cosmosSchema.table(
+  "balance_changes",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    accountId: integer("account_id")
+      .notNull()
+      .references(() => Accounts.id),
+    denom: text("denom").notNull(),
+    delta: numeric("delta", { precision: 38, scale: 0 }).notNull(),
+    balanceAfter: numeric("balance_after", { precision: 38, scale: 0 }).notNull(),
+    reason: balanceChangeReason("reason").notNull(),
+    height: bigint("height", { mode: "number" }).notNull(),
+    counterpartyAccountId: integer("counterparty_account_id").references(() => Accounts.id)
+  },
+  t => [index("balance_changes_account_denom_height_idx").on(t.accountId, t.denom, t.height)]
+);
+
+export const Validators = cosmosSchema.table("validators", {
+  operatorAddress: text("operator_address").primaryKey(),
+  accountAddress: text("account_address"),
+  hexAddress: text("hex_address"),
+  moniker: text("moniker"),
+  identity: text("identity"),
+  website: text("website"),
+  details: text("details"),
+  securityContact: text("security_contact"),
+  commissionRate: numeric("commission_rate", { precision: 20, scale: 18 }),
+  commissionMaxRate: numeric("commission_max_rate", { precision: 20, scale: 18 }),
+  commissionMaxChangeRate: numeric("commission_max_change_rate", { precision: 20, scale: 18 }),
+  minSelfDelegation: numeric("min_self_delegation", { precision: 38, scale: 0 })
+});
+
+export const Delegations = cosmosSchema.table(
+  "delegations",
+  {
+    delegatorAccountId: integer("delegator_account_id")
+      .notNull()
+      .references(() => Accounts.id),
+    validatorOperatorAddress: text("validator_operator_address").notNull(),
+    shares: numeric("shares", { precision: 38, scale: 18 }).notNull()
+  },
+  t => [primaryKey({ columns: [t.delegatorAccountId, t.validatorOperatorAddress] })]
+);

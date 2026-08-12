@@ -2,15 +2,13 @@ import { inArray, sql } from "drizzle-orm";
 import chunk from "lodash/chunk";
 import { inject, singleton } from "tsyringe";
 
+import { INSERT_CHUNK_SIZE } from "@src/db/insert-chunk-size";
 import { Blocks, IndexerState, Messages, MessageTypes, Transactions } from "@src/db/schema";
 import type { DecodedBlock } from "@src/pipeline/decoded-block";
 import type { ChainDatabase } from "@src/providers/db.provider";
 import { CHAIN_DB } from "@src/providers/db.provider";
 
 export const SYNC_STREAM = "sync";
-
-/** Keeps multi-row inserts well under postgres.js's ~65k bind-parameter limit when batches span hundreds of blocks. */
-const INSERT_CHUNK_SIZE = 2_000;
 
 @singleton()
 export class BlockCommitterService {
