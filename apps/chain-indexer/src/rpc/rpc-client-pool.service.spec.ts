@@ -88,6 +88,16 @@ describe(RpcClientPool.name, () => {
     expect(fetchMock.mock.calls.map(call => call[0])).toEqual(["http://node-a/block?height=7", "http://node-a/block_results?height=7"]);
   });
 
+  it("requests a genesis chunk by index", async () => {
+    const { pool, fetchMock } = setup();
+    fetchMock.mockResolvedValue(jsonResponse({ result: { chunk: "2", total: "5", data: "eyJ9" } }));
+
+    const chunk = await pool.getGenesisChunk(2);
+
+    expect(chunk).toEqual({ chunk: "2", total: "5", data: "eyJ9" });
+    expect(fetchMock.mock.calls[0][0]).toBe("http://node-a/genesis_chunked?chunk=2");
+  });
+
   function setup() {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

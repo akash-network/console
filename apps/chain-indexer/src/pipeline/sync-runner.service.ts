@@ -6,6 +6,7 @@ import { fetchRawBlock } from "@src/archive/archive-layout";
 import { BlockArchiveService } from "@src/archive/block-archive.service";
 import type { EnvConfig } from "@src/config/env.config";
 import { Blocks, IndexerState } from "@src/db/schema";
+import { GenesisImportService } from "@src/genesis/genesis-import.service";
 import { BlockCommitterService, SYNC_STREAM } from "@src/pipeline/block-committer.service";
 import { BlockDecoderService } from "@src/pipeline/block-decoder.service";
 import { ChainContinuityError } from "@src/pipeline/chain-continuity-error";
@@ -26,6 +27,7 @@ export class SyncRunnerService {
   readonly #decoder: BlockDecoderService;
   readonly #committer: BlockCommitterService;
   readonly #archive: BlockArchiveService;
+  readonly #genesisImport: GenesisImportService;
   readonly #config: EnvConfig;
   readonly #logger: LoggerService;
 
@@ -38,6 +40,7 @@ export class SyncRunnerService {
     @inject(BlockDecoderService) decoder: BlockDecoderService,
     @inject(BlockCommitterService) committer: BlockCommitterService,
     @inject(BlockArchiveService) archive: BlockArchiveService,
+    @inject(GenesisImportService) genesisImport: GenesisImportService,
     @inject(APP_CONFIG) config: EnvConfig,
     @inject(LoggerService) logger: LoggerService
   ) {
@@ -46,6 +49,7 @@ export class SyncRunnerService {
     this.#decoder = decoder;
     this.#committer = committer;
     this.#archive = archive;
+    this.#genesisImport = genesisImport;
     this.#config = config;
     this.#logger = logger;
     this.#logger.setContext("SYNC");
@@ -68,7 +72,13 @@ export class SyncRunnerService {
   }
 
   async #run(): Promise<void> {
-    let nextHeight = await this.#resolveStartHeight();
+    const { height, resumed } = await this.#resolveStartHeight();
+
+    if (this.#config.GENESIS_IMPORT) {
+      await this.#seedGenesisOrWarn(height, resumed);
+    }
+
+    let nextHeight = height;
     this.#logger.info({ event: "SYNC_STARTED", network: this.#config.NETWORK, nextHeight });
     this.#archive.logState();
 
@@ -85,6 +95,22 @@ export class SyncRunnerService {
         await this.#retryTransient(() => this.#syncBlock(height), { event: "SYNC_BLOCK_RETRY", height });
         nextHeight++;
       }
+    }
+  }
+
+  /**
+   * Genesis is seeded only on a fresh start; a resume is already past genesis and seeding mid-chain is refused
+   * by design. Turning GENESIS_IMPORT on after an indexer already has a sync checkpoint would otherwise skip the
+   * seed with no trace, so warn when the flag is set on a resume whose genesis was never seeded.
+   */
+  async #seedGenesisOrWarn(height: number, resumed: boolean): Promise<void> {
+    if (!resumed) {
+      await this.#genesisImport.ensureSeeded(height);
+      return;
+    }
+
+    if (!(await this.#genesisImport.hasSeeded())) {
+      this.#logger.warn({ event: "GENESIS_IMPORT_SKIPPED_RESUMED_WITHOUT_MARKER", height });
     }
   }
 
@@ -125,19 +151,20 @@ export class SyncRunnerService {
     }
   }
 
-  async #resolveStartHeight(): Promise<number> {
+  /** `resumed` distinguishes continuing from an existing sync checkpoint from a fresh forward start, which gates whether the one-time genesis seed runs. */
+  async #resolveStartHeight(): Promise<{ height: number; resumed: boolean }> {
     const [state] = await this.#db.select().from(IndexerState).where(eq(IndexerState.stream, SYNC_STREAM));
 
     if (state) {
       const [checkpointBlock] = await this.#db.select().from(Blocks).where(eq(Blocks.height, state.lastHeight));
       this.#lastHash = checkpointBlock?.hash ?? null;
-      return state.lastHeight + 1;
+      return { height: state.lastHeight + 1, resumed: true };
     }
 
     if (this.#config.SYNC_START_HEIGHT) {
-      return this.#config.SYNC_START_HEIGHT;
+      return { height: this.#config.SYNC_START_HEIGHT, resumed: false };
     }
 
-    return await this.#pool.getTipHeight();
+    return { height: await this.#pool.getTipHeight(), resumed: false };
   }
 }

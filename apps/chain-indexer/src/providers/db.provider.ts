@@ -11,6 +11,10 @@ import { APP_CONFIG } from "@src/providers/app-config.provider";
 const createDatabase = (c: DependencyContainer) => drizzle(c.resolve(PgClientService).client, { schema });
 
 export type ChainDatabase = ReturnType<typeof createDatabase>;
+
+/** The transaction handle drizzle passes to a `db.transaction(async tx => …)` callback; lets services take a `tx` param without restating drizzle's generics. */
+export type ChainTransaction = Parameters<Parameters<ChainDatabase["transaction"]>[0]>[0];
+
 export const CHAIN_DB: InjectionToken<ChainDatabase> = Symbol("CHAIN_DB");
 
 container.register(CHAIN_DB, {

@@ -38,3 +38,10 @@ export interface RpcBlockResultsResult {
   height: string;
   txs_results: RpcTxResult[] | null;
 }
+
+/** CometBFT `/genesis_chunked` response. `chunk`/`total` are marshaled as strings; `data` is base64-encoded genesis JSON. */
+export interface RpcGenesisChunkResult {
+  chunk: string | number;
+  total: string | number;
+  data: string;
+}
