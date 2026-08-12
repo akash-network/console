@@ -149,7 +149,6 @@ describe(AccountBalanceOverview.name, () => {
         available: 0,
         deployments: [],
         perHour: 0,
-        perMonth: 0,
         lastsUntil: null,
         runwayDays: null,
         autoReloadEnabled: false,

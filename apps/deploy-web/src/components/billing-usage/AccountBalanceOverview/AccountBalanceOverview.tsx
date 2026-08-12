@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { FormattedNumber } from "react-intl";
 import { Card, CardContent, CardHeader, CustomNoDivTooltip, Skeleton } from "@akashnetwork/ui/components";
 import format from "date-fns/format";
@@ -37,6 +37,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
   const overview = d.useAccountBalanceOverview();
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
+  const segments = useMemo(() => buildBalanceSegments(overview.deployments, overview.available), [overview.deployments, overview.available]);
   const usd = (value: number) => <d.FormattedNumber value={value} style="currency" currency="USD" />;
 
   if (overview.isLoading) {
@@ -55,7 +56,6 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
     );
   }
 
-  const segments = buildBalanceSegments(overview.deployments, overview.available);
   const reservedSegments = segments.filter(segment => segment.key !== "available");
   const activeHoveredKey = hoveredKey && segments.some(segment => segment.key === hoveredKey) ? hoveredKey : null;
   const hasRunway = overview.runwayDays !== null && overview.lastsUntil !== null;

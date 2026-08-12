@@ -75,7 +75,6 @@ export const UrlService = {
   userFavorites: () => `/user/settings/favorites`,
   userProfile: (username: string) => `/profile/${username}`,
   usage: () => "/usage",
-  paymentMethods: () => "/payment-methods",
   billing: ({ openPayment }: { openPayment?: boolean } = {}) => `/billing${appendSearchParams({ openPayment })}`,
   /** @deprecated use .newLogin instead */
   login: () => "/api/auth/login",

@@ -1,5 +1,6 @@
 "use client";
 import { useMemo } from "react";
+import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager/useLocalNotes";
 import { useWallet } from "@src/context/WalletProvider";
@@ -9,7 +10,7 @@ import { computeWalletBalance } from "@src/hooks/useWalletBalance";
 import { useWalletSettingsQuery } from "@src/queries";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
-import { getAvgCostPerMonth, getLeasesCostPerBlockUsd, getTimeLeft, perBlockToHourly } from "@src/utils/priceUtils";
+import { getLeasesCostPerBlockUsd, getTimeLeft, perBlockToHourly } from "@src/utils/priceUtils";
 import { isLeaseLive } from "@src/utils/reclamationUtils";
 
 export const DEPENDENCIES = {
@@ -35,7 +36,6 @@ export type AccountBalanceOverview = {
   available: number;
   deployments: ReservedDeployment[];
   perHour: number;
-  perMonth: number;
   /** null when nothing is being spent (runway is effectively infinite). */
   lastsUntil: Date | null;
   runwayDays: number | null;
@@ -44,8 +44,6 @@ export type AccountBalanceOverview = {
   autoReloadThreshold: number | null;
   isLoading: boolean;
 };
-
-const HOURS_PER_DAY = 24;
 
 export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}): AccountBalanceOverview {
   const { address } = d.useWallet();
@@ -61,16 +59,16 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
 
   const { perHourByDseq, spend } = useMemo(() => {
     const perHourByDseq = new Map<string, number>();
-    if (!leases) return { perHourByDseq, spend: { perBlockUsd: 0, perHour: 0, perMonth: 0 } };
+    if (!leases) return { perHourByDseq, spend: { perBlockUsd: 0, perHour: 0 } };
 
-    const liveLeases = leases.filter(isLeaseLive);
-    for (const lease of liveLeases) {
+    let totalPerBlockUsd = 0;
+    for (const lease of leases.filter(isLeaseLive)) {
       const perBlockUsd = getLeasesCostPerBlockUsd([lease]);
+      totalPerBlockUsd += perBlockUsd;
       perHourByDseq.set(lease.dseq, (perHourByDseq.get(lease.dseq) ?? 0) + perBlockToHourly(perBlockUsd));
     }
 
-    const perBlockUsd = getLeasesCostPerBlockUsd(liveLeases);
-    return { perHourByDseq, spend: { perBlockUsd, perHour: perBlockToHourly(perBlockUsd), perMonth: getAvgCostPerMonth(perBlockUsd) } };
+    return { perHourByDseq, spend: { perBlockUsd: totalPerBlockUsd, perHour: perBlockToHourly(totalPerBlockUsd) } };
   }, [leases]);
 
   const deployments = useMemo<ReservedDeployment[]>(() => {
@@ -89,6 +87,7 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
   const reserved = walletBalance?.totalDeploymentEscrowUSD ?? 0;
   const available = Math.max(0, totalUsd - reserved);
   const hasSpend = spend.perBlockUsd > 0;
+  const lastsUntil = hasSpend ? getTimeLeft(spend.perBlockUsd, totalUsd) : null;
   const autoReloadEnabled = walletSettings?.autoReloadEnabled ?? false;
   const autoReloadThreshold = isFixedThresholdEnabled && autoReloadEnabled ? walletSettings?.autoReloadThreshold ?? null : null;
 
@@ -98,9 +97,8 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
     available,
     deployments,
     perHour: spend.perHour,
-    perMonth: spend.perMonth,
-    lastsUntil: hasSpend ? getTimeLeft(spend.perBlockUsd, totalUsd) : null,
-    runwayDays: hasSpend ? Math.floor(totalUsd / spend.perHour / HOURS_PER_DAY) : null,
+    lastsUntil,
+    runwayDays: lastsUntil ? differenceInCalendarDays(lastsUntil, new Date()) : null,
     autoReloadEnabled,
     autoReloadThreshold,
     isLoading: !walletBalance
