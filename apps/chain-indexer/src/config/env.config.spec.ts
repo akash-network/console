@@ -52,6 +52,28 @@ describe("envSchema", () => {
     });
   });
 
+  it("treats an empty ARCHIVE_BUCKET as absent", () => {
+    const config = setup({ ARCHIVE_BUCKET: "" });
+
+    expect(config.ARCHIVE_BUCKET).toBeUndefined();
+  });
+
+  it("parses ARCHIVE_BUCKET when set", () => {
+    const config = setup({ ARCHIVE_BUCKET: "raw-blocks" });
+
+    expect(config.ARCHIVE_BUCKET).toBe("raw-blocks");
+  });
+
+  it("treats an empty ARCHIVE_STORAGE_API_ENDPOINT as absent", () => {
+    const config = setup({ ARCHIVE_STORAGE_API_ENDPOINT: "" });
+
+    expect(config.ARCHIVE_STORAGE_API_ENDPOINT).toBeUndefined();
+  });
+
+  it("rejects a malformed ARCHIVE_STORAGE_API_ENDPOINT", () => {
+    expect(() => setup({ ARCHIVE_STORAGE_API_ENDPOINT: "not a url" })).toThrow();
+  });
+
   it("does not require backfill heights for other roles", () => {
     const config = setup({ INDEXER_ROLE: "api", BACKFILL_FROM_HEIGHT: "", BACKFILL_TO_HEIGHT: "" });
 

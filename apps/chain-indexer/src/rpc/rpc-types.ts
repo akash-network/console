@@ -1,4 +1,7 @@
 export interface RpcStatusResult {
+  node_info: {
+    network: string;
+  };
   sync_info: {
     latest_block_height: string;
   };

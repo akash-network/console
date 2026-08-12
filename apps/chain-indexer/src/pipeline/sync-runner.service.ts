@@ -2,6 +2,8 @@ import { eq } from "drizzle-orm";
 import { setTimeout as delay } from "node:timers/promises";
 import { inject, singleton } from "tsyringe";
 
+import { fetchRawBlock } from "@src/archive/archive-layout";
+import { BlockArchiveService } from "@src/archive/block-archive.service";
 import type { EnvConfig } from "@src/config/env.config";
 import { Blocks, IndexerState } from "@src/db/schema";
 import { BlockCommitterService, SYNC_STREAM } from "@src/pipeline/block-committer.service";
@@ -23,6 +25,7 @@ export class SyncRunnerService {
   readonly #pool: RpcClientPool;
   readonly #decoder: BlockDecoderService;
   readonly #committer: BlockCommitterService;
+  readonly #archive: BlockArchiveService;
   readonly #config: EnvConfig;
   readonly #logger: LoggerService;
 
@@ -34,6 +37,7 @@ export class SyncRunnerService {
     @inject(RpcClientPool) pool: RpcClientPool,
     @inject(BlockDecoderService) decoder: BlockDecoderService,
     @inject(BlockCommitterService) committer: BlockCommitterService,
+    @inject(BlockArchiveService) archive: BlockArchiveService,
     @inject(APP_CONFIG) config: EnvConfig,
     @inject(LoggerService) logger: LoggerService
   ) {
@@ -41,6 +45,7 @@ export class SyncRunnerService {
     this.#pool = pool;
     this.#decoder = decoder;
     this.#committer = committer;
+    this.#archive = archive;
     this.#config = config;
     this.#logger = logger;
     this.#logger.setContext("SYNC");
@@ -65,6 +70,7 @@ export class SyncRunnerService {
   async #run(): Promise<void> {
     let nextHeight = await this.#resolveStartHeight();
     this.#logger.info({ event: "SYNC_STARTED", network: this.#config.NETWORK, nextHeight });
+    this.#archive.logState();
 
     while (!this.#stopped) {
       const tipHeight = await this.#retryTransient(() => this.#pool.getTipHeight(), { event: "SYNC_TIP_FETCH_RETRY" });
@@ -86,9 +92,15 @@ export class SyncRunnerService {
     return await retryTransient(operation, { isStopped: () => this.#stopped, logger: this.#logger, logContext });
   }
 
+  /** The raw payloads are archived before decode and commit, so no block is ever committed without being archived and raw blocks survive even decoder bugs. */
   async #syncBlock(height: number): Promise<void> {
-    const [block, blockResults] = await Promise.all([this.#pool.getBlock(height), this.#pool.getBlockResults(height)]);
-    const decoded = this.#decoder.decode(block, blockResults);
+    const record = await fetchRawBlock(this.#pool, height);
+
+    if (this.#archive.isEnabled()) {
+      await this.#archive.putStagedBlockIfAbsent(record);
+    }
+
+    const decoded = this.#decoder.decode(record.block, record.block_results);
 
     this.#verifyContinuity(decoded);
     await this.#committer.commit(decoded);
