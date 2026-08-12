@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
@@ -10,6 +10,10 @@ import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe("DeploymentDetail", () => {
+  afterEach(function restoreUrlMutatedByTabNavigation() {
+    window.history.replaceState(window.history.state, "", "/");
+  });
+
   it("renders the tab bar and lease rows when the deployment and leases are loaded", () => {
     setup();
 
