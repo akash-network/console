@@ -1,3 +1,4 @@
+import { IntlProvider } from "react-intl";
 import { describe, expect, it } from "vitest";
 
 import { BalanceBreakdownBar, buildBalanceSegments } from "./BalanceBreakdownBar";
@@ -103,6 +104,10 @@ describe(BalanceBreakdownBar.name, () => {
   });
 
   function setup(input: { segments: Parameters<typeof BalanceBreakdownBar>[0]["segments"]; threshold?: number | null }) {
-    return render(<BalanceBreakdownBar segments={input.segments} threshold={input.threshold} />);
+    return render(
+      <IntlProvider locale="en-US">
+        <BalanceBreakdownBar segments={input.segments} threshold={input.threshold} />
+      </IntlProvider>
+    );
   }
 });

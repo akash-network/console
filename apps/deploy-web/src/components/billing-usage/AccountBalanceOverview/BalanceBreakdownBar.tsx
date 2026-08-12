@@ -1,8 +1,8 @@
 "use client";
 import React from "react";
+import { useIntl } from "react-intl";
 import { Flash } from "iconoir-react";
 
-import { useCurrencyFormatter } from "@src/hooks/useCurrencyFormatter/useCurrencyFormatter";
 import type { ReservedDeployment } from "./useAccountBalanceOverview";
 
 export type BalanceSegment = {
@@ -80,7 +80,8 @@ export const BalanceBreakdownBar: React.FunctionComponent<{
   onHover?: (key: string | null) => void;
   threshold?: number | null;
 }> = ({ segments, hoveredKey = null, onHover, threshold = null }) => {
-  const formatUsd = useCurrencyFormatter();
+  const intl = useIntl();
+  const formatUsd = (value: number) => intl.formatNumber(value, { style: "currency", currency: "USD" });
   const label = segments.map(segment => `${segment.label} ${formatUsd(segment.amountUsd)}`).join(", ");
   const total = segments.reduce((sum, segment) => sum + segment.amountUsd, 0);
   const available = segments.find(segment => segment.key === "available")?.amountUsd ?? 0;
