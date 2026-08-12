@@ -81,6 +81,29 @@ describe(AutoTopUpSection.name, () => {
       expect(dependencies.AutoTopUpSettingsPopup).toHaveBeenCalledWith(expect.objectContaining({ open: true, enableOnSave: false }), expect.anything());
     });
 
+    it("shows the next top-up estimate even when the default payment method is not a card", () => {
+      setup({
+        isFixedThresholdEnabled: true,
+        defaultPaymentMethod: { id: "pm_123" },
+        walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 50 },
+        perHour: 1,
+        available: 100
+      });
+
+      expect(screen.getByText(/Charges your default payment method/)).toBeInTheDocument();
+      expect(screen.getByText(/Next top-up in about/)).toBeInTheDocument();
+    });
+
+    it("names the default card in the charge summary", () => {
+      setup({
+        isFixedThresholdEnabled: true,
+        defaultPaymentMethod: { id: "pm_123", card: { brand: "visa", last4: "4242" } },
+        walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 50 }
+      });
+
+      expect(screen.getByText(/Charges Visa \*\*\*\* 4242/)).toBeInTheDocument();
+    });
+
     it("disables the switch and hides the edit button without a payment method", () => {
       setup({ isFixedThresholdEnabled: true, defaultPaymentMethod: undefined });
 
@@ -169,7 +192,7 @@ describe(AutoTopUpSection.name, () => {
 
   function setup(input: {
     isFixedThresholdEnabled?: boolean;
-    defaultPaymentMethod?: { id: string };
+    defaultPaymentMethod?: { id: string; card?: { brand?: string; last4?: string } };
     isDefaultPaymentMethodLoading?: boolean;
     walletSettings?: { autoReloadEnabled: boolean; autoReloadThreshold?: number; autoReloadAmount?: number };
     weeklyCost?: number;

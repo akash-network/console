@@ -205,18 +205,16 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
                     Edit
                   </d.Button>
                 </div>
-                {defaultCardLabel && (
-                  <p className="border-t pt-4 text-sm text-muted-foreground">
-                    Charges {defaultCardLabel}, at most once per hour.
-                    {nextTopUpDays !== null && (
-                      <>
-                        {" "}
-                        Next top-up in about <span className="font-medium text-foreground">{`${nextTopUpDays} day${nextTopUpDays === 1 ? "" : "s"}`}</span>{" "}
-                        based on your current spend rate.
-                      </>
-                    )}
-                  </p>
-                )}
+                <p className="border-t pt-4 text-sm text-muted-foreground">
+                  Charges {defaultCardLabel ?? "your default payment method"} when your available balance falls below the threshold.
+                  {nextTopUpDays !== null && (
+                    <>
+                      {" "}
+                      Next top-up in about <span className="font-medium text-foreground">{`${nextTopUpDays} day${nextTopUpDays === 1 ? "" : "s"}`}</span> based
+                      on your current spend rate.
+                    </>
+                  )}
+                </p>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">Turn on Auto Top-Up to add funds automatically when your balance runs low.</p>
