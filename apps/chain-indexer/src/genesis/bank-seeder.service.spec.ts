@@ -18,9 +18,9 @@ describe(BankSeeder.name, () => {
       { accountId: 3, denom: "uakt", amount: "20" }
     ]);
     expect(rowsFor(inserts, BalanceChanges)).toEqual([
-      { accountId: 1, denom: "uakt", delta: "10", balanceAfter: "10", reason: "genesis", height: 1, counterpartyAccountId: null },
-      { accountId: 2, denom: "uakt", delta: "5", balanceAfter: "5", reason: "genesis", height: 1, counterpartyAccountId: null },
-      { accountId: 3, denom: "uakt", delta: "20", balanceAfter: "20", reason: "genesis", height: 1, counterpartyAccountId: null }
+      { accountId: 1, denom: "uakt", delta: "10", balanceAfter: "10", reason: "genesis", height: 0, txIndex: null, eventIndex: 0, counterpartyAccountId: null },
+      { accountId: 2, denom: "uakt", delta: "5", balanceAfter: "5", reason: "genesis", height: 0, txIndex: null, eventIndex: 1, counterpartyAccountId: null },
+      { accountId: 3, denom: "uakt", delta: "20", balanceAfter: "20", reason: "genesis", height: 0, txIndex: null, eventIndex: 2, counterpartyAccountId: null }
     ]);
   });
 

@@ -24,6 +24,7 @@
     "@akashnetwork/instrumentation": "*",
     "@akashnetwork/logging": "*",
     "@akashnetwork/net": "*",
+    "@cosmjs/amino": "~0.38.0",
     "@cosmjs/encoding": "~0.38.0",
     "@cosmjs/proto-signing": "~0.38.0",
     "@cosmjs/stargate": "~0.38.0",

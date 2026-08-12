@@ -1,6 +1,9 @@
 import { fromBase64, fromBech32, toBech32, toHex } from "@cosmjs/encoding";
 import { createHash } from "node:crypto";
 
+/** Bech32 human-readable prefix for account addresses. Shared by mainnet, sandbox and testnet — all Akash chains. */
+export const AKASH_ADDRESS_PREFIX = "akash";
+
 const ED25519_PUBKEY_TYPE = "/cosmos.crypto.ed25519.PubKey";
 
 /**

@@ -93,7 +93,8 @@ export const balanceChangeReason = cosmosSchema.enum("balance_change_reason", [
   "escrow",
   "bme",
   "mint",
-  "burn"
+  "burn",
+  "staking"
 ]);
 
 /** Addresses interned once and referenced by integer id, mirroring the message_types lookup. */
@@ -135,9 +136,14 @@ export const BalanceChanges = cosmosSchema.table(
     balanceAfter: numeric("balance_after", { precision: 38, scale: 0 }).notNull(),
     reason: balanceChangeReason("reason").notNull(),
     height: bigint("height", { mode: "number" }).notNull(),
+    txIndex: integer("tx_index"),
+    eventIndex: integer("event_index").notNull(),
     counterpartyAccountId: integer("counterparty_account_id").references(() => Accounts.id)
   },
-  t => [index("balance_changes_account_denom_height_idx").on(t.accountId, t.denom, t.height)]
+  t => [
+    index("balance_changes_account_denom_height_idx").on(t.accountId, t.denom, t.height),
+    uniqueIndex("balance_changes_height_event_index_idx").on(t.height, t.eventIndex)
+  ]
 );
 
 export const Validators = cosmosSchema.table("validators", {
@@ -165,4 +171,24 @@ export const Delegations = cosmosSchema.table(
     shares: numeric("shares", { precision: 38, scale: 18 }).notNull()
   },
   t => [primaryKey({ columns: [t.delegatorAccountId, t.validatorOperatorAddress] })]
+);
+
+/** How an address participated in a transaction: it signed it, or it was the sender/recipient of a coin movement. */
+export const accountTxRole = cosmosSchema.enum("account_tx_role", ["signer", "sender", "receiver"]);
+
+/**
+ * Address activity log: one row per (address, tx, role). The leading `(accountId, height)` of the primary
+ * key serves "list an address's activity newest-first"; the composite key makes re-committing a block idempotent.
+ */
+export const AccountTxs = cosmosSchema.table(
+  "account_txs",
+  {
+    accountId: integer("account_id")
+      .notNull()
+      .references(() => Accounts.id),
+    height: bigint("height", { mode: "number" }).notNull(),
+    txIndex: integer("tx_index").notNull(),
+    role: accountTxRole("role").notNull()
+  },
+  t => [primaryKey({ columns: [t.accountId, t.height, t.txIndex, t.role] })]
 );
