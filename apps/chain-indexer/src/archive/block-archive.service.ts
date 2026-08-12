@@ -39,6 +39,14 @@ export class BlockArchiveService {
     return this.#storage !== null;
   }
 
+  logState(): void {
+    if (this.isEnabled()) {
+      this.#logger.info({ event: "ARCHIVE_ENABLED", bucket: this.#config.ARCHIVE_BUCKET });
+    } else {
+      this.#logger.info({ event: "ARCHIVE_DISABLED" });
+    }
+  }
+
   async getChunk(range: ChunkRange): Promise<RawBlockRecord[] | null> {
     const buffer = await this.#download(chunkKey(await this.#resolveChainId(), range));
     return buffer ? decodeRecords(buffer) : null;
@@ -49,7 +57,15 @@ export class BlockArchiveService {
     return buffer ? decodeRecords(buffer)[0] ?? null : null;
   }
 
+  /**
+   * A chunk's existence short-circuits staged reads and triggers staged-single deletion, so a
+   * partial chunk could destroy the only copy of blocks; the record count makes that impossible.
+   */
   async putChunkIfAbsent(range: ChunkRange, records: RawBlockRecord[]): Promise<void> {
+    const expectedCount = range.end - range.start + 1;
+    if (records.length !== expectedCount) {
+      throw new Error(`Chunk ${range.start}-${range.end} requires ${expectedCount} records, got ${records.length}`);
+    }
     await this.#saveIfAbsent(chunkKey(await this.#resolveChainId(), range), encodeRecords(records));
   }
 
@@ -64,7 +80,13 @@ export class BlockArchiveService {
 
     const chainId = await this.#resolveChainId().catch(() => null);
     if (chainId === null) {
-      this.#logger.warn({ event: "ARCHIVE_STAGED_DELETE_FAILED", reason: "chain id unavailable", heights });
+      this.#logger.warn({
+        event: "ARCHIVE_STAGED_DELETE_FAILED",
+        reason: "chain id unavailable",
+        heightCount: heights.length,
+        firstHeight: heights[0],
+        lastHeight: heights[heights.length - 1]
+      });
       return;
     }
 

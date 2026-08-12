@@ -29,7 +29,7 @@ const rawEnvSchema = z.object({
    * STORAGE_EMULATOR_HOST is not honored here: it switches the SDK to unprefixed request paths
    * that fake-gcs-server rejects, while the apiEndpoint option keeps standard JSON API paths.
    */
-  ARCHIVE_STORAGE_API_ENDPOINT: z.preprocess(emptyStringAsUndefined, z.string().optional()),
+  ARCHIVE_STORAGE_API_ENDPOINT: z.preprocess(emptyStringAsUndefined, z.string().url().optional()),
   /** Decoded message bodies above this serialized size are stored as null to keep pathological messages out of Postgres. */
   MESSAGE_BODY_MAX_BYTES: z.number({ coerce: true }).int().positive().default(65_536),
   DRIZZLE_MIGRATIONS_FOLDER: z.string().default("./drizzle"),

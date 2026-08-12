@@ -70,6 +70,10 @@ describe("envSchema", () => {
     expect(config.ARCHIVE_STORAGE_API_ENDPOINT).toBeUndefined();
   });
 
+  it("rejects a malformed ARCHIVE_STORAGE_API_ENDPOINT", () => {
+    expect(() => setup({ ARCHIVE_STORAGE_API_ENDPOINT: "not a url" })).toThrow();
+  });
+
   it("does not require backfill heights for other roles", () => {
     const config = setup({ INDEXER_ROLE: "api", BACKFILL_FROM_HEIGHT: "", BACKFILL_TO_HEIGHT: "" });
 

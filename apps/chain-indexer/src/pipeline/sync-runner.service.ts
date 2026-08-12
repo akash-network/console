@@ -69,7 +69,7 @@ export class SyncRunnerService {
   async #run(): Promise<void> {
     let nextHeight = await this.#resolveStartHeight();
     this.#logger.info({ event: "SYNC_STARTED", network: this.#config.NETWORK, nextHeight });
-    this.#logArchiveState();
+    this.#archive.logState();
 
     while (!this.#stopped) {
       const tipHeight = await this.#retryTransient(() => this.#pool.getTipHeight(), { event: "SYNC_TIP_FETCH_RETRY" });
@@ -109,14 +109,6 @@ export class SyncRunnerService {
       this.#logger.info({ event: "SYNC_PROGRESS", height, txCount: decoded.transactions.length });
     } else {
       this.#logger.debug({ event: "BLOCK_COMMITTED", height, txCount: decoded.transactions.length });
-    }
-  }
-
-  #logArchiveState(): void {
-    if (this.#archive.isEnabled()) {
-      this.#logger.info({ event: "ARCHIVE_ENABLED", bucket: this.#config.ARCHIVE_BUCKET });
-    } else {
-      this.#logger.info({ event: "ARCHIVE_DISABLED" });
     }
   }
 

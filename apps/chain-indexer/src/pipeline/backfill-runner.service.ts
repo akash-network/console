@@ -101,7 +101,7 @@ export class BackfillRunnerService {
 
     await this.#seedContinuityHash(plan.startHeight, checkpointHeight !== null);
     this.#logger.info({ event: "BACKFILL_STARTED", network: this.#config.NETWORK, stream, startHeight: plan.startHeight, endHeight: plan.endHeight });
-    this.#logArchiveState();
+    this.#archive.logState();
 
     const source = new ArchiveBlockSource({
       archive: this.#archive,
@@ -112,14 +112,6 @@ export class BackfillRunnerService {
     });
 
     return await this.#backfillRange(plan.startHeight, plan.endHeight, stream, source);
-  }
-
-  #logArchiveState(): void {
-    if (this.#archive.isEnabled()) {
-      this.#logger.info({ event: "ARCHIVE_ENABLED", bucket: this.#config.ARCHIVE_BUCKET });
-    } else {
-      this.#logger.info({ event: "ARCHIVE_DISABLED" });
-    }
   }
 
   /**

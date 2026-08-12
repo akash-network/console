@@ -34,12 +34,12 @@ describe(SyncRunnerService.name, () => {
     expect(archive.putStagedBlockIfAbsent.mock.invocationCallOrder[0]).toBeLessThan(committer.commit.mock.invocationCallOrder[0]);
   });
 
-  it("logs the archive bucket once at startup", async () => {
-    const { runner, logger } = setup({ tipHeight: 1 });
+  it("logs the archive state once at startup", async () => {
+    const { runner, archive } = setup({ tipHeight: 1 });
 
     await runner.start();
 
-    expect(logger.info).toHaveBeenCalledWith({ event: "ARCHIVE_ENABLED", bucket: "raw-blocks" });
+    expect(archive.logState).toHaveBeenCalledTimes(1);
   });
 
   it("rejects after exhausting retries when the archive stays unavailable and never commits", async () => {
@@ -61,13 +61,13 @@ describe(SyncRunnerService.name, () => {
 
   describe("when the archive is disabled", () => {
     it("syncs without touching the archive and logs the disabled state", async () => {
-      const { runner, archive, committer, logger } = setup({ tipHeight: 2, archiveEnabled: false });
+      const { runner, archive, committer } = setup({ tipHeight: 2, archiveEnabled: false });
 
       await runner.start();
 
       expect(committer.commit).toHaveBeenCalledTimes(2);
       expect(archive.putStagedBlockIfAbsent).not.toHaveBeenCalled();
-      expect(logger.info).toHaveBeenCalledWith({ event: "ARCHIVE_DISABLED" });
+      expect(archive.logState).toHaveBeenCalledTimes(1);
     });
   });
 

@@ -27,9 +27,17 @@ describe(BlockArchiveService.name, () => {
   it("writes chunks under the zero-padded per-chain range key", async () => {
     const { service, store } = setup();
 
-    await service.putChunkIfAbsent({ start: 2_000, end: 2_999 }, [buildRecord(2_000)]);
+    await service.putChunkIfAbsent({ start: 2_000, end: 2_999 }, buildChunkRecords(2_000, 2_999));
 
     expect([...store.objects.keys()]).toEqual(["raw-blocks/sandbox-01/chunks/0000002000-0000002999.ndjson.zst"]);
+  });
+
+  it("rejects a chunk put whose records do not cover the range", async () => {
+    const { service, store } = setup();
+
+    await expect(service.putChunkIfAbsent({ start: 2_000, end: 2_999 }, [buildRecord(2_000)])).rejects.toThrow("1000 records");
+
+    expect(store.objects.size).toBe(0);
   });
 
   it("round-trips a staged block", async () => {
@@ -43,11 +51,19 @@ describe(BlockArchiveService.name, () => {
 
   it("round-trips a chunk", async () => {
     const { service } = setup();
-    const records = [buildRecord(2_000), buildRecord(2_001)];
+    const records = buildChunkRecords(2_000, 2_999);
 
     await service.putChunkIfAbsent({ start: 2_000, end: 2_999 }, records);
 
     await expect(service.getChunk({ start: 2_000, end: 2_999 })).resolves.toEqual(records);
+  });
+
+  it("logs the bucket when enabled", () => {
+    const { service, logger } = setup();
+
+    service.logState();
+
+    expect(logger.info).toHaveBeenCalledWith({ event: "ARCHIVE_ENABLED", bucket: "raw-blocks" });
   });
 
   it("keeps the original object when the same staged block is put twice", async () => {
@@ -146,6 +162,14 @@ describe(BlockArchiveService.name, () => {
 
       await expect(service.deleteStagedBlocks([1])).resolves.toBeUndefined();
     });
+
+    it("logs the disabled state", () => {
+      const { service, logger } = setup({ disabled: true });
+
+      service.logState();
+
+      expect(logger.info).toHaveBeenCalledWith({ event: "ARCHIVE_DISABLED" });
+    });
   });
 
   function setup(input?: { disabled?: boolean }) {
@@ -159,6 +183,10 @@ describe(BlockArchiveService.name, () => {
     const logger = mock<LoggerService>();
     const service = new BlockArchiveService(input?.disabled ? null : store, config, pool, logger);
     return { service, store, pool, logger };
+  }
+
+  function buildChunkRecords(fromHeight: number, toHeight: number): RawBlockRecord[] {
+    return Array.from({ length: toHeight - fromHeight + 1 }, (_, index) => buildRecord(fromHeight + index));
   }
 
   function buildRecord(height: number): RawBlockRecord {
