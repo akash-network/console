@@ -37,13 +37,13 @@ import { DeploymentLogs } from "./DeploymentLogs";
 import { DeploymentSubHeader } from "./DeploymentSubHeader";
 import { LeaseRow } from "./LeaseRow";
 
-export interface DeploymentDetailProps {
+export interface DeploymentDetailLegacyProps {
   dseq: string;
 }
 
 type Tab = "ALERTS" | "EVENTS" | "LOGS" | "SHELL" | "EDIT" | "LEASES";
 
-export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
+export const DeploymentDetailLegacy: FC<DeploymentDetailLegacyProps> = ({ dseq }) => {
   const { analyticsService, deploymentLocalStorage, sdlAnalyzer } = useServices();
   const router = useRouter();
 

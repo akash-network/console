@@ -10,4 +10,6 @@ export type FeatureFlag =
   | "ui_sdl_preview_panel"
   | "ui_build_and_deploy"
   | "ui_agent_mode_deploy"
-  | "hackathons";
+  | "hackathons"
+  | "deployment_detail_redesign"
+  | "deployment_detail_preview";

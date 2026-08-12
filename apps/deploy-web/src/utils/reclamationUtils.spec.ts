@@ -5,6 +5,7 @@ import {
   classifyLeaseCloseReason,
   getLeaseCloseReasonLabel,
   getReclamationDeadline,
+  hasLiveGpuLease,
   isLeaseLive,
   isProviderReclaimed,
   isReclaiming,
@@ -145,11 +146,32 @@ describe("reclamationUtils", () => {
     });
   });
 
+  describe("hasLiveGpuLease", () => {
+    it("is true when a live lease has a GPU", () => {
+      expect(hasLiveGpuLease([createLease({ state: "active", gpuAmount: 1 })])).toBe(true);
+    });
+
+    it("is false when the GPU lease is not live", () => {
+      expect(hasLiveGpuLease([createLease({ state: "closed", gpuAmount: 1 })])).toBe(false);
+    });
+
+    it("is false when no live lease has a GPU", () => {
+      expect(hasLiveGpuLease([createLease({ state: "active", gpuAmount: 0 })])).toBe(false);
+    });
+
+    it("is false for empty or missing leases", () => {
+      expect(hasLiveGpuLease([])).toBe(false);
+      expect(hasLiveGpuLease(null)).toBe(false);
+      expect(hasLiveGpuLease(undefined)).toBe(false);
+    });
+  });
+
   function createLease(
     overrides: {
       state?: string;
       reason?: string;
       groupState?: string;
+      gpuAmount?: number;
       reclamation?: LeaseDto["reclamation"];
     } = {}
   ): LeaseDto {
@@ -163,6 +185,7 @@ describe("reclamationUtils", () => {
       state: overrides.state ?? "active",
       price: { denom: "uakt", amount: "100" },
       cpuAmount: 0,
+      gpuAmount: overrides.gpuAmount,
       memoryAmount: 0,
       storageAmount: 0,
       reason: overrides.reason,
