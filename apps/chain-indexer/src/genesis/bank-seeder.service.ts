@@ -1,7 +1,6 @@
-import chunk from "lodash/chunk";
 import { singleton } from "tsyringe";
 
-import { INSERT_CHUNK_SIZE } from "@src/db/insert-chunk-size";
+import { insertChunked } from "@src/db/insert-chunked";
 import { AccountBalances, BalanceChanges } from "@src/db/schema";
 import type { ParsedGenesis } from "@src/genesis/genesis-schema";
 import type { GenesisModuleSeeder, GenesisSeedContext } from "@src/genesis/genesis-seed-context";
@@ -39,12 +38,7 @@ export class BankSeeder implements GenesisModuleSeeder {
       }
     }
 
-    for (const rows of chunk(balanceRows, INSERT_CHUNK_SIZE)) {
-      await tx.insert(AccountBalances).values(rows).onConflictDoNothing();
-    }
-
-    for (const rows of chunk(changeRows, INSERT_CHUNK_SIZE)) {
-      await tx.insert(BalanceChanges).values(rows);
-    }
+    await insertChunked(tx, AccountBalances, balanceRows);
+    await insertChunked(tx, BalanceChanges, changeRows, { onConflictDoNothing: false });
   }
 }

@@ -1,7 +1,6 @@
-import chunk from "lodash/chunk";
 import { singleton } from "tsyringe";
 
-import { INSERT_CHUNK_SIZE } from "@src/db/insert-chunk-size";
+import { insertChunked } from "@src/db/insert-chunked";
 import { Delegations, Validators } from "@src/db/schema";
 import type { ParsedGenesis } from "@src/genesis/genesis-schema";
 import type { GenesisModuleSeeder, GenesisSeedContext } from "@src/genesis/genesis-seed-context";
@@ -39,12 +38,7 @@ export class StakingSeeder implements GenesisModuleSeeder {
       return { delegatorAccountId, validatorOperatorAddress: delegation.validatorOperatorAddress, shares: delegation.shares };
     });
 
-    for (const rows of chunk(validatorRows, INSERT_CHUNK_SIZE)) {
-      await tx.insert(Validators).values(rows).onConflictDoNothing();
-    }
-
-    for (const rows of chunk(delegationRows, INSERT_CHUNK_SIZE)) {
-      await tx.insert(Delegations).values(rows).onConflictDoNothing();
-    }
+    await insertChunked(tx, Validators, validatorRows);
+    await insertChunked(tx, Delegations, delegationRows);
   }
 }

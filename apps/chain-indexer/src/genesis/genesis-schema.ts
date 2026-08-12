@@ -215,14 +215,8 @@ function toValidatorFromStaking(validator: RawStakingValidator): ParsedValidator
     operatorAddress: validator.operator_address,
     accountAddress: safeOperatorToAccountAddress(validator.operator_address),
     hexAddress: validator.consensus_pubkey ? consensusHexAddress(validator.consensus_pubkey["@type"], validator.consensus_pubkey.key) : null,
-    moniker: validator.description?.moniker ?? null,
-    identity: validator.description?.identity ?? null,
-    website: validator.description?.website ?? null,
-    details: validator.description?.details ?? null,
-    securityContact: validator.description?.security_contact ?? null,
-    commissionRate: validator.commission?.commission_rates?.rate ?? null,
-    commissionMaxRate: validator.commission?.commission_rates?.max_rate ?? null,
-    commissionMaxChangeRate: validator.commission?.commission_rates?.max_change_rate ?? null,
+    ...mapDescription(validator.description),
+    ...mapCommissionRates(validator.commission?.commission_rates),
     minSelfDelegation: validator.min_self_delegation ?? null
   };
 }
@@ -239,15 +233,32 @@ function toValidatorFromGentx(message: RawCreateValidatorMsg): ParsedValidator {
     operatorAddress: message.validator_address,
     accountAddress: message.delegator_address ?? safeOperatorToAccountAddress(message.validator_address),
     hexAddress: message.pubkey ? consensusHexAddress(message.pubkey["@type"], message.pubkey.key) : null,
-    moniker: message.description?.moniker ?? null,
-    identity: message.description?.identity ?? null,
-    website: message.description?.website ?? null,
-    details: message.description?.details ?? null,
-    securityContact: message.description?.security_contact ?? null,
-    commissionRate: message.commission?.rate ?? null,
-    commissionMaxRate: message.commission?.max_rate ?? null,
-    commissionMaxChangeRate: message.commission?.max_change_rate ?? null,
+    ...mapDescription(message.description),
+    ...mapCommissionRates(message.commission),
     minSelfDelegation: message.min_self_delegation ?? null
+  };
+}
+
+/** The staking export nests commission rates under `commission.commission_rates`; a gentx message puts them directly under `commission`. Both resolve to `commissionRatesSchema`, so callers pass whichever their shape exposes. */
+function mapCommissionRates(
+  rates: z.infer<typeof commissionRatesSchema> | undefined
+): Pick<ParsedValidator, "commissionRate" | "commissionMaxRate" | "commissionMaxChangeRate"> {
+  return {
+    commissionRate: rates?.rate ?? null,
+    commissionMaxRate: rates?.max_rate ?? null,
+    commissionMaxChangeRate: rates?.max_change_rate ?? null
+  };
+}
+
+function mapDescription(
+  description: z.infer<typeof descriptionSchema>
+): Pick<ParsedValidator, "moniker" | "identity" | "website" | "details" | "securityContact"> {
+  return {
+    moniker: description?.moniker ?? null,
+    identity: description?.identity ?? null,
+    website: description?.website ?? null,
+    details: description?.details ?? null,
+    securityContact: description?.security_contact ?? null
   };
 }
 
