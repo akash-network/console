@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { UAKT_DENOM } from "@src/config/denom.config";
+import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
 import { DEPENDENCIES, useAccountBalanceOverview } from "./useAccountBalanceOverview";
 
 import { renderHook } from "@testing-library/react";
@@ -57,7 +57,7 @@ describe(useAccountBalanceOverview.name, () => {
         { dseq: "1", fundsUsd: 200 },
         { dseq: "2", fundsUsd: 100 }
       ],
-      leases: [{ dseq: "1", amountUakt: "1000000" }]
+      leases: [{ dseq: "1", amount: "1000000" }]
     });
 
     expect(result.current.deployments[0].perHourUsd).toBeGreaterThan(0);
@@ -99,7 +99,7 @@ describe(useAccountBalanceOverview.name, () => {
     reservedUsd?: number;
     deployments?: Array<{ dseq: string; fundsUsd: number }>;
     names?: Record<string, string>;
-    leases?: Array<{ dseq: string; amountUakt?: string }>;
+    leases?: Array<{ dseq: string; amount?: string }>;
     hasLiveLease?: boolean;
     autoReloadEnabled?: boolean;
     autoReloadThreshold?: number;
@@ -112,9 +112,9 @@ describe(useAccountBalanceOverview.name, () => {
     }));
 
     const leases = input.leases
-      ? input.leases.map(lease => ({ dseq: lease.dseq, state: "active", price: { denom: UAKT_DENOM, amount: lease.amountUakt ?? "1000000" } }))
+      ? input.leases.map(lease => ({ dseq: lease.dseq, state: "active", price: { denom: UACT_DENOM, amount: lease.amount ?? "1000000" } }))
       : input.hasLiveLease
-        ? [{ state: "active", price: { denom: UAKT_DENOM, amount: "1000000" } }]
+        ? [{ state: "active", price: { denom: UACT_DENOM, amount: "1000000" } }]
         : [];
 
     const dependencies = {

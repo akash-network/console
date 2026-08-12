@@ -66,7 +66,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({
   const costs = useMemo(() => {
     if (!leases || !price || !isAktPriceLoaded) return null;
 
-    const totalCostPerBlock = getLeasesCostPerBlockUsd(leases.filter(isLeaseLive), price, usdcIbcDenom);
+    const totalCostPerBlock = getLeasesCostPerBlockUsd(leases.filter(isLeaseLive), usdcIbcDenom);
     const monthlyAvg = getAvgCostPerMonth(totalCostPerBlock);
 
     return {

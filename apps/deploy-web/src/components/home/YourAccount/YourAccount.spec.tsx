@@ -98,7 +98,7 @@ describe(YourAccount.name, () => {
     );
   });
 
-  it("computes costs from active leases with AKT denom", () => {
+  it("ignores AKT-denominated leases since AKT deployments no longer exist", () => {
     const AccountStatsCardsMock = vi.fn(ComponentMock);
     setup({
       wallet: { address: "akash1abc" },
@@ -111,16 +111,9 @@ describe(YourAccount.name, () => {
       }
     });
 
-    expect(AccountStatsCardsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        costPerMonth: expect.any(Number),
-        costPerHour: expect.any(Number)
-      }),
-      expect.anything()
-    );
     const props = AccountStatsCardsMock.mock.calls[0][0];
-    expect(props.costPerMonth).toBeGreaterThan(0);
-    expect(props.costPerHour).toBeGreaterThan(0);
+    expect(props.costPerMonth).toBe(0);
+    expect(props.costPerHour).toBe(0);
   });
 
   it("computes costs from active leases with USDC denom", () => {

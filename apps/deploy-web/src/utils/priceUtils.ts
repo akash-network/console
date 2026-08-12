@@ -65,14 +65,12 @@ export function getAvgCostPerMonth(pricePerBlock: number) {
 type PricedLease = { price: { denom: string; amount: string | number } };
 
 /**
- * Sums the per-block price of the given leases in USD. Pass already-live leases and the current AKT price;
- * AKT is converted at `aktPrice`, while USDC and ACT are treated as 1:1 USD.
+ * Sums the per-block price of the given leases in USD. Pass already-live leases. Deployments are only ever
+ * funded in USDC or ACT (both 1:1 USD); any other denom is ignored.
  */
-export function getLeasesCostPerBlockUsd(leases: PricedLease[], aktPrice: number, usdcDenom: string): number {
+export function getLeasesCostPerBlockUsd(leases: PricedLease[], usdcDenom: string): number {
   return leases.reduce((total, { price }) => {
     switch (price.denom) {
-      case UAKT_DENOM:
-        return total + udenomToDenom(price.amount, 10) * aktPrice;
       case usdcDenom:
       case UACT_DENOM:
         return total + udenomToDenom(price.amount, 10);
