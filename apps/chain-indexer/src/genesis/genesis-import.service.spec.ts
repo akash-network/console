@@ -60,6 +60,20 @@ describe(GenesisImportService.name, () => {
     expect(bankSeeder.seed).not.toHaveBeenCalled();
   });
 
+  describe("hasSeeded", () => {
+    it("reports true when the genesis marker exists", async () => {
+      const { service } = setup({ existingMarker: true });
+
+      expect(await service.hasSeeded()).toBe(true);
+    });
+
+    it("reports false when the genesis marker is absent", async () => {
+      const { service } = setup();
+
+      expect(await service.hasSeeded()).toBe(false);
+    });
+  });
+
   function setup(input?: { existingMarker?: boolean; claimReturnsEmpty?: boolean }) {
     const source = mock<GenesisSource>();
     source.fetchGenesis.mockResolvedValue(buildParsedGenesis());

@@ -55,7 +55,7 @@ export class GenesisImportService {
       );
     }
 
-    const [marker] = await this.#db.select().from(IndexerState).where(eq(IndexerState.stream, GENESIS_STREAM));
+    const marker = await this.#findMarker();
     if (marker) {
       this.#logger.info({ event: "GENESIS_ALREADY_SEEDED", height: marker.lastHeight });
       return;
@@ -92,5 +92,15 @@ export class GenesisImportService {
         delegations: genesis.delegations.length
       });
     });
+  }
+
+  /** Whether the one-time genesis seed has already run. Lets the sync runner detect a resume that turned the flag on too late to seed. */
+  async hasSeeded(): Promise<boolean> {
+    return (await this.#findMarker()) !== undefined;
+  }
+
+  async #findMarker() {
+    const [marker] = await this.#db.select().from(IndexerState).where(eq(IndexerState.stream, GENESIS_STREAM));
+    return marker;
   }
 }

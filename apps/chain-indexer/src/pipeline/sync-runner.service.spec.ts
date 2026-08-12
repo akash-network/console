@@ -114,6 +114,25 @@ describe(SyncRunnerService.name, () => {
       await expect(runner.start()).rejects.toThrow("mid-chain");
       expect(committer.commit).not.toHaveBeenCalled();
     });
+
+    it("warns when genesis import is enabled on resume but genesis was never seeded", async () => {
+      const { runner, genesisImport, logger } = setup({ tipHeight: 2, genesisImportEnabled: true, checkpointHeight: 1 });
+      genesisImport.hasSeeded.mockResolvedValue(false);
+
+      await runner.start();
+
+      expect(genesisImport.ensureSeeded).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "GENESIS_IMPORT_SKIPPED_RESUMED_WITHOUT_MARKER" }));
+    });
+
+    it("does not warn when resuming an indexer that already seeded genesis", async () => {
+      const { runner, genesisImport, logger } = setup({ tipHeight: 2, genesisImportEnabled: true, checkpointHeight: 1 });
+      genesisImport.hasSeeded.mockResolvedValue(true);
+
+      await runner.start();
+
+      expect(logger.warn).not.toHaveBeenCalledWith(expect.objectContaining({ event: "GENESIS_IMPORT_SKIPPED_RESUMED_WITHOUT_MARKER" }));
+    });
   });
 
   function setup(input: {

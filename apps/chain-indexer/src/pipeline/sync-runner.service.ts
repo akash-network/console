@@ -74,8 +74,8 @@ export class SyncRunnerService {
   async #run(): Promise<void> {
     const { height, resumed } = await this.#resolveStartHeight();
 
-    if (this.#config.GENESIS_IMPORT && !resumed) {
-      await this.#genesisImport.ensureSeeded(height);
+    if (this.#config.GENESIS_IMPORT) {
+      await this.#seedGenesisOrWarn(height, resumed);
     }
 
     let nextHeight = height;
@@ -95,6 +95,22 @@ export class SyncRunnerService {
         await this.#retryTransient(() => this.#syncBlock(height), { event: "SYNC_BLOCK_RETRY", height });
         nextHeight++;
       }
+    }
+  }
+
+  /**
+   * Genesis is seeded only on a fresh start; a resume is already past genesis and seeding mid-chain is refused
+   * by design. Turning GENESIS_IMPORT on after an indexer already has a sync checkpoint would otherwise skip the
+   * seed with no trace, so warn when the flag is set on a resume whose genesis was never seeded.
+   */
+  async #seedGenesisOrWarn(height: number, resumed: boolean): Promise<void> {
+    if (!resumed) {
+      await this.#genesisImport.ensureSeeded(height);
+      return;
+    }
+
+    if (!(await this.#genesisImport.hasSeeded())) {
+      this.#logger.warn({ event: "GENESIS_IMPORT_SKIPPED_RESUMED_WITHOUT_MARKER", height });
     }
   }
 
@@ -135,7 +151,7 @@ export class SyncRunnerService {
     }
   }
 
-  /** `resumed` distinguishes continuing from a checkpoint (balances already seeded) from a fresh forward start (where the genesis guard applies). */
+  /** `resumed` distinguishes continuing from an existing sync checkpoint from a fresh forward start, which gates whether the one-time genesis seed runs. */
   async #resolveStartHeight(): Promise<{ height: number; resumed: boolean }> {
     const [state] = await this.#db.select().from(IndexerState).where(eq(IndexerState.stream, SYNC_STREAM));
 
