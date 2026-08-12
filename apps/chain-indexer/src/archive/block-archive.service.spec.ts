@@ -8,6 +8,7 @@ import type { LoggerService } from "@src/providers/logging.provider";
 import type { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
 import type { RpcStatusResult } from "@src/rpc/rpc-types";
 
+import { buildRawBlockRecord } from "@test/fakes/build-raw-block-record";
 import { httpError, InMemoryObjectStore } from "@test/fakes/in-memory-object-store";
 
 describe(BlockArchiveService.name, () => {
@@ -20,7 +21,7 @@ describe(BlockArchiveService.name, () => {
   it("writes staged blocks under the zero-padded per-chain key", async () => {
     const { service, store } = setup();
 
-    await service.putStagedBlockIfAbsent(buildRecord(1_234));
+    await service.putStagedBlockIfAbsent(buildRawBlockRecord(1_234));
 
     expect([...store.objects.keys()]).toEqual(["raw-blocks/sandbox-01/blocks/0000001234.json.zst"]);
   });
@@ -36,14 +37,14 @@ describe(BlockArchiveService.name, () => {
   it("rejects a chunk put whose records do not cover the range", async () => {
     const { service, store } = setup();
 
-    await expect(service.putChunkIfAbsent({ start: 2_000, end: 2_999 }, [buildRecord(2_000)])).rejects.toThrow("1000 records");
+    await expect(service.putChunkIfAbsent({ start: 2_000, end: 2_999 }, [buildRawBlockRecord(2_000)])).rejects.toThrow("1000 records");
 
     expect(store.objects.size).toBe(0);
   });
 
   it("round-trips a staged block", async () => {
     const { service } = setup();
-    const record = buildRecord(42);
+    const record = buildRawBlockRecord(42);
 
     await service.putStagedBlockIfAbsent(record);
 
@@ -69,8 +70,8 @@ describe(BlockArchiveService.name, () => {
 
   it("keeps the original object when the same staged block is put twice", async () => {
     const { service, store } = setup();
-    const original = buildRecord(42);
-    const replay = { ...buildRecord(42), block_results: { height: "42", txs_results: [{ code: 1 }] } };
+    const original = buildRawBlockRecord(42);
+    const replay = { ...buildRawBlockRecord(42), block_results: { height: "42", txs_results: [{ code: 1 }] } };
 
     await service.putStagedBlockIfAbsent(original);
     await expect(service.putStagedBlockIfAbsent(replay)).resolves.toBeUndefined();
@@ -102,13 +103,13 @@ describe(BlockArchiveService.name, () => {
     const { service, store } = setup();
     store.failNextSaveWith = httpError(503, "unavailable");
 
-    await expect(service.putStagedBlockIfAbsent(buildRecord(1))).rejects.toThrow("unavailable");
+    await expect(service.putStagedBlockIfAbsent(buildRawBlockRecord(1))).rejects.toThrow("unavailable");
   });
 
   it("deletes staged blocks best-effort without throwing on failures", async () => {
     const { service, store, logger } = setup();
-    await service.putStagedBlockIfAbsent(buildRecord(1));
-    await service.putStagedBlockIfAbsent(buildRecord(2));
+    await service.putStagedBlockIfAbsent(buildRawBlockRecord(1));
+    await service.putStagedBlockIfAbsent(buildRawBlockRecord(2));
     store.failNextDeleteWith = httpError(503, "unavailable");
 
     await expect(service.deleteStagedBlocks([1, 2, 3])).resolves.toBeUndefined();
@@ -129,7 +130,7 @@ describe(BlockArchiveService.name, () => {
   it("fetches the chain id once across concurrent puts", async () => {
     const { service, pool } = setup();
 
-    await Promise.all([service.putStagedBlockIfAbsent(buildRecord(1)), service.putStagedBlockIfAbsent(buildRecord(2))]);
+    await Promise.all([service.putStagedBlockIfAbsent(buildRawBlockRecord(1)), service.putStagedBlockIfAbsent(buildRawBlockRecord(2))]);
 
     expect(pool.getStatus).toHaveBeenCalledTimes(1);
   });
@@ -138,8 +139,8 @@ describe(BlockArchiveService.name, () => {
     const { service, pool } = setup();
     pool.getStatus.mockRejectedValueOnce(new Error("rpc down"));
 
-    await expect(service.putStagedBlockIfAbsent(buildRecord(1))).rejects.toThrow("rpc down");
-    await expect(service.putStagedBlockIfAbsent(buildRecord(1))).resolves.toBeUndefined();
+    await expect(service.putStagedBlockIfAbsent(buildRawBlockRecord(1))).rejects.toThrow("rpc down");
+    await expect(service.putStagedBlockIfAbsent(buildRawBlockRecord(1))).resolves.toBeUndefined();
 
     expect(pool.getStatus).toHaveBeenCalledTimes(2);
   });
@@ -148,8 +149,8 @@ describe(BlockArchiveService.name, () => {
     const { service, pool } = setup();
     pool.getStatus.mockResolvedValueOnce({ sync_info: { latest_block_height: "1" } } as unknown as RpcStatusResult);
 
-    await expect(service.putStagedBlockIfAbsent(buildRecord(1))).rejects.toThrow();
-    await expect(service.putStagedBlockIfAbsent(buildRecord(1))).resolves.toBeUndefined();
+    await expect(service.putStagedBlockIfAbsent(buildRawBlockRecord(1))).rejects.toThrow();
+    await expect(service.putStagedBlockIfAbsent(buildRawBlockRecord(1))).resolves.toBeUndefined();
 
     expect(pool.getStatus).toHaveBeenCalledTimes(2);
   });
@@ -165,7 +166,7 @@ describe(BlockArchiveService.name, () => {
       const { service } = setup({ disabled: true });
 
       await expect(service.getChunk({ start: 0, end: 999 })).rejects.toThrow("disabled");
-      await expect(service.putStagedBlockIfAbsent(buildRecord(1))).rejects.toThrow("disabled");
+      await expect(service.putStagedBlockIfAbsent(buildRawBlockRecord(1))).rejects.toThrow("disabled");
     });
 
     it("resolves staged deletes as a no-op", async () => {
@@ -197,20 +198,6 @@ describe(BlockArchiveService.name, () => {
   }
 
   function buildChunkRecords(fromHeight: number, toHeight: number): RawBlockRecord[] {
-    return Array.from({ length: toHeight - fromHeight + 1 }, (_, index) => buildRecord(fromHeight + index));
-  }
-
-  function buildRecord(height: number): RawBlockRecord {
-    return {
-      height,
-      block: {
-        block_id: { hash: `HASH-${height}` },
-        block: {
-          header: { height: String(height), time: "2026-08-12T00:00:00Z", proposer_address: "PROP" },
-          data: { txs: [] }
-        }
-      },
-      block_results: { height: String(height), txs_results: null }
-    };
+    return Array.from({ length: toHeight - fromHeight + 1 }, (_, index) => buildRawBlockRecord(fromHeight + index));
   }
 });

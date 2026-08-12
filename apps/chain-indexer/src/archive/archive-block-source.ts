@@ -95,13 +95,13 @@ export class ArchiveBlockSource {
 
   /** Attempted for every range — a partial edge range may still be covered by a chunk from an earlier full replay. */
   #fetchChunk(entry: RangeEntry): Promise<Map<number, RawBlockRecord> | null> {
-    entry.chunkFetch ??= this.#archive.getChunk(entry.range).then(
-      records => records && new Map(records.map(record => [record.height, record])),
-      error => {
+    entry.chunkFetch ??= this.#archive
+      .getChunk(entry.range)
+      .then(records => records && new Map(records.map(record => [record.height, record])))
+      .catch(error => {
         entry.chunkFetch = null;
         throw error;
-      }
-    );
+      });
     return entry.chunkFetch;
   }
 

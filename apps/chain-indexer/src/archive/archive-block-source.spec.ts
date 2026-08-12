@@ -7,6 +7,8 @@ import type { BlockArchiveService } from "@src/archive/block-archive.service";
 import type { LoggerService } from "@src/providers/logging.provider";
 import type { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
 
+import { buildRawBlockRecord } from "@test/fakes/build-raw-block-record";
+
 describe(ArchiveBlockSource.name, () => {
   it("serves an archived chunk to concurrent callers with a single fetch and zero rpc calls", async () => {
     const { source, archive, pool } = setup({ startHeight: 2_000, endHeight: 2_999 });
@@ -23,12 +25,12 @@ describe(ArchiveBlockSource.name, () => {
 
   it("prefers a staged block over rpc when the chunk misses", async () => {
     const { source, archive, pool } = setup({ startHeight: 2_000, endHeight: 2_099 });
-    archive.getStagedBlock.mockImplementation(async height => (height === 2_000 ? buildRecord(2_000) : null));
+    archive.getStagedBlock.mockImplementation(async height => (height === 2_000 ? buildRawBlockRecord(2_000) : null));
 
     const staged = await source.getRecord(2_000);
     const fetched = await source.getRecord(2_001);
 
-    expect(staged).toEqual(buildRecord(2_000));
+    expect(staged).toEqual(buildRawBlockRecord(2_000));
     expect(fetched.height).toBe(2_001);
     expect(pool.getBlock).toHaveBeenCalledTimes(1);
     expect(pool.getBlock).toHaveBeenCalledWith(2_001);
@@ -47,7 +49,7 @@ describe(ArchiveBlockSource.name, () => {
 
   it("compacts a completed chunk range and deletes only the staged blocks it consumed", async () => {
     const { source, archive, logger } = setup({ startHeight: 2_000, endHeight: 2_999 });
-    archive.getStagedBlock.mockImplementation(async height => (height <= 2_001 ? buildRecord(height) : null));
+    archive.getStagedBlock.mockImplementation(async height => (height <= 2_001 ? buildRawBlockRecord(height) : null));
 
     for (let height = 2_000; height <= 2_999; height++) {
       await source.getRecord(height);
@@ -82,6 +84,16 @@ describe(ArchiveBlockSource.name, () => {
     archive.getChunk.mockRejectedValueOnce(new Error("gcs down"));
 
     await expect(source.getRecord(2_000)).rejects.toThrow("gcs down");
+    await expect(source.getRecord(2_000)).resolves.toEqual(expect.objectContaining({ height: 2_000 }));
+
+    expect(archive.getChunk).toHaveBeenCalledTimes(2);
+  });
+
+  it("re-issues the chunk fetch when a resolved chunk fails to map into records", async () => {
+    const { source, archive } = setup({ startHeight: 2_000, endHeight: 2_999 });
+    archive.getChunk.mockResolvedValueOnce([null] as unknown as RawBlockRecord[]);
+
+    await expect(source.getRecord(2_000)).rejects.toThrow();
     await expect(source.getRecord(2_000)).resolves.toEqual(expect.objectContaining({ height: 2_000 }));
 
     expect(archive.getChunk).toHaveBeenCalledTimes(2);
@@ -131,8 +143,8 @@ describe(ArchiveBlockSource.name, () => {
     archive.deleteStagedBlocks.mockResolvedValue(undefined);
 
     const pool = mock<RpcClientPool>();
-    pool.getBlock.mockImplementation(async height => buildRecord(height).block);
-    pool.getBlockResults.mockImplementation(async height => buildRecord(height).block_results);
+    pool.getBlock.mockImplementation(async height => buildRawBlockRecord(height).block);
+    pool.getBlockResults.mockImplementation(async height => buildRawBlockRecord(height).block_results);
 
     const logger = mock<LoggerService>();
     const source = new ArchiveBlockSource({ archive, pool, logger, startHeight: input.startHeight, endHeight: input.endHeight });
@@ -141,20 +153,6 @@ describe(ArchiveBlockSource.name, () => {
   }
 
   function buildChunkRecords(range: ChunkRange): RawBlockRecord[] {
-    return Array.from({ length: range.end - range.start + 1 }, (_, index) => buildRecord(range.start + index));
-  }
-
-  function buildRecord(height: number): RawBlockRecord {
-    return {
-      height,
-      block: {
-        block_id: { hash: `HASH-${height}` },
-        block: {
-          header: { height: String(height), time: "2026-08-12T00:00:00Z", proposer_address: "PROP" },
-          data: { txs: [] }
-        }
-      },
-      block_results: { height: String(height), txs_results: null }
-    };
+    return Array.from({ length: range.end - range.start + 1 }, (_, index) => buildRawBlockRecord(range.start + index));
   }
 });
