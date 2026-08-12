@@ -71,6 +71,13 @@ describe(RpcClientPool.name, () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("parses the tip height from the status payload", async () => {
+    const { pool, fetchMock } = setup();
+    fetchMock.mockResolvedValue(jsonResponse({ result: { sync_info: { latest_block_height: "1234" } } }));
+
+    await expect(pool.getTipHeight()).resolves.toBe(1234);
+  });
+
   it("requests block and block results with the height as a query parameter", async () => {
     const { pool, fetchMock } = setup();
     fetchMock.mockResolvedValue(jsonResponse({ result: { height: "7" } }));

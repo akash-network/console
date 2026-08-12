@@ -1,38 +1,24 @@
 import { eq } from "drizzle-orm";
 import { setTimeout as delay } from "node:timers/promises";
-import type postgres from "postgres";
 import { inject, singleton } from "tsyringe";
 
 import type { EnvConfig } from "@src/config/env.config";
-import { PgClientService } from "@src/db/pg-client.service";
 import { Blocks, IndexerState } from "@src/db/schema";
 import { BlockCommitterService, SYNC_STREAM } from "@src/pipeline/block-committer.service";
 import { BlockDecoderService } from "@src/pipeline/block-decoder.service";
+import { ChainContinuityError } from "@src/pipeline/chain-continuity-error";
 import type { DecodedBlock } from "@src/pipeline/decoded-block";
+import { retryTransient } from "@src/pipeline/transient-retry";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 import type { ChainDatabase } from "@src/providers/db.provider";
 import { CHAIN_DB } from "@src/providers/db.provider";
 import { LoggerService } from "@src/providers/logging.provider";
 import { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
 
-/** Arbitrary but fixed application-wide key for the sync leader pg advisory lock. */
-const SYNC_LEADER_LOCK_KEY = 7_431_001;
-const LEADERSHIP_RETRY_MS = 5_000;
 const PROGRESS_LOG_EVERY_BLOCKS = 100;
-const LEADERSHIP_CHECK_EVERY_BLOCKS = 100;
-const TRANSIENT_RETRY_MAX_ATTEMPTS = 10;
-const TRANSIENT_RETRY_BASE_MS = 1_000;
-const TRANSIENT_RETRY_MAX_MS = 30_000;
-
-/** Parent-hash continuity break; fatal by design so the process halts instead of committing a forked history. */
-export class ChainContinuityError extends Error {}
-
-/** The advisory-lock session was replaced (e.g. a transparent driver reconnect), so another process may hold leadership. */
-export class SyncLeadershipLostError extends Error {}
 
 @singleton()
 export class SyncRunnerService {
-  readonly #pgClient: PgClientService;
   readonly #db: ChainDatabase;
   readonly #pool: RpcClientPool;
   readonly #decoder: BlockDecoderService;
@@ -41,12 +27,9 @@ export class SyncRunnerService {
   readonly #logger: LoggerService;
 
   #stopped = false;
-  #reserved: postgres.ReservedSql | undefined;
-  #leaderBackendPid: number | undefined;
   #lastHash: Buffer | null = null;
 
   constructor(
-    @inject(PgClientService) pgClient: PgClientService,
     @inject(CHAIN_DB) db: ChainDatabase,
     @inject(RpcClientPool) pool: RpcClientPool,
     @inject(BlockDecoderService) decoder: BlockDecoderService,
@@ -54,7 +37,6 @@ export class SyncRunnerService {
     @inject(APP_CONFIG) config: EnvConfig,
     @inject(LoggerService) logger: LoggerService
   ) {
-    this.#pgClient = pgClient;
     this.#db = db;
     this.#pool = pool;
     this.#decoder = decoder;
@@ -78,26 +60,14 @@ export class SyncRunnerService {
 
   async dispose(): Promise<void> {
     this.#stopped = true;
-    this.#releaseReservedLockConnection();
-  }
-
-  /** release() may throw when the pg pool was ended first; the connection is already gone then, which is the goal. */
-  #releaseReservedLockConnection(): void {
-    try {
-      this.#reserved?.release();
-    } catch (error) {
-      this.#logger.debug({ event: "SYNC_LOCK_RELEASE_SKIPPED", error });
-    }
   }
 
   async #run(): Promise<void> {
-    await this.#acquireLeadership();
     let nextHeight = await this.#resolveStartHeight();
     this.#logger.info({ event: "SYNC_STARTED", network: this.#config.NETWORK, nextHeight });
 
     while (!this.#stopped) {
-      await this.#assertLeadership();
-      const tipHeight = await this.#retryTransient(() => this.#getTipHeight(), { event: "SYNC_TIP_FETCH_RETRY" });
+      const tipHeight = await this.#retryTransient(() => this.#pool.getTipHeight(), { event: "SYNC_TIP_FETCH_RETRY" });
 
       if (nextHeight > tipHeight) {
         await delay(this.#config.SYNC_POLL_INTERVAL_MS);
@@ -108,34 +78,12 @@ export class SyncRunnerService {
         const height = nextHeight;
         await this.#retryTransient(() => this.#syncBlock(height), { event: "SYNC_BLOCK_RETRY", height });
         nextHeight++;
-
-        if (nextHeight % LEADERSHIP_CHECK_EVERY_BLOCKS === 0) {
-          await this.#assertLeadership();
-        }
       }
     }
   }
 
-  /** Transient failures (RPC timeouts, connection drops) are retried with capped exponential backoff; persistent ones and fatal errors propagate and halt the process. */
   async #retryTransient<T>(operation: () => Promise<T>, logContext: { event: string; height?: number }): Promise<T> {
-    let attempt = 0;
-
-    while (true) {
-      attempt++;
-      try {
-        return await operation();
-      } catch (error) {
-        const isFatal = error instanceof ChainContinuityError || error instanceof SyncLeadershipLostError;
-
-        if (this.#stopped || isFatal || attempt >= TRANSIENT_RETRY_MAX_ATTEMPTS) {
-          throw error;
-        }
-
-        const delayMs = Math.min(TRANSIENT_RETRY_BASE_MS * 2 ** (attempt - 1), TRANSIENT_RETRY_MAX_MS);
-        this.#logger.warn({ ...logContext, attempt, delayMs, error });
-        await delay(delayMs);
-      }
-    }
+    return await retryTransient(operation, { isStopped: () => this.#stopped, logger: this.#logger, logContext });
   }
 
   async #syncBlock(height: number): Promise<void> {
@@ -165,38 +113,6 @@ export class SyncRunnerService {
     }
   }
 
-  async #acquireLeadership(): Promise<void> {
-    this.#reserved = await this.#pgClient.client.reserve();
-
-    while (!this.#stopped) {
-      const [{ acquired }] = await this.#reserved`SELECT pg_try_advisory_lock(${SYNC_LEADER_LOCK_KEY}) AS acquired`;
-
-      if (acquired) {
-        const [{ pid }] = await this.#reserved`SELECT pg_backend_pid() AS pid`;
-        this.#leaderBackendPid = pid;
-        this.#logger.info({ event: "SYNC_LEADERSHIP_ACQUIRED", backendPid: pid });
-        return;
-      }
-
-      this.#logger.info({ event: "SYNC_LEADERSHIP_WAITING" });
-      await delay(LEADERSHIP_RETRY_MS);
-    }
-  }
-
-  /** Advisory locks are session-scoped: a transparent driver reconnect creates a fresh session WITHOUT the lock, so the backend pid is re-checked to detect silent leadership loss before more blocks are committed. */
-  async #assertLeadership(): Promise<void> {
-    if (!this.#reserved) {
-      throw new SyncLeadershipLostError("Reserved advisory-lock connection is gone; halting sync");
-    }
-
-    const [{ pid }] = await this.#reserved`SELECT pg_backend_pid() AS pid`;
-
-    if (pid !== this.#leaderBackendPid) {
-      this.#logger.error({ event: "SYNC_LEADERSHIP_LOST", expectedBackendPid: this.#leaderBackendPid, actualBackendPid: pid });
-      throw new SyncLeadershipLostError(`Advisory-lock session changed (backend pid ${this.#leaderBackendPid} -> ${pid}); halting sync`);
-    }
-  }
-
   async #resolveStartHeight(): Promise<number> {
     const [state] = await this.#db.select().from(IndexerState).where(eq(IndexerState.stream, SYNC_STREAM));
 
@@ -210,11 +126,6 @@ export class SyncRunnerService {
       return this.#config.SYNC_START_HEIGHT;
     }
 
-    return await this.#getTipHeight();
-  }
-
-  async #getTipHeight(): Promise<number> {
-    const status = await this.#pool.getStatus();
-    return parseInt(status.sync_info.latest_block_height);
+    return await this.#pool.getTipHeight();
   }
 }
