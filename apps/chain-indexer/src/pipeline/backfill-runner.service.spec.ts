@@ -2,6 +2,8 @@ import { setTimeout as delay } from "node:timers/promises";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { RawBlockRecord } from "@src/archive/archive-layout";
+import type { BlockArchiveService } from "@src/archive/block-archive.service";
 import { envSchema } from "@src/config/env.config";
 import { Blocks, IndexerState } from "@src/db/schema";
 import { BackfillRunnerService } from "@src/pipeline/backfill-runner.service";
@@ -149,6 +151,58 @@ describe(BackfillRunnerService.name, () => {
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "BACKFILL_COMPLETED" }));
   });
 
+  describe("when the archive is enabled", () => {
+    it("serves an archived range without rpc fetches or archive writes", async () => {
+      const { runner, committer, pool, archive } = setup({ fromHeight: 1_000, toHeight: 1_999, tipHeight: 10_000, archiveEnabled: true });
+      archive.getChunk.mockResolvedValue(buildRawRecords(1_000, 1_999));
+
+      await runner.start();
+
+      expect(committedHeights(committer).flat()).toHaveLength(1_000);
+      expect(pool.getBlock).not.toHaveBeenCalled();
+      expect(pool.getBlockResults).not.toHaveBeenCalled();
+      expect(archive.putChunkIfAbsent).not.toHaveBeenCalled();
+      expect(archive.putStagedBlockIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("compacts an rpc-fed aligned range into a single chunk", async () => {
+      const { runner, committer, archive } = setup({ fromHeight: 1_000, toHeight: 1_999, tipHeight: 10_000, archiveEnabled: true });
+
+      await runner.start();
+
+      expect(committedHeights(committer).flat()).toHaveLength(1_000);
+      expect(archive.putChunkIfAbsent).toHaveBeenCalledTimes(1);
+      expect(archive.putStagedBlockIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("stages singles for a range that cannot complete a chunk", async () => {
+      const { runner, archive } = setup({ fromHeight: 1_000, toHeight: 1_499, tipHeight: 10_000, archiveEnabled: true });
+
+      await runner.start();
+
+      expect(archive.putStagedBlockIfAbsent).toHaveBeenCalledTimes(500);
+      expect(archive.putChunkIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("fails the job without completing when the chunk flush keeps failing", async () => {
+      vi.useFakeTimers();
+
+      try {
+        const { runner, archive, logger } = setup({ fromHeight: 1_000, toHeight: 1_999, tipHeight: 10_000, archiveEnabled: true });
+        archive.putChunkIfAbsent.mockRejectedValue(new Error("gcs down"));
+
+        const started = runner.start();
+        started.catch(() => undefined);
+        await vi.runAllTimersAsync();
+
+        await expect(started).rejects.toThrow("gcs down");
+        expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "BACKFILL_COMPLETED" }));
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   function setup(input: {
     fromHeight: number;
     toHeight: number;
@@ -161,6 +215,7 @@ describe(BackfillRunnerService.name, () => {
     failFetchOnceAtHeight?: number;
     brokenParentAtHeight?: number;
     txCountPerBlock?: number;
+    archiveEnabled?: boolean;
   }) {
     const config = envSchema.parse({
       POSTGRES_DB_URI: "postgres://unit:unit@localhost:5432/unit",
@@ -168,7 +223,8 @@ describe(BackfillRunnerService.name, () => {
       BACKFILL_FROM_HEIGHT: String(input.fromHeight),
       BACKFILL_TO_HEIGHT: String(input.toHeight),
       BACKFILL_BATCH_SIZE: String(input.batchSize ?? 200),
-      BACKFILL_CONCURRENCY: String(input.concurrency ?? 10)
+      BACKFILL_CONCURRENCY: String(input.concurrency ?? 10),
+      ARCHIVE_BUCKET: input.archiveEnabled ? "raw-blocks" : ""
     });
 
     const dbFake = {
@@ -200,7 +256,10 @@ describe(BackfillRunnerService.name, () => {
 
       activeFetches++;
       maxActiveFetches = Math.max(maxActiveFetches, activeFetches);
-      await delay(input.fetchDelayMs?.(height) ?? 0);
+      const fetchDelayMs = input.fetchDelayMs?.(height) ?? 0;
+      if (fetchDelayMs > 0) {
+        await delay(fetchDelayMs);
+      }
       activeFetches--;
       return { block: { header: { height: String(height) } } } as RpcBlockResult;
     });
@@ -218,11 +277,19 @@ describe(BackfillRunnerService.name, () => {
     const committer = mock<BlockCommitterService>();
     committer.commitBatch.mockResolvedValue(undefined);
 
+    const archive = mock<BlockArchiveService>();
+    archive.isEnabled.mockReturnValue(input.archiveEnabled ?? false);
+    archive.getChunk.mockResolvedValue(null);
+    archive.getStagedBlock.mockResolvedValue(null);
+    archive.putChunkIfAbsent.mockResolvedValue(undefined);
+    archive.putStagedBlockIfAbsent.mockResolvedValue(undefined);
+    archive.deleteStagedBlocks.mockResolvedValue(undefined);
+
     const logger = mock<LoggerService>();
 
-    const runner = new BackfillRunnerService(dbFake as unknown as ChainDatabase, pool, decoder, committer, config, logger);
+    const runner = new BackfillRunnerService(dbFake as unknown as ChainDatabase, pool, decoder, committer, archive, config, logger);
 
-    return { runner, committer, pool, logger, maxObservedConcurrency: () => maxActiveFetches };
+    return { runner, committer, pool, archive, logger, maxObservedConcurrency: () => maxActiveFetches };
   }
 
   function committedHeights(committer: { commitBatch: { mock: { calls: unknown[][] } } }) {
@@ -250,5 +317,16 @@ describe(BackfillRunnerService.name, () => {
 
   function heightHash(height: number): Buffer {
     return Buffer.from(`hash-${height}`);
+  }
+
+  function buildRawRecords(fromHeight: number, toHeight: number): RawBlockRecord[] {
+    return Array.from({ length: toHeight - fromHeight + 1 }, (_, index) => {
+      const height = fromHeight + index;
+      return {
+        height,
+        block: { block: { header: { height: String(height) } } } as RpcBlockResult,
+        block_results: { height: String(height), txs_results: null }
+      };
+    });
   }
 });

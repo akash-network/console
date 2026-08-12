@@ -48,6 +48,14 @@ BACKFILL_TO_HEIGHT=200000
 
 Blocks are fetched from RPC in parallel (`BACKFILL_CONCURRENCY`, default 10) and committed strictly in order in batches of `BACKFILL_BATCH_SIZE` blocks (default 200), each batch in one Postgres transaction together with the checkpoint advance. Progress is checkpointed per range under the `indexer_state` stream `backfill:{from}-{to}`, so killing and restarting the job resumes at the checkpoint without gaps or duplicates, and re-running a completed range exits 0 immediately. Changing the range creates a fresh checkpoint row. All inserts are natural-keyed and conflict-ignoring, so a backfill can run against the same database as live sync, and a duplicate backfill pod on the same range is harmless.
 
+## Raw block archive
+
+Set `ARCHIVE_BUCKET` to a GCS bucket name to keep a zstd-compressed copy of every raw `/block` and `/block_results` payload, so handler fixes and new modules can be replayed without re-fetching history from RPC. Leave it unset and both roles behave exactly as before (the boot log says `ARCHIVE_DISABLED`). Authentication uses Application Default Credentials; no key material is configured in the app.
+
+Live sync writes one staged object per block (`<chainId>/blocks/<height>.json.zst`) before the database commit, so a block is never committed without being archived. Backfill reads each height from the archive first: a 1,000-block chunk (`<chainId>/chunks/<start>-<end>.ndjson.zst`), then a staged single, then RPC as the last resort. Any pass over a fully covered aligned range compacts it into a chunk and deletes the staged singles it consumed. There is no separate compactor: replays and backfills compact as a side effect. Ranges that cannot complete a chunk (partial edges of the run) stay as staged singles until a later full-range pass heals them.
+
+Object keys are namespaced by the chain id reported by RPC `/status` (e.g. `sandbox-01/...`), so a sandbox chain reset starts a fresh namespace instead of mixing archives. If the archive is unavailable, sync retries and then halts rather than committing unarchived blocks, and a backfill Job fails so the scheduler can retry it.
+
 ## Tests
 
 ```bash

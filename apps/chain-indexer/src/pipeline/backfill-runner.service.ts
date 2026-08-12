@@ -1,6 +1,8 @@
 import { eq } from "drizzle-orm";
 import { inject, singleton } from "tsyringe";
 
+import { ArchiveBlockSource } from "@src/archive/archive-block-source";
+import { BlockArchiveService } from "@src/archive/block-archive.service";
 import type { EnvConfig } from "@src/config/env.config";
 import { Blocks, IndexerState } from "@src/db/schema";
 import { retryWithBackoff } from "@src/lib/retry-with-backoff/retry-with-backoff";
@@ -26,6 +28,7 @@ export class BackfillRunnerService {
   readonly #pool: RpcClientPool;
   readonly #decoder: BlockDecoderService;
   readonly #committer: BlockCommitterService;
+  readonly #archive: BlockArchiveService;
   readonly #config: EnvConfig;
   readonly #logger: LoggerService;
 
@@ -37,6 +40,7 @@ export class BackfillRunnerService {
     @inject(RpcClientPool) pool: RpcClientPool,
     @inject(BlockDecoderService) decoder: BlockDecoderService,
     @inject(BlockCommitterService) committer: BlockCommitterService,
+    @inject(BlockArchiveService) archive: BlockArchiveService,
     @inject(APP_CONFIG) config: EnvConfig,
     @inject(LoggerService) logger: LoggerService
   ) {
@@ -44,6 +48,7 @@ export class BackfillRunnerService {
     this.#pool = pool;
     this.#decoder = decoder;
     this.#committer = committer;
+    this.#archive = archive;
     this.#config = config;
     this.#logger = logger;
     this.#logger.setContext("BACKFILL");
@@ -96,8 +101,25 @@ export class BackfillRunnerService {
 
     await this.#seedContinuityHash(plan.startHeight, checkpointHeight !== null);
     this.#logger.info({ event: "BACKFILL_STARTED", network: this.#config.NETWORK, stream, startHeight: plan.startHeight, endHeight: plan.endHeight });
+    this.#logArchiveState();
 
-    return await this.#backfillRange(plan.startHeight, plan.endHeight, stream);
+    const source = new ArchiveBlockSource({
+      archive: this.#archive,
+      pool: this.#pool,
+      logger: this.#logger,
+      startHeight: plan.startHeight,
+      endHeight: plan.endHeight
+    });
+
+    return await this.#backfillRange(plan.startHeight, plan.endHeight, stream, source);
+  }
+
+  #logArchiveState(): void {
+    if (this.#archive.isEnabled()) {
+      this.#logger.info({ event: "ARCHIVE_ENABLED", bucket: this.#config.ARCHIVE_BUCKET });
+    } else {
+      this.#logger.info({ event: "ARCHIVE_DISABLED" });
+    }
   }
 
   /**
@@ -111,7 +133,7 @@ export class BackfillRunnerService {
    * rather than the stopped flag, so a shutdown landing during the final commit still reports the
    * range as done instead of failing the Job for a spurious retry.
    */
-  async #backfillRange(startHeight: number, endHeight: number, stream: string): Promise<boolean> {
+  async #backfillRange(startHeight: number, endHeight: number, stream: string, source: ArchiveBlockSource): Promise<boolean> {
     const startedAt = Date.now();
     const inflight = new Map<number, Promise<DecodedBlock>>();
     let fetchHead = startHeight;
@@ -123,7 +145,7 @@ export class BackfillRunnerService {
     const fillFetchWindow = () => {
       while (fetchHead <= endHeight && inflight.size < this.#config.BACKFILL_CONCURRENCY) {
         const height = fetchHead;
-        const prefetched = this.#fetchAndDecode(height);
+        const prefetched = this.#fetchAndDecode(height, source);
         prefetched.catch(() => undefined);
         inflight.set(height, prefetched);
         fetchHead++;
@@ -180,11 +202,11 @@ export class BackfillRunnerService {
   }
 
   /** A pool AggregateError means every RPC endpoint already failed once, so retries back off before another full sweep. */
-  async #fetchAndDecode(height: number): Promise<DecodedBlock> {
+  async #fetchAndDecode(height: number, source: ArchiveBlockSource): Promise<DecodedBlock> {
     return await retryWithBackoff(
       async () => {
-        const [block, blockResults] = await Promise.all([this.#pool.getBlock(height), this.#pool.getBlockResults(height)]);
-        return this.#decoder.decode(block, blockResults);
+        const record = await source.getRecord(height);
+        return this.#decoder.decode(record.block, record.block_results);
       },
       {
         maxAttempts: FETCH_RETRY_MAX_ATTEMPTS,
