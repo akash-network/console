@@ -22,6 +22,8 @@ const rawEnvSchema = z.object({
   BACKFILL_CONCURRENCY: z.number({ coerce: true }).int().min(1).max(64).default(10),
   /** How many blocks the backfill commits per Postgres transaction. */
   BACKFILL_BATCH_SIZE: z.number({ coerce: true }).int().min(1).max(1_000).default(200),
+  /** GCS bucket for the raw block archive. Unset disables archiving entirely (sync skips appends, backfill reads straight from RPC). */
+  ARCHIVE_BUCKET: z.preprocess(emptyStringAsUndefined, z.string().optional()),
   /** Decoded message bodies above this serialized size are stored as null to keep pathological messages out of Postgres. */
   MESSAGE_BODY_MAX_BYTES: z.number({ coerce: true }).int().positive().default(65_536),
   DRIZZLE_MIGRATIONS_FOLDER: z.string().default("./drizzle"),
