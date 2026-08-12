@@ -1,0 +1,77 @@
+import { describe, expect, it } from "vitest";
+
+import { AKASH_ADDRESS_PREFIX } from "@src/genesis/genesis-address";
+import { BME_VAULT_ADDRESS, buildModuleAddressRegistry, deriveModuleAddress } from "@src/pipeline/balance/module-address-registry";
+import type { ReasonContext } from "@src/pipeline/balance/reason-classifier";
+import { classifyReason } from "@src/pipeline/balance/reason-classifier";
+
+const registry = buildModuleAddressRegistry(AKASH_ADDRESS_PREFIX);
+const moduleAddress = (name: string) => deriveModuleAddress(name, AKASH_ADDRESS_PREFIX);
+
+describe("classifyReason", () => {
+  it("classifies a payment to the fee collector as a fee", () => {
+    expect(classifyReason(context({ counterpartyAddress: moduleAddress("fee_collector") }), registry)).toBe("fee");
+  });
+
+  it("classifies a distribution outflow as a reward", () => {
+    expect(classifyReason(context({ counterpartyAddress: moduleAddress("distribution") }), registry)).toBe("reward");
+  });
+
+  it("classifies a distribution outflow withdrawn by a validator commission message as commission", () => {
+    const ctx = context({ counterpartyAddress: moduleAddress("distribution"), msgTypeUrl: "/cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission" });
+    expect(classifyReason(ctx, registry)).toBe("commission");
+  });
+
+  it("classifies a flow with the bonded pool as staking", () => {
+    expect(classifyReason(context({ counterpartyAddress: moduleAddress("bonded_tokens_pool") }), registry)).toBe("staking");
+  });
+
+  it("classifies a flow with the not-bonded pool as staking", () => {
+    expect(classifyReason(context({ address: moduleAddress("not_bonded_tokens_pool") }), registry)).toBe("staking");
+  });
+
+  it("classifies a gov flow as gov", () => {
+    expect(classifyReason(context({ counterpartyAddress: moduleAddress("gov") }), registry)).toBe("gov");
+  });
+
+  it("classifies an ibc transfer module flow as ibc", () => {
+    expect(classifyReason(context({ counterpartyAddress: moduleAddress("transfer") }), registry)).toBe("ibc");
+  });
+
+  it("classifies a flow of an ibc denom as ibc", () => {
+    expect(classifyReason(context({ denom: "ibc/ABCDEF", counterpartyAddress: "akash1peer" }), registry)).toBe("ibc");
+  });
+
+  it("classifies a flow with the BME vault as bme", () => {
+    expect(classifyReason(context({ counterpartyAddress: BME_VAULT_ADDRESS }), registry)).toBe("bme");
+  });
+
+  it("prefers slash over any module role", () => {
+    expect(classifyReason(context({ counterpartyAddress: moduleAddress("bonded_tokens_pool"), isSlash: true }), registry)).toBe("slash");
+  });
+
+  it("classifies a coinbase-coincident credit as mint", () => {
+    expect(classifyReason(context({ isMint: true }), registry)).toBe("mint");
+  });
+
+  it("classifies a burn-coincident debit as burn", () => {
+    expect(classifyReason(context({ isBurn: true }), registry)).toBe("burn");
+  });
+
+  it("defaults a plain account-to-account movement to transfer", () => {
+    expect(classifyReason(context({ counterpartyAddress: "akash1peer" }), registry)).toBe("transfer");
+  });
+
+  function context(overrides: Partial<ReasonContext>): ReasonContext {
+    return {
+      address: "akash1self",
+      counterpartyAddress: null,
+      denom: "uakt",
+      isMint: false,
+      isBurn: false,
+      isSlash: false,
+      msgTypeUrl: null,
+      ...overrides
+    };
+  }
+});
