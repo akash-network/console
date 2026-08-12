@@ -54,7 +54,7 @@ Set `ARCHIVE_BUCKET` to a GCS bucket name to keep a zstd-compressed copy of ever
 
 Live sync writes one staged object per block (`<chainId>/blocks/<height>.json.zst`) before the database commit, so a block is never committed without being archived. Backfill reads each height from the archive first: a 1,000-block chunk (`<chainId>/chunks/<start>-<end>.ndjson.zst`), then a staged single, then RPC as the last resort. Any pass over a fully covered aligned range compacts it into a chunk and deletes the staged singles it consumed. There is no separate compactor: replays and backfills compact as a side effect. Ranges that cannot complete a chunk (partial edges of the run) stay as staged singles until a later full-range pass heals them.
 
-Object keys are namespaced by the chain id reported by RPC `/status` (e.g. `sandbox-01/...`), so a sandbox chain reset starts a fresh namespace instead of mixing archives. If the archive is unavailable, sync retries and then halts rather than committing unarchived blocks, and a backfill Job fails so the scheduler can retry it.
+Object keys are namespaced by the chain id reported by RPC `/status` (e.g. `sandbox-2/...`), so a sandbox chain reset starts a fresh namespace instead of mixing archives. For local verification against an emulator such as fake-gcs-server, point `ARCHIVE_STORAGE_API_ENDPOINT` at it (e.g. `http://localhost:4443`); the SDK's `STORAGE_EMULATOR_HOST` variable does not work here because it switches the client to request paths the emulator rejects. If the archive is unavailable, sync retries and then halts rather than committing unarchived blocks, and a backfill Job fails so the scheduler can retry it.
 
 ## Tests
 

@@ -64,6 +64,12 @@ describe("envSchema", () => {
     expect(config.ARCHIVE_BUCKET).toBe("raw-blocks");
   });
 
+  it("treats an empty ARCHIVE_STORAGE_API_ENDPOINT as absent", () => {
+    const config = setup({ ARCHIVE_STORAGE_API_ENDPOINT: "" });
+
+    expect(config.ARCHIVE_STORAGE_API_ENDPOINT).toBeUndefined();
+  });
+
   it("does not require backfill heights for other roles", () => {
     const config = setup({ INDEXER_ROLE: "api", BACKFILL_FROM_HEIGHT: "", BACKFILL_TO_HEIGHT: "" });
 
