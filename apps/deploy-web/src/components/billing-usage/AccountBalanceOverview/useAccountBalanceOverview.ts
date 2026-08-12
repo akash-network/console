@@ -84,7 +84,7 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
   }, [balances, getDeploymentName, udenomToUsd, perHourByDseq]);
 
   const totalUsd = walletBalance?.totalUsd ?? 0;
-  const reserved = walletBalance?.totalDeploymentEscrowUSD ?? 0;
+  const reserved = deployments.reduce((sum, deployment) => sum + deployment.reservedUsd, 0);
   const available = Math.max(0, totalUsd - reserved);
   const hasSpend = spend.perBlockUsd > 0;
   const lastsUntil = hasSpend ? getTimeLeft(spend.perBlockUsd, totalUsd) : null;
