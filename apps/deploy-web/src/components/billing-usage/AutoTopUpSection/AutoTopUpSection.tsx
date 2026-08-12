@@ -137,7 +137,7 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
     return Math.max(1, Math.round((overview.available - autoReloadThreshold) / dailySpend));
   }, [overview.perHour, overview.available, autoReloadThreshold]);
 
-  const usd = (value: number) => <d.FormattedNumber value={value} style="currency" currency="USD" maximumFractionDigits={0} />;
+  const usd = (value: number) => <d.FormattedNumber value={value} style="currency" currency="USD" />;
 
   return (
     <>

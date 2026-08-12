@@ -151,7 +151,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-muted-foreground">{`Each running deployment keeps a minimum of ${RESERVE_WINDOW_HOURS} hours of its cost in reserve.`}</p>
+                <p className="text-xs text-muted-foreground">{`Each running deployment keeps around ${RESERVE_WINDOW_HOURS} hours of its cost in reserve.`}</p>
               </div>
             )}
           </div>
