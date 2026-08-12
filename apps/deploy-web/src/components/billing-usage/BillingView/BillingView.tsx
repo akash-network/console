@@ -252,7 +252,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
             <p>{dateRange ? "No billing history found for the selected date range." : "No billing history found."}</p>
           </div>
         ) : (
-          <div>
+          <div className={cn("transition-opacity duration-150", isFetching && "opacity-60")}>
             <Table className="table-fixed">
               <TableHeader className="[&_tr]:border-b-0">
                 {table.getHeaderGroups().map(headerGroup => (
