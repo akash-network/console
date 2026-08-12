@@ -3,7 +3,6 @@ import { useMemo } from "react";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager/useLocalNotes";
 import { useWallet } from "@src/context/WalletProvider";
-import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useFlag } from "@src/hooks/useFlag";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
@@ -16,7 +15,6 @@ import { isLeaseLive } from "@src/utils/reclamationUtils";
 export const DEPENDENCIES = {
   useWallet,
   usePricing,
-  useUsdcDenom,
   useFlag,
   useWalletBalance,
   useBalances,
@@ -54,7 +52,6 @@ const HOURS_PER_DAY = 24;
 export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}): AccountBalanceOverview {
   const { address } = d.useWallet();
   const { udenomToUsd } = d.usePricing();
-  const usdcDenom = d.useUsdcDenom();
   const { balance: walletBalance } = d.useWalletBalance();
   const { data: balances } = d.useBalances(address);
   const { data: leases } = d.useAllLeases(address);
@@ -68,13 +65,13 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
 
     const liveLeases = leases.filter(isLeaseLive);
     for (const lease of liveLeases) {
-      const perBlockUsd = getLeasesCostPerBlockUsd([lease], usdcDenom);
+      const perBlockUsd = getLeasesCostPerBlockUsd([lease]);
       perHourByDseq.set(lease.dseq, (perHourByDseq.get(lease.dseq) ?? 0) + perBlockToHourly(perBlockUsd));
     }
 
-    const perBlockUsd = getLeasesCostPerBlockUsd(liveLeases, usdcDenom);
+    const perBlockUsd = getLeasesCostPerBlockUsd(liveLeases);
     return { perHourByDseq, spend: { perBlockUsd, perHour: perBlockToHourly(perBlockUsd), perMonth: getAvgCostPerMonth(perBlockUsd) } };
-  }, [leases, usdcDenom]);
+  }, [leases]);
 
   const deployments = useMemo<ReservedDeployment[]>(() => {
     if (!balances) return [];

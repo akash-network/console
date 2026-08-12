@@ -66,17 +66,12 @@ type PricedLease = { price: { denom: string; amount: string | number } };
 
 /**
  * Sums the per-block price of the given leases in USD. Pass already-live leases. Deployments are only ever
- * funded in USDC or ACT (both 1:1 USD); any other denom is ignored.
+ * funded in ACT (1:1 USD); any other denom is ignored.
  */
-export function getLeasesCostPerBlockUsd(leases: PricedLease[], usdcDenom: string): number {
+export function getLeasesCostPerBlockUsd(leases: PricedLease[]): number {
   return leases.reduce((total, { price }) => {
-    switch (price.denom) {
-      case usdcDenom:
-      case UACT_DENOM:
-        return total + udenomToDenom(price.amount, 10);
-      default:
-        return total;
-    }
+    if (price.denom !== UACT_DENOM) return total;
+    return total + udenomToDenom(price.amount, 10);
   }, 0);
 }
 

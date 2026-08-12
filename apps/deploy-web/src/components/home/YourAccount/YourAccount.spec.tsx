@@ -116,14 +116,13 @@ describe(YourAccount.name, () => {
     expect(props.costPerHour).toBe(0);
   });
 
-  it("computes costs from active leases with USDC denom", () => {
+  it("ignores USDC-denominated leases since deployments are funded in ACT", () => {
     const AccountStatsCardsMock = vi.fn(ComponentMock);
     setup({
       wallet: { address: "akash1abc" },
       walletBalance: createWalletBalance(),
       activeDeployments: [createDeployment()],
       leases: [createLease({ state: "active", denom: "ibc/usdc-denom", amount: "5000" })],
-      usdcDenom: "ibc/usdc-denom",
       pricing: { price: 3.5, isLoaded: true },
       dependencies: {
         AccountStatsCards: AccountStatsCardsMock
@@ -131,7 +130,7 @@ describe(YourAccount.name, () => {
     });
 
     const props = AccountStatsCardsMock.mock.calls[0][0];
-    expect(props.costPerMonth).toBeGreaterThan(0);
+    expect(props.costPerMonth).toBe(0);
   });
 
   it("computes costs from active leases with ACT denom", () => {
@@ -249,7 +248,6 @@ describe(YourAccount.name, () => {
       providers?: Array<ApiProviderList>;
       wallet?: { address?: string };
       pricing?: { price?: number; isLoaded?: boolean };
-      usdcDenom?: string;
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
@@ -266,8 +264,6 @@ describe(YourAccount.name, () => {
         address: input.wallet?.address ?? "",
         hasWallet: !!input.wallet?.address
       });
-
-    const useUsdcDenom: typeof DEPENDENCIES.useUsdcDenom = () => input.usdcDenom ?? "ibc/usdc-test-denom";
 
     const usePricing: typeof DEPENDENCIES.usePricing = () =>
       ({
@@ -293,7 +289,6 @@ describe(YourAccount.name, () => {
             ...MockComponents(DEPENDENCIES),
             useSettings,
             useWallet,
-            useUsdcDenom,
             usePricing,
             ...input.dependencies
           }}

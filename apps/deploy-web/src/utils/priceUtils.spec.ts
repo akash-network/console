@@ -11,17 +11,15 @@ describe("perBlockToHourly", () => {
 });
 
 describe(getLeasesCostPerBlockUsd.name, () => {
-  const usdcDenom = "ibc/usdc";
+  it("sums ACT lease prices as 1:1 USD", () => {
+    const leases = [{ price: { denom: UACT_DENOM, amount: "500000" } }, { price: { denom: UACT_DENOM, amount: "500000" } }];
 
-  it("sums USDC and ACT lease prices as 1:1 USD", () => {
-    const leases = [{ price: { denom: usdcDenom, amount: "500000" } }, { price: { denom: UACT_DENOM, amount: "500000" } }];
-
-    expect(getLeasesCostPerBlockUsd(leases, usdcDenom)).toBeCloseTo(1, 6);
+    expect(getLeasesCostPerBlockUsd(leases)).toBeCloseTo(1, 6);
   });
 
-  it("ignores AKT-denominated leases since AKT deployments no longer exist", () => {
-    const leases = [{ price: { denom: UAKT_DENOM, amount: "5000000000" } }];
+  it("ignores AKT and USDC leases since deployments are funded in ACT", () => {
+    const leases = [{ price: { denom: UAKT_DENOM, amount: "5000000000" } }, { price: { denom: "ibc/usdc", amount: "5000000000" } }];
 
-    expect(getLeasesCostPerBlockUsd(leases, usdcDenom)).toBe(0);
+    expect(getLeasesCostPerBlockUsd(leases)).toBe(0);
   });
 });

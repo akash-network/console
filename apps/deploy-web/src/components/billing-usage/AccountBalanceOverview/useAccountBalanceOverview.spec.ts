@@ -121,7 +121,6 @@ describe(useAccountBalanceOverview.name, () => {
       ...DEPENDENCIES,
       useWallet: () => ({ address: "akash1abc" }),
       usePricing: () => ({ price: 1, isLoaded: true, udenomToUsd: (amount: string | number) => Number(amount) }),
-      useUsdcDenom: () => "ibc/usdc",
       useFlag: () => input.fixedThresholdEnabled ?? false,
       useWalletBalance: () => ({
         balance: input.walletBalanceMissing ? null : { totalUsd: input.totalUsd ?? 0, totalDeploymentEscrowUSD: input.reservedUsd ?? 0 },
