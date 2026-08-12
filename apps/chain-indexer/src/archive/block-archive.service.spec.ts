@@ -100,6 +100,15 @@ describe(BlockArchiveService.name, () => {
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "ARCHIVE_STAGED_DELETE_FAILED" }));
   });
 
+  it("skips staged deletes when the chain id cannot be resolved", async () => {
+    const { service, pool, logger } = setup();
+    pool.getStatus.mockRejectedValue(new Error("rpc down"));
+
+    await expect(service.deleteStagedBlocks([1])).resolves.toBeUndefined();
+
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "ARCHIVE_STAGED_DELETE_FAILED", reason: "chain id unavailable" }));
+  });
+
   it("fetches the chain id once across concurrent puts", async () => {
     const { service, pool } = setup();
 
