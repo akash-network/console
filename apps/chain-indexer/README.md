@@ -11,6 +11,10 @@ NETWORK      = mainnet | sandbox | testnet
 
 Currently implemented: `sync` (live tail with per-block atomic commits and a parent-hash continuity check), `backfill` (historical catch-up over an explicit height range), and a minimal `api` (healthz + status). `jobs` exits with `ROLE_NOT_IMPLEMENTED`.
 
+## Scope
+
+This app owns **chain-derived data only**: blocks, transactions, messages, on-chain provider/audit records, and the network aggregates computed from them. Off-chain provider data — pinging provider `/status` endpoints, provider inventory, uptime, IP geolocation, and the GPU breakdown derived from inventory — lives in `apps/provider-inventory`, not here. The one deliberate off-chain exception is **pricing** (AKT price history) plus **Keybase** validator identity, which the `jobs` role fetches because the daily USD aggregates and validator records need them; those enrich chain entities rather than providers.
+
 Writers do not use leader election. Inserts are natural-keyed and conflict-ignoring and the `indexer_state` checkpoint only moves forward (`GREATEST` upsert), so overlapping writers on the same stream (e.g. two pods during a rolling deploy) duplicate work but cannot corrupt data or regress the checkpoint. Run one replica per writer role (`replicas: 1` for sync, `parallelism: 1` for backfill Jobs) to avoid the wasted work.
 
 ## Running locally
