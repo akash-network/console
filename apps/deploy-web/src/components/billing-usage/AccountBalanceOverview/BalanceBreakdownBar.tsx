@@ -48,8 +48,9 @@ function buildThresholdMarker(threshold: number, available: number, total: numbe
  * Reserved deployments use a single-hue ramp (sorted largest-first); Available is the success green.
  */
 export function buildBalanceSegments(deployments: ReservedDeployment[], available: number): BalanceSegment[] {
-  const reservedSegments = deployments.map((deployment, index) => {
-    const alpha = reservedAlpha(index, deployments.length);
+  const fundedDeployments = deployments.filter(deployment => deployment.reservedUsd > 0);
+  const reservedSegments = fundedDeployments.map((deployment, index) => {
+    const alpha = reservedAlpha(index, fundedDeployments.length);
     return {
       key: deployment.dseq,
       label: deployment.name,

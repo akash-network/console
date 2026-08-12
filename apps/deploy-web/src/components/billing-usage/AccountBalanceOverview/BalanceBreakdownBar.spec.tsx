@@ -31,6 +31,13 @@ describe(buildBalanceSegments.name, () => {
     expect(buildBalanceSegments(deployments([0]), 0)).toEqual([]);
   });
 
+  it("shades visible segments the same regardless of drained deployments in the list", () => {
+    const withDrained = buildBalanceSegments(deployments([100, 50, 0]), 0);
+    const withoutDrained = buildBalanceSegments(deployments([100, 50]), 0);
+
+    expect(withDrained.map(s => s.color)).toEqual(withoutDrained.map(s => s.color));
+  });
+
   it("carries each deployment's hourly rate onto its reserved segment but not the available one", () => {
     const segments = buildBalanceSegments(deployments([120]), 200);
 
