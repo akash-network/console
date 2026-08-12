@@ -121,6 +121,14 @@ describe(useAccountBalanceOverview.name, () => {
     expect(result.current.isLoading).toBe(false);
   });
 
+  it("keeps showing cached balances when a background refetch fails", () => {
+    const { result } = setup({ totalUsd: 500, balancesError: true });
+
+    expect(result.current.isError).toBe(false);
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.totalUsd).toBe(500);
+  });
+
   it("still resolves balances when the AKT market price is unavailable", () => {
     const { result } = setup({ totalUsd: 500, reservedUsd: 150, priceUnavailable: true });
 
