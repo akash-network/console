@@ -212,7 +212,7 @@ describe(AutoTopUpSection.name, () => {
     const MockSwitch = vi.fn(({ checked, onCheckedChange, disabled }: Parameters<typeof DEPENDENCIES.Switch>[0]) => (
       <input type="checkbox" role="switch" checked={checked} disabled={disabled} onChange={e => onCheckedChange?.(e.target.checked)} />
     ));
-    const MockFormattedNumber = vi.fn(({ value }: Parameters<typeof DEPENDENCIES.FormattedNumber>[0]) => <>{value}</>);
+    const MockUsdValue = vi.fn(({ value }: Parameters<typeof DEPENDENCIES.UsdValue>[0]) => <>{value}</>);
 
     const dependencies = {
       ...MockComponents(DEPENDENCIES),
@@ -227,7 +227,7 @@ describe(AutoTopUpSection.name, () => {
       usePopup: vi.fn(() => ({ confirm: vi.fn().mockResolvedValue(input.confirmResult ?? true) })),
       Button: MockButton,
       Switch: MockSwitch,
-      FormattedNumber: MockFormattedNumber
+      UsdValue: MockUsdValue
     } as unknown as typeof DEPENDENCIES;
 
     render(<AutoTopUpSection dependencies={dependencies} />);

@@ -1,11 +1,11 @@
 "use client";
 import React, { useMemo, useState } from "react";
-import { FormattedNumber } from "react-intl";
 import { Card, CardContent, CardHeader, CustomNoDivTooltip, Skeleton } from "@akashnetwork/ui/components";
 import format from "date-fns/format";
 import { InfoCircle, NavArrowDown, NavArrowRight, Wallet } from "iconoir-react";
 import Link from "next/link";
 
+import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
 import { UrlService } from "@src/utils/urlUtils";
 import { BalanceBreakdownBar, buildBalanceSegments } from "./BalanceBreakdownBar";
 import { useAccountBalanceOverview } from "./useAccountBalanceOverview";
@@ -17,7 +17,7 @@ export const DEPENDENCIES = {
   CardHeader,
   CustomNoDivTooltip,
   Skeleton,
-  FormattedNumber,
+  UsdValue,
   BalanceBreakdownBar,
   Wallet,
   InfoCircle,
@@ -38,7 +38,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
   const segments = useMemo(() => buildBalanceSegments(overview.deployments, overview.available), [overview.deployments, overview.available]);
-  const usd = (value: number) => <d.FormattedNumber value={value} style="currency" currency="USD" />;
+  const usd = (value: number) => <d.UsdValue value={value} />;
 
   if (overview.isError) {
     return (

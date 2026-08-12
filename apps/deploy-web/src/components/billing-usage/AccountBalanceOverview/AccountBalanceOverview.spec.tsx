@@ -148,7 +148,7 @@ describe(AccountBalanceOverview.name, () => {
   });
 
   function setup(overview: Partial<AccountBalanceOverviewData>) {
-    const MockFormattedNumber = vi.fn(({ value }: { value: number }) => <>{value}</>);
+    const MockUsdValue = vi.fn(({ value }: { value: number }) => <>{value}</>);
 
     const renderView = (partial: Partial<AccountBalanceOverviewData>) => {
       const data: AccountBalanceOverviewData = {
@@ -172,7 +172,7 @@ describe(AccountBalanceOverview.name, () => {
             {
               ...MockComponents(DEPENDENCIES),
               useAccountBalanceOverview: () => data,
-              FormattedNumber: MockFormattedNumber,
+              UsdValue: MockUsdValue,
               Link: ({ href, children }: { href: string; children: ReactNode }) => <a href={href}>{children}</a>
             } as unknown as typeof DEPENDENCIES
           }

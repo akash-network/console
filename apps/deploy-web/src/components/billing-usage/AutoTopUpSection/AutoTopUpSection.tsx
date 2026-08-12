@@ -1,6 +1,5 @@
 "use client";
 import React, { useCallback, useMemo, useState } from "react";
-import { FormattedNumber } from "react-intl";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
 import { Button, Card, CardContent, CardHeader, Skeleton, Snackbar, Switch } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
@@ -15,6 +14,7 @@ import {
   DEFAULT_AUTO_RELOAD_THRESHOLD
 } from "@src/components/billing-usage/AutoTopUpSettingsPopup/AutoTopUpSettingsPopup";
 import { useBillingActions } from "@src/components/billing-usage/BillingActionsProvider/BillingActionsProvider";
+import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
 import { useFlag } from "@src/hooks/useFlag";
 import { useDefaultPaymentMethodQuery, useWalletSettingsMutations, useWalletSettingsQuery, useWeeklyDeploymentCostQuery } from "@src/queries";
 import { capitalizeFirstLetter } from "@src/utils/stringUtils";
@@ -32,7 +32,7 @@ export const DEPENDENCIES = {
   useBillingActions,
   useFlag,
   AutoTopUpSettingsPopup,
-  FormattedNumber,
+  UsdValue,
   Button,
   Card,
   CardContent,
@@ -137,7 +137,7 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
     return Math.max(1, Math.round((overview.available - autoReloadThreshold) / dailySpend));
   }, [overview.perHour, overview.available, autoReloadThreshold]);
 
-  const usd = (value: number) => <d.FormattedNumber value={value} style="currency" currency="USD" />;
+  const usd = (value: number) => <d.UsdValue value={value} />;
 
   return (
     <>
@@ -221,11 +221,7 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
             )
           ) : (
             <p className="text-sm text-muted-foreground">
-              Recharge amount is approximately{" "}
-              <span className="font-medium text-foreground">
-                <d.FormattedNumber value={weeklyCost ?? 0} style="currency" currency="USD" />
-              </span>{" "}
-              per week
+              Recharge amount is approximately <span className="font-medium text-foreground">{usd(weeklyCost ?? 0)}</span> per week
             </p>
           )}
         </d.CardContent>
