@@ -16,7 +16,6 @@ import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
 import { isLeaseLive } from "@src/utils/reclamationUtils";
 import { bytesToShrink } from "@src/utils/unitUtils";
-import { ConnectWallet } from "../../shared/ConnectWallet";
 import { AccountHeader } from "../AccountHeader";
 import { AccountStatsCards } from "../AccountStatsCards/AccountStatsCards";
 import { NoDeploymentsState } from "../NoDeploymentsState";
@@ -24,7 +23,6 @@ import { ResourceStatsGrid } from "../ResourceStatsGrid";
 
 export const DEPENDENCIES = {
   Spinner,
-  ConnectWallet,
   AccountHeader,
   AccountStatsCards,
   NoDeploymentsState,
@@ -107,34 +105,30 @@ export const YourAccount: React.FunctionComponent<Props> = ({
 
   const hasActiveDeployments = activeDeployments.length > 0;
 
+  if (!address) return null;
+
   return (
-    <>
-      {address && (
-        <div className="space-y-6">
-          <d.AccountHeader onDeployClick={onDeployClick} isBlockchainDown={settings.isBlockchainDown} />
+    <div className="space-y-6">
+      <d.AccountHeader onDeployClick={onDeployClick} isBlockchainDown={settings.isBlockchainDown} />
 
-          {isLoadingBalances && !walletBalance ? (
-            <div className="flex h-[200px] items-center justify-center">
-              <d.Spinner size="large" />
-            </div>
-          ) : (
-            <d.AccountStatsCards
-              walletBalance={walletBalance}
-              activeDeploymentsCount={activeDeployments.length}
-              costPerMonth={costs?.perMonth}
-              costPerHour={costs?.perHour}
-            />
-          )}
-
-          {hasActiveDeployments && userProviders && (
-            <d.ResourceStatsGrid providers={userProviders} totalCpu={totalCpu} totalGpu={totalGpu || 0} memory={_ram} storage={_storage} />
-          )}
-
-          {!hasActiveDeployments && address && <d.NoDeploymentsState onDeployClick={onDeployClick} />}
+      {isLoadingBalances && !walletBalance ? (
+        <div className="flex h-[200px] items-center justify-center">
+          <d.Spinner size="large" />
         </div>
+      ) : (
+        <d.AccountStatsCards
+          walletBalance={walletBalance}
+          activeDeploymentsCount={activeDeployments.length}
+          costPerMonth={costs?.perMonth}
+          costPerHour={costs?.perHour}
+        />
       )}
 
-      {!address && <d.ConnectWallet text="Setup your billing to deploy!" />}
-    </>
+      {hasActiveDeployments && userProviders && (
+        <d.ResourceStatsGrid providers={userProviders} totalCpu={totalCpu} totalGpu={totalGpu || 0} memory={_ram} storage={_storage} />
+      )}
+
+      {!hasActiveDeployments && <d.NoDeploymentsState onDeployClick={onDeployClick} />}
+    </div>
   );
 };
