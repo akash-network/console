@@ -40,6 +40,20 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
   const segments = useMemo(() => buildBalanceSegments(overview.deployments, overview.available), [overview.deployments, overview.available]);
   const usd = (value: number) => <d.FormattedNumber value={value} style="currency" currency="USD" />;
 
+  if (overview.isError) {
+    return (
+      <d.Card>
+        <d.CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <h3 className="text-lg font-bold leading-none">Account balance</h3>
+          <d.Wallet className="h-4 w-4 text-muted-foreground" />
+        </d.CardHeader>
+        <d.CardContent>
+          <p className="text-sm text-muted-foreground">Your balance couldn't be loaded. It will refresh automatically once the connection recovers.</p>
+        </d.CardContent>
+      </d.Card>
+    );
+  }
+
   if (overview.isLoading) {
     return (
       <d.Card>

@@ -139,6 +139,14 @@ describe(AccountBalanceOverview.name, () => {
     expect(screen.queryByLabelText("Total account balance")).not.toBeInTheDocument();
   });
 
+  it("keeps the card title and explains when the balance can't be loaded", () => {
+    setup({ isError: true });
+
+    expect(screen.getByText("Account balance")).toBeInTheDocument();
+    expect(screen.getByText(/couldn't be loaded/)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Total account balance")).not.toBeInTheDocument();
+  });
+
   function setup(overview: Partial<AccountBalanceOverviewData>) {
     const MockFormattedNumber = vi.fn(({ value }: { value: number }) => <>{value}</>);
 
@@ -154,6 +162,7 @@ describe(AccountBalanceOverview.name, () => {
         autoReloadEnabled: false,
         autoReloadThreshold: null,
         isLoading: false,
+        isError: false,
         ...partial
       };
 

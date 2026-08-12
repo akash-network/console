@@ -107,6 +107,20 @@ describe(useAccountBalanceOverview.name, () => {
     expect(result.current.isLoading).toBe(true);
   });
 
+  it("reports an error instead of loading forever when the balances query fails", () => {
+    const { result } = setup({ balancesMissing: true, balancesError: true });
+
+    expect(result.current.isError).toBe(true);
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it("reports an error instead of loading forever when the chain API fallback disables the balances query", () => {
+    const { result } = setup({ balancesMissing: true, balancesIdle: true });
+
+    expect(result.current.isError).toBe(true);
+    expect(result.current.isLoading).toBe(false);
+  });
+
   it("still resolves balances when the AKT market price is unavailable", () => {
     const { result } = setup({ totalUsd: 500, reservedUsd: 150, priceUnavailable: true });
 
@@ -126,6 +140,8 @@ describe(useAccountBalanceOverview.name, () => {
     autoReloadThreshold?: number;
     fixedThresholdEnabled?: boolean;
     balancesMissing?: boolean;
+    balancesError?: boolean;
+    balancesIdle?: boolean;
     priceUnavailable?: boolean;
   }) {
     const reservedDeployments = input.deployments ?? (input.reservedUsd ? [{ dseq: "reserved", fundsUsd: input.reservedUsd }] : []);
@@ -164,7 +180,11 @@ describe(useAccountBalanceOverview.name, () => {
         udenomToUsd: (amount: string | number) => Number(amount)
       }),
       useFlag: () => input.fixedThresholdEnabled ?? false,
-      useBalances: () => ({ data: input.balancesMissing ? undefined : balances }),
+      useBalances: () => ({
+        data: input.balancesMissing ? undefined : balances,
+        isError: input.balancesError ?? false,
+        fetchStatus: input.balancesIdle ? "idle" : "fetching"
+      }),
       useAllLeases: () => ({ data: leases }),
       useWalletSettingsQuery: () => ({ data: { autoReloadEnabled: input.autoReloadEnabled ?? false, autoReloadThreshold: input.autoReloadThreshold } }),
       useLocalNotes: () => ({ getDeploymentName: (dseq: string | number | null) => input.names?.[String(dseq)] ?? null })

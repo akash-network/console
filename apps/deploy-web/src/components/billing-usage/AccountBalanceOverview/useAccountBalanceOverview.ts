@@ -43,12 +43,14 @@ export type AccountBalanceOverview = {
   /** The auto-top-up trigger balance to mark on the bar, or null when no marker should render (flag off, auto-reload off, or unset). */
   autoReloadThreshold: number | null;
   isLoading: boolean;
+  /** True when balances can't be loaded: the query errored out or the chain API fallback disabled it. */
+  isError: boolean;
 };
 
 export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}): AccountBalanceOverview {
   const { address } = d.useWallet();
   const { price, udenomToUsd } = d.usePricing();
-  const { data: balances } = d.useBalances(address);
+  const { data: balances, isError: isBalancesError, fetchStatus: balancesFetchStatus } = d.useBalances(address);
   const { data: leases } = d.useAllLeases(address);
   const { data: walletSettings } = d.useWalletSettingsQuery();
   const { getDeploymentName } = d.useLocalNotes();
@@ -89,6 +91,7 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
   const hasSpend = spend.perBlockUsd > 0;
   const lastsUntil = hasSpend ? getTimeLeft(spend.perBlockUsd, totalUsd) : null;
   const autoReloadEnabled = walletSettings?.autoReloadEnabled ?? false;
+  const isBalanceUnavailable = isBalancesError || (!!address && !balances && balancesFetchStatus === "idle");
   const autoReloadThreshold = isFixedThresholdEnabled && autoReloadEnabled ? walletSettings?.autoReloadThreshold ?? null : null;
 
   return {
@@ -101,6 +104,7 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
     runwayDays: lastsUntil ? differenceInCalendarDays(lastsUntil, new Date()) : null,
     autoReloadEnabled,
     autoReloadThreshold,
-    isLoading: !walletBalance
+    isLoading: !walletBalance && !isBalanceUnavailable,
+    isError: isBalanceUnavailable
   };
 }
