@@ -43,6 +43,18 @@ test.describe("Deployment detail redesign preview", () => {
       }
     });
 
+    await test.step("shows the placements & services overview on the Details tab", async () => {
+      await expect(page.getByText("Placements", { exact: true })).toBeVisible({ timeout: 30_000 });
+
+      const service = page.getByRole("button", { name: /service-1/ });
+      await expect(service).toBeVisible();
+
+      await service.click();
+
+      await expect(page.getByText("Docker image")).toBeVisible();
+      await expect(page.getByText("nginx:latest")).toBeVisible();
+    });
+
     await test.step("switches tabs via the tab query param without navigating", async () => {
       await page.getByRole("tab", { name: "Events" }).click();
       await expect(page).toHaveURL(new RegExp(`/deployments/${dseq!}/preview\\?tab=EVENTS`));

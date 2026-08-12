@@ -19,7 +19,7 @@ describe("DeploymentDetail", () => {
 
     expect(screen.getByRole("tab", { name: "Details" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Billing & Notifications" })).toBeInTheDocument();
-    expect(screen.getByText("lease-row")).toBeInTheDocument();
+    expect(screen.getByText("placements")).toBeInTheDocument();
   });
 
   it("tracks a navigate_tab analytics event when switching tabs", async () => {
@@ -108,7 +108,7 @@ describe("DeploymentDetail", () => {
     const useProviderList: typeof DEPENDENCIES.useProviderList = () =>
       mock<ReturnType<typeof DEPENDENCIES.useProviderList>>({ data: providers, isFetching: false });
 
-    const LeaseRow = vi.fn(() => <div>lease-row</div>);
+    const DeploymentPlacements = vi.fn(() => <div>placements</div>);
     const DeploymentLogs = vi.fn(() => <div>logs</div>);
     const DeploymentLeaseShell = vi.fn(() => <div>shell</div>);
     const ManifestUpdate = vi.fn(() => <div>manifest-update</div>);
@@ -127,7 +127,7 @@ describe("DeploymentDetail", () => {
           useDeploymentDetail,
           useDeploymentLeaseList,
           useProviderList,
-          LeaseRow: LeaseRow as unknown as typeof DEPENDENCIES.LeaseRow,
+          DeploymentPlacements,
           DeploymentLogs,
           DeploymentLeaseShell,
           ManifestUpdate,
