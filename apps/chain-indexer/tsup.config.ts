@@ -13,6 +13,7 @@ export default defineConfig(async overrideOptions =>
     prependEffectsToEntries: ["reflect-metadata", "@akashnetwork/env-loader"],
     entry: {
       server: "./src/server.ts",
+      reconcile: "./src/reconcile/reconcile.ts",
       instrumentation: fileURLToPath(import.meta.resolve("@akashnetwork/instrumentation/register"))
     },
     target: tsconfig.compilerOptions.target,

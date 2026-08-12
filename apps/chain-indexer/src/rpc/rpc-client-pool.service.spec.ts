@@ -98,6 +98,25 @@ describe(RpcClientPool.name, () => {
     expect(fetchMock.mock.calls[0][0]).toBe("http://node-a/genesis_chunked?chunk=2");
   });
 
+  it("runs an abci query with a quoted path, hex data and historical height", async () => {
+    const { pool, fetchMock } = setup();
+    fetchMock.mockResolvedValue(jsonResponse({ result: { response: { code: 0, value: "AA==" } } }));
+
+    const response = await pool.abciQuery("/cosmos.bank.v1beta1.Query/TotalSupply", "0a00", 100);
+
+    expect(response.value).toBe("AA==");
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "http://node-a/abci_query?path=%22%2Fcosmos.bank.v1beta1.Query%2FTotalSupply%22&data=0x0a00&height=100&prove=false"
+    );
+  });
+
+  it("throws when the abci query response carries a non-zero code", async () => {
+    const { pool, fetchMock } = setup();
+    fetchMock.mockResolvedValue(jsonResponse({ result: { response: { code: 26, log: "height not available", value: null } } }));
+
+    await expect(pool.abciQuery("/cosmos.bank.v1beta1.Query/AllBalances", "00", 999)).rejects.toThrow("height not available");
+  });
+
   function setup() {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

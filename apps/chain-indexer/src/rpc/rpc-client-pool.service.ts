@@ -4,7 +4,7 @@ import { inject, singleton } from "tsyringe";
 import type { EnvConfig } from "@src/config/env.config";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 import { LoggerService } from "@src/providers/logging.provider";
-import type { RpcBlockResult, RpcBlockResultsResult, RpcGenesisChunkResult, RpcStatusResult } from "@src/rpc/rpc-types";
+import type { RpcAbciQueryResult, RpcBlockResult, RpcBlockResultsResult, RpcGenesisChunkResult, RpcStatusResult } from "@src/rpc/rpc-types";
 
 interface RpcNodeState {
   endpoint: string;
@@ -61,6 +61,20 @@ export class RpcClientPool {
 
   async getGenesisChunk(chunk: number): Promise<RpcGenesisChunkResult> {
     return await this.#get<RpcGenesisChunkResult>(`/genesis_chunked?chunk=${chunk}`);
+  }
+
+  /**
+   * Runs an ABCI query against historical state at `height`. Reconciliation reads bank balances at the
+   * indexer's checkpoint height (not the moving tip), which requires an unpruned node — sandbox is archival.
+   */
+  async abciQuery(path: string, dataHex: string, height: number): Promise<RpcAbciQueryResult["response"]> {
+    const result = await this.#get<RpcAbciQueryResult>(`/abci_query?path=${encodeURIComponent(`"${path}"`)}&data=0x${dataHex}&height=${height}&prove=false`);
+
+    if (result.response.code) {
+      throw new Error(`abci_query ${path} failed at height ${height}: ${result.response.log ?? `code ${result.response.code}`}`);
+    }
+
+    return result.response;
   }
 
   async #get<T>(path: string): Promise<T> {
