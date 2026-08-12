@@ -33,7 +33,6 @@ describe(useAccountBalanceOverview.name, () => {
       { dseq: "2", name: "llama-chat", reservedUsd: 100, perHourUsd: 0 },
       { dseq: "1", name: "Deployment 1", reservedUsd: 50, perHourUsd: 0 }
     ]);
-    expect(result.current.activeDeploymentCount).toBe(2);
   });
 
   it("keeps reserved in sync with the per-deployment breakdown since both come from the same balances", () => {

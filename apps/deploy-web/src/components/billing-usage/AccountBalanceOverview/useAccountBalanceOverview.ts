@@ -34,7 +34,6 @@ export type AccountBalanceOverview = {
   reserved: number;
   available: number;
   deployments: ReservedDeployment[];
-  activeDeploymentCount: number;
   perHour: number;
   perMonth: number;
   /** null when nothing is being spent (runway is effectively infinite). */
@@ -100,7 +99,6 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
     reserved,
     available,
     deployments,
-    activeDeploymentCount: balances?.activeDeployments.length ?? 0,
     perHour: spend.perHour,
     perMonth: spend.perMonth,
     lastsUntil: hasSpend ? getTimeLeft(spend.perBlockUsd, totalUsd) : null,

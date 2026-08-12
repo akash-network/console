@@ -30,16 +30,23 @@ describe(AccountBalanceOverview.name, () => {
   });
 
   it("shows the reserved and available balances with their descriptors", () => {
-    setup({ reserved: 1338, available: 1873.2, activeDeploymentCount: 7 });
+    setup({
+      reserved: 1338,
+      available: 1873.2,
+      deployments: [
+        { dseq: "1", name: "app-a", reservedUsd: 1000, perHourUsd: 1 },
+        { dseq: "2", name: "app-b", reservedUsd: 338, perHourUsd: 1 }
+      ]
+    });
 
     expect(screen.getByLabelText("Reserved balance")).toHaveTextContent("1338");
     expect(screen.getByLabelText("Available balance")).toHaveTextContent("1873.2");
-    expect(screen.getByText("Held to keep your 7 deployments running")).toBeInTheDocument();
+    expect(screen.getByText("Held to keep your 2 deployments running")).toBeInTheDocument();
     expect(screen.getByText("Free to spend on something new")).toBeInTheDocument();
   });
 
-  it("uses singular wording when a single deployment is running", () => {
-    setup({ reserved: 100, activeDeploymentCount: 1 });
+  it("uses singular wording when a single deployment holds reserved funds", () => {
+    setup({ reserved: 100, deployments: [{ dseq: "1", name: "app-a", reservedUsd: 100, perHourUsd: 1 }] });
 
     expect(screen.getByText("Held to keep your 1 deployment running")).toBeInTheDocument();
   });
@@ -65,7 +72,7 @@ describe(AccountBalanceOverview.name, () => {
     expect(screen.getByRole("button", { name: /Hide breakdown/ })).toBeInTheDocument();
   });
 
-  it("counts only deployments that still hold reserved funds so the label matches the badges", () => {
+  it("counts only deployments that still hold reserved funds so the labels match the badges", () => {
     setup({
       deployments: [
         { dseq: "1", name: "llama-chat", reservedUsd: 508.8, perHourUsd: 4.24 },
@@ -74,6 +81,7 @@ describe(AccountBalanceOverview.name, () => {
     });
 
     expect(screen.getByRole("button", { name: /What is reserved \(1\)/ })).toBeInTheDocument();
+    expect(screen.getByText("Held to keep your 1 deployment running")).toBeInTheDocument();
   });
 
   it("hides the breakdown toggle when no deployment holds reserved funds", () => {
@@ -140,7 +148,6 @@ describe(AccountBalanceOverview.name, () => {
         reserved: 0,
         available: 0,
         deployments: [],
-        activeDeploymentCount: 0,
         perHour: 0,
         perMonth: 0,
         lastsUntil: null,

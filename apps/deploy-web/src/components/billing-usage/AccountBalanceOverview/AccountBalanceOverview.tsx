@@ -101,7 +101,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
               {usd(overview.reserved)}
             </div>
             <p className="text-sm text-muted-foreground">
-              {`Held to keep your ${overview.activeDeploymentCount} deployment${overview.activeDeploymentCount === 1 ? "" : "s"} running`}
+              {`Held to keep your ${reservedSegments.length} deployment${reservedSegments.length === 1 ? "" : "s"} running`}
             </p>
           </div>
           <div className="space-y-1">
