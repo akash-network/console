@@ -9,6 +9,7 @@ import type { CustomUserProfile } from "@src/types/user";
 import type * as storedWalletsService from "@src/utils/walletUtils";
 import { DEPENDENCIES, REFRESH_SKEW_SECONDS, useProviderJwt } from "./useProviderJwt";
 
+import { act } from "@testing-library/react";
 import { buildWallet } from "@tests/seeders";
 import { buildManagedLocalWallet } from "@tests/seeders/localWallet";
 import type { RenderAppHookOptions } from "@tests/unit/query-client";
@@ -59,7 +60,9 @@ describe(useProviderJwt.name, () => {
       wallet: { hasWallet: true }
     });
 
-    await result.current.generateToken();
+    await act(async () => {
+      await result.current.generateToken();
+    });
 
     expect(consoleApiHttpClient.post).toHaveBeenCalledWith("/v1/create-jwt-token", {
       data: {

@@ -41,6 +41,10 @@ describe(SettingsLayout.name, () => {
     expect(screen.queryByRole("heading")).not.toBeInTheDocument();
   });
 
+  function navLink(title: string, url: string, isActive: boolean): SettingsNavLink {
+    return { title, url, isActive, icon: () => null };
+  }
+
   function setup(input: { links?: SettingsNavLink[]; title?: string; description?: ReactNode; headerActions?: ReactNode; children?: ReactNode }) {
     return render(
       <SettingsLayout
@@ -63,9 +67,5 @@ describe(SettingsLayout.name, () => {
         {input.children}
       </SettingsLayout>
     );
-  }
-
-  function navLink(title: string, url: string, isActive: boolean): SettingsNavLink {
-    return { title, url, isActive, icon: () => null };
   }
 });

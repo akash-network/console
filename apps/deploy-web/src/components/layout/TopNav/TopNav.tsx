@@ -18,7 +18,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
-import { useSettingsNavLinks } from "@src/hooks/useSettingsNavLinks";
+import { isRouteActive, useSettingsNavLinks } from "@src/hooks/useSettingsNavLinks";
 import useCookieTheme from "@src/hooks/useTheme";
 import { useUser } from "@src/hooks/useUser";
 import { UrlService } from "@src/utils/urlUtils";
@@ -52,12 +52,10 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
   const pathname = d.usePathname();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
-  const isRouteActive = (...routePrefixes: string[]) => !!pathname && routePrefixes.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`));
-
   const navLinks: TopNavLink[] = [
-    { title: "Deployments", url: UrlService.deploymentList(), isActive: isRouteActive("/deployments", "/new-deployment"), icon: Cloud },
-    { title: "Providers", url: UrlService.providers(), isActive: isRouteActive("/providers"), icon: Server },
-    { title: "Templates", url: UrlService.templates(), isActive: isRouteActive("/templates"), icon: MultiplePages }
+    { title: "Deployments", url: UrlService.deploymentList(), isActive: isRouteActive(pathname, "/deployments", "/new-deployment"), icon: Cloud },
+    { title: "Providers", url: UrlService.providers(), isActive: isRouteActive(pathname, "/providers"), icon: Server },
+    { title: "Templates", url: UrlService.templates(), isActive: isRouteActive(pathname, "/templates"), icon: MultiplePages }
   ];
 
   const settingsLinks = useSettingsNavLinks({ dependencies: { usePathname: d.usePathname } });

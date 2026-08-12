@@ -71,16 +71,19 @@ export function computeWalletBalance(balances: Balances, price: number, udenomTo
 }
 
 export const useWalletBalance = (): WalletBalanceReturnType => {
-  const { isLoaded, price, udenomToUsd } = usePricing();
+  const { price, udenomToUsd } = usePricing();
   const { address } = useWallet();
   const { data: balances, isFetching: isLoadingBalances, refetch } = useBalances(address);
   const [walletBalance, setWalletBalance] = useAtom(walletStore.balance);
 
-  useEffect(() => {
-    if (isLoaded && balances && price) {
-      setWalletBalance(computeWalletBalance(balances, price, udenomToUsd));
-    }
-  }, [isLoaded, price, balances, udenomToUsd]);
+  useEffect(
+    function publishBalanceWhenLoaded() {
+      if (balances) {
+        setWalletBalance(computeWalletBalance(balances, price ?? 0, udenomToUsd));
+      }
+    },
+    [price, balances, udenomToUsd]
+  );
 
   return {
     balance: walletBalance,
