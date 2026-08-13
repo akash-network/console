@@ -13,7 +13,7 @@ export class ConfigService<E extends ZodObject<ZodRawShape> | ZodEffects<ZodObje
     } as C & z.infer<E>;
   }
 
-  get<K extends keyof typeof this.config>(key: K): (typeof this.config)[K] {
+  get<K extends keyof (C & z.infer<E>)>(key: K): (C & z.infer<E>)[K] {
     return this.config[key];
   }
 }

@@ -1,9 +1,20 @@
 import { z } from "zod";
 
 export const envSchema = z.object({
+  ACCESS_API_KEY: z.string().min(32),
   FUNDING_WALLET_MNEMONIC_V2: z.string(),
   DERIVATION_WALLET_MNEMONIC_V2: z.string(),
   RPC_NODE_ENDPOINT: z.string(),
+  GRANT_ALLOWED_DENOMS: z
+    .string()
+    .default("uakt,uact")
+    .transform(value =>
+      value
+        .split(",")
+        .map(denom => denom.trim().toLowerCase())
+        .filter(Boolean)
+    )
+    .refine(denoms => denoms.length > 0, { message: "GRANT_ALLOWED_DENOMS must list at least one denom" }),
   GAS_DEFAULT_MULTIPLIER: z.number({ coerce: true }).gt(1).default(2),
   // When a tx still lands out of gas, it is re-signed with gasLimit = on-chain gasUsed × this multiplier and rebroadcast.
   // gasUsed is the actual consumption measured on-chain, so a modest multiplier covers the extra settlement gas that
