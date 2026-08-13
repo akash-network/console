@@ -136,7 +136,7 @@ export const AlertsListView: FC<Props> = ({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <Spinner size="large" />
       </div>
     );
@@ -144,7 +144,7 @@ export const AlertsListView: FC<Props> = ({
 
   if (isError) {
     return (
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <p className="text-red-500">Error loading alerts</p>
       </div>
     );
@@ -152,7 +152,7 @@ export const AlertsListView: FC<Props> = ({
 
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <p className="text-gray-500">No alerts found</p>
       </div>
     );
