@@ -9,6 +9,7 @@ import type { ChainTransaction } from "@src/providers/db.provider";
 
 const MSG_SUBMIT_PROPOSAL = "/cosmos.gov.v1.MsgSubmitProposal";
 const MSG_VOTE = "/cosmos.gov.v1.MsgVote";
+const MSG_DEPOSIT = "/cosmos.gov.v1.MsgDeposit";
 
 describe(GovWriter.name, () => {
   it("inserts a submitted proposal with its proposer id, deposit_period status and initial deposit", async () => {
@@ -27,6 +28,19 @@ describe(GovWriter.name, () => {
 
     expect(rowsFor(inserts, Proposals)).toEqual([expect.objectContaining({ id: 7, proposerAccountId: 1, title: "Upgrade", status: "deposit_period", totalDeposit: [{ denom: "uakt", amount: "1000" }] })]);
     expect(rowsFor(inserts, ProposalDeposits)).toEqual([{ proposalId: 7, depositorAccountId: 1, amount: [{ denom: "uakt", amount: "1000" }], height: 100 }]);
+  });
+
+  it("refreshes total_deposit from the full deposit history so a later deposit updates the running total", async () => {
+    const { govWriter, tx, updates } = setup({ priorDeposits: [{ proposalId: 7, amount: [{ denom: "uakt", amount: "1000" }] }] });
+
+    await govWriter.writeForBlocks(
+      tx,
+      [block({ messages: [{ typeUrl: MSG_DEPOSIT, body: { proposalId: "7", depositor: "akash1dep", amount: [{ denom: "uakt", amount: "500" }] } }] })],
+      new Map([["akash1dep", 3]])
+    );
+
+    const proposalUpdate = updates.find(update => update.table === Proposals);
+    expect(proposalUpdate?.set).toEqual({ totalDeposit: [{ denom: "uakt", amount: "1500" }] });
   });
 
   it("upserts a vote with the resolved voter id and promotes the proposal into voting conditionally", async () => {
@@ -66,9 +80,10 @@ describe(GovWriter.name, () => {
     expect(updates).toEqual([]);
   });
 
-  function setup() {
+  function setup(input?: { priorDeposits?: { proposalId: number; amount: { denom: string; amount: string }[] }[] }) {
     const inserts: { table: unknown; rows: Record<string, unknown>[] }[] = [];
     const updates: { table: unknown; set: Record<string, unknown>; where: unknown }[] = [];
+    const priorDeposits = input?.priorDeposits ?? [];
 
     const tx = {
       insert: (table: unknown) => ({
@@ -86,6 +101,11 @@ describe(GovWriter.name, () => {
             updates.push({ table, set, where });
             return Promise.resolve();
           }
+        })
+      }),
+      select: () => ({
+        from: () => ({
+          where: () => Promise.resolve([...priorDeposits, ...rowsFor(inserts, ProposalDeposits).map(row => ({ proposalId: row.proposalId, amount: row.amount }))])
         })
       })
     };

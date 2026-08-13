@@ -106,6 +106,20 @@ describe("deriveGovChanges", () => {
     expect(changes.deposits).toEqual([{ proposalId: 7, depositorAddress: "akash1dep", amount: [{ denom: "uakt", amount: "500" }], height: 100 }]);
   });
 
+  it("sums a proposer's initial deposit and a same-block deposit into one row instead of dropping the second", () => {
+    const changes = deriveGovChanges(
+      block({
+        messages: [
+          { typeUrl: MSG_SUBMIT_PROPOSAL, body: { proposer: "akash1prop", title: "Upgrade", initialDeposit: [{ denom: "uakt", amount: "1000" }] }, index: 0 },
+          { typeUrl: MSG_DEPOSIT, body: { proposalId: "7", depositor: "akash1prop", amount: [{ denom: "uakt", amount: "500" }] }, index: 1 }
+        ],
+        txEvents: [event("submit_proposal", { proposal_id: "7" }, 0)]
+      })
+    );
+
+    expect(changes.deposits).toEqual([{ proposalId: 7, depositorAddress: "akash1prop", amount: [{ denom: "uakt", amount: "1500" }], height: 100 }]);
+  });
+
   it("maps an active_proposal result to a terminal status", () => {
     const changes = deriveGovChanges(block({ blockEvents: [event("active_proposal", { proposal_id: "7", proposal_result: "proposal_passed" })] }));
 

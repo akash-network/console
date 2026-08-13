@@ -273,7 +273,7 @@ export const ProposalVotes = cosmosSchema.table(
   t => [primaryKey({ columns: [t.proposalId, t.voterAccountId] })]
 );
 
-/** One row per deposit, so re-committing a block is idempotent and a depositor's repeated deposits are each kept. */
+/** One row per depositor per block — same-block deposits are summed by the deriver, so re-committing a block is idempotent and no deposit is lost. `Proposals.total_deposit` is the sum of these rows. */
 export const ProposalDeposits = cosmosSchema.table(
   "proposal_deposits",
   {

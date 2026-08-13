@@ -1,4 +1,5 @@
 import type { FeeCoin, proposalStatus, voteOption, WeightedVoteOption } from "@src/db/schema";
+import { sumFeeCoins } from "@src/gov/coin-total";
 import type { DecodedBlock, DecodedEvent, DecodedMessage, DecodedTransaction } from "@src/pipeline/decoded-block";
 
 export type ProposalStatus = (typeof proposalStatus.enumValues)[number];
@@ -75,7 +76,29 @@ export function deriveGovChanges(block: DecodedBlock): GovChanges {
     addBlockEvent(changes, event);
   }
 
+  changes.deposits = aggregateDeposits(changes.deposits);
+
   return changes;
+}
+
+/**
+ * Collapses a depositor's deposits to the same proposal within one block into a single summed row. The block is
+ * the finest timestamp a deposit carries, and the `(proposal, depositor, height)` key can hold only one row, so
+ * a proposer's initial deposit landing in the same block as a separate `MsgDeposit` is kept as their combined
+ * total rather than silently dropped on insert.
+ */
+function aggregateDeposits(deposits: DerivedDeposit[]): DerivedDeposit[] {
+  const byKey = new Map<string, DerivedDeposit>();
+  for (const deposit of deposits) {
+    const key = `${deposit.proposalId}:${deposit.depositorAddress}:${deposit.height}`;
+    const existing = byKey.get(key);
+    if (existing) {
+      existing.amount = sumFeeCoins([...existing.amount, ...deposit.amount]);
+    } else {
+      byKey.set(key, { ...deposit, amount: sumFeeCoins(deposit.amount) });
+    }
+  }
+  return [...byKey.values()];
 }
 
 function addMessage(changes: GovChanges, message: DecodedMessage, tx: DecodedTransaction, block: DecodedBlock): void {

@@ -1,10 +1,12 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import chunk from "lodash/chunk";
 import { singleton } from "tsyringe";
 
 import { INSERT_CHUNK_SIZE } from "@src/db/insert-chunk-size";
 import { insertChunked } from "@src/db/insert-chunked";
+import type { FeeCoin } from "@src/db/schema";
 import { ProposalDeposits, Proposals, ProposalVotes } from "@src/db/schema";
+import { sumFeeCoins } from "@src/gov/coin-total";
 import type { DerivedDeposit, DerivedProposal, DerivedStatusUpdate, DerivedVote, GovChanges } from "@src/gov/gov-deriver";
 import { deriveGovChanges } from "@src/gov/gov-deriver";
 import type { DecodedBlock } from "@src/pipeline/decoded-block";
@@ -75,7 +77,36 @@ export class GovWriter {
       })
       .filter((row): row is NonNullable<typeof row> => row !== null);
 
+    if (rows.length === 0) {
+      return;
+    }
+
     await insertChunked(tx, ProposalDeposits, rows);
+    await this.#refreshTotalDeposits(tx, [...new Set(rows.map(row => row.proposalId))]);
+  }
+
+  /**
+   * Recomputes each touched proposal's `total_deposit` from its full deposit history rather than incrementing,
+   * so the running total stays correct across blocks and a re-committed block never double-counts.
+   */
+  async #refreshTotalDeposits(tx: ChainTransaction, proposalIds: number[]): Promise<void> {
+    const deposits = await tx
+      .select({ proposalId: ProposalDeposits.proposalId, amount: ProposalDeposits.amount })
+      .from(ProposalDeposits)
+      .where(inArray(ProposalDeposits.proposalId, proposalIds));
+
+    const amountsByProposal = new Map<number, FeeCoin[]>();
+    for (const deposit of deposits) {
+      amountsByProposal.set(deposit.proposalId, [...(amountsByProposal.get(deposit.proposalId) ?? []), ...deposit.amount]);
+    }
+
+    for (const proposalId of proposalIds) {
+      const total = sumFeeCoins(amountsByProposal.get(proposalId) ?? []);
+      await tx
+        .update(Proposals)
+        .set({ totalDeposit: total.length > 0 ? total : null })
+        .where(eq(Proposals.id, proposalId));
+    }
   }
 
   /** A `voting_period` promotion is conditional so it can't overwrite a terminal status; terminal updates are unconditional. */
