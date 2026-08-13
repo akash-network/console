@@ -124,7 +124,11 @@ export class ReconcileService {
 
   /** Samples the highest-balance accounts, which carry the most reconciliation signal, capping RPC round-trips at `sampleSize`. */
   #sample(balances: AccountBalance[], sampleSize: number): AccountBalance[] {
-    return [...balances].sort((a, b) => (sumCoins(b.coins) < sumCoins(a.coins) ? -1 : 1)).slice(0, sampleSize);
+    return balances
+      .map(account => ({ account, total: sumCoins(account.coins) }))
+      .sort((a, b) => (b.total < a.total ? -1 : 1))
+      .slice(0, sampleSize)
+      .map(entry => entry.account);
   }
 }
 
