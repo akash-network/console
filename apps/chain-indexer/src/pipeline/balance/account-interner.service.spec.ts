@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { INSERT_CHUNK_SIZE } from "@src/db/insert-chunk-size";
 import { Accounts } from "@src/db/schema";
 import { AccountInterner } from "@src/pipeline/balance/account-interner.service";
 import type { ChainDatabase } from "@src/providers/db.provider";
@@ -54,6 +55,19 @@ describe(AccountInterner.name, () => {
     await interner.resolve(["akash1a", "akash1a"]);
 
     expect(insertedRows).toEqual([{ table: Accounts, rows: [{ address: "akash1a" }] }]);
+  });
+
+  it("chunks the existence lookup so a batch past the bind-parameter limit stays within it", async () => {
+    const addresses = Array.from({ length: INSERT_CHUNK_SIZE + 1 }, (_, index) => `akash1_${index}`);
+    const firstChunk = addresses.slice(0, INSERT_CHUNK_SIZE).map((address, index) => ({ id: index + 1, address }));
+    const secondChunk = addresses.slice(INSERT_CHUNK_SIZE).map((address, index) => ({ id: INSERT_CHUNK_SIZE + 1 + index, address }));
+    const { interner, insertedRows, selectCount } = setup({ selectResults: [firstChunk, secondChunk] });
+
+    const ids = await interner.resolve(addresses);
+
+    expect(selectCount()).toBe(2);
+    expect(insertedRows).toEqual([]);
+    expect(ids.size).toBe(addresses.length);
   });
 
   it("does nothing for an empty address set", async () => {

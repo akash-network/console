@@ -58,6 +58,16 @@ BACKFILL_TO_HEIGHT=200000
 
 Blocks are fetched from RPC in parallel (`BACKFILL_CONCURRENCY`, default 10) and committed strictly in order in batches of `BACKFILL_BATCH_SIZE` blocks (default 200), each batch in one Postgres transaction together with the checkpoint advance. Progress is checkpointed per range under the `indexer_state` stream `backfill:{from}-{to}`, so killing and restarting the job resumes at the checkpoint without gaps or duplicates, and re-running a completed range exits 0 immediately. Changing the range creates a fresh checkpoint row. All inserts are natural-keyed and conflict-ignoring, so a backfill can run against the same database as live sync, and a duplicate backfill pod on the same range is harmless.
 
+## Balance ledger and activity log
+
+Every committed block also derives a balance ledger and an address activity log, in the same transaction as the block, so they never drift from the chain data they come from. `balance_changes` is the append-only ledger: one row per coin movement with the running `balance_after` and a classified `reason` (`mint`, `burn`, `slash`, `fee`, `reward`, `commission`, `staking`, `gov`, `ibc`, `escrow`, `bme`, or a plain `transfer`; genesis seeds are `genesis`). `account_balances` holds the current per-account per-denom balance, upserted from the ledger. `account_txs` is the activity log linking each account to the transactions that touched it. Addresses are interned to ids on first sight (`accounts`), so both live sync and backfill produce identical ledger rows for the same height.
+
+The reason heuristic is deliberately MVP: coincident mint/burn/slash win first, then the module account on the holder's side of the movement (falling back to the counterparty's), then the denom. Per-deployment/lease attribution of escrow movements is left for later.
+
+## Reconciliation
+
+`npm run reconcile` proves the ledger matches the chain at the `sync` checkpoint height. It samples the highest-balance accounts, compares each against the node's bank balance at that height, and checks the ledger's per-denom totals against the chain's total supply; it exits non-zero on any mismatch or misconfiguration, so it can gate a deploy. Querying at the checkpoint rather than the moving tip keeps the comparison race-free, which requires an unpruned (archival) node — sandbox is archival. `RECONCILE_SAMPLE_SIZE` overrides the default sample of 100 accounts.
+
 ## Raw block archive
 
 Set `ARCHIVE_BUCKET` to a GCS bucket name to keep a zstd-compressed copy of every raw `/block` and `/block_results` payload, so handler fixes and new modules can be replayed without re-fetching history from RPC. Leave it unset and both roles behave exactly as before (the boot log says `ARCHIVE_DISABLED`). Authentication uses Application Default Credentials; no key material is configured in the app.

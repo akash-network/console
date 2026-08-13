@@ -56,7 +56,9 @@ export class AccountInterner {
   }
 
   async #selectInto(idByAddress: Map<string, number>, addresses: string[]): Promise<void> {
-    const rows = await this.#db.select({ id: Accounts.id, address: Accounts.address }).from(Accounts).where(inArray(Accounts.address, addresses));
-    rows.forEach(row => idByAddress.set(row.address, row.id));
+    for (const addressChunk of chunk(addresses, INSERT_CHUNK_SIZE)) {
+      const rows = await this.#db.select({ id: Accounts.id, address: Accounts.address }).from(Accounts).where(inArray(Accounts.address, addressChunk));
+      rows.forEach(row => idByAddress.set(row.address, row.id));
+    }
   }
 }
