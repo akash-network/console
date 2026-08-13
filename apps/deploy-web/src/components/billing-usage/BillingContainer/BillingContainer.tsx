@@ -16,8 +16,6 @@ const DEPENDENCIES = {
 
 export type ChildrenProps = {
   data: BillingTransaction[];
-  hasMore: boolean;
-  hasPrevious: boolean;
   isLoading: boolean;
   isFetching: boolean;
   isError: boolean;
@@ -103,8 +101,6 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
     <>
       {children({
         data: data?.transactions || [],
-        hasMore: data?.hasMore || false,
-        hasPrevious: pagination.pageIndex > 0,
         onExport: exportCsv,
         onPaginationChange: handlePaginationChange,
         totalCount: data?.totalCount || 0,

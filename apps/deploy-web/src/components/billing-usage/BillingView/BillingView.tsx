@@ -8,16 +8,9 @@ import {
   Card,
   CardContent,
   CardHeader,
+  CustomPagination,
   DateRangePicker,
   Label,
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-  PaginationSizeSelector,
   Skeleton,
   Table,
   TableBody,
@@ -39,7 +32,7 @@ import { capitalizeFirstLetter } from "@src/utils/stringUtils";
 export const COMPONENTS = {
   FormattedNumber,
   DateRangePicker,
-  PaginationSizeSelector
+  CustomPagination
 };
 
 const TRANSACTION_TYPE_LABELS: Record<BillingTransaction["type"], string> = {
@@ -72,8 +65,6 @@ const COLUMN_CLASSES = ["w-28 px-4 py-2", "w-36 px-4 py-2", "w-32 px-4 py-2", "w
 
 export type BillingViewProps = {
   data: BillingTransaction[];
-  hasMore: boolean;
-  hasPrevious: boolean;
   isLoading: boolean;
   isFetching: boolean;
   isError: boolean;
@@ -89,8 +80,6 @@ export type BillingViewProps = {
 
 export const BillingView: React.FC<BillingViewProps> = ({
   data,
-  hasMore,
-  hasPrevious,
   isLoading,
   isFetching,
   errorMessage,
@@ -98,9 +87,10 @@ export const BillingView: React.FC<BillingViewProps> = ({
   onExport,
   onPaginationChange,
   pagination,
+  totalCount,
   dateRange,
   onDateRangeChange,
-  components: { FormattedNumber, DateRangePicker, PaginationSizeSelector } = COMPONENTS
+  components: { FormattedNumber, DateRangePicker, CustomPagination } = COMPONENTS
 }) => {
   const oneYearAgo = startOfDay(subYears(new Date(), 1));
   const columnHelper = createColumnHelper<BillingTransaction>();
@@ -283,100 +273,15 @@ export const BillingView: React.FC<BillingViewProps> = ({
               </Table>
             </div>
 
-            <Pagination className="flex flex-col justify-start gap-2 pt-2 sm:flex-row sm:items-center sm:gap-0 sm:pt-6">
-              <PaginationSizeSelector
+            <div className="flex items-center justify-center pt-2 sm:pt-6">
+              <CustomPagination
+                totalPageCount={Math.max(1, Math.ceil(totalCount / pagination.pageSize))}
+                pageIndex={pagination.pageIndex}
                 pageSize={pagination.pageSize}
-                setPageSize={pageSize => {
-                  onPaginationChange({
-                    pageIndex: 0,
-                    pageSize
-                  });
-                }}
+                setPageIndex={pageIndex => onPaginationChange({ pageIndex, pageSize: pagination.pageSize })}
+                setPageSize={pageSize => onPaginationChange({ pageIndex: 0, pageSize })}
               />
-
-              <PaginationContent className="flex items-center space-x-1">
-                <PaginationItem className="hidden sm:list-item">
-                  <PaginationPrevious
-                    onClick={() =>
-                      onPaginationChange({
-                        pageIndex: Math.max(0, pagination.pageIndex - 1),
-                        pageSize: pagination.pageSize
-                      })
-                    }
-                    disabled={!hasPrevious || isFetching}
-                    className="h-8 px-2 text-sm text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300 [&_span]:hidden sm:[&_span]:inline-block"
-                  />
-                </PaginationItem>
-
-                {hasPrevious && (
-                  <PaginationItem>
-                    <PaginationLink
-                      className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"
-                      disabled={isFetching}
-                      onClick={() =>
-                        onPaginationChange({
-                          pageIndex: pagination.pageIndex - 1,
-                          pageSize: pagination.pageSize
-                        })
-                      }
-                    >
-                      {pagination.pageIndex}
-                    </PaginationLink>
-                  </PaginationItem>
-                )}
-
-                <PaginationItem>
-                  <PaginationLink disabled className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300">
-                    {pagination.pageIndex + 1}
-                  </PaginationLink>
-                </PaginationItem>
-
-                {hasMore && (
-                  <PaginationItem>
-                    <PaginationLink
-                      className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"
-                      disabled={isFetching}
-                      onClick={() =>
-                        onPaginationChange({
-                          pageIndex: pagination.pageIndex + 1,
-                          pageSize: pagination.pageSize
-                        })
-                      }
-                    >
-                      {pagination.pageIndex + 2}
-                    </PaginationLink>
-                  </PaginationItem>
-                )}
-
-                {pagination.pageIndex === 0 && hasMore && (
-                  <>
-                    <PaginationItem>
-                      <PaginationLink
-                        className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"
-                        disabled={isFetching}
-                        onClick={() =>
-                          onPaginationChange({
-                            pageIndex: 2,
-                            pageSize: pagination.pageSize
-                          })
-                        }
-                      >
-                        3
-                      </PaginationLink>
-                    </PaginationItem>
-                    <PaginationEllipsis className="text-neutral-500 dark:text-neutral-400" />
-                  </>
-                )}
-
-                <PaginationItem className="hidden sm:list-item">
-                  <PaginationNext
-                    onClick={() => onPaginationChange({ pageIndex: pagination.pageIndex + 1, pageSize: pagination.pageSize })}
-                    disabled={!hasMore || isFetching}
-                    className="h-8 px-2 text-sm text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300 [&_span]:hidden sm:[&_span]:inline-block"
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
+            </div>
           </div>
         )}
       </CardContent>
