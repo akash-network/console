@@ -62,11 +62,16 @@ export interface GovChanges {
  * Extracts governance entities from a block's messages and events. Proposal ids come from the `submit_proposal`
  * event (the message never carries the assigned id); terminal status comes from the EndBlock `active_proposal` /
  * `inactive_proposal` events; a vote promotes its proposal into `voting_period` since votes are only cast then.
+ * Messages in a failed transaction (`code !== 0`) are skipped, since cosmos rolls back all of its state changes
+ * and the vote/deposit paths read the message body directly rather than correlating against an emitted event.
  */
 export function deriveGovChanges(block: DecodedBlock): GovChanges {
   const changes: GovChanges = { proposals: [], votes: [], deposits: [], statusUpdates: [] };
 
   for (const tx of block.transactions) {
+    if (tx.code !== 0) {
+      continue;
+    }
     for (const message of tx.messages) {
       addMessage(changes, message, tx, block);
     }

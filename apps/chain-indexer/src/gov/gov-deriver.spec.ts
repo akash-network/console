@@ -120,6 +120,22 @@ describe("deriveGovChanges", () => {
     expect(changes.deposits).toEqual([{ proposalId: 7, depositorAddress: "akash1prop", amount: [{ denom: "uakt", amount: "1500" }], height: 100 }]);
   });
 
+  it("skips vote and deposit messages from a failed transaction", () => {
+    const changes = deriveGovChanges(
+      block({
+        code: 5,
+        messages: [
+          { typeUrl: MSG_VOTE, body: { proposalId: "7", voter: "akash1voter", option: 1 } },
+          { typeUrl: MSG_DEPOSIT, body: { proposalId: "7", depositor: "akash1dep", amount: [{ denom: "uakt", amount: "500" }] } }
+        ]
+      })
+    );
+
+    expect(changes.votes).toEqual([]);
+    expect(changes.deposits).toEqual([]);
+    expect(changes.statusUpdates).toEqual([]);
+  });
+
   it("maps an active_proposal result to a terminal status", () => {
     const changes = deriveGovChanges(block({ blockEvents: [event("active_proposal", { proposal_id: "7", proposal_result: "proposal_passed" })] }));
 
@@ -133,7 +149,7 @@ describe("deriveGovChanges", () => {
   });
 });
 
-function block(input: { height?: number; messages?: { typeUrl: string; body: unknown; index?: number }[]; txEvents?: DecodedEvent[]; blockEvents?: DecodedEvent[] }): DecodedBlock {
+function block(input: { height?: number; code?: number; messages?: { typeUrl: string; body: unknown; index?: number }[]; txEvents?: DecodedEvent[]; blockEvents?: DecodedEvent[] }): DecodedBlock {
   const messages = input.messages ?? [];
   return {
     height: input.height ?? 100,
@@ -147,7 +163,7 @@ function block(input: { height?: number; messages?: { typeUrl: string; body: unk
             {
               index: 0,
               hash: Buffer.alloc(0),
-              code: 0,
+              code: input.code ?? 0,
               gasUsed: 0,
               gasWanted: 0,
               fee: [],
