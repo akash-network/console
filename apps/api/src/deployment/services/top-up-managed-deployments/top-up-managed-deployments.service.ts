@@ -11,7 +11,7 @@ import { BlockHttpService } from "@src/chain/services/block-http/block-http.serv
 import type { DryRunOptions } from "@src/core/types/console";
 import { DrainingDeployment } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
-import { CachedBalanceService } from "../cached-balance/cached-balance.service";
+import { CachedBalance, CachedBalanceService } from "../cached-balance/cached-balance.service";
 import { TopUpManagedDeploymentsInstrumentationService } from "./top-up-managed-deployments-instrumentation.service";
 
 type CollectedMessage = {
@@ -39,20 +39,10 @@ export class TopUpManagedDeploymentsService {
     const errors: unknown[] = [];
 
     try {
-      for await (const { address, walletId, deployments } of this.drainingDeploymentService.findDrainingDeploymentsByOwner()) {
+      for await (const owner of this.drainingDeploymentService.findDrainingDeploymentsByOwner()) {
         try {
-          const messageInputs = await this.collectMessages(deployments);
-          if (messageInputs.length) {
-            await this.topUpForOwner(address, messageInputs, options);
-            if (!options.dryRun) {
-              await this.walletReloadService.scheduleImmediate({ walletId });
-            }
-          } else {
-            this.instrumentation.recordSkipped({
-              owner: address,
-              deploymentCount: deployments.length
-            });
-          }
+          const balance = await this.cachedBalanceService.get(owner.address);
+          await this.#fundOwnerDeployments(owner, options, balance);
         } catch (error: unknown) {
           errors.push(error);
         }
@@ -67,7 +57,42 @@ export class TopUpManagedDeploymentsService {
     return errors.length > 0 ? Err(errors) : Ok(undefined);
   }
 
-  private async collectMessages(deployments: DrainingDeployment[]): Promise<CollectedMessage[]> {
+  /**
+   * Funds a single owner's draining deployments immediately, reusing the cron's
+   * per-owner path. Triggered off-cron the moment credits land so a deployment
+   * about to drain does not wait up to an hour for the next scheduled pass.
+   */
+  async topUpDrainingDeploymentsForOwner({ walletId, address }: { walletId: number; address: string }): Promise<void> {
+    const deployments = await this.drainingDeploymentService.findDrainingDeploymentsForOwner(address);
+
+    if (!deployments.length) {
+      return;
+    }
+
+    const balance = await this.cachedBalanceService.getFresh(address);
+    await this.#fundOwnerDeployments({ address, walletId, deployments }, { dryRun: false }, balance);
+  }
+
+  async #fundOwnerDeployments(
+    { address, walletId, deployments }: { address: string; walletId: number; deployments: DrainingDeployment[] },
+    options: DryRunOptions,
+    balance: CachedBalance
+  ): Promise<void> {
+    const messageInputs = await this.collectMessages(deployments, balance);
+
+    if (!messageInputs.length) {
+      this.instrumentation.recordSkipped({ owner: address, deploymentCount: deployments.length });
+      return;
+    }
+
+    await this.topUpForOwner(address, messageInputs, options);
+
+    if (!options.dryRun) {
+      await this.walletReloadService.scheduleImmediate({ walletId });
+    }
+  }
+
+  private async collectMessages(deployments: DrainingDeployment[], balance: CachedBalance): Promise<CollectedMessage[]> {
     const denom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
 
     const messageInputs = await Promise.all(
@@ -75,12 +100,7 @@ export class TopUpManagedDeploymentsService {
         this.instrumentation.recordDeploymentPreparation(deployment.address, deployment.predictedClosedHeight);
 
         try {
-          const { address } = deployment;
-
-          const [balance, desiredAmount] = await Promise.all([
-            this.cachedBalanceService.get(address),
-            this.drainingDeploymentService.calculateTopUpAmount(deployment)
-          ]);
+          const desiredAmount = await this.drainingDeploymentService.calculateTopUpAmount(deployment);
           if (desiredAmount <= 0) {
             this.instrumentation.recordInvalidDepositAmount({
               desiredAmount,

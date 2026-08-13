@@ -21,13 +21,21 @@ export class CachedBalance {
 
 @singleton()
 export class CachedBalanceService {
-  public get = memoizeAsync(
-    async (address: string) => {
-      const limits = await this.balancesService.getFreshLimits({ address });
-      return new CachedBalance(limits.deployment);
-    },
-    { cacheItemLimit: 10_000 }
-  );
+  public get = memoizeAsync((address: string) => this.buildForAddress(address), { cacheItemLimit: 10_000 });
 
   constructor(private readonly balancesService: BalancesService) {}
+
+  /**
+   * Reads a fresh balance bypassing the per-address memo. The memo is keyed for
+   * the process lifetime, which suits the short-lived top-up cron but would serve
+   * stale balances to the long-running background worker across credit landings.
+   */
+  public getFresh(address: string): Promise<CachedBalance> {
+    return this.buildForAddress(address);
+  }
+
+  private async buildForAddress(address: string): Promise<CachedBalance> {
+    const limits = await this.balancesService.getFreshLimits({ address });
+    return new CachedBalance(limits.deployment);
+  }
 }

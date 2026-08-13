@@ -539,6 +539,65 @@ describe(TopUpManagedDeploymentsService.name, () => {
     });
   });
 
+  describe("topUpDrainingDeploymentsForOwner", () => {
+    it("funds the owner's draining deployments in a single tx and schedules a wallet reload", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, walletReloadService } = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const sufficientAmount = faker.number.int({ min: 1000000, max: 2000000 });
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([createDrainingFor(owner, walletId), createDrainingFor(owner, walletId)]);
+      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(faker.number.int({ min: 3500000, max: 4000000 }));
+      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => sufficientAmount));
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
+
+      expect(drainingDeploymentService.findDrainingDeploymentsForOwner).toHaveBeenCalledWith(owner);
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(walletId, [
+        expect.objectContaining({ typeUrl: "/akash.escrow.v1.MsgAccountDeposit" }),
+        expect.objectContaining({ typeUrl: "/akash.escrow.v1.MsgAccountDeposit" })
+      ]);
+      expect(walletReloadService.scheduleImmediate).toHaveBeenCalledWith({ walletId });
+    });
+
+    it("reads a fresh balance rather than the memoized one so the long-running worker never funds from a stale balance", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService } = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([createDrainingFor(owner, walletId)]);
+      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 500000));
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
+
+      expect(cachedBalanceService.getFresh).toHaveBeenCalledWith(owner);
+      expect(cachedBalanceService.get).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when the owner has no draining deployments", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, walletReloadService } = setup();
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([]);
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId: 1, address: createAkashAddress() });
+
+      expect(cachedBalanceService.getFresh).not.toHaveBeenCalled();
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+      expect(walletReloadService.scheduleImmediate).not.toHaveBeenCalled();
+    });
+
+    function createDrainingFor(owner: string, walletId: number, predictedClosedHeight = CURRENT_BLOCK_HEIGHT + 1500): DrainingDeployment {
+      const setting = createAutoTopUpDeployment({ address: owner, walletId });
+      return {
+        ...setting,
+        ...createDrainingDeployment({ dseq: Number(setting.dseq), owner, predictedClosedHeight, denom: DEPLOYMENT_GRANT_DENOM }),
+        dseq: setting.dseq
+      } as DrainingDeployment;
+    }
+  });
+
   function setup(input?: { currentBlockHeight?: number; feeAllowance?: number }) {
     const currentBlockHeight = input?.currentBlockHeight ?? CURRENT_BLOCK_HEIGHT;
     const feeAllowance = input?.feeAllowance ?? SUFFICIENT_FEE_ALLOWANCE;

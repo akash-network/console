@@ -2,6 +2,7 @@ import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { PromisePool } from "@supercharge/promise-pool";
 import { singleton } from "tsyringe";
 
+import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { type StripeTransactionType, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
@@ -9,6 +10,7 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 
 export interface PaymentAnalyticsContext {
   currency?: string;
@@ -31,7 +33,8 @@ export class RefillService {
     private readonly managedSignerService: ManagedSignerService,
     private readonly balancesService: BalancesService,
     private readonly walletInitializerService: WalletInitializerService,
-    private readonly analyticsService: AnalyticsService
+    private readonly analyticsService: AnalyticsService,
+    private readonly domainEvents: DomainEventsService
   ) {}
 
   async refillAllFees() {
@@ -74,6 +77,11 @@ export class RefillService {
     });
 
     await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: options.endTrial ?? true });
+
+    await this.domainEvents.publish(new FundDrainingDeploymentsCommand({ walletId: userWallet.id, address: userWallet.address! }), {
+      singletonKey: `${FundDrainingDeploymentsCommand.name}.${userWallet.id}`
+    });
+
     this.analyticsService.track(userId, "balance_top_up", {
       amount_cents: amountUsd,
       amount_usd: amountUsd / 100,
