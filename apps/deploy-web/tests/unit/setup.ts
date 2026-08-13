@@ -51,7 +51,16 @@ beforeAll(() => {
   });
 });
 
+/**
+ * Unit tests share a single jsdom window (`isolate: false` in vitest.config.ts), so a spec that navigates
+ * (e.g. history.replaceState) leaks its URL into every spec that runs after it in the same worker.
+ */
+function restoreInitialLocation() {
+  window.history.replaceState(null, "", "/");
+}
+
 afterEach(() => {
   vi.useRealTimers();
   cleanup();
+  restoreInitialLocation();
 });
