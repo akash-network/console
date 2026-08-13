@@ -29,6 +29,13 @@
       "when": 1786600167399,
       "tag": "0003_mean_smasher",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786601805537,
+      "tag": "0004_pretty_mister_sinister",
+      "breakpoints": true
     }
   ]
 }

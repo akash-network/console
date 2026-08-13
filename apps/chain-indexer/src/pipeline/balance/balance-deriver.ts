@@ -130,7 +130,10 @@ export function deriveBalanceChanges(block: DecodedBlock, registry: ModuleAddres
 
       for (const coin of parseCoins(event.attributes.amount ?? "")) {
         const counterpartyAddress = correlateCounterparty(scope, holder, coin.denom, coin.amount, direction);
-        const reason = classifyReason({ address: holder, counterpartyAddress, denom: coin.denom, isMint, isBurn, isSlash, msgTypeUrl }, registry);
+        const reason = classifyReason(
+          { address: holder, counterpartyAddress, denom: coin.denom, isMint, isBurn, isSlash, isCredit: direction === "received", msgTypeUrl },
+          registry
+        );
 
         changes.push({
           address: holder,

@@ -3,6 +3,7 @@ import { inject, singleton } from "tsyringe";
 
 import { insertChunked } from "@src/db/insert-chunked";
 import { AccountTxs, Blocks, IndexerState, Messages, MessageTypes, Transactions } from "@src/db/schema";
+import { GovWriter } from "@src/gov/gov-writer.service";
 import { AccountInterner } from "@src/pipeline/balance/account-interner.service";
 import type { DerivedAccountTx } from "@src/pipeline/balance/account-tx-deriver";
 import { deriveAccountTxs } from "@src/pipeline/balance/account-tx-deriver";
@@ -22,13 +23,20 @@ export class BlockCommitterService {
   readonly #db: ChainDatabase;
   readonly #interner: AccountInterner;
   readonly #balanceWriter: BalanceWriter;
+  readonly #govWriter: GovWriter;
   readonly #moduleRegistry = buildModuleAddressRegistry();
   readonly #typeIds = new Map<string, number>();
 
-  constructor(@inject(CHAIN_DB) db: ChainDatabase, @inject(AccountInterner) interner: AccountInterner, @inject(BalanceWriter) balanceWriter: BalanceWriter) {
+  constructor(
+    @inject(CHAIN_DB) db: ChainDatabase,
+    @inject(AccountInterner) interner: AccountInterner,
+    @inject(BalanceWriter) balanceWriter: BalanceWriter,
+    @inject(GovWriter) govWriter: GovWriter
+  ) {
     this.#db = db;
     this.#interner = interner;
     this.#balanceWriter = balanceWriter;
+    this.#govWriter = govWriter;
   }
 
   async commit(block: DecodedBlock): Promise<void> {
@@ -97,6 +105,7 @@ export class BlockCommitterService {
 
       await this.#balanceWriter.write(tx, balanceIntents);
       await insertChunked(tx, AccountTxs, accountTxRows);
+      await this.#govWriter.writeForBlocks(tx, blocks, accountIds);
 
       await tx
         .insert(IndexerState)

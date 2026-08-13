@@ -1,0 +1,101 @@
+import { and, eq, sql } from "drizzle-orm";
+import chunk from "lodash/chunk";
+import { singleton } from "tsyringe";
+
+import { INSERT_CHUNK_SIZE } from "@src/db/insert-chunk-size";
+import { insertChunked } from "@src/db/insert-chunked";
+import { ProposalDeposits, Proposals, ProposalVotes } from "@src/db/schema";
+import type { DerivedDeposit, DerivedProposal, DerivedStatusUpdate, DerivedVote, GovChanges } from "@src/gov/gov-deriver";
+import { deriveGovChanges } from "@src/gov/gov-deriver";
+import type { DecodedBlock } from "@src/pipeline/decoded-block";
+import type { ChainTransaction } from "@src/providers/db.provider";
+
+/**
+ * Persists governance entities inside the block transaction. Proposal ids and their proposer/voter/depositor
+ * addresses are already interned by the committer (governance actors are always the message signer), so this
+ * resolves account ids from the passed map rather than interning again. Proposals are inserted conflict-free
+ * (their id is assigned once) and their status is advanced only by the separate status updates, so re-committing
+ * a block never regresses a proposal that has since entered voting or reached a terminal result.
+ */
+@singleton()
+export class GovWriter {
+  async writeForBlocks(tx: ChainTransaction, blocks: DecodedBlock[], accountIds: Map<string, number>): Promise<void> {
+    const changes = merge(blocks.map(deriveGovChanges));
+    if (changes.proposals.length === 0 && changes.votes.length === 0 && changes.deposits.length === 0 && changes.statusUpdates.length === 0) {
+      return;
+    }
+
+    await this.#writeProposals(tx, changes.proposals, accountIds);
+    await this.#writeVotes(tx, changes.votes, accountIds);
+    await this.#writeDeposits(tx, changes.deposits, accountIds);
+    await this.#applyStatusUpdates(tx, changes.statusUpdates);
+  }
+
+  async #writeProposals(tx: ChainTransaction, proposals: DerivedProposal[], accountIds: Map<string, number>): Promise<void> {
+    const rows = proposals.map(proposal => ({
+      id: proposal.id,
+      proposerAccountId: proposal.proposerAddress ? accountIds.get(proposal.proposerAddress) ?? null : null,
+      title: proposal.title,
+      summary: proposal.summary,
+      messages: proposal.messages,
+      metadata: proposal.metadata,
+      status: "deposit_period" as const,
+      submitTime: proposal.submitTime,
+      totalDeposit: proposal.initialDeposit.length > 0 ? proposal.initialDeposit : null,
+      submitHeight: proposal.submitHeight
+    }));
+
+    await insertChunked(tx, Proposals, rows);
+  }
+
+  async #writeVotes(tx: ChainTransaction, votes: DerivedVote[], accountIds: Map<string, number>): Promise<void> {
+    const rows = votes
+      .map(vote => {
+        const voterAccountId = accountIds.get(vote.voterAddress);
+        return voterAccountId === undefined ? null : { proposalId: vote.proposalId, voterAccountId, options: vote.options, height: vote.height };
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null);
+
+    for (const rowChunk of chunk(rows, INSERT_CHUNK_SIZE)) {
+      await tx
+        .insert(ProposalVotes)
+        .values(rowChunk)
+        .onConflictDoUpdate({
+          target: [ProposalVotes.proposalId, ProposalVotes.voterAccountId],
+          set: { options: sqlExcluded("options"), height: sqlExcluded("height") }
+        });
+    }
+  }
+
+  async #writeDeposits(tx: ChainTransaction, deposits: DerivedDeposit[], accountIds: Map<string, number>): Promise<void> {
+    const rows = deposits
+      .map(deposit => {
+        const depositorAccountId = accountIds.get(deposit.depositorAddress);
+        return depositorAccountId === undefined ? null : { proposalId: deposit.proposalId, depositorAccountId, amount: deposit.amount, height: deposit.height };
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null);
+
+    await insertChunked(tx, ProposalDeposits, rows);
+  }
+
+  /** A `voting_period` promotion is conditional so it can't overwrite a terminal status; terminal updates are unconditional. */
+  async #applyStatusUpdates(tx: ChainTransaction, updates: DerivedStatusUpdate[]): Promise<void> {
+    for (const update of updates) {
+      const filter = update.onlyFromDepositPeriod ? and(eq(Proposals.id, update.proposalId), eq(Proposals.status, "deposit_period")) : eq(Proposals.id, update.proposalId);
+      await tx.update(Proposals).set({ status: update.status }).where(filter);
+    }
+  }
+}
+
+function merge(perBlock: GovChanges[]): GovChanges {
+  return {
+    proposals: perBlock.flatMap(changes => changes.proposals),
+    votes: perBlock.flatMap(changes => changes.votes),
+    deposits: perBlock.flatMap(changes => changes.deposits),
+    statusUpdates: perBlock.flatMap(changes => changes.statusUpdates)
+  };
+}
+
+function sqlExcluded(column: string) {
+  return sql.raw(`excluded.${column}`);
+}

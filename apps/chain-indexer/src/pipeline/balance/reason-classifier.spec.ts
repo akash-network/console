@@ -13,13 +13,17 @@ describe("classifyReason", () => {
     expect(classifyReason(context({ counterpartyAddress: moduleAddress("fee_collector") }), registry)).toBe("fee");
   });
 
-  it("classifies a distribution outflow as a reward", () => {
-    expect(classifyReason(context({ counterpartyAddress: moduleAddress("distribution") }), registry)).toBe("reward");
+  it("classifies a credit from the distribution module as a reward", () => {
+    expect(classifyReason(context({ counterpartyAddress: moduleAddress("distribution"), isCredit: true }), registry)).toBe("reward");
   });
 
-  it("classifies a distribution outflow withdrawn by a validator commission message as commission", () => {
-    const ctx = context({ counterpartyAddress: moduleAddress("distribution"), msgTypeUrl: "/cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission" });
+  it("classifies a credit from distribution withdrawn by a validator commission message as commission", () => {
+    const ctx = context({ counterpartyAddress: moduleAddress("distribution"), isCredit: true, msgTypeUrl: "/cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission" });
     expect(classifyReason(ctx, registry)).toBe("commission");
+  });
+
+  it("classifies a debit to the distribution module (fund community pool) as a plain transfer, not a reward", () => {
+    expect(classifyReason(context({ counterpartyAddress: moduleAddress("distribution"), isCredit: false }), registry)).toBe("transfer");
   });
 
   it("classifies a flow with the bonded pool as staking", () => {
@@ -74,12 +78,27 @@ describe("classifyReason", () => {
     expect(classifyReason(context({ counterpartyAddress: "akash1peer" }), registry)).toBe("transfer");
   });
 
-  it("tags each leg of a fee_collector-to-distribution movement by the holder's own role", () => {
-    const feeCollector = moduleAddress("fee_collector");
+  it("tags the fee_collector's own leg by its role rather than the distribution counterparty", () => {
+    expect(classifyReason(context({ address: moduleAddress("fee_collector"), counterpartyAddress: moduleAddress("distribution") }), registry)).toBe("fee");
+  });
+
+  it("tags both legs of a reward withdrawal as reward, including the distribution module's own debit leg", () => {
     const distribution = moduleAddress("distribution");
 
-    expect(classifyReason(context({ address: feeCollector, counterpartyAddress: distribution }), registry)).toBe("fee");
-    expect(classifyReason(context({ address: distribution, counterpartyAddress: feeCollector }), registry)).toBe("reward");
+    expect(classifyReason(context({ address: "akash1delegator", counterpartyAddress: distribution, isCredit: true }), registry)).toBe("reward");
+    expect(classifyReason(context({ address: distribution, counterpartyAddress: "akash1delegator", isCredit: false }), registry)).toBe("reward");
+  });
+
+  it("tags both legs of a commission withdrawal as commission", () => {
+    const distribution = moduleAddress("distribution");
+    const commissionMsg = "/cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission";
+
+    expect(classifyReason(context({ address: "akash1validator", counterpartyAddress: distribution, isCredit: true, msgTypeUrl: commissionMsg }), registry)).toBe("commission");
+    expect(classifyReason(context({ address: distribution, counterpartyAddress: "akash1validator", isCredit: false, msgTypeUrl: commissionMsg }), registry)).toBe("commission");
+  });
+
+  it("does not mistake the distribution module's own funding inflow for a reward", () => {
+    expect(classifyReason(context({ address: moduleAddress("distribution"), counterpartyAddress: moduleAddress("fee_collector"), isCredit: true }), registry)).toBe("transfer");
   });
 
   it("tags the mint module's outgoing forwarding leg as mint rather than the counterparty's fee", () => {
@@ -94,6 +113,7 @@ describe("classifyReason", () => {
       isMint: false,
       isBurn: false,
       isSlash: false,
+      isCredit: false,
       msgTypeUrl: null,
       ...overrides
     };

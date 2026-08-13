@@ -1,0 +1,135 @@
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
+import { describe, expect, it } from "vitest";
+
+import { ProposalDeposits, Proposals, ProposalVotes } from "@src/db/schema";
+import { GovWriter } from "@src/gov/gov-writer.service";
+import type { DecodedBlock, DecodedEvent } from "@src/pipeline/decoded-block";
+import type { ChainTransaction } from "@src/providers/db.provider";
+
+const MSG_SUBMIT_PROPOSAL = "/cosmos.gov.v1.MsgSubmitProposal";
+const MSG_VOTE = "/cosmos.gov.v1.MsgVote";
+
+describe(GovWriter.name, () => {
+  it("inserts a submitted proposal with its proposer id, deposit_period status and initial deposit", async () => {
+    const { govWriter, tx, inserts } = setup();
+
+    await govWriter.writeForBlocks(
+      tx,
+      [
+        block({
+          messages: [{ typeUrl: MSG_SUBMIT_PROPOSAL, body: { proposer: "akash1prop", title: "Upgrade", initialDeposit: [{ denom: "uakt", amount: "1000" }] } }],
+          txEvents: [event("submit_proposal", { proposal_id: "7" }, 0)]
+        })
+      ],
+      new Map([["akash1prop", 1]])
+    );
+
+    expect(rowsFor(inserts, Proposals)).toEqual([expect.objectContaining({ id: 7, proposerAccountId: 1, title: "Upgrade", status: "deposit_period", totalDeposit: [{ denom: "uakt", amount: "1000" }] })]);
+    expect(rowsFor(inserts, ProposalDeposits)).toEqual([{ proposalId: 7, depositorAccountId: 1, amount: [{ denom: "uakt", amount: "1000" }], height: 100 }]);
+  });
+
+  it("upserts a vote with the resolved voter id and promotes the proposal into voting conditionally", async () => {
+    const { govWriter, tx, inserts, updates } = setup();
+
+    await govWriter.writeForBlocks(tx, [block({ messages: [{ typeUrl: MSG_VOTE, body: { proposalId: "7", voter: "akash1voter", option: 1 } }] })], new Map([["akash1voter", 2]]));
+
+    expect(rowsFor(inserts, ProposalVotes)).toEqual([{ proposalId: 7, voterAccountId: 2, options: [{ option: "yes", weight: "1.000000000000000000" }], height: 100 }]);
+    expect(updates).toHaveLength(1);
+    expect(updates[0].set).toEqual({ status: "voting_period" });
+    expect(whereSql(updates[0].where)).toContain("status");
+  });
+
+  it("applies a terminal status from an active_proposal without a status condition", async () => {
+    const { govWriter, tx, updates } = setup();
+
+    await govWriter.writeForBlocks(tx, [block({ blockEvents: [event("active_proposal", { proposal_id: "7", proposal_result: "proposal_passed" })] })], new Map());
+
+    expect(updates[0].set).toEqual({ status: "passed" });
+    expect(whereSql(updates[0].where)).not.toContain("status");
+  });
+
+  it("skips a vote whose voter was never interned", async () => {
+    const { govWriter, tx, inserts } = setup();
+
+    await govWriter.writeForBlocks(tx, [block({ messages: [{ typeUrl: MSG_VOTE, body: { proposalId: "7", voter: "akash1voter", option: 1 } }] })], new Map());
+
+    expect(rowsFor(inserts, ProposalVotes)).toEqual([]);
+  });
+
+  it("writes nothing for a block without governance", async () => {
+    const { govWriter, tx, inserts, updates } = setup();
+
+    await govWriter.writeForBlocks(tx, [block({ messages: [{ typeUrl: "/cosmos.bank.v1beta1.MsgSend", body: {} }] })], new Map());
+
+    expect(inserts).toEqual([]);
+    expect(updates).toEqual([]);
+  });
+
+  function setup() {
+    const inserts: { table: unknown; rows: Record<string, unknown>[] }[] = [];
+    const updates: { table: unknown; set: Record<string, unknown>; where: unknown }[] = [];
+
+    const tx = {
+      insert: (table: unknown) => ({
+        values: (rows: Record<string, unknown> | Record<string, unknown>[]) => {
+          inserts.push({ table, rows: Array.isArray(rows) ? rows : [rows] });
+          return Object.assign(Promise.resolve(), {
+            onConflictDoNothing: () => Object.assign(Promise.resolve(), { returning: () => Promise.resolve([]) }),
+            onConflictDoUpdate: () => Promise.resolve()
+          });
+        }
+      }),
+      update: (table: unknown) => ({
+        set: (set: Record<string, unknown>) => ({
+          where: (where: unknown) => {
+            updates.push({ table, set, where });
+            return Promise.resolve();
+          }
+        })
+      })
+    };
+
+    return { govWriter: new GovWriter(), tx: tx as unknown as ChainTransaction, inserts, updates };
+  }
+});
+
+function rowsFor(inserts: { table: unknown; rows: Record<string, unknown>[] }[], table: unknown): Record<string, unknown>[] {
+  return inserts.filter(insert => insert.table === table).flatMap(insert => insert.rows);
+}
+
+function whereSql(where: unknown): string {
+  return new PgDialect().sqlToQuery(where as SQL).sql;
+}
+
+function block(input: { height?: number; messages?: { typeUrl: string; body: unknown; index?: number }[]; txEvents?: DecodedEvent[]; blockEvents?: DecodedEvent[] }): DecodedBlock {
+  const messages = input.messages ?? [];
+  return {
+    height: input.height ?? 100,
+    datetime: new Date("2026-08-13T00:00:00Z"),
+    hash: Buffer.alloc(0),
+    parentHash: null,
+    proposerAddress: "P",
+    transactions:
+      messages.length > 0 || input.txEvents
+        ? [
+            {
+              index: 0,
+              hash: Buffer.alloc(0),
+              code: 0,
+              gasUsed: 0,
+              gasWanted: 0,
+              fee: [],
+              messages: messages.map((message, index) => ({ index: message.index ?? index, typeUrl: message.typeUrl, body: message.body })),
+              events: input.txEvents ?? [],
+              signerAddresses: []
+            }
+          ]
+        : [],
+    blockEvents: input.blockEvents ?? []
+  };
+}
+
+function event(type: string, attributes: Record<string, string>, msgIndex?: number): DecodedEvent {
+  return msgIndex === undefined ? { type, attributes } : { type, attributes, msgIndex };
+}

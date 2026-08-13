@@ -13,8 +13,22 @@ import type { Registry } from "@src/providers/type-registry.provider";
 import { TYPE_REGISTRY } from "@src/providers/type-registry.provider";
 import type { RpcBlockResult, RpcBlockResultsResult, RpcEvent, RpcTxResult } from "@src/rpc/rpc-types";
 
-/** The ledger derives balances and reasons only from these event types; capturing the rest would waste memory across backfill batches. */
-const RELEVANT_EVENT_TYPES = new Set(["coin_spent", "coin_received", "transfer", "coinbase", "burn", "slash"]);
+/**
+ * The ledger derives balances and reasons from the coin/transfer/mint/burn/slash events; the gov events carry
+ * proposal ids and lifecycle transitions for the governance handler. Capturing the rest would waste memory
+ * across backfill batches.
+ */
+const RELEVANT_EVENT_TYPES = new Set([
+  "coin_spent",
+  "coin_received",
+  "transfer",
+  "coinbase",
+  "burn",
+  "slash",
+  "submit_proposal",
+  "active_proposal",
+  "inactive_proposal"
+]);
 
 const MSG_INDEX_ATTRIBUTE = "msg_index";
 
