@@ -15,6 +15,14 @@ const rawEnvSchema = z.object({
   SYNC_START_HEIGHT: z.preprocess(emptyStringAsUndefined, z.number({ coerce: true }).int().positive().optional()),
   SYNC_POLL_INTERVAL_MS: z.number({ coerce: true }).int().positive().default(3_000),
   /**
+   * Reconciles the validator set, delegations and unbonding against the chain once sync catches up to the tip
+   * and this many blocks have passed since the last snapshot. Delegation shares can't be derived exactly from
+   * messages, so this authoritative snapshot is what keeps them matching chain queries.
+   */
+  STAKING_SNAPSHOT_INTERVAL_BLOCKS: z.number({ coerce: true }).int().positive().default(1_000),
+  /** Enables the periodic staking snapshot. Off leaves validators at their genesis and message-derived state. */
+  STAKING_SNAPSHOT_ENABLED: z.preprocess(emptyStringAsUndefined, z.enum(["true", "false"]).default("true")).transform(value => value === "true"),
+  /**
    * Enables the one-time genesis import (accounts, balances, validators, delegations) before the first block.
    * When on, a fresh sync must start at the network's genesis height or it is rejected as a mid-chain start.
    * Off preserves plain block/tx/message tailing from any height. Enum-transform rather than z.coerce.boolean(),

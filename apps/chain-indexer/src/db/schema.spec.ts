@@ -1,7 +1,7 @@
 import { getTableConfig } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
-import { AccountBalances, Accounts, AccountTxs, BalanceChanges, Delegations, Validators } from "@src/db/schema";
+import { AccountBalances, Accounts, AccountTxs, BalanceChanges, Delegations, UnbondingDelegations, Validators } from "@src/db/schema";
 
 describe("cosmos genesis schema", () => {
   it("interns accounts under a unique address index", () => {
@@ -58,5 +58,20 @@ describe("cosmos genesis schema", () => {
 
     expect(config.name).toBe("validators");
     expect(config.columns.map(column => column.name)).toContain("operator_address");
+  });
+
+  it("enriches validators with snapshot-sourced bond state", () => {
+    const config = getTableConfig(Validators);
+
+    expect(config.columns.map(column => column.name)).toEqual(expect.arrayContaining(["jailed", "status", "tokens", "delegator_shares", "unbonding_height", "unbonding_time"]));
+  });
+
+  it("keys unbonding delegations by delegator, validator and creation height", () => {
+    const config = getTableConfig(UnbondingDelegations);
+
+    expect(config.name).toBe("unbonding_delegations");
+    expect(config.primaryKeys[0].columns.map(column => column.name)).toEqual(["delegator_account_id", "validator_operator_address", "creation_height"]);
+    expect(config.foreignKeys).toHaveLength(1);
+    expect(config.foreignKeys[0].reference().foreignColumns[0].name).toBe("id");
   });
 });

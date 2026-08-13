@@ -146,6 +146,9 @@ export const BalanceChanges = cosmosSchema.table(
   ]
 );
 
+/** Consensus bond status, mirroring cosmos `BondStatus` minus the never-valid `UNSPECIFIED`. Written by the staking snapshot. */
+export const validatorStatus = cosmosSchema.enum("validator_status", ["unbonded", "unbonding", "bonded"]);
+
 export const Validators = cosmosSchema.table("validators", {
   operatorAddress: text("operator_address").primaryKey(),
   accountAddress: text("account_address"),
@@ -158,7 +161,14 @@ export const Validators = cosmosSchema.table("validators", {
   commissionRate: numeric("commission_rate", { precision: 20, scale: 18 }),
   commissionMaxRate: numeric("commission_max_rate", { precision: 20, scale: 18 }),
   commissionMaxChangeRate: numeric("commission_max_change_rate", { precision: 20, scale: 18 }),
-  minSelfDelegation: numeric("min_self_delegation", { precision: 38, scale: 0 })
+  minSelfDelegation: numeric("min_self_delegation", { precision: 38, scale: 0 }),
+  /** Bond status, self-bonded stake and shares come from the staking snapshot, not from messages, so genesis-seeded rows carry them as null until the first snapshot. */
+  jailed: boolean("jailed").notNull().default(false),
+  status: validatorStatus("status"),
+  tokens: numeric("tokens", { precision: 38, scale: 0 }),
+  delegatorShares: numeric("delegator_shares", { precision: 38, scale: 18 }),
+  unbondingHeight: bigint("unbonding_height", { mode: "number" }),
+  unbondingTime: timestamp("unbonding_time", { withTimezone: true })
 });
 
 export const Delegations = cosmosSchema.table(
@@ -171,6 +181,26 @@ export const Delegations = cosmosSchema.table(
     shares: numeric("shares", { precision: 38, scale: 18 }).notNull()
   },
   t => [primaryKey({ columns: [t.delegatorAccountId, t.validatorOperatorAddress] })]
+);
+
+/**
+ * In-flight undelegations, one row per unbonding entry. `creationHeight` distinguishes a delegator's
+ * concurrent entries against the same validator, so it completes the primary key. Fully replaced from the
+ * staking snapshot rather than tracked incrementally, since an entry disappears silently once it matures.
+ */
+export const UnbondingDelegations = cosmosSchema.table(
+  "unbonding_delegations",
+  {
+    delegatorAccountId: integer("delegator_account_id")
+      .notNull()
+      .references(() => Accounts.id),
+    validatorOperatorAddress: text("validator_operator_address").notNull(),
+    creationHeight: bigint("creation_height", { mode: "number" }).notNull(),
+    completionTime: timestamp("completion_time", { withTimezone: true }).notNull(),
+    initialBalance: numeric("initial_balance", { precision: 38, scale: 0 }).notNull(),
+    balance: numeric("balance", { precision: 38, scale: 0 }).notNull()
+  },
+  t => [primaryKey({ columns: [t.delegatorAccountId, t.validatorOperatorAddress, t.creationHeight] })]
 );
 
 /** How an address participated in a transaction: it signed it, or it was the sender/recipient of a coin movement. */

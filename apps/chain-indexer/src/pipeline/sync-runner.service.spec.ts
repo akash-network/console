@@ -13,6 +13,7 @@ import type { ChainDatabase } from "@src/providers/db.provider";
 import type { LoggerService } from "@src/providers/logging.provider";
 import type { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
 import type { RpcBlockResult } from "@src/rpc/rpc-types";
+import type { StakingSnapshotService } from "@src/staking/staking-snapshot.service";
 
 describe(SyncRunnerService.name, () => {
   it("stages every synced block in the archive with its raw payloads", async () => {
@@ -185,8 +186,9 @@ describe(SyncRunnerService.name, () => {
 
     const committer = mock<BlockCommitterService>();
     const genesisImport = mock<GenesisImportService>();
+    const stakingSnapshot = mock<StakingSnapshotService>();
     const logger = mock<LoggerService>();
-    const runner = new SyncRunnerService(dbFake as unknown as ChainDatabase, pool, decoder, committer, archive, genesisImport, config, logger);
+    const runner = new SyncRunnerService(dbFake as unknown as ChainDatabase, pool, decoder, committer, archive, genesisImport, stakingSnapshot, config, logger);
     committer.commit.mockImplementation(async decoded => {
       if (decoded.height >= input.tipHeight) {
         await runner.dispose();

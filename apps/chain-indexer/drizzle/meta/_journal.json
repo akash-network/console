@@ -22,6 +22,13 @@
       "when": 1786566671632,
       "tag": "0002_clever_bulldozer",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786600167399,
+      "tag": "0003_mean_smasher",
+      "breakpoints": true
     }
   ]
 }
