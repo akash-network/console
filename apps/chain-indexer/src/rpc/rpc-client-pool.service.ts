@@ -4,7 +4,7 @@ import { inject, singleton } from "tsyringe";
 import type { EnvConfig } from "@src/config/env.config";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 import { LoggerService } from "@src/providers/logging.provider";
-import type { RpcBlockResult, RpcBlockResultsResult, RpcGenesisChunkResult, RpcStatusResult } from "@src/rpc/rpc-types";
+import type { RpcAbciQueryResult, RpcBlockResult, RpcBlockResultsResult, RpcGenesisChunkResult, RpcStatusResult } from "@src/rpc/rpc-types";
 
 interface RpcNodeState {
   endpoint: string;
@@ -63,13 +63,35 @@ export class RpcClientPool {
     return await this.#get<RpcGenesisChunkResult>(`/genesis_chunked?chunk=${chunk}`);
   }
 
-  async #get<T>(path: string): Promise<T> {
+  /**
+   * Runs an ABCI query against historical state at `height`. Reconciliation reads bank balances at the
+   * indexer's checkpoint height (not the moving tip), which requires an unpruned node — sandbox is archival.
+   */
+  async abciQuery(path: string, dataHex: string, height: number): Promise<RpcAbciQueryResult["response"]> {
+    const result = await this.#get<RpcAbciQueryResult>(
+      `/abci_query?path=${encodeURIComponent(`"${path}"`)}&data=0x${dataHex}&height=${height}&prove=false`,
+      result => {
+        if (result.response.code) {
+          throw new Error(`abci_query ${path} failed at height ${height}: ${result.response.log ?? `code ${result.response.code}`}`);
+        }
+      }
+    );
+
+    return result.response;
+  }
+
+  /**
+   * A `validate` failure is treated like a transport failure so the failover loop tries the next node: a pruned
+   * node answering HTTP 200 with a non-zero ABCI code (e.g. "height not available") must fail over to an archival one.
+   */
+  async #get<T>(path: string, validate?: (result: T) => void): Promise<T> {
     const errors: unknown[] = [];
 
     for (const node of this.#candidates()) {
       node.inFlight++;
       try {
         const result = await this.#fetchFromNode<T>(node.endpoint, path);
+        validate?.(result);
         node.unhealthyUntil = 0;
         return result;
       } catch (error) {

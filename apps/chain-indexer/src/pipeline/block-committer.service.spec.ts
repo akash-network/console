@@ -1,13 +1,17 @@
 import type { SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
-import { Blocks, IndexerState, Messages, MessageTypes } from "@src/db/schema";
+import { AccountTxs, Blocks, IndexerState, Messages, MessageTypes } from "@src/db/schema";
+import type { AccountInterner } from "@src/pipeline/balance/account-interner.service";
+import type { BalanceWriter } from "@src/pipeline/balance/balance-writer.service";
 import { BlockCommitterService } from "@src/pipeline/block-committer.service";
-import type { DecodedBlock } from "@src/pipeline/decoded-block";
+import type { DecodedBlock, DecodedEvent } from "@src/pipeline/decoded-block";
 import type { ChainDatabase } from "@src/providers/db.provider";
 
 const MSG_SEND = "/cosmos.bank.v1beta1.MsgSend";
+const BALANCE_WRITE = Symbol("balance_write");
 
 describe(BlockCommitterService.name, () => {
   it("reuses ids of message types that already exist instead of inserting them", async () => {
@@ -99,6 +103,43 @@ describe(BlockCommitterService.name, () => {
     });
   });
 
+  describe("balance ledger and activity log", () => {
+    it("writes balances then the activity log inside the transaction, after messages and before the checkpoint", async () => {
+      const { committer, insertedRows } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
+
+      await committer.commit(buildBlock([MSG_SEND], 10, { signerAddresses: ["akash1signer"], events: [transfer("akash1signer", "akash1b", "1uakt")] }));
+
+      const order = insertedRows.map(call => call.table);
+      expect(order.indexOf(Messages)).toBeLessThan(order.indexOf(BALANCE_WRITE));
+      expect(order.indexOf(BALANCE_WRITE)).toBeLessThan(order.indexOf(AccountTxs));
+      expect(order.indexOf(AccountTxs)).toBeLessThan(order.indexOf(IndexerState));
+    });
+
+    it("passes balance intents with interned account ids to the balance writer", async () => {
+      const { committer, balanceWriter } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
+
+      await committer.commit(buildBlock([MSG_SEND], 10, { events: [coinSpent("akash1a", "100uakt")] }));
+
+      expect(balanceWriter.write.mock.calls[0][1]).toEqual([
+        expect.objectContaining({ accountId: 1, counterpartyAccountId: null, denom: "uakt", delta: -100n, height: 10 })
+      ]);
+    });
+
+    it("interns signers, spenders, receivers and counterparties in one pass", async () => {
+      const { committer, interner } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
+
+      await committer.commit(
+        buildBlock([MSG_SEND], 10, {
+          signerAddresses: ["akash1signer"],
+          events: [coinSpent("akash1a", "1uakt"), coinReceived("akash1b", "1uakt"), transfer("akash1a", "akash1b", "1uakt")]
+        })
+      );
+
+      const interned = new Set([...interner.resolve.mock.calls[0][0]]);
+      expect(interned).toEqual(new Set(["akash1a", "akash1b", "akash1signer"]));
+    });
+  });
+
   function setup(input?: { selectResults?: Array<Array<{ id: number; type: string }>>; insertReturning?: Array<{ id: number; type: string }> }) {
     const selectResults = [...(input?.selectResults ?? [[]])];
     const insertedRows: Array<{ table: unknown; rows: unknown }> = [];
@@ -124,11 +165,23 @@ describe(BlockCommitterService.name, () => {
       transaction: (callback: (tx: unknown) => Promise<void>) => callback(dbFake)
     };
 
-    const committer = new BlockCommitterService(dbFake as unknown as ChainDatabase);
-    return { committer, insertedRows, conflictUpdates };
+    const interner = mock<AccountInterner>();
+    interner.resolve.mockImplementation(async addresses => new Map([...addresses].map((address, index) => [address, index + 1])));
+
+    const balanceWriter = mock<BalanceWriter>();
+    balanceWriter.write.mockImplementation(async () => {
+      insertedRows.push({ table: BALANCE_WRITE, rows: [] });
+    });
+
+    const committer = new BlockCommitterService(dbFake as unknown as ChainDatabase, interner, balanceWriter);
+    return { committer, insertedRows, conflictUpdates, interner, balanceWriter };
   }
 
-  function buildBlock(typeUrls: string[], height = 10): DecodedBlock {
+  function buildBlock(
+    typeUrls: string[],
+    height = 10,
+    tx?: { events?: DecodedEvent[]; signerAddresses?: string[]; blockEvents?: DecodedEvent[] }
+  ): DecodedBlock {
     return {
       height,
       datetime: new Date("2026-08-11T00:00:00Z"),
@@ -143,9 +196,24 @@ describe(BlockCommitterService.name, () => {
           gasUsed: 0,
           gasWanted: 0,
           fee: [],
-          messages: typeUrls.map((typeUrl, index) => ({ index, typeUrl, body: null }))
+          messages: typeUrls.map((typeUrl, index) => ({ index, typeUrl, body: null })),
+          events: tx?.events ?? [],
+          signerAddresses: tx?.signerAddresses ?? []
         }
-      ]
+      ],
+      blockEvents: tx?.blockEvents ?? []
     };
+  }
+
+  function coinSpent(spender: string, amount: string): DecodedEvent {
+    return { type: "coin_spent", attributes: { spender, amount } };
+  }
+
+  function coinReceived(receiver: string, amount: string): DecodedEvent {
+    return { type: "coin_received", attributes: { receiver, amount } };
+  }
+
+  function transfer(sender: string, recipient: string, amount: string): DecodedEvent {
+    return { type: "transfer", attributes: { sender, recipient, amount } };
   }
 });

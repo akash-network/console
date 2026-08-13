@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import { envSchema } from "@src/config/env.config";
 import { BlockDecoderService } from "@src/pipeline/block-decoder.service";
-import type { RpcBlockResult, RpcBlockResultsResult } from "@src/rpc/rpc-types";
+import type { RpcBlockResult, RpcBlockResultsResult, RpcEvent, RpcTxResult } from "@src/rpc/rpc-types";
 
 describe(BlockDecoderService.name, () => {
   it("decodes block metadata with hashes as buffers", () => {
@@ -81,6 +81,91 @@ describe(BlockDecoderService.name, () => {
     expect(decoded.transactions[0].code).toBe(11);
   });
 
+  it("captures relevant tx events with their msg_index and drops irrelevant ones", () => {
+    const { decoder } = setup();
+    const rawTx = buildMsgSendTx();
+    const txResult: RpcTxResult = {
+      code: 0,
+      gas_used: "0",
+      gas_wanted: "0",
+      events: [
+        event("coin_spent", { spender: "akash1from", amount: "42uakt", msg_index: "0" }),
+        event("tx", { fee: "5000uakt" }),
+        event("message", { action: "/cosmos.bank.v1beta1.MsgSend" }),
+        event("coin_received", { receiver: "akash1to", amount: "42uakt", msg_index: "0" })
+      ]
+    };
+
+    const [tx] = decoder.decode(buildBlock({ txs: [rawTx.toString("base64")] }), buildBlockResults([txResult])).transactions;
+
+    expect(tx.events).toEqual([
+      { type: "coin_spent", attributes: { spender: "akash1from", amount: "42uakt", msg_index: "0" }, msgIndex: 0 },
+      { type: "coin_received", attributes: { receiver: "akash1to", amount: "42uakt", msg_index: "0" }, msgIndex: 0 }
+    ]);
+  });
+
+  it("normalizes base64-encoded event attributes", () => {
+    const { decoder } = setup();
+    const rawTx = buildMsgSendTx();
+    const txResult: RpcTxResult = {
+      code: 0,
+      gas_used: "0",
+      gas_wanted: "0",
+      events: [event("coin_spent", { "c3BlbmRlcg==": "YWthc2gxZnJvbQ==" })]
+    };
+
+    const [tx] = decoder.decode(buildBlock({ txs: [rawTx.toString("base64")] }), buildBlockResults([txResult])).transactions;
+
+    expect(tx.events[0].attributes).toEqual({ spender: "akash1from" });
+  });
+
+  it("keeps a failed transaction's fee coin events", () => {
+    const { decoder } = setup();
+    const rawTx = buildMsgSendTx();
+    const txResult: RpcTxResult = {
+      code: 11,
+      gas_used: "70000",
+      gas_wanted: "70000",
+      events: [
+        event("coin_spent", { spender: "akash1payer", amount: "5000uakt" }),
+        event("coin_received", { receiver: "akash1feecollector", amount: "5000uakt" })
+      ]
+    };
+
+    const [tx] = decoder.decode(buildBlock({ txs: [rawTx.toString("base64")] }), buildBlockResults([txResult])).transactions;
+
+    expect(tx.code).toBe(11);
+    expect(tx.events.map(e => e.type)).toEqual(["coin_spent", "coin_received"]);
+  });
+
+  it("prefers finalize_block_events for block-level events", () => {
+    const { decoder } = setup();
+
+    const decoded = decoder.decode(
+      buildBlock({ txs: [] }),
+      buildBlockResults([], {
+        finalize_block_events: [event("coinbase", { minter: "akash1mint", amount: "10uakt" })],
+        begin_block_events: [event("transfer", { sender: "ignored", recipient: "ignored", amount: "1uakt" })]
+      })
+    );
+
+    expect(decoded.blockEvents).toEqual([{ type: "coinbase", attributes: { minter: "akash1mint", amount: "10uakt" } }]);
+  });
+
+  it("falls back to begin and end block events when finalize is absent", () => {
+    const { decoder } = setup();
+
+    const decoded = decoder.decode(
+      buildBlock({ txs: [] }),
+      buildBlockResults([], {
+        begin_block_events: [event("coin_received", { receiver: "akash1begin", amount: "1uakt" })],
+        end_block_events: [event("coin_spent", { spender: "akash1end", amount: "2uakt" })]
+      })
+    );
+
+    expect(decoded.blockEvents.map(e => e.type)).toEqual(["coin_received", "coin_spent"]);
+  });
+
   function setup(input?: { maxBodyBytes?: number }) {
     const config = envSchema.parse({
       POSTGRES_DB_URI: "postgres://unit:unit@localhost:5432/unit",
@@ -105,8 +190,15 @@ describe(BlockDecoderService.name, () => {
     };
   }
 
-  function buildBlockResults(txsResults: { code: number; gas_used: string; gas_wanted: string }[]): RpcBlockResultsResult {
-    return { height: "1234", txs_results: txsResults };
+  function buildBlockResults(
+    txsResults: RpcTxResult[],
+    blockEvents?: Partial<Pick<RpcBlockResultsResult, "finalize_block_events" | "begin_block_events" | "end_block_events">>
+  ): RpcBlockResultsResult {
+    return { height: "1234", txs_results: txsResults, ...blockEvents };
+  }
+
+  function event(type: string, attributes: Record<string, string>): RpcEvent {
+    return { type, attributes: Object.entries(attributes).map(([key, value]) => ({ key, value })) };
   }
 
   function buildMsgSendTx(typeUrl = "/cosmos.bank.v1beta1.MsgSend"): Buffer {

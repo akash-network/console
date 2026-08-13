@@ -98,6 +98,42 @@ describe(RpcClientPool.name, () => {
     expect(fetchMock.mock.calls[0][0]).toBe("http://node-a/genesis_chunked?chunk=2");
   });
 
+  it("runs an abci query with a quoted path, hex data and historical height", async () => {
+    const { pool, fetchMock } = setup();
+    fetchMock.mockResolvedValue(jsonResponse({ result: { response: { code: 0, value: "AA==" } } }));
+
+    const response = await pool.abciQuery("/cosmos.bank.v1beta1.Query/TotalSupply", "0a00", 100);
+
+    expect(response.value).toBe("AA==");
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "http://node-a/abci_query?path=%22%2Fcosmos.bank.v1beta1.Query%2FTotalSupply%22&data=0x0a00&height=100&prove=false"
+    );
+  });
+
+  it("fails over to the next node when a node answers with a non-zero abci code", async () => {
+    const { pool, fetchMock } = setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ result: { response: { code: 26, log: "height not available", value: null } } }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ result: { response: { code: 0, value: "AA==" } } }));
+
+    const response = await pool.abciQuery("/cosmos.bank.v1beta1.Query/AllBalances", "00", 999);
+
+    expect(response.value).toBe("AA==");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0][0]).toContain("http://node-a/");
+    expect(fetchMock.mock.calls[1][0]).toContain("http://node-b/");
+  });
+
+  it("throws an aggregate error carrying the abci log when every node answers with a non-zero code", async () => {
+    const { pool, fetchMock } = setup();
+    fetchMock.mockResolvedValue(jsonResponse({ result: { response: { code: 26, log: "height not available", value: null } } }));
+
+    const error = await pool.abciQuery("/cosmos.bank.v1beta1.Query/AllBalances", "00", 999).catch(caught => caught);
+
+    expect(error).toBeInstanceOf(AggregateError);
+    expect(error.errors[0].message).toContain("height not available");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   function setup() {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

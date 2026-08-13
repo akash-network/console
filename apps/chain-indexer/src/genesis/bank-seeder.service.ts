@@ -13,10 +13,15 @@ export class BankSeeder implements GenesisModuleSeeder {
    * Seeding all `bank.balances` (module and vesting accounts included) makes the current-balance total
    * reconcile to `bank.supply` by construction. Idempotency comes from the import marker, so the ledger
    * insert intentionally has no conflict target.
+   *
+   * The ledger rows sit at `initialHeight - 1` (the pre-block opening balance) so they never collide with
+   * block `initialHeight`'s own coin events on the `(height, event_index)` unique key and give that block's
+   * batch a correct running-balance baseline.
    */
   async seed(tx: ChainTransaction, genesis: ParsedGenesis, context: GenesisSeedContext): Promise<void> {
     const balanceRows: (typeof AccountBalances.$inferInsert)[] = [];
     const changeRows: (typeof BalanceChanges.$inferInsert)[] = [];
+    let eventIndex = 0;
 
     for (const balance of genesis.balances) {
       const accountId = context.accountIdByAddress.get(balance.address);
@@ -32,7 +37,9 @@ export class BankSeeder implements GenesisModuleSeeder {
           delta: coin.amount,
           balanceAfter: coin.amount,
           reason: "genesis",
-          height: context.initialHeight,
+          height: context.initialHeight - 1,
+          txIndex: null,
+          eventIndex: eventIndex++,
           counterpartyAccountId: null
         });
       }

@@ -1,7 +1,7 @@
 import { getTableConfig } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
-import { AccountBalances, Accounts, BalanceChanges, Delegations, Validators } from "@src/db/schema";
+import { AccountBalances, Accounts, AccountTxs, BalanceChanges, Delegations, Validators } from "@src/db/schema";
 
 describe("cosmos genesis schema", () => {
   it("interns accounts under a unique address index", () => {
@@ -25,8 +25,24 @@ describe("cosmos genesis schema", () => {
     const config = getTableConfig(BalanceChanges);
 
     expect(config.foreignKeys).toHaveLength(2);
-    expect(config.indexes).toHaveLength(1);
     config.foreignKeys.forEach(foreignKey => expect(foreignKey.reference().foreignColumns[0].name).toBe("id"));
+  });
+
+  it("makes the ledger idempotent with a unique (height, event_index) index", () => {
+    const config = getTableConfig(BalanceChanges);
+
+    const uniqueOnHeightEvent = config.indexes.find(index => index.config.name === "balance_changes_height_event_index_idx");
+    expect(uniqueOnHeightEvent?.config.unique).toBe(true);
+    expect(uniqueOnHeightEvent?.config.columns.map(column => (column as { name: string }).name)).toEqual(["height", "event_index"]);
+  });
+
+  it("keys the address activity log by account, height, tx and role", () => {
+    const config = getTableConfig(AccountTxs);
+
+    expect(config.name).toBe("account_txs");
+    expect(config.primaryKeys[0].columns.map(column => column.name)).toEqual(["account_id", "height", "tx_index", "role"]);
+    expect(config.foreignKeys).toHaveLength(1);
+    expect(config.foreignKeys[0].reference().foreignColumns[0].name).toBe("id");
   });
 
   it("keys delegations by delegator and validator with a delegator foreign key", () => {
