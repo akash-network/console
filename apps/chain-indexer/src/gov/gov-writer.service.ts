@@ -50,6 +50,11 @@ export class GovWriter {
     await insertChunked(tx, Proposals, rows);
   }
 
+  /**
+   * The vote upsert is last-writer-wins on `(proposalId, voterAccountId)`, so the `setWhere` height guard stops
+   * an out-of-order commit (e.g. overlapping pods on a rolling deploy) from overwriting a newer vote with a
+   * stale one; `dedupeVotes` handles the same collision among blocks merged into a single batch.
+   */
   async #writeVotes(tx: ChainTransaction, votes: DerivedVote[], accountIds: Map<string, number>): Promise<void> {
     const rows = dedupeVotes(votes)
       .map(vote => {
@@ -64,7 +69,8 @@ export class GovWriter {
         .values(rowChunk)
         .onConflictDoUpdate({
           target: [ProposalVotes.proposalId, ProposalVotes.voterAccountId],
-          set: { options: sqlExcluded("options"), height: sqlExcluded("height") }
+          set: { options: sqlExcluded("options"), height: sqlExcluded("height") },
+          setWhere: sql`excluded.height >= ${ProposalVotes.height}`
         });
     }
   }

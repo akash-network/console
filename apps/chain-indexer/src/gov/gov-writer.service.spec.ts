@@ -89,6 +89,16 @@ describe(GovWriter.name, () => {
     expect(rowsFor(inserts, ProposalVotes)).toEqual([{ proposalId: 7, voterAccountId: 2, options: [{ option: "no", weight: "1.000000000000000000" }], height: 100 }]);
   });
 
+  it("guards the vote upsert so a lower-height commit cannot overwrite a newer vote", async () => {
+    const { govWriter, tx, upserts } = setup();
+
+    await govWriter.writeForBlocks(tx, [block({ messages: [{ typeUrl: MSG_VOTE, body: { proposalId: "7", voter: "akash1voter", option: 1 } }] })], new Map([["akash1voter", 2]]));
+
+    const voteUpsert = upserts.find(upsert => upsert.table === ProposalVotes) as { table: unknown; config: { setWhere: SQL } };
+    expect(whereSql(voteUpsert.config.setWhere)).toContain("height");
+    expect(whereSql(voteUpsert.config.setWhere)).toContain(">=");
+  });
+
   it("applies a terminal status from an active_proposal without a status condition", async () => {
     const { govWriter, tx, updates } = setup();
 
@@ -117,6 +127,7 @@ describe(GovWriter.name, () => {
 
   function setup(input?: { priorDeposits?: { proposalId: number; amount: { denom: string; amount: string }[] }[] }) {
     const inserts: { table: unknown; rows: Record<string, unknown>[] }[] = [];
+    const upserts: { table: unknown; config: Record<string, unknown> }[] = [];
     const updates: { table: unknown; set: Record<string, unknown>; where: unknown }[] = [];
     const priorDeposits = input?.priorDeposits ?? [];
 
@@ -126,7 +137,10 @@ describe(GovWriter.name, () => {
           inserts.push({ table, rows: Array.isArray(rows) ? rows : [rows] });
           return Object.assign(Promise.resolve(), {
             onConflictDoNothing: () => Object.assign(Promise.resolve(), { returning: () => Promise.resolve([]) }),
-            onConflictDoUpdate: () => Promise.resolve()
+            onConflictDoUpdate: (config: Record<string, unknown>) => {
+              upserts.push({ table, config });
+              return Promise.resolve();
+            }
           });
         }
       }),
@@ -145,7 +159,7 @@ describe(GovWriter.name, () => {
       })
     };
 
-    return { govWriter: new GovWriter(), tx: tx as unknown as ChainTransaction, inserts, updates };
+    return { govWriter: new GovWriter(), tx: tx as unknown as ChainTransaction, inserts, upserts, updates };
   }
 });
 
