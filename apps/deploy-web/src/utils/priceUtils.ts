@@ -62,6 +62,19 @@ export function getAvgCostPerMonth(pricePerBlock: number) {
   return (pricePerBlock * averageDaysInMonth * 24 * 60 * 60) / averageBlockTime;
 }
 
+type PricedLease = { price: { denom: string; amount: string | number } };
+
+/**
+ * Sums the per-block price of the given leases in USD. Pass already-live leases. Deployments are only ever
+ * funded in ACT (1:1 USD); any other denom is ignored.
+ */
+export function getLeasesCostPerBlockUsd(leases: PricedLease[]): number {
+  return leases.reduce((total, { price }) => {
+    if (price.denom !== UACT_DENOM) return total;
+    return total + udenomToDenom(price.amount, 10);
+  }, 0);
+}
+
 export function getTimeLeft(pricePerBlock: number, balance: number) {
   const blocksLeft = balance / pricePerBlock;
   const timestamp = new Date().getTime();

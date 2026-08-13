@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
@@ -10,6 +10,10 @@ import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe("DeploymentDetail", () => {
+  afterEach(function restoreUrlMutatedByTabNavigation() {
+    window.history.replaceState(window.history.state, "", "/");
+  });
+
   it("renders the tab bar and lease rows when the deployment and leases are loaded", () => {
     setup();
 
@@ -41,14 +45,14 @@ describe("DeploymentDetail", () => {
     expect(screen.queryByText("shell")).not.toBeInTheDocument();
   });
 
-  it("renders alerts on the Billing tab when alerts are enabled", () => {
-    setup({ tab: "BILLING", alertsEnabled: true });
+  it("renders alerts on the Billing tab when the user is signed in", () => {
+    setup({ tab: "BILLING" });
 
     expect(screen.getByText("alerts")).toBeInTheDocument();
   });
 
-  it("shows a coming-soon note on the Billing tab when alerts are disabled", () => {
-    setup({ tab: "BILLING", alertsEnabled: false });
+  it("shows a coming-soon note on the Billing tab when the user is not signed in", () => {
+    setup({ tab: "BILLING", isSignedIn: false });
 
     expect(screen.getByText("Billing & notifications are coming soon.")).toBeInTheDocument();
   });
@@ -72,7 +76,7 @@ describe("DeploymentDetail", () => {
     isLeasesLoaded?: boolean;
     error?: Error | null;
     tab?: string;
-    alertsEnabled?: boolean;
+    isSignedIn?: boolean;
     leaseState?: string;
   }) {
     const deployment = input && "deployment" in input ? input.deployment : mock<DeploymentDto>({ dseq: "1786440078202", state: "active", groups: [] });
@@ -91,8 +95,9 @@ describe("DeploymentDetail", () => {
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: "akash1test" });
     const useSettings: typeof DEPENDENCIES.useSettings = () => mock<ReturnType<typeof DEPENDENCIES.useSettings>>({ isSettingsInit: true });
     const useUser: typeof DEPENDENCIES.useUser = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: mock<NonNullable<ReturnType<typeof DEPENDENCIES.useUser>["user"]>>({ userId: "u1" }) });
-    const useFlag: typeof DEPENDENCIES.useFlag = () => input?.alertsEnabled ?? false;
+      mock<ReturnType<typeof DEPENDENCIES.useUser>>({
+        user: input?.isSignedIn === false ? undefined : mock<NonNullable<ReturnType<typeof DEPENDENCIES.useUser>["user"]>>({ userId: "u1" })
+      });
     const useRouter: typeof DEPENDENCIES.useRouter = () => router;
     const searchParams = new URLSearchParams(input?.tab ? `tab=${input.tab}` : "");
     const useSearchParams: typeof DEPENDENCIES.useSearchParams = () => searchParams as unknown as ReturnType<typeof DEPENDENCIES.useSearchParams>;
@@ -117,7 +122,6 @@ describe("DeploymentDetail", () => {
           useWallet,
           useSettings,
           useUser,
-          useFlag,
           useRouter,
           useSearchParams,
           useDeploymentDetail,

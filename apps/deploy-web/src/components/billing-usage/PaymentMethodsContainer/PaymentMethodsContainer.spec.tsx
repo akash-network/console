@@ -1,15 +1,15 @@
 import React from "react";
-import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk";
+import type { PaymentMethod } from "@akashnetwork/http-sdk";
 import type { usePopup } from "@akashnetwork/ui/context";
 import { describe, expect, it, type MockedFunction, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { usePaymentMethodsQuery, usePaymentMutations, useRefreshPaymentMethods, useSetupIntentMutation, useWalletSettingsQuery } from "@src/queries";
+import type { usePaymentMethodsQuery, usePaymentMutations, useWalletSettingsQuery } from "@src/queries";
 import type { PaymentMethodsViewProps } from "../PaymentMethodsView/PaymentMethodsView";
 import { PaymentMethodsContainer } from "./PaymentMethodsContainer";
 
-import { act, render } from "@testing-library/react";
-import { createMockPaymentMethod, createMockSetupIntentResponse } from "@tests/seeders/payment";
+import { render } from "@testing-library/react";
+import { createMockPaymentMethod } from "@tests/seeders/payment";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
 
 describe(PaymentMethodsContainer.name, () => {
@@ -54,76 +54,6 @@ describe(PaymentMethodsContainer.name, () => {
 
     expect(mockConfirm).toHaveBeenCalled();
     expect(mockRemovePaymentMethod.mutate).not.toHaveBeenCalled();
-  });
-
-  it("initializes showAddPaymentMethod as false", async () => {
-    const { child } = await setup();
-    expect(child.showAddPaymentMethod).toBe(false);
-  });
-
-  it("calls createSetupIntent and sets showAddPaymentMethod to true when onAddPaymentMethod is invoked", async () => {
-    const { childCapturer, mockCreateSetupIntent, mockResetSetupIntent } = await setup();
-
-    let child = await childCapturer.awaitChild(() => true);
-
-    await act(async () => {
-      child.onAddPaymentMethod();
-    });
-
-    child = await childCapturer.awaitChild(c => c.showAddPaymentMethod === true);
-
-    expect(mockResetSetupIntent).toHaveBeenCalled();
-    expect(mockCreateSetupIntent).toHaveBeenCalled();
-    expect(child.showAddPaymentMethod).toBe(true);
-  });
-
-  it("passes setupIntent data to children", async () => {
-    const setupIntent = createMockSetupIntentResponse();
-    const { child } = await setup({ setupIntent });
-    expect(child.setupIntent).toEqual(setupIntent);
-  });
-
-  it("sets showAddPaymentMethod to false and refreshes payment methods when onAddCardSuccess is called", async () => {
-    const { childCapturer, mockRefreshPaymentMethods } = await setup();
-
-    let child = await childCapturer.awaitChild(() => true);
-
-    await act(async () => {
-      child.onAddPaymentMethod();
-    });
-
-    child = await childCapturer.awaitChild(c => c.showAddPaymentMethod === true);
-    expect(child.showAddPaymentMethod).toBe(true);
-
-    await act(async () => {
-      await child.onAddCardSuccess();
-    });
-
-    child = await childCapturer.awaitChild(c => c.showAddPaymentMethod === false);
-
-    expect(child.showAddPaymentMethod).toBe(false);
-    expect(mockRefreshPaymentMethods).toHaveBeenCalled();
-  });
-
-  it("allows setShowAddPaymentMethod to update state", async () => {
-    const { childCapturer } = await setup();
-
-    let child = await childCapturer.awaitChild(() => true);
-    expect(child.showAddPaymentMethod).toBe(false);
-
-    await act(async () => {
-      child.setShowAddPaymentMethod(true);
-    });
-
-    child = await childCapturer.awaitChild(c => c.showAddPaymentMethod === true);
-    expect(child.showAddPaymentMethod).toBe(true);
-
-    await act(async () => {
-      child.setShowAddPaymentMethod(false);
-    });
-
-    child = await childCapturer.awaitChild(c => c.showAddPaymentMethod === false);
-    expect(child.showAddPaymentMethod).toBe(false);
   });
 
   it("sets isInProgress to false when no operations are in progress", async () => {
@@ -212,7 +142,6 @@ describe(PaymentMethodsContainer.name, () => {
       isRefetchingPaymentMethods: boolean;
       isSetPaymentMethodAsDefaultPending: boolean;
       isRemovePaymentMethodPending: boolean;
-      setupIntent: SetupIntentResponse;
       autoReloadEnabled: boolean;
       isWalletSettingsLoading: boolean;
       confirmResult: boolean;
@@ -224,9 +153,7 @@ describe(PaymentMethodsContainer.name, () => {
     const isRefetchingPaymentMethods = overrides.isRefetchingPaymentMethods ?? false;
     const isSetPaymentMethodAsDefaultPending = overrides.isSetPaymentMethodAsDefaultPending ?? false;
     const isRemovePaymentMethodPending = overrides.isRemovePaymentMethodPending ?? false;
-    const setupIntent = overrides.setupIntent;
 
-    const mockRefreshPaymentMethods = vi.fn().mockResolvedValue(undefined);
     const mockSetPaymentMethodAsDefault = {
       mutate: vi.fn(),
       isPending: isSetPaymentMethodAsDefaultPending
@@ -235,8 +162,6 @@ describe(PaymentMethodsContainer.name, () => {
       mutate: vi.fn(),
       isPending: isRemovePaymentMethodPending
     };
-    const mockCreateSetupIntent = vi.fn();
-    const mockResetSetupIntent = vi.fn();
 
     const mockedUsePaymentMethodsQuery = vi.fn(() => ({
       data: paymentMethods,
@@ -248,14 +173,6 @@ describe(PaymentMethodsContainer.name, () => {
       setPaymentMethodAsDefault: mockSetPaymentMethodAsDefault,
       removePaymentMethod: mockRemovePaymentMethod
     })) as unknown as MockedFunction<typeof usePaymentMutations>;
-
-    const mockedUseRefreshPaymentMethods = vi.fn(() => mockRefreshPaymentMethods) as unknown as MockedFunction<typeof useRefreshPaymentMethods>;
-
-    const mockedUseSetupIntentMutation = vi.fn(() => ({
-      data: setupIntent,
-      mutate: mockCreateSetupIntent,
-      reset: mockResetSetupIntent
-    })) as unknown as MockedFunction<typeof useSetupIntentMutation>;
 
     const walletSettingsData = Object.prototype.hasOwnProperty.call(overrides, "autoReloadEnabled")
       ? { autoReloadEnabled: overrides.autoReloadEnabled! }
@@ -272,8 +189,6 @@ describe(PaymentMethodsContainer.name, () => {
     const dependencies = {
       usePaymentMethodsQuery: mockedUsePaymentMethodsQuery,
       usePaymentMutations: mockedUsePaymentMutations,
-      useRefreshPaymentMethods: mockedUseRefreshPaymentMethods,
-      useSetupIntentMutation: mockedUseSetupIntentMutation,
       useWalletSettingsQuery: mockedUseWalletSettingsQuery,
       usePopup: mockedUsePopup
     };
@@ -288,11 +203,8 @@ describe(PaymentMethodsContainer.name, () => {
       paymentMethods,
       child,
       childCapturer,
-      mockRefreshPaymentMethods,
       mockSetPaymentMethodAsDefault,
       mockRemovePaymentMethod,
-      mockCreateSetupIntent,
-      mockResetSetupIntent,
       mockConfirm
     };
   }

@@ -10,9 +10,9 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { createMockItems, createMockTransaction } from "@tests/seeders/payment";
 
 describe(BillingView.name, () => {
-  it("shows spinner when fetching", () => {
-    setup({ isFetching: true });
-    expect(screen.getByRole("status")).toBeInTheDocument();
+  it("shows a skeleton on first load", () => {
+    setup({ isLoading: true, data: [] });
+    expect(screen.getByTestId("billing-history-skeleton")).toBeInTheDocument();
   });
 
   it("shows error alert when error", () => {
@@ -31,8 +31,8 @@ describe(BillingView.name, () => {
     expect(screen.getByText("History")).toBeInTheDocument();
     expect(screen.getByText("Date")).toBeInTheDocument();
     expect(screen.getByText("Type")).toBeInTheDocument();
-    expect(screen.getByText("Description")).toBeInTheDocument();
     expect(screen.getByText("Amount")).toBeInTheDocument();
+    expect(screen.getByText("Description")).toBeInTheDocument();
     expect(screen.getByText("Status")).toBeInTheDocument();
     expect(screen.getByText("Receipt")).toBeInTheDocument();
   });
@@ -138,6 +138,11 @@ describe(BillingView.name, () => {
     expect(screen.getByText(/Export as CSV/i)).not.toBeDisabled();
   });
 
+  it("disables export button when no date range is selected", () => {
+    setup({ dateRange: null });
+    expect(screen.getByText(/Export as CSV/i)).toBeDisabled();
+  });
+
   it("calls onDateRangeChange when date range start changes", () => {
     const onDateRangeChange = vi.fn();
     setup({
@@ -221,6 +226,7 @@ describe(BillingView.name, () => {
       data: props.data ?? defaultData,
       hasMore: false,
       hasPrevious: false,
+      isLoading: false,
       isFetching: false,
       isError: false,
       errorMessage: "",

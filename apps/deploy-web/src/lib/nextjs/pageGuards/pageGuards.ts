@@ -3,6 +3,7 @@ import type { Redirect } from "next";
 import { isAccessTokenExpired } from "@src/lib/auth0/isAccessTokenExpired/isAccessTokenExpired";
 import type { AppTypedContext } from "../defineServerSideProps/defineServerSideProps";
 
+/** Currently unused page guard, kept for gating future flag-protected pages. @public */
 export async function isFeatureEnabled(featureName: string, context: AppTypedContext): Promise<boolean> {
   const session = await context.getCurrentSession();
   return await context.services.featureFlagService.isEnabledForCtx(featureName, context, { userId: session?.user?.id });

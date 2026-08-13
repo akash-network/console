@@ -10,7 +10,7 @@ import type {
 } from "@akashnetwork/http-sdk";
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import type { UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { walletProvisioningRetry } from "@src/utils/walletProvisioning";
@@ -64,7 +64,7 @@ export const usePaymentTransactionsQuery = ({ limit, offset, startDate, endDate 
       startDate: startDate?.toISOString(),
       endDate: endDate?.toISOString()
     },
-    { select: response => response.data }
+    { select: response => response.data, placeholderData: keepPreviousData }
   );
 };
 

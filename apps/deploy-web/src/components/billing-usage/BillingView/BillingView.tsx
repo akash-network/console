@@ -5,6 +5,9 @@ import {
   AlertDescription,
   AlertTitle,
   Button,
+  Card,
+  CardContent,
+  CardHeader,
   DateRangePicker,
   Label,
   Pagination,
@@ -15,7 +18,7 @@ import {
   PaginationNext,
   PaginationPrevious,
   PaginationSizeSelector,
-  Spinner,
+  Skeleton,
   Table,
   TableBody,
   TableCell,
@@ -30,7 +33,6 @@ import { endOfToday, startOfDay, subYears } from "date-fns";
 import { Download, Page } from "iconoir-react";
 import Link from "next/link";
 
-import { Title } from "@src/components/shared/Title";
 import type { BillingTransaction } from "@src/queries";
 import { capitalizeFirstLetter } from "@src/utils/stringUtils";
 
@@ -66,10 +68,13 @@ const DEFAULT_STATUS_BADGE_CLASS = "bg-gray-100 text-gray-800";
 /** Coupon claims and manual credits top up the wallet, so their amount reads as money in (green +). */
 const isCreditTransaction = (type: BillingTransaction["type"]) => type === "coupon_claim" || type === "manual_credit";
 
+const COLUMN_CLASSES = ["w-28 px-4 py-2", "w-36 px-4 py-2", "w-32 px-4 py-2", "w-48 px-4 py-2", "w-28 px-4 py-2", "w-16 px-4 py-2"];
+
 export type BillingViewProps = {
   data: BillingTransaction[];
   hasMore: boolean;
   hasPrevious: boolean;
+  isLoading: boolean;
   isFetching: boolean;
   isError: boolean;
   errorMessage: string | null;
@@ -77,7 +82,7 @@ export type BillingViewProps = {
   onPaginationChange: (state: PaginationState) => void;
   pagination: PaginationState;
   totalCount: number;
-  dateRange: { from: Date; to: Date };
+  dateRange: { from: Date; to: Date } | null;
   onDateRangeChange: (range: { from: Date; to: Date }) => void;
   components?: typeof COMPONENTS;
 };
@@ -86,6 +91,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
   data,
   hasMore,
   hasPrevious,
+  isLoading,
   isFetching,
   errorMessage,
   isError,
@@ -204,14 +210,6 @@ export const BillingView: React.FC<BillingViewProps> = ({
     }
   });
 
-  if (isFetching) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Spinner size="large" />
-      </div>
-    );
-  }
-
   if (isError) {
     return (
       <Alert variant="destructive">
@@ -221,158 +219,181 @@ export const BillingView: React.FC<BillingViewProps> = ({
     );
   }
 
-  const columnClasses = ["w-28 px-4 py-2", "w-40 px-4 py-2", "w-32 px-4 py-2", "w-48 px-4 py-2", "w-28 px-4 py-2", "w-16 px-4 py-2"];
-
   return (
-    <div className="space-y-2">
-      <Title subTitle>History</Title>
+    <Card className="overflow-hidden">
+      <CardHeader className="space-y-1">
+        <h3 className="text-lg font-bold leading-none">History</h3>
+        <p className="text-sm text-muted-foreground">All payments to add credits will be made using your default card.</p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div>
+            <Label>Filter by Date:</Label>
+            <DateRangePicker
+              date={dateRange ?? undefined}
+              onChange={onDateRangeChange}
+              className="w-full"
+              minDate={oneYearAgo}
+              maxDate={endOfToday()}
+              maxRangeInDays={366}
+            />
+          </div>
 
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-          <Label>Filter by Date:</Label>
-          <DateRangePicker date={dateRange} onChange={onDateRangeChange} className="w-full" minDate={oneYearAgo} maxDate={endOfToday()} maxRangeInDays={366} />
+          <Button variant="outline" onClick={onExport} size="sm" className="gap-2" disabled={!data.length || !dateRange}>
+            <Download width={16} />
+            Export as CSV
+          </Button>
         </div>
 
-        <Button variant="outline" onClick={onExport} size="sm" className="gap-2" disabled={!data.length || !dateRange.from || !dateRange.to}>
-          <Download width={16} />
-          Export as CSV
-        </Button>
-      </div>
-
-      {!data.length && (
-        <div className="py-8 text-center text-muted-foreground">
-          <p>No billing history found for the selected date range.</p>
-        </div>
-      )}
-
-      {!!data.length && (
-        <div>
-          <Table className="table-fixed">
-            <TableHeader className="[&_tr]:border-b-0">
-              {table.getHeaderGroups().map(headerGroup => (
-                <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                  {headerGroup.headers.map((header, index) => (
-                    <TableHead key={header.id} className={columnClasses[index]}>
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-          </Table>
-
-          <div className="rounded border border-muted-foreground/20">
+        {isLoading ? (
+          <BillingTableSkeleton />
+        ) : !data.length ? (
+          <div className="py-8 text-center text-muted-foreground">
+            <p>{dateRange ? "No billing history found for the selected date range." : "No billing history found."}</p>
+          </div>
+        ) : (
+          <div className={cn("transition-opacity duration-150", isFetching && "opacity-60")}>
             <Table className="table-fixed">
-              <TableBody>
-                {table.getRowModel().rows.map(row => (
-                  <TableRow key={row.id}>
-                    {row.getVisibleCells().map((cell, index) => (
-                      <TableCell key={cell.id} className={columnClasses[index]}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
+              <TableHeader className="[&_tr]:border-b-0">
+                {table.getHeaderGroups().map(headerGroup => (
+                  <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                    {headerGroup.headers.map((header, index) => (
+                      <TableHead key={header.id} className={COLUMN_CLASSES[index]}>
+                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableHead>
                     ))}
                   </TableRow>
                 ))}
-              </TableBody>
+              </TableHeader>
             </Table>
-          </div>
 
-          <Pagination className="flex flex-col justify-start gap-2 pt-2 sm:flex-row sm:items-center sm:gap-0 sm:pt-6">
-            <PaginationSizeSelector
-              pageSize={pagination.pageSize}
-              setPageSize={pageSize => {
-                onPaginationChange({
-                  pageIndex: 0,
-                  pageSize
-                });
-              }}
-            />
+            <div className="rounded border border-muted-foreground/20">
+              <Table className="table-fixed">
+                <TableBody>
+                  {table.getRowModel().rows.map(row => (
+                    <TableRow key={row.id}>
+                      {row.getVisibleCells().map((cell, index) => (
+                        <TableCell key={cell.id} className={COLUMN_CLASSES[index]}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
 
-            <PaginationContent className="flex items-center space-x-1">
-              <PaginationItem className="hidden sm:list-item">
-                <PaginationPrevious
-                  onClick={() =>
-                    onPaginationChange({
-                      pageIndex: Math.max(0, pagination.pageIndex - 1),
-                      pageSize: pagination.pageSize
-                    })
-                  }
-                  disabled={!hasPrevious || isFetching}
-                  className="h-8 px-2 text-sm text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300 [&_span]:hidden sm:[&_span]:inline-block"
-                />
-              </PaginationItem>
+            <Pagination className="flex flex-col justify-start gap-2 pt-2 sm:flex-row sm:items-center sm:gap-0 sm:pt-6">
+              <PaginationSizeSelector
+                pageSize={pagination.pageSize}
+                setPageSize={pageSize => {
+                  onPaginationChange({
+                    pageIndex: 0,
+                    pageSize
+                  });
+                }}
+              />
 
-              {hasPrevious && (
-                <PaginationItem>
-                  <PaginationLink
-                    className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"
-                    disabled={isFetching}
+              <PaginationContent className="flex items-center space-x-1">
+                <PaginationItem className="hidden sm:list-item">
+                  <PaginationPrevious
                     onClick={() =>
                       onPaginationChange({
-                        pageIndex: pagination.pageIndex - 1,
+                        pageIndex: Math.max(0, pagination.pageIndex - 1),
                         pageSize: pagination.pageSize
                       })
                     }
-                  >
-                    {pagination.pageIndex}
-                  </PaginationLink>
+                    disabled={!hasPrevious || isFetching}
+                    className="h-8 px-2 text-sm text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300 [&_span]:hidden sm:[&_span]:inline-block"
+                  />
                 </PaginationItem>
-              )}
 
-              <PaginationItem>
-                <PaginationLink disabled className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300">
-                  {pagination.pageIndex + 1}
-                </PaginationLink>
-              </PaginationItem>
-
-              {hasMore && (
-                <PaginationItem>
-                  <PaginationLink
-                    className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"
-                    disabled={isFetching}
-                    onClick={() =>
-                      onPaginationChange({
-                        pageIndex: pagination.pageIndex + 1,
-                        pageSize: pagination.pageSize
-                      })
-                    }
-                  >
-                    {pagination.pageIndex + 2}
-                  </PaginationLink>
-                </PaginationItem>
-              )}
-
-              {pagination.pageIndex === 0 && hasMore && (
-                <>
+                {hasPrevious && (
                   <PaginationItem>
                     <PaginationLink
                       className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"
                       disabled={isFetching}
                       onClick={() =>
                         onPaginationChange({
-                          pageIndex: 2,
+                          pageIndex: pagination.pageIndex - 1,
                           pageSize: pagination.pageSize
                         })
                       }
                     >
-                      3
+                      {pagination.pageIndex}
                     </PaginationLink>
                   </PaginationItem>
-                  <PaginationEllipsis className="text-neutral-500 dark:text-neutral-400" />
-                </>
-              )}
+                )}
 
-              <PaginationItem className="hidden sm:list-item">
-                <PaginationNext
-                  onClick={() => onPaginationChange({ pageIndex: pagination.pageIndex + 1, pageSize: pagination.pageSize })}
-                  disabled={!hasMore || isFetching}
-                  className="h-8 px-2 text-sm text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300 [&_span]:hidden sm:[&_span]:inline-block"
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
-      )}
-    </div>
+                <PaginationItem>
+                  <PaginationLink disabled className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300">
+                    {pagination.pageIndex + 1}
+                  </PaginationLink>
+                </PaginationItem>
+
+                {hasMore && (
+                  <PaginationItem>
+                    <PaginationLink
+                      className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"
+                      disabled={isFetching}
+                      onClick={() =>
+                        onPaginationChange({
+                          pageIndex: pagination.pageIndex + 1,
+                          pageSize: pagination.pageSize
+                        })
+                      }
+                    >
+                      {pagination.pageIndex + 2}
+                    </PaginationLink>
+                  </PaginationItem>
+                )}
+
+                {pagination.pageIndex === 0 && hasMore && (
+                  <>
+                    <PaginationItem>
+                      <PaginationLink
+                        className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"
+                        disabled={isFetching}
+                        onClick={() =>
+                          onPaginationChange({
+                            pageIndex: 2,
+                            pageSize: pagination.pageSize
+                          })
+                        }
+                      >
+                        3
+                      </PaginationLink>
+                    </PaginationItem>
+                    <PaginationEllipsis className="text-neutral-500 dark:text-neutral-400" />
+                  </>
+                )}
+
+                <PaginationItem className="hidden sm:list-item">
+                  <PaginationNext
+                    onClick={() => onPaginationChange({ pageIndex: pagination.pageIndex + 1, pageSize: pagination.pageSize })}
+                    disabled={!hasMore || isFetching}
+                    className="h-8 px-2 text-sm text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300 [&_span]:hidden sm:[&_span]:inline-block"
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
+
+const BillingTableSkeleton: React.FC = () => (
+  <div className="space-y-3 pt-2" data-testid="billing-history-skeleton">
+    {Array.from({ length: 5 }).map((_, index) => (
+      <div key={index} className="flex items-center gap-4">
+        {COLUMN_CLASSES.map((columnClass, columnIndex) => (
+          <div key={columnIndex} className={columnClass}>
+            <Skeleton className="h-4 w-full" />
+          </div>
+        ))}
+      </div>
+    ))}
+  </div>
+);

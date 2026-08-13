@@ -10,7 +10,7 @@ export class BillingPage {
   }
 
   getAvailableBalance() {
-    return this.page.locator('[aria-label="Available balance amount"]');
+    return this.page.locator('[aria-label="Available balance"]');
   }
 
   /**

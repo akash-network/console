@@ -62,6 +62,7 @@ describe(BillingContainer.name, () => {
   async function setup(
     overrides: Partial<{
       data: { transactions: BillingTransaction[]; hasMore: boolean; totalCount: number };
+      isLoading: boolean;
       isFetching: boolean;
       isError: boolean;
       queryError: Error;
@@ -76,6 +77,7 @@ describe(BillingContainer.name, () => {
         }
       : overrides.data;
 
+    const isLoading = overrides.isLoading ?? false;
     const isFetching = overrides.isFetching ?? false;
     const isError = overrides.isError ?? false;
     const queryError = overrides.queryError ?? null;
@@ -86,6 +88,7 @@ describe(BillingContainer.name, () => {
 
     const mockedUsePaymentTransactionsQuery = vi.fn(() => ({
       data,
+      isLoading,
       isFetching,
       isError,
       error: queryError

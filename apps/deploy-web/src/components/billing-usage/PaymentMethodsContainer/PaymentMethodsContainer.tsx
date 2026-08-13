@@ -1,14 +1,12 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback } from "react";
 import { usePopup } from "@akashnetwork/ui/context";
 
-import { usePaymentMethodsQuery, usePaymentMutations, useRefreshPaymentMethods, useSetupIntentMutation, useWalletSettingsQuery } from "@src/queries";
+import { usePaymentMethodsQuery, usePaymentMutations, useWalletSettingsQuery } from "@src/queries";
 import type { PaymentMethodsViewProps } from "../PaymentMethodsView/PaymentMethodsView";
 
 const DEPENDENCIES = {
   usePaymentMethodsQuery,
   usePaymentMutations,
-  useRefreshPaymentMethods,
-  useSetupIntentMutation,
   useWalletSettingsQuery,
   usePopup
 };
@@ -23,10 +21,7 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
   const { data: walletSettings, isLoading: isWalletSettingsLoading } = d.useWalletSettingsQuery();
   const isAutoReloadEnabled = walletSettings?.autoReloadEnabled ?? isWalletSettingsLoading;
   const paymentMutations = d.usePaymentMutations();
-  const refreshPaymentMethods = d.useRefreshPaymentMethods();
   const { confirm } = d.usePopup();
-  const { data: setupIntent, mutate: createSetupIntent, reset: resetSetupIntent } = d.useSetupIntentMutation();
-  const [showAddPaymentMethod, setShowAddPaymentMethod] = useState(false);
 
   const onSetPaymentMethodAsDefault = useCallback(
     (id: string) => {
@@ -62,17 +57,6 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
     [confirm, paymentMethods, isAutoReloadEnabled, paymentMutations.removePaymentMethod]
   );
 
-  const onAddCardSuccess = async () => {
-    setShowAddPaymentMethod(false);
-    await refreshPaymentMethods();
-  };
-
-  const onAddPaymentMethod = useCallback(() => {
-    resetSetupIntent();
-    createSetupIntent();
-    setShowAddPaymentMethod(true);
-  }, [createSetupIntent, resetSetupIntent]);
-
   const isInProgress =
     isLoadingPaymentMethods ||
     isRefetchingPaymentMethods ||
@@ -85,12 +69,7 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
         data: paymentMethods || [],
         onSetPaymentMethodAsDefault,
         onRemovePaymentMethod,
-        onAddPaymentMethod,
         isLoadingPaymentMethods,
-        showAddPaymentMethod,
-        setShowAddPaymentMethod,
-        setupIntent,
-        onAddCardSuccess,
         isInProgress
       })}
     </>

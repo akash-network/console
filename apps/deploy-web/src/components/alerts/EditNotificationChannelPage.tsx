@@ -17,7 +17,7 @@ type Props = {
 };
 
 export const EditNotificationChannelPage: React.FunctionComponent<Props> = ({ notificationChannel }: Props) => {
-  const goBack = useBackNav(UrlService.notificationChannels());
+  const goBack = useBackNav(UrlService.alerts());
   const navGuard = useNavigationGuard();
   const saveNavStateAndGoBack = useCallback(() => {
     navGuard.toggle({ hasChanges: false });

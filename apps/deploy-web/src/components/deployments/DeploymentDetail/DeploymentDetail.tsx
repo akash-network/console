@@ -13,7 +13,6 @@ import { DeploymentAlerts } from "@src/components/deployments/DeploymentAlerts/D
 import { useServices } from "@src/context/ServicesProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
@@ -35,7 +34,6 @@ export const DEPENDENCIES = {
   useWallet,
   useSettings,
   useUser,
-  useFlag,
   useRouter,
   useSearchParams,
   useDeploymentDetail,
@@ -76,7 +74,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const { address } = d.useWallet();
   const { isSettingsInit } = d.useSettings();
   const { user } = d.useUser();
-  const isAlertsEnabled = d.useFlag("alerts") && !!user?.userId;
+  const isAlertsEnabled = !!user?.userId;
 
   const [activeTab, setActiveTab] = useState<Tab>("DETAILS");
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
