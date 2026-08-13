@@ -2,6 +2,7 @@ import { MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akas
 import {
   BaseAccount,
   BasicAllowance,
+  type Coin,
   MsgGrantAllowance,
   QueryAccountResponse,
   SimulateResponse,
@@ -17,8 +18,12 @@ import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { TxController } from "@src/controllers/tx/tx.controller";
 import { app } from "@src/index";
 import { TYPE_REGISTRY } from "@src/providers/type-registry.provider";
+import { AppConfigService } from "@src/services/app-config/app-config.service";
+import { TxManagerService } from "@src/services/tx-manager/tx-manager.service";
 
 import { createAkashAddress } from "@test/seeders";
+
+const DERIVATION_INDEX = 1;
 
 interface JsonRpcRequest {
   id: number | string;
@@ -40,8 +45,8 @@ describe(TxController.name, () => {
 
     const res = await app.request("/v1/tx/derived", {
       method: "POST",
-      body: JSON.stringify({ data: { derivationIndex: 1, messages: buildDerivedMessages() } }),
-      headers: new Headers({ "Content-Type": "application/json" })
+      body: JSON.stringify({ data: { derivationIndex: DERIVATION_INDEX, messages: await buildDerivedMessages() } }),
+      headers: authorizedHeaders()
     });
 
     expect(res.status).toBe(200);
@@ -57,19 +62,91 @@ describe(TxController.name, () => {
 
     const res = await app.request("/v1/tx/funding", {
       method: "POST",
-      body: JSON.stringify({ data: { messages: buildFundingMessages() } }),
-      headers: new Headers({ "Content-Type": "application/json" })
+      body: JSON.stringify({ data: { messages: await buildFundingMessages() } }),
+      headers: authorizedHeaders()
     });
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ data: { code: 0, hash: txHash, rawLog: "" } });
   });
 
+  it("rejects a tx request that carries no API key", async () => {
+    const res = await app.request("/v1/tx/derived", {
+      method: "POST",
+      body: JSON.stringify({ data: { derivationIndex: DERIVATION_INDEX, messages: await buildDerivedMessages() } }),
+      headers: new Headers({ "Content-Type": "application/json" })
+    });
+
+    expect(res.status).toBe(401);
+  });
+
+  it("rejects a tx request that carries the wrong API key", async () => {
+    const res = await app.request("/v1/tx/funding", {
+      method: "POST",
+      body: JSON.stringify({ data: { messages: await buildFundingMessages() } }),
+      headers: new Headers({ "Content-Type": "application/json", "x-api-key": "not-the-configured-api-key-0000000000000" })
+    });
+
+    expect(res.status).toBe(401);
+  });
+
+  it("serves healthz without an API key", async () => {
+    const res = await app.request("/v1/healthz/readiness");
+
+    expect(res.status).toBe(200);
+  });
+
+  it("rejects a derived tx acting on behalf of an account other than the requested wallet", async () => {
+    const res = await app.request("/v1/tx/derived", {
+      method: "POST",
+      body: JSON.stringify({ data: { derivationIndex: DERIVATION_INDEX, messages: await buildDerivedMessages(createAkashAddress()) } }),
+      headers: authorizedHeaders()
+    });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("rejects a derived tx that names a fee granter other than the funding wallet", async () => {
+    const res = await app.request("/v1/tx/derived", {
+      method: "POST",
+      body: JSON.stringify({
+        data: {
+          derivationIndex: DERIVATION_INDEX,
+          messages: await buildDerivedMessages(),
+          options: { fee: { granter: createAkashAddress() } }
+        }
+      }),
+      headers: authorizedHeaders()
+    });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("rejects a funding tx whose grant declares no spend limit", async () => {
+    const res = await app.request("/v1/tx/funding", {
+      method: "POST",
+      body: JSON.stringify({ data: { messages: await buildFundingMessages({ spendLimit: [] }) } }),
+      headers: authorizedHeaders()
+    });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("rejects a funding tx granting a denom that is not grantable", async () => {
+    const res = await app.request("/v1/tx/funding", {
+      method: "POST",
+      body: JSON.stringify({ data: { messages: await buildFundingMessages({ spendLimit: [{ denom: "ibc/SOMETHING", amount: "1" }] }) } }),
+      headers: authorizedHeaders()
+    });
+
+    expect(res.status).toBe(403);
+  });
+
   it("rejects a derived tx carrying a message type the derived wallet is not allowed to sign", async () => {
     const res = await app.request("/v1/tx/derived", {
       method: "POST",
-      body: JSON.stringify({ data: { derivationIndex: 1, messages: buildFundingMessages() } }),
-      headers: new Headers({ "Content-Type": "application/json" })
+      body: JSON.stringify({ data: { derivationIndex: DERIVATION_INDEX, messages: await buildFundingMessages() } }),
+      headers: authorizedHeaders()
     });
 
     expect(res.status).toBe(400);
@@ -79,34 +156,41 @@ describe(TxController.name, () => {
   it("rejects a funding tx carrying a message type the funding wallet is not allowed to sign", async () => {
     const res = await app.request("/v1/tx/funding", {
       method: "POST",
-      body: JSON.stringify({ data: { messages: buildDerivedMessages() } }),
-      headers: new Headers({ "Content-Type": "application/json" })
+      body: JSON.stringify({ data: { messages: await buildDerivedMessages() } }),
+      headers: authorizedHeaders()
     });
 
     expect(res.status).toBe(400);
     expect(await res.json()).toMatchObject({ code: "validation_error" });
   });
 
-  function buildDerivedMessages() {
+  function authorizedHeaders() {
+    return new Headers({ "Content-Type": "application/json", "x-api-key": container.resolve(AppConfigService).get("ACCESS_API_KEY") });
+  }
+
+  async function buildDerivedMessages(owner?: string) {
     return encodeMessages({
       typeUrl: `/${MsgCreateCertificate.$type}`,
       value: MsgCreateCertificate.fromPartial({
-        owner: createAkashAddress(),
+        owner: owner ?? (await container.resolve(TxManagerService).getDerivedWalletAddress(DERIVATION_INDEX)),
         cert: Uint8Array.from([1, 2, 3]),
         pubkey: Uint8Array.from([4, 5, 6])
       })
     });
   }
 
-  function buildFundingMessages() {
+  async function buildFundingMessages(input: { granter?: string; spendLimit?: Coin[] } = {}) {
+    const txManagerService = container.resolve(TxManagerService);
+    const spendLimit = input.spendLimit ?? [{ denom: "uakt", amount: "1000" }];
+
     return encodeMessages({
       typeUrl: `/${MsgGrantAllowance.$type}`,
       value: MsgGrantAllowance.fromPartial({
-        granter: createAkashAddress(),
-        grantee: createAkashAddress(),
+        granter: input.granter ?? (await txManagerService.getFundingWalletAddress()),
+        grantee: await txManagerService.getDerivedWalletAddress(DERIVATION_INDEX),
         allowance: {
           typeUrl: `/${BasicAllowance.$type}`,
-          value: Uint8Array.from(BasicAllowance.encode(BasicAllowance.fromPartial({ spendLimit: [{ denom: "uakt", amount: "1000" }] })).finish())
+          value: Uint8Array.from(BasicAllowance.encode(BasicAllowance.fromPartial({ spendLimit })).finish())
         }
       })
     });

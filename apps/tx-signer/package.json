@@ -50,6 +50,7 @@
     "@akashnetwork/docker": "*",
     "@akashnetwork/releaser": "*",
     "@faker-js/faker": "^8.4.1",
+    "@swc/core": "^1.15.10",
     "@types/lodash": "^4.17.0",
     "@types/node": "^22.13.11",
     "@typescript-eslint/eslint-plugin": "^8.64.0",

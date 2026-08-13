@@ -53,7 +53,8 @@ export const envSchema = z.object({
     }),
   MASTER_WALLET_AKT_RESERVE: z.number({ coerce: true }).int().nonnegative().default(2_000_000_000),
   MASTER_WALLET_MAX_MINT_UAKT: z.number({ coerce: true }).int().nonnegative().default(5_000_000_000),
-  TX_SIGNER_BASE_URL: z.string()
+  TX_SIGNER_BASE_URL: z.string(),
+  TX_SIGNER_API_KEY: z.string().min(32)
 });
 
 export type BillingConfig = z.infer<typeof envSchema>;
