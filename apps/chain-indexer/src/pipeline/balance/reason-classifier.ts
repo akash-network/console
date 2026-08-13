@@ -19,7 +19,8 @@ const WITHDRAW_VALIDATOR_COMMISSION = "/cosmos.distribution.v1beta1.MsgWithdrawV
 /**
  * MVP reason heuristic. Coincident mint/burn/slash win first (they are unambiguous), then the identity of
  * the system account on either side of the movement, then the denom. Anything unrecognized is a plain
- * `transfer`. `reward`/`commission` and per-deployment `escrow` precision are deliberately left for later.
+ * `transfer`. Escrow-module movements classify as `escrow`; per-deployment/lease attribution of that
+ * escrow is deliberately left for later.
  */
 export function classifyReason(ctx: ReasonContext, registry: ModuleAddressRegistry): BalanceReason {
   if (ctx.isSlash) {
@@ -47,6 +48,8 @@ export function classifyReason(ctx: ReasonContext, registry: ModuleAddressRegist
       return "gov";
     case "ibc_transfer":
       return "ibc";
+    case "escrow":
+      return "escrow";
     case "bme_vault":
       return "bme";
   }

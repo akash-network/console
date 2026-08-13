@@ -42,6 +42,14 @@ describe("classifyReason", () => {
     expect(classifyReason(context({ denom: "ibc/ABCDEF", counterpartyAddress: "akash1peer" }), registry)).toBe("ibc");
   });
 
+  it("classifies a deposit whose counterparty is the escrow module as escrow", () => {
+    expect(classifyReason(context({ counterpartyAddress: moduleAddress("escrow") }), registry)).toBe("escrow");
+  });
+
+  it("classifies a settlement paid out by the escrow module as escrow", () => {
+    expect(classifyReason(context({ address: moduleAddress("escrow"), counterpartyAddress: "akash1provider" }), registry)).toBe("escrow");
+  });
+
   it("classifies a flow with the BME vault as bme", () => {
     expect(classifyReason(context({ counterpartyAddress: BME_VAULT_ADDRESS }), registry)).toBe("bme");
   });

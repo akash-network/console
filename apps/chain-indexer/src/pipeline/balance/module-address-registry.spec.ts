@@ -21,6 +21,7 @@ describe("buildModuleAddressRegistry", () => {
     expect(registry.roleOf(deriveModuleAddress("bonded_tokens_pool", AKASH_ADDRESS_PREFIX))).toBe("bonded_tokens_pool");
     expect(registry.roleOf(deriveModuleAddress("not_bonded_tokens_pool", AKASH_ADDRESS_PREFIX))).toBe("not_bonded_tokens_pool");
     expect(registry.roleOf(deriveModuleAddress("transfer", AKASH_ADDRESS_PREFIX))).toBe("ibc_transfer");
+    expect(registry.roleOf(deriveModuleAddress("escrow", AKASH_ADDRESS_PREFIX))).toBe("escrow");
   });
 
   it("maps the BME vault address to the bme role", () => {

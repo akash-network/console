@@ -4,7 +4,16 @@ import { createHash } from "node:crypto";
 import { AKASH_ADDRESS_PREFIX } from "@src/genesis/genesis-address";
 
 /** A recognized system account whose involvement in a coin movement identifies the movement's reason. */
-export type ModuleRole = "fee_collector" | "distribution" | "mint" | "gov" | "bonded_tokens_pool" | "not_bonded_tokens_pool" | "ibc_transfer" | "bme_vault";
+export type ModuleRole =
+  | "fee_collector"
+  | "distribution"
+  | "mint"
+  | "gov"
+  | "bonded_tokens_pool"
+  | "not_bonded_tokens_pool"
+  | "ibc_transfer"
+  | "bme_vault"
+  | "escrow";
 
 /** The Akash BME vault, funded by escrow settlements and MsgMintACT and drained by burns; not a `x/auth` module account. */
 export const BME_VAULT_ADDRESS = "akash1klpwzlvfnw7j8gtdd0cuu9vaw9ermsmd37sg55";
@@ -16,7 +25,8 @@ const MODULE_NAME_ROLES: Record<string, ModuleRole> = {
   gov: "gov",
   bonded_tokens_pool: "bonded_tokens_pool",
   not_bonded_tokens_pool: "not_bonded_tokens_pool",
-  transfer: "ibc_transfer"
+  transfer: "ibc_transfer",
+  escrow: "escrow"
 };
 
 /**
