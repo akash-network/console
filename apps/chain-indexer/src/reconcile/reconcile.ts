@@ -21,7 +21,13 @@ async function main(): Promise<void> {
     return;
   }
 
-  const sampleSize = process.env.RECONCILE_SAMPLE_SIZE ? parseInt(process.env.RECONCILE_SAMPLE_SIZE) : undefined;
+  const rawSampleSize = process.env.RECONCILE_SAMPLE_SIZE;
+  const sampleSize = rawSampleSize ? Number(rawSampleSize) : undefined;
+  if (sampleSize !== undefined && (!Number.isInteger(sampleSize) || sampleSize <= 0)) {
+    logger.error({ event: "CONFIG_INVALID", issues: [{ path: "RECONCILE_SAMPLE_SIZE", message: `must be a positive integer, got "${rawSampleSize}"` }] });
+    process.exitCode = 1;
+    return;
+  }
 
   try {
     const ok = await container.resolve(ReconcileService).reconcile(sampleSize === undefined ? {} : { sampleSize });

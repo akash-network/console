@@ -34,6 +34,8 @@ export function classifyReason(ctx: ReasonContext, registry: ModuleAddressRegist
 
   const role = (ctx.counterpartyAddress ? registry.roleOf(ctx.counterpartyAddress) : undefined) ?? registry.roleOf(ctx.address);
   switch (role) {
+    case "mint":
+      return "mint";
     case "fee_collector":
       return "fee";
     case "distribution":

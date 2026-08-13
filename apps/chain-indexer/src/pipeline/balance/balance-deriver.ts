@@ -24,7 +24,12 @@ interface ParsedTransfer {
   denoms: Set<string>;
 }
 
-/** Per-scope classification context: the transfers to correlate a counterparty against, plus which addresses minted/burned and whether a slash occurred. */
+/**
+ * Per-scope classification context: the transfers to correlate a counterparty against, plus which addresses
+ * minted/burned and whether a slash occurred. `slashed` is scope-wide because a `slash` event names the
+ * validator, not the staking pool whose coins actually move, so it is only trusted to reclassify the
+ * coincident burn leg (see `deriveBalanceChanges`), never every movement sharing the scope.
+ */
 interface ScopeContext {
   transfers: ParsedTransfer[];
   minters: Set<string>;
@@ -114,21 +119,13 @@ export function deriveBalanceChanges(block: DecodedBlock, registry: ModuleAddres
       const holder = direction === "spent" ? event.attributes.spender : event.attributes.receiver;
       const scope = scopes.get(scopeKeyOf(event)) ?? { transfers: [], minters: new Set<string>(), burners: new Set<string>(), slashed: false };
       const msgTypeUrl = event.msgIndex === undefined ? null : source.msgTypeByIndex.get(event.msgIndex) ?? null;
+      const isMint = direction === "received" && scope.minters.has(holder);
+      const isBurn = direction === "spent" && scope.burners.has(holder);
+      const isSlash = scope.slashed && isBurn;
 
       for (const coin of parseCoins(event.attributes.amount ?? "")) {
         const counterpartyAddress = correlateCounterparty(scope, holder, coin.denom, direction);
-        const reason = classifyReason(
-          {
-            address: holder,
-            counterpartyAddress,
-            denom: coin.denom,
-            isMint: direction === "received" && scope.minters.has(holder),
-            isBurn: direction === "spent" && scope.burners.has(holder),
-            isSlash: scope.slashed,
-            msgTypeUrl
-          },
-          registry
-        );
+        const reason = classifyReason({ address: holder, counterpartyAddress, denom: coin.denom, isMint, isBurn, isSlash, msgTypeUrl }, registry);
 
         changes.push({
           address: holder,

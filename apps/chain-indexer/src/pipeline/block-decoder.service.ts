@@ -14,7 +14,7 @@ import { TYPE_REGISTRY } from "@src/providers/type-registry.provider";
 import type { RpcBlockResult, RpcBlockResultsResult, RpcEvent, RpcTxResult } from "@src/rpc/rpc-types";
 
 /** The ledger derives balances and reasons only from these event types; capturing the rest would waste memory across backfill batches. */
-const RELEVANT_EVENT_TYPES = new Set(["coin_spent", "coin_received", "transfer", "coinbase", "burn", "slash", "message"]);
+const RELEVANT_EVENT_TYPES = new Set(["coin_spent", "coin_received", "transfer", "coinbase", "burn", "slash"]);
 
 const MSG_INDEX_ATTRIBUTE = "msg_index";
 

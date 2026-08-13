@@ -54,6 +54,10 @@ describe("classifyReason", () => {
     expect(classifyReason(context({ isMint: true }), registry)).toBe("mint");
   });
 
+  it("classifies a flow whose counterparty is the mint module as mint", () => {
+    expect(classifyReason(context({ counterpartyAddress: moduleAddress("mint") }), registry)).toBe("mint");
+  });
+
   it("classifies a burn-coincident debit as burn", () => {
     expect(classifyReason(context({ isBurn: true }), registry)).toBe("burn");
   });

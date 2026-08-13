@@ -91,6 +91,7 @@ describe(BlockDecoderService.name, () => {
       events: [
         event("coin_spent", { spender: "akash1from", amount: "42uakt", msg_index: "0" }),
         event("tx", { fee: "5000uakt" }),
+        event("message", { action: "/cosmos.bank.v1beta1.MsgSend" }),
         event("coin_received", { receiver: "akash1to", amount: "42uakt", msg_index: "0" })
       ]
     };

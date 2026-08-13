@@ -45,6 +45,11 @@ export class ReconcileService {
   }
 
   async reconcile({ sampleSize = DEFAULT_SAMPLE_SIZE }: { sampleSize?: number } = {}): Promise<boolean> {
+    if (!Number.isInteger(sampleSize) || sampleSize <= 0) {
+      this.#logger.error({ event: "RECONCILE_INVALID_SAMPLE_SIZE", sampleSize });
+      return false;
+    }
+
     const height = await this.#readCheckpointHeight();
     if (height === undefined) {
       this.#logger.warn({ event: "RECONCILE_NO_CHECKPOINT" });

@@ -105,6 +105,25 @@ describe("deriveBalanceChanges", () => {
     expect(deriveBalanceChanges(block, registry)[0]).toMatchObject({ reason: "burn", delta: -42n });
   });
 
+  it("applies the slash reason only to the coincident burn leg, leaving the block's inflation mint a mint", () => {
+    const mintModule = deriveModuleAddress("mint", AKASH_ADDRESS_PREFIX);
+    const bondedPool = deriveModuleAddress("bonded_tokens_pool", AKASH_ADDRESS_PREFIX);
+    const block = buildBlock({
+      transactions: [],
+      blockEvents: [
+        event("coinbase", { minter: mintModule, amount: "1000uakt" }, undefined),
+        event("coin_received", { receiver: mintModule, amount: "1000uakt" }, undefined),
+        event("slash", { address: "akashvalcons1jailed", amount: "50uakt" }, undefined),
+        event("coin_spent", { spender: bondedPool, amount: "50uakt" }, undefined),
+        event("burn", { burner: bondedPool, amount: "50uakt" }, undefined)
+      ]
+    });
+
+    const byAddress = new Map(deriveBalanceChanges(block, registry).map(change => [change.address, change.reason]));
+    expect(byAddress.get(mintModule)).toBe("mint");
+    expect(byAddress.get(bondedPool)).toBe("slash");
+  });
+
   it("classifies a distribution reward withdrawal using the message type at the coin's msg index", () => {
     const distribution = deriveModuleAddress("distribution", AKASH_ADDRESS_PREFIX);
     const block = buildBlock({

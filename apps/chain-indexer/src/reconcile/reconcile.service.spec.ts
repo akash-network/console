@@ -53,6 +53,18 @@ describe(ReconcileService.name, () => {
     await expect(service.reconcile()).resolves.toBe(false);
   });
 
+  it("fails fast on a non-integer sample size instead of silently checking nothing", async () => {
+    const { service, abciQuery } = setup({
+      checkpoint: 100,
+      balanceRows: [{ address: "akash1a", denom: "uakt", amount: "100" }],
+      chainBalances: { akash1a: [coin("uakt", "100")] },
+      chainSupply: [coin("uakt", "100")]
+    });
+
+    await expect(service.reconcile({ sampleSize: NaN })).resolves.toBe(false);
+    expect(abciQuery).not.toHaveBeenCalled();
+  });
+
   function setup(input: {
     checkpoint: number | undefined;
     balanceRows: { address: string; denom: string; amount: string }[];

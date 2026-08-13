@@ -28,10 +28,6 @@ export function decodeIfBase64(value: string): string {
       return value;
     }
 
-    if (!isPrintableAscii(decoded) && isPrintableAscii(value)) {
-      return value;
-    }
-
     return isPrintableAscii(decoded) ? decoded : value;
   } catch {
     return value;
