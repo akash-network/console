@@ -121,11 +121,31 @@ describe(BillingView.name, () => {
 
   it("calls onPaginationChange when clicking next/prev", () => {
     const onPaginationChange = vi.fn();
-    setup({ onPaginationChange, hasMore: true, hasPrevious: true, pagination: { pageIndex: 1, pageSize: 10 } });
+    setup({ onPaginationChange, totalCount: 30, pagination: { pageIndex: 1, pageSize: 10 } });
     fireEvent.click(screen.getByText("Previous"));
     expect(onPaginationChange).toHaveBeenCalledWith({ pageIndex: 0, pageSize: 10 });
     fireEvent.click(screen.getByText("Next"));
     expect(onPaginationChange).toHaveBeenCalledWith({ pageIndex: 2, pageSize: 10 });
+  });
+
+  it("derives one page per pageSize chunk of totalCount", () => {
+    setup({ totalCount: 35, pagination: { pageIndex: 0, pageSize: 10 } });
+    expect(screen.getByRole("button", { name: "1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "4" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "5" })).not.toBeInTheDocument();
+  });
+
+  it("navigates to the clicked page number", () => {
+    const onPaginationChange = vi.fn();
+    setup({ onPaginationChange, totalCount: 35, pagination: { pageIndex: 0, pageSize: 10 } });
+    fireEvent.click(screen.getByRole("button", { name: "3" }));
+    expect(onPaginationChange).toHaveBeenCalledWith({ pageIndex: 2, pageSize: 10 });
+  });
+
+  it("does not render a phantom page beyond totalCount", () => {
+    setup({ totalCount: 15, pagination: { pageIndex: 0, pageSize: 10 } });
+    expect(screen.getByRole("button", { name: "2" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "3" })).not.toBeInTheDocument();
   });
 
   it("disables export button when no data", () => {
@@ -191,14 +211,23 @@ describe(BillingView.name, () => {
 
     const defaultComponents: NonNullable<BillingViewProps["components"]> = {
       FormattedNumber: ({ value }) => <span>{value.toFixed(2)}</span>,
-      PaginationSizeSelector: ({ pageSize, setPageSize }) => (
-        <select value={pageSize} onChange={e => setPageSize?.(parseInt(e.target.value, 10))} role="combobox">
-          {[10, 20, 50].map(size => (
-            <option key={size} value={size}>
-              {size}
-            </option>
+      CustomPagination: ({ totalPageCount, pageIndex, pageSize, setPageIndex, setPageSize }) => (
+        <div>
+          <select value={pageSize} onChange={e => setPageSize(parseInt(e.target.value, 10))} role="combobox">
+            {[10, 20, 50].map(size => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+          <button onClick={() => setPageIndex(pageIndex - 1)}>Previous</button>
+          {Array.from({ length: totalPageCount }, (_, page) => (
+            <button key={page} onClick={() => setPageIndex(page)}>
+              {page + 1}
+            </button>
           ))}
-        </select>
+          <button onClick={() => setPageIndex(pageIndex + 1)}>Next</button>
+        </div>
       ),
       DateRangePicker: ({ date = props.dateRange, onChange }) => (
         <div>
@@ -224,8 +253,6 @@ describe(BillingView.name, () => {
 
     const defaultProps: React.ComponentProps<typeof BillingView> = {
       data: props.data ?? defaultData,
-      hasMore: false,
-      hasPrevious: false,
       isLoading: false,
       isFetching: false,
       isError: false,

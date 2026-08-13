@@ -16,8 +16,6 @@ describe(BillingContainer.name, () => {
     const { data, child } = await setup();
     expect(child.data).toEqual(data?.transactions);
     expect(child.totalCount).toBe(data?.totalCount);
-    expect(child.hasMore).toBe(data?.hasMore);
-    expect(child.hasPrevious).toBe(false);
   });
 
   it("passes through loading and error flags", async () => {
@@ -36,7 +34,6 @@ describe(BillingContainer.name, () => {
     const { child } = await setup({ data: undefined });
     expect(child.data).toEqual([]);
     expect(child.totalCount).toBe(0);
-    expect(child.hasMore).toBe(false);
   });
 
   it("calls onPaginationChange", async () => {
