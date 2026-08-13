@@ -81,6 +81,26 @@ describe("envSchema", () => {
     expect(config.BACKFILL_TO_HEIGHT).toBeUndefined();
   });
 
+  it("treats an empty RECONCILE_SAMPLE_SIZE as absent", () => {
+    const config = setup({ RECONCILE_SAMPLE_SIZE: "" });
+
+    expect(config.RECONCILE_SAMPLE_SIZE).toBeUndefined();
+  });
+
+  it("coerces a numeric RECONCILE_SAMPLE_SIZE string", () => {
+    const config = setup({ RECONCILE_SAMPLE_SIZE: "250" });
+
+    expect(config.RECONCILE_SAMPLE_SIZE).toBe(250);
+  });
+
+  it("rejects a non-positive RECONCILE_SAMPLE_SIZE", () => {
+    expect(() => setup({ RECONCILE_SAMPLE_SIZE: "0" })).toThrow();
+  });
+
+  it("rejects a fractional RECONCILE_SAMPLE_SIZE", () => {
+    expect(() => setup({ RECONCILE_SAMPLE_SIZE: "10.5" })).toThrow();
+  });
+
   function setup(overrides?: Record<string, string>) {
     return envSchema.parse({ POSTGRES_DB_URI: "postgres://unit:unit@localhost:5432/unit", ...overrides });
   }

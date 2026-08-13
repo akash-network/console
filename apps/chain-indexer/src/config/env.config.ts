@@ -39,6 +39,8 @@ const rawEnvSchema = z.object({
   ARCHIVE_STORAGE_API_ENDPOINT: z.preprocess(emptyStringAsUndefined, z.string().url().optional()),
   /** Decoded message bodies above this serialized size are stored as null to keep pathological messages out of Postgres. */
   MESSAGE_BODY_MAX_BYTES: z.number({ coerce: true }).int().positive().default(65_536),
+  /** How many of the highest-balance accounts `npm run reconcile` checks against the chain. Unset defers to the service default. */
+  RECONCILE_SAMPLE_SIZE: z.preprocess(emptyStringAsUndefined, z.number({ coerce: true }).int().positive().optional()),
   DRIZZLE_MIGRATIONS_FOLDER: z.string().default("./drizzle"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).optional().default("info"),
   STD_OUT_LOG_FORMAT: z.enum(["json", "pretty"]).optional().default("json"),
