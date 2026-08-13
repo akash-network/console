@@ -18,20 +18,20 @@ test.describe("Managed wallet notification channels", () => {
       await appNav.openAlerts();
       await alertsPage.waitForPage();
       await alertsPage.openNotificationChannelsTab();
-      await page.waitForURL(/\/alerts\/notification-channels$/);
     });
 
     await test.step("create notification channel", async () => {
       await notificationChannelsPage.openCreate();
       await notificationChannelsPage.fillForm({ name: channelName, emails: channelEmail });
       await notificationChannelsPage.submitForm();
-      await page.waitForURL(/\/alerts\/notification-channels$/, { timeout: 10_000 });
+      await page.waitForURL(/\/alerts\/?$/, { timeout: 10_000 });
       const notification = page.getByRole("alert").filter({ hasText: "Notification channel created" });
       await expect(notification).toBeVisible({ timeout: 10_000 });
       await notification.getByRole("button").click();
     });
 
     await test.step("verify channel appears in list", async () => {
+      await alertsPage.openNotificationChannelsTab();
       const row = notificationChannelsPage.getChannelRow(channelName);
 
       await expect(async () => {
