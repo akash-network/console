@@ -5,7 +5,7 @@ import type { SignAndBroadcastDerivedRequestInput, SignAndBroadcastFundingReques
 import { InjectTypeRegistry } from "@src/providers/type-registry.provider";
 import { TxManagerService } from "@src/services/tx-manager/tx-manager.service";
 
-type EncodedMessage = SignAndBroadcastFundingRequestInput["data"]["messages"][number];
+type EncodedMessage = (SignAndBroadcastFundingRequestInput | SignAndBroadcastDerivedRequestInput)["data"]["messages"][number];
 
 @singleton()
 export class TxController {

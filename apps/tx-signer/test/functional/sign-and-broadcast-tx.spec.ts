@@ -1,5 +1,13 @@
 import { MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import { BaseAccount, QueryAccountResponse, SimulateResponse, TxBody, TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
+import {
+  BaseAccount,
+  BasicAllowance,
+  MsgGrantAllowance,
+  QueryAccountResponse,
+  SimulateResponse,
+  TxBody,
+  TxRaw
+} from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { fromBase64, toBase64 } from "@cosmjs/encoding";
 import type { Registry } from "@cosmjs/proto-signing";
 import nock from "nock";
@@ -32,7 +40,7 @@ describe(TxController.name, () => {
 
     const res = await app.request("/v1/tx/derived", {
       method: "POST",
-      body: JSON.stringify({ data: { derivationIndex: 1, messages: buildMessages() } }),
+      body: JSON.stringify({ data: { derivationIndex: 1, messages: buildDerivedMessages() } }),
       headers: new Headers({ "Content-Type": "application/json" })
     });
 
@@ -49,7 +57,7 @@ describe(TxController.name, () => {
 
     const res = await app.request("/v1/tx/funding", {
       method: "POST",
-      body: JSON.stringify({ data: { messages: buildMessages() } }),
+      body: JSON.stringify({ data: { messages: buildFundingMessages() } }),
       headers: new Headers({ "Content-Type": "application/json" })
     });
 
@@ -57,17 +65,55 @@ describe(TxController.name, () => {
     expect(await res.json()).toEqual({ data: { code: 0, hash: txHash, rawLog: "" } });
   });
 
-  function buildMessages() {
-    const registry = container.resolve<Registry>(TYPE_REGISTRY);
-    const message = {
+  it("rejects a derived tx carrying a message type the derived wallet is not allowed to sign", async () => {
+    const res = await app.request("/v1/tx/derived", {
+      method: "POST",
+      body: JSON.stringify({ data: { derivationIndex: 1, messages: buildFundingMessages() } }),
+      headers: new Headers({ "Content-Type": "application/json" })
+    });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: "validation_error" });
+  });
+
+  it("rejects a funding tx carrying a message type the funding wallet is not allowed to sign", async () => {
+    const res = await app.request("/v1/tx/funding", {
+      method: "POST",
+      body: JSON.stringify({ data: { messages: buildDerivedMessages() } }),
+      headers: new Headers({ "Content-Type": "application/json" })
+    });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: "validation_error" });
+  });
+
+  function buildDerivedMessages() {
+    return encodeMessages({
       typeUrl: `/${MsgCreateCertificate.$type}`,
       value: MsgCreateCertificate.fromPartial({
         owner: createAkashAddress(),
         cert: Uint8Array.from([1, 2, 3]),
         pubkey: Uint8Array.from([4, 5, 6])
       })
-    };
+    });
+  }
 
+  function buildFundingMessages() {
+    return encodeMessages({
+      typeUrl: `/${MsgGrantAllowance.$type}`,
+      value: MsgGrantAllowance.fromPartial({
+        granter: createAkashAddress(),
+        grantee: createAkashAddress(),
+        allowance: {
+          typeUrl: `/${BasicAllowance.$type}`,
+          value: Uint8Array.from(BasicAllowance.encode(BasicAllowance.fromPartial({ spendLimit: [{ denom: "uakt", amount: "1000" }] })).finish())
+        }
+      })
+    });
+  }
+
+  function encodeMessages(message: { typeUrl: string; value: object }) {
+    const registry = container.resolve<Registry>(TYPE_REGISTRY);
     return [{ typeUrl: message.typeUrl, value: toBase64(registry.encode(message)) }];
   }
 
