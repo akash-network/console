@@ -59,21 +59,23 @@ export class BalanceWriter {
     const denoms = [...new Set(intents.map(intent => intent.denom))];
     const touched = new Set(intents.map(intent => keyOf(intent.accountId, intent.denom)));
 
-    const rows = await tx
-      .selectDistinctOn([BalanceChanges.accountId, BalanceChanges.denom], {
-        accountId: BalanceChanges.accountId,
-        denom: BalanceChanges.denom,
-        balanceAfter: BalanceChanges.balanceAfter
-      })
-      .from(BalanceChanges)
-      .where(and(lt(BalanceChanges.height, firstHeight), inArray(BalanceChanges.accountId, accountIds), inArray(BalanceChanges.denom, denoms)))
-      .orderBy(BalanceChanges.accountId, BalanceChanges.denom, desc(BalanceChanges.height), desc(BalanceChanges.eventIndex));
-
     const baseline = new Map<string, bigint>();
-    for (const row of rows) {
-      const key = keyOf(row.accountId, row.denom);
-      if (touched.has(key)) {
-        baseline.set(key, BigInt(row.balanceAfter));
+    for (const accountIdChunk of chunk(accountIds, INSERT_CHUNK_SIZE)) {
+      const rows = await tx
+        .selectDistinctOn([BalanceChanges.accountId, BalanceChanges.denom], {
+          accountId: BalanceChanges.accountId,
+          denom: BalanceChanges.denom,
+          balanceAfter: BalanceChanges.balanceAfter
+        })
+        .from(BalanceChanges)
+        .where(and(lt(BalanceChanges.height, firstHeight), inArray(BalanceChanges.accountId, accountIdChunk), inArray(BalanceChanges.denom, denoms)))
+        .orderBy(BalanceChanges.accountId, BalanceChanges.denom, desc(BalanceChanges.height), desc(BalanceChanges.eventIndex));
+
+      for (const row of rows) {
+        const key = keyOf(row.accountId, row.denom);
+        if (touched.has(key)) {
+          baseline.set(key, BigInt(row.balanceAfter));
+        }
       }
     }
     return baseline;

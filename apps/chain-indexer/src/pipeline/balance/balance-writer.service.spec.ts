@@ -80,6 +80,24 @@ describe(BalanceWriter.name, () => {
     expect(calls()).toBe(0);
   });
 
+  it("reads the baseline in chunks so a batch touching more accounts than the chunk size stays under the bind-parameter limit", async () => {
+    const chunkSize = 2000;
+    const accountIds = Array.from({ length: chunkSize + 1 }, (_, index) => index + 1);
+    const { writer, tx, balanceChangeRows, baselineSelects } = setup({
+      baselineByChunk: [[{ accountId: 1, denom: "uakt", balanceAfter: "100" }], [{ accountId: chunkSize + 1, denom: "uakt", balanceAfter: "500" }]]
+    });
+
+    await writer.write(
+      tx,
+      accountIds.map((accountId, index) => change({ accountId, delta: 10n, eventIndex: index }))
+    );
+
+    expect(baselineSelects()).toBe(2);
+    const balanceAfterByAccount = new Map(balanceChangeRows().map(row => [row.accountId, row.balanceAfter]));
+    expect(balanceAfterByAccount.get(1)).toBe("110");
+    expect(balanceAfterByAccount.get(chunkSize + 1)).toBe("510");
+  });
+
   function change(input: Partial<ResolvedBalanceChange>): ResolvedBalanceChange {
     return {
       accountId: 1,
@@ -96,12 +114,15 @@ describe(BalanceWriter.name, () => {
 
   function setup(input?: {
     baseline?: Array<{ accountId: number; denom: string; balanceAfter: string }>;
+    baselineByChunk?: Array<Array<{ accountId: number; denom: string; balanceAfter: string }>>;
     insertReturning?: Array<{ accountId: number; denom: string; delta: string }>;
   }) {
     const balanceChangeInserts: Record<string, unknown>[] = [];
     const balanceBalanceUpserts: Record<string, unknown>[] = [];
+    const baselineByChunk = [...(input?.baselineByChunk ?? [])];
     let conflictSet: { amount: SQL } | undefined;
     let calls = 0;
+    let baselineSelects = 0;
 
     const txFake = {
       selectDistinctOn: () => ({
@@ -109,7 +130,8 @@ describe(BalanceWriter.name, () => {
           where: () => ({
             orderBy: () => {
               calls++;
-              return Promise.resolve(input?.baseline ?? []);
+              baselineSelects++;
+              return Promise.resolve(baselineByChunk.length > 0 ? baselineByChunk.shift()! : input?.baseline ?? []);
             }
           })
         })
@@ -142,7 +164,8 @@ describe(BalanceWriter.name, () => {
       balanceChangeRows: () => balanceChangeInserts,
       balanceUpserts: () => balanceBalanceUpserts,
       conflictSet: () => conflictSet,
-      calls: () => calls
+      calls: () => calls,
+      baselineSelects: () => baselineSelects
     };
   }
 });
