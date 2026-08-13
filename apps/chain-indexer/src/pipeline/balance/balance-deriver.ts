@@ -1,5 +1,5 @@
 import { parseCoins } from "@src/pipeline/balance/coin-amount";
-import type { ModuleAddressRegistry } from "@src/pipeline/balance/module-address-registry";
+import type { ModuleAddressRegistry, ModuleRole } from "@src/pipeline/balance/module-address-registry";
 import type { BalanceReason } from "@src/pipeline/balance/reason-classifier";
 import { classifyReason } from "@src/pipeline/balance/reason-classifier";
 import type { DecodedBlock, DecodedEvent, DecodedTransaction } from "@src/pipeline/decoded-block";
@@ -18,10 +18,13 @@ export interface DerivedBalanceChange {
 
 const BLOCK_SCOPE = "block";
 
+/** A slash burns from the staking pools, so a slashing block's burn leg only counts as the slash when its holder is one of those pools. */
+const STAKING_POOL_ROLES: ReadonlySet<ModuleRole> = new Set(["bonded_tokens_pool", "not_bonded_tokens_pool"]);
+
 interface ParsedTransfer {
   sender: string;
   recipient: string;
-  denoms: Set<string>;
+  coins: Map<string, bigint>;
 }
 
 /**
@@ -66,7 +69,7 @@ function buildScopeContexts(events: DecodedEvent[]): Map<number | string, ScopeC
       scope.transfers.push({
         sender: event.attributes.sender,
         recipient: event.attributes.recipient,
-        denoms: new Set(parseCoins(event.attributes.amount ?? "").map(coin => coin.denom))
+        coins: new Map(parseCoins(event.attributes.amount ?? "").map(coin => [coin.denom, coin.amount]))
       });
     } else if (event.type === "coinbase" && event.attributes.minter) {
       scope.minters.add(event.attributes.minter);
@@ -80,13 +83,14 @@ function buildScopeContexts(events: DecodedEvent[]): Map<number | string, ScopeC
   return scopes;
 }
 
-function correlateCounterparty(scope: ScopeContext, holder: string, denom: string, direction: "spent" | "received"): string | null {
+function correlateCounterparty(scope: ScopeContext, holder: string, denom: string, amount: bigint, direction: "spent" | "received"): string | null {
   const matchesHolder = (transfer: ParsedTransfer) => (direction === "spent" ? transfer.sender === holder : transfer.recipient === holder);
   const other = (transfer: ParsedTransfer) => (direction === "spent" ? transfer.recipient : transfer.sender);
 
-  const byDenom = scope.transfers.find(transfer => matchesHolder(transfer) && transfer.denoms.has(denom));
+  const byAmount = scope.transfers.find(transfer => matchesHolder(transfer) && transfer.coins.get(denom) === amount);
+  const byDenom = scope.transfers.find(transfer => matchesHolder(transfer) && transfer.coins.has(denom));
   const byHolder = scope.transfers.find(matchesHolder);
-  const match = byDenom ?? byHolder;
+  const match = byAmount ?? byDenom ?? byHolder;
 
   return match ? other(match) : null;
 }
@@ -118,13 +122,14 @@ export function deriveBalanceChanges(block: DecodedBlock, registry: ModuleAddres
 
       const holder = direction === "spent" ? event.attributes.spender : event.attributes.receiver;
       const scope = scopes.get(scopeKeyOf(event)) ?? { transfers: [], minters: new Set<string>(), burners: new Set<string>(), slashed: false };
+      const holderRole = registry.roleOf(holder);
       const msgTypeUrl = event.msgIndex === undefined ? null : source.msgTypeByIndex.get(event.msgIndex) ?? null;
       const isMint = direction === "received" && scope.minters.has(holder);
       const isBurn = direction === "spent" && scope.burners.has(holder);
-      const isSlash = scope.slashed && isBurn;
+      const isSlash = scope.slashed && isBurn && holderRole !== undefined && STAKING_POOL_ROLES.has(holderRole);
 
       for (const coin of parseCoins(event.attributes.amount ?? "")) {
-        const counterpartyAddress = correlateCounterparty(scope, holder, coin.denom, direction);
+        const counterpartyAddress = correlateCounterparty(scope, holder, coin.denom, coin.amount, direction);
         const reason = classifyReason({ address: holder, counterpartyAddress, denom: coin.denom, isMint, isBurn, isSlash, msgTypeUrl }, registry);
 
         changes.push({

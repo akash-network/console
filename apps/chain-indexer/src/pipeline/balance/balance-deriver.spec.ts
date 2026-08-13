@@ -124,6 +124,44 @@ describe("deriveBalanceChanges", () => {
     expect(byAddress.get(bondedPool)).toBe("slash");
   });
 
+  it("leaves an unrelated module burn a burn when it shares a block scope with a validator slash", () => {
+    const bondedPool = deriveModuleAddress("bonded_tokens_pool", AKASH_ADDRESS_PREFIX);
+    const govModule = deriveModuleAddress("gov", AKASH_ADDRESS_PREFIX);
+    const block = buildBlock({
+      transactions: [],
+      blockEvents: [
+        event("slash", { address: "akashvalcons1jailed", amount: "50uakt" }, undefined),
+        event("coin_spent", { spender: bondedPool, amount: "50uakt" }, undefined),
+        event("burn", { burner: bondedPool, amount: "50uakt" }, undefined),
+        event("coin_spent", { spender: govModule, amount: "10uakt" }, undefined),
+        event("burn", { burner: govModule, amount: "10uakt" }, undefined)
+      ]
+    });
+
+    const byAddress = new Map(deriveBalanceChanges(block, registry).map(change => [change.address, change.reason]));
+    expect(byAddress.get(bondedPool)).toBe("slash");
+    expect(byAddress.get(govModule)).toBe("burn");
+  });
+
+  it("correlates each debit to the transfer of matching amount when one sender pays several recipients in a block", () => {
+    const escrow = deriveModuleAddress("escrow", AKASH_ADDRESS_PREFIX);
+    const block = buildBlock({
+      transactions: [],
+      blockEvents: [
+        event("transfer", { sender: escrow, recipient: "akash1providerA", amount: "100uakt" }, undefined),
+        event("transfer", { sender: escrow, recipient: "akash1providerB", amount: "50uakt" }, undefined),
+        event("coin_spent", { spender: escrow, amount: "100uakt" }, undefined),
+        event("coin_spent", { spender: escrow, amount: "50uakt" }, undefined),
+        event("coin_received", { receiver: "akash1providerA", amount: "100uakt" }, undefined),
+        event("coin_received", { receiver: "akash1providerB", amount: "50uakt" }, undefined)
+      ]
+    });
+
+    const debits = deriveBalanceChanges(block, registry).filter(change => change.address === escrow);
+    expect(debits.find(change => change.delta === -100n)?.counterpartyAddress).toBe("akash1providerA");
+    expect(debits.find(change => change.delta === -50n)?.counterpartyAddress).toBe("akash1providerB");
+  });
+
   it("classifies a distribution reward withdrawal using the message type at the coin's msg index", () => {
     const distribution = deriveModuleAddress("distribution", AKASH_ADDRESS_PREFIX);
     const block = buildBlock({

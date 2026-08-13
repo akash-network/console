@@ -110,11 +110,28 @@ describe(RpcClientPool.name, () => {
     );
   });
 
-  it("throws when the abci query response carries a non-zero code", async () => {
+  it("fails over to the next node when a node answers with a non-zero abci code", async () => {
+    const { pool, fetchMock } = setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ result: { response: { code: 26, log: "height not available", value: null } } }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ result: { response: { code: 0, value: "AA==" } } }));
+
+    const response = await pool.abciQuery("/cosmos.bank.v1beta1.Query/AllBalances", "00", 999);
+
+    expect(response.value).toBe("AA==");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0][0]).toContain("http://node-a/");
+    expect(fetchMock.mock.calls[1][0]).toContain("http://node-b/");
+  });
+
+  it("throws an aggregate error carrying the abci log when every node answers with a non-zero code", async () => {
     const { pool, fetchMock } = setup();
     fetchMock.mockResolvedValue(jsonResponse({ result: { response: { code: 26, log: "height not available", value: null } } }));
 
-    await expect(pool.abciQuery("/cosmos.bank.v1beta1.Query/AllBalances", "00", 999)).rejects.toThrow("height not available");
+    const error = await pool.abciQuery("/cosmos.bank.v1beta1.Query/AllBalances", "00", 999).catch(caught => caught);
+
+    expect(error).toBeInstanceOf(AggregateError);
+    expect(error.errors[0].message).toContain("height not available");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   function setup() {

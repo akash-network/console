@@ -68,22 +68,30 @@ export class RpcClientPool {
    * indexer's checkpoint height (not the moving tip), which requires an unpruned node — sandbox is archival.
    */
   async abciQuery(path: string, dataHex: string, height: number): Promise<RpcAbciQueryResult["response"]> {
-    const result = await this.#get<RpcAbciQueryResult>(`/abci_query?path=${encodeURIComponent(`"${path}"`)}&data=0x${dataHex}&height=${height}&prove=false`);
-
-    if (result.response.code) {
-      throw new Error(`abci_query ${path} failed at height ${height}: ${result.response.log ?? `code ${result.response.code}`}`);
-    }
+    const result = await this.#get<RpcAbciQueryResult>(
+      `/abci_query?path=${encodeURIComponent(`"${path}"`)}&data=0x${dataHex}&height=${height}&prove=false`,
+      result => {
+        if (result.response.code) {
+          throw new Error(`abci_query ${path} failed at height ${height}: ${result.response.log ?? `code ${result.response.code}`}`);
+        }
+      }
+    );
 
     return result.response;
   }
 
-  async #get<T>(path: string): Promise<T> {
+  /**
+   * A `validate` failure is treated like a transport failure so the failover loop tries the next node: a pruned
+   * node answering HTTP 200 with a non-zero ABCI code (e.g. "height not available") must fail over to an archival one.
+   */
+  async #get<T>(path: string, validate?: (result: T) => void): Promise<T> {
     const errors: unknown[] = [];
 
     for (const node of this.#candidates()) {
       node.inFlight++;
       try {
         const result = await this.#fetchFromNode<T>(node.endpoint, path);
+        validate?.(result);
         node.unhealthyUntil = 0;
         return result;
       } catch (error) {
