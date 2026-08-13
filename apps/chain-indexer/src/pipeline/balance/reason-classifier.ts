@@ -17,10 +17,12 @@ export interface ReasonContext {
 const WITHDRAW_VALIDATOR_COMMISSION = "/cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission";
 
 /**
- * MVP reason heuristic. Coincident mint/burn/slash win first (they are unambiguous), then the identity of
- * the system account on either side of the movement, then the denom. Anything unrecognized is a plain
- * `transfer`. Escrow-module movements classify as `escrow`; per-deployment/lease attribution of that
- * escrow is deliberately left for later.
+ * MVP reason heuristic. Coincident mint/burn/slash win first (they are unambiguous), then the holder's own
+ * module role, falling back to the counterparty's, then the denom. Preferring the holder's own role keeps each
+ * leg of a module-to-module movement (e.g. fee_collector to distribution every block) tagged by the module
+ * whose balance actually changed, rather than mirroring the counterparty. Anything unrecognized is a plain
+ * `transfer`. Escrow-module movements classify as `escrow`; per-deployment/lease attribution of that escrow is
+ * deliberately left for later.
  */
 export function classifyReason(ctx: ReasonContext, registry: ModuleAddressRegistry): BalanceReason {
   if (ctx.isSlash) {
@@ -33,7 +35,7 @@ export function classifyReason(ctx: ReasonContext, registry: ModuleAddressRegist
     return "burn";
   }
 
-  const role = (ctx.counterpartyAddress ? registry.roleOf(ctx.counterpartyAddress) : undefined) ?? registry.roleOf(ctx.address);
+  const role = registry.roleOf(ctx.address) ?? (ctx.counterpartyAddress ? registry.roleOf(ctx.counterpartyAddress) : undefined);
   switch (role) {
     case "mint":
       return "mint";

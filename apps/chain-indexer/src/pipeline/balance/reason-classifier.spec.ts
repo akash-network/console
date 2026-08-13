@@ -74,6 +74,18 @@ describe("classifyReason", () => {
     expect(classifyReason(context({ counterpartyAddress: "akash1peer" }), registry)).toBe("transfer");
   });
 
+  it("tags each leg of a fee_collector-to-distribution movement by the holder's own role", () => {
+    const feeCollector = moduleAddress("fee_collector");
+    const distribution = moduleAddress("distribution");
+
+    expect(classifyReason(context({ address: feeCollector, counterpartyAddress: distribution }), registry)).toBe("fee");
+    expect(classifyReason(context({ address: distribution, counterpartyAddress: feeCollector }), registry)).toBe("reward");
+  });
+
+  it("tags the mint module's outgoing forwarding leg as mint rather than the counterparty's fee", () => {
+    expect(classifyReason(context({ address: moduleAddress("mint"), counterpartyAddress: moduleAddress("fee_collector") }), registry)).toBe("mint");
+  });
+
   function context(overrides: Partial<ReasonContext>): ReasonContext {
     return {
       address: "akash1self",
