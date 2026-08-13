@@ -54,6 +54,41 @@ describe(GovWriter.name, () => {
     expect(whereSql(updates[0].where)).toContain("status");
   });
 
+  it("collapses a voter's re-vote across blocks in one batch to the latest vote by height", async () => {
+    const { govWriter, tx, inserts } = setup();
+
+    await govWriter.writeForBlocks(
+      tx,
+      [
+        block({ height: 100, messages: [{ typeUrl: MSG_VOTE, body: { proposalId: "7", voter: "akash1voter", option: 1 } }] }),
+        block({ height: 150, messages: [{ typeUrl: MSG_VOTE, body: { proposalId: "7", voter: "akash1voter", option: 3 } }] })
+      ],
+      new Map([["akash1voter", 2]])
+    );
+
+    expect(rowsFor(inserts, ProposalVotes)).toEqual([{ proposalId: 7, voterAccountId: 2, options: [{ option: "no", weight: "1.000000000000000000" }], height: 150 }]);
+  });
+
+  it("collapses two votes from the same voter in one block to the last one", async () => {
+    const { govWriter, tx, inserts } = setup();
+
+    await govWriter.writeForBlocks(
+      tx,
+      [
+        block({
+          height: 100,
+          messages: [
+            { typeUrl: MSG_VOTE, body: { proposalId: "7", voter: "akash1voter", option: 1 }, index: 0 },
+            { typeUrl: MSG_VOTE, body: { proposalId: "7", voter: "akash1voter", option: 3 }, index: 1 }
+          ]
+        })
+      ],
+      new Map([["akash1voter", 2]])
+    );
+
+    expect(rowsFor(inserts, ProposalVotes)).toEqual([{ proposalId: 7, voterAccountId: 2, options: [{ option: "no", weight: "1.000000000000000000" }], height: 100 }]);
+  });
+
   it("applies a terminal status from an active_proposal without a status condition", async () => {
     const { govWriter, tx, updates } = setup();
 

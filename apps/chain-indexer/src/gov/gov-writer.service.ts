@@ -51,7 +51,7 @@ export class GovWriter {
   }
 
   async #writeVotes(tx: ChainTransaction, votes: DerivedVote[], accountIds: Map<string, number>): Promise<void> {
-    const rows = votes
+    const rows = dedupeVotes(votes)
       .map(vote => {
         const voterAccountId = accountIds.get(vote.voterAddress);
         return voterAccountId === undefined ? null : { proposalId: vote.proposalId, voterAccountId, options: vote.options, height: vote.height };
@@ -125,6 +125,24 @@ function merge(perBlock: GovChanges[]): GovChanges {
     deposits: perBlock.flatMap(changes => changes.deposits),
     statusUpdates: perBlock.flatMap(changes => changes.statusUpdates)
   };
+}
+
+/**
+ * Collapses a voter's re-votes on the same proposal within one commit batch to their latest by height. A batch
+ * merges votes across many blocks and cosmos allows re-voting during `voting_period`, so the same
+ * `(proposalId, voterAccountId)` — the vote's primary key — can appear more than once; feeding both to one
+ * `ON CONFLICT DO UPDATE` would raise `21000: command cannot affect row a second time` and abort the batch.
+ */
+function dedupeVotes(votes: DerivedVote[]): DerivedVote[] {
+  const byKey = new Map<string, DerivedVote>();
+  for (const vote of votes) {
+    const key = `${vote.proposalId}:${vote.voterAddress}`;
+    const existing = byKey.get(key);
+    if (!existing || vote.height >= existing.height) {
+      byKey.set(key, vote);
+    }
+  }
+  return [...byKey.values()];
 }
 
 function sqlExcluded(column: string) {
