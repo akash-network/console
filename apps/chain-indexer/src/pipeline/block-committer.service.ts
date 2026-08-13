@@ -1,8 +1,6 @@
 import { inArray, sql } from "drizzle-orm";
-import chunk from "lodash/chunk";
 import { inject, singleton } from "tsyringe";
 
-import { INSERT_CHUNK_SIZE } from "@src/db/insert-chunk-size";
 import { insertChunked } from "@src/db/insert-chunked";
 import { AccountTxs, Blocks, IndexerState, Messages, MessageTypes, Transactions } from "@src/db/schema";
 import { AccountInterner } from "@src/pipeline/balance/account-interner.service";
@@ -93,17 +91,9 @@ export class BlockCommitterService {
     const lastHeight = blocks[blocks.length - 1].height;
 
     await this.#db.transaction(async tx => {
-      for (const blockChunk of chunk(blockRows, INSERT_CHUNK_SIZE)) {
-        await tx.insert(Blocks).values(blockChunk).onConflictDoNothing();
-      }
-
-      for (const transactionChunk of chunk(transactionRows, INSERT_CHUNK_SIZE)) {
-        await tx.insert(Transactions).values(transactionChunk).onConflictDoNothing();
-      }
-
-      for (const messageChunk of chunk(messageRows, INSERT_CHUNK_SIZE)) {
-        await tx.insert(Messages).values(messageChunk).onConflictDoNothing();
-      }
+      await insertChunked(tx, Blocks, blockRows);
+      await insertChunked(tx, Transactions, transactionRows);
+      await insertChunked(tx, Messages, messageRows);
 
       await this.#balanceWriter.write(tx, balanceIntents);
       await insertChunked(tx, AccountTxs, accountTxRows);
