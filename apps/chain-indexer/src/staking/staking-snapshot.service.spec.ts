@@ -68,6 +68,23 @@ describe(StakingSnapshotService.name, () => {
     expect(rowsFor(inserts, Validators).map(row => row.operatorAddress)).toEqual(["akashvaloper1a", "akashvaloper1b"]);
   });
 
+  it("fetches and writes delegations for every validator in the set", async () => {
+    const { service, inserts } = setup({
+      [VALIDATORS_PATH]: [validatorsResponse([validator({ operatorAddress: "akashvaloper1a" }), validator({ operatorAddress: "akashvaloper1b" })])],
+      [VALIDATOR_DELEGATIONS_PATH]: [
+        delegationsResponse([{ delegatorAddress: "akash1dela", validatorAddress: "akashvaloper1a", shares: "1000000000000000000" }]),
+        delegationsResponse([{ delegatorAddress: "akash1delb", validatorAddress: "akashvaloper1b", shares: "2000000000000000000" }])
+      ]
+    });
+
+    await service.snapshot(1000);
+
+    expect(rowsFor(inserts, Delegations)).toEqual([
+      { delegatorAccountId: 1, validatorOperatorAddress: "akashvaloper1a", shares: "1.000000000000000000" },
+      { delegatorAccountId: 2, validatorOperatorAddress: "akashvaloper1b", shares: "2.000000000000000000" }
+    ]);
+  });
+
   it("interns every delegator before writing", async () => {
     const { service, interner } = setup({
       [VALIDATORS_PATH]: [validatorsResponse([validator({ operatorAddress: OPERATOR })])],

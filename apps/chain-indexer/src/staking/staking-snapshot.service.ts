@@ -23,6 +23,9 @@ import {
   VALIDATORS_PATH
 } from "@src/staking/staking-query";
 
+/** Validators whose delegations and unbonding are fetched at once; bounded so a large set spreads across the RPC pool without flooding it. */
+const SNAPSHOT_FETCH_CONCURRENCY = 10;
+
 /**
  * Reconciles validators, delegations and unbonding to the chain's own answer, because delegation *shares*
  * cannot be derived exactly from messages — the token↔share rate drifts with every reward and slash. The
@@ -60,13 +63,12 @@ export class StakingSnapshotService {
 
     const delegations: SnapshotDelegation[] = [];
     const unbonding: SnapshotUnbondingEntry[] = [];
-    for (const { operatorAddress } of validators) {
-      delegations.push(
-        ...(await this.#fetchAll(height, VALIDATOR_DELEGATIONS_PATH, key => encodeValidatorDelegationsRequest(operatorAddress, key), value => decodeValidatorDelegations(operatorAddress, value)))
-      );
-      unbonding.push(
-        ...(await this.#fetchAll(height, VALIDATOR_UNBONDING_PATH, key => encodeValidatorUnbondingRequest(operatorAddress, key), value => decodeValidatorUnbonding(operatorAddress, value)))
-      );
+    for (const batch of chunk(validators, SNAPSHOT_FETCH_CONCURRENCY)) {
+      const stakes = await Promise.all(batch.map(({ operatorAddress }) => this.#fetchValidatorStake(height, operatorAddress)));
+      for (const stake of stakes) {
+        delegations.push(...stake.delegations);
+        unbonding.push(...stake.unbonding);
+      }
     }
 
     const accountIds = await this.#interner.resolve([...delegations.map(delegation => delegation.delegatorAddress), ...unbonding.map(entry => entry.delegatorAddress)]);
@@ -78,6 +80,15 @@ export class StakingSnapshotService {
     });
 
     this.#logger.info({ event: "STAKING_SNAPSHOT_WRITTEN", height, validators: validators.length, delegations: delegations.length, unbonding: unbonding.length });
+  }
+
+  /** A validator's delegations and unbonding entries fetched concurrently; both are read-only and pinned to `height`. */
+  async #fetchValidatorStake(height: number, operatorAddress: string): Promise<{ delegations: SnapshotDelegation[]; unbonding: SnapshotUnbondingEntry[] }> {
+    const [delegations, unbonding] = await Promise.all([
+      this.#fetchAll(height, VALIDATOR_DELEGATIONS_PATH, key => encodeValidatorDelegationsRequest(operatorAddress, key), value => decodeValidatorDelegations(operatorAddress, value)),
+      this.#fetchAll(height, VALIDATOR_UNBONDING_PATH, key => encodeValidatorUnbondingRequest(operatorAddress, key), value => decodeValidatorUnbonding(operatorAddress, value))
+    ]);
+    return { delegations, unbonding };
   }
 
   /** Walks a paginated staking query to exhaustion, following the node's `next_key` cursor across pages. */
