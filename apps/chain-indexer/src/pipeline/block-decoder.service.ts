@@ -6,8 +6,9 @@ import { inject, singleton } from "tsyringe";
 import type { EnvConfig } from "@src/config/env.config";
 import { toCanonicalJson } from "@src/pipeline/canonical-json";
 import { decodeIfBase64 } from "@src/pipeline/decode-if-base64";
-import type { DecodedBlock, DecodedEvent, DecodedMessage, DecodedTransaction } from "@src/pipeline/decoded-block";
+import type { DecodedBlock, DecodedEvent, DecodedMessage, DecodedTransaction, MessageDecodeFailure } from "@src/pipeline/decoded-block";
 import { deriveSignerAddresses } from "@src/pipeline/signer-addresses";
+import { isIgnoredTypeUrl } from "@src/proto/type-catalog";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 import type { Registry } from "@src/providers/type-registry.provider";
 import { TYPE_REGISTRY } from "@src/providers/type-registry.provider";
@@ -113,18 +114,20 @@ export class BlockDecoderService {
   }
 
   #decodeMessage(message: { typeUrl: string; value: Uint8Array }, index: number): DecodedMessage {
-    return {
-      index,
-      typeUrl: message.typeUrl,
-      body: this.#decodeBody(message)
-    };
+    const { body, failure } = this.#decodeBody(message);
+
+    return failure ? { index, typeUrl: message.typeUrl, body, decodeFailure: failure } : { index, typeUrl: message.typeUrl, body };
   }
 
-  #decodeBody(message: { typeUrl: string; value: Uint8Array }): unknown | null {
+  #decodeBody(message: { typeUrl: string; value: Uint8Array }): { body: unknown | null; failure?: MessageDecodeFailure } {
+    if (isIgnoredTypeUrl(message.typeUrl)) {
+      return { body: null };
+    }
+
     try {
-      return toCanonicalJson(this.#registry.decode(message), this.#maxBodyBytes);
-    } catch {
-      return null;
+      return { body: toCanonicalJson(this.#registry.decode(message), this.#maxBodyBytes) };
+    } catch (error) {
+      return { body: null, failure: { raw: message.value, error: error instanceof Error ? error.message : String(error) } };
     }
   }
 }

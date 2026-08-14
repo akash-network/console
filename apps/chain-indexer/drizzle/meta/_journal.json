@@ -36,6 +36,13 @@
       "when": 1786601805537,
       "tag": "0004_pretty_mister_sinister",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786691068837,
+      "tag": "0005_mysterious_medusa",
+      "breakpoints": true
     }
   ]
 }

@@ -10,7 +10,16 @@ export const StatusResponseSchema = z.object({
         lastHeight: z.number(),
         updatedAt: z.string()
       })
-    )
+    ),
+    deadLetters: z.object({
+      total: z.number(),
+      byType: z.array(
+        z.object({
+          type: z.string(),
+          count: z.number()
+        })
+      )
+    })
   })
 });
 

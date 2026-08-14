@@ -83,11 +83,12 @@ export class BackfillRunnerService {
     }
 
     const stream = `backfill:${fromHeight}-${toHeight}`;
+    const replay = this.#config.BACKFILL_REPLAY;
     const [checkpointHeight, tipHeight] = await Promise.all([
       this.#retryTransient(() => this.#getCheckpointHeight(stream), { event: "BACKFILL_CHECKPOINT_READ_RETRY" }),
       this.#retryTransient(() => this.#pool.getTipHeight(), { event: "BACKFILL_TIP_FETCH_RETRY" })
     ]);
-    const plan = planBackfill({ fromHeight, toHeight, checkpointHeight, tipHeight });
+    const plan = planBackfill({ fromHeight, toHeight, checkpointHeight, tipHeight, replay });
 
     if (plan.kind === "invalid") {
       this.#logger.error({ event: "BACKFILL_INVALID_RANGE", reason: plan.reason });
@@ -99,8 +100,8 @@ export class BackfillRunnerService {
       return true;
     }
 
-    await this.#seedContinuityHash(plan.startHeight, checkpointHeight !== null);
-    this.#logger.info({ event: "BACKFILL_STARTED", network: this.#config.NETWORK, stream, startHeight: plan.startHeight, endHeight: plan.endHeight });
+    await this.#seedContinuityHash(plan.startHeight, !replay && checkpointHeight !== null);
+    this.#logger.info({ event: "BACKFILL_STARTED", network: this.#config.NETWORK, stream, startHeight: plan.startHeight, endHeight: plan.endHeight, replay });
     this.#archive.logState();
 
     const source = new ArchiveBlockSource({

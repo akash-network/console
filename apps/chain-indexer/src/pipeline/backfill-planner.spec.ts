@@ -38,4 +38,24 @@ describe(planBackfill.name, () => {
 
     expect(plan).toEqual({ kind: "run", startHeight: 100, endHeight: 100 });
   });
+
+  describe("when replaying", () => {
+    it("re-runs a completed range from its first height", () => {
+      const plan = planBackfill({ fromHeight: 100, toHeight: 200, checkpointHeight: 200, tipHeight: 1_000, replay: true });
+
+      expect(plan).toEqual({ kind: "run", startHeight: 100, endHeight: 200 });
+    });
+
+    it("starts at the first height even when a checkpoint sits mid-range", () => {
+      const plan = planBackfill({ fromHeight: 100, toHeight: 200, checkpointHeight: 150, tipHeight: 1_000, replay: true });
+
+      expect(plan).toEqual({ kind: "run", startHeight: 100, endHeight: 200 });
+    });
+
+    it("still rejects a range ending above the chain tip", () => {
+      const plan = planBackfill({ fromHeight: 100, toHeight: 2_000, checkpointHeight: 200, tipHeight: 1_000, replay: true });
+
+      expect(plan).toEqual({ kind: "invalid", reason: "BACKFILL_TO_HEIGHT 2000 is above the chain tip 1000" });
+    });
+  });
 });

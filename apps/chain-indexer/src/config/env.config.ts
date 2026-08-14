@@ -37,6 +37,12 @@ const rawEnvSchema = z.object({
   BACKFILL_CONCURRENCY: z.number({ coerce: true }).int().min(1).max(64).default(10),
   /** How many blocks the backfill commits per Postgres transaction. */
   BACKFILL_BATCH_SIZE: z.number({ coerce: true }).int().min(1).max(1_000).default(200),
+  /**
+   * Replays the range from BACKFILL_FROM_HEIGHT even when its checkpoint says complete. A replay
+   * fills message bodies that were null (e.g. dead-lettered types registered since) and clears
+   * healed dead letters; already-decoded rows are left untouched.
+   */
+  BACKFILL_REPLAY: z.preprocess(emptyStringAsUndefined, z.enum(["true", "false"]).default("false")).transform(value => value === "true"),
   /** GCS bucket for the raw block archive. Unset disables archiving entirely (sync skips appends, backfill reads straight from RPC). */
   ARCHIVE_BUCKET: z.preprocess(emptyStringAsUndefined, z.string().optional()),
   /**

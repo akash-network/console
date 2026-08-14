@@ -44,23 +44,51 @@ describe(BlockDecoderService.name, () => {
     });
   });
 
-  it("stores a null body for message types missing from the registry", () => {
+  it("marks message types missing from the registry as decode failures with their raw bytes", () => {
     const { decoder } = setup();
     const rawTx = buildMsgSendTx("/akash.unknown.v1.MsgMystery");
 
     const decoded = decoder.decode(buildBlock({ txs: [rawTx.toString("base64")] }), buildBlockResults([{ code: 0, gas_used: "0", gas_wanted: "0" }]));
 
-    expect(decoded.transactions[0].messages[0].typeUrl).toBe("/akash.unknown.v1.MsgMystery");
-    expect(decoded.transactions[0].messages[0].body).toBeNull();
+    const [message] = decoded.transactions[0].messages;
+    expect(message.typeUrl).toBe("/akash.unknown.v1.MsgMystery");
+    expect(message.body).toBeNull();
+    expect(message.decodeFailure?.error).toContain("Unregistered type url");
+    expect(message.decodeFailure?.raw).toEqual(encodeMsgSendValue());
   });
 
-  it("stores a null body when the decoded message exceeds the size cap", () => {
+  it("marks registered message types with undecodable bytes as decode failures", () => {
+    const { decoder } = setup();
+    const corruptBytes = new Uint8Array([0xff, 0xff, 0xff, 0xff]);
+    const rawTx = buildMsgSendTx("/cosmos.bank.v1beta1.MsgSend", corruptBytes);
+
+    const decoded = decoder.decode(buildBlock({ txs: [rawTx.toString("base64")] }), buildBlockResults([{ code: 0, gas_used: "0", gas_wanted: "0" }]));
+
+    const [message] = decoded.transactions[0].messages;
+    expect(message.body).toBeNull();
+    expect(message.decodeFailure?.raw).toEqual(corruptBytes);
+    expect(message.decodeFailure?.error).toBeTruthy();
+  });
+
+  it("skips ignored message types without marking a decode failure", () => {
+    const { decoder } = setup();
+    const rawTx = buildMsgSendTx("/cosmwasm.wasm.v1.MsgExecuteContract");
+
+    const decoded = decoder.decode(buildBlock({ txs: [rawTx.toString("base64")] }), buildBlockResults([{ code: 0, gas_used: "0", gas_wanted: "0" }]));
+
+    const [message] = decoded.transactions[0].messages;
+    expect(message.body).toBeNull();
+    expect(message.decodeFailure).toBeUndefined();
+  });
+
+  it("stores a null body without a decode failure when the decoded message exceeds the size cap", () => {
     const { decoder } = setup({ maxBodyBytes: 10 });
     const rawTx = buildMsgSendTx();
 
     const decoded = decoder.decode(buildBlock({ txs: [rawTx.toString("base64")] }), buildBlockResults([{ code: 0, gas_used: "0", gas_wanted: "0" }]));
 
     expect(decoded.transactions[0].messages[0].body).toBeNull();
+    expect(decoded.transactions[0].messages[0].decodeFailure).toBeUndefined();
   });
 
   it("throws when the tx results count does not match the block txs", () => {
@@ -201,14 +229,16 @@ describe(BlockDecoderService.name, () => {
     return { type, attributes: Object.entries(attributes).map(([key, value]) => ({ key, value })) };
   }
 
-  function buildMsgSendTx(typeUrl = "/cosmos.bank.v1beta1.MsgSend"): Buffer {
-    const message = MsgSend.encode({
+  function encodeMsgSendValue(): Uint8Array {
+    return MsgSend.encode({
       fromAddress: "akash1from",
       toAddress: "akash1to",
       amount: [{ denom: "uakt", amount: "42" }]
     }).finish();
+  }
 
-    const bodyBytes = TxBody.encode(TxBody.fromPartial({ messages: [{ typeUrl, value: message }] })).finish();
+  function buildMsgSendTx(typeUrl = "/cosmos.bank.v1beta1.MsgSend", messageValue = encodeMsgSendValue()): Buffer {
+    const bodyBytes = TxBody.encode(TxBody.fromPartial({ messages: [{ typeUrl, value: messageValue }] })).finish();
     const authInfoBytes = AuthInfo.encode(
       AuthInfo.fromPartial({ fee: { amount: [{ denom: "uakt", amount: "5000" }], gasLimit: 70_000n, payer: "", granter: "" }, signerInfos: [] })
     ).finish();

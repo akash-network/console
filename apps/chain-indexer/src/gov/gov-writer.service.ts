@@ -6,6 +6,7 @@ import { INSERT_CHUNK_SIZE } from "@src/db/insert-chunk-size";
 import { insertChunked } from "@src/db/insert-chunked";
 import type { FeeCoin } from "@src/db/schema";
 import { ProposalDeposits, Proposals, ProposalVotes } from "@src/db/schema";
+import { sqlExcluded } from "@src/db/sql-excluded";
 import { sumFeeCoins } from "@src/gov/coin-total";
 import type { DerivedDeposit, DerivedProposal, DerivedStatusUpdate, DerivedVote, GovChanges } from "@src/gov/gov-deriver";
 import { deriveGovChanges } from "@src/gov/gov-deriver";
@@ -120,7 +121,9 @@ export class GovWriter {
   /** A `voting_period` promotion is conditional so it can't overwrite a terminal status; terminal updates are unconditional. */
   async #applyStatusUpdates(tx: ChainTransaction, updates: DerivedStatusUpdate[]): Promise<void> {
     for (const update of updates) {
-      const filter = update.onlyFromDepositPeriod ? and(eq(Proposals.id, update.proposalId), eq(Proposals.status, "deposit_period")) : eq(Proposals.id, update.proposalId);
+      const filter = update.onlyFromDepositPeriod
+        ? and(eq(Proposals.id, update.proposalId), eq(Proposals.status, "deposit_period"))
+        : eq(Proposals.id, update.proposalId);
       await tx.update(Proposals).set({ status: update.status }).where(filter);
     }
   }
@@ -151,8 +154,4 @@ function dedupeVotes(votes: DerivedVote[]): DerivedVote[] {
     }
   }
   return [...byKey.values()];
-}
-
-function sqlExcluded(column: string) {
-  return sql.raw(`excluded.${column}`);
 }
