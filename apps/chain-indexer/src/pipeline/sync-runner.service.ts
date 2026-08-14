@@ -90,17 +90,25 @@ export class SyncRunnerService {
     while (!this.#stopped) {
       const tipHeight = await this.#retryTransient(() => this.#pool.getTipHeight(), { event: "SYNC_TIP_FETCH_RETRY" });
 
-      if (nextHeight > tipHeight) {
-        await this.#maybeSnapshotStaking(nextHeight - 1);
-        await delay(this.#config.SYNC_POLL_INTERVAL_MS);
-        continue;
+      if (nextHeight <= tipHeight) {
+        while (nextHeight <= tipHeight && !this.#stopped) {
+          const height = nextHeight;
+          await this.#retryTransient(() => this.#syncBlock(height), { event: "SYNC_BLOCK_RETRY", height });
+          nextHeight++;
+        }
       }
 
-      while (nextHeight <= tipHeight && !this.#stopped) {
-        const height = nextHeight;
-        await this.#retryTransient(() => this.#syncBlock(height), { event: "SYNC_BLOCK_RETRY", height });
-        nextHeight++;
+      if (this.#stopped) {
+        return;
       }
+
+      // Snapshot after the observed tip is fully committed, even if a new block appears before the next poll.
+      // Waiting until nextHeight > tip would skip the snapshot whenever live follow stays one block behind.
+      await this.#maybeSnapshotStaking(nextHeight - 1);
+      if (this.#stopped) {
+        return;
+      }
+      await delay(this.#config.SYNC_POLL_INTERVAL_MS);
     }
   }
 
@@ -125,8 +133,8 @@ export class SyncRunnerService {
   }
 
   /**
-   * Reconciles the validator set and delegations against the chain, but only once sync has caught up to the tip
-   * so the snapshot reads current state, and throttled to one run per configured block interval. A failed
+   * Reconciles the validator set and delegations against the chain after sync has committed the tip it last
+   * observed, so the snapshot reads current state. Throttled to one run per configured block interval. A failed
    * snapshot is logged and retried on the next interval rather than halting the sync it rides alongside.
    */
   async #maybeSnapshotStaking(head: number): Promise<void> {

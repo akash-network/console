@@ -1,5 +1,6 @@
 import { netConfig } from "@akashnetwork/net";
 import { inject, singleton } from "tsyringe";
+import { Agent } from "undici";
 
 import type { EnvConfig } from "@src/config/env.config";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
@@ -22,6 +23,7 @@ export class RpcClientPool {
   readonly #nodes: RpcNodeState[];
   readonly #timeoutMs: number;
   readonly #cooldownMs: number;
+  readonly #dispatcher: Agent;
   readonly #logger: LoggerService;
 
   constructor(@inject(APP_CONFIG) config: EnvConfig, @inject(LoggerService) logger: LoggerService) {
@@ -38,6 +40,9 @@ export class RpcClientPool {
     this.#nodes = endpoints.map(endpoint => ({ endpoint: endpoint.replace(/\/$/, ""), inFlight: 0, unhealthyUntil: 0 }));
     this.#timeoutMs = config.RPC_TIMEOUT_MS;
     this.#cooldownMs = config.RPC_NODE_COOLDOWN_MS;
+    // AbortSignal.timeout only bounds the whole request. undici's default connect timeout is 10s and
+    // is independent of that signal, which is too short for a loaded archival node.
+    this.#dispatcher = new Agent({ connectTimeout: this.#timeoutMs, headersTimeout: this.#timeoutMs, bodyTimeout: this.#timeoutMs });
     this.#logger = logger;
     this.#logger.setContext("RPC_POOL");
   }
@@ -107,7 +112,7 @@ export class RpcClientPool {
   }
 
   async #fetchFromNode<T>(endpoint: string, path: string): Promise<T> {
-    const response = await fetch(`${endpoint}${path}`, { signal: AbortSignal.timeout(this.#timeoutMs) });
+    const response = await fetch(`${endpoint}${path}`, { signal: AbortSignal.timeout(this.#timeoutMs), dispatcher: this.#dispatcher } as RequestInit);
 
     if (!response.ok) {
       throw new Error(`RPC responded with status ${response.status}`);

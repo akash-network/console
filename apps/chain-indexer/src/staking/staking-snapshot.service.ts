@@ -23,8 +23,8 @@ import {
   VALIDATORS_PATH
 } from "@src/staking/staking-query";
 
-/** Validators whose delegations and unbonding are fetched at once; bounded so a large set spreads across the RPC pool without flooding it. */
-const SNAPSHOT_FETCH_CONCURRENCY = 10;
+/** Validators whose delegations and unbonding are fetched at once. Kept small so a single archival node is not flooded with parallel TLS handshakes. */
+const SNAPSHOT_FETCH_CONCURRENCY = 2;
 
 /**
  * Reconciles validators, delegations and unbonding to the chain's own answer, because delegation *shares*
@@ -71,7 +71,10 @@ export class StakingSnapshotService {
       }
     }
 
-    const accountIds = await this.#interner.resolve([...delegations.map(delegation => delegation.delegatorAddress), ...unbonding.map(entry => entry.delegatorAddress)]);
+    const accountIds = await this.#interner.resolve([
+      ...delegations.map(delegation => delegation.delegatorAddress),
+      ...unbonding.map(entry => entry.delegatorAddress)
+    ]);
 
     await this.#db.transaction(async tx => {
       await this.#upsertValidators(tx, validators);
@@ -79,14 +82,30 @@ export class StakingSnapshotService {
       await this.#replaceUnbonding(tx, unbonding, accountIds);
     });
 
-    this.#logger.info({ event: "STAKING_SNAPSHOT_WRITTEN", height, validators: validators.length, delegations: delegations.length, unbonding: unbonding.length });
+    this.#logger.info({
+      event: "STAKING_SNAPSHOT_WRITTEN",
+      height,
+      validators: validators.length,
+      delegations: delegations.length,
+      unbonding: unbonding.length
+    });
   }
 
   /** A validator's delegations and unbonding entries fetched concurrently; both are read-only and pinned to `height`. */
   async #fetchValidatorStake(height: number, operatorAddress: string): Promise<{ delegations: SnapshotDelegation[]; unbonding: SnapshotUnbondingEntry[] }> {
     const [delegations, unbonding] = await Promise.all([
-      this.#fetchAll(height, VALIDATOR_DELEGATIONS_PATH, key => encodeValidatorDelegationsRequest(operatorAddress, key), value => decodeValidatorDelegations(operatorAddress, value)),
-      this.#fetchAll(height, VALIDATOR_UNBONDING_PATH, key => encodeValidatorUnbondingRequest(operatorAddress, key), value => decodeValidatorUnbonding(operatorAddress, value))
+      this.#fetchAll(
+        height,
+        VALIDATOR_DELEGATIONS_PATH,
+        key => encodeValidatorDelegationsRequest(operatorAddress, key),
+        value => decodeValidatorDelegations(operatorAddress, value)
+      ),
+      this.#fetchAll(
+        height,
+        VALIDATOR_UNBONDING_PATH,
+        key => encodeValidatorUnbondingRequest(operatorAddress, key),
+        value => decodeValidatorUnbonding(operatorAddress, value)
+      )
     ]);
     return { delegations, unbonding };
   }
