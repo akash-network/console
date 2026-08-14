@@ -5,6 +5,7 @@ import { inject, singleton } from "tsyringe";
 import { INSERT_CHUNK_SIZE } from "@src/db/insert-chunk-size";
 import { insertChunked } from "@src/db/insert-chunked";
 import { Delegations, UnbondingDelegations, Validators } from "@src/db/schema";
+import { retryWithBackoff } from "@src/lib/retry-with-backoff/retry-with-backoff";
 import { AccountInterner } from "@src/pipeline/balance/account-interner.service";
 import type { ChainDatabase, ChainTransaction } from "@src/providers/db.provider";
 import { CHAIN_DB } from "@src/providers/db.provider";
@@ -25,6 +26,8 @@ import {
 
 /** Validators whose delegations and unbonding are fetched at once. Kept small so a single archival node is not flooded with parallel TLS handshakes. */
 const SNAPSHOT_FETCH_CONCURRENCY = 2;
+const SNAPSHOT_QUERY_RETRIES = 5;
+const SNAPSHOT_QUERY_RETRY_BASE_MS = 1_000;
 
 /**
  * Reconciles validators, delegations and unbonding to the chain's own answer, because delegation *shares*
@@ -116,7 +119,11 @@ export class StakingSnapshotService {
     let key: Uint8Array = new Uint8Array();
 
     for (;;) {
-      const response = await this.#rpc.abciQuery(path, encode(key), height);
+      const response = await retryWithBackoff(() => this.#rpc.abciQuery(path, encode(key), height), {
+        maxAttempts: SNAPSHOT_QUERY_RETRIES,
+        baseDelayMs: SNAPSHOT_QUERY_RETRY_BASE_MS,
+        onRetry: (error, attempt, delayMs) => this.#logger.warn({ event: "STAKING_SNAPSHOT_QUERY_RETRY", path, height, attempt, delayMs, error })
+      });
       const page = decode(response.value);
       items.push(...page.items);
       if (!page.nextKey) {

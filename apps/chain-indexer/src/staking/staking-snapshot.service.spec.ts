@@ -1,6 +1,10 @@
 import { toBase64 } from "@cosmjs/encoding";
 import { PubKey as Ed25519PubKey } from "cosmjs-types/cosmos/crypto/ed25519/keys";
-import { QueryValidatorDelegationsResponse, QueryValidatorsResponse, QueryValidatorUnbondingDelegationsResponse } from "cosmjs-types/cosmos/staking/v1beta1/query";
+import {
+  QueryValidatorDelegationsResponse,
+  QueryValidatorsResponse,
+  QueryValidatorUnbondingDelegationsResponse
+} from "cosmjs-types/cosmos/staking/v1beta1/query";
 import { BondStatus } from "cosmjs-types/cosmos/staking/v1beta1/staking";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -18,20 +22,37 @@ const OPERATOR = "akashvaloper1abc";
 describe(StakingSnapshotService.name, () => {
   it("upserts each validator's bond state at the snapshot height", async () => {
     const { service, inserts } = setup({
-      [VALIDATORS_PATH]: [validatorsResponse([validator({ operatorAddress: OPERATOR, status: BondStatus.BOND_STATUS_BONDED, tokens: "7000000", delegatorShares: "7000000000000000000000000" })])]
+      [VALIDATORS_PATH]: [
+        validatorsResponse([
+          validator({ operatorAddress: OPERATOR, status: BondStatus.BOND_STATUS_BONDED, tokens: "7000000", delegatorShares: "7000000000000000000000000" })
+        ])
+      ]
     });
 
     await service.snapshot(1000);
 
     expect(rowsFor(inserts, Validators)).toEqual([
-      expect.objectContaining({ operatorAddress: OPERATOR, jailed: false, status: "bonded", tokens: "7000000", delegatorShares: "7000000.000000000000000000", unbondingHeight: null, unbondingTime: null })
+      expect.objectContaining({
+        operatorAddress: OPERATOR,
+        jailed: false,
+        status: "bonded",
+        tokens: "7000000",
+        delegatorShares: "7000000.000000000000000000",
+        unbondingHeight: null,
+        unbondingTime: null
+      })
     ]);
   });
 
   it("derives each validator's consensus hex address from its ed25519 pubkey", async () => {
     const { service, inserts } = setup({
       [VALIDATORS_PATH]: [
-        validatorsResponse([validator({ operatorAddress: OPERATOR, consensusPubkey: { typeUrl: "/cosmos.crypto.ed25519.PubKey", value: Ed25519PubKey.encode({ key: new Uint8Array(32).fill(1) }).finish() } })])
+        validatorsResponse([
+          validator({
+            operatorAddress: OPERATOR,
+            consensusPubkey: { typeUrl: "/cosmos.crypto.ed25519.PubKey", value: Ed25519PubKey.encode({ key: new Uint8Array(32).fill(1) }).finish() }
+          })
+        ])
       ]
     });
 
@@ -64,7 +85,13 @@ describe(StakingSnapshotService.name, () => {
     const { service, inserts, deletes } = setup({
       [VALIDATORS_PATH]: [validatorsResponse([validator({ operatorAddress: OPERATOR })])],
       [VALIDATOR_UNBONDING_PATH]: [
-        unbondingResponse([{ delegatorAddress: "akash1del", validatorAddress: OPERATOR, entries: [{ creationHeight: 900n, completionTime: { seconds: 1_700_000_000n, nanos: 0 }, initialBalance: "500000", balance: "500000" }] }])
+        unbondingResponse([
+          {
+            delegatorAddress: "akash1del",
+            validatorAddress: OPERATOR,
+            entries: [{ creationHeight: 900n, completionTime: { seconds: 1_700_000_000n, nanos: 0 }, initialBalance: "500000", balance: "500000" }]
+          }
+        ])
       ]
     });
 
@@ -72,7 +99,14 @@ describe(StakingSnapshotService.name, () => {
 
     expect(deletes).toContain(UnbondingDelegations);
     expect(rowsFor(inserts, UnbondingDelegations)).toEqual([
-      { delegatorAccountId: 1, validatorOperatorAddress: OPERATOR, creationHeight: 900, completionTime: new Date(1_700_000_000_000), initialBalance: "500000", balance: "500000" }
+      {
+        delegatorAccountId: 1,
+        validatorOperatorAddress: OPERATOR,
+        creationHeight: 900,
+        completionTime: new Date(1_700_000_000_000),
+        initialBalance: "500000",
+        balance: "500000"
+      }
     ]);
   });
 
@@ -111,13 +145,30 @@ describe(StakingSnapshotService.name, () => {
       [VALIDATORS_PATH]: [validatorsResponse([validator({ operatorAddress: OPERATOR })])],
       [VALIDATOR_DELEGATIONS_PATH]: [delegationsResponse([{ delegatorAddress: "akash1del", validatorAddress: OPERATOR, shares: "1000000000000000000" }])],
       [VALIDATOR_UNBONDING_PATH]: [
-        unbondingResponse([{ delegatorAddress: "akash1unbonding", validatorAddress: OPERATOR, entries: [{ creationHeight: 1n, completionTime: { seconds: 1n, nanos: 0 }, initialBalance: "1", balance: "1" }] }])
+        unbondingResponse([
+          {
+            delegatorAddress: "akash1unbonding",
+            validatorAddress: OPERATOR,
+            entries: [{ creationHeight: 1n, completionTime: { seconds: 1n, nanos: 0 }, initialBalance: "1", balance: "1" }]
+          }
+        ])
       ]
     });
 
     await service.snapshot(1000);
 
     expect(new Set([...interner.resolve.mock.calls[0][0]])).toEqual(new Set(["akash1del", "akash1unbonding"]));
+  });
+
+  it("retries a transient staking query failure and still writes the page", async () => {
+    const { service, inserts, rpc } = setup({
+      [VALIDATORS_PATH]: [validatorsResponse([validator({ operatorAddress: OPERATOR })])]
+    });
+    rpc.abciQuery.mockRejectedValueOnce(new Error("ECONNRESET"));
+
+    await service.snapshot(1000);
+
+    expect(rowsFor(inserts, Validators)).toEqual([expect.objectContaining({ operatorAddress: OPERATOR })]);
   });
 
   it("skips all writes when the chain reports no validators", async () => {
@@ -171,7 +222,13 @@ function rowsFor(inserts: { table: unknown; rows: Record<string, unknown>[] }[],
   return inserts.filter(insert => insert.table === table).flatMap(insert => insert.rows);
 }
 
-function validator(overrides: { operatorAddress: string; status?: BondStatus; tokens?: string; delegatorShares?: string; consensusPubkey?: { typeUrl: string; value: Uint8Array } }) {
+function validator(overrides: {
+  operatorAddress: string;
+  status?: BondStatus;
+  tokens?: string;
+  delegatorShares?: string;
+  consensusPubkey?: { typeUrl: string; value: Uint8Array };
+}) {
   return {
     operatorAddress: overrides.operatorAddress,
     consensusPubkey: overrides.consensusPubkey,
@@ -183,17 +240,29 @@ function validator(overrides: { operatorAddress: string; status?: BondStatus; to
 }
 
 function validatorsResponse(validators: ReturnType<typeof validator>[], nextKey?: Uint8Array): string {
-  return toBase64(QueryValidatorsResponse.encode(QueryValidatorsResponse.fromPartial({ validators, pagination: nextKey ? { nextKey, total: 0n } : undefined })).finish());
+  return toBase64(
+    QueryValidatorsResponse.encode(QueryValidatorsResponse.fromPartial({ validators, pagination: nextKey ? { nextKey, total: 0n } : undefined })).finish()
+  );
 }
 
 function delegationsResponse(delegations: { delegatorAddress: string; validatorAddress: string; shares: string }[]): string {
   return toBase64(
-    QueryValidatorDelegationsResponse.encode(QueryValidatorDelegationsResponse.fromPartial({ delegationResponses: delegations.map(delegation => ({ delegation, balance: { denom: "uakt", amount: "0" } })) })).finish()
+    QueryValidatorDelegationsResponse.encode(
+      QueryValidatorDelegationsResponse.fromPartial({
+        delegationResponses: delegations.map(delegation => ({ delegation, balance: { denom: "uakt", amount: "0" } }))
+      })
+    ).finish()
   );
 }
 
 function unbondingResponse(
-  unbonding: { delegatorAddress: string; validatorAddress: string; entries: { creationHeight: bigint; completionTime: { seconds: bigint; nanos: number }; initialBalance: string; balance: string }[] }[]
+  unbonding: {
+    delegatorAddress: string;
+    validatorAddress: string;
+    entries: { creationHeight: bigint; completionTime: { seconds: bigint; nanos: number }; initialBalance: string; balance: string }[];
+  }[]
 ): string {
-  return toBase64(QueryValidatorUnbondingDelegationsResponse.encode(QueryValidatorUnbondingDelegationsResponse.fromPartial({ unbondingResponses: unbonding })).finish());
+  return toBase64(
+    QueryValidatorUnbondingDelegationsResponse.encode(QueryValidatorUnbondingDelegationsResponse.fromPartial({ unbondingResponses: unbonding })).finish()
+  );
 }
