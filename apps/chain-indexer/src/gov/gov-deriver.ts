@@ -72,8 +72,9 @@ export function deriveGovChanges(block: DecodedBlock): GovChanges {
     if (tx.code !== 0) {
       continue;
     }
+    const consumedSubmitEvents = new Set<DecodedEvent>();
     for (const message of tx.messages) {
-      addMessage(changes, message, tx, block);
+      addMessage(changes, message, tx, block, consumedSubmitEvents);
     }
   }
 
@@ -106,14 +107,14 @@ function aggregateDeposits(deposits: DerivedDeposit[]): DerivedDeposit[] {
   return [...byKey.values()];
 }
 
-function addMessage(changes: GovChanges, message: DecodedMessage, tx: DecodedTransaction, block: DecodedBlock): void {
+function addMessage(changes: GovChanges, message: DecodedMessage, tx: DecodedTransaction, block: DecodedBlock, consumedSubmitEvents: Set<DecodedEvent>): void {
   const body = asRecord(message.body);
   if (!body) {
     return;
   }
 
   if (SUBMIT_PROPOSAL.has(message.typeUrl)) {
-    addProposal(changes, body, message.index, tx, block);
+    addProposal(changes, body, message.index, tx, block, consumedSubmitEvents);
   } else if (VOTE.has(message.typeUrl)) {
     const option = mapOption(asNumber(body.option));
     addVote(changes, body, option ? [{ option, weight: FULL_WEIGHT }] : [], block.height);
@@ -124,8 +125,15 @@ function addMessage(changes: GovChanges, message: DecodedMessage, tx: DecodedTra
   }
 }
 
-function addProposal(changes: GovChanges, body: Record<string, unknown>, messageIndex: number, tx: DecodedTransaction, block: DecodedBlock): void {
-  const id = proposalIdFromEvent(tx, messageIndex);
+function addProposal(
+  changes: GovChanges,
+  body: Record<string, unknown>,
+  messageIndex: number,
+  tx: DecodedTransaction,
+  block: DecodedBlock,
+  consumedSubmitEvents: Set<DecodedEvent>
+): void {
+  const id = proposalIdFromEvent(tx, messageIndex, consumedSubmitEvents);
   if (id === null) {
     return;
   }
@@ -188,9 +196,9 @@ function addBlockEvent(changes: GovChanges, event: DecodedEvent): void {
 /**
  * The `submit_proposal` event carries the assigned id, linked by `msg_index`. Older cosmos (mainnet
  * genesis-era) emits two events with no index — one with `proposal_id`, one with `proposal_type` /
- * `voting_period_start` — so fall back to the first event that actually has an id.
+ * `voting_period_start` — so fall back to the next unused event that actually has an id.
  */
-function proposalIdFromEvent(tx: DecodedTransaction, messageIndex: number): number | null {
+function proposalIdFromEvent(tx: DecodedTransaction, messageIndex: number, consumedSubmitEvents: Set<DecodedEvent>): number | null {
   const events = tx.events.filter(event => event.type === "submit_proposal");
   const matched = events.find(candidate => candidate.msgIndex === messageIndex);
   if (matched) {
@@ -198,8 +206,12 @@ function proposalIdFromEvent(tx: DecodedTransaction, messageIndex: number): numb
   }
 
   for (const event of events) {
+    if (consumedSubmitEvents.has(event)) {
+      continue;
+    }
     const proposalId = asProposalId(event.attributes.proposal_id);
     if (proposalId !== null) {
+      consumedSubmitEvents.add(event);
       return proposalId;
     }
   }

@@ -96,14 +96,13 @@ export class SyncRunnerService {
           await this.#retryTransient(() => this.#syncBlock(height), { event: "SYNC_BLOCK_RETRY", height });
           nextHeight++;
         }
+        if (this.#stopped) {
+          return;
+        }
+        await this.#maybeSnapshotStaking(nextHeight - 1);
+        continue;
       }
 
-      if (this.#stopped) {
-        return;
-      }
-
-      // Snapshot after the observed tip is fully committed, even if a new block appears before the next poll.
-      // Waiting until nextHeight > tip would skip the snapshot whenever live follow stays one block behind.
       await this.#maybeSnapshotStaking(nextHeight - 1);
       if (this.#stopped) {
         return;
@@ -133,9 +132,10 @@ export class SyncRunnerService {
   }
 
   /**
-   * Reconciles the validator set and delegations against the chain after sync has committed the tip it last
-   * observed, so the snapshot reads current state. Throttled to one run per configured block interval. A failed
-   * snapshot is logged and retried on the next interval rather than halting the sync it rides alongside.
+   * Reconciles the validator set after the observed tip is committed, even if a newer block appears before
+   * the next poll — waiting until nextHeight > tip would skip the snapshot whenever live follow stays one
+   * block behind. Throttled to one run per configured block interval. A failed snapshot is logged and
+   * retried on the next interval rather than halting the sync it rides alongside.
    */
   async #maybeSnapshotStaking(head: number): Promise<void> {
     if (!this.#config.STAKING_SNAPSHOT_ENABLED || head < 1) {
@@ -146,7 +146,7 @@ export class SyncRunnerService {
     }
 
     try {
-      await this.#stakingSnapshot.snapshot(head);
+      await this.#stakingSnapshot.snapshot(head, () => this.#stopped);
       this.#lastSnapshotHeight = head;
     } catch (error) {
       this.#logger.error({ event: "STAKING_SNAPSHOT_FAILED", height: head, error });

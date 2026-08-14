@@ -64,6 +64,33 @@ describe("deriveGovChanges", () => {
     expect(changes.deposits).toEqual([]);
   });
 
+  it("assigns distinct ids when one early-mainnet tx submits two proposals without msg_index", () => {
+    const changes = deriveGovChanges(
+      block({
+        messages: [
+          {
+            typeUrl: MSG_SUBMIT_PROPOSAL_V1BETA1,
+            body: { proposer: "akash1a", content: { typeUrl: "/cosmos.gov.v1beta1.TextProposal", value: "AA==" }, initialDeposit: [] },
+            index: 0
+          },
+          {
+            typeUrl: MSG_SUBMIT_PROPOSAL_V1BETA1,
+            body: { proposer: "akash1b", content: { typeUrl: "/cosmos.gov.v1beta1.TextProposal", value: "BB==" }, initialDeposit: [] },
+            index: 1
+          }
+        ],
+        txEvents: [
+          event("submit_proposal", { proposal_id: "4" }),
+          event("submit_proposal", { proposal_type: "Text", voting_period_start: "4" }),
+          event("submit_proposal", { proposal_id: "5" }),
+          event("submit_proposal", { proposal_type: "Text", voting_period_start: "5" })
+        ]
+      })
+    );
+
+    expect(changes.proposals.map(proposal => proposal.id)).toEqual([4, 5]);
+  });
+
   it("takes the proposal id from a pair of unindexed submit_proposal events the way early mainnet emits them", () => {
     const changes = deriveGovChanges(
       block({

@@ -23,6 +23,10 @@ export class RpcClientPool {
   readonly #nodes: RpcNodeState[];
   readonly #timeoutMs: number;
   readonly #cooldownMs: number;
+  /**
+   * AbortSignal.timeout only bounds the whole request. undici's default connect timeout is 10s and is
+   * independent of that signal, which is too short for a loaded archival node.
+   */
   readonly #dispatcher: Agent;
   readonly #logger: LoggerService;
 
@@ -40,8 +44,6 @@ export class RpcClientPool {
     this.#nodes = endpoints.map(endpoint => ({ endpoint: endpoint.replace(/\/$/, ""), inFlight: 0, unhealthyUntil: 0 }));
     this.#timeoutMs = config.RPC_TIMEOUT_MS;
     this.#cooldownMs = config.RPC_NODE_COOLDOWN_MS;
-    // AbortSignal.timeout only bounds the whole request. undici's default connect timeout is 10s and
-    // is independent of that signal, which is too short for a loaded archival node.
     this.#dispatcher = new Agent({ connectTimeout: this.#timeoutMs, headersTimeout: this.#timeoutMs, bodyTimeout: this.#timeoutMs });
     this.#logger = logger;
     this.#logger.setContext("RPC_POOL");

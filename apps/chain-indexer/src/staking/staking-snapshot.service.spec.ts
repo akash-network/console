@@ -160,6 +160,14 @@ describe(StakingSnapshotService.name, () => {
     expect(new Set([...interner.resolve.mock.calls[0][0]])).toEqual(new Set(["akash1del", "akash1unbonding"]));
   });
 
+  it("aborts the fetch when told to stop", async () => {
+    const { service } = setup({
+      [VALIDATORS_PATH]: [validatorsResponse([validator({ operatorAddress: OPERATOR })])]
+    });
+
+    await expect(service.snapshot(1000, () => true)).rejects.toThrow("Staking snapshot stopped");
+  });
+
   it("retries a transient staking query failure and still writes the page", async () => {
     const { service, inserts, rpc } = setup({
       [VALIDATORS_PATH]: [validatorsResponse([validator({ operatorAddress: OPERATOR })])]

@@ -34,8 +34,8 @@ const SNAPSHOT_QUERY_RETRY_BASE_MS = 1_000;
  * cannot be derived exactly from messages — the token↔share rate drifts with every reward and slash. The
  * whole set is fetched before any write, so a failed query aborts the run without touching the tables.
  * Delegations and unbonding are fully replaced (an entry vanishes silently once it matures or fully
- * undelegates); validators are upserted, refreshing only the snapshot-owned bond state and leaving the
- * message-sourced descriptor, commission and addresses intact.
+ * undelegates); validators are upserted in full from the chain query, including descriptor, commission
+ * and addresses.
  */
 @singleton()
 export class StakingSnapshotService {
@@ -57,8 +57,8 @@ export class StakingSnapshotService {
     this.#logger.setContext("STAKING_SNAPSHOT");
   }
 
-  async snapshot(height: number): Promise<void> {
-    const validators = await this.#fetchAll(height, VALIDATORS_PATH, encodeValidatorsRequest, decodeValidators);
+  async snapshot(height: number, isStopped: () => boolean = () => false): Promise<void> {
+    const validators = await this.#fetchAll(height, VALIDATORS_PATH, encodeValidatorsRequest, decodeValidators, isStopped);
     if (validators.length === 0) {
       this.#logger.warn({ event: "STAKING_SNAPSHOT_NO_VALIDATORS", height });
       return;
@@ -67,7 +67,7 @@ export class StakingSnapshotService {
     const delegations: SnapshotDelegation[] = [];
     const unbonding: SnapshotUnbondingEntry[] = [];
     for (const batch of chunk(validators, SNAPSHOT_FETCH_CONCURRENCY)) {
-      const stakes = await Promise.all(batch.map(({ operatorAddress }) => this.#fetchValidatorStake(height, operatorAddress)));
+      const stakes = await Promise.all(batch.map(({ operatorAddress }) => this.#fetchValidatorStake(height, operatorAddress, isStopped)));
       for (const stake of stakes) {
         delegations.push(...stake.delegations);
         unbonding.push(...stake.unbonding);
@@ -95,33 +95,49 @@ export class StakingSnapshotService {
   }
 
   /** A validator's delegations and unbonding entries fetched concurrently; both are read-only and pinned to `height`. */
-  async #fetchValidatorStake(height: number, operatorAddress: string): Promise<{ delegations: SnapshotDelegation[]; unbonding: SnapshotUnbondingEntry[] }> {
+  async #fetchValidatorStake(
+    height: number,
+    operatorAddress: string,
+    isStopped: () => boolean
+  ): Promise<{ delegations: SnapshotDelegation[]; unbonding: SnapshotUnbondingEntry[] }> {
     const [delegations, unbonding] = await Promise.all([
       this.#fetchAll(
         height,
         VALIDATOR_DELEGATIONS_PATH,
         key => encodeValidatorDelegationsRequest(operatorAddress, key),
-        value => decodeValidatorDelegations(operatorAddress, value)
+        value => decodeValidatorDelegations(operatorAddress, value),
+        isStopped
       ),
       this.#fetchAll(
         height,
         VALIDATOR_UNBONDING_PATH,
         key => encodeValidatorUnbondingRequest(operatorAddress, key),
-        value => decodeValidatorUnbonding(operatorAddress, value)
+        value => decodeValidatorUnbonding(operatorAddress, value),
+        isStopped
       )
     ]);
     return { delegations, unbonding };
   }
 
   /** Walks a paginated staking query to exhaustion, following the node's `next_key` cursor across pages. */
-  async #fetchAll<T>(height: number, path: string, encode: (key: Uint8Array) => string, decode: (value: string | null) => Page<T>): Promise<T[]> {
+  async #fetchAll<T>(
+    height: number,
+    path: string,
+    encode: (key: Uint8Array) => string,
+    decode: (value: string | null) => Page<T>,
+    isStopped: () => boolean
+  ): Promise<T[]> {
     const items: T[] = [];
     let key: Uint8Array = new Uint8Array();
 
     for (;;) {
+      if (isStopped()) {
+        throw new Error("Staking snapshot stopped");
+      }
       const response = await retryWithBackoff(() => this.#rpc.abciQuery(path, encode(key), height), {
         maxAttempts: SNAPSHOT_QUERY_RETRIES,
         baseDelayMs: SNAPSHOT_QUERY_RETRY_BASE_MS,
+        shouldRethrow: () => isStopped(),
         onRetry: (error, attempt, delayMs) => this.#logger.warn({ event: "STAKING_SNAPSHOT_QUERY_RETRY", path, height, attempt, delayMs, error })
       });
       const page = decode(response.value);

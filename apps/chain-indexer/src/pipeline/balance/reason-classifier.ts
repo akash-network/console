@@ -22,9 +22,9 @@ const WITHDRAW_VALIDATOR_COMMISSION = "/cosmos.distribution.v1beta1.MsgWithdrawV
  * role, falling back to the counterparty's, then the denom. Preferring the holder's own role keeps each leg of
  * a module-to-module movement (e.g. fee_collector to distribution every block) tagged by the module whose
  * balance actually changed, rather than mirroring the counterparty. Distribution flows are direction-aware
- * relative to the module so a fund-community-pool inflow is not mistaken for a reward. Anything unrecognized is
- * a plain `transfer`. Escrow-module movements classify as `escrow`; per-deployment/lease attribution of that
- * escrow is deliberately left for later.
+ * relative to the module so a fund-community-pool inflow or an EndBlock community-pool spend is not mistaken
+ * for a reward. Anything unrecognized is a plain `transfer`. Escrow-module movements classify as `escrow`;
+ * per-deployment/lease attribution of that escrow is deliberately left for later.
  */
 export function classifyReason(ctx: ReasonContext, registry: ModuleAddressRegistry): BalanceReason {
   if (ctx.isSlash) {
@@ -67,12 +67,16 @@ export function classifyReason(ctx: ReasonContext, registry: ModuleAddressRegist
  * validator's own commission message. Direction is measured against the module itself, not the row's holder:
  * whether the module is the holder being debited or the counterparty a holder is credited from, the outflow is
  * classified the same on both legs. A flow *into* the module (e.g. MsgFundCommunityPool) is not a reward, so it
- * falls back to a plain transfer.
+ * falls back to a plain transfer. An outflow with no signer message is a community-pool spend (EndBlock, no
+ * msg_index), not a reward withdrawal — those always carry a withdraw message type.
  */
 function classifyDistributionFlow(ctx: ReasonContext, distributionIsHolder: boolean): BalanceReason {
   const leavesModule = distributionIsHolder ? !ctx.isCredit : ctx.isCredit;
   if (!leavesModule) {
     return "transfer";
   }
-  return ctx.msgTypeUrl === WITHDRAW_VALIDATOR_COMMISSION ? "commission" : "reward";
+  if (ctx.msgTypeUrl === WITHDRAW_VALIDATOR_COMMISSION) {
+    return "commission";
+  }
+  return ctx.msgTypeUrl === null ? "transfer" : "reward";
 }

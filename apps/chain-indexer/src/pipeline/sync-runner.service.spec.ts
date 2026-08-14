@@ -144,7 +144,25 @@ describe(SyncRunnerService.name, () => {
 
       expect(committer.commit).toHaveBeenCalledTimes(3);
       expect(stakingSnapshot.snapshot).toHaveBeenCalledTimes(1);
-      expect(stakingSnapshot.snapshot).toHaveBeenCalledWith(3);
+      expect(stakingSnapshot.snapshot).toHaveBeenCalledWith(3, expect.any(Function));
+    });
+
+    it("chases a moving tip without waiting out the poll interval", async () => {
+      const { runner, pool, committer } = setup({ tipHeight: 1, pollIntervalMs: 60_000 });
+      let tipCalls = 0;
+      pool.getTipHeight.mockImplementation(async () => {
+        tipCalls += 1;
+        return tipCalls === 1 ? 1 : 2;
+      });
+      committer.commit.mockImplementation(async decoded => {
+        if (decoded.height >= 2) {
+          await runner.dispose();
+        }
+      });
+
+      await runner.start();
+
+      expect(committer.commit).toHaveBeenCalledTimes(2);
     });
 
     it("keeps syncing when a staking snapshot fails", async () => {
