@@ -17,7 +17,14 @@ describe("deriveGovChanges", () => {
         messages: [
           {
             typeUrl: MSG_SUBMIT_PROPOSAL,
-            body: { proposer: "akash1prop", title: "Upgrade", summary: "Do it", metadata: "meta", messages: [{ typeUrl: "/x", value: "AA==" }], initialDeposit: [{ denom: "uakt", amount: "1000" }] }
+            body: {
+              proposer: "akash1prop",
+              title: "Upgrade",
+              summary: "Do it",
+              metadata: "meta",
+              messages: [{ typeUrl: "/x", value: "AA==" }],
+              initialDeposit: [{ denom: "uakt", amount: "1000" }]
+            }
           }
         ],
         txEvents: [event("submit_proposal", { proposal_id: "7" }, 0)]
@@ -43,13 +50,40 @@ describe("deriveGovChanges", () => {
   it("keeps a v1beta1 proposal's legacy content under messages and leaves title/summary null", () => {
     const changes = deriveGovChanges(
       block({
-        messages: [{ typeUrl: MSG_SUBMIT_PROPOSAL_V1BETA1, body: { proposer: "akash1prop", content: { typeUrl: "/cosmos.gov.v1beta1.TextProposal", value: "BB==" }, initialDeposit: [] } }],
+        messages: [
+          {
+            typeUrl: MSG_SUBMIT_PROPOSAL_V1BETA1,
+            body: { proposer: "akash1prop", content: { typeUrl: "/cosmos.gov.v1beta1.TextProposal", value: "BB==" }, initialDeposit: [] }
+          }
+        ],
         txEvents: [event("submit_proposal", { proposal_id: "8" }, 0)]
       })
     );
 
     expect(changes.proposals[0]).toMatchObject({ id: 8, title: null, summary: null, messages: { typeUrl: "/cosmos.gov.v1beta1.TextProposal", value: "BB==" } });
     expect(changes.deposits).toEqual([]);
+  });
+
+  it("takes the proposal id from a pair of unindexed submit_proposal events the way early mainnet emits them", () => {
+    const changes = deriveGovChanges(
+      block({
+        messages: [
+          {
+            typeUrl: MSG_SUBMIT_PROPOSAL_V1BETA1,
+            body: {
+              proposer: "akash1prop",
+              content: { typeUrl: "/cosmos.params.v1beta1.ParameterChangeProposal", value: "AA==" },
+              initialDeposit: [{ denom: "uakt", amount: "1000000000" }]
+            }
+          }
+        ],
+        txEvents: [event("submit_proposal", { proposal_id: "4" }), event("submit_proposal", { proposal_type: "ParameterChange", voting_period_start: "4" })]
+      })
+    );
+
+    expect(changes.proposals[0]).toMatchObject({ id: 4, proposerAddress: "akash1prop" });
+    expect(changes.deposits).toEqual([{ proposalId: 4, depositorAddress: "akash1prop", amount: [{ denom: "uakt", amount: "1000000000" }], height: 100 }]);
+    expect(changes.statusUpdates).toEqual([{ proposalId: 4, status: "voting_period", onlyFromDepositPeriod: true }]);
   });
 
   it("skips a submit proposal whose id cannot be resolved from an event", () => {
@@ -84,7 +118,21 @@ describe("deriveGovChanges", () => {
 
   it("maps a weighted vote's options", () => {
     const changes = deriveGovChanges(
-      block({ messages: [{ typeUrl: MSG_VOTE_WEIGHTED, body: { proposalId: "7", voter: "akash1voter", options: [{ option: 1, weight: "0.700000000000000000" }, { option: 3, weight: "0.300000000000000000" }] } }] })
+      block({
+        messages: [
+          {
+            typeUrl: MSG_VOTE_WEIGHTED,
+            body: {
+              proposalId: "7",
+              voter: "akash1voter",
+              options: [
+                { option: 1, weight: "0.700000000000000000" },
+                { option: 3, weight: "0.300000000000000000" }
+              ]
+            }
+          }
+        ]
+      })
     );
 
     expect(changes.votes[0].options).toEqual([
@@ -101,7 +149,9 @@ describe("deriveGovChanges", () => {
   });
 
   it("derives a standalone deposit", () => {
-    const changes = deriveGovChanges(block({ messages: [{ typeUrl: MSG_DEPOSIT, body: { proposalId: "7", depositor: "akash1dep", amount: [{ denom: "uakt", amount: "500" }] } }] }));
+    const changes = deriveGovChanges(
+      block({ messages: [{ typeUrl: MSG_DEPOSIT, body: { proposalId: "7", depositor: "akash1dep", amount: [{ denom: "uakt", amount: "500" }] } }] })
+    );
 
     expect(changes.deposits).toEqual([{ proposalId: 7, depositorAddress: "akash1dep", amount: [{ denom: "uakt", amount: "500" }], height: 100 }]);
   });
@@ -149,7 +199,13 @@ describe("deriveGovChanges", () => {
   });
 });
 
-function block(input: { height?: number; code?: number; messages?: { typeUrl: string; body: unknown; index?: number }[]; txEvents?: DecodedEvent[]; blockEvents?: DecodedEvent[] }): DecodedBlock {
+function block(input: {
+  height?: number;
+  code?: number;
+  messages?: { typeUrl: string; body: unknown; index?: number }[];
+  txEvents?: DecodedEvent[];
+  blockEvents?: DecodedEvent[];
+}): DecodedBlock {
   const messages = input.messages ?? [];
   return {
     height: input.height ?? 100,

@@ -148,6 +148,10 @@ function addProposal(changes: GovChanges, body: Record<string, unknown>, message
   if (proposer && initialDeposit.length > 0) {
     addDeposit(changes, id, proposer, initialDeposit, block.height);
   }
+
+  if (hasVotingPeriodStart(tx, id)) {
+    changes.statusUpdates.push({ proposalId: id, status: "voting_period", onlyFromDepositPeriod: true });
+  }
 }
 
 function addVote(changes: GovChanges, body: Record<string, unknown>, options: WeightedVoteOption[], height: number): void {
@@ -181,11 +185,30 @@ function addBlockEvent(changes: GovChanges, event: DecodedEvent): void {
   }
 }
 
-/** The `submit_proposal` event carries the assigned id, linked by `msg_index`; a lone event needs no index to match. */
+/**
+ * The `submit_proposal` event carries the assigned id, linked by `msg_index`. Older cosmos (mainnet
+ * genesis-era) emits two events with no index — one with `proposal_id`, one with `proposal_type` /
+ * `voting_period_start` — so fall back to the first event that actually has an id.
+ */
 function proposalIdFromEvent(tx: DecodedTransaction, messageIndex: number): number | null {
   const events = tx.events.filter(event => event.type === "submit_proposal");
-  const event = events.find(candidate => candidate.msgIndex === messageIndex) ?? (events.length === 1 ? events[0] : undefined);
-  return asProposalId(event?.attributes.proposal_id);
+  const matched = events.find(candidate => candidate.msgIndex === messageIndex);
+  if (matched) {
+    return asProposalId(matched.attributes.proposal_id);
+  }
+
+  for (const event of events) {
+    const proposalId = asProposalId(event.attributes.proposal_id);
+    if (proposalId !== null) {
+      return proposalId;
+    }
+  }
+
+  return null;
+}
+
+function hasVotingPeriodStart(tx: DecodedTransaction, proposalId: number): boolean {
+  return tx.events.some(event => event.type === "submit_proposal" && asProposalId(event.attributes.voting_period_start) === proposalId);
 }
 
 function mapOption(option: number | null): VoteOptionValue | null {
