@@ -201,6 +201,11 @@ export class StakingSnapshotService {
     }
   }
 
+  /**
+   * Delete-then-insert, ignoring PK collisions so two overlapping snapshots (rolling deploy) duplicate
+   * work instead of aborting. A DELETE that started before the other writer committed will not see those
+   * new rows; the insert then no-ops on the same keys rather than raising 23505.
+   */
   async #replaceDelegations(tx: ChainTransaction, delegations: SnapshotDelegation[], accountIds: Map<string, number>): Promise<void> {
     await tx.delete(Delegations);
 
@@ -210,9 +215,10 @@ export class StakingSnapshotService {
       shares: delegation.shares
     }));
 
-    await insertChunked(tx, Delegations, rows, { onConflictDoNothing: false });
+    await insertChunked(tx, Delegations, rows);
   }
 
+  /** Same delete-then-insert as delegations: vanished entries disappear, concurrent writers do not abort. */
   async #replaceUnbonding(tx: ChainTransaction, unbonding: SnapshotUnbondingEntry[], accountIds: Map<string, number>): Promise<void> {
     await tx.delete(UnbondingDelegations);
 
@@ -225,7 +231,7 @@ export class StakingSnapshotService {
       balance: entry.balance
     }));
 
-    await insertChunked(tx, UnbondingDelegations, rows, { onConflictDoNothing: false });
+    await insertChunked(tx, UnbondingDelegations, rows);
   }
 
   #requireId(accountIds: Map<string, number>, address: string): number {

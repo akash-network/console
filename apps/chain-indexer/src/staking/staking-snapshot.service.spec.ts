@@ -17,6 +17,8 @@ import type { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
 import { VALIDATOR_DELEGATIONS_PATH, VALIDATOR_UNBONDING_PATH, VALIDATORS_PATH } from "@src/staking/staking-query";
 import { StakingSnapshotService } from "@src/staking/staking-snapshot.service";
 
+import { rowsFor } from "@test/fakes/build-tx-fake";
+
 const OPERATOR = "akashvaloper1abc";
 
 describe(StakingSnapshotService.name, () => {
@@ -225,10 +227,6 @@ describe(StakingSnapshotService.name, () => {
     return { service, inserts, deletes, rpc, interner };
   }
 });
-
-function rowsFor(inserts: { table: unknown; rows: Record<string, unknown>[] }[], table: unknown): Record<string, unknown>[] {
-  return inserts.filter(insert => insert.table === table).flatMap(insert => insert.rows);
-}
 
 function validator(overrides: {
   operatorAddress: string;
