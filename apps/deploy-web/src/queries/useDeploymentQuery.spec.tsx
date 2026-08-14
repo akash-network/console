@@ -98,7 +98,7 @@ describe("useDeploymentQuery", () => {
       expect(result.current.data).toBeUndefined();
     });
 
-    it("keys the query by address, state, skip and limit", async () => {
+    it("keys the query by address, state, skip, limit and countTotal", async () => {
       const { result } = setupQuery(
         () => {
           const page = useDeploymentsPage("test-address", { state: "closed", skip: 30, limit: 10, countTotal: true });
@@ -111,7 +111,35 @@ describe("useDeploymentQuery", () => {
       await vi.waitFor(() => expect(result.current.page.isSuccess).toBe(true));
 
       const [query] = result.current.queryClient.getQueryCache().findAll();
-      expect(query.queryKey).toEqual(QueryKeys.getDeploymentsPageKey("test-address", "closed", 30, 10));
+      expect(query.queryKey).toEqual(QueryKeys.getDeploymentsPageKey("test-address", "closed", 30, 10, true));
+    });
+
+    it("keys totals-bearing and totals-free requests separately so one cannot satisfy the other", () => {
+      expect(QueryKeys.getDeploymentsPageKey("test-address", "active", 0, 10, true)).not.toEqual(
+        QueryKeys.getDeploymentsPageKey("test-address", "active", 0, 10, false)
+      );
+    });
+
+    it("drops the previous page when the address changes even if the status is unchanged", async () => {
+      const { chainApiHttpClient, requestCount, resolveNextPage } = buildDeferredClient();
+
+      let address = "address-a";
+      const { result, rerender } = setupQuery(() => useDeploymentsPage(address, { state: "active", skip: 0, limit: 10, countTotal: true }), {
+        services: { chainApiHttpClient: () => chainApiHttpClient }
+      });
+
+      await vi.waitFor(() => expect(requestCount()).toBe(1));
+      resolveNextPage([buildRpcDeployment({ deployment: { id: { owner: "address-a", dseq: "1" }, state: "active" } })], 5);
+      await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+      address = "address-b";
+      rerender();
+
+      await vi.waitFor(() => {
+        expect(requestCount()).toBe(2);
+        expect(result.current.isPlaceholderData).toBe(false);
+      });
+      expect(result.current.data).toBeUndefined();
     });
 
     function buildDeferredClient() {

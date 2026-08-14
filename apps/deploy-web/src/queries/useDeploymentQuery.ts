@@ -51,25 +51,30 @@ async function getDeploymentsPage(chainApiHttpClient: AxiosInstance, address: st
   };
 }
 
-/** Position of `state` within the tuple returned by {@link QueryKeys.getDeploymentsPageKey}. */
+/** Positions within the tuple returned by {@link QueryKeys.getDeploymentsPageKey}. */
+const DEPLOYMENTS_PAGE_ADDRESS_KEY_INDEX = 1;
 const DEPLOYMENTS_PAGE_STATE_KEY_INDEX = 2;
 
 /**
- * Retains the last page while paging within one status, but drops it across an Active/Closed
- * switch so the prior tab's rows and total never render under the newly selected tab while its
- * own data loads.
+ * Retains the last page while paging within one account and status, but drops it across an
+ * account switch or an Active/Closed switch so the prior view's rows and total never render
+ * under the newly selected one while its own data loads.
  */
-function keepPreviousPageOfSameStatus(state: DeploymentStatus) {
-  return (previousData: DeploymentsPage | undefined, previousQuery: { queryKey: QueryKey } | undefined) =>
-    previousQuery?.queryKey[DEPLOYMENTS_PAGE_STATE_KEY_INDEX] === state ? previousData : undefined;
+function keepPreviousPageOfSameStatus(address: string, state: DeploymentStatus) {
+  return (previousData: DeploymentsPage | undefined, previousQuery: { queryKey: QueryKey } | undefined) => {
+    if (!previousQuery) return undefined;
+    const sameAccount = previousQuery.queryKey[DEPLOYMENTS_PAGE_ADDRESS_KEY_INDEX] === address;
+    const sameStatus = previousQuery.queryKey[DEPLOYMENTS_PAGE_STATE_KEY_INDEX] === state;
+    return sameAccount && sameStatus ? previousData : undefined;
+  };
 }
 
 export function useDeploymentsPage(address: string, params: DeploymentsPageParams, options?: Omit<UseQueryOptions<DeploymentsPage>, "queryKey" | "queryFn">) {
   const { chainApiHttpClient } = useServices();
   return useQuery({
-    queryKey: QueryKeys.getDeploymentsPageKey(address, params.state, params.skip, params.limit),
+    queryKey: QueryKeys.getDeploymentsPageKey(address, params.state, params.skip, params.limit, params.countTotal),
     queryFn: () => getDeploymentsPage(chainApiHttpClient, address, params),
-    placeholderData: keepPreviousPageOfSameStatus(params.state),
+    placeholderData: keepPreviousPageOfSameStatus(address, params.state),
     ...options
   });
 }

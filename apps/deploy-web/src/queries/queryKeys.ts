@@ -24,11 +24,12 @@ export class QueryKeys {
   static getDeploymentListKey = (address: string, state?: string) => ["DEPLOYMENT_LIST", address, state].filter(Boolean);
   /** Prefix for every paginated deployment page of an address; use it to invalidate all pages at once. */
   static getDeploymentsPageKeyPrefix = (address: string) => ["DEPLOYMENTS_PAGE", address];
-  static getDeploymentsPageKey = (address: string, state: string, skip: number, limit: number) => [
+  static getDeploymentsPageKey = (address: string, state: string, skip: number, limit: number, countTotal?: boolean) => [
     ...QueryKeys.getDeploymentsPageKeyPrefix(address),
     state,
     skip,
-    limit
+    limit,
+    countTotal
   ];
   static getDeploymentDetailKey = (address: string, dseq?: string) => ["DEPLOYMENT_DETAIL", address, dseq].filter(Boolean);
   static getAllLeasesKey = (address: string) => ["ALL_LEASES", address];
