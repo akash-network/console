@@ -179,4 +179,11 @@ describe("useDeploymentQuery", () => {
       return { chainApiHttpClient, result };
     }
   });
+
+  describe(QueryKeys.getDeploymentListKey.name, () => {
+    it("keeps the address segment even when the address is empty and state is omitted", () => {
+      expect(QueryKeys.getDeploymentListKey("", "active")).toEqual(["DEPLOYMENT_LIST", "", "active"]);
+      expect(QueryKeys.getDeploymentListKey("akash1abc")).toEqual(["DEPLOYMENT_LIST", "akash1abc"]);
+    });
+  });
 });

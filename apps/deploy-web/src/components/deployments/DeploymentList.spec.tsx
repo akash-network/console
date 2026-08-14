@@ -45,6 +45,12 @@ describe(DeploymentList.name, () => {
     expect(screen.getByText("not-selectable")).toBeInTheDocument();
   });
 
+  it("does not force a refetch on initial load since the query is already enabled", () => {
+    const { refetch } = setup({ data: { deployments: [], total: 0 } });
+
+    expect(refetch).not.toHaveBeenCalled();
+  });
+
   it("hides the unfiltered total banner while a search is active", async () => {
     setup({ data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], total: 20 } });
 

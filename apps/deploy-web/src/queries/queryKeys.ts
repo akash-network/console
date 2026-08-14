@@ -21,7 +21,7 @@ export class QueryKeys {
   static getUserTemplatesKey = (username: string) => ["USER_TEMPLATES", username];
   static getUserFavoriteTemplatesKey = (userId: string) => ["USER_FAVORITES_TEMPLATES", userId];
   // Deploy
-  static getDeploymentListKey = (address: string, state?: string) => ["DEPLOYMENT_LIST", address, state].filter(Boolean);
+  static getDeploymentListKey = (address: string, state?: string) => (state ? ["DEPLOYMENT_LIST", address, state] : ["DEPLOYMENT_LIST", address]);
   /** Prefix for every paginated deployment page of an address; use it to invalidate all pages at once. */
   static getDeploymentsPageKeyPrefix = (address: string) => ["DEPLOYMENTS_PAGE", address];
   static getDeploymentsPageKey = (address: string, state: string, skip: number, limit: number, countTotal?: boolean) => [

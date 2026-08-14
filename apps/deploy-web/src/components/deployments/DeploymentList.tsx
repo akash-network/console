@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   buttonVariants,
@@ -112,12 +112,15 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
     ids: pageDeployments.map(deployment => deployment.dseq)
   });
 
+  const previousApiEndpointRef = useRef(apiEndpoint);
   useEffect(() => {
-    if (isSettingsInit && address) {
+    const previousApiEndpoint = previousApiEndpointRef.current;
+    previousApiEndpointRef.current = apiEndpoint;
+    const isEndpointSwitch = previousApiEndpoint !== "" && previousApiEndpoint !== apiEndpoint;
+    if (isEndpointSwitch && isSettingsInit && address) {
       getDeployments();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiEndpoint]);
+  }, [apiEndpoint, isSettingsInit, address, getDeployments]);
 
   const onStatusChange = (value: string) => {
     if (value !== "active" && value !== "closed") return;
