@@ -543,7 +543,7 @@ describe("Deployments API", () => {
       expect(result.message).toContain("Invalid SDL");
     });
 
-    it("returns 400 if deposit is missing", async () => {
+    it("creates a deployment without a deposit", async () => {
       const { userApiKeySecret } = await mockUser();
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
@@ -557,7 +557,7 @@ describe("Deployments API", () => {
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
       });
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(201);
     });
   });
 

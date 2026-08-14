@@ -88,7 +88,7 @@ export const GetDeploymentParamsSchema = z.object({
 export const CreateDeploymentRequestSchema = z.object({
   data: z.object({
     sdl: z.string(),
-    deposit: z.number().describe("Amount to deposit in dollars (e.g. 5.5)")
+    deposit: z.number().optional().describe("Deprecated and ignored. The platform now sets the deposit automatically; kept for backward compatibility.")
   })
 });
 

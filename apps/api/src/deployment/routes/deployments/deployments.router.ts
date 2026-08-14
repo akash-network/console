@@ -125,7 +125,9 @@ const depositRoute = createRoute({
   method: "post",
   path: "/v1/deposit-deployment",
   summary: "Deposit into a deployment",
+  description: "Deprecated. Managed deployments are funded automatically; this endpoint will be removed in a future release.",
   operationId: "depositDeployment",
+  deprecated: true,
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,
   request: {

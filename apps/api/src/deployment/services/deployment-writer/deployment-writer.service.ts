@@ -8,6 +8,8 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { LoggerService } from "@src/core";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import {
   CreateDeploymentRequest,
   CreateDeploymentResponse,
@@ -17,6 +19,7 @@ import {
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { denomToUdenom } from "@src/utils/math";
+import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 import { StaleManagedDeploymentsCleanerService } from "../stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
 
@@ -31,7 +34,9 @@ export class DeploymentWriterService {
     private readonly deploymentReaderService: DeploymentReaderService,
     private readonly walletReaderService: WalletReaderService,
     private readonly staleDeploymentsCleaner: StaleManagedDeploymentsCleanerService,
-    private readonly logger: LoggerService
+    private readonly logger: LoggerService,
+    private readonly deploymentConfig: DeploymentConfigService,
+    private readonly featureFlagsService: FeatureFlagsService
   ) {}
 
   public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
@@ -44,13 +49,14 @@ export class DeploymentWriterService {
 
     const dseq = Date.now();
     const manifestVersion = await this.sdlService.generateManifestVersion(manifest.groups);
+    const depositInTokens = this.resolveDepositInTokens(input.deposit);
 
     const message = this.rpcMessageService.getCreateDeploymentMsg({
       owner: wallet.address,
       dseq,
       groups: manifest.groupSpecs,
       denom: this.billingConfig.get("DEPLOYMENT_GRANT_DENOM"),
-      amount: denomToUdenom(input.deposit),
+      amount: denomToUdenom(depositInTokens),
       hash: manifestVersion,
       reclamation: manifest.reclamation
     });
@@ -61,6 +67,19 @@ export class DeploymentWriterService {
       manifest: manifestToSortedJSON(manifest.groups),
       signTx: result
     };
+  }
+
+  /**
+   * Behind the managed-funding flag the platform bootstraps every deployment with a fixed, on-chain-valid deposit and
+   * ignores any caller-supplied amount. With the flag off the legacy contract holds: the caller must supply the deposit.
+   */
+  private resolveDepositInTokens(requestedDeposit?: number): number {
+    if (this.featureFlagsService.isEnabled(FeatureFlags.AUTO_RELOAD_FIXED_THRESHOLD)) {
+      return this.deploymentConfig.get("DEPLOYMENT_DEFAULT_DEPOSIT");
+    }
+
+    assert(requestedDeposit != null, 400, "deposit is required");
+    return requestedDeposit;
   }
 
   /**
@@ -104,6 +123,10 @@ export class DeploymentWriterService {
   }
 
   public async deposit(options: { userId: string; dseq: string; amount: number }): Promise<GetDeploymentResponse["data"]> {
+    if (this.featureFlagsService.isEnabled(FeatureFlags.AUTO_RELOAD_FIXED_THRESHOLD)) {
+      this.logger.warn({ event: "DEPRECATED_DEPOSIT_DEPLOYMENT_ENDPOINT_USED", userId: options.userId, dseq: options.dseq });
+    }
+
     const wallet = await this.walletReaderService.getWalletByUserId(options.userId);
     const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, options.dseq);
     const deploymentGrantDenom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
