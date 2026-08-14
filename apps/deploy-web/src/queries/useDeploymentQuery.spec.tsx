@@ -62,6 +62,42 @@ describe("useDeploymentQuery", () => {
       expect(QueryKeys.getDeploymentsPageKey("test-address", "active", 0, 10).slice(0, prefix.length)).toEqual(prefix);
     });
 
+    it("keeps the previous page while paging within a status but drops it across a status change", async () => {
+      const { chainApiHttpClient, requestCount, resolveNextPage } = buildDeferredClient();
+
+      let params: Parameters<typeof useDeploymentsPage>[1] = { state: "active", skip: 0, limit: 10, countTotal: true };
+      const { result, rerender } = setupQuery(() => useDeploymentsPage("test-address", params), {
+        services: { chainApiHttpClient: () => chainApiHttpClient }
+      });
+
+      const activePage1 = buildRpcDeployment({ deployment: { id: { owner: "test-address", dseq: "100" }, state: "active" } });
+      await vi.waitFor(() => expect(requestCount()).toBe(1));
+      resolveNextPage([activePage1], 20);
+      await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
+      expect(result.current.data).toEqual({ deployments: [deploymentToDto(activePage1)], total: 20 });
+
+      params = { state: "active", skip: 10, limit: 10, countTotal: true };
+      rerender();
+      await vi.waitFor(() => {
+        expect(requestCount()).toBe(2);
+        expect(result.current.isPlaceholderData).toBe(true);
+      });
+      expect(result.current.data).toEqual({ deployments: [deploymentToDto(activePage1)], total: 20 });
+
+      const activePage2 = buildRpcDeployment({ deployment: { id: { owner: "test-address", dseq: "200" }, state: "active" } });
+      resolveNextPage([activePage2], 20);
+      await vi.waitFor(() => expect(result.current.isPlaceholderData).toBe(false));
+      expect(result.current.data).toEqual({ deployments: [deploymentToDto(activePage2)], total: 20 });
+
+      params = { state: "closed", skip: 0, limit: 10, countTotal: true };
+      rerender();
+      await vi.waitFor(() => {
+        expect(requestCount()).toBe(3);
+        expect(result.current.isPlaceholderData).toBe(false);
+      });
+      expect(result.current.data).toBeUndefined();
+    });
+
     it("keys the query by address, state, skip and limit", async () => {
       const { result } = setupQuery(
         () => {
@@ -77,6 +113,24 @@ describe("useDeploymentQuery", () => {
       const [query] = result.current.queryClient.getQueryCache().findAll();
       expect(query.queryKey).toEqual(QueryKeys.getDeploymentsPageKey("test-address", "closed", 30, 10));
     });
+
+    function buildDeferredClient() {
+      const resolvers: Array<(value: unknown) => void> = [];
+      let resolvedCount = 0;
+      const chainApiHttpClient = mock<FallbackableHttpClient>({
+        get: vi.fn().mockImplementation(() => new Promise(resolve => resolvers.push(resolve)))
+      } as unknown as FallbackableHttpClient);
+
+      return {
+        chainApiHttpClient,
+        requestCount: () => resolvers.length,
+        resolveNextPage: (deployments: ReturnType<typeof buildRpcDeployment>[], total: number) => {
+          const resolve = resolvers[resolvedCount++];
+          if (!resolve) throw new Error("No pending deployments request to resolve");
+          resolve({ data: { deployments, pagination: { next_key: null, total: String(total) } } });
+        }
+      };
+    }
 
     function buildClient(input: { total: number; deployments?: ReturnType<typeof buildRpcDeployment>[] }) {
       return mock<FallbackableHttpClient>({

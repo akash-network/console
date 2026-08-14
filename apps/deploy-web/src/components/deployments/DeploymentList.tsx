@@ -16,7 +16,6 @@ import {
   TabsTrigger
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { keepPreviousData } from "@tanstack/react-query";
 import { Refresh, Rocket, Xmark } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
@@ -56,15 +55,22 @@ export const DeploymentList: React.FunctionComponent = () => {
   const {
     data,
     isFetching: isLoadingDeployments,
+    isError,
     refetch: getDeployments
   } = useDeploymentsPage(
     address,
     { state: deploymentStatus, skip: pageIndex * pageSize, limit: pageSize, countTotal: true },
-    { enabled: isSettingsInit && !!address, placeholderData: keepPreviousData }
+    { enabled: isSettingsInit && !!address }
   );
 
   const total = data?.total ?? 0;
   const pageCount = Math.ceil(total / pageSize);
+
+  useEffect(() => {
+    if (pageIndex > 0 && pageIndex > pageCount - 1) {
+      setPageIndex(Math.max(pageCount - 1, 0));
+    }
+  }, [pageCount, pageIndex]);
 
   const pageDeployments = useMemo(() => {
     const named = (data?.deployments ?? []).map(d => ({ ...d, name: getDeploymentName(d.dseq) })) as NamedDeploymentDto[];
@@ -124,7 +130,8 @@ export const DeploymentList: React.FunctionComponent = () => {
   };
 
   const isActiveStatus = deploymentStatus === "active";
-  const showEmptyState = total === 0 && !isLoadingDeployments && !search;
+  const showEmptyState = total === 0 && !isLoadingDeployments && !isError && !search;
+  const showErrorState = isError && total === 0 && !isLoadingDeployments;
 
   return (
     <Layout isLoading={isLoadingDeployments || isLoadingProviders} isUsingSettings>
@@ -197,6 +204,16 @@ export const DeploymentList: React.FunctionComponent = () => {
         </div>
       )}
 
+      {showErrorState && (
+        <div className="flex flex-col items-center justify-center gap-4 py-8">
+          <p className="text-muted-foreground">Couldn't load deployments.</p>
+          <Button variant="outline" size="sm" onClick={() => getDeployments()}>
+            <Refresh className="mr-2 h-4 w-4" />
+            Retry
+          </Button>
+        </div>
+      )}
+
       {showEmptyState && isActiveStatus && <NoDeploymentsState onDeployClick={onDeployClick} hasDeployments={false} showTemplatesButton />}
 
       {showEmptyState && !isActiveStatus && (
@@ -249,7 +266,7 @@ export const DeploymentList: React.FunctionComponent = () => {
                   deployment={deployment}
                   refreshDeployments={getDeployments}
                   providers={providers}
-                  isSelectable
+                  isSelectable={isActiveStatus}
                   onSelectDeployment={selectItem}
                   checked={selectedItemIds.includes(deployment.dseq)}
                 />

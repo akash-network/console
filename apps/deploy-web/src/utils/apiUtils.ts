@@ -5,7 +5,7 @@ import networkStore from "@src/store/networkStore";
 import type { DeploymentStatus } from "@src/types/deployment";
 import { appendSearchParams } from "./urlUtils";
 
-type DeploymentsPageParams = {
+type DeploymentsPageUrlParams = {
   owner: string;
   state: DeploymentStatus;
   offset: number;
@@ -25,7 +25,7 @@ export class ApiUrlService {
    * Single-page deployment listing. Uses offset-based pagination, which the chain only allows
    * alongside a `filters.state`, and only honors `count_total` when an offset is set.
    */
-  static deploymentsPage(apiEndpoint: string, { owner, state, offset, limit, countTotal, reverse }: DeploymentsPageParams) {
+  static deploymentsPage(apiEndpoint: string, { owner, state, offset, limit, countTotal, reverse }: DeploymentsPageUrlParams) {
     let url = `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/list?filters.owner=${owner}&filters.state=${state}&pagination.offset=${offset}&pagination.limit=${limit}`;
     if (countTotal) url += "&pagination.count_total=true";
     if (reverse) url += "&pagination.reverse=true";

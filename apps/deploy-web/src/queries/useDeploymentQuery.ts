@@ -51,11 +51,25 @@ async function getDeploymentsPage(chainApiHttpClient: AxiosInstance, address: st
   };
 }
 
+/** Position of `state` within the tuple returned by {@link QueryKeys.getDeploymentsPageKey}. */
+const DEPLOYMENTS_PAGE_STATE_KEY_INDEX = 2;
+
+/**
+ * Retains the last page while paging within one status, but drops it across an Active/Closed
+ * switch so the prior tab's rows and total never render under the newly selected tab while its
+ * own data loads.
+ */
+function keepPreviousPageOfSameStatus(state: DeploymentStatus) {
+  return (previousData: DeploymentsPage | undefined, previousQuery: { queryKey: QueryKey } | undefined) =>
+    previousQuery?.queryKey[DEPLOYMENTS_PAGE_STATE_KEY_INDEX] === state ? previousData : undefined;
+}
+
 export function useDeploymentsPage(address: string, params: DeploymentsPageParams, options?: Omit<UseQueryOptions<DeploymentsPage>, "queryKey" | "queryFn">) {
   const { chainApiHttpClient } = useServices();
   return useQuery({
     queryKey: QueryKeys.getDeploymentsPageKey(address, params.state, params.skip, params.limit),
     queryFn: () => getDeploymentsPage(chainApiHttpClient, address, params),
+    placeholderData: keepPreviousPageOfSameStatus(params.state),
     ...options
   });
 }
