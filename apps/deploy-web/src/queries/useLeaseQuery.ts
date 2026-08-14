@@ -14,6 +14,11 @@ import { leaseToDto } from "@src/utils/deploymentDetailUtils";
 import { isLeaseLive } from "@src/utils/reclamationUtils";
 import { QueryKeys } from "./queryKeys";
 
+/** Closed deployments cannot gain or change leases, so a successful list never needs refetching. */
+function closedDeploymentLeaseListStaleTime(state: string | undefined) {
+  return state === "closed" ? Infinity : undefined;
+}
+
 // Leases
 async function getDeploymentLeases(chainApiHttpClient: AxiosInstance, address: string, deployment: Pick<DeploymentDto, "dseq" | "groups">) {
   if (!address) {
@@ -28,7 +33,7 @@ async function getDeploymentLeases(chainApiHttpClient: AxiosInstance, address: s
 
 export function useDeploymentLeaseList(
   address: string,
-  deployment: Pick<DeploymentDto, "dseq" | "groups"> | null | undefined,
+  deployment: (Pick<DeploymentDto, "dseq" | "groups"> & Partial<Pick<DeploymentDto, "state">>) | null | undefined,
   options: Omit<UseQueryOptions<LeaseDto[] | null>, "queryKey" | "queryFn"> = {}
 ) {
   const { chainApiHttpClient } = useServices();
@@ -41,6 +46,7 @@ export function useDeploymentLeaseList(
       if (!deployment) return null;
       return getDeploymentLeases(chainApiHttpClient, address, deployment);
     },
+    staleTime: closedDeploymentLeaseListStaleTime(deployment?.state),
     ...options
   });
 
