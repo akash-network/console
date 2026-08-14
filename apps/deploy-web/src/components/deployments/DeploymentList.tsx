@@ -38,7 +38,36 @@ import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
 import { DeploymentListRow } from "./DeploymentListRow";
 
-export const DeploymentList: React.FunctionComponent = () => {
+export const DEPENDENCIES = {
+  useWallet,
+  useProviderList,
+  useSettings,
+  useLocalNotes,
+  useManagedDeploymentConfirm,
+  useNewDeploymentUrl,
+  useDeploymentsPage,
+  Layout,
+  NoDeploymentsState,
+  DeploymentListRow
+};
+
+type Props = {
+  dependencies?: typeof DEPENDENCIES;
+};
+
+export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = DEPENDENCIES }) => {
+  const {
+    useWallet,
+    useProviderList,
+    useSettings,
+    useLocalNotes,
+    useManagedDeploymentConfirm,
+    useNewDeploymentUrl,
+    useDeploymentsPage,
+    Layout,
+    NoDeploymentsState,
+    DeploymentListRow
+  } = dependencies;
   const { address, signAndBroadcastTx, hasWallet } = useWallet();
   const { data: providers, isFetching: isLoadingProviders } = useProviderList();
   const { settings, isSettingsInit } = useSettings();
