@@ -103,7 +103,9 @@ export class GovWriter {
 
     const amountsByProposal = new Map<number, FeeCoin[]>();
     for (const deposit of deposits) {
-      amountsByProposal.set(deposit.proposalId, [...(amountsByProposal.get(deposit.proposalId) ?? []), ...deposit.amount]);
+      const amounts = amountsByProposal.get(deposit.proposalId) ?? [];
+      amounts.push(...deposit.amount);
+      amountsByProposal.set(deposit.proposalId, amounts);
     }
 
     for (const proposalId of proposalIds) {
