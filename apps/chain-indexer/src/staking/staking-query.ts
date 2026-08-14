@@ -1,4 +1,5 @@
-import { fromBase64, toHex } from "@cosmjs/encoding";
+import { fromBase64, toBase64, toHex } from "@cosmjs/encoding";
+import { PubKey as Ed25519PubKey } from "cosmjs-types/cosmos/crypto/ed25519/keys";
 import {
   QueryValidatorDelegationsRequest,
   QueryValidatorDelegationsResponse,
@@ -8,9 +9,10 @@ import {
   QueryValidatorUnbondingDelegationsResponse
 } from "cosmjs-types/cosmos/staking/v1beta1/query";
 import { BondStatus } from "cosmjs-types/cosmos/staking/v1beta1/staking";
+import type { Any } from "cosmjs-types/google/protobuf/any";
 import type { Timestamp } from "cosmjs-types/google/protobuf/timestamp";
 
-import { operatorToAccountAddress } from "@src/genesis/genesis-address";
+import { consensusHexAddress, operatorToAccountAddress } from "@src/genesis/genesis-address";
 
 export const VALIDATORS_PATH = "/cosmos.staking.v1beta1.Query/Validators";
 export const VALIDATOR_DELEGATIONS_PATH = "/cosmos.staking.v1beta1.Query/ValidatorDelegations";
@@ -21,9 +23,10 @@ const PAGE_LIMIT = 1000n;
 
 export type SnapshotValidatorStatus = "bonded" | "unbonding" | "unbonded";
 
-/** The full validator row the snapshot reconciles against the chain; `hexAddress` is the one field it leaves to genesis/messages. */
+/** The full validator row the snapshot reconciles against the chain, including the consensus `hexAddress` derived from the ed25519 pubkey. */
 export interface SnapshotValidator {
   operatorAddress: string;
+  hexAddress: string | null;
   accountAddress: string | null;
   moniker: string | null;
   identity: string | null;
@@ -85,6 +88,7 @@ export function decodeValidators(value: string | null): Page<SnapshotValidator> 
       const rates = validator.commission?.commissionRates;
       return {
         operatorAddress: validator.operatorAddress,
+        hexAddress: toConsensusHexAddress(validator.consensusPubkey),
         accountAddress: toAccountAddress(validator.operatorAddress),
         moniker: emptyToNull(validator.description?.moniker),
         identity: emptyToNull(validator.description?.identity),
@@ -156,6 +160,18 @@ function emptyToNull(value: string | undefined): string | null {
 
 function decOrNull(raw: string | undefined): string | null {
   return raw ? formatDec(raw) : null;
+}
+
+/** Consensus hex address derived from the validator's ed25519 pubkey; a missing or malformed key yields null rather than aborting the snapshot. */
+function toConsensusHexAddress(consensusPubkey: Any | undefined): string | null {
+  if (!consensusPubkey) {
+    return null;
+  }
+  try {
+    return consensusHexAddress(consensusPubkey.typeUrl, toBase64(Ed25519PubKey.decode(consensusPubkey.value).key));
+  } catch {
+    return null;
+  }
 }
 
 /** Derives the `akash…` account address from the operator address; a malformed operator address yields null rather than aborting the snapshot. */

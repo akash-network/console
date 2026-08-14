@@ -65,6 +65,7 @@ describe("staking-query", () => {
       expect(decodeValidators(value).items).toEqual([
         {
           operatorAddress: "akashvaloper1abc",
+          hexAddress: null,
           accountAddress: null,
           moniker: null,
           identity: null,

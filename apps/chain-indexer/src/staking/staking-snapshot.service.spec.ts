@@ -1,4 +1,5 @@
 import { toBase64 } from "@cosmjs/encoding";
+import { PubKey as Ed25519PubKey } from "cosmjs-types/cosmos/crypto/ed25519/keys";
 import { QueryValidatorDelegationsResponse, QueryValidatorsResponse, QueryValidatorUnbondingDelegationsResponse } from "cosmjs-types/cosmos/staking/v1beta1/query";
 import { BondStatus } from "cosmjs-types/cosmos/staking/v1beta1/staking";
 import { describe, expect, it } from "vitest";
@@ -25,6 +26,26 @@ describe(StakingSnapshotService.name, () => {
     expect(rowsFor(inserts, Validators)).toEqual([
       expect.objectContaining({ operatorAddress: OPERATOR, jailed: false, status: "bonded", tokens: "7000000", delegatorShares: "7000000.000000000000000000", unbondingHeight: null, unbondingTime: null })
     ]);
+  });
+
+  it("derives each validator's consensus hex address from its ed25519 pubkey", async () => {
+    const { service, inserts } = setup({
+      [VALIDATORS_PATH]: [
+        validatorsResponse([validator({ operatorAddress: OPERATOR, consensusPubkey: { typeUrl: "/cosmos.crypto.ed25519.PubKey", value: Ed25519PubKey.encode({ key: new Uint8Array(32).fill(1) }).finish() } })])
+      ]
+    });
+
+    await service.snapshot(1000);
+
+    expect(rowsFor(inserts, Validators)[0]).toMatchObject({ operatorAddress: OPERATOR, hexAddress: "72CD6E8422C407FB6D098690F1130B7DED7EC2F7" });
+  });
+
+  it("leaves the consensus hex address null when the validator has no pubkey", async () => {
+    const { service, inserts } = setup({ [VALIDATORS_PATH]: [validatorsResponse([validator({ operatorAddress: OPERATOR })])] });
+
+    await service.snapshot(1000);
+
+    expect(rowsFor(inserts, Validators)[0]).toMatchObject({ operatorAddress: OPERATOR, hexAddress: null });
   });
 
   it("fully replaces delegations with interned delegator ids", async () => {
@@ -150,8 +171,15 @@ function rowsFor(inserts: { table: unknown; rows: Record<string, unknown>[] }[],
   return inserts.filter(insert => insert.table === table).flatMap(insert => insert.rows);
 }
 
-function validator(overrides: { operatorAddress: string; status?: BondStatus; tokens?: string; delegatorShares?: string }) {
-  return { operatorAddress: overrides.operatorAddress, jailed: false, status: overrides.status ?? BondStatus.BOND_STATUS_BONDED, tokens: overrides.tokens ?? "0", delegatorShares: overrides.delegatorShares ?? "0" };
+function validator(overrides: { operatorAddress: string; status?: BondStatus; tokens?: string; delegatorShares?: string; consensusPubkey?: { typeUrl: string; value: Uint8Array } }) {
+  return {
+    operatorAddress: overrides.operatorAddress,
+    consensusPubkey: overrides.consensusPubkey,
+    jailed: false,
+    status: overrides.status ?? BondStatus.BOND_STATUS_BONDED,
+    tokens: overrides.tokens ?? "0",
+    delegatorShares: overrides.delegatorShares ?? "0"
+  };
 }
 
 function validatorsResponse(validators: ReturnType<typeof validator>[], nextKey?: Uint8Array): string {

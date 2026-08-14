@@ -107,10 +107,11 @@ export class StakingSnapshotService {
     }
   }
 
-  /** Upserts the full validator row, leaving only `hexAddress` (the consensus key, absent from this query) to genesis. */
+  /** Upserts the full validator row, including the consensus `hexAddress` derived from the query's pubkey, so post-genesis validators are not left with a null one. */
   async #upsertValidators(tx: ChainTransaction, validators: SnapshotValidator[]): Promise<void> {
     const rows = validators.map(validator => ({
       operatorAddress: validator.operatorAddress,
+      hexAddress: validator.hexAddress,
       accountAddress: validator.accountAddress,
       moniker: validator.moniker,
       identity: validator.identity,
@@ -136,6 +137,7 @@ export class StakingSnapshotService {
         .onConflictDoUpdate({
           target: Validators.operatorAddress,
           set: {
+            hexAddress: sql`excluded.hex_address`,
             accountAddress: sql`excluded.account_address`,
             moniker: sql`excluded.moniker`,
             identity: sql`excluded.identity`,
