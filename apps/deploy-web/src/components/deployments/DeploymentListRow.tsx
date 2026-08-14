@@ -70,7 +70,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const { changeDeploymentName, getDeploymentData } = useLocalNotes();
   const { address, signAndBroadcastTx, isTrialing } = useWallet();
   const isActive = deployment.state === "active";
-  const { data: filteredLeases, isLoading: isLoadingLeases } = useDeploymentLeaseList(address, deployment, { enabled: !!deployment && isActive });
+  const { data: filteredLeases, isLoading: isLoadingLeases } = useDeploymentLeaseList(address, deployment, { enabled: !!deployment });
   // A reclaiming lease is still running (grace period), so it counts as live for cost/escrow metrics.
   const liveLeases = filteredLeases?.filter(isLeaseLive);
   const hasActiveLeases = !!liveLeases?.length;
