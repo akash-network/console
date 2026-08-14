@@ -45,6 +45,16 @@ describe(DeploymentList.name, () => {
     expect(screen.getByText("not-selectable")).toBeInTheDocument();
   });
 
+  it("hides the unfiltered total banner while a search is active", async () => {
+    setup({ data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], total: 20 } });
+
+    expect(screen.getByText(/You have/)).toBeInTheDocument();
+
+    await userEvent.type(screen.getByRole("textbox"), "1");
+
+    expect(screen.queryByText(/You have/)).not.toBeInTheDocument();
+  });
+
   function setup(input: { data?: DeploymentsPage; isFetching?: boolean; isError?: boolean } = {}) {
     const refetch = vi.fn();
 

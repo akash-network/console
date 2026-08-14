@@ -258,7 +258,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
       )}
 
       <div>
-        {total > 0 && (
+        {total > 0 && !search && (
           <div className="flex flex-wrap items-center justify-between pb-6">
             <span className="text-xs">
               You have <strong>{total}</strong>
