@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
 import { DEPENDENCIES, useAccountBalanceOverview } from "./useAccountBalanceOverview";
@@ -75,6 +75,12 @@ describe(useAccountBalanceOverview.name, () => {
 
     expect(result.current.deployments[0].perHourUsd).toBeGreaterThan(0);
     expect(result.current.deployments[1].perHourUsd).toBe(0);
+  });
+
+  it("loads only active leases for spend", () => {
+    const { useAllLeases } = setup({ hasLiveLease: true });
+
+    expect(useAllLeases).toHaveBeenCalledWith("akash1abc", expect.objectContaining({ state: "active", enabled: true }));
   });
 
   it("passes through the auto reload setting", () => {
@@ -193,11 +199,11 @@ describe(useAccountBalanceOverview.name, () => {
         isError: input.balancesError ?? false,
         fetchStatus: input.balancesIdle ? "idle" : "fetching"
       }),
-      useAllLeases: () => ({ data: leases }),
+      useAllLeases: vi.fn(() => ({ data: leases })),
       useWalletSettingsQuery: () => ({ data: { autoReloadEnabled: input.autoReloadEnabled ?? false, autoReloadThreshold: input.autoReloadThreshold } }),
       useLocalNotes: () => ({ getDeploymentName: (dseq: string | number | null) => input.names?.[String(dseq)] ?? null })
     } as unknown as typeof DEPENDENCIES;
 
-    return renderHook(() => useAccountBalanceOverview({ dependencies }));
+    return { ...renderHook(() => useAccountBalanceOverview({ dependencies })), useAllLeases: dependencies.useAllLeases };
   }
 });

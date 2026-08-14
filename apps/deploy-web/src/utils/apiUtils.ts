@@ -20,8 +20,8 @@ export class ApiUrlService {
   static bidInfo(apiEndpoint: string, address: string, dseq: string, gseq: number, oseq: number, provider: string) {
     return `${apiEndpoint}/akash/market/${networkStore.marketVersion}/bids/info?id.owner=${address}&id.dseq=${dseq}&id.gseq=${gseq}&id.oseq=${oseq}&id.provider=${provider}`;
   }
-  static leaseList(apiEndpoint: string, address: string, dseq: string) {
-    return `${apiEndpoint}/akash/market/${networkStore.marketVersion}/leases/list?filters.owner=${address}${dseq ? "&filters.dseq=" + dseq : ""}`;
+  static leaseList(apiEndpoint: string, address: string, dseq: string, state?: string) {
+    return `${apiEndpoint}/akash/market/${networkStore.marketVersion}/leases/list?filters.owner=${address}${dseq ? "&filters.dseq=" + dseq : ""}${state ? "&filters.state=" + state : ""}`;
   }
   static providers(apiEndpoint: string) {
     return `${apiEndpoint}/akash/provider/${networkStore.providerVersion}/providers`;

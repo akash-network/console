@@ -23,7 +23,7 @@ export class QueryKeys {
   // Deploy
   static getDeploymentListKey = (address: string) => ["DEPLOYMENT_LIST", address];
   static getDeploymentDetailKey = (address: string, dseq?: string) => ["DEPLOYMENT_DETAIL", address, dseq].filter(Boolean);
-  static getAllLeasesKey = (address: string) => ["ALL_LEASES", address];
+  static getAllLeasesKey = (address: string, state?: string) => (state ? ["ALL_LEASES", address, state] : ["ALL_LEASES", address]);
   /** Extends the all-leases key so prefix-based invalidation after a deploy also refreshes the existence check. */
   static getLeaseExistenceKey = (address: string) => [...QueryKeys.getAllLeasesKey(address), "EXISTENCE"];
   static getLeasesKey = (address: string, dseq: string) => ["LEASE_LIST", address, dseq];

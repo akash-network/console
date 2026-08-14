@@ -50,24 +50,27 @@ export function useDeploymentLeaseList(
   };
 }
 
-async function getAllLeases(chainApiHttpClient: AxiosInstance, address: string, deployment?: any) {
+export type LeaseListState = "active" | "insufficient_funds" | "closed" | "reclaiming";
+
+async function getAllLeases(chainApiHttpClient: AxiosInstance, address: string, deployment?: any, state?: LeaseListState) {
   if (!address) {
     return null;
   }
 
-  const response = await loadWithPagination<RpcLease[]>(ApiUrlService.leaseList("", address, deployment?.dseq), "leases", 1000, chainApiHttpClient);
+  const response = await loadWithPagination<RpcLease[]>(ApiUrlService.leaseList("", address, deployment?.dseq, state), "leases", 1000, chainApiHttpClient);
   const leases = response.map(l => leaseToDto(l, deployment));
 
   return leases;
 }
 
-export function useAllLeases(address: string, options = {}) {
+export function useAllLeases(address: string, options: { state?: LeaseListState } & Omit<UseQueryOptions<LeaseDto[] | null>, "queryKey" | "queryFn"> = {}) {
   const { chainApiHttpClient } = useServices();
+  const { state, ...queryOptions } = options;
 
   return useQuery({
-    queryKey: QueryKeys.getAllLeasesKey(address),
-    queryFn: () => getAllLeases(chainApiHttpClient, address),
-    ...options
+    queryKey: QueryKeys.getAllLeasesKey(address, state),
+    queryFn: () => getAllLeases(chainApiHttpClient, address, undefined, state),
+    ...queryOptions
   });
 }
 

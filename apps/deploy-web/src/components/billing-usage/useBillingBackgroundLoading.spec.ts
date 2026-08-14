@@ -16,6 +16,12 @@ describe(useBillingBackgroundLoading.name, () => {
     expect(isMatching(QueryKeys.getAllLeasesKey(ADDRESS), { hasData: true })).toBe(true);
   });
 
+  it("counts a background refetch of the active-leases query used for billing spend", () => {
+    const { isMatching } = setup();
+
+    expect(isMatching(["ALL_LEASES", ADDRESS, "active"], { hasData: true })).toBe(true);
+  });
+
   it("ignores the lease-existence probe even though it extends the all-leases key", () => {
     const { isMatching } = setup();
 

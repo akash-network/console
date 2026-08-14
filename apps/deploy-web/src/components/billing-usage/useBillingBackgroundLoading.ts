@@ -26,6 +26,7 @@ export function useBillingBackgroundLoading(d: typeof DEPENDENCIES = DEPENDENCIE
   const exactKeys = [
     QueryKeys.getBalancesKey(address),
     QueryKeys.getAllLeasesKey(address),
+    QueryKeys.getAllLeasesKey(address, "active"),
     QueryKeys.getPaymentMethodsKey(),
     QueryKeys.getWeeklyDeploymentCostKey()
   ].filter(key => key.length > 0);
