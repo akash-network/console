@@ -64,6 +64,8 @@ export interface GovChanges {
  * `inactive_proposal` events; a vote promotes its proposal into `voting_period` since votes are only cast then.
  * Messages in a failed transaction (`code !== 0`) are skipped, since cosmos rolls back all of its state changes
  * and the vote/deposit paths read the message body directly rather than correlating against an emitted event.
+ * A submit whose decoded body is null (oversized or undecodable) still records a stub row from the event so
+ * later votes and deposits are not orphaned.
  */
 export function deriveGovChanges(block: DecodedBlock): GovChanges {
   const changes: GovChanges = { proposals: [], votes: [], deposits: [], statusUpdates: [] };
@@ -108,14 +110,17 @@ function aggregateDeposits(deposits: DerivedDeposit[]): DerivedDeposit[] {
 }
 
 function addMessage(changes: GovChanges, message: DecodedMessage, tx: DecodedTransaction, block: DecodedBlock, consumedSubmitEvents: Set<DecodedEvent>): void {
+  if (SUBMIT_PROPOSAL.has(message.typeUrl)) {
+    addProposal(changes, asRecord(message.body), message.index, tx, block, consumedSubmitEvents);
+    return;
+  }
+
   const body = asRecord(message.body);
   if (!body) {
     return;
   }
 
-  if (SUBMIT_PROPOSAL.has(message.typeUrl)) {
-    addProposal(changes, body, message.index, tx, block, consumedSubmitEvents);
-  } else if (VOTE.has(message.typeUrl)) {
+  if (VOTE.has(message.typeUrl)) {
     const option = mapOption(asNumber(body.option));
     addVote(changes, body, option ? [{ option, weight: FULL_WEIGHT }] : [], block.height);
   } else if (VOTE_WEIGHTED.has(message.typeUrl)) {
@@ -127,7 +132,7 @@ function addMessage(changes: GovChanges, message: DecodedMessage, tx: DecodedTra
 
 function addProposal(
   changes: GovChanges,
-  body: Record<string, unknown>,
+  body: Record<string, unknown> | null,
   messageIndex: number,
   tx: DecodedTransaction,
   block: DecodedBlock,
@@ -138,16 +143,16 @@ function addProposal(
     return;
   }
 
-  const proposer = asString(body.proposer);
-  const initialDeposit = asCoins(body.initialDeposit);
+  const proposer = body ? asString(body.proposer) : tx.signerAddresses[0] ?? null;
+  const initialDeposit = body ? asCoins(body.initialDeposit) : [];
 
   changes.proposals.push({
     id,
     proposerAddress: proposer,
-    title: asString(body.title),
-    summary: asString(body.summary),
-    messages: body.messages ?? body.content ?? null,
-    metadata: asString(body.metadata),
+    title: body ? asString(body.title) : null,
+    summary: body ? asString(body.summary) : null,
+    messages: body ? body.messages ?? body.content ?? null : null,
+    metadata: body ? asString(body.metadata) : null,
     submitTime: block.datetime,
     submitHeight: block.height,
     initialDeposit

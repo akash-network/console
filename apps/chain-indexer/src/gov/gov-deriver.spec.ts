@@ -113,6 +113,30 @@ describe("deriveGovChanges", () => {
     expect(changes.statusUpdates).toEqual([{ proposalId: 4, status: "voting_period", onlyFromDepositPeriod: true }]);
   });
 
+  it("records a stub proposal from the submit event when the decoded body is missing", () => {
+    const changes = deriveGovChanges(
+      block({
+        messages: [{ typeUrl: MSG_SUBMIT_PROPOSAL, body: null }],
+        txEvents: [event("submit_proposal", { proposal_id: "42" }, 0)],
+        signerAddresses: ["akash1prop"]
+      })
+    );
+
+    expect(changes.proposals).toEqual([
+      {
+        id: 42,
+        proposerAddress: "akash1prop",
+        title: null,
+        summary: null,
+        messages: null,
+        metadata: null,
+        submitTime: SUBMIT_TIME,
+        submitHeight: 100,
+        initialDeposit: []
+      }
+    ]);
+  });
+
   it("skips a submit proposal whose id cannot be resolved from an event", () => {
     const changes = deriveGovChanges(block({ messages: [{ typeUrl: MSG_SUBMIT_PROPOSAL, body: { proposer: "akash1prop", title: "T" } }], txEvents: [] }));
 
@@ -232,6 +256,7 @@ function block(input: {
   messages?: { typeUrl: string; body: unknown; index?: number }[];
   txEvents?: DecodedEvent[];
   blockEvents?: DecodedEvent[];
+  signerAddresses?: string[];
 }): DecodedBlock {
   const messages = input.messages ?? [];
   return {
@@ -252,7 +277,7 @@ function block(input: {
               fee: [],
               messages: messages.map((message, index) => ({ index: message.index ?? index, typeUrl: message.typeUrl, body: message.body })),
               events: input.txEvents ?? [],
-              signerAddresses: []
+              signerAddresses: input.signerAddresses ?? []
             }
           ]
         : [],
