@@ -2,14 +2,34 @@ import type { AxiosInstance } from "axios";
 
 import { services } from "@src/services/app-di-container/browser-di-container";
 import networkStore from "@src/store/networkStore";
+import type { DeploymentStatus } from "@src/types/deployment";
 import { appendSearchParams } from "./urlUtils";
+
+type DeploymentsPageParams = {
+  owner: string;
+  state: DeploymentStatus;
+  offset: number;
+  limit: number;
+  countTotal?: boolean;
+  reverse?: boolean;
+};
 
 export class ApiUrlService {
   static depositParams(apiEndpoint: string) {
     return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/params`;
   }
-  static deploymentList(apiEndpoint: string, address: string, isActive?: boolean) {
-    return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/list?filters.owner=${address}${isActive ? "&filters.state=active" : ""}`;
+  static deploymentList(apiEndpoint: string, address: string, state?: DeploymentStatus) {
+    return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/list?filters.owner=${address}${state ? `&filters.state=${state}` : ""}`;
+  }
+  /**
+   * Single-page deployment listing. Uses offset-based pagination, which the chain only allows
+   * alongside a `filters.state`, and only honors `count_total` when an offset is set.
+   */
+  static deploymentsPage(apiEndpoint: string, { owner, state, offset, limit, countTotal, reverse }: DeploymentsPageParams) {
+    let url = `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/list?filters.owner=${owner}&filters.state=${state}&pagination.offset=${offset}&pagination.limit=${limit}`;
+    if (countTotal) url += "&pagination.count_total=true";
+    if (reverse) url += "&pagination.reverse=true";
+    return url;
   }
   static deploymentDetail(apiEndpoint: string, address: string, dseq: string) {
     return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`;

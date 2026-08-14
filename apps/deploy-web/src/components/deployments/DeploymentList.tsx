@@ -1,9 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Button,
   buttonVariants,
-  CheckboxWithLabel,
   CustomPagination,
   Input,
   Spinner,
@@ -11,9 +10,13 @@ import {
   TableBody,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
+  Tabs,
+  TabsList,
+  TabsTrigger
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
+import { keepPreviousData } from "@tanstack/react-query";
 import { Refresh, Rocket, Xmark } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
@@ -26,10 +29,10 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
-import { useDeploymentList } from "@src/queries/useDeploymentQuery";
+import { useDeploymentsPage } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import sdlStore from "@src/store/sdlStore";
-import type { DeploymentDto, NamedDeploymentDto } from "@src/types/deployment";
+import type { DeploymentStatus, NamedDeploymentDto } from "@src/types/deployment";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { NoDeploymentsState } from "../home/NoDeploymentsState";
 import Layout from "../layout/Layout";
@@ -39,74 +42,57 @@ import { DeploymentListRow } from "./DeploymentListRow";
 export const DeploymentList: React.FunctionComponent = () => {
   const { address, signAndBroadcastTx, hasWallet } = useWallet();
   const { data: providers, isFetching: isLoadingProviders } = useProviderList();
-  const { data: deployments, isFetching: isLoadingDeployments, refetch: getDeployments } = useDeploymentList(address, { enabled: false });
-  const [pageIndex, setPageIndex] = useState(0);
   const { settings, isSettingsInit } = useSettings();
-  const [search, setSearch] = useState("");
-  const { getDeploymentName } = useLocalNotes();
-  const [filteredDeployments, setFilteredDeployments] = useState<NamedDeploymentDto[] | null>(null);
-  const [isFilteringActive, setIsFilteringActive] = useState(true);
   const { apiEndpoint } = settings;
-  const [pageSize, setPageSize] = useState<number>(10);
-  const orderedDeployments = filteredDeployments
-    ? [...filteredDeployments].sort((a: DeploymentDto, b: DeploymentDto) => (a.createdAt < b.createdAt ? 1 : -1))
-    : [];
-  const start = pageIndex * pageSize;
-  const end = start + pageSize;
-  const currentPageDeployments = orderedDeployments.slice(start, end);
-  const pageCount = Math.ceil(orderedDeployments.length / pageSize);
+  const { getDeploymentName } = useLocalNotes();
+  const [deploymentStatus, setDeploymentStatus] = useState<DeploymentStatus>("active");
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [search, setSearch] = useState("");
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
   const newDeploymentUrl = useNewDeploymentUrl();
 
+  const {
+    data,
+    isFetching: isLoadingDeployments,
+    refetch: getDeployments
+  } = useDeploymentsPage(
+    address,
+    { state: deploymentStatus, skip: pageIndex * pageSize, limit: pageSize, countTotal: true },
+    { enabled: isSettingsInit && !!address, placeholderData: keepPreviousData }
+  );
+
+  const total = data?.total ?? 0;
+  const pageCount = Math.ceil(total / pageSize);
+
+  const pageDeployments = useMemo(() => {
+    const named = (data?.deployments ?? []).map(d => ({ ...d, name: getDeploymentName(d.dseq) })) as NamedDeploymentDto[];
+    if (!search) return named;
+    const query = search.toLowerCase();
+    return named.filter(d => d.name?.toLowerCase().includes(query) || d.dseq?.toLowerCase().includes(query));
+  }, [data?.deployments, search, getDeploymentName]);
+
   const { selectedItemIds, selectItem, clearSelection } = useListSelection<string>({
-    ids: currentPageDeployments.map(deployment => deployment.dseq)
+    ids: pageDeployments.map(deployment => deployment.dseq)
   });
 
   useEffect(() => {
-    if (isSettingsInit) {
+    if (isSettingsInit && address) {
       getDeployments();
     }
-  }, [isSettingsInit, getDeployments, apiEndpoint, address]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiEndpoint]);
 
-  useEffect(() => {
-    if (deployments) {
-      let filteredDeployments = deployments.map(d => {
-        const name = getDeploymentName(d.dseq);
-
-        return {
-          ...d,
-          name
-        };
-      }) as NamedDeploymentDto[];
-
-      // Filter for search
-      if (search) {
-        filteredDeployments = filteredDeployments.filter(
-          x => x.name?.toLowerCase().includes(search.toLowerCase()) || x.dseq?.toLowerCase().includes(search.toLowerCase())
-        );
-      }
-
-      if (isFilteringActive) {
-        filteredDeployments = filteredDeployments.filter(d => d.state === "active");
-      }
-
-      setFilteredDeployments(filteredDeployments);
-    }
-  }, [deployments, search, getDeploymentName, isFilteringActive]);
-
-  const handleChangePage = (newPage: number) => {
-    setPageIndex(newPage);
-  };
-
-  const onIsFilteringActiveClick = (value: boolean) => {
+  const onStatusChange = (value: string) => {
+    if (value !== "active" && value !== "closed") return;
+    setDeploymentStatus(value);
     setPageIndex(0);
-    setIsFilteringActive(value);
+    clearSelection();
   };
 
   const onSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    setSearch(value);
+    setSearch(event.target.value);
   };
 
   const onCloseSelectedDeployments = async () => {
@@ -137,56 +123,60 @@ export const DeploymentList: React.FunctionComponent = () => {
     setPageIndex(0);
   };
 
+  const isActiveStatus = deploymentStatus === "active";
+  const showEmptyState = total === 0 && !isLoadingDeployments && !search;
+
   return (
     <Layout isLoading={isLoadingDeployments || isLoadingProviders} isUsingSettings>
       <NextSeo title="Deployments" />
-      {deployments && deployments.length > 0 && hasWallet && (
+      {hasWallet && (
         <div className="flex flex-wrap items-center pb-6">
-          <>
-            <Title>Deployments</Title>
+          <Title>Deployments</Title>
 
-            <div className="ml-6">
-              <Button aria-label="back" onClick={() => getDeployments()} size="icon" variant="ghost">
-                <Refresh />
-              </Button>
-            </div>
+          <div className="ml-6">
+            <Button aria-label="refresh" onClick={() => getDeployments()} size="icon" variant="ghost">
+              <Refresh />
+            </Button>
+          </div>
 
-            <div className="ml-6">
-              <div className="flex items-center space-x-2">
-                <CheckboxWithLabel label="Active" checked={isFilteringActive} onCheckedChange={onIsFilteringActiveClick} />
+          <div className="ml-6">
+            <Tabs value={deploymentStatus} onValueChange={onStatusChange}>
+              <TabsList>
+                <TabsTrigger value="active">Active</TabsTrigger>
+                <TabsTrigger value="closed">Closed</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
+          {selectedItemIds.length > 0 && (
+            <>
+              <div className="md:ml-6">
+                <Button onClick={onCloseSelectedDeployments} color="secondary" size="sm">
+                  Close selected ({selectedItemIds.length})
+                </Button>
               </div>
-            </div>
 
-            {selectedItemIds.length > 0 && (
-              <>
-                <div className="md:ml-6">
-                  <Button onClick={onCloseSelectedDeployments} color="secondary" size="sm">
-                    Close selected ({selectedItemIds.length})
-                  </Button>
-                </div>
+              <div className="ml-6">
+                <LinkTo onClick={clearSelection}>Clear</LinkTo>
+              </div>
+            </>
+          )}
 
-                <div className="ml-6">
-                  <LinkTo onClick={clearSelection}>Clear</LinkTo>
-                </div>
-              </>
-            )}
-
-            {(filteredDeployments?.length || 0) > 0 && (
-              <Link
-                href={newDeploymentUrl()}
-                className={cn("ml-auto space-x-2", buttonVariants({ variant: "default", size: "sm" }))}
-                aria-disabled={settings.isBlockchainDown}
-                onClick={onDeployClick}
-              >
-                <Rocket className="rotate-45 text-sm" />
-                <span className="whitespace-nowrap">Deploy</span>
-              </Link>
-            )}
-          </>
+          {total > 0 && (
+            <Link
+              href={newDeploymentUrl()}
+              className={cn("ml-auto space-x-2", buttonVariants({ variant: "default", size: "sm" }))}
+              aria-disabled={settings.isBlockchainDown}
+              onClick={onDeployClick}
+            >
+              <Rocket className="rotate-45 text-sm" />
+              <span className="whitespace-nowrap">Deploy</span>
+            </Link>
+          )}
         </div>
       )}
 
-      {((filteredDeployments?.length || 0) > 0 || !!search) && (
+      {(total > 0 || !!search) && (
         <div className="flex items-center pb-6">
           <div className="flex-grow">
             <Input
@@ -207,27 +197,31 @@ export const DeploymentList: React.FunctionComponent = () => {
         </div>
       )}
 
-      {filteredDeployments?.length === 0 && !isLoadingDeployments && !search && (
-        <NoDeploymentsState onDeployClick={onDeployClick} hasDeployments={Boolean(deployments && deployments.length > 0)} showTemplatesButton />
+      {showEmptyState && isActiveStatus && <NoDeploymentsState onDeployClick={onDeployClick} hasDeployments={false} showTemplatesButton />}
+
+      {showEmptyState && !isActiveStatus && (
+        <div className="py-6">
+          <p>No closed deployments.</p>
+        </div>
       )}
 
-      {(!filteredDeployments || filteredDeployments?.length === 0) && isLoadingDeployments && !search && (
+      {total === 0 && isLoadingDeployments && !search && (
         <div className="flex items-center justify-center p-8">
           <Spinner size="large" />
         </div>
       )}
 
       <div>
-        {orderedDeployments.length > 0 && (
+        {total > 0 && (
           <div className="flex flex-wrap items-center justify-between pb-6">
             <span className="text-xs">
-              You have <strong>{orderedDeployments.length}</strong>
-              {isFilteringActive ? " active" : ""} deployments
+              You have <strong>{total}</strong>
+              {isActiveStatus ? " active" : " closed"} deployments
             </span>
           </div>
         )}
 
-        {currentPageDeployments?.length > 0 && (
+        {pageDeployments.length > 0 && (
           <Table className="min-w-[1024px] table-fixed">
             <colgroup>
               <col width="120" />
@@ -249,7 +243,7 @@ export const DeploymentList: React.FunctionComponent = () => {
             </TableHeader>
 
             <TableBody>
-              {currentPageDeployments.map(deployment => (
+              {pageDeployments.map(deployment => (
                 <DeploymentListRow
                   key={deployment.dseq}
                   deployment={deployment}
@@ -265,21 +259,15 @@ export const DeploymentList: React.FunctionComponent = () => {
         )}
       </div>
 
-      {search && currentPageDeployments.length === 0 && (
+      {search && pageDeployments.length === 0 && (
         <div className="py-6">
           <p>No deployment found.</p>
         </div>
       )}
 
-      {(filteredDeployments?.length || 0) > 0 && (
+      {total > 0 && !search && (
         <div className="flex items-center justify-center py-8">
-          <CustomPagination
-            totalPageCount={pageCount}
-            setPageIndex={handleChangePage}
-            pageIndex={pageIndex}
-            pageSize={pageSize}
-            setPageSize={onPageSizeChange}
-          />
+          <CustomPagination totalPageCount={pageCount} setPageIndex={setPageIndex} pageIndex={pageIndex} pageSize={pageSize} setPageSize={onPageSizeChange} />
         </div>
       )}
     </Layout>

@@ -26,9 +26,13 @@ export function HomeContainer() {
     data: deployments,
     isFetching: isLoadingDeployments,
     refetch: getDeployments
-  } = useDeploymentList(address, {
-    enabled: false
-  });
+  } = useDeploymentList(
+    address,
+    {
+      enabled: false
+    },
+    "active"
+  );
   useEffect(() => {
     if (deployments) {
       setActiveDeployments(

@@ -31,7 +31,7 @@ import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConf
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useRealTimeLeft } from "@src/hooks/useRealTimeLeft";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
-import { useAllLeases, useLeaseStatus } from "@src/queries/useLeaseQuery";
+import { useDeploymentLeaseList, useLeaseStatus } from "@src/queries/useLeaseQuery";
 import type { LeaseDto, NamedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { udenomToDenom } from "@src/utils/mathHelpers";
@@ -70,8 +70,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const { changeDeploymentName, getDeploymentData } = useLocalNotes();
   const { address, signAndBroadcastTx, isTrialing } = useWallet();
   const isActive = deployment.state === "active";
-  const { data: leases, isLoading: isLoadingLeases } = useAllLeases(address, { enabled: !!deployment && isActive });
-  const filteredLeases = leases?.filter(l => l.dseq === deployment.dseq);
+  const { data: filteredLeases, isLoading: isLoadingLeases } = useDeploymentLeaseList(address, deployment, { enabled: !!deployment && isActive });
   // A reclaiming lease is still running (grace period), so it counts as live for cost/escrow metrics.
   const liveLeases = filteredLeases?.filter(isLeaseLive);
   const hasActiveLeases = !!liveLeases?.length;
