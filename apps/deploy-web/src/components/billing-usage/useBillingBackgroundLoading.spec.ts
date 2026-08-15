@@ -2,7 +2,7 @@ import type { useIsFetching } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 
 import { QueryKeys } from "@src/queries/queryKeys";
-import { LIVE_LEASE_STATES } from "@src/utils/reclamationUtils";
+import { LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
 import type { DEPENDENCIES } from "./useBillingBackgroundLoading";
 import { useBillingBackgroundLoading } from "./useBillingBackgroundLoading";
 

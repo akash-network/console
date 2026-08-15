@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
-import { LIVE_LEASE_STATES } from "@src/utils/reclamationUtils";
+import { LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
 import { DEPENDENCIES, useAccountBalanceOverview } from "./useAccountBalanceOverview";
 
 import { renderHook } from "@testing-library/react";

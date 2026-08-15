@@ -26,7 +26,7 @@ import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useNetworkCapacity, useProviderList } from "@src/queries/useProvidersQuery";
 import networkStore from "@src/store/networkStore";
 import type { ClientProviderList } from "@src/types/provider";
-import { isLeaseLive } from "@src/utils/reclamationUtils";
+import { isLeaseLive } from "@src/utils/leaseUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";

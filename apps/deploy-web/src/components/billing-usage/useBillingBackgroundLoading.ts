@@ -4,7 +4,7 @@ import { useIsFetching } from "@tanstack/react-query";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { QueryKeys } from "@src/queries/queryKeys";
-import { LIVE_LEASE_STATES } from "@src/utils/reclamationUtils";
+import { LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
 
 export const DEPENDENCIES = { useServices, useWallet, useIsFetching };
 

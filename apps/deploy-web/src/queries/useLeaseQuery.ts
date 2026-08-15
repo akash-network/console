@@ -11,7 +11,7 @@ import type { ApiProviderList } from "@src/types/provider";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { omitAttestationSidecar } from "@src/utils/confidentialCompute";
 import { leaseToDto } from "@src/utils/deploymentDetailUtils";
-import { isLeaseLive } from "@src/utils/reclamationUtils";
+import { isLeaseLive } from "@src/utils/leaseUtils";
 import { QueryKeys } from "./queryKeys";
 
 // Leases

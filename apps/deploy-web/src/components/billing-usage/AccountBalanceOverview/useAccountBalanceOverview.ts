@@ -10,8 +10,8 @@ import { computeWalletBalance } from "@src/hooks/useWalletBalance";
 import { useWalletSettingsQuery } from "@src/queries";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
+import { isLeaseLive, LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
 import { getLeasesCostPerBlockUsd, getTimeLeft, perBlockToHourly } from "@src/utils/priceUtils";
-import { isLeaseLive, LIVE_LEASE_STATES } from "@src/utils/reclamationUtils";
 
 export const DEPENDENCIES = {
   useWallet,

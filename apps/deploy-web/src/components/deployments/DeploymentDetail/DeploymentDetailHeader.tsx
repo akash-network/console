@@ -15,8 +15,8 @@ import type { LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
+import { hasLiveGpuLease, isLeaseLive } from "@src/utils/leaseUtils";
 import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
-import { hasLiveGpuLease, isLeaseLive } from "@src/utils/reclamationUtils";
 import { bytesToShrink } from "@src/utils/unitUtils";
 
 export const DEPENDENCIES = {
