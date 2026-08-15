@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { AccountTxs, Blocks, IndexerState, Messages, MessageTypes } from "@src/db/schema";
+import type { GovWriter } from "@src/gov/gov-writer.service";
 import type { AccountInterner } from "@src/pipeline/balance/account-interner.service";
 import type { BalanceWriter } from "@src/pipeline/balance/balance-writer.service";
 import { BlockCommitterService } from "@src/pipeline/block-committer.service";
@@ -140,6 +141,20 @@ describe(BlockCommitterService.name, () => {
     });
   });
 
+  describe("governance", () => {
+    it("hands the governance writer the batch blocks and interned account ids inside the transaction", async () => {
+      const { committer, insertedRows, govWriter } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
+
+      await committer.commit(buildBlock([MSG_SEND], 10, { signerAddresses: ["akash1voter"] }));
+
+      expect(govWriter.writeForBlocks).toHaveBeenCalledWith(expect.anything(), [expect.objectContaining({ height: 10 })], expect.any(Map));
+      const accountIds = govWriter.writeForBlocks.mock.calls[0][2];
+      expect(accountIds.get("akash1voter")).toBeDefined();
+      const order = insertedRows.map(call => call.table);
+      expect(order.indexOf(AccountTxs)).toBeLessThan(order.indexOf(IndexerState));
+    });
+  });
+
   function setup(input?: { selectResults?: Array<Array<{ id: number; type: string }>>; insertReturning?: Array<{ id: number; type: string }> }) {
     const selectResults = [...(input?.selectResults ?? [[]])];
     const insertedRows: Array<{ table: unknown; rows: unknown }> = [];
@@ -173,8 +188,9 @@ describe(BlockCommitterService.name, () => {
       insertedRows.push({ table: BALANCE_WRITE, rows: [] });
     });
 
-    const committer = new BlockCommitterService(dbFake as unknown as ChainDatabase, interner, balanceWriter);
-    return { committer, insertedRows, conflictUpdates, interner, balanceWriter };
+    const govWriter = mock<GovWriter>();
+    const committer = new BlockCommitterService(dbFake as unknown as ChainDatabase, interner, balanceWriter, govWriter);
+    return { committer, insertedRows, conflictUpdates, interner, balanceWriter, govWriter };
   }
 
   function buildBlock(

@@ -71,6 +71,15 @@ describe(RpcClientPool.name, () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("uses a dispatcher so the connect timeout follows RPC_TIMEOUT_MS", async () => {
+    const { pool, fetchMock } = setup();
+    fetchMock.mockResolvedValue(jsonResponse({ result: { sync_info: { latest_block_height: "1" } } }));
+
+    await pool.getStatus();
+
+    expect(fetchMock.mock.calls[0][1]).toEqual(expect.objectContaining({ dispatcher: expect.any(Object) }));
+  });
+
   it("parses the tip height from the status payload", async () => {
     const { pool, fetchMock } = setup();
     fetchMock.mockResolvedValue(jsonResponse({ result: { sync_info: { latest_block_height: "1234" } } }));

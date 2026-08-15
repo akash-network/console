@@ -17,6 +17,7 @@ import type { ChainDatabase } from "@src/providers/db.provider";
 import { CHAIN_DB } from "@src/providers/db.provider";
 import { LoggerService } from "@src/providers/logging.provider";
 import { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
+import { StakingSnapshotService } from "@src/staking/staking-snapshot.service";
 
 const PROGRESS_LOG_EVERY_BLOCKS = 100;
 
@@ -28,11 +29,13 @@ export class SyncRunnerService {
   readonly #committer: BlockCommitterService;
   readonly #archive: BlockArchiveService;
   readonly #genesisImport: GenesisImportService;
+  readonly #stakingSnapshot: StakingSnapshotService;
   readonly #config: EnvConfig;
   readonly #logger: LoggerService;
 
   #stopped = false;
   #lastHash: Buffer | null = null;
+  #lastSnapshotHeight: number | null = null;
 
   constructor(
     @inject(CHAIN_DB) db: ChainDatabase,
@@ -41,6 +44,7 @@ export class SyncRunnerService {
     @inject(BlockCommitterService) committer: BlockCommitterService,
     @inject(BlockArchiveService) archive: BlockArchiveService,
     @inject(GenesisImportService) genesisImport: GenesisImportService,
+    @inject(StakingSnapshotService) stakingSnapshot: StakingSnapshotService,
     @inject(APP_CONFIG) config: EnvConfig,
     @inject(LoggerService) logger: LoggerService
   ) {
@@ -50,6 +54,7 @@ export class SyncRunnerService {
     this.#committer = committer;
     this.#archive = archive;
     this.#genesisImport = genesisImport;
+    this.#stakingSnapshot = stakingSnapshot;
     this.#config = config;
     this.#logger = logger;
     this.#logger.setContext("SYNC");
@@ -85,16 +90,24 @@ export class SyncRunnerService {
     while (!this.#stopped) {
       const tipHeight = await this.#retryTransient(() => this.#pool.getTipHeight(), { event: "SYNC_TIP_FETCH_RETRY" });
 
-      if (nextHeight > tipHeight) {
-        await delay(this.#config.SYNC_POLL_INTERVAL_MS);
+      if (nextHeight <= tipHeight) {
+        while (nextHeight <= tipHeight && !this.#stopped) {
+          const height = nextHeight;
+          await this.#retryTransient(() => this.#syncBlock(height), { event: "SYNC_BLOCK_RETRY", height });
+          nextHeight++;
+        }
+        if (this.#stopped) {
+          return;
+        }
+        await this.#maybeSnapshotStaking(nextHeight - 1);
         continue;
       }
 
-      while (nextHeight <= tipHeight && !this.#stopped) {
-        const height = nextHeight;
-        await this.#retryTransient(() => this.#syncBlock(height), { event: "SYNC_BLOCK_RETRY", height });
-        nextHeight++;
+      await this.#maybeSnapshotStaking(nextHeight - 1);
+      if (this.#stopped) {
+        return;
       }
+      await delay(this.#config.SYNC_POLL_INTERVAL_MS);
     }
   }
 
@@ -116,6 +129,28 @@ export class SyncRunnerService {
 
   async #retryTransient<T>(operation: () => Promise<T>, logContext: { event: string; height?: number }): Promise<T> {
     return await retryTransient(operation, { isStopped: () => this.#stopped, logger: this.#logger, logContext });
+  }
+
+  /**
+   * Reconciles the validator set after the observed tip is committed, even if a newer block appears before
+   * the next poll — waiting until nextHeight > tip would skip the snapshot whenever live follow stays one
+   * block behind. Throttled to one run per configured block interval. A failed snapshot is logged and
+   * retried on the next interval rather than halting the sync it rides alongside.
+   */
+  async #maybeSnapshotStaking(head: number): Promise<void> {
+    if (!this.#config.STAKING_SNAPSHOT_ENABLED || head < 1) {
+      return;
+    }
+    if (this.#lastSnapshotHeight !== null && head - this.#lastSnapshotHeight < this.#config.STAKING_SNAPSHOT_INTERVAL_BLOCKS) {
+      return;
+    }
+
+    try {
+      await this.#stakingSnapshot.snapshot(head, () => this.#stopped);
+      this.#lastSnapshotHeight = head;
+    } catch (error) {
+      this.#logger.error({ event: "STAKING_SNAPSHOT_FAILED", height: head, error });
+    }
   }
 
   /** The raw payloads are archived before decode and commit, so no block is ever committed without being archived and raw blocks survive even decoder bugs. */
