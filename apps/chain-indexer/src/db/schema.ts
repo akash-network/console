@@ -73,7 +73,9 @@ export const Messages = cosmosSchema.table(
 /**
  * Messages whose body failed to decode keep their raw bytes and error here, so registering the
  * type later and replaying the range can heal the null body. Re-committing a height clears its
- * rows first, so a clean replay leaves no stale dead letters behind.
+ * rows first, and a new dead-letter row is only inserted when the matching message body is still
+ * null, so a clean replay (or a later writer that already decoded the message) leaves no stale
+ * rows behind.
  */
 export const MessageDeadLetters = cosmosSchema.table(
   "message_dead_letters",

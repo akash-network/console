@@ -111,7 +111,8 @@ describe(BlockCommitterService.name, () => {
     it("dead-letters messages whose body failed to decode and reports them loudly", async () => {
       const { committer, insertedRows, logger } = setup({
         selectResults: [[{ id: 7, type: MSG_SEND }]],
-        insertReturning: [{ id: 8, type: UNKNOWN_TYPE }]
+        insertReturning: [{ id: 8, type: UNKNOWN_TYPE }],
+        messagesWithNullBody: [{ height: 10, txIndex: 0, index: 1 }]
       });
       const failure = { raw: new Uint8Array([1, 2, 3]), error: "Unregistered type url: /akash.unknown.v1.MsgMystery" };
 
@@ -129,6 +130,37 @@ describe(BlockCommitterService.name, () => {
         fromHeight: 10,
         toHeight: 10
       });
+    });
+
+    it("does not re-insert a dead letter when another writer already populated the body", async () => {
+      const { committer, insertedRows, logger } = setup({
+        selectResults: [[{ id: 7, type: MSG_SEND }]],
+        insertReturning: [{ id: 8, type: UNKNOWN_TYPE }],
+        messagesWithNullBody: []
+      });
+      const failure = { raw: new Uint8Array([1, 2, 3]), error: "Unregistered type url: /akash.unknown.v1.MsgMystery" };
+
+      await committer.commit(buildBlock([MSG_SEND, { typeUrl: UNKNOWN_TYPE, decodeFailure: failure }]));
+
+      expect(insertedRows.find(call => call.table === MessageDeadLetters)).toBeUndefined();
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it("dead-letters only the messages whose body is still null when the batch is mixed", async () => {
+      const { committer, insertedRows, logger } = setup({
+        selectResults: [[{ id: 7, type: MSG_SEND }]],
+        insertReturning: [{ id: 8, type: UNKNOWN_TYPE }],
+        messagesWithNullBody: [{ height: 10, txIndex: 0, index: 2 }]
+      });
+      const healed = { raw: new Uint8Array([1]), error: "Unregistered type url: /akash.unknown.v1.MsgMystery" };
+      const stillUnknown = { raw: new Uint8Array([2]), error: "Unregistered type url: /akash.unknown.v1.MsgMystery" };
+
+      await committer.commit(buildBlock([MSG_SEND, { typeUrl: UNKNOWN_TYPE, decodeFailure: healed }, { typeUrl: UNKNOWN_TYPE, decodeFailure: stillUnknown }]));
+
+      expect(insertedRows.find(call => call.table === MessageDeadLetters)?.rows).toEqual([
+        { height: 10, txIndex: 0, index: 2, typeId: 8, raw: Buffer.from([2]), error: stillUnknown.error }
+      ]);
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "MESSAGES_DEAD_LETTERED", count: 1, byType: { [UNKNOWN_TYPE]: 1 } }));
     });
 
     it("clears the batch's height range of dead letters so a clean replay heals them", async () => {
@@ -206,14 +238,22 @@ describe(BlockCommitterService.name, () => {
     });
   });
 
-  function setup(input?: { selectResults?: Array<Array<{ id: number; type: string }>>; insertReturning?: Array<{ id: number; type: string }> }) {
+  function setup(input?: {
+    selectResults?: Array<Array<{ id: number; type: string }>>;
+    insertReturning?: Array<{ id: number; type: string }>;
+    messagesWithNullBody?: Array<{ height: number; txIndex: number; index: number }>;
+  }) {
     const selectResults = [...(input?.selectResults ?? [[]])];
     const insertedRows: Array<{ table: unknown; rows: unknown }> = [];
     const conflictUpdates: Array<{ table: unknown; config: { set: Record<string, unknown>; setWhere?: unknown } }> = [];
     const deletions: Array<{ table: unknown; where: unknown }> = [];
 
     const dbFake = {
-      select: () => ({ from: () => ({ where: () => Promise.resolve(selectResults.shift() ?? []) }) }),
+      select: () => ({
+        from: (table: unknown) => ({
+          where: () => Promise.resolve(table === Messages ? input?.messagesWithNullBody ?? [] : selectResults.shift() ?? [])
+        })
+      }),
       insert: (table: unknown) => ({
         values: (rows: unknown) => {
           insertedRows.push({ table, rows });
