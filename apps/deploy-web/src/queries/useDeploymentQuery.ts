@@ -26,28 +26,28 @@ export function useDeploymentList(address: string, options?: Omit<UseQueryOption
   });
 }
 
+/** `hasNextPage` comes from RPC `pagination.next_key`. `pagination.total` is the current page size, not the collection size. */
 export interface DeploymentsPage {
   deployments: DeploymentDto[];
-  total?: number;
+  hasNextPage: boolean;
 }
 
 type DeploymentsPageParams = {
   state: DeploymentStatus;
   skip: number;
   limit: number;
-  countTotal?: boolean;
 };
 
 async function getDeploymentsPage(chainApiHttpClient: AxiosInstance, address: string, params: DeploymentsPageParams): Promise<DeploymentsPage> {
-  if (!address) return { deployments: [], total: 0 };
+  if (!address) return { deployments: [], hasNextPage: false };
 
-  const { state, skip, limit, countTotal } = params;
-  const response = await chainApiHttpClient.get(ApiUrlService.deploymentsPage("", { owner: address, state, offset: skip, limit, countTotal, reverse: true }));
+  const { state, skip, limit } = params;
+  const response = await chainApiHttpClient.get(ApiUrlService.deploymentsPage("", { owner: address, state, offset: skip, limit, reverse: true }));
   const deployments = (response.data.deployments as RpcDeployment[]).map(d => deploymentToDto(d));
 
   return {
     deployments,
-    total: countTotal ? Number(response.data.pagination.total) : undefined
+    hasNextPage: Boolean(response.data.pagination?.next_key)
   };
 }
 
@@ -57,8 +57,8 @@ const DEPLOYMENTS_PAGE_STATE_KEY_INDEX = 2;
 
 /**
  * Retains the last page while paging within one account and status, but drops it across an
- * account switch or an Active/Closed switch so the prior view's rows and total never render
- * under the newly selected one while its own data loads.
+ * account switch or an Active/Closed switch so the prior view's rows never render under the
+ * newly selected one while its own data loads.
  */
 function keepPreviousPageOfSameStatus(address: string, state: DeploymentStatus) {
   return (previousData: DeploymentsPage | undefined, previousQuery: { queryKey: QueryKey } | undefined) => {
@@ -72,7 +72,7 @@ function keepPreviousPageOfSameStatus(address: string, state: DeploymentStatus) 
 export function useDeploymentsPage(address: string, params: DeploymentsPageParams, options?: Omit<UseQueryOptions<DeploymentsPage>, "queryKey" | "queryFn">) {
   const { chainApiHttpClient } = useServices();
   return useQuery({
-    queryKey: QueryKeys.getDeploymentsPageKey(address, params.state, params.skip, params.limit, params.countTotal),
+    queryKey: QueryKeys.getDeploymentsPageKey(address, params.state, params.skip, params.limit),
     queryFn: () => getDeploymentsPage(chainApiHttpClient, address, params),
     placeholderData: keepPreviousPageOfSameStatus(address, params.state),
     ...options

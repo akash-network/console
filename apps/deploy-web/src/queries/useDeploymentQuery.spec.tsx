@@ -13,16 +13,16 @@ import { buildRpcDeployment } from "@tests/seeders/deployment";
 describe("useDeploymentQuery", () => {
   describe(useDeploymentsPage.name, () => {
     it("returns an empty page when address is not provided", async () => {
-      const { result } = setupQuery(() => useDeploymentsPage("", { state: "active", skip: 0, limit: 10, countTotal: true }), {
+      const { result } = setupQuery(() => useDeploymentsPage("", { state: "active", skip: 0, limit: 10 }), {
         services: { chainApiHttpClient: () => mock<FallbackableHttpClient>() }
       });
 
       await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
-      expect(result.current.data).toEqual({ deployments: [], total: 0 });
+      expect(result.current.data).toEqual({ deployments: [], hasNextPage: false });
     });
 
-    it("requests a single page filtered by state with offset pagination and count_total", async () => {
-      const { chainApiHttpClient, result } = setup({ total: 42 });
+    it("requests a single page filtered by state with offset pagination and no count_total", async () => {
+      const { chainApiHttpClient, result } = setup();
 
       await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
 
@@ -31,29 +31,41 @@ describe("useDeploymentQuery", () => {
       expect(requestedUrl).toContain("filters.state=active");
       expect(requestedUrl).toContain("pagination.offset=20");
       expect(requestedUrl).toContain("pagination.limit=10");
-      expect(requestedUrl).toContain("pagination.count_total=true");
       expect(requestedUrl).toContain("pagination.reverse=true");
+      expect(requestedUrl).not.toContain("pagination.count_total");
     });
 
-    it("maps deployments to DTOs and exposes the server total", async () => {
+    it("maps deployments to DTOs and treats a next_key as another page", async () => {
       const deployment = buildRpcDeployment({ deployment: { id: { owner: "test-address" }, state: "active" } });
-      const { result } = setup({ total: 42, deployments: [deployment] });
+      const { result } = setup({ deployments: [deployment], nextKey: "cursor-1" });
 
       await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
 
       expect(result.current.data).toEqual({
         deployments: [deploymentToDto(deployment)],
-        total: 42
+        hasNextPage: true
       });
     });
 
-    it("omits count_total and leaves total undefined when countTotal is false", async () => {
-      const { chainApiHttpClient, result } = setup({ total: 42, countTotal: false });
+    it("does not treat pagination.total as a real total when next_key is absent", async () => {
+      const deployment = buildRpcDeployment({ deployment: { id: { owner: "test-address" }, state: "active" } });
+      const { result } = setup({ deployments: [deployment], nextKey: null, total: "10" });
 
       await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(chainApiHttpClient.get.mock.calls[0][0]).not.toContain("pagination.count_total");
-      expect(result.current.data?.total).toBeUndefined();
+      expect(result.current.data).toEqual({
+        deployments: [deploymentToDto(deployment)],
+        hasNextPage: false
+      });
+      expect(result.current.data).not.toHaveProperty("total");
+    });
+
+    it("treats a missing pagination object as the last page", async () => {
+      const { result } = setup({ pagination: null });
+
+      await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+      expect(result.current.data).toEqual({ deployments: [], hasNextPage: false });
     });
 
     it("keys pages under the address prefix so deploy-success invalidation refreshes them", () => {
@@ -65,31 +77,31 @@ describe("useDeploymentQuery", () => {
     it("keeps the previous page while paging within a status but drops it across a status change", async () => {
       const { chainApiHttpClient, requestCount, resolveNextPage } = buildDeferredClient();
 
-      let params: Parameters<typeof useDeploymentsPage>[1] = { state: "active", skip: 0, limit: 10, countTotal: true };
+      let params: Parameters<typeof useDeploymentsPage>[1] = { state: "active", skip: 0, limit: 10 };
       const { result, rerender } = setupQuery(() => useDeploymentsPage("test-address", params), {
         services: { chainApiHttpClient: () => chainApiHttpClient }
       });
 
       const activePage1 = buildRpcDeployment({ deployment: { id: { owner: "test-address", dseq: "100" }, state: "active" } });
       await vi.waitFor(() => expect(requestCount()).toBe(1));
-      resolveNextPage([activePage1], 20);
+      resolveNextPage([activePage1], "cursor-1");
       await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
-      expect(result.current.data).toEqual({ deployments: [deploymentToDto(activePage1)], total: 20 });
+      expect(result.current.data).toEqual({ deployments: [deploymentToDto(activePage1)], hasNextPage: true });
 
-      params = { state: "active", skip: 10, limit: 10, countTotal: true };
+      params = { state: "active", skip: 10, limit: 10 };
       rerender();
       await vi.waitFor(() => {
         expect(requestCount()).toBe(2);
         expect(result.current.isPlaceholderData).toBe(true);
       });
-      expect(result.current.data).toEqual({ deployments: [deploymentToDto(activePage1)], total: 20 });
+      expect(result.current.data).toEqual({ deployments: [deploymentToDto(activePage1)], hasNextPage: true });
 
       const activePage2 = buildRpcDeployment({ deployment: { id: { owner: "test-address", dseq: "200" }, state: "active" } });
-      resolveNextPage([activePage2], 20);
+      resolveNextPage([activePage2], null);
       await vi.waitFor(() => expect(result.current.isPlaceholderData).toBe(false));
-      expect(result.current.data).toEqual({ deployments: [deploymentToDto(activePage2)], total: 20 });
+      expect(result.current.data).toEqual({ deployments: [deploymentToDto(activePage2)], hasNextPage: false });
 
-      params = { state: "closed", skip: 0, limit: 10, countTotal: true };
+      params = { state: "closed", skip: 0, limit: 10 };
       rerender();
       await vi.waitFor(() => {
         expect(requestCount()).toBe(3);
@@ -98,38 +110,32 @@ describe("useDeploymentQuery", () => {
       expect(result.current.data).toBeUndefined();
     });
 
-    it("keys the query by address, state, skip, limit and countTotal", async () => {
+    it("keys the query by address, state, skip and limit", async () => {
       const { result } = setupQuery(
         () => {
-          const page = useDeploymentsPage("test-address", { state: "closed", skip: 30, limit: 10, countTotal: true });
+          const page = useDeploymentsPage("test-address", { state: "closed", skip: 30, limit: 10 });
           const queryClient = useQueryClient();
           return { page, queryClient };
         },
-        { services: { chainApiHttpClient: () => buildClient({ total: 0 }) } }
+        { services: { chainApiHttpClient: () => buildClient() } }
       );
 
       await vi.waitFor(() => expect(result.current.page.isSuccess).toBe(true));
 
       const [query] = result.current.queryClient.getQueryCache().findAll();
-      expect(query.queryKey).toEqual(QueryKeys.getDeploymentsPageKey("test-address", "closed", 30, 10, true));
-    });
-
-    it("keys totals-bearing and totals-free requests separately so one cannot satisfy the other", () => {
-      expect(QueryKeys.getDeploymentsPageKey("test-address", "active", 0, 10, true)).not.toEqual(
-        QueryKeys.getDeploymentsPageKey("test-address", "active", 0, 10, false)
-      );
+      expect(query.queryKey).toEqual(QueryKeys.getDeploymentsPageKey("test-address", "closed", 30, 10));
     });
 
     it("drops the previous page when the address changes even if the status is unchanged", async () => {
       const { chainApiHttpClient, requestCount, resolveNextPage } = buildDeferredClient();
 
       let address = "address-a";
-      const { result, rerender } = setupQuery(() => useDeploymentsPage(address, { state: "active", skip: 0, limit: 10, countTotal: true }), {
+      const { result, rerender } = setupQuery(() => useDeploymentsPage(address, { state: "active", skip: 0, limit: 10 }), {
         services: { chainApiHttpClient: () => chainApiHttpClient }
       });
 
       await vi.waitFor(() => expect(requestCount()).toBe(1));
-      resolveNextPage([buildRpcDeployment({ deployment: { id: { owner: "address-a", dseq: "1" }, state: "active" } })], 5);
+      resolveNextPage([buildRpcDeployment({ deployment: { id: { owner: "address-a", dseq: "1" }, state: "active" } })], null);
       await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
 
       address = "address-b";
@@ -152,28 +158,45 @@ describe("useDeploymentQuery", () => {
       return {
         chainApiHttpClient,
         requestCount: () => resolvers.length,
-        resolveNextPage: (deployments: ReturnType<typeof buildRpcDeployment>[], total: number) => {
+        resolveNextPage: (deployments: ReturnType<typeof buildRpcDeployment>[], nextKey: string | null) => {
           const resolve = resolvers[resolvedCount++];
           if (!resolve) throw new Error("No pending deployments request to resolve");
-          resolve({ data: { deployments, pagination: { next_key: null, total: String(total) } } });
+          resolve({ data: { deployments, pagination: { next_key: nextKey, total: String(deployments.length) } } });
         }
       };
     }
 
-    function buildClient(input: { total: number; deployments?: ReturnType<typeof buildRpcDeployment>[] }) {
+    function buildClient(
+      input: {
+        deployments?: ReturnType<typeof buildRpcDeployment>[];
+        nextKey?: string | null;
+        total?: string;
+        pagination?: { next_key: string | null; total: string } | null;
+      } = {}
+    ) {
+      const pagination =
+        input.pagination === undefined ? { next_key: input.nextKey ?? null, total: input.total ?? String(input.deployments?.length ?? 0) } : input.pagination;
+
       return mock<FallbackableHttpClient>({
         get: vi.fn().mockResolvedValue({
           data: {
             deployments: input.deployments ?? [],
-            pagination: { next_key: null, total: String(input.total) }
+            pagination
           }
         })
       } as unknown as FallbackableHttpClient);
     }
 
-    function setup(input: { total: number; deployments?: ReturnType<typeof buildRpcDeployment>[]; countTotal?: boolean }) {
+    function setup(
+      input: {
+        deployments?: ReturnType<typeof buildRpcDeployment>[];
+        nextKey?: string | null;
+        total?: string;
+        pagination?: { next_key: string | null; total: string } | null;
+      } = {}
+    ) {
       const chainApiHttpClient = buildClient(input);
-      const { result } = setupQuery(() => useDeploymentsPage("test-address", { state: "active", skip: 20, limit: 10, countTotal: input.countTotal ?? true }), {
+      const { result } = setupQuery(() => useDeploymentsPage("test-address", { state: "active", skip: 20, limit: 10 }), {
         services: { chainApiHttpClient: () => chainApiHttpClient }
       });
       return { chainApiHttpClient, result };

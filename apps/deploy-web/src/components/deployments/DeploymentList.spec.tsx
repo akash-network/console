@@ -21,14 +21,14 @@ describe(DeploymentList.name, () => {
   });
 
   it("renders the onboarding empty state when there are no active deployments", () => {
-    const { NoDeploymentsState } = setup({ data: { deployments: [], total: 0 } });
+    const { NoDeploymentsState } = setup({ data: { deployments: [], hasNextPage: false } });
 
     expect(NoDeploymentsState).toHaveBeenCalledWith(expect.objectContaining({ hasDeployments: false }), expect.anything());
     expect(screen.queryByText("No closed deployments.")).not.toBeInTheDocument();
   });
 
   it("renders a closed-specific empty state on the Closed tab", async () => {
-    setup({ data: { deployments: [], total: 0 } });
+    setup({ data: { deployments: [], hasNextPage: false } });
 
     await userEvent.click(screen.getByRole("tab", { name: "Closed" }));
 
@@ -36,7 +36,7 @@ describe(DeploymentList.name, () => {
   });
 
   it("keeps rows selectable on Active but not on Closed", async () => {
-    setup({ data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], total: 3 } });
+    setup({ data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], hasNextPage: false } });
 
     expect(screen.getByText("selectable")).toBeInTheDocument();
 
@@ -46,28 +46,53 @@ describe(DeploymentList.name, () => {
   });
 
   it("does not force a refetch on initial load since the query is already enabled", () => {
-    const { refetch } = setup({ data: { deployments: [], total: 0 } });
+    const { refetch } = setup({ data: { deployments: [], hasNextPage: false } });
 
     expect(refetch).not.toHaveBeenCalled();
   });
 
-  it("hides the unfiltered total banner while a search is active", async () => {
-    setup({ data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], total: 20 } });
+  it("enables Next when the RPC reports a next_key and keeps Previous disabled on the first page", () => {
+    setup({ data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], hasNextPage: true } });
 
-    expect(screen.getByText(/You have/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to next page" })).not.toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("link", { name: "Go to previous page" })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.queryByText(/Page \d+ of \d+/)).not.toBeInTheDocument();
+  });
+
+  it("disables Next on the last page", () => {
+    setup({ data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], hasNextPage: false } });
+
+    expect(screen.getByRole("link", { name: "Go to next page" })).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("requests the next offset after Next is clicked", async () => {
+    const { useDeploymentsPage } = setup({
+      data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], hasNextPage: true }
+    });
+
+    await userEvent.click(screen.getByRole("link", { name: "Go to next page" }));
+
+    expect(useDeploymentsPage).toHaveBeenLastCalledWith("akash1owner", expect.objectContaining({ skip: 10, limit: 10, state: "active" }), expect.anything());
+    expect(screen.getByRole("link", { name: "Go to previous page" })).not.toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("hides the pager while a search is active", async () => {
+    setup({ data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], hasNextPage: true } });
+
+    expect(screen.getByRole("link", { name: "Go to next page" })).toBeInTheDocument();
 
     await userEvent.type(screen.getByRole("textbox"), "1");
 
-    expect(screen.queryByText(/You have/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Go to next page" })).not.toBeInTheDocument();
   });
 
   function setup(input: { data?: DeploymentsPage; isFetching?: boolean; isError?: boolean } = {}) {
     const refetch = vi.fn();
 
-    const useDeploymentsPage: typeof DEPENDENCIES.useDeploymentsPage = () => {
+    const useDeploymentsPage = vi.fn<typeof DEPENDENCIES.useDeploymentsPage>(() => {
       const query = mock<ReturnType<typeof DEPENDENCIES.useDeploymentsPage>>();
       return Object.assign(query, { data: input.data, isFetching: input.isFetching ?? false, isError: input.isError ?? false, refetch });
-    };
+    });
 
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: "akash1owner", hasWallet: true });
     const useProviderList: typeof DEPENDENCIES.useProviderList = () => mock<ReturnType<typeof DEPENDENCIES.useProviderList>>({ data: [], isFetching: false });
@@ -105,6 +130,6 @@ describe(DeploymentList.name, () => {
       />
     );
 
-    return { refetch, NoDeploymentsState, DeploymentListRow };
+    return { refetch, NoDeploymentsState, DeploymentListRow, useDeploymentsPage };
   }
 });

@@ -3,8 +3,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   buttonVariants,
-  CustomPagination,
   Input,
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationSizeSelector,
   Spinner,
   Table,
   TableBody,
@@ -86,20 +91,19 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
     isFetching: isLoadingDeployments,
     isError,
     refetch: getDeployments
-  } = useDeploymentsPage(
-    address,
-    { state: deploymentStatus, skip: pageIndex * pageSize, limit: pageSize, countTotal: true },
-    { enabled: isSettingsInit && !!address }
+  } = useDeploymentsPage(address, { state: deploymentStatus, skip: pageIndex * pageSize, limit: pageSize }, { enabled: isSettingsInit && !!address });
+
+  const hasPageResults = (data?.deployments.length ?? 0) > 0;
+  const hasNextPage = data?.hasNextPage ?? false;
+
+  useEffect(
+    function goBackFromEmptyPage() {
+      if (pageIndex > 0 && !isLoadingDeployments && !isError && !hasPageResults) {
+        setPageIndex(current => Math.max(current - 1, 0));
+      }
+    },
+    [hasPageResults, isLoadingDeployments, isError, pageIndex]
   );
-
-  const total = data?.total ?? 0;
-  const pageCount = Math.ceil(total / pageSize);
-
-  useEffect(() => {
-    if (pageIndex > 0 && pageIndex > pageCount - 1) {
-      setPageIndex(Math.max(pageCount - 1, 0));
-    }
-  }, [pageCount, pageIndex]);
 
   const pageDeployments = useMemo(() => {
     const named = (data?.deployments ?? []).map(d => ({ ...d, name: getDeploymentName(d.dseq) })) as NamedDeploymentDto[];
@@ -162,8 +166,9 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
   };
 
   const isActiveStatus = deploymentStatus === "active";
-  const showEmptyState = total === 0 && !isLoadingDeployments && !isError && !search;
-  const showErrorState = isError && total === 0 && !isLoadingDeployments;
+  const hasList = hasPageResults || pageIndex > 0;
+  const showEmptyState = !hasPageResults && pageIndex === 0 && !isLoadingDeployments && !isError && !search;
+  const showErrorState = isError && !hasPageResults && !isLoadingDeployments;
 
   return (
     <Layout isLoading={isLoadingDeployments || isLoadingProviders} isUsingSettings>
@@ -201,7 +206,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
             </>
           )}
 
-          {total > 0 && (
+          {hasList && (
             <Link
               href={newDeploymentUrl()}
               className={cn("ml-auto space-x-2", buttonVariants({ variant: "default", size: "sm" }))}
@@ -215,7 +220,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
         </div>
       )}
 
-      {(total > 0 || !!search) && (
+      {(hasList || !!search) && (
         <div className="flex items-center pb-6">
           <div className="flex-grow">
             <Input
@@ -254,22 +259,13 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
         </div>
       )}
 
-      {total === 0 && isLoadingDeployments && !search && (
+      {!hasPageResults && isLoadingDeployments && !search && (
         <div className="flex items-center justify-center p-8">
           <Spinner size="large" />
         </div>
       )}
 
       <div>
-        {total > 0 && !search && (
-          <div className="flex flex-wrap items-center justify-between pb-6">
-            <span className="text-xs">
-              You have <strong>{total}</strong>
-              {isActiveStatus ? " active" : " closed"} deployments
-            </span>
-          </div>
-        )}
-
         {pageDeployments.length > 0 && (
           <Table className="min-w-[1024px] table-fixed">
             <colgroup>
@@ -314,9 +310,19 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
         </div>
       )}
 
-      {total > 0 && !search && (
-        <div className="flex items-center justify-center py-8">
-          <CustomPagination totalPageCount={pageCount} setPageIndex={setPageIndex} pageIndex={pageIndex} pageSize={pageSize} setPageSize={onPageSizeChange} />
+      {hasPageResults && !search && (
+        <div className="flex flex-col items-center justify-between px-2 py-8 md:flex-row md:space-x-4">
+          <PaginationSizeSelector pageSize={pageSize} setPageSize={onPageSizeChange} />
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious onClick={() => setPageIndex(current => current - 1)} disabled={pageIndex === 0} />
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationNext onClick={() => setPageIndex(current => current + 1)} disabled={!hasNextPage} />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         </div>
       )}
     </Layout>

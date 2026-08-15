@@ -10,7 +10,6 @@ type DeploymentsPageUrlParams = {
   state: DeploymentStatus;
   offset: number;
   limit: number;
-  countTotal?: boolean;
   reverse?: boolean;
 };
 
@@ -22,12 +21,12 @@ export class ApiUrlService {
     return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/list?filters.owner=${address}${state ? `&filters.state=${state}` : ""}`;
   }
   /**
-   * Single-page deployment listing. Uses offset-based pagination, which the chain only allows
-   * alongside a `filters.state`, and only honors `count_total` when an offset is set.
+   * Single-page deployment listing. Offset pagination requires `filters.state`.
+   * Do not request `count_total`: the RPC reports the current page size, not the collection size.
+   * Callers should use `pagination.next_key` to decide whether another page exists.
    */
-  static deploymentsPage(apiEndpoint: string, { owner, state, offset, limit, countTotal, reverse }: DeploymentsPageUrlParams) {
+  static deploymentsPage(apiEndpoint: string, { owner, state, offset, limit, reverse }: DeploymentsPageUrlParams) {
     let url = `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/list?filters.owner=${owner}&filters.state=${state}&pagination.offset=${offset}&pagination.limit=${limit}`;
-    if (countTotal) url += "&pagination.count_total=true";
     if (reverse) url += "&pagination.reverse=true";
     return url;
   }
