@@ -3,6 +3,7 @@ export interface BackfillPlanInput {
   toHeight: number;
   checkpointHeight: number | null;
   tipHeight: number;
+  replay?: boolean;
 }
 
 export type BackfillPlan = { kind: "run"; startHeight: number; endHeight: number } | { kind: "already-complete" } | { kind: "invalid"; reason: string };
@@ -11,9 +12,11 @@ export type BackfillPlan = { kind: "run"; startHeight: number; endHeight: number
  * A range above the chain tip is rejected rather than clamped: clamping would mark the range's
  * checkpoint complete for heights that were never indexed. Completion is checked first so a
  * re-run of a finished range stays a no-op even when a lagging RPC node reports a stale tip.
+ * A replay run ignores the checkpoint entirely and starts back at `fromHeight`; commits are
+ * idempotent and the checkpoint only moves forward, so replaying cannot regress anything.
  */
 export function planBackfill(input: BackfillPlanInput): BackfillPlan {
-  if (input.checkpointHeight !== null && input.checkpointHeight >= input.toHeight) {
+  if (!input.replay && input.checkpointHeight !== null && input.checkpointHeight >= input.toHeight) {
     return { kind: "already-complete" };
   }
 
@@ -23,7 +26,7 @@ export function planBackfill(input: BackfillPlanInput): BackfillPlan {
 
   return {
     kind: "run",
-    startHeight: input.checkpointHeight !== null ? input.checkpointHeight + 1 : input.fromHeight,
+    startHeight: !input.replay && input.checkpointHeight !== null ? input.checkpointHeight + 1 : input.fromHeight,
     endHeight: input.toHeight
   };
 }

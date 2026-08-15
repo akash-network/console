@@ -1,8 +1,11 @@
-import { inArray, sql } from "drizzle-orm";
+import { and, between, inArray, isNull, sql } from "drizzle-orm";
+import chunk from "lodash/chunk";
 import { inject, singleton } from "tsyringe";
 
+import { INSERT_CHUNK_SIZE } from "@src/db/insert-chunk-size";
 import { insertChunked } from "@src/db/insert-chunked";
-import { AccountTxs, Blocks, IndexerState, Messages, MessageTypes, Transactions } from "@src/db/schema";
+import { AccountTxs, Blocks, IndexerState, MessageDeadLetters, Messages, MessageTypes, Transactions } from "@src/db/schema";
+import { sqlExcluded } from "@src/db/sql-excluded";
 import { GovWriter } from "@src/gov/gov-writer.service";
 import { AccountInterner } from "@src/pipeline/balance/account-interner.service";
 import type { DerivedAccountTx } from "@src/pipeline/balance/account-tx-deriver";
@@ -12,11 +15,26 @@ import { deriveBalanceChanges } from "@src/pipeline/balance/balance-deriver";
 import type { ResolvedBalanceChange } from "@src/pipeline/balance/balance-writer.service";
 import { BalanceWriter } from "@src/pipeline/balance/balance-writer.service";
 import { buildModuleAddressRegistry } from "@src/pipeline/balance/module-address-registry";
-import type { DecodedBlock } from "@src/pipeline/decoded-block";
-import type { ChainDatabase } from "@src/providers/db.provider";
+import type { DecodedBlock, MessageDecodeFailure } from "@src/pipeline/decoded-block";
+import type { ChainDatabase, ChainTransaction } from "@src/providers/db.provider";
 import { CHAIN_DB } from "@src/providers/db.provider";
+import { LoggerService } from "@src/providers/logging.provider";
 
 export const SYNC_STREAM = "sync";
+
+function countByTypeUrl(messages: ReadonlyArray<{ typeUrl: string }>): Record<string, number> {
+  const counts: Record<string, number> = {};
+
+  for (const message of messages) {
+    counts[message.typeUrl] = (counts[message.typeUrl] ?? 0) + 1;
+  }
+
+  return counts;
+}
+
+function messageCoordKey(row: { height: number; txIndex: number; index: number }): string {
+  return `${row.height}:${row.txIndex}:${row.index}`;
+}
 
 @singleton()
 export class BlockCommitterService {
@@ -24,6 +42,7 @@ export class BlockCommitterService {
   readonly #interner: AccountInterner;
   readonly #balanceWriter: BalanceWriter;
   readonly #govWriter: GovWriter;
+  readonly #logger: LoggerService;
   readonly #moduleRegistry = buildModuleAddressRegistry();
   readonly #typeIds = new Map<string, number>();
 
@@ -31,12 +50,15 @@ export class BlockCommitterService {
     @inject(CHAIN_DB) db: ChainDatabase,
     @inject(AccountInterner) interner: AccountInterner,
     @inject(BalanceWriter) balanceWriter: BalanceWriter,
-    @inject(GovWriter) govWriter: GovWriter
+    @inject(GovWriter) govWriter: GovWriter,
+    @inject(LoggerService) logger: LoggerService
   ) {
     this.#db = db;
     this.#interner = interner;
     this.#balanceWriter = balanceWriter;
     this.#govWriter = govWriter;
+    this.#logger = logger;
+    this.#logger.setContext("COMMITTER");
   }
 
   async commit(block: DecodedBlock): Promise<void> {
@@ -90,6 +112,16 @@ export class BlockCommitterService {
       )
     );
 
+    const deadLetteredMessages = blocks.flatMap(block =>
+      block.transactions.flatMap(tx =>
+        tx.messages.flatMap(message =>
+          message.decodeFailure
+            ? [{ height: block.height, txIndex: tx.index, index: message.index, typeUrl: message.typeUrl, failure: message.decodeFailure }]
+            : []
+        )
+      )
+    );
+
     const balanceChanges = blocks.flatMap(block => deriveBalanceChanges(block, this.#moduleRegistry));
     const accountTxs = blocks.flatMap(block => deriveAccountTxs(block));
     const accountIds = await this.#internAccounts(balanceChanges, accountTxs);
@@ -98,10 +130,11 @@ export class BlockCommitterService {
 
     const lastHeight = blocks[blocks.length - 1].height;
 
-    await this.#db.transaction(async tx => {
+    const persistedDeadLetters = await this.#db.transaction(async tx => {
       await insertChunked(tx, Blocks, blockRows);
       await insertChunked(tx, Transactions, transactionRows);
-      await insertChunked(tx, Messages, messageRows);
+      await this.#upsertMessages(tx, messageRows);
+      const persisted = await this.#replaceDeadLetters(tx, blocks[0].height, lastHeight, deadLetteredMessages, typeIds);
 
       await this.#balanceWriter.write(tx, balanceIntents);
       await insertChunked(tx, AccountTxs, accountTxRows);
@@ -114,7 +147,85 @@ export class BlockCommitterService {
           target: IndexerState.stream,
           set: { lastHeight: sql`GREATEST(${IndexerState.lastHeight}, EXCLUDED.last_height)`, updatedAt: new Date() }
         });
+
+      return persisted;
     });
+
+    if (persistedDeadLetters.length > 0) {
+      this.#logger.error({
+        event: "MESSAGES_DEAD_LETTERED",
+        stream: options.stream,
+        count: persistedDeadLetters.length,
+        byType: countByTypeUrl(persistedDeadLetters),
+        fromHeight: blocks[0].height,
+        toHeight: lastHeight
+      });
+    }
+  }
+
+  /**
+   * Range-delete, then insert only for messages whose body is still null after the upsert. A writer
+   * with a stale type catalog can still fail to decode a message another writer already healed; without
+   * this check it would put a phantom dead-letter row back and fire MESSAGES_DEAD_LETTERED.
+   */
+  async #replaceDeadLetters(
+    tx: ChainTransaction,
+    fromHeight: number,
+    toHeight: number,
+    deadLetteredMessages: ReadonlyArray<{
+      height: number;
+      txIndex: number;
+      index: number;
+      typeUrl: string;
+      failure: MessageDecodeFailure;
+    }>,
+    typeIds: Map<string, number>
+  ): Promise<typeof deadLetteredMessages> {
+    await tx.delete(MessageDeadLetters).where(between(MessageDeadLetters.height, fromHeight, toHeight));
+
+    if (deadLetteredMessages.length === 0) {
+      return [];
+    }
+
+    const nullBodies = await tx
+      .select({ height: Messages.height, txIndex: Messages.txIndex, index: Messages.index })
+      .from(Messages)
+      .where(and(between(Messages.height, fromHeight, toHeight), isNull(Messages.body)));
+    const nullKeys = new Set(nullBodies.map(row => messageCoordKey(row)));
+    const persisted = deadLetteredMessages.filter(message => nullKeys.has(messageCoordKey(message)));
+
+    await insertChunked(
+      tx,
+      MessageDeadLetters,
+      persisted.map(message => ({
+        height: message.height,
+        txIndex: message.txIndex,
+        index: message.index,
+        typeId: typeIds.get(message.typeUrl) as number,
+        raw: Buffer.from(message.failure.raw),
+        error: message.failure.error
+      }))
+    );
+
+    return persisted;
+  }
+
+  /**
+   * Conflicting rows only get their body updated when it was null and the new decode produced one,
+   * so replaying a range after registering a previously unknown type heals the dead-lettered rows
+   * while normal re-commits stay write-free.
+   */
+  async #upsertMessages(tx: ChainTransaction, rows: (typeof Messages.$inferInsert)[]): Promise<void> {
+    for (const rowChunk of chunk(rows, INSERT_CHUNK_SIZE)) {
+      await tx
+        .insert(Messages)
+        .values(rowChunk)
+        .onConflictDoUpdate({
+          target: [Messages.height, Messages.txIndex, Messages.index],
+          set: { body: sqlExcluded("body") },
+          setWhere: sql`${Messages.body} IS NULL AND excluded.body IS NOT NULL`
+        });
+    }
   }
 
   /** The checkpoint advances to the batch's last height, which is only correct when the batch has no gaps or reordering. */

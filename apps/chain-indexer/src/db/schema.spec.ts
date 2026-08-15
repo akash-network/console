@@ -1,7 +1,19 @@
 import { getTableConfig } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
-import { AccountBalances, Accounts, AccountTxs, BalanceChanges, Delegations, ProposalDeposits, Proposals, ProposalVotes, UnbondingDelegations, Validators } from "@src/db/schema";
+import {
+  AccountBalances,
+  Accounts,
+  AccountTxs,
+  BalanceChanges,
+  Delegations,
+  MessageDeadLetters,
+  ProposalDeposits,
+  Proposals,
+  ProposalVotes,
+  UnbondingDelegations,
+  Validators
+} from "@src/db/schema";
 
 describe("cosmos genesis schema", () => {
   it("interns accounts under a unique address index", () => {
@@ -63,7 +75,9 @@ describe("cosmos genesis schema", () => {
   it("enriches validators with snapshot-sourced bond state", () => {
     const config = getTableConfig(Validators);
 
-    expect(config.columns.map(column => column.name)).toEqual(expect.arrayContaining(["jailed", "status", "tokens", "delegator_shares", "unbonding_height", "unbonding_time"]));
+    expect(config.columns.map(column => column.name)).toEqual(
+      expect.arrayContaining(["jailed", "status", "tokens", "delegator_shares", "unbonding_height", "unbonding_time"])
+    );
   });
 
   it("keys unbonding delegations by delegator, validator and creation height", () => {
@@ -94,5 +108,15 @@ describe("cosmos genesis schema", () => {
     const config = getTableConfig(ProposalDeposits);
 
     expect(config.primaryKeys[0].columns.map(column => column.name)).toEqual(["proposal_id", "depositor_account_id", "height"]);
+  });
+
+  it("keys message dead letters like messages and keeps the raw bytes with the error", () => {
+    const config = getTableConfig(MessageDeadLetters);
+
+    expect(config.name).toBe("message_dead_letters");
+    expect(config.primaryKeys[0].columns.map(column => column.name)).toEqual(["height", "tx_index", "index"]);
+    expect(config.columns.map(column => column.name).sort()).toEqual(["error", "height", "index", "raw", "tx_index", "type_id"]);
+    expect(config.foreignKeys).toHaveLength(1);
+    expect(config.foreignKeys[0].reference().foreignColumns[0].name).toBe("id");
   });
 });

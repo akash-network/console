@@ -3,13 +3,14 @@ import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { AccountTxs, Blocks, IndexerState, Messages, MessageTypes } from "@src/db/schema";
+import { AccountTxs, Blocks, IndexerState, MessageDeadLetters, Messages, MessageTypes } from "@src/db/schema";
 import type { GovWriter } from "@src/gov/gov-writer.service";
 import type { AccountInterner } from "@src/pipeline/balance/account-interner.service";
 import type { BalanceWriter } from "@src/pipeline/balance/balance-writer.service";
 import { BlockCommitterService } from "@src/pipeline/block-committer.service";
-import type { DecodedBlock, DecodedEvent } from "@src/pipeline/decoded-block";
+import type { DecodedBlock, DecodedEvent, MessageDecodeFailure } from "@src/pipeline/decoded-block";
 import type { ChainDatabase } from "@src/providers/db.provider";
+import type { LoggerService } from "@src/providers/logging.provider";
 
 const MSG_SEND = "/cosmos.bank.v1beta1.MsgSend";
 const BALANCE_WRITE = Symbol("balance_write");
@@ -104,6 +105,88 @@ describe(BlockCommitterService.name, () => {
     });
   });
 
+  describe("dead letters", () => {
+    const UNKNOWN_TYPE = "/akash.unknown.v1.MsgMystery";
+
+    it("dead-letters messages whose body failed to decode and reports them loudly", async () => {
+      const { committer, insertedRows, logger } = setup({
+        selectResults: [[{ id: 7, type: MSG_SEND }]],
+        insertReturning: [{ id: 8, type: UNKNOWN_TYPE }],
+        messagesWithNullBody: [{ height: 10, txIndex: 0, index: 1 }]
+      });
+      const failure = { raw: new Uint8Array([1, 2, 3]), error: "Unregistered type url: /akash.unknown.v1.MsgMystery" };
+
+      await committer.commit(buildBlock([MSG_SEND, { typeUrl: UNKNOWN_TYPE, decodeFailure: failure }]));
+
+      expect(insertedRows.find(call => call.table === MessageDeadLetters)?.rows).toEqual([
+        { height: 10, txIndex: 0, index: 1, typeId: 8, raw: Buffer.from([1, 2, 3]), error: failure.error }
+      ]);
+      expect(logger.error).toHaveBeenCalledTimes(1);
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "MESSAGES_DEAD_LETTERED",
+        stream: "sync",
+        count: 1,
+        byType: { [UNKNOWN_TYPE]: 1 },
+        fromHeight: 10,
+        toHeight: 10
+      });
+    });
+
+    it("does not re-insert a dead letter when another writer already populated the body", async () => {
+      const { committer, insertedRows, logger } = setup({
+        selectResults: [[{ id: 7, type: MSG_SEND }]],
+        insertReturning: [{ id: 8, type: UNKNOWN_TYPE }],
+        messagesWithNullBody: []
+      });
+      const failure = { raw: new Uint8Array([1, 2, 3]), error: "Unregistered type url: /akash.unknown.v1.MsgMystery" };
+
+      await committer.commit(buildBlock([MSG_SEND, { typeUrl: UNKNOWN_TYPE, decodeFailure: failure }]));
+
+      expect(insertedRows.find(call => call.table === MessageDeadLetters)).toBeUndefined();
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it("dead-letters only the messages whose body is still null when the batch is mixed", async () => {
+      const { committer, insertedRows, logger } = setup({
+        selectResults: [[{ id: 7, type: MSG_SEND }]],
+        insertReturning: [{ id: 8, type: UNKNOWN_TYPE }],
+        messagesWithNullBody: [{ height: 10, txIndex: 0, index: 2 }]
+      });
+      const healed = { raw: new Uint8Array([1]), error: "Unregistered type url: /akash.unknown.v1.MsgMystery" };
+      const stillUnknown = { raw: new Uint8Array([2]), error: "Unregistered type url: /akash.unknown.v1.MsgMystery" };
+
+      await committer.commit(buildBlock([MSG_SEND, { typeUrl: UNKNOWN_TYPE, decodeFailure: healed }, { typeUrl: UNKNOWN_TYPE, decodeFailure: stillUnknown }]));
+
+      expect(insertedRows.find(call => call.table === MessageDeadLetters)?.rows).toEqual([
+        { height: 10, txIndex: 0, index: 2, typeId: 8, raw: Buffer.from([2]), error: stillUnknown.error }
+      ]);
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "MESSAGES_DEAD_LETTERED", count: 1, byType: { [UNKNOWN_TYPE]: 1 } }));
+    });
+
+    it("clears the batch's height range of dead letters so a clean replay heals them", async () => {
+      const { committer, insertedRows, deletions, logger } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
+
+      await committer.commitBatch([buildBlock([MSG_SEND], 10), buildBlock([MSG_SEND], 11), buildBlock([MSG_SEND], 12)], { stream: "backfill:10-12" });
+
+      const deletion = deletions.find(call => call.table === MessageDeadLetters);
+      const rendered = new PgDialect().sqlToQuery(deletion?.where as SQL);
+      expect(rendered.sql).toBe('"cosmos"."message_dead_letters"."height" between $1 and $2');
+      expect(rendered.params).toEqual([10, 12]);
+      expect(insertedRows.find(call => call.table === MessageDeadLetters)).toBeUndefined();
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it("heals null message bodies on conflict without touching decoded ones", async () => {
+      const { committer, conflictUpdates } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
+
+      await committer.commit(buildBlock([MSG_SEND]));
+
+      const messagesUpsert = conflictUpdates.find(call => call.table === Messages);
+      expect(new PgDialect().sqlToQuery(messagesUpsert?.config.set.body as SQL).sql).toBe("excluded.body");
+      expect(new PgDialect().sqlToQuery(messagesUpsert?.config.setWhere as SQL).sql).toBe('"cosmos"."messages"."body" IS NULL AND excluded.body IS NOT NULL');
+    });
+  });
+
   describe("balance ledger and activity log", () => {
     it("writes balances then the activity log inside the transaction, after messages and before the checkpoint", async () => {
       const { committer, insertedRows } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
@@ -155,13 +238,22 @@ describe(BlockCommitterService.name, () => {
     });
   });
 
-  function setup(input?: { selectResults?: Array<Array<{ id: number; type: string }>>; insertReturning?: Array<{ id: number; type: string }> }) {
+  function setup(input?: {
+    selectResults?: Array<Array<{ id: number; type: string }>>;
+    insertReturning?: Array<{ id: number; type: string }>;
+    messagesWithNullBody?: Array<{ height: number; txIndex: number; index: number }>;
+  }) {
     const selectResults = [...(input?.selectResults ?? [[]])];
     const insertedRows: Array<{ table: unknown; rows: unknown }> = [];
-    const conflictUpdates: Array<{ table: unknown; config: { set: unknown } }> = [];
+    const conflictUpdates: Array<{ table: unknown; config: { set: Record<string, unknown>; setWhere?: unknown } }> = [];
+    const deletions: Array<{ table: unknown; where: unknown }> = [];
 
     const dbFake = {
-      select: () => ({ from: () => ({ where: () => Promise.resolve(selectResults.shift() ?? []) }) }),
+      select: () => ({
+        from: (table: unknown) => ({
+          where: () => Promise.resolve(table === Messages ? input?.messagesWithNullBody ?? [] : selectResults.shift() ?? [])
+        })
+      }),
       insert: (table: unknown) => ({
         values: (rows: unknown) => {
           insertedRows.push({ table, rows });
@@ -170,11 +262,17 @@ describe(BlockCommitterService.name, () => {
               Object.assign(Promise.resolve(), {
                 returning: () => Promise.resolve(input?.insertReturning ?? [])
               }),
-            onConflictDoUpdate: (config: { set: unknown }) => {
+            onConflictDoUpdate: (config: { set: Record<string, unknown>; setWhere?: unknown }) => {
               conflictUpdates.push({ table, config });
               return Promise.resolve();
             }
           };
+        }
+      }),
+      delete: (table: unknown) => ({
+        where: (where: unknown) => {
+          deletions.push({ table, where });
+          return Promise.resolve();
         }
       }),
       transaction: (callback: (tx: unknown) => Promise<void>) => callback(dbFake)
@@ -189,12 +287,13 @@ describe(BlockCommitterService.name, () => {
     });
 
     const govWriter = mock<GovWriter>();
-    const committer = new BlockCommitterService(dbFake as unknown as ChainDatabase, interner, balanceWriter, govWriter);
-    return { committer, insertedRows, conflictUpdates, interner, balanceWriter, govWriter };
+    const logger = mock<LoggerService>();
+    const committer = new BlockCommitterService(dbFake as unknown as ChainDatabase, interner, balanceWriter, govWriter, logger);
+    return { committer, insertedRows, conflictUpdates, deletions, interner, balanceWriter, govWriter, logger };
   }
 
   function buildBlock(
-    typeUrls: string[],
+    typeUrls: Array<string | { typeUrl: string; decodeFailure: MessageDecodeFailure }>,
     height = 10,
     tx?: { events?: DecodedEvent[]; signerAddresses?: string[]; blockEvents?: DecodedEvent[] }
   ): DecodedBlock {
@@ -212,7 +311,11 @@ describe(BlockCommitterService.name, () => {
           gasUsed: 0,
           gasWanted: 0,
           fee: [],
-          messages: typeUrls.map((typeUrl, index) => ({ index, typeUrl, body: null })),
+          messages: typeUrls.map((entry, index) =>
+            typeof entry === "string"
+              ? { index, typeUrl: entry, body: null }
+              : { index, typeUrl: entry.typeUrl, body: null, decodeFailure: entry.decodeFailure }
+          ),
           events: tx?.events ?? [],
           signerAddresses: tx?.signerAddresses ?? []
         }

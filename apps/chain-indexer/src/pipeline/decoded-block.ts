@@ -4,6 +4,13 @@ export interface DecodedMessage {
   index: number;
   typeUrl: string;
   body: unknown | null;
+  /** Present when the body could not be decoded (unregistered type or corrupt bytes); the committer dead-letters it. Ignored and oversized messages carry a null body without a failure. */
+  decodeFailure?: MessageDecodeFailure;
+}
+
+export interface MessageDecodeFailure {
+  raw: Uint8Array;
+  error: string;
 }
 
 /** An ABCI event with base64-normalized attributes flattened to a key→value map. `msgIndex` links the event to its message where present. */

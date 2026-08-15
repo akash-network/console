@@ -50,6 +50,22 @@ describe("envSchema", () => {
       expect(config.BACKFILL_CONCURRENCY).toBe(10);
       expect(config.BACKFILL_BATCH_SIZE).toBe(200);
     });
+
+    it("defaults BACKFILL_REPLAY to false and treats an empty value as absent", () => {
+      const config = setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "100", BACKFILL_TO_HEIGHT: "200", BACKFILL_REPLAY: "" });
+
+      expect(config.BACKFILL_REPLAY).toBe(false);
+    });
+
+    it("parses BACKFILL_REPLAY=true as a boolean", () => {
+      const config = setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "100", BACKFILL_TO_HEIGHT: "200", BACKFILL_REPLAY: "true" });
+
+      expect(config.BACKFILL_REPLAY).toBe(true);
+    });
+
+    it("rejects a non-boolean BACKFILL_REPLAY", () => {
+      expect(() => setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "100", BACKFILL_TO_HEIGHT: "200", BACKFILL_REPLAY: "yes" })).toThrow();
+    });
   });
 
   it("treats an empty ARCHIVE_BUCKET as absent", () => {
