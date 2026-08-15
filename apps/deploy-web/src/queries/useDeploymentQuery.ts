@@ -12,7 +12,12 @@ import { QueryKeys } from "./queryKeys";
 async function getDeploymentList(chainApiHttpClient: AxiosInstance, address: string, state?: DeploymentStatus) {
   if (!address) return [];
 
-  const deployments = await loadWithPagination<RpcDeployment[]>(ApiUrlService.deploymentList("", address, state), "deployments", 1000, chainApiHttpClient);
+  const deployments = await loadWithPagination<RpcDeployment[]>(
+    ApiUrlService.deploymentList("", address, state, true),
+    "deployments",
+    1000,
+    chainApiHttpClient
+  );
 
   return deployments.map(d => deploymentToDto(d));
 }

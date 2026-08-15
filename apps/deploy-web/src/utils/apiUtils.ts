@@ -17,8 +17,10 @@ export class ApiUrlService {
   static depositParams(apiEndpoint: string) {
     return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/params`;
   }
-  static deploymentList(apiEndpoint: string, address: string, state?: DeploymentStatus) {
-    return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/list?filters.owner=${address}${state ? `&filters.state=${state}` : ""}`;
+  static deploymentList(apiEndpoint: string, address: string, state?: DeploymentStatus, reverse?: boolean) {
+    let url = `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/list?filters.owner=${address}${state ? `&filters.state=${state}` : ""}`;
+    if (reverse) url += "&pagination.reverse=true";
+    return url;
   }
   /**
    * Single-page deployment listing. Offset pagination requires `filters.state`.

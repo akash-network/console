@@ -6,7 +6,7 @@ import type { FallbackableHttpClient } from "@src/services/createFallbackableHtt
 import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 import { setupQuery } from "../../tests/unit/query-client";
 import { QueryKeys } from "./queryKeys";
-import { useDeploymentsPage } from "./useDeploymentQuery";
+import { useDeploymentList, useDeploymentsPage } from "./useDeploymentQuery";
 
 import { buildRpcDeployment } from "@tests/seeders/deployment";
 
@@ -151,9 +151,8 @@ describe("useDeploymentQuery", () => {
     function buildDeferredClient() {
       const resolvers: Array<(value: unknown) => void> = [];
       let resolvedCount = 0;
-      const chainApiHttpClient = mock<FallbackableHttpClient>({
-        get: vi.fn().mockImplementation(() => new Promise(resolve => resolvers.push(resolve)))
-      } as unknown as FallbackableHttpClient);
+      const chainApiHttpClient = mock<FallbackableHttpClient>();
+      chainApiHttpClient.get.mockImplementation(() => new Promise(resolve => resolvers.push(resolve)));
 
       return {
         chainApiHttpClient,
@@ -177,14 +176,14 @@ describe("useDeploymentQuery", () => {
       const pagination =
         input.pagination === undefined ? { next_key: input.nextKey ?? null, total: input.total ?? String(input.deployments?.length ?? 0) } : input.pagination;
 
-      return mock<FallbackableHttpClient>({
-        get: vi.fn().mockResolvedValue({
-          data: {
-            deployments: input.deployments ?? [],
-            pagination
-          }
-        })
-      } as unknown as FallbackableHttpClient);
+      const chainApiHttpClient = mock<FallbackableHttpClient>();
+      chainApiHttpClient.get.mockResolvedValue({
+        data: {
+          deployments: input.deployments ?? [],
+          pagination
+        }
+      });
+      return chainApiHttpClient;
     }
 
     function setup(
@@ -201,6 +200,23 @@ describe("useDeploymentQuery", () => {
       });
       return { chainApiHttpClient, result };
     }
+  });
+
+  describe(useDeploymentList.name, () => {
+    it("requests the full state list newest-first so search matches browse order", async () => {
+      const chainApiHttpClient = mock<FallbackableHttpClient>();
+      chainApiHttpClient.get.mockResolvedValue({
+        data: { deployments: [], pagination: { next_key: null, total: "0" } }
+      });
+
+      const { result } = setupQuery(() => useDeploymentList("test-address", undefined, "active"), {
+        services: { chainApiHttpClient: () => chainApiHttpClient }
+      });
+
+      await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+      expect(chainApiHttpClient.get.mock.calls[0][0]).toContain("pagination.reverse=true");
+    });
   });
 
   describe(QueryKeys.getDeploymentListKey.name, () => {
