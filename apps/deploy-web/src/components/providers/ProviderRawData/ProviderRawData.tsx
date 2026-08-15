@@ -6,7 +6,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
 import type { ApiProviderList, ClientProviderDetailWithStatus } from "@src/types/provider";
-import { isLeaseLive } from "@src/utils/reclamationUtils";
+import { isLeaseLive } from "@src/utils/leaseUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../../layout/Layout";
 import { CustomNextSeo } from "../../shared/CustomNextSeo";

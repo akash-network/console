@@ -4,6 +4,7 @@ import { useIsFetching } from "@tanstack/react-query";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { QueryKeys } from "@src/queries/queryKeys";
+import { LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
 
 export const DEPENDENCIES = { useServices, useWallet, useIsFetching };
 
@@ -26,6 +27,7 @@ export function useBillingBackgroundLoading(d: typeof DEPENDENCIES = DEPENDENCIE
   const exactKeys = [
     QueryKeys.getBalancesKey(address),
     QueryKeys.getAllLeasesKey(address),
+    QueryKeys.getAllLeasesKey(address, LIVE_LEASE_STATES),
     QueryKeys.getPaymentMethodsKey(),
     QueryKeys.getWeeklyDeploymentCostKey()
   ].filter(key => key.length > 0);

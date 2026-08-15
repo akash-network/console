@@ -10,8 +10,8 @@ import { computeWalletBalance } from "@src/hooks/useWalletBalance";
 import { useWalletSettingsQuery } from "@src/queries";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
+import { isLeaseLive, LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
 import { getLeasesCostPerBlockUsd, getTimeLeft, perBlockToHourly } from "@src/utils/priceUtils";
-import { isLeaseLive } from "@src/utils/reclamationUtils";
 
 export const DEPENDENCIES = {
   useWallet,
@@ -51,7 +51,7 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
   const { address } = d.useWallet();
   const { price, udenomToUsd } = d.usePricing();
   const { data: balances, isError: isBalancesError, fetchStatus: balancesFetchStatus } = d.useBalances(address);
-  const { data: leases } = d.useAllLeases(address);
+  const { data: leases } = d.useAllLeases(address, { state: LIVE_LEASE_STATES, enabled: !!address });
   const { data: walletSettings } = d.useWalletSettingsQuery();
   const { getDeploymentName } = d.useLocalNotes();
   const isFixedThresholdEnabled = d.useFlag("auto_reload_fixed_threshold");

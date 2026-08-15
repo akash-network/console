@@ -24,7 +24,7 @@ import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { extractRepositoryUrl } from "@src/services/remote-deploy/env-var-manager.service";
-import { isLeaseLive } from "@src/utils/reclamationUtils";
+import { isLeaseLive } from "@src/utils/leaseUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";

@@ -5,8 +5,6 @@ import {
   classifyLeaseCloseReason,
   getLeaseCloseReasonLabel,
   getReclamationDeadline,
-  hasLiveGpuLease,
-  isLeaseLive,
   isProviderReclaimed,
   isReclaiming,
   parseReclamationWindowSeconds
@@ -112,18 +110,6 @@ describe("reclamationUtils", () => {
     });
   });
 
-  describe("isLeaseLive", () => {
-    it("treats active and reclaiming leases as live", () => {
-      expect(isLeaseLive(createLease({ state: "active" }))).toBe(true);
-      expect(isLeaseLive(createLease({ state: "reclaiming" }))).toBe(true);
-    });
-
-    it("treats closed / insufficient_funds leases as not live", () => {
-      expect(isLeaseLive(createLease({ state: "closed" }))).toBe(false);
-      expect(isLeaseLive(createLease({ state: "insufficient_funds" }))).toBe(false);
-    });
-  });
-
   describe("isProviderReclaimed", () => {
     it("is true for a closed lease with reclamation evidence (startedAt > 0)", () => {
       expect(isProviderReclaimed(createLease({ state: "closed", reclamation: { startedAt: "1700000000" } }))).toBe(true);
@@ -146,32 +132,11 @@ describe("reclamationUtils", () => {
     });
   });
 
-  describe("hasLiveGpuLease", () => {
-    it("is true when a live lease has a GPU", () => {
-      expect(hasLiveGpuLease([createLease({ state: "active", gpuAmount: 1 })])).toBe(true);
-    });
-
-    it("is false when the GPU lease is not live", () => {
-      expect(hasLiveGpuLease([createLease({ state: "closed", gpuAmount: 1 })])).toBe(false);
-    });
-
-    it("is false when no live lease has a GPU", () => {
-      expect(hasLiveGpuLease([createLease({ state: "active", gpuAmount: 0 })])).toBe(false);
-    });
-
-    it("is false for empty or missing leases", () => {
-      expect(hasLiveGpuLease([])).toBe(false);
-      expect(hasLiveGpuLease(null)).toBe(false);
-      expect(hasLiveGpuLease(undefined)).toBe(false);
-    });
-  });
-
   function createLease(
     overrides: {
       state?: string;
       reason?: string;
       groupState?: string;
-      gpuAmount?: number;
       reclamation?: LeaseDto["reclamation"];
     } = {}
   ): LeaseDto {
@@ -185,7 +150,7 @@ describe("reclamationUtils", () => {
       state: overrides.state ?? "active",
       price: { denom: "uakt", amount: "100" },
       cpuAmount: 0,
-      gpuAmount: overrides.gpuAmount,
+      gpuAmount: 0,
       memoryAmount: 0,
       storageAmount: 0,
       reason: overrides.reason,

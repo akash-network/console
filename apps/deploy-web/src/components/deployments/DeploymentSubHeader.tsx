@@ -20,8 +20,8 @@ import { useTrialDeploymentTimeRemaining } from "@src/hooks/useTrialDeploymentTi
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { TeeType } from "@src/utils/confidentialCompute";
 import type { DeclaredGpuInterconnect } from "@src/utils/gpuInterconnect";
+import { hasLiveGpuLease, isLeaseLive } from "@src/utils/leaseUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import { hasLiveGpuLease, isLeaseLive } from "@src/utils/reclamationUtils";
 
 type Props = {
   deployment: DeploymentDto;

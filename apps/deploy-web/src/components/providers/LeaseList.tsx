@@ -17,7 +17,7 @@ import {
 import isEqual from "lodash/isEqual";
 
 import type { LeaseDto } from "@src/types/deployment";
-import { isLeaseLive } from "@src/utils/reclamationUtils";
+import { isLeaseLive } from "@src/utils/leaseUtils";
 import { LeaseRow } from "./LeaseRow";
 
 type Props = {
