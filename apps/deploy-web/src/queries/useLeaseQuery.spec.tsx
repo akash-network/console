@@ -1,5 +1,5 @@
 import type { LeaseHttpService } from "@akashnetwork/http-sdk";
-import { useQueryClient } from "@tanstack/react-query";
+import { QueryClient, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -77,6 +77,16 @@ const mockLeases = [
           amount: "0"
         }
       }
+    }
+  }
+];
+
+const mockClosedLeases = [
+  {
+    ...mockLeases[0],
+    lease: {
+      ...mockLeases[0].lease,
+      state: "closed"
     }
   }
 ];
@@ -204,7 +214,7 @@ describe("useLeaseQuery", () => {
     });
 
     it("keeps a closed deployment's lease list fresh after the first fetch", async () => {
-      const { result, chainApiHttpClient } = setup({ state: "closed" });
+      const { result, chainApiHttpClient } = setup({ state: "closed", leases: mockClosedLeases });
 
       await vi.waitFor(() => {
         expect(result.current.leases.isSuccess).toBe(true);
@@ -232,12 +242,53 @@ describe("useLeaseQuery", () => {
       expect(query?.isStale()).toBe(true);
     });
 
-    function setup(input: { state?: string }) {
+    it("refetches a closed deployment when the cached lease list still looks live", async () => {
+      const queryClient = new QueryClient({
+        defaultOptions: {
+          queries: { retry: false, refetchOnWindowFocus: false, refetchOnReconnect: false }
+        }
+      });
       const chainApiHttpClient = mock<FallbackableHttpClient>();
       chainApiHttpClient.get.mockResolvedValue({
         data: {
           leases: mockLeases,
           pagination: { next_key: null, total: mockLeases.length }
+        }
+      });
+
+      const first = setupQuery(() => useDeploymentLeaseList("test-address", { ...mockDeployment, state: "active" }), {
+        services: {
+          chainApiHttpClient: () => chainApiHttpClient,
+          queryClient: () => queryClient
+        }
+      });
+
+      await vi.waitFor(() => {
+        expect(first.result.current.isSuccess).toBe(true);
+      });
+      expect(chainApiHttpClient.get).toHaveBeenCalledTimes(1);
+      first.unmount();
+
+      const second = setupQuery(() => useDeploymentLeaseList("test-address", { ...mockDeployment, state: "closed" }), {
+        services: {
+          chainApiHttpClient: () => chainApiHttpClient,
+          queryClient: () => queryClient
+        }
+      });
+
+      await vi.waitFor(() => {
+        expect(chainApiHttpClient.get).toHaveBeenCalledTimes(2);
+      });
+      second.unmount();
+    });
+
+    function setup(input: { state?: string; leases?: typeof mockLeases }) {
+      const rpcLeases = input.leases ?? mockLeases;
+      const chainApiHttpClient = mock<FallbackableHttpClient>();
+      chainApiHttpClient.get.mockResolvedValue({
+        data: {
+          leases: rpcLeases,
+          pagination: { next_key: null, total: rpcLeases.length }
         }
       });
       const { result } = setupQuery(

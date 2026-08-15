@@ -14,9 +14,13 @@ import { leaseToDto } from "@src/utils/deploymentDetailUtils";
 import { isLeaseLive } from "@src/utils/reclamationUtils";
 import { QueryKeys } from "./queryKeys";
 
-/** Closed deployments cannot gain or change leases, so a successful list never needs refetching. */
-function closedDeploymentLeaseListStaleTime(state: string | undefined) {
-  return state === "closed" ? Infinity : undefined;
+/**
+ * Closed deployments cannot gain leases. Infinity only after the fetched list itself
+ * has no live leases, so a leftover Active-tab snapshot is still treated as stale.
+ */
+function closedDeploymentLeaseListStaleTime(state: string | undefined, leases: LeaseDto[] | null | undefined) {
+  if (state !== "closed" || !leases || leases.some(isLeaseLive)) return 0;
+  return Infinity;
 }
 
 // Leases
@@ -46,7 +50,7 @@ export function useDeploymentLeaseList(
       if (!deployment) return null;
       return getDeploymentLeases(chainApiHttpClient, address, deployment);
     },
-    staleTime: closedDeploymentLeaseListStaleTime(deployment?.state),
+    staleTime: query => closedDeploymentLeaseListStaleTime(deployment?.state, query.state.data),
     ...options
   });
 

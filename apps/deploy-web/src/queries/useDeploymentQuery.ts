@@ -8,7 +8,7 @@ import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 import { QueryKeys } from "./queryKeys";
 
-// Deployment list (fetches every deployment of the given state; used where aggregates need the full set)
+/** Fetches every deployment of the given state; used where aggregates need the full set. */
 async function getDeploymentList(chainApiHttpClient: AxiosInstance, address: string, state?: DeploymentStatus) {
   if (!address) return [];
 
