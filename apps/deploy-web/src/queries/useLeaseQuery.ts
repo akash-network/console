@@ -1,4 +1,4 @@
-import { isHttpError } from "@akashnetwork/http-sdk";
+import { isHttpError, type LeaseListParams } from "@akashnetwork/http-sdk";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosInstance } from "axios";
@@ -50,20 +50,24 @@ export function useDeploymentLeaseList(
   };
 }
 
-export type LeaseListState = "active" | "insufficient_funds" | "closed" | "reclaiming";
+export type LeaseListState = NonNullable<LeaseListParams["state"]>;
 
-async function getAllLeases(chainApiHttpClient: AxiosInstance, address: string, deployment?: any, state?: LeaseListState) {
+type LeaseStateFilter = LeaseListState | readonly LeaseListState[];
+
+async function getAllLeases(chainApiHttpClient: AxiosInstance, address: string, deployment?: any, state?: LeaseStateFilter) {
   if (!address) {
     return null;
   }
 
-  const response = await loadWithPagination<RpcLease[]>(ApiUrlService.leaseList("", address, deployment?.dseq, state), "leases", 1000, chainApiHttpClient);
-  const leases = response.map(l => leaseToDto(l, deployment));
+  const states = state == null ? [undefined] : Array.isArray(state) ? state : [state];
+  const pages = await Promise.all(
+    states.map(s => loadWithPagination<RpcLease[]>(ApiUrlService.leaseList("", address, deployment?.dseq, s), "leases", 1000, chainApiHttpClient))
+  );
 
-  return leases;
+  return pages.flat().map(l => leaseToDto(l, deployment));
 }
 
-export function useAllLeases(address: string, options: { state?: LeaseListState } & Omit<UseQueryOptions<LeaseDto[] | null>, "queryKey" | "queryFn"> = {}) {
+export function useAllLeases(address: string, options: { state?: LeaseStateFilter } & Omit<UseQueryOptions<LeaseDto[] | null>, "queryKey" | "queryFn"> = {}) {
   const { chainApiHttpClient } = useServices();
   const { state, ...queryOptions } = options;
 

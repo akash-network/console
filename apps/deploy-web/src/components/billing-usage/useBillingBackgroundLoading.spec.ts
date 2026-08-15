@@ -2,6 +2,7 @@ import type { useIsFetching } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 
 import { QueryKeys } from "@src/queries/queryKeys";
+import { LIVE_LEASE_STATES } from "@src/utils/reclamationUtils";
 import type { DEPENDENCIES } from "./useBillingBackgroundLoading";
 import { useBillingBackgroundLoading } from "./useBillingBackgroundLoading";
 
@@ -16,10 +17,10 @@ describe(useBillingBackgroundLoading.name, () => {
     expect(isMatching(QueryKeys.getAllLeasesKey(ADDRESS), { hasData: true })).toBe(true);
   });
 
-  it("counts a background refetch of the active-leases query used for billing spend", () => {
+  it("counts a background refetch of the live-leases query used for billing spend", () => {
     const { isMatching } = setup();
 
-    expect(isMatching(["ALL_LEASES", ADDRESS, "active"], { hasData: true })).toBe(true);
+    expect(isMatching(QueryKeys.getAllLeasesKey(ADDRESS, LIVE_LEASE_STATES), { hasData: true })).toBe(true);
   });
 
   it("ignores the lease-existence probe even though it extends the all-leases key", () => {

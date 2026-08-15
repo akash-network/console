@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
+import { LIVE_LEASE_STATES } from "@src/utils/reclamationUtils";
 import { DEPENDENCIES, useAccountBalanceOverview } from "./useAccountBalanceOverview";
 
 import { renderHook } from "@testing-library/react";
@@ -77,10 +78,20 @@ describe(useAccountBalanceOverview.name, () => {
     expect(result.current.deployments[1].perHourUsd).toBe(0);
   });
 
-  it("loads only active leases for spend", () => {
+  it("loads active and reclaiming leases for spend", () => {
     const { useAllLeases } = setup({ hasLiveLease: true });
 
-    expect(useAllLeases).toHaveBeenCalledWith("akash1abc", expect.objectContaining({ state: "active", enabled: true }));
+    expect(useAllLeases).toHaveBeenCalledWith("akash1abc", expect.objectContaining({ state: LIVE_LEASE_STATES, enabled: true }));
+  });
+
+  it("includes reclaiming leases in hourly spend", () => {
+    const { result } = setup({
+      deployments: [{ dseq: "1", fundsUsd: 200 }],
+      leases: [{ dseq: "1", amount: "1000000", state: "reclaiming" }]
+    });
+
+    expect(result.current.deployments[0].perHourUsd).toBeGreaterThan(0);
+    expect(result.current.perHour).toBeGreaterThan(0);
   });
 
   it("passes through the auto reload setting", () => {
@@ -148,7 +159,7 @@ describe(useAccountBalanceOverview.name, () => {
     reservedUsd?: number;
     deployments?: Array<{ dseq: string; fundsUsd: number }>;
     names?: Record<string, string>;
-    leases?: Array<{ dseq: string; amount?: string }>;
+    leases?: Array<{ dseq: string; amount?: string; state?: string }>;
     hasLiveLease?: boolean;
     autoReloadEnabled?: boolean;
     autoReloadThreshold?: number;
@@ -180,7 +191,11 @@ describe(useAccountBalanceOverview.name, () => {
     };
 
     const leases = input.leases
-      ? input.leases.map(lease => ({ dseq: lease.dseq, state: "active", price: { denom: UACT_DENOM, amount: lease.amount ?? "1000000" } }))
+      ? input.leases.map(lease => ({
+          dseq: lease.dseq,
+          state: lease.state ?? "active",
+          price: { denom: UACT_DENOM, amount: lease.amount ?? "1000000" }
+        }))
       : input.hasLiveLease
         ? [{ state: "active", price: { denom: UACT_DENOM, amount: "1000000" } }]
         : [];

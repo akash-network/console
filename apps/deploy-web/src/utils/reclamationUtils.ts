@@ -73,13 +73,15 @@ export function getReclamationDeadline(lease: Pick<LeaseDto, "reclamation">): Da
   return new Date(deadline * 1000);
 }
 
+export const LIVE_LEASE_STATES = ["active", "reclaiming"] as const;
+
 export function isReclaiming(lease: Pick<LeaseDto, "state">): boolean {
   return lease.state === "reclaiming";
 }
 
 /** A lease whose workload is still running — actively leased or in the reclamation grace period. */
 export function isLeaseLive(lease: Pick<LeaseDto, "state">): boolean {
-  return lease.state === "active" || lease.state === "reclaiming";
+  return LIVE_LEASE_STATES.some(state => lease.state === state);
 }
 
 /** Whether any live lease is running on GPU — drives hourly-vs-monthly cost display in the headers. */
