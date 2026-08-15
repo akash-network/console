@@ -76,22 +76,91 @@ describe(DeploymentList.name, () => {
     expect(screen.getByRole("link", { name: "Go to previous page" })).not.toHaveAttribute("aria-disabled", "true");
   });
 
-  it("hides the pager while a search is active", async () => {
-    setup({ data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], hasNextPage: true } });
+  it("does not fetch the full state list until a search is entered", () => {
+    const { useDeploymentList } = setup({ data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], hasNextPage: false } });
 
-    expect(screen.getByRole("link", { name: "Go to next page" })).toBeInTheDocument();
-
-    await userEvent.type(screen.getByRole("textbox"), "1");
-
-    expect(screen.queryByRole("link", { name: "Go to next page" })).not.toBeInTheDocument();
+    expect(useDeploymentList).toHaveBeenLastCalledWith("akash1owner", expect.objectContaining({ enabled: false }), "active");
   });
 
-  function setup(input: { data?: DeploymentsPage; isFetching?: boolean; isError?: boolean } = {}) {
+  it("searches the full selected-state list, including deployments not on the current page", async () => {
+    setup({
+      data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], hasNextPage: true },
+      list: [mock<DeploymentDto>({ dseq: "100", state: "active" }), mock<DeploymentDto>({ dseq: "999", state: "active" })]
+    });
+
+    expect(screen.queryByText("999")).not.toBeInTheDocument();
+
+    await userEvent.type(screen.getByRole("textbox"), "999");
+
+    expect(screen.getByText("999")).toBeInTheDocument();
+    expect(screen.queryByText("100")).not.toBeInTheDocument();
+  });
+
+  it("matches a local deployment name from the full selected-state list", async () => {
+    setup({
+      data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], hasNextPage: false },
+      list: [mock<DeploymentDto>({ dseq: "100", state: "active" }), mock<DeploymentDto>({ dseq: "200", state: "active" })],
+      getDeploymentName: dseq => (String(dseq) === "200" ? "staging-api" : null)
+    });
+
+    await userEvent.type(screen.getByRole("textbox"), "staging");
+
+    expect(screen.getByText("200")).toBeInTheDocument();
+    expect(screen.queryByText("100")).not.toBeInTheDocument();
+  });
+
+  it("scopes the full-list search to the Closed tab when that tab is selected", async () => {
+    const { useDeploymentList } = setup({
+      data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], hasNextPage: false },
+      list: [mock<DeploymentDto>({ dseq: "300", state: "closed" })]
+    });
+
+    await userEvent.click(screen.getByRole("tab", { name: "Closed" }));
+    await userEvent.type(screen.getByRole("textbox"), "300");
+
+    expect(useDeploymentList).toHaveBeenLastCalledWith("akash1owner", expect.objectContaining({ enabled: true }), "closed");
+    expect(screen.getByText("300")).toBeInTheDocument();
+  });
+
+  it("paginates filtered search results when they exceed the page size", async () => {
+    const list = Array.from({ length: 11 }, (_, index) => mock<DeploymentDto>({ dseq: `match-${index}`, state: "active" }));
+    setup({
+      data: { deployments: [list[0]], hasNextPage: true },
+      list
+    });
+
+    await userEvent.type(screen.getByRole("textbox"), "match");
+
+    expect(screen.getByText("match-0")).toBeInTheDocument();
+    expect(screen.queryByText("match-10")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to next page" })).not.toHaveAttribute("aria-disabled", "true");
+
+    await userEvent.click(screen.getByRole("link", { name: "Go to next page" }));
+
+    expect(screen.getByText("match-10")).toBeInTheDocument();
+    expect(screen.queryByText("match-0")).not.toBeInTheDocument();
+  });
+
+  function setup(
+    input: {
+      data?: DeploymentsPage;
+      list?: DeploymentDto[];
+      isFetching?: boolean;
+      isError?: boolean;
+      getDeploymentName?: (dseq: string | number | null) => string | null;
+    } = {}
+  ) {
     const refetch = vi.fn();
+    const refetchList = vi.fn();
 
     const useDeploymentsPage = vi.fn<typeof DEPENDENCIES.useDeploymentsPage>(() => {
       const query = mock<ReturnType<typeof DEPENDENCIES.useDeploymentsPage>>();
       return Object.assign(query, { data: input.data, isFetching: input.isFetching ?? false, isError: input.isError ?? false, refetch });
+    });
+
+    const useDeploymentList = vi.fn<typeof DEPENDENCIES.useDeploymentList>(() => {
+      const query = mock<ReturnType<typeof DEPENDENCIES.useDeploymentList>>();
+      return Object.assign(query, { data: input.list, isFetching: false, isError: false, refetch: refetchList });
     });
 
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: "akash1owner", hasWallet: true });
@@ -101,7 +170,10 @@ describe(DeploymentList.name, () => {
         isSettingsInit: true,
         settings: mock<ReturnType<typeof DEPENDENCIES.useSettings>["settings"]>({ apiEndpoint: "http://localhost", isBlockchainDown: false })
       });
-    const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () => mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>();
+    const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>({
+        getDeploymentName: input.getDeploymentName ?? (() => null)
+      });
     const useManagedDeploymentConfirm: typeof DEPENDENCIES.useManagedDeploymentConfirm = () =>
       mock<ReturnType<typeof DEPENDENCIES.useManagedDeploymentConfirm>>();
     const useNewDeploymentUrl: typeof DEPENDENCIES.useNewDeploymentUrl = () => () => "/new-deployment";
@@ -118,6 +190,7 @@ describe(DeploymentList.name, () => {
       <DeploymentList
         dependencies={MockComponents(DEPENDENCIES, {
           useDeploymentsPage,
+          useDeploymentList,
           useWallet,
           useProviderList,
           useSettings,
@@ -130,6 +203,6 @@ describe(DeploymentList.name, () => {
       />
     );
 
-    return { refetch, NoDeploymentsState, DeploymentListRow, useDeploymentsPage };
+    return { refetch, NoDeploymentsState, DeploymentListRow, useDeploymentsPage, useDeploymentList };
   }
 });

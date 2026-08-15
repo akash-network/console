@@ -33,7 +33,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
-import { useDeploymentsPage } from "@src/queries/useDeploymentQuery";
+import { useDeploymentList, useDeploymentsPage } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import sdlStore from "@src/store/sdlStore";
 import type { DeploymentStatus, NamedDeploymentDto } from "@src/types/deployment";
@@ -51,6 +51,7 @@ export const DEPENDENCIES = {
   useManagedDeploymentConfirm,
   useNewDeploymentUrl,
   useDeploymentsPage,
+  useDeploymentList,
   Layout,
   NoDeploymentsState,
   DeploymentListRow
@@ -69,6 +70,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
     useManagedDeploymentConfirm,
     useNewDeploymentUrl,
     useDeploymentsPage,
+    useDeploymentList,
     Layout,
     NoDeploymentsState,
     DeploymentListRow
@@ -86,31 +88,52 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
   const newDeploymentUrl = useNewDeploymentUrl();
 
-  const {
-    data,
-    isFetching: isLoadingDeployments,
-    isError,
-    refetch: getDeployments
-  } = useDeploymentsPage(address, { state: deploymentStatus, skip: pageIndex * pageSize, limit: pageSize }, { enabled: isSettingsInit && !!address });
+  const isSearching = search.trim().length > 0;
+  const canQuery = isSettingsInit && !!address;
 
-  const hasPageResults = (data?.deployments.length ?? 0) > 0;
-  const hasNextPage = data?.hasNextPage ?? false;
+  const {
+    data: pageData,
+    isFetching: isLoadingPage,
+    isError: isPageError,
+    refetch: refetchPage
+  } = useDeploymentsPage(address, { state: deploymentStatus, skip: pageIndex * pageSize, limit: pageSize }, { enabled: canQuery && !isSearching });
+
+  const {
+    data: listData,
+    isFetching: isLoadingList,
+    isError: isListError,
+    refetch: refetchList
+  } = useDeploymentList(address, { enabled: canQuery && isSearching }, deploymentStatus);
+
+  const isLoadingDeployments = isSearching ? isLoadingList : isLoadingPage;
+  const isError = isSearching ? isListError : isPageError;
+  const getDeployments = isSearching ? refetchList : refetchPage;
+
+  const filteredDeployments = useMemo(() => {
+    const source = isSearching ? listData ?? [] : pageData?.deployments ?? [];
+    const named = source.map(d => ({ ...d, name: getDeploymentName(d.dseq) })) as NamedDeploymentDto[];
+    if (!isSearching) return named;
+    const query = search.trim().toLowerCase();
+    return named.filter(d => d.name?.toLowerCase().includes(query) || d.dseq?.toLowerCase().includes(query));
+  }, [isSearching, listData, pageData?.deployments, search, getDeploymentName]);
+
+  const pageDeployments = useMemo(() => {
+    if (!isSearching) return filteredDeployments;
+    const start = pageIndex * pageSize;
+    return filteredDeployments.slice(start, start + pageSize);
+  }, [filteredDeployments, isSearching, pageIndex, pageSize]);
+
+  const hasPageResults = isSearching ? filteredDeployments.length > 0 : (pageData?.deployments.length ?? 0) > 0;
+  const hasNextPage = isSearching ? (pageIndex + 1) * pageSize < filteredDeployments.length : pageData?.hasNextPage ?? false;
 
   useEffect(
     function goBackFromEmptyPage() {
-      if (pageIndex > 0 && !isLoadingDeployments && !isError && !hasPageResults) {
+      if (pageIndex > 0 && !isLoadingDeployments && !isError && pageDeployments.length === 0 && (hasPageResults || !isSearching)) {
         setPageIndex(current => Math.max(current - 1, 0));
       }
     },
-    [hasPageResults, isLoadingDeployments, isError, pageIndex]
+    [hasPageResults, isLoadingDeployments, isError, pageIndex, pageDeployments.length, isSearching]
   );
-
-  const pageDeployments = useMemo(() => {
-    const named = (data?.deployments ?? []).map(d => ({ ...d, name: getDeploymentName(d.dseq) })) as NamedDeploymentDto[];
-    if (!search) return named;
-    const query = search.toLowerCase();
-    return named.filter(d => d.name?.toLowerCase().includes(query) || d.dseq?.toLowerCase().includes(query));
-  }, [data?.deployments, search, getDeploymentName]);
 
   const { selectedItemIds, selectItem, clearSelection } = useListSelection<string>({
     ids: pageDeployments.map(deployment => deployment.dseq)
@@ -135,6 +158,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
 
   const onSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(event.target.value);
+    setPageIndex(0);
   };
 
   const onCloseSelectedDeployments = async () => {
@@ -231,7 +255,14 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
               type="text"
               endIcon={
                 !!search && (
-                  <Button size="icon" variant="text" onClick={() => setSearch("")}>
+                  <Button
+                    size="icon"
+                    variant="text"
+                    onClick={() => {
+                      setSearch("");
+                      setPageIndex(0);
+                    }}
+                  >
                     <Xmark className="text-xs" />
                   </Button>
                 )
@@ -259,7 +290,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
         </div>
       )}
 
-      {!hasPageResults && isLoadingDeployments && !search && (
+      {!hasPageResults && isLoadingDeployments && (
         <div className="flex items-center justify-center p-8">
           <Spinner size="large" />
         </div>
@@ -304,13 +335,13 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
         )}
       </div>
 
-      {search && pageDeployments.length === 0 && (
+      {isSearching && pageDeployments.length === 0 && !isLoadingDeployments && (
         <div className="py-6">
           <p>No deployment found.</p>
         </div>
       )}
 
-      {hasPageResults && !search && (
+      {hasPageResults && (
         <div className="flex flex-col items-center justify-between px-2 py-8 md:flex-row md:space-x-4">
           <PaginationSizeSelector pageSize={pageSize} setPageSize={onPageSizeChange} />
           <Pagination>
