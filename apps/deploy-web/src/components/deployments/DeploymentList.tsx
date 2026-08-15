@@ -191,7 +191,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
 
   const isActiveStatus = deploymentStatus === "active";
   const hasList = hasPageResults || pageIndex > 0;
-  const showEmptyState = !hasPageResults && pageIndex === 0 && !isLoadingDeployments && !isError && !search;
+  const showEmptyState = !hasPageResults && pageIndex === 0 && !isLoadingDeployments && !isError && !isSearching;
   const showErrorState = isError && !hasPageResults && !isLoadingDeployments;
 
   return (
@@ -335,7 +335,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
         )}
       </div>
 
-      {isSearching && pageDeployments.length === 0 && !isLoadingDeployments && (
+      {isSearching && !isError && pageDeployments.length === 0 && !isLoadingDeployments && (
         <div className="py-6">
           <p>No deployment found.</p>
         </div>

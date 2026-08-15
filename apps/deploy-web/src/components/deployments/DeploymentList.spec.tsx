@@ -141,26 +141,66 @@ describe(DeploymentList.name, () => {
     expect(screen.queryByText("match-0")).not.toBeInTheDocument();
   });
 
+  it("renders the closed empty state when the search box contains only whitespace", async () => {
+    setup({
+      data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], hasNextPage: false },
+      closedData: { deployments: [], hasNextPage: false }
+    });
+
+    await userEvent.type(screen.getByRole("textbox"), " ");
+    await userEvent.click(screen.getByRole("tab", { name: "Closed" }));
+
+    expect(screen.getByText("No closed deployments.")).toBeInTheDocument();
+    expect(screen.queryByText("No deployment found.")).not.toBeInTheDocument();
+  });
+
+  it("renders no deployment found when a search matches nothing", async () => {
+    setup({
+      data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], hasNextPage: false },
+      list: []
+    });
+
+    await userEvent.type(screen.getByRole("textbox"), "nomatch");
+
+    expect(screen.getByText("No deployment found.")).toBeInTheDocument();
+    expect(screen.queryByText("Couldn't load deployments.")).not.toBeInTheDocument();
+  });
+
+  it("does not render the search-empty message when the search query fails", async () => {
+    setup({
+      data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], hasNextPage: false },
+      isListError: true
+    });
+
+    await userEvent.type(screen.getByRole("textbox"), "foo");
+
+    expect(screen.getByText("Couldn't load deployments.")).toBeInTheDocument();
+    expect(screen.queryByText("No deployment found.")).not.toBeInTheDocument();
+  });
+
   function setup(
     input: {
       data?: DeploymentsPage;
+      closedData?: DeploymentsPage;
       list?: DeploymentDto[];
       isFetching?: boolean;
       isError?: boolean;
+      isListError?: boolean;
       getDeploymentName?: (dseq: string | number | null) => string | null;
     } = {}
   ) {
     const refetch = vi.fn();
     const refetchList = vi.fn();
 
-    const useDeploymentsPage = vi.fn<typeof DEPENDENCIES.useDeploymentsPage>(() => {
+    const useDeploymentsPage = vi.fn<typeof DEPENDENCIES.useDeploymentsPage>((_address, params) => {
       const query = mock<ReturnType<typeof DEPENDENCIES.useDeploymentsPage>>();
-      return Object.assign(query, { data: input.data, isFetching: input.isFetching ?? false, isError: input.isError ?? false, refetch });
+      const data = params.state === "closed" && input.closedData !== undefined ? input.closedData : input.data;
+      return Object.assign(query, { data, isFetching: input.isFetching ?? false, isError: input.isError ?? false, refetch });
     });
 
     const useDeploymentList = vi.fn<typeof DEPENDENCIES.useDeploymentList>(() => {
       const query = mock<ReturnType<typeof DEPENDENCIES.useDeploymentList>>();
-      return Object.assign(query, { data: input.list, isFetching: false, isError: false, refetch: refetchList });
+      return Object.assign(query, { data: input.list, isFetching: false, isError: input.isListError ?? false, refetch: refetchList });
     });
 
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: "akash1owner", hasWallet: true });
