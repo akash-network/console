@@ -42,6 +42,7 @@
     "postgres": "^3.4.4",
     "reflect-metadata": "^0.2.2",
     "tsyringe": "^4.10.0",
+    "undici": "^7.22.0",
     "zod": "3.*"
   },
   "devDependencies": {

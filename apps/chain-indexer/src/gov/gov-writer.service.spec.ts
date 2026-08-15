@@ -7,6 +7,8 @@ import { GovWriter } from "@src/gov/gov-writer.service";
 import type { DecodedBlock, DecodedEvent } from "@src/pipeline/decoded-block";
 import type { ChainTransaction } from "@src/providers/db.provider";
 
+import { rowsFor } from "@test/fakes/build-tx-fake";
+
 const MSG_SUBMIT_PROPOSAL = "/cosmos.gov.v1.MsgSubmitProposal";
 const MSG_VOTE = "/cosmos.gov.v1.MsgVote";
 const MSG_DEPOSIT = "/cosmos.gov.v1.MsgDeposit";
@@ -26,7 +28,9 @@ describe(GovWriter.name, () => {
       new Map([["akash1prop", 1]])
     );
 
-    expect(rowsFor(inserts, Proposals)).toEqual([expect.objectContaining({ id: 7, proposerAccountId: 1, title: "Upgrade", status: "deposit_period", totalDeposit: [{ denom: "uakt", amount: "1000" }] })]);
+    expect(rowsFor(inserts, Proposals)).toEqual([
+      expect.objectContaining({ id: 7, proposerAccountId: 1, title: "Upgrade", status: "deposit_period", totalDeposit: [{ denom: "uakt", amount: "1000" }] })
+    ]);
     expect(rowsFor(inserts, ProposalDeposits)).toEqual([{ proposalId: 7, depositorAccountId: 1, amount: [{ denom: "uakt", amount: "1000" }], height: 100 }]);
   });
 
@@ -46,9 +50,15 @@ describe(GovWriter.name, () => {
   it("upserts a vote with the resolved voter id and promotes the proposal into voting conditionally", async () => {
     const { govWriter, tx, inserts, updates } = setup();
 
-    await govWriter.writeForBlocks(tx, [block({ messages: [{ typeUrl: MSG_VOTE, body: { proposalId: "7", voter: "akash1voter", option: 1 } }] })], new Map([["akash1voter", 2]]));
+    await govWriter.writeForBlocks(
+      tx,
+      [block({ messages: [{ typeUrl: MSG_VOTE, body: { proposalId: "7", voter: "akash1voter", option: 1 } }] })],
+      new Map([["akash1voter", 2]])
+    );
 
-    expect(rowsFor(inserts, ProposalVotes)).toEqual([{ proposalId: 7, voterAccountId: 2, options: [{ option: "yes", weight: "1.000000000000000000" }], height: 100 }]);
+    expect(rowsFor(inserts, ProposalVotes)).toEqual([
+      { proposalId: 7, voterAccountId: 2, options: [{ option: "yes", weight: "1.000000000000000000" }], height: 100 }
+    ]);
     expect(updates).toHaveLength(1);
     expect(updates[0].set).toEqual({ status: "voting_period" });
     expect(whereSql(updates[0].where)).toContain("status");
@@ -66,7 +76,9 @@ describe(GovWriter.name, () => {
       new Map([["akash1voter", 2]])
     );
 
-    expect(rowsFor(inserts, ProposalVotes)).toEqual([{ proposalId: 7, voterAccountId: 2, options: [{ option: "no", weight: "1.000000000000000000" }], height: 150 }]);
+    expect(rowsFor(inserts, ProposalVotes)).toEqual([
+      { proposalId: 7, voterAccountId: 2, options: [{ option: "no", weight: "1.000000000000000000" }], height: 150 }
+    ]);
   });
 
   it("collapses two votes from the same voter in one block to the last one", async () => {
@@ -86,13 +98,19 @@ describe(GovWriter.name, () => {
       new Map([["akash1voter", 2]])
     );
 
-    expect(rowsFor(inserts, ProposalVotes)).toEqual([{ proposalId: 7, voterAccountId: 2, options: [{ option: "no", weight: "1.000000000000000000" }], height: 100 }]);
+    expect(rowsFor(inserts, ProposalVotes)).toEqual([
+      { proposalId: 7, voterAccountId: 2, options: [{ option: "no", weight: "1.000000000000000000" }], height: 100 }
+    ]);
   });
 
   it("guards the vote upsert so a lower-height commit cannot overwrite a newer vote", async () => {
     const { govWriter, tx, upserts } = setup();
 
-    await govWriter.writeForBlocks(tx, [block({ messages: [{ typeUrl: MSG_VOTE, body: { proposalId: "7", voter: "akash1voter", option: 1 } }] })], new Map([["akash1voter", 2]]));
+    await govWriter.writeForBlocks(
+      tx,
+      [block({ messages: [{ typeUrl: MSG_VOTE, body: { proposalId: "7", voter: "akash1voter", option: 1 } }] })],
+      new Map([["akash1voter", 2]])
+    );
 
     const voteUpsert = upserts.find(upsert => upsert.table === ProposalVotes) as { table: unknown; config: { setWhere: SQL } };
     expect(whereSql(voteUpsert.config.setWhere)).toContain("height");
@@ -102,7 +120,11 @@ describe(GovWriter.name, () => {
   it("applies a terminal status from an active_proposal without a status condition", async () => {
     const { govWriter, tx, updates } = setup();
 
-    await govWriter.writeForBlocks(tx, [block({ blockEvents: [event("active_proposal", { proposal_id: "7", proposal_result: "proposal_passed" })] })], new Map());
+    await govWriter.writeForBlocks(
+      tx,
+      [block({ blockEvents: [event("active_proposal", { proposal_id: "7", proposal_result: "proposal_passed" })] })],
+      new Map()
+    );
 
     expect(updates[0].set).toEqual({ status: "passed" });
     expect(whereSql(updates[0].where)).not.toContain("status");
@@ -154,7 +176,8 @@ describe(GovWriter.name, () => {
       }),
       select: () => ({
         from: () => ({
-          where: () => Promise.resolve([...priorDeposits, ...rowsFor(inserts, ProposalDeposits).map(row => ({ proposalId: row.proposalId, amount: row.amount }))])
+          where: () =>
+            Promise.resolve([...priorDeposits, ...rowsFor(inserts, ProposalDeposits).map(row => ({ proposalId: row.proposalId, amount: row.amount }))])
         })
       })
     };
@@ -163,15 +186,16 @@ describe(GovWriter.name, () => {
   }
 });
 
-function rowsFor(inserts: { table: unknown; rows: Record<string, unknown>[] }[], table: unknown): Record<string, unknown>[] {
-  return inserts.filter(insert => insert.table === table).flatMap(insert => insert.rows);
-}
-
 function whereSql(where: unknown): string {
   return new PgDialect().sqlToQuery(where as SQL).sql;
 }
 
-function block(input: { height?: number; messages?: { typeUrl: string; body: unknown; index?: number }[]; txEvents?: DecodedEvent[]; blockEvents?: DecodedEvent[] }): DecodedBlock {
+function block(input: {
+  height?: number;
+  messages?: { typeUrl: string; body: unknown; index?: number }[];
+  txEvents?: DecodedEvent[];
+  blockEvents?: DecodedEvent[];
+}): DecodedBlock {
   const messages = input.messages ?? [];
   return {
     height: input.height ?? 100,

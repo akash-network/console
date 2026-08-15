@@ -1,11 +1,40 @@
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { RpcGenesisSource } from "@src/genesis/genesis-source";
+import type { EnvConfig } from "@src/config/env.config";
+import { FileGenesisSource, RpcGenesisSource } from "@src/genesis/genesis-source";
 import type { LoggerService } from "@src/providers/logging.provider";
 import type { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
 
 import { buildParsedGenesis, buildRawGenesis } from "@test/fakes/genesis-fixtures";
+
+describe(FileGenesisSource.name, () => {
+  it("parses a genesis file and asserts the chain-id matches the node", async () => {
+    const path = join(await mkdtemp(join(tmpdir(), "genesis-")), "genesis.json");
+    await writeFile(path, JSON.stringify(buildRawGenesis()));
+    const { source } = setupFile({ path });
+
+    await expect(source.fetchGenesis()).resolves.toEqual(buildParsedGenesis());
+  });
+
+  it("rejects when the file's chain-id does not match the node", async () => {
+    const path = join(await mkdtemp(join(tmpdir(), "genesis-")), "genesis.json");
+    await writeFile(path, JSON.stringify(buildRawGenesis()));
+    const { source } = setupFile({ path, nodeChainId: "othernet" });
+
+    await expect(source.fetchGenesis()).rejects.toThrow('Genesis chain_id "sandbox-2" does not match the RPC chain-id "othernet"');
+  });
+
+  function setupFile(input: { path: string; nodeChainId?: string }) {
+    const pool = mock<RpcClientPool>();
+    pool.getStatus.mockResolvedValue({ node_info: { network: input.nodeChainId ?? "sandbox-2" }, sync_info: { latest_block_height: "100" } });
+    const source = new FileGenesisSource(mock<EnvConfig>({ GENESIS_FILE: input.path }), pool, mock<LoggerService>());
+    return { source, pool };
+  }
+});
 
 describe(RpcGenesisSource.name, () => {
   it("reassembles multiple genesis chunks into the parsed document", async () => {

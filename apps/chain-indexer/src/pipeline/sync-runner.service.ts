@@ -90,17 +90,24 @@ export class SyncRunnerService {
     while (!this.#stopped) {
       const tipHeight = await this.#retryTransient(() => this.#pool.getTipHeight(), { event: "SYNC_TIP_FETCH_RETRY" });
 
-      if (nextHeight > tipHeight) {
+      if (nextHeight <= tipHeight) {
+        while (nextHeight <= tipHeight && !this.#stopped) {
+          const height = nextHeight;
+          await this.#retryTransient(() => this.#syncBlock(height), { event: "SYNC_BLOCK_RETRY", height });
+          nextHeight++;
+        }
+        if (this.#stopped) {
+          return;
+        }
         await this.#maybeSnapshotStaking(nextHeight - 1);
-        await delay(this.#config.SYNC_POLL_INTERVAL_MS);
         continue;
       }
 
-      while (nextHeight <= tipHeight && !this.#stopped) {
-        const height = nextHeight;
-        await this.#retryTransient(() => this.#syncBlock(height), { event: "SYNC_BLOCK_RETRY", height });
-        nextHeight++;
+      await this.#maybeSnapshotStaking(nextHeight - 1);
+      if (this.#stopped) {
+        return;
       }
+      await delay(this.#config.SYNC_POLL_INTERVAL_MS);
     }
   }
 
@@ -125,9 +132,10 @@ export class SyncRunnerService {
   }
 
   /**
-   * Reconciles the validator set and delegations against the chain, but only once sync has caught up to the tip
-   * so the snapshot reads current state, and throttled to one run per configured block interval. A failed
-   * snapshot is logged and retried on the next interval rather than halting the sync it rides alongside.
+   * Reconciles the validator set after the observed tip is committed, even if a newer block appears before
+   * the next poll — waiting until nextHeight > tip would skip the snapshot whenever live follow stays one
+   * block behind. Throttled to one run per configured block interval. A failed snapshot is logged and
+   * retried on the next interval rather than halting the sync it rides alongside.
    */
   async #maybeSnapshotStaking(head: number): Promise<void> {
     if (!this.#config.STAKING_SNAPSHOT_ENABLED || head < 1) {
@@ -138,7 +146,7 @@ export class SyncRunnerService {
     }
 
     try {
-      await this.#stakingSnapshot.snapshot(head);
+      await this.#stakingSnapshot.snapshot(head, () => this.#stopped);
       this.#lastSnapshotHeight = head;
     } catch (error) {
       this.#logger.error({ event: "STAKING_SNAPSHOT_FAILED", height: head, error });

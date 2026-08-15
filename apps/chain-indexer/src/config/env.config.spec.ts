@@ -97,6 +97,18 @@ describe("envSchema", () => {
     expect(config.BACKFILL_TO_HEIGHT).toBeUndefined();
   });
 
+  it("treats an empty GENESIS_FILE as absent", () => {
+    const config = setup({ GENESIS_FILE: "" });
+
+    expect(config.GENESIS_FILE).toBeUndefined();
+  });
+
+  it("parses GENESIS_FILE when set", () => {
+    const config = setup({ GENESIS_FILE: "/tmp/genesis.json" });
+
+    expect(config.GENESIS_FILE).toBe("/tmp/genesis.json");
+  });
+
   it("treats an empty RECONCILE_SAMPLE_SIZE as absent", () => {
     const config = setup({ RECONCILE_SAMPLE_SIZE: "" });
 

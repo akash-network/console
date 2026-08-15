@@ -136,6 +136,56 @@ describe(SyncRunnerService.name, () => {
     });
   });
 
+  describe("staking snapshot", () => {
+    it("snapshots at the observed tip after catching up, not only once ahead of the tip", async () => {
+      const { runner, stakingSnapshot, committer } = setup({ tipHeight: 3, stopOn: "snapshot" });
+
+      await runner.start();
+
+      expect(committer.commit).toHaveBeenCalledTimes(3);
+      expect(stakingSnapshot.snapshot).toHaveBeenCalledTimes(1);
+      expect(stakingSnapshot.snapshot).toHaveBeenCalledWith(3, expect.any(Function));
+    });
+
+    it("chases a moving tip without waiting out the poll interval", async () => {
+      const { runner, pool, committer } = setup({ tipHeight: 1, pollIntervalMs: 60_000 });
+      let tipCalls = 0;
+      pool.getTipHeight.mockImplementation(async () => {
+        tipCalls += 1;
+        return tipCalls === 1 ? 1 : 2;
+      });
+      committer.commit.mockImplementation(async decoded => {
+        if (decoded.height >= 2) {
+          await runner.dispose();
+        }
+      });
+
+      await runner.start();
+
+      expect(committer.commit).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps syncing when a staking snapshot fails", async () => {
+      const { runner, stakingSnapshot, committer, pool } = setup({ tipHeight: 1, pollIntervalMs: 1 });
+      stakingSnapshot.snapshot.mockRejectedValueOnce(new Error("abci down"));
+      let tipCalls = 0;
+      pool.getTipHeight.mockImplementation(async () => {
+        tipCalls += 1;
+        return tipCalls === 1 ? 1 : 2;
+      });
+      committer.commit.mockImplementation(async decoded => {
+        if (decoded.height >= 2) {
+          await runner.dispose();
+        }
+      });
+
+      await runner.start();
+
+      expect(committer.commit).toHaveBeenCalledTimes(2);
+      expect(stakingSnapshot.snapshot).toHaveBeenCalled();
+    });
+  });
+
   function setup(input: {
     tipHeight: number;
     archiveEnabled?: boolean;
@@ -143,13 +193,17 @@ describe(SyncRunnerService.name, () => {
     genesisImportEnabled?: boolean;
     checkpointHeight?: number;
     omitStartHeight?: boolean;
+    stopOn?: "commit" | "snapshot";
+    pollIntervalMs?: number;
   }) {
     const archiveEnabled = input.archiveEnabled ?? true;
+    const stopOn = input.stopOn ?? "commit";
     const config = envSchema.parse({
       POSTGRES_DB_URI: "postgres://unit:unit@localhost:5432/unit",
       ...(input.omitStartHeight ? {} : { SYNC_START_HEIGHT: "1" }),
       ARCHIVE_BUCKET: archiveEnabled ? "raw-blocks" : "",
-      ...(input.genesisImportEnabled ? { GENESIS_IMPORT: "true" } : {})
+      ...(input.genesisImportEnabled ? { GENESIS_IMPORT: "true" } : {}),
+      ...(input.pollIntervalMs !== undefined ? { SYNC_POLL_INTERVAL_MS: String(input.pollIntervalMs) } : {})
     });
 
     const dbFake = {
@@ -189,13 +243,20 @@ describe(SyncRunnerService.name, () => {
     const stakingSnapshot = mock<StakingSnapshotService>();
     const logger = mock<LoggerService>();
     const runner = new SyncRunnerService(dbFake as unknown as ChainDatabase, pool, decoder, committer, archive, genesisImport, stakingSnapshot, config, logger);
-    committer.commit.mockImplementation(async decoded => {
-      if (decoded.height >= input.tipHeight) {
+    if (stopOn === "commit") {
+      committer.commit.mockImplementation(async decoded => {
+        if (decoded.height >= input.tipHeight) {
+          await runner.dispose();
+        }
+      });
+    }
+    if (stopOn === "snapshot") {
+      stakingSnapshot.snapshot.mockImplementation(async () => {
         await runner.dispose();
-      }
-    });
+      });
+    }
 
-    return { runner, archive, committer, genesisImport, logger, pool };
+    return { runner, archive, committer, genesisImport, stakingSnapshot, logger, pool };
   }
 
   function buildDecodedBlock(height: number): DecodedBlock {

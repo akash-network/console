@@ -64,6 +64,8 @@ export interface GovChanges {
  * `inactive_proposal` events; a vote promotes its proposal into `voting_period` since votes are only cast then.
  * Messages in a failed transaction (`code !== 0`) are skipped, since cosmos rolls back all of its state changes
  * and the vote/deposit paths read the message body directly rather than correlating against an emitted event.
+ * A submit whose decoded body is null (oversized or undecodable) still records a stub row from the event so
+ * later votes and deposits are not orphaned.
  */
 export function deriveGovChanges(block: DecodedBlock): GovChanges {
   const changes: GovChanges = { proposals: [], votes: [], deposits: [], statusUpdates: [] };
@@ -72,8 +74,9 @@ export function deriveGovChanges(block: DecodedBlock): GovChanges {
     if (tx.code !== 0) {
       continue;
     }
+    const consumedSubmitEvents = new Set<DecodedEvent>();
     for (const message of tx.messages) {
-      addMessage(changes, message, tx, block);
+      addMessage(changes, message, tx, block, consumedSubmitEvents);
     }
   }
 
@@ -106,15 +109,18 @@ function aggregateDeposits(deposits: DerivedDeposit[]): DerivedDeposit[] {
   return [...byKey.values()];
 }
 
-function addMessage(changes: GovChanges, message: DecodedMessage, tx: DecodedTransaction, block: DecodedBlock): void {
+function addMessage(changes: GovChanges, message: DecodedMessage, tx: DecodedTransaction, block: DecodedBlock, consumedSubmitEvents: Set<DecodedEvent>): void {
+  if (SUBMIT_PROPOSAL.has(message.typeUrl)) {
+    addProposal(changes, asRecord(message.body), message.index, tx, block, consumedSubmitEvents);
+    return;
+  }
+
   const body = asRecord(message.body);
   if (!body) {
     return;
   }
 
-  if (SUBMIT_PROPOSAL.has(message.typeUrl)) {
-    addProposal(changes, body, message.index, tx, block);
-  } else if (VOTE.has(message.typeUrl)) {
+  if (VOTE.has(message.typeUrl)) {
     const option = mapOption(asNumber(body.option));
     addVote(changes, body, option ? [{ option, weight: FULL_WEIGHT }] : [], block.height);
   } else if (VOTE_WEIGHTED.has(message.typeUrl)) {
@@ -124,22 +130,29 @@ function addMessage(changes: GovChanges, message: DecodedMessage, tx: DecodedTra
   }
 }
 
-function addProposal(changes: GovChanges, body: Record<string, unknown>, messageIndex: number, tx: DecodedTransaction, block: DecodedBlock): void {
-  const id = proposalIdFromEvent(tx, messageIndex);
+function addProposal(
+  changes: GovChanges,
+  body: Record<string, unknown> | null,
+  messageIndex: number,
+  tx: DecodedTransaction,
+  block: DecodedBlock,
+  consumedSubmitEvents: Set<DecodedEvent>
+): void {
+  const id = proposalIdFromEvent(tx, messageIndex, consumedSubmitEvents);
   if (id === null) {
     return;
   }
 
-  const proposer = asString(body.proposer);
-  const initialDeposit = asCoins(body.initialDeposit);
+  const proposer = body ? asString(body.proposer) : tx.signerAddresses[0] ?? null;
+  const initialDeposit = body ? asCoins(body.initialDeposit) : [];
 
   changes.proposals.push({
     id,
     proposerAddress: proposer,
-    title: asString(body.title),
-    summary: asString(body.summary),
-    messages: body.messages ?? body.content ?? null,
-    metadata: asString(body.metadata),
+    title: body ? asString(body.title) : null,
+    summary: body ? asString(body.summary) : null,
+    messages: body ? body.messages ?? body.content ?? null : null,
+    metadata: body ? asString(body.metadata) : null,
     submitTime: block.datetime,
     submitHeight: block.height,
     initialDeposit
@@ -147,6 +160,10 @@ function addProposal(changes: GovChanges, body: Record<string, unknown>, message
 
   if (proposer && initialDeposit.length > 0) {
     addDeposit(changes, id, proposer, initialDeposit, block.height);
+  }
+
+  if (hasVotingPeriodStart(tx, id)) {
+    changes.statusUpdates.push({ proposalId: id, status: "voting_period", onlyFromDepositPeriod: true });
   }
 }
 
@@ -181,11 +198,34 @@ function addBlockEvent(changes: GovChanges, event: DecodedEvent): void {
   }
 }
 
-/** The `submit_proposal` event carries the assigned id, linked by `msg_index`; a lone event needs no index to match. */
-function proposalIdFromEvent(tx: DecodedTransaction, messageIndex: number): number | null {
+/**
+ * The `submit_proposal` event carries the assigned id, linked by `msg_index`. Older cosmos (mainnet
+ * genesis-era) emits two events with no index — one with `proposal_id`, one with `proposal_type` /
+ * `voting_period_start` — so fall back to the next unused event that actually has an id.
+ */
+function proposalIdFromEvent(tx: DecodedTransaction, messageIndex: number, consumedSubmitEvents: Set<DecodedEvent>): number | null {
   const events = tx.events.filter(event => event.type === "submit_proposal");
-  const event = events.find(candidate => candidate.msgIndex === messageIndex) ?? (events.length === 1 ? events[0] : undefined);
-  return asProposalId(event?.attributes.proposal_id);
+  const matched = events.find(candidate => candidate.msgIndex === messageIndex);
+  if (matched) {
+    return asProposalId(matched.attributes.proposal_id);
+  }
+
+  for (const event of events) {
+    if (consumedSubmitEvents.has(event)) {
+      continue;
+    }
+    const proposalId = asProposalId(event.attributes.proposal_id);
+    if (proposalId !== null) {
+      consumedSubmitEvents.add(event);
+      return proposalId;
+    }
+  }
+
+  return null;
+}
+
+function hasVotingPeriodStart(tx: DecodedTransaction, proposalId: number): boolean {
+  return tx.events.some(event => event.type === "submit_proposal" && asProposalId(event.attributes.voting_period_start) === proposalId);
 }
 
 function mapOption(option: number | null): VoteOptionValue | null {

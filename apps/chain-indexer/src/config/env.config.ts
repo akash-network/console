@@ -29,6 +29,11 @@ const rawEnvSchema = z.object({
    * which treats the string "false" as true.
    */
   GENESIS_IMPORT: z.preprocess(emptyStringAsUndefined, z.enum(["true", "false"]).default("false")).transform(value => value === "true"),
+  /**
+   * Path to a genesis JSON file. When set, the import reads this instead of `/genesis_chunked`, which is
+   * the practical way to seed a large mainnet genesis. The file's chain_id must still match the RPC node.
+   */
+  GENESIS_FILE: z.preprocess(emptyStringAsUndefined, z.string().optional()),
   /** First height of the backfill range (inclusive). Required when INDEXER_ROLE is "backfill". */
   BACKFILL_FROM_HEIGHT: z.preprocess(emptyStringAsUndefined, z.number({ coerce: true }).int().positive().optional()),
   /** Last height of the backfill range (inclusive). Required when INDEXER_ROLE is "backfill". */
