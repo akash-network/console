@@ -10,6 +10,17 @@ import { sqlExcluded } from "@src/db/sql-excluded";
 import type { ChainTransaction } from "@src/providers/db.provider";
 import { LoggerService } from "@src/providers/logging.provider";
 
+/**
+ * Serializes the audit-signature section across concurrent committers (overlapping sync pods during a
+ * rolling deploy, or sync racing a backfill). Writers apply signs and deletes in block order, so two
+ * writers with different block windows can lock the same (owner, auditor, key) rows in opposite orders
+ * and deadlock; the provider path avoids this with an ordered `FOR UPDATE`, but audit's delete-all-keys
+ * touches rows that cannot be pre-locked by key. One transaction-scoped advisory lock removes the
+ * hazard, and sparse audit traffic makes it near-free in steady state. Shares Postgres's advisory-lock
+ * namespace with MIGRATION_LOCK_KEY (db.provider.ts), so the value must stay distinct from it.
+ */
+const AUDIT_SIGNATURE_LOCK_KEY = 7_431_001;
+
 interface ProviderBlockChanges {
   height: number;
   changes: ProviderChange[];
@@ -41,7 +52,9 @@ interface ProviderWarning {
  * Provider rows are locked FOR UPDATE in ascending owner-account order and flushed with the
  * `last_processed_height` watermark guard, so overlapping writers replaying the same blocks stay
  * idempotent. Audit signatures skip the fold: each sign/unsign applies in block order with a per-row
- * height guard, since x/audit state is independent of x/provider and audit traffic is sparse.
+ * height guard, serialized by a transaction-scoped advisory lock so overlapping writers can't lock
+ * audit rows in conflicting orders. x/audit state is independent of x/provider and audit traffic is
+ * sparse, so folding it is unnecessary and the lock is near-free.
  */
 @singleton()
 export class ProviderWriter {
@@ -165,6 +178,11 @@ export class ProviderWriter {
   }
 
   async #writeAuditSignatures(tx: ChainTransaction, blocks: ProviderBlockChanges[], accountIds: Map<string, number>): Promise<void> {
+    if (!blocks.some(block => block.changes.some(isProviderAuditChange))) {
+      return;
+    }
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(${AUDIT_SIGNATURE_LOCK_KEY})`);
+
     for (const block of blocks) {
       for (const change of block.changes) {
         if (change.kind === "providerAttributesSigned") {

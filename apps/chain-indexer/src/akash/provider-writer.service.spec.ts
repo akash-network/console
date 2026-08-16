@@ -56,7 +56,7 @@ describe(ProviderWriter.name, () => {
     ]);
 
     const upsert = upserts.find(entry => entry.table === Providers);
-    expect(whereSql(upsert?.config.setWhere as SQL)).toContain('excluded.last_processed_height >= "akash"."providers"."last_processed_height"');
+    expect(sqlText(upsert?.config.setWhere as SQL)).toContain('excluded.last_processed_height >= "akash"."providers"."last_processed_height"');
   });
 
   it("resets the row when a deleted provider re-registers", async () => {
@@ -122,7 +122,7 @@ describe(ProviderWriter.name, () => {
     ]);
 
     const upsert = upserts.find(entry => entry.table === ProviderAuditSignatures);
-    expect(whereSql(upsert?.config.setWhere as SQL)).toContain('excluded.height >= "akash"."provider_audit_signatures"."height"');
+    expect(sqlText(upsert?.config.setWhere as SQL)).toContain('excluded.height >= "akash"."provider_audit_signatures"."height"');
   });
 
   it("deletes the given keys with a height guard, and all of the auditor's keys when none are given", async () => {
@@ -140,7 +140,7 @@ describe(ProviderWriter.name, () => {
     );
 
     expect(deletes).toHaveLength(2);
-    const [keyedDelete, deleteAll] = deletes.map(entry => whereSql(entry.where as SQL));
+    const [keyedDelete, deleteAll] = deletes.map(entry => sqlText(entry.where as SQL));
     expect(keyedDelete).toContain('"owner_account_id" = ');
     expect(keyedDelete).toContain('"auditor_account_id" = ');
     expect(keyedDelete).toContain('"height" <= ');
@@ -162,17 +162,62 @@ describe(ProviderWriter.name, () => {
     expect(logger.warn).not.toHaveBeenCalled();
   });
 
+  it("locks provider state rows for update ordered by owner account id", async () => {
+    const { writer, tx, stateLocks } = setup();
+
+    await writer.write(tx, [block(100, [created()])], ACCOUNT_IDS);
+
+    expect(stateLocks).toHaveLength(1);
+    expect(stateLocks[0].orderBy).toHaveLength(1);
+    expect(stateLocks[0].orderBy[0]).toBe(Providers.ownerAccountId);
+    expect(stateLocks[0].for).toEqual(["update"]);
+  });
+
+  it("serializes audit writes under a single transaction-scoped advisory lock", async () => {
+    const { writer, tx, executes } = setup();
+
+    await writer.write(
+      tx,
+      [
+        block(100, [{ kind: "providerAttributesSigned", owner: OWNER, auditor: AUDITOR, attributes: [{ key: "region", value: "us-west" }] }]),
+        block(101, [{ kind: "providerAttributesUnsigned", owner: OWNER, auditor: AUDITOR, keys: ["region"] }])
+      ],
+      ACCOUNT_IDS
+    );
+
+    expect(executes).toHaveLength(1);
+    expect(sqlText(executes[0])).toContain("pg_advisory_xact_lock");
+  });
+
+  it("does not take the audit advisory lock when the batch has no audit changes", async () => {
+    const { writer, tx, executes } = setup();
+
+    await writer.write(tx, [block(100, [created()])], ACCOUNT_IDS);
+
+    expect(executes).toEqual([]);
+  });
+
   function setup(input?: { providers?: Record<string, unknown>[] }) {
     const inserts: { table: unknown; rows: Record<string, unknown>[] }[] = [];
     const upserts: { table: unknown; config: Record<string, SQL | unknown> }[] = [];
     const deletes: { table: unknown; where: unknown }[] = [];
     const selects: unknown[] = [];
+    const executes: SQL[] = [];
+    const stateLocks: { orderBy: unknown[]; for: unknown[] }[] = [];
 
     const selectChain = () => {
+      const lock: { orderBy: unknown[]; for: unknown[] } = { orderBy: [], for: [] };
+      stateLocks.push(lock);
       const chain = {
         where: () => chain,
-        orderBy: () => chain,
-        for: () => chain,
+        orderBy: (...args: unknown[]) => {
+          lock.orderBy = args;
+          return chain;
+        },
+        for: (...args: unknown[]) => {
+          lock.for = args;
+          return chain;
+        },
         then: (resolve: (rows: unknown[]) => unknown, reject?: (error: unknown) => unknown) => Promise.resolve(input?.providers ?? []).then(resolve, reject)
       };
       return chain;
@@ -200,11 +245,15 @@ describe(ProviderWriter.name, () => {
           deletes.push({ table, where: condition });
           return Promise.resolve();
         }
-      })
+      }),
+      execute: (query: SQL) => {
+        executes.push(query);
+        return Promise.resolve();
+      }
     };
 
     const logger = mock<LoggerService>();
-    return { writer: new ProviderWriter(logger), tx: tx as unknown as ChainTransaction, inserts, upserts, deletes, selects, logger };
+    return { writer: new ProviderWriter(logger), tx: tx as unknown as ChainTransaction, inserts, upserts, deletes, selects, executes, stateLocks, logger };
   }
 
   function providerRow(overrides: Record<string, unknown>) {
@@ -254,7 +303,7 @@ describe(ProviderWriter.name, () => {
     return inserts.filter(insert => insert.table === table).flatMap(insert => insert.rows);
   }
 
-  function whereSql(where: SQL): string {
-    return new PgDialect().sqlToQuery(where).sql;
+  function sqlText(query: SQL): string {
+    return new PgDialect().sqlToQuery(query).sql;
   }
 });
