@@ -6,7 +6,13 @@ import {
   Accounts,
   AccountTxs,
   BalanceChanges,
+  Bids,
   Delegations,
+  DeploymentEvents,
+  DeploymentGroupResources,
+  DeploymentGroups,
+  Deployments,
+  Leases,
   MessageDeadLetters,
   ProposalDeposits,
   Proposals,
@@ -118,5 +124,63 @@ describe("cosmos genesis schema", () => {
     expect(config.columns.map(column => column.name).sort()).toEqual(["error", "height", "index", "raw", "tx_index", "type_id"]);
     expect(config.foreignKeys).toHaveLength(1);
     expect(config.foreignKeys[0].reference().foreignColumns[0].name).toBe("id");
+  });
+});
+
+describe("akash deployment schema", () => {
+  it("keys deployments naturally by owner and dseq with denormalized resource totals", () => {
+    const config = getTableConfig(Deployments);
+
+    expect(config.name).toBe("deployments");
+    const ownerDseq = config.indexes.find(index => index.config.name === "deployments_owner_dseq_idx");
+    expect(ownerDseq?.config.unique).toBe(true);
+    expect(config.columns.map(column => column.name)).toEqual(
+      expect.arrayContaining(["cpu_units", "gpu_units", "memory_bytes", "ephemeral_storage_bytes", "persistent_storage_bytes"])
+    );
+  });
+
+  it("tracks escrow state and the replay watermark on the deployment row", () => {
+    const config = getTableConfig(Deployments);
+
+    expect(config.columns.map(column => column.name)).toEqual(
+      expect.arrayContaining(["deposit", "balance", "withdrawn_amount", "block_rate", "last_withdraw_height", "last_processed_height", "close_reason"])
+    );
+  });
+
+  it("keys groups by deployment and gseq", () => {
+    const config = getTableConfig(DeploymentGroups);
+
+    const deploymentGseq = config.indexes.find(index => index.config.name === "deployment_groups_deployment_gseq_idx");
+    expect(deploymentGseq?.config.unique).toBe(true);
+    expect(config.foreignKeys[0].reference().foreignColumns[0].name).toBe("id");
+  });
+
+  it("keys group resources by group and position in the spec", () => {
+    const config = getTableConfig(DeploymentGroupResources);
+
+    expect(config.primaryKeys[0].columns.map(column => column.name)).toEqual(["deployment_group_id", "idx"]);
+  });
+
+  it("keys bids by the full on-chain bid id and keeps them on close via state", () => {
+    const config = getTableConfig(Bids);
+
+    expect(config.primaryKeys[0].columns.map(column => column.name)).toEqual(["deployment_id", "gseq", "oseq", "bseq", "provider_account_id"]);
+    expect(config.columns.map(column => column.name)).toContain("state");
+  });
+
+  it("keys leases like bids and carries denormalized resource totals", () => {
+    const config = getTableConfig(Leases);
+
+    expect(config.primaryKeys[0].columns.map(column => column.name)).toEqual(["deployment_id", "gseq", "oseq", "bseq", "provider_account_id"]);
+    expect(config.columns.map(column => column.name)).toEqual(
+      expect.arrayContaining(["predicted_closed_height", "withdrawn_amount", "cpu_units", "gpu_units", "memory_bytes"])
+    );
+  });
+
+  it("keys the timeline by deployment, height and ordinal so re-commits conflict instead of duplicating", () => {
+    const config = getTableConfig(DeploymentEvents);
+
+    expect(config.primaryKeys[0].columns.map(column => column.name)).toEqual(["deployment_id", "height", "ordinal"]);
+    expect(config.columns.find(column => column.name === "tx_index")?.notNull).toBe(false);
   });
 });

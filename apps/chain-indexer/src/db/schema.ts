@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   bigint,
   bigserial,
@@ -307,4 +308,200 @@ export const ProposalDeposits = cosmosSchema.table(
     height: bigint("height", { mode: "number" }).notNull()
   },
   t => [primaryKey({ columns: [t.proposalId, t.depositorAccountId, t.height] })]
+);
+
+export const akashSchema = pgSchema("akash");
+
+export const deploymentCloseReason = akashSchema.enum("deployment_close_reason", ["close_message", "overdrawn", "close_event"]);
+
+export const groupState = akashSchema.enum("group_state", ["open", "paused", "closed"]);
+
+/** `active` means the bid was accepted and became a lease; bids are kept on close (unlike the legacy indexer) so the deployment timeline can tell winning bids from losing ones. */
+export const bidState = akashSchema.enum("bid_state", ["open", "active", "closed"]);
+
+export const deploymentEventType = akashSchema.enum("deployment_event_type", [
+  "created",
+  "deposited",
+  "updated",
+  "closed",
+  "group_closed",
+  "group_paused",
+  "group_started",
+  "bid_created",
+  "bid_closed",
+  "lease_created",
+  "lease_closed",
+  "lease_withdrawn"
+]);
+
+/**
+ * Deployments carry denormalized resource totals (the sum over group resources of quantity × count)
+ * and the escrow account state, so list endpoints read one row instead of joining three levels deep.
+ * `balance`/`withdrawn_amount` are 18-decimal Dec values mirroring the on-chain escrow account;
+ * `last_withdraw_height` is the on-chain settlement checkpoint. `last_processed_height` is the
+ * indexer's replay watermark: blocks at or below it are duplicates and must not be re-applied, which
+ * — like the balance ledger — makes correctness depend on indexing a deployment's messages in height
+ * order from its creation (backfill from genesis, then sync).
+ */
+export const Deployments = akashSchema.table(
+  "deployments",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    ownerAccountId: integer("owner_account_id")
+      .notNull()
+      .references(() => Accounts.id),
+    dseq: numeric("dseq", { precision: 20, scale: 0 }).notNull(),
+    denom: text("denom").notNull(),
+    deposit: numeric("deposit", { precision: 38, scale: 0 }).notNull(),
+    balance: numeric("balance", { precision: 38, scale: 18 }).notNull(),
+    withdrawnAmount: numeric("withdrawn_amount", { precision: 38, scale: 18 }).notNull(),
+    blockRate: numeric("block_rate", { precision: 38, scale: 18 }).notNull().default("0"),
+    lastWithdrawHeight: bigint("last_withdraw_height", { mode: "number" }),
+    lastProcessedHeight: bigint("last_processed_height", { mode: "number" }).notNull(),
+    createdHeight: bigint("created_height", { mode: "number" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    closedHeight: bigint("closed_height", { mode: "number" }),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    closeReason: deploymentCloseReason("close_reason"),
+    cpuUnits: bigint("cpu_units", { mode: "number" }).notNull(),
+    gpuUnits: bigint("gpu_units", { mode: "number" }).notNull(),
+    memoryBytes: bigint("memory_bytes", { mode: "number" }).notNull(),
+    ephemeralStorageBytes: bigint("ephemeral_storage_bytes", { mode: "number" }).notNull(),
+    persistentStorageBytes: bigint("persistent_storage_bytes", { mode: "number" }).notNull()
+  },
+  t => [
+    uniqueIndex("deployments_owner_dseq_idx").on(t.ownerAccountId, t.dseq),
+    index("deployments_owner_created_idx").on(t.ownerAccountId, t.createdHeight),
+    index("deployments_open_idx")
+      .on(t.createdHeight)
+      .where(sql`${t.closedHeight} IS NULL`)
+  ]
+);
+
+export const DeploymentGroups = akashSchema.table(
+  "deployment_groups",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    deploymentId: bigint("deployment_id", { mode: "number" })
+      .notNull()
+      .references(() => Deployments.id),
+    gseq: integer("gseq").notNull(),
+    state: groupState("state").notNull().default("open"),
+    closedHeight: bigint("closed_height", { mode: "number" })
+  },
+  t => [uniqueIndex("deployment_groups_deployment_gseq_idx").on(t.deploymentId, t.gseq)]
+);
+
+/** Immutable spec rows; `idx` is the resource's position in the on-chain GroupSpec resources array. */
+export const DeploymentGroupResources = akashSchema.table(
+  "deployment_group_resources",
+  {
+    deploymentGroupId: bigint("deployment_group_id", { mode: "number" })
+      .notNull()
+      .references(() => DeploymentGroups.id),
+    idx: integer("idx").notNull(),
+    count: integer("count").notNull(),
+    cpuUnits: bigint("cpu_units", { mode: "number" }).notNull(),
+    gpuUnits: bigint("gpu_units", { mode: "number" }).notNull(),
+    gpuVendor: text("gpu_vendor"),
+    gpuModel: text("gpu_model"),
+    memoryBytes: bigint("memory_bytes", { mode: "number" }).notNull(),
+    ephemeralStorageBytes: bigint("ephemeral_storage_bytes", { mode: "number" }).notNull(),
+    persistentStorageBytes: bigint("persistent_storage_bytes", { mode: "number" }).notNull(),
+    price: numeric("price", { precision: 38, scale: 18 }).notNull(),
+    priceDenom: text("price_denom").notNull()
+  },
+  t => [primaryKey({ columns: [t.deploymentGroupId, t.idx] })]
+);
+
+export const Bids = akashSchema.table(
+  "bids",
+  {
+    deploymentId: bigint("deployment_id", { mode: "number" })
+      .notNull()
+      .references(() => Deployments.id),
+    gseq: integer("gseq").notNull(),
+    oseq: integer("oseq").notNull(),
+    bseq: integer("bseq").notNull().default(0),
+    providerAccountId: integer("provider_account_id")
+      .notNull()
+      .references(() => Accounts.id),
+    price: numeric("price", { precision: 38, scale: 18 }).notNull(),
+    denom: text("denom").notNull(),
+    state: bidState("state").notNull().default("open"),
+    createdHeight: bigint("created_height", { mode: "number" }).notNull(),
+    closedHeight: bigint("closed_height", { mode: "number" })
+  },
+  t => [primaryKey({ columns: [t.deploymentId, t.gseq, t.oseq, t.bseq, t.providerAccountId] })]
+);
+
+/**
+ * Leases carry the same denormalized resource totals as deployments (their group's quantity × count sums)
+ * so the per-block active-resource aggregation never joins group resources. `balance` is the accrued-but-
+ * unwithdrawn earnings mirroring the on-chain payment balance (payouts truncate to whole units and the
+ * fraction is refunded to the deployment on close); `predicted_closed_height` is the height at which the
+ * escrow balance runs out at the current block rate, recomputed on every balance- or rate-changing
+ * message, mirroring the legacy indexer's formulas.
+ */
+export const Leases = akashSchema.table(
+  "leases",
+  {
+    deploymentId: bigint("deployment_id", { mode: "number" })
+      .notNull()
+      .references(() => Deployments.id),
+    deploymentGroupId: bigint("deployment_group_id", { mode: "number" })
+      .notNull()
+      .references(() => DeploymentGroups.id),
+    gseq: integer("gseq").notNull(),
+    oseq: integer("oseq").notNull(),
+    bseq: integer("bseq").notNull().default(0),
+    providerAccountId: integer("provider_account_id")
+      .notNull()
+      .references(() => Accounts.id),
+    price: numeric("price", { precision: 38, scale: 18 }).notNull(),
+    denom: text("denom").notNull(),
+    balance: numeric("balance", { precision: 38, scale: 18 }).notNull().default("0"),
+    withdrawnAmount: numeric("withdrawn_amount", { precision: 38, scale: 18 }).notNull().default("0"),
+    predictedClosedHeight: numeric("predicted_closed_height", { precision: 30, scale: 0 }).notNull(),
+    createdHeight: bigint("created_height", { mode: "number" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    closedHeight: bigint("closed_height", { mode: "number" }),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    cpuUnits: bigint("cpu_units", { mode: "number" }).notNull(),
+    gpuUnits: bigint("gpu_units", { mode: "number" }).notNull(),
+    memoryBytes: bigint("memory_bytes", { mode: "number" }).notNull(),
+    ephemeralStorageBytes: bigint("ephemeral_storage_bytes", { mode: "number" }).notNull(),
+    persistentStorageBytes: bigint("persistent_storage_bytes", { mode: "number" }).notNull()
+  },
+  t => [
+    primaryKey({ columns: [t.deploymentId, t.gseq, t.oseq, t.bseq, t.providerAccountId] }),
+    index("leases_provider_idx").on(t.providerAccountId, t.closedHeight, t.createdHeight),
+    index("leases_open_idx")
+      .on(t.deploymentId)
+      .where(sql`${t.closedHeight} IS NULL`)
+  ]
+);
+
+/**
+ * Typed per-deployment timeline replacing the legacy relatedMessages join. Every lifecycle change is
+ * stored, including withdrawals and losing bids — the legacy history view is a read-side filter, not a
+ * write-side decision. `ordinal` is the deterministic position of the deployment's events within the
+ * block, so re-committing a block conflicts instead of duplicating. `tx_index`/`msg_index` are null for
+ * events derived outside a message (e.g. close-event fallbacks); the tx hash comes from joining
+ * `cosmos.transactions`.
+ */
+export const DeploymentEvents = akashSchema.table(
+  "deployment_events",
+  {
+    deploymentId: bigint("deployment_id", { mode: "number" })
+      .notNull()
+      .references(() => Deployments.id),
+    height: bigint("height", { mode: "number" }).notNull(),
+    ordinal: integer("ordinal").notNull(),
+    txIndex: integer("tx_index"),
+    msgIndex: integer("msg_index"),
+    type: deploymentEventType("type").notNull(),
+    details: jsonb("details")
+  },
+  t => [primaryKey({ columns: [t.deploymentId, t.height, t.ordinal] })]
 );
