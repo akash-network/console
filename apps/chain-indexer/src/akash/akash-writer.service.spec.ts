@@ -118,16 +118,27 @@ describe(AkashWriter.name, () => {
     expect(lease).toMatchObject({ withdrawnAmount: "400" });
   });
 
+  it("re-selects the deployment id when a guarded upsert returns no row", async () => {
+    const { writer, tx, inserts } = setup({ returningEmpty: true });
+
+    await writer.write(tx, [block(100, [create(), bidCreated("10")]), block(110, [{ kind: "leaseCreated", key: LEASE_KEY }])], ACCOUNT_IDS);
+
+    const [lease] = rowsFor(inserts, Leases);
+    expect(lease).toMatchObject({ deploymentId: 1 });
+  });
+
   function setup(input?: {
     deployments?: Record<string, unknown>[];
     groups?: Record<string, unknown>[];
     bids?: Record<string, unknown>[];
     leases?: Record<string, unknown>[];
+    returningEmpty?: boolean;
   }) {
     const inserts: { table: unknown; rows: Record<string, unknown>[] }[] = [];
     const upserts: { table: unknown; config: Record<string, SQL | unknown> }[] = [];
     const selects: unknown[] = [];
     let nextId = 1;
+    let deploymentSelects = 0;
 
     const deployments = input?.deployments ?? [];
     const rowsByTable = new Map<unknown, Record<string, unknown>[]>([
@@ -138,6 +149,15 @@ describe(AkashWriter.name, () => {
     ]);
 
     const selectChain = (table: unknown) => {
+      if (table === Deployments) {
+        deploymentSelects++;
+        if (input?.returningEmpty && deploymentSelects === 2) {
+          rowsByTable.set(
+            Deployments,
+            rowsFor(inserts, Deployments).map((row, index) => ({ id: index + 1, ...row }))
+          );
+        }
+      }
       const rows = rowsByTable.get(table) ?? providerAccountRows(table);
       const chain = {
         where: () => chain,
@@ -162,7 +182,7 @@ describe(AkashWriter.name, () => {
         values: (rows: Record<string, unknown> | Record<string, unknown>[]) => {
           const rowArray = Array.isArray(rows) ? rows : [rows];
           inserts.push({ table, rows: rowArray });
-          const returning = () => Promise.resolve(rowArray.map(row => ({ id: nextId++, ...row })));
+          const returning = () => Promise.resolve(input?.returningEmpty && table === Deployments ? [] : rowArray.map(row => ({ id: nextId++, ...row })));
           return Object.assign(Promise.resolve(), {
             returning,
             onConflictDoNothing: () => Object.assign(Promise.resolve(), { returning }),

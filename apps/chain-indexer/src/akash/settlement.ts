@@ -42,6 +42,8 @@ export function settle(deployment: SettlementDeployment, openLeases: SettlementL
 
   if (openLeases.length === 0) return { blockRate: 0n, overdrawn: false };
 
+  if (blockRate <= 0n) return { blockRate, overdrawn: false };
+
   const numFullBlocks = minBigInt(decTruncateInt(decQuo(deployment.balance, blockRate)), heightDelta);
 
   for (const lease of openLeases) {
@@ -67,8 +69,9 @@ function distributeWeighted(deployment: SettlementDeployment, openLeases: Settle
 
   deployment.balance -= transferred;
 
-  if (deployment.balance > MAX_SETTLEMENT_DUST) {
-    throw new Error(`Invalid settlement: ${deployment.balance} atomics remain after weighted distribution`);
+  const dust = deployment.balance < 0n ? -deployment.balance : deployment.balance;
+  if (dust > MAX_SETTLEMENT_DUST) {
+    throw new Error(`Invalid settlement at height ${height}: ${deployment.balance} atomics remain after weighted distribution`);
   }
 
   deployment.closedHeight = height;

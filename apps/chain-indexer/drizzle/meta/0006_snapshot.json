@@ -1,5 +1,5 @@
 {
-  "id": "c46fb3b3-a7c9-40e6-aee5-060eb257da81",
+  "id": "7703e3c3-9988-452e-ae30-44e28b863168",
   "prevId": "4cf348d1-418b-4014-bbd3-4ffed0fa4e97",
   "version": "7",
   "dialect": "postgresql",
@@ -339,7 +339,7 @@
       "columns": {
         "deployment_id": {
           "name": "deployment_id",
-          "type": "integer",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": true
         },
@@ -558,7 +558,7 @@
       "columns": {
         "deployment_id": {
           "name": "deployment_id",
-          "type": "integer",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": true
         },
@@ -638,7 +638,7 @@
       "columns": {
         "deployment_group_id": {
           "name": "deployment_group_id",
-          "type": "integer",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": true
         },
@@ -746,13 +746,13 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "serial",
+          "type": "bigserial",
           "primaryKey": true,
           "notNull": true
         },
         "deployment_id": {
           "name": "deployment_id",
-          "type": "integer",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": true
         },
@@ -828,7 +828,7 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "serial",
+          "type": "bigserial",
           "primaryKey": true,
           "notNull": true
         },
@@ -1068,13 +1068,13 @@
       "columns": {
         "deployment_id": {
           "name": "deployment_id",
-          "type": "integer",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": true
         },
         "deployment_group_id": {
           "name": "deployment_group_id",
-          "type": "integer",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": true
         },

@@ -7,11 +7,12 @@ export function asString(value: unknown): string | null {
 }
 
 export function asInteger(value: unknown): number | null {
-  if (typeof value === "number" && Number.isInteger(value)) {
-    return value;
+  if (typeof value === "number") {
+    return Number.isSafeInteger(value) && value >= 0 ? value : null;
   }
   if (typeof value === "string" && /^\d+$/.test(value)) {
-    return Number(value);
+    const parsed = Number(value);
+    return Number.isSafeInteger(parsed) ? parsed : null;
   }
   return null;
 }

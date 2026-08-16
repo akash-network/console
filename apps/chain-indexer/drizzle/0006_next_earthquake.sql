@@ -5,7 +5,7 @@ CREATE TYPE "akash"."deployment_close_reason" AS ENUM('close_message', 'overdraw
 CREATE TYPE "akash"."deployment_event_type" AS ENUM('created', 'deposited', 'updated', 'closed', 'group_closed', 'group_paused', 'group_started', 'bid_created', 'bid_closed', 'lease_created', 'lease_closed', 'lease_withdrawn');--> statement-breakpoint
 CREATE TYPE "akash"."group_state" AS ENUM('open', 'paused', 'closed');--> statement-breakpoint
 CREATE TABLE "akash"."bids" (
-	"deployment_id" integer NOT NULL,
+	"deployment_id" bigint NOT NULL,
 	"gseq" integer NOT NULL,
 	"oseq" integer NOT NULL,
 	"bseq" integer DEFAULT 0 NOT NULL,
@@ -19,7 +19,7 @@ CREATE TABLE "akash"."bids" (
 );
 --> statement-breakpoint
 CREATE TABLE "akash"."deployment_events" (
-	"deployment_id" integer NOT NULL,
+	"deployment_id" bigint NOT NULL,
 	"height" bigint NOT NULL,
 	"ordinal" integer NOT NULL,
 	"tx_index" integer,
@@ -30,7 +30,7 @@ CREATE TABLE "akash"."deployment_events" (
 );
 --> statement-breakpoint
 CREATE TABLE "akash"."deployment_group_resources" (
-	"deployment_group_id" integer NOT NULL,
+	"deployment_group_id" bigint NOT NULL,
 	"idx" integer NOT NULL,
 	"count" integer NOT NULL,
 	"cpu_units" bigint NOT NULL,
@@ -46,15 +46,15 @@ CREATE TABLE "akash"."deployment_group_resources" (
 );
 --> statement-breakpoint
 CREATE TABLE "akash"."deployment_groups" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"deployment_id" integer NOT NULL,
+	"id" bigserial PRIMARY KEY NOT NULL,
+	"deployment_id" bigint NOT NULL,
 	"gseq" integer NOT NULL,
 	"state" "akash"."group_state" DEFAULT 'open' NOT NULL,
 	"closed_height" bigint
 );
 --> statement-breakpoint
 CREATE TABLE "akash"."deployments" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" bigserial PRIMARY KEY NOT NULL,
 	"owner_account_id" integer NOT NULL,
 	"dseq" numeric(20, 0) NOT NULL,
 	"denom" text NOT NULL,
@@ -77,8 +77,8 @@ CREATE TABLE "akash"."deployments" (
 );
 --> statement-breakpoint
 CREATE TABLE "akash"."leases" (
-	"deployment_id" integer NOT NULL,
-	"deployment_group_id" integer NOT NULL,
+	"deployment_id" bigint NOT NULL,
+	"deployment_group_id" bigint NOT NULL,
 	"gseq" integer NOT NULL,
 	"oseq" integer NOT NULL,
 	"bseq" integer DEFAULT 0 NOT NULL,

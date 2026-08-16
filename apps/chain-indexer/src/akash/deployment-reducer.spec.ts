@@ -213,6 +213,32 @@ describe("applyBlockChanges", () => {
     ]);
   });
 
+  it("tolerates a zero-rate lease from an unparseable bid price without dividing by zero", () => {
+    const { states } = setup();
+
+    applyBlockChanges(states, block(100, [create({ deposit: "1000" }), bidCreated("not-a-number")]));
+    applyBlockChanges(states, block(110, [leaseCreated()]));
+
+    expect(() => applyBlockChanges(states, block(150, [{ kind: "leaseWithdrawn", key: LEASE_KEY }]))).not.toThrow();
+
+    const state = get(states);
+    expect(state.leases[0].price).toBe(0n);
+    expect(state.leases[0].withdrawn).toBe(0n);
+    expect(state.balance).toBe(decFromInt(1000));
+    expect(state.closedHeight).toBeNull();
+  });
+
+  it("warns and creates a zero-rate lease when the matching bid is missing", () => {
+    const { states } = setup();
+
+    applyBlockChanges(states, block(100, [create({})]));
+    const warnings = applyBlockChanges(states, block(110, [leaseCreated()]));
+
+    expect(warnings).toEqual([{ code: "AKASH_ORPHAN_REFERENCE", kind: "leaseCreated", owner: OWNER, dseq: "42", height: 110 }]);
+    expect(get(states).leases).toHaveLength(1);
+    expect(get(states).leases[0].price).toBe(0n);
+  });
+
   function setup() {
     return { states: new Map<string, DeploymentAggState>() };
   }

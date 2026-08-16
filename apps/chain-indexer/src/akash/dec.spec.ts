@@ -48,6 +48,10 @@ describe("dec", () => {
       expect(decQuo(decFromInt(2), decFromInt(3))).toBe(666_666_666_666_666_667n);
     });
 
+    it("rounds negative quotients half away from zero", () => {
+      expect(decQuo(decFromInt(-2), decFromInt(3))).toBe(-666_666_666_666_666_667n);
+    });
+
     it("divides exactly when no remainder exists", () => {
       expect(decQuo(decFromInt(10), decFromInt(4))).toBe(decFromString("2.5"));
     });
@@ -78,6 +82,7 @@ describe("dec", () => {
     it("truncates toward zero", () => {
       expect(decTruncateInt(decFromString("2.9"))).toBe(2n);
       expect(decTruncateInt(decFromString("2"))).toBe(2n);
+      expect(decTruncateInt(decFromString("-2.9"))).toBe(-2n);
     });
   });
 
@@ -85,6 +90,11 @@ describe("dec", () => {
     it("rounds up any fractional part", () => {
       expect(decCeilInt(decFromString("2.000000000000000001"))).toBe(3n);
       expect(decCeilInt(decFromString("2"))).toBe(2n);
+    });
+
+    it("ceils negatives toward positive infinity", () => {
+      expect(decCeilInt(decFromString("-2.5"))).toBe(-2n);
+      expect(decCeilInt(decFromString("-2"))).toBe(-2n);
     });
   });
 

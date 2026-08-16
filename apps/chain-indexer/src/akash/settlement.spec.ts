@@ -83,6 +83,18 @@ describe("settle", () => {
     expect(totalAccrued + deployment.balance).toBe(decFromInt(100));
   });
 
+  it("accrues nothing and cannot overdraw when every open lease has a zero rate", () => {
+    const { deployment, leases } = setup({ balance: "1000", leasePrices: ["0"], lastWithdrawHeight: 100 });
+
+    const result = settle(deployment, leases, 150);
+
+    expect(result).toEqual({ blockRate: 0n, overdrawn: false });
+    expect(deployment.balance).toBe(decFromInt(1000));
+    expect(deployment.lastWithdrawHeight).toBe(150);
+    expect(leases[0].balance).toBe(0n);
+    expect(deployment.closedHeight).toBeNull();
+  });
+
   it("matches a one-shot settlement when settled incrementally", () => {
     const incremental = setup({ balance: "100000", leasePrices: ["7"], lastWithdrawHeight: 0 });
     const oneShot = setup({ balance: "100000", leasePrices: ["7"], lastWithdrawHeight: 0 });

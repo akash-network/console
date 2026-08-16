@@ -346,7 +346,7 @@ export const deploymentEventType = akashSchema.enum("deployment_event_type", [
 export const Deployments = akashSchema.table(
   "deployments",
   {
-    id: serial("id").primaryKey(),
+    id: bigserial("id", { mode: "number" }).primaryKey(),
     ownerAccountId: integer("owner_account_id")
       .notNull()
       .references(() => Accounts.id),
@@ -381,8 +381,8 @@ export const Deployments = akashSchema.table(
 export const DeploymentGroups = akashSchema.table(
   "deployment_groups",
   {
-    id: serial("id").primaryKey(),
-    deploymentId: integer("deployment_id")
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    deploymentId: bigint("deployment_id", { mode: "number" })
       .notNull()
       .references(() => Deployments.id),
     gseq: integer("gseq").notNull(),
@@ -396,7 +396,7 @@ export const DeploymentGroups = akashSchema.table(
 export const DeploymentGroupResources = akashSchema.table(
   "deployment_group_resources",
   {
-    deploymentGroupId: integer("deployment_group_id")
+    deploymentGroupId: bigint("deployment_group_id", { mode: "number" })
       .notNull()
       .references(() => DeploymentGroups.id),
     idx: integer("idx").notNull(),
@@ -417,7 +417,7 @@ export const DeploymentGroupResources = akashSchema.table(
 export const Bids = akashSchema.table(
   "bids",
   {
-    deploymentId: integer("deployment_id")
+    deploymentId: bigint("deployment_id", { mode: "number" })
       .notNull()
       .references(() => Deployments.id),
     gseq: integer("gseq").notNull(),
@@ -446,10 +446,10 @@ export const Bids = akashSchema.table(
 export const Leases = akashSchema.table(
   "leases",
   {
-    deploymentId: integer("deployment_id")
+    deploymentId: bigint("deployment_id", { mode: "number" })
       .notNull()
       .references(() => Deployments.id),
-    deploymentGroupId: integer("deployment_group_id")
+    deploymentGroupId: bigint("deployment_group_id", { mode: "number" })
       .notNull()
       .references(() => DeploymentGroups.id),
     gseq: integer("gseq").notNull(),
@@ -493,7 +493,7 @@ export const Leases = akashSchema.table(
 export const DeploymentEvents = akashSchema.table(
   "deployment_events",
   {
-    deploymentId: integer("deployment_id")
+    deploymentId: bigint("deployment_id", { mode: "number" })
       .notNull()
       .references(() => Deployments.id),
     height: bigint("height", { mode: "number" }).notNull(),

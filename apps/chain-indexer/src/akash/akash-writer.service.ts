@@ -1,4 +1,5 @@
 import { and, eq, inArray, or, sql } from "drizzle-orm";
+import groupBy from "lodash/groupBy";
 import { inject, singleton } from "tsyringe";
 
 import type { AkashBlockChanges, DeploymentKey, NormalizedResource } from "@src/akash/akash-changes";
@@ -115,6 +116,11 @@ export class AkashWriter {
       loadedAddressIds.set(address, id);
     }
 
+    const groupsByDeployment = groupBy(groupRows, row => row.deploymentId);
+    const resourcesByGroup = groupBy(resourceRows, entry => `${entry.deploymentId}/${entry.gseq}`);
+    const bidsByDeployment = groupBy(bidRows, row => row.deploymentId);
+    const leasesByDeployment = groupBy(leaseRows, row => row.deploymentId);
+
     for (const row of deploymentRows) {
       const key = keyByOwnerDseq.get(`${row.ownerAccountId}/${normalizeDseq(row.dseq)}`);
       if (!key) {
@@ -122,7 +128,7 @@ export class AkashWriter {
       }
       deploymentIds.set(stateKey(key), row.id);
 
-      const groups = groupRows.filter(group => group.deploymentId === row.id);
+      const groups = groupsByDeployment[row.id] ?? [];
       for (const group of groups) {
         groupIds.set(`${row.id}/${group.gseq}`, group.id);
       }
@@ -149,46 +155,41 @@ export class AkashWriter {
           gseq: group.gseq,
           state: group.state as GroupStateValue,
           closedHeight: group.closedHeight,
-          resources: resourceRows
-            .filter(entry => entry.deploymentId === row.id && entry.gseq === group.gseq)
+          resources: (resourcesByGroup[`${row.id}/${group.gseq}`] ?? [])
             .sort((a, b) => a.resource.idx - b.resource.idx)
             .map(entry => toNormalizedResource(entry.resource))
         })),
-        bids: bidRows
-          .filter(bid => bid.deploymentId === row.id)
-          .map(bid => ({
-            gseq: bid.gseq,
-            oseq: bid.oseq,
-            bseq: bid.bseq,
-            provider: this.#requireAddress(providerAddressById, bid.providerAccountId),
-            price: decFromString(bid.price),
-            denom: bid.denom,
-            state: bid.state as BidStateValue,
-            createdHeight: bid.createdHeight,
-            closedHeight: bid.closedHeight
-          })),
-        leases: leaseRows
-          .filter(lease => lease.deploymentId === row.id)
-          .map(lease => ({
-            gseq: lease.gseq,
-            oseq: lease.oseq,
-            bseq: lease.bseq,
-            provider: this.#requireAddress(providerAddressById, lease.providerAccountId),
-            price: decFromString(lease.price),
-            denom: lease.denom,
-            balance: decFromString(lease.balance),
-            withdrawn: decFromString(lease.withdrawnAmount),
-            predictedClosedHeight: BigInt(lease.predictedClosedHeight),
-            createdHeight: lease.createdHeight,
-            createdAt: lease.createdAt,
-            closedHeight: lease.closedHeight,
-            closedAt: lease.closedAt,
-            cpuUnits: lease.cpuUnits,
-            gpuUnits: lease.gpuUnits,
-            memoryBytes: lease.memoryBytes,
-            ephemeralStorageBytes: lease.ephemeralStorageBytes,
-            persistentStorageBytes: lease.persistentStorageBytes
-          })),
+        bids: (bidsByDeployment[row.id] ?? []).map(bid => ({
+          gseq: bid.gseq,
+          oseq: bid.oseq,
+          bseq: bid.bseq,
+          provider: this.#requireAddress(providerAddressById, bid.providerAccountId),
+          price: decFromString(bid.price),
+          denom: bid.denom,
+          state: bid.state as BidStateValue,
+          createdHeight: bid.createdHeight,
+          closedHeight: bid.closedHeight
+        })),
+        leases: (leasesByDeployment[row.id] ?? []).map(lease => ({
+          gseq: lease.gseq,
+          oseq: lease.oseq,
+          bseq: lease.bseq,
+          provider: this.#requireAddress(providerAddressById, lease.providerAccountId),
+          price: decFromString(lease.price),
+          denom: lease.denom,
+          balance: decFromString(lease.balance),
+          withdrawn: decFromString(lease.withdrawnAmount),
+          predictedClosedHeight: BigInt(lease.predictedClosedHeight),
+          createdHeight: lease.createdHeight,
+          createdAt: lease.createdAt,
+          closedHeight: lease.closedHeight,
+          closedAt: lease.closedAt,
+          cpuUnits: lease.cpuUnits,
+          gpuUnits: lease.gpuUnits,
+          memoryBytes: lease.memoryBytes,
+          ephemeralStorageBytes: lease.ephemeralStorageBytes,
+          persistentStorageBytes: lease.persistentStorageBytes
+        })),
         events: [],
         isNew: false,
         touched: false

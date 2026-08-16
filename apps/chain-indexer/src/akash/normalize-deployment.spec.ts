@@ -68,6 +68,21 @@ describe("normalizeDeploymentMessage", () => {
     });
   });
 
+  it("normalizes a v1 escrow deposit whose scope is the string form", () => {
+    const change = normalizeDeploymentMessage("/akash.escrow.v1.MsgAccountDeposit", {
+      signer: "akash1depositor",
+      id: { scope: "deployment", xid: "akash1owner/12345" },
+      deposit: { amount: { denom: "uakt", amount: "777" }, sources: [1] }
+    });
+
+    expect(change).toEqual({
+      kind: "deploymentDeposited",
+      key: { owner: "akash1owner", dseq: "12345" },
+      amount: "777",
+      depositor: "akash1depositor"
+    });
+  });
+
   it("ignores escrow deposits outside the deployment scope", () => {
     const change = normalizeDeploymentMessage("/akash.escrow.v1.MsgAccountDeposit", {
       signer: "akash1depositor",
