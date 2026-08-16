@@ -26,25 +26,16 @@ export function HomeContainer() {
     data: deployments,
     isFetching: isLoadingDeployments,
     refetch: getDeployments
-  } = useDeploymentList(address, {
-    enabled: false
-  });
+  } = useDeploymentList(
+    address,
+    {
+      enabled: false
+    },
+    "active"
+  );
   useEffect(() => {
     if (deployments) {
-      setActiveDeployments(
-        deployments
-          ? [...deployments]
-              .filter(d => d.state === "active")
-              .map(d => {
-                const name = getDeploymentName(d.dseq);
-
-                return {
-                  ...d,
-                  name
-                };
-              })
-          : []
-      );
+      setActiveDeployments(deployments.map(d => ({ ...d, name: getDeploymentName(d.dseq) })));
     }
   }, [deployments, getDeploymentName]);
 

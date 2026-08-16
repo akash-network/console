@@ -1,5 +1,5 @@
 import type { LeaseHttpService } from "@akashnetwork/http-sdk";
-import { useQueryClient } from "@tanstack/react-query";
+import { QueryClient, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -77,6 +77,16 @@ const mockLeases = [
           amount: "0"
         }
       }
+    }
+  }
+];
+
+const mockClosedLeases = [
+  {
+    ...mockLeases[0],
+    lease: {
+      ...mockLeases[0].lease,
+      state: "closed"
     }
   }
 ];
@@ -202,6 +212,100 @@ describe("useLeaseQuery", () => {
       const queriesAfter = result.current.queryClient.getQueryCache().findAll({ queryKey });
       expect(queriesAfter).toHaveLength(0);
     });
+
+    it("keeps a closed deployment's lease list fresh after the first fetch", async () => {
+      const { result, chainApiHttpClient } = setup({ state: "closed", leases: mockClosedLeases });
+
+      await vi.waitFor(() => {
+        expect(result.current.leases.isSuccess).toBe(true);
+      });
+
+      const query = result.current.queryClient.getQueryCache().find({
+        queryKey: QueryKeys.getLeasesKey("test-address", mockDeployment.dseq)
+      });
+
+      expect(chainApiHttpClient.get).toHaveBeenCalledTimes(1);
+      expect(query?.isStale()).toBe(false);
+    });
+
+    it("treats an active deployment's lease list as immediately stale", async () => {
+      const { result } = setup({ state: "active" });
+
+      await vi.waitFor(() => {
+        expect(result.current.leases.isSuccess).toBe(true);
+      });
+
+      const query = result.current.queryClient.getQueryCache().find({
+        queryKey: QueryKeys.getLeasesKey("test-address", mockDeployment.dseq)
+      });
+
+      expect(query?.isStale()).toBe(true);
+    });
+
+    it("refetches a closed deployment when the cached lease list still looks live", async () => {
+      const queryClient = new QueryClient({
+        defaultOptions: {
+          queries: { retry: false, refetchOnWindowFocus: false, refetchOnReconnect: false }
+        }
+      });
+      const chainApiHttpClient = mock<FallbackableHttpClient>();
+      chainApiHttpClient.get.mockResolvedValue({
+        data: {
+          leases: mockLeases,
+          pagination: { next_key: null, total: mockLeases.length }
+        }
+      });
+
+      const first = setupQuery(() => useDeploymentLeaseList("test-address", { ...mockDeployment, state: "active" }), {
+        services: {
+          chainApiHttpClient: () => chainApiHttpClient,
+          queryClient: () => queryClient
+        }
+      });
+
+      await vi.waitFor(() => {
+        expect(first.result.current.isSuccess).toBe(true);
+      });
+      expect(chainApiHttpClient.get).toHaveBeenCalledTimes(1);
+      first.unmount();
+
+      const second = setupQuery(() => useDeploymentLeaseList("test-address", { ...mockDeployment, state: "closed" }), {
+        services: {
+          chainApiHttpClient: () => chainApiHttpClient,
+          queryClient: () => queryClient
+        }
+      });
+
+      await vi.waitFor(() => {
+        expect(chainApiHttpClient.get).toHaveBeenCalledTimes(2);
+      });
+      second.unmount();
+    });
+
+    function setup(input: { state?: string; leases?: typeof mockLeases }) {
+      const rpcLeases = input.leases ?? mockLeases;
+      const chainApiHttpClient = mock<FallbackableHttpClient>();
+      chainApiHttpClient.get.mockResolvedValue({
+        data: {
+          leases: rpcLeases,
+          pagination: { next_key: null, total: rpcLeases.length }
+        }
+      });
+      const { result } = setupQuery(
+        () => {
+          const leases = useDeploymentLeaseList("test-address", { ...mockDeployment, state: input.state });
+          const queryClient = useQueryClient();
+          return { leases, queryClient };
+        },
+        {
+          services: {
+            chainApiHttpClient: () => chainApiHttpClient
+          }
+        }
+      );
+
+      return { result, chainApiHttpClient };
+    }
   });
 
   describe("useAllLeases", () => {

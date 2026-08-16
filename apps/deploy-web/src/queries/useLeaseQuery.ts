@@ -14,6 +14,15 @@ import { leaseToDto } from "@src/utils/deploymentDetailUtils";
 import { isLeaseLive } from "@src/utils/leaseUtils";
 import { QueryKeys } from "./queryKeys";
 
+/**
+ * Closed deployments cannot gain leases. Infinity only after the fetched list itself
+ * has no live leases, so a leftover Active-tab snapshot is still treated as stale.
+ */
+function closedDeploymentLeaseListStaleTime(state: string | undefined, leases: LeaseDto[] | null | undefined) {
+  if (state !== "closed" || !leases || leases.some(isLeaseLive)) return 0;
+  return Infinity;
+}
+
 // Leases
 async function getDeploymentLeases(chainApiHttpClient: AxiosInstance, address: string, deployment: Pick<DeploymentDto, "dseq" | "groups">) {
   if (!address) {
@@ -28,7 +37,7 @@ async function getDeploymentLeases(chainApiHttpClient: AxiosInstance, address: s
 
 export function useDeploymentLeaseList(
   address: string,
-  deployment: Pick<DeploymentDto, "dseq" | "groups"> | null | undefined,
+  deployment: (Pick<DeploymentDto, "dseq" | "groups"> & Partial<Pick<DeploymentDto, "state">>) | null | undefined,
   options: Omit<UseQueryOptions<LeaseDto[] | null>, "queryKey" | "queryFn"> = {}
 ) {
   const { chainApiHttpClient } = useServices();
@@ -41,6 +50,7 @@ export function useDeploymentLeaseList(
       if (!deployment) return null;
       return getDeploymentLeases(chainApiHttpClient, address, deployment);
     },
+    staleTime: query => closedDeploymentLeaseListStaleTime(deployment?.state, query.state.data),
     ...options
   });
 

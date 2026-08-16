@@ -269,6 +269,8 @@ export interface NamedDeploymentDto extends DeploymentDto {
   name: string;
 }
 
+export type DeploymentStatus = "active" | "closed";
+
 export interface LeaseDto {
   id: string;
   owner: string;

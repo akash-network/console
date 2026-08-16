@@ -22,7 +22,7 @@ export class WalletBalancesService {
     const [balanceResponse, deploymentGrants, activeDeploymentsResponse] = await Promise.all([
       this.chainApiHttpClient.get<RestApiBalancesResponseType>(ApiUrlService.balance("", address)),
       this.authzHttpService.getAllDepositDeploymentGrants({ grantee: address, limit: 1000 }),
-      loadWithPagination<RpcDeployment[]>(ApiUrlService.deploymentList("", address, true), "deployments", 1000, this.chainApiHttpClient)
+      loadWithPagination<RpcDeployment[]>(ApiUrlService.deploymentList("", address, "active"), "deployments", 1000, this.chainApiHttpClient)
     ]);
 
     const deploymentGrantsPerDenom = deploymentGrants.reduce<Record<string, number>>((acc, grant) => {

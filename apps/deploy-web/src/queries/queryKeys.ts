@@ -21,7 +21,15 @@ export class QueryKeys {
   static getUserTemplatesKey = (username: string) => ["USER_TEMPLATES", username];
   static getUserFavoriteTemplatesKey = (userId: string) => ["USER_FAVORITES_TEMPLATES", userId];
   // Deploy
-  static getDeploymentListKey = (address: string) => ["DEPLOYMENT_LIST", address];
+  static getDeploymentListKey = (address: string, state?: string) => (state ? ["DEPLOYMENT_LIST", address, state] : ["DEPLOYMENT_LIST", address]);
+  /** Prefix for every paginated deployment page of an address; use it to invalidate all pages at once. */
+  static getDeploymentsPageKeyPrefix = (address: string) => ["DEPLOYMENTS_PAGE", address];
+  static getDeploymentsPageKey = (address: string, state: string, skip: number, limit: number) => [
+    ...QueryKeys.getDeploymentsPageKeyPrefix(address),
+    state,
+    skip,
+    limit
+  ];
   static getDeploymentDetailKey = (address: string, dseq?: string) => ["DEPLOYMENT_DETAIL", address, dseq].filter(Boolean);
   static getAllLeasesKey = (address: string, state?: string | readonly string[]) => {
     const stateKey = Array.isArray(state) ? state.join(",") : state;
