@@ -1,3 +1,5 @@
+import "./legacy-dec-coin-precision";
+
 import * as legacyV1beta1 from "@akashnetwork/akash-api/v1beta1";
 import * as legacyV1beta2 from "@akashnetwork/akash-api/v1beta2";
 import * as legacyV1beta3 from "@akashnetwork/akash-api/v1beta3";
