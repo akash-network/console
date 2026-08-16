@@ -3,7 +3,7 @@ import chunk from "lodash/chunk";
 import { inject, singleton } from "tsyringe";
 
 import type { AkashBlockChanges, ProviderAttribute, ProviderChange } from "@src/akash/akash-changes";
-import { isProviderChange } from "@src/akash/akash-changes";
+import { isProviderAuditChange, isProviderChange, isProviderRegistryChange } from "@src/akash/akash-changes";
 import { INSERT_CHUNK_SIZE } from "@src/db/insert-chunk-size";
 import { ProviderAuditSignatures, Providers } from "@src/db/schema";
 import { sqlExcluded } from "@src/db/sql-excluded";
@@ -109,7 +109,7 @@ export class ProviderWriter {
     const skippedOwners = this.#ownersAtOrPastWatermark(states, block.height);
 
     for (const change of block.changes) {
-      if (change.kind === "providerAttributesSigned" || change.kind === "providerAttributesUnsigned") {
+      if (isProviderAuditChange(change)) {
         continue;
       }
       const ownerAccountId = this.#requireId(ownerIds, change.owner);
@@ -223,7 +223,7 @@ export class ProviderWriter {
     const ownerIds = new Map<string, number>();
     for (const block of blocks) {
       for (const change of block.changes) {
-        if (change.kind === "providerCreated" || change.kind === "providerUpdated" || change.kind === "providerDeleted") {
+        if (isProviderRegistryChange(change)) {
           ownerIds.set(change.owner, this.#requireId(accountIds, change.owner));
         }
       }

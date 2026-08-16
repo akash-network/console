@@ -16,10 +16,10 @@ function typeUrlSet(name: string): Set<string> {
 /** All four provider proto eras share the same message shape, so parsing is version-independent. */
 export function normalizeProviderMessage(typeUrl: string, body: Record<string, unknown>): AkashChangeBody | null {
   if (CREATE_PROVIDER.has(typeUrl)) {
-    return normalizeUpsert(body, "providerCreated");
+    return normalizeProviderInfo(body, "providerCreated");
   }
   if (UPDATE_PROVIDER.has(typeUrl)) {
-    return normalizeUpsert(body, "providerUpdated");
+    return normalizeProviderInfo(body, "providerUpdated");
   }
   if (DELETE_PROVIDER.has(typeUrl)) {
     const owner = asString(body.owner);
@@ -28,7 +28,7 @@ export function normalizeProviderMessage(typeUrl: string, body: Record<string, u
   return null;
 }
 
-function normalizeUpsert(body: Record<string, unknown>, kind: "providerCreated" | "providerUpdated"): AkashChangeBody | null {
+function normalizeProviderInfo(body: Record<string, unknown>, kind: "providerCreated" | "providerUpdated"): AkashChangeBody | null {
   const owner = asString(body.owner);
   const hostUri = asString(body.hostUri);
   if (!owner || !hostUri) {

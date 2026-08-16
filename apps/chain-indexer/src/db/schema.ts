@@ -16,6 +16,7 @@ import {
   uniqueIndex
 } from "drizzle-orm/pg-core";
 
+import type { ProviderAttribute } from "@src/akash/akash-changes";
 import { bytea } from "@src/db/bytea";
 
 export const cosmosSchema = pgSchema("cosmos");
@@ -505,11 +506,6 @@ export const DeploymentEvents = akashSchema.table(
   },
   t => [primaryKey({ columns: [t.deploymentId, t.height, t.ordinal] })]
 );
-
-export interface ProviderAttribute {
-  key: string;
-  value: string;
-}
 
 /**
  * Current on-chain provider state, one row per owner — mirroring `akash query provider list`.

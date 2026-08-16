@@ -77,16 +77,22 @@ export type AkashChangeKind = AkashChange["kind"];
 
 export type ProviderChange = ProviderChangeBody & ChangeOrigin;
 
-const PROVIDER_CHANGE_KINDS = new Set<AkashChangeKind>([
-  "providerCreated",
-  "providerUpdated",
-  "providerDeleted",
-  "providerAttributesSigned",
-  "providerAttributesUnsigned"
-]);
+const PROVIDER_REGISTRY_KINDS = new Set<AkashChangeKind>(["providerCreated", "providerUpdated", "providerDeleted"]);
+const PROVIDER_AUDIT_KINDS = new Set<AkashChangeKind>(["providerAttributesSigned", "providerAttributesUnsigned"]);
+
+export type ProviderRegistryChange = Extract<ProviderChange, { kind: "providerCreated" | "providerUpdated" | "providerDeleted" }>;
+export type ProviderAuditChange = Extract<ProviderChange, { kind: "providerAttributesSigned" | "providerAttributesUnsigned" }>;
+
+export function isProviderRegistryChange(change: AkashChange): change is ProviderRegistryChange {
+  return PROVIDER_REGISTRY_KINDS.has(change.kind);
+}
+
+export function isProviderAuditChange(change: AkashChange): change is ProviderAuditChange {
+  return PROVIDER_AUDIT_KINDS.has(change.kind);
+}
 
 export function isProviderChange(change: AkashChange): change is ProviderChange {
-  return PROVIDER_CHANGE_KINDS.has(change.kind);
+  return isProviderRegistryChange(change) || isProviderAuditChange(change);
 }
 
 /** Everything derived from one block, in the exact order the chain applied it (tx order, then message order, then that tx's close events). */
