@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
+import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
 import { DEPENDENCIES, HomeContainer } from "./HomeContainer";
@@ -36,40 +36,21 @@ describe(HomeContainer.name, () => {
     expect(YourAccount).not.toHaveBeenCalled();
   });
 
-  function setup(
-    input: {
-      address?: string;
-      isSettingsInit?: boolean;
-      leases?: LeaseDto[] | null;
-      providers?: ApiProviderList[];
-      deployments?: DeploymentDto[];
-    } = {}
-  ) {
-    const deployments = input.deployments ?? [];
-    const leases = input.leases ?? [];
-    const providers = input.providers ?? [];
-    const refetchDeployments = vi.fn();
-    const refetchLeases = vi.fn();
+  function setup(input: { address?: string; leases?: LeaseDto[]; providers?: ApiProviderList[] } = {}) {
     const getDeploymentName = () => null;
 
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: input.address ?? "" });
     const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () => mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>({ getDeploymentName });
     const useSettings: typeof DEPENDENCIES.useSettings = () =>
       mock<ReturnType<typeof DEPENDENCIES.useSettings>>({
-        isSettingsInit: input.isSettingsInit ?? true,
+        isSettingsInit: true,
         settings: mock<ReturnType<typeof DEPENDENCIES.useSettings>["settings"]>({ apiEndpoint: "http://localhost" })
       });
     const useWalletBalance: typeof DEPENDENCIES.useWalletBalance = () =>
       mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>({ balance: null, isLoading: false });
-    const useProviderList = vi.fn<typeof DEPENDENCIES.useProviderList>(() =>
-      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProviderList>>(), { data: providers, isFetching: false })
-    );
-    const useDeploymentList = vi.fn<typeof DEPENDENCIES.useDeploymentList>(() =>
-      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentList>>(), { data: deployments, isFetching: false, refetch: refetchDeployments })
-    );
-    const useAllLeases = vi.fn<typeof DEPENDENCIES.useAllLeases>(() =>
-      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAllLeases>>(), { data: leases, isFetching: false, refetch: refetchLeases })
-    );
+    const useProviderList = mockQueryHook<typeof DEPENDENCIES.useProviderList>(input.providers ?? []);
+    const useDeploymentList = mockQueryHook<typeof DEPENDENCIES.useDeploymentList>([]);
+    const useAllLeases = mockQueryHook<typeof DEPENDENCIES.useAllLeases>(input.leases ?? []);
     const YourAccount = vi.fn(() => <div>your account</div>);
 
     render(
@@ -87,6 +68,12 @@ describe(HomeContainer.name, () => {
       />
     );
 
-    return { useAllLeases, useDeploymentList, useProviderList, YourAccount };
+    return { useAllLeases, useDeploymentList, YourAccount };
+  }
+
+  /** Returns the same result object on every render so `data`/`refetch` refs stay stable for the component's effect deps. */
+  function mockQueryHook<THook extends (...args: never[]) => { data: unknown }>(data: ReturnType<THook>["data"]) {
+    const result = Object.assign(mock<ReturnType<THook>>(), { data, isFetching: false, refetch: vi.fn() });
+    return vi.fn(() => result);
   }
 });

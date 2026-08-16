@@ -36,17 +36,15 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-export function HomeContainer({ dependencies = DEPENDENCIES }: Props) {
-  const { useWallet, useLocalNotes, useSettings, useWalletBalance, useProviderList, useDeploymentList, useAllLeases, Layout, WelcomePanel, YourAccount } =
-    dependencies;
-  const { address } = useWallet();
+export function HomeContainer({ dependencies: d = DEPENDENCIES }: Props) {
+  const { address } = d.useWallet();
   const [activeDeployments, setActiveDeployments] = useState<DeploymentDto[]>([]);
-  const { getDeploymentName } = useLocalNotes();
+  const { getDeploymentName } = d.useLocalNotes();
   const {
     data: deployments,
     isFetching: isLoadingDeployments,
     refetch: getDeployments
-  } = useDeploymentList(
+  } = d.useDeploymentList(
     address,
     {
       enabled: false
@@ -59,11 +57,11 @@ export function HomeContainer({ dependencies = DEPENDENCIES }: Props) {
     }
   }, [deployments, getDeploymentName]);
 
-  const { settings, isSettingsInit } = useSettings();
+  const { settings, isSettingsInit } = d.useSettings();
   const { apiEndpoint } = settings;
-  const { balance: walletBalance, isLoading: isLoadingBalances } = useWalletBalance();
-  const { data: providers, isFetching: isLoadingProviders } = useProviderList();
-  const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false, state: LIVE_LEASE_STATES });
+  const { balance: walletBalance, isLoading: isLoadingBalances } = d.useWalletBalance();
+  const { data: providers, isFetching: isLoadingProviders } = d.useProviderList();
+  const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = d.useAllLeases(address, { enabled: false, state: LIVE_LEASE_STATES });
 
   useEffect(() => {
     if (address && isSettingsInit) {
@@ -80,16 +78,16 @@ export function HomeContainer({ dependencies = DEPENDENCIES }: Props) {
   }, [isSettingsInit, getDeployments, apiEndpoint, address]);
 
   return (
-    <Layout
+    <d.Layout
       containerClassName="flex h-full flex-col justify-between"
       isLoading={isLoadingDeployments || isLoadingBalances || isLoadingProviders || isLoadingLeases}
     >
       <div>
         <div className="mb-6">
-          <WelcomePanel />
+          <d.WelcomePanel />
         </div>
         {isSettingsInit && !!address && (
-          <YourAccount
+          <d.YourAccount
             isLoadingBalances={isLoadingBalances}
             walletBalance={walletBalance}
             activeDeployments={activeDeployments}
@@ -98,6 +96,6 @@ export function HomeContainer({ dependencies = DEPENDENCIES }: Props) {
           />
         )}
       </div>
-    </Layout>
+    </d.Layout>
   );
 }
