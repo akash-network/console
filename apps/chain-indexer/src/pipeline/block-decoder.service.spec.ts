@@ -1,5 +1,6 @@
 import { Registry } from "@cosmjs/proto-signing";
 import { defaultRegistryTypes } from "@cosmjs/stargate";
+import { MsgExec } from "cosmjs-types/cosmos/authz/v1beta1/tx";
 import { MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
 import { AuthInfo, TxBody, TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { createHash } from "node:crypto";
@@ -164,6 +165,59 @@ describe(BlockDecoderService.name, () => {
 
     expect(tx.code).toBe(11);
     expect(tx.events.map(e => e.type)).toEqual(["coin_spent", "coin_received"]);
+  });
+
+  it("captures akash close events for the deployment handler", () => {
+    const { decoder } = setup();
+    const rawTx = buildMsgSendTx();
+    const txResult: RpcTxResult = {
+      code: 0,
+      gas_used: "0",
+      gas_wanted: "0",
+      events: [
+        event("akash.v1", { action: "deployment-closed", owner: "akash1owner", dseq: "3" }),
+        event("akash.deployment.v1.EventDeploymentClosed", { id: '{"owner":"akash1owner","dseq":"3"}' }),
+        event("akash.market.v1.EventLeaseClosed", { id: '{"owner":"akash1owner","dseq":"3","gseq":1,"oseq":1,"provider":"akash1prov"}' })
+      ]
+    };
+
+    const [tx] = decoder.decode(buildBlock({ txs: [rawTx.toString("base64")] }), buildBlockResults([txResult])).transactions;
+
+    expect(tx.events.map(e => e.type)).toEqual(["akash.v1", "akash.deployment.v1.EventDeploymentClosed", "akash.market.v1.EventLeaseClosed"]);
+  });
+
+  it("additively decodes MsgExec inner messages, recursing into nested execs", () => {
+    const { decoder } = setup();
+    const innerExec = MsgExec.encode(
+      MsgExec.fromPartial({ grantee: "akash1inner", msgs: [{ typeUrl: "/cosmos.bank.v1beta1.MsgSend", value: encodeMsgSendValue() }] })
+    ).finish();
+    const outerExec = MsgExec.encode(
+      MsgExec.fromPartial({ grantee: "akash1outer", msgs: [{ typeUrl: "/cosmos.authz.v1beta1.MsgExec", value: innerExec }] })
+    ).finish();
+    const rawTx = buildMsgSendTx("/cosmos.authz.v1beta1.MsgExec", outerExec);
+
+    const decoded = decoder.decode(buildBlock({ txs: [rawTx.toString("base64")] }), buildBlockResults([{ code: 0, gas_used: "0", gas_wanted: "0" }]));
+
+    const body = decoded.transactions[0].messages[0].body as {
+      msgs: Array<{ typeUrl: string; value: string; decoded: { msgs: Array<{ decoded: unknown }> } }>;
+    };
+    expect(body.msgs[0].typeUrl).toBe("/cosmos.authz.v1beta1.MsgExec");
+    expect(body.msgs[0].value).toBe(Buffer.from(innerExec).toString("base64"));
+    expect(body.msgs[0].decoded.msgs[0].decoded).toMatchObject({ fromAddress: "akash1from", toAddress: "akash1to" });
+  });
+
+  it("marks undecodable MsgExec inner messages with a null decoded field without failing the exec", () => {
+    const { decoder } = setup();
+    const exec = MsgExec.encode(
+      MsgExec.fromPartial({ grantee: "akash1outer", msgs: [{ typeUrl: "/akash.unknown.v1.MsgMystery", value: new Uint8Array([1, 2, 3]) }] })
+    ).finish();
+    const rawTx = buildMsgSendTx("/cosmos.authz.v1beta1.MsgExec", exec);
+
+    const decoded = decoder.decode(buildBlock({ txs: [rawTx.toString("base64")] }), buildBlockResults([{ code: 0, gas_used: "0", gas_wanted: "0" }]));
+
+    const [message] = decoded.transactions[0].messages;
+    expect(message.decodeFailure).toBeUndefined();
+    expect((message.body as { msgs: Array<{ decoded: unknown }> }).msgs[0].decoded).toBeNull();
   });
 
   it("prefers finalize_block_events for block-level events", () => {

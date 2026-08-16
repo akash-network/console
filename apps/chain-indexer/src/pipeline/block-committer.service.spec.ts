@@ -3,6 +3,7 @@ import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { AkashWriter } from "@src/akash/akash-writer.service";
 import { AccountTxs, Blocks, IndexerState, MessageDeadLetters, Messages, MessageTypes } from "@src/db/schema";
 import type { GovWriter } from "@src/gov/gov-writer.service";
 import type { AccountInterner } from "@src/pipeline/balance/account-interner.service";
@@ -236,6 +237,24 @@ describe(BlockCommitterService.name, () => {
       const order = insertedRows.map(call => call.table);
       expect(order.indexOf(AccountTxs)).toBeLessThan(order.indexOf(IndexerState));
     });
+
+    it("hands the akash writer the derived changes and interns the addresses they reference", async () => {
+      const { committer, akashWriter } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
+
+      await committer.commit(
+        buildBlock([MSG_SEND], 10, {
+          events: [{ type: "akash.deployment.v1.EventDeploymentClosed", attributes: { id: '{"owner":"akash1owner","dseq":"42"}' } }]
+        })
+      );
+
+      expect(akashWriter.write).toHaveBeenCalledWith(
+        expect.anything(),
+        [expect.objectContaining({ height: 10, changes: [expect.objectContaining({ kind: "deploymentClosedEvent" })] })],
+        expect.any(Map)
+      );
+      const accountIds = akashWriter.write.mock.calls[0][2];
+      expect(accountIds.get("akash1owner")).toBeDefined();
+    });
   });
 
   function setup(input?: {
@@ -287,9 +306,10 @@ describe(BlockCommitterService.name, () => {
     });
 
     const govWriter = mock<GovWriter>();
+    const akashWriter = mock<AkashWriter>();
     const logger = mock<LoggerService>();
-    const committer = new BlockCommitterService(dbFake as unknown as ChainDatabase, interner, balanceWriter, govWriter, logger);
-    return { committer, insertedRows, conflictUpdates, deletions, interner, balanceWriter, govWriter, logger };
+    const committer = new BlockCommitterService(dbFake as unknown as ChainDatabase, interner, balanceWriter, govWriter, akashWriter, logger);
+    return { committer, insertedRows, conflictUpdates, deletions, interner, balanceWriter, govWriter, akashWriter, logger };
   }
 
   function buildBlock(

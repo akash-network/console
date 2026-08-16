@@ -16,8 +16,10 @@ import type { RpcBlockResult, RpcBlockResultsResult, RpcEvent, RpcTxResult } fro
 
 /**
  * The ledger derives balances and reasons from the coin/transfer/mint/burn/slash events; the gov events carry
- * proposal ids and lifecycle transitions for the governance handler. Capturing the rest would waste memory
- * across backfill batches.
+ * proposal ids and lifecycle transitions for the governance handler; the akash events catch deployment and
+ * lease closes that happen as side effects of other messages (group close, overdraw) — `akash.v1` is the
+ * legacy string-attribute event of early mainnet, the typed events are the current chain's. Capturing the
+ * rest would waste memory across backfill batches.
  */
 const RELEVANT_EVENT_TYPES = new Set([
   "coin_spent",
@@ -28,10 +30,18 @@ const RELEVANT_EVENT_TYPES = new Set([
   "slash",
   "submit_proposal",
   "active_proposal",
-  "inactive_proposal"
+  "inactive_proposal",
+  "akash.v1",
+  "akash.deployment.v1.EventDeploymentClosed",
+  "akash.market.v1.EventLeaseClosed"
 ]);
 
 const MSG_INDEX_ATTRIBUTE = "msg_index";
+
+const MSG_EXEC_TYPE_URL = "/cosmos.authz.v1beta1.MsgExec";
+
+/** MsgExec nested in MsgExec is legal on-chain; two levels covers every observed use without unbounded recursion. */
+const MAX_EXEC_DECODE_DEPTH = 2;
 
 @singleton()
 export class BlockDecoderService {
@@ -125,9 +135,37 @@ export class BlockDecoderService {
     }
 
     try {
-      return { body: toCanonicalJson(this.#registry.decode(message), this.#maxBodyBytes) };
+      const decoded = this.#registry.decode(message);
+      const enriched = message.typeUrl === MSG_EXEC_TYPE_URL ? this.#decodeExecMessages(decoded, 1) : decoded;
+      return { body: toCanonicalJson(enriched, this.#maxBodyBytes) };
     } catch (error) {
       return { body: null, failure: { raw: message.value, error: error instanceof Error ? error.message : String(error) } };
     }
+  }
+
+  /**
+   * MsgExec carries its inner messages as Any, which canonical JSON would keep as opaque base64. Each
+   * inner message additionally gets a `decoded` field so handlers can read authz-wrapped messages
+   * (every managed-wallet deployment arrives this way). The raw `typeUrl`/`value` pair is kept, and an
+   * inner message that fails to decode gets `decoded: null` rather than dead-lettering the whole exec.
+   */
+  #decodeExecMessages(decoded: unknown, depth: number): unknown {
+    const record = decoded as { msgs?: Array<{ typeUrl: string; value: Uint8Array }> };
+    if (!Array.isArray(record.msgs)) {
+      return decoded;
+    }
+
+    const msgs = record.msgs.map(inner => {
+      try {
+        const innerDecoded = isIgnoredTypeUrl(inner.typeUrl) ? null : this.#registry.decode(inner);
+        const enriched =
+          inner.typeUrl === MSG_EXEC_TYPE_URL && depth < MAX_EXEC_DECODE_DEPTH ? this.#decodeExecMessages(innerDecoded, depth + 1) : innerDecoded;
+        return { ...inner, decoded: enriched };
+      } catch {
+        return { ...inner, decoded: null };
+      }
+    });
+
+    return { ...record, msgs };
   }
 }

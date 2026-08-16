@@ -2,6 +2,10 @@ import { and, between, inArray, isNull, sql } from "drizzle-orm";
 import chunk from "lodash/chunk";
 import { inject, singleton } from "tsyringe";
 
+import type { AkashBlockChanges } from "@src/akash/akash-changes";
+import { collectAkashAddresses } from "@src/akash/akash-changes";
+import { deriveAkashChanges } from "@src/akash/akash-deriver";
+import { AkashWriter } from "@src/akash/akash-writer.service";
 import { INSERT_CHUNK_SIZE } from "@src/db/insert-chunk-size";
 import { insertChunked } from "@src/db/insert-chunked";
 import { AccountTxs, Blocks, IndexerState, MessageDeadLetters, Messages, MessageTypes, Transactions } from "@src/db/schema";
@@ -42,6 +46,7 @@ export class BlockCommitterService {
   readonly #interner: AccountInterner;
   readonly #balanceWriter: BalanceWriter;
   readonly #govWriter: GovWriter;
+  readonly #akashWriter: AkashWriter;
   readonly #logger: LoggerService;
   readonly #moduleRegistry = buildModuleAddressRegistry();
   readonly #typeIds = new Map<string, number>();
@@ -51,12 +56,14 @@ export class BlockCommitterService {
     @inject(AccountInterner) interner: AccountInterner,
     @inject(BalanceWriter) balanceWriter: BalanceWriter,
     @inject(GovWriter) govWriter: GovWriter,
+    @inject(AkashWriter) akashWriter: AkashWriter,
     @inject(LoggerService) logger: LoggerService
   ) {
     this.#db = db;
     this.#interner = interner;
     this.#balanceWriter = balanceWriter;
     this.#govWriter = govWriter;
+    this.#akashWriter = akashWriter;
     this.#logger = logger;
     this.#logger.setContext("COMMITTER");
   }
@@ -124,7 +131,8 @@ export class BlockCommitterService {
 
     const balanceChanges = blocks.flatMap(block => deriveBalanceChanges(block, this.#moduleRegistry));
     const accountTxs = blocks.flatMap(block => deriveAccountTxs(block));
-    const accountIds = await this.#internAccounts(balanceChanges, accountTxs);
+    const akashChanges = blocks.map(block => deriveAkashChanges(block));
+    const accountIds = await this.#internAccounts(balanceChanges, accountTxs, akashChanges);
     const balanceIntents = this.#resolveBalanceChanges(balanceChanges, accountIds);
     const accountTxRows = this.#resolveAccountTxs(accountTxs, accountIds);
 
@@ -139,6 +147,7 @@ export class BlockCommitterService {
       await this.#balanceWriter.write(tx, balanceIntents);
       await insertChunked(tx, AccountTxs, accountTxRows);
       await this.#govWriter.writeForBlocks(tx, blocks, accountIds);
+      await this.#akashWriter.write(tx, akashChanges, accountIds);
 
       await tx
         .insert(IndexerState)
@@ -242,11 +251,15 @@ export class BlockCommitterService {
   }
 
   /**
-   * Interns every address the batch touches — spenders, receivers, correlated counterparties and tx signers —
-   * on the base connection before the commit transaction, so the ledger and activity rows can reference their
-   * account ids by foreign key.
+   * Interns every address the batch touches — spenders, receivers, correlated counterparties, tx signers,
+   * and the deployment owners/providers/depositors of the akash changes — on the base connection before
+   * the commit transaction, so the derived rows can reference their account ids by foreign key.
    */
-  async #internAccounts(balanceChanges: DerivedBalanceChange[], accountTxs: DerivedAccountTx[]): Promise<Map<string, number>> {
+  async #internAccounts(
+    balanceChanges: DerivedBalanceChange[],
+    accountTxs: DerivedAccountTx[],
+    akashChanges: AkashBlockChanges[]
+  ): Promise<Map<string, number>> {
     const addresses = new Set<string>();
 
     for (const change of balanceChanges) {
@@ -257,6 +270,9 @@ export class BlockCommitterService {
     }
     for (const row of accountTxs) {
       addresses.add(row.address);
+    }
+    for (const address of collectAkashAddresses(akashChanges)) {
+      addresses.add(address);
     }
 
     return this.#interner.resolve(addresses);
