@@ -11,6 +11,7 @@ import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import type { DeploymentDto } from "@src/types/deployment";
+import { LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
 import Layout from "../layout/Layout";
 import { WelcomePanel } from "./WelcomePanel";
 
@@ -18,7 +19,26 @@ const YourAccount = dynamic(() => import("./YourAccount/YourAccount").then(m => 
   ssr: false
 });
 
-export function HomeContainer() {
+export const DEPENDENCIES = {
+  useWallet,
+  useLocalNotes,
+  useSettings,
+  useWalletBalance,
+  useProviderList,
+  useDeploymentList,
+  useAllLeases,
+  Layout,
+  WelcomePanel,
+  YourAccount
+};
+
+type Props = {
+  dependencies?: typeof DEPENDENCIES;
+};
+
+export function HomeContainer({ dependencies = DEPENDENCIES }: Props) {
+  const { useWallet, useLocalNotes, useSettings, useWalletBalance, useProviderList, useDeploymentList, useAllLeases, Layout, WelcomePanel, YourAccount } =
+    dependencies;
   const { address } = useWallet();
   const [activeDeployments, setActiveDeployments] = useState<DeploymentDto[]>([]);
   const { getDeploymentName } = useLocalNotes();
@@ -43,7 +63,7 @@ export function HomeContainer() {
   const { apiEndpoint } = settings;
   const { balance: walletBalance, isLoading: isLoadingBalances } = useWalletBalance();
   const { data: providers, isFetching: isLoadingProviders } = useProviderList();
-  const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
+  const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false, state: LIVE_LEASE_STATES });
 
   useEffect(() => {
     if (address && isSettingsInit) {
