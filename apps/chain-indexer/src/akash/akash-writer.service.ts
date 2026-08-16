@@ -6,6 +6,7 @@ import type { AkashBlockChanges, DeploymentKey, NormalizedResource } from "@src/
 import { decFromString, decToString } from "@src/akash/dec";
 import type { BidStateValue, DeploymentAggState, GroupStateValue, ReducerWarning } from "@src/akash/deployment-reducer";
 import { applyBlockChanges, stateKey } from "@src/akash/deployment-reducer";
+import { sumLeaseRate } from "@src/akash/settlement";
 import { insertChunked } from "@src/db/insert-chunked";
 import { Accounts, Bids, DeploymentEvents, DeploymentGroupResources, DeploymentGroups, Deployments, Leases } from "@src/db/schema";
 import { sqlExcluded } from "@src/db/sql-excluded";
@@ -95,7 +96,7 @@ export class AkashWriter {
       return { states, deploymentIds, groupIds, loadedAddressIds };
     }
 
-    const keyByOwnerDseq = new Map(keyed.map(entry => [`${entry.ownerAccountId}/${normalizeDseq(entry.key.dseq)}`, entry.key]));
+    const keyByOwnerDseq = new Map(keyed.map(entry => [ownerDseqKey(entry.ownerAccountId, entry.key.dseq), entry.key]));
     const ids = deploymentRows.map(row => row.id);
     const [groupRows, resourceRows, bidRows, leaseRows] = await Promise.all([
       tx.select().from(DeploymentGroups).where(inArray(DeploymentGroups.deploymentId, ids)),
@@ -122,7 +123,7 @@ export class AkashWriter {
     const leasesByDeployment = groupBy(leaseRows, row => row.deploymentId);
 
     for (const row of deploymentRows) {
-      const key = keyByOwnerDseq.get(`${row.ownerAccountId}/${normalizeDseq(row.dseq)}`);
+      const key = keyByOwnerDseq.get(ownerDseqKey(row.ownerAccountId, row.dseq));
       if (!key) {
         continue;
       }
@@ -232,7 +233,7 @@ export class AkashWriter {
       deposit: state.deposit.toString(),
       balance: decToString(state.balance),
       withdrawnAmount: decToString(state.withdrawn),
-      blockRate: decToString(state.leases.filter(lease => lease.closedHeight === null).reduce((sum, lease) => sum + lease.price, 0n)),
+      blockRate: decToString(sumLeaseRate(state.leases.filter(lease => lease.closedHeight === null))),
       lastWithdrawHeight: state.lastWithdrawHeight,
       lastProcessedHeight: state.lastProcessedHeight,
       createdHeight: state.createdHeight,
@@ -268,9 +269,9 @@ export class AkashWriter {
       })
       .returning({ id: Deployments.id, ownerAccountId: Deployments.ownerAccountId, dseq: Deployments.dseq });
 
-    const idByOwnerDseq = new Map(inserted.map(row => [`${row.ownerAccountId}/${normalizeDseq(row.dseq)}`, row.id]));
+    const idByOwnerDseq = new Map(inserted.map(row => [ownerDseqKey(row.ownerAccountId, row.dseq), row.id]));
     for (const state of touched) {
-      const id = idByOwnerDseq.get(`${this.#requireId(accountIds, state.key.owner)}/${normalizeDseq(state.key.dseq)}`);
+      const id = idByOwnerDseq.get(ownerDseqKey(this.#requireId(accountIds, state.key.owner), state.key.dseq));
       if (id !== undefined) {
         deploymentIds.set(stateKey(state.key), id);
       }
@@ -282,9 +283,9 @@ export class AkashWriter {
         tx,
         missing.map(state => ({ key: state.key, ownerAccountId: this.#requireId(accountIds, state.key.owner) }))
       );
-      const keyByOwnerDseq = new Map(missing.map(state => [`${this.#requireId(accountIds, state.key.owner)}/${normalizeDseq(state.key.dseq)}`, state.key]));
+      const keyByOwnerDseq = new Map(missing.map(state => [ownerDseqKey(this.#requireId(accountIds, state.key.owner), state.key.dseq), state.key]));
       for (const row of rowsForMissing) {
-        const key = keyByOwnerDseq.get(`${row.ownerAccountId}/${normalizeDseq(row.dseq)}`);
+        const key = keyByOwnerDseq.get(ownerDseqKey(row.ownerAccountId, row.dseq));
         if (key) {
           deploymentIds.set(stateKey(key), row.id);
         }
@@ -510,6 +511,11 @@ function toNormalizedResource(resource: typeof DeploymentGroupResources.$inferSe
 /** Postgres normalizes numeric literals (e.g. strips leading zeros), so dseq comparisons go through one canonical form. */
 function normalizeDseq(dseq: string): string {
   return BigInt(dseq).toString();
+}
+
+/** The (interned owner account id, canonical dseq) pair that keys a deployment across the load and flush maps. */
+function ownerDseqKey(ownerAccountId: number, dseq: string): string {
+  return `${ownerAccountId}/${normalizeDseq(dseq)}`;
 }
 
 function compareDseq(a: string, b: string): number {

@@ -239,6 +239,18 @@ describe("applyBlockChanges", () => {
     expect(get(states).leases[0].price).toBe(0n);
   });
 
+  it("closes the order's other open bids when a lease is created", () => {
+    const { states } = setup();
+    const rivalBid = { ...LEASE_KEY, provider: "akash1rival" };
+
+    applyBlockChanges(states, block(100, [create({}), bidCreated("10"), { kind: "bidCreated", key: rivalBid, price: "9", priceDenom: "uakt" }]));
+    applyBlockChanges(states, block(110, [leaseCreated()]));
+
+    const state = get(states);
+    expect(state.bids.find(bid => bid.provider === PROVIDER)).toMatchObject({ state: "active" });
+    expect(state.bids.find(bid => bid.provider === "akash1rival")).toMatchObject({ state: "closed", closedHeight: 110 });
+  });
+
   function setup() {
     return { states: new Map<string, DeploymentAggState>() };
   }

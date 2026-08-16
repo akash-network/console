@@ -10,6 +10,14 @@ export interface LeaseKey extends DeploymentKey {
   provider: string;
 }
 
+/** A lease/bid's identity within its deployment: the order (gseq, oseq) and the specific bid (bseq, provider), without the owner/dseq. */
+export type LeaseSlot = Pick<LeaseKey, "gseq" | "oseq" | "bseq" | "provider">;
+
+/** The set of versioned type URLs for one akash message across proto eras, e.g. `/akash.market.v1beta5.MsgCreateBid`. */
+export function akashTypeUrlSet(module: string, name: string, versions: readonly string[]): Set<string> {
+  return new Set(versions.map(version => `/akash.${module}.${version}.${name}`));
+}
+
 export interface NormalizedResource {
   count: number;
   cpuUnits: number;

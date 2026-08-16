@@ -1,8 +1,6 @@
-import type { AkashChangeBody, LeaseKey } from "@src/akash/akash-changes";
+import { type AkashChangeBody, akashTypeUrlSet, type LeaseKey } from "@src/akash/akash-changes";
 import { asInteger, asRecord, asString } from "@src/akash/json";
 import { deploymentKey } from "@src/akash/normalize-deployment";
-
-type NormalizedChange = AkashChangeBody;
 
 const MARKET_VERSIONS = ["v1beta1", "v1beta2", "v1beta3", "v1beta4", "v1beta5"] as const;
 
@@ -13,14 +11,10 @@ const CLOSE_LEASE = typeUrlSet("MsgCloseLease");
 const WITHDRAW_LEASE = typeUrlSet("MsgWithdrawLease");
 
 function typeUrlSet(name: string): Set<string> {
-  return new Set(MARKET_VERSIONS.map(version => `/akash.market.${version}.${name}`));
+  return akashTypeUrlSet("market", name, MARKET_VERSIONS);
 }
 
-export function isMarketTypeUrl(typeUrl: string): boolean {
-  return CREATE_BID.has(typeUrl) || CLOSE_BID.has(typeUrl) || CREATE_LEASE.has(typeUrl) || CLOSE_LEASE.has(typeUrl) || WITHDRAW_LEASE.has(typeUrl);
-}
-
-export function normalizeMarketMessage(typeUrl: string, body: Record<string, unknown>): NormalizedChange | null {
+export function normalizeMarketMessage(typeUrl: string, body: Record<string, unknown>): AkashChangeBody | null {
   if (CREATE_BID.has(typeUrl)) {
     return normalizeCreateBid(body);
   }
@@ -44,7 +38,7 @@ export function normalizeMarketMessage(typeUrl: string, body: Record<string, unk
 }
 
 /** v1beta1–4 identify the bid by OrderID + a separate provider field; v1beta5 by a full BidID with bseq. */
-function normalizeCreateBid(body: Record<string, unknown>): NormalizedChange | null {
+function normalizeCreateBid(body: Record<string, unknown>): AkashChangeBody | null {
   const key = leaseKey(body.id) ?? leaseKey(body.order, asString(body.provider));
   if (!key) {
     return null;

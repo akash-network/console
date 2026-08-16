@@ -1,9 +1,7 @@
-import type { AkashChangeBody, DeploymentKey } from "@src/akash/akash-changes";
+import { type AkashChangeBody, akashTypeUrlSet, type DeploymentKey } from "@src/akash/akash-changes";
 import { asInteger, asRecord, asString } from "@src/akash/json";
 import { normalizeGroups } from "@src/akash/resources";
 import { asUint64String } from "@src/akash/uint64";
-
-type NormalizedChange = AkashChangeBody;
 
 const DEPLOYMENT_VERSIONS = ["v1beta1", "v1beta2", "v1beta3", "v1beta4"] as const;
 
@@ -17,23 +15,10 @@ const START_GROUP = typeUrlSet("MsgStartGroup");
 const ACCOUNT_DEPOSIT = "/akash.escrow.v1.MsgAccountDeposit";
 
 function typeUrlSet(name: string, versions: readonly string[] = DEPLOYMENT_VERSIONS): Set<string> {
-  return new Set(versions.map(version => `/akash.deployment.${version}.${name}`));
+  return akashTypeUrlSet("deployment", name, versions);
 }
 
-export function isDeploymentTypeUrl(typeUrl: string): boolean {
-  return (
-    CREATE_DEPLOYMENT.has(typeUrl) ||
-    CLOSE_DEPLOYMENT.has(typeUrl) ||
-    UPDATE_DEPLOYMENT.has(typeUrl) ||
-    DEPOSIT_DEPLOYMENT.has(typeUrl) ||
-    CLOSE_GROUP.has(typeUrl) ||
-    PAUSE_GROUP.has(typeUrl) ||
-    START_GROUP.has(typeUrl) ||
-    typeUrl === ACCOUNT_DEPOSIT
-  );
-}
-
-export function normalizeDeploymentMessage(typeUrl: string, body: Record<string, unknown>): NormalizedChange | null {
+export function normalizeDeploymentMessage(typeUrl: string, body: Record<string, unknown>): AkashChangeBody | null {
   if (CREATE_DEPLOYMENT.has(typeUrl)) {
     return normalizeCreate(body);
   }
@@ -63,7 +48,7 @@ export function normalizeDeploymentMessage(typeUrl: string, body: Record<string,
   return null;
 }
 
-function normalizeCreate(body: Record<string, unknown>): NormalizedChange | null {
+function normalizeCreate(body: Record<string, unknown>): AkashChangeBody | null {
   const key = deploymentKey(body.id);
   if (!key) {
     return null;
@@ -79,7 +64,7 @@ function normalizeCreate(body: Record<string, unknown>): NormalizedChange | null
   };
 }
 
-function normalizeDeposit(body: Record<string, unknown>): NormalizedChange | null {
+function normalizeDeposit(body: Record<string, unknown>): AkashChangeBody | null {
   const key = deploymentKey(body.id);
   const amount = asString(asRecord(body.amount)?.amount);
   if (!key || !amount) {
@@ -89,7 +74,7 @@ function normalizeDeposit(body: Record<string, unknown>): NormalizedChange | nul
 }
 
 /** v1-era deposits target a generic escrow account: scope must be `deployment` (1) and `xid` is "owner/dseq". */
-function normalizeAccountDeposit(body: Record<string, unknown>): NormalizedChange | null {
+function normalizeAccountDeposit(body: Record<string, unknown>): AkashChangeBody | null {
   const id = asRecord(body.id);
   const scope = id?.scope;
   if (scope !== 1 && scope !== "deployment") {
@@ -103,7 +88,7 @@ function normalizeAccountDeposit(body: Record<string, unknown>): NormalizedChang
   return { kind: "deploymentDeposited", key: { owner, dseq }, amount, depositor: asString(body.signer) };
 }
 
-function normalizeGroupChange(kind: "groupClosed" | "groupPaused" | "groupStarted", body: Record<string, unknown>): NormalizedChange | null {
+function normalizeGroupChange(kind: "groupClosed" | "groupPaused" | "groupStarted", body: Record<string, unknown>): AkashChangeBody | null {
   const id = asRecord(body.id);
   const key = deploymentKey(id);
   const gseq = asInteger(id?.gseq);

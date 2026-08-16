@@ -7,6 +7,7 @@ import type { EnvConfig } from "@src/config/env.config";
 import { toCanonicalJson } from "@src/pipeline/canonical-json";
 import { decodeIfBase64 } from "@src/pipeline/decode-if-base64";
 import type { DecodedBlock, DecodedEvent, DecodedMessage, DecodedTransaction, MessageDecodeFailure } from "@src/pipeline/decoded-block";
+import { MAX_EXEC_DEPTH, MSG_EXEC_TYPE_URL } from "@src/pipeline/msg-exec";
 import { deriveSignerAddresses } from "@src/pipeline/signer-addresses";
 import { isIgnoredTypeUrl } from "@src/proto/type-catalog";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
@@ -37,11 +38,6 @@ const RELEVANT_EVENT_TYPES = new Set([
 ]);
 
 const MSG_INDEX_ATTRIBUTE = "msg_index";
-
-const MSG_EXEC_TYPE_URL = "/cosmos.authz.v1beta1.MsgExec";
-
-/** MsgExec nested in MsgExec is legal on-chain; two levels covers every observed use without unbounded recursion. */
-const MAX_EXEC_DECODE_DEPTH = 2;
 
 @singleton()
 export class BlockDecoderService {
@@ -158,8 +154,7 @@ export class BlockDecoderService {
     const msgs = record.msgs.map(inner => {
       try {
         const innerDecoded = isIgnoredTypeUrl(inner.typeUrl) ? null : this.#registry.decode(inner);
-        const enriched =
-          inner.typeUrl === MSG_EXEC_TYPE_URL && depth < MAX_EXEC_DECODE_DEPTH ? this.#decodeExecMessages(innerDecoded, depth + 1) : innerDecoded;
+        const enriched = inner.typeUrl === MSG_EXEC_TYPE_URL && depth < MAX_EXEC_DEPTH ? this.#decodeExecMessages(innerDecoded, depth + 1) : innerDecoded;
         return { ...inner, decoded: enriched };
       } catch {
         return { ...inner, decoded: null };

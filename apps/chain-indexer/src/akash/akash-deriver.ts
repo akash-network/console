@@ -1,13 +1,10 @@
 import type { AkashBlockChanges, AkashChange, AkashChangeBody } from "@src/akash/akash-changes";
 import { asInteger, asRecord, asString } from "@src/akash/json";
-import { isDeploymentTypeUrl, normalizeDeploymentMessage } from "@src/akash/normalize-deployment";
-import { isMarketTypeUrl, normalizeMarketMessage } from "@src/akash/normalize-market";
+import { normalizeDeploymentMessage } from "@src/akash/normalize-deployment";
+import { normalizeMarketMessage } from "@src/akash/normalize-market";
 import { asUint64String } from "@src/akash/uint64";
 import type { DecodedBlock, DecodedEvent } from "@src/pipeline/decoded-block";
-
-const MSG_EXEC_TYPE_URL = "/cosmos.authz.v1beta1.MsgExec";
-
-const MAX_EXEC_DEPTH = 2;
+import { MAX_EXEC_DEPTH, MSG_EXEC_TYPE_URL } from "@src/pipeline/msg-exec";
 
 const LEGACY_EVENT_TYPE = "akash.v1";
 const DEPLOYMENT_CLOSED_EVENT_TYPE = "akash.deployment.v1.EventDeploymentClosed";
@@ -59,11 +56,7 @@ function addMessage(changes: AkashChange[], typeUrl: string, body: unknown, txIn
     return;
   }
 
-  const normalized = isDeploymentTypeUrl(typeUrl)
-    ? normalizeDeploymentMessage(typeUrl, record)
-    : isMarketTypeUrl(typeUrl)
-      ? normalizeMarketMessage(typeUrl, record)
-      : null;
+  const normalized = normalizeDeploymentMessage(typeUrl, record) ?? normalizeMarketMessage(typeUrl, record);
 
   if (normalized) {
     changes.push({ ...normalized, txIndex, msgIndex });

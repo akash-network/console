@@ -1,7 +1,7 @@
-import type { AkashBlockChanges, AkashChange, DeploymentKey, NormalizedGroup, NormalizedResource } from "@src/akash/akash-changes";
+import type { AkashBlockChanges, AkashChange, DeploymentKey, LeaseSlot, NormalizedGroup, NormalizedResource } from "@src/akash/akash-changes";
 import { decCeilInt, decFromInt, decFromString, decQuo, decToString, decTruncateInt } from "@src/akash/dec";
 import { normalizeDenom } from "@src/akash/denom";
-import { settle } from "@src/akash/settlement";
+import { settle, sumLeaseRate } from "@src/akash/settlement";
 import type { bidState, deploymentCloseReason, deploymentEventType, groupState } from "@src/db/schema";
 
 export type DeploymentCloseReason = (typeof deploymentCloseReason.enumValues)[number];
@@ -225,7 +225,7 @@ function applyDeposit(state: DeploymentAggState, change: Extract<AkashChange, { 
   state.balance += decFromString(change.amount);
 
   const openLeases = state.leases.filter(lease => lease.closedHeight === null);
-  const blockRate = openLeases.reduce((sum, lease) => sum + lease.price, 0n);
+  const blockRate = sumLeaseRate(openLeases);
   for (const lease of openLeases) {
     lease.predictedClosedHeight = predictClosedHeight(state.lastWithdrawHeight ?? lease.createdHeight, state.balance, blockRate);
   }
@@ -353,6 +353,8 @@ function applyLeaseCreated(
   if (bid) {
     bid.state = "active";
   }
+
+  closeLosingBids(state, change.key, block.height);
 
   addEvent(state, block, change, "lease_created", bidEventDetails(change.key, bid ? decToString(bid.price) : undefined, bid?.denom));
 }
@@ -490,6 +492,16 @@ function closeOpenBids(state: DeploymentAggState, height: number): void {
   }
 }
 
+/** Creating a lease matches and closes the order, so the chain closes every other still-open bid on the same (gseq, oseq). */
+function closeLosingBids(state: DeploymentAggState, winning: LeaseSlot, height: number): void {
+  for (const bid of state.bids) {
+    if (bid.state !== "closed" && bid.gseq === winning.gseq && bid.oseq === winning.oseq && !sameLeaseKey(bid, winning)) {
+      bid.state = "closed";
+      bid.closedHeight = height;
+    }
+  }
+}
+
 /**
  * The legacy predicted-close formula, `base + ceil(balance / rate)`, on exact math. A zero rate means
  * the balance never depletes; the prediction is pinned to the base height so draining queries treat
@@ -513,7 +525,7 @@ function addEvent(
   state.events.push({ height: block.height, ordinal, txIndex: change.txIndex, msgIndex: change.msgIndex, type, details });
 }
 
-function bidEventDetails(key: { gseq: number; oseq: number; bseq: number; provider: string }, price?: string, denom?: string): Record<string, unknown> {
+function bidEventDetails(key: LeaseSlot, price?: string, denom?: string): Record<string, unknown> {
   return {
     gseq: key.gseq,
     oseq: key.oseq,
@@ -524,14 +536,11 @@ function bidEventDetails(key: { gseq: number; oseq: number; bseq: number; provid
   };
 }
 
-function findOpenLease(state: DeploymentAggState, key: { gseq: number; oseq: number; bseq: number; provider: string }): LeaseAggState | undefined {
+function findOpenLease(state: DeploymentAggState, key: LeaseSlot): LeaseAggState | undefined {
   return state.leases.find(candidate => candidate.closedHeight === null && sameLeaseKey(candidate, key));
 }
 
-function sameLeaseKey(
-  a: { gseq: number; oseq: number; bseq: number; provider: string },
-  b: { gseq: number; oseq: number; bseq: number; provider: string }
-): boolean {
+function sameLeaseKey(a: LeaseSlot, b: LeaseSlot): boolean {
   return a.gseq === b.gseq && a.oseq === b.oseq && a.bseq === b.bseq && a.provider === b.provider;
 }
 

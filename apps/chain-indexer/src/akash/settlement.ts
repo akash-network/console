@@ -24,6 +24,11 @@ export interface SettlementResult {
 /** Escrow accounts settle to at most 1 u-denom unit of rounding dust on an overdraw close. */
 const MAX_SETTLEMENT_DUST = 10n ** 18n;
 
+/** The block rate is the sum of the open leases' per-block prices; callers pass the leases they consider open. */
+export function sumLeaseRate<T extends { price: bigint }>(leases: T[]): bigint {
+  return leases.reduce((sum, lease) => sum + lease.price, 0n);
+}
+
 /**
  * Port of akash-node x/escrow account settlement (x/escrow/keeper, accountSettle) on exact LegacyDec
  * math. Mutates the passed state objects: moves the exact Dec accrual since the last settlement from
@@ -33,7 +38,7 @@ const MAX_SETTLEMENT_DUST = 10n ** 18n;
  * settlement only accrues.
  */
 export function settle(deployment: SettlementDeployment, openLeases: SettlementLease[], height: number): SettlementResult {
-  const blockRate = openLeases.reduce((sum, lease) => sum + lease.price, 0n);
+  const blockRate = sumLeaseRate(openLeases);
 
   if (height === deployment.lastWithdrawHeight) return { blockRate, overdrawn: false };
 
