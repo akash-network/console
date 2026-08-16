@@ -166,6 +166,15 @@ describe("applyBlockChanges", () => {
     expect(warnings).toEqual([{ code: "AKASH_ORPHAN_REFERENCE", kind: "deploymentDeposited", owner: OWNER, dseq: "42", height: 100 }]);
   });
 
+  it("ignores provider changes without warning or mutating state", () => {
+    const { states } = setup();
+
+    const warnings = applyBlockChanges(states, block(100, [{ kind: "providerDeleted", owner: OWNER }]));
+
+    expect(states.size).toBe(0);
+    expect(warnings).toEqual([]);
+  });
+
   it("applies close-event fallbacks with settlement, only when not already closed", () => {
     const { states } = setup();
 

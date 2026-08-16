@@ -6,6 +6,7 @@ import type { AkashBlockChanges } from "@src/akash/akash-changes";
 import { collectAkashAddresses } from "@src/akash/akash-changes";
 import { deriveAkashChanges } from "@src/akash/akash-deriver";
 import { AkashWriter } from "@src/akash/akash-writer.service";
+import { ProviderWriter } from "@src/akash/provider-writer.service";
 import { INSERT_CHUNK_SIZE } from "@src/db/insert-chunk-size";
 import { insertChunked } from "@src/db/insert-chunked";
 import { AccountTxs, Blocks, IndexerState, MessageDeadLetters, Messages, MessageTypes, Transactions } from "@src/db/schema";
@@ -47,6 +48,7 @@ export class BlockCommitterService {
   readonly #balanceWriter: BalanceWriter;
   readonly #govWriter: GovWriter;
   readonly #akashWriter: AkashWriter;
+  readonly #providerWriter: ProviderWriter;
   readonly #logger: LoggerService;
   readonly #moduleRegistry = buildModuleAddressRegistry();
   readonly #typeIds = new Map<string, number>();
@@ -57,6 +59,7 @@ export class BlockCommitterService {
     @inject(BalanceWriter) balanceWriter: BalanceWriter,
     @inject(GovWriter) govWriter: GovWriter,
     @inject(AkashWriter) akashWriter: AkashWriter,
+    @inject(ProviderWriter) providerWriter: ProviderWriter,
     @inject(LoggerService) logger: LoggerService
   ) {
     this.#db = db;
@@ -64,6 +67,7 @@ export class BlockCommitterService {
     this.#balanceWriter = balanceWriter;
     this.#govWriter = govWriter;
     this.#akashWriter = akashWriter;
+    this.#providerWriter = providerWriter;
     this.#logger = logger;
     this.#logger.setContext("COMMITTER");
   }
@@ -148,6 +152,7 @@ export class BlockCommitterService {
       await insertChunked(tx, AccountTxs, accountTxRows);
       await this.#govWriter.writeForBlocks(tx, blocks, accountIds);
       await this.#akashWriter.write(tx, akashChanges, accountIds);
+      await this.#providerWriter.write(tx, akashChanges, accountIds);
 
       await tx
         .insert(IndexerState)

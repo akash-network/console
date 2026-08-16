@@ -3,6 +3,7 @@ import groupBy from "lodash/groupBy";
 import { inject, singleton } from "tsyringe";
 
 import type { AkashBlockChanges, DeploymentKey, NormalizedResource } from "@src/akash/akash-changes";
+import { isProviderChange } from "@src/akash/akash-changes";
 import { decFromString, decToString } from "@src/akash/dec";
 import type { BidStateValue, DeploymentAggState, GroupStateValue, ReducerWarning } from "@src/akash/deployment-reducer";
 import { applyBlockChanges, stateKey } from "@src/akash/deployment-reducer";
@@ -42,6 +43,9 @@ export class AkashWriter {
     }
 
     const keyed = this.#collectKeys(withChanges, accountIds);
+    if (keyed.length === 0) {
+      return;
+    }
     const { states, deploymentIds, groupIds, loadedAddressIds } = await this.#loadStates(tx, keyed);
 
     const warnings = withChanges.flatMap(block => applyBlockChanges(states, block));
@@ -68,6 +72,9 @@ export class AkashWriter {
     const byKey = new Map<string, DeploymentKey>();
     for (const block of blocks) {
       for (const change of block.changes) {
+        if (isProviderChange(change)) {
+          continue;
+        }
         byKey.set(stateKey(change.key), change.key);
       }
     }

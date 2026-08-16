@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AkashWriter } from "@src/akash/akash-writer.service";
+import type { ProviderWriter } from "@src/akash/provider-writer.service";
 import { AccountTxs, Blocks, IndexerState, MessageDeadLetters, Messages, MessageTypes } from "@src/db/schema";
 import type { GovWriter } from "@src/gov/gov-writer.service";
 import type { AccountInterner } from "@src/pipeline/balance/account-interner.service";
@@ -255,6 +256,18 @@ describe(BlockCommitterService.name, () => {
       const accountIds = akashWriter.write.mock.calls[0][2];
       expect(accountIds.get("akash1owner")).toBeDefined();
     });
+
+    it("hands the provider writer the same derived changes and account ids as the akash writer", async () => {
+      const { committer, akashWriter, providerWriter } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
+
+      await committer.commit(
+        buildBlock([MSG_SEND], 10, {
+          events: [{ type: "akash.deployment.v1.EventDeploymentClosed", attributes: { id: '{"owner":"akash1owner","dseq":"42"}' } }]
+        })
+      );
+
+      expect(providerWriter.write).toHaveBeenCalledWith(expect.anything(), akashWriter.write.mock.calls[0][1], akashWriter.write.mock.calls[0][2]);
+    });
   });
 
   function setup(input?: {
@@ -307,9 +320,10 @@ describe(BlockCommitterService.name, () => {
 
     const govWriter = mock<GovWriter>();
     const akashWriter = mock<AkashWriter>();
+    const providerWriter = mock<ProviderWriter>();
     const logger = mock<LoggerService>();
-    const committer = new BlockCommitterService(dbFake as unknown as ChainDatabase, interner, balanceWriter, govWriter, akashWriter, logger);
-    return { committer, insertedRows, conflictUpdates, deletions, interner, balanceWriter, govWriter, akashWriter, logger };
+    const committer = new BlockCommitterService(dbFake as unknown as ChainDatabase, interner, balanceWriter, govWriter, akashWriter, providerWriter, logger);
+    return { committer, insertedRows, conflictUpdates, deletions, interner, balanceWriter, govWriter, akashWriter, providerWriter, logger };
   }
 
   function buildBlock(

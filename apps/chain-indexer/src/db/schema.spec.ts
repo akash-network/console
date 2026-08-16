@@ -17,6 +17,8 @@ import {
   ProposalDeposits,
   Proposals,
   ProposalVotes,
+  ProviderAuditSignatures,
+  Providers,
   UnbondingDelegations,
   Validators
 } from "@src/db/schema";
@@ -182,5 +184,27 @@ describe("akash deployment schema", () => {
 
     expect(config.primaryKeys[0].columns.map(column => column.name)).toEqual(["deployment_id", "height", "ordinal"]);
     expect(config.columns.find(column => column.name === "tx_index")?.notNull).toBe(false);
+  });
+});
+
+describe("akash provider schema", () => {
+  it("keys providers by their owner account with lifecycle heights and the replay watermark", () => {
+    const config = getTableConfig(Providers);
+
+    expect(config.name).toBe("providers");
+    expect(config.columns.find(column => column.name === "owner_account_id")?.primary).toBe(true);
+    expect(config.foreignKeys[0].reference().foreignColumns[0].name).toBe("id");
+    expect(config.columns.map(column => column.name)).toEqual(
+      expect.arrayContaining(["host_uri", "email", "website", "attributes", "last_processed_height", "created_height", "updated_height", "deleted_height"])
+    );
+  });
+
+  it("keys audit signatures by owner, auditor and key with account foreign keys for both parties", () => {
+    const config = getTableConfig(ProviderAuditSignatures);
+
+    expect(config.primaryKeys[0].columns.map(column => column.name)).toEqual(["owner_account_id", "auditor_account_id", "key"]);
+    expect(config.foreignKeys).toHaveLength(2);
+    config.foreignKeys.forEach(foreignKey => expect(foreignKey.reference().foreignColumns[0].name).toBe("id"));
+    expect(config.columns.map(column => column.name)).toEqual(expect.arrayContaining(["value", "height"]));
   });
 });
