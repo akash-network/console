@@ -12,6 +12,7 @@
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
     "migration:gen": "drizzle-kit generate",
+    "network:recompute-usd": "npm run build && node --enable-source-maps ./dist/recompute-usd.js",
     "prod": "node --enable-source-maps --require ./dist/instrumentation.js ./dist/server.js",
     "reconcile": "npm run build && node --enable-source-maps ./dist/reconcile.js",
     "start": "tsup --watch",

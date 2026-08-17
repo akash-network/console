@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AkashBlockChanges, AkashChangeBody } from "@src/akash/akash-changes";
 import { AkashWriter } from "@src/akash/akash-writer.service";
+import { decFromInt } from "@src/akash/dec";
 import { Bids, DeploymentEvents, DeploymentGroupResources, DeploymentGroups, Deployments, Leases } from "@src/db/schema";
 import type { ChainTransaction } from "@src/providers/db.provider";
 import type { LoggerService } from "@src/providers/logging.provider";
@@ -23,16 +24,17 @@ describe(AkashWriter.name, () => {
   it("does nothing for blocks without akash changes", async () => {
     const { writer, tx, inserts, selects } = setup();
 
-    await writer.write(tx, [block(100, [])], ACCOUNT_IDS);
+    const { networkDeltas } = await writer.write(tx, [block(100, [])], ACCOUNT_IDS);
 
     expect(inserts).toEqual([]);
     expect(selects).toEqual([]);
+    expect(networkDeltas).toEqual([]);
   });
 
   it("persists a full lifecycle batch as one consistent set of rows", async () => {
     const { writer, tx, inserts, upserts } = setup();
 
-    await writer.write(
+    const { networkDeltas } = await writer.write(
       tx,
       [block(100, [create(), bidCreated("10")]), block(110, [{ kind: "leaseCreated", key: LEASE_KEY }]), block(200, [{ kind: "deploymentClosed", key: KEY }])],
       ACCOUNT_IDS
@@ -83,6 +85,11 @@ describe(AkashWriter.name, () => {
 
     const deploymentUpsert = upserts.find(upsert => upsert.table === Deployments);
     expect(whereSql(deploymentUpsert?.config.setWhere as SQL)).toContain('excluded.last_processed_height >= "akash"."deployments"."last_processed_height"');
+
+    expect(networkDeltas).toEqual([
+      expect.objectContaining({ height: 110, leasesCreated: 1, activeLeaseDelta: 1, cpuUnitsDelta: 2000, earnedDeltaByDenom: new Map() }),
+      expect.objectContaining({ height: 200, activeLeaseDelta: -1, cpuUnitsDelta: -2000, earnedDeltaByDenom: new Map([["uakt", decFromInt(900)]]) })
+    ]);
   });
 
   it("skips flushing entirely when every block is at or below the stored watermark", async () => {
@@ -90,15 +97,16 @@ describe(AkashWriter.name, () => {
       deployments: [deploymentRow({ lastProcessedHeight: 500 })]
     });
 
-    await writer.write(tx, [block(400, [{ kind: "deploymentDeposited", key: KEY, amount: "10", depositor: null }])], ACCOUNT_IDS);
+    const { networkDeltas } = await writer.write(tx, [block(400, [{ kind: "deploymentDeposited", key: KEY, amount: "10", depositor: null }])], ACCOUNT_IDS);
 
     expect(inserts).toEqual([]);
+    expect(networkDeltas).toEqual([]);
   });
 
   it("ignores provider changes entirely", async () => {
     const { writer, tx, inserts, selects, logger } = setup();
 
-    await writer.write(
+    const { networkDeltas } = await writer.write(
       tx,
       [block(100, [{ kind: "providerCreated", owner: OWNER, hostUri: "https://x", email: null, website: null, attributes: [] }])],
       ACCOUNT_IDS
@@ -106,6 +114,7 @@ describe(AkashWriter.name, () => {
 
     expect(inserts).toEqual([]);
     expect(selects).toEqual([]);
+    expect(networkDeltas).toEqual([]);
     expect(logger.warn).not.toHaveBeenCalled();
   });
 

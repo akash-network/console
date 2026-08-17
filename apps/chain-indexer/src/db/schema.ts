@@ -3,6 +3,8 @@ import {
   bigint,
   bigserial,
   boolean,
+  check,
+  date,
   index,
   integer,
   jsonb,
@@ -644,4 +646,80 @@ export const BmeCanceledRecords = akashSchema.table(
     denomToMint: text("denom_to_mint").notNull()
   },
   t => [primaryKey({ columns: [t.recordHeight, t.sequence, t.denom, t.toDenom, t.source] }), index("bme_canceled_records_height_idx").on(t.height)]
+);
+
+/**
+ * Singleton current network state, maintained incrementally inside the per-block transaction so
+ * dashboards read one row instead of scanning leases. `last_aggregated_height` is the replay
+ * watermark: blocks at or below it are duplicates and must not be re-applied. Spend totals are
+ * settlement-exact cumulative provider earnings — Σ(withdrawn + balance) over all leases per denom —
+ * not the legacy rate×blocks estimate, so they reconcile exactly against `akash.leases`.
+ */
+export const NetworkState = akashSchema.table(
+  "network_state",
+  {
+    id: integer("id").primaryKey(),
+    lastAggregatedHeight: bigint("last_aggregated_height", { mode: "number" }).notNull(),
+    lastAggregatedAt: timestamp("last_aggregated_at", { withTimezone: true }).notNull(),
+    activeLeaseCount: integer("active_lease_count").notNull().default(0),
+    totalLeaseCount: bigint("total_lease_count", { mode: "number" }).notNull().default(0),
+    activeProviderCount: integer("active_provider_count").notNull().default(0),
+    activeCpuUnits: bigint("active_cpu_units", { mode: "number" }).notNull().default(0),
+    activeGpuUnits: bigint("active_gpu_units", { mode: "number" }).notNull().default(0),
+    activeMemoryBytes: bigint("active_memory_bytes", { mode: "number" }).notNull().default(0),
+    activeEphemeralStorageBytes: bigint("active_ephemeral_storage_bytes", { mode: "number" }).notNull().default(0),
+    activePersistentStorageBytes: bigint("active_persistent_storage_bytes", { mode: "number" }).notNull().default(0),
+    totalUaktSpent: numeric("total_uakt_spent", { precision: 38, scale: 18 }).notNull().default("0"),
+    totalUusdcSpent: numeric("total_uusdc_spent", { precision: 38, scale: 18 }).notNull().default("0"),
+    totalUactSpent: numeric("total_uact_spent", { precision: 38, scale: 18 }).notNull().default("0")
+  },
+  t => [check("network_state_singleton_check", sql`${t.id} = 1`)]
+);
+
+/**
+ * Append-only daily network rollup, one row per UTC day that had blocks, written atomically with the
+ * first block of the following day. Rows carry both close-of-day cumulatives and per-day deltas in
+ * native denoms; `daily_usd_spent` is filled at day close (or restated later) from `daily_prices`,
+ * with `akt_price_used` marking which price the USD was computed with — a price restatement therefore
+ * updates exactly the affected day's row. Cumulative USD is deliberately not stored: it is a window
+ * SUM over this table on read, so restatements never cascade.
+ */
+export const NetworkRollups = akashSchema.table("network_rollups", {
+  date: date("date", { mode: "string" }).primaryKey(),
+  closeHeight: bigint("close_height", { mode: "number" }).notNull(),
+  closeAt: timestamp("close_at", { withTimezone: true }).notNull(),
+  activeLeaseCount: integer("active_lease_count").notNull(),
+  totalLeaseCount: bigint("total_lease_count", { mode: "number" }).notNull(),
+  dailyLeaseCount: integer("daily_lease_count").notNull(),
+  activeProviderCount: integer("active_provider_count").notNull(),
+  activeCpuUnits: bigint("active_cpu_units", { mode: "number" }).notNull(),
+  activeGpuUnits: bigint("active_gpu_units", { mode: "number" }).notNull(),
+  activeMemoryBytes: bigint("active_memory_bytes", { mode: "number" }).notNull(),
+  activeEphemeralStorageBytes: bigint("active_ephemeral_storage_bytes", { mode: "number" }).notNull(),
+  activePersistentStorageBytes: bigint("active_persistent_storage_bytes", { mode: "number" }).notNull(),
+  totalUaktSpent: numeric("total_uakt_spent", { precision: 38, scale: 18 }).notNull(),
+  totalUusdcSpent: numeric("total_uusdc_spent", { precision: 38, scale: 18 }).notNull(),
+  totalUactSpent: numeric("total_uact_spent", { precision: 38, scale: 18 }).notNull(),
+  dailyUaktSpent: numeric("daily_uakt_spent", { precision: 38, scale: 18 }).notNull(),
+  dailyUusdcSpent: numeric("daily_uusdc_spent", { precision: 38, scale: 18 }).notNull(),
+  dailyUactSpent: numeric("daily_uact_spent", { precision: 38, scale: 18 }).notNull(),
+  dailyUsdSpent: numeric("daily_usd_spent", { precision: 38, scale: 18 }),
+  aktPriceUsed: numeric("akt_price_used", { precision: 38, scale: 18 }),
+  usdComputedAt: timestamp("usd_computed_at", { withTimezone: true })
+});
+
+/**
+ * Daily close prices in USD per whole token, populated by the jobs role (CON-807). Rollup USD values
+ * are recomputed for exactly the days whose price differs from the `akt_price_used` they were
+ * computed with, so this table is the single source of truth for restatements.
+ */
+export const DailyPrices = akashSchema.table(
+  "daily_prices",
+  {
+    date: date("date", { mode: "string" }).notNull(),
+    denom: text("denom").notNull(),
+    price: numeric("price", { precision: 38, scale: 18 }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  t => [primaryKey({ columns: [t.date, t.denom] })]
 );

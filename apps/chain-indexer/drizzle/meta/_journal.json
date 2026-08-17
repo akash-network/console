@@ -64,6 +64,13 @@
       "when": 1786949585273,
       "tag": "0008_good_galactus",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786993129072,
+      "tag": "0009_loud_blue_marvel",
+      "breakpoints": true
     }
   ]
 }
