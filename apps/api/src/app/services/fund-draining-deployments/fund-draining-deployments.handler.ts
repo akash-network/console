@@ -11,6 +11,13 @@ export class FundDrainingDeploymentsHandler implements JobHandler<FundDrainingDe
 
   public readonly concurrency = 2;
 
+  /**
+   * With the per-wallet singletonKey on the command, the `singleton` policy keeps two top-ups for the
+   * same wallet from funding its draining deployments concurrently (a plain `standard` queue ignores
+   * singletonKey), while different wallets still run in parallel up to `concurrency`.
+   */
+  public readonly policy = "singleton";
+
   private readonly logger: ReturnType<CreateLogger>;
 
   constructor(

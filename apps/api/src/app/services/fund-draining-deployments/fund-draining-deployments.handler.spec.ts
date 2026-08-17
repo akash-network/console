@@ -35,6 +35,12 @@ describe(FundDrainingDeploymentsHandler.name, () => {
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "FUND_DRAINING_DEPLOYMENTS_FAILED", error }));
   });
 
+  it("uses the singleton policy so the per-wallet singletonKey serializes same-wallet funding", () => {
+    const { handler } = setup();
+
+    expect(handler.policy).toBe("singleton");
+  });
+
   function setup(params?: { topUpManagedDeploymentsService?: Partial<TopUpManagedDeploymentsService> }) {
     const topUpManagedDeploymentsService = mock<TopUpManagedDeploymentsService>({
       topUpDrainingDeploymentsForOwner: vi.fn().mockResolvedValue(undefined),
