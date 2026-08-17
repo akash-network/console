@@ -6,6 +6,18 @@ export function asString(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+/** Typed proto events carry structured attributes (ids, coins) as JSON strings. */
+export function parseJsonRecord(raw: string | undefined): Record<string, unknown> | null {
+  if (!raw) {
+    return null;
+  }
+  try {
+    return asRecord(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
 export function asInteger(value: unknown): number | null {
   if (typeof value === "number") {
     return Number.isSafeInteger(value) && value >= 0 ? value : null;

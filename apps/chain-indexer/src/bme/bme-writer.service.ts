@@ -3,6 +3,7 @@ import { inject, singleton } from "tsyringe";
 import type { BmeBlockChanges, BmeChange } from "@src/bme/bme-deriver";
 import { insertChunked } from "@src/db/insert-chunked";
 import { BmeCanceledRecords, BmeLedgerRecords, BmeStatusChanges } from "@src/db/schema";
+import { requireAccountId } from "@src/pipeline/balance/account-interner.service";
 import type { ChainTransaction } from "@src/providers/db.provider";
 import { LoggerService } from "@src/providers/logging.provider";
 
@@ -43,15 +44,9 @@ export class BmeWriter {
       }
     }
 
-    if (ledgerRecords.length > 0) {
-      await insertChunked(tx, BmeLedgerRecords, ledgerRecords);
-    }
-    if (statusChanges.length > 0) {
-      await insertChunked(tx, BmeStatusChanges, statusChanges);
-    }
-    if (canceledRecords.length > 0) {
-      await insertChunked(tx, BmeCanceledRecords, canceledRecords);
-    }
+    await insertChunked(tx, BmeLedgerRecords, ledgerRecords);
+    await insertChunked(tx, BmeStatusChanges, statusChanges);
+    await insertChunked(tx, BmeCanceledRecords, canceledRecords);
   }
 
   #ledgerRecordRow(height: number, change: Extract<BmeChange, { kind: "ledgerRecordExecuted" }>, accountIds: Map<string, number>): LedgerRecordRow {
@@ -63,8 +58,8 @@ export class BmeWriter {
       sequence: change.id.sequence,
       height,
       txIndex: change.txIndex,
-      burnedFromAccountId: this.#requireId(accountIds, change.burnedFrom),
-      mintedToAccountId: this.#requireId(accountIds, change.mintedTo),
+      burnedFromAccountId: requireAccountId(accountIds, change.burnedFrom),
+      mintedToAccountId: requireAccountId(accountIds, change.mintedTo),
       burnedDenom: change.burned?.denom ?? null,
       burnedAmount: change.burned?.amount ?? "0",
       burnedPrice: change.burned?.price ?? null,
@@ -98,8 +93,8 @@ export class BmeWriter {
       height,
       txIndex: change.txIndex,
       cancelReason: change.cancelReason,
-      ownerAccountId: this.#requireId(accountIds, change.owner),
-      toAccountId: this.#requireId(accountIds, change.to),
+      ownerAccountId: requireAccountId(accountIds, change.owner),
+      toAccountId: requireAccountId(accountIds, change.to),
       coinsToBurnDenom: change.coinsToBurn?.denom ?? null,
       coinsToBurnAmount: change.coinsToBurn?.amount ?? null,
       denomToMint: change.denomToMint
@@ -112,13 +107,5 @@ export class BmeWriter {
       return;
     }
     this.#logger.warn({ event: "BME_EVENT_PARSE_FAILED", count: warnings.length, samples: warnings.slice(0, 5) });
-  }
-
-  #requireId(accountIds: Map<string, number>, address: string): number {
-    const id = accountIds.get(address);
-    if (id === undefined) {
-      throw new Error(`No interned account id for address ${address}`);
-    }
-    return id;
   }
 }

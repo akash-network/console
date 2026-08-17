@@ -15,7 +15,7 @@ import { insertChunked } from "@src/db/insert-chunked";
 import { AccountTxs, Blocks, IndexerState, MessageDeadLetters, Messages, MessageTypes, Transactions } from "@src/db/schema";
 import { sqlExcluded } from "@src/db/sql-excluded";
 import { GovWriter } from "@src/gov/gov-writer.service";
-import { AccountInterner } from "@src/pipeline/balance/account-interner.service";
+import { AccountInterner, requireAccountId } from "@src/pipeline/balance/account-interner.service";
 import type { DerivedAccountTx } from "@src/pipeline/balance/account-tx-deriver";
 import { deriveAccountTxs } from "@src/pipeline/balance/account-tx-deriver";
 import type { DerivedBalanceChange } from "@src/pipeline/balance/balance-deriver";
@@ -298,7 +298,7 @@ export class BlockCommitterService {
 
   #resolveBalanceChanges(changes: DerivedBalanceChange[], accountIds: Map<string, number>): ResolvedBalanceChange[] {
     return changes.map(change => ({
-      accountId: this.#requireId(accountIds, change.address),
+      accountId: requireAccountId(accountIds, change.address),
       counterpartyAccountId: change.counterpartyAddress ? accountIds.get(change.counterpartyAddress) ?? null : null,
       denom: change.denom,
       delta: change.delta,
@@ -310,15 +310,7 @@ export class BlockCommitterService {
   }
 
   #resolveAccountTxs(rows: DerivedAccountTx[], accountIds: Map<string, number>): (typeof AccountTxs.$inferInsert)[] {
-    return rows.map(row => ({ accountId: this.#requireId(accountIds, row.address), height: row.height, txIndex: row.txIndex, role: row.role }));
-  }
-
-  #requireId(accountIds: Map<string, number>, address: string): number {
-    const accountId = accountIds.get(address);
-    if (accountId === undefined) {
-      throw new Error(`No interned account id for address ${address}`);
-    }
-    return accountId;
+    return rows.map(row => ({ accountId: requireAccountId(accountIds, row.address), height: row.height, txIndex: row.txIndex, role: row.role }));
   }
 
   async #internMessageTypes(blocks: DecodedBlock[]): Promise<Map<string, number>> {

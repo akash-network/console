@@ -1,5 +1,5 @@
 import type { AkashBlockChanges, AkashChange, AkashChangeBody } from "@src/akash/akash-changes";
-import { asInteger, asRecord, asString } from "@src/akash/json";
+import { asInteger, asRecord, asString, parseJsonRecord } from "@src/akash/json";
 import { normalizeAuditMessage } from "@src/akash/normalize-audit";
 import { normalizeDeploymentMessage } from "@src/akash/normalize-deployment";
 import { normalizeMarketMessage } from "@src/akash/normalize-market";
@@ -116,14 +116,14 @@ function legacyLeaseClosed(attributes: Record<string, string>): AkashChangeBody 
 }
 
 function typedDeploymentClosed(attributes: Record<string, string>): AkashChangeBody | null {
-  const id = parseIdAttribute(attributes.id);
+  const id = parseJsonRecord(attributes.id);
   const owner = asString(id?.owner);
   const dseq = asUint64String(id?.dseq);
   return owner && dseq ? { kind: "deploymentClosedEvent", key: { owner, dseq } } : null;
 }
 
 function typedLeaseClosed(attributes: Record<string, string>): AkashChangeBody | null {
-  const id = parseIdAttribute(attributes.id);
+  const id = parseJsonRecord(attributes.id);
   const owner = asString(id?.owner);
   const dseq = asUint64String(id?.dseq);
   const gseq = asInteger(id?.gseq);
@@ -133,16 +133,4 @@ function typedLeaseClosed(attributes: Record<string, string>): AkashChangeBody |
     return null;
   }
   return { kind: "leaseClosedEvent", key: { owner, dseq }, gseq, oseq, bseq: asInteger(id?.bseq), provider };
-}
-
-/** The typed events carry their id as a JSON string attribute. */
-function parseIdAttribute(raw: string | undefined): Record<string, unknown> | null {
-  if (!raw) {
-    return null;
-  }
-  try {
-    return asRecord(JSON.parse(raw));
-  } catch {
-    return null;
-  }
 }

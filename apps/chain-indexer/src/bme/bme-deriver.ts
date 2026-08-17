@@ -1,4 +1,4 @@
-import { asInteger, asRecord, asString } from "@src/akash/json";
+import { asInteger, asRecord, asString, parseJsonRecord } from "@src/akash/json";
 import { bmeMintStatus } from "@src/db/schema";
 import type { DecodedBlock, DecodedEvent } from "@src/pipeline/decoded-block";
 
@@ -59,7 +59,7 @@ export interface BmeBlockChanges {
   warnings: string[];
 }
 
-type ParseResult = { change: BmeChangeBody } | { error: string } | null;
+type ParsedChange = { change: BmeChangeBody } | { error: string };
 
 /**
  * Extracts the BME (burn-mint-equilibrium) lifecycle from a block's events: executed ledger records,
@@ -116,7 +116,7 @@ export function collectBmeAddresses(blocks: BmeBlockChanges[]): Set<string> {
   return addresses;
 }
 
-function bmeChangeBody(event: DecodedEvent): ParseResult {
+function bmeChangeBody(event: DecodedEvent): ParsedChange | null {
   switch (event.type) {
     case LEDGER_RECORD_EXECUTED_EVENT_TYPE:
       return ledgerRecordExecuted(event.attributes);
@@ -129,7 +129,7 @@ function bmeChangeBody(event: DecodedEvent): ParseResult {
   }
 }
 
-function ledgerRecordExecuted(attributes: Record<string, string>): ParseResult {
+function ledgerRecordExecuted(attributes: Record<string, string>): ParsedChange {
   const id = parseRecordId(attributes.id);
   if (!id) {
     return { error: `unparseable id attribute: ${attributes.id}` };
@@ -163,7 +163,7 @@ function ledgerRecordExecuted(attributes: Record<string, string>): ParseResult {
   };
 }
 
-function mintStatusChange(attributes: Record<string, string>): ParseResult {
+function mintStatusChange(attributes: Record<string, string>): ParsedChange {
   const previousStatus = parseQuotedString(attributes.previous_status);
   const newStatus = parseQuotedString(attributes.new_status);
   const collateralRatio = parseQuotedString(attributes.collateral_ratio);
@@ -176,7 +176,7 @@ function mintStatusChange(attributes: Record<string, string>): ParseResult {
   return { change: { kind: "mintStatusChange", previousStatus, newStatus, collateralRatio } };
 }
 
-function ledgerRecordCanceled(attributes: Record<string, string>): ParseResult {
+function ledgerRecordCanceled(attributes: Record<string, string>): ParsedChange {
   const id = parseRecordId(attributes.id);
   if (!id) {
     return { error: `unparseable id attribute: ${attributes.id}` };
@@ -271,17 +271,6 @@ function parseQuotedString(raw: string | undefined): string | null {
     }
   }
   return raw;
-}
-
-function parseJsonRecord(raw: string | undefined): Record<string, unknown> | null {
-  if (!raw) {
-    return null;
-  }
-  try {
-    return asRecord(JSON.parse(raw));
-  } catch {
-    return null;
-  }
 }
 
 function isMintStatus(value: string | null): value is BmeMintStatus {
