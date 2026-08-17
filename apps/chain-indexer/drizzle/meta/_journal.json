@@ -57,6 +57,13 @@
       "when": 1786898959325,
       "tag": "0007_secret_overlord",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786949585273,
+      "tag": "0008_good_galactus",
+      "breakpoints": true
     }
   ]
 }

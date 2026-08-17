@@ -19,8 +19,10 @@ import type { RpcBlockResult, RpcBlockResultsResult, RpcEvent, RpcTxResult } fro
  * The ledger derives balances and reasons from the coin/transfer/mint/burn/slash events; the gov events carry
  * proposal ids and lifecycle transitions for the governance handler; the akash events catch deployment and
  * lease closes that happen as side effects of other messages (group close, overdraw) — `akash.v1` is the
- * legacy string-attribute event of early mainnet, the typed events are the current chain's. Capturing the
- * rest would waste memory across backfill batches.
+ * legacy string-attribute event of early mainnet, the typed events are the current chain's. The bme events
+ * carry the executed/canceled ledger records and mint status transitions the BME handler derives from
+ * (EventVaultFunded is deliberately absent: the vault's balance is already exact in the balance ledger).
+ * Capturing the rest would waste memory across backfill batches.
  */
 const RELEVANT_EVENT_TYPES = new Set([
   "coin_spent",
@@ -34,7 +36,10 @@ const RELEVANT_EVENT_TYPES = new Set([
   "inactive_proposal",
   "akash.v1",
   "akash.deployment.v1.EventDeploymentClosed",
-  "akash.market.v1.EventLeaseClosed"
+  "akash.market.v1.EventLeaseClosed",
+  "akash.bme.v1.EventLedgerRecordExecuted",
+  "akash.bme.v1.EventMintStatusChange",
+  "akash.bme.v1.EventLedgerRecordCanceled"
 ]);
 
 const MSG_INDEX_ATTRIBUTE = "msg_index";

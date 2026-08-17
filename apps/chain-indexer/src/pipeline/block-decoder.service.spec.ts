@@ -234,6 +234,28 @@ describe(BlockDecoderService.name, () => {
     expect(decoded.blockEvents).toEqual([{ type: "coinbase", attributes: { minter: "akash1mint", amount: "10uakt" } }]);
   });
 
+  it("captures bme lifecycle block events for the bme handler but drops vault funded ones", () => {
+    const { decoder } = setup();
+
+    const decoded = decoder.decode(
+      buildBlock({ txs: [] }),
+      buildBlockResults([], {
+        finalize_block_events: [
+          event("akash.bme.v1.EventLedgerRecordExecuted", { id: '{"denom":"uakt","to_denom":"uact","source":"bme","height":100,"sequence":1}' }),
+          event("akash.bme.v1.EventMintStatusChange", { previous_status: '"mint_status_healthy"', new_status: '"mint_status_warning"' }),
+          event("akash.bme.v1.EventLedgerRecordCanceled", { cancel_reason: '"epsilon"' }),
+          event("akash.bme.v1.EventVaultFunded", { source: '"bme"' })
+        ]
+      })
+    );
+
+    expect(decoded.blockEvents.map(e => e.type)).toEqual([
+      "akash.bme.v1.EventLedgerRecordExecuted",
+      "akash.bme.v1.EventMintStatusChange",
+      "akash.bme.v1.EventLedgerRecordCanceled"
+    ]);
+  });
+
   it("falls back to begin and end block events when finalize is absent", () => {
     const { decoder } = setup();
 
