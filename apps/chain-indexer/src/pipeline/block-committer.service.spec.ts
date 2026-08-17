@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AkashWriter } from "@src/akash/akash-writer.service";
 import type { ProviderWriter } from "@src/akash/provider-writer.service";
+import type { BmeWriter } from "@src/bme/bme-writer.service";
 import { AccountTxs, Blocks, IndexerState, MessageDeadLetters, Messages, MessageTypes } from "@src/db/schema";
 import type { GovWriter } from "@src/gov/gov-writer.service";
 import type { AccountInterner } from "@src/pipeline/balance/account-interner.service";
@@ -268,6 +269,35 @@ describe(BlockCommitterService.name, () => {
 
       expect(providerWriter.write).toHaveBeenCalledWith(expect.anything(), akashWriter.write.mock.calls[0][1], akashWriter.write.mock.calls[0][2]);
     });
+
+    it("hands the bme writer the derived changes and interns the record parties", async () => {
+      const { committer, bmeWriter } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
+
+      await committer.commit(
+        buildBlock([MSG_SEND], 10, {
+          events: [
+            {
+              type: "akash.bme.v1.EventLedgerRecordExecuted",
+              attributes: {
+                id: '{"denom":"uakt","to_denom":"uact","source":"bme","height":9,"sequence":1}',
+                burned_from: '"akash1bmeburner"',
+                minted_to: '"akash1bmeminter"',
+                minted: '{"coin":{"denom":"uact","amount":"100"},"price":"1.000000000000000000"}'
+              }
+            }
+          ]
+        })
+      );
+
+      expect(bmeWriter.write).toHaveBeenCalledWith(
+        expect.anything(),
+        [expect.objectContaining({ height: 10, changes: [expect.objectContaining({ kind: "ledgerRecordExecuted" })] })],
+        expect.any(Map)
+      );
+      const accountIds = bmeWriter.write.mock.calls[0][2];
+      expect(accountIds.get("akash1bmeburner")).toBeDefined();
+      expect(accountIds.get("akash1bmeminter")).toBeDefined();
+    });
   });
 
   function setup(input?: {
@@ -321,9 +351,19 @@ describe(BlockCommitterService.name, () => {
     const govWriter = mock<GovWriter>();
     const akashWriter = mock<AkashWriter>();
     const providerWriter = mock<ProviderWriter>();
+    const bmeWriter = mock<BmeWriter>();
     const logger = mock<LoggerService>();
-    const committer = new BlockCommitterService(dbFake as unknown as ChainDatabase, interner, balanceWriter, govWriter, akashWriter, providerWriter, logger);
-    return { committer, insertedRows, conflictUpdates, deletions, interner, balanceWriter, govWriter, akashWriter, providerWriter, logger };
+    const committer = new BlockCommitterService(
+      dbFake as unknown as ChainDatabase,
+      interner,
+      balanceWriter,
+      govWriter,
+      akashWriter,
+      providerWriter,
+      bmeWriter,
+      logger
+    );
+    return { committer, insertedRows, conflictUpdates, deletions, interner, balanceWriter, govWriter, akashWriter, providerWriter, bmeWriter, logger };
   }
 
   function buildBlock(

@@ -15,6 +15,15 @@ import { CHAIN_DB } from "@src/providers/db.provider";
  * It runs on the base connection, not the commit transaction, so the interned rows are visible when the
  * transaction inserts ledger rows that reference them.
  */
+/** A miss means the caller's address-collection pass and its row-building pass disagree — an indexer bug, not chain data. */
+export function requireAccountId(accountIds: Map<string, number>, address: string): number {
+  const id = accountIds.get(address);
+  if (id === undefined) {
+    throw new Error(`No interned account id for address ${address}`);
+  }
+  return id;
+}
+
 @singleton()
 export class AccountInterner {
   readonly #db: ChainDatabase;

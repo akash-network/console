@@ -11,6 +11,7 @@ import { sumLeaseRate } from "@src/akash/settlement";
 import { insertChunked } from "@src/db/insert-chunked";
 import { Accounts, Bids, DeploymentEvents, DeploymentGroupResources, DeploymentGroups, Deployments, Leases } from "@src/db/schema";
 import { sqlExcluded } from "@src/db/sql-excluded";
+import { requireAccountId } from "@src/pipeline/balance/account-interner.service";
 import type { ChainTransaction } from "@src/providers/db.provider";
 import { LoggerService } from "@src/providers/logging.provider";
 
@@ -80,7 +81,7 @@ export class AkashWriter {
     }
 
     return [...byKey.values()]
-      .map(key => ({ key, ownerAccountId: this.#requireId(accountIds, key.owner) }))
+      .map(key => ({ key, ownerAccountId: requireAccountId(accountIds, key.owner) }))
       .sort((a, b) => a.ownerAccountId - b.ownerAccountId || compareDseq(a.key.dseq, b.key.dseq));
   }
 
@@ -234,7 +235,7 @@ export class AkashWriter {
     deploymentIds: Map<string, number>
   ): Promise<void> {
     const rows = touched.map(state => ({
-      ownerAccountId: this.#requireId(accountIds, state.key.owner),
+      ownerAccountId: requireAccountId(accountIds, state.key.owner),
       dseq: state.key.dseq,
       denom: state.denom,
       deposit: state.deposit.toString(),
@@ -278,7 +279,7 @@ export class AkashWriter {
 
     const idByOwnerDseq = new Map(inserted.map(row => [ownerDseqKey(row.ownerAccountId, row.dseq), row.id]));
     for (const state of touched) {
-      const id = idByOwnerDseq.get(ownerDseqKey(this.#requireId(accountIds, state.key.owner), state.key.dseq));
+      const id = idByOwnerDseq.get(ownerDseqKey(requireAccountId(accountIds, state.key.owner), state.key.dseq));
       if (id !== undefined) {
         deploymentIds.set(stateKey(state.key), id);
       }
@@ -288,9 +289,9 @@ export class AkashWriter {
     if (missing.length > 0) {
       const rowsForMissing = await this.#selectDeploymentsForUpdate(
         tx,
-        missing.map(state => ({ key: state.key, ownerAccountId: this.#requireId(accountIds, state.key.owner) }))
+        missing.map(state => ({ key: state.key, ownerAccountId: requireAccountId(accountIds, state.key.owner) }))
       );
-      const keyByOwnerDseq = new Map(missing.map(state => [ownerDseqKey(this.#requireId(accountIds, state.key.owner), state.key.dseq), state.key]));
+      const keyByOwnerDseq = new Map(missing.map(state => [ownerDseqKey(requireAccountId(accountIds, state.key.owner), state.key.dseq), state.key]));
       for (const row of rowsForMissing) {
         const key = keyByOwnerDseq.get(ownerDseqKey(row.ownerAccountId, row.dseq));
         if (key) {
@@ -360,7 +361,7 @@ export class AkashWriter {
         gseq: bid.gseq,
         oseq: bid.oseq,
         bseq: bid.bseq,
-        providerAccountId: this.#requireId(accountIds, bid.provider),
+        providerAccountId: requireAccountId(accountIds, bid.provider),
         price: decToString(bid.price),
         denom: bid.denom,
         state: bid.state,
@@ -402,7 +403,7 @@ export class AkashWriter {
         gseq: lease.gseq,
         oseq: lease.oseq,
         bseq: lease.bseq,
-        providerAccountId: this.#requireId(accountIds, lease.provider),
+        providerAccountId: requireAccountId(accountIds, lease.provider),
         price: decToString(lease.price),
         denom: lease.denom,
         balance: decToString(lease.balance),
@@ -465,14 +466,6 @@ export class AkashWriter {
     for (const [code, group] of byCode) {
       this.#logger.warn({ event: code, count: group.length, samples: group.slice(0, 5) });
     }
-  }
-
-  #requireId(accountIds: Map<string, number>, address: string): number {
-    const id = accountIds.get(address);
-    if (id === undefined) {
-      throw new Error(`No interned account id for address ${address}`);
-    }
-    return id;
   }
 
   #requireAddress(addressesById: Map<number, string>, accountId: number): string {

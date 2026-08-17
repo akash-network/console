@@ -7,12 +7,15 @@ import { collectAkashAddresses } from "@src/akash/akash-changes";
 import { deriveAkashChanges } from "@src/akash/akash-deriver";
 import { AkashWriter } from "@src/akash/akash-writer.service";
 import { ProviderWriter } from "@src/akash/provider-writer.service";
+import type { BmeBlockChanges } from "@src/bme/bme-deriver";
+import { collectBmeAddresses, deriveBmeChanges } from "@src/bme/bme-deriver";
+import { BmeWriter } from "@src/bme/bme-writer.service";
 import { INSERT_CHUNK_SIZE } from "@src/db/insert-chunk-size";
 import { insertChunked } from "@src/db/insert-chunked";
 import { AccountTxs, Blocks, IndexerState, MessageDeadLetters, Messages, MessageTypes, Transactions } from "@src/db/schema";
 import { sqlExcluded } from "@src/db/sql-excluded";
 import { GovWriter } from "@src/gov/gov-writer.service";
-import { AccountInterner } from "@src/pipeline/balance/account-interner.service";
+import { AccountInterner, requireAccountId } from "@src/pipeline/balance/account-interner.service";
 import type { DerivedAccountTx } from "@src/pipeline/balance/account-tx-deriver";
 import { deriveAccountTxs } from "@src/pipeline/balance/account-tx-deriver";
 import type { DerivedBalanceChange } from "@src/pipeline/balance/balance-deriver";
@@ -49,6 +52,7 @@ export class BlockCommitterService {
   readonly #govWriter: GovWriter;
   readonly #akashWriter: AkashWriter;
   readonly #providerWriter: ProviderWriter;
+  readonly #bmeWriter: BmeWriter;
   readonly #logger: LoggerService;
   readonly #moduleRegistry = buildModuleAddressRegistry();
   readonly #typeIds = new Map<string, number>();
@@ -60,6 +64,7 @@ export class BlockCommitterService {
     @inject(GovWriter) govWriter: GovWriter,
     @inject(AkashWriter) akashWriter: AkashWriter,
     @inject(ProviderWriter) providerWriter: ProviderWriter,
+    @inject(BmeWriter) bmeWriter: BmeWriter,
     @inject(LoggerService) logger: LoggerService
   ) {
     this.#db = db;
@@ -68,6 +73,7 @@ export class BlockCommitterService {
     this.#govWriter = govWriter;
     this.#akashWriter = akashWriter;
     this.#providerWriter = providerWriter;
+    this.#bmeWriter = bmeWriter;
     this.#logger = logger;
     this.#logger.setContext("COMMITTER");
   }
@@ -136,7 +142,8 @@ export class BlockCommitterService {
     const balanceChanges = blocks.flatMap(block => deriveBalanceChanges(block, this.#moduleRegistry));
     const accountTxs = blocks.flatMap(block => deriveAccountTxs(block));
     const akashChanges = blocks.map(block => deriveAkashChanges(block));
-    const accountIds = await this.#internAccounts(balanceChanges, accountTxs, akashChanges);
+    const bmeChanges = blocks.map(block => deriveBmeChanges(block));
+    const accountIds = await this.#internAccounts(balanceChanges, accountTxs, akashChanges, bmeChanges);
     const balanceIntents = this.#resolveBalanceChanges(balanceChanges, accountIds);
     const accountTxRows = this.#resolveAccountTxs(accountTxs, accountIds);
 
@@ -153,6 +160,7 @@ export class BlockCommitterService {
       await this.#govWriter.writeForBlocks(tx, blocks, accountIds);
       await this.#akashWriter.write(tx, akashChanges, accountIds);
       await this.#providerWriter.write(tx, akashChanges, accountIds);
+      await this.#bmeWriter.write(tx, bmeChanges, accountIds);
 
       await tx
         .insert(IndexerState)
@@ -257,13 +265,15 @@ export class BlockCommitterService {
 
   /**
    * Interns every address the batch touches — spenders, receivers, correlated counterparties, tx signers,
-   * and the deployment owners/providers/depositors of the akash changes — on the base connection before
-   * the commit transaction, so the derived rows can reference their account ids by foreign key.
+   * the deployment owners/providers/depositors of the akash changes and the parties of the bme changes —
+   * on the base connection before the commit transaction, so the derived rows can reference their
+   * account ids by foreign key.
    */
   async #internAccounts(
     balanceChanges: DerivedBalanceChange[],
     accountTxs: DerivedAccountTx[],
-    akashChanges: AkashBlockChanges[]
+    akashChanges: AkashBlockChanges[],
+    bmeChanges: BmeBlockChanges[]
   ): Promise<Map<string, number>> {
     const addresses = new Set<string>();
 
@@ -279,13 +289,16 @@ export class BlockCommitterService {
     for (const address of collectAkashAddresses(akashChanges)) {
       addresses.add(address);
     }
+    for (const address of collectBmeAddresses(bmeChanges)) {
+      addresses.add(address);
+    }
 
     return this.#interner.resolve(addresses);
   }
 
   #resolveBalanceChanges(changes: DerivedBalanceChange[], accountIds: Map<string, number>): ResolvedBalanceChange[] {
     return changes.map(change => ({
-      accountId: this.#requireId(accountIds, change.address),
+      accountId: requireAccountId(accountIds, change.address),
       counterpartyAccountId: change.counterpartyAddress ? accountIds.get(change.counterpartyAddress) ?? null : null,
       denom: change.denom,
       delta: change.delta,
@@ -297,15 +310,7 @@ export class BlockCommitterService {
   }
 
   #resolveAccountTxs(rows: DerivedAccountTx[], accountIds: Map<string, number>): (typeof AccountTxs.$inferInsert)[] {
-    return rows.map(row => ({ accountId: this.#requireId(accountIds, row.address), height: row.height, txIndex: row.txIndex, role: row.role }));
-  }
-
-  #requireId(accountIds: Map<string, number>, address: string): number {
-    const accountId = accountIds.get(address);
-    if (accountId === undefined) {
-      throw new Error(`No interned account id for address ${address}`);
-    }
-    return accountId;
+    return rows.map(row => ({ accountId: requireAccountId(accountIds, row.address), height: row.height, txIndex: row.txIndex, role: row.role }));
   }
 
   async #internMessageTypes(blocks: DecodedBlock[]): Promise<Map<string, number>> {

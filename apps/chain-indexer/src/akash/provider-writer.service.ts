@@ -7,6 +7,7 @@ import { isProviderAuditChange, isProviderChange, isProviderRegistryChange } fro
 import { INSERT_CHUNK_SIZE } from "@src/db/insert-chunk-size";
 import { ProviderAuditSignatures, Providers } from "@src/db/schema";
 import { sqlExcluded } from "@src/db/sql-excluded";
+import { requireAccountId } from "@src/pipeline/balance/account-interner.service";
 import type { ChainTransaction } from "@src/providers/db.provider";
 import { LoggerService } from "@src/providers/logging.provider";
 
@@ -125,7 +126,7 @@ export class ProviderWriter {
       if (isProviderAuditChange(change)) {
         continue;
       }
-      const ownerAccountId = this.#requireId(ownerIds, change.owner);
+      const ownerAccountId = requireAccountId(ownerIds, change.owner);
       if (skippedOwners.has(ownerAccountId)) {
         continue;
       }
@@ -200,8 +201,8 @@ export class ProviderWriter {
     height: number,
     accountIds: Map<string, number>
   ): Promise<void> {
-    const ownerAccountId = this.#requireId(accountIds, change.owner);
-    const auditorAccountId = this.#requireId(accountIds, change.auditor);
+    const ownerAccountId = requireAccountId(accountIds, change.owner);
+    const auditorAccountId = requireAccountId(accountIds, change.auditor);
     const rows = dedupeByKeyLastWins(change.attributes).map(attribute => ({
       ownerAccountId,
       auditorAccountId,
@@ -230,8 +231,8 @@ export class ProviderWriter {
     accountIds: Map<string, number>
   ): Promise<void> {
     const identity = and(
-      eq(ProviderAuditSignatures.ownerAccountId, this.#requireId(accountIds, change.owner)),
-      eq(ProviderAuditSignatures.auditorAccountId, this.#requireId(accountIds, change.auditor)),
+      eq(ProviderAuditSignatures.ownerAccountId, requireAccountId(accountIds, change.owner)),
+      eq(ProviderAuditSignatures.auditorAccountId, requireAccountId(accountIds, change.auditor)),
       lte(ProviderAuditSignatures.height, height)
     );
     await tx.delete(ProviderAuditSignatures).where(change.keys.length > 0 ? and(identity, inArray(ProviderAuditSignatures.key, change.keys)) : identity);
@@ -242,7 +243,7 @@ export class ProviderWriter {
     for (const block of blocks) {
       for (const change of block.changes) {
         if (isProviderRegistryChange(change)) {
-          ownerIds.set(change.owner, this.#requireId(accountIds, change.owner));
+          ownerIds.set(change.owner, requireAccountId(accountIds, change.owner));
         }
       }
     }
@@ -260,14 +261,6 @@ export class ProviderWriter {
       return;
     }
     this.#logger.warn({ event: "PROVIDER_ORPHAN_REFERENCE", count: warnings.length, samples: warnings.slice(0, 5) });
-  }
-
-  #requireId(accountIds: Map<string, number>, address: string): number {
-    const id = accountIds.get(address);
-    if (id === undefined) {
-      throw new Error(`No interned account id for address ${address}`);
-    }
-    return id;
   }
 }
 

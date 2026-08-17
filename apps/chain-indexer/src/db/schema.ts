@@ -551,3 +551,97 @@ export const ProviderAuditSignatures = akashSchema.table(
   },
   t => [primaryKey({ columns: [t.ownerAccountId, t.auditorAccountId, t.key] })]
 );
+
+export const bmeMintStatus = akashSchema.enum("bme_mint_status", [
+  "mint_status_unspecified",
+  "mint_status_healthy",
+  "mint_status_warning",
+  "mint_status_halt_cr",
+  "mint_status_halt_oracle"
+]);
+
+/**
+ * One row per executed BME burn/mint, keyed by the full on-chain LedgerRecordID. `record_height` is
+ * the record's creation height from the id and can precede `height`, the block whose EndBlocker
+ * executed it (pending records execute later). Amounts are the exact u-denom integers from the
+ * event; prices keep the chain's 18-decimal Dec precision. Denoms are stored raw (uakt/uact/ibc/...).
+ */
+export const BmeLedgerRecords = akashSchema.table(
+  "bme_ledger_records",
+  {
+    denom: text("denom").notNull(),
+    toDenom: text("to_denom").notNull(),
+    source: text("source").notNull(),
+    recordHeight: bigint("record_height", { mode: "number" }).notNull(),
+    sequence: bigint("sequence", { mode: "number" }).notNull(),
+    height: bigint("height", { mode: "number" }).notNull(),
+    txIndex: integer("tx_index"),
+    burnedFromAccountId: integer("burned_from_account_id")
+      .notNull()
+      .references(() => Accounts.id),
+    mintedToAccountId: integer("minted_to_account_id")
+      .notNull()
+      .references(() => Accounts.id),
+    burnedDenom: text("burned_denom"),
+    burnedAmount: numeric("burned_amount", { precision: 38, scale: 0 }).notNull().default("0"),
+    burnedPrice: numeric("burned_price", { precision: 38, scale: 18 }),
+    mintedDenom: text("minted_denom"),
+    mintedAmount: numeric("minted_amount", { precision: 38, scale: 0 }).notNull().default("0"),
+    mintedPrice: numeric("minted_price", { precision: 38, scale: 18 }),
+    spreadDenom: text("spread_denom"),
+    spreadAmount: numeric("spread_amount", { precision: 38, scale: 0 }),
+    remintCreditIssuedAmount: numeric("remint_credit_issued_amount", { precision: 38, scale: 0 }),
+    remintCreditAccruedAmount: numeric("remint_credit_accrued_amount", { precision: 38, scale: 0 })
+  },
+  t => [
+    primaryKey({ columns: [t.recordHeight, t.sequence, t.denom, t.toDenom, t.source] }),
+    index("bme_ledger_records_height_idx").on(t.height),
+    index("bme_ledger_records_burned_denom_height_idx").on(t.burnedDenom, t.height),
+    index("bme_ledger_records_minted_denom_height_idx").on(t.mintedDenom, t.height)
+  ]
+);
+
+/**
+ * BME circuit-breaker transitions. `ordinal` is the event's deterministic position among the block's
+ * BME events, so re-committing a block conflicts instead of duplicating.
+ */
+export const BmeStatusChanges = akashSchema.table(
+  "bme_status_changes",
+  {
+    height: bigint("height", { mode: "number" }).notNull(),
+    ordinal: integer("ordinal").notNull(),
+    previousStatus: bmeMintStatus("previous_status").notNull(),
+    newStatus: bmeMintStatus("new_status").notNull(),
+    collateralRatio: numeric("collateral_ratio", { precision: 38, scale: 18 }).notNull()
+  },
+  t => [primaryKey({ columns: [t.height, t.ordinal] })]
+);
+
+/**
+ * Canceled BME ledger records, parsed from EventLedgerRecordCanceled — the legacy indexer kept these
+ * only as raw staging rows. Same natural key as executed records; a canceled record has no supply
+ * impact, so no amounts land in `bme_ledger_records`.
+ */
+export const BmeCanceledRecords = akashSchema.table(
+  "bme_canceled_records",
+  {
+    denom: text("denom").notNull(),
+    toDenom: text("to_denom").notNull(),
+    source: text("source").notNull(),
+    recordHeight: bigint("record_height", { mode: "number" }).notNull(),
+    sequence: bigint("sequence", { mode: "number" }).notNull(),
+    height: bigint("height", { mode: "number" }).notNull(),
+    txIndex: integer("tx_index"),
+    cancelReason: text("cancel_reason").notNull(),
+    ownerAccountId: integer("owner_account_id")
+      .notNull()
+      .references(() => Accounts.id),
+    toAccountId: integer("to_account_id")
+      .notNull()
+      .references(() => Accounts.id),
+    coinsToBurnDenom: text("coins_to_burn_denom"),
+    coinsToBurnAmount: numeric("coins_to_burn_amount", { precision: 38, scale: 0 }),
+    denomToMint: text("denom_to_mint").notNull()
+  },
+  t => [primaryKey({ columns: [t.recordHeight, t.sequence, t.denom, t.toDenom, t.source] }), index("bme_canceled_records_height_idx").on(t.height)]
+);
