@@ -5,6 +5,7 @@ import createError from "http-errors";
 import Stripe from "stripe";
 import { inject, singleton } from "tsyringe";
 
+import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
 import { PaymentIntentResult } from "@src/billing/http-schemas/stripe.schema";
 import { STRIPE_CLIENT } from "@src/billing/providers/stripe-client.provider";
 import {
@@ -15,10 +16,11 @@ import {
   TRIAL_PRESERVING_TRANSACTION_TYPES
 } from "@src/billing/repositories";
 import { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
-import { RefillService } from "@src/billing/services/refill/refill.service";
+import { RefillService, type ToppedUpWallet } from "@src/billing/services/refill/refill.service";
 import { STRIPE_CURRENCY } from "@src/billing/services/stripe/stripe.service";
 import { IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE, PAYMENT_IN_PROGRESS_ERROR_MESSAGE } from "@src/billing/services/stripe-error/stripe-error.service";
 import { type CreateLogger, LOGGER_FACTORY, WithTransaction } from "@src/core";
+import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { TimerService } from "@src/core/services/timer/timer.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
@@ -60,6 +62,7 @@ export class StripeTransactionService {
     private readonly firstPurchaseBonusService: FirstPurchaseBonusService,
     private readonly timerService: TimerService,
     private readonly userRepository: UserRepository,
+    private readonly domainEventsService: DomainEventsService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.loggerService = createLogger({ context: StripeTransactionService.name });
@@ -414,7 +417,7 @@ export class StripeTransactionService {
     userId: string;
     eventDescription: string;
     endTrial?: boolean;
-  }): Promise<number> {
+  }): Promise<{ bonusAmount: number; toppedUpWallet?: ToppedUpWallet }> {
     const transaction = await this.stripeTransactionRepository.findOneByAndLock({ id: params.transactionId });
 
     if (!transaction) {
@@ -423,7 +426,7 @@ export class StripeTransactionService {
         transactionId: params.transactionId,
         description: params.eventDescription
       });
-      return 0;
+      return { bonusAmount: 0 };
     }
 
     if (transaction.status === "succeeded") {
@@ -432,7 +435,7 @@ export class StripeTransactionService {
         transactionId: params.transactionId,
         description: params.eventDescription
       });
-      return 0;
+      return { bonusAmount: 0 };
     }
 
     const bonusAmount = await this.firstPurchaseBonusService.getEligibleBonusAmount(transaction, params.paymentAmount);
@@ -449,7 +452,7 @@ export class StripeTransactionService {
     });
 
     // Single combined top-up: two calls would double chain fees and race on retrieveDeploymentLimit.
-    await this.refillService.topUpWallet(params.paymentAmount + bonusAmount, params.userId, {
+    const toppedUpWallet = await this.refillService.topUpWallet(params.paymentAmount + bonusAmount, params.userId, {
       endTrial: params.endTrial,
       payment: {
         currency: transaction.currency,
@@ -472,7 +475,7 @@ export class StripeTransactionService {
       });
     }
 
-    return bonusAmount;
+    return { bonusAmount, toppedUpWallet };
   }
 
   async settlePaymentIntent(event: Stripe.PaymentIntentSucceededEvent): Promise<FirstPurchaseBonusGrant | undefined> {
@@ -553,9 +556,10 @@ export class StripeTransactionService {
 
   /**
    * Credits the wallet for a settled Stripe charge: resolves the owning user, enriches the row with the
-   * charge's card details, and records the succeeded transaction. Returns the first-purchase bonus grant
-   * (if any) so the caller can publish the domain event after this commits — publishing it here would risk
-   * firing on a rolled-back grant.
+   * charge's card details, and records the succeeded transaction. Once that transaction has committed it
+   * publishes the draining-deployment funding command and returns the first-purchase bonus grant (if any)
+   * for the caller to publish. Both run post-commit so a rolled-back credit can neither fund deployments
+   * nor send a bonus email.
    */
   async #settleFromWebhook(params: {
     customerId: string | null;
@@ -604,7 +608,7 @@ export class StripeTransactionService {
       }
     }
 
-    const bonusAmountCents = await this.settleSucceededTransaction({
+    const settlement = await this.settleSucceededTransaction({
       transactionId: params.transaction.id,
       chargeId: params.chargeId,
       paymentMethodType: params.paymentMethodType,
@@ -618,7 +622,14 @@ export class StripeTransactionService {
       endTrial: params.endTrial
     });
 
-    return bonusAmountCents > 0 ? { userId: user.id, bonusAmountCents, paidAmountCents: params.paymentAmount } : undefined;
+    // Published after settleSucceededTransaction has committed so a rolled-back credit never funds deployments.
+    if (settlement.toppedUpWallet) {
+      await this.domainEventsService.publish(new FundDrainingDeploymentsCommand(settlement.toppedUpWallet), {
+        singletonKey: `${FundDrainingDeploymentsCommand.name}.${settlement.toppedUpWallet.walletId}`
+      });
+    }
+
+    return settlement.bonusAmount > 0 ? { userId: user.id, bonusAmountCents: settlement.bonusAmount, paidAmountCents: params.paymentAmount } : undefined;
   }
 
   @WithTransaction()

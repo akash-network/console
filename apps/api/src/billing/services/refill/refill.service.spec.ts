@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
 import type { BillingConfig } from "@src/billing/providers";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { ManagedSignerService, ManagedUserWalletService } from "@src/billing/services";
@@ -9,7 +8,6 @@ import type { BalancesService } from "@src/billing/services/balances/balances.se
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
-import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 
 import { createInitializedUserWallet, createUserWallet } from "@test/seeders/user-wallet.seeder";
 
@@ -109,8 +107,8 @@ describe(RefillService.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up", expect.objectContaining({ amount_cents: amountUsd, amount_usd: 1 }));
     });
 
-    it("publishes a command to immediately fund the wallet's draining deployments", async () => {
-      const { service, userWalletRepository, managedUserWalletService, balancesService, walletInitializerService, domainEvents } = setup();
+    it("returns the credited wallet identifiers so the caller can fund its draining deployments", async () => {
+      const { service, userWalletRepository, managedUserWalletService, balancesService, walletInitializerService } = setup();
       const existingWallet = createInitializedUserWallet({ userId });
       walletInitializerService.ensureWallet.mockResolvedValue(existingWallet);
       userWalletRepository.claimActivation.mockResolvedValue(undefined);
@@ -118,15 +116,9 @@ describe(RefillService.name, () => {
       balancesService.retrieveDeploymentLimit.mockResolvedValue(5000);
       balancesService.refreshUserWalletLimits.mockResolvedValue();
 
-      await service.topUpWallet(amountUsd, userId);
+      const result = await service.topUpWallet(amountUsd, userId);
 
-      expect(domainEvents.publish).toHaveBeenCalledWith(
-        expect.objectContaining({
-          name: FundDrainingDeploymentsCommand.name,
-          data: { walletId: existingWallet.id, address: existingWallet.address }
-        }),
-        { singletonKey: `${FundDrainingDeploymentsCommand.name}.${existingWallet.id}` }
-      );
+      expect(result).toEqual({ walletId: existingWallet.id, address: existingWallet.address });
     });
 
     function setup() {
@@ -137,7 +129,6 @@ describe(RefillService.name, () => {
       const balancesService = mock<BalancesService>();
       const walletInitializerService = mock<WalletInitializerService>();
       const analyticsService = mock<AnalyticsService>();
-      const domainEvents = mock<DomainEventsService>();
 
       billingConfig.FEE_ALLOWANCE_REFILL_AMOUNT = 1000;
 
@@ -148,8 +139,7 @@ describe(RefillService.name, () => {
         managedSignerService,
         balancesService,
         walletInitializerService,
-        analyticsService,
-        domainEvents
+        analyticsService
       );
 
       return {
@@ -160,8 +150,7 @@ describe(RefillService.name, () => {
         managedSignerService,
         balancesService,
         walletInitializerService,
-        analyticsService,
-        domainEvents
+        analyticsService
       };
     }
   });
@@ -170,7 +159,7 @@ describe(RefillService.name, () => {
     const userId = "test-user-id";
 
     it("reduces wallet balance by the specified amount", async () => {
-      const { service, userWalletRepository, managedUserWalletService, managedSignerService, balancesService, analyticsService, domainEvents } = setup();
+      const { service, userWalletRepository, managedUserWalletService, managedSignerService, balancesService, analyticsService } = setup();
       const existingWallet = createUserWallet({ userId, address: "akash1test..." });
 
       userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
@@ -189,7 +178,6 @@ describe(RefillService.name, () => {
       });
       expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(existingWallet);
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_refund", expect.objectContaining({ amount_cents: 100, amount_usd: 1 }));
-      expect(domainEvents.publish).not.toHaveBeenCalled();
     });
 
     it("attaches payment context to the balance_refund analytics event", async () => {
@@ -263,7 +251,6 @@ describe(RefillService.name, () => {
       const balancesService = mock<BalancesService>();
       const walletInitializerService = mock<WalletInitializerService>();
       const analyticsService = mock<AnalyticsService>();
-      const domainEvents = mock<DomainEventsService>();
 
       billingConfig.FEE_ALLOWANCE_REFILL_AMOUNT = 1000;
 
@@ -274,8 +261,7 @@ describe(RefillService.name, () => {
         managedSignerService,
         balancesService,
         walletInitializerService,
-        analyticsService,
-        domainEvents
+        analyticsService
       );
 
       return {
@@ -286,8 +272,7 @@ describe(RefillService.name, () => {
         managedSignerService,
         balancesService,
         walletInitializerService,
-        analyticsService,
-        domainEvents
+        analyticsService
       };
     }
   });
