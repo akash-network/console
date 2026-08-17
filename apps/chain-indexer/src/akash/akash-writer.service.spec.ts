@@ -95,6 +95,20 @@ describe(AkashWriter.name, () => {
     expect(inserts).toEqual([]);
   });
 
+  it("ignores provider changes entirely", async () => {
+    const { writer, tx, inserts, selects, logger } = setup();
+
+    await writer.write(
+      tx,
+      [block(100, [{ kind: "providerCreated", owner: OWNER, hostUri: "https://x", email: null, website: null, attributes: [] }])],
+      ACCOUNT_IDS
+    );
+
+    expect(inserts).toEqual([]);
+    expect(selects).toEqual([]);
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
   it("logs orphan references without aborting the batch", async () => {
     const { writer, tx, logger, inserts } = setup();
 

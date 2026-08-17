@@ -50,6 +50,13 @@
       "when": 1786877216729,
       "tag": "0006_next_earthquake",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786898959325,
+      "tag": "0007_secret_overlord",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,5 @@
 import type { AkashBlockChanges, AkashChange, DeploymentKey, LeaseSlot, NormalizedGroup, NormalizedResource } from "@src/akash/akash-changes";
+import { isProviderChange } from "@src/akash/akash-changes";
 import { decCeilInt, decFromInt, decFromString, decQuo, decToString, decTruncateInt } from "@src/akash/dec";
 import { normalizeDenom } from "@src/akash/denom";
 import { settle, sumLeaseRate } from "@src/akash/settlement";
@@ -109,6 +110,9 @@ export function applyBlockChanges(states: Map<string, DeploymentAggState>, block
   const decided = new Map<string, boolean>();
 
   for (const change of block.changes) {
+    if (isProviderChange(change)) {
+      continue;
+    }
     const key = stateKey(change.key);
 
     if (change.kind === "deploymentCreated") {

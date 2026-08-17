@@ -41,7 +41,21 @@ interface ChangeOrigin {
   msgIndex: number | null;
 }
 
+export interface ProviderAttribute {
+  key: string;
+  value: string;
+}
+
+export type ProviderChangeBody =
+  | { kind: "providerCreated"; owner: string; hostUri: string; email: string | null; website: string | null; attributes: ProviderAttribute[] }
+  | { kind: "providerUpdated"; owner: string; hostUri: string; email: string | null; website: string | null; attributes: ProviderAttribute[] }
+  | { kind: "providerDeleted"; owner: string }
+  | { kind: "providerAttributesSigned"; owner: string; auditor: string; attributes: ProviderAttribute[] }
+  /** Empty `keys` means the auditor revoked every attribute they signed for this provider. */
+  | { kind: "providerAttributesUnsigned"; owner: string; auditor: string; keys: string[] };
+
 export type AkashChangeBody =
+  | ProviderChangeBody
   | { kind: "deploymentCreated"; key: DeploymentKey; denom: string; deposit: string; depositor: string | null; groups: NormalizedGroup[] }
   | { kind: "deploymentDeposited"; key: DeploymentKey; amount: string; depositor: string | null }
   | { kind: "deploymentUpdated"; key: DeploymentKey }
@@ -61,6 +75,26 @@ export type AkashChange = AkashChangeBody & ChangeOrigin;
 
 export type AkashChangeKind = AkashChange["kind"];
 
+export type ProviderChange = ProviderChangeBody & ChangeOrigin;
+
+const PROVIDER_REGISTRY_KINDS = new Set<AkashChangeKind>(["providerCreated", "providerUpdated", "providerDeleted"]);
+const PROVIDER_AUDIT_KINDS = new Set<AkashChangeKind>(["providerAttributesSigned", "providerAttributesUnsigned"]);
+
+export type ProviderRegistryChange = Extract<ProviderChange, { kind: "providerCreated" | "providerUpdated" | "providerDeleted" }>;
+export type ProviderAuditChange = Extract<ProviderChange, { kind: "providerAttributesSigned" | "providerAttributesUnsigned" }>;
+
+export function isProviderRegistryChange(change: AkashChange): change is ProviderRegistryChange {
+  return PROVIDER_REGISTRY_KINDS.has(change.kind);
+}
+
+export function isProviderAuditChange(change: AkashChange): change is ProviderAuditChange {
+  return PROVIDER_AUDIT_KINDS.has(change.kind);
+}
+
+export function isProviderChange(change: AkashChange): change is ProviderChange {
+  return isProviderRegistryChange(change) || isProviderAuditChange(change);
+}
+
 /** Everything derived from one block, in the exact order the chain applied it (tx order, then message order, then that tx's close events). */
 export interface AkashBlockChanges {
   height: number;
@@ -74,6 +108,13 @@ export function collectAkashAddresses(blocks: AkashBlockChanges[]): Set<string> 
 
   for (const block of blocks) {
     for (const change of block.changes) {
+      if (isProviderChange(change)) {
+        addresses.add(change.owner);
+        if ("auditor" in change) {
+          addresses.add(change.auditor);
+        }
+        continue;
+      }
       addresses.add(change.key.owner);
       if ("provider" in change) {
         addresses.add(change.provider);

@@ -1,7 +1,9 @@
 import type { AkashBlockChanges, AkashChange, AkashChangeBody } from "@src/akash/akash-changes";
 import { asInteger, asRecord, asString } from "@src/akash/json";
+import { normalizeAuditMessage } from "@src/akash/normalize-audit";
 import { normalizeDeploymentMessage } from "@src/akash/normalize-deployment";
 import { normalizeMarketMessage } from "@src/akash/normalize-market";
+import { normalizeProviderMessage } from "@src/akash/normalize-provider";
 import { asUint64String } from "@src/akash/uint64";
 import type { DecodedBlock, DecodedEvent } from "@src/pipeline/decoded-block";
 import { MAX_EXEC_DEPTH, MSG_EXEC_TYPE_URL } from "@src/pipeline/msg-exec";
@@ -11,7 +13,7 @@ const DEPLOYMENT_CLOSED_EVENT_TYPE = "akash.deployment.v1.EventDeploymentClosed"
 const LEASE_CLOSED_EVENT_TYPE = "akash.market.v1.EventLeaseClosed";
 
 /**
- * Extracts the deployment and market lifecycle from a block's messages and close events, in the exact
+ * Extracts the deployment, market, provider and audit lifecycle from a block's messages and close events, in the exact
  * order the chain applied it: per transaction, messages first (authz MsgExec unwrapped through the
  * decoder-provided `decoded` field), then that transaction's close events, which catch deployment and
  * lease closes happening as side effects (group close, authz revoke, overdraw on withdraw). Messages
@@ -56,7 +58,11 @@ function addMessage(changes: AkashChange[], typeUrl: string, body: unknown, txIn
     return;
   }
 
-  const normalized = normalizeDeploymentMessage(typeUrl, record) ?? normalizeMarketMessage(typeUrl, record);
+  const normalized =
+    normalizeDeploymentMessage(typeUrl, record) ??
+    normalizeMarketMessage(typeUrl, record) ??
+    normalizeProviderMessage(typeUrl, record) ??
+    normalizeAuditMessage(typeUrl, record);
 
   if (normalized) {
     changes.push({ ...normalized, txIndex, msgIndex });

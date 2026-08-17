@@ -30,6 +30,76 @@ describe("deriveAkashChanges", () => {
     ]);
   });
 
+  it("derives provider and audit changes alongside deployment ones", () => {
+    const changes = deriveAkashChanges(
+      block({
+        messages: [
+          {
+            typeUrl: "/akash.provider.v1beta4.MsgCreateProvider",
+            body: { owner: "akash1owner", hostUri: "https://provider.example.com:8443", attributes: [{ key: "region", value: "us-west" }], info: {} }
+          },
+          {
+            typeUrl: "/akash.audit.v1.MsgSignProviderAttributes",
+            body: { owner: "akash1owner", auditor: "akash1auditor", attributes: [{ key: "region", value: "us-west" }] }
+          }
+        ]
+      })
+    );
+
+    expect(changes.changes).toEqual([
+      {
+        kind: "providerCreated",
+        owner: "akash1owner",
+        hostUri: "https://provider.example.com:8443",
+        email: null,
+        website: null,
+        attributes: [{ key: "region", value: "us-west" }],
+        txIndex: 0,
+        msgIndex: 0
+      },
+      {
+        kind: "providerAttributesSigned",
+        owner: "akash1owner",
+        auditor: "akash1auditor",
+        attributes: [{ key: "region", value: "us-west" }],
+        txIndex: 0,
+        msgIndex: 1
+      }
+    ]);
+  });
+
+  it("unwraps an authz-wrapped audit sign", () => {
+    const changes = deriveAkashChanges(
+      block({
+        messages: [
+          {
+            typeUrl: "/cosmos.authz.v1beta1.MsgExec",
+            body: {
+              grantee: "akash1grantee",
+              msgs: [
+                {
+                  typeUrl: "/akash.audit.v1beta3.MsgSignProviderAttributes",
+                  decoded: { owner: "akash1owner", auditor: "akash1auditor", attributes: [{ key: "tier", value: "community" }] }
+                }
+              ]
+            }
+          }
+        ]
+      })
+    );
+
+    expect(changes.changes).toEqual([
+      {
+        kind: "providerAttributesSigned",
+        owner: "akash1owner",
+        auditor: "akash1auditor",
+        attributes: [{ key: "tier", value: "community" }],
+        txIndex: 0,
+        msgIndex: 0
+      }
+    ]);
+  });
+
   it("skips messages in failed transactions", () => {
     const changes = deriveAkashChanges(
       block({

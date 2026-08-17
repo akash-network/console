@@ -16,6 +16,7 @@ import {
   uniqueIndex
 } from "drizzle-orm/pg-core";
 
+import type { ProviderAttribute } from "@src/akash/akash-changes";
 import { bytea } from "@src/db/bytea";
 
 export const cosmosSchema = pgSchema("cosmos");
@@ -504,4 +505,49 @@ export const DeploymentEvents = akashSchema.table(
     details: jsonb("details")
   },
   t => [primaryKey({ columns: [t.deploymentId, t.height, t.ordinal] })]
+);
+
+/**
+ * Current on-chain provider state, one row per owner — mirroring `akash query provider list`.
+ * A provider that deletes and re-registers reuses its row: create resets `created_height` and
+ * clears `updated_height`/`deleted_height`, so the original registration height is not kept.
+ * Attributes are the full replace-on-update set from MsgCreate/MsgUpdateProvider.
+ * `last_processed_height` is the replay watermark (same semantics as deployments).
+ */
+export const Providers = akashSchema.table("providers", {
+  ownerAccountId: integer("owner_account_id")
+    .primaryKey()
+    .references(() => Accounts.id),
+  hostUri: text("host_uri").notNull(),
+  email: text("email"),
+  website: text("website"),
+  attributes: jsonb("attributes").$type<ProviderAttribute[]>().notNull(),
+  lastProcessedHeight: bigint("last_processed_height", { mode: "number" }).notNull(),
+  createdHeight: bigint("created_height", { mode: "number" }).notNull(),
+  updatedHeight: bigint("updated_height", { mode: "number" }),
+  deletedHeight: bigint("deleted_height", { mode: "number" })
+});
+
+/**
+ * Audited provider attributes, one row per (owner, auditor, key) — mirroring the x/audit store.
+ * Keyed by account rather than the providers row because x/audit never consults x/provider:
+ * signatures survive provider deletion and can precede registration. MsgSignProviderAttributes
+ * merges per-key; MsgDeleteProviderAttributes deletes the given keys, or all of the auditor's
+ * keys when none are given. `height` is the per-row replay guard: signs only apply at or above
+ * it and deletes only remove rows written at or below the deleting block.
+ */
+export const ProviderAuditSignatures = akashSchema.table(
+  "provider_audit_signatures",
+  {
+    ownerAccountId: integer("owner_account_id")
+      .notNull()
+      .references(() => Accounts.id),
+    auditorAccountId: integer("auditor_account_id")
+      .notNull()
+      .references(() => Accounts.id),
+    key: text("key").notNull(),
+    value: text("value").notNull(),
+    height: bigint("height", { mode: "number" }).notNull()
+  },
+  t => [primaryKey({ columns: [t.ownerAccountId, t.auditorAccountId, t.key] })]
 );

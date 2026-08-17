@@ -1,4 +1,4 @@
-import type { NormalizedGroup, NormalizedResource } from "@src/akash/akash-changes";
+import type { NormalizedGroup, NormalizedResource, ProviderAttribute } from "@src/akash/akash-changes";
 import { asRecord } from "@src/akash/json";
 
 /**
@@ -75,7 +75,7 @@ function gpuAttributes(gpu: Record<string, unknown> | null): { vendor: string | 
   return { vendor: match[1], model: match[2] !== "*" ? match[2] : null };
 }
 
-function attributeList(attributes: unknown): Array<{ key: string; value: string }> {
+export function attributeList(attributes: unknown): ProviderAttribute[] {
   if (!Array.isArray(attributes)) {
     return [];
   }
