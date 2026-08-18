@@ -599,13 +599,15 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(cachedBalanceService.get).not.toHaveBeenCalled();
     });
 
-    it("does nothing when the owner has no draining deployments", async () => {
-      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, walletReloadService } = setup();
+    it("records a nothing-to-fund skip and funds nothing when the owner has no draining deployments", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, walletReloadService, fundDrainingInstrumentation } = setup();
+      const owner = createAkashAddress();
 
       drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([]);
 
-      await service.topUpDrainingDeploymentsForOwner({ walletId: 1, address: createAkashAddress() });
+      await service.topUpDrainingDeploymentsForOwner({ walletId: 1, address: owner });
 
+      expect(fundDrainingInstrumentation.recordSkipped).toHaveBeenCalledWith({ owner, deploymentCount: 0 });
       expect(cachedBalanceService.getFresh).not.toHaveBeenCalled();
       expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
       expect(walletReloadService.scheduleImmediate).not.toHaveBeenCalled();

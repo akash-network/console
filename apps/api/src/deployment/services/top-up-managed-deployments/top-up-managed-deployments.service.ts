@@ -69,6 +69,7 @@ export class TopUpManagedDeploymentsService {
     const deployments = await this.drainingDeploymentService.findDrainingDeploymentsForOwner(address, this.fundDrainingInstrumentation);
 
     if (!deployments.length) {
+      this.fundDrainingInstrumentation.recordSkipped({ owner: address, deploymentCount: 0 });
       return;
     }
 
