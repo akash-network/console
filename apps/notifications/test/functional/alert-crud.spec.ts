@@ -27,10 +27,11 @@ describe("Alerts CRUD", () => {
   it("should perform all CRUD operations against raw alerts", async () => {
     // NOTE: change this when there's a role that can create alerts
     const HAS_ROLE_TO_CREATE_ALERTS = false;
-    const { app, userId, notificationChannelId, otherNotificationChannelId } = await setup();
+    const { app, userId, notificationChannelId, otherNotificationChannelId, foreignNotificationChannelId } = await setup();
 
     const alert = HAS_ROLE_TO_CREATE_ALERTS ? await shouldCreate(userId, notificationChannelId, app) : await prepareAlert(userId, notificationChannelId, app);
     await shouldUpdate(alert, otherNotificationChannelId, app);
+    await shouldRejectForeignNotificationChannel(alert, foreignNotificationChannelId, app);
     await shouldRead(alert, app);
     await shouldDelete(alert, app);
 
@@ -93,6 +94,18 @@ describe("Alerts CRUD", () => {
     expect(res.body.data).toMatchObject(update);
   }
 
+  async function shouldRejectForeignNotificationChannel(alert: AlertOutputMeta, foreignNotificationChannelId: string, app: INestApplication) {
+    const res = await request(app.getHttpServer())
+      .patch(`/v1/alerts/${alert.id}`)
+      .set("x-user-id", alert.userId)
+      .send({ data: { notificationChannelId: foreignNotificationChannelId } });
+
+    expect(res.status).toBe(404);
+
+    const getRes = await request(app.getHttpServer()).get(`/v1/alerts/${alert.id}`).set("x-user-id", alert.userId);
+    expect(getRes.body.data.notificationChannelId).not.toBe(foreignNotificationChannelId);
+  }
+
   async function shouldRead(alert: AlertOutputMeta, app: INestApplication) {
     const res = await request(app.getHttpServer()).get(`/v1/alerts/${alert.id}`).set("x-user-id", alert.userId);
 
@@ -114,6 +127,7 @@ describe("Alerts CRUD", () => {
     app: INestApplication;
     notificationChannelId: string;
     otherNotificationChannelId: string;
+    foreignNotificationChannelId: string;
     userId: string;
   }> {
     @Module({
@@ -133,12 +147,19 @@ describe("Alerts CRUD", () => {
     await app.init();
 
     const userId = faker.string.uuid();
+    const foreignUserId = faker.string.uuid();
     const db = module.get<NodePgDatabase<typeof alertSchema & { NotificationChannel: typeof NotificationChannel }>>(DRIZZLE_PROVIDER_TOKEN);
-    const [notificationChannel, otherNotificationChannel] = await db
+    const [notificationChannel, otherNotificationChannel, foreignNotificationChannel] = await db
       .insert(NotificationChannel)
-      .values([generateNotificationChannel({ userId }), generateNotificationChannel({ userId })])
+      .values([generateNotificationChannel({ userId }), generateNotificationChannel({ userId }), generateNotificationChannel({ userId: foreignUserId })])
       .returning();
 
-    return { app, notificationChannelId: notificationChannel.id, otherNotificationChannelId: otherNotificationChannel.id, userId };
+    return {
+      app,
+      notificationChannelId: notificationChannel.id,
+      otherNotificationChannelId: otherNotificationChannel.id,
+      foreignNotificationChannelId: foreignNotificationChannel.id,
+      userId
+    };
   }
 });

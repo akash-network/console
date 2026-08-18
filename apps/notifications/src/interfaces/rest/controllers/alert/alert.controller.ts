@@ -9,6 +9,7 @@ import { AlertCreateInput, AlertListOutputResponse, AlertOutputResponse, AlertPa
 import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { toPaginatedQuery } from "@src/lib/http-schema/http-schema";
 import { AlertOutput, AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
+import { NotificationChannelRepository } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
 
 class AlertListQuery extends createZodDto(
   toPaginatedQuery({
@@ -24,6 +25,7 @@ class AlertListQuery extends createZodDto(
 export class AlertController {
   constructor(
     private readonly alertRepository: AlertRepository,
+    private readonly notificationChannelRepository: NotificationChannelRepository,
     private readonly authService: AuthService
   ) {}
 
@@ -32,6 +34,8 @@ export class AlertController {
     201: { schema: AlertOutputResponse, description: "Returns the created alert" }
   })
   async createAlert(@Body() { data }: AlertCreateInput): Promise<Result<AlertOutputResponse, unknown>> {
+    await this.assertOwnsNotificationChannel(data.notificationChannelId);
+
     return Ok({
       data: await this.alertRepository.accessibleBy(this.authService.ability, "create").create({
         ...data,
@@ -86,6 +90,10 @@ export class AlertController {
     200: { schema: AlertOutputResponse, description: "Returns the updated alert" }
   })
   async updateAlert(@Param("id") id: string, @Body() { data }: AlertPatchInput): Promise<Result<AlertOutputResponse, NotFoundException | BadRequestException>> {
+    if (data.notificationChannelId) {
+      await this.assertOwnsNotificationChannel(data.notificationChannelId);
+    }
+
     const alert = await this.alertRepository.accessibleBy(this.authService.ability, "update").updateById(id, data);
     return this.toResponse(alert);
   }
@@ -97,6 +105,14 @@ export class AlertController {
   async deleteAlert(@Param("id") id: string): Promise<Result<AlertOutputResponse, NotFoundException>> {
     const alert = await this.alertRepository.accessibleBy(this.authService.ability, "delete").deleteOneById(id);
     return this.toResponse(alert);
+  }
+
+  private async assertOwnsNotificationChannel(notificationChannelId: string): Promise<void> {
+    const channel = await this.notificationChannelRepository.accessibleBy(this.authService.ability, "read").findById(notificationChannelId);
+
+    if (!channel) {
+      throw new NotFoundException("Notification channel not found");
+    }
   }
 
   private toResponse(alert: AlertOutput | undefined): Result<AlertOutputResponse, NotFoundException> {
