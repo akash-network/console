@@ -5,10 +5,15 @@ import { faker } from "@faker-js/faker";
 type Alert = components["schemas"]["AlertOutputResponse"]["data"] & { deploymentName: string };
 type ChainMessageAlert = Extract<Alert, { type: "CHAIN_MESSAGE" }>;
 type DeploymentBalanceAlert = Extract<Alert, { type: "DEPLOYMENT_BALANCE" }>;
+type WalletBalanceAlert = Extract<Alert, { type: "WALLET_BALANCE" }>;
 
 export function buildAlert(overrides?: Partial<Alert>): Alert {
   if (overrides?.type === "DEPLOYMENT_BALANCE") {
     return buildDeploymentBalanceAlert(overrides);
+  }
+
+  if (overrides?.type === "WALLET_BALANCE") {
+    return buildWalletBalanceAlert(overrides);
   }
 
   if (overrides?.type === "CHAIN_MESSAGE") {
@@ -16,6 +21,35 @@ export function buildAlert(overrides?: Partial<Alert>): Alert {
   }
 
   return buildChainMessageAlert();
+}
+
+export function buildWalletBalanceAlert(overrides?: Partial<WalletBalanceAlert>): WalletBalanceAlert {
+  const createdAt = faker.date.past();
+  const updatedAt = faker.date.between({ from: createdAt, to: new Date() });
+  return {
+    id: faker.string.uuid(),
+    name: faker.lorem.words(2),
+    deploymentName: faker.lorem.words(2),
+    conditions: {
+      operator: faker.helpers.arrayElement(["eq", "lt", "gt", "lte", "gte"]),
+      field: "balance",
+      value: faker.number.int({ min: 0, max: 100_000_000 })
+    },
+    summary: faker.lorem.sentence(),
+    description: faker.lorem.paragraph(),
+    status: faker.helpers.arrayElement(["OK", "TRIGGERED"]),
+    enabled: faker.datatype.boolean(),
+    notificationChannelId: faker.string.uuid(),
+    userId: faker.string.uuid(),
+    createdAt: createdAt.toISOString(),
+    updatedAt: updatedAt.toISOString(),
+    params: {
+      owner: faker.string.alphanumeric(44),
+      denom: "uakt"
+    },
+    ...overrides,
+    type: "WALLET_BALANCE"
+  };
 }
 
 function buildChainMessageAlert(overrides?: Partial<ChainMessageAlert>): ChainMessageAlert {
