@@ -107,6 +107,20 @@ describe(RefillService.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up", expect.objectContaining({ amount_cents: amountUsd, amount_usd: 1 }));
     });
 
+    it("returns the credited wallet identifiers so the caller can fund its draining deployments", async () => {
+      const { service, userWalletRepository, managedUserWalletService, balancesService, walletInitializerService } = setup();
+      const existingWallet = createInitializedUserWallet({ userId });
+      walletInitializerService.ensureWallet.mockResolvedValue(existingWallet);
+      userWalletRepository.claimActivation.mockResolvedValue(undefined);
+      managedUserWalletService.authorizeSpending.mockResolvedValue();
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(5000);
+      balancesService.refreshUserWalletLimits.mockResolvedValue();
+
+      const result = await service.topUpWallet(amountUsd, userId);
+
+      expect(result).toEqual({ walletId: existingWallet.id, address: existingWallet.address });
+    });
+
     function setup() {
       const billingConfig = mock<BillingConfig>();
       const userWalletRepository = mock<UserWalletRepository>();

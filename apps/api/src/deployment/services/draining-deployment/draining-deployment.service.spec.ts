@@ -21,7 +21,7 @@ import { DrainingDeploymentService } from "./draining-deployment.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createAkashAddress } from "@test/seeders";
-import { createManyAutoTopUpDeployments } from "@test/seeders/auto-top-up-deployment.seeder";
+import { createAutoTopUpDeployment, createManyAutoTopUpDeployments } from "@test/seeders/auto-top-up-deployment.seeder";
 import { createDrainingDeployment } from "@test/seeders/draining-deployment.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
@@ -105,6 +105,63 @@ describe(DrainingDeploymentService.name, () => {
           })
         );
       });
+    });
+  });
+
+  describe("findDrainingDeploymentsForOwner", () => {
+    it("returns the owner's active draining deployments enriched with block rate and predicted close height", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const address = createAkashAddress();
+      const settings = [createAutoTopUpDeployment({ address, dseq: "1001" }), createAutoTopUpDeployment({ address, dseq: "1002" })];
+      const leases = settings.map(setting =>
+        createDrainingDeployment({ dseq: Number(setting.dseq), owner: address, blockRate: 60, predictedClosedHeight: 1000500 })
+      );
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue(settings);
+      vi.spyOn(service, "findLeases").mockResolvedValue(leases);
+
+      const result = await service.findDrainingDeploymentsForOwner(address);
+
+      expect(deploymentSettingRepository.findAutoTopUpDeploymentsByOwner).toHaveBeenCalledWith(address);
+      expect(result).toHaveLength(2);
+      expect(result).toEqual(
+        expect.arrayContaining(settings.map(setting => expect.objectContaining({ dseq: setting.dseq, address, blockRate: 60, predictedClosedHeight: 1000500 })))
+      );
+    });
+
+    it("marks closed deployments as closed and excludes them from the result", async () => {
+      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const address = createAkashAddress();
+      const activeSetting = createAutoTopUpDeployment({ address, dseq: "2001" });
+      const closedSetting = createAutoTopUpDeployment({ address, dseq: "2002" });
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([activeSetting, closedSetting]);
+      vi.spyOn(service, "findLeases").mockResolvedValue([
+        createDrainingDeployment({ dseq: Number(activeSetting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 }),
+        createDrainingDeployment({
+          dseq: Number(closedSetting.dseq),
+          owner: address,
+          predictedClosedHeight: currentHeight + 500,
+          closedHeight: currentHeight - 100
+        })
+      ]);
+
+      const result = await service.findDrainingDeploymentsForOwner(address);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].dseq).toBe(activeSetting.dseq);
+      expect(deploymentSettingRepository.updateManyById).toHaveBeenCalledWith([closedSetting.id], { closed: true });
+    });
+
+    it("returns an empty array without querying leases when the owner has no auto-top-up deployments", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const findLeasesSpy = vi.spyOn(service, "findLeases");
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([]);
+
+      const result = await service.findDrainingDeploymentsForOwner(createAkashAddress());
+
+      expect(result).toEqual([]);
+      expect(findLeasesSpy).not.toHaveBeenCalled();
     });
   });
 

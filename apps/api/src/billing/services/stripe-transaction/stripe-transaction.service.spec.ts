@@ -8,6 +8,7 @@ import type { StripeTransactionRepository } from "@src/billing/repositories";
 import type { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
 import { IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE, PAYMENT_IN_PROGRESS_ERROR_MESSAGE } from "@src/billing/services/stripe-error/stripe-error.service";
+import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
 import { StripeTransactionService } from "./stripe-transaction.service";
@@ -465,6 +466,7 @@ describe(StripeTransactionService.name, () => {
       mock<FirstPurchaseBonusService>(),
       timerService,
       mock<UserRepository>(),
+      mock<DomainEventsService>(),
       () => mock<LoggerService>()
     );
 

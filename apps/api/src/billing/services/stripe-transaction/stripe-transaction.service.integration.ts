@@ -4,9 +4,11 @@ import Stripe from "stripe";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
 import type { StripeTransactionRepository } from "@src/billing/repositories";
 import type { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
+import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
 import { StripeTransactionService } from "./stripe-transaction.service";
@@ -23,7 +25,7 @@ import { createTestUser } from "@test/seeders/user-test.seeder";
 describe(StripeTransactionService.name, () => {
   describe("settlePaymentIntent", () => {
     it("tops up wallet and updates transaction on successful payment", async () => {
-      const { service, userRepository, stripeTransactionRepository, refillService, stripe } = setup();
+      const { service, userRepository, stripeTransactionRepository, refillService, stripe, domainEventsService, toppedUpWallet } = setup();
       const mockUser = createTestUser();
       const chargeId = "ch_123";
       const paymentIntentId = "pi_123";
@@ -33,7 +35,6 @@ describe(StripeTransactionService.name, () => {
       userRepository.findOneBy.mockResolvedValue(mockUser);
       stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
-      refillService.topUpWallet.mockResolvedValue();
       vi.spyOn(stripe.charges, "retrieve").mockResolvedValue(
         mock<Stripe.Response<Stripe.Charge>>({
           id: chargeId,
@@ -75,6 +76,9 @@ describe(StripeTransactionService.name, () => {
           source: "payment_intent"
         }
       });
+      expect(domainEventsService.publish).toHaveBeenCalledWith(expect.objectContaining({ name: FundDrainingDeploymentsCommand.name, data: toppedUpWallet }), {
+        singletonKey: `${FundDrainingDeploymentsCommand.name}.${toppedUpWallet.walletId}`
+      });
     });
 
     it("returns early when customer ID is missing", async () => {
@@ -99,7 +103,7 @@ describe(StripeTransactionService.name, () => {
     });
 
     it("returns early when payment was already processed (idempotency)", async () => {
-      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const { service, userRepository, stripeTransactionRepository, refillService, domainEventsService } = setup();
       const mockUser = createTestUser();
       const internalTransaction = generateDatabaseStripeTransaction({ id: "tx-123", status: "succeeded" });
 
@@ -119,6 +123,7 @@ describe(StripeTransactionService.name, () => {
       expect(stripeTransactionRepository.findById).toHaveBeenCalledWith(internalTransaction.id);
       expect(refillService.topUpWallet).not.toHaveBeenCalled();
       expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(domainEventsService.publish).not.toHaveBeenCalled();
     });
 
     it("skips a payment-method validation intent without touching the transaction", async () => {
@@ -259,7 +264,6 @@ describe(StripeTransactionService.name, () => {
       userRepository.findOneBy.mockResolvedValue(mockUser);
       stripeTransactionRepository.findByInvoiceId.mockResolvedValue(internalTransaction);
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
-      refillService.topUpWallet.mockResolvedValue();
       vi.spyOn(stripe.charges, "retrieve").mockResolvedValue(
         mock<Stripe.Response<Stripe.Charge>>({
           id: chargeId,
@@ -362,7 +366,6 @@ describe(StripeTransactionService.name, () => {
       userRepository.findOneBy.mockResolvedValue(mockUser);
       stripeTransactionRepository.findByInvoiceId.mockResolvedValue(internalTransaction);
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
-      refillService.topUpWallet.mockResolvedValue();
 
       await service.settleInvoice(createInvoicePaymentSucceededEvent({ id: "in_123", customer: mockUser.stripeCustomerId, amount_paid: 0 }));
 
@@ -403,7 +406,6 @@ describe(StripeTransactionService.name, () => {
       userRepository.findOneBy.mockResolvedValue(mockUser);
       stripeTransactionRepository.findByInvoiceId.mockResolvedValue(transaction);
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
-      refillService.topUpWallet.mockResolvedValue();
 
       await service.settleInvoice(createInvoicePaidEvent({ id: invoiceId, customer: mockUser.stripeCustomerId, amount_paid: amount }));
 
@@ -422,7 +424,7 @@ describe(StripeTransactionService.name, () => {
     });
 
     it("credits only once when invoice.paid and invoice.payment_succeeded both fire for the same manual_credit invoice", async () => {
-      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const { service, userRepository, stripeTransactionRepository, refillService, domainEventsService } = setup();
       const mockUser = createTestUser();
       const invoiceId = "in_manual_dual";
       const amount = 50000;
@@ -438,13 +440,13 @@ describe(StripeTransactionService.name, () => {
       userRepository.findOneBy.mockResolvedValue(mockUser);
       stripeTransactionRepository.findByInvoiceId.mockResolvedValue(pendingTransaction);
       stripeTransactionRepository.findOneByAndLock.mockResolvedValueOnce(pendingTransaction).mockResolvedValueOnce(succeededTransaction);
-      refillService.topUpWallet.mockResolvedValue();
 
       const invoice = { id: invoiceId, customer: mockUser.stripeCustomerId, amount_paid: amount };
       await service.settleInvoice(createInvoicePaidEvent(invoice));
       await service.settleInvoice(createInvoicePaymentSucceededEvent(invoice));
 
       expect(refillService.topUpWallet).toHaveBeenCalledTimes(1);
+      expect(domainEventsService.publish).toHaveBeenCalledTimes(1);
       expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, {
         endTrial: false,
         payment: {
@@ -646,6 +648,10 @@ describe(StripeTransactionService.name, () => {
     const firstPurchaseBonusService = mock<FirstPurchaseBonusService>();
     firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(0);
     const userRepository = mock<UserRepository>();
+    const domainEventsService = mock<DomainEventsService>();
+
+    const toppedUpWallet = { walletId: 42, address: "akash1toppedupwallet" };
+    refillService.topUpWallet.mockResolvedValue(toppedUpWallet);
 
     const stripe = new Stripe(`sk_test_${faker.string.alphanumeric(32)}`, { apiVersion: "2025-10-29.clover", httpClient: Stripe.createFetchHttpClient() });
 
@@ -656,10 +662,11 @@ describe(StripeTransactionService.name, () => {
       firstPurchaseBonusService,
       mock<TimerService>(),
       userRepository,
+      domainEventsService,
       () => mock<LoggerService>()
     );
 
-    return { service, stripe, stripeTransactionRepository, refillService, firstPurchaseBonusService, userRepository };
+    return { service, stripe, stripeTransactionRepository, refillService, firstPurchaseBonusService, userRepository, domainEventsService, toppedUpWallet };
   }
 
   function createPaymentIntentSucceededEvent(paymentIntent: Partial<Stripe.PaymentIntent>): Stripe.PaymentIntentSucceededEvent {
