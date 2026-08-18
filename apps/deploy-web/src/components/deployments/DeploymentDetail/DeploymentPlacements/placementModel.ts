@@ -44,12 +44,47 @@ export function parseManifestServices(manifest: string | null | undefined): Reco
     const service = services[name] ?? {};
     all[name] = {
       image: typeof service.image === "string" ? service.image : undefined,
-      resources: parseComputeResources(get(parsed, ["profiles", "compute", name, "resources"])),
+      resources: parseComputeResources(get(parsed, ["profiles", "compute", resolveComputeProfileName(parsed, name), "resources"])),
       env: parseEnv(service.env),
       command: joinCommand(service.command, service.args)
     };
     return all;
   }, {});
+}
+
+/**
+ * The compute-profile name a service points at via `deployment.<service>.<placement>.profile`. SDL does
+ * not require the profile to share the service's name (profiles can be renamed or shared across services),
+ * so we resolve the pointer before indexing `profiles.compute`, falling back to the service name.
+ */
+function resolveComputeProfileName(parsed: ParsedManifest | undefined, serviceName: string): string {
+  const placements = parsed?.deployment?.[serviceName];
+  if (placements && typeof placements === "object") {
+    for (const placement of Object.values(placements)) {
+      const profile = placement?.profile;
+      if (typeof profile === "string" && profile.trim()) return profile;
+    }
+  }
+  return serviceName;
+}
+
+/**
+ * Maps each SDL placement name to the services deployed to it, read from the manifest's `deployment:`
+ * block. A placement card uses this to scope its service list to its own group when live lease status
+ * isn't available, instead of falling back to every service in the deployment.
+ */
+export function getServicesByPlacement(manifest: string | null | undefined): Record<string, string[]> {
+  const deployment = safeLoadYaml(manifest)?.deployment;
+  if (!deployment || typeof deployment !== "object") return {};
+
+  const byPlacement: Record<string, string[]> = {};
+  for (const [serviceName, placements] of Object.entries(deployment)) {
+    if (!placements || typeof placements !== "object") continue;
+    for (const placementName of Object.keys(placements)) {
+      (byPlacement[placementName] ??= []).push(serviceName);
+    }
+  }
+  return byPlacement;
 }
 
 export function getPlacementName(group: DeploymentGroup | undefined, index: number): string {
@@ -61,7 +96,9 @@ export function getPlacementName(group: DeploymentGroup | undefined, index: numb
 const REGION_ATTRIBUTE_KEYS = ["region", "location-region"];
 
 /** The provider's region, read from its region attribute (the same value the configure marketplace shows); undefined when the provider hasn't declared one. */
-export function getProviderRegion(provider: { attributes?: { key: string; value: string }[]; locationRegion?: string | null } | null | undefined): string | undefined {
+export function getProviderRegion(
+  provider: { attributes?: { key: string; value: string }[]; locationRegion?: string | null } | null | undefined
+): string | undefined {
   const fromAttribute = provider?.attributes?.find(attribute => REGION_ATTRIBUTE_KEYS.includes(attribute.key) && attribute.value?.trim())?.value?.trim();
   return fromAttribute || provider?.locationRegion?.trim() || undefined;
 }
@@ -78,9 +115,17 @@ export interface ServiceStatusView {
   tone: ServiceStatusTone;
 }
 
-/** Derives a user-facing status for a single service from its live replica counts and the owning lease state. */
-export function getServiceStatus(service: Pick<LeaseServiceStatus, "available" | "total" | "ready_replicas"> | undefined, leaseState: LeaseDto["state"]): ServiceStatusView {
-  if (leaseState === "closed") return { label: "Closed", tone: "closed" };
+/**
+ * Derives a user-facing status for a single service from its live replica counts and the owning lease
+ * state. A provider-reclaimed lease is terminal even while its `state` still reads "active", so the
+ * caller passes `isReclaimed` to keep the row in sync with the ReclamationCard banner above it.
+ */
+export function getServiceStatus(
+  service: Pick<LeaseServiceStatus, "available" | "total" | "ready_replicas"> | undefined,
+  leaseState: LeaseDto["state"],
+  isReclaimed = false
+): ServiceStatusView {
+  if (leaseState === "closed" || isReclaimed) return { label: "Closed", tone: "closed" };
   if (service && service.available > 0) return { label: "Running", tone: "running" };
   return { label: "Starting", tone: "pending" };
 }
@@ -139,6 +184,7 @@ function toNumber(value: unknown): number | undefined {
 
 interface ParsedManifest {
   services?: Record<string, { image?: unknown; env?: unknown; command?: unknown; args?: unknown }>;
+  deployment?: Record<string, Record<string, { profile?: unknown } | undefined> | undefined>;
 }
 
 function safeLoadYaml(manifest: string | null | undefined): ParsedManifest | undefined {

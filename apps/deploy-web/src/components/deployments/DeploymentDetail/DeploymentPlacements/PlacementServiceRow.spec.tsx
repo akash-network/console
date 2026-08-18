@@ -22,6 +22,13 @@ describe(PlacementServiceRow.name, () => {
     expect(screen.getByText("Starting")).toBeInTheDocument();
   });
 
+  it("reports a closed service when the lease has been reclaimed while still active", () => {
+    setup({ service: mock<LeaseServiceStatus>({ available: 1 }), leaseState: "active", isReclaimed: true });
+
+    expect(screen.getByText("Closed")).toBeInTheDocument();
+    expect(screen.queryByText("Running")).not.toBeInTheDocument();
+  });
+
   it("keeps the service contents collapsed until the row is expanded", async () => {
     setup({ detail: { resources: { gpuUnits: 0, memory: { value: 36, unit: "Gi" } } } });
 

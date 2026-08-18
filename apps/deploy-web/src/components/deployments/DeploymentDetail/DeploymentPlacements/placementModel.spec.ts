@@ -4,7 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { LeaseServiceStatus } from "@src/queries/useLeaseQuery";
 import type { DeploymentGroup } from "@src/types/deployment";
-import { getPlacementGpuModels, getPlacementName, getProviderRegion, getServiceStatus, parseManifestServices } from "./placementModel";
+import { getPlacementGpuModels, getPlacementName, getProviderRegion, getServicesByPlacement, getServiceStatus, parseManifestServices } from "./placementModel";
 
 describe("placementModel", () => {
   describe("parseManifestServices", () => {
@@ -49,11 +49,43 @@ describe("placementModel", () => {
       expect(result.web.resources).toBeUndefined();
     });
 
+    it("resolves resources through the deployment profile pointer when it differs from the service name", () => {
+      const manifest = yaml.dump({
+        services: { web: { image: "nginx" } },
+        profiles: { compute: { "shared-small": { resources: { cpu: { units: 1 }, memory: { size: "256Mi" }, storage: { size: "1Gi" } } } } },
+        deployment: { web: { dcloud: { profile: "shared-small", count: 1 } } }
+      });
+
+      expect(parseManifestServices(manifest).web.resources).toEqual({
+        cpu: 1,
+        gpuUnits: 0,
+        memory: { value: 256, unit: "Mi" },
+        storage: { value: 1, unit: "Gi" }
+      });
+    });
+
     it("returns an empty map for missing or malformed manifests", () => {
       expect(parseManifestServices(undefined)).toEqual({});
       expect(parseManifestServices("")).toEqual({});
       expect(parseManifestServices(":::not-yaml:::\n\t- broken")).toEqual({});
       expect(parseManifestServices(yaml.dump({ version: "2.0" }))).toEqual({});
+    });
+  });
+
+  describe("getServicesByPlacement", () => {
+    it("groups service names by the placement they deploy to", () => {
+      const manifest = yaml.dump({
+        services: { web: {}, api: {}, worker: {} },
+        deployment: { web: { dcloud: {} }, api: { dcloud: {} }, worker: { gpu: {} } }
+      });
+
+      expect(getServicesByPlacement(manifest)).toEqual({ dcloud: ["web", "api"], gpu: ["worker"] });
+    });
+
+    it("returns an empty map when the manifest has no deployment block", () => {
+      expect(getServicesByPlacement(yaml.dump({ services: { web: {} } }))).toEqual({});
+      expect(getServicesByPlacement(undefined)).toEqual({});
+      expect(getServicesByPlacement(":::not-yaml:::")).toEqual({});
     });
   });
 
@@ -117,6 +149,10 @@ describe("placementModel", () => {
     it("reports closed when the lease is closed", () => {
       expect(getServiceStatus(buildService({ available: 1 }), "closed")).toEqual({ label: "Closed", tone: "closed" });
     });
+
+    it("reports closed when the lease has been reclaimed even while its state still reads active", () => {
+      expect(getServiceStatus(buildService({ available: 1 }), "active", true)).toEqual({ label: "Closed", tone: "closed" });
+    });
   });
 });
 
@@ -130,7 +166,14 @@ function buildManifest(input: {
       compute: Object.fromEntries(
         Object.entries(input.compute).map(([name, c]) => [
           name,
-          { resources: { cpu: { units: c.cpu }, ...(c.gpuUnits ? { gpu: { units: c.gpuUnits } } : {}), memory: { size: c.memorySize }, storage: { size: c.storageSize } } }
+          {
+            resources: {
+              cpu: { units: c.cpu },
+              ...(c.gpuUnits ? { gpu: { units: c.gpuUnits } } : {}),
+              memory: { size: c.memorySize },
+              storage: { size: c.storageSize }
+            }
+          }
         ])
       )
     }

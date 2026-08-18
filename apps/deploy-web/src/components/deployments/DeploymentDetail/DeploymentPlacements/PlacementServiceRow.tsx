@@ -19,15 +19,16 @@ export interface PlacementServiceRowProps {
   serviceName: string;
   service?: LeaseServiceStatus;
   leaseState: LeaseDto["state"];
+  isReclaimed?: boolean;
   detail?: ManifestServiceDetail;
   uris?: string[];
   forwardedPorts?: ForwardedPort[];
   ips?: ServiceIp[];
 }
 
-export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({ serviceName, service, leaseState, detail, uris, forwardedPorts, ips }) => {
+export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({ serviceName, service, leaseState, isReclaimed, detail, uris, forwardedPorts, ips }) => {
   const [open, setOpen] = useState(false);
-  const status = getServiceStatus(service, leaseState);
+  const status = getServiceStatus(service, leaseState, isReclaimed);
   const endpoints = [...toUriLinks(uris), ...toForwardedPortLinks(forwardedPorts), ...toIpLinks(ips)];
 
   return (

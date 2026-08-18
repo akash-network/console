@@ -4,12 +4,12 @@ import { MapPin, NavArrowRight, Server } from "iconoir-react";
 
 import { useTeeResourceCarveouts } from "@src/hooks/useTeeResourceCarveouts";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
-import { useProviderDetail } from "@src/queries/useProvidersQuery";
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
+import { getGroupTeeType } from "@src/utils/confidentialCompute";
+import { isLeaseLive } from "@src/utils/leaseUtils";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { providerDisplayName } from "@src/utils/providerUtils";
-import { isLeaseLive } from "@src/utils/leaseUtils";
 import { isProviderReclaimed } from "@src/utils/reclamationUtils";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { ConfidentialComputeResources } from "../../ConfidentialComputeResources";
@@ -23,7 +23,6 @@ import { PlacementStats } from "./PlacementStats";
 
 export const DEPENDENCIES = {
   useLeaseStatus,
-  useProviderDetail,
   useTeeResourceCarveouts,
   ReclamationCard,
   ConfidentialComputeResources,
@@ -36,22 +35,32 @@ export interface PlacementCardProps {
   lease: LeaseDto;
   provider?: ApiProviderList;
   manifestServices: Record<string, ManifestServiceDetail>;
+  placementServiceNames?: string[];
   dseq: string;
   onClosed: () => void;
   dependencies?: typeof DEPENDENCIES;
 }
 
-export const PlacementCard: FC<PlacementCardProps> = ({ index, lease, provider, manifestServices, dseq, onClosed, dependencies: d = DEPENDENCIES }) => {
+export const PlacementCard: FC<PlacementCardProps> = ({
+  index,
+  lease,
+  provider,
+  manifestServices,
+  placementServiceNames,
+  dseq,
+  onClosed,
+  dependencies: d = DEPENDENCIES
+}) => {
   const isLeaseActive = isLeaseLive(lease);
   const { data: leaseStatus } = d.useLeaseStatus({ provider, lease, enabled: isLeaseActive && !!provider, refetchInterval: 30_000 });
-  const { data: providerDetail } = d.useProviderDetail(lease.provider, { enabled: !!lease.provider });
   const carveouts = d.useTeeResourceCarveouts(lease);
 
   const isReclaimed = isProviderReclaimed(lease);
+  const teeType = getGroupTeeType(lease.group);
   const name = getPlacementName(lease.group, index);
-  const region = getProviderRegion(providerDetail);
+  const region = getProviderRegion(provider);
   const gpuModels = getPlacementGpuModels(lease.group);
-  const serviceNames = leaseStatus ? Object.keys(leaseStatus.services) : Object.keys(manifestServices);
+  const serviceNames = leaseStatus ? Object.keys(leaseStatus.services) : placementServiceNames ?? Object.keys(manifestServices);
   const providerName = provider ? providerDisplayName(provider) : undefined;
 
   return (
@@ -82,7 +91,7 @@ export const PlacementCard: FC<PlacementCardProps> = ({ index, lease, provider, 
         </div>
       </div>
 
-      {(isReclaimed || carveouts.length > 0 || (isLeaseActive && !!provider)) && (
+      {(isReclaimed || carveouts.length > 0 || (isLeaseActive && !!provider && !!teeType)) && (
         <div className="space-y-4 px-6 pt-6">
           {isReclaimed && <d.ReclamationCard lease={lease} dseq={dseq} onClosed={onClosed} />}
           <d.ConfidentialComputeResources carveouts={carveouts} />
@@ -100,6 +109,7 @@ export const PlacementCard: FC<PlacementCardProps> = ({ index, lease, provider, 
               serviceName={serviceName}
               service={leaseStatus?.services?.[serviceName]}
               leaseState={lease.state}
+              isReclaimed={isReclaimed}
               detail={manifestServices[serviceName]}
               uris={leaseStatus?.services?.[serviceName]?.uris}
               forwardedPorts={leaseStatus?.forwarded_ports?.[serviceName]}

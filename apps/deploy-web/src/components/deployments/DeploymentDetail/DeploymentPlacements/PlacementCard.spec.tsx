@@ -3,7 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { LeaseServiceStatus, LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
-import type { ApiProviderDetail, ApiProviderList } from "@src/types/provider";
+import type { ApiProviderList } from "@src/types/provider";
 import { DEPENDENCIES, PlacementCard } from "./PlacementCard";
 import type { ManifestServiceDetail } from "./placementModel";
 
@@ -14,8 +14,7 @@ describe(PlacementCard.name, () => {
   it("renders the placement name, provider region and provider name", () => {
     setup({
       lease: buildLease({ groupName: "dcloud" }),
-      provider: mock<ApiProviderList>({ owner: "akash1p", organization: "Meridian Cloud" }),
-      providerRegion: "us-east"
+      provider: buildProvider({ region: "us-east" })
     });
 
     expect(screen.getByRole("heading", { name: "dcloud" })).toBeInTheDocument();
@@ -24,7 +23,7 @@ describe(PlacementCard.name, () => {
   });
 
   it("hides the region when the provider has not declared one", () => {
-    setup({ provider: mock<ApiProviderList>({ owner: "akash1p", organization: "Meridian Cloud" }) });
+    setup({ provider: buildProvider() });
 
     expect(screen.getByText("Meridian Cloud")).toBeInTheDocument();
     expect(screen.queryByText("us-east")).not.toBeInTheDocument();
@@ -40,6 +39,18 @@ describe(PlacementCard.name, () => {
   it("falls back to manifest services when no live status is available", () => {
     const PlacementServiceRow = vi.fn(() => <div>service-row</div>);
     setup({ leaseStatus: null, manifestServices: { web: {}, worker: {} }, dependencies: { PlacementServiceRow } });
+
+    expect(PlacementServiceRow).toHaveBeenCalledTimes(2);
+  });
+
+  it("scopes the fallback to the placement's own services when the manifest lists more than one placement", () => {
+    const PlacementServiceRow = vi.fn(() => <div>service-row</div>);
+    setup({
+      leaseStatus: null,
+      manifestServices: { web: {}, worker: {}, api: {} },
+      placementServiceNames: ["web", "worker"],
+      dependencies: { PlacementServiceRow }
+    });
 
     expect(PlacementServiceRow).toHaveBeenCalledTimes(2);
   });
@@ -79,31 +90,37 @@ describe(PlacementCard.name, () => {
     });
   }
 
+  function buildProvider(input?: { region?: string }) {
+    return mock<ApiProviderList>({
+      owner: "akash1p",
+      organization: "Meridian Cloud",
+      locationRegion: "",
+      attributes: input?.region ? [{ key: "region", value: input.region, auditedBy: [] }] : []
+    });
+  }
+
   function setup(input?: {
     lease?: LeaseDto;
     provider?: ApiProviderList;
-    providerRegion?: string;
     leaseStatus?: LeaseStatusDto | null;
     manifestServices?: Record<string, ManifestServiceDetail>;
+    placementServiceNames?: string[];
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const leaseStatus = input && "leaseStatus" in input ? input.leaseStatus : buildStatus(["web"]);
     const useLeaseStatus: typeof DEPENDENCIES.useLeaseStatus = () => mock<ReturnType<typeof DEPENDENCIES.useLeaseStatus>>({ data: leaseStatus });
-    const useProviderDetail: typeof DEPENDENCIES.useProviderDetail = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useProviderDetail>>({
-        data: mock<ApiProviderDetail>({ locationRegion: "", attributes: input?.providerRegion ? [{ key: "region", value: input.providerRegion, auditedBy: [] }] : [] })
-      });
     const useTeeResourceCarveouts: typeof DEPENDENCIES.useTeeResourceCarveouts = () => [];
 
     return render(
       <PlacementCard
         index={0}
         lease={input?.lease ?? buildLease()}
-        provider={input?.provider}
+        provider={input?.provider ?? buildProvider()}
         manifestServices={input?.manifestServices ?? {}}
+        placementServiceNames={input?.placementServiceNames}
         dseq="123"
         onClosed={vi.fn()}
-        dependencies={MockComponents(DEPENDENCIES, { useLeaseStatus, useProviderDetail, useTeeResourceCarveouts, ...input?.dependencies })}
+        dependencies={MockComponents(DEPENDENCIES, { useLeaseStatus, useTeeResourceCarveouts, ...input?.dependencies })}
       />
     );
   }
