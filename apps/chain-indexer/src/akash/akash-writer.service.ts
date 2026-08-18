@@ -7,6 +7,8 @@ import { isProviderChange } from "@src/akash/akash-changes";
 import { decFromString, decToString } from "@src/akash/dec";
 import type { BidStateValue, DeploymentAggState, GroupStateValue, ReducerWarning } from "@src/akash/deployment-reducer";
 import { applyBlockChanges, stateKey } from "@src/akash/deployment-reducer";
+import type { NetworkBlockDelta } from "@src/akash/network-delta";
+import { diffNetworkDelta, isEmptyNetworkDelta, snapshotNetworkState } from "@src/akash/network-delta";
 import { sumLeaseRate } from "@src/akash/settlement";
 import { insertChunked } from "@src/db/insert-chunked";
 import { Accounts, Bids, DeploymentEvents, DeploymentGroupResources, DeploymentGroups, Deployments, Leases } from "@src/db/schema";
@@ -37,24 +39,33 @@ export class AkashWriter {
     this.#logger.setContext("AKASH_WRITER");
   }
 
-  async write(tx: ChainTransaction, blocks: AkashBlockChanges[], accountIds: Map<string, number>): Promise<void> {
+  async write(tx: ChainTransaction, blocks: AkashBlockChanges[], accountIds: Map<string, number>): Promise<{ networkDeltas: NetworkBlockDelta[] }> {
     const withChanges = blocks.filter(block => block.changes.length > 0);
     if (withChanges.length === 0) {
-      return;
+      return { networkDeltas: [] };
     }
 
     const keyed = this.#collectKeys(withChanges, accountIds);
     if (keyed.length === 0) {
-      return;
+      return { networkDeltas: [] };
     }
     const { states, deploymentIds, groupIds, loadedAddressIds } = await this.#loadStates(tx, keyed);
 
-    const warnings = withChanges.flatMap(block => applyBlockChanges(states, block));
+    const warnings: ReducerWarning[] = [];
+    const networkDeltas: NetworkBlockDelta[] = [];
+    for (const block of withChanges) {
+      const before = snapshotNetworkState(states, block);
+      warnings.push(...applyBlockChanges(states, block));
+      const delta = diffNetworkDelta(before, states, block);
+      if (!isEmptyNetworkDelta(delta)) {
+        networkDeltas.push(delta);
+      }
+    }
     this.#logWarnings(warnings);
 
     const touched = [...states.values()].filter(state => state.touched);
     if (touched.length === 0) {
-      return;
+      return { networkDeltas };
     }
 
     /** Providers of bids and leases loaded from prior batches aren't in this batch's interned map, so their ids come from the loaded rows. */
@@ -66,6 +77,8 @@ export class AkashWriter {
     await this.#flushBids(tx, touched, addressIds, deploymentIds);
     await this.#flushLeases(tx, touched, addressIds, deploymentIds, groupIds);
     await this.#flushEvents(tx, touched, deploymentIds);
+
+    return { networkDeltas };
   }
 
   /** Deterministic (ownerAccountId, dseq) order for both the row locks and the flush statements, so concurrent writers cannot deadlock. */

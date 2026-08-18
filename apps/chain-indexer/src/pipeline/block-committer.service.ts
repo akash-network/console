@@ -15,6 +15,7 @@ import { insertChunked } from "@src/db/insert-chunked";
 import { AccountTxs, Blocks, IndexerState, MessageDeadLetters, Messages, MessageTypes, Transactions } from "@src/db/schema";
 import { sqlExcluded } from "@src/db/sql-excluded";
 import { GovWriter } from "@src/gov/gov-writer.service";
+import { NetworkStatsWriter } from "@src/network/network-stats-writer.service";
 import { AccountInterner, requireAccountId } from "@src/pipeline/balance/account-interner.service";
 import type { DerivedAccountTx } from "@src/pipeline/balance/account-tx-deriver";
 import { deriveAccountTxs } from "@src/pipeline/balance/account-tx-deriver";
@@ -53,6 +54,7 @@ export class BlockCommitterService {
   readonly #akashWriter: AkashWriter;
   readonly #providerWriter: ProviderWriter;
   readonly #bmeWriter: BmeWriter;
+  readonly #networkStatsWriter: NetworkStatsWriter;
   readonly #logger: LoggerService;
   readonly #moduleRegistry = buildModuleAddressRegistry();
   readonly #typeIds = new Map<string, number>();
@@ -65,6 +67,7 @@ export class BlockCommitterService {
     @inject(AkashWriter) akashWriter: AkashWriter,
     @inject(ProviderWriter) providerWriter: ProviderWriter,
     @inject(BmeWriter) bmeWriter: BmeWriter,
+    @inject(NetworkStatsWriter) networkStatsWriter: NetworkStatsWriter,
     @inject(LoggerService) logger: LoggerService
   ) {
     this.#db = db;
@@ -74,6 +77,7 @@ export class BlockCommitterService {
     this.#akashWriter = akashWriter;
     this.#providerWriter = providerWriter;
     this.#bmeWriter = bmeWriter;
+    this.#networkStatsWriter = networkStatsWriter;
     this.#logger = logger;
     this.#logger.setContext("COMMITTER");
   }
@@ -158,9 +162,10 @@ export class BlockCommitterService {
       await this.#balanceWriter.write(tx, balanceIntents);
       await insertChunked(tx, AccountTxs, accountTxRows);
       await this.#govWriter.writeForBlocks(tx, blocks, accountIds);
-      await this.#akashWriter.write(tx, akashChanges, accountIds);
+      const { networkDeltas } = await this.#akashWriter.write(tx, akashChanges, accountIds);
       await this.#providerWriter.write(tx, akashChanges, accountIds);
       await this.#bmeWriter.write(tx, bmeChanges, accountIds);
+      await this.#networkStatsWriter.write(tx, blocks, networkDeltas);
 
       await tx
         .insert(IndexerState)

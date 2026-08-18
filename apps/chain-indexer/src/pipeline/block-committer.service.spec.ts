@@ -4,10 +4,12 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AkashWriter } from "@src/akash/akash-writer.service";
+import type { NetworkBlockDelta } from "@src/akash/network-delta";
 import type { ProviderWriter } from "@src/akash/provider-writer.service";
 import type { BmeWriter } from "@src/bme/bme-writer.service";
 import { AccountTxs, Blocks, IndexerState, MessageDeadLetters, Messages, MessageTypes } from "@src/db/schema";
 import type { GovWriter } from "@src/gov/gov-writer.service";
+import type { NetworkStatsWriter } from "@src/network/network-stats-writer.service";
 import type { AccountInterner } from "@src/pipeline/balance/account-interner.service";
 import type { BalanceWriter } from "@src/pipeline/balance/balance-writer.service";
 import { BlockCommitterService } from "@src/pipeline/block-committer.service";
@@ -298,6 +300,17 @@ describe(BlockCommitterService.name, () => {
       expect(accountIds.get("akash1bmeburner")).toBeDefined();
       expect(accountIds.get("akash1bmeminter")).toBeDefined();
     });
+
+    it("hands the network stats writer the batch blocks and the akash writer's deltas", async () => {
+      const { committer, akashWriter, networkStatsWriter } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
+      const deltas = [mock<NetworkBlockDelta>({ height: 10 })];
+      akashWriter.write.mockResolvedValue({ networkDeltas: deltas });
+
+      const block = buildBlock([MSG_SEND], 10);
+      await committer.commit(block);
+
+      expect(networkStatsWriter.write).toHaveBeenCalledWith(expect.anything(), [block], deltas);
+    });
   });
 
   function setup(input?: {
@@ -350,8 +363,10 @@ describe(BlockCommitterService.name, () => {
 
     const govWriter = mock<GovWriter>();
     const akashWriter = mock<AkashWriter>();
+    akashWriter.write.mockResolvedValue({ networkDeltas: [] });
     const providerWriter = mock<ProviderWriter>();
     const bmeWriter = mock<BmeWriter>();
+    const networkStatsWriter = mock<NetworkStatsWriter>();
     const logger = mock<LoggerService>();
     const committer = new BlockCommitterService(
       dbFake as unknown as ChainDatabase,
@@ -361,9 +376,23 @@ describe(BlockCommitterService.name, () => {
       akashWriter,
       providerWriter,
       bmeWriter,
+      networkStatsWriter,
       logger
     );
-    return { committer, insertedRows, conflictUpdates, deletions, interner, balanceWriter, govWriter, akashWriter, providerWriter, bmeWriter, logger };
+    return {
+      committer,
+      insertedRows,
+      conflictUpdates,
+      deletions,
+      interner,
+      balanceWriter,
+      govWriter,
+      akashWriter,
+      providerWriter,
+      bmeWriter,
+      networkStatsWriter,
+      logger
+    };
   }
 
   function buildBlock(

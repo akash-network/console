@@ -14,6 +14,7 @@ export default defineConfig(async overrideOptions =>
     entry: {
       server: "./src/server.ts",
       reconcile: "./src/reconcile/reconcile.ts",
+      "recompute-usd": "./src/network/recompute-usd.ts",
       instrumentation: fileURLToPath(import.meta.resolve("@akashnetwork/instrumentation/register"))
     },
     target: tsconfig.compilerOptions.target,
