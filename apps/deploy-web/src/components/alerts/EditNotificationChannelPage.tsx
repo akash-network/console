@@ -12,30 +12,33 @@ import { useBackNav } from "@src/hooks/useBackNav";
 import { useNavigationGuard } from "@src/hooks/useNavigationGuard/useNavigationGuard";
 import { UrlService } from "@src/utils/urlUtils";
 
+export const DEPENDENCIES = { Layout, NotificationChannelEditContainer, NotificationChannelForm, useBackNav, useNavigationGuard };
+
 type Props = {
   notificationChannel: components["schemas"]["NotificationChannelOutput"]["data"];
+  dependencies?: typeof DEPENDENCIES;
 };
 
-export const EditNotificationChannelPage: React.FunctionComponent<Props> = ({ notificationChannel }: Props) => {
-  const goBack = useBackNav(UrlService.alerts());
-  const navGuard = useNavigationGuard();
+export const EditNotificationChannelPage: React.FunctionComponent<Props> = ({ notificationChannel, dependencies: d = DEPENDENCIES }: Props) => {
+  const goBack = d.useBackNav(UrlService.alerts());
+  const navGuard = d.useNavigationGuard();
   const saveNavStateAndGoBack = useCallback(() => {
     navGuard.toggle({ hasChanges: false });
     goBack();
   }, [goBack, navGuard]);
 
   return (
-    <Layout containerClassName="flex h-full flex-col">
+    <d.Layout containerClassName="flex h-full flex-col">
       <NextSeo title="Edit Notification Channel" />
       <div className="flex flex-wrap items-center px-6 py-6">
-        <Link href="." type="button" className="p-2">
+        <Link href={UrlService.alerts()} type="button" className="p-2">
           <NavArrowLeft />
         </Link>
         <Title>Edit Notification Channel</Title>
       </div>
-      <NotificationChannelEditContainer id={notificationChannel.id} onEditSuccess={saveNavStateAndGoBack}>
+      <d.NotificationChannelEditContainer id={notificationChannel.id} onEditSuccess={saveNavStateAndGoBack}>
         {props => (
-          <NotificationChannelForm
+          <d.NotificationChannelForm
             initialValues={{
               name: notificationChannel.name,
               emails: notificationChannel.config.addresses
@@ -46,7 +49,7 @@ export const EditNotificationChannelPage: React.FunctionComponent<Props> = ({ no
             onStateChange={navGuard.toggle}
           />
         )}
-      </NotificationChannelEditContainer>
-    </Layout>
+      </d.NotificationChannelEditContainer>
+    </d.Layout>
   );
 };
