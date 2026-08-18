@@ -26,6 +26,10 @@ describe("deployment envSchema", () => {
       expect(() => setup({ DEPLOYMENT_DEFAULT_DEPOSIT: "0.0000001" })).toThrow();
     });
 
+    it("rejects a non-finite value", () => {
+      expect(() => setup({ DEPLOYMENT_DEFAULT_DEPOSIT: "Infinity" })).toThrow();
+    });
+
     it("rejects a non-numeric value", () => {
       expect(() => setup({ DEPLOYMENT_DEFAULT_DEPOSIT: "abc" })).toThrow();
     });
