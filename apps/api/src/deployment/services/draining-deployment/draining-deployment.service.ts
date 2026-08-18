@@ -12,6 +12,7 @@ import { DrainingDeployment } from "@src/deployment/types/draining-deployment";
 import { averageBlockCountInAnHour } from "@src/utils/constants";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DrainingDeploymentRpcService } from "../draining-deployment-rpc/draining-deployment-rpc.service";
+import type { DeploymentTopUpInstrumentation } from "../top-up-managed-deployments/deployment-top-up-instrumentation";
 import { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed-deployments/top-up-managed-deployments-instrumentation.service";
 
 export type { DrainingDeployment } from "@src/deployment/types/draining-deployment";
@@ -44,7 +45,7 @@ export class DrainingDeploymentService {
     const expectedClosureHeight = await this.#getExpectedClosureHeight();
 
     for await (const { address, walletId, deploymentSettings } of this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively()) {
-      const deployments = await this.#resolveActiveDrainingDeployments(deploymentSettings, address, expectedClosureHeight);
+      const deployments = await this.#resolveActiveDrainingDeployments(deploymentSettings, address, expectedClosureHeight, this.instrumentation);
 
       if (deployments.length) {
         yield { address, walletId, deployments };
@@ -57,11 +58,11 @@ export class DrainingDeploymentService {
    * look-ahead window, auto-top-up gate, and closed-marking as the cron sweep.
    * Backs the event-driven immediate funding triggered when credits land.
    */
-  async findDrainingDeploymentsForOwner(address: string): Promise<DrainingDeployment[]> {
+  async findDrainingDeploymentsForOwner(address: string, instrumentation: DeploymentTopUpInstrumentation): Promise<DrainingDeployment[]> {
     const deploymentSettings = await this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwner(address);
     const expectedClosureHeight = await this.#getExpectedClosureHeight();
 
-    return this.#resolveActiveDrainingDeployments(deploymentSettings, address, expectedClosureHeight);
+    return this.#resolveActiveDrainingDeployments(deploymentSettings, address, expectedClosureHeight, instrumentation);
   }
 
   async #getExpectedClosureHeight(): Promise<number> {
@@ -72,7 +73,8 @@ export class DrainingDeploymentService {
   async #resolveActiveDrainingDeployments(
     deploymentSettings: AutoTopUpDeployment[],
     address: string,
-    expectedClosureHeight: number
+    expectedClosureHeight: number,
+    instrumentation: DeploymentTopUpInstrumentation
   ): Promise<DrainingDeployment[]> {
     if (deploymentSettings.length === 0) {
       return [];
@@ -110,7 +112,7 @@ export class DrainingDeploymentService {
 
     if (missingIds.length) {
       await this.deploymentSettingRepository.updateManyById(missingIds, { closed: true });
-      this.instrumentation.recordDeploymentsMarkedClosed(missingIds.length);
+      instrumentation.recordDeploymentsMarkedClosed(missingIds.length);
     }
 
     return active;

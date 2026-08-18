@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 import type { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
 import type { JobPayload } from "@src/core";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
+import type { FundDrainingDeploymentsInstrumentationService } from "@src/deployment/services/top-up-managed-deployments/fund-draining-deployments-instrumentation.service";
 import type { TopUpManagedDeploymentsService } from "@src/deployment/services/top-up-managed-deployments/top-up-managed-deployments.service";
 import { FundDrainingDeploymentsHandler } from "./fund-draining-deployments.handler";
 
@@ -14,8 +15,8 @@ describe(FundDrainingDeploymentsHandler.name, () => {
     version: 1
   };
 
-  it("funds the owner's draining deployments for the payload identifiers", async () => {
-    const { handler, topUpManagedDeploymentsService } = setup();
+  it("funds the owner's draining deployments and records job success", async () => {
+    const { handler, topUpManagedDeploymentsService, instrumentation } = setup();
 
     await handler.handle(payload);
 
@@ -23,16 +24,19 @@ describe(FundDrainingDeploymentsHandler.name, () => {
       walletId: 1,
       address: "akash1abc"
     });
+    expect(instrumentation.recordJobSucceeded).toHaveBeenCalledWith(expect.any(Number));
+    expect(instrumentation.recordJobFailed).not.toHaveBeenCalled();
   });
 
-  it("logs and rethrows when the funding service throws so the job can retry", async () => {
+  it("records the failure and rethrows when funding throws so the job can retry", async () => {
     const error = new Error("deposit failed");
-    const { handler, logger } = setup({
+    const { handler, instrumentation } = setup({
       topUpManagedDeploymentsService: { topUpDrainingDeploymentsForOwner: vi.fn().mockRejectedValue(error) }
     });
 
     await expect(handler.handle(payload)).rejects.toThrow(error);
-    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "FUND_DRAINING_DEPLOYMENTS_FAILED", error }));
+    expect(instrumentation.recordJobFailed).toHaveBeenCalledWith(expect.any(Number), error);
+    expect(instrumentation.recordJobSucceeded).not.toHaveBeenCalled();
   });
 
   it("uses the singleton policy so the per-wallet singletonKey serializes same-wallet funding", () => {
@@ -46,11 +50,12 @@ describe(FundDrainingDeploymentsHandler.name, () => {
       topUpDrainingDeploymentsForOwner: vi.fn().mockResolvedValue(undefined),
       ...params?.topUpManagedDeploymentsService
     });
+    const instrumentation = mock<FundDrainingDeploymentsInstrumentationService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger: CreateLogger = () => logger;
 
-    const handler = new FundDrainingDeploymentsHandler(topUpManagedDeploymentsService, createLogger);
+    const handler = new FundDrainingDeploymentsHandler(topUpManagedDeploymentsService, instrumentation, createLogger);
 
-    return { handler, topUpManagedDeploymentsService, logger };
+    return { handler, topUpManagedDeploymentsService, instrumentation, logger };
   }
 });

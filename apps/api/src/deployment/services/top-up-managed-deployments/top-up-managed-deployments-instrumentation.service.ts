@@ -6,9 +6,10 @@ import { LoggerService, MetricsService } from "@src/core";
 import type { DryRunOptions } from "@src/core/types/console";
 import { TopUpSummarizer } from "@src/deployment/lib/top-up-summarizer/top-up-summarizer";
 import { DrainingDeployment } from "@src/deployment/types/draining-deployment";
+import type { DeploymentTopUpInstrumentation } from "./deployment-top-up-instrumentation";
 
 @scoped(Lifecycle.ResolutionScoped)
-export class TopUpManagedDeploymentsInstrumentationService {
+export class TopUpManagedDeploymentsInstrumentationService implements DeploymentTopUpInstrumentation {
   private readonly meter: Meter;
   private readonly jobExecutions: Counter;
   private readonly jobDuration: Histogram;
