@@ -9,7 +9,7 @@ import { RefillService } from "@src/billing/services/refill/refill.service";
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 
-import { createUserWallet } from "@test/seeders/user-wallet.seeder";
+import { createInitializedUserWallet, createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(RefillService.name, () => {
   describe("topUpWallet", () => {
@@ -19,7 +19,7 @@ describe(RefillService.name, () => {
     it("should top up existing activated wallet", async () => {
       const { service, userWalletRepository, managedUserWalletService, managedSignerService, balancesService, walletInitializerService, analyticsService } =
         setup();
-      const existingWallet = createUserWallet({ userId });
+      const existingWallet = createInitializedUserWallet({ userId });
       walletInitializerService.ensureWallet.mockResolvedValue(existingWallet);
       userWalletRepository.claimActivation.mockResolvedValue(undefined);
       managedUserWalletService.authorizeSpending.mockResolvedValue();
@@ -40,7 +40,7 @@ describe(RefillService.name, () => {
 
     it("attaches payment context to the balance_top_up analytics event", async () => {
       const { service, userWalletRepository, managedUserWalletService, balancesService, analyticsService, walletInitializerService } = setup();
-      const existingWallet = createUserWallet({ userId });
+      const existingWallet = createInitializedUserWallet({ userId });
       walletInitializerService.ensureWallet.mockResolvedValue(existingWallet);
       userWalletRepository.claimActivation.mockResolvedValue(undefined);
       managedUserWalletService.authorizeSpending.mockResolvedValue();
@@ -72,7 +72,7 @@ describe(RefillService.name, () => {
 
     it("does not end trial when endTrial option is false", async () => {
       const { service, userWalletRepository, managedUserWalletService, balancesService, walletInitializerService } = setup();
-      const existingWallet = createUserWallet({ userId });
+      const existingWallet = createInitializedUserWallet({ userId });
       walletInitializerService.ensureWallet.mockResolvedValue(existingWallet);
       userWalletRepository.claimActivation.mockResolvedValue(undefined);
       managedUserWalletService.authorizeSpending.mockResolvedValue();
@@ -87,7 +87,7 @@ describe(RefillService.name, () => {
     it("activates a non-activated wallet on first funding", async () => {
       const { service, userWalletRepository, walletInitializerService, balancesService, managedUserWalletService, managedSignerService, analyticsService } =
         setup();
-      const wallet = createUserWallet({ userId, activatedAt: null });
+      const wallet = createInitializedUserWallet({ userId, activatedAt: null });
       const activatedWallet = { ...wallet, activatedAt: new Date() };
       walletInitializerService.ensureWallet.mockResolvedValue(wallet);
       userWalletRepository.claimActivation.mockResolvedValue(activatedWallet);
@@ -105,6 +105,20 @@ describe(RefillService.name, () => {
       });
       expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(activatedWallet, { endTrial: true });
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up", expect.objectContaining({ amount_cents: amountUsd, amount_usd: 1 }));
+    });
+
+    it("returns the credited wallet identifiers so the caller can fund its draining deployments", async () => {
+      const { service, userWalletRepository, managedUserWalletService, balancesService, walletInitializerService } = setup();
+      const existingWallet = createInitializedUserWallet({ userId });
+      walletInitializerService.ensureWallet.mockResolvedValue(existingWallet);
+      userWalletRepository.claimActivation.mockResolvedValue(undefined);
+      managedUserWalletService.authorizeSpending.mockResolvedValue();
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(5000);
+      balancesService.refreshUserWalletLimits.mockResolvedValue();
+
+      const result = await service.topUpWallet(amountUsd, userId);
+
+      expect(result).toEqual({ walletId: existingWallet.id, address: existingWallet.address });
     });
 
     function setup() {

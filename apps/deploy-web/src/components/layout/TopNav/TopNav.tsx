@@ -13,12 +13,12 @@ import {
   SheetTrigger
 } from "@akashnetwork/ui/components";
 import { cn, REMOVE_SCROLL_CLASS_NAMES } from "@akashnetwork/ui/utils";
-import { Cloud, CreditCard, Key, Menu, MessageAlert, MultiplePages, NavArrowDown, Server, StatsUpSquare } from "iconoir-react";
+import { Cloud, Menu, MultiplePages, NavArrowDown, Server } from "iconoir-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
-import { useFlag } from "@src/hooks/useFlag";
+import { isRouteActive, useSettingsNavLinks } from "@src/hooks/useSettingsNavLinks";
 import useCookieTheme from "@src/hooks/useTheme";
 import { useUser } from "@src/hooks/useUser";
 import { UrlService } from "@src/utils/urlUtils";
@@ -28,7 +28,7 @@ import { TopBanner } from "../TopBanner";
 import { usePublishHeaderHeight } from "../usePublishHeaderHeight";
 import { TopNavAccountMenu } from "./TopNavAccountMenu";
 
-export const DEPENDENCIES = { useUser, useFlag, usePathname, useCookieTheme, TopBanner, HackathonCouponNavEntry, TopNavAccountMenu, SkipOnboardingButton };
+export const DEPENDENCIES = { useUser, usePathname, useCookieTheme, TopBanner, HackathonCouponNavEntry, TopNavAccountMenu, SkipOnboardingButton };
 
 interface Props {
   dependencies?: typeof DEPENDENCIES;
@@ -50,24 +50,15 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
   const { user } = d.useUser();
   const isAuthenticated = !!user?.userId;
   const pathname = d.usePathname();
-  const isBillingUsageEnabled = d.useFlag("billing_usage");
-  const isAlertsEnabled = d.useFlag("alerts");
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
-  const isRouteActive = (...routePrefixes: string[]) => !!pathname && routePrefixes.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`));
-
   const navLinks: TopNavLink[] = [
-    { title: "Deployments", url: UrlService.deploymentList(), isActive: isRouteActive("/deployments", "/new-deployment"), icon: Cloud },
-    { title: "Providers", url: UrlService.providers(), isActive: isRouteActive("/providers"), icon: Server },
-    { title: "Templates", url: UrlService.templates(), isActive: isRouteActive("/templates"), icon: MultiplePages }
+    { title: "Deployments", url: UrlService.deploymentList(), isActive: isRouteActive(pathname, "/deployments", "/new-deployment"), icon: Cloud },
+    { title: "Providers", url: UrlService.providers(), isActive: isRouteActive(pathname, "/providers"), icon: Server },
+    { title: "Templates", url: UrlService.templates(), isActive: isRouteActive(pathname, "/templates"), icon: MultiplePages }
   ];
 
-  const settingsLinks: TopNavLink[] = [
-    ...(isBillingUsageEnabled ? [{ title: "Billing", url: UrlService.billing(), isActive: isRouteActive("/billing"), icon: CreditCard }] : []),
-    { title: "API Keys", url: UrlService.userApiKeys(), isActive: isRouteActive("/user/api-keys"), icon: Key },
-    ...(isBillingUsageEnabled ? [{ title: "Usage", url: UrlService.usage(), isActive: isRouteActive("/usage"), icon: StatsUpSquare }] : []),
-    ...(isAlertsEnabled ? [{ title: "Alerts", url: UrlService.alerts(), isActive: isRouteActive("/alerts"), icon: MessageAlert }] : [])
-  ];
+  const settingsLinks = useSettingsNavLinks({ dependencies: { usePathname: d.usePathname } });
   const isSettingsActive = settingsLinks.some(link => link.isActive);
   const showNavLinks = isAuthenticated && !minimal;
 

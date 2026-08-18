@@ -16,8 +16,7 @@ const DEPENDENCIES = {
 
 export type ChildrenProps = {
   data: BillingTransaction[];
-  hasMore: boolean;
-  hasPrevious: boolean;
+  isLoading: boolean;
   isFetching: boolean;
   isError: boolean;
   errorMessage: string;
@@ -25,7 +24,7 @@ export type ChildrenProps = {
   onPaginationChange: (state: PaginationState) => void;
   pagination: PaginationState;
   totalCount: number;
-  dateRange: { from: Date; to: Date };
+  dateRange: { from: Date; to: Date } | null;
   onDateRangeChange: (range: { from: Date; to: Date }) => void;
 };
 
@@ -37,23 +36,22 @@ type BillingContainerProps = {
 export const BillingContainer: React.FC<BillingContainerProps> = ({ children, dependencies: D = DEPENDENCIES }) => {
   const { toast } = useToast();
   const { stripe } = useServices();
-  const [dateRange, setDateRange] = React.useState<{ from: Date; to: Date }>(() => createDateRange());
+  const [dateRange, setDateRange] = React.useState<{ from: Date; to: Date } | null>(null);
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
 
   const [errorMessage, setErrorMessage] = React.useState("");
 
-  const { from: startDate, to: endDate } = dateRange;
-
   const {
     data,
+    isLoading,
     isFetching,
     isError,
     error: queryError
   } = D.usePaymentTransactionsQuery({
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
-    startDate,
-    endDate
+    startDate: dateRange?.from,
+    endDate: dateRange?.to
   });
 
   React.useEffect(() => {
@@ -73,9 +71,8 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
   };
 
   const exportCsv = async () => {
-    if (!startDate || !endDate) {
-      return;
-    }
+    if (!dateRange) return;
+    const { from: startDate, to: endDate } = dateRange;
 
     try {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -104,14 +101,13 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
     <>
       {children({
         data: data?.transactions || [],
-        hasMore: data?.hasMore || false,
-        hasPrevious: pagination.pageIndex > 0,
         onExport: exportCsv,
         onPaginationChange: handlePaginationChange,
         totalCount: data?.totalCount || 0,
         dateRange,
         onDateRangeChange: changeDateRange,
         pagination,
+        isLoading,
         isFetching,
         isError,
         errorMessage

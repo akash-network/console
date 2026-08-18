@@ -1,20 +1,31 @@
 import { z } from "zod";
 
-const EncodedMessageSchema = z.object({
-  typeUrl: z.string(),
-  value: z.string()
-});
+import { DERIVED_WALLET_MESSAGE_TYPE_URLS, FUNDING_WALLET_MESSAGE_TYPE_URLS } from "@src/config/message-urls.config";
 
 export const SignAndBroadcastFundingRequestInputSchema = z.object({
   data: z.object({
-    messages: z.array(EncodedMessageSchema).min(1)
+    messages: z
+      .array(
+        z.object({
+          typeUrl: z.enum(FUNDING_WALLET_MESSAGE_TYPE_URLS),
+          value: z.string()
+        })
+      )
+      .min(1)
   })
 });
 
 export const SignAndBroadcastDerivedRequestInputSchema = z.object({
   data: z.object({
     derivationIndex: z.number().int().nonnegative(),
-    messages: z.array(EncodedMessageSchema).min(1),
+    messages: z
+      .array(
+        z.object({
+          typeUrl: z.enum(DERIVED_WALLET_MESSAGE_TYPE_URLS),
+          value: z.string()
+        })
+      )
+      .min(1),
     options: z
       .object({
         fee: z.object({

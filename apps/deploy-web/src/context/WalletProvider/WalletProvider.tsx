@@ -8,7 +8,6 @@ import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
 import { useBalances } from "@src/queries/useBalancesQuery";
-import type { AppError } from "@src/types";
 import { getStorageManagedWallet, updateStorageManagedWallet } from "@src/utils/walletUtils";
 import { BootLoading } from "../BootLoadingProvider/BootLoadingProvider";
 import { useServices } from "../ServicesProvider";
@@ -30,15 +29,11 @@ export type ContextType = {
   address: string;
   /** True once the server-side wallet record exists. The address may still be empty while provisioning. */
   hasWallet: boolean;
-  /** True while a trial wallet creation is in flight, from any hook instance. */
-  isWalletCreating: boolean;
-  createWallet: () => void;
   signAndBroadcastTx: (msgs: EncodeObject[]) => Promise<boolean>;
   denom: string;
   isTrialing: boolean;
   creditAmount?: number;
   topUpMinAmountUsd: number;
-  walletError?: AppError;
 };
 
 /**
@@ -57,13 +52,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode; dependencies?
 
   const [, setSettingsId] = useAtom(settingsIdAtom);
   const { user } = d.useUser();
-  const {
-    wallet: managedWallet,
-    isInitializing: isManagedWalletInitializing,
-    isCreating: isWalletCreating,
-    create: createManagedWallet,
-    createError
-  } = d.useManagedWallet();
+  const { wallet: managedWallet, isInitializing: isManagedWalletInitializing } = d.useManagedWallet();
   const walletAddress = managedWallet?.address;
   const hasWallet = !!managedWallet;
   const { refetch: refetchBalances } = d.useBalances(walletAddress);
@@ -83,12 +72,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode; dependencies?
   useEffect(() => {
     setSettingsId(walletAddress || null);
   }, [walletAddress, setSettingsId]);
-
-  function createWallet() {
-    if (!managedWallet) {
-      createManagedWallet();
-    }
-  }
 
   function syncStorageWallet(): void {
     if (!managedWallet?.userId || !walletAddress) {
@@ -114,14 +97,11 @@ export const WalletProvider: React.FC<{ children: React.ReactNode; dependencies?
       value={{
         address: walletAddress as string,
         hasWallet,
-        isWalletCreating,
-        createWallet,
         signAndBroadcastTx,
         denom: managedWallet?.denom ?? "",
         isTrialing: !!managedWallet?.isTrialing,
         creditAmount: managedWallet?.creditAmount,
-        topUpMinAmountUsd: managedWallet?.topUpMinAmountUsd ?? 20,
-        walletError: createError
+        topUpMinAmountUsd: managedWallet?.topUpMinAmountUsd ?? 20
       }}
     >
       {isInitializing ? (

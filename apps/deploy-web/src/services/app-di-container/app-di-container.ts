@@ -28,6 +28,7 @@ import { withUserToken } from "../auth/auth/interceptors";
 import { createContainer } from "../container/createContainer";
 import { ErrorHandlerService } from "../error-handler/error-handler.service";
 import { ProviderProxyService } from "../provider-proxy/provider-proxy.service";
+import { createSessionExpiryResponseInterceptor, SessionExpiryNotifier } from "../session-expiry-notifier/session-expiry-notifier.service";
 import { StripeService } from "../stripe/stripe.service";
 import { UserTracker } from "../user-tracker/user-tracker.service";
 
@@ -47,12 +48,15 @@ export const createAppRootContainer = (config: ServicesConfig) => {
         if (traceData?.baggage) config.headers.set("Baggage", traceData.baggage);
         return config;
       };
-      return (axiosInstance, interceptors?) =>
-        withInterceptors(axiosInstance, {
+      return (axiosInstance, interceptors?) => {
+        axiosInstance.interceptors.response.use(undefined, createSessionExpiryResponseInterceptor(container.sessionExpiryNotifier));
+        return withInterceptors(axiosInstance, {
           request: [config.globalRequestMiddleware, otelInterceptor, ...(interceptors?.request || [])],
           response: [...(interceptors?.response || [])]
         });
+      };
     },
+    sessionExpiryNotifier: () => new SessionExpiryNotifier(),
     stripe: () =>
       new HttpStripeService(
         container.applyAxiosInterceptors(createHttpClient(apiConfig), {
@@ -145,15 +149,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
     apiUrlService: config.apiUrlService,
     managedWalletService: () => {
       const httpClient = container.applyAxiosInterceptors(createHttpClient(apiConfig), {
-        request: [withUserToken],
-        response: [
-          response => {
-            if (response.config.url === "v1/start-trial" && response.config.method === "post" && response.status === 200) {
-              container.analyticsService.track("trial_started", { category: "billing", label: "Trial Started" });
-            }
-            return response;
-          }
-        ]
+        request: [withUserToken]
       });
       return new ManagedWalletHttpService(httpClient);
     },

@@ -71,7 +71,7 @@ describe(InitialDeploymentFundingService.name, () => {
       signer: "akash1owner"
     });
     expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(1, [depositMessage]);
-    expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ walletId: 1 });
+    expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ walletId: 1 }, { triggeredByDeployment: true });
     expect(instrumentation.recordDeposit).toHaveBeenCalledWith(500000, "uakt", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
   });
 

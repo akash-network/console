@@ -15,6 +15,7 @@ import type { BlockHttpService } from "@src/chain/services/block-http/block-http
 import type { DrainingDeployment, DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { mockConfigService } from "../../../../test/mocks/config-service.mock";
 import type { CachedBalance, CachedBalanceService } from "../cached-balance/cached-balance.service";
+import type { FundDrainingDeploymentsInstrumentationService } from "./fund-draining-deployments-instrumentation.service";
 import { TopUpManagedDeploymentsService } from "./top-up-managed-deployments.service";
 import type { TopUpManagedDeploymentsInstrumentationService } from "./top-up-managed-deployments-instrumentation.service";
 
@@ -35,7 +36,15 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
   describe("topUpDeployments", () => {
     it("should top up draining deployments", async () => {
-      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, instrumentation, walletReloadService } = setup();
+      const {
+        service,
+        drainingDeploymentService,
+        cachedBalanceService,
+        managedSignerService,
+        instrumentation,
+        fundDrainingInstrumentation,
+        walletReloadService
+      } = setup();
       const deployments = createManyAutoTopUpDeployments(2);
       const desiredAmount = faker.number.int({ min: 3500000, max: 4000000 });
       const sufficientAmount = faker.number.int({ min: 1000000, max: 2000000 });
@@ -129,6 +138,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
       deployments.forEach(deployment => {
         expect(walletReloadService.scheduleImmediate).toHaveBeenCalledWith({ walletId: deployment.walletId });
       });
+
+      expect(fundDrainingInstrumentation.recordDeposit).not.toHaveBeenCalled();
     });
 
     it("should handle errors and continue processing", async () => {
@@ -539,6 +550,133 @@ describe(TopUpManagedDeploymentsService.name, () => {
     });
   });
 
+  describe("topUpDrainingDeploymentsForOwner", () => {
+    it("funds the owner's draining deployments in a single tx and schedules a wallet reload", async () => {
+      const {
+        service,
+        drainingDeploymentService,
+        cachedBalanceService,
+        managedSignerService,
+        walletReloadService,
+        fundDrainingInstrumentation,
+        instrumentation
+      } = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const sufficientAmount = faker.number.int({ min: 1000000, max: 2000000 });
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([createDrainingFor(owner, walletId), createDrainingFor(owner, walletId)]);
+      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(faker.number.int({ min: 3500000, max: 4000000 }));
+      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => sufficientAmount));
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
+
+      expect(drainingDeploymentService.findDrainingDeploymentsForOwner).toHaveBeenCalledWith(owner, fundDrainingInstrumentation);
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(walletId, [
+        expect.objectContaining({ typeUrl: "/akash.escrow.v1.MsgAccountDeposit" }),
+        expect.objectContaining({ typeUrl: "/akash.escrow.v1.MsgAccountDeposit" })
+      ]);
+      expect(walletReloadService.scheduleImmediate).toHaveBeenCalledWith({ walletId });
+      expect(fundDrainingInstrumentation.recordDeposit).toHaveBeenCalledWith(expect.objectContaining({ owner }));
+      expect(instrumentation.recordDeposit).not.toHaveBeenCalled();
+      expect(instrumentation.start).not.toHaveBeenCalled();
+      expect(instrumentation.finish).not.toHaveBeenCalled();
+    });
+
+    it("reads a fresh balance rather than the memoized one so the long-running worker never funds from a stale balance", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService } = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([createDrainingFor(owner, walletId)]);
+      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 500000));
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
+
+      expect(cachedBalanceService.getFresh).toHaveBeenCalledWith(owner);
+      expect(cachedBalanceService.get).not.toHaveBeenCalled();
+    });
+
+    it("records a nothing-to-fund skip and funds nothing when the owner has no draining deployments", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, walletReloadService, fundDrainingInstrumentation } = setup();
+      const owner = createAkashAddress();
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([]);
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId: 1, address: owner });
+
+      expect(fundDrainingInstrumentation.recordSkipped).toHaveBeenCalledWith({ owner, deploymentCount: 0 });
+      expect(cachedBalanceService.getFresh).not.toHaveBeenCalled();
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+      expect(walletReloadService.scheduleImmediate).not.toHaveBeenCalled();
+    });
+
+    it("records a non-positive-amount skip without reporting a false insufficient-balance error", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, walletReloadService, fundDrainingInstrumentation } = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const deployment = createDrainingFor(owner, walletId);
+      const balance = createMockCachedBalance(desiredAmount => {
+        if (desiredAmount <= 0) {
+          throw new Error(`Insufficient balance: 1000000 < ${desiredAmount}`);
+        }
+        return desiredAmount;
+      });
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
+      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(0);
+      cachedBalanceService.getFresh.mockResolvedValue(balance);
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
+
+      expect(fundDrainingInstrumentation.recordInvalidDepositAmount).toHaveBeenCalledWith(
+        expect.objectContaining({ desiredAmount: 0, dseq: deployment.dseq, address: deployment.address })
+      );
+      expect(balance.reserveSufficientAmount).not.toHaveBeenCalled();
+      expect(fundDrainingInstrumentation.recordMessagePreparationError).not.toHaveBeenCalled();
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+      expect(walletReloadService.scheduleImmediate).not.toHaveBeenCalled();
+    });
+
+    it("routes a master-wallet insufficient-funds failure to the immediate-funding instrumentation and rethrows", async () => {
+      const {
+        service,
+        drainingDeploymentService,
+        cachedBalanceService,
+        managedSignerService,
+        chainErrorService,
+        fundDrainingInstrumentation,
+        instrumentation
+      } = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const error = new Error("insufficient funds");
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([createDrainingFor(owner, walletId)]);
+      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
+      managedSignerService.executeDerivedTx.mockRejectedValue(error);
+      chainErrorService.isMasterWalletInsufficientFundsError.mockResolvedValue(true);
+
+      await expect(service.topUpDrainingDeploymentsForOwner({ walletId, address: owner })).rejects.toThrow(error);
+
+      expect(fundDrainingInstrumentation.recordChainTxError).toHaveBeenCalledWith(expect.objectContaining({ owner, error }));
+      expect(fundDrainingInstrumentation.recordMasterWalletInsufficientFundsError).toHaveBeenCalledWith(expect.objectContaining({ owner, error }));
+      expect(instrumentation.recordChainTxError).not.toHaveBeenCalled();
+    });
+
+    function createDrainingFor(owner: string, walletId: number, predictedClosedHeight = CURRENT_BLOCK_HEIGHT + 1500): DrainingDeployment {
+      const setting = createAutoTopUpDeployment({ address: owner, walletId });
+      return {
+        ...setting,
+        ...createDrainingDeployment({ dseq: Number(setting.dseq), owner, predictedClosedHeight, denom: DEPLOYMENT_GRANT_DENOM }),
+        dseq: setting.dseq
+      } as DrainingDeployment;
+    }
+  });
+
   function setup(input?: { currentBlockHeight?: number; feeAllowance?: number }) {
     const currentBlockHeight = input?.currentBlockHeight ?? CURRENT_BLOCK_HEIGHT;
     const feeAllowance = input?.feeAllowance ?? SUFFICIENT_FEE_ALLOWANCE;
@@ -560,6 +698,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     const chainErrorService = mock<ChainErrorService>();
     chainErrorService.isMasterWalletInsufficientFundsError.mockResolvedValue(false);
     const instrumentation = mock<TopUpManagedDeploymentsInstrumentationService>();
+    const fundDrainingInstrumentation = mock<FundDrainingDeploymentsInstrumentationService>();
     const walletReloadService = mock<WalletReloadJobService>();
 
     const service = new TopUpManagedDeploymentsService(
@@ -571,6 +710,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       blockHttpService,
       chainErrorService,
       instrumentation,
+      fundDrainingInstrumentation,
       walletReloadService
     );
 
@@ -584,6 +724,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       blockHttpService,
       chainErrorService,
       instrumentation,
+      fundDrainingInstrumentation,
       walletReloadService
     };
   }

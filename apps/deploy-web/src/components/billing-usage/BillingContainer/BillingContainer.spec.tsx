@@ -16,8 +16,6 @@ describe(BillingContainer.name, () => {
     const { data, child } = await setup();
     expect(child.data).toEqual(data?.transactions);
     expect(child.totalCount).toBe(data?.totalCount);
-    expect(child.hasMore).toBe(data?.hasMore);
-    expect(child.hasPrevious).toBe(false);
   });
 
   it("passes through loading and error flags", async () => {
@@ -36,7 +34,6 @@ describe(BillingContainer.name, () => {
     const { child } = await setup({ data: undefined });
     expect(child.data).toEqual([]);
     expect(child.totalCount).toBe(0);
-    expect(child.hasMore).toBe(false);
   });
 
   it("calls onPaginationChange", async () => {
@@ -62,6 +59,7 @@ describe(BillingContainer.name, () => {
   async function setup(
     overrides: Partial<{
       data: { transactions: BillingTransaction[]; hasMore: boolean; totalCount: number };
+      isLoading: boolean;
       isFetching: boolean;
       isError: boolean;
       queryError: Error;
@@ -76,6 +74,7 @@ describe(BillingContainer.name, () => {
         }
       : overrides.data;
 
+    const isLoading = overrides.isLoading ?? false;
     const isFetching = overrides.isFetching ?? false;
     const isError = overrides.isError ?? false;
     const queryError = overrides.queryError ?? null;
@@ -86,6 +85,7 @@ describe(BillingContainer.name, () => {
 
     const mockedUsePaymentTransactionsQuery = vi.fn(() => ({
       data,
+      isLoading,
       isFetching,
       isError,
       error: queryError

@@ -499,6 +499,115 @@ describe(SessionService.name, () => {
     });
   });
 
+  describe("refreshAccessToken", () => {
+    it("exchanges the refresh token and returns the rotated tokens", async () => {
+      const { service, externalHttpClient, config } = setup();
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 200,
+        data: {
+          access_token: "new-access-token",
+          refresh_token: "rotated-refresh-token",
+          id_token: "new-id-token",
+          scope: "openid profile email offline_access",
+          expires_in: 3_600,
+          token_type: "Bearer"
+        }
+      });
+
+      const result = await service.refreshAccessToken("old-refresh-token");
+
+      expect(externalHttpClient.post).toHaveBeenCalledWith(
+        `${new URL(config.ISSUER_BASE_URL).origin}/oauth/token`,
+        {
+          grant_type: "refresh_token",
+          client_id: config.CLIENT_ID,
+          client_secret: config.CLIENT_SECRET,
+          refresh_token: "old-refresh-token"
+        },
+        { validateStatus: expect.any(Function) }
+      );
+      const tokens = expectOk(result);
+      expect(tokens.accessToken).toBe("new-access-token");
+      expect(tokens.refreshToken).toBe("rotated-refresh-token");
+      expect(tokens.idToken).toBe("new-id-token");
+      expect(tokens.accessTokenExpiresAt).toBeGreaterThan(Math.floor(Date.now() / 1000));
+    });
+
+    it("keeps the input refresh token when Auth0 does not rotate", async () => {
+      const { service, externalHttpClient } = setup();
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 200,
+        data: {
+          access_token: "new-access-token",
+          expires_in: 3_600
+        }
+      });
+
+      const result = await service.refreshAccessToken("stable-refresh-token");
+
+      expect(expectOk(result).refreshToken).toBe("stable-refresh-token");
+    });
+
+    it("returns invalid_grant when the refresh token is revoked or reused", async () => {
+      const { service, externalHttpClient } = setup();
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 403,
+        data: { error: "invalid_grant", error_description: "Unknown or invalid refresh token." },
+        config: {},
+        headers: {}
+      });
+
+      const result = await service.refreshAccessToken("revoked-refresh-token");
+
+      const error = expectErr(result);
+      expect(error.code).toBe("invalid_grant");
+    });
+
+    it("returns rate_limited with a retry delay on 429", async () => {
+      const { service, externalHttpClient } = setup();
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 429,
+        data: {},
+        config: {},
+        headers: { "x-ratelimit-reset": String(Math.floor(Date.now() / 1000) + 30) }
+      });
+
+      const result = await service.refreshAccessToken("refresh-token");
+
+      const error = expectErr(result) as { code: string; retryAfter: number };
+      expect(error.code).toBe("rate_limited");
+      expect(error.retryAfter).toBeGreaterThan(0);
+    });
+
+    it("returns unknown on other client errors", async () => {
+      const { service, externalHttpClient } = setup();
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 400,
+        data: { error: "invalid_request" },
+        config: {},
+        headers: {}
+      });
+
+      const result = await service.refreshAccessToken("refresh-token");
+
+      expect(expectErr(result).code).toBe("unknown");
+    });
+
+    it("returns unknown when the response is missing token fields", async () => {
+      const { service, externalHttpClient } = setup();
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 200,
+        data: { token_type: "Bearer" },
+        config: {},
+        headers: {}
+      });
+
+      const result = await service.refreshAccessToken("refresh-token");
+
+      expect(expectErr(result).code).toBe("unknown");
+    });
+  });
+
   function setup(input?: { externalHttpClient?: MockProxy<HttpClient>; consoleApiHttpClient?: MockProxy<HttpClient>; config?: OauthConfig }) {
     const externalHttpClient = input?.externalHttpClient ?? createHttpClientMock();
     const consoleApiHttpClient = input?.consoleApiHttpClient ?? createHttpClientMock();

@@ -35,6 +35,7 @@ export type ChildrenProps = {
   data?: DeploymentAlertsOutput;
   upsert: (input: ContainerInput) => Promise<DeploymentAlertsOutput | undefined>;
   isLoading: boolean;
+  isSaving: boolean;
   isFetched: boolean;
   isError: boolean;
   maxBalanceThreshold: number;
@@ -122,6 +123,7 @@ export const DeploymentAlertsContainer: FC<Props> = ({ children, deployment }) =
         data: output,
         upsert,
         isLoading,
+        isSaving: mutation.isPending,
         isFetched,
         isError,
         maxBalanceThreshold

@@ -4,10 +4,9 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { Session } from "@src/lib/auth0";
-import type { FeatureFlagService } from "@src/services/feature-flag/feature-flag.service";
 import { UrlService } from "@src/utils/urlUtils";
 import type { AppTypedContext } from "../defineServerSideProps/defineServerSideProps";
-import { isAuthenticated, isFeatureEnabled, redirectIfAccessTokenExpired, requireAuth } from "./pageGuards";
+import { isAuthenticated, redirectIfAccessTokenExpired, requireAuth } from "./pageGuards";
 
 describe("pageGuards", () => {
   describe("isAuthenticated", () => {
@@ -34,33 +33,6 @@ describe("pageGuards", () => {
       const result = await isAuthenticated(context);
 
       expect(result).toBe(false);
-    });
-  });
-
-  describe("isFeatureEnabled", () => {
-    it("returns true when feature flag is enabled", async () => {
-      const context = setup({
-        enabledFeatures: ["test"]
-      });
-
-      expect(await isFeatureEnabled("test", context)).toBe(true);
-      expect(await isFeatureEnabled("test2", context)).toBe(false);
-      expect(context.services.featureFlagService.isEnabledForCtx).toHaveBeenCalledWith("test", context, expect.anything());
-    });
-
-    it("passes the user id to the feature flag service", async () => {
-      const userId = faker.string.uuid();
-      const context = setup({
-        enabledFeatures: ["test"],
-        session: {
-          user: {
-            id: userId
-          }
-        }
-      });
-
-      expect(await isFeatureEnabled("test", context)).toBe(true);
-      expect(context.services.featureFlagService.isEnabledForCtx).toHaveBeenCalledWith("test", context, { userId });
     });
   });
 
@@ -129,7 +101,7 @@ describe("pageGuards", () => {
   });
 });
 
-function setup(input?: { enabledFeatures?: string[]; session?: Partial<Session>; resolvedUrl?: string }) {
+function setup(input?: { session?: Partial<Session>; resolvedUrl?: string }) {
   return mock<AppTypedContext>({
     getCurrentSession: vi.fn().mockImplementation(async () => {
       if (!input?.session) return null;
@@ -139,9 +111,6 @@ function setup(input?: { enabledFeatures?: string[]; session?: Partial<Session>;
       };
     }),
     services: {
-      featureFlagService: mock<FeatureFlagService>({
-        isEnabledForCtx: vi.fn(async featureName => !!input?.enabledFeatures?.includes(featureName))
-      }),
       logger: mock<LoggerService>(),
       urlService: UrlService
     },

@@ -7,6 +7,7 @@ import { WarningCircle } from "iconoir-react";
 
 import { ConfidentialComputeBadge } from "@src/components/shared/ConfidentialComputeBadge";
 import { CopyTextToClipboardButton } from "@src/components/shared/CopyTextToClipboardButton";
+import { GpuInterconnectBadge } from "@src/components/shared/GpuInterconnectBadge";
 import { LabelValue } from "@src/components/shared/LabelValue";
 import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
 import { PriceValue } from "@src/components/shared/PriceValue";
@@ -18,22 +19,24 @@ import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
 import { useTrialDeploymentTimeRemaining } from "@src/hooks/useTrialDeploymentTimeRemaining";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { TeeType } from "@src/utils/confidentialCompute";
+import type { DeclaredGpuInterconnect } from "@src/utils/gpuInterconnect";
+import { hasLiveGpuLease, isLeaseLive } from "@src/utils/leaseUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import { isLeaseLive } from "@src/utils/reclamationUtils";
 
 type Props = {
   deployment: DeploymentDto;
   leases: LeaseDto[] | undefined | null;
   teeTypes?: TeeType[];
+  interconnect?: DeclaredGpuInterconnect;
   children?: ReactNode;
 };
 
-export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment, leases, teeTypes = [] }) => {
+export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment, leases, teeTypes = [], interconnect = { enabled: false, fabrics: [] } }) => {
   const { deploymentCost, realTimeLeft } = useDeploymentMetrics({ deployment, leases });
   const isActive = deployment.state === "active";
   const hasLeases = !!leases && leases.length > 0;
   const hasActiveLeases = hasLeases && leases.some(isLeaseLive);
-  const hasGpu = leases?.some(l => isLeaseLive(l) && l.gpuAmount && l.gpuAmount > 0);
+  const hasGpu = hasLiveGpuLease(leases);
   const { isTrialing } = useWallet();
   const { publicConfig: appConfig } = useServices();
 
@@ -104,6 +107,8 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
               <StatusPill state={deployment.state} size="small" />
 
               <ConfidentialComputeBadge teeTypes={teeTypes} />
+
+              <GpuInterconnectBadge interconnect={interconnect} />
 
               {isTrialing && <TrialDeploymentBadge createdHeight={deployment.createdAt} />}
             </div>

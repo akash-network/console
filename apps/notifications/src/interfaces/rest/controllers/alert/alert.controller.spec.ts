@@ -5,15 +5,19 @@ import { Test } from "@nestjs/testing";
 import { Ok } from "ts-results";
 import { describe, expect, it } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
+import type { NotificationChannelOutput } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
+import { NotificationChannelRepository } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
 import { chainMessageCreateInputSchema } from "../../http-schemas/alert.http-schema";
 import { AlertController } from "./alert.controller";
 
 import { MockProvider } from "@test/mocks/provider.mock";
 import { generateGeneralAlert } from "@test/seeders/general-alert.seeder";
+import { generateWalletBalanceAlert } from "@test/seeders/wallet-balance-alert.seeder";
 
 describe(AlertController.name, () => {
   describe("createAlert", () => {
@@ -32,6 +36,17 @@ describe(AlertController.name, () => {
         userId
       });
       expect(result).toEqual(Ok({ data: output }));
+    });
+
+    it("throws NotFoundException and does not create when the notification channel is not owned by the user", async () => {
+      const { controller, alertRepository, notificationChannelRepository } = await setup();
+
+      const input = generateMock(chainMessageCreateInputSchema);
+      notificationChannelRepository.findById.mockResolvedValue(undefined);
+
+      await expect(controller.createAlert({ data: input })).rejects.toThrow("Notification channel not found");
+      expect(notificationChannelRepository.findById).toHaveBeenCalledWith(input.notificationChannelId);
+      expect(alertRepository.create).not.toHaveBeenCalled();
     });
   });
 
@@ -64,6 +79,45 @@ describe(AlertController.name, () => {
         val: expect.objectContaining({ message: "Alert not found" })
       });
       expect(alertRepository.updateById).toHaveBeenCalledWith(id, input);
+    });
+
+    it("throws NotFoundException and does not update when the notification channel is not owned by the user", async () => {
+      const { controller, alertRepository, notificationChannelRepository } = await setup();
+
+      const id = faker.string.uuid();
+      const input = generateMock(chainMessageCreateInputSchema);
+      notificationChannelRepository.findById.mockResolvedValue(undefined);
+
+      await expect(controller.updateAlert(id, { data: input })).rejects.toThrow("Notification channel not found");
+      expect(notificationChannelRepository.findById).toHaveBeenCalledWith(input.notificationChannelId);
+      expect(alertRepository.updateById).not.toHaveBeenCalled();
+    });
+
+    it("throws BadRequestException and does not update a balance alert with non-balance conditions", async () => {
+      const { controller, alertRepository } = await setup();
+
+      const id = faker.string.uuid();
+      alertRepository.findOneById.mockResolvedValue(generateWalletBalanceAlert({ id }));
+
+      await expect(controller.updateAlert(id, { data: { conditions: { operator: "eq", field: "foo", value: "bar" } } })).rejects.toThrow(
+        "Conditions must match the balance alert shape"
+      );
+      expect(alertRepository.updateById).not.toHaveBeenCalled();
+    });
+
+    it("updates a balance alert when the conditions match the balance shape", async () => {
+      const { controller, alertRepository } = await setup();
+
+      const id = faker.string.uuid();
+      const output = generateWalletBalanceAlert({ id });
+      alertRepository.findOneById.mockResolvedValue(output);
+      alertRepository.updateById.mockResolvedValue(output);
+
+      const conditions = { operator: "lt" as const, field: "balance" as const, value: 100 };
+      const result = await controller.updateAlert(id, { data: { conditions } });
+
+      expect(alertRepository.updateById).toHaveBeenCalledWith(id, { conditions });
+      expect(result).toEqual(Ok({ data: output }));
     });
   });
 
@@ -130,6 +184,7 @@ describe(AlertController.name, () => {
   async function setup(): Promise<{
     controller: AlertController;
     alertRepository: MockProxy<AlertRepository>;
+    notificationChannelRepository: MockProxy<NotificationChannelRepository>;
     userId: string;
   }> {
     const userId = faker.string.uuid();
@@ -143,6 +198,7 @@ describe(AlertController.name, () => {
           }
         },
         MockProvider(AlertRepository),
+        MockProvider(NotificationChannelRepository),
         MockProvider(LoggerService)
       ]
     }).compile();
@@ -150,10 +206,15 @@ describe(AlertController.name, () => {
     const alertRepository = module.get<MockProxy<AlertRepository>>(AlertRepository);
     alertRepository.accessibleBy.mockReturnValue(alertRepository);
 
+    const notificationChannelRepository = module.get<MockProxy<NotificationChannelRepository>>(NotificationChannelRepository);
+    notificationChannelRepository.accessibleBy.mockReturnValue(notificationChannelRepository);
+    notificationChannelRepository.findById.mockResolvedValue(mock<NotificationChannelOutput>());
+
     return {
       controller: module.get(AlertController),
       userId,
-      alertRepository
+      alertRepository,
+      notificationChannelRepository
     };
   }
 });

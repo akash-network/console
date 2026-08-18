@@ -27,10 +27,11 @@ describe("Alerts CRUD", () => {
   it("should perform all CRUD operations against raw alerts", async () => {
     // NOTE: change this when there's a role that can create alerts
     const HAS_ROLE_TO_CREATE_ALERTS = false;
-    const { app, userId, notificationChannelId } = await setup();
+    const { app, userId, notificationChannelId, otherNotificationChannelId, foreignNotificationChannelId } = await setup();
 
     const alert = HAS_ROLE_TO_CREATE_ALERTS ? await shouldCreate(userId, notificationChannelId, app) : await prepareAlert(userId, notificationChannelId, app);
-    await shouldUpdate(alert, app);
+    await shouldUpdate(alert, otherNotificationChannelId, app);
+    await shouldRejectForeignNotificationChannel(alert, otherNotificationChannelId, foreignNotificationChannelId, app);
     await shouldRead(alert, app);
     await shouldDelete(alert, app);
 
@@ -79,14 +80,35 @@ describe("Alerts CRUD", () => {
     };
   }
 
-  async function shouldUpdate(alert: AlertOutputMeta, app: INestApplication) {
+  async function shouldUpdate(alert: AlertOutputMeta, otherNotificationChannelId: string, app: INestApplication) {
+    const update = {
+      name: "Updated alert name",
+      notificationChannelId: otherNotificationChannelId,
+      conditions: { operator: "lt" as const, field: "balance", value: 100 },
+      enabled: false
+    };
+
+    const res = await request(app.getHttpServer()).patch(`/v1/alerts/${alert.id}`).set("x-user-id", alert.userId).send({ data: update });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject(update);
+  }
+
+  async function shouldRejectForeignNotificationChannel(
+    alert: AlertOutputMeta,
+    otherNotificationChannelId: string,
+    foreignNotificationChannelId: string,
+    app: INestApplication
+  ) {
     const res = await request(app.getHttpServer())
       .patch(`/v1/alerts/${alert.id}`)
       .set("x-user-id", alert.userId)
-      .send({ data: { enabled: false } });
+      .send({ data: { notificationChannelId: foreignNotificationChannelId } });
 
-    expect(res.status).toBe(200);
-    expect(res.body.data.enabled).toBe(false);
+    expect(res.status).toBe(404);
+
+    const getRes = await request(app.getHttpServer()).get(`/v1/alerts/${alert.id}`).set("x-user-id", alert.userId);
+    expect(getRes.body.data.notificationChannelId).toBe(otherNotificationChannelId);
   }
 
   async function shouldRead(alert: AlertOutputMeta, app: INestApplication) {
@@ -109,6 +131,8 @@ describe("Alerts CRUD", () => {
   async function setup(): Promise<{
     app: INestApplication;
     notificationChannelId: string;
+    otherNotificationChannelId: string;
+    foreignNotificationChannelId: string;
     userId: string;
   }> {
     @Module({
@@ -128,12 +152,23 @@ describe("Alerts CRUD", () => {
     await app.init();
 
     const userId = faker.string.uuid();
+    const foreignUserId = faker.string.uuid();
     const db = module.get<NodePgDatabase<typeof alertSchema & { NotificationChannel: typeof NotificationChannel }>>(DRIZZLE_PROVIDER_TOKEN);
-    const [notificationChannel] = await db
+    const [notificationChannel, otherNotificationChannel, foreignNotificationChannel] = await db
       .insert(NotificationChannel)
-      .values([generateNotificationChannel({ userId })])
+      .values([
+        generateNotificationChannel({ userId, isDefault: false }),
+        generateNotificationChannel({ userId, isDefault: false }),
+        generateNotificationChannel({ userId: foreignUserId, isDefault: false })
+      ])
       .returning();
 
-    return { app, notificationChannelId: notificationChannel.id, userId };
+    return {
+      app,
+      notificationChannelId: notificationChannel.id,
+      otherNotificationChannelId: otherNotificationChannel.id,
+      foreignNotificationChannelId: foreignNotificationChannel.id,
+      userId
+    };
   }
 });

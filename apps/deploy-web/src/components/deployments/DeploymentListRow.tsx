@@ -25,22 +25,25 @@ import { useRouter } from "next/navigation";
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
 import { useDepositDeployment } from "@src/hooks/useDepositDeployment/useDepositDeployment";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useRealTimeLeft } from "@src/hooks/useRealTimeLeft";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
-import { useAllLeases, useLeaseStatus } from "@src/queries/useLeaseQuery";
+import { useDeploymentLeaseList, useLeaseStatus } from "@src/queries/useLeaseQuery";
 import type { LeaseDto, NamedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
+import { isLeaseLive } from "@src/utils/leaseUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getTimeLeft } from "@src/utils/priceUtils";
-import { getLeaseCloseReasonLabel, getReclamationDeadline, isLeaseLive, isProviderReclaimed, isReclaiming } from "@src/utils/reclamationUtils";
+import { getLeaseCloseReasonLabel, getReclamationDeadline, isProviderReclaimed, isReclaiming } from "@src/utils/reclamationUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import { TrialDeploymentBadge } from "../shared";
 import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
+import { GpuInterconnectBadge } from "../shared/GpuInterconnectBadge";
 import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
 import { PricePerTimeUnit } from "../shared/PricePerTimeUnit";
 import { PriceValue } from "../shared/PriceValue";
@@ -68,8 +71,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const { changeDeploymentName, getDeploymentData } = useLocalNotes();
   const { address, signAndBroadcastTx, isTrialing } = useWallet();
   const isActive = deployment.state === "active";
-  const { data: leases, isLoading: isLoadingLeases } = useAllLeases(address, { enabled: !!deployment && isActive });
-  const filteredLeases = leases?.filter(l => l.dseq === deployment.dseq);
+  const { data: filteredLeases, isLoading: isLoadingLeases } = useDeploymentLeaseList(address, deployment, { enabled: !!deployment });
   // A reclaiming lease is still running (grace period), so it counts as live for cost/escrow metrics.
   const liveLeases = filteredLeases?.filter(isLeaseLive);
   const hasActiveLeases = !!liveLeases?.length;
@@ -80,6 +82,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const reclaimDeadline = reclaimingLease ? getReclamationDeadline(reclaimingLease) : null;
   const closedReasonLabel = closedLease ? getClosedLeaseLabel(closedLease) : null;
   const hasGpu = Boolean(deployment.gpuAmount && deployment.gpuAmount > 0);
+  const interconnect = useDeclaredGpuInterconnect(deployment);
   const timeLeft = getTimeLeft(deploymentCost || 0, deployment.escrowBalance);
   const realTimeLeft = useRealTimeLeft(
     deploymentCost || 0,
@@ -189,6 +192,12 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
         </TableCell>
         <TableCell className="max-w-[100px] text-center">
           <DeploymentName deployment={deployment} deploymentServices={leaseStatus?.services} providerHostUri={provider?.hostUri} />
+
+          {interconnect.enabled && (
+            <div className="mt-2 flex justify-center">
+              <GpuInterconnectBadge interconnect={interconnect} compact />
+            </div>
+          )}
 
           {isTrialing && (
             <div className="mt-2">

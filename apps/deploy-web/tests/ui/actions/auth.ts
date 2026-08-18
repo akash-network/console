@@ -6,7 +6,7 @@ import { AuthPage } from "../pages/AuthPage";
 import { AuthPagePasswordless } from "../pages/AuthPagePasswordless";
 import type { Auth0ManagementService } from "../services/auth0-management.service";
 import type { EmailVerificationStrategy } from "../services/email-verification";
-import { MailsacCodeVerificationStrategy } from "../services/email-verification/mailsac-code.strategy";
+import { createEmailVerificationStrategy } from "../services/email-verification";
 
 /** Which credential mechanism a flow authenticates with. */
 export type AuthType = "passwordless" | "email-password";
@@ -86,7 +86,7 @@ export async function registerNewUser(
 }
 
 async function registerPasswordless(page: Page): Promise<string> {
-  const otp = new MailsacCodeVerificationStrategy(testEnvConfig.MAILSAC_API_KEY);
+  const otp = createEmailVerificationStrategy();
   const email = otp.generateEmail();
   await signInPasswordless(page, email);
   return email;
@@ -124,9 +124,9 @@ async function signInWithPassword(page: Page, credentials: { email: string; pass
   await auth.signIn(credentials);
 }
 
-/** Drives the passwordless (email OTP via Mailsac) flow for the given email. Page is expected to be on /login. */
+/** Drives the passwordless (email OTP read from the e2e inbox worker) flow for the given email. Page is expected to be on /login. */
 export async function signInPasswordless(page: Page, email: string): Promise<void> {
-  const otp = new MailsacCodeVerificationStrategy(testEnvConfig.MAILSAC_API_KEY);
+  const otp = createEmailVerificationStrategy();
   const auth = new AuthPagePasswordless(page);
 
   const sinceMs = Date.now();

@@ -5,7 +5,6 @@ import {
   classifyLeaseCloseReason,
   getLeaseCloseReasonLabel,
   getReclamationDeadline,
-  isLeaseLive,
   isProviderReclaimed,
   isReclaiming,
   parseReclamationWindowSeconds
@@ -111,18 +110,6 @@ describe("reclamationUtils", () => {
     });
   });
 
-  describe("isLeaseLive", () => {
-    it("treats active and reclaiming leases as live", () => {
-      expect(isLeaseLive(createLease({ state: "active" }))).toBe(true);
-      expect(isLeaseLive(createLease({ state: "reclaiming" }))).toBe(true);
-    });
-
-    it("treats closed / insufficient_funds leases as not live", () => {
-      expect(isLeaseLive(createLease({ state: "closed" }))).toBe(false);
-      expect(isLeaseLive(createLease({ state: "insufficient_funds" }))).toBe(false);
-    });
-  });
-
   describe("isProviderReclaimed", () => {
     it("is true for a closed lease with reclamation evidence (startedAt > 0)", () => {
       expect(isProviderReclaimed(createLease({ state: "closed", reclamation: { startedAt: "1700000000" } }))).toBe(true);
@@ -163,6 +150,7 @@ describe("reclamationUtils", () => {
       state: overrides.state ?? "active",
       price: { denom: "uakt", amount: "100" },
       cpuAmount: 0,
+      gpuAmount: 0,
       memoryAmount: 0,
       storageAmount: 0,
       reason: overrides.reason,

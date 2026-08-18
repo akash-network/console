@@ -74,7 +74,8 @@ export class ExternalSignerHttpSdkService {
     try {
       const response = await axios.post<T>(url, body, {
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "x-api-key": this.billingConfigService.get("TX_SIGNER_API_KEY")
         },
         timeout: 60_000
       });

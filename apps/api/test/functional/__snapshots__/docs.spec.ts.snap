@@ -13376,118 +13376,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
-    "/v1/start-trial": {
-      "post": {
-        "description": "Ensures the user's managed wallet exists and enqueues background trial activation. Kept for backward compatibility; trial activation now runs server-side off registration/verification.",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "properties": {
-                  "data": {
-                    "properties": {
-                      "userId": {
-                        "type": "string",
-                      },
-                    },
-                    "required": [
-                      "userId",
-                    ],
-                    "type": "object",
-                  },
-                },
-                "required": [
-                  "data",
-                ],
-                "type": "object",
-              },
-            },
-          },
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "address": {
-                          "nullable": true,
-                          "type": "string",
-                        },
-                        "clientSecret": {
-                          "nullable": true,
-                          "type": "string",
-                        },
-                        "createdAt": {
-                          "nullable": true,
-                          "type": "string",
-                        },
-                        "creditAmount": {
-                          "type": "number",
-                        },
-                        "denom": {
-                          "type": "string",
-                        },
-                        "id": {
-                          "nullable": true,
-                          "type": "number",
-                        },
-                        "isTrialing": {
-                          "type": "boolean",
-                        },
-                        "paymentIntentId": {
-                          "nullable": true,
-                          "type": "string",
-                        },
-                        "paymentMethodId": {
-                          "nullable": true,
-                          "type": "string",
-                        },
-                        "requires3DS": {
-                          "type": "boolean",
-                        },
-                        "topUpMinAmountUsd": {
-                          "description": "Minimum USD amount accepted by the next paid top-up for this wallet.",
-                          "type": "number",
-                        },
-                        "userId": {
-                          "nullable": true,
-                          "type": "string",
-                        },
-                      },
-                      "required": [
-                        "id",
-                        "userId",
-                        "creditAmount",
-                        "address",
-                        "denom",
-                        "isTrialing",
-                        "topUpMinAmountUsd",
-                        "createdAt",
-                      ],
-                      "type": "object",
-                    },
-                  },
-                  "required": [
-                    "data",
-                  ],
-                  "type": "object",
-                },
-              },
-            },
-            "description": "Wallet ensured and trial activation enqueued",
-          },
-        },
-        "security": [],
-        "summary": "Start a trial period for a user",
-        "tags": [
-          "Wallet",
-        ],
-      },
-    },
     "/v1/templates-list": {
       "get": {
         "responses": {
@@ -14016,7 +13904,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "endDate",
             "required": false,
             "schema": {
-              "default": "2025-07-03",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31",
               "format": "date",
@@ -14142,7 +14029,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "endDate",
             "required": false,
             "schema": {
-              "default": "2025-07-03",
               "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
               "example": "2024-01-31",
               "format": "date",
@@ -15378,15 +15264,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "items": {
                         "properties": {
                           "address": {
-                            "nullable": true,
-                            "type": "string",
-                          },
-                          "clientSecret": {
-                            "nullable": true,
                             "type": "string",
                           },
                           "createdAt": {
-                            "nullable": true,
                             "type": "string",
                           },
                           "creditAmount": {
@@ -15396,21 +15276,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "type": "string",
                           },
                           "id": {
-                            "nullable": true,
                             "type": "number",
                           },
                           "isTrialing": {
-                            "type": "boolean",
-                          },
-                          "paymentIntentId": {
-                            "nullable": true,
-                            "type": "string",
-                          },
-                          "paymentMethodId": {
-                            "nullable": true,
-                            "type": "string",
-                          },
-                          "requires3DS": {
                             "type": "boolean",
                           },
                           "topUpMinAmountUsd": {
@@ -15418,7 +15286,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "type": "number",
                           },
                           "userId": {
-                            "nullable": true,
                             "type": "string",
                           },
                         },

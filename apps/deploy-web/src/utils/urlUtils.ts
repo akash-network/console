@@ -75,7 +75,6 @@ export const UrlService = {
   userFavorites: () => `/user/settings/favorites`,
   userProfile: (username: string) => `/profile/${username}`,
   usage: () => "/usage",
-  paymentMethods: () => "/payment-methods",
   billing: ({ openPayment }: { openPayment?: boolean } = {}) => `/billing${appendSearchParams({ openPayment })}`,
   /** @deprecated use .newLogin instead */
   login: () => "/api/auth/login",
@@ -99,7 +98,6 @@ export const UrlService = {
   providerDetailRaw: (owner: string) => `/providers/${owner}/raw`,
   alerts: () => "/alerts",
   alertDetails: (id: string) => `/alerts/${id}`,
-  notificationChannels: () => "/alerts/notification-channels",
   newNotificationChannel: () => "/alerts/notification-channels/new",
   notificationChannelDetails: (id: string) => `/alerts/notification-channels/${id}`,
 

@@ -59,12 +59,12 @@ export const usageRouter = new OpenApiHonoHandler();
 
 usageRouter.openapi(getUsageHistoryRoute, async function routeGetBillingUsage(c) {
   const { address, startDate, endDate } = c.req.valid("query");
-  const usageHistory = await container.resolve(UsageController).getHistory(address, startDate!, endDate!);
+  const usageHistory = await container.resolve(UsageController).getHistory(address, startDate, endDate);
   return c.json(usageHistory);
 });
 
 usageRouter.openapi(getUsageHistoryStatsRoute, async function routeGetBillingOverview(c) {
   const { address, startDate, endDate } = c.req.valid("query");
-  const usageHistoryStats = await container.resolve(UsageController).getHistoryStats(address, startDate!, endDate!);
+  const usageHistoryStats = await container.resolve(UsageController).getHistoryStats(address, startDate, endDate);
   return c.json(usageHistoryStats);
 });

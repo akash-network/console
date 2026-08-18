@@ -813,13 +813,14 @@ describe("Stripe webhook", () => {
 
     vi.spyOn(refillService, "topUpWallet").mockImplementation(async (amountUsd, userId, options) => {
       const wallet = await userWalletRepository.findOneBy({ userId });
-      if (!wallet) return;
+      if (!wallet) throw new Error(`No wallet found for user ${userId}`);
       // Mirror the real service: only graduate the trial when endTrial is not explicitly false
       const endTrial = options?.endTrial ?? true;
       await userWalletRepository.updateById(wallet.id, {
         deploymentAllowance: wallet.deploymentAllowance + amountUsd * 10000,
         ...(endTrial ? { isTrialing: false } : {})
       });
+      return { walletId: wallet.id, address: wallet.address! };
     });
 
     vi.spyOn(refillService, "reduceWalletBalance").mockImplementation(async (amountUsd, userId) => {

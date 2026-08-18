@@ -15,7 +15,7 @@ export class AbilityService {
 
   private readonly RULES: Record<Role, Array<RawRule & { enabledIf?: FeatureFlagValue }>> = {
     REGULAR_USER: [
-      { action: ["create", "read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
+      { action: ["read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
       { action: "manage", subject: "WalletSetting", conditions: { userId: "${user.id}" } },
       { action: "read", subject: "User", conditions: { id: "${user.id}" } },
       { action: "verify-email", subject: "User", conditions: { email: "${user.email}" } },
@@ -28,7 +28,7 @@ export class AbilityService {
       { action: "manage", subject: "NotificationChannel", conditions: { userId: "${user.id}" } }
     ],
     REGULAR_PAYING_USER: [
-      { action: ["create", "read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
+      { action: ["read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
       { action: "manage", subject: "WalletSetting", conditions: { userId: "${user.id}" } },
       { action: "read", subject: "User", conditions: { id: "${user.id}" } },
       { action: "verify-email", subject: "User", conditions: { email: "${user.email}" } },

@@ -5,7 +5,8 @@ import { APP_CONFIG } from "@src/providers/app-config.provider";
 import { ConfigService } from "@src/services/config/config.service";
 
 @singleton()
-export class AppConfigService extends ConfigService<typeof envSchema> {
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export class AppConfigService extends ConfigService<typeof envSchema, {}> {
   constructor(@inject(APP_CONFIG) config: EnvConfig) {
     super({ config });
   }

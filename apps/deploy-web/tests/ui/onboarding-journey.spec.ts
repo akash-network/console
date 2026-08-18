@@ -9,7 +9,7 @@ import { OnboardingPickerPage } from "./pages/OnboardingPickerPage";
 
 /**
  * The real new-user onboarding journeys, driven the way a user drives them: the fixture registers a fresh user
- * through the live /login UI (email OTP via Mailsac); from there the test only clicks — it never deep-links to a
+ * through the live /login UI (email OTP read from the e2e inbox worker); from there the test only clicks — it never deep-links to a
  * functional page. Two entry points off the onboarding picker: a one-click template auto-deploy, and the "bring
  * your own Docker image" path that lands in the configure screen for a manual deploy. Both end with the user
  * onboarded (and no longer sent to onboarding), closing the deployment so the run leaves no live state behind.

@@ -11,7 +11,9 @@ import { BlockHttpService } from "@src/chain/services/block-http/block-http.serv
 import type { DryRunOptions } from "@src/core/types/console";
 import { DrainingDeployment } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
-import { CachedBalanceService } from "../cached-balance/cached-balance.service";
+import { CachedBalance, CachedBalanceService } from "../cached-balance/cached-balance.service";
+import type { DeploymentTopUpInstrumentation } from "./deployment-top-up-instrumentation";
+import { FundDrainingDeploymentsInstrumentationService } from "./fund-draining-deployments-instrumentation.service";
 import { TopUpManagedDeploymentsInstrumentationService } from "./top-up-managed-deployments-instrumentation.service";
 
 type CollectedMessage = {
@@ -31,6 +33,7 @@ export class TopUpManagedDeploymentsService {
     private readonly blockHttpService: BlockHttpService,
     private readonly chainErrorService: ChainErrorService,
     private readonly instrumentation: TopUpManagedDeploymentsInstrumentationService,
+    private readonly fundDrainingInstrumentation: FundDrainingDeploymentsInstrumentationService,
     private readonly walletReloadService: WalletReloadJobService
   ) {}
 
@@ -39,20 +42,10 @@ export class TopUpManagedDeploymentsService {
     const errors: unknown[] = [];
 
     try {
-      for await (const { address, walletId, deployments } of this.drainingDeploymentService.findDrainingDeploymentsByOwner()) {
+      for await (const owner of this.drainingDeploymentService.findDrainingDeploymentsByOwner()) {
         try {
-          const messageInputs = await this.collectMessages(deployments);
-          if (messageInputs.length) {
-            await this.topUpForOwner(address, messageInputs, options);
-            if (!options.dryRun) {
-              await this.walletReloadService.scheduleImmediate({ walletId });
-            }
-          } else {
-            this.instrumentation.recordSkipped({
-              owner: address,
-              deploymentCount: deployments.length
-            });
-          }
+          const balance = await this.cachedBalanceService.get(owner.address);
+          await this.#fundOwnerDeployments(owner, options, balance, this.instrumentation);
         } catch (error: unknown) {
           errors.push(error);
         }
@@ -67,27 +60,64 @@ export class TopUpManagedDeploymentsService {
     return errors.length > 0 ? Err(errors) : Ok(undefined);
   }
 
-  private async collectMessages(deployments: DrainingDeployment[]): Promise<CollectedMessage[]> {
+  /**
+   * Funds a single owner's draining deployments immediately, reusing the cron's
+   * per-owner path. Triggered off-cron the moment credits land so a deployment
+   * about to drain does not wait up to an hour for the next scheduled pass.
+   */
+  async topUpDrainingDeploymentsForOwner({ walletId, address }: { walletId: number; address: string }): Promise<void> {
+    const deployments = await this.drainingDeploymentService.findDrainingDeploymentsForOwner(address, this.fundDrainingInstrumentation);
+
+    if (!deployments.length) {
+      this.fundDrainingInstrumentation.recordSkipped({ owner: address, deploymentCount: 0 });
+      return;
+    }
+
+    const balance = await this.cachedBalanceService.getFresh(address);
+    await this.#fundOwnerDeployments({ address, walletId, deployments }, { dryRun: false }, balance, this.fundDrainingInstrumentation);
+  }
+
+  async #fundOwnerDeployments(
+    { address, walletId, deployments }: { address: string; walletId: number; deployments: DrainingDeployment[] },
+    options: DryRunOptions,
+    balance: CachedBalance,
+    instrumentation: DeploymentTopUpInstrumentation
+  ): Promise<void> {
+    const messageInputs = await this.collectMessages(deployments, balance, instrumentation);
+
+    if (!messageInputs.length) {
+      instrumentation.recordSkipped({ owner: address, deploymentCount: deployments.length });
+      return;
+    }
+
+    await this.topUpForOwner(address, messageInputs, options, instrumentation);
+
+    if (!options.dryRun) {
+      await this.walletReloadService.scheduleImmediate({ walletId });
+    }
+  }
+
+  private async collectMessages(
+    deployments: DrainingDeployment[],
+    balance: CachedBalance,
+    instrumentation: DeploymentTopUpInstrumentation
+  ): Promise<CollectedMessage[]> {
     const denom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
 
     const messageInputs = await Promise.all(
       deployments.map(async deployment => {
-        this.instrumentation.recordDeploymentPreparation(deployment.address, deployment.predictedClosedHeight);
+        instrumentation.recordDeploymentPreparation(deployment.address, deployment.predictedClosedHeight);
 
         try {
-          const { address } = deployment;
-
-          const [balance, desiredAmount] = await Promise.all([
-            this.cachedBalanceService.get(address),
-            this.drainingDeploymentService.calculateTopUpAmount(deployment)
-          ]);
+          const desiredAmount = await this.drainingDeploymentService.calculateTopUpAmount(deployment);
           if (desiredAmount <= 0) {
-            this.instrumentation.recordInvalidDepositAmount({
+            instrumentation.recordInvalidDepositAmount({
               desiredAmount,
               dseq: deployment.dseq,
               address: deployment.address,
               blockRate: deployment.blockRate
             });
+            return;
           }
           const sufficientAmount = balance.reserveSufficientAmount(desiredAmount);
 
@@ -107,7 +137,7 @@ export class TopUpManagedDeploymentsService {
             deployment
           };
         } catch (error: unknown) {
-          this.instrumentation.recordMessagePreparationError({
+          instrumentation.recordMessagePreparationError({
             deployment,
             error
           });
@@ -118,7 +148,7 @@ export class TopUpManagedDeploymentsService {
     return messageInputs.filter(x => !!x);
   }
 
-  private async topUpForOwner(owner: string, ownerInputs: CollectedMessage[], options: DryRunOptions) {
+  private async topUpForOwner(owner: string, ownerInputs: CollectedMessage[], options: DryRunOptions, instrumentation: DeploymentTopUpInstrumentation) {
     const walletId = ownerInputs[0].deployment.walletId;
 
     try {
@@ -127,7 +157,7 @@ export class TopUpManagedDeploymentsService {
         const feeAllowance = await this.managedSignerService.ensureFeeGrants({ address, isTrialing, createdAt, activatedAt });
 
         if (feeAllowance <= 0) {
-          this.instrumentation.recordChainTxError({
+          instrumentation.recordChainTxError({
             owner,
             items: ownerInputs,
             error: new Error(`Fee grant missing for wallet ${owner}, unable to top up deployments`)
@@ -141,12 +171,12 @@ export class TopUpManagedDeploymentsService {
         );
       }
 
-      this.instrumentation.recordDeposit({ owner, items: ownerInputs });
+      instrumentation.recordDeposit({ owner, items: ownerInputs });
     } catch (error: unknown) {
-      this.instrumentation.recordChainTxError({ owner, items: ownerInputs, error });
+      instrumentation.recordChainTxError({ owner, items: ownerInputs, error });
 
       if (error instanceof Error && (await this.chainErrorService.isMasterWalletInsufficientFundsError(error))) {
-        this.instrumentation.recordMasterWalletInsufficientFundsError({ owner, items: ownerInputs, error });
+        instrumentation.recordMasterWalletInsufficientFundsError({ owner, items: ownerInputs, error });
         throw error;
       }
     }

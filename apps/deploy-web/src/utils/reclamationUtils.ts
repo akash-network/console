@@ -77,11 +77,6 @@ export function isReclaiming(lease: Pick<LeaseDto, "state">): boolean {
   return lease.state === "reclaiming";
 }
 
-/** A lease whose workload is still running — actively leased or in the reclamation grace period. */
-export function isLeaseLive(lease: Pick<LeaseDto, "state">): boolean {
-  return lease.state === "active" || lease.state === "reclaiming";
-}
-
 function hasReclamationStarted(lease: Pick<LeaseDto, "reclamation">): boolean {
   const startedAt = lease.reclamation?.startedAt;
   return startedAt !== undefined && Number(startedAt) > 0;

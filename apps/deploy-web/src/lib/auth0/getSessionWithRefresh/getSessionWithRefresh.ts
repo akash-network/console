@@ -1,0 +1,88 @@
+import type { LoggerService } from "@akashnetwork/logging";
+import type { IncomingMessage, ServerResponse } from "http";
+import type { NextApiRequest, NextApiResponse } from "next";
+
+import type { Session } from "@src/lib/auth0";
+import { clearSessionCookies } from "@src/lib/auth0/clearSessionCookies/clearSessionCookies";
+import { isAccessTokenExpired } from "@src/lib/auth0/isAccessTokenExpired/isAccessTokenExpired";
+import type { setSession } from "@src/lib/auth0/setSession/setSession";
+import type { RefreshedTokens, SessionService } from "@src/services/session/session.service";
+
+export type SessionRequest = (IncomingMessage & { cookies: NextApiRequest["cookies"] }) | NextApiRequest;
+export type SessionResponse = ServerResponse | NextApiResponse;
+export type GetSession = (req: SessionRequest, res: SessionResponse) => Promise<Session | null | undefined>;
+
+export interface GetSessionWithRefreshDependencies {
+  getSession: GetSession;
+  setSession: typeof setSession;
+  sessionService: Pick<SessionService, "refreshAccessToken">;
+  logger: Pick<LoggerService, "info" | "warn">;
+}
+
+/**
+ * Wraps `getSession` so an expired access token is transparently renewed with the session's refresh
+ * token instead of being treated as "logged out" (DEPLOY-WEB-2C4: the session cookie outlives the
+ * access token, so users were bounced to /login mid-session and proxied API calls 401ed). Refresh
+ * only happens once the token is actually expired, and concurrent requests carrying the same
+ * refresh token share a single in-flight `/oauth/token` call — with Auth0 refresh-token rotation
+ * enabled, configure the tenant's rotation *reuse interval* (30–60s) so cross-instance races don't
+ * revoke the token family. Only a genuine `invalid_grant` clears the session cookies; a transient
+ * failure (rate limit, Auth0 5xx, network error) leaves them intact so a later request can retry,
+ * and it degrades to unauthenticated behavior rather than surfacing as an SSR error.
+ */
+export function createGetSessionWithRefresh(deps: GetSessionWithRefreshDependencies): GetSession {
+  const inFlightRefreshes = new Map<string, ReturnType<SessionService["refreshAccessToken"]>>();
+
+  function refreshOncePerToken(refreshToken: string) {
+    const inFlight = inFlightRefreshes.get(refreshToken);
+    if (inFlight) return inFlight;
+
+    const refresh = deps.sessionService.refreshAccessToken(refreshToken).finally(() => {
+      inFlightRefreshes.delete(refreshToken);
+    });
+    inFlightRefreshes.set(refreshToken, refresh);
+    return refresh;
+  }
+
+  return async function getSessionWithRefresh(req, res) {
+    const session = await deps.getSession(req, res);
+    if (!session || !isAccessTokenExpired(session) || !session.refreshToken) {
+      return session;
+    }
+
+    let result: Awaited<ReturnType<SessionService["refreshAccessToken"]>>;
+    try {
+      result = await refreshOncePerToken(session.refreshToken);
+    } catch (error) {
+      deps.logger.warn({ event: "ACCESS_TOKEN_REFRESH_ERROR", error });
+      return null;
+    }
+
+    if (!result.ok) {
+      deps.logger.warn({ event: "ACCESS_TOKEN_REFRESH_FAILED", code: result.val.code, error: result.val });
+      if (result.val.code === "invalid_grant") {
+        clearSessionCookies(req as NextApiRequest, res as NextApiResponse);
+      }
+      return null;
+    }
+
+    mergeRefreshedTokens(session, result.val);
+    try {
+      await deps.setSession(req as NextApiRequest, res as NextApiResponse, session);
+    } catch (error) {
+      deps.logger.warn({ event: "ACCESS_TOKEN_REFRESH_PERSIST_FAILED", error });
+    }
+    deps.logger.info({ event: "ACCESS_TOKEN_REFRESHED", userId: session.user?.id });
+
+    return session;
+  };
+}
+
+/**
+ * Auth0 omits `id_token` (and sometimes `scope`) from a refresh-token exchange when the grant lacks
+ * the `openid` scope, so `RefreshedTokens` can carry `undefined` there. Merging those over the
+ * session would wipe still-valid values, so only defined fields are copied.
+ */
+function mergeRefreshedTokens(session: Session, tokens: RefreshedTokens): void {
+  Object.assign(session, Object.fromEntries(Object.entries(tokens).filter(([, value]) => value !== undefined)));
+}

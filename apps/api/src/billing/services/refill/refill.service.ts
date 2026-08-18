@@ -20,6 +20,12 @@ export interface PaymentAnalyticsContext {
   bonusAmountCents?: number;
 }
 
+/** Identifiers of the wallet a top-up credited, so callers can fund its draining deployments once the credit has committed. */
+export interface ToppedUpWallet {
+  walletId: number;
+  address: string;
+}
+
 @singleton()
 export class RefillService {
   private readonly logger = createOtelLogger({ context: RefillService.name });
@@ -61,8 +67,13 @@ export class RefillService {
    * @param amountUsd - The amount in USD *cents* to top up the wallet with (e.g. 10000 = $100)
    * @param userId - The ID of the user to top up the wallet for
    * @param options.payment - Payment context attached to the `balance_top_up` analytics event
+   * @returns The credited wallet's identifiers, so the caller can fund its draining deployments after the credit commits.
    */
-  async topUpWallet(amountUsd: number, userId: UserWalletOutput["userId"], options: { endTrial?: boolean; payment?: PaymentAnalyticsContext } = {}) {
+  async topUpWallet(
+    amountUsd: number,
+    userId: UserWalletOutput["userId"],
+    options: { endTrial?: boolean; payment?: PaymentAnalyticsContext } = {}
+  ): Promise<ToppedUpWallet> {
     const userWallet = await this.ensureActivatedWallet(userId);
     const currentLimit = await this.balancesService.retrieveDeploymentLimit(userWallet);
 
@@ -74,6 +85,7 @@ export class RefillService {
     });
 
     await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: options.endTrial ?? true });
+
     this.analyticsService.track(userId, "balance_top_up", {
       amount_cents: amountUsd,
       amount_usd: amountUsd / 100,
@@ -85,6 +97,8 @@ export class RefillService {
       bonus_amount_cents: options.payment?.bonusAmountCents
     });
     this.logger.debug({ event: "WALLET_TOP_UP", userWallet, limits });
+
+    return { walletId: userWallet.id, address: userWallet.address! };
   }
 
   /**

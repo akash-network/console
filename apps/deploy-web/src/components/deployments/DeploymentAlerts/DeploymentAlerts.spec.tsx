@@ -47,7 +47,121 @@ describe("DeploymentAlerts", () => {
     });
   });
 
-  function setup() {
+  it("only persists the edited section when the escrow balance has drifted", async () => {
+    const { componentProps, rerender } = setup({ data: undefined, maxBalanceThreshold: 1000 });
+
+    rerender({ maxBalanceThreshold: 500 });
+
+    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentClosed.enabled"]' }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+    });
+
+    expect(componentProps.upsert).toHaveBeenCalledWith({
+      alerts: { deploymentClosed: expect.objectContaining({ enabled: true }) }
+    });
+  });
+
+  it("saves an unrelated edit after the escrow balance drops below the mounted threshold", async () => {
+    const { componentProps, rerender } = setup({ data: undefined, maxBalanceThreshold: 1000 });
+
+    rerender({ maxBalanceThreshold: 100 });
+
+    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentClosed.enabled"]' }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+    });
+
+    expect(componentProps.upsert).toHaveBeenCalledWith({
+      alerts: { deploymentClosed: expect.objectContaining({ enabled: true }) }
+    });
+  });
+
+  it("saves an unrelated edit when a saved threshold now exceeds the dropped balance", async () => {
+    const { componentProps, rerender } = setup({ maxBalanceThreshold: 1000 });
+
+    rerender({ maxBalanceThreshold: 50 });
+
+    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentClosed.enabled"]' }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+    });
+
+    expect(componentProps.upsert).toHaveBeenCalledWith({
+      alerts: { deploymentClosed: expect.objectContaining({ enabled: false }) }
+    });
+  });
+
+  it("does not flag unsaved changes when the escrow balance drops on close", () => {
+    const { componentProps, rerender } = setup({ data: undefined, maxBalanceThreshold: 1000 });
+
+    rerender({ maxBalanceThreshold: 0, disabled: true });
+
+    expect(componentProps.onStateChange).not.toHaveBeenCalledWith({ hasChanges: true });
+  });
+
+  it("stops flagging unsaved changes once the deployment is closed", () => {
+    const { componentProps, rerender } = setup({ data: undefined });
+
+    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentBalance.enabled"]' }));
+    expect(componentProps.onStateChange).toHaveBeenCalledWith({ hasChanges: true });
+
+    rerender({ disabled: true });
+
+    expect(componentProps.onStateChange).toHaveBeenLastCalledWith({ hasChanges: false });
+  });
+
+  it("keeps the save button disabled until a field changes", () => {
+    setup();
+
+    expect((screen.getByRole("button", { name: /save changes/i }) as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentBalance.enabled"]' }));
+
+    expect((screen.getByRole("button", { name: /save changes/i }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("disables the save button while a save is in flight", () => {
+    setup({ isSaving: true });
+
+    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentBalance.enabled"]' }));
+
+    expect((screen.getByRole("button", { name: /save changes/i }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("blocks saving an enabled balance alert with no notification channel", async () => {
+    const { componentProps } = setup({ data: undefined });
+
+    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentBalance.enabled"]' }));
+    fireEvent.change(screen.getByRole("combobox", { name: /escrow balance notification channel/i }), { target: { value: "" } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+    });
+
+    expect(componentProps.upsert).not.toHaveBeenCalled();
+  });
+
+  it("saves a balance-alert toggle without re-validating an untouched stale threshold", async () => {
+    const { componentProps, rerender } = setup({ maxBalanceThreshold: 1000 });
+
+    rerender({ maxBalanceThreshold: 50 });
+
+    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentBalance.enabled"]' }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+    });
+
+    expect(componentProps.upsert).toHaveBeenCalledWith({
+      alerts: { deploymentBalance: expect.objectContaining({ enabled: false, threshold: 100 }) }
+    });
+  });
+
+  function setup(input: { data?: ChildrenProps["data"]; maxBalanceThreshold?: number; disabled?: boolean; isSaving?: boolean } = {}) {
     const channel1Id = faker.string.uuid();
     const channel2Id = faker.string.uuid();
 
@@ -71,6 +185,7 @@ describe("DeploymentAlerts", () => {
           <div>
             <input type="checkbox" {...register("deploymentBalance.enabled")} aria-label="Enabled" disabled={disabled} />
             <select {...register("deploymentBalance.notificationChannelId")} aria-label="Escrow Balance Notification Channel" disabled={disabled}>
+              <option value="">None</option>
               <option value={channel1Id}>Channel 1</option>
               <option value={channel2Id}>Channel 2</option>
             </select>
@@ -81,34 +196,49 @@ describe("DeploymentAlerts", () => {
     };
 
     const componentProps: Omit<ChildrenProps & DeploymentAlertsViewProps, "deployment"> = {
-      maxBalanceThreshold: 1000,
+      maxBalanceThreshold: input.maxBalanceThreshold ?? 1000,
       onStateChange: vi.fn(),
       notificationChannels: [buildNotificationChannel({ id: channel1Id }), buildNotificationChannel({ id: channel2Id })],
       upsert: vi.fn(),
-      data: buildDeploymentAlert({
-        alerts: {
-          deploymentBalance: {
-            id: faker.string.uuid(),
-            status: "NORMAL",
-            notificationChannelId: channel1Id,
-            threshold: 100,
-            enabled: true
-          },
-          deploymentClosed: {
-            id: faker.string.uuid(),
-            status: "NORMAL",
-            notificationChannelId: channel2Id,
-            enabled: true
-          }
-        }
-      }),
+      disabled: input.disabled,
+      isSaving: input.isSaving ?? false,
+      data:
+        "data" in input
+          ? input.data
+          : buildDeploymentAlert({
+              alerts: {
+                deploymentBalance: {
+                  id: faker.string.uuid(),
+                  status: "NORMAL",
+                  notificationChannelId: channel1Id,
+                  threshold: 100,
+                  enabled: true
+                },
+                deploymentClosed: {
+                  id: faker.string.uuid(),
+                  status: "NORMAL",
+                  notificationChannelId: channel2Id,
+                  enabled: true
+                }
+              }
+            }),
       isFetched: true,
       isLoading: false,
       isError: false
     };
 
-    render(<DeploymentAlertsView {...componentProps} dependencies={DEPENDENCIES} />);
+    const view = render(<DeploymentAlertsView {...componentProps} dependencies={DEPENDENCIES} />);
 
-    return { componentProps };
+    const rerender = (next: { maxBalanceThreshold?: number; disabled?: boolean }) =>
+      view.rerender(
+        <DeploymentAlertsView
+          {...componentProps}
+          maxBalanceThreshold={next.maxBalanceThreshold ?? componentProps.maxBalanceThreshold}
+          disabled={next.disabled ?? componentProps.disabled}
+          dependencies={DEPENDENCIES}
+        />
+      );
+
+    return { componentProps, rerender };
   }
 });

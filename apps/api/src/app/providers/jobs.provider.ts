@@ -11,6 +11,7 @@ import { CloseTrialDeploymentHandler } from "../services/close-trial-deployment/
 import { EnableDeploymentAlertHandler } from "../services/enable-deployment-alert/enable-deployment-alert.handler";
 import { FirstPurchaseBonusGrantedHandler } from "../services/first-purchase-bonus-granted/first-purchase-bonus-granted.handler";
 import { FundDeploymentHandler } from "../services/fund-deployment/fund-deployment.handler";
+import { FundDrainingDeploymentsHandler } from "../services/fund-draining-deployments/fund-draining-deployments.handler";
 import { TrialDeploymentLeaseCreatedHandler } from "../services/trial-deployment-lease-created/trial-deployment-lease-created.handler";
 import { TrialStartedHandler } from "../services/trial-started/trial-started.handler";
 
@@ -26,6 +27,7 @@ container.register(APP_INITIALIZER, {
         container.resolve(TrialDeploymentLeaseCreatedHandler),
         container.resolve(EnableDeploymentAlertHandler),
         container.resolve(FundDeploymentHandler),
+        container.resolve(FundDrainingDeploymentsHandler),
         container.resolve(WalletBalanceReloadCheckHandler),
         container.resolve(FirstPurchaseBonusGrantedHandler),
         container.resolve(AutoTopUpSucceededHandler),

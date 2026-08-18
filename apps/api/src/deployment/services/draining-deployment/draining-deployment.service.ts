@@ -12,6 +12,7 @@ import { DrainingDeployment } from "@src/deployment/types/draining-deployment";
 import { averageBlockCountInAnHour } from "@src/utils/constants";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DrainingDeploymentRpcService } from "../draining-deployment-rpc/draining-deployment-rpc.service";
+import type { DeploymentTopUpInstrumentation } from "../top-up-managed-deployments/deployment-top-up-instrumentation";
 import { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed-deployments/top-up-managed-deployments-instrumentation.service";
 
 export type { DrainingDeployment } from "@src/deployment/types/draining-deployment";
@@ -41,51 +42,80 @@ export class DrainingDeploymentService {
    * @yields Object with owner address and array of draining deployments
    */
   async *findDrainingDeploymentsByOwner(): AsyncGenerator<{ address: string; walletId: number; deployments: DrainingDeployment[] }> {
-    const currentHeight = await this.blockHttpService.getCurrentHeight();
-    const expectedClosureHeight = Math.floor(currentHeight + averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H"));
+    const expectedClosureHeight = await this.#getExpectedClosureHeight();
 
     for await (const { address, walletId, deploymentSettings } of this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively()) {
-      if (deploymentSettings.length === 0) {
-        continue;
-      }
+      const deployments = await this.#resolveActiveDrainingDeployments(deploymentSettings, address, expectedClosureHeight, this.instrumentation);
 
-      const dseqs = deploymentSettings.map(deployment => deployment.dseq);
-      const drainingDeployments = await this.findLeases(expectedClosureHeight, address, dseqs);
-
-      if (drainingDeployments.length) {
-        const byDseqOwner = keyBy(drainingDeployments, "dseq");
-        const [active, missingIds] = deploymentSettings.reduce<[DrainingDeployment[], string[]]>(
-          (acc, deploymentSetting) => {
-            const deployment = byDseqOwner[Number(deploymentSetting.dseq)];
-
-            if (!deployment) {
-              return acc;
-            }
-
-            if (deployment.closedHeight) {
-              acc[1].push(deploymentSetting.id);
-            } else {
-              acc[0].push({
-                ...deploymentSetting,
-                predictedClosedHeight: deployment.predictedClosedHeight,
-                blockRate: deployment.blockRate
-              });
-            }
-            return acc;
-          },
-          [[], []]
-        );
-
-        if (missingIds.length) {
-          await this.deploymentSettingRepository.updateManyById(missingIds, { closed: true });
-          this.instrumentation.recordDeploymentsMarkedClosed(missingIds.length);
-        }
-
-        if (active.length) {
-          yield { address, walletId, deployments: active };
-        }
+      if (deployments.length) {
+        yield { address, walletId, deployments };
       }
     }
+  }
+
+  /**
+   * Finds the active draining deployments for a single owner, applying the same
+   * look-ahead window, auto-top-up gate, and closed-marking as the cron sweep.
+   * Backs the event-driven immediate funding triggered when credits land.
+   */
+  async findDrainingDeploymentsForOwner(address: string, instrumentation: DeploymentTopUpInstrumentation): Promise<DrainingDeployment[]> {
+    const deploymentSettings = await this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwner(address);
+    const expectedClosureHeight = await this.#getExpectedClosureHeight();
+
+    return this.#resolveActiveDrainingDeployments(deploymentSettings, address, expectedClosureHeight, instrumentation);
+  }
+
+  async #getExpectedClosureHeight(): Promise<number> {
+    const currentHeight = await this.blockHttpService.getCurrentHeight();
+    return Math.floor(currentHeight + averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H"));
+  }
+
+  async #resolveActiveDrainingDeployments(
+    deploymentSettings: AutoTopUpDeployment[],
+    address: string,
+    expectedClosureHeight: number,
+    instrumentation: DeploymentTopUpInstrumentation
+  ): Promise<DrainingDeployment[]> {
+    if (deploymentSettings.length === 0) {
+      return [];
+    }
+
+    const dseqs = deploymentSettings.map(deployment => deployment.dseq);
+    const drainingDeployments = await this.findLeases(expectedClosureHeight, address, dseqs);
+
+    if (!drainingDeployments.length) {
+      return [];
+    }
+
+    const byDseqOwner = keyBy(drainingDeployments, "dseq");
+    const [active, missingIds] = deploymentSettings.reduce<[DrainingDeployment[], string[]]>(
+      (acc, deploymentSetting) => {
+        const deployment = byDseqOwner[Number(deploymentSetting.dseq)];
+
+        if (!deployment) {
+          return acc;
+        }
+
+        if (deployment.closedHeight) {
+          acc[1].push(deploymentSetting.id);
+        } else {
+          acc[0].push({
+            ...deploymentSetting,
+            predictedClosedHeight: deployment.predictedClosedHeight,
+            blockRate: deployment.blockRate
+          });
+        }
+        return acc;
+      },
+      [[], []]
+    );
+
+    if (missingIds.length) {
+      await this.deploymentSettingRepository.updateManyById(missingIds, { closed: true });
+      instrumentation.recordDeploymentsMarkedClosed(missingIds.length);
+    }
+
+    return active;
   }
 
   /**

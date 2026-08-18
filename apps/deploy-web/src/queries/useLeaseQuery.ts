@@ -1,4 +1,4 @@
-import { isHttpError } from "@akashnetwork/http-sdk";
+import { isHttpError, type LeaseListParams } from "@akashnetwork/http-sdk";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosInstance } from "axios";
@@ -11,8 +11,17 @@ import type { ApiProviderList } from "@src/types/provider";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { omitAttestationSidecar } from "@src/utils/confidentialCompute";
 import { leaseToDto } from "@src/utils/deploymentDetailUtils";
-import { isLeaseLive } from "@src/utils/reclamationUtils";
+import { isLeaseLive } from "@src/utils/leaseUtils";
 import { QueryKeys } from "./queryKeys";
+
+/**
+ * Closed deployments cannot gain leases. Infinity only after the fetched list itself
+ * has no live leases, so a leftover Active-tab snapshot is still treated as stale.
+ */
+function closedDeploymentLeaseListStaleTime(state: string | undefined, leases: LeaseDto[] | null | undefined) {
+  if (state !== "closed" || !leases || leases.some(isLeaseLive)) return 0;
+  return Infinity;
+}
 
 // Leases
 async function getDeploymentLeases(chainApiHttpClient: AxiosInstance, address: string, deployment: Pick<DeploymentDto, "dseq" | "groups">) {
@@ -28,7 +37,7 @@ async function getDeploymentLeases(chainApiHttpClient: AxiosInstance, address: s
 
 export function useDeploymentLeaseList(
   address: string,
-  deployment: Pick<DeploymentDto, "dseq" | "groups"> | null | undefined,
+  deployment: (Pick<DeploymentDto, "dseq" | "groups"> & Partial<Pick<DeploymentDto, "state">>) | null | undefined,
   options: Omit<UseQueryOptions<LeaseDto[] | null>, "queryKey" | "queryFn"> = {}
 ) {
   const { chainApiHttpClient } = useServices();
@@ -41,6 +50,7 @@ export function useDeploymentLeaseList(
       if (!deployment) return null;
       return getDeploymentLeases(chainApiHttpClient, address, deployment);
     },
+    staleTime: query => closedDeploymentLeaseListStaleTime(deployment?.state, query.state.data),
     ...options
   });
 
@@ -50,24 +60,31 @@ export function useDeploymentLeaseList(
   };
 }
 
-async function getAllLeases(chainApiHttpClient: AxiosInstance, address: string, deployment?: any) {
+export type LeaseListState = NonNullable<LeaseListParams["state"]>;
+
+type LeaseStateFilter = LeaseListState | readonly LeaseListState[];
+
+async function getAllLeases(chainApiHttpClient: AxiosInstance, address: string, deployment?: any, state?: LeaseStateFilter) {
   if (!address) {
     return null;
   }
 
-  const response = await loadWithPagination<RpcLease[]>(ApiUrlService.leaseList("", address, deployment?.dseq), "leases", 1000, chainApiHttpClient);
-  const leases = response.map(l => leaseToDto(l, deployment));
+  const states = state == null ? [undefined] : Array.isArray(state) ? state : [state];
+  const pages = await Promise.all(
+    states.map(s => loadWithPagination<RpcLease[]>(ApiUrlService.leaseList("", address, deployment?.dseq, s), "leases", 1000, chainApiHttpClient))
+  );
 
-  return leases;
+  return pages.flat().map(l => leaseToDto(l, deployment));
 }
 
-export function useAllLeases(address: string, options = {}) {
+export function useAllLeases(address: string, options: { state?: LeaseStateFilter } & Omit<UseQueryOptions<LeaseDto[] | null>, "queryKey" | "queryFn"> = {}) {
   const { chainApiHttpClient } = useServices();
+  const { state, ...queryOptions } = options;
 
   return useQuery({
-    queryKey: QueryKeys.getAllLeasesKey(address),
-    queryFn: () => getAllLeases(chainApiHttpClient, address),
-    ...options
+    queryKey: QueryKeys.getAllLeasesKey(address, state),
+    queryFn: () => getAllLeases(chainApiHttpClient, address, undefined, state),
+    ...queryOptions
   });
 }
 

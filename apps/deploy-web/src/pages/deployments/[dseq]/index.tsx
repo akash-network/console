@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-import { DeploymentDetail } from "@src/components/deployments/DeploymentDetail";
+import { DeploymentDetailRouter } from "@src/components/deployments/DeploymentDetail/DeploymentDetailRouter";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 
-export default DeploymentDetail;
+export default DeploymentDetailRouter;
 
 export const getServerSideProps = defineServerSideProps({
   route: "/deployments/[dseq]",

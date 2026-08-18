@@ -9,8 +9,7 @@ import userEvent from "@testing-library/user-event";
 import { createMockLinkPaymentMethod, createMockPaymentMethod } from "@tests/seeders/payment";
 
 // Mock implementations for dependencies
-const MockTableRow = ({ children, className }: any) => <tr className={className}>{children}</tr>;
-const MockTableCell = ({ children, className }: any) => <td className={className}>{children}</td>;
+const MockCreditCard = ({ className }: any) => <svg data-testid="card-icon" className={className} />;
 
 let isDropdownOpen = false;
 
@@ -30,8 +29,8 @@ const MockDropdownMenuContent = ({ children, align: _align, onMouseLeave, onClic
   );
 };
 
-const MockButton = ({ children, onClick, size: _size, variant: _variant, className }: any) => (
-  <button onClick={onClick} className={className}>
+const MockButton = ({ children, onClick, size: _size, variant: _variant, className, disabled }: any) => (
+  <button onClick={onClick} className={className} disabled={disabled}>
     {children}
   </button>
 );
@@ -60,8 +59,7 @@ const MockCustomDropdownLinkItem = React.forwardRef(({ children, onClick, icon, 
 ));
 
 const mockDependencies: any = {
-  TableRow: MockTableRow,
-  TableCell: MockTableCell,
+  CreditCard: MockCreditCard,
   DropdownMenu: MockDropdownMenu,
   DropdownMenuTrigger: MockDropdownMenuTrigger,
   Button: MockButton,
@@ -161,6 +159,12 @@ describe(PaymentMethodsRow.name, () => {
       });
 
       expect(screen.getByRole("button")).toBeInTheDocument();
+    });
+
+    it("disables the actions trigger when isDisabled is set", () => {
+      setup({ paymentMethod: createMockPaymentMethod({ isDefault: false }), isDisabled: true });
+
+      expect(screen.getByRole("button")).toBeDisabled();
     });
   });
 
@@ -426,18 +430,14 @@ describe(PaymentMethodsRow.name, () => {
 
       render(
         <div>
-          <table>
-            <tbody>
-              <PaymentMethodsRow
-                paymentMethod={createMockPaymentMethod({
-                  isDefault: false
-                })}
-                onSetPaymentMethodAsDefault={vi.fn()}
-                onRemovePaymentMethod={vi.fn()}
-                dependencies={mockDependencies}
-              />
-            </tbody>
-          </table>
+          <PaymentMethodsRow
+            paymentMethod={createMockPaymentMethod({
+              isDefault: false
+            })}
+            onSetPaymentMethodAsDefault={vi.fn()}
+            onRemovePaymentMethod={vi.fn()}
+            dependencies={mockDependencies}
+          />
           <div data-testid="outside">Outside element</div>
         </div>
       );
@@ -464,6 +464,7 @@ function setup(
     paymentMethod?: PaymentMethod;
     onSetPaymentMethodAsDefault?: Mock;
     onRemovePaymentMethod?: Mock;
+    isDisabled?: boolean;
     dependencies?: typeof mockDependencies;
   } = {}
 ) {
@@ -484,13 +485,7 @@ function setup(
     onRemovePaymentMethod: mockOnRemovePaymentMethod
   };
 
-  const renderResult = render(
-    <table>
-      <tbody>
-        <PaymentMethodsRow {...props} />
-      </tbody>
-    </table>
-  );
+  const renderResult = render(<PaymentMethodsRow {...props} />);
 
   return {
     ...renderResult,

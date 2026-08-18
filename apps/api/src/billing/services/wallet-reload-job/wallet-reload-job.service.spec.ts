@@ -59,6 +59,21 @@ describe(WalletReloadJobService.name, () => {
           singletonKey: `${WalletBalanceReloadCheck.name}.${walletSetting.userId}`
         })
       );
+      const [defaultJob] = jobQueueService.enqueue.mock.calls[0];
+      expect((defaultJob as WalletBalanceReloadCheck).data.triggeredByDeployment).toBeUndefined();
+    });
+
+    it("marks the job as deployment-triggered only when the caller opts in", async () => {
+      const { service, walletSettingRepository, jobQueueService } = setup();
+      const userId = faker.string.uuid();
+      const walletSetting = generateWalletSetting({ autoReloadEnabled: true });
+      walletSettingRepository.findByUserId.mockResolvedValue(walletSetting);
+      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+
+      await service.scheduleImmediate({ userId }, { triggeredByDeployment: true });
+
+      const [job] = jobQueueService.enqueue.mock.calls[0];
+      expect((job as WalletBalanceReloadCheck).data).toMatchObject({ userId: walletSetting.userId, triggeredByDeployment: true });
     });
 
     it("looks up the wallet setting by walletId when given a walletId", async () => {
@@ -116,6 +131,8 @@ describe(WalletReloadJobService.name, () => {
           singletonKey: `${WalletBalanceReloadCheck.name}.${walletSetting.userId}`
         })
       );
+      const [scheduledJob] = jobQueueService.enqueue.mock.calls[0];
+      expect((scheduledJob as WalletBalanceReloadCheck).data.triggeredByDeployment).toBeUndefined();
       expect(result).toBe(jobId);
     });
 

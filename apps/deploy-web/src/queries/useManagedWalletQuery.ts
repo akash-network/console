@@ -1,5 +1,5 @@
 import type { QueryKey } from "@tanstack/react-query";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 import { QueryKeys } from "./queryKeys";
@@ -22,23 +22,6 @@ export function useManagedWalletQuery(userId?: string) {
     refetchInterval: query => {
       if (query.state.status === "error") return false;
       return query.state.data?.address ? false : MANAGED_WALLET_ADDRESS_POLL_MS;
-    }
-  });
-}
-
-export function useCreateManagedWalletMutation() {
-  const { managedWalletService } = useServices();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationKey: QueryKeys.getManagedWalletCreateMutationKey(),
-    mutationFn: async (userId: string) => await managedWalletService.createWallet(userId),
-    retry: failureCount => failureCount < 3,
-    retryDelay: attempt => Math.min(1000 * 2 ** attempt, 30_000),
-    onSuccess: response => {
-      // Only update cache if it's a wallet response, not a 3D Secure response
-      if (!response.requires3DS) {
-        queryClient.setQueryData(QueryKeys.getManagedWalletKey(response.userId), () => response);
-      }
     }
   });
 }

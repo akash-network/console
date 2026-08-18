@@ -57,7 +57,7 @@ describe(AccountMenu.name, () => {
   });
 
   it("shows only Logout in the minimal variant when signed in", async () => {
-    setup({ username: "erin", userId: "user-1", isBillingUsageEnabled: true, minimal: true });
+    setup({ username: "erin", userId: "user-1", minimal: true });
 
     await userEvent.click(screen.getByRole("button", { name: /account menu/i }));
 
@@ -78,11 +78,10 @@ describe(AccountMenu.name, () => {
     expect(authService.logout).toHaveBeenCalledTimes(1);
   });
 
-  it("shows Billing & Usage when flag and userId are both present", async () => {
+  it("shows Billing & Usage when a userId is present", async () => {
     setup({
       username: "carol",
-      userId: "user-1",
-      isBillingUsageEnabled: true
+      userId: "user-1"
     });
 
     await userEvent.click(screen.getByRole("button", { name: /account menu/i }));
@@ -90,11 +89,9 @@ describe(AccountMenu.name, () => {
     expect(await screen.findByText("Billing & Usage")).toBeInTheDocument();
   });
 
-  it("hides Billing & Usage when the flag is disabled", async () => {
+  it("hides Billing & Usage when there is no userId", async () => {
     setup({
-      username: "dan",
-      userId: "user-1",
-      isBillingUsageEnabled: false
+      username: "dan"
     });
 
     await userEvent.click(screen.getByRole("button", { name: /account menu/i }));
@@ -103,7 +100,7 @@ describe(AccountMenu.name, () => {
     expect(screen.queryByText("Billing & Usage")).not.toBeInTheDocument();
   });
 
-  function setup(input: { isLoading?: boolean; username?: string; userId?: string; isBillingUsageEnabled?: boolean; minimal?: boolean }) {
+  function setup(input: { isLoading?: boolean; username?: string; userId?: string; minimal?: boolean }) {
     const push = vi.fn();
     const authService = mock<AuthService>();
 
@@ -113,8 +110,7 @@ describe(AccountMenu.name, () => {
           user: input.username ? { username: input.username, userId: input.userId } : undefined,
           isLoading: input.isLoading ?? false
         }),
-      useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push }),
-      useFlag: flagName => (flagName === "billing_usage" && input.isBillingUsageEnabled) ?? false
+      useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push })
     };
 
     render(

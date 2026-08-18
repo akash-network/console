@@ -12,7 +12,9 @@ export class AlertsPage {
   }
 
   async openNotificationChannelsTab() {
-    await this.page.getByRole("tab", { name: /notification channels/i }).click();
+    const tab = this.page.getByRole("tab", { name: /notification channels/i });
+    await tab.click();
+    await tab.and(this.page.getByRole("tab", { selected: true })).waitFor();
   }
 
   getAlertRow(index: number) {

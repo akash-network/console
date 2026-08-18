@@ -87,6 +87,23 @@ describe(CachedBalanceService.name, () => {
     });
   });
 
+  describe("getFresh", () => {
+    const address = createAkashAddress();
+
+    it("fetches a fresh, independent balance on every call, bypassing the memo used by get", async () => {
+      const { service, balancesService } = setup();
+      balancesService.getFreshLimits.mockResolvedValue({ deployment: 1000, fee: 100 });
+
+      const first = await service.getFresh(address);
+      const second = await service.getFresh(address);
+
+      expect(balancesService.getFreshLimits).toHaveBeenCalledTimes(2);
+      expect(first).not.toBe(second);
+      expect(first.reserveSufficientAmount(700)).toBe(700);
+      expect(second.reserveSufficientAmount(1000)).toBe(1000);
+    });
+  });
+
   function setup() {
     const balancesService = {
       getFreshLimits: vi.fn()

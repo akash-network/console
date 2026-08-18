@@ -5,10 +5,11 @@ import { capitalize, startCase } from "lodash";
 import { describe, expect, it, vi } from "vitest";
 
 import type { useFlag } from "@src/hooks/useFlag";
+import { UrlService } from "@src/utils/urlUtils";
 import type { Props } from "./AlertsListView";
 import { AlertsListView } from "./AlertsListView";
 
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { buildAlert } from "@tests/seeders/alert";
 
 describe(AlertsListView.name, () => {
@@ -67,6 +68,78 @@ describe(AlertsListView.name, () => {
     expect(screen.getByText("N/A")).toBeInTheDocument();
   });
 
+  it("renders an edit link to the alert detail page for wallet balance alerts", () => {
+    const mockAlert = buildAlert({ type: "WALLET_BALANCE" });
+
+    setup({ data: [mockAlert] });
+
+    expect(screen.getByTestId("edit-alert-button")).toHaveAttribute("href", UrlService.alertDetails(mockAlert.id));
+  });
+
+  it("does not render an edit link for non wallet balance alerts", () => {
+    const mockAlert = buildAlert({ type: "DEPLOYMENT_BALANCE", params: { owner: "owner", dseq: "12345" } });
+
+    setup({ data: [mockAlert] });
+
+    expect(screen.queryByTestId("edit-alert-button")).not.toBeInTheDocument();
+  });
+
+  it("hides the actions when the update feature flag is disabled", () => {
+    const mockAlert = buildAlert({ type: "WALLET_BALANCE" });
+
+    setup({ data: [mockAlert], isAlertUpdateEnabled: false });
+
+    expect(screen.queryByTestId("edit-alert-button")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("remove-alert-button")).not.toBeInTheDocument();
+  });
+
+  it("calls onRemove after the removal is confirmed", async () => {
+    const onRemove = vi.fn();
+    const mockAlert = buildAlert({ type: "WALLET_BALANCE" });
+
+    setup({ data: [mockAlert], onRemove });
+
+    fireEvent.click(screen.getByTestId("remove-alert-button"));
+
+    await vi.waitFor(() => {
+      expect(screen.getByTestId("remove-alert-confirmation-popup")).toBeInTheDocument();
+    });
+
+    act(() => {
+      fireEvent.click(screen.getByTestId("remove-alert-confirmation-popup-confirm-button"));
+    });
+
+    await vi.waitFor(() => {
+      expect(onRemove).toHaveBeenCalledWith(mockAlert.id);
+    });
+  });
+
+  it("disables the actions and shows the removal spinner while a removal is in flight", () => {
+    const mockAlert = buildAlert({ type: "WALLET_BALANCE" });
+
+    setup({ data: [mockAlert], removingIds: new Set([mockAlert.id]) });
+
+    expect(screen.getByTestId("remove-alert-button")).toBeDisabled();
+    expect(screen.getByTestId("edit-alert-button")).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("keeps the remove and edit actions interactive while only a toggle is in flight", () => {
+    const mockAlert = buildAlert({ type: "WALLET_BALANCE" });
+
+    setup({ data: [mockAlert], loadingIds: new Set([mockAlert.id]) });
+
+    expect(screen.getByTestId("remove-alert-button")).not.toBeDisabled();
+    expect(screen.getByTestId("edit-alert-button")).toHaveAttribute("aria-disabled", "false");
+  });
+
+  it("disables the enabled checkbox while a removal is in flight so a toggle can't race the delete", () => {
+    const mockAlert = buildAlert({ type: "WALLET_BALANCE", enabled: true });
+
+    setup({ data: [mockAlert], removingIds: new Set([mockAlert.id]) });
+
+    expect(screen.getByRole("checkbox")).toBeDisabled();
+  });
+
   it("does not render pagination when total is not greater than minimum page size", () => {
     setup();
 
@@ -87,7 +160,7 @@ describe(AlertsListView.name, () => {
     expect(screen.getByRole("navigation")).toBeInTheDocument();
   });
 
-  function setup(props: Partial<Props> = {}) {
+  function setup({ isAlertUpdateEnabled = true, ...props }: Partial<Props> & { isAlertUpdateEnabled?: boolean } = {}) {
     const defaultProps: Props = {
       pagination: {
         page: 1,
@@ -98,7 +171,9 @@ describe(AlertsListView.name, () => {
       data: Array.from({ length: 10 }, buildAlert),
       isLoading: false,
       onToggle: vi.fn(),
+      onRemove: vi.fn(),
       loadingIds: new Set(),
+      removingIds: new Set(),
       onPaginationChange: vi.fn(),
       isError: false,
       ...props
@@ -106,13 +181,13 @@ describe(AlertsListView.name, () => {
 
     const mockUseFlag = vi.fn((flag: string) => {
       if (flag === "notifications_general_alerts_update") {
-        return true;
+        return isAlertUpdateEnabled;
       }
       return false;
-    }) as unknown as ReturnType<typeof useFlag>;
+    }) as unknown as typeof useFlag;
 
     const dependencies: NonNullable<Props["dependencies"]> = {
-      useFlag: () => mockUseFlag
+      useFlag: mockUseFlag
     };
 
     render(

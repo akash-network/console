@@ -6,7 +6,7 @@ import { ShieldCheck } from "lucide-react";
 import type { ProviderIdentity } from "@src/services/provider-proxy/provider-proxy.service";
 import type { LeaseDto } from "@src/types/deployment";
 import { getGroupTeeType } from "@src/utils/confidentialCompute";
-import { isLeaseLive } from "@src/utils/reclamationUtils";
+import { isLeaseLive } from "@src/utils/leaseUtils";
 import { AttestationEvidenceModal } from "./AttestationEvidenceModal";
 
 export const DEPENDENCIES = {

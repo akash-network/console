@@ -2,14 +2,35 @@ import type { AxiosInstance } from "axios";
 
 import { services } from "@src/services/app-di-container/browser-di-container";
 import networkStore from "@src/store/networkStore";
+import type { DeploymentStatus } from "@src/types/deployment";
 import { appendSearchParams } from "./urlUtils";
+
+type DeploymentsPageUrlParams = {
+  owner: string;
+  state: DeploymentStatus;
+  offset: number;
+  limit: number;
+  reverse?: boolean;
+};
 
 export class ApiUrlService {
   static depositParams(apiEndpoint: string) {
     return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/params`;
   }
-  static deploymentList(apiEndpoint: string, address: string, isActive?: boolean) {
-    return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/list?filters.owner=${address}${isActive ? "&filters.state=active" : ""}`;
+  static deploymentList(apiEndpoint: string, address: string, state?: DeploymentStatus, reverse?: boolean) {
+    let url = `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/list?filters.owner=${address}${state ? `&filters.state=${state}` : ""}`;
+    if (reverse) url += "&pagination.reverse=true";
+    return url;
+  }
+  /**
+   * Single-page deployment listing. Offset pagination requires `filters.state`.
+   * Do not request `count_total`: the RPC reports the current page size, not the collection size.
+   * Callers should use `pagination.next_key` to decide whether another page exists.
+   */
+  static deploymentsPage(apiEndpoint: string, { owner, state, offset, limit, reverse }: DeploymentsPageUrlParams) {
+    let url = `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/list?filters.owner=${owner}&filters.state=${state}&pagination.offset=${offset}&pagination.limit=${limit}`;
+    if (reverse) url += "&pagination.reverse=true";
+    return url;
   }
   static deploymentDetail(apiEndpoint: string, address: string, dseq: string) {
     return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`;
@@ -20,8 +41,8 @@ export class ApiUrlService {
   static bidInfo(apiEndpoint: string, address: string, dseq: string, gseq: number, oseq: number, provider: string) {
     return `${apiEndpoint}/akash/market/${networkStore.marketVersion}/bids/info?id.owner=${address}&id.dseq=${dseq}&id.gseq=${gseq}&id.oseq=${oseq}&id.provider=${provider}`;
   }
-  static leaseList(apiEndpoint: string, address: string, dseq: string) {
-    return `${apiEndpoint}/akash/market/${networkStore.marketVersion}/leases/list?filters.owner=${address}${dseq ? "&filters.dseq=" + dseq : ""}`;
+  static leaseList(apiEndpoint: string, address: string, dseq: string, state?: string) {
+    return `${apiEndpoint}/akash/market/${networkStore.marketVersion}/leases/list?filters.owner=${address}${dseq ? "&filters.dseq=" + dseq : ""}${state ? "&filters.state=" + state : ""}`;
   }
   static providers(apiEndpoint: string) {
     return `${apiEndpoint}/akash/provider/${networkStore.providerVersion}/providers`;

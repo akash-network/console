@@ -5,7 +5,7 @@ import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
 import { ApiUrlService } from "@src/services/api-url/api-url.service";
 import * as walletUtils from "@src/utils/walletUtils";
 import { AuthService } from "../auth/auth/auth.service";
-import { withUserToken } from "../auth/auth/interceptors";
+import { PROXY_API_BASE_URL, withUserToken } from "../auth/auth/interceptors";
 import { createChildContainer } from "../container/createContainer";
 import { DeploymentStorageService } from "../deployment-storage/deployment-storage.service";
 import { BitbucketService } from "../remote-deploy/bitbucket-http.service";
@@ -23,7 +23,7 @@ const rootContainer = createAppRootContainer({
 });
 
 export const services = createChildContainer(rootContainer, {
-  api: () => createProxy(createApiSdk({ baseUrl: "/api/proxy" })),
+  api: () => createProxy(createApiSdk({ baseUrl: PROXY_API_BASE_URL })),
   githubService: () =>
     new GitHubService(services.internalApiHttpClient, services.createAxios, {
       githubAppInstallationUrl: services.publicConfig.NEXT_PUBLIC_GITHUB_APP_INSTALLATION_URL,

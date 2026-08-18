@@ -1,4 +1,5 @@
 import type { ReactNode, RefObject } from "react";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -61,9 +62,9 @@ describe(PasswordlessAuth.name, () => {
     expect(replace).toHaveBeenCalledWith(expect.not.stringContaining("step"), undefined, { shallow: true });
   });
 
-  it("resets the persisted flow, refreshes the session, and navigates back when EmailCodeVerify calls onVerified", async () => {
+  it("resets the persisted flow and refreshes the session when EmailCodeVerify calls onVerified", async () => {
     const EmailCodeVerifyMock = vi.fn(ComponentMock);
-    const { onFlowReset, checkSession, navigateBack } = setup({
+    const { onFlowReset, checkSession } = setup({
       step: "verify",
       initialEmail: "alice@example.com",
       dependencies: { EmailCodeVerify: EmailCodeVerifyMock as never }
@@ -75,7 +76,83 @@ describe(PasswordlessAuth.name, () => {
 
     expect(onFlowReset).toHaveBeenCalled();
     expect(checkSession).toHaveBeenCalled();
-    expect(navigateBack).toHaveBeenCalled();
+  });
+
+  it("navigates back once the user is authenticated and the session is re-validated", async () => {
+    const { navigateBack } = setup({ authenticated: true });
+
+    await vi.waitFor(() => expect(navigateBack).toHaveBeenCalled());
+  });
+
+  it("does not navigate back before the session re-validation settles", () => {
+    const { navigateBack } = setup({ authenticated: true, sessionRevalidation: "pending" });
+
+    expect(navigateBack).not.toHaveBeenCalled();
+  });
+
+  it("renders the login form instead of navigating back when re-validation clears a stale user", async () => {
+    const EmailCodeStartMock = vi.fn(ComponentMock);
+    const { navigateBack, checkSession } = setup({
+      authenticated: true,
+      sessionRevalidation: "expired",
+      dependencies: { EmailCodeStart: EmailCodeStartMock as never }
+    });
+
+    await vi.waitFor(() => expect(EmailCodeStartMock).toHaveBeenCalled());
+
+    expect(checkSession).toHaveBeenCalled();
+    expect(navigateBack).not.toHaveBeenCalled();
+  });
+
+  it("does not re-check the session when there is no cached user to revalidate", () => {
+    const { checkSession } = setup();
+
+    expect(checkSession).not.toHaveBeenCalled();
+  });
+
+  it("shows the login form without navigating back when re-validation fails transiently", async () => {
+    const EmailCodeStartMock = vi.fn(ComponentMock);
+    const { navigateBack } = setup({
+      authenticated: true,
+      sessionRevalidation: "errored",
+      dependencies: { EmailCodeStart: EmailCodeStartMock as never }
+    });
+
+    await vi.waitFor(() => expect(EmailCodeStartMock).toHaveBeenCalled());
+
+    expect(navigateBack).not.toHaveBeenCalled();
+  });
+
+  it("renders the boot loader instead of the auth forms when authenticated", () => {
+    const EmailCodeStartMock = vi.fn(ComponentMock);
+    const EmailCodeVerifyMock = vi.fn(ComponentMock);
+    const BootLoadingMock = vi.fn(ComponentMock);
+    setup({
+      authenticated: true,
+      step: "verify",
+      initialEmail: "alice@example.com",
+      dependencies: {
+        EmailCodeStart: EmailCodeStartMock as never,
+        EmailCodeVerify: EmailCodeVerifyMock as never,
+        BootLoading: BootLoadingMock as never
+      }
+    });
+
+    expect(BootLoadingMock).toHaveBeenCalled();
+    expect(EmailCodeStartMock).not.toHaveBeenCalled();
+    expect(EmailCodeVerifyMock).not.toHaveBeenCalled();
+  });
+
+  it("does not redirect to entry for an authenticated user even when the email is missing", () => {
+    const { replace } = setup({ authenticated: true, step: "verify", initialEmail: "" });
+
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("redirects to entry on a missing-email verify step when a stale user's re-check errors", async () => {
+    const { replace } = setup({ authenticated: true, sessionRevalidation: "errored", step: "verify", initialEmail: "" });
+
+    await vi.waitFor(() => expect(replace).toHaveBeenCalledWith(expect.not.stringContaining("step"), undefined, { shallow: true }));
   });
 
   it("provides a captcha-token getter that resolves to the Turnstile token", async () => {
@@ -113,24 +190,44 @@ describe(PasswordlessAuth.name, () => {
     input: {
       initialEmail?: string;
       step?: string;
+      authenticated?: boolean;
+      /**
+       * "valid" (default) keeps the user after re-validation, "expired" clears it, "pending" never
+       * settles, "errored" keeps the stale user but surfaces an error (transient re-fetch failure).
+       */
+      sessionRevalidation?: "valid" | "expired" | "pending" | "errored";
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
     const analyticsService = mock<AnalyticsService>();
     const onEmailChange = vi.fn();
     const onFlowReset = vi.fn();
-    const checkSession = vi.fn(async () => undefined);
     const navigateBack = vi.fn();
     const push = vi.fn();
     const replace = vi.fn();
     const params = new URLSearchParams();
     if (input.step) params.set("step", input.step);
-    const useUser: typeof DEPENDENCIES.useUser = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useUser>>({
+    const initialUser = input.authenticated ? mock<NonNullable<ReturnType<typeof DEPENDENCIES.useUser>["user"]>>({ userId: "user-1" }) : undefined;
+    let clearUser: () => void = () => undefined;
+    let failRevalidation: () => void = () => undefined;
+    const checkSession = vi.fn(async () => {
+      if (input.sessionRevalidation === "pending") return new Promise<undefined>(() => undefined);
+      if (input.sessionRevalidation === "expired") clearUser();
+      if (input.sessionRevalidation === "errored") failRevalidation();
+      return undefined;
+    });
+    const useUser: typeof DEPENDENCIES.useUser = () => {
+      const [user, setUser] = useState(initialUser);
+      const [error, setError] = useState<Error | undefined>(undefined);
+      clearUser = () => setUser(undefined);
+      failRevalidation = () => setError(new Error("network down"));
+      return mock<ReturnType<typeof DEPENDENCIES.useUser>>({
         checkSession,
         isLoading: false,
-        user: undefined
+        user,
+        error
       });
+    };
     const useReturnTo: typeof DEPENDENCIES.useReturnTo = () =>
       mock<ReturnType<typeof DEPENDENCIES.useReturnTo>>({
         returnTo: "/",

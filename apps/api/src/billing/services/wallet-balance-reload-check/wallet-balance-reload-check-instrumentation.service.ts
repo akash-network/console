@@ -93,7 +93,7 @@ export class WalletBalanceReloadCheckInstrumentationService {
     });
   }
 
-  recordReloadSkipped(input: ReloadMetricInput & { reason: "zero_cost" | "sufficient_balance" }): void {
+  recordReloadSkipped(input: ReloadMetricInput & { reason: "zero_cost" | "sufficient_balance" | "no_active_deployments" }): void {
     this.reloadsSkipped.add(1, {
       reason: input.reason
     });

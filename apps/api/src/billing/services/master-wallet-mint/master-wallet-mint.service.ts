@@ -22,7 +22,6 @@ export class MasterWalletMintService {
   private readonly MAX_POLL_ATTEMPTS = 24;
   private readonly BALANCE_CHECK_INTERVAL_MS = 10_000;
   private readonly MAX_BALANCE_CHECK_ATTEMPTS = 18;
-  private readonly AKT_RESERVE_UAKT = 100_000_000;
 
   constructor(
     private readonly billingConfigService: BillingConfigService,
@@ -35,36 +34,65 @@ export class MasterWalletMintService {
   ) {}
 
   /**
-   * Checks the master wallet's ACT balance against the configured target and mints ACT from AKT if below.
-   * Computes AKT to burn using oracle price (with slippage margin), enforces BME minimum mint,
-   * caps to available AKT (minus reserve), broadcasts MsgMintACT, polls for settlement, and verifies post-mint balance.
+   * Burns the master wallet's AKT above the configured fee reserve into ACT, capped per run
+   * so a large backlog drains gradually across cron runs. Skips (without error) while a prior
+   * mint is still settling, when there is no excess, or when the excess is below the BME minimum —
+   * all normal states under a frequent cron. Broadcasts MsgMintACT, polls for settlement, and
+   * verifies the post-mint ACT balance.
    */
-  async mintIfNeeded(options?: DryRunOptions): Promise<Result<void, string>> {
+  async mintExcessAkt(options?: DryRunOptions): Promise<Result<void, string>> {
     const address = await this.txManagerService.getFundingWalletAddress();
-    const balances = await this.fetchWalletBalances(address);
-    const currentUactBalance = this.findBalance(balances, "uact");
-    const deficit = this.billingConfigService.get("MASTER_WALLET_TARGET_ACT_BALANCE") - currentUactBalance;
 
-    if (deficit <= 0) {
-      this.logger.info({ event: "MASTER_WALLET_MINT_SKIPPED", deficit });
+    if (await this.hasPendingSettlement(address)) {
+      this.logger.info({ event: "MASTER_WALLET_MINT_SKIPPED", reason: "previous mint still settling", address });
       return Ok.EMPTY;
     }
 
-    const calculation = await this.calculateAktToBurn(deficit, balances);
+    const balances = await this.fetchWalletBalances(address);
+    const aktBalance = this.findBalance(balances, "uakt");
+    const reserve = this.billingConfigService.get("MASTER_WALLET_AKT_RESERVE");
+
+    if (aktBalance < reserve) {
+      this.logger.warn({ event: "MASTER_WALLET_BALANCE_BELOW_RESERVE", message: "AKT balance is below the fee reserve", aktBalance, reserve });
+      return Ok.EMPTY;
+    }
+
+    const excess = aktBalance - reserve;
+    const aktToBurn = Math.min(excess, this.billingConfigService.get("MASTER_WALLET_MAX_MINT_UAKT"));
+
+    if (aktToBurn <= 0) {
+      this.logger.info({ event: "MASTER_WALLET_MINT_SKIPPED", reason: "no excess AKT", aktBalance, reserve });
+      return Ok.EMPTY;
+    }
+
+    const calculation = await this.calculateExpectedAct(aktToBurn);
 
     if (calculation.err) {
       return calculation;
     }
 
-    const aktToBurn = calculation.val.akt;
-    const expectedActBalance = currentUactBalance + calculation.val.act;
-
-    if (options?.dryRun) {
-      this.logger.info({ event: "MASTER_WALLET_MINT_DRY_RUN", deficit, aktToBurn, expectedActToMint: calculation.val.act, expectedActBalance });
+    if (calculation.val === null) {
       return Ok.EMPTY;
     }
 
+    const expectedActBalance = this.findBalance(balances, "uact") + calculation.val;
+    const remainingBacklog = excess - aktToBurn;
+
+    if (options?.dryRun) {
+      this.logger.info({ event: "MASTER_WALLET_MINT_DRY_RUN", aktToBurn, reserve, remainingBacklog, expectedActToMint: calculation.val, expectedActBalance });
+      return Ok.EMPTY;
+    }
+
+    if (remainingBacklog > 0) {
+      this.logger.info({ event: "MASTER_WALLET_MINT_CAPPED", aktToBurn, remainingBacklog });
+    }
+
     return this.executeMint(address, aktToBurn, expectedActBalance);
+  }
+
+  private async hasPendingSettlement(address: string): Promise<boolean> {
+    const { records } = await this.fetchPendingLedgerRecords(address);
+    return records.length > 0;
   }
 
   private async fetchWalletBalances(address: string): Promise<Balances> {
@@ -73,9 +101,11 @@ export class MasterWalletMintService {
   }
 
   /**
-   * Computes the final AKT amount to burn: applies oracle price with slippage, enforces BME min mint, and caps to available AKT minus reserve.
+   * Computes the slippage-discounted ACT expected from burning the given AKT amount.
+   * Returns Ok(null) when the burn is below the BME minimum mint — a skip, not a failure,
+   * since small excess simply accumulates until a later run clears the floor.
    */
-  private async calculateAktToBurn(actDeficit: number, balances: Balances): Promise<Result<{ akt: number; act: number }, string>> {
+  private async calculateExpectedAct(aktToBurn: number): Promise<Result<number | null, string>> {
     const [{ price }, minMintUact] = await Promise.all([this.denomExchangeService.getExchangeRateToUSD("akt"), this.getMinMintAmount()]);
 
     if (!price || price <= 0) {
@@ -84,18 +114,13 @@ export class MasterWalletMintService {
     }
 
     const minAktToBurn = Math.ceil((minMintUact / price) * this.PRICE_SLIPPAGE_MULTIPLIER);
-    const aktToBurn = Math.ceil((Math.max(actDeficit, minMintUact) / price) * this.PRICE_SLIPPAGE_MULTIPLIER);
 
-    const capped = this.capToAvailableAkt(balances, aktToBurn, minAktToBurn);
-
-    if (capped.err) {
-      return capped;
+    if (aktToBurn < minAktToBurn) {
+      this.logger.info({ event: "MASTER_WALLET_MINT_SKIPPED", reason: "excess below BME minimum mint", aktToBurn, minAktToBurn });
+      return Ok(null);
     }
 
-    return Ok({
-      akt: capped.val,
-      act: Math.floor((capped.val * price) / this.PRICE_SLIPPAGE_MULTIPLIER)
-    });
+    return Ok(Math.floor((aktToBurn * price) / this.PRICE_SLIPPAGE_MULTIPLIER));
   }
 
   private async getMinMintAmount(): Promise<number> {
@@ -112,24 +137,6 @@ export class MasterWalletMintService {
     }
 
     return Number(uactCoin.amount);
-  }
-
-  /** Caps burn amount to available AKT minus reserve (100 AKT). Fails if available can't cover the BME minimum mint. */
-  private capToAvailableAkt(balances: Balances, aktToBurn: number, minAktToBurn: number): Result<number, string> {
-    const aktBalance = this.findBalance(balances, "uakt");
-    const available = aktBalance - this.AKT_RESERVE_UAKT;
-
-    if (available < minAktToBurn) {
-      const message = `Insufficient AKT balance: have ${aktBalance}, need at least ${minAktToBurn + this.AKT_RESERVE_UAKT} (${minAktToBurn} min burn + ${this.AKT_RESERVE_UAKT} reserve)`;
-      this.logger.error({ event: "MASTER_WALLET_MINT_FAILED", message, aktBalance, minAktToBurn, reserve: this.AKT_RESERVE_UAKT });
-      return Err(message);
-    }
-
-    if (available < aktToBurn) {
-      this.logger.warn({ event: "MASTER_WALLET_MINT_CAPPED", message: "Minting less than needed due to AKT balance", requested: aktToBurn, available });
-    }
-
-    return Ok(Math.min(aktToBurn, available));
   }
 
   /**
@@ -156,12 +163,16 @@ export class MasterWalletMintService {
     return this.verifyMintedBalance(address, aktToBurn, expectedActBalance);
   }
 
+  private fetchPendingLedgerRecords(address: string) {
+    return this.chainSdk.akash.bme.v1.getLedgerRecords({
+      filters: { source: address, status: "ledger_record_status_pending" }
+    });
+  }
+
   /** Polls BME ledger until no pending records remain for this address. */
   private async waitForSettlement(address: string): Promise<Result<void, string>> {
     for (let attempt = 0; attempt < this.MAX_POLL_ATTEMPTS; attempt++) {
-      const { records } = await this.chainSdk.akash.bme.v1.getLedgerRecords({
-        filters: { source: address, status: "ledger_record_status_pending" }
-      });
+      const { records } = await this.fetchPendingLedgerRecords(address);
 
       if (records.length === 0) {
         return Ok.EMPTY;

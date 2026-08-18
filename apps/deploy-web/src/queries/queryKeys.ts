@@ -21,9 +21,20 @@ export class QueryKeys {
   static getUserTemplatesKey = (username: string) => ["USER_TEMPLATES", username];
   static getUserFavoriteTemplatesKey = (userId: string) => ["USER_FAVORITES_TEMPLATES", userId];
   // Deploy
-  static getDeploymentListKey = (address: string) => ["DEPLOYMENT_LIST", address];
+  static getDeploymentListKey = (address: string, state?: string) => (state ? ["DEPLOYMENT_LIST", address, state] : ["DEPLOYMENT_LIST", address]);
+  /** Prefix for every paginated deployment page of an address; use it to invalidate all pages at once. */
+  static getDeploymentsPageKeyPrefix = (address: string) => ["DEPLOYMENTS_PAGE", address];
+  static getDeploymentsPageKey = (address: string, state: string, skip: number, limit: number) => [
+    ...QueryKeys.getDeploymentsPageKeyPrefix(address),
+    state,
+    skip,
+    limit
+  ];
   static getDeploymentDetailKey = (address: string, dseq?: string) => ["DEPLOYMENT_DETAIL", address, dseq].filter(Boolean);
-  static getAllLeasesKey = (address: string) => ["ALL_LEASES", address];
+  static getAllLeasesKey = (address: string, state?: string | readonly string[]) => {
+    const stateKey = Array.isArray(state) ? state.join(",") : state;
+    return stateKey ? ["ALL_LEASES", address, stateKey] : ["ALL_LEASES", address];
+  };
   /** Extends the all-leases key so prefix-based invalidation after a deploy also refreshes the existence check. */
   static getLeaseExistenceKey = (address: string) => [...QueryKeys.getAllLeasesKey(address), "EXISTENCE"];
   static getLeasesKey = (address: string, dseq: string) => ["LEASE_LIST", address, dseq];
@@ -75,13 +86,6 @@ export class QueryKeys {
   static getLedgerRecordsKey = (address?: string) => (address ? ["LEDGER_RECORDS", address] : []);
 
   static getManagedWalletKey = (userId?: string) => ["MANAGED_WALLET", userId || ""];
-
-  /**
-   * Mutation key for creating/starting a managed (trial) wallet. It tags the create mutation so an
-   * in-flight create is discoverable from any component via `useIsMutating`, regardless of which
-   * `useManagedWallet` instance fired it (e.g. the onboarding picker vs. the persistent WalletProvider).
-   */
-  static getManagedWalletCreateMutationKey = () => ["MANAGED_WALLET_CREATE"];
 
   static getExportTransactionsCsvKey = (options: { startDate?: Date | null; endDate?: Date | null; timezone: string }) => {
     const key = ["EXPORT_TRANSACTIONS_CSV", options.timezone];
