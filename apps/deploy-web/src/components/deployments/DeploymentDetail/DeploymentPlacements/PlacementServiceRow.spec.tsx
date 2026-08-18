@@ -48,6 +48,15 @@ describe(PlacementServiceRow.name, () => {
     expect(screen.getByRole("link", { name: /app\.example\.com/ })).toHaveAttribute("href", "http://app.example.com");
   });
 
+  it("hides the service endpoints once the lease is no longer live", async () => {
+    setup({ uris: ["app.example.com"], leaseState: "closed" });
+
+    await expandService();
+
+    expect(screen.queryByRole("link", { name: /app\.example\.com/ })).not.toBeInTheDocument();
+    expect(screen.getByText("None")).toBeInTheDocument();
+  });
+
   it("shows a None placeholder for Expose Ports when there are no endpoints", async () => {
     setup({});
 

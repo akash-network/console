@@ -2,7 +2,7 @@ import yaml from "js-yaml";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { LeaseDto } from "@src/types/deployment";
+import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { DEPENDENCIES, DeploymentPlacements } from "./DeploymentPlacements";
 import type { PlacementCardProps } from "./PlacementCard";
@@ -45,8 +45,22 @@ describe(DeploymentPlacements.name, () => {
     expect(screen.getByText("2 placements · 2 services")).toBeInTheDocument();
   });
 
+  it("counts only the services in placements that actually have a lease", () => {
+    const manifest = yaml.dump({
+      services: { web: {}, api: {}, worker: {} },
+      deployment: { web: { dcloud: {} }, api: { dcloud: {} }, worker: { other: {} } }
+    });
+    setup({ leases: [buildLeaseInPlacement("a", "dcloud")], deploymentManifest: manifest });
+
+    expect(screen.getByText("1 placement · 2 services")).toBeInTheDocument();
+  });
+
   function buildLease(id: string, provider = "akash1prov") {
     return mock<LeaseDto>({ id, provider });
+  }
+
+  function buildLeaseInPlacement(id: string, placementName: string) {
+    return mock<LeaseDto>({ id, provider: "akash1prov", group: mock<DeploymentGroup>({ group_spec: { name: placementName } } as Partial<DeploymentGroup>) });
   }
 
   function setup(input: { leases: LeaseDto[]; providers?: ApiProviderList[]; deploymentManifest?: string; dependencies?: Partial<typeof DEPENDENCIES> }) {

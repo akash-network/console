@@ -4,6 +4,7 @@ import get from "lodash/get";
 import type { LeaseServiceStatus } from "@src/queries/useLeaseQuery";
 import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
+import { isLeaseLive } from "@src/utils/leaseUtils";
 import { parseSvcCommand } from "@src/utils/sdl/sdlImport";
 
 export interface ResourceSize {
@@ -33,15 +34,15 @@ export interface ManifestServiceDetail {
 /**
  * Parses a deployment SDL manifest into per-service image + resources. Unlike the SDL-builder
  * importer, this tolerates an absent or malformed manifest by returning {} so the Details tab can
- * still render live lease data (status, endpoints) when the local manifest is missing.
+ * still render live lease data (status, endpoints) when the local manifest is missing. The accumulator
+ * is null-prototyped because SDL service names are user-supplied: a service named "__proto__" must add
+ * an own entry rather than reassign the prototype and drop out of Object.keys.
  */
 export function parseManifestServices(manifest: string | null | undefined): Record<string, ManifestServiceDetail> {
   const parsed = safeLoadYaml(manifest);
   const services = parsed?.services;
   if (!services || typeof services !== "object") return {};
 
-  // Null-prototype: SDL service names are user-supplied, so a service named "__proto__" must add an
-  // own entry rather than reassign the accumulator's prototype and drop out of Object.keys.
   return Object.keys(services).reduce<Record<string, ManifestServiceDetail>>((all, name) => {
     all[name] = buildServiceDetail(parsed, services[name] ?? {}, resolveComputeProfileName(parsed, name));
     return all;
@@ -82,13 +83,13 @@ function resolveComputeProfileName(parsed: ParsedManifest | undefined, serviceNa
  * Maps each SDL placement name to its services and their detail, read from the manifest's `deployment:`
  * block. A card renders its own placement's slice, so a service deployed to several placements shows the
  * resources of the profile it uses in each one, and the fallback service list stays scoped to the group.
+ * The map is null-prototyped because SDL placement names are user-supplied: a placement called
+ * "constructor" or "__proto__" must not collide with Object.prototype members and throw while rendering.
  */
 export function parseServicesByPlacement(manifest: string | null | undefined): Record<string, Record<string, ManifestServiceDetail>> {
   const parsed = safeLoadYaml(manifest);
   const services = parsed?.services;
   const deployment = parsed?.deployment;
-  // Null-prototype: SDL placement names are user-supplied, so a placement called "constructor" or
-  // "__proto__" must not collide with Object.prototype members and throw while rendering the tab.
   const byPlacement: Record<string, Record<string, ManifestServiceDetail>> = Object.create(null);
   if (!services || typeof services !== "object" || !deployment || typeof deployment !== "object") return byPlacement;
 
@@ -138,15 +139,16 @@ export interface ServiceStatusView {
 
 /**
  * Derives a user-facing status for a single service from its live replica counts and the owning lease
- * state. A provider-reclaimed lease is terminal even while its `state` still reads "active", so the
- * caller passes `isReclaimed` to keep the row in sync with the ReclamationCard banner above it.
+ * state. Any lease that is not live — closed, out of funds, or provider-reclaimed even while its `state`
+ * still reads "active" — is terminal, so the row stays in sync with the ReclamationCard banner above it
+ * and an escrow-drained lease shows "Closed" instead of spinning on "Starting" forever.
  */
 export function getServiceStatus(
   service: Pick<LeaseServiceStatus, "available" | "total" | "ready_replicas"> | undefined,
   leaseState: LeaseDto["state"],
   isReclaimed = false
 ): ServiceStatusView {
-  if (leaseState === "closed" || isReclaimed) return { label: "Closed", tone: "closed" };
+  if (!isLeaseLive({ state: leaseState }) || isReclaimed) return { label: "Closed", tone: "closed" };
   if (service && service.available > 0) return { label: "Running", tone: "running" };
   return { label: "Starting", tone: "pending" };
 }

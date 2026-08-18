@@ -29,7 +29,7 @@ export interface PlacementServiceRowProps {
 export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({ serviceName, service, leaseState, isReclaimed, detail, uris, forwardedPorts, ips }) => {
   const [open, setOpen] = useState(false);
   const status = getServiceStatus(service, leaseState, isReclaimed);
-  const endpoints = [...toUriLinks(uris), ...toForwardedPortLinks(forwardedPorts), ...toIpLinks(ips)];
+  const endpoints = status.tone === "closed" ? [] : [...toUriLinks(uris), ...toForwardedPortLinks(forwardedPorts), ...toIpLinks(ips)];
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="overflow-hidden rounded-lg border">

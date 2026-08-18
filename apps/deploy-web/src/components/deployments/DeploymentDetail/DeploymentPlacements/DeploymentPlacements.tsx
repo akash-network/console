@@ -33,7 +33,10 @@ export const DeploymentPlacements: FC<DeploymentPlacementsProps> = ({
     return <p className="text-sm text-muted-foreground">{"This deployment doesn't have any active placements."}</p>;
   }
 
-  const serviceCount = Object.keys(manifestServices).length || leases.length;
+  const renderedServiceNames = new Set(
+    leases.flatMap((lease, index) => Object.keys(servicesByPlacement[getPlacementName(lease.group, index)] ?? manifestServices))
+  );
+  const serviceCount = renderedServiceNames.size || leases.length;
 
   return (
     <div className="space-y-4">

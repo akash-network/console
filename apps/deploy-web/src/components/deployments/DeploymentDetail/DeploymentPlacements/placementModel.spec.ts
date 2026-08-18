@@ -206,6 +206,14 @@ describe("placementModel", () => {
     it("reports closed when the lease has been reclaimed even while its state still reads active", () => {
       expect(getServiceStatus(buildService({ available: 1 }), "active", true)).toEqual({ label: "Closed", tone: "closed" });
     });
+
+    it("reports closed for any non-live lease state, including insufficient funds", () => {
+      expect(getServiceStatus(buildService({ available: 1 }), "insufficient_funds")).toEqual({ label: "Closed", tone: "closed" });
+    });
+
+    it("keeps a lease in the reclamation grace period non-terminal until it is reclaimed", () => {
+      expect(getServiceStatus(buildService({ available: 1 }), "reclaiming")).toEqual({ label: "Running", tone: "running" });
+    });
   });
 });
 

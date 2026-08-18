@@ -38,6 +38,8 @@ export const EndpointLinks: FC<{ items: EndpointLink[] }> = ({ items }) => (
             href={item.href}
             target="_blank"
             rel="noreferrer"
+            aria-disabled={item.disabled}
+            tabIndex={item.disabled ? -1 : undefined}
             className={cn("inline-flex items-center gap-1 text-muted-foreground hover:text-foreground", { "pointer-events-none": item.disabled })}
           >
             <span>{item.text}</span>

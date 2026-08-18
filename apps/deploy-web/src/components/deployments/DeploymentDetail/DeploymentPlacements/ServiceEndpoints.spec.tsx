@@ -20,7 +20,9 @@ describe("ServiceEndpoints", () => {
     });
 
     it("omits the href and disables a host-less unavailable port", () => {
-      expect(toForwardedPortLinks([{ host: "", externalPort: 30000, port: 80, available: 0 }])).toEqual([{ text: "80:30000", href: undefined, disabled: true }]);
+      expect(toForwardedPortLinks([{ host: "", externalPort: 30000, port: 80, available: 0 }])).toEqual([
+        { text: "80:30000", href: undefined, disabled: true }
+      ]);
     });
   });
 
@@ -43,6 +45,18 @@ describe("ServiceEndpoints", () => {
 
       expect(screen.getByRole("link", { name: /a\.example\.com/ })).toHaveAttribute("href", "http://a.example.com");
       expect(screen.getByRole("link", { name: /b\.example\.com/ })).toHaveAttribute("href", "http://b.example.com");
+    });
+
+    it("keeps a disabled forwarded-port link out of the tab order and marks it disabled", () => {
+      render(
+        <TooltipProvider>
+          <EndpointLinks items={toForwardedPortLinks([{ host: "provider.io", externalPort: 30000, port: 80, available: 0 }])} />
+        </TooltipProvider>
+      );
+
+      const link = screen.getByRole("link", { name: /80:30000/ });
+      expect(link).toHaveAttribute("tabindex", "-1");
+      expect(link).toHaveAttribute("aria-disabled", "true");
     });
 
     it("renders a host-less port as plain text rather than a link", () => {
