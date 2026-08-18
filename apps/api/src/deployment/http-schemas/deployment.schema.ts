@@ -117,7 +117,7 @@ export const CloseDeploymentResponseSchema = z.object({
 export const DepositDeploymentRequestSchema = z.object({
   data: z.object({
     dseq: DseqSchema.describe("Deployment sequence number"),
-    deposit: z.number().describe("Amount to deposit in dollars (e.g. 5.5)")
+    deposit: z.number().describe("Amount to deposit in whole tokens (e.g. 5.5)")
   })
 });
 
