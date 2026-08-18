@@ -31,7 +31,7 @@ describe("Alerts CRUD", () => {
 
     const alert = HAS_ROLE_TO_CREATE_ALERTS ? await shouldCreate(userId, notificationChannelId, app) : await prepareAlert(userId, notificationChannelId, app);
     await shouldUpdate(alert, otherNotificationChannelId, app);
-    await shouldRejectForeignNotificationChannel(alert, foreignNotificationChannelId, app);
+    await shouldRejectForeignNotificationChannel(alert, otherNotificationChannelId, foreignNotificationChannelId, app);
     await shouldRead(alert, app);
     await shouldDelete(alert, app);
 
@@ -94,7 +94,12 @@ describe("Alerts CRUD", () => {
     expect(res.body.data).toMatchObject(update);
   }
 
-  async function shouldRejectForeignNotificationChannel(alert: AlertOutputMeta, foreignNotificationChannelId: string, app: INestApplication) {
+  async function shouldRejectForeignNotificationChannel(
+    alert: AlertOutputMeta,
+    otherNotificationChannelId: string,
+    foreignNotificationChannelId: string,
+    app: INestApplication
+  ) {
     const res = await request(app.getHttpServer())
       .patch(`/v1/alerts/${alert.id}`)
       .set("x-user-id", alert.userId)
@@ -103,7 +108,7 @@ describe("Alerts CRUD", () => {
     expect(res.status).toBe(404);
 
     const getRes = await request(app.getHttpServer()).get(`/v1/alerts/${alert.id}`).set("x-user-id", alert.userId);
-    expect(getRes.body.data.notificationChannelId).not.toBe(foreignNotificationChannelId);
+    expect(getRes.body.data.notificationChannelId).toBe(otherNotificationChannelId);
   }
 
   async function shouldRead(alert: AlertOutputMeta, app: INestApplication) {
