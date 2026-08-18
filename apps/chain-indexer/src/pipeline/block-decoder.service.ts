@@ -20,9 +20,11 @@ import type { RpcBlockResult, RpcBlockResultsResult, RpcEvent, RpcTxResult } fro
  * proposal ids and lifecycle transitions for the governance handler; the akash events catch deployment and
  * lease closes that happen as side effects of other messages (group close, overdraw) — `akash.v1` is the
  * legacy string-attribute event of early mainnet, the typed events are the current chain's. The bme events
- * carry the executed/canceled ledger records and mint status transitions the BME handler derives from
- * (EventVaultFunded is deliberately absent: the vault's balance is already exact in the balance ledger).
- * Capturing the rest would waste memory across backfill batches.
+ * carry the executed/canceled ledger records and mint status transitions the BME handler derives from;
+ * EventVaultFunded contributes nothing to the balance ledger (the vault's balance is already exact there)
+ * but it is the only native BME event the upgrade block emits, so the ACT denom migration needs it to
+ * detect the upgrade. The oracle price events supply that migration's conversion rate. Capturing the rest
+ * would waste memory across backfill batches.
  */
 const RELEVANT_EVENT_TYPES = new Set([
   "coin_spent",
@@ -39,7 +41,9 @@ const RELEVANT_EVENT_TYPES = new Set([
   "akash.market.v1.EventLeaseClosed",
   "akash.bme.v1.EventLedgerRecordExecuted",
   "akash.bme.v1.EventMintStatusChange",
-  "akash.bme.v1.EventLedgerRecordCanceled"
+  "akash.bme.v1.EventLedgerRecordCanceled",
+  "akash.bme.v1.EventVaultFunded",
+  "akash.oracle.v1.EventPriceData"
 ]);
 
 const MSG_INDEX_ATTRIBUTE = "msg_index";

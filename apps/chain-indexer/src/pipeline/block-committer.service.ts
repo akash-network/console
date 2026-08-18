@@ -7,6 +7,8 @@ import { collectAkashAddresses } from "@src/akash/akash-changes";
 import { deriveAkashChanges } from "@src/akash/akash-deriver";
 import { AkashWriter } from "@src/akash/akash-writer.service";
 import { ProviderWriter } from "@src/akash/provider-writer.service";
+import type { ActMigrationOutcome, ActMigrationSegment } from "@src/bme/act-migration.service";
+import { ActMigrationService } from "@src/bme/act-migration.service";
 import type { BmeBlockChanges } from "@src/bme/bme-deriver";
 import { collectBmeAddresses, deriveBmeChanges } from "@src/bme/bme-deriver";
 import { BmeWriter } from "@src/bme/bme-writer.service";
@@ -55,6 +57,7 @@ export class BlockCommitterService {
   readonly #providerWriter: ProviderWriter;
   readonly #bmeWriter: BmeWriter;
   readonly #networkStatsWriter: NetworkStatsWriter;
+  readonly #actMigration: ActMigrationService;
   readonly #logger: LoggerService;
   readonly #moduleRegistry = buildModuleAddressRegistry();
   readonly #typeIds = new Map<string, number>();
@@ -68,6 +71,7 @@ export class BlockCommitterService {
     @inject(ProviderWriter) providerWriter: ProviderWriter,
     @inject(BmeWriter) bmeWriter: BmeWriter,
     @inject(NetworkStatsWriter) networkStatsWriter: NetworkStatsWriter,
+    @inject(ActMigrationService) actMigration: ActMigrationService,
     @inject(LoggerService) logger: LoggerService
   ) {
     this.#db = db;
@@ -78,6 +82,7 @@ export class BlockCommitterService {
     this.#providerWriter = providerWriter;
     this.#bmeWriter = bmeWriter;
     this.#networkStatsWriter = networkStatsWriter;
+    this.#actMigration = actMigration;
     this.#logger = logger;
     this.#logger.setContext("COMMITTER");
   }
@@ -91,6 +96,9 @@ export class BlockCommitterService {
    * never points past uncommitted data. Inserts are conflict-ignoring and the checkpoint only
    * moves forward, so concurrent writers on the same stream (e.g. two pods overlapping during a
    * rolling deploy) duplicate work but cannot corrupt data or regress the checkpoint.
+   *
+   * A pending ACT denom migration splits the batch at its trigger block: the conversion commits in
+   * the same transaction as that block, so later blocks' settlements run against converted state.
    */
   async commitBatch(blocks: DecodedBlock[], options: { stream: string }): Promise<void> {
     if (blocks.length === 0) {
@@ -98,6 +106,14 @@ export class BlockCommitterService {
     }
 
     this.#verifyContiguous(blocks);
+
+    for (const segment of await this.#actMigration.segment(blocks)) {
+      const outcome = await this.#commitSegment(segment.blocks, options, segment);
+      this.#actMigration.markCommitted(segment, outcome);
+    }
+  }
+
+  async #commitSegment(blocks: DecodedBlock[], options: { stream: string }, segment: ActMigrationSegment): Promise<ActMigrationOutcome | null> {
     const typeIds = await this.#internMessageTypes(blocks);
 
     const blockRows = blocks.map(block => ({
@@ -153,7 +169,7 @@ export class BlockCommitterService {
 
     const lastHeight = blocks[blocks.length - 1].height;
 
-    const persistedDeadLetters = await this.#db.transaction(async tx => {
+    const { persistedDeadLetters, migrationOutcome } = await this.#db.transaction(async tx => {
       await insertChunked(tx, Blocks, blockRows);
       await insertChunked(tx, Transactions, transactionRows);
       await this.#upsertMessages(tx, messageRows);
@@ -167,6 +183,8 @@ export class BlockCommitterService {
       await this.#bmeWriter.write(tx, bmeChanges, accountIds);
       await this.#networkStatsWriter.write(tx, blocks, networkDeltas);
 
+      const outcome = await this.#actMigration.applySegment(tx, segment);
+
       await tx
         .insert(IndexerState)
         .values({ stream: options.stream, lastHeight, updatedAt: new Date() })
@@ -175,7 +193,7 @@ export class BlockCommitterService {
           set: { lastHeight: sql`GREATEST(${IndexerState.lastHeight}, EXCLUDED.last_height)`, updatedAt: new Date() }
         });
 
-      return persisted;
+      return { persistedDeadLetters: persisted, migrationOutcome: outcome };
     });
 
     if (persistedDeadLetters.length > 0) {
@@ -188,6 +206,8 @@ export class BlockCommitterService {
         toHeight: lastHeight
       });
     }
+
+    return migrationOutcome;
   }
 
   /**

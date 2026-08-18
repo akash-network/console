@@ -283,6 +283,6 @@ function isMintStatus(value: string | null): value is BmeMintStatus {
   return value !== null && MINT_STATUSES.has(value);
 }
 
-function isDecString(value: string): boolean {
+export function isDecString(value: string): boolean {
   return /^\d+(\.\d+)?$/.test(value);
 }

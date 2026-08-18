@@ -234,7 +234,7 @@ describe(BlockDecoderService.name, () => {
     expect(decoded.blockEvents).toEqual([{ type: "coinbase", attributes: { minter: "akash1mint", amount: "10uakt" } }]);
   });
 
-  it("captures bme lifecycle block events for the bme handler but drops vault funded ones", () => {
+  it("captures every native bme block event, including the vault funding that marks the upgrade block", () => {
     const { decoder } = setup();
 
     const decoded = decoder.decode(
@@ -244,7 +244,8 @@ describe(BlockDecoderService.name, () => {
           event("akash.bme.v1.EventLedgerRecordExecuted", { id: '{"denom":"uakt","to_denom":"uact","source":"bme","height":100,"sequence":1}' }),
           event("akash.bme.v1.EventMintStatusChange", { previous_status: '"mint_status_healthy"', new_status: '"mint_status_warning"' }),
           event("akash.bme.v1.EventLedgerRecordCanceled", { cancel_reason: '"epsilon"' }),
-          event("akash.bme.v1.EventVaultFunded", { source: '"bme"' })
+          event("akash.bme.v1.EventVaultFunded", { source: '"bme"' }),
+          event("akash.provider.v1beta4.EventProviderCreated", { owner: '"akash1p"' })
         ]
       })
     );
@@ -252,8 +253,22 @@ describe(BlockDecoderService.name, () => {
     expect(decoded.blockEvents.map(e => e.type)).toEqual([
       "akash.bme.v1.EventLedgerRecordExecuted",
       "akash.bme.v1.EventMintStatusChange",
-      "akash.bme.v1.EventLedgerRecordCanceled"
+      "akash.bme.v1.EventLedgerRecordCanceled",
+      "akash.bme.v1.EventVaultFunded"
     ]);
+  });
+
+  it("captures oracle price events so the ACT migration can track the conversion rate", () => {
+    const { decoder } = setup();
+
+    const decoded = decoder.decode(
+      buildBlock({ txs: [] }),
+      buildBlockResults([], {
+        finalize_block_events: [event("akash.oracle.v1.EventPriceData", { id: '{"denom":"akt","base_denom":"usd"}', data: '{"price":"0.62","timestamp":"t"}' })]
+      })
+    );
+
+    expect(decoded.blockEvents.map(e => e.type)).toEqual(["akash.oracle.v1.EventPriceData"]);
   });
 
   it("falls back to begin and end block events when finalize is absent", () => {
