@@ -590,18 +590,8 @@ export class ActMigrationService {
 function orderByChainDrainSequence<T extends { owner: string; dseq: string }>(deployments: T[]): T[] {
   return deployments
     .map(deployment => ({ deployment, ownerBytes: fromBech32(deployment.owner).data }))
-    .sort((left, right) => compareBytes(left.ownerBytes, right.ownerBytes) || compareDseq(left.deployment.dseq, right.deployment.dseq))
+    .sort((left, right) => Buffer.compare(left.ownerBytes, right.ownerBytes) || compareDseq(left.deployment.dseq, right.deployment.dseq))
     .map(entry => entry.deployment);
-}
-
-function compareBytes(a: Uint8Array, b: Uint8Array): number {
-  const length = Math.min(a.length, b.length);
-  for (let index = 0; index < length; index++) {
-    if (a[index] !== b[index]) {
-      return a[index] - b[index];
-    }
-  }
-  return a.length - b.length;
 }
 
 /** Postgres normalizes numeric literals, so dseq order must compare numerically, matching the chain's uint64 key. */
