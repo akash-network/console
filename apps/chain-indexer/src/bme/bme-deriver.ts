@@ -66,8 +66,10 @@ type ParsedChange = { change: BmeChangeBody } | { error: string };
  * mint status transitions and canceled records. Events of failed transactions are skipped; in practice
  * BME fires in the EndBlocker, but tx events are scanned too since the natural keys dedupe either way.
  * `ordinal` counts every BME-typed event in scan order — including ones that fail to parse — so a later
- * parser fix replays with stable ordinals. Parse failures land in `warnings` for the writer to log;
- * a malformed event must not halt the block.
+ * parser fix replays with stable ordinals. That stability only holds while the scanned event-type set is
+ * fixed: adding a BME event type shifts every later ordinal on replay, duplicating `bme_status_changes`
+ * rows unless previously derived rows are wiped first. Parse failures land in `warnings` for the writer
+ * to log; a malformed event must not halt the block.
  */
 export function deriveBmeChanges(block: DecodedBlock): BmeBlockChanges {
   const changes: BmeChange[] = [];
@@ -223,7 +225,11 @@ function parseCoinPrice(raw: string | undefined): BmeCoinPrice | null | undefine
   if (!coin) {
     return undefined;
   }
-  return { ...coin, price: asString(record?.price) };
+  const price = asString(record?.price);
+  if (price !== null && !isDecString(price)) {
+    return undefined;
+  }
+  return { ...coin, price };
 }
 
 function parseCoin(raw: string | undefined): BmeCoin | null | undefined {
