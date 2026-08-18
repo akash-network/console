@@ -158,6 +158,30 @@ describe("deriveBmeChanges", () => {
     ]);
   });
 
+  it("derives a mint status change from unquoted legacy attributes", () => {
+    const changes = deriveBmeChanges(
+      block({
+        blockEvents: [
+          event(STATUS_CHANGE_EVENT_TYPE, {
+            previous_status: "mint_status_healthy",
+            new_status: "mint_status_warning",
+            collateral_ratio: "1.75"
+          })
+        ]
+      })
+    );
+
+    expect(changes.warnings).toEqual([]);
+    expect(changes.changes).toEqual([
+      expect.objectContaining({
+        kind: "mintStatusChange",
+        previousStatus: "mint_status_healthy",
+        newStatus: "mint_status_warning",
+        collateralRatio: "1.75"
+      })
+    ]);
+  });
+
   it("rejects a status change with a value outside the known mint statuses", () => {
     const changes = deriveBmeChanges(
       block({
@@ -206,6 +230,27 @@ describe("deriveBmeChanges", () => {
         ordinal: 0
       }
     ]);
+  });
+
+  it("drops a canceled record with a malformed coins_to_burn attribute", () => {
+    const changes = deriveBmeChanges(
+      block({
+        blockEvents: [
+          event(CANCELED_EVENT_TYPE, {
+            id: '{"denom":"uakt","to_denom":"uact","source":"bme","height":12000,"sequence":5}',
+            cancel_reason: '"insufficient_funds"',
+            owner: '"akash1owner"',
+            to: '"akash1dest"',
+            coins_to_burn: "not-json",
+            denom_to_mint: '"uact"'
+          })
+        ]
+      })
+    );
+
+    expect(changes.changes).toEqual([]);
+    expect(changes.warnings).toHaveLength(1);
+    expect(changes.warnings[0]).toContain(CANCELED_EVENT_TYPE);
   });
 
   it("assigns ordinals across transaction events then block events in scan order", () => {
@@ -279,6 +324,39 @@ describe("deriveBmeChanges", () => {
 
     expect(changes.changes).toEqual([]);
     expect(changes.warnings).toHaveLength(1);
+  });
+
+  it("drops an executed event whose price is not a Dec string", () => {
+    const changes = deriveBmeChanges(
+      block({
+        blockEvents: [
+          event(EXECUTED_EVENT_TYPE, {
+            ...executedAttributes({ sequence: 1 }),
+            burned: '{"coin":{"denom":"uakt","amount":"1000000"},"price":"not-a-dec"}'
+          })
+        ]
+      })
+    );
+
+    expect(changes.changes).toEqual([]);
+    expect(changes.warnings).toHaveLength(1);
+    expect(changes.warnings[0]).toContain(EXECUTED_EVENT_TYPE);
+  });
+
+  it("treats a missing price as null on an otherwise valid coin", () => {
+    const changes = deriveBmeChanges(
+      block({
+        blockEvents: [
+          event(EXECUTED_EVENT_TYPE, {
+            ...executedAttributes({ sequence: 1 }),
+            burned: '{"coin":{"denom":"uakt","amount":"1000000"}}'
+          })
+        ]
+      })
+    );
+
+    expect(changes.warnings).toEqual([]);
+    expect(changes.changes).toEqual([expect.objectContaining({ burned: { denom: "uakt", amount: "1000000", price: null } })]);
   });
 
   it("ignores vault funded and unrelated events", () => {
