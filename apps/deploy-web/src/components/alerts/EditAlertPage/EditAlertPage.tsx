@@ -1,6 +1,7 @@
 import type { FC } from "react";
 import React, { useCallback, useMemo } from "react";
 import type { components } from "@akashnetwork/console-api-types/notifications";
+import { Alert } from "@akashnetwork/ui/components";
 import { NavArrowLeft } from "iconoir-react";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
@@ -12,40 +13,40 @@ import { Title } from "@src/components/shared/Title";
 import { useBackNav } from "@src/hooks/useBackNav";
 import { useNavigationGuard } from "@src/hooks/useNavigationGuard/useNavigationGuard";
 import { getDenomLabel } from "@src/utils/denomLabel";
+import { udenomToDenom } from "@src/utils/mathHelpers";
 import { UrlService } from "@src/utils/urlUtils";
 
-type Alert = components["schemas"]["AlertOutputResponse"]["data"];
-export type WalletBalanceAlert = Extract<Alert, { type: "WALLET_BALANCE" }>;
-type BalanceConditions = WalletBalanceAlert["conditions"];
+export type WalletBalanceAlert = Extract<components["schemas"]["AlertOutputResponse"]["data"], { type: "WALLET_BALANCE" }>;
 
-type Props = {
-  alert: WalletBalanceAlert;
-};
+export const DEPENDENCIES = { Layout, EditAlertContainer, WalletBalanceAlertForm, useBackNav, useNavigationGuard };
 
-/** Reads the operator and base-unit threshold from a balance condition, using the first leaf of a compound (and/or) condition. */
-function extractBalanceThreshold(conditions: BalanceConditions): { operator: "eq" | "lt" | "gt" | "lte" | "gte"; value: number } {
-  if ("field" in conditions) {
-    return { operator: conditions.operator, value: conditions.value };
-  }
-  const [first] = conditions.value;
-  return { operator: first.operator, value: first.value };
-}
-
+/**
+ * Maps a single-threshold balance alert to form values. Returns `null` for compound (and/or) conditions:
+ * this form can only represent one threshold, so editing such an alert would drop its other leaves on save.
+ */
 export function getWalletBalanceAlertInitialValues(alert: WalletBalanceAlert) {
+  const condition = alert.conditions;
+  if (!("field" in condition)) {
+    return null;
+  }
   const { decimals } = getDenomLabel(alert.params.denom);
-  const { operator, value } = extractBalanceThreshold(alert.conditions);
   return {
     name: alert.name,
     notificationChannelId: alert.notificationChannelId,
     enabled: alert.enabled,
-    operator,
-    amount: value / 10 ** decimals
+    operator: condition.operator,
+    amount: udenomToDenom(condition.value, undefined, 10 ** decimals)
   };
 }
 
-export const EditAlertPage: FC<Props> = ({ alert }) => {
-  const goBack = useBackNav(UrlService.alerts());
-  const navGuard = useNavigationGuard();
+type Props = {
+  alert: WalletBalanceAlert;
+  dependencies?: typeof DEPENDENCIES;
+};
+
+export const EditAlertPage: FC<Props> = ({ alert, dependencies: d = DEPENDENCIES }) => {
+  const goBack = d.useBackNav(UrlService.alerts());
+  const navGuard = d.useNavigationGuard();
   const saveNavStateAndGoBack = useCallback(() => {
     navGuard.toggle({ hasChanges: false });
     goBack();
@@ -54,7 +55,7 @@ export const EditAlertPage: FC<Props> = ({ alert }) => {
   const initialValues = useMemo(() => getWalletBalanceAlertInitialValues(alert), [alert]);
 
   return (
-    <Layout containerClassName="flex h-full flex-col">
+    <d.Layout containerClassName="flex h-full flex-col">
       <NextSeo title="Edit Wallet Balance Alert" />
       <div className="flex flex-wrap items-center px-6 py-6">
         <Link href={UrlService.alerts()} type="button" className="p-2">
@@ -62,19 +63,27 @@ export const EditAlertPage: FC<Props> = ({ alert }) => {
         </Link>
         <Title>Edit Wallet Balance Alert</Title>
       </div>
-      <EditAlertContainer id={alert.id} onEditSuccess={saveNavStateAndGoBack}>
-        {props => (
-          <WalletBalanceAlertForm
-            initialValues={initialValues}
-            owner={alert.params.owner}
-            denom={alert.params.denom}
-            isLoading={props.isLoading}
-            onSubmit={props.onEdit}
-            onCancel={goBack}
-            onStateChange={navGuard.toggle}
-          />
-        )}
-      </EditAlertContainer>
-    </Layout>
+      {initialValues ? (
+        <d.EditAlertContainer id={alert.id} onEditSuccess={saveNavStateAndGoBack}>
+          {props => (
+            <d.WalletBalanceAlertForm
+              initialValues={initialValues}
+              owner={alert.params.owner}
+              denom={alert.params.denom}
+              isLoading={props.isLoading}
+              onSubmit={props.onEdit}
+              onCancel={goBack}
+              onStateChange={navGuard.toggle}
+            />
+          )}
+        </d.EditAlertContainer>
+      ) : (
+        <div className="max-w-xl p-6">
+          <Alert variant="warning" data-testid="compound-condition-notice">
+            This alert has multiple balance conditions and cannot be edited here. To change it, delete this alert and create a new one.
+          </Alert>
+        </div>
+      )}
+    </d.Layout>
   );
 };
