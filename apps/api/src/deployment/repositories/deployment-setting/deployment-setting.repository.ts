@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { UserWallets, WalletSetting } from "@src/billing/model-schemas";
@@ -95,6 +95,46 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .orderBy(desc(this.table.id));
 
     return deployments as AutoTopUpDeployment[];
+  }
+
+  /**
+   * Atomically claims deployments for auto-funding, returning only the ids this caller won.
+   * A deployment is claimable when it has never been funded or its last funding is older than
+   * the cooldown. Concurrent callers (hourly cron, immediate job, a retry) racing for the same
+   * id resolve to a single winner via the row-lock re-check, so each is funded at most once per
+   * cooldown. Ids are sorted so overlapping batches lock rows in the same order.
+   */
+  async claimForFunding(ids: string[], cooldownMinutes: number): Promise<string[]> {
+    if (!ids.length) {
+      return [];
+    }
+
+    const orderedIds = [...ids].sort();
+
+    const claimed = await this.cursor
+      .update(this.table)
+      .set({ lastFundedAt: sql`now()`, updatedAt: sql`now()` })
+      .where(
+        and(
+          inArray(this.table.id, orderedIds),
+          or(isNull(this.table.lastFundedAt), lt(this.table.lastFundedAt, sql`now() - (${cooldownMinutes} * interval '1 minute')`))
+        )
+      )
+      .returning({ id: this.table.id });
+
+    return claimed.map(row => row.id);
+  }
+
+  /** Releases a funding claim so the next pass can retry, used when the deposit did not land. */
+  async releaseFundingClaim(ids: string[]): Promise<void> {
+    if (!ids.length) {
+      return;
+    }
+
+    await this.cursor
+      .update(this.table)
+      .set({ lastFundedAt: null, updatedAt: sql`now()` })
+      .where(inArray(this.table.id, ids));
   }
 
   protected toInput(payload: Partial<DeploymentSettingsInput>): Partial<DeploymentSettingsInput> {

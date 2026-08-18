@@ -16,6 +16,7 @@ export const DeploymentSettings = pgTable(
     dseq: varchar("dseq").notNull(),
     autoTopUpEnabled: boolean("auto_top_up_enabled").notNull().default(false),
     closed: boolean("closed").notNull().default(false),
+    lastFundedAt: timestamp("last_funded_at"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow()
   },

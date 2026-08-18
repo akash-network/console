@@ -1,0 +1,1 @@
+ALTER TABLE "deployment_settings" ADD COLUMN "last_funded_at" timestamp;

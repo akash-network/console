@@ -9,9 +9,12 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import type { DryRunOptions } from "@src/core/types/console";
+import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DrainingDeployment } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
+import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { CachedBalance, CachedBalanceService } from "../cached-balance/cached-balance.service";
+import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DeploymentTopUpInstrumentation } from "./deployment-top-up-instrumentation";
 import { FundDrainingDeploymentsInstrumentationService } from "./fund-draining-deployments-instrumentation.service";
 import { TopUpManagedDeploymentsInstrumentationService } from "./top-up-managed-deployments-instrumentation.service";
@@ -34,7 +37,9 @@ export class TopUpManagedDeploymentsService {
     private readonly chainErrorService: ChainErrorService,
     private readonly instrumentation: TopUpManagedDeploymentsInstrumentationService,
     private readonly fundDrainingInstrumentation: FundDrainingDeploymentsInstrumentationService,
-    private readonly walletReloadService: WalletReloadJobService
+    private readonly walletReloadService: WalletReloadJobService,
+    private readonly deploymentSettingRepository: DeploymentSettingRepository,
+    private readonly deploymentConfig: DeploymentConfigService
   ) {}
 
   async topUpDeployments(options: DryRunOptions): Promise<Result<void, unknown[]>> {
@@ -90,11 +95,42 @@ export class TopUpManagedDeploymentsService {
       return;
     }
 
-    await this.topUpForOwner(address, messageInputs, options, instrumentation);
-
-    if (!options.dryRun) {
-      await this.walletReloadService.scheduleImmediate({ walletId });
+    if (options.dryRun) {
+      await this.topUpForOwner(address, messageInputs, options, instrumentation);
+      return;
     }
+
+    const claimedInputs = await this.#claimForFunding(messageInputs);
+
+    if (!claimedInputs.length) {
+      instrumentation.recordSkipped({ owner: address, deploymentCount: deployments.length });
+      return;
+    }
+
+    const claimedIds = claimedInputs.map(input => input.deployment.id);
+    let deposited = false;
+
+    try {
+      deposited = await this.topUpForOwner(address, claimedInputs, options, instrumentation);
+    } finally {
+      if (!deposited) {
+        await this.deploymentSettingRepository.releaseFundingClaim(claimedIds);
+      }
+    }
+
+    await this.walletReloadService.scheduleImmediate({ walletId });
+  }
+
+  async #claimForFunding(messageInputs: CollectedMessage[]): Promise<CollectedMessage[]> {
+    const cooldownMinutes = this.deploymentConfig.get("AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN");
+    const claimedIds = new Set(
+      await this.deploymentSettingRepository.claimForFunding(
+        messageInputs.map(input => input.deployment.id),
+        cooldownMinutes
+      )
+    );
+
+    return messageInputs.filter(input => claimedIds.has(input.deployment.id));
   }
 
   private async collectMessages(
@@ -148,7 +184,12 @@ export class TopUpManagedDeploymentsService {
     return messageInputs.filter(x => !!x);
   }
 
-  private async topUpForOwner(owner: string, ownerInputs: CollectedMessage[], options: DryRunOptions, instrumentation: DeploymentTopUpInstrumentation) {
+  private async topUpForOwner(
+    owner: string,
+    ownerInputs: CollectedMessage[],
+    options: DryRunOptions,
+    instrumentation: DeploymentTopUpInstrumentation
+  ): Promise<boolean> {
     const walletId = ownerInputs[0].deployment.walletId;
 
     try {
@@ -162,16 +203,26 @@ export class TopUpManagedDeploymentsService {
             items: ownerInputs,
             error: new Error(`Fee grant missing for wallet ${owner}, unable to top up deployments`)
           });
-          return;
+          return false;
         }
 
-        await this.managedSignerService.executeDerivedTx(
+        const tx = await this.managedSignerService.executeDerivedTx(
           walletId,
           ownerInputs.map(i => i.message)
         );
+
+        if (tx.code !== COSMOS_TX_CODE_OK) {
+          instrumentation.recordChainTxError({
+            owner,
+            items: ownerInputs,
+            error: new Error(`Deposit tx ${tx.hash} failed on-chain with code ${tx.code}: ${tx.rawLog}`)
+          });
+          return false;
+        }
       }
 
       instrumentation.recordDeposit({ owner, items: ownerInputs });
+      return true;
     } catch (error: unknown) {
       instrumentation.recordChainTxError({ owner, items: ownerInputs, error });
 
@@ -179,6 +230,8 @@ export class TopUpManagedDeploymentsService {
         instrumentation.recordMasterWalletInsufficientFundsError({ owner, items: ownerInputs, error });
         throw error;
       }
+
+      return false;
     }
   }
 }

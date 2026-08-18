@@ -1,0 +1,94 @@
+import { faker } from "@faker-js/faker";
+import { eq, sql } from "drizzle-orm";
+import { container } from "tsyringe";
+import { describe, expect, it } from "vitest";
+
+import type { ApiPgDatabase } from "@src/core";
+import { POSTGRES_DB, resolveTable } from "@src/core";
+import { UserRepository } from "@src/user/repositories";
+import { DeploymentSettingRepository } from "./deployment-setting.repository";
+
+const COOLDOWN_MINUTES = 60;
+
+describe(DeploymentSettingRepository.name, () => {
+  describe("claimForFunding", () => {
+    it("awards a claim to exactly one caller across concurrent attempts", async () => {
+      const { deploymentSettingRepository, settingId } = await setup();
+
+      const results = await Promise.all(Array.from({ length: 5 }, () => deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES)));
+
+      const winners = results.filter(claimed => claimed.includes(settingId));
+      expect(winners).toHaveLength(1);
+    });
+
+    it("does not re-claim a deployment funded within the cooldown", async () => {
+      const { deploymentSettingRepository, settingId } = await setup();
+
+      const first = await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES);
+      const second = await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES);
+
+      expect(first).toEqual([settingId]);
+      expect(second).toEqual([]);
+    });
+
+    it("claims again once the cooldown has elapsed", async () => {
+      const { deploymentSettingRepository, settingId, backdateLastFundedAt } = await setup();
+
+      await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES);
+      await backdateLastFundedAt(settingId, COOLDOWN_MINUTES + 1);
+      const afterCooldown = await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES);
+
+      expect(afterCooldown).toEqual([settingId]);
+    });
+
+    it("returns only the ids still outside the cooldown when a batch mixes fresh and recently funded", async () => {
+      const { deploymentSettingRepository, settingId, createSetting } = await setup();
+      const freshId = await createSetting();
+
+      await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES);
+      const claimed = await deploymentSettingRepository.claimForFunding([settingId, freshId], COOLDOWN_MINUTES);
+
+      expect(claimed).toEqual([freshId]);
+    });
+  });
+
+  describe("releaseFundingClaim", () => {
+    it("makes a claimed deployment immediately claimable again", async () => {
+      const { deploymentSettingRepository, settingId } = await setup();
+
+      await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES);
+      await deploymentSettingRepository.releaseFundingClaim([settingId]);
+      const afterRelease = await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES);
+
+      expect(afterRelease).toEqual([settingId]);
+    });
+  });
+
+  async function setup() {
+    const userRepository = container.resolve(UserRepository);
+    const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+    const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+    const deploymentSettingsTable = resolveTable("DeploymentSettings");
+    const user = await userRepository.create({ userId: faker.string.uuid() });
+
+    async function createSetting() {
+      const setting = await deploymentSettingRepository.create({
+        userId: user.id,
+        dseq: faker.number.int({ min: 100000, max: 999999 }).toString(),
+        autoTopUpEnabled: true
+      });
+      return setting.id;
+    }
+
+    async function backdateLastFundedAt(id: string, minutesAgo: number) {
+      await db
+        .update(deploymentSettingsTable)
+        .set({ lastFundedAt: sql`now() - (${minutesAgo} * interval '1 minute')` })
+        .where(eq(deploymentSettingsTable.id, id));
+    }
+
+    const settingId = await createSetting();
+
+    return { userRepository, deploymentSettingRepository, user, settingId, createSetting, backdateLastFundedAt };
+  }
+});

@@ -200,6 +200,76 @@ describe(TopUpManagedDeploymentsService.name, () => {
     });
   });
 
+  describe("topUpDrainingDeploymentsForOwner", () => {
+    // Two funding passes for the same wallet run at once (immediate funding overlapping the
+    // hourly cron, or two credit top-ups in quick succession). The DB claim must award each
+    // deployment to a single pass so neither draining deployment is deposited into twice.
+    it("funds each draining deployment at most once when the same wallet is funded concurrently", async () => {
+      const { topUpService, executeDerivedTx, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } =
+        await setup();
+      const { user, wallet, address } = await createUserWithWallet();
+      const dseqA = "800001";
+      const dseqB = "800002";
+
+      await createDeploymentSetting(user.id, dseqA);
+      await createDeploymentSetting(user.id, dseqB);
+
+      mockLeasesForOwner(address, [createActiveLease(address, dseqA), createActiveLease(address, dseqB)], { persist: true });
+      mockDeploymentsForOwner(address, [createActiveDeployment(address, dseqA), createActiveDeployment(address, dseqB)], { persist: true });
+      stubGetFreshLimits({ [address]: 10000000 });
+
+      await Promise.all([
+        topUpService.topUpDrainingDeploymentsForOwner({ walletId: wallet.id, address }),
+        topUpService.topUpDrainingDeploymentsForOwner({ walletId: wallet.id, address })
+      ]);
+
+      const depositedXids = executeDerivedTx.mock.calls.flatMap(([, messages]) => messages.map(message => message.value.id.xid as string));
+      expect(depositedXids.filter(xid => xid.includes(`/${dseqA}`))).toHaveLength(1);
+      expect(depositedXids.filter(xid => xid.includes(`/${dseqB}`))).toHaveLength(1);
+    });
+
+    // A second funding pass for the same wallet arrives while the first funding is still within
+    // the cooldown (a retry after the deposit already landed, or another credit top-up). The
+    // claim marker persists across passes, so the deployment is not funded a second time.
+    it("does not fund again within the cooldown after a successful funding", async () => {
+      const { topUpService, executeDerivedTx, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } =
+        await setup();
+      const { user, wallet, address } = await createUserWithWallet();
+      const dseq = "810001";
+
+      await createDeploymentSetting(user.id, dseq);
+      mockLeasesForOwner(address, [createActiveLease(address, dseq)], { persist: true });
+      mockDeploymentsForOwner(address, [createActiveDeployment(address, dseq)], { persist: true });
+      stubGetFreshLimits({ [address]: 10000000 });
+
+      await topUpService.topUpDrainingDeploymentsForOwner({ walletId: wallet.id, address });
+      await topUpService.topUpDrainingDeploymentsForOwner({ walletId: wallet.id, address });
+
+      expect(executeDerivedTx).toHaveBeenCalledOnce();
+    });
+
+    // The first deposit lands on-chain with a non-OK code (nothing was funded), so its claim is
+    // released and the next pass re-funds the still-draining deployment.
+    it("releases the claim after a failed deposit so the next pass funds it", async () => {
+      const { topUpService, executeDerivedTx, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } =
+        await setup();
+      const { user, wallet, address } = await createUserWithWallet();
+      const dseq = "820001";
+
+      await createDeploymentSetting(user.id, dseq);
+      mockLeasesForOwner(address, [createActiveLease(address, dseq)], { persist: true });
+      mockDeploymentsForOwner(address, [createActiveDeployment(address, dseq)], { persist: true });
+      stubGetFreshLimits({ [address]: 10000000 });
+
+      executeDerivedTx.mockResolvedValueOnce({ code: 11, hash: "FAILHASH", rawLog: "out of gas" });
+
+      await topUpService.topUpDrainingDeploymentsForOwner({ walletId: wallet.id, address });
+      await topUpService.topUpDrainingDeploymentsForOwner({ walletId: wallet.id, address });
+
+      expect(executeDerivedTx).toHaveBeenCalledTimes(2);
+    });
+  });
+
   function createActiveLease(owner: string, dseq: string) {
     return createLeaseApiResponse({
       owner,
@@ -305,15 +375,19 @@ describe(TopUpManagedDeploymentsService.name, () => {
       return results[0];
     }
 
-    function mockLeasesForOwner(owner: string, leases: ReturnType<typeof createLeaseApiResponse>[]) {
-      nock(apiNodeUrl)
+    function mockLeasesForOwner(owner: string, leases: ReturnType<typeof createLeaseApiResponse>[], options?: { persist?: boolean }) {
+      const scope = nock(apiNodeUrl);
+      if (options?.persist) scope.persist();
+      scope
         .get("/akash/market/v1beta5/leases/list")
         .query(query => query["filters.owner"] === owner)
         .reply(200, { leases, pagination: { next_key: null, total: String(leases.length) } });
     }
 
-    function mockDeploymentsForOwner(owner: string, deployments: ReturnType<typeof createDeploymentInfoSeed>[]) {
-      nock(apiNodeUrl)
+    function mockDeploymentsForOwner(owner: string, deployments: ReturnType<typeof createDeploymentInfoSeed>[], options?: { persist?: boolean }) {
+      const scope = nock(apiNodeUrl);
+      if (options?.persist) scope.persist();
+      scope
         .get("/akash/deployment/v1beta4/deployments/list")
         .query(query => String(query["filters.owner"]) === owner)
         .reply(200, { deployments, pagination: { next_key: null, total: String(deployments.length) } });
