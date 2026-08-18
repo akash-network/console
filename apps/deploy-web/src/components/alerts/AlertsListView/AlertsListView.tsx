@@ -43,6 +43,7 @@ export interface Props {
   onToggle: (id: string, enabled: boolean, dseq?: string) => void;
   onRemove: (id: string) => Promise<void>;
   loadingIds: Set<string>;
+  removingIds: Set<string>;
   isLoading?: boolean;
   isError?: boolean;
   dependencies?: typeof DEPENDENCIES;
@@ -56,6 +57,7 @@ export const AlertsListView: FC<Props> = ({
   onToggle,
   onRemove,
   loadingIds,
+  removingIds,
   isError,
   dependencies: d = DEPENDENCIES
 }) => {
@@ -134,7 +136,7 @@ export const AlertsListView: FC<Props> = ({
       header: "",
       cell: info => {
         const alert = info.row.original;
-        const isRemoving = loadingIds.has(alert.id);
+        const isRemoving = removingIds.has(alert.id);
 
         return (
           <div className="flex items-center justify-end gap-1">

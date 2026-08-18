@@ -114,6 +114,24 @@ describe(AlertsListView.name, () => {
     });
   });
 
+  it("disables the actions and shows the removal spinner while a removal is in flight", () => {
+    const mockAlert = buildAlert({ type: "WALLET_BALANCE" });
+
+    setup({ data: [mockAlert], removingIds: new Set([mockAlert.id]) });
+
+    expect(screen.getByTestId("remove-alert-button")).toBeDisabled();
+    expect(screen.getByTestId("edit-alert-button")).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("keeps the remove and edit actions interactive while only a toggle is in flight", () => {
+    const mockAlert = buildAlert({ type: "WALLET_BALANCE" });
+
+    setup({ data: [mockAlert], loadingIds: new Set([mockAlert.id]) });
+
+    expect(screen.getByTestId("remove-alert-button")).not.toBeDisabled();
+    expect(screen.getByTestId("edit-alert-button")).toHaveAttribute("aria-disabled", "false");
+  });
+
   it("does not render pagination when total is not greater than minimum page size", () => {
     setup();
 
@@ -147,6 +165,7 @@ describe(AlertsListView.name, () => {
       onToggle: vi.fn(),
       onRemove: vi.fn(),
       loadingIds: new Set(),
+      removingIds: new Set(),
       onPaginationChange: vi.fn(),
       isError: false,
       ...props
