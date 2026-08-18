@@ -1,0 +1,195 @@
+import { createOtelLogger } from "@akashnetwork/logging/otel";
+import type { Counter, Histogram, Meter } from "@opentelemetry/api";
+import { singleton } from "tsyringe";
+
+import { MetricsService } from "@src/core";
+import type { DrainingDeployment } from "@src/deployment/types/draining-deployment";
+import type { DeploymentTopUpInstrumentation, FundingMessageItem } from "./deployment-top-up-instrumentation";
+
+export type FundDrainingFailureReason = "master_wallet_insufficient_funds" | "deposit_tx_failed" | "unknown";
+
+export type FundDrainingSkipReason = "nothing_to_fund" | "non_positive_amount";
+
+export function classifyFailure(error: unknown): FundDrainingFailureReason {
+  if (!(error instanceof Error)) {
+    return "unknown";
+  }
+
+  if (/insufficient funds/i.test(error.message)) {
+    return "master_wallet_insufficient_funds";
+  }
+
+  return "deposit_tx_failed";
+}
+
+/**
+ * Instruments the event-driven immediate funding path (funding a wallet's draining deployments the moment
+ * credits land). Unlike the cron's summarizer-backed instrumentation it is stateless and holds no per-run
+ * state, so the always-on background worker can run several fundings concurrently without co-mingling. It
+ * reports under its own `fund_draining_deployments_*` meter so immediate funding stays distinguishable from
+ * the hourly cron's `auto_top_up_*` series.
+ */
+@singleton()
+export class FundDrainingDeploymentsInstrumentationService implements DeploymentTopUpInstrumentation {
+  private readonly meter: Meter;
+  private readonly jobCompletions: Counter;
+  private readonly jobDuration: Histogram;
+  private readonly deposits: Counter;
+  private readonly depositAmount: Histogram;
+  private readonly skips: Counter;
+  private readonly messagePreparationErrors: Counter;
+  private readonly insufficientBalanceWithAutoReload: Counter;
+  private readonly chainTxErrors: Counter;
+  private readonly masterWalletInsufficientFunds: Counter;
+  private readonly deploymentsMarkedClosed: Counter;
+
+  private readonly logger = createOtelLogger({ context: "FundDrainingDeploymentsService" });
+
+  constructor(private readonly metricsService: MetricsService) {
+    this.meter = this.metricsService.getMeter("fund-draining-deployments", "1.0.0");
+
+    this.jobCompletions = this.metricsService.createCounter(this.meter, "fund_draining_deployments_job_completions_total", {
+      description: "Total number of immediate draining-deployment funding job completions by status"
+    });
+
+    this.jobDuration = this.metricsService.createHistogram(this.meter, "fund_draining_deployments_job_duration_ms", {
+      description: "Duration of immediate draining-deployment funding job execution in milliseconds",
+      unit: "ms"
+    });
+
+    this.deposits = this.metricsService.createCounter(this.meter, "fund_draining_deployments_deposits_total", {
+      description: "Total number of successful immediate draining-deployment deposit transactions"
+    });
+
+    this.depositAmount = this.metricsService.createHistogram(this.meter, "fund_draining_deployments_deposit_amount", {
+      description: "Immediate draining-deployment deposit amounts per deployment",
+      unit: "uakt"
+    });
+
+    this.skips = this.metricsService.createCounter(this.meter, "fund_draining_deployments_skips_total", {
+      description: "Total number of immediate funding deployments skipped without depositing, by reason"
+    });
+
+    this.messagePreparationErrors = this.metricsService.createCounter(this.meter, "fund_draining_deployments_message_preparation_errors_total", {
+      description: "Total number of failed immediate funding message preparation attempts, by error type"
+    });
+
+    this.insufficientBalanceWithAutoReload = this.metricsService.createCounter(
+      this.meter,
+      "fund_draining_deployments_insufficient_balance_with_auto_reload_total",
+      {
+        description: "Total number of immediate funding insufficient balance errors where wallet auto-reload is enabled"
+      }
+    );
+
+    this.chainTxErrors = this.metricsService.createCounter(this.meter, "fund_draining_deployments_chain_tx_errors_total", {
+      description: "Total number of failed immediate funding deposit attempts"
+    });
+
+    this.masterWalletInsufficientFunds = this.metricsService.createCounter(this.meter, "fund_draining_deployments_master_wallet_insufficient_funds_total", {
+      description: "Total number of immediate funding deposits aborted because the master wallet had insufficient funds"
+    });
+
+    this.deploymentsMarkedClosed = this.metricsService.createCounter(this.meter, "fund_draining_deployments_deployments_marked_closed_total", {
+      description: "Total number of deployments marked as closed while resolving immediate funding candidates"
+    });
+  }
+
+  recordJobSucceeded(durationMs: number): void {
+    this.jobCompletions.add(1, { status: "success" });
+    this.jobDuration.record(durationMs, { status: "success" });
+    this.emitLog("info", { event: "FUND_DRAINING_JOB_COMPLETED", durationMs, status: "success" });
+  }
+
+  recordJobFailed(durationMs: number, error: unknown): void {
+    const reason = classifyFailure(error);
+    const retriable = reason === "master_wallet_insufficient_funds";
+
+    this.jobCompletions.add(1, { status: "failure", reason, retriable });
+    this.jobDuration.record(durationMs, { status: "failure" });
+    this.emitLog("error", { event: "FUND_DRAINING_JOB_FAILED", durationMs, reason, retriable, error });
+  }
+
+  recordDeposit({ owner, items }: { owner: string; items: FundingMessageItem[] }): void {
+    this.deposits.add(items.length);
+    items.forEach(({ input }) => this.depositAmount.record(input.amount, { denom: input.denom }));
+    this.emitLog("info", {
+      event: "FUND_DRAINING_DEPOSITED",
+      owner,
+      deposits: items.map(({ input }) => ({ dseq: input.dseq, amount: input.amount, denom: input.denom }))
+    });
+  }
+
+  recordSkipped({ owner, deploymentCount }: { owner: string; deploymentCount: number }): void {
+    this.skips.add(1, { reason: "nothing_to_fund" satisfies FundDrainingSkipReason });
+    this.emitLog("info", { event: "FUND_DRAINING_SKIPPED", owner, deploymentCount });
+  }
+
+  recordInvalidDepositAmount(details: { desiredAmount: number; dseq: string; address: string; blockRate: number }): void {
+    this.skips.add(1, { reason: "non_positive_amount" satisfies FundDrainingSkipReason });
+    this.emitLog("warn", { event: "FUND_DRAINING_AMOUNT_NON_POSITIVE", ...details });
+  }
+
+  recordMessagePreparationError({ deployment, error }: { deployment: DrainingDeployment; error: unknown }): void {
+    const message = error instanceof Error ? error.message : String(error);
+    const isInsufficientBalance = message.startsWith("Insufficient balance");
+    const errorType = isInsufficientBalance ? "insufficient_balance" : "unknown";
+
+    this.messagePreparationErrors.add(1, { error_type: errorType });
+
+    if (isInsufficientBalance && deployment.isWalletAutoTopUpEnabled) {
+      this.insufficientBalanceWithAutoReload.add(1);
+    }
+
+    this.emitLog(isInsufficientBalance ? "warn" : "error", {
+      event: "FUND_DRAINING_MESSAGE_PREPARATION_ERROR",
+      errorType,
+      dseq: deployment.dseq,
+      address: deployment.address,
+      error
+    });
+  }
+
+  recordChainTxError({ owner, items, error }: { owner: string; items: FundingMessageItem[]; error: unknown }): void {
+    this.chainTxErrors.add(1);
+    this.emitLog("error", {
+      event: "FUND_DRAINING_CHAIN_TX_ERROR",
+      owner,
+      deposits: items.map(({ input }) => ({ dseq: input.dseq, amount: input.amount, denom: input.denom })),
+      error
+    });
+  }
+
+  recordMasterWalletInsufficientFundsError({ owner, items, error }: { owner: string; items: FundingMessageItem[]; error: unknown }): void {
+    this.masterWalletInsufficientFunds.add(1);
+    this.emitLog("error", {
+      event: "FUND_DRAINING_MASTER_WALLET_INSUFFICIENT_FUNDS",
+      owner,
+      deposits: items.map(({ input }) => ({ dseq: input.dseq, amount: input.amount, denom: input.denom })),
+      error
+    });
+  }
+
+  recordDeploymentsMarkedClosed(count: number): void {
+    this.deploymentsMarkedClosed.add(count);
+  }
+
+  /**
+   * The cron records blocks-until-predicted-close against a run-scoped start height. The stateless
+   * event-driven path has no per-run start height, so there is nothing meaningful to record here.
+   */
+  recordDeploymentPreparation(_ownerAddress: string, _predictedClosedHeight: number): void {}
+
+  /**
+   * Telemetry must never break the funding job. It runs on pg-boss, so a synchronous logger failure
+   * escaping a record* call would mark an already-completed deposit as failed and trigger a retry.
+   * Metrics are emitted before logging because the OTel spec guarantees instrument writes never throw.
+   */
+  private emitLog(level: "info" | "warn" | "error", payload: Record<string, unknown>): void {
+    try {
+      this.logger[level](payload);
+    } catch {
+      return;
+    }
+  }
+}
