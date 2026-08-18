@@ -155,11 +155,11 @@ describe(DeploymentWriterService.name, () => {
     });
 
     it("ignores the caller deposit and uses the configured default when managed deposit is enabled", async () => {
-      const { service, rpcMessageService } = setup({ isManagedDepositEnabled: true, defaultDeposit: 0.5 });
+      const { service, rpcMessageService } = setup({ isManagedDepositEnabled: true, defaultDeposit: 1.25 });
 
       await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
 
-      expect(rpcMessageService.getCreateDeploymentMsg).toHaveBeenCalledWith(expect.objectContaining({ amount: 500000 }));
+      expect(rpcMessageService.getCreateDeploymentMsg).toHaveBeenCalledWith(expect.objectContaining({ amount: 1_250_000 }));
     });
 
     it("creates a deployment without a caller deposit when managed deposit is enabled", async () => {
@@ -175,6 +175,14 @@ describe(DeploymentWriterService.name, () => {
 
       await expect(service.create({ userId: "user-1", sdl: "valid-sdl" })).rejects.toMatchObject({ status: 400 });
       expect(rpcMessageService.getCreateDeploymentMsg).not.toHaveBeenCalled();
+    });
+
+    it("does not reclaim trial orphans when a missing deposit will reject the create", async () => {
+      const { service, staleDeploymentsCleaner, walletReaderService } = setup({ isManagedDepositEnabled: false });
+      walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, isTrialing: true });
+
+      await expect(service.create({ userId: "user-1", sdl: "valid-sdl" })).rejects.toMatchObject({ status: 400 });
+      expect(staleDeploymentsCleaner.cleanUpForWallet).not.toHaveBeenCalled();
     });
   });
 

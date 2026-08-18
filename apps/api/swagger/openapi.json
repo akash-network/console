@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "servers": [
     {
-      "url": "https://console-api-sandbox.akash.network"
+      "url": "http://localhost:3080"
     }
   ],
   "info": {
@@ -4508,7 +4508,8 @@
                       },
                       "deposit": {
                         "type": "number",
-                        "description": "Deprecated and ignored. The platform now sets the deposit automatically; kept for backward compatibility."
+                        "description": "Deposit in whole tokens. Ignored when managed deposits are enabled for your account, in which case the platform sets it automatically; otherwise it is required.",
+                        "deprecated": true
                       }
                     },
                     "required": [

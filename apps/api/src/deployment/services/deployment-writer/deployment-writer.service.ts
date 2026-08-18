@@ -42,6 +42,7 @@ export class DeploymentWriterService {
   public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
     const manifest = this.#parseManifest(input.sdl, { isTrialing: !!wallet.isTrialing });
+    const depositInTokens = this.resolveDepositInTokens(input.deposit);
 
     if (wallet.isTrialing) {
       await this.reclaimTrialOrphanedDeployments(wallet);
@@ -49,7 +50,6 @@ export class DeploymentWriterService {
 
     const dseq = Date.now();
     const manifestVersion = await this.sdlService.generateManifestVersion(manifest.groups);
-    const depositInTokens = this.resolveDepositInTokens(input.deposit);
 
     const message = this.rpcMessageService.getCreateDeploymentMsg({
       owner: wallet.address,
@@ -74,12 +74,16 @@ export class DeploymentWriterService {
    * ignores any caller-supplied amount. With the flag off the legacy contract holds: the caller must supply the deposit.
    */
   private resolveDepositInTokens(requestedDeposit?: number): number {
-    if (this.featureFlagsService.isEnabled(FeatureFlags.AUTO_RELOAD_FIXED_THRESHOLD)) {
+    if (this.isManagedDepositEnabled()) {
       return this.deploymentConfig.get("DEPLOYMENT_DEFAULT_DEPOSIT");
     }
 
     assert(requestedDeposit != null, 400, "deposit is required");
     return requestedDeposit;
+  }
+
+  private isManagedDepositEnabled(): boolean {
+    return this.featureFlagsService.isEnabled(FeatureFlags.AUTO_RELOAD_FIXED_THRESHOLD);
   }
 
   /**
@@ -123,7 +127,7 @@ export class DeploymentWriterService {
   }
 
   public async deposit(options: { userId: string; dseq: string; amount: number }): Promise<GetDeploymentResponse["data"]> {
-    if (this.featureFlagsService.isEnabled(FeatureFlags.AUTO_RELOAD_FIXED_THRESHOLD)) {
+    if (this.isManagedDepositEnabled()) {
       this.logger.warn({ event: "DEPRECATED_DEPOSIT_DEPLOYMENT_ENDPOINT_USED", userId: options.userId, dseq: options.dseq });
     }
 

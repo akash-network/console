@@ -6813,7 +6813,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "data": {
                     "properties": {
                       "deposit": {
-                        "description": "Deprecated and ignored. The platform now sets the deposit automatically; kept for backward compatibility.",
+                        "deprecated": true,
+                        "description": "Deposit in whole tokens. Ignored when managed deposits are enabled for your account, in which case the platform sets it automatically; otherwise it is required.",
                         "type": "number",
                       },
                       "sdl": {
