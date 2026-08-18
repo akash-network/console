@@ -116,7 +116,7 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
     this.emitLog("info", {
       event: "FUND_DRAINING_DEPOSITED",
       owner,
-      deposits: items.map(({ input }) => ({ dseq: input.dseq, amount: input.amount, denom: input.denom }))
+      deposits: this.serializeDeposits(items)
     });
   }
 
@@ -155,7 +155,7 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
     this.emitLog("error", {
       event: "FUND_DRAINING_CHAIN_TX_ERROR",
       owner,
-      deposits: items.map(({ input }) => ({ dseq: input.dseq, amount: input.amount, denom: input.denom })),
+      deposits: this.serializeDeposits(items),
       error
     });
   }
@@ -165,7 +165,7 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
     this.emitLog("error", {
       event: "FUND_DRAINING_MASTER_WALLET_INSUFFICIENT_FUNDS",
       owner,
-      deposits: items.map(({ input }) => ({ dseq: input.dseq, amount: input.amount, denom: input.denom })),
+      deposits: this.serializeDeposits(items),
       error
     });
   }
@@ -179,6 +179,10 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
    * event-driven path has no per-run start height, so there is nothing meaningful to record here.
    */
   recordDeploymentPreparation(_ownerAddress: string, _predictedClosedHeight: number): void {}
+
+  private serializeDeposits(items: FundingMessageItem[]): { dseq: number | string; amount: number; denom: string }[] {
+    return items.map(({ input }) => ({ dseq: input.dseq, amount: input.amount, denom: input.denom }));
+  }
 
   /**
    * Telemetry must never break the funding job. It runs on pg-boss, so a synchronous logger failure
