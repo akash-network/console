@@ -1,5 +1,6 @@
 import { asString, parseJsonRecord } from "@src/akash/json";
 import { isDecString } from "@src/bme/bme-deriver";
+import { parseCoins } from "@src/pipeline/balance/coin-amount";
 import type { DecodedBlock, DecodedEvent } from "@src/pipeline/decoded-block";
 
 /** Every native BME event type; only the chain's BME module emits under this prefix, and only from the upgrade block on. */
@@ -74,16 +75,18 @@ function scanEvents(events: DecodedEvent[], signals: ActMigrationSignals): void 
         signals.lastAktUsdPrice = price;
       }
     } else if (event.type === "burn" && event.attributes.burner === BME_MODULE_ADDRESS) {
-      const coin = parseCoinString(event.attributes.amount);
-      if (coin?.denom === "uakt") {
-        signals.bankTotals.burnedUakt += coin.amount;
-      } else if (coin && IBC_USDC_DENOMS.includes(coin.denom)) {
-        signals.bankTotals.burnedUsdc += coin.amount;
+      for (const coin of parseBankCoins(event.attributes.amount)) {
+        if (coin.denom === "uakt") {
+          signals.bankTotals.burnedUakt += coin.amount;
+        } else if (IBC_USDC_DENOMS.includes(coin.denom)) {
+          signals.bankTotals.burnedUsdc += coin.amount;
+        }
       }
     } else if (event.type === "coinbase" && event.attributes.minter === BME_MODULE_ADDRESS) {
-      const coin = parseCoinString(event.attributes.amount);
-      if (coin?.denom === "uact") {
-        signals.bankTotals.mintedUact += coin.amount;
+      for (const coin of parseBankCoins(event.attributes.amount)) {
+        if (coin.denom === "uact") {
+          signals.bankTotals.mintedUact += coin.amount;
+        }
       }
     }
   }
@@ -101,7 +104,6 @@ function aktUsdPriceOf(attributes: Record<string, string>): string | null {
   return price !== null && isDecString(price) ? price : null;
 }
 
-function parseCoinString(raw: string | undefined): { amount: bigint; denom: string } | null {
-  const match = raw === undefined ? null : /^(\d+)(.+)$/.exec(raw);
-  return match ? { amount: BigInt(match[1]), denom: match[2] } : null;
+function parseBankCoins(amount: string | undefined) {
+  return amount === undefined ? [] : parseCoins(amount);
 }

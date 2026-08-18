@@ -71,6 +71,19 @@ describe("deriveActMigrationSignals", () => {
     expect(signals.bankTotals).toEqual({ burnedUakt: 9034806372n, burnedUsdc: 19242170n, mintedUact: 5658593148n });
   });
 
+  it("splits comma-separated multi-coin burn and mint amounts across their denoms", () => {
+    const signals = deriveActMigrationSignals(
+      block({
+        blockEvents: [
+          event("burn", { burner: BME_MODULE_ADDRESS, amount: `100uakt,50${SANDBOX_USDC_DENOM}` }),
+          event("coinbase", { minter: BME_MODULE_ADDRESS, amount: "7uact,3uakt" })
+        ]
+      })
+    );
+
+    expect(signals.bankTotals).toEqual({ burnedUakt: 100n, burnedUsdc: 50n, mintedUact: 7n });
+  });
+
   it("marks blocks with executed ledger records so bank totals are not treated as conversion-only", () => {
     const signals = deriveActMigrationSignals(block({ blockEvents: [event(EXECUTED_EVENT_TYPE, {})] }));
 

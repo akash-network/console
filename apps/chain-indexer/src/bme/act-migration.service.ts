@@ -1,3 +1,4 @@
+import { fromBech32 } from "@cosmjs/encoding";
 import { and, eq, gt, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { inject, singleton } from "tsyringe";
 
@@ -209,9 +210,7 @@ export class ActMigrationService {
       const detectedDenom = detected.get(deployment.id);
       return detectedDenom !== undefined && IBC_USDC_DENOMS.includes(detectedDenom);
     });
-    const uakt = open
-      .filter(deployment => detected.get(deployment.id) === "uakt")
-      .sort((a, b) => (a.owner < b.owner ? -1 : a.owner > b.owner ? 1 : compareDseq(a.dseq, b.dseq)));
+    const uakt = orderByChainDrainSequence(open.filter(deployment => detected.get(deployment.id) === "uakt"));
 
     const usdcIds = usdc.map(deployment => deployment.id);
     const converted = await this.#renameUsdcToAct(tx, usdcIds);
@@ -220,10 +219,7 @@ export class ActMigrationService {
       await tx.insert(ActMigrationQueue).values(uakt.map((deployment, position) => ({ position, deploymentId: deployment.id })));
     }
 
-    const drained = uakt.length === 0;
-    if (drained) {
-      await this.#claimMarker(tx, ACT_MIGRATION_STREAMS.drained, step.height);
-    }
+    const drained = await this.#claimDrainedIfEmpty(tx, step.height, uakt.length);
 
     await this.#validateUsdcTotals(tx, step, usdc, usdcIds);
 
@@ -256,8 +252,7 @@ export class ActMigrationService {
       .select({ remaining: sql<number>`COUNT(*)::int` })
       .from(ActMigrationQueue)
       .where(isNull(ActMigrationQueue.convertedAtHeight));
-    if (pending === 0) {
-      await this.#claimMarker(tx, ACT_MIGRATION_STREAMS.drained, step.height);
+    if (await this.#claimDrainedIfEmpty(tx, step.height, pending)) {
       return { queueRemaining: 0, drained: true };
     }
 
@@ -362,10 +357,7 @@ export class ActMigrationService {
       .select({ remaining: sql<number>`COUNT(*)::int` })
       .from(ActMigrationQueue)
       .where(isNull(ActMigrationQueue.convertedAtHeight));
-    const drained = remaining === 0;
-    if (drained) {
-      await this.#claimMarker(tx, ACT_MIGRATION_STREAMS.drained, step.height);
-    }
+    const drained = await this.#claimDrainedIfEmpty(tx, step.height, remaining);
 
     const logPayload = {
       event: cutReached ? "ACT_MIGRATION_DRAIN_APPLIED" : "ACT_MIGRATION_DRAIN_SHORTFALL",
@@ -547,6 +539,14 @@ export class ActMigrationService {
     return claimed.length > 0;
   }
 
+  async #claimDrainedIfEmpty(tx: ChainTransaction, height: number, remainingCount: number): Promise<boolean> {
+    if (remainingCount !== 0) {
+      return false;
+    }
+    await this.#claimMarker(tx, ACT_MIGRATION_STREAMS.drained, height);
+    return true;
+  }
+
   /**
    * The markers are authoritative for the upgrade and drained states; the last oracle price
    * re-derives from the singleton state row, written in the same transactions as the blocks that
@@ -579,6 +579,29 @@ export class ActMigrationService {
 
     this.#loaded = true;
   }
+}
+
+/**
+ * The chain seeds `pendingDenomMigrations` via `collections.Join(owner, dseq)`, iterating raw
+ * AccAddress bytes then dseq. Bech32-string order does not reproduce that byte order — the bech32
+ * charset is not ASCII-monotonic — so the drain queue is ordered by the decoded address bytes to
+ * match the exact sequence the chain converts deployments in across drain blocks.
+ */
+function orderByChainDrainSequence<T extends { owner: string; dseq: string }>(deployments: T[]): T[] {
+  return deployments
+    .map(deployment => ({ deployment, ownerBytes: fromBech32(deployment.owner).data }))
+    .sort((left, right) => compareBytes(left.ownerBytes, right.ownerBytes) || compareDseq(left.deployment.dseq, right.deployment.dseq))
+    .map(entry => entry.deployment);
+}
+
+function compareBytes(a: Uint8Array, b: Uint8Array): number {
+  const length = Math.min(a.length, b.length);
+  for (let index = 0; index < length; index++) {
+    if (a[index] !== b[index]) {
+      return a[index] - b[index];
+    }
+  }
+  return a.length - b.length;
 }
 
 /** Postgres normalizes numeric literals, so dseq order must compare numerically, matching the chain's uint64 key. */

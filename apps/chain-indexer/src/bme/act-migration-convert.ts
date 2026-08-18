@@ -62,10 +62,7 @@ export function conversionBankContribution(input: { balance: string; leaseBalanc
     const balance = decFromString(leaseBalance);
     if (balance >= 0n) {
       sourceSum += balance;
-    }
-    const converted = decMul(balance, rate);
-    if (converted >= 0n) {
-      convertedSum += converted;
+      convertedSum += decMul(balance, rate);
     }
   }
 

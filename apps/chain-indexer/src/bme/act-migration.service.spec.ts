@@ -1,3 +1,4 @@
+import { toBech32 } from "@cosmjs/encoding";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -12,6 +13,17 @@ const EARLIER_PRICE = "0.626310480000000000";
 const SAME_BLOCK_PRICE = "0.626185160000000000";
 const BME_MODULE_ADDRESS = "akash1klpwzlvfnw7j8gtdd0cuu9vaw9ermsmd37sg55";
 const SANDBOX_USDC_DENOM = "ibc/028CD1864059EEFB48A6048376165318E3E82C234390AE5A6D7B22001725B06E";
+
+/**
+ * Real akash addresses whose raw 20-byte order (leading byte 0x00 < 0x08 < 0x10, the chain's
+ * `collections.Join(owner, dseq)` key order) is the reverse of their bech32-string order: bech32's
+ * charset maps 0x08's leading group to 'p' and 0x00's to 'q', so a string sort would order them
+ * `OWNER_BYTE_1` before `OWNER_BYTE_0`. These make a wrong string sort observable.
+ */
+const ownerWithLeadingByte = (leadingByte: number) => toBech32("akash", Uint8Array.from([leadingByte, ...new Array<number>(19).fill(0)]));
+const OWNER_BYTE_0 = ownerWithLeadingByte(0x00);
+const OWNER_BYTE_1 = ownerWithLeadingByte(0x08);
+const OWNER_BYTE_2 = ownerWithLeadingByte(0x10);
 
 describe(ActMigrationService.name, () => {
   describe("segment", () => {
@@ -130,13 +142,13 @@ describe(ActMigrationService.name, () => {
       expect(recorded.updates).toEqual([]);
     });
 
-    it("converts axlUSDC deployments at par and seeds the drain queue in the chain's owner-then-dseq order", async () => {
+    it("converts axlUSDC deployments at par and seeds the drain queue in the chain's address-byte then dseq order", async () => {
       const { service, tx, recorded } = setup({
         openDeployments: [
-          { id: 3, denom: "uakt", balance: "10", dseq: "200", owner: "akash1zzz" },
-          { id: 1, denom: "uusdc", balance: "19242170.5", dseq: "100", owner: "akash1aaa" },
-          { id: 2, denom: "uakt", balance: "10", dseq: "50", owner: "akash1zzz" },
-          { id: 4, denom: "uakt", balance: "10", dseq: "300", owner: "akash1bbb" }
+          { id: 3, denom: "uakt", balance: "10", dseq: "200", owner: OWNER_BYTE_0 },
+          { id: 1, denom: "uusdc", balance: "19242170.5", dseq: "100", owner: OWNER_BYTE_2 },
+          { id: 2, denom: "uakt", balance: "10", dseq: "50", owner: OWNER_BYTE_0 },
+          { id: 4, denom: "uakt", balance: "10", dseq: "300", owner: OWNER_BYTE_1 }
         ],
         detectionResources: [
           { deploymentId: 3, gseq: 1, idx: 0, price: "5", priceDenom: "uakt" },
@@ -153,9 +165,9 @@ describe(ActMigrationService.name, () => {
       expect(recorded.updates.find(update => update.table === Deployments)?.set).toEqual({ denom: "uact" });
       const queueInsert = recorded.inserts.find(insert => insert.table === ActMigrationQueue);
       expect(queueInsert?.rows).toEqual([
-        { position: 0, deploymentId: 4 },
-        { position: 1, deploymentId: 2 },
-        { position: 2, deploymentId: 3 }
+        { position: 0, deploymentId: 2 },
+        { position: 1, deploymentId: 3 },
+        { position: 2, deploymentId: 4 }
       ]);
     });
 
