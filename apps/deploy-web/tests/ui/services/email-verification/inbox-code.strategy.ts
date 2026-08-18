@@ -1,6 +1,7 @@
 import type { BrowserContext, Page } from "@playwright/test";
 
 import type { EmailVerificationStrategy } from "./email-verification.strategy";
+import type { InboxClient, InboxMessage } from "./inbox-client";
 
 /**
  * Match a 6-digit number that appears within ~200 chars after the word "code"
@@ -31,12 +32,6 @@ const INPUT_READY_TIMEOUT_MS = 5_000;
  */
 const NEXT_ROUTE_ANNOUNCER_SELECTOR = "#__next-route-announcer__";
 
-interface MailsacMessage {
-  _id: string;
-  subject?: string;
-  received?: string;
-}
-
 interface CodeCandidate {
   messageId: string;
   code: string;
@@ -49,20 +44,19 @@ interface CodeAttemptFailure {
 
 type SubmitOutcome = { kind: "success" } | { kind: "rejected"; message: string };
 
-export class MailsacCodeVerificationStrategy implements EmailVerificationStrategy {
-  readonly #baseUrl = "https://mailsac.com/api";
-  readonly #apiKey: string;
+export class InboxCodeVerificationStrategy implements EmailVerificationStrategy {
+  readonly #inbox: InboxClient;
 
-  constructor(apiKey: string) {
-    this.#apiKey = apiKey;
+  constructor(inbox: InboxClient) {
+    this.#inbox = inbox;
   }
 
   generateEmail(): string {
-    return `e2e-${crypto.randomUUID().slice(0, 8)}@mailsac.com`;
+    return this.#inbox.generateEmail();
   }
 
   /**
-   * Polls Mailsac for fresh OTP codes (received after this call started) and tries each
+   * Polls the inbox for fresh OTP codes (received after this call started) and tries each
    * in turn. Codes that the server rejects are remembered so we don't try them again.
    * Returns once the form submission succeeds (page leaves /login); throws once polling
    * exhausts without finding a working code.
@@ -73,7 +67,7 @@ export class MailsacCodeVerificationStrategy implements EmailVerificationStrateg
     const scannedWithoutCode = new Set<string>();
     const failures: CodeAttemptFailure[] = [];
 
-    for (;;) {
+    while (true) {
       let candidate: CodeCandidate;
       try {
         candidate = await this.#pollForNextCode(input.email, input.sinceMs, triedMessageIds, scannedWithoutCode);
@@ -102,18 +96,18 @@ export class MailsacCodeVerificationStrategy implements EmailVerificationStrateg
     const deadline = Date.now() + POLL_DEADLINE_MS;
     let interval = POLL_INITIAL_INTERVAL_MS;
 
-    for (;;) {
+    while (true) {
       try {
-        const messages = await this.#fetchMessages(email);
+        const messages = await this.#inbox.fetchMessages(email);
         for (const message of messagesNewestFirst(messages)) {
-          if (excludeMessageIds.has(message._id) || scannedWithoutCode.has(message._id)) continue;
-          if (!isMessageFreshSince(message, freshAfterMs)) continue;
-          const body = await this.#fetchMessageBody(email, message._id);
+          if (excludeMessageIds.has(message.id) || scannedWithoutCode.has(message.id)) continue;
+          if (message.receivedMs < freshAfterMs) continue;
+          const body = await this.#inbox.fetchMessageBody(email, message.id);
           const code = body.match(CODE_NEAR_KEYWORD)?.[1];
           if (code) {
-            return { messageId: message._id, code };
+            return { messageId: message.id, code };
           }
-          scannedWithoutCode.add(message._id);
+          scannedWithoutCode.add(message.id);
         }
       } catch (error) {
         pollErrors.push(error instanceof Error ? error : new Error(String(error)));
@@ -180,48 +174,14 @@ export class MailsacCodeVerificationStrategy implements EmailVerificationStrateg
     }
     return new Error(`${summary}\nPolling: ${pollError instanceof Error ? pollError.message : String(pollError)}`);
   }
-
-  #fetchMessages(email: string): Promise<MailsacMessage[]> {
-    return this.#fetch<MailsacMessage[]>(`${this.#baseUrl}/addresses/${email}/messages`);
-  }
-
-  async #fetchMessageBody(email: string, messageId: string): Promise<string> {
-    const response = await fetch(`${this.#baseUrl}/text/${email}/${messageId}`, {
-      headers: { "Mailsac-Key": this.#apiKey }
-    });
-    if (!response.ok) {
-      throw new Error(`Mailsac body fetch failed (${response.status}): ${await response.text()}`);
-    }
-    return response.text();
-  }
-
-  async #fetch<T>(path: string): Promise<T> {
-    const response = await fetch(path, {
-      headers: { "Mailsac-Key": this.#apiKey }
-    });
-    if (!response.ok) {
-      throw new Error(`Mailsac request failed (${response.status}): ${await response.text()}`);
-    }
-    return response.json();
-  }
-}
-
-function isMessageFreshSince(message: MailsacMessage, freshAfterMs: number): boolean {
-  return receivedMs(message) >= freshAfterMs;
 }
 
 /**
  * Sorts a copy newest-first so the most recent (and most likely OTP) message is scanned
  * before older ones — the working code is then found in the fewest body fetches.
  */
-function messagesNewestFirst(messages: MailsacMessage[]): MailsacMessage[] {
-  return [...messages].sort((a, b) => receivedMs(b) - receivedMs(a));
-}
-
-/** Parsed `received` timestamp in ms, or -Infinity when missing/unparseable so it sorts last. */
-function receivedMs(message: MailsacMessage): number {
-  const ms = message.received ? Date.parse(message.received) : NaN;
-  return Number.isNaN(ms) ? -Infinity : ms;
+function messagesNewestFirst(messages: InboxMessage[]): InboxMessage[] {
+  return [...messages].sort((a, b) => b.receivedMs - a.receivedMs);
 }
 
 function sleep(ms: number): Promise<void> {

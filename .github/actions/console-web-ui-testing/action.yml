@@ -27,13 +27,15 @@ inputs:
   auth0-m2m-client-secret:
     description: Auth0 M2M client secret
     required: true
-  mailsac-api-key:
-    description: Mailsac API key for email verification
+  e2e-inbox-api-url:
+    description: Base URL of the e2e inbox worker that captures OTP emails (see https://github.com/akash-network/e2e-inbox-worker)
     required: true
-  email-verification-strategy:
-    description: Email verification strategy (mailsac-code or auth0-ticket)
-    required: false
-    default: "mailsac-code"
+  e2e-inbox-api-token:
+    description: Bearer token for the e2e inbox worker HTTP endpoint
+    required: true
+  e2e-inbox-email-domain:
+    description: Email domain routed to the e2e inbox worker (dedicated domain, e.g. e2e.example.com)
+    required: true
   test-user-email:
     description: Pre-registered test user email for authenticated tests
     required: false
@@ -63,8 +65,9 @@ runs:
         AUTH0_M2M_DOMAIN: ${{ inputs.auth0-m2m-domain }}
         AUTH0_M2M_CLIENT_ID: ${{ inputs.auth0-m2m-client-id }}
         AUTH0_M2M_CLIENT_SECRET: ${{ inputs.auth0-m2m-client-secret }}
-        MAILSAC_API_KEY: ${{ inputs.mailsac-api-key }}
-        EMAIL_VERIFICATION_STRATEGY: ${{ inputs.email-verification-strategy }}
+        E2E_INBOX_API_URL: ${{ inputs.e2e-inbox-api-url }}
+        E2E_INBOX_API_TOKEN: ${{ inputs.e2e-inbox-api-token }}
+        E2E_INBOX_EMAIL_DOMAIN: ${{ inputs.e2e-inbox-email-domain }}
         TEST_USER_EMAIL: ${{ inputs.test-user-email }}
         TEST_USER_PASSWORD: ${{ inputs.test-user-password }}
         USER_DATA_DIR: ${{ runner.temp }}/chrome-profile-${{ github.run_id }}-${{ github.run_attempt }}

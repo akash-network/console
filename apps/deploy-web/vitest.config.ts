@@ -58,6 +58,19 @@ export default defineConfig({
             ...commonAlias
           }
         }
+      },
+      {
+        extends: true,
+        test: {
+          name: "unit-e2e-helpers",
+          environment: "node",
+          include: ["tests/ui/**/*.unit.spec.ts"]
+        },
+        resolve: {
+          alias: {
+            ...commonAlias
+          }
+        }
       }
     ]
   }

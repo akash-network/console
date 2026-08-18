@@ -18,6 +18,8 @@ const RECORDING_VIEWPORT = { width: 1728, height: 1080 };
  */
 export default defineConfig({
   testDir: "./tests/ui",
+  /* Vitest owns *.unit.spec.ts files colocated in tests/ui (see vitest.config.ts "unit-e2e-helpers" project). */
+  testIgnore: "**/*.unit.spec.ts",
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
