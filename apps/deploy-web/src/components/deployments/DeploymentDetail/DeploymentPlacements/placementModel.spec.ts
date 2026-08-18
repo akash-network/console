@@ -4,7 +4,14 @@ import { mock } from "vitest-mock-extended";
 
 import type { LeaseServiceStatus } from "@src/queries/useLeaseQuery";
 import type { DeploymentGroup } from "@src/types/deployment";
-import { getPlacementGpuModels, getPlacementName, getProviderRegion, getServicesByPlacement, getServiceStatus, parseManifestServices } from "./placementModel";
+import {
+  getPlacementGpuModels,
+  getPlacementName,
+  getProviderRegion,
+  getServiceStatus,
+  parseManifestServices,
+  parseServicesByPlacement
+} from "./placementModel";
 
 describe("placementModel", () => {
   describe("parseManifestServices", () => {
@@ -72,20 +79,57 @@ describe("placementModel", () => {
     });
   });
 
-  describe("getServicesByPlacement", () => {
-    it("groups service names by the placement they deploy to", () => {
+  describe("parseServicesByPlacement", () => {
+    it("groups each service's detail under the placement it deploys to", () => {
       const manifest = yaml.dump({
-        services: { web: {}, api: {}, worker: {} },
-        deployment: { web: { dcloud: {} }, api: { dcloud: {} }, worker: { gpu: {} } }
+        services: { web: { image: "nginx" }, api: { image: "node" } },
+        profiles: {
+          compute: {
+            web: { resources: { cpu: { units: 1 }, memory: { size: "512Mi" }, storage: { size: "1Gi" } } },
+            api: { resources: { cpu: { units: 2 }, memory: { size: "1Gi" }, storage: { size: "2Gi" } } }
+          }
+        },
+        deployment: { web: { dcloud: { profile: "web" } }, api: { dcloud: { profile: "api" } } }
       });
 
-      expect(getServicesByPlacement(manifest)).toEqual({ dcloud: ["web", "api"], gpu: ["worker"] });
+      const result = parseServicesByPlacement(manifest);
+
+      expect(Object.keys(result.dcloud)).toEqual(["web", "api"]);
+      expect(result.dcloud.web.image).toBe("nginx");
+      expect(result.dcloud.api.resources?.cpu).toBe(2);
+    });
+
+    it("resolves the same service to a different profile in each placement", () => {
+      const manifest = yaml.dump({
+        services: { web: { image: "nginx" } },
+        profiles: {
+          compute: {
+            small: { resources: { cpu: { units: 1 }, memory: { size: "512Mi" }, storage: { size: "1Gi" } } },
+            large: { resources: { cpu: { units: 4 }, memory: { size: "4Gi" }, storage: { size: "8Gi" } } }
+          }
+        },
+        deployment: { web: { edge: { profile: "small" }, core: { profile: "large" } } }
+      });
+
+      const result = parseServicesByPlacement(manifest);
+
+      expect(result.edge.web.resources?.cpu).toBe(1);
+      expect(result.core.web.resources?.cpu).toBe(4);
+    });
+
+    it("handles a placement named after an Object prototype member without throwing", () => {
+      const manifest = yaml.dump({ services: { web: { image: "nginx" } }, deployment: { web: { constructor: {} } } });
+
+      const result = parseServicesByPlacement(manifest);
+
+      expect(Object.keys(result)).toEqual(["constructor"]);
+      expect(Object.values(result)[0].web.image).toBe("nginx");
     });
 
     it("returns an empty map when the manifest has no deployment block", () => {
-      expect(getServicesByPlacement(yaml.dump({ services: { web: {} } }))).toEqual({});
-      expect(getServicesByPlacement(undefined)).toEqual({});
-      expect(getServicesByPlacement(":::not-yaml:::")).toEqual({});
+      expect(parseServicesByPlacement(yaml.dump({ services: { web: {} } }))).toEqual({});
+      expect(parseServicesByPlacement(undefined)).toEqual({});
+      expect(parseServicesByPlacement(":::not-yaml:::")).toEqual({});
     });
   });
 

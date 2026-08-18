@@ -41,50 +41,69 @@ export function parseManifestServices(manifest: string | null | undefined): Reco
   if (!services || typeof services !== "object") return {};
 
   return Object.keys(services).reduce<Record<string, ManifestServiceDetail>>((all, name) => {
-    const service = services[name] ?? {};
-    all[name] = {
-      image: typeof service.image === "string" ? service.image : undefined,
-      resources: parseComputeResources(get(parsed, ["profiles", "compute", resolveComputeProfileName(parsed, name), "resources"])),
-      env: parseEnv(service.env),
-      command: joinCommand(service.command, service.args)
-    };
+    all[name] = buildServiceDetail(parsed, services[name] ?? {}, resolveComputeProfileName(parsed, name));
     return all;
   }, {});
 }
 
 /**
+ * Per-service detail resolved for a specific placement: image/env/command come from the top-level
+ * `services:` block (placement-independent), resources from the compute profile that service uses in
+ * that placement (`deployment.<service>.<placement>.profile`), falling back to the service name.
+ */
+function buildServiceDetail(parsed: ParsedManifest | undefined, service: ManifestServiceSource, profileName: string): ManifestServiceDetail {
+  return {
+    image: typeof service.image === "string" ? service.image : undefined,
+    resources: parseComputeResources(get(parsed, ["profiles", "compute", profileName, "resources"])),
+    env: parseEnv(service.env),
+    command: joinCommand(service.command, service.args)
+  };
+}
+
+/**
  * The compute-profile name a service points at via `deployment.<service>.<placement>.profile`. SDL does
  * not require the profile to share the service's name (profiles can be renamed or shared across services),
- * so we resolve the pointer before indexing `profiles.compute`, falling back to the service name.
+ * so we resolve the pointer before indexing `profiles.compute`, falling back to the service name. Used for
+ * the deployment-wide fallback map; `parseServicesByPlacement` resolves the profile per placement instead.
  */
 function resolveComputeProfileName(parsed: ParsedManifest | undefined, serviceName: string): string {
   const placements = parsed?.deployment?.[serviceName];
   if (placements && typeof placements === "object") {
     for (const placement of Object.values(placements)) {
-      const profile = placement?.profile;
-      if (typeof profile === "string" && profile.trim()) return profile;
+      if (isNonEmptyString(placement?.profile)) return placement.profile;
     }
   }
   return serviceName;
 }
 
 /**
- * Maps each SDL placement name to the services deployed to it, read from the manifest's `deployment:`
- * block. A placement card uses this to scope its service list to its own group when live lease status
- * isn't available, instead of falling back to every service in the deployment.
+ * Maps each SDL placement name to its services and their detail, read from the manifest's `deployment:`
+ * block. A card renders its own placement's slice, so a service deployed to several placements shows the
+ * resources of the profile it uses in each one, and the fallback service list stays scoped to the group.
  */
-export function getServicesByPlacement(manifest: string | null | undefined): Record<string, string[]> {
-  const deployment = safeLoadYaml(manifest)?.deployment;
-  if (!deployment || typeof deployment !== "object") return {};
+export function parseServicesByPlacement(manifest: string | null | undefined): Record<string, Record<string, ManifestServiceDetail>> {
+  const parsed = safeLoadYaml(manifest);
+  const services = parsed?.services;
+  const deployment = parsed?.deployment;
+  // Null-prototype: SDL placement names are user-supplied, so a placement called "constructor" or
+  // "__proto__" must not collide with Object.prototype members and throw while rendering the tab.
+  const byPlacement: Record<string, Record<string, ManifestServiceDetail>> = Object.create(null);
+  if (!services || typeof services !== "object" || !deployment || typeof deployment !== "object") return byPlacement;
 
-  const byPlacement: Record<string, string[]> = {};
-  for (const [serviceName, placements] of Object.entries(deployment)) {
+  for (const serviceName of Object.keys(services)) {
+    const placements = deployment[serviceName];
     if (!placements || typeof placements !== "object") continue;
-    for (const placementName of Object.keys(placements)) {
-      (byPlacement[placementName] ??= []).push(serviceName);
+
+    for (const [placementName, placement] of Object.entries(placements)) {
+      const profileName = isNonEmptyString(placement?.profile) ? placement.profile : serviceName;
+      (byPlacement[placementName] ??= Object.create(null))[serviceName] = buildServiceDetail(parsed, services[serviceName] ?? {}, profileName);
     }
   }
   return byPlacement;
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 export function getPlacementName(group: DeploymentGroup | undefined, index: number): string {
@@ -182,8 +201,15 @@ function toNumber(value: unknown): number | undefined {
   return Number.isNaN(parsed) ? undefined : parsed;
 }
 
+interface ManifestServiceSource {
+  image?: unknown;
+  env?: unknown;
+  command?: unknown;
+  args?: unknown;
+}
+
 interface ParsedManifest {
-  services?: Record<string, { image?: unknown; env?: unknown; command?: unknown; args?: unknown }>;
+  services?: Record<string, ManifestServiceSource>;
   deployment?: Record<string, Record<string, { profile?: unknown } | undefined> | undefined>;
 }
 

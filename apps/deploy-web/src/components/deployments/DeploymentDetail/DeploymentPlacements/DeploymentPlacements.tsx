@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { PlacementCard } from "./PlacementCard";
-import { getPlacementName, getServicesByPlacement, parseManifestServices } from "./placementModel";
+import { getPlacementName, parseManifestServices, parseServicesByPlacement } from "./placementModel";
 
 export const DEPENDENCIES = { PlacementCard };
 
@@ -27,7 +27,7 @@ export const DeploymentPlacements: FC<DeploymentPlacementsProps> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const manifestServices = useMemo(() => parseManifestServices(deploymentManifest), [deploymentManifest]);
-  const servicesByPlacement = useMemo(() => getServicesByPlacement(deploymentManifest), [deploymentManifest]);
+  const servicesByPlacement = useMemo(() => parseServicesByPlacement(deploymentManifest), [deploymentManifest]);
 
   if (leases.length === 0) {
     return <p className="text-sm text-muted-foreground">{"This deployment doesn't have any active placements."}</p>;
@@ -51,7 +51,7 @@ export const DeploymentPlacements: FC<DeploymentPlacementsProps> = ({
           lease={lease}
           provider={providers.find(provider => provider.owner === lease.provider)}
           manifestServices={manifestServices}
-          placementServiceNames={servicesByPlacement[getPlacementName(lease.group, index)]}
+          placementServices={servicesByPlacement[getPlacementName(lease.group, index)]}
           dseq={dseq}
           onClosed={onClosed}
         />

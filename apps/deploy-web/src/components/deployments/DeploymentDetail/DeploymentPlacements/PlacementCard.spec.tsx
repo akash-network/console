@@ -48,7 +48,7 @@ describe(PlacementCard.name, () => {
     setup({
       leaseStatus: null,
       manifestServices: { web: {}, worker: {}, api: {} },
-      placementServiceNames: ["web", "worker"],
+      placementServices: { web: {}, worker: {} },
       dependencies: { PlacementServiceRow }
     });
 
@@ -104,7 +104,7 @@ describe(PlacementCard.name, () => {
     provider?: ApiProviderList;
     leaseStatus?: LeaseStatusDto | null;
     manifestServices?: Record<string, ManifestServiceDetail>;
-    placementServiceNames?: string[];
+    placementServices?: Record<string, ManifestServiceDetail>;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const leaseStatus = input && "leaseStatus" in input ? input.leaseStatus : buildStatus(["web"]);
@@ -117,7 +117,7 @@ describe(PlacementCard.name, () => {
         lease={input?.lease ?? buildLease()}
         provider={input?.provider ?? buildProvider()}
         manifestServices={input?.manifestServices ?? {}}
-        placementServiceNames={input?.placementServiceNames}
+        placementServices={input?.placementServices}
         dseq="123"
         onClosed={vi.fn()}
         dependencies={MockComponents(DEPENDENCIES, { useLeaseStatus, useTeeResourceCarveouts, ...input?.dependencies })}

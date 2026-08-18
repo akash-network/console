@@ -35,7 +35,7 @@ export interface PlacementCardProps {
   lease: LeaseDto;
   provider?: ApiProviderList;
   manifestServices: Record<string, ManifestServiceDetail>;
-  placementServiceNames?: string[];
+  placementServices?: Record<string, ManifestServiceDetail>;
   dseq: string;
   onClosed: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -46,7 +46,7 @@ export const PlacementCard: FC<PlacementCardProps> = ({
   lease,
   provider,
   manifestServices,
-  placementServiceNames,
+  placementServices,
   dseq,
   onClosed,
   dependencies: d = DEPENDENCIES
@@ -60,7 +60,8 @@ export const PlacementCard: FC<PlacementCardProps> = ({
   const name = getPlacementName(lease.group, index);
   const region = getProviderRegion(provider);
   const gpuModels = getPlacementGpuModels(lease.group);
-  const serviceNames = leaseStatus ? Object.keys(leaseStatus.services) : placementServiceNames ?? Object.keys(manifestServices);
+  const services = placementServices ?? manifestServices;
+  const serviceNames = leaseStatus ? Object.keys(leaseStatus.services) : Object.keys(services);
   const providerName = provider ? providerDisplayName(provider) : undefined;
 
   return (
@@ -110,7 +111,7 @@ export const PlacementCard: FC<PlacementCardProps> = ({
               service={leaseStatus?.services?.[serviceName]}
               leaseState={lease.state}
               isReclaimed={isReclaimed}
-              detail={manifestServices[serviceName]}
+              detail={services[serviceName]}
               uris={leaseStatus?.services?.[serviceName]?.uris}
               forwardedPorts={leaseStatus?.forwarded_ports?.[serviceName]}
               ips={leaseStatus?.ips?.[serviceName]}
