@@ -40,10 +40,12 @@ export function parseManifestServices(manifest: string | null | undefined): Reco
   const services = parsed?.services;
   if (!services || typeof services !== "object") return {};
 
+  // Null-prototype: SDL service names are user-supplied, so a service named "__proto__" must add an
+  // own entry rather than reassign the accumulator's prototype and drop out of Object.keys.
   return Object.keys(services).reduce<Record<string, ManifestServiceDetail>>((all, name) => {
     all[name] = buildServiceDetail(parsed, services[name] ?? {}, resolveComputeProfileName(parsed, name));
     return all;
-  }, {});
+  }, Object.create(null));
 }
 
 /**

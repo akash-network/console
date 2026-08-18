@@ -77,6 +77,15 @@ describe("placementModel", () => {
       expect(parseManifestServices(":::not-yaml:::\n\t- broken")).toEqual({});
       expect(parseManifestServices(yaml.dump({ version: "2.0" }))).toEqual({});
     });
+
+    it("keeps a service named after an Object prototype member as an own entry", () => {
+      const manifest = "services:\n  __proto__:\n    image: nginx\n  web:\n    image: node\n";
+
+      const result = parseManifestServices(manifest);
+
+      expect(Object.keys(result)).toEqual(["__proto__", "web"]);
+      expect(Object.values(result).map(service => service.image)).toEqual(["nginx", "node"]);
+    });
   });
 
   describe("parseServicesByPlacement", () => {
