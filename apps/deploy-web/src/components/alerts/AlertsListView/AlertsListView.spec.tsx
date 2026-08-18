@@ -132,6 +132,14 @@ describe(AlertsListView.name, () => {
     expect(screen.getByTestId("edit-alert-button")).toHaveAttribute("aria-disabled", "false");
   });
 
+  it("disables the enabled checkbox while a removal is in flight so a toggle can't race the delete", () => {
+    const mockAlert = buildAlert({ type: "WALLET_BALANCE", enabled: true });
+
+    setup({ data: [mockAlert], removingIds: new Set([mockAlert.id]) });
+
+    expect(screen.getByRole("checkbox")).toBeDisabled();
+  });
+
   it("does not render pagination when total is not greater than minimum page size", () => {
     setup();
 

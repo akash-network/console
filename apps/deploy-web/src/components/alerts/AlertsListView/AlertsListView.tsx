@@ -76,14 +76,15 @@ export const AlertsListView: FC<Props> = ({
     columnHelper.accessor("enabled", {
       header: "Enabled",
       cell: info => {
-        const isToggling = loadingIds.has(info.row.original.id);
+        const id = info.row.original.id;
+        const isBusy = loadingIds.has(id) || removingIds.has(id);
         return (
           <div className="flex items-center">
             <Checkbox
               checked={info.getValue()}
-              disabled={isToggling}
+              disabled={isBusy}
               onCheckedChange={checked => {
-                onToggle(info.row.original.id, !!checked, extractDseq(info));
+                onToggle(id, !!checked, extractDseq(info));
               }}
               aria-label={"Toggle alert"}
             />
