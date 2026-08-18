@@ -156,7 +156,11 @@ describe("Alerts CRUD", () => {
     const db = module.get<NodePgDatabase<typeof alertSchema & { NotificationChannel: typeof NotificationChannel }>>(DRIZZLE_PROVIDER_TOKEN);
     const [notificationChannel, otherNotificationChannel, foreignNotificationChannel] = await db
       .insert(NotificationChannel)
-      .values([generateNotificationChannel({ userId }), generateNotificationChannel({ userId }), generateNotificationChannel({ userId: foreignUserId })])
+      .values([
+        generateNotificationChannel({ userId, isDefault: false }),
+        generateNotificationChannel({ userId, isDefault: false }),
+        generateNotificationChannel({ userId: foreignUserId, isDefault: false })
+      ])
       .returning();
 
     return {
