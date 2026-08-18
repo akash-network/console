@@ -2,9 +2,26 @@ import type { FC } from "react";
 import React from "react";
 import { useCallback } from "react";
 import type { components } from "@akashnetwork/console-api-types/notifications";
-import { Checkbox, CustomPagination, MIN_PAGE_SIZE, Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+import {
+  Button,
+  buttonVariants,
+  Checkbox,
+  CustomPagination,
+  CustomTooltip,
+  MIN_PAGE_SIZE,
+  Spinner,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@akashnetwork/ui/components";
+import { usePopup } from "@akashnetwork/ui/context";
+import { cn } from "@akashnetwork/ui/utils";
 import type { CellContext } from "@tanstack/react-table";
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { Bin, Edit } from "iconoir-react";
 import { startCase } from "lodash";
 import Link from "next/link";
 
@@ -24,7 +41,9 @@ export interface Props {
   pagination: Pick<AlertsPagination, "page" | "limit" | "total" | "totalPages">;
   onPaginationChange: (params: { page: number; limit: number }) => void;
   onToggle: (id: string, enabled: boolean, dseq?: string) => void;
+  onRemove: (id: string) => Promise<void>;
   loadingIds: Set<string>;
+  removingIds: Set<string>;
   isLoading?: boolean;
   isError?: boolean;
   dependencies?: typeof DEPENDENCIES;
@@ -36,10 +55,13 @@ export const AlertsListView: FC<Props> = ({
   onPaginationChange,
   isLoading,
   onToggle,
+  onRemove,
   loadingIds,
+  removingIds,
   isError,
   dependencies: d = DEPENDENCIES
 }) => {
+  const { confirm } = usePopup();
   const columnHelper = createColumnHelper<Alert>();
   const isAlertUpdateEnabled = d.useFlag("notifications_general_alerts_update");
 
@@ -54,14 +76,15 @@ export const AlertsListView: FC<Props> = ({
     columnHelper.accessor("enabled", {
       header: "Enabled",
       cell: info => {
-        const isToggling = loadingIds.has(info.row.original.id);
+        const id = info.row.original.id;
+        const isBusy = loadingIds.has(id) || removingIds.has(id);
         return (
           <div className="flex items-center">
             <Checkbox
               checked={info.getValue()}
-              disabled={isToggling}
+              disabled={isBusy}
               onCheckedChange={checked => {
-                onToggle(info.row.original.id, !!checked, extractDseq(info));
+                onToggle(id, !!checked, extractDseq(info));
               }}
               aria-label={"Toggle alert"}
             />
@@ -108,6 +131,56 @@ export const AlertsListView: FC<Props> = ({
     columnHelper.accessor("notificationChannelName", {
       header: "Notification Channel",
       cell: info => info.getValue()
+    }),
+    columnHelper.display({
+      id: "actions",
+      header: "",
+      cell: info => {
+        const alert = info.row.original;
+        const isRemoving = removingIds.has(alert.id);
+
+        return (
+          <div className="flex items-center justify-end gap-1">
+            {alert.type === "WALLET_BALANCE" && (
+              <CustomTooltip title="Edit" disabled={isRemoving}>
+                <Link
+                  href={UrlService.alertDetails(alert.id)}
+                  type="button"
+                  className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "text-gray-500 hover:text-gray-700", isRemoving && "pointer-events-none")}
+                  aria-disabled={isRemoving}
+                  aria-label="Edit alert"
+                  data-testid="edit-alert-button"
+                >
+                  <Edit className="text-xs" />
+                </Link>
+              </CustomTooltip>
+            )}
+            <CustomTooltip title="Remove" disabled={isRemoving}>
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={isRemoving}
+                aria-label="Remove alert"
+                onClick={async () => {
+                  const isConfirmed = await confirm({
+                    title: "Are you sure you want to remove this alert?",
+                    message: "This action cannot be undone.",
+                    testId: "remove-alert-confirmation-popup"
+                  });
+
+                  if (isConfirmed) {
+                    void onRemove(alert.id);
+                  }
+                }}
+                className="text-xs"
+                data-testid="remove-alert-button"
+              >
+                {isRemoving ? <Spinner size="small" /> : <Bin className="text-xs" />}
+              </Button>
+            </CustomTooltip>
+          </div>
+        );
+      }
     })
   ];
 
@@ -118,7 +191,8 @@ export const AlertsListView: FC<Props> = ({
     manualPagination: true,
     state: {
       columnVisibility: {
-        enabled: isAlertUpdateEnabled
+        enabled: isAlertUpdateEnabled,
+        actions: isAlertUpdateEnabled
       },
       pagination: {
         pageIndex: pagination.page - 1,

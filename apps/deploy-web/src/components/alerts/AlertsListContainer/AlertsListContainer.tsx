@@ -24,6 +24,7 @@ export type ChildrenProps = {
   onPaginationChange: (state: { page: number; limit: number }) => void;
   onToggle: (id: string, enabled: boolean, dseq?: string) => void;
   loadingIds: Set<string>;
+  removingIds: Set<string>;
   onRemove: (id: Alert["id"]) => Promise<void>;
   isError: boolean;
 };
@@ -36,6 +37,7 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
+  const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
   const { api } = useServices();
   const queryClient = useQueryClient();
   const { data, isError, isLoading, refetch } = api.v1.listAlerts.useQuery({ page, limit });
@@ -48,7 +50,7 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
   const remove = useCallback(
     async (id: Alert["id"]) => {
       try {
-        setLoadingIds(prev => new Set(prev).add(id));
+        setRemovingIds(prev => new Set(prev).add(id));
 
         await deleteMutation.mutateAsync({ id });
 
@@ -64,7 +66,7 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
           dataTestId: "alert-remove-error-notification"
         });
       } finally {
-        setLoadingIds(prev => {
+        setRemovingIds(prev => {
           const nextSet = new Set(prev);
           nextSet.delete(id);
           return nextSet;
@@ -123,6 +125,7 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
         onPaginationChange: changePage,
         onToggle: toggle,
         loadingIds,
+        removingIds,
         onRemove: remove,
         isLoading,
         isError
