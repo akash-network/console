@@ -1,5 +1,5 @@
 /** The IBC denoms deployments are funded with, mapped to their base denom (mirrors the legacy indexer's mapping). */
-const DENOM_MAPPING = new Map<string, string>([
+export const DENOM_MAPPING = new Map<string, string>([
   ["uakt", "uakt"],
   ["uact", "uact"],
   ["ibc/028CD1864059EEFB48A6048376165318E3E82C234390AE5A6D7B22001725B06E", "uusdc"],

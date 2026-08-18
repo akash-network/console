@@ -1,3 +1,4 @@
+import { DENOM_MAPPING } from "@src/akash/denom";
 import { asString, parseJsonRecord } from "@src/akash/json";
 import { isDecString } from "@src/bme/bme-deriver";
 import { parseCoins } from "@src/pipeline/balance/coin-amount";
@@ -11,11 +12,10 @@ const PRICE_DATA_EVENT_TYPE = "akash.oracle.v1.EventPriceData";
 /** The x/bme module account — the burner/minter of every denom conversion — identical on every network. */
 export const BME_MODULE_ADDRESS = "akash1klpwzlvfnw7j8gtdd0cuu9vaw9ermsmd37sg55";
 
-/** The axlUSDC IBC denoms the upgrade converted at par, hardcoded the same way in the chain's migration. */
-export const IBC_USDC_DENOMS: readonly string[] = [
-  "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1",
-  "ibc/028CD1864059EEFB48A6048376165318E3E82C234390AE5A6D7B22001725B06E"
-];
+/** The axlUSDC IBC denoms the upgrade converted at par, derived from the single denom mapping so the two never drift. */
+export const IBC_USDC_DENOMS: readonly string[] = Array.from(DENOM_MAPPING.entries())
+  .filter(([, baseDenom]) => baseDenom === "uusdc")
+  .map(([denom]) => denom);
 
 /**
  * The bank movements of this block's denom conversions: what the BME module account burned and
