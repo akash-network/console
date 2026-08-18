@@ -97,7 +97,7 @@ export const AlertsListView: FC<Props> = ({
       cell: info => {
         const dseq = extractDseq(info);
         return dseq ? (
-          <Link href={UrlService.deploymentDetails(dseq, "ALERTS")} className="font-bold">
+          <Link href={UrlService.deploymentDetails(dseq, "SETTINGS")} className="font-bold">
             {info.getValue()}
           </Link>
         ) : (
