@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 import type { AkashWriter } from "@src/akash/akash-writer.service";
 import type { NetworkBlockDelta } from "@src/akash/network-delta";
 import type { ProviderWriter } from "@src/akash/provider-writer.service";
+import type { ActMigrationSegment, ActMigrationService } from "@src/bme/act-migration.service";
 import type { BmeWriter } from "@src/bme/bme-writer.service";
 import { AccountTxs, Blocks, IndexerState, MessageDeadLetters, Messages, MessageTypes } from "@src/db/schema";
 import type { GovWriter } from "@src/gov/gov-writer.service";
@@ -19,6 +20,7 @@ import type { LoggerService } from "@src/providers/logging.provider";
 
 const MSG_SEND = "/cosmos.bank.v1beta1.MsgSend";
 const BALANCE_WRITE = Symbol("balance_write");
+const ACT_MIGRATION_APPLY = Symbol("act_migration_apply");
 
 describe(BlockCommitterService.name, () => {
   it("reuses ids of message types that already exist instead of inserting them", async () => {
@@ -107,6 +109,40 @@ describe(BlockCommitterService.name, () => {
       const messageInserts = insertedRows.filter(call => call.table === Messages);
       expect(messageInserts).toHaveLength(2);
       expect(messageInserts.map(call => (call.rows as unknown[]).length)).toEqual([2_000, 1]);
+    });
+  });
+
+  describe("ACT migration", () => {
+    it("commits each migration segment separately and applies the segment's step before its checkpoint", async () => {
+      const { committer, actMigration, insertedRows } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
+      const blocks = [buildBlock([MSG_SEND], 10), buildBlock([MSG_SEND], 11), buildBlock([MSG_SEND], 12)];
+      const observations = { lastAktUsdPrice: null };
+      const segments: ActMigrationSegment[] = [
+        {
+          blocks: blocks.slice(0, 2),
+          step: { kind: "upgrade", height: 11, bankTotals: { burnedUakt: 0n, burnedUsdc: 0n, mintedUact: 0n }, validatable: true },
+          observations
+        },
+        { blocks: blocks.slice(2), step: null, observations }
+      ];
+      actMigration.segment.mockResolvedValue(segments);
+      const outcome = { upgradeApplied: true, queueRemaining: 3, drained: false };
+      actMigration.applySegment.mockImplementation(async (_tx, segment) => {
+        insertedRows.push({ table: ACT_MIGRATION_APPLY, rows: [] });
+        return segment.step ? outcome : null;
+      });
+
+      await committer.commitBatch(blocks, { stream: "backfill:10-12" });
+
+      const checkpointRows = insertedRows.filter(call => call.table === IndexerState);
+      expect(checkpointRows.map(call => call.rows)).toEqual([expect.objectContaining({ lastHeight: 11 }), expect.objectContaining({ lastHeight: 12 })]);
+      const applyIndex = insertedRows.findIndex(call => call.table === ACT_MIGRATION_APPLY);
+      const firstCheckpointIndex = insertedRows.findIndex(call => call.table === IndexerState);
+      expect(applyIndex).toBeGreaterThan(-1);
+      expect(applyIndex).toBeLessThan(firstCheckpointIndex);
+      expect(actMigration.applySegment).toHaveBeenCalledTimes(2);
+      expect(actMigration.markCommitted).toHaveBeenNthCalledWith(1, segments[0], outcome);
+      expect(actMigration.markCommitted).toHaveBeenNthCalledWith(2, segments[1], null);
     });
   });
 
@@ -367,6 +403,9 @@ describe(BlockCommitterService.name, () => {
     const providerWriter = mock<ProviderWriter>();
     const bmeWriter = mock<BmeWriter>();
     const networkStatsWriter = mock<NetworkStatsWriter>();
+    const actMigration = mock<ActMigrationService>();
+    actMigration.segment.mockImplementation(async blocks => [{ blocks, step: null, observations: { lastAktUsdPrice: null } }]);
+    actMigration.applySegment.mockResolvedValue(null);
     const logger = mock<LoggerService>();
     const committer = new BlockCommitterService(
       dbFake as unknown as ChainDatabase,
@@ -377,6 +416,7 @@ describe(BlockCommitterService.name, () => {
       providerWriter,
       bmeWriter,
       networkStatsWriter,
+      actMigration,
       logger
     );
     return {
@@ -391,6 +431,7 @@ describe(BlockCommitterService.name, () => {
       providerWriter,
       bmeWriter,
       networkStatsWriter,
+      actMigration,
       logger
     };
   }

@@ -1,0 +1,3139 @@
+{
+  "id": "7f384fb1-b087-4028-8a96-497ec7fa1f97",
+  "prevId": "080d0308-11dd-4220-855e-30746d3813e4",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "cosmos.account_balances": {
+      "name": "account_balances",
+      "schema": "cosmos",
+      "columns": {
+        "account_id": {
+          "name": "account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "denom": {
+          "name": "denom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "account_balances_account_id_accounts_id_fk": {
+          "name": "account_balances_account_id_accounts_id_fk",
+          "tableFrom": "account_balances",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "account_balances_account_id_denom_pk": {
+          "name": "account_balances_account_id_denom_pk",
+          "columns": [
+            "account_id",
+            "denom"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.account_txs": {
+      "name": "account_txs",
+      "schema": "cosmos",
+      "columns": {
+        "account_id": {
+          "name": "account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tx_index": {
+          "name": "tx_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "account_tx_role",
+          "typeSchema": "cosmos",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "account_txs_account_id_accounts_id_fk": {
+          "name": "account_txs_account_id_accounts_id_fk",
+          "tableFrom": "account_txs",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "account_txs_account_id_height_tx_index_role_pk": {
+          "name": "account_txs_account_id_height_tx_index_role_pk",
+          "columns": [
+            "account_id",
+            "height",
+            "tx_index",
+            "role"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.accounts": {
+      "name": "accounts",
+      "schema": "cosmos",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_number": {
+          "name": "account_number",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "account_type": {
+          "name": "account_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_module_account": {
+          "name": "is_module_account",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {
+        "accounts_address_idx": {
+          "name": "accounts_address_idx",
+          "columns": [
+            {
+              "expression": "address",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "akash.act_migration_queue": {
+      "name": "act_migration_queue",
+      "schema": "akash",
+      "columns": {
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "deployment_id": {
+          "name": "deployment_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "converted_at_height": {
+          "name": "converted_at_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "act_migration_queue_deployment_id_deployments_id_fk": {
+          "name": "act_migration_queue_deployment_id_deployments_id_fk",
+          "tableFrom": "act_migration_queue",
+          "tableTo": "deployments",
+          "schemaTo": "akash",
+          "columnsFrom": [
+            "deployment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "akash.act_migration_state": {
+      "name": "act_migration_state",
+      "schema": "akash",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "last_akt_usd_price": {
+          "name": "last_akt_usd_price",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_price_height": {
+          "name": "last_price_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "act_migration_state_singleton_check": {
+          "name": "act_migration_state_singleton_check",
+          "value": "\"akash\".\"act_migration_state\".\"id\" = 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "cosmos.balance_changes": {
+      "name": "balance_changes",
+      "schema": "cosmos",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "denom": {
+          "name": "denom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "delta": {
+          "name": "delta",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "balance_after": {
+          "name": "balance_after",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "balance_change_reason",
+          "typeSchema": "cosmos",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tx_index": {
+          "name": "tx_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "event_index": {
+          "name": "event_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "counterparty_account_id": {
+          "name": "counterparty_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "balance_changes_account_denom_height_idx": {
+          "name": "balance_changes_account_denom_height_idx",
+          "columns": [
+            {
+              "expression": "account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "denom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "balance_changes_height_event_index_idx": {
+          "name": "balance_changes_height_event_index_idx",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "event_index",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "balance_changes_account_id_accounts_id_fk": {
+          "name": "balance_changes_account_id_accounts_id_fk",
+          "tableFrom": "balance_changes",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "balance_changes_counterparty_account_id_accounts_id_fk": {
+          "name": "balance_changes_counterparty_account_id_accounts_id_fk",
+          "tableFrom": "balance_changes",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "counterparty_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "akash.bids": {
+      "name": "bids",
+      "schema": "akash",
+      "columns": {
+        "deployment_id": {
+          "name": "deployment_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gseq": {
+          "name": "gseq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "oseq": {
+          "name": "oseq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bseq": {
+          "name": "bseq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "provider_account_id": {
+          "name": "provider_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price": {
+          "name": "price",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "denom": {
+          "name": "denom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "bid_state",
+          "typeSchema": "akash",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "created_height": {
+          "name": "created_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "closed_height": {
+          "name": "closed_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "bids_deployment_id_deployments_id_fk": {
+          "name": "bids_deployment_id_deployments_id_fk",
+          "tableFrom": "bids",
+          "tableTo": "deployments",
+          "schemaTo": "akash",
+          "columnsFrom": [
+            "deployment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "bids_provider_account_id_accounts_id_fk": {
+          "name": "bids_provider_account_id_accounts_id_fk",
+          "tableFrom": "bids",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "provider_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "bids_deployment_id_gseq_oseq_bseq_provider_account_id_pk": {
+          "name": "bids_deployment_id_gseq_oseq_bseq_provider_account_id_pk",
+          "columns": [
+            "deployment_id",
+            "gseq",
+            "oseq",
+            "bseq",
+            "provider_account_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.blocks": {
+      "name": "blocks",
+      "schema": "cosmos",
+      "columns": {
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "datetime": {
+          "name": "datetime",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hash": {
+          "name": "hash",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parent_hash": {
+          "name": "parent_hash",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "proposer_address": {
+          "name": "proposer_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tx_count": {
+          "name": "tx_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "akash.bme_canceled_records": {
+      "name": "bme_canceled_records",
+      "schema": "akash",
+      "columns": {
+        "denom": {
+          "name": "denom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "to_denom": {
+          "name": "to_denom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "record_height": {
+          "name": "record_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sequence": {
+          "name": "sequence",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tx_index": {
+          "name": "tx_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cancel_reason": {
+          "name": "cancel_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner_account_id": {
+          "name": "owner_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "to_account_id": {
+          "name": "to_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "coins_to_burn_denom": {
+          "name": "coins_to_burn_denom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "coins_to_burn_amount": {
+          "name": "coins_to_burn_amount",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "denom_to_mint": {
+          "name": "denom_to_mint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "bme_canceled_records_height_idx": {
+          "name": "bme_canceled_records_height_idx",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "bme_canceled_records_owner_account_id_accounts_id_fk": {
+          "name": "bme_canceled_records_owner_account_id_accounts_id_fk",
+          "tableFrom": "bme_canceled_records",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "owner_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "bme_canceled_records_to_account_id_accounts_id_fk": {
+          "name": "bme_canceled_records_to_account_id_accounts_id_fk",
+          "tableFrom": "bme_canceled_records",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "to_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "bme_canceled_records_record_height_sequence_denom_to_denom_source_pk": {
+          "name": "bme_canceled_records_record_height_sequence_denom_to_denom_source_pk",
+          "columns": [
+            "record_height",
+            "sequence",
+            "denom",
+            "to_denom",
+            "source"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "akash.bme_ledger_records": {
+      "name": "bme_ledger_records",
+      "schema": "akash",
+      "columns": {
+        "denom": {
+          "name": "denom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "to_denom": {
+          "name": "to_denom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "record_height": {
+          "name": "record_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sequence": {
+          "name": "sequence",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tx_index": {
+          "name": "tx_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "burned_from_account_id": {
+          "name": "burned_from_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "minted_to_account_id": {
+          "name": "minted_to_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "burned_denom": {
+          "name": "burned_denom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "burned_amount": {
+          "name": "burned_amount",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "burned_price": {
+          "name": "burned_price",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "minted_denom": {
+          "name": "minted_denom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "minted_amount": {
+          "name": "minted_amount",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "minted_price": {
+          "name": "minted_price",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "spread_denom": {
+          "name": "spread_denom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "spread_amount": {
+          "name": "spread_amount",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "remint_credit_issued_amount": {
+          "name": "remint_credit_issued_amount",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "remint_credit_accrued_amount": {
+          "name": "remint_credit_accrued_amount",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "bme_ledger_records_height_idx": {
+          "name": "bme_ledger_records_height_idx",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "bme_ledger_records_burned_denom_height_idx": {
+          "name": "bme_ledger_records_burned_denom_height_idx",
+          "columns": [
+            {
+              "expression": "burned_denom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "bme_ledger_records_minted_denom_height_idx": {
+          "name": "bme_ledger_records_minted_denom_height_idx",
+          "columns": [
+            {
+              "expression": "minted_denom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "bme_ledger_records_burned_from_account_id_accounts_id_fk": {
+          "name": "bme_ledger_records_burned_from_account_id_accounts_id_fk",
+          "tableFrom": "bme_ledger_records",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "burned_from_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "bme_ledger_records_minted_to_account_id_accounts_id_fk": {
+          "name": "bme_ledger_records_minted_to_account_id_accounts_id_fk",
+          "tableFrom": "bme_ledger_records",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "minted_to_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "bme_ledger_records_record_height_sequence_denom_to_denom_source_pk": {
+          "name": "bme_ledger_records_record_height_sequence_denom_to_denom_source_pk",
+          "columns": [
+            "record_height",
+            "sequence",
+            "denom",
+            "to_denom",
+            "source"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "akash.bme_status_changes": {
+      "name": "bme_status_changes",
+      "schema": "akash",
+      "columns": {
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ordinal": {
+          "name": "ordinal",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "previous_status": {
+          "name": "previous_status",
+          "type": "bme_mint_status",
+          "typeSchema": "akash",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "new_status": {
+          "name": "new_status",
+          "type": "bme_mint_status",
+          "typeSchema": "akash",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "collateral_ratio": {
+          "name": "collateral_ratio",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "bme_status_changes_height_ordinal_pk": {
+          "name": "bme_status_changes_height_ordinal_pk",
+          "columns": [
+            "height",
+            "ordinal"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "akash.daily_prices": {
+      "name": "daily_prices",
+      "schema": "akash",
+      "columns": {
+        "date": {
+          "name": "date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "denom": {
+          "name": "denom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price": {
+          "name": "price",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "daily_prices_date_denom_pk": {
+          "name": "daily_prices_date_denom_pk",
+          "columns": [
+            "date",
+            "denom"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.delegations": {
+      "name": "delegations",
+      "schema": "cosmos",
+      "columns": {
+        "delegator_account_id": {
+          "name": "delegator_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "validator_operator_address": {
+          "name": "validator_operator_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shares": {
+          "name": "shares",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "delegations_delegator_account_id_accounts_id_fk": {
+          "name": "delegations_delegator_account_id_accounts_id_fk",
+          "tableFrom": "delegations",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "delegator_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "delegations_delegator_account_id_validator_operator_address_pk": {
+          "name": "delegations_delegator_account_id_validator_operator_address_pk",
+          "columns": [
+            "delegator_account_id",
+            "validator_operator_address"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "akash.deployment_events": {
+      "name": "deployment_events",
+      "schema": "akash",
+      "columns": {
+        "deployment_id": {
+          "name": "deployment_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ordinal": {
+          "name": "ordinal",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tx_index": {
+          "name": "tx_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "msg_index": {
+          "name": "msg_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "deployment_event_type",
+          "typeSchema": "akash",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "details": {
+          "name": "details",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "deployment_events_deployment_id_deployments_id_fk": {
+          "name": "deployment_events_deployment_id_deployments_id_fk",
+          "tableFrom": "deployment_events",
+          "tableTo": "deployments",
+          "schemaTo": "akash",
+          "columnsFrom": [
+            "deployment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "deployment_events_deployment_id_height_ordinal_pk": {
+          "name": "deployment_events_deployment_id_height_ordinal_pk",
+          "columns": [
+            "deployment_id",
+            "height",
+            "ordinal"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "akash.deployment_group_resources": {
+      "name": "deployment_group_resources",
+      "schema": "akash",
+      "columns": {
+        "deployment_group_id": {
+          "name": "deployment_group_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idx": {
+          "name": "idx",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "count": {
+          "name": "count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cpu_units": {
+          "name": "cpu_units",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gpu_units": {
+          "name": "gpu_units",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gpu_vendor": {
+          "name": "gpu_vendor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gpu_model": {
+          "name": "gpu_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "memory_bytes": {
+          "name": "memory_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ephemeral_storage_bytes": {
+          "name": "ephemeral_storage_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "persistent_storage_bytes": {
+          "name": "persistent_storage_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price": {
+          "name": "price",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price_denom": {
+          "name": "price_denom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "deployment_group_resources_deployment_group_id_deployment_groups_id_fk": {
+          "name": "deployment_group_resources_deployment_group_id_deployment_groups_id_fk",
+          "tableFrom": "deployment_group_resources",
+          "tableTo": "deployment_groups",
+          "schemaTo": "akash",
+          "columnsFrom": [
+            "deployment_group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "deployment_group_resources_deployment_group_id_idx_pk": {
+          "name": "deployment_group_resources_deployment_group_id_idx_pk",
+          "columns": [
+            "deployment_group_id",
+            "idx"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "akash.deployment_groups": {
+      "name": "deployment_groups",
+      "schema": "akash",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "deployment_id": {
+          "name": "deployment_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gseq": {
+          "name": "gseq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "group_state",
+          "typeSchema": "akash",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "closed_height": {
+          "name": "closed_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "deployment_groups_deployment_gseq_idx": {
+          "name": "deployment_groups_deployment_gseq_idx",
+          "columns": [
+            {
+              "expression": "deployment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "gseq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "deployment_groups_deployment_id_deployments_id_fk": {
+          "name": "deployment_groups_deployment_id_deployments_id_fk",
+          "tableFrom": "deployment_groups",
+          "tableTo": "deployments",
+          "schemaTo": "akash",
+          "columnsFrom": [
+            "deployment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "akash.deployments": {
+      "name": "deployments",
+      "schema": "akash",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "owner_account_id": {
+          "name": "owner_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dseq": {
+          "name": "dseq",
+          "type": "numeric(20, 0)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "denom": {
+          "name": "denom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deposit": {
+          "name": "deposit",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "balance": {
+          "name": "balance",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "withdrawn_amount": {
+          "name": "withdrawn_amount",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "block_rate": {
+          "name": "block_rate",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "last_withdraw_height": {
+          "name": "last_withdraw_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_processed_height": {
+          "name": "last_processed_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_height": {
+          "name": "created_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "closed_height": {
+          "name": "closed_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "close_reason": {
+          "name": "close_reason",
+          "type": "deployment_close_reason",
+          "typeSchema": "akash",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cpu_units": {
+          "name": "cpu_units",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gpu_units": {
+          "name": "gpu_units",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "memory_bytes": {
+          "name": "memory_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ephemeral_storage_bytes": {
+          "name": "ephemeral_storage_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "persistent_storage_bytes": {
+          "name": "persistent_storage_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "deployments_owner_dseq_idx": {
+          "name": "deployments_owner_dseq_idx",
+          "columns": [
+            {
+              "expression": "owner_account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "dseq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "deployments_owner_created_idx": {
+          "name": "deployments_owner_created_idx",
+          "columns": [
+            {
+              "expression": "owner_account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "deployments_open_idx": {
+          "name": "deployments_open_idx",
+          "columns": [
+            {
+              "expression": "created_height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"akash\".\"deployments\".\"closed_height\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "deployments_owner_account_id_accounts_id_fk": {
+          "name": "deployments_owner_account_id_accounts_id_fk",
+          "tableFrom": "deployments",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "owner_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.indexer_state": {
+      "name": "indexer_state",
+      "schema": "",
+      "columns": {
+        "stream": {
+          "name": "stream",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "last_height": {
+          "name": "last_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "akash.leases": {
+      "name": "leases",
+      "schema": "akash",
+      "columns": {
+        "deployment_id": {
+          "name": "deployment_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deployment_group_id": {
+          "name": "deployment_group_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gseq": {
+          "name": "gseq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "oseq": {
+          "name": "oseq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bseq": {
+          "name": "bseq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "provider_account_id": {
+          "name": "provider_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price": {
+          "name": "price",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "denom": {
+          "name": "denom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "balance": {
+          "name": "balance",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "withdrawn_amount": {
+          "name": "withdrawn_amount",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "predicted_closed_height": {
+          "name": "predicted_closed_height",
+          "type": "numeric(30, 0)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_height": {
+          "name": "created_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "closed_height": {
+          "name": "closed_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cpu_units": {
+          "name": "cpu_units",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gpu_units": {
+          "name": "gpu_units",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "memory_bytes": {
+          "name": "memory_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ephemeral_storage_bytes": {
+          "name": "ephemeral_storage_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "persistent_storage_bytes": {
+          "name": "persistent_storage_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "leases_provider_idx": {
+          "name": "leases_provider_idx",
+          "columns": [
+            {
+              "expression": "provider_account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "closed_height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "leases_open_idx": {
+          "name": "leases_open_idx",
+          "columns": [
+            {
+              "expression": "deployment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"akash\".\"leases\".\"closed_height\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "leases_deployment_id_deployments_id_fk": {
+          "name": "leases_deployment_id_deployments_id_fk",
+          "tableFrom": "leases",
+          "tableTo": "deployments",
+          "schemaTo": "akash",
+          "columnsFrom": [
+            "deployment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "leases_deployment_group_id_deployment_groups_id_fk": {
+          "name": "leases_deployment_group_id_deployment_groups_id_fk",
+          "tableFrom": "leases",
+          "tableTo": "deployment_groups",
+          "schemaTo": "akash",
+          "columnsFrom": [
+            "deployment_group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "leases_provider_account_id_accounts_id_fk": {
+          "name": "leases_provider_account_id_accounts_id_fk",
+          "tableFrom": "leases",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "provider_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "leases_deployment_id_gseq_oseq_bseq_provider_account_id_pk": {
+          "name": "leases_deployment_id_gseq_oseq_bseq_provider_account_id_pk",
+          "columns": [
+            "deployment_id",
+            "gseq",
+            "oseq",
+            "bseq",
+            "provider_account_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.message_dead_letters": {
+      "name": "message_dead_letters",
+      "schema": "cosmos",
+      "columns": {
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tx_index": {
+          "name": "tx_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "index": {
+          "name": "index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type_id": {
+          "name": "type_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "raw": {
+          "name": "raw",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "message_dead_letters_type_id_idx": {
+          "name": "message_dead_letters_type_id_idx",
+          "columns": [
+            {
+              "expression": "type_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "message_dead_letters_type_id_message_types_id_fk": {
+          "name": "message_dead_letters_type_id_message_types_id_fk",
+          "tableFrom": "message_dead_letters",
+          "tableTo": "message_types",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "type_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "message_dead_letters_height_tx_index_index_pk": {
+          "name": "message_dead_letters_height_tx_index_index_pk",
+          "columns": [
+            "height",
+            "tx_index",
+            "index"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.message_types": {
+      "name": "message_types",
+      "schema": "cosmos",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "message_types_type_idx": {
+          "name": "message_types_type_idx",
+          "columns": [
+            {
+              "expression": "type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.messages": {
+      "name": "messages",
+      "schema": "cosmos",
+      "columns": {
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tx_index": {
+          "name": "tx_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "index": {
+          "name": "index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type_id": {
+          "name": "type_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "body": {
+          "name": "body",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "messages_type_id_idx": {
+          "name": "messages_type_id_idx",
+          "columns": [
+            {
+              "expression": "type_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "messages_type_id_message_types_id_fk": {
+          "name": "messages_type_id_message_types_id_fk",
+          "tableFrom": "messages",
+          "tableTo": "message_types",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "type_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "messages_height_tx_index_index_pk": {
+          "name": "messages_height_tx_index_index_pk",
+          "columns": [
+            "height",
+            "tx_index",
+            "index"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "akash.network_rollups": {
+      "name": "network_rollups",
+      "schema": "akash",
+      "columns": {
+        "date": {
+          "name": "date",
+          "type": "date",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "close_height": {
+          "name": "close_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "close_at": {
+          "name": "close_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active_lease_count": {
+          "name": "active_lease_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_lease_count": {
+          "name": "total_lease_count",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "daily_lease_count": {
+          "name": "daily_lease_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active_provider_count": {
+          "name": "active_provider_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active_cpu_units": {
+          "name": "active_cpu_units",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active_gpu_units": {
+          "name": "active_gpu_units",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active_memory_bytes": {
+          "name": "active_memory_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active_ephemeral_storage_bytes": {
+          "name": "active_ephemeral_storage_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active_persistent_storage_bytes": {
+          "name": "active_persistent_storage_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_uakt_spent": {
+          "name": "total_uakt_spent",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_uusdc_spent": {
+          "name": "total_uusdc_spent",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_uact_spent": {
+          "name": "total_uact_spent",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "daily_uakt_spent": {
+          "name": "daily_uakt_spent",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "daily_uusdc_spent": {
+          "name": "daily_uusdc_spent",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "daily_uact_spent": {
+          "name": "daily_uact_spent",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "daily_usd_spent": {
+          "name": "daily_usd_spent",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "akt_price_used": {
+          "name": "akt_price_used",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "usd_computed_at": {
+          "name": "usd_computed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "akash.network_state": {
+      "name": "network_state",
+      "schema": "akash",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "last_aggregated_height": {
+          "name": "last_aggregated_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_aggregated_at": {
+          "name": "last_aggregated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active_lease_count": {
+          "name": "active_lease_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "total_lease_count": {
+          "name": "total_lease_count",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "active_provider_count": {
+          "name": "active_provider_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "active_cpu_units": {
+          "name": "active_cpu_units",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "active_gpu_units": {
+          "name": "active_gpu_units",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "active_memory_bytes": {
+          "name": "active_memory_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "active_ephemeral_storage_bytes": {
+          "name": "active_ephemeral_storage_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "active_persistent_storage_bytes": {
+          "name": "active_persistent_storage_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "total_uakt_spent": {
+          "name": "total_uakt_spent",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "total_uusdc_spent": {
+          "name": "total_uusdc_spent",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "total_uact_spent": {
+          "name": "total_uact_spent",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "network_state_singleton_check": {
+          "name": "network_state_singleton_check",
+          "value": "\"akash\".\"network_state\".\"id\" = 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "cosmos.proposal_deposits": {
+      "name": "proposal_deposits",
+      "schema": "cosmos",
+      "columns": {
+        "proposal_id": {
+          "name": "proposal_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "depositor_account_id": {
+          "name": "depositor_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount": {
+          "name": "amount",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "proposal_deposits_depositor_account_id_accounts_id_fk": {
+          "name": "proposal_deposits_depositor_account_id_accounts_id_fk",
+          "tableFrom": "proposal_deposits",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "depositor_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "proposal_deposits_proposal_id_depositor_account_id_height_pk": {
+          "name": "proposal_deposits_proposal_id_depositor_account_id_height_pk",
+          "columns": [
+            "proposal_id",
+            "depositor_account_id",
+            "height"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.proposal_votes": {
+      "name": "proposal_votes",
+      "schema": "cosmos",
+      "columns": {
+        "proposal_id": {
+          "name": "proposal_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "voter_account_id": {
+          "name": "voter_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "options": {
+          "name": "options",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "proposal_votes_voter_account_id_accounts_id_fk": {
+          "name": "proposal_votes_voter_account_id_accounts_id_fk",
+          "tableFrom": "proposal_votes",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "voter_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "proposal_votes_proposal_id_voter_account_id_pk": {
+          "name": "proposal_votes_proposal_id_voter_account_id_pk",
+          "columns": [
+            "proposal_id",
+            "voter_account_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.proposals": {
+      "name": "proposals",
+      "schema": "cosmos",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "proposer_account_id": {
+          "name": "proposer_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "messages": {
+          "name": "messages",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "proposal_status",
+          "typeSchema": "cosmos",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "submit_time": {
+          "name": "submit_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deposit_end_time": {
+          "name": "deposit_end_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "voting_start_time": {
+          "name": "voting_start_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "voting_end_time": {
+          "name": "voting_end_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_deposit": {
+          "name": "total_deposit",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "final_tally_yes": {
+          "name": "final_tally_yes",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "final_tally_abstain": {
+          "name": "final_tally_abstain",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "final_tally_no": {
+          "name": "final_tally_no",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "final_tally_no_with_veto": {
+          "name": "final_tally_no_with_veto",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "submit_height": {
+          "name": "submit_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "proposals_proposer_account_id_accounts_id_fk": {
+          "name": "proposals_proposer_account_id_accounts_id_fk",
+          "tableFrom": "proposals",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "proposer_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "akash.provider_audit_signatures": {
+      "name": "provider_audit_signatures",
+      "schema": "akash",
+      "columns": {
+        "owner_account_id": {
+          "name": "owner_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "auditor_account_id": {
+          "name": "auditor_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "provider_audit_signatures_owner_account_id_accounts_id_fk": {
+          "name": "provider_audit_signatures_owner_account_id_accounts_id_fk",
+          "tableFrom": "provider_audit_signatures",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "owner_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "provider_audit_signatures_auditor_account_id_accounts_id_fk": {
+          "name": "provider_audit_signatures_auditor_account_id_accounts_id_fk",
+          "tableFrom": "provider_audit_signatures",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "auditor_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "provider_audit_signatures_owner_account_id_auditor_account_id_key_pk": {
+          "name": "provider_audit_signatures_owner_account_id_auditor_account_id_key_pk",
+          "columns": [
+            "owner_account_id",
+            "auditor_account_id",
+            "key"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "akash.providers": {
+      "name": "providers",
+      "schema": "akash",
+      "columns": {
+        "owner_account_id": {
+          "name": "owner_account_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "host_uri": {
+          "name": "host_uri",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "website": {
+          "name": "website",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attributes": {
+          "name": "attributes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_processed_height": {
+          "name": "last_processed_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_height": {
+          "name": "created_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_height": {
+          "name": "updated_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deleted_height": {
+          "name": "deleted_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "providers_owner_account_id_accounts_id_fk": {
+          "name": "providers_owner_account_id_accounts_id_fk",
+          "tableFrom": "providers",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "owner_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.transactions": {
+      "name": "transactions",
+      "schema": "cosmos",
+      "columns": {
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "index": {
+          "name": "index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hash": {
+          "name": "hash",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gas_used": {
+          "name": "gas_used",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gas_wanted": {
+          "name": "gas_wanted",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fee": {
+          "name": "fee",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "transactions_hash_idx": {
+          "name": "transactions_hash_idx",
+          "columns": [
+            {
+              "expression": "hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "transactions_height_index_pk": {
+          "name": "transactions_height_index_pk",
+          "columns": [
+            "height",
+            "index"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.unbonding_delegations": {
+      "name": "unbonding_delegations",
+      "schema": "cosmos",
+      "columns": {
+        "delegator_account_id": {
+          "name": "delegator_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "validator_operator_address": {
+          "name": "validator_operator_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creation_height": {
+          "name": "creation_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "completion_time": {
+          "name": "completion_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "initial_balance": {
+          "name": "initial_balance",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "balance": {
+          "name": "balance",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "unbonding_delegations_delegator_account_id_accounts_id_fk": {
+          "name": "unbonding_delegations_delegator_account_id_accounts_id_fk",
+          "tableFrom": "unbonding_delegations",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "delegator_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "unbonding_delegations_delegator_account_id_validator_operator_address_creation_height_pk": {
+          "name": "unbonding_delegations_delegator_account_id_validator_operator_address_creation_height_pk",
+          "columns": [
+            "delegator_account_id",
+            "validator_operator_address",
+            "creation_height"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.validators": {
+      "name": "validators",
+      "schema": "cosmos",
+      "columns": {
+        "operator_address": {
+          "name": "operator_address",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "account_address": {
+          "name": "account_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hex_address": {
+          "name": "hex_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "moniker": {
+          "name": "moniker",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "identity": {
+          "name": "identity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "website": {
+          "name": "website",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "details": {
+          "name": "details",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "security_contact": {
+          "name": "security_contact",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "commission_rate": {
+          "name": "commission_rate",
+          "type": "numeric(20, 18)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "commission_max_rate": {
+          "name": "commission_max_rate",
+          "type": "numeric(20, 18)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "commission_max_change_rate": {
+          "name": "commission_max_change_rate",
+          "type": "numeric(20, 18)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "min_self_delegation": {
+          "name": "min_self_delegation",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "jailed": {
+          "name": "jailed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "status": {
+          "name": "status",
+          "type": "validator_status",
+          "typeSchema": "cosmos",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tokens": {
+          "name": "tokens",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "delegator_shares": {
+          "name": "delegator_shares",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unbonding_height": {
+          "name": "unbonding_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unbonding_time": {
+          "name": "unbonding_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "cosmos.account_tx_role": {
+      "name": "account_tx_role",
+      "schema": "cosmos",
+      "values": [
+        "signer",
+        "sender",
+        "receiver"
+      ]
+    },
+    "cosmos.balance_change_reason": {
+      "name": "balance_change_reason",
+      "schema": "cosmos",
+      "values": [
+        "genesis",
+        "transfer",
+        "fee",
+        "reward",
+        "commission",
+        "slash",
+        "gov",
+        "ibc",
+        "escrow",
+        "bme",
+        "mint",
+        "burn",
+        "staking"
+      ]
+    },
+    "akash.bid_state": {
+      "name": "bid_state",
+      "schema": "akash",
+      "values": [
+        "open",
+        "active",
+        "closed"
+      ]
+    },
+    "akash.bme_mint_status": {
+      "name": "bme_mint_status",
+      "schema": "akash",
+      "values": [
+        "mint_status_unspecified",
+        "mint_status_healthy",
+        "mint_status_warning",
+        "mint_status_halt_cr",
+        "mint_status_halt_oracle"
+      ]
+    },
+    "akash.deployment_close_reason": {
+      "name": "deployment_close_reason",
+      "schema": "akash",
+      "values": [
+        "close_message",
+        "overdrawn",
+        "close_event"
+      ]
+    },
+    "akash.deployment_event_type": {
+      "name": "deployment_event_type",
+      "schema": "akash",
+      "values": [
+        "created",
+        "deposited",
+        "updated",
+        "closed",
+        "group_closed",
+        "group_paused",
+        "group_started",
+        "bid_created",
+        "bid_closed",
+        "lease_created",
+        "lease_closed",
+        "lease_withdrawn"
+      ]
+    },
+    "akash.group_state": {
+      "name": "group_state",
+      "schema": "akash",
+      "values": [
+        "open",
+        "paused",
+        "closed"
+      ]
+    },
+    "cosmos.proposal_status": {
+      "name": "proposal_status",
+      "schema": "cosmos",
+      "values": [
+        "deposit_period",
+        "voting_period",
+        "passed",
+        "rejected",
+        "failed"
+      ]
+    },
+    "cosmos.validator_status": {
+      "name": "validator_status",
+      "schema": "cosmos",
+      "values": [
+        "unbonded",
+        "unbonding",
+        "bonded"
+      ]
+    },
+    "cosmos.vote_option": {
+      "name": "vote_option",
+      "schema": "cosmos",
+      "values": [
+        "yes",
+        "abstain",
+        "no",
+        "no_with_veto"
+      ]
+    }
+  },
+  "schemas": {
+    "akash": "akash",
+    "cosmos": "cosmos"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

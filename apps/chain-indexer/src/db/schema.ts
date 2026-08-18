@@ -649,6 +649,38 @@ export const BmeCanceledRecords = akashSchema.table(
 );
 
 /**
+ * The BME upgrade's deferred uakt→uact conversion queue, mirroring the chain's
+ * `pendingDenomMigrations`: seeded at the upgrade block with every open uakt deployment in the
+ * chain's drain order — lexicographic owner address, then dseq — and consumed at up to 50 rows per
+ * eligible block, exactly as the deployment EndBlocker drains it. `converted_at_height` marks a
+ * consumed slot even when the deployment closed before its turn (the chain converts nothing for
+ * those but still spends a slot on them, which shifts every later deployment's conversion block).
+ */
+export const ActMigrationQueue = akashSchema.table("act_migration_queue", {
+  position: integer("position").primaryKey(),
+  deploymentId: bigint("deployment_id", { mode: "number" })
+    .notNull()
+    .references(() => Deployments.id),
+  convertedAtHeight: bigint("converted_at_height", { mode: "number" })
+});
+
+/**
+ * Singleton tracker for the AKT/USD oracle price the drain uses: the chain's deployment EndBlocker
+ * reads the aggregated price stored at the previous block's oracle EndBlocker, so each drain block
+ * converts at the latest `EventPriceData` from strictly earlier blocks. Prices are not otherwise
+ * persisted, and a restart mid-drain must not lose the last one seen.
+ */
+export const ActMigrationState = akashSchema.table(
+  "act_migration_state",
+  {
+    id: integer("id").primaryKey(),
+    lastAktUsdPrice: numeric("last_akt_usd_price", { precision: 38, scale: 18 }),
+    lastPriceHeight: bigint("last_price_height", { mode: "number" })
+  },
+  t => [check("act_migration_state_singleton_check", sql`${t.id} = 1`)]
+);
+
+/**
  * Singleton current network state, maintained incrementally inside the per-block transaction so
  * dashboards read one row instead of scanning leases. `last_aggregated_height` is the replay
  * watermark: blocks at or below it are duplicates and must not be re-applied. Spend totals are
