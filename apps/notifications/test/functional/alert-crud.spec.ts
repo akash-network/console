@@ -27,10 +27,10 @@ describe("Alerts CRUD", () => {
   it("should perform all CRUD operations against raw alerts", async () => {
     // NOTE: change this when there's a role that can create alerts
     const HAS_ROLE_TO_CREATE_ALERTS = false;
-    const { app, userId, notificationChannelId } = await setup();
+    const { app, userId, notificationChannelId, otherNotificationChannelId } = await setup();
 
     const alert = HAS_ROLE_TO_CREATE_ALERTS ? await shouldCreate(userId, notificationChannelId, app) : await prepareAlert(userId, notificationChannelId, app);
-    await shouldUpdate(alert, app);
+    await shouldUpdate(alert, otherNotificationChannelId, app);
     await shouldRead(alert, app);
     await shouldDelete(alert, app);
 
@@ -79,14 +79,18 @@ describe("Alerts CRUD", () => {
     };
   }
 
-  async function shouldUpdate(alert: AlertOutputMeta, app: INestApplication) {
-    const res = await request(app.getHttpServer())
-      .patch(`/v1/alerts/${alert.id}`)
-      .set("x-user-id", alert.userId)
-      .send({ data: { enabled: false } });
+  async function shouldUpdate(alert: AlertOutputMeta, otherNotificationChannelId: string, app: INestApplication) {
+    const update = {
+      name: "Updated alert name",
+      notificationChannelId: otherNotificationChannelId,
+      conditions: { operator: "lt" as const, field: "balance", value: 100 },
+      enabled: false
+    };
+
+    const res = await request(app.getHttpServer()).patch(`/v1/alerts/${alert.id}`).set("x-user-id", alert.userId).send({ data: update });
 
     expect(res.status).toBe(200);
-    expect(res.body.data.enabled).toBe(false);
+    expect(res.body.data).toMatchObject(update);
   }
 
   async function shouldRead(alert: AlertOutputMeta, app: INestApplication) {
@@ -109,6 +113,7 @@ describe("Alerts CRUD", () => {
   async function setup(): Promise<{
     app: INestApplication;
     notificationChannelId: string;
+    otherNotificationChannelId: string;
     userId: string;
   }> {
     @Module({
@@ -129,11 +134,11 @@ describe("Alerts CRUD", () => {
 
     const userId = faker.string.uuid();
     const db = module.get<NodePgDatabase<typeof alertSchema & { NotificationChannel: typeof NotificationChannel }>>(DRIZZLE_PROVIDER_TOKEN);
-    const [notificationChannel] = await db
+    const [notificationChannel, otherNotificationChannel] = await db
       .insert(NotificationChannel)
-      .values([generateNotificationChannel({ userId })])
+      .values([generateNotificationChannel({ userId }), generateNotificationChannel({ userId })])
       .returning();
 
-    return { app, notificationChannelId: notificationChannel.id, userId };
+    return { app, notificationChannelId: notificationChannel.id, otherNotificationChannelId: otherNotificationChannel.id, userId };
   }
 });
