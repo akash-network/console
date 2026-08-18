@@ -17,6 +17,7 @@ import { AlertController } from "./alert.controller";
 
 import { MockProvider } from "@test/mocks/provider.mock";
 import { generateGeneralAlert } from "@test/seeders/general-alert.seeder";
+import { generateWalletBalanceAlert } from "@test/seeders/wallet-balance-alert.seeder";
 
 describe(AlertController.name, () => {
   describe("createAlert", () => {
@@ -90,6 +91,33 @@ describe(AlertController.name, () => {
       await expect(controller.updateAlert(id, { data: input })).rejects.toThrow("Notification channel not found");
       expect(notificationChannelRepository.findById).toHaveBeenCalledWith(input.notificationChannelId);
       expect(alertRepository.updateById).not.toHaveBeenCalled();
+    });
+
+    it("throws BadRequestException and does not update a balance alert with non-balance conditions", async () => {
+      const { controller, alertRepository } = await setup();
+
+      const id = faker.string.uuid();
+      alertRepository.findOneById.mockResolvedValue(generateWalletBalanceAlert({ id }));
+
+      await expect(controller.updateAlert(id, { data: { conditions: { operator: "eq", field: "foo", value: "bar" } } })).rejects.toThrow(
+        "Conditions must match the balance alert shape"
+      );
+      expect(alertRepository.updateById).not.toHaveBeenCalled();
+    });
+
+    it("updates a balance alert when the conditions match the balance shape", async () => {
+      const { controller, alertRepository } = await setup();
+
+      const id = faker.string.uuid();
+      const output = generateWalletBalanceAlert({ id });
+      alertRepository.findOneById.mockResolvedValue(output);
+      alertRepository.updateById.mockResolvedValue(output);
+
+      const conditions = { operator: "lt" as const, field: "balance" as const, value: 100 };
+      const result = await controller.updateAlert(id, { data: { conditions } });
+
+      expect(alertRepository.updateById).toHaveBeenCalledWith(id, { conditions });
+      expect(result).toEqual(Ok({ data: output }));
     });
   });
 

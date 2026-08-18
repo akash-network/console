@@ -9,6 +9,7 @@ import { AlertCreateInput, AlertListOutputResponse, AlertOutputResponse, AlertPa
 import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { toPaginatedQuery } from "@src/lib/http-schema/http-schema";
 import { AlertOutput, AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
+import { balanceConditionsSchema } from "@src/modules/alert/repositories/alert/alert-json-fields.schema";
 import { NotificationChannelRepository } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
 
 class AlertListQuery extends createZodDto(
@@ -94,6 +95,10 @@ export class AlertController {
       await this.assertOwnsNotificationChannel(data.notificationChannelId);
     }
 
+    if (data.conditions) {
+      await this.assertConditionsMatchAlertType(id, data.conditions);
+    }
+
     const alert = await this.alertRepository.accessibleBy(this.authService.ability, "update").updateById(id, data);
     return this.toResponse(alert);
   }
@@ -105,6 +110,15 @@ export class AlertController {
   async deleteAlert(@Param("id") id: string): Promise<Result<AlertOutputResponse, NotFoundException>> {
     const alert = await this.alertRepository.accessibleBy(this.authService.ability, "delete").deleteOneById(id);
     return this.toResponse(alert);
+  }
+
+  private async assertConditionsMatchAlertType(id: string, conditions: NonNullable<AlertPatchInput["data"]["conditions"]>): Promise<void> {
+    const alert = await this.alertRepository.accessibleBy(this.authService.ability, "read").findOneById(id);
+    const requiresBalanceConditions = alert?.type === "WALLET_BALANCE" || alert?.type === "DEPLOYMENT_BALANCE";
+
+    if (requiresBalanceConditions && !balanceConditionsSchema.safeParse(conditions).success) {
+      throw new BadRequestException("Conditions must match the balance alert shape");
+    }
   }
 
   private async assertOwnsNotificationChannel(notificationChannelId: string): Promise<void> {
