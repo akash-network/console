@@ -613,6 +613,33 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(walletReloadService.scheduleImmediate).not.toHaveBeenCalled();
     });
 
+    it("records a non-positive-amount skip without reporting a false insufficient-balance error", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, walletReloadService, fundDrainingInstrumentation } = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const deployment = createDrainingFor(owner, walletId);
+      const balance = createMockCachedBalance(desiredAmount => {
+        if (desiredAmount <= 0) {
+          throw new Error(`Insufficient balance: 1000000 < ${desiredAmount}`);
+        }
+        return desiredAmount;
+      });
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
+      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(0);
+      cachedBalanceService.getFresh.mockResolvedValue(balance);
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
+
+      expect(fundDrainingInstrumentation.recordInvalidDepositAmount).toHaveBeenCalledWith(
+        expect.objectContaining({ desiredAmount: 0, dseq: deployment.dseq, address: deployment.address })
+      );
+      expect(balance.reserveSufficientAmount).not.toHaveBeenCalled();
+      expect(fundDrainingInstrumentation.recordMessagePreparationError).not.toHaveBeenCalled();
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+      expect(walletReloadService.scheduleImmediate).not.toHaveBeenCalled();
+    });
+
     it("routes a master-wallet insufficient-funds failure to the immediate-funding instrumentation and rethrows", async () => {
       const {
         service,

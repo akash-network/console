@@ -117,6 +117,7 @@ export class TopUpManagedDeploymentsService {
               address: deployment.address,
               blockRate: deployment.blockRate
             });
+            return;
           }
           const sufficientAmount = balance.reserveSufficientAmount(desiredAmount);
 
