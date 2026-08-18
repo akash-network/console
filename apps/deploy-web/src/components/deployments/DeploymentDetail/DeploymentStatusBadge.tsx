@@ -6,13 +6,11 @@ type StatusTone = "running" | "pending" | "closed";
 
 const STATUS_LABELS: Record<string, string> = {
   active: "Running",
-  reclaiming: "Reclaiming",
   closed: "Closed"
 };
 
 const STATUS_TONES: Record<string, StatusTone> = {
   active: "running",
-  reclaiming: "pending",
   closed: "closed"
 };
 

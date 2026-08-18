@@ -55,6 +55,12 @@ describe(useAutoTopUp.name, () => {
     expect(setAutoTopUpEnabled).toHaveBeenCalledWith(false);
   });
 
+  it("exposes the real-time escrow metrics from useDeploymentMetrics", () => {
+    const { result, realTimeLeft } = setup({ hoursOfRunway: 3 });
+
+    expect(result.current.realTimeLeft).toBe(realTimeLeft);
+  });
+
   function setup(input: { hoursOfRunway?: number; minutesOfRunway?: number; confirmed?: boolean; depositSucceeds?: boolean }) {
     const runwayMs = input.hoursOfRunway != null ? input.hoursOfRunway * 60 * 60 * 1000 : (input.minutesOfRunway ?? 1) * 60 * 1000;
     const timeLeft = new Date(Date.now() + runwayMs);
@@ -65,8 +71,9 @@ describe(useAutoTopUp.name, () => {
 
     const usePopup: typeof DEPENDENCIES.usePopup = () => mock<ReturnType<typeof DEPENDENCIES.usePopup>>({ confirm });
     const useCurrencyFormatter: typeof DEPENDENCIES.useCurrencyFormatter = () => (value: number) => `$${value}`;
+    const realTimeLeft = { timeLeft, escrow: 0, amountSpent: 0 };
     const useDeploymentMetrics: typeof DEPENDENCIES.useDeploymentMetrics = () => ({
-      realTimeLeft: { timeLeft, escrow: 0, amountSpent: 0 },
+      realTimeLeft,
       deploymentCost: 100
     });
     const useDepositDeployment: typeof DEPENDENCIES.useDepositDeployment = () => ({ deposit });
@@ -95,6 +102,6 @@ describe(useAutoTopUp.name, () => {
       })
     );
 
-    return { result, setAutoTopUpEnabled, confirm, deposit };
+    return { result, setAutoTopUpEnabled, confirm, deposit, realTimeLeft };
   }
 });

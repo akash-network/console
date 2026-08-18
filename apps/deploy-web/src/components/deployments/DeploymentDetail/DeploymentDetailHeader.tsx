@@ -13,6 +13,7 @@ import type { LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
+import { getEscrowDenom } from "@src/utils/deploymentUtils";
 import { hasLiveGpuLease, isLeaseLive } from "@src/utils/leaseUtils";
 import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 import { bytesToShrink } from "@src/utils/unitUtils";
@@ -44,7 +45,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
   const { data: leaseStatus } = d.useLeaseStatus({ provider, lease: liveLease, enabled: !!provider });
 
   const name = getDeploymentName(deployment.dseq) || `Deployment #${deployment.dseq}`;
-  const denom = deployment.escrowAccount.state.funds[0]?.denom || "";
+  const denom = getEscrowDenom(deployment);
   const hasGpu = hasLiveGpuLease(leases);
   const servicesCount = leaseStatus ? Object.keys(leaseStatus.services).length : leases?.length ?? 0;
   const primaryUri = getPrimaryUri(leaseStatus);

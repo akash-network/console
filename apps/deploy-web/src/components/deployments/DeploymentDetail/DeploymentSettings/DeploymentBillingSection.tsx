@@ -12,6 +12,8 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useAutoTopUp } from "@src/hooks/useAutoTopUp/useAutoTopUp";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
+import { getEscrowDenom } from "@src/utils/deploymentUtils";
+import { isLeaseLive } from "@src/utils/leaseUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { DeploymentDepositModal } from "../../DeploymentDepositModal/DeploymentDepositModal";
 
@@ -38,14 +40,16 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
   const { udenomToUsd } = d.usePricing();
   const [isDepositing, setIsDepositing] = useState(false);
   const isActive = deployment.state === "active";
-  const escrowDenom = deployment.escrowAccount.state.funds[0]?.denom || "";
+  const hasActiveLeases = !!leases && leases.some(isLeaseLive);
+  const escrowDenom = getEscrowDenom(deployment);
 
   const onDeposited = useCallback(() => {
     analyticsService.track("deployment_deposit", { category: "deployments", label: "Deposit deployment in deployment detail" });
     onFundsChanged();
   }, [analyticsService, onFundsChanged]);
 
-  const { isEnabled, isLoading, estimatedTopUpAmount, topUpFrequencyMs, setEnabled, deposit } = d.useAutoTopUp({ deployment, leases, onDeposited });
+  const { isEnabled, isLoading, estimatedTopUpAmount, topUpFrequencyMs, realTimeLeft, setEnabled, deposit } = d.useAutoTopUp({ deployment, leases, onDeposited });
+  const currentBalance = isActive && hasActiveLeases && realTimeLeft ? realTimeLeft.escrow : deployment.escrowBalance;
 
   const openDepositModal = useCallback(() => {
     setIsDepositing(true);
@@ -66,7 +70,7 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
         <div className="space-y-1">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Current balance</div>
           <div className="text-2xl font-bold">
-            <d.PriceValue denom={escrowDenom} value={udenomToDenom(deployment.escrowBalance, 6)} />
+            <d.PriceValue denom={escrowDenom} value={udenomToDenom(currentBalance, 6)} />
           </div>
         </div>
         {isActive && (

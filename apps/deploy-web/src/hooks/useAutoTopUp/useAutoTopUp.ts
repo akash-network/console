@@ -11,6 +11,7 @@ import { useDepositDeployment } from "@src/hooks/useDepositDeployment/useDeposit
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
+import { getEscrowDenom } from "@src/utils/deploymentUtils";
 import { averageBlockTime } from "@src/utils/priceUtils";
 
 export const DEPENDENCIES = {
@@ -34,6 +35,7 @@ export interface UseAutoTopUpResult {
   isLoading: boolean;
   estimatedTopUpAmount: number;
   topUpFrequencyMs: number;
+  realTimeLeft: ReturnType<typeof useDeploymentMetrics>["realTimeLeft"];
   setEnabled: (enabled: boolean) => Promise<void>;
   deposit: (amountUdenom: number) => Promise<boolean>;
 }
@@ -53,7 +55,7 @@ export function useAutoTopUp({ deployment, leases, onDeposited, dependencies: d 
   const deploymentSetting = d.useDeploymentSettingQuery({ dseq: deployment.dseq });
   const { realTimeLeft, deploymentCost } = d.useDeploymentMetrics({ deployment, leases });
 
-  const escrowDenom = deployment.escrowAccount.state.funds[0]?.denom || "";
+  const escrowDenom = getEscrowDenom(deployment);
   const { deposit } = d.useDepositDeployment({ dseq: deployment.dseq, denom: escrowDenom, onSuccess: onDeposited });
 
   const setEnabled = useCallback(
@@ -87,6 +89,7 @@ export function useAutoTopUp({ deployment, leases, onDeposited, dependencies: d 
     isLoading: deploymentSetting.isLoading,
     estimatedTopUpAmount: deploymentSetting.data?.estimatedTopUpAmount ?? 0,
     topUpFrequencyMs: deploymentSetting.data?.topUpFrequencyMs ?? 0,
+    realTimeLeft,
     setEnabled,
     deposit
   };

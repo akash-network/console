@@ -32,7 +32,19 @@ describe("DeploymentBillingSection", () => {
     expect(screen.queryByRole("switch")).not.toBeInTheDocument();
   });
 
-  function setup(input: { state?: string; isEnabled?: boolean }) {
+  it("shows the real-time draining escrow balance for an active deployment with live leases", () => {
+    setup({ state: "active", escrowBalance: 2000000, realTimeLeftEscrow: 500000, leases: [mock<LeaseDto>({ id: "1", state: "active" })] });
+
+    expect(screen.getByTestId("current-balance")).toHaveTextContent("0.5");
+  });
+
+  it("shows the settled escrow balance when the deployment has no live leases", () => {
+    setup({ state: "active", escrowBalance: 2000000, realTimeLeftEscrow: 500000, leases: [] });
+
+    expect(screen.getByTestId("current-balance")).toHaveTextContent("2");
+  });
+
+  function setup(input: { state?: string; isEnabled?: boolean; escrowBalance?: number; realTimeLeftEscrow?: number; leases?: LeaseDto[] | null }) {
     const setEnabled = vi.fn();
     const deposit = vi.fn();
     const onFundsChanged = vi.fn();
@@ -41,33 +53,37 @@ describe("DeploymentBillingSection", () => {
     const useServices: typeof DEPENDENCIES.useServices = () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService });
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ denom: "uakt" });
     const usePricing: typeof DEPENDENCIES.usePricing = () => mock<ReturnType<typeof DEPENDENCIES.usePricing>>({ udenomToUsd: () => 0 });
+    const realTimeLeft: ReturnType<typeof DEPENDENCIES.useAutoTopUp>["realTimeLeft"] =
+      input.realTimeLeftEscrow !== undefined ? { timeLeft: new Date(), escrow: input.realTimeLeftEscrow, amountSpent: 0 } : undefined;
     const useAutoTopUp: typeof DEPENDENCIES.useAutoTopUp = () =>
       mock<ReturnType<typeof DEPENDENCIES.useAutoTopUp>>({
         isEnabled: input.isEnabled ?? false,
         isLoading: false,
         estimatedTopUpAmount: 0,
         topUpFrequencyMs: 0,
+        realTimeLeft,
         setEnabled,
         deposit
       });
     const DeploymentDepositModal = vi.fn(() => <div>deposit-modal</div>);
+    const PriceValue: typeof DEPENDENCIES.PriceValue = ({ value }) => <span data-testid="current-balance">{value}</span>;
 
     const deployment = mock<DeploymentDto>({
       dseq: "1786440078202",
       state: input.state ?? "active",
-      escrowBalance: 1000000,
+      escrowBalance: input.escrowBalance ?? 1000000,
       escrowAccount: mock<DeploymentDto["escrowAccount"]>({
         state: mock<DeploymentDto["escrowAccount"]["state"]>({ funds: [{ denom: "uakt", amount: "1000000" }] })
       })
     });
-    const leases = [mock<LeaseDto>({ id: "1", state: "active" })];
+    const leases = input.leases !== undefined ? input.leases : [mock<LeaseDto>({ id: "1", state: "active" })];
 
     render(
       <DeploymentBillingSection
         deployment={deployment}
         leases={leases}
         onFundsChanged={onFundsChanged}
-        dependencies={MockComponents(DEPENDENCIES, { useServices, useWallet, usePricing, useAutoTopUp, DeploymentDepositModal })}
+        dependencies={MockComponents(DEPENDENCIES, { useServices, useWallet, usePricing, useAutoTopUp, DeploymentDepositModal, PriceValue })}
       />
     );
 
