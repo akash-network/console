@@ -83,7 +83,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
     <div className="flex flex-col gap-6 py-6 lg:flex-row lg:items-start lg:justify-between">
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <DeploymentStatusBadge state={deployment.state} />
+          <DeploymentStatusBadge state={deployment.state} leases={leases} />
           <d.ConfidentialComputeBadge teeTypes={teeTypes} />
           <d.GpuInterconnectBadge interconnect={interconnect} />
           {isTrialing && <d.TrialDeploymentBadge createdHeight={deployment.createdAt} />}

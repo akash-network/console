@@ -32,13 +32,13 @@ import { useProviderCredentials } from "@src/hooks/useProviderCredentials/usePro
 import { useRealTimeLeft } from "@src/hooks/useRealTimeLeft";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useDeploymentLeaseList, useLeaseStatus } from "@src/queries/useLeaseQuery";
-import type { LeaseDto, NamedDeploymentDto } from "@src/types/deployment";
+import type { NamedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { getEscrowDenom } from "@src/utils/deploymentUtils";
 import { isLeaseLive } from "@src/utils/leaseUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getTimeLeft } from "@src/utils/priceUtils";
-import { getLeaseCloseReasonLabel, getReclamationDeadline, isProviderReclaimed, isReclaiming } from "@src/utils/reclamationUtils";
+import { getClosedLeaseLabel, getReclamationDeadline, isReclaiming } from "@src/utils/reclamationUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import { TrialDeploymentBadge } from "../shared";
@@ -381,10 +381,4 @@ function getTimeLeftText(timeLeft?: Date) {
   if (!timeLeft) return "";
   const text = formatDistanceToNow(timeLeft);
   return `will be active for ${text.startsWith("about") ? text : `about ${text}`}`;
-}
-
-export function getClosedLeaseLabel(lease: LeaseDto): string {
-  const label = getLeaseCloseReasonLabel(lease.reason ?? lease.reclamation?.reason);
-  // A reclaimed lease whose reason didn't classify (e.g. only the group is paused) still reads as provider-closed.
-  return label === "Closed" && isProviderReclaimed(lease) ? "Closed by provider" : label;
 }

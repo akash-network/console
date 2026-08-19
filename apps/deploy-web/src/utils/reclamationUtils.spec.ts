@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import {
   classifyLeaseCloseReason,
+  getClosedLeaseLabel,
   getLeaseCloseReasonLabel,
   getReclamationDeadline,
   isProviderReclaimed,
@@ -61,6 +63,32 @@ describe("reclamationUtils", () => {
     it("never returns a raw enum name", () => {
       expect(getLeaseCloseReasonLabel("lease_closed_reason_unstable")).not.toMatch(/lease_closed/);
     });
+  });
+
+  describe("getClosedLeaseLabel", () => {
+    it("returns the specific provider reason for a reclaimed lease", () => {
+      expect(getClosedLeaseLabel(createClosedLease({ reason: "lease_closed_reason_unstable" }))).toBe("Closed by provider (workloads unstable)");
+    });
+
+    it("returns 'Closed by provider' for a reclaimed (paused) lease whose reason did not classify", () => {
+      expect(getClosedLeaseLabel(createClosedLease({ reason: undefined, groupState: "paused" }))).toBe("Closed by provider");
+    });
+
+    it("returns tenant copy for a self-closed lease", () => {
+      expect(getClosedLeaseLabel(createClosedLease({ reason: "lease_closed_owner" }))).toBe("Closed by you");
+    });
+
+    it("returns a generic label for an unknown reason with no reclamation evidence", () => {
+      expect(getClosedLeaseLabel(createClosedLease({ reason: undefined }))).toBe("Closed");
+    });
+
+    function createClosedLease(overrides: { reason?: string; groupState?: string }) {
+      return mock<LeaseDto>({
+        state: "closed",
+        reason: overrides.reason,
+        group: mock<DeploymentGroup>({ state: overrides.groupState ?? "open" })
+      });
+    }
   });
 
   describe("parseReclamationWindowSeconds", () => {

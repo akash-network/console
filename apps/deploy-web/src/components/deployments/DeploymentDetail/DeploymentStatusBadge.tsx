@@ -2,6 +2,10 @@
 import type { FC } from "react";
 import { cn } from "@akashnetwork/ui/utils";
 
+import type { LeaseDto } from "@src/types/deployment";
+import { isLeaseLive } from "@src/utils/leaseUtils";
+import { getClosedLeaseLabel } from "@src/utils/reclamationUtils";
+
 type StatusTone = "running" | "pending" | "closed";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -28,12 +32,20 @@ const DOT_TONE_CLASS: Record<StatusTone, string> = {
 
 export interface DeploymentStatusBadgeProps {
   state: string;
+  leases?: LeaseDto[] | null;
   className?: string;
 }
 
-export const DeploymentStatusBadge: FC<DeploymentStatusBadgeProps> = ({ state, className }) => {
-  const tone = STATUS_TONES[state] ?? "pending";
-  const label = STATUS_LABELS[state] ?? state;
+/**
+ * A deployment stays `active` on chain after its last lease dies — closed by the provider, reclaimed, or out
+ * of funds — so the chain state alone would keep claiming "Running" over a workload that is long gone. When
+ * no lease is live, the badge speaks for the lease instead, reusing the same close-reason copy the
+ * reclamation banner and deployment list show.
+ */
+export const DeploymentStatusBadge: FC<DeploymentStatusBadgeProps> = ({ state, leases, className }) => {
+  const deadLease = leases?.length && !leases.some(isLeaseLive) ? leases[0] : undefined;
+  const tone = deadLease ? "closed" : STATUS_TONES[state] ?? "pending";
+  const label = deadLease ? getClosedLeaseLabel(deadLease) : STATUS_LABELS[state] ?? state;
 
   return (
     <span className={cn("inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium", BADGE_TONE_CLASS[tone], className)}>
