@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import React, { Suspense, useEffect, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { IntlProvider } from "react-intl";
-import { ErrorFallback } from "@akashnetwork/ui/components";
+import { ErrorFallback, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
@@ -12,7 +12,6 @@ import { useOnboardingChrome } from "@src/hooks/useOnboardingChrome";
 import { useTopBanner } from "@src/hooks/useTopBanner";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { TopNav } from "./TopNav/TopNav";
-import { AkashLoadingMark } from "./AkashLoadingMark";
 import { TrackingScripts } from "./TrackingScripts";
 
 export const DEPENDENCIES = {
@@ -105,7 +104,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({
 export const Loading: React.FunctionComponent<{ text?: string; testId?: string }> = ({ text, testId }) => {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center pb-12 pt-12" data-testid={testId}>
-      <AkashLoadingMark />
+      <Spinner size="large" />
       {text && <h5 className="pt-4">{text}</h5>}
     </div>
   );

@@ -2,10 +2,13 @@ import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import Layout, { DEPENDENCIES } from "./Layout";
+import Layout, { DEPENDENCIES, Loading } from "./Layout";
 
 import { render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
+
+/** viewBox of the animated akash mark, which must stay exclusive to the boot-loading curtain. */
+const AKASH_MARK_VIEW_BOX = "0 0 481 420";
 
 describe("Layout", () => {
   it("reserves the loading indicator space when no isLoading prop is provided", () => {
@@ -46,5 +49,35 @@ describe("Layout", () => {
     );
 
     return { dependencies };
+  }
+});
+
+describe(Loading.name, () => {
+  it("renders the shared spinner", () => {
+    setup({});
+
+    expect(screen.getByRole("status")).toBeInTheDocument();
+  });
+
+  it("does not render the animated akash mark, which is reserved for boot loading", () => {
+    const { container } = setup({});
+
+    expect(container.querySelector(`svg[viewBox="${AKASH_MARK_VIEW_BOX}"]`)).toBeNull();
+  });
+
+  it("renders the given text", () => {
+    setup({ text: "Loading settings..." });
+
+    expect(screen.getByText("Loading settings...")).toBeInTheDocument();
+  });
+
+  it("exposes the given test id", () => {
+    setup({ testId: "loading-blocker" });
+
+    expect(screen.getByTestId("loading-blocker")).toBeInTheDocument();
+  });
+
+  function setup(input: { text?: string; testId?: string }) {
+    return render(<Loading text={input.text} testId={input.testId} />);
   }
 });
