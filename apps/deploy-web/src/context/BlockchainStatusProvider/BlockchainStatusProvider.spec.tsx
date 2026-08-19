@@ -15,7 +15,7 @@ describe(BlockchainStatusProvider.name, () => {
   it("reports the chain as up while the status endpoint says it is reachable", async () => {
     const { get } = setup({ isBlockchainReachable: true });
 
-    await waitFor(() => expect(get).toHaveBeenCalledWith(expect.stringContaining("/v1/blockchain-status")));
+    await waitFor(() => expect(get).toHaveBeenCalledWith(expect.stringContaining("/v1/blockchain-status"), expect.anything()));
     expect(screen.getByTestId("is-blockchain-down")).toHaveTextContent("false");
   });
 
@@ -43,6 +43,15 @@ describe(BlockchainStatusProvider.name, () => {
     await waitFor(() => expect(screen.getByTestId("is-blockchain-down")).toHaveTextContent("false"));
   });
 
+  it("bounds the status request with a finite timeout so a stalled poll cannot park the loop", async () => {
+    const { get } = setup({ isBlockchainReachable: true });
+
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(1));
+
+    const [, config] = get.mock.calls[0];
+    expect(config?.timeout).toBeGreaterThan(0);
+  });
+
   it("stops polling once unmounted", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { get, unmount } = setup({ isBlockchainReachable: true });
@@ -55,7 +64,7 @@ describe(BlockchainStatusProvider.name, () => {
   });
 
   function setup(input?: { isBlockchainReachable?: boolean; failStatus?: boolean }) {
-    const get = vi.fn(async () => {
+    const get = vi.fn<(url: string, config?: { timeout?: number }) => Promise<{ data: { isBlockchainReachable: boolean } }>>(async () => {
       if (input?.failStatus) throw new Error("network error");
       return { data: { isBlockchainReachable: input?.isBlockchainReachable ?? true } };
     });

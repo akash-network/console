@@ -19,6 +19,12 @@ export const BlockchainStatusContext = React.createContext<ContextType>({
 // Match stats-web's useTopBanner polling cadence
 const BLOCKCHAIN_STATUS_POLL_INTERVAL_MS = 5 * 60_000;
 
+/**
+ * The next poll is only scheduled once the current request settles, so a request that never settles
+ * would stop polling for the rest of the session. The client sets no default timeout of its own.
+ */
+const BLOCKCHAIN_STATUS_REQUEST_TIMEOUT_MS = 30_000;
+
 export const DEPENDENCIES = {
   useRootContainer
 };
@@ -42,7 +48,9 @@ export const BlockchainStatusProvider: React.FC<Props> = ({ children, dependenci
 
     const pingBlockchainStatus = async () => {
       try {
-        const { data } = await publicConsoleApiHttpClient.get<{ isBlockchainReachable: boolean }>(ApiUrlService.blockchainStatus());
+        const { data } = await publicConsoleApiHttpClient.get<{ isBlockchainReachable: boolean }>(ApiUrlService.blockchainStatus(), {
+          timeout: BLOCKCHAIN_STATUS_REQUEST_TIMEOUT_MS
+        });
         if (!isCancelled) setIsBlockchainDown(!data.isBlockchainReachable);
       } catch {
         if (!isCancelled) setIsBlockchainDown(true);
