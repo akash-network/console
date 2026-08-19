@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test";
 import { test as baseTest } from "@playwright/test";
 
 import { loginExistingUser, registerNewUser } from "../actions/auth";
+import { closeAllActiveDeployments } from "../actions/deployment-janitor";
 import { Auth0ManagementService } from "../services/auth0-management.service";
 import { createEmailVerificationStrategy, type EmailVerificationStrategy } from "../services/email-verification";
 import { testEnvConfig } from "./test-env.config";
@@ -48,6 +49,10 @@ export const test = baseTest.extend<Fixtures>({
 
     await use(page);
 
+    if (userType) {
+      await closeDeploymentsLeftBehind(page);
+    }
+
     if (createdUserId) {
       await auth0.deleteUser(createdUserId).catch(() => undefined);
     }
@@ -55,6 +60,19 @@ export const test = baseTest.extend<Fixtures>({
 });
 
 export const expect = test.expect;
+
+/**
+ * A deployment outlives the account that owns it and keeps draining escrow, so every authenticated test hands its
+ * account back empty. This has to happen while the session is still usable, before the fixture deletes a
+ * throwaway Auth0 user, after which nothing can reach that user's deployments any more.
+ */
+async function closeDeploymentsLeftBehind(page: Page) {
+  const closed = await closeAllActiveDeployments(page, testEnvConfig.BASE_URL);
+
+  if (closed.length) {
+    test.info().annotations.push({ type: "closed deployments", description: closed.join(", ") });
+  }
+}
 
 export async function injectUIConfig(page: Page) {
   await page.addInitScript(() => {
@@ -69,7 +87,7 @@ export async function injectUIConfig(page: Page) {
  * Tags the auth API calls with the e2e testing token so the app applies its test-only config.
  * Needed whenever a flow signs in or signs up.
  */
-function routeTestingClientToken(page: Page) {
+export function routeTestingClientToken(page: Page) {
   return page.route(/\/api\/auth\/(password-login|password-signup|email-code-start|email-code-verify)$/, (route, request) =>
     route.continue({ headers: { ...request.headers(), "x-testing-client-token": testEnvConfig.E2E_TESTING_CLIENT_TOKEN } })
   );
