@@ -89,13 +89,13 @@ runs:
         retention-days: 5
 
     - uses: ./.github/actions/slack-tests-failed-notification
-      if: ${{ !cancelled() && steps.e2e-tests.outcome == 'failure' }}
+      if: ${{ !cancelled() && steps.e2e-tests.outcome != 'success' }}
       with:
         ref: ${{ inputs.ref }}
         url: ${{ inputs.url }}
         gh-user-to-slack-user: ${{ inputs.gh-user-to-slack-user }}
         slack-webhook-url: ${{ inputs.slack-webhook-url }}
-        message-title: "Console web UI tests failed on beta"
+        message-title: ${{ steps.e2e-tests.outcome == 'failure' && 'Console web UI tests failed on beta' || 'Console web UI tests did not run on beta' }}
 
     - name: Summarize Test Results
       if: ${{ !cancelled() }}
@@ -108,5 +108,11 @@ runs:
         prefix=":white_check_mark: Passed"
         if [ "${STEPS_E2E_TESTS_OUTCOME}" == "failure" ]; then
           prefix=":x: Failed"
+        elif [ "${STEPS_E2E_TESTS_OUTCOME}" != "success" ]; then
+          prefix=":x: Did not run"
         fi
-        echo "${prefix}, [download tests report](${STEPS_PLAYWRIGHT_REPORT_OUTPUTS_ARTIFACT_URL})" >> $GITHUB_STEP_SUMMARY
+        line="${prefix}"
+        if [ -n "${STEPS_PLAYWRIGHT_REPORT_OUTPUTS_ARTIFACT_URL}" ]; then
+          line="${line}, [download tests report](${STEPS_PLAYWRIGHT_REPORT_OUTPUTS_ARTIFACT_URL})"
+        fi
+        echo "${line}" >> $GITHUB_STEP_SUMMARY
