@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
-import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
@@ -22,7 +21,6 @@ const YourAccount = dynamic(() => import("./YourAccount/YourAccount").then(m => 
 export const DEPENDENCIES = {
   useWallet,
   useLocalNotes,
-  useSettings,
   useWalletBalance,
   useProviderList,
   useDeploymentList,
@@ -57,25 +55,21 @@ export function HomeContainer({ dependencies: d = DEPENDENCIES }: Props) {
     }
   }, [deployments, getDeploymentName]);
 
-  const { settings, isSettingsInit } = d.useSettings();
-  const { apiEndpoint } = settings;
   const { balance: walletBalance, isLoading: isLoadingBalances } = d.useWalletBalance();
   const { data: providers, isFetching: isLoadingProviders } = d.useProviderList();
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = d.useAllLeases(address, { enabled: false, state: LIVE_LEASE_STATES });
 
   useEffect(() => {
-    if (address && isSettingsInit) {
+    if (address) {
       getLeases();
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, isSettingsInit]);
+  }, [address]);
 
   useEffect(() => {
-    if (isSettingsInit) {
-      getDeployments();
-    }
-  }, [isSettingsInit, getDeployments, apiEndpoint, address]);
+    getDeployments();
+  }, [getDeployments, address]);
 
   return (
     <d.Layout
@@ -86,7 +80,7 @@ export function HomeContainer({ dependencies: d = DEPENDENCIES }: Props) {
         <div className="mb-6">
           <d.WelcomePanel />
         </div>
-        {isSettingsInit && !!address && (
+        {!!address && (
           <d.YourAccount
             isLoadingBalances={isLoadingBalances}
             walletBalance={walletBalance}

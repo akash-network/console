@@ -14,7 +14,6 @@ import { NextSeo } from "next-seo";
 import { createConfigureDraft } from "@src/components/deployments/ConfigureDeployment/useConfigureDraft/useConfigureDraft";
 import { DeploymentAlerts } from "@src/components/deployments/DeploymentAlerts/DeploymentAlerts";
 import { useServices } from "@src/context/ServicesProvider";
-import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
 import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
@@ -50,7 +49,6 @@ export const DeploymentDetailLegacy: FC<DeploymentDetailLegacyProps> = ({ dseq }
 
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
   const { address } = useWallet();
-  const { isSettingsInit } = useSettings();
   const [leaseRefs, setLeaseRefs] = useState<Array<any>>([]);
   const [deploymentManifest, setDeploymentManifest] = useState<string | null>(null);
   const isRemoteDeploy = sdlAnalyzer.hasCiCdImage(editedManifest);
@@ -158,13 +156,6 @@ export const DeploymentDetailLegacy: FC<DeploymentDetailLegacyProps> = ({ dseq }
   const logsModeQuery = searchParams?.get("logsMode");
 
   useEffect(() => {
-    if (isSettingsInit) {
-      getDeploymentDetail();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSettingsInit]);
-
-  useEffect(() => {
     if (!tabQuery) {
       return;
     }
@@ -215,7 +206,7 @@ export const DeploymentDetailLegacy: FC<DeploymentDetailLegacyProps> = ({ dseq }
   });
 
   return (
-    <Layout isLoading={isLoadingLeases || isLoadingDeployment || isLoadingProviders} isUsingSettings containerClassName="pb-0">
+    <Layout isLoading={isLoadingLeases || isLoadingDeployment || isLoadingProviders} containerClassName="pb-0">
       <NextSeo title={`Deployment detail #${dseq}`} />
 
       {deployment && (

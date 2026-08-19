@@ -29,8 +29,8 @@ import { useSnackbar } from "notistack";
 import { SignUpButton } from "@src/components/auth/SignUpButton/SignUpButton";
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { AddFundsLink } from "@src/components/user/AddFundsLink";
+import { useBlockchainStatus } from "@src/context/BlockchainStatusProvider";
 import { useServices } from "@src/context/ServicesProvider";
-import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
@@ -94,7 +94,7 @@ export const DEPENDENCIES = {
   useSnackbar,
   useManagedDeploymentConfirm,
   useRouter,
-  useSettings
+  useBlockchainStatus
 };
 
 // Refresh bids every 7 seconds;
@@ -105,7 +105,7 @@ const MAX_NUM_OF_BID_REQUESTS = Math.floor((5.5 * 60 * 1000) / REFRESH_BIDS_INTE
 const WARNING_NUM_OF_BID_REQUESTS = Math.round((60 * 1000) / REFRESH_BIDS_INTERVAL);
 
 export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies: d = DEPENDENCIES }) => {
-  const { settings } = d.useSettings();
+  const { isBlockchainDown } = d.useBlockchainStatus();
   const { providerProxy, analyticsService, errorHandler, urlService, deploymentLocalStorage, publicConfig } = d.useServices();
 
   const [isSendingManifest, setIsSendingManifest] = useState(false);
@@ -360,7 +360,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
                   </div>
                 </d.DropdownMenuTrigger>
                 <d.DropdownMenuContent>
-                  <d.CustomDropdownLinkItem onClick={() => handleCloseDeployment()} icon={<Bin />} disabled={settings.isBlockchainDown}>
+                  <d.CustomDropdownLinkItem onClick={() => handleCloseDeployment()} icon={<Bin />} disabled={isBlockchainDown}>
                     Close Deployment
                   </d.CustomDropdownLinkItem>
                 </d.DropdownMenuContent>
@@ -373,7 +373,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
                 color="secondary"
                 onClick={createLease}
                 className="w-full whitespace-nowrap md:w-auto"
-                disabled={settings.isBlockchainDown || isSendingManifest || isCreatingLeases || (!hasActiveBid && dseqList.some(gseq => !selectedBids[gseq]))}
+                disabled={isBlockchainDown || isSendingManifest || isCreatingLeases || (!hasActiveBid && dseqList.some(gseq => !selectedBids[gseq]))}
                 data-testid="create-lease-button"
               >
                 {isCreatingLeases || isSendingManifest ? (
@@ -392,24 +392,24 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
           </div>
         )}
 
-        {settings.isBlockchainDown && (
+        {isBlockchainDown && (
           <div className="pt-6">
             <d.Alert variant="warning">Blockchain is unavailable. Please try to refresh the page or try again later.</d.Alert>
           </div>
         )}
 
-        {!settings.isBlockchainDown && !isLoadingBids && allClosed && (
-          <d.Button variant="default" color="secondary" onClick={handleCloseDeployment} size="sm" disabled={settings.isBlockchainDown}>
+        {!isBlockchainDown && !isLoadingBids && allClosed && (
+          <d.Button variant="default" color="secondary" onClick={handleCloseDeployment} size="sm" disabled={isBlockchainDown}>
             Close Deployment
           </d.Button>
         )}
 
-        {!settings.isBlockchainDown && warningRequestsReached && !maxRequestsReached && (bids?.length || 0) === 0 && (
+        {!isBlockchainDown && warningRequestsReached && !maxRequestsReached && (bids?.length || 0) === 0 && (
           <div className="pt-6">
             <d.Alert variant="warning">
               There should be bids by now... You can wait longer in case a bid shows up or close the deployment and try again with a different configuration.
               <div className="pt-6">
-                <d.Button variant="default" color="secondary" onClick={handleCloseDeployment} size="sm" disabled={settings.isBlockchainDown}>
+                <d.Button variant="default" color="secondary" onClick={handleCloseDeployment} size="sm" disabled={isBlockchainDown}>
                   Close Deployment
                 </d.Button>
               </div>
@@ -417,19 +417,19 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
           </div>
         )}
 
-        {!settings.isBlockchainDown && (isLoadingBids || (bids?.length || 0) === 0) && !maxRequestsReached && !isSendingManifest && (
+        {!isBlockchainDown && (isLoadingBids || (bids?.length || 0) === 0) && !maxRequestsReached && !isSendingManifest && (
           <div className="flex flex-col items-center justify-center pt-6 text-center">
             <d.Spinner size="large" />
             <div className="pt-6">Waiting for bids...</div>
             <div className="pt-8">
-              <d.Button variant="secondary" size="sm" onClick={handleCloseDeployment} disabled={settings.isBlockchainDown}>
+              <d.Button variant="secondary" size="sm" onClick={handleCloseDeployment} disabled={isBlockchainDown}>
                 Close Deployment
               </d.Button>
             </div>
           </div>
         )}
 
-        {!settings.isBlockchainDown && maxRequestsReached && (bids?.length || 0) === 0 && (
+        {!isBlockchainDown && maxRequestsReached && (bids?.length || 0) === 0 && (
           <div className="pt-6">
             <d.Alert variant="warning">
               There's no bid for the current deployment. You can close the deployment and try again with a different configuration.

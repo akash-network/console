@@ -4,8 +4,8 @@ import { createStore, Provider as JotaiStoreProvider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
-import { settingsIdAtom } from "@src/context/SettingsProvider/settingsStore";
 import { QueryKeys } from "@src/queries/queryKeys";
+import { settingsIdAtom } from "@src/store/settingsStore";
 import { UrlService } from "@src/utils/urlUtils";
 import type { DeploymentIntent } from "./deploymentIntent";
 import type { DEPENDENCIES } from "./useDeploymentFlow";

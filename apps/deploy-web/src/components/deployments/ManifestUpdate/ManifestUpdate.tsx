@@ -9,8 +9,8 @@ import { useSnackbar as useSnackbarOriginal } from "notistack";
 import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { ViewPanel } from "@src/components/shared/ViewPanel";
+import { useBlockchainStatus as useBlockchainStatusOriginal } from "@src/context/BlockchainStatusProvider";
 import { useServices } from "@src/context/ServicesProvider";
-import { useSettings as useSettingsOriginal } from "@src/context/SettingsProvider";
 import { useWallet as useWalletOriginal } from "@src/context/WalletProvider";
 import { useProviderCredentials as useProviderCredentialsOriginal } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useProviderList as useProviderListOriginal } from "@src/queries/useProvidersQuery";
@@ -41,7 +41,7 @@ export const DEPENDENCIES = {
   useProviderList: useProviderListOriginal,
   useProviderCredentials: useProviderCredentialsOriginal,
   useSnackbar: useSnackbarOriginal,
-  useSettings: useSettingsOriginal,
+  useBlockchainStatus: useBlockchainStatusOriginal,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   deploymentData: deploymentDataOriginal,
   TransactionMessageData: TransactionMessageDataOriginal
@@ -75,7 +75,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const { data: providers } = d.useProviderList();
   const providerCredentials = d.useProviderCredentials();
   const { enqueueSnackbar } = d.useSnackbar();
-  const { settings } = d.useSettings();
+  const { isBlockchainDown } = d.useBlockchainStatus();
 
   useEffect(() => {
     const init = async () => {
@@ -234,7 +234,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
                     !providers ||
                     isSendingManifest ||
                     deployment.state !== "active" ||
-                    settings.isBlockchainDown
+                    isBlockchainDown
                   }
                   onClick={() => handleUpdateClick()}
                   size="sm"

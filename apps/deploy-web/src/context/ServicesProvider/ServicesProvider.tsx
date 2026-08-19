@@ -1,6 +1,7 @@
 import React, { useContext, useMemo } from "react";
 import type { NetworkId } from "@akashnetwork/chain-sdk/web";
 import { AuthzHttpService, BmeHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
+import { netConfig } from "@akashnetwork/net";
 
 import { UACT_DENOM, UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
 import { services as rootContainer } from "@src/services/app-di-container/browser-di-container";
@@ -9,8 +10,8 @@ import { createChildContainer } from "@src/services/container/createContainer";
 import type { FallbackableHttpClient } from "@src/services/createFallbackableHttpClient/createFallbackableHttpClient";
 import { createFallbackableHttpClient } from "@src/services/createFallbackableHttpClient/createFallbackableHttpClient";
 import { WalletBalancesService } from "@src/services/wallet-balances/wallet-balances.service";
-import type { SettingsContextType } from "../SettingsProvider/SettingsProviderContext";
-import { useSettings } from "../SettingsProvider/SettingsProviderContext";
+import type { BlockchainStatusContextType } from "../BlockchainStatusProvider/BlockchainStatusProvider";
+import { useBlockchainStatus } from "../BlockchainStatusProvider/BlockchainStatusProvider";
 import { ServicesContext } from "./ServicesContext";
 
 export type Props = {
@@ -21,11 +22,8 @@ export type Props = {
 export type AppDIContainer = ReturnType<typeof createAppContainer>;
 
 export const ServicesProvider: React.FC<Props> = ({ children, services }) => {
-  const settingsState = useSettings();
-  const childContainer = useMemo(
-    () => createAppContainer(settingsState, services),
-    [settingsState.settings?.apiEndpoint, settingsState.settings?.isBlockchainDown, services]
-  );
+  const blockchainStatus = useBlockchainStatus();
+  const childContainer = useMemo(() => createAppContainer(blockchainStatus, services), [blockchainStatus.isBlockchainDown, services]);
 
   return <ServicesContext.Provider value={childContainer}>{children}</ServicesContext.Provider>;
 };
@@ -34,8 +32,7 @@ export function useServices() {
   return useContext(ServicesContext) as AppDIContainer;
 }
 
-const neverResolvedPromise = new Promise<never>(() => {});
-function createAppContainer<T extends Factories>(settingsState: SettingsContextType, services: Partial<T> | undefined) {
+function createAppContainer<T extends Factories>(blockchainStatus: BlockchainStatusContextType, services: Partial<T> | undefined) {
   const di = createChildContainer(rootContainer, {
     authzHttpService: () => new AuthzHttpService(di.chainApiHttpClient),
     bmeHttpService: () => new BmeHttpService(di.chainApiHttpClient),
@@ -49,12 +46,12 @@ function createAppContainer<T extends Factories>(settingsState: SettingsContextT
     chainApiHttpClient: () => {
       let inflightPingRequest: Promise<{ isBlockchainDown: boolean }> | undefined;
       // keep track of the blockchain down status to make it instant
-      // settings from useSettings hook is reactive and updated with a delay, according to react rendering cycle
-      let isBlockchainDown = settingsState.settings?.isBlockchainDown;
+      // isBlockchainDown from the context is reactive and updated with a delay, according to react rendering cycle
+      let isBlockchainDown = blockchainStatus.isBlockchainDown;
       const chainApiHttpClient: FallbackableHttpClient = rootContainer.applyAxiosInterceptors(
         createFallbackableHttpClient(rootContainer.createAxios, rootContainer.fallbackChainApiHttpClient, {
-          baseURL: settingsState.settings?.apiEndpoint,
-          shouldFallback: () => isBlockchainDown || !!settingsState.settings?.isBlockchainDown || !settingsState.settings?.apiEndpoint,
+          baseURL: netConfig.getBaseAPIUrl(rootContainer.networkStore.selectedNetworkId),
+          shouldFallback: () => isBlockchainDown || blockchainStatus.isBlockchainDown,
           onUnavailableError: (error): Promise<void> | void => {
             if (isBlockchainDown) return;
 
@@ -65,7 +62,7 @@ function createAppContainer<T extends Factories>(settingsState: SettingsContextT
               .catch(() => {
                 if (isBlockchainDown) return { isBlockchainDown: true };
                 isBlockchainDown = true;
-                settingsState.setSettings(prev => ({ ...prev, isBlockchainDown: true }));
+                blockchainStatus.setIsBlockchainDown(true);
                 return { isBlockchainDown: true };
               })
               .finally(() => {
@@ -84,13 +81,10 @@ function createAppContainer<T extends Factories>(settingsState: SettingsContextT
           onSuccess: () => {
             if (isBlockchainDown) {
               isBlockchainDown = false;
-              settingsState.setSettings(prev => ({ ...prev, isBlockchainDown: false }));
+              blockchainStatus.setIsBlockchainDown(false);
             }
           }
-        }),
-        {
-          request: [config => (config.baseURL ? config : neverResolvedPromise)]
-        }
+        })
       );
       return chainApiHttpClient;
     },

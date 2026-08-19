@@ -8,7 +8,7 @@ import { useSnackbar } from "notistack";
 import { z } from "zod";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { settingsIdAtom } from "@src/context/SettingsProvider/settingsStore";
+import { settingsIdAtom } from "@src/store/settingsStore";
 
 const formSchema = z.object({
   name: z.string()

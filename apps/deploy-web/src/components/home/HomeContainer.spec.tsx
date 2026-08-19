@@ -41,11 +41,6 @@ describe(HomeContainer.name, () => {
 
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: input.address ?? "" });
     const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () => mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>({ getDeploymentName });
-    const useSettings: typeof DEPENDENCIES.useSettings = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useSettings>>({
-        isSettingsInit: true,
-        settings: mock<ReturnType<typeof DEPENDENCIES.useSettings>["settings"]>({ apiEndpoint: "http://localhost" })
-      });
     const useWalletBalance: typeof DEPENDENCIES.useWalletBalance = () =>
       mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>({ balance: null, isLoading: false });
     const useProviderList = mockQueryHook<typeof DEPENDENCIES.useProviderList>(input.providers ?? []);
@@ -58,7 +53,6 @@ describe(HomeContainer.name, () => {
         dependencies={MockComponents(DEPENDENCIES, {
           useWallet,
           useLocalNotes,
-          useSettings,
           useWalletBalance,
           useProviderList,
           useDeploymentList,

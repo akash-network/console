@@ -2,8 +2,8 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { SettingsContextType } from "@src/context/SettingsProvider";
 import type { DepositParams } from "@src/types/deployment";
+import type { DEPENDENCIES } from "./useChainParam";
 import { useChainParam } from "./useChainParam";
 
 import { renderHook } from "@testing-library/react";
@@ -39,26 +39,19 @@ describe(useChainParam.name, () => {
     expect(result.current.minDeposit).toEqual({ akt: 0, act: 0, usdc: 2.5 });
   });
 
-  it("passes enabled=false to useDepositParams when settings are not initialized", () => {
-    const { useDepositParamsSpy } = setup({ isSettingsInit: false });
-
-    expect(useDepositParamsSpy).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
-  });
-
   it("passes enabled=false to useDepositParams when blockchain is down", () => {
     const { useDepositParamsSpy } = setup({ isBlockchainDown: true });
 
     expect(useDepositParamsSpy).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
   });
 
-  it("passes enabled=true to useDepositParams when settings are initialized and blockchain is up", () => {
-    const { useDepositParamsSpy } = setup({ isSettingsInit: true, isBlockchainDown: false });
+  it("passes enabled=true to useDepositParams when blockchain is up", () => {
+    const { useDepositParamsSpy } = setup({ isBlockchainDown: false });
 
     expect(useDepositParamsSpy).toHaveBeenCalledWith(expect.objectContaining({ enabled: true }));
   });
 
-  function setup(input?: { isSettingsInit?: boolean; isBlockchainDown?: boolean; usdcDenom?: string; depositParams?: DepositParams[] | undefined }) {
-    const isSettingsInit = input?.isSettingsInit ?? true;
+  function setup(input?: { isBlockchainDown?: boolean; usdcDenom?: string; depositParams?: DepositParams[] | undefined }) {
     const isBlockchainDown = input?.isBlockchainDown ?? false;
     const usdcDenom = input?.usdcDenom ?? "ibc/uusdc";
     const depositParams = input?.depositParams;
@@ -73,13 +66,7 @@ describe(useChainParam.name, () => {
         dependencies: {
           useDepositParams: useDepositParamsSpy,
           useUsdcDenom: useUsdcDenomSpy,
-          useSettings: () =>
-            ({
-              isSettingsInit,
-              settings: mock({
-                isBlockchainDown
-              })
-            }) as SettingsContextType
+          useBlockchainStatus: () => mock<ReturnType<typeof DEPENDENCIES.useBlockchainStatus>>({ isBlockchainDown })
         }
       })
     );

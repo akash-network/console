@@ -205,11 +205,8 @@ describe(DeploymentList.name, () => {
 
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: "akash1owner", hasWallet: true });
     const useProviderList: typeof DEPENDENCIES.useProviderList = () => mock<ReturnType<typeof DEPENDENCIES.useProviderList>>({ data: [], isFetching: false });
-    const useSettings: typeof DEPENDENCIES.useSettings = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useSettings>>({
-        isSettingsInit: true,
-        settings: mock<ReturnType<typeof DEPENDENCIES.useSettings>["settings"]>({ apiEndpoint: "http://localhost", isBlockchainDown: false })
-      });
+    const useBlockchainStatus: typeof DEPENDENCIES.useBlockchainStatus = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useBlockchainStatus>>({ isBlockchainDown: false });
     const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () =>
       mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>({
         getDeploymentName: input.getDeploymentName ?? (() => null)
@@ -233,7 +230,7 @@ describe(DeploymentList.name, () => {
           useDeploymentList,
           useWallet,
           useProviderList,
-          useSettings,
+          useBlockchainStatus,
           useLocalNotes,
           useManagedDeploymentConfirm,
           useNewDeploymentUrl,

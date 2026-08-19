@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAtomValue } from "jotai";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { settingsIdAtom } from "@src/context/SettingsProvider/settingsStore";
+import { settingsIdAtom } from "@src/store/settingsStore";
 
 export const DEPENDENCIES = { useServices };
 
