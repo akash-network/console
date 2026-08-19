@@ -114,7 +114,6 @@ describe(DeploymentSettingController.name, () => {
       dseq: faker.string.numeric(6),
       autoTopUpEnabled: faker.datatype.boolean(),
       closed: false,
-      lastFundedAt: null,
       estimatedTopUpAmount: faker.number.float({ min: 0, max: 100 }),
       topUpFrequencyMs: faker.number.int({ min: 1000, max: 100000 }),
       createdAt: faker.date.recent().toISOString(),
