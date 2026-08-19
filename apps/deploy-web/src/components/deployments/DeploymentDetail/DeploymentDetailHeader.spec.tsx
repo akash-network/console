@@ -1,4 +1,3 @@
-import { addHours } from "date-fns";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -81,30 +80,6 @@ describe("DeploymentDetailHeader", () => {
     expect(screen.queryByText("trial-badge")).not.toBeInTheDocument();
   });
 
-  it("shows how long the escrow keeps the deployment running", () => {
-    setup({ timeLeft: addHours(new Date(), 5) });
-
-    expect(screen.getByText("~about 5 hours")).toBeInTheDocument();
-  });
-
-  it("shows no countdown when there is no time left to report yet", () => {
-    setup({ timeLeft: null });
-
-    expect(screen.queryByText(/^~/)).not.toBeInTheDocument();
-  });
-
-  it("shows the trial countdown next to the time left while trialing", () => {
-    setup({ isTrialing: true, timeLeft: addHours(new Date(), 5), trialTimeRemaining: "4 hours" });
-
-    expect(screen.getByText("(Trial: 4 hours)")).toBeInTheDocument();
-  });
-
-  it("hides the trial countdown when the wallet is not trialing", () => {
-    setup({ isTrialing: false, timeLeft: addHours(new Date(), 5), trialTimeRemaining: "4 hours" });
-
-    expect(screen.queryByText("(Trial: 4 hours)")).not.toBeInTheDocument();
-  });
-
   it("shows the confidential compute and gpu interconnect badges for the declared groups", () => {
     setup({});
 
@@ -132,8 +107,6 @@ describe("DeploymentDetailHeader", () => {
     hasLeaseStatus?: boolean;
     name?: string | null;
     isTrialing?: boolean;
-    timeLeft?: Date | null;
-    trialTimeRemaining?: string;
     storedManifest?: string | null;
   }) {
     const hasLeaseStatus = input.hasLeaseStatus ?? true;
@@ -158,20 +131,10 @@ describe("DeploymentDetailHeader", () => {
         getDeploymentData: () => (input.storedManifest ? { manifest: input.storedManifest, name: input.name ?? undefined } : null)
       });
     const useServices: typeof DEPENDENCIES.useServices = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useServices>>({
-        analyticsService: mock<ReturnType<typeof DEPENDENCIES.useServices>["analyticsService"]>(),
-        publicConfig: mock<ReturnType<typeof DEPENDENCIES.useServices>["publicConfig"]>({ NEXT_PUBLIC_TRIAL_DEPLOYMENTS_DURATION_HOURS: 24 })
-      });
+      mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService: mock<ReturnType<typeof DEPENDENCIES.useServices>["analyticsService"]>() });
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false });
-    const useDeploymentMetrics: typeof DEPENDENCIES.useDeploymentMetrics = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useDeploymentMetrics>>({
-        deploymentCost: 0,
-        realTimeLeft: input.timeLeft ? { timeLeft: input.timeLeft, escrow: 1000, amountSpent: 0 } : undefined
-      });
     const useDeclaredTeeTypes: typeof DEPENDENCIES.useDeclaredTeeTypes = () => [];
     const useDeclaredGpuInterconnect: typeof DEPENDENCIES.useDeclaredGpuInterconnect = () => ({ enabled: false, fabrics: [] });
-    const useTrialDeploymentTimeRemaining: typeof DEPENDENCIES.useTrialDeploymentTimeRemaining = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useTrialDeploymentTimeRemaining>>({ timeRemainingText: input.trialTimeRemaining ?? "" });
     const redeploy = vi.fn();
     const useRedeploy: typeof DEPENDENCIES.useRedeploy = () => redeploy;
     const TrialDeploymentBadge = vi.fn(() => <div>trial-badge</div>);
@@ -205,10 +168,8 @@ describe("DeploymentDetailHeader", () => {
           useWallet,
           useWalletBalance,
           useDeploymentSettingQuery,
-          useDeploymentMetrics,
           useDeclaredTeeTypes,
           useDeclaredGpuInterconnect,
-          useTrialDeploymentTimeRemaining,
           useRedeploy,
           useLeaseStatus,
           TrialDeploymentBadge,
