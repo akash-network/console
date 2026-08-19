@@ -4,7 +4,7 @@ import { cn } from "@akashnetwork/ui/utils";
 
 import type { LeaseDto } from "@src/types/deployment";
 import { isLeaseLive } from "@src/utils/leaseUtils";
-import { getClosedLeaseLabel } from "@src/utils/reclamationUtils";
+import { classifyLeaseCloseReason, getClosedLeaseLabel, isProviderReclaimed } from "@src/utils/reclamationUtils";
 
 type StatusTone = "running" | "pending" | "warning" | "closed";
 
@@ -48,10 +48,22 @@ export interface DeploymentStatusBadgeProps {
  */
 export function getDeploymentStatus(state: string, leases?: LeaseDto[] | null): { label: string; tone: StatusTone } {
   const deploymentTone = STATUS_TONES[state] ?? "pending";
-  const deadLease = leases?.length && !leases.some(isLeaseLive) ? leases[0] : undefined;
+  const deadLease = leases?.length && !leases.some(isLeaseLive) ? selectLeaseToReportOn(leases) : undefined;
   if (!deadLease) return { label: STATUS_LABELS[state] ?? state, tone: deploymentTone };
 
   return { label: getClosedLeaseLabel(deadLease), tone: deploymentTone === "closed" ? "closed" : "warning" };
+}
+
+/**
+ * Which of several closed leases the badge speaks for. A provider close wins over a tenant close: it is the
+ * one the owner did not ask for and can act on by redeploying, and picking it keeps the label stable instead
+ * of following whatever order the lease list arrived in.
+ */
+function selectLeaseToReportOn(leases: LeaseDto[]): LeaseDto {
+  const closedByProvider = leases.find(
+    lease => classifyLeaseCloseReason(lease.reason ?? lease.reclamation?.reason) === "provider" || isProviderReclaimed(lease)
+  );
+  return closedByProvider ?? leases[0];
 }
 
 export const DeploymentStatusBadge: FC<DeploymentStatusBadgeProps> = ({ state, leases, className }) => {

@@ -69,6 +69,15 @@ describe("DeploymentStatusBadge", () => {
       expect(status.tone).toBe("closed");
     });
 
+    it("reports the provider close over a tenant close when several placements are closed", () => {
+      const status = getDeploymentStatus("active", [
+        mock<LeaseDto>({ state: "closed", reason: "lease_closed_owner" }),
+        mock<LeaseDto>({ state: "closed", reason: "lease_closed_reason_unstable" })
+      ]);
+
+      expect(status.label).toBe("Closed by provider (workloads unstable)");
+    });
+
     it("reports a running tone while a lease is live", () => {
       const status = getDeploymentStatus("active", [mock<LeaseDto>({ state: "active" })]);
 
