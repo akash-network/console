@@ -230,7 +230,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
               <div className="flex items-center gap-2">
                 {onRedeploy && (
-                  <d.Button variant="outline" size="md" className="gap-1" type="button" onClick={onRedeploy}>
+                  <d.Button variant="outline" size="md" className="gap-1" type="button" disabled={isSendingManifest} onClick={onRedeploy}>
                     <Upload className="text-xs" />
                     Redeploy
                   </d.Button>

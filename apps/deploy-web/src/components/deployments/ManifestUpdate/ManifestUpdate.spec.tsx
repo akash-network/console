@@ -308,6 +308,34 @@ describe(ManifestUpdate.name, () => {
     expect(dependencies.Button.mock.calls.some(call => call[0].onClick === onRedeploy)).toBe(true);
   });
 
+  it("disables the redeploy action while a manifest update is in flight", async () => {
+    const ButtonMock = vi.fn(ComponentMock);
+    const onRedeploy = vi.fn();
+    const { providerProxy } = setup({
+      onRedeploy,
+      editedManifest: "version: '2.0'",
+      deployment: { dseq: "123", state: "active", hash: "different-hash" },
+      leases: [{ provider: "provider1" }],
+      providers: [{ owner: "provider1", hostUri: "https://provider1.com" }],
+      dependencies: {
+        Button: ButtonMock
+      }
+    });
+
+    providerProxy.sendManifest.mockReturnValue(new Promise(() => {}));
+
+    const updateButton = ButtonMock.mock.calls.find(call => call[0].children === "Update Deployment");
+
+    await act(async () => {
+      updateButton?.[0].onClick();
+    });
+
+    await waitFor(() => {
+      const redeployRenders = ButtonMock.mock.calls.filter(call => call[0].onClick === onRedeploy);
+      expect(redeployRenders[redeployRenders.length - 1][0].disabled).toBe(true);
+    });
+  });
+
   it("omits the redeploy action when the host page provides no handler", () => {
     const { dependencies } = setup();
 
