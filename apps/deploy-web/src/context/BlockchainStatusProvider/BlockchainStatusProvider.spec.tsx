@@ -49,6 +49,7 @@ describe(BlockchainStatusProvider.name, () => {
     await waitFor(() => expect(get).toHaveBeenCalledTimes(1));
 
     const [, config] = get.mock.calls[0];
+    expect(Number.isFinite(config?.timeout)).toBe(true);
     expect(config?.timeout).toBeGreaterThan(0);
   });
 
