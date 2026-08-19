@@ -49,10 +49,16 @@ runs:
     - uses: ./.github/actions/setup-app-deps
       with:
         app: deploy-web
+    # The runner's local Azure package mirror drops out periodically. apt sets no network timeout of its own,
+    # so it exhausts its retries there, fails over to archive.ubuntu.com and then blocks forever on a dead
+    # connection: on 2026-08-19 this step ran 82 minutes before being killed by hand, against a healthy 12s.
+    # `timeout` has to do the bounding because composite action steps don't accept `timeout-minutes`.
     - name: Install Playwright Dependencies
       shell: bash
       working-directory: apps/deploy-web
-      run: npx playwright install-deps chromium
+      run: |
+        printf 'Acquire::http::Timeout "30";\nAcquire::https::Timeout "30";\nAcquire::Retries "2";\n' | sudo tee /etc/apt/apt.conf.d/99-e2e-timeouts.conf > /dev/null
+        timeout 5m npx playwright install-deps chromium
     - name: Install Playwright Browsers
       shell: bash
       working-directory: apps/deploy-web
