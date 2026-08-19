@@ -1,6 +1,5 @@
 import type { Page } from "@playwright/test";
 
-import { closeActiveDeployment } from "./actions/deploy";
 import { expect, test } from "./fixture/base-test";
 import { testEnvConfig } from "./fixture/test-env.config";
 import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
@@ -12,7 +11,8 @@ import { OnboardingPickerPage } from "./pages/OnboardingPickerPage";
  * through the live /login UI (email OTP read from the e2e inbox worker); from there the test only clicks — it never deep-links to a
  * functional page. Two entry points off the onboarding picker: a one-click template auto-deploy, and the "bring
  * your own Docker image" path that lands in the configure screen for a manual deploy. Both end with the user
- * onboarded (and no longer sent to onboarding), closing the deployment so the run leaves no live state behind.
+ * onboarded and no longer sent to onboarding. The template journey also closes its deployment through the UI,
+ * which is this suite's coverage of that flow; the fixture reclaims whatever a run leaves behind either way.
  */
 test.describe("Onboarding journey — new user's first deployment", () => {
   test.use({ userType: "new" });
@@ -79,10 +79,6 @@ test.describe("Onboarding journey — new user's first deployment", () => {
       await expect(configure.reviewDialog()).toBeVisible({ timeout: 30_000 });
       await configure.confirmAndDeploy();
       await page.waitForURL(new RegExp(`/deployments/${dseq}(?:[/?]|$)`), { timeout: 180_000 });
-    });
-
-    await test.step("close the deployment this run created", async () => {
-      await closeActiveDeployment(page);
     });
 
     await test.step("having deployed once, revisiting onboarding sends the user into the console", async () => {

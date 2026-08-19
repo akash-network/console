@@ -2,7 +2,6 @@ import type { Page } from "@playwright/test";
 
 import type { AppNav } from "../pages/AppNav";
 import type { BillingPage } from "../pages/BillingPage";
-import { DeploymentDetailPage } from "../pages/DeploymentDetailPage";
 import type { DeployPage } from "../pages/DeployPage";
 
 export interface CreateManagedDeploymentCallbacks {
@@ -58,13 +57,4 @@ export async function createManagedDeployment(
   await deployPage.validateLease();
 
   await callbacks?.onLeaseValidated?.();
-}
-
-/**
- * Closes the active deployment from its detail page, whichever layout the `deployment_detail_redesign` flag
- * serves. Used as cleanup by the deployment-creating specs so a run leaves no live deployment on the shared
- * account.
- */
-export async function closeActiveDeployment(page: Page) {
-  await new DeploymentDetailPage(page).closeDeployment();
 }

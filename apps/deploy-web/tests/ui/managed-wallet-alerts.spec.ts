@@ -92,10 +92,5 @@ test.describe("Managed wallet alerts", () => {
       await toggle.click();
       await expect(toggle).toBeChecked({ timeout: 5_000 });
     });
-
-    await test.step("close deployment", async () => {
-      await deploymentAlertRow.getByRole("link").first().click();
-      await deploymentDetail.closeDeployment();
-    });
   });
 });
