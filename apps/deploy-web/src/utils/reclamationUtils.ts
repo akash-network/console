@@ -53,6 +53,15 @@ export function getLeaseCloseReasonLabel(reason?: string): string {
 }
 
 /**
+ * How a closed lease reads to its owner: who closed it and, where the chain says so, why. A reclaimed lease
+ * whose reason didn't classify (e.g. only the group is paused) still reads as provider-closed.
+ */
+export function getClosedLeaseLabel(lease: ReclaimableLease): string {
+  const label = getLeaseCloseReasonLabel(lease.reason ?? lease.reclamation?.reason);
+  return label === "Closed" && isProviderReclaimed(lease) ? "Closed by provider" : label;
+}
+
+/**
  * Parse a bid's offered reclamation window (REST Duration, e.g. "86400s") to seconds, or null when
  * absent/empty/non-positive/unparseable. The trailing "s" is optional for resilience against a bare
  * seconds count. Used to format the offered window in the bid-selection UI (AEP-82).

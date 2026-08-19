@@ -1,37 +1,48 @@
 "use client";
 import type { FC, ReactNode } from "react";
-import { Badge, buttonVariants, Card, CardContent, CustomTooltip } from "@akashnetwork/ui/components";
+import { useMemo } from "react";
+import { Badge, Button, buttonVariants, Card, CardContent, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { CheckCircle, Globe, InfoCircle, MediaImage } from "iconoir-react";
+import { CheckCircle, EditPencil, Globe, InfoCircle, Upload } from "iconoir-react";
 import Link from "next/link";
 
+import { useLocalNotes } from "@src/components/LocalNoteManager";
+import { ConfidentialComputeBadge } from "@src/components/shared/ConfidentialComputeBadge";
+import { GpuInterconnectBadge } from "@src/components/shared/GpuInterconnectBadge";
 import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
-import { StatusPill } from "@src/components/shared/StatusPill";
+import { TrialDeploymentBadge } from "@src/components/shared/TrialDeploymentBadge";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
+import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
+import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import type { LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
+import { getEscrowDenom } from "@src/utils/deploymentUtils";
 import { hasLiveGpuLease, isLeaseLive } from "@src/utils/leaseUtils";
 import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 import { bytesToShrink } from "@src/utils/unitUtils";
+import { countPlacementServices, parseManifestServices, parseServicesByPlacement } from "./DeploymentPlacements/placementModel";
+import { DeploymentStatusBadge } from "./DeploymentStatusBadge";
 
 export const DEPENDENCIES = {
+  useLocalNotes,
   useServices,
   useWallet,
   useWalletBalance,
   useDeploymentSettingQuery,
+  useDeclaredTeeTypes,
+  useDeclaredGpuInterconnect,
+  useRedeploy,
   useLeaseStatus,
-  CustomTooltip
-};
-
-/** Deployment states map to a user-facing verb; unknown states fall through to the raw value. */
-const STATUS_LABELS: Record<string, string> = {
-  active: "Running",
-  closed: "Closed"
+  CustomTooltip,
+  ConfidentialComputeBadge,
+  GpuInterconnectBadge,
+  TrialDeploymentBadge
 };
 
 export interface DeploymentDetailHeaderProps {
@@ -42,49 +53,69 @@ export interface DeploymentDetailHeaderProps {
 }
 
 export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deployment, leases, providers, dependencies: d = DEPENDENCIES }) => {
-  const { deploymentLocalStorage } = d.useServices();
-  const { address } = d.useWallet();
-  const deploymentCost = leases?.reduce((sum, lease) => sum + parseFloat(lease.price.amount), 0) ?? 0;
+  const { getDeploymentName, changeDeploymentName, getDeploymentData } = d.useLocalNotes();
+  const { analyticsService } = d.useServices();
+  const { isTrialing } = d.useWallet();
   const { balance: walletBalance } = d.useWalletBalance();
   const { data: settings } = d.useDeploymentSettingQuery({ dseq: deployment.dseq });
+  const deploymentCost = leases?.reduce((sum, lease) => sum + parseFloat(lease.price.amount), 0) ?? 0;
+  const teeTypes = d.useDeclaredTeeTypes(deployment);
+  const interconnect = d.useDeclaredGpuInterconnect(deployment);
+  const redeploy = d.useRedeploy();
 
   const liveLease = leases?.find(isLeaseLive) ?? null;
   const provider = providers.find(p => p.owner === liveLease?.provider) ?? null;
   const { data: leaseStatus } = d.useLeaseStatus({ provider, lease: liveLease, enabled: !!provider });
 
-  const name = deploymentLocalStorage.get(address, deployment.dseq)?.name || `Deployment #${deployment.dseq}`;
-  const statusLabel = STATUS_LABELS[deployment.state] ?? deployment.state;
-  const denom = deployment.escrowAccount.state.funds[0]?.denom || "";
+  const storedDeployment = getDeploymentData(deployment.dseq);
+  const storedManifest = storedDeployment?.manifest;
+  const manifestServices = useMemo(() => parseManifestServices(storedManifest), [storedManifest]);
+  const servicesByPlacement = useMemo(() => parseServicesByPlacement(storedManifest), [storedManifest]);
+  const redeployFromStoredManifest = () => {
+    redeploy({ sdl: storedDeployment?.manifest, name: storedDeployment?.name });
+    analyticsService.track("redeploy_btn_clk", "Amplitude");
+  };
+
+  const name = getDeploymentName(deployment.dseq) || `Deployment #${deployment.dseq}`;
+  const denom = getEscrowDenom(deployment);
   const hasGpu = hasLiveGpuLease(leases);
-  const servicesCount = leaseStatus ? Object.keys(leaseStatus.services).length : leases?.length ?? 0;
+  const servicesCount = countPlacementServices(leases ?? [], servicesByPlacement, manifestServices);
   const primaryUri = getPrimaryUri(leaseStatus);
   const memory = bytesToShrink(deployment.memoryAmount);
   const storage = bytesToShrink(deployment.storageAmount);
 
   return (
     <div className="flex flex-col gap-6 py-6 lg:flex-row lg:items-start lg:justify-between">
-      <div className="flex items-start gap-6">
-        <div className="flex h-36 w-56 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted text-muted-foreground">
-          <MediaImage className="text-5xl" />
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <DeploymentStatusBadge state={deployment.state} leases={leases} />
+          <d.ConfidentialComputeBadge teeTypes={teeTypes} />
+          <d.GpuInterconnectBadge interconnect={interconnect} />
+          {isTrialing && <d.TrialDeploymentBadge createdHeight={deployment.createdAt} />}
         </div>
-        <div className="space-y-3">
-          <div className="flex items-center">
-            <StatusPill state={deployment.state} size="small" className={cn("ml-0", { "bg-emerald-500": deployment.state === "active" })} />
-            <span className={cn("ml-2 text-sm font-medium", { "text-emerald-500": deployment.state === "active" })}>{statusLabel}</span>
-          </div>
+        <div className="flex items-center gap-2">
           <h1 className="text-3xl font-bold tracking-tight">{name}</h1>
-          {primaryUri && (
-            <div className="flex items-center gap-2">
-              <div className="inline-flex max-w-xs items-center gap-2 rounded-md border px-3 py-2 text-sm">
-                <Globe className="shrink-0 text-xs text-muted-foreground" />
-                <span className="truncate">{primaryUri}</span>
-              </div>
-              <Link href={`http://${primaryUri}`} target="_blank" rel="noreferrer" className={cn(buttonVariants({ variant: "default", size: "sm" }))}>
-                Visit
-              </Link>
-            </div>
+          <Button aria-label="Edit deployment name" variant="ghost" size="icon" onClick={() => changeDeploymentName(deployment.dseq)}>
+            <EditPencil className="text-lg" />
+          </Button>
+          {storedDeployment?.manifest && (
+            <Button variant="outline" size="sm" className="gap-1" onClick={redeployFromStoredManifest}>
+              <Upload className="text-xs" />
+              Redeploy
+            </Button>
           )}
         </div>
+        {primaryUri && (
+          <div className="flex items-center gap-2">
+            <div className="inline-flex max-w-xs items-center gap-2 rounded-md border px-3 py-2 text-sm">
+              <Globe className="shrink-0 text-xs text-muted-foreground" />
+              <span className="truncate">{primaryUri}</span>
+            </div>
+            <Link href={`http://${primaryUri}`} target="_blank" rel="noreferrer" className={cn(buttonVariants({ variant: "default", size: "sm" }))}>
+              Visit
+            </Link>
+          </div>
+        )}
       </div>
 
       <Card className="w-full shrink-0 lg:w-auto">

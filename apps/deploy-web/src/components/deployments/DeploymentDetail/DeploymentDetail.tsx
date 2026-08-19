@@ -9,31 +9,28 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
 
 import { createConfigureDraft } from "@src/components/deployments/ConfigureDeployment/useConfigureDraft/useConfigureDraft";
-import { DeploymentAlerts } from "@src/components/deployments/DeploymentAlerts/DeploymentAlerts";
 import { useServices } from "@src/context/ServicesProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useUser } from "@src/hooks/useUser";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
-import { extractRepositoryUrl } from "@src/services/remote-deploy/env-var-manager.service";
 import { isLeaseLive } from "@src/utils/leaseUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../../layout/Layout";
 import { Title } from "../../shared/Title";
 import { DeploymentLeaseShell } from "../DeploymentLeaseShell";
 import { DeploymentLogs } from "../DeploymentLogs";
-import { LeaseRow } from "../LeaseRow";
 import { ManifestUpdate } from "../ManifestUpdate/ManifestUpdate";
 import { ReclamationBanner } from "../ReclamationBanner/ReclamationBanner";
+import { DeploymentPlacements } from "./DeploymentPlacements/DeploymentPlacements";
+import { DeploymentSettings } from "./DeploymentSettings/DeploymentSettings";
 import { DeploymentDetailHeader } from "./DeploymentDetailHeader";
 
 export const DEPENDENCIES = {
   useServices,
   useWallet,
   useSettings,
-  useUser,
   useRouter,
   useSearchParams,
   useDeploymentDetail,
@@ -43,14 +40,14 @@ export const DEPENDENCIES = {
   Layout,
   ReclamationBanner,
   DeploymentDetailHeader,
-  LeaseRow,
+  DeploymentPlacements,
   DeploymentLogs,
   DeploymentLeaseShell,
   ManifestUpdate,
-  DeploymentAlerts
+  DeploymentSettings
 };
 
-const TABS = ["DETAILS", "LOGS", "EVENTS", "SHELL", "SETTINGS", "BILLING"] as const;
+const TABS = ["DETAILS", "LOGS", "EVENTS", "SHELL", "UPDATE", "SETTINGS"] as const;
 type Tab = (typeof TABS)[number];
 
 const TAB_LABELS: Record<Tab, string> = {
@@ -58,8 +55,8 @@ const TAB_LABELS: Record<Tab, string> = {
   LOGS: "Logs",
   EVENTS: "Events",
   SHELL: "Shell",
-  SETTINGS: "Settings",
-  BILLING: "Billing & Notifications"
+  UPDATE: "Update",
+  SETTINGS: "Settings"
 };
 
 export interface DeploymentDetailProps {
@@ -73,13 +70,10 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const searchParams = d.useSearchParams();
   const { address } = d.useWallet();
   const { isSettingsInit } = d.useSettings();
-  const { user } = d.useUser();
-  const isAlertsEnabled = !!user?.userId;
 
   const [activeTab, setActiveTab] = useState<Tab>("DETAILS");
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
   const isRemoteDeploy = sdlAnalyzer.hasCiCdImage(editedManifest);
-  const repo = isRemoteDeploy ? extractRepositoryUrl(editedManifest) : null;
 
   const { data: deployment, isFetching: isLoadingDeployment, refetch: getDeploymentDetail, error: deploymentError } = d.useDeploymentDetail(address, dseq);
   const {
@@ -94,7 +88,6 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = d.useProviderList();
 
   const deploymentManifest = deployment ? deploymentLocalStorage.get(address, dseq)?.manifest || "" : "";
-  const hasLeases = !!leases && leases.length > 0;
   const isActive = deployment?.state === "active" && !!leases?.some(isLeaseLive);
   const isDeploymentNotFound = !!deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found") && !isLoadingDeployment;
 
@@ -188,29 +181,20 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
             <div className="-mx-6 flex-1 bg-muted px-6 py-6">
               {activeTab === "DETAILS" && (
-                <div>
-                  {leases?.map((lease, i) => (
-                    <d.LeaseRow
-                      key={lease.id}
-                      index={i}
-                      lease={lease}
-                      repo={repo}
-                      deploymentManifest={deploymentManifest}
-                      dseq={dseq}
-                      providers={providers || []}
-                      loadDeploymentDetail={loadDeploymentDetail}
-                      isRemoteDeploy={isRemoteDeploy}
-                    />
-                  ))}
-                  {!hasLeases && !isLoadingLeases && !isLoadingDeployment && <>This deployment doesn't have any leases</>}
-                </div>
+                <d.DeploymentPlacements
+                  leases={leases || []}
+                  providers={providers || []}
+                  deploymentManifest={deploymentManifest}
+                  dseq={dseq}
+                  onClosed={loadDeploymentDetail}
+                />
               )}
 
               {activeTab === "LOGS" && (isActive ? <d.DeploymentLogs leases={leases} selectedLogsMode="logs" /> : <TabInactiveState />)}
               {activeTab === "EVENTS" && (isActive ? <d.DeploymentLogs leases={leases} selectedLogsMode="events" /> : <TabInactiveState />)}
               {activeTab === "SHELL" && (isActive ? <d.DeploymentLeaseShell leases={leases} /> : <TabInactiveState />)}
 
-              {activeTab === "SETTINGS" && leases && (
+              {activeTab === "UPDATE" && leases && (
                 <d.ManifestUpdate
                   editedManifest={editedManifest as string}
                   onManifestChange={setEditedManifest}
@@ -218,18 +202,13 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                   deployment={deployment}
                   leases={leases}
                   closeManifestEditor={() => {
-                    setActiveTab("DETAILS");
+                    changeTab("DETAILS");
                     loadDeploymentDetail();
                   }}
                 />
               )}
 
-              {activeTab === "BILLING" &&
-                (isAlertsEnabled ? (
-                  <d.DeploymentAlerts deployment={deployment} onStateChange={() => undefined} />
-                ) : (
-                  <TabInactiveState label="Billing & notifications are coming soon." />
-                ))}
+              {activeTab === "SETTINGS" && <d.DeploymentSettings deployment={deployment} leases={leases} onDeploymentChange={loadDeploymentDetail} />}
             </div>
           </Tabs>
         </>

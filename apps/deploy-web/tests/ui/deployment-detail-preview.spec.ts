@@ -1,11 +1,18 @@
+import { closeActiveDeployment } from "./actions/deploy";
 import { expect, test } from "./fixture/base-test";
 import { testEnvConfig } from "./fixture/test-env.config";
 import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
 
-const REDESIGN_TABS = ["Details", "Logs", "Events", "Shell", "Settings", "Billing & Notifications"];
+const REDESIGN_TABS = ["Details", "Logs", "Events", "Shell", "Update", "Settings"];
 
 test.describe("Deployment detail redesign preview", () => {
   test.use({ userType: "existing" });
+
+  test.afterEach(async function closeDeploymentLeftByTest({ page }) {
+    if (/\/deployments\/\d+/.test(new URL(page.url()).pathname)) {
+      await closeActiveDeployment(page);
+    }
+  });
 
   test("renders the redesigned header and tabs on the preview route", async ({ page }) => {
     test.setTimeout(8 * 60 * 1000);
@@ -41,6 +48,18 @@ test.describe("Deployment detail redesign preview", () => {
       for (const tab of REDESIGN_TABS) {
         await expect(page.getByRole("tab", { name: tab })).toBeVisible();
       }
+    });
+
+    await test.step("shows the placements & services overview on the Details tab", async () => {
+      await expect(page.getByText("Placements", { exact: true })).toBeVisible({ timeout: 30_000 });
+
+      const service = page.getByRole("button", { name: /service-1/ });
+      await expect(service).toBeVisible();
+
+      await service.click();
+
+      await expect(page.getByText("Docker image")).toBeVisible();
+      await expect(page.getByText("nginx:latest")).toBeVisible();
     });
 
     await test.step("switches tabs via the tab query param without navigating", async () => {

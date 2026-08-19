@@ -1,19 +1,63 @@
-import { describe, expect, it } from "vitest";
+import yaml from "js-yaml";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { LeaseServiceStatus, LeaseStatusDto } from "@src/queries/useLeaseQuery";
-import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
+import type { DeploymentDto, DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { DEPENDENCIES, DeploymentDetailHeader } from "./DeploymentDetailHeader";
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe("DeploymentDetailHeader", () => {
-  it("shows the number of services reported by the lease status", () => {
-    setup({ serviceUris: { web: [], api: [], worker: [] } });
+  it("counts the services of every placement, not just the one whose status is loaded", () => {
+    setup({
+      storedManifest: yaml.dump({
+        services: { web: {}, api: {}, worker: {} },
+        deployment: { web: { "dcloud-us": {} }, api: { "dcloud-us": {} }, worker: { "dcloud-eu": {} } }
+      }),
+      leases: [buildLeaseInPlacement("1", "dcloud-us"), buildLeaseInPlacement("2", "dcloud-eu")],
+      serviceUris: { web: [] }
+    });
 
     expect(screen.getByText("3")).toBeInTheDocument();
+  });
+
+  it("falls back to the placement count when no manifest is stored locally", () => {
+    setup({
+      storedManifest: null,
+      leases: [buildLeaseInPlacement("1", "dcloud-us"), buildLeaseInPlacement("2", "dcloud-eu"), buildLeaseInPlacement("3", "dcloud-ap")]
+    });
+
+    expect(screen.getByText("3")).toBeInTheDocument();
+  });
+
+  it("shows the deployment name from local notes", () => {
+    setup({ name: "My Storefront" });
+
+    expect(screen.getByText("My Storefront")).toBeInTheDocument();
+  });
+
+  it("falls back to a generated name when none is stored", () => {
+    setup({ name: null });
+
+    expect(screen.getByText("Deployment #1786440078202")).toBeInTheDocument();
+  });
+
+  it("shows the running status badge when the deployment is active", () => {
+    setup({});
+
+    expect(screen.getByText("Running")).toBeInTheDocument();
+  });
+
+  it("opens the rename flow when the edit-name button is clicked", async () => {
+    const { changeDeploymentName } = setup({});
+
+    await userEvent.click(screen.getByRole("button", { name: "Edit deployment name" }));
+
+    expect(changeDeploymentName).toHaveBeenCalledWith("1786440078202");
   });
 
   it("shows auto top-up as active when enabled for the deployment", () => {
@@ -41,7 +85,57 @@ describe("DeploymentDetailHeader", () => {
     expect(screen.queryByRole("link", { name: "Visit" })).not.toBeInTheDocument();
   });
 
-  function setup(input: { serviceUris?: Record<string, string[]>; autoTopUpEnabled?: boolean; hasLeaseStatus?: boolean }) {
+  it("shows the trial badge when the wallet is trialing", () => {
+    setup({ isTrialing: true });
+
+    expect(screen.getByText("trial-badge")).toBeInTheDocument();
+  });
+
+  it("hides the trial badge when the wallet is not trialing", () => {
+    setup({ isTrialing: false });
+
+    expect(screen.queryByText("trial-badge")).not.toBeInTheDocument();
+  });
+
+  it("shows the confidential compute and gpu interconnect badges for the declared groups", () => {
+    setup({});
+
+    expect(screen.getByText("tee-badge")).toBeInTheDocument();
+    expect(screen.getByText("interconnect-badge")).toBeInTheDocument();
+  });
+
+  it("redeploys from the locally stored manifest", async () => {
+    const { redeploy } = setup({ storedManifest: "version: '2.0'", name: "My Storefront" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Redeploy" }));
+
+    expect(redeploy).toHaveBeenCalledWith({ sdl: "version: '2.0'", name: "My Storefront" });
+  });
+
+  it("hides the redeploy action when no manifest is stored locally", () => {
+    setup({ storedManifest: null });
+
+    expect(screen.queryByRole("button", { name: "Redeploy" })).not.toBeInTheDocument();
+  });
+
+  function buildLeaseInPlacement(id: string, placementName: string) {
+    return mock<LeaseDto>({
+      id,
+      provider: "akash1provider",
+      state: "active",
+      group: mock<DeploymentGroup>({ group_spec: { name: placementName } } as Partial<DeploymentGroup>)
+    });
+  }
+
+  function setup(input: {
+    serviceUris?: Record<string, string[]>;
+    autoTopUpEnabled?: boolean;
+    hasLeaseStatus?: boolean;
+    name?: string | null;
+    isTrialing?: boolean;
+    storedManifest?: string | null;
+    leases?: LeaseDto[];
+  }) {
     const hasLeaseStatus = input.hasLeaseStatus ?? true;
     let leaseStatus: LeaseStatusDto | null = null;
     if (hasLeaseStatus) {
@@ -56,11 +150,23 @@ describe("DeploymentDetailHeader", () => {
       );
     }
 
-    const useServices: typeof DEPENDENCIES.useServices = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useServices>>({
-        deploymentLocalStorage: mock<ReturnType<typeof DEPENDENCIES.useServices>["deploymentLocalStorage"]>({ get: () => null })
+    const changeDeploymentName = vi.fn();
+    const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>({
+        getDeploymentName: () => input.name ?? null,
+        changeDeploymentName,
+        getDeploymentData: () => (input.storedManifest ? { manifest: input.storedManifest, name: input.name ?? undefined } : null)
       });
-    const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: "akash1test" });
+    const useServices: typeof DEPENDENCIES.useServices = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService: mock<ReturnType<typeof DEPENDENCIES.useServices>["analyticsService"]>() });
+    const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false });
+    const useDeclaredTeeTypes: typeof DEPENDENCIES.useDeclaredTeeTypes = () => [];
+    const useDeclaredGpuInterconnect: typeof DEPENDENCIES.useDeclaredGpuInterconnect = () => ({ enabled: false, fabrics: [] });
+    const redeploy = vi.fn();
+    const useRedeploy: typeof DEPENDENCIES.useRedeploy = () => redeploy;
+    const TrialDeploymentBadge = vi.fn(() => <div>trial-badge</div>);
+    const ConfidentialComputeBadge = vi.fn(() => <div>tee-badge</div>);
+    const GpuInterconnectBadge = vi.fn(() => <div>interconnect-badge</div>);
     const useWalletBalance: typeof DEPENDENCIES.useWalletBalance = () => mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>({ balance: null });
     const useDeploymentSettingQuery: typeof DEPENDENCIES.useDeploymentSettingQuery = () =>
       mock<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>>({
@@ -78,19 +184,28 @@ describe("DeploymentDetailHeader", () => {
       escrowAccount: mock<DeploymentDto["escrowAccount"]>({ state: mock<DeploymentDto["escrowAccount"]["state"]>({ funds: [] }) })
     });
 
-    return render(
+    render(
       <DeploymentDetailHeader
         deployment={deployment}
-        leases={[mock<LeaseDto>({ id: "1", provider: "akash1provider", state: "active" })]}
+        leases={input.leases ?? [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: "active" })]}
         providers={[mock<ApiProviderList>({ owner: "akash1provider" })]}
         dependencies={MockComponents(DEPENDENCIES, {
+          useLocalNotes,
           useServices,
           useWallet,
           useWalletBalance,
           useDeploymentSettingQuery,
-          useLeaseStatus
+          useDeclaredTeeTypes,
+          useDeclaredGpuInterconnect,
+          useRedeploy,
+          useLeaseStatus,
+          TrialDeploymentBadge,
+          ConfidentialComputeBadge,
+          GpuInterconnectBadge
         })}
       />
     );
+
+    return { changeDeploymentName, redeploy };
   }
 });

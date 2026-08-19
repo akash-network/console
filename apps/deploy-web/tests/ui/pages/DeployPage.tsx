@@ -2,6 +2,7 @@ import type { BrowserContext as Context, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
 import { PROVIDERS_WHITELIST, testEnvConfig } from "../fixture/test-env.config";
+import { DeploymentDetailPage } from "./DeploymentDetailPage";
 
 export class DeployPage {
   constructor(
@@ -61,9 +62,7 @@ export class DeployPage {
 
   async validateLease() {
     await this.page.waitForURL(new RegExp(`${testEnvConfig.BASE_URL}/deployments/\\d+`));
-    await this.openTab("Leases");
-    await expect(this.page.getByLabel(/URIs/i).getByRole("link").first()).toBeVisible();
-    await expect(this.page.getByLabel("Lease 0 state")).toHaveText("active");
+    await this.deploymentDetail().expectRunning();
   }
 
   async openTab(name: string) {
@@ -71,7 +70,10 @@ export class DeployPage {
   }
 
   async closeDeployment() {
-    await this.page.getByRole("button", { name: /deployment actions/i }).click();
-    await this.page.getByRole("menuitem", { name: /close deployment/i }).click();
+    await this.deploymentDetail().closeDeployment();
+  }
+
+  deploymentDetail() {
+    return new DeploymentDetailPage(this.page);
   }
 }

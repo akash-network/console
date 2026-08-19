@@ -18,8 +18,10 @@ describe("DeploymentDetail", () => {
     setup();
 
     expect(screen.getByRole("tab", { name: "Details" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Billing & Notifications" })).toBeInTheDocument();
-    expect(screen.getByText("lease-row")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Update" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Settings" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Billing & Notifications" })).not.toBeInTheDocument();
+    expect(screen.getByText("placements")).toBeInTheDocument();
   });
 
   it("tracks a navigate_tab analytics event when switching tabs", async () => {
@@ -32,10 +34,26 @@ describe("DeploymentDetail", () => {
     expect(screen.getByText("logs")).toBeInTheDocument();
   });
 
-  it("opens the Settings tab from the ?tab= query param", () => {
-    setup({ tab: "SETTINGS" });
+  it("opens the manifest editor on the Update tab from the ?tab= query param", () => {
+    setup({ tab: "UPDATE" });
 
     expect(screen.getByText("manifest-update")).toBeInTheDocument();
+  });
+
+  it("returns to Details and clears the update tab from the url once the manifest editor closes", async () => {
+    setup({ tab: "UPDATE" });
+
+    await userEvent.click(screen.getByRole("button", { name: "close-manifest-editor" }));
+
+    expect(window.location.search).toBe("?tab=DETAILS");
+    expect(screen.getByText("placements")).toBeInTheDocument();
+  });
+
+  it("opens the deployment settings on the Settings tab from the ?tab= query param", () => {
+    setup({ tab: "SETTINGS" });
+
+    expect(screen.getByText("settings")).toBeInTheDocument();
+    expect(screen.queryByText("manifest-update")).not.toBeInTheDocument();
   });
 
   it("shows an inactive-state note instead of the shell when the deployment has no live lease", () => {
@@ -43,18 +61,6 @@ describe("DeploymentDetail", () => {
 
     expect(screen.getByText("Available when the deployment is active.")).toBeInTheDocument();
     expect(screen.queryByText("shell")).not.toBeInTheDocument();
-  });
-
-  it("renders alerts on the Billing tab when the user is signed in", () => {
-    setup({ tab: "BILLING" });
-
-    expect(screen.getByText("alerts")).toBeInTheDocument();
-  });
-
-  it("shows a coming-soon note on the Billing tab when the user is not signed in", () => {
-    setup({ tab: "BILLING", isSignedIn: false });
-
-    expect(screen.getByText("Billing & notifications are coming soon.")).toBeInTheDocument();
   });
 
   it("shows a not-found message when the deployment does not exist", () => {
@@ -76,7 +82,6 @@ describe("DeploymentDetail", () => {
     isLeasesLoaded?: boolean;
     error?: Error | null;
     tab?: string;
-    isSignedIn?: boolean;
     leaseState?: string;
   }) {
     const deployment = input && "deployment" in input ? input.deployment : mock<DeploymentDto>({ dseq: "1786440078202", state: "active", groups: [] });
@@ -94,10 +99,6 @@ describe("DeploymentDetail", () => {
       });
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: "akash1test" });
     const useSettings: typeof DEPENDENCIES.useSettings = () => mock<ReturnType<typeof DEPENDENCIES.useSettings>>({ isSettingsInit: true });
-    const useUser: typeof DEPENDENCIES.useUser = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useUser>>({
-        user: input?.isSignedIn === false ? undefined : mock<NonNullable<ReturnType<typeof DEPENDENCIES.useUser>["user"]>>({ userId: "u1" })
-      });
     const useRouter: typeof DEPENDENCIES.useRouter = () => router;
     const searchParams = new URLSearchParams(input?.tab ? `tab=${input.tab}` : "");
     const useSearchParams: typeof DEPENDENCIES.useSearchParams = () => searchParams as unknown as ReturnType<typeof DEPENDENCIES.useSearchParams>;
@@ -108,11 +109,16 @@ describe("DeploymentDetail", () => {
     const useProviderList: typeof DEPENDENCIES.useProviderList = () =>
       mock<ReturnType<typeof DEPENDENCIES.useProviderList>>({ data: providers, isFetching: false });
 
-    const LeaseRow = vi.fn(() => <div>lease-row</div>);
+    const DeploymentPlacements = vi.fn(() => <div>placements</div>);
     const DeploymentLogs = vi.fn(() => <div>logs</div>);
     const DeploymentLeaseShell = vi.fn(() => <div>shell</div>);
-    const ManifestUpdate = vi.fn(() => <div>manifest-update</div>);
-    const DeploymentAlerts = vi.fn(() => <div>alerts</div>);
+    const ManifestUpdate = vi.fn(({ closeManifestEditor }: { closeManifestEditor: () => void }) => (
+      <div>
+        manifest-update
+        <button onClick={closeManifestEditor}>close-manifest-editor</button>
+      </div>
+    ));
+    const DeploymentSettings = vi.fn(() => <div>settings</div>);
 
     render(
       <DeploymentDetail
@@ -121,17 +127,16 @@ describe("DeploymentDetail", () => {
           useServices,
           useWallet,
           useSettings,
-          useUser,
           useRouter,
           useSearchParams,
           useDeploymentDetail,
           useDeploymentLeaseList,
           useProviderList,
-          LeaseRow: LeaseRow as unknown as typeof DEPENDENCIES.LeaseRow,
+          DeploymentPlacements,
           DeploymentLogs,
           DeploymentLeaseShell,
           ManifestUpdate,
-          DeploymentAlerts
+          DeploymentSettings
         })}
       />
     );

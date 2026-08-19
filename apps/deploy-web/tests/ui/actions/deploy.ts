@@ -1,8 +1,8 @@
 import type { Page } from "@playwright/test";
-import { expect } from "@playwright/test";
 
 import type { AppNav } from "../pages/AppNav";
 import type { BillingPage } from "../pages/BillingPage";
+import { DeploymentDetailPage } from "../pages/DeploymentDetailPage";
 import type { DeployPage } from "../pages/DeployPage";
 
 export interface CreateManagedDeploymentCallbacks {
@@ -61,15 +61,10 @@ export async function createManagedDeployment(
 }
 
 /**
- * Closes the active deployment from its detail page (actions menu → Close → confirm). The actions menu only
- * appears once the deployment is active, so it is awaited first; the menu disappearing confirms the close.
- * Used as cleanup by the deployment-creating specs so a run leaves no live deployment on the shared account.
+ * Closes the active deployment from its detail page, whichever layout the `deployment_detail_redesign` flag
+ * serves. Used as cleanup by the deployment-creating specs so a run leaves no live deployment on the shared
+ * account.
  */
 export async function closeActiveDeployment(page: Page) {
-  const actions = page.getByRole("button", { name: "Deployment actions" });
-  await actions.waitFor({ state: "visible", timeout: 120_000 });
-  await actions.click();
-  await page.getByRole("menuitem", { name: "Close deployment" }).click();
-  await page.getByRole("button", { name: /^confirm$/i }).click();
-  await expect(actions).toBeHidden({ timeout: 60_000 });
+  await new DeploymentDetailPage(page).closeDeployment();
 }

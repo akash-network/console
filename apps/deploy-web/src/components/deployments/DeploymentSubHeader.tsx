@@ -19,6 +19,7 @@ import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
 import { useTrialDeploymentTimeRemaining } from "@src/hooks/useTrialDeploymentTimeRemaining";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { TeeType } from "@src/utils/confidentialCompute";
+import { getEscrowDenom } from "@src/utils/deploymentUtils";
 import type { DeclaredGpuInterconnect } from "@src/utils/gpuInterconnect";
 import { hasLiveGpuLease, isLeaseLive } from "@src/utils/leaseUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
@@ -56,7 +57,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
           value={
             <div className="flex items-center space-x-2">
               <PriceValue
-                denom={deployment.escrowAccount.state.funds[0]?.denom || ""}
+                denom={getEscrowDenom(deployment)}
                 value={udenomToDenom(isActive && hasActiveLeases && realTimeLeft ? realTimeLeft?.escrow : deployment.escrowBalance, 6)}
               />
 
@@ -75,7 +76,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
             !!deploymentCost && (
               <div className="flex items-center space-x-2">
                 <PricePerTimeUnit
-                  denom={deployment.escrowAccount.state.funds[0]?.denom || ""}
+                  denom={getEscrowDenom(deployment)}
                   perBlockValue={udenomToDenom(deploymentCost, 10)}
                   showAsHourly={hasGpu}
                 />
@@ -89,7 +90,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
           value={
             <div className="flex items-center space-x-2">
               <PriceValue
-                denom={deployment.escrowAccount.state.funds[0]?.denom || ""}
+                denom={getEscrowDenom(deployment)}
                 value={udenomToDenom(isActive && hasActiveLeases && realTimeLeft ? realTimeLeft?.amountSpent : parseFloat(deployment.transferred.amount), 6)}
               />
             </div>

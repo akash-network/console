@@ -1,4 +1,10 @@
 import type { ExposeType, TemplateCreation } from "@src/types";
+import type { DeploymentDto } from "@src/types/deployment";
+
+/** Denom of the deployment's escrow account, taken from its first fund entry; empty string when the account has no funds. */
+export function getEscrowDenom(deployment: DeploymentDto): string {
+  return deployment.escrowAccount.state.funds[0]?.denom || "";
+}
 
 /**
  * Validate values to change in the template
