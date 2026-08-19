@@ -1,8 +1,9 @@
+import yaml from "js-yaml";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { LeaseServiceStatus, LeaseStatusDto } from "@src/queries/useLeaseQuery";
-import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
+import type { DeploymentDto, DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { DEPENDENCIES, DeploymentDetailHeader } from "./DeploymentDetailHeader";
 
@@ -11,8 +12,24 @@ import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe("DeploymentDetailHeader", () => {
-  it("shows the number of services reported by the lease status", () => {
-    setup({ serviceUris: { web: [], api: [], worker: [] } });
+  it("counts the services of every placement, not just the one whose status is loaded", () => {
+    setup({
+      storedManifest: yaml.dump({
+        services: { web: {}, api: {}, worker: {} },
+        deployment: { web: { "dcloud-us": {} }, api: { "dcloud-us": {} }, worker: { "dcloud-eu": {} } }
+      }),
+      leases: [buildLeaseInPlacement("1", "dcloud-us"), buildLeaseInPlacement("2", "dcloud-eu")],
+      serviceUris: { web: [] }
+    });
+
+    expect(screen.getByText("3")).toBeInTheDocument();
+  });
+
+  it("falls back to the placement count when no manifest is stored locally", () => {
+    setup({
+      storedManifest: null,
+      leases: [buildLeaseInPlacement("1", "dcloud-us"), buildLeaseInPlacement("2", "dcloud-eu"), buildLeaseInPlacement("3", "dcloud-ap")]
+    });
 
     expect(screen.getByText("3")).toBeInTheDocument();
   });
@@ -101,6 +118,15 @@ describe("DeploymentDetailHeader", () => {
     expect(screen.queryByRole("button", { name: "Redeploy" })).not.toBeInTheDocument();
   });
 
+  function buildLeaseInPlacement(id: string, placementName: string) {
+    return mock<LeaseDto>({
+      id,
+      provider: "akash1provider",
+      state: "active",
+      group: mock<DeploymentGroup>({ group_spec: { name: placementName } } as Partial<DeploymentGroup>)
+    });
+  }
+
   function setup(input: {
     serviceUris?: Record<string, string[]>;
     autoTopUpEnabled?: boolean;
@@ -108,6 +134,7 @@ describe("DeploymentDetailHeader", () => {
     name?: string | null;
     isTrialing?: boolean;
     storedManifest?: string | null;
+    leases?: LeaseDto[];
   }) {
     const hasLeaseStatus = input.hasLeaseStatus ?? true;
     let leaseStatus: LeaseStatusDto | null = null;
@@ -160,7 +187,7 @@ describe("DeploymentDetailHeader", () => {
     render(
       <DeploymentDetailHeader
         deployment={deployment}
-        leases={[mock<LeaseDto>({ id: "1", provider: "akash1provider", state: "active" })]}
+        leases={input.leases ?? [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: "active" })]}
         providers={[mock<ApiProviderList>({ owner: "akash1provider" })]}
         dependencies={MockComponents(DEPENDENCIES, {
           useLocalNotes,

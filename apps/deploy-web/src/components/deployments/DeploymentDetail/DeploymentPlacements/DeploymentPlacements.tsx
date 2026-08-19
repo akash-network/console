@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { PlacementCard } from "./PlacementCard";
-import { getPlacementName, parseManifestServices, parseServicesByPlacement } from "./placementModel";
+import { countPlacementServices, getPlacementName, parseManifestServices, parseServicesByPlacement } from "./placementModel";
 
 export const DEPENDENCIES = { PlacementCard };
 
@@ -33,10 +33,7 @@ export const DeploymentPlacements: FC<DeploymentPlacementsProps> = ({
     return <p className="text-sm text-muted-foreground">{"This deployment doesn't have any active placements."}</p>;
   }
 
-  const renderedServiceNames = new Set(
-    leases.flatMap((lease, index) => Object.keys(servicesByPlacement[getPlacementName(lease.group, index)] ?? manifestServices))
-  );
-  const serviceCount = renderedServiceNames.size || leases.length;
+  const serviceCount = countPlacementServices(leases, servicesByPlacement, manifestServices);
 
   return (
     <div className="space-y-4">

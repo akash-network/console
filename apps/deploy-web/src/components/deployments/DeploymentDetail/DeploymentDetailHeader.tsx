@@ -1,5 +1,6 @@
 "use client";
 import type { FC, ReactNode } from "react";
+import { useMemo } from "react";
 import { Badge, Button, buttonVariants, Card, CardContent, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { CheckCircle, EditPencil, Globe, InfoCircle, Upload } from "iconoir-react";
@@ -25,6 +26,7 @@ import { getEscrowDenom } from "@src/utils/deploymentUtils";
 import { hasLiveGpuLease, isLeaseLive } from "@src/utils/leaseUtils";
 import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 import { bytesToShrink } from "@src/utils/unitUtils";
+import { countPlacementServices, parseManifestServices, parseServicesByPlacement } from "./DeploymentPlacements/placementModel";
 import { DeploymentStatusBadge } from "./DeploymentStatusBadge";
 
 export const DEPENDENCIES = {
@@ -66,6 +68,9 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
   const { data: leaseStatus } = d.useLeaseStatus({ provider, lease: liveLease, enabled: !!provider });
 
   const storedDeployment = getDeploymentData(deployment.dseq);
+  const storedManifest = storedDeployment?.manifest;
+  const manifestServices = useMemo(() => parseManifestServices(storedManifest), [storedManifest]);
+  const servicesByPlacement = useMemo(() => parseServicesByPlacement(storedManifest), [storedManifest]);
   const redeployFromStoredManifest = () => {
     redeploy({ sdl: storedDeployment?.manifest, name: storedDeployment?.name });
     analyticsService.track("redeploy_btn_clk", "Amplitude");
@@ -74,7 +79,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
   const name = getDeploymentName(deployment.dseq) || `Deployment #${deployment.dseq}`;
   const denom = getEscrowDenom(deployment);
   const hasGpu = hasLiveGpuLease(leases);
-  const servicesCount = leaseStatus ? Object.keys(leaseStatus.services).length : leases?.length ?? 0;
+  const servicesCount = countPlacementServices(leases ?? [], servicesByPlacement, manifestServices);
   const primaryUri = getPrimaryUri(leaseStatus);
   const memory = bytesToShrink(deployment.memoryAmount);
   const storage = bytesToShrink(deployment.storageAmount);

@@ -109,6 +109,21 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+/**
+ * Distinct services rendered across a deployment's placements: a placement's own manifest slice when the
+ * SDL declares one, else the deployment-wide service list. The header summary and the Placements section
+ * share it so the same page can't show two different service totals. Falls back to the lease count when
+ * the local manifest is missing, since each placement still renders at least one service row.
+ */
+export function countPlacementServices(
+  leases: LeaseDto[],
+  servicesByPlacement: Record<string, Record<string, ManifestServiceDetail>>,
+  manifestServices: Record<string, ManifestServiceDetail>
+): number {
+  const serviceNames = new Set(leases.flatMap((lease, index) => Object.keys(servicesByPlacement[getPlacementName(lease.group, index)] ?? manifestServices)));
+  return serviceNames.size || leases.length;
+}
+
 export function getPlacementName(group: DeploymentGroup | undefined, index: number): string {
   const name = group?.group_spec?.name?.trim();
   return name || `placement-${index + 1}`;
