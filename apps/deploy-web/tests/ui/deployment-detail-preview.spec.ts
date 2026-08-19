@@ -1,4 +1,4 @@
-import { closeActiveDeploymentFromSettings } from "./actions/deploy";
+import { closeActiveDeployment } from "./actions/deploy";
 import { expect, test } from "./fixture/base-test";
 import { testEnvConfig } from "./fixture/test-env.config";
 import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
@@ -10,7 +10,7 @@ test.describe("Deployment detail redesign preview", () => {
 
   test.afterEach(async function closeDeploymentLeftByTest({ page }) {
     if (/\/deployments\/\d+/.test(new URL(page.url()).pathname)) {
-      await closeActiveDeploymentFromSettings(page);
+      await closeActiveDeployment(page);
     }
   });
 

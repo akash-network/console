@@ -3,18 +3,18 @@ import { AlertsPage } from "./pages/AlertsPage";
 import { AppNav } from "./pages/AppNav";
 import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
 import { DeploymentAlertsForm } from "./pages/DeploymentAlertsForm";
-import { DeployPage } from "./pages/DeployPage";
+import { DeploymentDetailPage } from "./pages/DeploymentDetailPage";
 
 test.describe("Managed wallet alerts", () => {
   test.use({ userType: "existing" });
 
-  test("configures deployment alerts and verifies on alerts page", async ({ context, page }) => {
+  test("configures deployment alerts and verifies on alerts page", async ({ page }) => {
     test.setTimeout(8 * 60 * 1000);
 
     const appNav = new AppNav(page);
     const alertsPage = new AlertsPage(page);
     const alertsForm = new DeploymentAlertsForm(page);
-    const deployPage = new DeployPage(context, page);
+    const deploymentDetail = new DeploymentDetailPage(page);
     const configure = new ConfigureDeploymentPage(page);
 
     let dseq: string;
@@ -36,8 +36,7 @@ test.describe("Managed wallet alerts", () => {
     });
 
     await test.step("open deployment alerts tab", async () => {
-      await deployPage.openTab("Alerts");
-      await expect(page.getByText("Configure Alerts")).toBeVisible({ timeout: 10_000 });
+      await deploymentDetail.openAlerts();
     });
 
     await test.step("verify escrow balance alert is NOT enabled by default", async () => {
@@ -96,9 +95,7 @@ test.describe("Managed wallet alerts", () => {
 
     await test.step("close deployment", async () => {
       await deploymentAlertRow.getByRole("link").first().click();
-      await deployPage.closeDeployment();
-      await expect(page.getByText(/are you sure you want to close/i)).toBeVisible({ timeout: 5_000 });
-      await page.getByRole("button", { name: /confirm/i }).click();
+      await deploymentDetail.closeDeployment();
     });
   });
 });

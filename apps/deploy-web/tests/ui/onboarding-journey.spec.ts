@@ -4,7 +4,7 @@ import { closeActiveDeployment } from "./actions/deploy";
 import { expect, test } from "./fixture/base-test";
 import { testEnvConfig } from "./fixture/test-env.config";
 import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
-import { DeployPage } from "./pages/DeployPage";
+import { DeploymentDetailPage } from "./pages/DeploymentDetailPage";
 import { OnboardingPickerPage } from "./pages/OnboardingPickerPage";
 
 /**
@@ -18,9 +18,9 @@ test.describe("Onboarding journey — new user's first deployment", () => {
   test.use({ userType: "new" });
   test.setTimeout(10 * 60 * 1000);
 
-  test("picks a template and the app auto-deploys it", async ({ context, page }) => {
+  test("picks a template and the app auto-deploys it", async ({ page }) => {
     const picker = new OnboardingPickerPage(page);
-    const deployPage = new DeployPage(context, page);
+    const deploymentDetail = new DeploymentDetailPage(page);
 
     await test.step("a brand-new user opening the app is guided to onboarding", async () => {
       await visit(page, "/");
@@ -35,15 +35,12 @@ test.describe("Onboarding journey — new user's first deployment", () => {
 
     await test.step("the deployment goes live on its own and lands on the details page", async () => {
       await page.waitForURL(new RegExp(`${testEnvConfig.BASE_URL}/deployments/\\d+`), { timeout: 6 * 60 * 1000 });
-      await deployPage.openTab("Leases");
-      await expect(page.getByLabel("Lease 0 state")).toHaveText("active", { timeout: 60_000 });
+      await deploymentDetail.expectRunning();
     });
 
     await test.step("close the deployment this run created", async () => {
-      await deployPage.closeDeployment();
-      await expect(page.getByText(/are you sure you want to close/i)).toBeVisible({ timeout: 5_000 });
-      await page.getByRole("button", { name: /confirm/i }).click();
-      await expect(page.getByLabel("Lease 0 state")).toHaveText("closed", { timeout: 30_000 });
+      await deploymentDetail.closeDeployment();
+      await deploymentDetail.expectClosed();
     });
 
     await test.step("having deployed once, revisiting onboarding sends the user into the console", async () => {
