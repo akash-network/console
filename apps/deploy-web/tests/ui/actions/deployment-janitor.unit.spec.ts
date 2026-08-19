@@ -134,6 +134,17 @@ describe(closeAllActiveDeployments.name, () => {
     warn.mockRestore();
   });
 
+  it("keeps the dseqs it already closed when the browser goes away between passes", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { page } = setup({ listings: [["101"], [], []] });
+    page.waitForTimeout.mockRejectedValue(new Error("Target page, context or browser has been closed"));
+
+    await expect(closeAllActiveDeployments(page, BASE_URL)).resolves.toEqual(["101"]);
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("gave up sweeping the account"));
+    warn.mockRestore();
+  });
+
   function setup(input?: { listings?: string[][]; listStatus?: number; closeStatus?: number }) {
     const request = mock<APIRequestContext>();
 

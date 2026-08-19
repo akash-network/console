@@ -20,16 +20,35 @@ type DeploymentListBody = { data?: { deployments?: DeploymentListEntry[] } };
  * deployment it could not close is warned about instead, since that one has to be reclaimed by hand.
  */
 export async function closeAllActiveDeployments(page: Page, baseUrl: string): Promise<string[]> {
-  const endpoint = `${baseUrl}/api/proxy/v1/deployments`;
   const closed = new Set<string>();
   const failures = new Map<string, string>();
+
+  try {
+    await sweepUntilTheAccountIsClean(page, `${baseUrl}/api/proxy/v1/deployments`, closed, failures);
+  } catch (error) {
+    console.warn(`[deployment-janitor] gave up sweeping the account: ${error instanceof Error ? error.message : error}`);
+  }
+
+  if (failures.size) {
+    const details = [...failures].map(([dseq, failure]) => `${dseq} (${failure})`).join(", ");
+    console.warn(`[deployment-janitor] still active and needs a manual close: ${details}`);
+  }
+
+  return [...closed];
+}
+
+/**
+ * Closes what the account lists, pass after pass, recording each outcome in `closed` or `failures` as it goes so the
+ * caller can still report the ground it covered if this gives up part way through.
+ */
+async function sweepUntilTheAccountIsClean(page: Page, endpoint: string, closed: Set<string>, failures: Map<string, string>) {
   let cleanPasses = 0;
 
   for (let pass = 0; pass < MAX_PASSES && cleanPasses < REQUIRED_CLEAN_PASSES; pass++) {
     if (pass > 0) await page.waitForTimeout(PASS_DELAY_MS);
 
     const active = await listActiveDseqs(page, endpoint);
-    if (!active) break;
+    if (!active) return;
 
     forgetFailuresGoneFromTheAccount(active, failures);
 
@@ -50,13 +69,6 @@ export async function closeAllActiveDeployments(page: Page, baseUrl: string): Pr
       }
     }
   }
-
-  if (failures.size) {
-    const details = [...failures].map(([dseq, failure]) => `${dseq} (${failure})`).join(", ");
-    console.warn(`[deployment-janitor] still active and needs a manual close: ${details}`);
-  }
-
-  return [...closed];
 }
 
 /**
