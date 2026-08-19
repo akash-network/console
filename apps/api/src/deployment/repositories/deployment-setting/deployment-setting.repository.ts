@@ -15,6 +15,12 @@ export type DeploymentSettingsOutput = Omit<DeploymentSettingsDbOutput, "created
   updatedAt: string;
 };
 
+/** A won auto-funding claim: the deployment setting id and the exact marker the claim wrote. */
+export type FundingClaim = {
+  id: string;
+  claimedAt: string;
+};
+
 export type AutoTopUpDeployment = {
   id: string;
   walletId: number;
@@ -98,13 +104,14 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
   }
 
   /**
-   * Atomically claims deployments for auto-funding, returning only the ids this caller won.
+   * Atomically claims deployments for auto-funding, returning only the claims this caller won.
    * A deployment is claimable when it has never been funded or its last funding is older than
    * the cooldown. Concurrent callers (hourly cron, immediate job, a retry) racing for the same
    * id resolve to a single winner via the row-lock re-check, so each is funded at most once per
-   * cooldown. Ids are sorted so overlapping batches lock rows in the same order.
+   * cooldown. Ids are sorted so overlapping batches lock rows in the same order. The claim marker
+   * comes back as text to keep full microsecond precision, which `releaseFundingClaim` matches on.
    */
-  async claimForFunding(ids: string[], cooldownMinutes: number): Promise<string[]> {
+  async claimForFunding(ids: string[], cooldownMinutes: number): Promise<FundingClaim[]> {
     if (!ids.length) {
       return [];
     }
@@ -120,21 +127,25 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
           or(isNull(this.table.lastFundedAt), lt(this.table.lastFundedAt, sql`now() - (${cooldownMinutes} * interval '1 minute')`))
         )
       )
-      .returning({ id: this.table.id });
+      .returning({ id: this.table.id, claimedAt: sql<string>`${this.table.lastFundedAt}::text` });
 
-    return claimed.map(row => row.id);
+    return claimed;
   }
 
-  /** Releases a funding claim so the next pass can retry, used when the deposit did not land. */
-  async releaseFundingClaim(ids: string[]): Promise<void> {
-    if (!ids.length) {
+  /**
+   * Releases a funding claim so the next pass can retry, used when the deposit did not land. Each
+   * release is scoped to the exact marker its claim wrote, so a caller whose claim already aged out
+   * of the cooldown and was re-taken by another pass cannot clear that newer claim.
+   */
+  async releaseFundingClaim(claims: FundingClaim[]): Promise<void> {
+    if (!claims.length) {
       return;
     }
 
     await this.cursor
       .update(this.table)
       .set({ lastFundedAt: null, updatedAt: sql`now()` })
-      .where(inArray(this.table.id, ids));
+      .where(or(...claims.map(claim => and(eq(this.table.id, claim.id), eq(this.table.lastFundedAt, sql`${claim.claimedAt}::timestamp`)))));
   }
 
   protected toInput(payload: Partial<DeploymentSettingsInput>): Partial<DeploymentSettingsInput> {

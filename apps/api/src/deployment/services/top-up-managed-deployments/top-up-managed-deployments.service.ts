@@ -9,7 +9,7 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import type { DryRunOptions } from "@src/core/types/console";
-import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { DeploymentSettingRepository, type FundingClaim } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DrainingDeployment } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
@@ -100,15 +100,26 @@ export class TopUpManagedDeploymentsService {
       return;
     }
 
-    const claimedDeployments = await this.#claimForFunding(deployments);
+    const claims = await this.#claimForFunding(deployments);
 
-    if (!claimedDeployments.length) {
+    if (!claims.length) {
       instrumentation.recordSkipped({ owner: address, deploymentCount: deployments.length });
       return;
     }
 
-    const messageInputs = await this.collectMessages(claimedDeployments, balance, instrumentation);
-    await this.#releaseClaimsWithoutMessage(address, claimedDeployments, messageInputs, instrumentation);
+    const claimedIds = new Set(claims.map(claim => claim.id));
+    const messageInputs = await this.collectMessages(
+      deployments.filter(deployment => claimedIds.has(deployment.id)),
+      balance,
+      instrumentation
+    );
+    const preparedIds = new Set(messageInputs.map(input => input.deployment.id));
+
+    await this.#releaseFundingClaims(
+      address,
+      claims.filter(claim => !preparedIds.has(claim.id)),
+      instrumentation
+    );
 
     if (!messageInputs.length) {
       instrumentation.recordSkipped({ owner: address, deploymentCount: deployments.length });
@@ -121,9 +132,9 @@ export class TopUpManagedDeploymentsService {
       deposited = await this.topUpForOwner(address, messageInputs, options, instrumentation);
     } finally {
       if (!deposited) {
-        await this.#releaseFundingClaim(
+        await this.#releaseFundingClaims(
           address,
-          messageInputs.map(input => input.deployment.id),
+          claims.filter(claim => preparedIds.has(claim.id)),
           instrumentation
         );
       }
@@ -137,45 +148,24 @@ export class TopUpManagedDeploymentsService {
    * share of the owner's shared allowance: reservations are not refundable, so a loser reserving
    * first leaves the winners of the same batch to be funded from a short-changed pool.
    */
-  async #claimForFunding(deployments: DrainingDeployment[]): Promise<DrainingDeployment[]> {
-    const cooldownMinutes = this.deploymentConfig.get("AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN");
-    const claimedIds = new Set(
-      await this.deploymentSettingRepository.claimForFunding(
-        deployments.map(deployment => deployment.id),
-        cooldownMinutes
-      )
+  async #claimForFunding(deployments: DrainingDeployment[]): Promise<FundingClaim[]> {
+    return await this.deploymentSettingRepository.claimForFunding(
+      deployments.map(deployment => deployment.id),
+      this.deploymentConfig.get("AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN")
     );
-
-    return deployments.filter(deployment => claimedIds.has(deployment.id));
-  }
-
-  /**
-   * A claimed deployment that yielded no deposit message (non-positive amount, exhausted balance)
-   * gives its claim back immediately, otherwise it sits out the whole cooldown unfunded.
-   */
-  async #releaseClaimsWithoutMessage(
-    owner: string,
-    claimedDeployments: DrainingDeployment[],
-    messageInputs: CollectedMessage[],
-    instrumentation: DeploymentTopUpInstrumentation
-  ): Promise<void> {
-    const messagedIds = new Set(messageInputs.map(input => input.deployment.id));
-    const unmessagedIds = claimedDeployments.filter(deployment => !messagedIds.has(deployment.id)).map(deployment => deployment.id);
-
-    if (!unmessagedIds.length) {
-      return;
-    }
-
-    await this.#releaseFundingClaim(owner, unmessagedIds, instrumentation);
   }
 
   /**
    * A release failure is reported rather than thrown: the release runs in a finally block, where a
    * rejection would replace the chain error the caller classifies to decide whether to retry.
    */
-  async #releaseFundingClaim(owner: string, deploymentIds: string[], instrumentation: DeploymentTopUpInstrumentation): Promise<void> {
-    await this.deploymentSettingRepository.releaseFundingClaim(deploymentIds).catch((error: unknown) => {
-      instrumentation.recordClaimReleaseError({ owner, deploymentIds, error });
+  async #releaseFundingClaims(owner: string, claims: FundingClaim[], instrumentation: DeploymentTopUpInstrumentation): Promise<void> {
+    if (!claims.length) {
+      return;
+    }
+
+    await this.deploymentSettingRepository.releaseFundingClaim(claims).catch((error: unknown) => {
+      instrumentation.recordClaimReleaseError({ owner, deploymentIds: claims.map(claim => claim.id), error });
     });
   }
 

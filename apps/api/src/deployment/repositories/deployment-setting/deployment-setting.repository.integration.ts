@@ -17,7 +17,7 @@ describe(DeploymentSettingRepository.name, () => {
 
       const results = await Promise.all(Array.from({ length: 5 }, () => deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES)));
 
-      const winners = results.filter(claimed => claimed.includes(settingId));
+      const winners = results.filter(claims => claims.some(claim => claim.id === settingId));
       expect(winners).toHaveLength(1);
     });
 
@@ -27,7 +27,7 @@ describe(DeploymentSettingRepository.name, () => {
       const first = await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES);
       const second = await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES);
 
-      expect(first).toEqual([settingId]);
+      expect(first).toEqual([{ id: settingId, claimedAt: expect.any(String) }]);
       expect(second).toEqual([]);
     });
 
@@ -38,7 +38,7 @@ describe(DeploymentSettingRepository.name, () => {
       await backdateLastFundedAt(settingId, COOLDOWN_MINUTES + 1);
       const afterCooldown = await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES);
 
-      expect(afterCooldown).toEqual([settingId]);
+      expect(afterCooldown).toEqual([{ id: settingId, claimedAt: expect.any(String) }]);
     });
 
     it("returns only the ids still outside the cooldown when a batch mixes fresh and recently funded", async () => {
@@ -48,7 +48,7 @@ describe(DeploymentSettingRepository.name, () => {
       await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES);
       const claimed = await deploymentSettingRepository.claimForFunding([settingId, freshId], COOLDOWN_MINUTES);
 
-      expect(claimed).toEqual([freshId]);
+      expect(claimed).toEqual([{ id: freshId, claimedAt: expect.any(String) }]);
     });
   });
 
@@ -56,11 +56,27 @@ describe(DeploymentSettingRepository.name, () => {
     it("makes a claimed deployment immediately claimable again", async () => {
       const { deploymentSettingRepository, settingId } = await setup();
 
-      await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES);
-      await deploymentSettingRepository.releaseFundingClaim([settingId]);
+      const claims = await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES);
+      await deploymentSettingRepository.releaseFundingClaim(claims);
       const afterRelease = await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES);
 
-      expect(afterRelease).toEqual([settingId]);
+      expect(afterRelease).toEqual([{ id: settingId, claimedAt: expect.any(String) }]);
+    });
+
+    it("leaves a newer claim in place when the caller whose claim aged out releases late", async () => {
+      const { deploymentSettingRepository, settingId } = await setup();
+      const NO_COOLDOWN = 0;
+
+      const agedOutClaim = await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES);
+      const newerClaim = await deploymentSettingRepository.claimForFunding([settingId], NO_COOLDOWN);
+      await deploymentSettingRepository.releaseFundingClaim(agedOutClaim);
+
+      expect(newerClaim).toHaveLength(1);
+      expect(await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES)).toEqual([]);
+
+      await deploymentSettingRepository.releaseFundingClaim(newerClaim);
+
+      expect(await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES)).toEqual([{ id: settingId, claimedAt: expect.any(String) }]);
     });
   });
 
