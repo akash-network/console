@@ -52,11 +52,11 @@ export const NotificationChannelSelectView: FC<Props> = ({ name, isFetched, data
             </>
           )}
         />
-        <div className="ml-4">
+        <div className="ml-4 flex h-10 items-center">
           <Link
             href="/alerts/notification-channels/new"
             aria-label="Add notification channel"
-            className={cn(buttonVariants({ variant: "default" }), "inline-flex items-center", {
+            className={cn(buttonVariants({ variant: "outline", size: "md" }), "inline-flex items-center", {
               "opacity-10": disabled,
               "cursor-not-allowed": disabled
             })}

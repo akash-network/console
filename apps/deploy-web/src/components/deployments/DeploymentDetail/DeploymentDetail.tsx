@@ -11,6 +11,7 @@ import { NextSeo } from "next-seo";
 import { createConfigureDraft } from "@src/components/deployments/ConfigureDeployment/useConfigureDraft/useConfigureDraft";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
@@ -31,6 +32,7 @@ export const DEPENDENCIES = {
   useWallet,
   useRouter,
   useSearchParams,
+  useRedeploy,
   useDeploymentDetail,
   useDeploymentLeaseList,
   useProviderList,
@@ -44,6 +46,10 @@ export const DEPENDENCIES = {
   ManifestUpdate,
   DeploymentSettings
 };
+
+/** Caps every band of the page at 1280px so the layout stops stretching on very wide screens. Sits inside each
+ *  full-bleed wrapper's padding, so the header, tab labels and tab body all share one left edge. */
+const CAPPED_CONTENT = "mx-auto w-full max-w-screen-xl";
 
 const TABS = ["DETAILS", "LOGS", "EVENTS", "SHELL", "UPDATE", "SETTINGS"] as const;
 type Tab = (typeof TABS)[number];
@@ -67,6 +73,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
   const { address } = d.useWallet();
+  const redeploy = d.useRedeploy();
 
   const [activeTab, setActiveTab] = useState<Tab>("DETAILS");
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
@@ -84,7 +91,8 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   });
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = d.useProviderList();
 
-  const deploymentManifest = deployment ? deploymentLocalStorage.get(address, dseq)?.manifest || "" : "";
+  const storedDeployment = deployment ? deploymentLocalStorage.get(address, dseq) : null;
+  const deploymentManifest = storedDeployment?.manifest || "";
   const isActive = deployment?.state === "active" && !!leases?.some(isLeaseLive);
   const isDeploymentNotFound = !!deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found") && !isLoadingDeployment;
 
@@ -120,6 +128,11 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
     }
   }
 
+  function redeployFromStoredManifest() {
+    redeploy({ sdl: storedDeployment?.manifest, name: storedDeployment?.name });
+    analyticsService.track("redeploy_btn_clk", "Amplitude");
+  }
+
   function changeTab(tab: Tab) {
     setActiveTab(tab);
     const url = new URL(window.location.href);
@@ -141,7 +154,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
           <Title className="mb-2">404</Title>
           <p>This deployment does not exist or it was created using another wallet.</p>
           <div className="pt-4">
-            <Link href={UrlService.home()} className={cn(buttonVariants({ variant: "default" }), "inline-flex items-center space-x-2")}>
+            <Link href={UrlService.home()} className={cn(buttonVariants({ variant: "default", size: "md" }), "inline-flex items-center space-x-2")}>
               <ArrowLeft className="text-sm" />
               <span>Go to homepage</span>
             </Link>
@@ -151,13 +164,15 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
       {deployment && isLeasesLoaded && (
         <>
-          <d.ReclamationBanner leases={leases} dseq={dseq} />
+          <div className={CAPPED_CONTENT}>
+            <d.ReclamationBanner leases={leases} dseq={dseq} />
 
-          <d.DeploymentDetailHeader deployment={deployment} leases={leases} providers={providers || []} />
+            <d.DeploymentDetailHeader deployment={deployment} leases={leases} providers={providers || []} />
+          </div>
 
           <Tabs value={activeTab} onValueChange={value => changeTab(value as Tab)} className="flex flex-1 flex-col">
-            <div className="-mx-6 border-b border-t">
-              <TabsList className="h-auto w-full justify-start gap-8 rounded-none border-0 bg-transparent px-6 py-0">
+            <div className="-mx-6 border-b border-t px-6">
+              <TabsList className={cn(CAPPED_CONTENT, "flex h-auto justify-start gap-8 rounded-none border-0 bg-transparent p-0")}>
                 {TABS.map(tab => (
                   <TabsTrigger
                     key={tab}
@@ -171,35 +186,38 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
             </div>
 
             <div className="-mx-6 flex-1 bg-muted px-6 py-6">
-              {activeTab === "DETAILS" && (
-                <d.DeploymentPlacements
-                  leases={leases || []}
-                  providers={providers || []}
-                  deploymentManifest={deploymentManifest}
-                  dseq={dseq}
-                  onClosed={loadDeploymentDetail}
-                />
-              )}
+              <div className={CAPPED_CONTENT}>
+                {activeTab === "DETAILS" && (
+                  <d.DeploymentPlacements
+                    leases={leases || []}
+                    providers={providers || []}
+                    deploymentManifest={deploymentManifest}
+                    dseq={dseq}
+                    onClosed={loadDeploymentDetail}
+                  />
+                )}
 
-              {activeTab === "LOGS" && (isActive ? <d.DeploymentLogs leases={leases} selectedLogsMode="logs" /> : <TabInactiveState />)}
-              {activeTab === "EVENTS" && (isActive ? <d.DeploymentLogs leases={leases} selectedLogsMode="events" /> : <TabInactiveState />)}
-              {activeTab === "SHELL" && (isActive ? <d.DeploymentLeaseShell leases={leases} /> : <TabInactiveState />)}
+                {activeTab === "LOGS" && (isActive ? <d.DeploymentLogs leases={leases} selectedLogsMode="logs" /> : <TabInactiveState />)}
+                {activeTab === "EVENTS" && (isActive ? <d.DeploymentLogs leases={leases} selectedLogsMode="events" /> : <TabInactiveState />)}
+                {activeTab === "SHELL" && (isActive ? <d.DeploymentLeaseShell leases={leases} /> : <TabInactiveState />)}
 
-              {activeTab === "UPDATE" && leases && (
-                <d.ManifestUpdate
-                  editedManifest={editedManifest as string}
-                  onManifestChange={setEditedManifest}
-                  isRemoteDeploy={isRemoteDeploy}
-                  deployment={deployment}
-                  leases={leases}
-                  closeManifestEditor={() => {
-                    changeTab("DETAILS");
-                    loadDeploymentDetail();
-                  }}
-                />
-              )}
+                {activeTab === "UPDATE" && leases && (
+                  <d.ManifestUpdate
+                    editedManifest={editedManifest as string}
+                    onManifestChange={setEditedManifest}
+                    isRemoteDeploy={isRemoteDeploy}
+                    deployment={deployment}
+                    leases={leases}
+                    onRedeploy={storedDeployment?.manifest ? redeployFromStoredManifest : undefined}
+                    closeManifestEditor={() => {
+                      changeTab("DETAILS");
+                      loadDeploymentDetail();
+                    }}
+                  />
+                )}
 
-              {activeTab === "SETTINGS" && <d.DeploymentSettings deployment={deployment} leases={leases} onDeploymentChange={loadDeploymentDetail} />}
+                {activeTab === "SETTINGS" && <d.DeploymentSettings deployment={deployment} leases={leases} onDeploymentChange={loadDeploymentDetail} />}
+              </div>
             </div>
           </Tabs>
         </>

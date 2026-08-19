@@ -48,7 +48,11 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
     onFundsChanged();
   }, [analyticsService, onFundsChanged]);
 
-  const { isEnabled, isLoading, estimatedTopUpAmount, topUpFrequencyMs, realTimeLeft, setEnabled, deposit } = d.useAutoTopUp({ deployment, leases, onDeposited });
+  const { isEnabled, isLoading, estimatedTopUpAmount, topUpFrequencyMs, realTimeLeft, setEnabled, deposit } = d.useAutoTopUp({
+    deployment,
+    leases,
+    onDeposited
+  });
   const currentBalance = isActive && hasActiveLeases && realTimeLeft ? realTimeLeft.escrow : deployment.escrowBalance;
 
   const openDepositModal = useCallback(() => {
@@ -74,7 +78,7 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
           </div>
         </div>
         {isActive && (
-          <Button variant="default" onClick={openDepositModal}>
+          <Button variant="outline" size="md" onClick={openDepositModal}>
             Add funds
           </Button>
         )}

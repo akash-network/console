@@ -1,3 +1,4 @@
+import type { MouseEvent } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -301,6 +302,43 @@ describe(ManifestUpdate.name, () => {
     expect(onManifestChange).toHaveBeenCalledWith("updated manifest");
   });
 
+  it("renders the redeploy action wired to the handler the update tab supplies", () => {
+    const onRedeploy = vi.fn();
+    const { dependencies } = setup({ onRedeploy });
+
+    expect(dependencies.Button.mock.calls.some(call => call[0].onClick === onRedeploy)).toBe(true);
+  });
+
+  it("disables the redeploy action while a manifest update is in flight", async () => {
+    const onRedeploy = vi.fn();
+    const { providerProxy, dependencies } = setup({
+      onRedeploy,
+      editedManifest: "version: '2.0'",
+      deployment: { dseq: "123", state: "active", hash: "different-hash" },
+      leases: [{ provider: "provider1" }],
+      providers: [{ owner: "provider1", hostUri: "https://provider1.com" }]
+    });
+
+    providerProxy.sendManifest.mockReturnValue(new Promise(() => {}));
+
+    const updateButton = dependencies.Button.mock.calls.find(call => call[0].children === "Update Deployment");
+
+    await act(async () => {
+      updateButton?.[0].onClick?.(mock<MouseEvent<HTMLButtonElement>>());
+    });
+
+    await waitFor(() => {
+      const redeployRenders = dependencies.Button.mock.calls.filter(call => call[0].onClick === onRedeploy);
+      expect(redeployRenders[redeployRenders.length - 1][0].disabled).toBe(true);
+    });
+  });
+
+  it("omits the redeploy action when the host page provides no handler", () => {
+    const { dependencies } = setup();
+
+    expect(dependencies.Button.mock.calls.map(call => call[0].children)).toEqual(["Update Deployment"]);
+  });
+
   function setup(input?: {
     deployment?: Partial<{ dseq: string; state: string; hash: string }>;
     leases?: Array<Partial<{ provider: string }>>;
@@ -308,6 +346,7 @@ describe(ManifestUpdate.name, () => {
     isRemoteDeploy?: boolean;
     closeManifestEditor?: () => void;
     onManifestChange?: (value: string) => void;
+    onRedeploy?: () => void;
     providers?: Array<Partial<{ owner: string; hostUri: string }>>;
     wallet?: Partial<{ address: string; signAndBroadcastTx: ContextType["signAndBroadcastTx"] }>;
     providerCredentials?: Partial<{ details: { usable: boolean; isExpired: boolean; type: "jwt"; value: string | null; error: Error | null } }>;
@@ -352,6 +391,26 @@ describe(ManifestUpdate.name, () => {
     const useBlockchainStatus: typeof DEPENDENCIES.useBlockchainStatus = () =>
       mock<ReturnType<typeof DEPENDENCIES.useBlockchainStatus>>({ isBlockchainDown: false });
 
+    const dependencies = MockComponents(DEPENDENCIES, {
+      useWallet,
+      useProviderList,
+      useProviderCredentials,
+      useSnackbar,
+      useBlockchainStatus,
+      deploymentData: {
+        getManifestVersion: vi.fn().mockResolvedValue("test-version"),
+        getManifest: vi.fn().mockReturnValue([]),
+        NewDeploymentData: vi.fn().mockResolvedValue({
+          hash: Buffer.from("test-hash"),
+          deploymentId: { dseq: "123" }
+        })
+      } as unknown as typeof DEPENDENCIES.deploymentData,
+      TransactionMessageData: {
+        getUpdateDeploymentMsg: vi.fn().mockReturnValue({ typeUrl: "/update", value: {} })
+      } as unknown as typeof DEPENDENCIES.TransactionMessageData,
+      ...input?.dependencies
+    });
+
     render(
       <TestContainerProvider
         services={{
@@ -374,26 +433,8 @@ describe(ManifestUpdate.name, () => {
           isRemoteDeploy={input?.isRemoteDeploy ?? false}
           editedManifest={input?.editedManifest ?? "version: '2.0'"}
           onManifestChange={input?.onManifestChange || vi.fn()}
-          dependencies={{
-            ...MockComponents(DEPENDENCIES),
-            useWallet,
-            useProviderList,
-            useProviderCredentials,
-            useSnackbar,
-            useBlockchainStatus,
-            deploymentData: {
-              getManifestVersion: vi.fn().mockResolvedValue("test-version"),
-              getManifest: vi.fn().mockReturnValue([]),
-              NewDeploymentData: vi.fn().mockResolvedValue({
-                hash: Buffer.from("test-hash"),
-                deploymentId: { dseq: "123" }
-              })
-            } as unknown as typeof DEPENDENCIES.deploymentData,
-            TransactionMessageData: {
-              getUpdateDeploymentMsg: vi.fn().mockReturnValue({ typeUrl: "/update", value: {} })
-            } as unknown as typeof DEPENDENCIES.TransactionMessageData,
-            ...input?.dependencies
-          }}
+          onRedeploy={input?.onRedeploy}
+          dependencies={dependencies}
         />
       </TestContainerProvider>
     );
@@ -401,7 +442,8 @@ describe(ManifestUpdate.name, () => {
     return {
       providerProxy,
       analyticsService,
-      deploymentLocalStorage
+      deploymentLocalStorage,
+      dependencies
     };
   }
 });

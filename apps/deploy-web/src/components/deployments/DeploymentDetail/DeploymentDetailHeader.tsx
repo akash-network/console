@@ -3,7 +3,7 @@ import type { FC, ReactNode } from "react";
 import { useMemo } from "react";
 import { Badge, Button, buttonVariants, Card, CardContent, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { CheckCircle, EditPencil, Globe, InfoCircle, Upload } from "iconoir-react";
+import { CheckCircle, EditPencil, Globe, InfoCircle } from "iconoir-react";
 import Link from "next/link";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
@@ -11,11 +11,9 @@ import { ConfidentialComputeBadge } from "@src/components/shared/ConfidentialCom
 import { GpuInterconnectBadge } from "@src/components/shared/GpuInterconnectBadge";
 import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
 import { TrialDeploymentBadge } from "@src/components/shared/TrialDeploymentBadge";
-import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
 import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
-import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import type { LeaseStatusDto } from "@src/queries/useLeaseQuery";
@@ -31,19 +29,24 @@ import { DeploymentStatusBadge } from "./DeploymentStatusBadge";
 
 export const DEPENDENCIES = {
   useLocalNotes,
-  useServices,
   useWallet,
   useWalletBalance,
   useDeploymentSettingQuery,
   useDeclaredTeeTypes,
   useDeclaredGpuInterconnect,
-  useRedeploy,
   useLeaseStatus,
   CustomTooltip,
   ConfidentialComputeBadge,
   GpuInterconnectBadge,
   TrialDeploymentBadge
 };
+
+/**
+ * Renaming is a secondary affordance, so the pencil stays out of the way until the title row is hovered. Where hover
+ * does not exist (touch) it stays visible, and keyboard focus reveals it everywhere. `opacity` rather than
+ * `visibility`, which would drop the button out of the tab order and make the focus rule unreachable.
+ */
+const HOVER_REVEALED = "transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100";
 
 export interface DeploymentDetailHeaderProps {
   deployment: DeploymentDto;
@@ -54,14 +57,12 @@ export interface DeploymentDetailHeaderProps {
 
 export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deployment, leases, providers, dependencies: d = DEPENDENCIES }) => {
   const { getDeploymentName, changeDeploymentName, getDeploymentData } = d.useLocalNotes();
-  const { analyticsService } = d.useServices();
   const { isTrialing } = d.useWallet();
   const { balance: walletBalance } = d.useWalletBalance();
   const { data: settings } = d.useDeploymentSettingQuery({ dseq: deployment.dseq });
   const deploymentCost = leases?.reduce((sum, lease) => sum + parseFloat(lease.price.amount), 0) ?? 0;
   const teeTypes = d.useDeclaredTeeTypes(deployment);
   const interconnect = d.useDeclaredGpuInterconnect(deployment);
-  const redeploy = d.useRedeploy();
 
   const liveLease = leases?.find(isLeaseLive) ?? null;
   const provider = providers.find(p => p.owner === liveLease?.provider) ?? null;
@@ -71,10 +72,6 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
   const storedManifest = storedDeployment?.manifest;
   const manifestServices = useMemo(() => parseManifestServices(storedManifest), [storedManifest]);
   const servicesByPlacement = useMemo(() => parseServicesByPlacement(storedManifest), [storedManifest]);
-  const redeployFromStoredManifest = () => {
-    redeploy({ sdl: storedDeployment?.manifest, name: storedDeployment?.name });
-    analyticsService.track("redeploy_btn_clk", "Amplitude");
-  };
 
   const name = getDeploymentName(deployment.dseq) || `Deployment #${deployment.dseq}`;
   const denom = getEscrowDenom(deployment);
@@ -93,17 +90,17 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
           <d.GpuInterconnectBadge interconnect={interconnect} />
           {isTrialing && <d.TrialDeploymentBadge createdHeight={deployment.createdAt} />}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="group flex items-center gap-2">
           <h1 className="text-3xl font-bold tracking-tight">{name}</h1>
-          <Button aria-label="Edit deployment name" variant="ghost" size="icon" onClick={() => changeDeploymentName(deployment.dseq)}>
-            <EditPencil className="text-lg" />
+          <Button
+            aria-label="Edit deployment name"
+            variant="ghost"
+            size="icon"
+            className={cn("h-8 w-8", HOVER_REVEALED)}
+            onClick={() => changeDeploymentName(deployment.dseq)}
+          >
+            <EditPencil className="h-4 w-4" />
           </Button>
-          {storedDeployment?.manifest && (
-            <Button variant="outline" size="sm" className="gap-1" onClick={redeployFromStoredManifest}>
-              <Upload className="text-xs" />
-              Redeploy
-            </Button>
-          )}
         </div>
         {primaryUri && (
           <div className="flex items-center gap-2">
@@ -111,7 +108,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
               <Globe className="shrink-0 text-xs text-muted-foreground" />
               <span className="truncate">{primaryUri}</span>
             </div>
-            <Link href={`http://${primaryUri}`} target="_blank" rel="noreferrer" className={cn(buttonVariants({ variant: "default", size: "sm" }))}>
+            <Link href={`http://${primaryUri}`} target="_blank" rel="noreferrer" className={cn(buttonVariants({ variant: "default", size: "md" }))}>
               Visit
             </Link>
           </div>

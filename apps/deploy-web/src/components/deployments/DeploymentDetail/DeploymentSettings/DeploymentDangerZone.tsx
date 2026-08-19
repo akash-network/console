@@ -46,7 +46,7 @@ export const DeploymentDangerZone: FC<DeploymentDangerZoneProps> = ({ deployment
         <h3 className="font-semibold">Close this deployment</h3>
         <p className="text-sm text-muted-foreground">Stop all services and permanently tear down this deployment. This action can&apos;t be undone.</p>
       </div>
-      <Button variant="destructive" onClick={confirmAndClose} disabled={isClosing} aria-label="Close deployment">
+      <Button variant="destructive" size="md" onClick={confirmAndClose} disabled={isClosing} aria-label="Close deployment">
         {isClosing ? <Spinner size="small" /> : "Close deployment"}
       </Button>
     </div>
