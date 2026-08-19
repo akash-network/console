@@ -1,3 +1,4 @@
+import type { MouseEvent } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -309,29 +310,25 @@ describe(ManifestUpdate.name, () => {
   });
 
   it("disables the redeploy action while a manifest update is in flight", async () => {
-    const ButtonMock = vi.fn(ComponentMock);
     const onRedeploy = vi.fn();
-    const { providerProxy } = setup({
+    const { providerProxy, dependencies } = setup({
       onRedeploy,
       editedManifest: "version: '2.0'",
       deployment: { dseq: "123", state: "active", hash: "different-hash" },
       leases: [{ provider: "provider1" }],
-      providers: [{ owner: "provider1", hostUri: "https://provider1.com" }],
-      dependencies: {
-        Button: ButtonMock
-      }
+      providers: [{ owner: "provider1", hostUri: "https://provider1.com" }]
     });
 
     providerProxy.sendManifest.mockReturnValue(new Promise(() => {}));
 
-    const updateButton = ButtonMock.mock.calls.find(call => call[0].children === "Update Deployment");
+    const updateButton = dependencies.Button.mock.calls.find(call => call[0].children === "Update Deployment");
 
     await act(async () => {
-      updateButton?.[0].onClick();
+      updateButton?.[0].onClick?.(mock<MouseEvent<HTMLButtonElement>>());
     });
 
     await waitFor(() => {
-      const redeployRenders = ButtonMock.mock.calls.filter(call => call[0].onClick === onRedeploy);
+      const redeployRenders = dependencies.Button.mock.calls.filter(call => call[0].onClick === onRedeploy);
       expect(redeployRenders[redeployRenders.length - 1][0].disabled).toBe(true);
     });
   });
