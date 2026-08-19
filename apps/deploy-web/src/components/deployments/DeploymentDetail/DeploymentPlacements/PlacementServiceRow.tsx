@@ -6,13 +6,12 @@ import { cn } from "@akashnetwork/ui/utils";
 import { Box, Globe, Key, NavArrowDown, NavArrowUp, Terminal } from "iconoir-react";
 
 import { CopyTextToClipboardButton } from "@src/components/shared/CopyTextToClipboardButton";
-import type { LeaseServiceStatus } from "@src/queries/useLeaseQuery";
+import type { ForwardedPort, LeaseServiceStatus, ServiceIp } from "@src/queries/useLeaseQuery";
 import type { LeaseDto } from "@src/types/deployment";
 import type { ManifestEnvVar, ManifestServiceDetail, ManifestServiceResources, ServiceStatusView } from "./placementModel";
 import { getServiceStatus } from "./placementModel";
 import type { PlacementStat } from "./PlacementStats";
 import { PlacementStats } from "./PlacementStats";
-import type { ForwardedPort, ServiceIp } from "./ServiceEndpoints";
 import { EndpointLinks, toForwardedPortLinks, toIpLinks, toUriLinks } from "./ServiceEndpoints";
 
 export interface PlacementServiceRowProps {
@@ -21,9 +20,9 @@ export interface PlacementServiceRowProps {
   leaseState: LeaseDto["state"];
   isReclaimed?: boolean;
   detail?: ManifestServiceDetail;
-  uris?: string[];
-  forwardedPorts?: ForwardedPort[];
-  ips?: ServiceIp[];
+  uris?: string[] | null;
+  forwardedPorts?: ForwardedPort[] | null;
+  ips?: ServiceIp[] | null;
 }
 
 export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({ serviceName, service, leaseState, isReclaimed, detail, uris, forwardedPorts, ips }) => {

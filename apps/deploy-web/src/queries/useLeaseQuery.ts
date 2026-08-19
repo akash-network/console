@@ -2,6 +2,7 @@ import { isHttpError, type LeaseListParams } from "@akashnetwork/http-sdk";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosInstance } from "axios";
+import mapValues from "lodash/mapValues";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
@@ -124,7 +125,7 @@ export function useLeaseStatus(
       if (!lease || !isLeaseLive(lease) || !providerCredentials.details.usable) return null;
 
       const token = await providerCredentials.ensureToken();
-      const response = await fetchProviderUrl<LeaseStatusDto>(`/lease/${lease.dseq}/${lease.gseq}/${lease.oseq}/status`, {
+      const response = await fetchProviderUrl<LeaseStatusResponse>(`/lease/${lease.dseq}/${lease.gseq}/${lease.oseq}/status`, {
         method: "GET",
         credentials: { type: "jwt", value: token }
       }).catch(error => {
@@ -134,7 +135,7 @@ export function useLeaseStatus(
         throw error;
       });
 
-      return response.data;
+      return response.data ? normalizeLeaseStatus(response.data) : null;
     },
     ...options,
     enabled: options.enabled !== false && providerCredentials.details.usable,
@@ -152,18 +153,53 @@ export const USE_LEASE_STATUS_DEPENDENCIES = {
   useProviderCredentials
 };
 
+export interface ForwardedPort {
+  host: string;
+  externalPort: number;
+  port: number;
+  available: number;
+}
+
+export interface ServiceIp {
+  IP: string;
+  ExternalPort: number;
+  Port: number;
+  Protocol: string;
+}
+
 export interface LeaseStatusDto {
-  forwarded_ports: Record<
-    string,
-    {
-      host: string;
-      externalPort: number;
-      port: number;
-      available: number;
-    }[]
-  >;
-  ips: any;
+  forwarded_ports: Record<string, ForwardedPort[]>;
+  ips: Record<string, ServiceIp[]>;
   services: Record<string, LeaseServiceStatus>;
+}
+
+/**
+ * The provider's lease status as it arrives on the wire. Go marshals a nil slice or map as JSON
+ * `null`, so a service exposing no ingress reports `uris: null`, a lease with no leased IPs reports
+ * `ips: null`, and either map can carry a `null` value for an individual service.
+ */
+export interface LeaseStatusResponse {
+  forwarded_ports: Record<string, ForwardedPort[] | null> | null;
+  ips: Record<string, ServiceIp[] | null> | null;
+  services: Record<string, LeaseServiceStatusResponse> | null;
+}
+
+export interface LeaseServiceStatusResponse extends Omit<LeaseServiceStatus, "uris"> {
+  uris: string[] | null;
+}
+
+/**
+ * Coerces the provider's nil-slice `null`s to empty arrays at the one point its JSON enters the app,
+ * so every consumer can trust a LeaseStatusDto map and its arrays to be present. Runs in the queryFn
+ * rather than in `select` so the coerced value is cached per fetch, letting React Query's structural
+ * sharing keep it referentially stable across the status refetch interval.
+ */
+export function normalizeLeaseStatus(status: LeaseStatusResponse): LeaseStatusDto {
+  return {
+    forwarded_ports: mapValues(status.forwarded_ports ?? {}, ports => ports ?? []),
+    ips: mapValues(status.ips ?? {}, ips => ips ?? []),
+    services: mapValues(status.services ?? {}, service => ({ ...service, uris: service.uris ?? [] }))
+  };
 }
 
 export interface LeaseServiceStatus {
