@@ -1,3 +1,4 @@
+import { addHours } from "date-fns";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -68,7 +69,73 @@ describe("DeploymentDetailHeader", () => {
     expect(screen.queryByRole("link", { name: "Visit" })).not.toBeInTheDocument();
   });
 
-  function setup(input: { serviceUris?: Record<string, string[]>; autoTopUpEnabled?: boolean; hasLeaseStatus?: boolean; name?: string | null }) {
+  it("shows the trial badge when the wallet is trialing", () => {
+    setup({ isTrialing: true });
+
+    expect(screen.getByText("trial-badge")).toBeInTheDocument();
+  });
+
+  it("hides the trial badge when the wallet is not trialing", () => {
+    setup({ isTrialing: false });
+
+    expect(screen.queryByText("trial-badge")).not.toBeInTheDocument();
+  });
+
+  it("shows how long the escrow keeps the deployment running", () => {
+    setup({ timeLeft: addHours(new Date(), 5) });
+
+    expect(screen.getByText("~about 5 hours")).toBeInTheDocument();
+  });
+
+  it("shows no countdown when there is no time left to report yet", () => {
+    setup({ timeLeft: null });
+
+    expect(screen.queryByText(/^~/)).not.toBeInTheDocument();
+  });
+
+  it("shows the trial countdown next to the time left while trialing", () => {
+    setup({ isTrialing: true, timeLeft: addHours(new Date(), 5), trialTimeRemaining: "4 hours" });
+
+    expect(screen.getByText("(Trial: 4 hours)")).toBeInTheDocument();
+  });
+
+  it("hides the trial countdown when the wallet is not trialing", () => {
+    setup({ isTrialing: false, timeLeft: addHours(new Date(), 5), trialTimeRemaining: "4 hours" });
+
+    expect(screen.queryByText("(Trial: 4 hours)")).not.toBeInTheDocument();
+  });
+
+  it("shows the confidential compute and gpu interconnect badges for the declared groups", () => {
+    setup({});
+
+    expect(screen.getByText("tee-badge")).toBeInTheDocument();
+    expect(screen.getByText("interconnect-badge")).toBeInTheDocument();
+  });
+
+  it("redeploys from the locally stored manifest", async () => {
+    const { redeploy } = setup({ storedManifest: "version: '2.0'", name: "My Storefront" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Redeploy" }));
+
+    expect(redeploy).toHaveBeenCalledWith({ sdl: "version: '2.0'", name: "My Storefront" });
+  });
+
+  it("hides the redeploy action when no manifest is stored locally", () => {
+    setup({ storedManifest: null });
+
+    expect(screen.queryByRole("button", { name: "Redeploy" })).not.toBeInTheDocument();
+  });
+
+  function setup(input: {
+    serviceUris?: Record<string, string[]>;
+    autoTopUpEnabled?: boolean;
+    hasLeaseStatus?: boolean;
+    name?: string | null;
+    isTrialing?: boolean;
+    timeLeft?: Date | null;
+    trialTimeRemaining?: string;
+    storedManifest?: string | null;
+  }) {
     const hasLeaseStatus = input.hasLeaseStatus ?? true;
     let leaseStatus: LeaseStatusDto | null = null;
     if (hasLeaseStatus) {
@@ -87,8 +154,29 @@ describe("DeploymentDetailHeader", () => {
     const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () =>
       mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>({
         getDeploymentName: () => input.name ?? null,
-        changeDeploymentName
+        changeDeploymentName,
+        getDeploymentData: () => (input.storedManifest ? { manifest: input.storedManifest, name: input.name ?? undefined } : null)
       });
+    const useServices: typeof DEPENDENCIES.useServices = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useServices>>({
+        analyticsService: mock<ReturnType<typeof DEPENDENCIES.useServices>["analyticsService"]>(),
+        publicConfig: mock<ReturnType<typeof DEPENDENCIES.useServices>["publicConfig"]>({ NEXT_PUBLIC_TRIAL_DEPLOYMENTS_DURATION_HOURS: 24 })
+      });
+    const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false });
+    const useDeploymentMetrics: typeof DEPENDENCIES.useDeploymentMetrics = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useDeploymentMetrics>>({
+        deploymentCost: 0,
+        realTimeLeft: input.timeLeft ? { timeLeft: input.timeLeft, escrow: 1000, amountSpent: 0 } : undefined
+      });
+    const useDeclaredTeeTypes: typeof DEPENDENCIES.useDeclaredTeeTypes = () => [];
+    const useDeclaredGpuInterconnect: typeof DEPENDENCIES.useDeclaredGpuInterconnect = () => ({ enabled: false, fabrics: [] });
+    const useTrialDeploymentTimeRemaining: typeof DEPENDENCIES.useTrialDeploymentTimeRemaining = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useTrialDeploymentTimeRemaining>>({ timeRemainingText: input.trialTimeRemaining ?? "" });
+    const redeploy = vi.fn();
+    const useRedeploy: typeof DEPENDENCIES.useRedeploy = () => redeploy;
+    const TrialDeploymentBadge = vi.fn(() => <div>trial-badge</div>);
+    const ConfidentialComputeBadge = vi.fn(() => <div>tee-badge</div>);
+    const GpuInterconnectBadge = vi.fn(() => <div>interconnect-badge</div>);
     const useWalletBalance: typeof DEPENDENCIES.useWalletBalance = () => mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>({ balance: null });
     const useDeploymentSettingQuery: typeof DEPENDENCIES.useDeploymentSettingQuery = () =>
       mock<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>>({
@@ -113,13 +201,23 @@ describe("DeploymentDetailHeader", () => {
         providers={[mock<ApiProviderList>({ owner: "akash1provider" })]}
         dependencies={MockComponents(DEPENDENCIES, {
           useLocalNotes,
+          useServices,
+          useWallet,
           useWalletBalance,
           useDeploymentSettingQuery,
-          useLeaseStatus
+          useDeploymentMetrics,
+          useDeclaredTeeTypes,
+          useDeclaredGpuInterconnect,
+          useTrialDeploymentTimeRemaining,
+          useRedeploy,
+          useLeaseStatus,
+          TrialDeploymentBadge,
+          ConfidentialComputeBadge,
+          GpuInterconnectBadge
         })}
       />
     );
 
-    return { changeDeploymentName };
+    return { changeDeploymentName, redeploy };
   }
 });

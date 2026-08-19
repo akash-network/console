@@ -2,11 +2,22 @@
 import type { FC, ReactNode } from "react";
 import { Badge, Button, buttonVariants, Card, CardContent, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { CheckCircle, EditPencil, Globe, InfoCircle } from "iconoir-react";
+import { formatDistanceToNow, isValid } from "date-fns";
+import { CheckCircle, EditPencil, Globe, InfoCircle, Upload } from "iconoir-react";
 import Link from "next/link";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
+import { ConfidentialComputeBadge } from "@src/components/shared/ConfidentialComputeBadge";
+import { GpuInterconnectBadge } from "@src/components/shared/GpuInterconnectBadge";
 import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
+import { TrialDeploymentBadge } from "@src/components/shared/TrialDeploymentBadge";
+import { useServices } from "@src/context/ServicesProvider";
+import { useWallet } from "@src/context/WalletProvider";
+import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
+import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
+import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
+import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
+import { useTrialDeploymentTimeRemaining } from "@src/hooks/useTrialDeploymentTimeRemaining";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import type { LeaseStatusDto } from "@src/queries/useLeaseQuery";
@@ -21,10 +32,20 @@ import { DeploymentStatusBadge } from "./DeploymentStatusBadge";
 
 export const DEPENDENCIES = {
   useLocalNotes,
+  useServices,
+  useWallet,
   useWalletBalance,
   useDeploymentSettingQuery,
+  useDeploymentMetrics,
+  useDeclaredTeeTypes,
+  useDeclaredGpuInterconnect,
+  useTrialDeploymentTimeRemaining,
+  useRedeploy,
   useLeaseStatus,
-  CustomTooltip
+  CustomTooltip,
+  ConfidentialComputeBadge,
+  GpuInterconnectBadge,
+  TrialDeploymentBadge
 };
 
 export interface DeploymentDetailHeaderProps {
@@ -35,14 +56,31 @@ export interface DeploymentDetailHeaderProps {
 }
 
 export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deployment, leases, providers, dependencies: d = DEPENDENCIES }) => {
-  const { getDeploymentName, changeDeploymentName } = d.useLocalNotes();
-  const deploymentCost = leases?.reduce((sum, lease) => sum + parseFloat(lease.price.amount), 0) ?? 0;
+  const { getDeploymentName, changeDeploymentName, getDeploymentData } = d.useLocalNotes();
+  const { analyticsService, publicConfig } = d.useServices();
+  const { isTrialing } = d.useWallet();
   const { balance: walletBalance } = d.useWalletBalance();
   const { data: settings } = d.useDeploymentSettingQuery({ dseq: deployment.dseq });
+  const { deploymentCost, realTimeLeft } = d.useDeploymentMetrics({ deployment, leases });
+  const teeTypes = d.useDeclaredTeeTypes(deployment);
+  const interconnect = d.useDeclaredGpuInterconnect(deployment);
+  const redeploy = d.useRedeploy();
+
+  const { timeRemainingText: trialTimeRemaining } = d.useTrialDeploymentTimeRemaining({
+    createdHeight: deployment.createdAt,
+    trialDurationHours: publicConfig.NEXT_PUBLIC_TRIAL_DEPLOYMENTS_DURATION_HOURS,
+    averageBlockTime: AVERAGE_BLOCK_TIME_SECONDS
+  });
 
   const liveLease = leases?.find(isLeaseLive) ?? null;
   const provider = providers.find(p => p.owner === liveLease?.provider) ?? null;
   const { data: leaseStatus } = d.useLeaseStatus({ provider, lease: liveLease, enabled: !!provider });
+
+  const storedDeployment = getDeploymentData(deployment.dseq);
+  const redeployFromStoredManifest = () => {
+    redeploy({ sdl: storedDeployment?.manifest, name: storedDeployment?.name });
+    analyticsService.track("redeploy_btn_clk", "Amplitude");
+  };
 
   const name = getDeploymentName(deployment.dseq) || `Deployment #${deployment.dseq}`;
   const denom = getEscrowDenom(deployment);
@@ -55,12 +93,23 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
   return (
     <div className="flex flex-col gap-6 py-6 lg:flex-row lg:items-start lg:justify-between">
       <div className="space-y-3">
-        <DeploymentStatusBadge state={deployment.state} />
+        <div className="flex flex-wrap items-center gap-2">
+          <DeploymentStatusBadge state={deployment.state} />
+          <d.ConfidentialComputeBadge teeTypes={teeTypes} />
+          <d.GpuInterconnectBadge interconnect={interconnect} />
+          {isTrialing && <d.TrialDeploymentBadge createdHeight={deployment.createdAt} />}
+        </div>
         <div className="flex items-center gap-2">
           <h1 className="text-3xl font-bold tracking-tight">{name}</h1>
           <Button aria-label="Edit deployment name" variant="ghost" size="icon" onClick={() => changeDeploymentName(deployment.dseq)}>
             <EditPencil className="text-lg" />
           </Button>
+          {storedDeployment?.manifest && (
+            <Button variant="outline" size="sm" className="gap-1" onClick={redeployFromStoredManifest}>
+              <Upload className="text-xs" />
+              Redeploy
+            </Button>
+          )}
         </div>
         {primaryUri && (
           <div className="flex items-center gap-2">
@@ -105,11 +154,24 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
           <SummaryItem label="vCPU">{roundDecimal(deployment.cpuAmount, 2)}</SummaryItem>
           <SummaryItem label="MEMORY">{`${roundDecimal(memory.value, 2)} ${memory.unit}`}</SummaryItem>
           <SummaryItem label="STORAGE">{`${roundDecimal(storage.value, 2)} ${storage.unit}`}</SummaryItem>
+          <SummaryItem label="TIME LEFT">
+            {realTimeLeft && isValid(realTimeLeft.timeLeft) ? (
+              <span className="inline-flex items-center gap-1">
+                <span>~{formatDistanceToNow(realTimeLeft.timeLeft)}</span>
+                {isTrialing && trialTimeRemaining && <span className="text-xs text-primary">(Trial: {trialTimeRemaining})</span>}
+              </span>
+            ) : (
+              "—"
+            )}
+          </SummaryItem>
         </CardContent>
       </Card>
     </div>
   );
 };
+
+/** Trial windows are measured in blocks, and Akash blocks land roughly every 6 seconds. */
+const AVERAGE_BLOCK_TIME_SECONDS = 6;
 
 const SummaryItem: FC<{ label: ReactNode; children: ReactNode }> = ({ label, children }) => (
   <div className="space-y-1.5">
