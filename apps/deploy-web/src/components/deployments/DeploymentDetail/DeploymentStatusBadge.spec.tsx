@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
-import { DeploymentStatusBadge } from "./DeploymentStatusBadge";
+import { DeploymentStatusBadge, getDeploymentStatus } from "./DeploymentStatusBadge";
 
 import { render, screen } from "@testing-library/react";
 
@@ -54,6 +54,26 @@ describe("DeploymentStatusBadge", () => {
     setup({ state: "active", leases: [] });
 
     expect(screen.getByText("Running")).toBeInTheDocument();
+  });
+
+  describe(getDeploymentStatus.name, () => {
+    it("warns instead of alarming when the lease is closed but the deployment is still open", () => {
+      const status = getDeploymentStatus("active", [mock<LeaseDto>({ state: "closed", reason: "lease_closed_reason_decommission" })]);
+
+      expect(status.tone).toBe("warning");
+    });
+
+    it("alarms when the deployment itself is closed", () => {
+      const status = getDeploymentStatus("closed", [mock<LeaseDto>({ state: "closed", reason: undefined })]);
+
+      expect(status.tone).toBe("closed");
+    });
+
+    it("reports a running tone while a lease is live", () => {
+      const status = getDeploymentStatus("active", [mock<LeaseDto>({ state: "active" })]);
+
+      expect(status.tone).toBe("running");
+    });
   });
 
   function setup(input: { state: string; leases?: LeaseDto[] }) {
