@@ -2,7 +2,7 @@ import { expect, test } from "./fixture/base-test";
 import { testEnvConfig } from "./fixture/test-env.config";
 import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
 
-const REDESIGN_TABS = ["Details", "Logs", "Events", "Shell", "Settings", "Billing & Notifications"];
+const REDESIGN_TABS = ["Details", "Logs", "Events", "Shell", "Update", "Settings"];
 
 test.describe("Deployment detail redesign preview", () => {
   test.use({ userType: "existing" });
