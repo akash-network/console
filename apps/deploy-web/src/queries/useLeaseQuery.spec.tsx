@@ -14,7 +14,10 @@ import { leaseToDto } from "@src/utils/deploymentDetailUtils";
 import { setupQuery } from "../../tests/unit/query-client";
 import { QueryKeys } from "./queryKeys";
 import {
+  type LeaseServiceStatusResponse,
   type LeaseStatusDto,
+  type LeaseStatusResponse,
+  normalizeLeaseStatus,
   USE_LEASE_STATUS_DEPENDENCIES,
   useAllLeases,
   useDeploymentLeaseList,
@@ -676,6 +679,31 @@ describe("useLeaseQuery", () => {
       expect(receivedServices).not.toHaveProperty("akash-attestation-sidecar");
     });
 
+    it("coerces the provider's null endpoint collections to empty arrays", async () => {
+      const statusWithNulls = {
+        forwarded_ports: { web: null },
+        ips: null,
+        services: { web: { name: "web", available: 1, uris: null } }
+      };
+      const providerProxy = mock<ProviderProxyService>({
+        request: vi.fn().mockResolvedValue({ data: statusWithNulls })
+      });
+      const { result } = setupLeaseStatus({
+        lease: mockLease,
+        services: {
+          providerProxy: () => providerProxy
+        }
+      });
+
+      await vi.waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
+
+      expect(result.current.data?.services.web.uris).toEqual([]);
+      expect(result.current.data?.forwarded_ports.web).toEqual([]);
+      expect(result.current.data?.ips).toEqual({});
+    });
+
     function setupLeaseStatus(input?: {
       provider?: ApiProviderList;
       lease?: LeaseDto;
@@ -702,6 +730,63 @@ describe("useLeaseQuery", () => {
           ...input?.services
         }
       });
+    }
+  });
+
+  describe(normalizeLeaseStatus.name, () => {
+    it("keeps the collections a provider already reports as arrays", () => {
+      const status = normalizeLeaseStatus({
+        forwarded_ports: { web: [{ host: "provider.io", externalPort: 30000, port: 80, available: 1 }] },
+        ips: { web: [{ IP: "1.2.3.4", ExternalPort: 8080, Port: 80, Protocol: "TCP" }] },
+        services: { web: buildServiceResponse({ uris: ["app.example.com"] }) }
+      });
+
+      expect(status.services.web.uris).toEqual(["app.example.com"]);
+      expect(status.forwarded_ports.web).toHaveLength(1);
+      expect(status.ips.web).toHaveLength(1);
+    });
+
+    it("coerces a nil-slice null on each collection to an empty array", () => {
+      const status = normalizeLeaseStatus({
+        forwarded_ports: { web: null },
+        ips: { web: null },
+        services: { web: buildServiceResponse({ uris: null }) }
+      });
+
+      expect(status.services.web.uris).toEqual([]);
+      expect(status.forwarded_ports.web).toEqual([]);
+      expect(status.ips.web).toEqual([]);
+    });
+
+    it("coerces a nil-map null on each collection to an empty record", () => {
+      const status = normalizeLeaseStatus({ forwarded_ports: null, ips: null, services: null });
+
+      expect(status.services).toEqual({});
+      expect(status.forwarded_ports).toEqual({});
+      expect(status.ips).toEqual({});
+    });
+
+    it("keeps a service named __proto__ as an own key rather than reassigning the prototype", () => {
+      const services: LeaseStatusResponse["services"] = JSON.parse('{"__proto__":{"name":"__proto__","uris":null}}');
+
+      const status = normalizeLeaseStatus({ forwarded_ports: null, ips: null, services });
+
+      expect(Object.keys(status.services)).toEqual(["__proto__"]);
+    });
+
+    function buildServiceResponse(overrides: Partial<LeaseServiceStatusResponse>): LeaseServiceStatusResponse {
+      return {
+        name: "web",
+        available: 1,
+        total: 1,
+        uris: [],
+        observed_generation: 1,
+        replicas: 1,
+        updated_replicas: 1,
+        ready_replicas: 1,
+        available_replicas: 1,
+        ...overrides
+      };
     }
   });
 });

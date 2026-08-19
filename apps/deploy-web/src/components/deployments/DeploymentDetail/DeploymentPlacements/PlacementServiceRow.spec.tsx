@@ -66,6 +66,15 @@ describe(PlacementServiceRow.name, () => {
     expect(screen.getByText("None")).toBeInTheDocument();
   });
 
+  it("shows a None placeholder when the provider reports null endpoint collections", async () => {
+    setup({ uris: null, forwardedPorts: null, ips: null });
+
+    await expandService();
+
+    expect(screen.getByText("Expose Ports")).toBeInTheDocument();
+    expect(screen.getByText("None")).toBeInTheDocument();
+  });
+
   it("shows the Docker image row when an image is known", async () => {
     setup({ detail: { image: "nginx:1.25" } });
 

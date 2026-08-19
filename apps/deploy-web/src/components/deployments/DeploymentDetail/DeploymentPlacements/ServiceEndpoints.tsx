@@ -5,20 +5,7 @@ import { InfoCircle, OpenInWindow } from "iconoir-react";
 import Link from "next/link";
 
 import { CopyTextToClipboardButton } from "@src/components/shared/CopyTextToClipboardButton";
-
-export interface ForwardedPort {
-  host: string;
-  externalPort: number;
-  port: number;
-  available: number;
-}
-
-export interface ServiceIp {
-  IP: string;
-  ExternalPort: number;
-  Port: number;
-  Protocol: string;
-}
+import type { ForwardedPort, ServiceIp } from "@src/queries/useLeaseQuery";
 
 export interface EndpointLink {
   text: string;
@@ -60,20 +47,20 @@ export const EndpointLinks: FC<{ items: EndpointLink[] }> = ({ items }) => (
   </span>
 );
 
-export function toUriLinks(uris: string[] = []): EndpointLink[] {
-  return uris.map(uri => ({ text: uri, href: `http://${uri}`, copyValue: uri }));
+export function toUriLinks(uris?: string[] | null): EndpointLink[] {
+  return (uris ?? []).map(uri => ({ text: uri, href: `http://${uri}`, copyValue: uri }));
 }
 
-export function toForwardedPortLinks(ports: ForwardedPort[] = []): EndpointLink[] {
-  return ports.map(port => ({
+export function toForwardedPortLinks(ports?: ForwardedPort[] | null): EndpointLink[] {
+  return (ports ?? []).map(port => ({
     text: `${port.port}:${port.externalPort}`,
     href: port.host ? `http://${port.host}:${port.externalPort}` : undefined,
     disabled: port.available < 1
   }));
 }
 
-export function toIpLinks(ips: ServiceIp[] = []): EndpointLink[] {
-  return ips.map(ip => ({
+export function toIpLinks(ips?: ServiceIp[] | null): EndpointLink[] {
+  return (ips ?? []).map(ip => ({
     text: `${ip.IP}:${ip.ExternalPort}`,
     href: `http://${ip.IP}:${ip.ExternalPort}`,
     copyValue: `${ip.IP}:${ip.ExternalPort}`,

@@ -10,6 +10,11 @@ describe("ServiceEndpoints", () => {
     it("builds an http link and copy value for each URI", () => {
       expect(toUriLinks(["app.example.com"])).toEqual([{ text: "app.example.com", href: "http://app.example.com", copyValue: "app.example.com" }]);
     });
+
+    it("yields no links when the provider reports no URIs", () => {
+      expect(toUriLinks(null)).toEqual([]);
+      expect(toUriLinks(undefined)).toEqual([]);
+    });
   });
 
   describe("toForwardedPortLinks", () => {
@@ -24,6 +29,11 @@ describe("ServiceEndpoints", () => {
         { text: "80:30000", href: undefined, disabled: true }
       ]);
     });
+
+    it("yields no links when the provider reports no forwarded ports", () => {
+      expect(toForwardedPortLinks(null)).toEqual([]);
+      expect(toForwardedPortLinks(undefined)).toEqual([]);
+    });
   });
 
   describe("toIpLinks", () => {
@@ -32,6 +42,11 @@ describe("ServiceEndpoints", () => {
 
       expect(link.href).toBe("http://1.2.3.4:8080");
       expect(link.copyValue).toBe("1.2.3.4:8080");
+    });
+
+    it("yields no links when the provider reports no IPs", () => {
+      expect(toIpLinks(null)).toEqual([]);
+      expect(toIpLinks(undefined)).toEqual([]);
     });
   });
 
