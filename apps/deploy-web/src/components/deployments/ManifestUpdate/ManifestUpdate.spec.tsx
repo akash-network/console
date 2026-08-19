@@ -388,17 +388,15 @@ describe(ManifestUpdate.name, () => {
       closeSnackbar: vi.fn()
     });
 
-    const useSettings: typeof DEPENDENCIES.useSettings = () =>
-      ({
-        settings: { isBlockchainDown: false }
-      }) as ReturnType<typeof DEPENDENCIES.useSettings>;
+    const useBlockchainStatus: typeof DEPENDENCIES.useBlockchainStatus = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useBlockchainStatus>>({ isBlockchainDown: false });
 
     const dependencies = MockComponents(DEPENDENCIES, {
       useWallet,
       useProviderList,
       useProviderCredentials,
       useSnackbar,
-      useSettings,
+      useBlockchainStatus,
       deploymentData: {
         getManifestVersion: vi.fn().mockResolvedValue("test-version"),
         getManifest: vi.fn().mockReturnValue([]),

@@ -18,19 +18,20 @@ import type { NextSeoProps } from "next-seo/lib/types";
 import NProgress from "nprogress";
 
 import { AccountCreatedTracker } from "@src/components/analytics/AccountCreatedTracker/AccountCreatedTracker";
+import { AppBootstrap } from "@src/components/AppBootstrap/AppBootstrap";
 import { RequireAuth } from "@src/components/auth/RequireAuth/RequireAuth";
 import { AppThemeProvider } from "@src/components/layout/AppThemeProvider";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
 import { RequireOnboarding } from "@src/components/onboarding/RequireOnboarding/RequireOnboarding";
 import { UserProviders } from "@src/components/user/UserProviders/UserProviders";
+import { BlockchainStatusProvider } from "@src/context/BlockchainStatusProvider";
 import { BootLoadingProvider } from "@src/context/BootLoadingProvider/BootLoadingProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { FlagProvider, WaitForFeatureFlags } from "@src/context/FlagProvider/FlagProvider";
 import { PaymentPollingProvider } from "@src/context/PaymentPollingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { RootContainerProvider, useRootContainer } from "@src/context/ServicesProvider/RootContainerProvider";
-import { SettingsProvider } from "@src/context/SettingsProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
 import type { PageWithAuth } from "@src/lib/pages/definePublicPage";
 import { store } from "@src/store/global-store";
@@ -99,12 +100,13 @@ function AppRoot(props: Props & { children: React.ReactNode }) {
                     <CustomSnackbarProvider>
                       <TooltipProvider>
                         <PopupProvider>
-                          <SettingsProvider>
+                          <BlockchainStatusProvider>
                             <ServicesProvider>
+                              <AppBootstrap />
                               <LocalNoteManager />
                               {props.children}
                             </ServicesProvider>
-                          </SettingsProvider>
+                          </BlockchainStatusProvider>
                         </PopupProvider>
                       </TooltipProvider>
                     </CustomSnackbarProvider>

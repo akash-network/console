@@ -119,7 +119,6 @@ describe("DeploymentDetail", () => {
         analyticsService
       });
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: "akash1test" });
-    const useSettings: typeof DEPENDENCIES.useSettings = () => mock<ReturnType<typeof DEPENDENCIES.useSettings>>({ isSettingsInit: true });
     const useRouter: typeof DEPENDENCIES.useRouter = () => router;
     const searchParams = new URLSearchParams(input?.tab ? `tab=${input.tab}` : "");
     const useSearchParams: typeof DEPENDENCIES.useSearchParams = () => searchParams as unknown as ReturnType<typeof DEPENDENCIES.useSearchParams>;
@@ -149,7 +148,6 @@ describe("DeploymentDetail", () => {
         dependencies={MockComponents(DEPENDENCIES, {
           useServices,
           useWallet,
-          useSettings,
           useRouter,
           useSearchParams,
           useRedeploy,

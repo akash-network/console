@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 
 import Markdown from "@src/components/shared/Markdown";
 import { ViewPanel } from "@src/components/shared/ViewPanel";
-import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
+import { useHasInAppHistory } from "@src/hooks/useHasInAppHistory";
 import type { ApiTemplate } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { UrlService } from "@src/utils/urlUtils";
@@ -25,15 +25,15 @@ export interface TemplateDetailProps {
 export const TemplateDetail: FC<TemplateDetailProps> = ({ template }) => {
   const [activeTab, setActiveTab] = useState("README");
   const router = useRouter();
-  const previousRoute = usePreviousRoute();
+  const hasInAppHistory = useHasInAppHistory();
 
   const goBack = useCallback(() => {
-    if (previousRoute) {
+    if (hasInAppHistory) {
       router.back();
     } else {
       router.push(UrlService.templates());
     }
-  }, [previousRoute, router]);
+  }, [hasInAppHistory, router]);
 
   const openGithub = useCallback(() => {
     window.open(template.githubUrl, "_blank");

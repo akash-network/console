@@ -19,8 +19,8 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useCurrencyFormatter } from "@src/hooks/useCurrencyFormatter/useCurrencyFormatter";
 import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
 import { useDepositDeployment } from "@src/hooks/useDepositDeployment/useDepositDeployment";
+import { useHasInAppHistory } from "@src/hooks/useHasInAppHistory";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
-import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
@@ -48,7 +48,7 @@ export const DEPENDENCIES = {
   useDepositDeployment,
   useDeploymentMetrics,
   useManagedDeploymentConfirm,
-  usePreviousRoute,
+  useHasInAppHistory,
   usePricing,
   useDeploymentSettingQuery,
   usePopup,
@@ -84,14 +84,14 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
   const deploymentName = getDeploymentName(deployment?.dseq);
-  const previousRoute = d.usePreviousRoute();
+  const hasInAppHistory = d.useHasInAppHistory();
   const { closeDeploymentConfirm } = d.useManagedDeploymentConfirm();
   const deploymentSetting = d.useDeploymentSettingQuery({ dseq: deployment.dseq });
   const { realTimeLeft, deploymentCost } = d.useDeploymentMetrics({ deployment, leases });
   const { confirm } = d.usePopup();
 
   function handleBackClick() {
-    if (previousRoute) {
+    if (hasInAppHistory) {
       router.back();
     } else {
       router.push(UrlService.deploymentList());

@@ -7,7 +7,6 @@ import { ErrorFallback, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
-import { useSettings } from "@src/context/SettingsProvider";
 import { useOnboardingChrome } from "@src/hooks/useOnboardingChrome";
 import { useTopBanner } from "@src/hooks/useTopBanner";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
@@ -19,13 +18,11 @@ export const DEPENDENCIES = {
   TopNav,
   TrackingScripts,
   useOnboardingChrome,
-  useSettings,
   useTopBanner
 };
 
 type Props = {
   isLoading?: boolean;
-  isUsingSettings?: boolean;
   disableContainer?: boolean;
   containerClassName?: string;
   background?: "default" | "white";
@@ -33,7 +30,7 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, disableContainer, containerClassName, background, dependencies }) => {
+const Layout: React.FunctionComponent<Props> = ({ children, isLoading, disableContainer, containerClassName, background, dependencies }) => {
   const [locale, setLocale] = useState("en-US");
 
   useEffect(() => {
@@ -46,7 +43,6 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
     <IntlProvider locale={locale} defaultLocale="en-US">
       <LayoutApp
         isLoading={isLoading}
-        isUsingSettings={isUsingSettings}
         disableContainer={disableContainer}
         containerClassName={containerClassName}
         background={background}
@@ -61,14 +57,12 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
 const LayoutApp: React.FunctionComponent<Props> = ({
   children,
   isLoading = false,
-  isUsingSettings,
   disableContainer,
   containerClassName = "",
   background = "default",
   dependencies: d = DEPENDENCIES
 }) => {
-  const { LinearLoadingSkeleton, TopNav, TrackingScripts, useOnboardingChrome, useSettings, useTopBanner } = d;
-  const { isSettingsInit } = useSettings();
+  const { LinearLoadingSkeleton, TopNav, TrackingScripts, useOnboardingChrome, useTopBanner } = d;
   const { hasBanner } = useTopBanner();
   const { isStripped } = useOnboardingChrome();
 
@@ -83,11 +77,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({
               <LinearLoadingSkeleton isLoading={isLoading} />
 
               <ErrorBoundary FallbackComponent={ErrorFallback}>
-                {!isUsingSettings || isSettingsInit ? (
-                  <div className={cn({ ["container p-6 pb-8"]: !disableContainer }, containerClassName)}>{children}</div>
-                ) : (
-                  <Loading text="Loading settings..." />
-                )}
+                <div className={cn({ ["container p-6 pb-8"]: !disableContainer }, containerClassName)}>{children}</div>
               </ErrorBoundary>
             </div>
           </div>

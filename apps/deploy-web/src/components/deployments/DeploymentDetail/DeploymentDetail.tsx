@@ -10,7 +10,6 @@ import { NextSeo } from "next-seo";
 
 import { createConfigureDraft } from "@src/components/deployments/ConfigureDeployment/useConfigureDraft/useConfigureDraft";
 import { useServices } from "@src/context/ServicesProvider";
-import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
@@ -31,7 +30,6 @@ import { DeploymentDetailHeader } from "./DeploymentDetailHeader";
 export const DEPENDENCIES = {
   useServices,
   useWallet,
-  useSettings,
   useRouter,
   useSearchParams,
   useRedeploy,
@@ -75,7 +73,6 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
   const { address } = d.useWallet();
-  const { isSettingsInit } = d.useSettings();
   const redeploy = d.useRedeploy();
 
   const [activeTab, setActiveTab] = useState<Tab>("DETAILS");
@@ -98,11 +95,6 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const deploymentManifest = storedDeployment?.manifest || "";
   const isActive = deployment?.state === "active" && !!leases?.some(isLeaseLive);
   const isDeploymentNotFound = !!deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found") && !isLoadingDeployment;
-
-  useEffect(() => {
-    if (isSettingsInit) getDeploymentDetail();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSettingsInit]);
 
   useEffect(() => {
     if (deployment) {
@@ -152,7 +144,6 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   return (
     <d.Layout
       isLoading={isLoadingLeases || isLoadingDeployment || isLoadingProviders}
-      isUsingSettings
       disableContainer
       containerClassName="flex min-h-[calc(100dvh_-_var(--app-header-height,57px)_-_4px)] flex-col px-6 pt-4"
     >

@@ -8,8 +8,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe("ConfigureDeploymentBackButton", () => {
-  it("navigates back when there is a previous route", () => {
-    const { router } = setup({ previousRoute: "/onboarding" });
+  it("navigates back when the user has navigated within the app", () => {
+    const { router } = setup({ hasInAppHistory: true });
 
     fireEvent.click(screen.getByRole("button", { name: /back/i }));
 
@@ -17,8 +17,8 @@ describe("ConfigureDeploymentBackButton", () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  it("falls back to the onboarding picker when there is no previous route", () => {
-    const { router } = setup({ previousRoute: null });
+  it("falls back to the onboarding picker when the page is the session entry point", () => {
+    const { router } = setup({ hasInAppHistory: false });
 
     fireEvent.click(screen.getByRole("button", { name: /back/i }));
 
@@ -26,13 +26,13 @@ describe("ConfigureDeploymentBackButton", () => {
     expect(router.back).not.toHaveBeenCalled();
   });
 
-  function setup(input: { previousRoute: string | null }) {
+  function setup(input: { hasInAppHistory: boolean }) {
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
     render(
       <ConfigureDeploymentBackButton
         dependencies={MockComponents(DEPENDENCIES, {
           useRouter: () => router,
-          usePreviousRoute: () => input.previousRoute,
+          useHasInAppHistory: () => input.hasInAppHistory,
           UrlService
         })}
       />

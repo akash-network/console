@@ -5,9 +5,9 @@ import { useAtomValue } from "jotai";
 import { useRouter } from "next/router";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { settingsIdAtom } from "@src/context/SettingsProvider/settingsStore";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
+import { settingsIdAtom } from "@src/store/settingsStore";
 import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
 import { ManifestYaml } from "@src/utils/deploymentData/helpers";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";

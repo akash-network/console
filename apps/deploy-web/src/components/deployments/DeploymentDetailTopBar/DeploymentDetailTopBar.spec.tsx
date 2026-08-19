@@ -42,10 +42,10 @@ describe(DeploymentDetailTopBar.name, () => {
     expect(loadDeploymentDetail).toHaveBeenCalled();
   });
 
-  it("navigates back when back button is clicked and previous route exists", () => {
+  it("navigates back when back button is clicked and the user has navigated within the app", () => {
     const back = vi.fn();
     const deps = setup({
-      previousRoute: "/deployments",
+      hasInAppHistory: true,
       router: { back }
     });
 
@@ -56,10 +56,10 @@ describe(DeploymentDetailTopBar.name, () => {
     expect(back).toHaveBeenCalled();
   });
 
-  it("navigates to deployment list when back button is clicked and no previous route", () => {
+  it("navigates to deployment list when back button is clicked on the session entry point", () => {
     const push = vi.fn();
     const deps = setup({
-      previousRoute: null,
+      hasInAppHistory: false,
       router: { push }
     });
 
@@ -227,7 +227,7 @@ describe(DeploymentDetailTopBar.name, () => {
     loadDeploymentDetail?: () => void;
     removeLeases?: () => void;
     onDeploymentClose?: () => void;
-    previousRoute?: string | null;
+    hasInAppHistory?: boolean;
     router?: { back?: () => void; push?: () => void };
     wallet?: { denom?: string; signAndBroadcastTx?: () => Promise<boolean> };
     analyticsTrack?: ReturnType<typeof vi.fn>;
@@ -270,7 +270,7 @@ describe(DeploymentDetailTopBar.name, () => {
         getPriceForDenom: vi.fn(() => 0),
         udenomToUsd: vi.fn(() => 0)
       })) as typeof DEPENDENCIES.usePricing,
-      usePreviousRoute: vi.fn(() => input?.previousRoute ?? null) as typeof DEPENDENCIES.usePreviousRoute,
+      useHasInAppHistory: vi.fn(() => input?.hasInAppHistory ?? false) as typeof DEPENDENCIES.useHasInAppHistory,
       useManagedDeploymentConfirm: vi.fn(() => ({
         closeDeploymentConfirm: vi.fn(() => Promise.resolve(true))
       })) as typeof DEPENDENCIES.useManagedDeploymentConfirm,

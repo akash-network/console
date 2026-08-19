@@ -6,7 +6,7 @@ import { Button, ErrorFallback, Tabs, TabsList, TabsTrigger } from "@akashnetwor
 import { NavArrowLeft, Refresh } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
-import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
+import { useHasInAppHistory } from "@src/hooks/useHasInAppHistory";
 import type { ClientProviderDetailWithStatus } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
 import { Title } from "../shared/Title";
@@ -28,7 +28,7 @@ type Props = {
 
 const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, address, provider, refresh }) => {
   const router = useRouter();
-  const previousRoute = usePreviousRoute();
+  const hasInAppHistory = useHasInAppHistory();
 
   const handleTabChange = (newValue: string) => {
     switch (newValue as ProviderDetailTabs) {
@@ -46,7 +46,7 @@ const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, 
   };
 
   function handleBackClick() {
-    if (previousRoute) {
+    if (hasInAppHistory) {
       router.back();
     } else {
       router.push(UrlService.providers());

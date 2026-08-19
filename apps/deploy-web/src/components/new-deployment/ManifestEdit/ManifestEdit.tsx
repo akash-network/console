@@ -30,7 +30,7 @@ import { appendAuditorRequirement, replaceSdlDenom } from "@src/utils/deployment
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { domainName, handleDocClick, UrlService } from "@src/utils/urlUtils";
-import { useSettings } from "../../../context/SettingsProvider";
+import { useBlockchainStatus } from "../../../context/BlockchainStatusProvider";
 import { DeploymentDepositModal } from "../../deployments/DeploymentDepositModal/DeploymentDepositModal";
 import { DeploymentMinimumEscrowAlertText } from "../../sdl/DeploymentMinimumEscrowAlertText";
 import { SDLEditor } from "../../sdl/SDLEditor/SDLEditor";
@@ -69,7 +69,7 @@ export const DEPENDENCIES = {
   LinkTo,
   ViewPanel,
   useServices,
-  useSettings,
+  useBlockchainStatus,
   useWallet,
   useSdlBuilder,
   useImportSimpleSdl,
@@ -108,7 +108,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   }, [editedManifest]);
 
   const { analyticsService, publicConfig: appConfig, deploymentLocalStorage } = d.useServices();
-  const { settings } = d.useSettings();
+  const { isBlockchainDown } = d.useBlockchainStatus();
   const { address, signAndBroadcastTx, isTrialing } = d.useWallet();
   const router = d.useRouter();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
@@ -320,7 +320,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
               <div className="flex-grow">
                 <d.Button
                   variant="default"
-                  disabled={settings.isBlockchainDown || isCreatingDeployment || !editedManifest}
+                  disabled={isBlockchainDown || isCreatingDeployment || !editedManifest}
                   onClick={() => handleCreateDeployment()}
                   className="w-full whitespace-nowrap sm:w-auto"
                   data-testid="create-deployment-btn"
