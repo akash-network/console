@@ -49,10 +49,16 @@ runs:
     - uses: ./.github/actions/setup-app-deps
       with:
         app: deploy-web
+    # The runner's local Azure package mirror drops out periodically. apt sets no network timeout of its own,
+    # so it exhausts its retries there, fails over to archive.ubuntu.com and then blocks forever on a dead
+    # connection: on 2026-08-19 this step ran 82 minutes before being killed by hand, against a healthy 12s.
+    # `timeout` has to do the bounding because composite action steps don't accept `timeout-minutes`.
     - name: Install Playwright Dependencies
       shell: bash
       working-directory: apps/deploy-web
-      run: npx playwright install-deps chromium
+      run: |
+        printf 'Acquire::http::Timeout "30";\nAcquire::https::Timeout "30";\nAcquire::Retries "2";\n' | sudo tee /etc/apt/apt.conf.d/99-e2e-timeouts.conf > /dev/null
+        timeout 5m npx playwright install-deps chromium
     - name: Install Playwright Browsers
       shell: bash
       working-directory: apps/deploy-web
@@ -83,13 +89,14 @@ runs:
         retention-days: 5
 
     - uses: ./.github/actions/slack-tests-failed-notification
-      if: ${{ !cancelled() && steps.e2e-tests.outcome == 'failure' }}
+      if: ${{ !cancelled() && steps.e2e-tests.outcome != 'success' }}
       with:
         ref: ${{ inputs.ref }}
         url: ${{ inputs.url }}
         gh-user-to-slack-user: ${{ inputs.gh-user-to-slack-user }}
         slack-webhook-url: ${{ inputs.slack-webhook-url }}
-        message-title: "Console web UI tests failed on beta"
+        message-title: ${{ steps.e2e-tests.outcome == 'failure' && 'Console web UI tests failed on beta' || 'Console web UI tests did not run on beta' }}
+        tests-ran: ${{ steps.e2e-tests.outcome == 'failure' }}
 
     - name: Summarize Test Results
       if: ${{ !cancelled() }}
@@ -102,5 +109,11 @@ runs:
         prefix=":white_check_mark: Passed"
         if [ "${STEPS_E2E_TESTS_OUTCOME}" == "failure" ]; then
           prefix=":x: Failed"
+        elif [ "${STEPS_E2E_TESTS_OUTCOME}" != "success" ]; then
+          prefix=":x: Did not run"
         fi
-        echo "${prefix}, [download tests report](${STEPS_PLAYWRIGHT_REPORT_OUTPUTS_ARTIFACT_URL})" >> $GITHUB_STEP_SUMMARY
+        line="${prefix}"
+        if [ -n "${STEPS_PLAYWRIGHT_REPORT_OUTPUTS_ARTIFACT_URL}" ]; then
+          line="${line}, [download tests report](${STEPS_PLAYWRIGHT_REPORT_OUTPUTS_ARTIFACT_URL})"
+        fi
+        echo "${line}" >> $GITHUB_STEP_SUMMARY

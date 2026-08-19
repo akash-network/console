@@ -31,6 +31,10 @@ jobs:
   test:
     name: Test ${{ inputs.environment }}
     runs-on: ubuntu-latest
+    # Backstop for hangs the test tooling can't cut off itself, replacing GitHub's 6h default. Sits just above
+    # the longest run any suite here can legitimately produce: console-web's Playwright globalTimeout of 60m
+    # plus dependency setup and report upload. A healthy console-web run is ~10m.
+    timeout-minutes: 75
     env:
       BASE_URL: ${{ inputs.environment == 'staging' && vars.CONSOLE_WEB_BETA_URL || vars.CONSOLE_WEB_URL }}
     steps:
