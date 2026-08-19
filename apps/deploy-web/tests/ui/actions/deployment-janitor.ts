@@ -31,7 +31,7 @@ export async function closeAllActiveDeployments(page: Page, baseUrl: string): Pr
     const active = await listActiveDseqs(page, endpoint);
     if (!active) break;
 
-    countFailuresGoneFromTheAccountAsClosed(active, failures, closed);
+    forgetFailuresGoneFromTheAccount(active, failures);
 
     if (active.length === 0) {
       cleanPasses++;
@@ -60,15 +60,13 @@ export async function closeAllActiveDeployments(page: Page, baseUrl: string): Pr
 }
 
 /**
- * A close whose response never confirmed it did land after all once the account stops listing that dseq. Left among
- * the failures it would send someone chasing a deployment that is already gone.
+ * Drops a close whose response never confirmed it once the account stops listing that dseq, so the run does not end
+ * by pointing at a deployment that is already gone. One absent listing is not proof the close landed, which is why
+ * the dseq is not recorded as closed either: should it come back, it has to be eligible for another attempt.
  */
-function countFailuresGoneFromTheAccountAsClosed(active: string[], failures: Map<string, string>, closed: Set<string>) {
+function forgetFailuresGoneFromTheAccount(active: string[], failures: Map<string, string>) {
   for (const dseq of failures.keys()) {
-    if (!active.includes(dseq)) {
-      failures.delete(dseq);
-      closed.add(dseq);
-    }
+    if (!active.includes(dseq)) failures.delete(dseq);
   }
 }
 

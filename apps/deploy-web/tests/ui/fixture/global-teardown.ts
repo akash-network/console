@@ -8,6 +8,13 @@ import { testEnvConfig } from "./test-env.config";
 import { getUserAgent } from "./user-agent";
 
 /**
+ * CI installs chromium with `--no-shell`, so a channel-less headless launch would resolve to the headless-shell
+ * binary that install skipped. The `chromium` project pins the same channel for the same reason.
+ * https://github.com/microsoft/playwright/issues/33566
+ */
+const BROWSER_CHANNEL = "chromium";
+
+/**
  * Last line of defence for the shared TEST_USER account. Per-test teardown already hands each account back empty,
  * but a worker that dies outright never gets there, and a leftover from an earlier run keeps draining escrow until
  * someone notices. This signs in once at the end of the run and closes whatever is still active.
@@ -22,7 +29,7 @@ export default async function closeDeploymentsLeftByTheRun() {
   let browser: Browser | undefined;
 
   try {
-    browser = await chromium.launch();
+    browser = await chromium.launch({ channel: BROWSER_CHANNEL });
     const page = await browser.newPage({ userAgent: getUserAgent() });
 
     await injectUIConfig(page);

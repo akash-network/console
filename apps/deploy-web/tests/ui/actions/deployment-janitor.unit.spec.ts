@@ -112,14 +112,25 @@ describe(closeAllActiveDeployments.name, () => {
     warn.mockRestore();
   });
 
-  it("counts a close whose request never came back as closed once the account stops listing the dseq", async () => {
+  it("stops warning about a failed close once the account no longer lists the dseq", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const { page, request } = setup({ listings: [["101"], [], []] });
     request.delete.mockRejectedValue(new Error("socket hang up"));
 
-    await expect(closeAllActiveDeployments(page, BASE_URL)).resolves.toEqual(["101"]);
+    await expect(closeAllActiveDeployments(page, BASE_URL)).resolves.toEqual([]);
 
     expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("attempts a failed close again when the dseq comes back after a listing left it out", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { page, request } = setup({ listings: [["101"], [], ["101"], ["101"]], closeStatus: 500 });
+
+    await expect(closeAllActiveDeployments(page, BASE_URL)).resolves.toEqual([]);
+
+    expect(request.delete).toHaveBeenCalledTimes(3);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("101 (HTTP 500)"));
     warn.mockRestore();
   });
 
