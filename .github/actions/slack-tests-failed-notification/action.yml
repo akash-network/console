@@ -19,6 +19,10 @@ inputs:
     description: Title of the message
     required: false
     default: "E2E tests failed"
+  tests-ran:
+    description: Whether the tests executed. When false the message points at the setup failure instead of blaming the change under test.
+    required: false
+    default: "true"
 
 runs:
   using: "composite"
@@ -43,7 +47,7 @@ runs:
 
                   Hey ${{ steps.associated-pr.outputs.slack-user != '' && format('<@{0}>', steps.associated-pr.outputs.slack-user) || steps.associated-pr.outputs.author }},
 
-                  Tests failed on <${{ inputs.url }}|${{ inputs.url }}> likely related to changes in this PR:
+                  ${{ inputs.tests-ran == 'true' && format('Tests failed on <{0}|{0}> likely related to changes in this PR:', inputs.url) || format('The setup failed on <{0}|{0}> before any test ran, so this is likely infrastructure rather than the change under test:', inputs.url) }}
                   <${{ github.server_url }}/${{ github.repository }}/pull/${{ steps.associated-pr.outputs.number }}|${{ steps.associated-pr.outputs.title }}>
 
-                  Please review the test report available in <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|the workflow> artifacts and resolve the issue.
+                  ${{ inputs.tests-ran == 'true' && format('Please review the test report available in <{0}/{1}/actions/runs/{2}|the workflow> artifacts and resolve the issue.', github.server_url, github.repository, github.run_id) || format('Check <{0}/{1}/actions/runs/{2}|the workflow run> for the failing setup step.', github.server_url, github.repository, github.run_id) }}
