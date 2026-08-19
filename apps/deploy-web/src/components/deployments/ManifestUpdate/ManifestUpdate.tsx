@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import type { Manifest } from "@akashnetwork/chain-sdk/web";
 import { Alert, Button, CustomTooltip, Snackbar } from "@akashnetwork/ui/components";
-import { InfoCircle, WarningCircle } from "iconoir-react";
+import { InfoCircle, Upload, WarningCircle } from "iconoir-react";
 import yaml from "js-yaml";
 import { useSnackbar as useSnackbarOriginal } from "notistack";
 
@@ -54,6 +54,8 @@ type Props = {
   isRemoteDeploy: boolean;
   editedManifest: string;
   onManifestChange: (value: string) => void;
+  /** Supplied only by the redesigned detail page; the legacy page omits it and renders no Redeploy action. */
+  onRedeploy?: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -64,6 +66,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   isRemoteDeploy,
   editedManifest,
   onManifestChange,
+  onRedeploy,
   dependencies: d = DEPENDENCIES
 }) => {
   const { providerProxy, analyticsService, deploymentLocalStorage } = useServices();
@@ -225,7 +228,13 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
                 )}
               </div>
 
-              <div>
+              <div className="flex items-center gap-2">
+                {onRedeploy && (
+                  <d.Button variant="outline" size="md" className="gap-1" type="button" onClick={onRedeploy}>
+                    <Upload className="text-xs" />
+                    Redeploy
+                  </d.Button>
+                )}
                 <d.Button
                   disabled={
                     !providerCredentials.details.usable ||
@@ -237,7 +246,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
                     settings.isBlockchainDown
                   }
                   onClick={() => handleUpdateClick()}
-                  size="sm"
+                  size="md"
                   type="button"
                 >
                   Update Deployment

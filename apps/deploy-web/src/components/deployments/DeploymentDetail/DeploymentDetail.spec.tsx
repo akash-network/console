@@ -76,6 +76,24 @@ describe("DeploymentDetail", () => {
     expect(router.replace).toHaveBeenCalledWith(expect.stringContaining("configure"));
   });
 
+  it("offers redeploy on the Update tab when a manifest is stored locally", () => {
+    const { redeploy, analyticsService, ManifestUpdate } = setup({
+      tab: "UPDATE",
+      storedDeployment: { manifest: "version: '2.0'", name: "My Storefront" }
+    });
+
+    ManifestUpdate.mock.calls[0][0].onRedeploy?.();
+
+    expect(redeploy).toHaveBeenCalledWith({ sdl: "version: '2.0'", name: "My Storefront" });
+    expect(analyticsService.track).toHaveBeenCalledWith("redeploy_btn_clk", "Amplitude");
+  });
+
+  it("withholds redeploy from the Update tab when no manifest is stored locally", () => {
+    const { ManifestUpdate } = setup({ tab: "UPDATE", storedDeployment: null });
+
+    expect(ManifestUpdate.mock.calls[0][0].onRedeploy).toBeUndefined();
+  });
+
   function setup(input?: {
     deployment?: DeploymentDto | null;
     leases?: LeaseDto[] | null;
@@ -83,6 +101,7 @@ describe("DeploymentDetail", () => {
     error?: Error | null;
     tab?: string;
     leaseState?: string;
+    storedDeployment?: { manifest?: string; name?: string } | null;
   }) {
     const deployment = input && "deployment" in input ? input.deployment : mock<DeploymentDto>({ dseq: "1786440078202", state: "active", groups: [] });
     const leases = input && "leases" in input ? input.leases : [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: input?.leaseState ?? "active" })];
@@ -93,7 +112,9 @@ describe("DeploymentDetail", () => {
 
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({
-        deploymentLocalStorage: mock<ReturnType<typeof DEPENDENCIES.useServices>["deploymentLocalStorage"]>({ get: () => null }),
+        deploymentLocalStorage: mock<ReturnType<typeof DEPENDENCIES.useServices>["deploymentLocalStorage"]>({
+          get: () => input?.storedDeployment ?? null
+        }),
         sdlAnalyzer: mock<ReturnType<typeof DEPENDENCIES.useServices>["sdlAnalyzer"]>({ hasCiCdImage: () => false }),
         analyticsService
       });
@@ -108,11 +129,13 @@ describe("DeploymentDetail", () => {
       mock<ReturnType<typeof DEPENDENCIES.useDeploymentLeaseList>>({ data: leases, isLoading: false, isSuccess: input?.isLeasesLoaded ?? true });
     const useProviderList: typeof DEPENDENCIES.useProviderList = () =>
       mock<ReturnType<typeof DEPENDENCIES.useProviderList>>({ data: providers, isFetching: false });
+    const redeploy = vi.fn();
+    const useRedeploy: typeof DEPENDENCIES.useRedeploy = () => redeploy;
 
     const DeploymentPlacements = vi.fn(() => <div>placements</div>);
     const DeploymentLogs = vi.fn(() => <div>logs</div>);
     const DeploymentLeaseShell = vi.fn(() => <div>shell</div>);
-    const ManifestUpdate = vi.fn(({ closeManifestEditor }: { closeManifestEditor: () => void }) => (
+    const ManifestUpdate = vi.fn(({ closeManifestEditor }: { closeManifestEditor: () => void; onRedeploy?: () => void }) => (
       <div>
         manifest-update
         <button onClick={closeManifestEditor}>close-manifest-editor</button>
@@ -129,6 +152,7 @@ describe("DeploymentDetail", () => {
           useSettings,
           useRouter,
           useSearchParams,
+          useRedeploy,
           useDeploymentDetail,
           useDeploymentLeaseList,
           useProviderList,
@@ -141,6 +165,6 @@ describe("DeploymentDetail", () => {
       />
     );
 
-    return { router, analyticsService };
+    return { router, analyticsService, redeploy, ManifestUpdate };
   }
 });

@@ -149,7 +149,7 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
         <div className="my-6 flex items-center text-xl font-semibold">
           <h3 className="mr-6">Configure Alerts</h3>
           {!disabled && (
-            <LoadingButton type="submit" loading={isSaving} disabled={!isDirty || isSaving} size="sm">
+            <LoadingButton type="submit" loading={isSaving} disabled={!isDirty || isSaving} size="md">
               Save Changes
             </LoadingButton>
           )}

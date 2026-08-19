@@ -104,16 +104,8 @@ describe("DeploymentDetailHeader", () => {
     expect(screen.getByText("interconnect-badge")).toBeInTheDocument();
   });
 
-  it("redeploys from the locally stored manifest", async () => {
-    const { redeploy } = setup({ storedManifest: "version: '2.0'", name: "My Storefront" });
-
-    await userEvent.click(screen.getByRole("button", { name: "Redeploy" }));
-
-    expect(redeploy).toHaveBeenCalledWith({ sdl: "version: '2.0'", name: "My Storefront" });
-  });
-
-  it("hides the redeploy action when no manifest is stored locally", () => {
-    setup({ storedManifest: null });
+  it("keeps redeploy off the header now that it lives on the update tab", () => {
+    setup({ storedManifest: "version: '2.0'" });
 
     expect(screen.queryByRole("button", { name: "Redeploy" })).not.toBeInTheDocument();
   });
@@ -157,13 +149,9 @@ describe("DeploymentDetailHeader", () => {
         changeDeploymentName,
         getDeploymentData: () => (input.storedManifest ? { manifest: input.storedManifest, name: input.name ?? undefined } : null)
       });
-    const useServices: typeof DEPENDENCIES.useServices = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService: mock<ReturnType<typeof DEPENDENCIES.useServices>["analyticsService"]>() });
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false });
     const useDeclaredTeeTypes: typeof DEPENDENCIES.useDeclaredTeeTypes = () => [];
     const useDeclaredGpuInterconnect: typeof DEPENDENCIES.useDeclaredGpuInterconnect = () => ({ enabled: false, fabrics: [] });
-    const redeploy = vi.fn();
-    const useRedeploy: typeof DEPENDENCIES.useRedeploy = () => redeploy;
     const TrialDeploymentBadge = vi.fn(() => <div>trial-badge</div>);
     const ConfidentialComputeBadge = vi.fn(() => <div>tee-badge</div>);
     const GpuInterconnectBadge = vi.fn(() => <div>interconnect-badge</div>);
@@ -191,13 +179,11 @@ describe("DeploymentDetailHeader", () => {
         providers={[mock<ApiProviderList>({ owner: "akash1provider" })]}
         dependencies={MockComponents(DEPENDENCIES, {
           useLocalNotes,
-          useServices,
           useWallet,
           useWalletBalance,
           useDeploymentSettingQuery,
           useDeclaredTeeTypes,
           useDeclaredGpuInterconnect,
-          useRedeploy,
           useLeaseStatus,
           TrialDeploymentBadge,
           ConfidentialComputeBadge,
@@ -206,6 +192,6 @@ describe("DeploymentDetailHeader", () => {
       />
     );
 
-    return { changeDeploymentName, redeploy };
+    return { changeDeploymentName };
   }
 });
