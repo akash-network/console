@@ -1,3 +1,4 @@
+import { closeActiveDeploymentFromSettings } from "./actions/deploy";
 import { expect, test } from "./fixture/base-test";
 import { testEnvConfig } from "./fixture/test-env.config";
 import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
@@ -6,6 +7,12 @@ const REDESIGN_TABS = ["Details", "Logs", "Events", "Shell", "Update", "Settings
 
 test.describe("Deployment detail redesign preview", () => {
   test.use({ userType: "existing" });
+
+  test.afterEach(async function closeDeploymentLeftByTest({ page }) {
+    if (/\/deployments\/\d+/.test(new URL(page.url()).pathname)) {
+      await closeActiveDeploymentFromSettings(page);
+    }
+  });
 
   test("renders the redesigned header and tabs on the preview route", async ({ page }) => {
     test.setTimeout(8 * 60 * 1000);
