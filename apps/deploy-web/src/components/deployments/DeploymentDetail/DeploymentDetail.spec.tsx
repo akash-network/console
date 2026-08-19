@@ -40,6 +40,15 @@ describe("DeploymentDetail", () => {
     expect(screen.getByText("manifest-update")).toBeInTheDocument();
   });
 
+  it("returns to Details and clears the update tab from the url once the manifest editor closes", async () => {
+    setup({ tab: "UPDATE" });
+
+    await userEvent.click(screen.getByRole("button", { name: "close-manifest-editor" }));
+
+    expect(window.location.search).toBe("?tab=DETAILS");
+    expect(screen.getByText("placements")).toBeInTheDocument();
+  });
+
   it("opens the deployment settings on the Settings tab from the ?tab= query param", () => {
     setup({ tab: "SETTINGS" });
 
@@ -103,7 +112,12 @@ describe("DeploymentDetail", () => {
     const DeploymentPlacements = vi.fn(() => <div>placements</div>);
     const DeploymentLogs = vi.fn(() => <div>logs</div>);
     const DeploymentLeaseShell = vi.fn(() => <div>shell</div>);
-    const ManifestUpdate = vi.fn(() => <div>manifest-update</div>);
+    const ManifestUpdate = vi.fn(({ closeManifestEditor }: { closeManifestEditor: () => void }) => (
+      <div>
+        manifest-update
+        <button onClick={closeManifestEditor}>close-manifest-editor</button>
+      </div>
+    ));
     const DeploymentSettings = vi.fn(() => <div>settings</div>);
 
     render(

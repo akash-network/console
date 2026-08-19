@@ -202,7 +202,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                   deployment={deployment}
                   leases={leases}
                   closeManifestEditor={() => {
-                    setActiveTab("DETAILS");
+                    changeTab("DETAILS");
                     loadDeploymentDetail();
                   }}
                 />
