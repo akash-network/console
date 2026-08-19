@@ -1,3 +1,4 @@
+import type { Browser } from "@playwright/test";
 import { chromium } from "@playwright/test";
 
 import { loginExistingUser } from "../actions/auth";
@@ -12,16 +13,18 @@ import { getUserAgent } from "./user-agent";
  * someone notices. This signs in once at the end of the run and closes whatever is still active.
  *
  * Deliberately never fails the run: a cleanup that reports a broken suite would send everyone chasing the wrong
- * thing. What it cannot close it says out loud instead.
+ * thing. What it cannot close it says out loud instead. Launching the browser is part of what it guards, since a
+ * runner out of resources at the very end of a run would otherwise fail an already-green suite.
  */
 export default async function closeDeploymentsLeftByTheRun() {
   if (!testEnvConfig.TEST_USER_EMAIL || !testEnvConfig.TEST_USER_PASSWORD) return;
 
-  const browser = await chromium.launch();
-  const context = await browser.newContext({ userAgent: getUserAgent() });
+  let browser: Browser | undefined;
 
   try {
-    const page = await context.newPage();
+    browser = await chromium.launch();
+    const page = await browser.newPage({ userAgent: getUserAgent() });
+
     await injectUIConfig(page);
     await routeTestingClientToken(page);
     await loginExistingUser(page);
@@ -34,7 +37,6 @@ export default async function closeDeploymentsLeftByTheRun() {
   } catch (error) {
     console.warn(`[global-teardown] could not sweep the test account: ${error instanceof Error ? error.message : error}`);
   } finally {
-    await context.close();
-    await browser.close();
+    await browser?.close().catch(() => undefined);
   }
 }

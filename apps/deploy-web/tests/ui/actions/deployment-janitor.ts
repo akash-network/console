@@ -1,10 +1,12 @@
 import type { APIResponse, Page } from "@playwright/test";
 
-/** Two consecutive clean listings before the account is declared clean, so a create still landing on chain is caught. */
+/** Two consecutive empty listings before the account is declared clean, so a create still landing on chain is caught. */
 const REQUIRED_CLEAN_PASSES = 2;
 const MAX_PASSES = 4;
 const PASS_DELAY_MS = 2_000;
 const REQUEST_TIMEOUT_MS = 60_000;
+
+type DeploymentListBody = { data?: { deployments?: { deployment?: { id?: { dseq?: string } } }[] } };
 
 /**
  * Closes every deployment still active on the account the page is signed in as, and returns the dseqs it closed.
@@ -28,14 +30,15 @@ export async function closeAllActiveDeployments(page: Page, baseUrl: string): Pr
     const active = await listActiveDseqs(page, endpoint);
     if (!active) break;
 
-    const pending = active.filter(dseq => !closed.has(dseq));
-    if (pending.length === 0) {
+    countFailuresGoneFromTheAccountAsClosed(active, failures, closed);
+
+    if (active.length === 0) {
       cleanPasses++;
       continue;
     }
 
     cleanPasses = 0;
-    for (const dseq of pending) {
+    for (const dseq of active.filter(dseq => !closed.has(dseq))) {
       const failure = await closeDeployment(page, endpoint, dseq);
 
       if (failure) {
@@ -55,7 +58,20 @@ export async function closeAllActiveDeployments(page: Page, baseUrl: string): Pr
   return [...closed];
 }
 
-/** Returns the active dseqs, or `null` when the account cannot be read at all (no session, proxy unreachable). */
+/**
+ * A close whose response never confirmed it did land after all once the account stops listing that dseq. Left among
+ * the failures it would send someone chasing a deployment that is already gone.
+ */
+function countFailuresGoneFromTheAccountAsClosed(active: string[], failures: Map<string, string>, closed: Set<string>) {
+  for (const dseq of failures.keys()) {
+    if (!active.includes(dseq)) {
+      failures.delete(dseq);
+      closed.add(dseq);
+    }
+  }
+}
+
+/** Returns the active dseqs, or `null` when the account cannot be read at all (no session, proxy unreachable, body not JSON). */
 async function listActiveDseqs(page: Page, endpoint: string): Promise<string[] | null> {
   const response = await request(page, "get", endpoint);
 
@@ -64,7 +80,12 @@ async function listActiveDseqs(page: Page, endpoint: string): Promise<string[] |
     return null;
   }
 
-  const body = (await response.json()) as { data?: { deployments?: { deployment?: { id?: { dseq?: string } } }[] } };
+  const body = (await response.json().catch(() => null)) as DeploymentListBody | null;
+
+  if (!body) {
+    console.warn(`[deployment-janitor] could not read the active deployments listing: HTTP ${response.status()} carried no JSON`);
+    return null;
+  }
 
   return (body.data?.deployments ?? []).map(({ deployment }) => deployment?.id?.dseq).filter((dseq): dseq is string => !!dseq);
 }

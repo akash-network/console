@@ -40,6 +40,15 @@ describe(closeAllActiveDeployments.name, () => {
     expect(request.delete).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps polling while a closed deployment lingers in the listing, so a late create is still caught", async () => {
+    const { page, request } = setup({ listings: [["101"], ["101"], ["101"], ["101", "999"]] });
+
+    await expect(closeAllActiveDeployments(page, BASE_URL)).resolves.toEqual(["101", "999"]);
+
+    expect(request.get).toHaveBeenCalledTimes(4);
+    expect(request.delete).toHaveBeenCalledWith(`${LIST_URL}/999`, expect.anything());
+  });
+
   it("reports nothing closed and warns when the account cannot be listed", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const { page, request } = setup({ listStatus: 401 });
@@ -48,6 +57,18 @@ describe(closeAllActiveDeployments.name, () => {
 
     expect(request.delete).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("HTTP 401"));
+    warn.mockRestore();
+  });
+
+  it("reports nothing closed and warns when the listing comes back without JSON", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { page, request } = setup();
+    request.get.mockResolvedValue(nonJsonResponse());
+
+    await expect(closeAllActiveDeployments(page, BASE_URL)).resolves.toEqual([]);
+
+    expect(request.delete).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("carried no JSON"));
     warn.mockRestore();
   });
 
@@ -63,12 +84,23 @@ describe(closeAllActiveDeployments.name, () => {
 
   it("survives a request that never comes back with a response", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const { page, request } = setup({ listings: [["101"], [], []] });
+    const { page, request } = setup({ listings: [["101"], ["101"], ["101"], ["101"]] });
     request.delete.mockRejectedValue(new Error("socket hang up"));
 
     await expect(closeAllActiveDeployments(page, BASE_URL)).resolves.toEqual([]);
 
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("101 (request failed)"));
+    warn.mockRestore();
+  });
+
+  it("counts a close whose request never came back as closed once the account stops listing the dseq", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { page, request } = setup({ listings: [["101"], [], []] });
+    request.delete.mockRejectedValue(new Error("socket hang up"));
+
+    await expect(closeAllActiveDeployments(page, BASE_URL)).resolves.toEqual(["101"]);
+
+    expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
   });
 
@@ -96,6 +128,14 @@ describe(closeAllActiveDeployments.name, () => {
       ok: () => status >= 200 && status < 300,
       status: () => status,
       json: () => Promise.resolve(body)
+    });
+  }
+
+  function nonJsonResponse() {
+    return mock<APIResponse>({
+      ok: () => true,
+      status: () => 200,
+      json: () => Promise.reject(new SyntaxError("Unexpected end of JSON input"))
     });
   }
 });
