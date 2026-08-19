@@ -48,6 +48,22 @@ describe(AlertsListView.name, () => {
     expect(screen.getByText("12345")).toBeInTheDocument();
   });
 
+  it("links the deployment name to the settings tab when the deployment detail redesign is enabled", () => {
+    const mockAlert = buildAlert({ type: "DEPLOYMENT_BALANCE", params: { owner: "owner", dseq: "12345" } });
+
+    setup({ data: [mockAlert], isDeploymentDetailRedesignEnabled: true });
+
+    expect(screen.getByRole("link", { name: mockAlert.deploymentName })).toHaveAttribute("href", UrlService.deploymentDetails("12345", "SETTINGS"));
+  });
+
+  it("links the deployment name to the alerts tab when the deployment detail redesign is disabled", () => {
+    const mockAlert = buildAlert({ type: "DEPLOYMENT_BALANCE", params: { owner: "owner", dseq: "12345" } });
+
+    setup({ data: [mockAlert], isDeploymentDetailRedesignEnabled: false });
+
+    expect(screen.getByRole("link", { name: mockAlert.deploymentName })).toHaveAttribute("href", UrlService.deploymentDetails("12345", "ALERTS"));
+  });
+
   it("renders table with disabled alert without params", () => {
     const mockAlert = buildAlert({
       type: "CHAIN_MESSAGE",
@@ -160,7 +176,11 @@ describe(AlertsListView.name, () => {
     expect(screen.getByRole("navigation")).toBeInTheDocument();
   });
 
-  function setup({ isAlertUpdateEnabled = true, ...props }: Partial<Props> & { isAlertUpdateEnabled?: boolean } = {}) {
+  function setup({
+    isAlertUpdateEnabled = true,
+    isDeploymentDetailRedesignEnabled = false,
+    ...props
+  }: Partial<Props> & { isAlertUpdateEnabled?: boolean; isDeploymentDetailRedesignEnabled?: boolean } = {}) {
     const defaultProps: Props = {
       pagination: {
         page: 1,
@@ -182,6 +202,9 @@ describe(AlertsListView.name, () => {
     const mockUseFlag = vi.fn((flag: string) => {
       if (flag === "notifications_general_alerts_update") {
         return isAlertUpdateEnabled;
+      }
+      if (flag === "deployment_detail_redesign") {
+        return isDeploymentDetailRedesignEnabled;
       }
       return false;
     }) as unknown as typeof useFlag;

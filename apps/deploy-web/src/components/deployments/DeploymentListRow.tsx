@@ -34,6 +34,7 @@ import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useDeploymentLeaseList, useLeaseStatus } from "@src/queries/useLeaseQuery";
 import type { LeaseDto, NamedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
+import { getEscrowDenom } from "@src/utils/deploymentUtils";
 import { isLeaseLive } from "@src/utils/leaseUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getTimeLeft } from "@src/utils/priceUtils";
@@ -117,7 +118,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
 
   const { deposit: depositDeployment } = useDepositDeployment({
     dseq: deployment.dseq,
-    denom: deployment.escrowAccount.state.funds[0]?.denom || "",
+    denom: getEscrowDenom(deployment),
     onSuccess: () => {
       refreshDeployments();
       analyticsService.track("deployment_deposit", {
@@ -217,12 +218,12 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
               <div className="flex items-center">
                 <CalendarArrowDown className="mr-2 text-xs" />
                 <PricePerTimeUnit
-                  denom={deployment.escrowAccount.state.funds[0]?.denom || ""}
+                  denom={getEscrowDenom(deployment)}
                   perBlockValue={udenomToDenom(deploymentCost, 10)}
                   className="whitespace-nowrap"
                   showAsHourly={hasGpu}
                 />
-                <PriceEstimateTooltip denom={deployment.escrowAccount.state.funds[0]?.denom || ""} value={deploymentCost} showAsHourly={hasGpu} />
+                <PriceEstimateTooltip denom={getEscrowDenom(deployment)} value={deploymentCost} showAsHourly={hasGpu} />
               </div>
             )}
             {isActive && !!escrowBalanceInDenom && !!escrowBalance && (
@@ -232,13 +233,13 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                     <div className="space-x-2">
                       <span>Balance:</span>
                       <strong>
-                        <PriceValue denom={deployment.escrowAccount.state.funds[0]?.denom || ""} value={escrowBalanceInDenom} />
+                        <PriceValue denom={getEscrowDenom(deployment)} value={escrowBalanceInDenom} />
                       </strong>
                     </div>
                     <div className="space-x-2">
                       <span>Spent:</span>
                       <strong>
-                        <PriceValue denom={deployment.escrowAccount.state.funds[0]?.denom || ""} value={udenomToDenom(amountSpent || 0, 6)} />
+                        <PriceValue denom={getEscrowDenom(deployment)} value={udenomToDenom(amountSpent || 0, 6)} />
                       </strong>
                     </div>
                     <br />
@@ -250,7 +251,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
               >
                 <div className="inline-flex cursor-help">
                   <Coins className="mr-2 text-xs" />
-                  <PriceValue denom={deployment.escrowAccount.state.funds[0]?.denom || ""} value={escrowBalanceInDenom} />
+                  <PriceValue denom={getEscrowDenom(deployment)} value={escrowBalanceInDenom} />
                 </div>
               </CustomTooltip>
             )}
@@ -366,7 +367,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
 
       {isActive && isDepositingDeployment && (
         <DeploymentDepositModal
-          denom={deployment.escrowAccount.state.funds[0]?.denom || ""}
+          denom={getEscrowDenom(deployment)}
           disableMin
           onCancel={() => setIsDepositingDeployment(false)}
           onSubmit={onDeploymentDeposit}

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { LeaseServiceStatus, LeaseStatusDto } from "@src/queries/useLeaseQuery";
@@ -7,6 +7,7 @@ import type { ApiProviderList } from "@src/types/provider";
 import { DEPENDENCIES, DeploymentDetailHeader } from "./DeploymentDetailHeader";
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe("DeploymentDetailHeader", () => {
@@ -14,6 +15,32 @@ describe("DeploymentDetailHeader", () => {
     setup({ serviceUris: { web: [], api: [], worker: [] } });
 
     expect(screen.getByText("3")).toBeInTheDocument();
+  });
+
+  it("shows the deployment name from local notes", () => {
+    setup({ name: "My Storefront" });
+
+    expect(screen.getByText("My Storefront")).toBeInTheDocument();
+  });
+
+  it("falls back to a generated name when none is stored", () => {
+    setup({ name: null });
+
+    expect(screen.getByText("Deployment #1786440078202")).toBeInTheDocument();
+  });
+
+  it("shows the running status badge when the deployment is active", () => {
+    setup({});
+
+    expect(screen.getByText("Running")).toBeInTheDocument();
+  });
+
+  it("opens the rename flow when the edit-name button is clicked", async () => {
+    const { changeDeploymentName } = setup({});
+
+    await userEvent.click(screen.getByRole("button", { name: "Edit deployment name" }));
+
+    expect(changeDeploymentName).toHaveBeenCalledWith("1786440078202");
   });
 
   it("shows auto top-up as active when enabled for the deployment", () => {
@@ -41,7 +68,7 @@ describe("DeploymentDetailHeader", () => {
     expect(screen.queryByRole("link", { name: "Visit" })).not.toBeInTheDocument();
   });
 
-  function setup(input: { serviceUris?: Record<string, string[]>; autoTopUpEnabled?: boolean; hasLeaseStatus?: boolean }) {
+  function setup(input: { serviceUris?: Record<string, string[]>; autoTopUpEnabled?: boolean; hasLeaseStatus?: boolean; name?: string | null }) {
     const hasLeaseStatus = input.hasLeaseStatus ?? true;
     let leaseStatus: LeaseStatusDto | null = null;
     if (hasLeaseStatus) {
@@ -56,11 +83,12 @@ describe("DeploymentDetailHeader", () => {
       );
     }
 
-    const useServices: typeof DEPENDENCIES.useServices = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useServices>>({
-        deploymentLocalStorage: mock<ReturnType<typeof DEPENDENCIES.useServices>["deploymentLocalStorage"]>({ get: () => null })
+    const changeDeploymentName = vi.fn();
+    const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>({
+        getDeploymentName: () => input.name ?? null,
+        changeDeploymentName
       });
-    const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: "akash1test" });
     const useWalletBalance: typeof DEPENDENCIES.useWalletBalance = () => mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>({ balance: null });
     const useDeploymentSettingQuery: typeof DEPENDENCIES.useDeploymentSettingQuery = () =>
       mock<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>>({
@@ -78,19 +106,20 @@ describe("DeploymentDetailHeader", () => {
       escrowAccount: mock<DeploymentDto["escrowAccount"]>({ state: mock<DeploymentDto["escrowAccount"]["state"]>({ funds: [] }) })
     });
 
-    return render(
+    render(
       <DeploymentDetailHeader
         deployment={deployment}
         leases={[mock<LeaseDto>({ id: "1", provider: "akash1provider", state: "active" })]}
         providers={[mock<ApiProviderList>({ owner: "akash1provider" })]}
         dependencies={MockComponents(DEPENDENCIES, {
-          useServices,
-          useWallet,
+          useLocalNotes,
           useWalletBalance,
           useDeploymentSettingQuery,
           useLeaseStatus
         })}
       />
     );
+
+    return { changeDeploymentName };
   }
 });

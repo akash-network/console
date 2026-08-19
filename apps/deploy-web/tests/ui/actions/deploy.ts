@@ -73,3 +73,18 @@ export async function closeActiveDeployment(page: Page) {
   await page.getByRole("button", { name: /^confirm$/i }).click();
   await expect(actions).toBeHidden({ timeout: 60_000 });
 }
+
+/**
+ * Closes the active deployment from the redesigned detail page, where the close action lives in the Settings
+ * tab's danger zone instead of an actions menu. The danger zone renders only while the deployment is active,
+ * so the button is awaited first; it disappearing once the deployment closes confirms the close.
+ * Used as cleanup by the redesign preview spec so a run leaves no live deployment on the shared account.
+ */
+export async function closeActiveDeploymentFromSettings(page: Page) {
+  await page.getByRole("tab", { name: "Settings" }).click();
+  const close = page.getByRole("button", { name: "Close deployment" });
+  await close.waitFor({ state: "visible", timeout: 120_000 });
+  await close.click();
+  await page.getByRole("button", { name: /^confirm$/i }).click();
+  await expect(close).toBeHidden({ timeout: 60_000 });
+}

@@ -25,6 +25,7 @@ import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
+import { getEscrowDenom } from "@src/utils/deploymentUtils";
 import { averageBlockTime } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
@@ -126,7 +127,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
 
   const { deposit: depositDeployment } = d.useDepositDeployment({
     dseq: deployment.dseq,
-    denom: deployment.escrowAccount.state.funds[0]?.denom || "",
+    denom: getEscrowDenom(deployment),
     onSuccess: () => {
       loadDeploymentDetail();
       analyticsService.track("deployment_deposit", {
@@ -155,7 +156,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
           const secToDepositFor = secTillNextTopUp - secTillClosed;
           const deposit = Math.ceil((deploymentCost * secToDepositFor) / averageBlockTime);
 
-          const convertedDeposit = formatCurrency(udenomToUsd(deposit, deployment.escrowAccount.state.funds[0]?.denom || ""));
+          const convertedDeposit = formatCurrency(udenomToUsd(deposit, getEscrowDenom(deployment)));
           const isConfirmed = await confirm({
             title: "Deposit required",
             message: `To enable auto top-up, please deposit ${convertedDeposit}. This ensures your deployment remains active until the next scheduled check.`
@@ -303,7 +304,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
 
       {isDepositingDeployment && (
         <d.DeploymentDepositModal
-          denom={deployment.escrowAccount.state.funds[0]?.denom || ""}
+          denom={getEscrowDenom(deployment)}
           disableMin
           onCancel={() => setIsDepositingDeployment(false)}
           onSubmit={onDeploymentDeposit}
