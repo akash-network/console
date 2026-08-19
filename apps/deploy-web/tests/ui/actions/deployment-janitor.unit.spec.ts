@@ -72,6 +72,25 @@ describe(closeAllActiveDeployments.name, () => {
     warn.mockRestore();
   });
 
+  it("skips a listing entry that carries no deployment", async () => {
+    const { page, request } = setup();
+    request.get.mockResolvedValueOnce(jsonResponse(200, { data: { deployments: [null, { deployment: { id: { dseq: "101" } } }] } }));
+
+    await expect(closeAllActiveDeployments(page, BASE_URL)).resolves.toEqual(["101"]);
+  });
+
+  it("reports nothing closed and warns when the deployments field is not a list", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { page, request } = setup();
+    request.get.mockResolvedValue(jsonResponse(200, { data: { deployments: {} } }));
+
+    await expect(closeAllActiveDeployments(page, BASE_URL)).resolves.toEqual([]);
+
+    expect(request.delete).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("was not a list"));
+    warn.mockRestore();
+  });
+
   it("warns with the dseq that has to be reclaimed by hand when the close keeps failing", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const { page } = setup({ listings: [["555"], ["555"], ["555"], ["555"]], closeStatus: 500 });

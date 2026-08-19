@@ -6,7 +6,8 @@ const MAX_PASSES = 4;
 const PASS_DELAY_MS = 2_000;
 const REQUEST_TIMEOUT_MS = 60_000;
 
-type DeploymentListBody = { data?: { deployments?: { deployment?: { id?: { dseq?: string } } }[] } };
+type DeploymentListEntry = { deployment?: { id?: { dseq?: string } } };
+type DeploymentListBody = { data?: { deployments?: DeploymentListEntry[] } };
 
 /**
  * Closes every deployment still active on the account the page is signed in as, and returns the dseqs it closed.
@@ -71,7 +72,7 @@ function countFailuresGoneFromTheAccountAsClosed(active: string[], failures: Map
   }
 }
 
-/** Returns the active dseqs, or `null` when the account cannot be read at all (no session, proxy unreachable, body not JSON). */
+/** Returns the active dseqs, or `null` when the account cannot be read at all (no session, proxy unreachable, unusable body). */
 async function listActiveDseqs(page: Page, endpoint: string): Promise<string[] | null> {
   const response = await request(page, "get", endpoint);
 
@@ -87,7 +88,14 @@ async function listActiveDseqs(page: Page, endpoint: string): Promise<string[] |
     return null;
   }
 
-  return (body.data?.deployments ?? []).map(({ deployment }) => deployment?.id?.dseq).filter((dseq): dseq is string => !!dseq);
+  const deployments = body.data?.deployments ?? [];
+
+  if (!Array.isArray(deployments)) {
+    console.warn(`[deployment-janitor] could not read the active deployments listing: the deployments field was not a list`);
+    return null;
+  }
+
+  return deployments.map(entry => entry?.deployment?.id?.dseq).filter((dseq): dseq is string => !!dseq);
 }
 
 /** Returns a description of why the close failed, or `undefined` once the deployment is closed. */
