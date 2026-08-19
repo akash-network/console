@@ -3,8 +3,8 @@ import { createStore, Provider as JotaiStoreProvider } from "jotai";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { settingsIdAtom } from "@src/context/SettingsProvider/settingsStore";
 import type { DeploymentStorageService } from "@src/services/deployment-storage/deployment-storage.service";
+import { settingsIdAtom } from "@src/store/settingsStore";
 import type { DEPENDENCIES } from "./useDeploymentName";
 import { useDeploymentName } from "./useDeploymentName";
 

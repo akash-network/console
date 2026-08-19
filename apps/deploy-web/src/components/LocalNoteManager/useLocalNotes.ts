@@ -3,8 +3,8 @@ import { useCallback } from "react";
 import { useAtom } from "jotai";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { settingsIdAtom } from "@src/context/SettingsProvider/settingsStore";
 import type { LocalDeploymentData } from "@src/services/deployment-storage/deployment-storage.service";
+import { settingsIdAtom } from "@src/store/settingsStore";
 import { getProviderLocalData, updateProviderLocalData } from "@src/utils/providerUtils";
 import { localNoteStore } from "./localNoteStore";
 

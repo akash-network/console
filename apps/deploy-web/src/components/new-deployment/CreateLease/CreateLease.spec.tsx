@@ -428,16 +428,8 @@ describe(CreateLease.name, () => {
             useManagedDeploymentConfirm: () => ({
               closeDeploymentConfirm: () => Promise.resolve(true)
             }),
-            useSettings: () => ({
-              settings: {
-                apiEndpoint: "https://api.example.com",
-                rpcEndpoint: "https://rpc.example.com",
-                isBlockchainDown: input?.isBlockchainDown ?? false
-              },
-              setSettings: vi.fn(),
-              isLoadingSettings: false,
-              isSettingsInit: true
-            })
+            useBlockchainStatus: () =>
+              mock<ReturnType<(typeof CREATE_LEASE_DEPENDENCIES)["useBlockchainStatus"]>>({ isBlockchainDown: input?.isBlockchainDown ?? false })
           }}
         />
       </TestContainerProvider>

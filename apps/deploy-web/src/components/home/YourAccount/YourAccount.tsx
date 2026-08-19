@@ -3,7 +3,7 @@ import React, { useMemo } from "react";
 import { Spinner } from "@akashnetwork/ui/components";
 import { useAtom } from "jotai";
 
-import { useSettings } from "@src/context/SettingsProvider";
+import { useBlockchainStatus } from "@src/context/BlockchainStatusProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import type { WalletBalance } from "@src/hooks/useWalletBalance";
 import sdlStore from "@src/store/sdlStore";
@@ -23,7 +23,7 @@ export const DEPENDENCIES = {
   AccountStatsCards,
   NoDeploymentsState,
   ResourceStatsGrid,
-  useSettings,
+  useBlockchainStatus,
   useWallet
 };
 
@@ -47,7 +47,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({
   providers,
   dependencies: d = DEPENDENCIES
 }) => {
-  const { settings } = d.useSettings();
+  const { isBlockchainDown } = d.useBlockchainStatus();
   const { address } = d.useWallet();
   const totalCpu = activeDeployments.map(d => d.cpuAmount).reduce((a, b) => a + b, 0);
   const totalGpu = activeDeployments.map(d => d.gpuAmount).reduce((a = 0, b = 0) => a + b, 0);
@@ -87,7 +87,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({
 
   return (
     <div className="space-y-6">
-      <d.AccountHeader onDeployClick={onDeployClick} isBlockchainDown={settings.isBlockchainDown} />
+      <d.AccountHeader onDeployClick={onDeployClick} isBlockchainDown={isBlockchainDown} />
 
       {isLoadingBalances && !walletBalance ? (
         <div className="flex h-[200px] items-center justify-center">

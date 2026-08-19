@@ -255,16 +255,7 @@ describe(ManifestEdit.name, () => {
       CustomNextSeo: ComponentMock,
       LinkTo: ComponentMock,
       ViewPanel: ComponentMock,
-      useSettings: () => ({
-        settings: {
-          apiEndpoint: "https://api.example.com",
-          rpcEndpoint: "https://rpc.example.com",
-          isBlockchainDown: input?.isBlockchainDown ?? false
-        },
-        setSettings: vi.fn(),
-        isLoadingSettings: false,
-        isSettingsInit: true
-      }),
+      useBlockchainStatus: () => mock<ReturnType<typeof DEPENDENCIES.useBlockchainStatus>>({ isBlockchainDown: input?.isBlockchainDown ?? false }),
       useWallet: (() => ({
         address: "akash123",
 

@@ -5,12 +5,12 @@ import { Button } from "@akashnetwork/ui/components";
 import { NavArrowLeft } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
-import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
+import { useHasInAppHistory } from "@src/hooks/useHasInAppHistory";
 import { UrlService } from "@src/utils/urlUtils";
 
 export const DEPENDENCIES = {
   useRouter,
-  usePreviousRoute,
+  useHasInAppHistory,
   UrlService
 };
 
@@ -22,15 +22,15 @@ type Props = { dependencies?: typeof DEPENDENCIES };
  */
 export const ConfigureDeploymentBackButton: FC<Props> = ({ dependencies: d = DEPENDENCIES }) => {
   const router = d.useRouter();
-  const previousRoute = d.usePreviousRoute();
+  const hasInAppHistory = d.useHasInAppHistory();
 
   const goBack = useCallback(() => {
-    if (previousRoute) {
+    if (hasInAppHistory) {
       router.back();
     } else {
       router.push(d.UrlService.onboardingPicker());
     }
-  }, [previousRoute, router, d]);
+  }, [hasInAppHistory, router, d]);
 
   return (
     <Button type="button" variant="ghost" onClick={goBack} className="-ml-2 h-8 gap-1 px-2 text-muted-foreground">

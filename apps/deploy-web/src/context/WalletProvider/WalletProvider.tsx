@@ -8,10 +8,10 @@ import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
 import { useBalances } from "@src/queries/useBalancesQuery";
+import { settingsIdAtom } from "@src/store/settingsStore";
 import { getStorageManagedWallet, updateStorageManagedWallet } from "@src/utils/walletUtils";
 import { BootLoading } from "../BootLoadingProvider/BootLoadingProvider";
 import { useServices } from "../ServicesProvider";
-import { settingsIdAtom } from "../SettingsProvider/settingsStore";
 import { deriveWalletIsLoading } from "./deriveWalletIsLoading";
 import { useSignAndBroadcast } from "./useSignAndBroadcast";
 

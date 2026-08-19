@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Button,
   buttonVariants,
@@ -28,7 +28,7 @@ import { NextSeo } from "next-seo";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { LinkTo } from "@src/components/shared/LinkTo";
-import { useSettings } from "@src/context/SettingsProvider";
+import { useBlockchainStatus } from "@src/context/BlockchainStatusProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
@@ -46,7 +46,7 @@ import { DeploymentListRow } from "./DeploymentListRow";
 export const DEPENDENCIES = {
   useWallet,
   useProviderList,
-  useSettings,
+  useBlockchainStatus,
   useLocalNotes,
   useManagedDeploymentConfirm,
   useNewDeploymentUrl,
@@ -65,7 +65,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
   const {
     useWallet,
     useProviderList,
-    useSettings,
+    useBlockchainStatus,
     useLocalNotes,
     useManagedDeploymentConfirm,
     useNewDeploymentUrl,
@@ -77,8 +77,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
   } = dependencies;
   const { address, signAndBroadcastTx, hasWallet } = useWallet();
   const { data: providers, isFetching: isLoadingProviders } = useProviderList();
-  const { settings, isSettingsInit } = useSettings();
-  const { apiEndpoint } = settings;
+  const { isBlockchainDown } = useBlockchainStatus();
   const { getDeploymentName } = useLocalNotes();
   const [deploymentStatus, setDeploymentStatus] = useState<DeploymentStatus>("active");
   const [pageIndex, setPageIndex] = useState(0);
@@ -89,7 +88,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
   const newDeploymentUrl = useNewDeploymentUrl();
 
   const isSearching = search.trim().length > 0;
-  const canQuery = isSettingsInit && !!address;
+  const canQuery = !!address;
 
   const {
     data: pageData,
@@ -139,16 +138,6 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
     ids: pageDeployments.map(deployment => deployment.dseq)
   });
 
-  const previousApiEndpointRef = useRef(apiEndpoint);
-  useEffect(() => {
-    const previousApiEndpoint = previousApiEndpointRef.current;
-    previousApiEndpointRef.current = apiEndpoint;
-    const isEndpointSwitch = previousApiEndpoint !== "" && previousApiEndpoint !== apiEndpoint;
-    if (isEndpointSwitch && isSettingsInit && address) {
-      getDeployments();
-    }
-  }, [apiEndpoint, isSettingsInit, address, getDeployments]);
-
   const onStatusChange = (value: string) => {
     if (value !== "active" && value !== "closed") return;
     setDeploymentStatus(value);
@@ -195,7 +184,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
   const showErrorState = isError && !hasPageResults && !isLoadingDeployments;
 
   return (
-    <Layout isLoading={isLoadingDeployments || isLoadingProviders} isUsingSettings>
+    <Layout isLoading={isLoadingDeployments || isLoadingProviders}>
       <NextSeo title="Deployments" />
       {hasWallet && (
         <div className="flex flex-wrap items-center pb-6">
@@ -234,7 +223,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
             <Link
               href={newDeploymentUrl()}
               className={cn("ml-auto space-x-2", buttonVariants({ variant: "default", size: "sm" }))}
-              aria-disabled={settings.isBlockchainDown}
+              aria-disabled={isBlockchainDown}
               onClick={onDeployClick}
             >
               <Rocket className="rotate-45 text-sm" />

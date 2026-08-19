@@ -1,7 +1,8 @@
 import { atom } from "jotai";
 
-const previousRoute = atom<string | null>(null);
+/** Whether the user has navigated within the app during this SPA session (reset on a full page load). */
+const hasNavigatedInApp = atom(false);
 
 export default {
-  previousRoute
+  hasNavigatedInApp
 };

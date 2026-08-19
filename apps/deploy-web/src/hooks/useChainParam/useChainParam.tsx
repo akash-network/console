@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useDepositParams } from "@src/queries/useSaveSettings";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import { useSettings } from "../../context/SettingsProvider";
+import { useBlockchainStatus } from "../../context/BlockchainStatusProvider";
 
 type MinDeposit = {
   akt: number;
@@ -18,15 +18,15 @@ type ContextType = {
 };
 
 export const DEPENDENCIES = {
-  useSettings,
+  useBlockchainStatus,
   useDepositParams,
   useUsdcDenom
 };
 
 export function useChainParam({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}): ContextType {
-  const { isSettingsInit, settings } = d.useSettings();
+  const { isBlockchainDown } = d.useBlockchainStatus();
   const { data: depositParams } = d.useDepositParams({
-    enabled: isSettingsInit && !settings.isBlockchainDown
+    enabled: !isBlockchainDown
   });
   const usdcDenom = d.useUsdcDenom();
 

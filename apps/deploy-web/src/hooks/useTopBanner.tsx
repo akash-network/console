@@ -6,7 +6,7 @@ import { atomWithStorage } from "jotai/utils";
 import { useServices } from "@src/context/ServicesProvider";
 import { useHasFundingBanner } from "@src/hooks/useHasFundingBanner";
 import { useWhen } from "@src/hooks/useWhen";
-import { useSettings } from "../context/SettingsProvider";
+import { useBlockchainStatus } from "../context/BlockchainStatusProvider";
 
 const GENERIC_BANNER_DISMISSED_PREFIX = "generic_banner_dismissed:";
 const SAFE_LINK_PROTOCOLS = new Set(["http:", "https:"]);
@@ -48,7 +48,7 @@ export function useGenericBannerVisibility(input: { isFlagEnabled: boolean; dism
 export function useTopBanner(): ITopBannerContext {
   const maintenanceBannerFlag = useVariant("maintenance_banner");
   const genericBannerFlag = useVariant("generic_banner");
-  const { settings } = useSettings();
+  const { isBlockchainDown } = useBlockchainStatus();
   const hasFundingBanner = useHasFundingBanner();
   const { dismissId } = useGenericBannerDetails();
 
@@ -61,8 +61,8 @@ export function useTopBanner(): ITopBannerContext {
   });
 
   const hasBanner = useMemo(
-    () => isMaintenanceBannerOpen || isGenericBannerOpen || settings.isBlockchainDown || hasFundingBanner,
-    [isMaintenanceBannerOpen, isGenericBannerOpen, settings.isBlockchainDown, hasFundingBanner]
+    () => isMaintenanceBannerOpen || isGenericBannerOpen || isBlockchainDown || hasFundingBanner,
+    [isMaintenanceBannerOpen, isGenericBannerOpen, isBlockchainDown, hasFundingBanner]
   );
 
   return useMemo(
@@ -72,10 +72,10 @@ export function useTopBanner(): ITopBannerContext {
       setIsMaintenanceBannerOpen,
       isGenericBannerOpen,
       setIsGenericBannerOpen,
-      isBlockchainDown: settings.isBlockchainDown,
+      isBlockchainDown,
       hasFundingBanner
     }),
-    [hasBanner, isMaintenanceBannerOpen, setIsMaintenanceBannerOpen, isGenericBannerOpen, setIsGenericBannerOpen, settings.isBlockchainDown, hasFundingBanner]
+    [hasBanner, isMaintenanceBannerOpen, setIsMaintenanceBannerOpen, isGenericBannerOpen, setIsGenericBannerOpen, isBlockchainDown, hasFundingBanner]
   );
 }
 

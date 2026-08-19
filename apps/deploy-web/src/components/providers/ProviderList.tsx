@@ -20,7 +20,6 @@ import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
-import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useNetworkCapacity, useProviderList } from "@src/queries/useProvidersQuery";
@@ -58,9 +57,7 @@ export const ProviderList: React.FunctionComponent = () => {
   const [pageSize, setPageSize] = useState(10);
   const [sort, setSort] = useState<SortId>("active-leases-desc");
   const [search, setSearch] = useState("");
-  const { settings } = useSettings();
   const { favoriteProviders } = useLocalNotes();
-  const { apiEndpoint } = settings;
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = useProviderList();
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
   const { data: networkCapacity, isFetching: isLoadingNetworkCapacity } = useNetworkCapacity();
@@ -77,7 +74,7 @@ export const ProviderList: React.FunctionComponent = () => {
     getLeases();
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiEndpoint]);
+  }, []);
 
   useEffect(() => {
     if (sortQuery && sortOptions.some(x => x.id === sortQuery)) {

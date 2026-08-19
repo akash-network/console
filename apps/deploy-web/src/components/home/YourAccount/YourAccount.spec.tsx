@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
 import type { WalletBalance } from "@src/hooks/useWalletBalance";
@@ -225,13 +226,8 @@ describe(YourAccount.name, () => {
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
-    const useSettings: typeof DEPENDENCIES.useSettings = () =>
-      ({
-        settings: { isBlockchainDown: false },
-        setSettings: vi.fn(),
-        isLoadingSettings: false,
-        isSettingsInit: true
-      }) as unknown as ReturnType<typeof DEPENDENCIES.useSettings>;
+    const useBlockchainStatus: typeof DEPENDENCIES.useBlockchainStatus = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useBlockchainStatus>>({ isBlockchainDown: false });
 
     const useWallet: typeof DEPENDENCIES.useWallet = () =>
       buildWallet({
@@ -249,7 +245,7 @@ describe(YourAccount.name, () => {
           providers={input.providers}
           dependencies={{
             ...MockComponents(DEPENDENCIES),
-            useSettings,
+            useBlockchainStatus,
             useWallet,
             ...input.dependencies
           }}
