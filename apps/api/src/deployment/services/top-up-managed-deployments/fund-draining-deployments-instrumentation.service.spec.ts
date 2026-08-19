@@ -153,6 +153,20 @@ describe(FundDrainingDeploymentsInstrumentationService.name, () => {
     });
   });
 
+  describe("recordClaimReleaseError", () => {
+    it("increments the claim-release error counter and logs the error", () => {
+      const { service, claimReleaseErrors } = setup();
+      const error = new Error("connection terminated");
+
+      service.recordClaimReleaseError({ owner: "akash1owner", deploymentIds: ["setting-1"], error });
+
+      expect(claimReleaseErrors.add).toHaveBeenCalledWith(1);
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "FUND_DRAINING_CLAIM_RELEASE_ERROR", owner: "akash1owner", deploymentIds: ["setting-1"], error })
+      );
+    });
+  });
+
   describe("recordDeploymentsMarkedClosed", () => {
     it("increments the marked-closed counter by the given count", () => {
       const { service, deploymentsMarkedClosed } = setup();
@@ -255,6 +269,7 @@ describe(FundDrainingDeploymentsInstrumentationService.name, () => {
       chainTxErrors: counters["fund_draining_deployments_chain_tx_errors_total"],
       masterWalletInsufficientFunds: counters["fund_draining_deployments_master_wallet_insufficient_funds_total"],
       deploymentsMarkedClosed: counters["fund_draining_deployments_deployments_marked_closed_total"],
+      claimReleaseErrors: counters["fund_draining_deployments_claim_release_errors_total"],
       jobDuration: histograms["fund_draining_deployments_job_duration_ms"],
       depositAmount: histograms["fund_draining_deployments_deposit_amount"]
     };

@@ -259,6 +259,15 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
     });
   }
 
+  recordClaimReleaseError({ error, ...details }: { owner: string; deploymentIds: string[]; error: unknown }): void {
+    this.logger.error({
+      event: "TOP_UP_CLAIM_RELEASE_ERROR",
+      ...details,
+      ...this.serializeError(error),
+      dryRun: this.options?.dryRun
+    });
+  }
+
   private serializeError(error: unknown): { message: string; stack?: string; data?: unknown } {
     if (error instanceof Error) {
       return {

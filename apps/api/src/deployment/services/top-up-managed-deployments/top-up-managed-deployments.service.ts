@@ -88,49 +88,95 @@ export class TopUpManagedDeploymentsService {
     balance: CachedBalance,
     instrumentation: DeploymentTopUpInstrumentation
   ): Promise<void> {
-    const messageInputs = await this.collectMessages(deployments, balance, instrumentation);
+    if (options.dryRun) {
+      const messageInputs = await this.collectMessages(deployments, balance, instrumentation);
+
+      if (!messageInputs.length) {
+        instrumentation.recordSkipped({ owner: address, deploymentCount: deployments.length });
+        return;
+      }
+
+      await this.topUpForOwner(address, messageInputs, options, instrumentation);
+      return;
+    }
+
+    const claimedDeployments = await this.#claimForFunding(deployments);
+
+    if (!claimedDeployments.length) {
+      instrumentation.recordSkipped({ owner: address, deploymentCount: deployments.length });
+      return;
+    }
+
+    const messageInputs = await this.collectMessages(claimedDeployments, balance, instrumentation);
+    await this.#releaseClaimsWithoutMessage(address, claimedDeployments, messageInputs, instrumentation);
 
     if (!messageInputs.length) {
       instrumentation.recordSkipped({ owner: address, deploymentCount: deployments.length });
       return;
     }
 
-    if (options.dryRun) {
-      await this.topUpForOwner(address, messageInputs, options, instrumentation);
-      return;
-    }
-
-    const claimedInputs = await this.#claimForFunding(messageInputs);
-
-    if (!claimedInputs.length) {
-      instrumentation.recordSkipped({ owner: address, deploymentCount: deployments.length });
-      return;
-    }
-
-    const claimedIds = claimedInputs.map(input => input.deployment.id);
     let deposited = false;
 
     try {
-      deposited = await this.topUpForOwner(address, claimedInputs, options, instrumentation);
+      deposited = await this.topUpForOwner(address, messageInputs, options, instrumentation);
     } finally {
       if (!deposited) {
-        await this.deploymentSettingRepository.releaseFundingClaim(claimedIds);
+        await this.#releaseFundingClaim(
+          address,
+          messageInputs.map(input => input.deployment.id),
+          instrumentation
+        );
       }
     }
 
     await this.walletReloadService.scheduleImmediate({ walletId });
   }
 
-  async #claimForFunding(messageInputs: CollectedMessage[]): Promise<CollectedMessage[]> {
+  /**
+   * Claims before any balance math so a deployment another pass already funded never reserves a
+   * share of the owner's shared allowance: reservations are not refundable, so a loser reserving
+   * first leaves the winners of the same batch to be funded from a short-changed pool.
+   */
+  async #claimForFunding(deployments: DrainingDeployment[]): Promise<DrainingDeployment[]> {
     const cooldownMinutes = this.deploymentConfig.get("AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN");
     const claimedIds = new Set(
       await this.deploymentSettingRepository.claimForFunding(
-        messageInputs.map(input => input.deployment.id),
+        deployments.map(deployment => deployment.id),
         cooldownMinutes
       )
     );
 
-    return messageInputs.filter(input => claimedIds.has(input.deployment.id));
+    return deployments.filter(deployment => claimedIds.has(deployment.id));
+  }
+
+  /**
+   * A claimed deployment that yielded no deposit message (non-positive amount, exhausted balance)
+   * gives its claim back immediately, otherwise it sits out the whole cooldown unfunded.
+   */
+  async #releaseClaimsWithoutMessage(
+    owner: string,
+    claimedDeployments: DrainingDeployment[],
+    messageInputs: CollectedMessage[],
+    instrumentation: DeploymentTopUpInstrumentation
+  ): Promise<void> {
+    const messagedIds = new Set(messageInputs.map(input => input.deployment.id));
+    const unmessagedIds = claimedDeployments.filter(deployment => !messagedIds.has(deployment.id)).map(deployment => deployment.id);
+
+    if (!unmessagedIds.length) {
+      return;
+    }
+
+    await this.#releaseFundingClaim(owner, unmessagedIds, instrumentation);
+  }
+
+  /**
+   * A release failure is reported rather than thrown: the release runs in a finally block, where a
+   * rejection would replace the chain error the caller classifies to decide whether to retry.
+   */
+  async #releaseFundingClaim(owner: string, deploymentIds: string[], instrumentation: DeploymentTopUpInstrumentation): Promise<void> {
+    await this.deploymentSettingRepository.releaseFundingClaim(deploymentIds).catch((error: unknown) => {
+      instrumentation.recordClaimReleaseError({ owner, deploymentIds, error });
+    });
   }
 
   private async collectMessages(
@@ -220,9 +266,6 @@ export class TopUpManagedDeploymentsService {
           return false;
         }
       }
-
-      instrumentation.recordDeposit({ owner, items: ownerInputs });
-      return true;
     } catch (error: unknown) {
       instrumentation.recordChainTxError({ owner, items: ownerInputs, error });
 
@@ -232,6 +275,22 @@ export class TopUpManagedDeploymentsService {
       }
 
       return false;
+    }
+
+    this.#recordDeposit(instrumentation, { owner, items: ownerInputs });
+
+    return true;
+  }
+
+  /**
+   * The deposit has already landed on chain by the time it is recorded, so a telemetry failure must
+   * not escape as a failed deposit: that would release the claim and let the next pass deposit again.
+   */
+  #recordDeposit(instrumentation: DeploymentTopUpInstrumentation, details: { owner: string; items: CollectedMessage[] }): void {
+    try {
+      instrumentation.recordDeposit(details);
+    } catch {
+      return;
     }
   }
 }

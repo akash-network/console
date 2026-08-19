@@ -676,10 +676,11 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const walletId = faker.number.int({ min: 1000000, max: 9999999 });
       const won = createDrainingFor(owner, walletId);
       const claimedByAnotherPass = createDrainingFor(owner, walletId);
+      const balance = createMockCachedBalance(() => 1000000);
 
       drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([won, claimedByAnotherPass]);
       drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
-      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
+      cachedBalanceService.getFresh.mockResolvedValue(balance);
       deploymentSettingRepository.claimForFunding.mockResolvedValue([won.id]);
 
       await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
@@ -688,6 +689,75 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(walletId, [
         expect.objectContaining({ value: expect.objectContaining({ id: expect.objectContaining({ xid: expect.stringContaining(`/${won.dseq}`) }) }) })
       ]);
+      expect(balance.reserveSufficientAmount).toHaveBeenCalledOnce();
+    });
+
+    it("releases the claim of a deployment that produced no deposit message", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, deploymentSettingRepository } = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const withoutRunwayToBuy = createDrainingFor(owner, walletId);
+      const fundable = createDrainingFor(owner, walletId);
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([withoutRunwayToBuy, fundable]);
+      drainingDeploymentService.calculateTopUpAmount.mockResolvedValueOnce(0).mockResolvedValue(1000000);
+      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
+
+      expect(deploymentSettingRepository.releaseFundingClaim).toHaveBeenCalledWith([withoutRunwayToBuy.id]);
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(walletId, [
+        expect.objectContaining({ value: expect.objectContaining({ id: expect.objectContaining({ xid: expect.stringContaining(`/${fundable.dseq}`) }) }) })
+      ]);
+    });
+
+    it("keeps the claim of a landed deposit when recording it throws", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, deploymentSettingRepository, fundDrainingInstrumentation } = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const deployment = createDrainingFor(owner, walletId);
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
+      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
+      deploymentSettingRepository.claimForFunding.mockResolvedValue([deployment.id]);
+      fundDrainingInstrumentation.recordDeposit.mockImplementation(() => {
+        throw new Error("otel exporter down");
+      });
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
+
+      expect(deploymentSettingRepository.releaseFundingClaim).not.toHaveBeenCalled();
+    });
+
+    it("reports a failed claim release without masking the chain error that caused it", async () => {
+      const {
+        service,
+        drainingDeploymentService,
+        cachedBalanceService,
+        managedSignerService,
+        chainErrorService,
+        deploymentSettingRepository,
+        fundDrainingInstrumentation
+      } = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const deployment = createDrainingFor(owner, walletId);
+      const releaseError = new Error("connection terminated");
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
+      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
+      deploymentSettingRepository.claimForFunding.mockResolvedValue([deployment.id]);
+      deploymentSettingRepository.releaseFundingClaim.mockRejectedValue(releaseError);
+      managedSignerService.executeDerivedTx.mockRejectedValue(new Error("insufficient funds"));
+      chainErrorService.isMasterWalletInsufficientFundsError.mockResolvedValue(true);
+
+      await expect(service.topUpDrainingDeploymentsForOwner({ walletId, address: owner })).rejects.toThrow("insufficient funds");
+
+      expect(fundDrainingInstrumentation.recordClaimReleaseError).toHaveBeenCalledWith(
+        expect.objectContaining({ owner, deploymentIds: [deployment.id], error: releaseError })
+      );
     });
 
     it("funds nothing and records a skip when another pass already claimed every deployment", async () => {
@@ -824,6 +894,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     const walletReloadService = mock<WalletReloadJobService>();
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.claimForFunding.mockImplementation(async (ids: string[]) => ids);
+    deploymentSettingRepository.releaseFundingClaim.mockResolvedValue(undefined);
     const deploymentConfig = mockConfigService<DeploymentConfigService>({ AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN: 60 });
 
     const service = new TopUpManagedDeploymentsService(

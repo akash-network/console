@@ -42,6 +42,7 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
   private readonly chainTxErrors: Counter;
   private readonly masterWalletInsufficientFunds: Counter;
   private readonly deploymentsMarkedClosed: Counter;
+  private readonly claimReleaseErrors: Counter;
 
   private readonly logger = createOtelLogger({ context: "FundDrainingDeploymentsService" });
 
@@ -92,6 +93,10 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
 
     this.deploymentsMarkedClosed = this.metricsService.createCounter(this.meter, "fund_draining_deployments_deployments_marked_closed_total", {
       description: "Total number of deployments marked as closed while resolving immediate funding candidates"
+    });
+
+    this.claimReleaseErrors = this.metricsService.createCounter(this.meter, "fund_draining_deployments_claim_release_errors_total", {
+      description: "Total number of failed attempts to release an immediate funding claim after a deposit did not land"
     });
   }
 
@@ -166,6 +171,16 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
       event: "FUND_DRAINING_MASTER_WALLET_INSUFFICIENT_FUNDS",
       owner,
       deposits: this.serializeDeposits(items),
+      error
+    });
+  }
+
+  recordClaimReleaseError({ owner, deploymentIds, error }: { owner: string; deploymentIds: string[]; error: unknown }): void {
+    this.claimReleaseErrors.add(1);
+    this.emitLog("error", {
+      event: "FUND_DRAINING_CLAIM_RELEASE_ERROR",
+      owner,
+      deploymentIds,
       error
     });
   }

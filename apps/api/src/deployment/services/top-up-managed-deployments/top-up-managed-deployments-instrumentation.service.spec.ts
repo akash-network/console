@@ -161,6 +161,24 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
     });
   });
 
+  describe("recordClaimReleaseError", () => {
+    it("logs the deployments whose funding claim could not be released", () => {
+      const { service, logger } = setup();
+      service.start(100, { dryRun: false });
+
+      service.recordClaimReleaseError({ owner: "akash1owner", deploymentIds: ["setting-1"], error: new Error("connection terminated") });
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "TOP_UP_CLAIM_RELEASE_ERROR",
+          owner: "akash1owner",
+          deploymentIds: ["setting-1"],
+          message: "connection terminated"
+        })
+      );
+    });
+  });
+
   describe("execWhenEnabled", () => {
     it("does not emit metrics in dry run mode", () => {
       const { service, summarizer } = setup();

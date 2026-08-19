@@ -201,10 +201,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
   });
 
   describe("topUpDrainingDeploymentsForOwner", () => {
-    // Two funding passes for the same wallet run at once (immediate funding overlapping the
-    // hourly cron, or two credit top-ups in quick succession). The DB claim must award each
-    // deployment to a single pass so neither draining deployment is deposited into twice.
-    it("funds each draining deployment at most once when the same wallet is funded concurrently", async () => {
+    it("funds each draining deployment at most once when two passes for the same wallet run at once", async () => {
       const { topUpService, executeDerivedTx, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } =
         await setup();
       const { user, wallet, address } = await createUserWithWallet();
@@ -228,10 +225,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(depositedXids.filter(xid => xid.includes(`/${dseqB}`))).toHaveLength(1);
     });
 
-    // A second funding pass for the same wallet arrives while the first funding is still within
-    // the cooldown (a retry after the deposit already landed, or another credit top-up). The
-    // claim marker persists across passes, so the deployment is not funded a second time.
-    it("does not fund again within the cooldown after a successful funding", async () => {
+    it("does not fund again when a later pass arrives within the cooldown of a successful funding", async () => {
       const { topUpService, executeDerivedTx, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } =
         await setup();
       const { user, wallet, address } = await createUserWithWallet();
@@ -248,9 +242,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(executeDerivedTx).toHaveBeenCalledOnce();
     });
 
-    // The first deposit lands on-chain with a non-OK code (nothing was funded), so its claim is
-    // released and the next pass re-funds the still-draining deployment.
-    it("releases the claim after a failed deposit so the next pass funds it", async () => {
+    it("releases the claim of a deposit that landed with a non-OK code so the next pass funds it", async () => {
       const { topUpService, executeDerivedTx, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } =
         await setup();
       const { user, wallet, address } = await createUserWithWallet();
