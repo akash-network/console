@@ -73,6 +73,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
         payment_method: expect.any(String),
         amount: expectedReloadAmount,
         confirm: true,
+        metadata: { auto_recharge: "true" },
         idempotencyKey: `${WalletBalanceReloadCheck.name}.${jobMeta.id}`,
         onAmountMismatch: "tolerate"
       });
@@ -112,6 +113,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
         payment_method: expect.any(String),
         amount: expectedReloadAmount,
         confirm: true,
+        metadata: { auto_recharge: "true" },
         idempotencyKey: `${WalletBalanceReloadCheck.name}.${jobMeta.id}`,
         onAmountMismatch: "tolerate"
       });
@@ -368,6 +370,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
         payment_method: expect.any(String),
         amount: 100,
         confirm: true,
+        metadata: { auto_recharge: "true" },
         idempotencyKey: `${WalletBalanceReloadCheck.name}.${jobMeta.id}`,
         onAmountMismatch: "tolerate"
       });

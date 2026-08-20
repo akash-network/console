@@ -126,6 +126,30 @@ describe(StripeTransactionService.name, () => {
       expect(domainEventsService.publish).not.toHaveBeenCalled();
     });
 
+    it("does not re-settle a refunded transaction when the success webhook is redelivered", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService, domainEventsService } = setup();
+      const mockUser = createTestUser();
+      const refundedTransaction = generateDatabaseStripeTransaction({ id: "tx-refunded", status: "refunded" });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(refundedTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(refundedTransaction);
+
+      const outcome = await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_refunded",
+          customer: mockUser.stripeCustomerId,
+          amount: 10000,
+          metadata: { internal_transaction_id: refundedTransaction.id, auto_recharge: "true" }
+        })
+      );
+
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(domainEventsService.publish).not.toHaveBeenCalled();
+      expect(outcome.autoRecharge).toBeUndefined();
+    });
+
     it("skips a payment-method validation intent without touching the transaction", async () => {
       const { service, userRepository, stripeTransactionRepository, refillService } = setup();
 
@@ -186,7 +210,7 @@ describe(StripeTransactionService.name, () => {
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
       firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(bonusAmount);
 
-      const grant = await service.settlePaymentIntent(
+      const outcome = await service.settlePaymentIntent(
         createPaymentIntentSucceededEvent({
           id: "pi_123",
           customer: mockUser.stripeCustomerId,
@@ -212,7 +236,7 @@ describe(StripeTransactionService.name, () => {
         }
       });
       expect(firstPurchaseBonusService.trackBonusGranted).toHaveBeenCalledWith(mockUser.id, amount, bonusAmount);
-      expect(grant).toEqual({ userId: mockUser.id, bonusAmountCents: bonusAmount, paidAmountCents: amount });
+      expect(outcome.bonusGrant).toEqual({ userId: mockUser.id, bonusAmountCents: bonusAmount, paidAmountCents: amount });
     });
 
     it("returns undefined and keeps the top-up untouched when no bonus applies", async () => {
@@ -225,7 +249,7 @@ describe(StripeTransactionService.name, () => {
       stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
 
-      const grant = await service.settlePaymentIntent(
+      const outcome = await service.settlePaymentIntent(
         createPaymentIntentSucceededEvent({
           id: "pi_123",
           customer: mockUser.stripeCustomerId,
@@ -241,7 +265,76 @@ describe(StripeTransactionService.name, () => {
       );
       expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, expect.anything());
       expect(firstPurchaseBonusService.trackBonusGranted).not.toHaveBeenCalled();
-      expect(grant).toBeUndefined();
+      expect(outcome.bonusGrant).toBeUndefined();
+    });
+
+    it("returns the auto recharge when the payment intent carries the auto_recharge marker", async () => {
+      const { service, userRepository, stripeTransactionRepository } = setup();
+      const mockUser = createTestUser();
+      const amount = 5000;
+      const internalTransaction = generateDatabaseStripeTransaction({ id: "tx-auto", type: "payment_intent", status: "created", amount });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+
+      const outcome = await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_auto",
+          customer: mockUser.stripeCustomerId,
+          amount,
+          amount_received: amount,
+          metadata: { internal_transaction_id: internalTransaction.id, auto_recharge: "true" }
+        })
+      );
+
+      expect(outcome.autoRecharge).toEqual({ userId: mockUser.id, transactionId: internalTransaction.id, amountCents: amount });
+    });
+
+    it("does not return an auto recharge when the transaction was already settled", async () => {
+      const { service, userRepository, stripeTransactionRepository } = setup();
+      const mockUser = createTestUser();
+      const amount = 5000;
+      const settledTransaction = generateDatabaseStripeTransaction({ id: "tx-auto", type: "payment_intent", status: "succeeded", amount });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(settledTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(settledTransaction);
+
+      const outcome = await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_auto",
+          customer: mockUser.stripeCustomerId,
+          amount,
+          amount_received: amount,
+          metadata: { internal_transaction_id: settledTransaction.id, auto_recharge: "true" }
+        })
+      );
+
+      expect(outcome.autoRecharge).toBeUndefined();
+    });
+
+    it("does not return an auto recharge for a manual Add Funds charge without the marker", async () => {
+      const { service, userRepository, stripeTransactionRepository } = setup();
+      const mockUser = createTestUser();
+      const amount = 5000;
+      const internalTransaction = generateDatabaseStripeTransaction({ id: "tx-manual", type: "payment_intent", status: "created", amount });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+
+      const outcome = await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_manual",
+          customer: mockUser.stripeCustomerId,
+          amount,
+          amount_received: amount,
+          metadata: { internal_transaction_id: internalTransaction.id }
+        })
+      );
+
+      expect(outcome.autoRecharge).toBeUndefined();
     });
   });
 
