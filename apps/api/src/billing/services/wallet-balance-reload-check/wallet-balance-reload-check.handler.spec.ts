@@ -230,14 +230,15 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       await expect(handler.handle(job, jobMeta)).rejects.toThrow(error);
 
-      expect(instrumentationService.recordReloadFailed).toHaveBeenCalledWith(
+      expect(instrumentationService.recordReloadFailed).toHaveBeenCalledWith({
+        mode: "prediction",
         error,
-        expect.objectContaining({
+        logContext: expect.objectContaining({
           walletAddress: expect.any(String),
           balance,
           costUntilTargetDateInFiat
         })
-      );
+      });
     });
 
     it("logs error and throws when scheduling next check fails", async () => {
@@ -493,10 +494,11 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       await expect(handler.handle(job, jobMeta)).rejects.toThrow(error);
 
-      expect(instrumentationService.recordReloadFailed).toHaveBeenCalledWith(
+      expect(instrumentationService.recordReloadFailed).toHaveBeenCalledWith({
+        mode: "threshold",
         error,
-        expect.objectContaining({ walletAddress: expect.any(String), balance: 10, threshold: 20, reloadAmount: 100 })
-      );
+        logContext: expect.objectContaining({ walletAddress: expect.any(String), balance: 10, threshold: 20, reloadAmount: 100 })
+      });
     });
   });
 

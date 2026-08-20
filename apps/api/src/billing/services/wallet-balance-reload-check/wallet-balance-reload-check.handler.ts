@@ -218,7 +218,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
       });
       this.instrumentationService.recordReloadTriggered({ mode, amount: reloadAmount, coverageRatio, logContext: log });
     } catch (error) {
-      this.instrumentationService.recordReloadFailed(error, log);
+      this.instrumentationService.recordReloadFailed({ mode, error, logContext: log });
       throw error;
     }
   }
@@ -274,7 +274,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
         logContext: log
       });
     } catch (error) {
-      this.instrumentationService.recordReloadFailed(error, log);
+      this.instrumentationService.recordReloadFailed({ mode, error, logContext: log });
       throw error;
     }
   }

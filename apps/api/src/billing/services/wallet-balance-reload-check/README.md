@@ -26,7 +26,9 @@ if (balance <= autoReloadThreshold) {
 
 The comparison is **inclusive**: a balance exactly at the threshold triggers a top-up. The `max(..., $20)` is a defensive clamp — there is no DB CHECK constraint, so the handler guarantees Stripe's minimum even if a smaller amount was somehow persisted.
 
-The check is a pure balance comparison. It fires even when the user has no active deployments, and it does not project future spend. The balance compared is the deployment-grant balance in USD (`getDeploymentBalanceInFiat`) — the same "Available Balance" shown on the billing page.
+The check is a pure balance comparison: it does not project future spend. The balance compared is the deployment-grant balance in USD (`getDeploymentBalanceInFiat`) — the same "Available Balance" shown on the billing page.
+
+One guard sits after the comparison: when the wallet owns no active deployment the charge is skipped (`no_active_deployments`), so leftover credit below the threshold never gets topped up on an idle wallet. Checks enqueued by initial deployment funding (`triggeredByDeployment`) bypass that count, because it reads the indexer-fed `Deployment` table, which lags chain state right after a lease starts.
 
 ### Worked examples (defaults: threshold $20, amount $100)
 
@@ -34,7 +36,8 @@ The check is a pure balance comparison. It fires even when the user has no activ
 | ------- | --------- | ------ | ------- |
 | $20.00  | $20       | $100   | `balance <= threshold` → **charge $100** |
 | $20.01  | $20       | $100   | `balance > threshold` → **skip** |
-| $0.00   | $20       | $100   | **charge $100** (fires with no deployments) |
+| $0.00   | $20       | $100   | **charge $100** (wallet has an active deployment) |
+| $0.00   | $20       | $100   | **skip** `no_active_deployments` (idle wallet, check not deployment-triggered) |
 | $5.00   | $20       | $15\*  | **charge $20** (clamped to the $20 minimum) |
 
 \* An amount below $20 should never persist (zod rejects it on write); the clamp is defensive only.

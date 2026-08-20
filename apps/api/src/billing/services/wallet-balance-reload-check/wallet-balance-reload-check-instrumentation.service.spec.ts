@@ -20,18 +20,20 @@ import { WalletBalanceReloadCheckInstrumentationService } from "./wallet-balance
 describe(WalletBalanceReloadCheckInstrumentationService.name, () => {
   describe("recordReloadFailed", () => {
     it("logs error with context when reload fails with an Error", () => {
-      const { service } = setup();
+      const { service, counters } = setup();
       const error = new TypeError(faker.lorem.sentence());
       const logContext = {
         walletAddress: faker.string.alphanumeric(44),
         balance: faker.number.float({ min: 0, max: 100 })
       };
 
-      service.recordReloadFailed(error, logContext);
+      service.recordReloadFailed({ mode: "threshold", error, logContext });
 
+      expect(counters.wallet_balance_reload_check_reload_failures_total.add).toHaveBeenCalledWith(1, { mode: "threshold", error_type: "TypeError" });
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.objectContaining({
           ...logContext,
+          mode: "threshold",
           event: "WALLET_BALANCE_RELOAD_FAILED",
           error
         })
@@ -39,18 +41,20 @@ describe(WalletBalanceReloadCheckInstrumentationService.name, () => {
     });
 
     it("logs error with context when reload fails with a non-Error", () => {
-      const { service } = setup();
+      const { service, counters } = setup();
       const error = faker.lorem.sentence();
       const logContext = {
         walletAddress: faker.string.alphanumeric(44),
         balance: faker.number.float({ min: 0, max: 100 })
       };
 
-      service.recordReloadFailed(error, logContext);
+      service.recordReloadFailed({ mode: "prediction", error, logContext });
 
+      expect(counters.wallet_balance_reload_check_reload_failures_total.add).toHaveBeenCalledWith(1, { mode: "prediction", error_type: "Unknown" });
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.objectContaining({
           ...logContext,
+          mode: "prediction",
           event: "WALLET_BALANCE_RELOAD_FAILED",
           error
         })

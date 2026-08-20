@@ -120,14 +120,16 @@ export class WalletBalanceReloadCheckInstrumentationService {
     }
   }
 
-  recordReloadFailed(error: unknown, logContext: Record<string, unknown>): void {
+  recordReloadFailed(input: Pick<ReloadMetricInput, "mode" | "logContext"> & { error: unknown }): void {
     this.reloadFailures.add(1, {
-      error_type: error instanceof Error ? error.constructor.name : "Unknown"
+      mode: input.mode,
+      error_type: input.error instanceof Error ? input.error.constructor.name : "Unknown"
     });
     this.logger.error({
-      ...logContext,
+      ...input.logContext,
+      mode: input.mode,
       event: "WALLET_BALANCE_RELOAD_FAILED",
-      error: error
+      error: input.error
     });
   }
 
