@@ -112,12 +112,20 @@ export class SdlSecretsContextService {
   }
 
   #toSealingJwk(pem: string): SdlSecretsPublicJwk {
-    const { kty, n, e } = createPublicKey(pem).export({ format: "jwk" });
+    const { kty, n, e } = this.#exportJwk(pem);
 
     if (kty !== "RSA" || !n || !e) {
       throw this.#rejectUntrustworthyKey("SDL_SECRETS_KEY_NOT_RSA", { kty });
     }
 
     return { kty, n, e, use: "enc", alg: SDL_SECRETS_SEAL_ALGORITHM };
+  }
+
+  #exportJwk(pem: string) {
+    try {
+      return createPublicKey(pem).export({ format: "jwk" });
+    } catch (error) {
+      throw this.#rejectUntrustworthyKey("SDL_SECRETS_KEY_PEM_UNPARSABLE", { error });
+    }
   }
 }

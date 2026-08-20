@@ -113,6 +113,12 @@ describe(SdlSecretsContextService.name, () => {
     await expect(service.getContext()).rejects.toMatchObject({ status: 503 });
   });
 
+  it("rejects a PEM that cannot be parsed as a public key", async () => {
+    const { service } = setup({ pem: "-----BEGIN PUBLIC KEY-----\nnot-a-key\n-----END PUBLIC KEY-----\n" });
+
+    await expect(service.getContext()).rejects.toMatchObject({ status: 503 });
+  });
+
   it.each(["RSA_DECRYPT_OAEP_3072_SHA1", "RSA_DECRYPT_OAEP_4096_SHA512", "RSA_SIGN_PKCS1_3072_SHA256", null] as const)(
     "rejects a key version provisioned as %s rather than for RSA-OAEP-256",
     async algorithm => {
