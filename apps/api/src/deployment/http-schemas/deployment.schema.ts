@@ -91,7 +91,7 @@ export const CreateDeploymentRequestSchema = z.object({
     deposit: z.number().optional().openapi({
       deprecated: true,
       description:
-        "Deposit in whole tokens. Ignored when managed deposits are enabled for your account, in which case the platform sets it automatically; otherwise it is required."
+        "Deposit in dollars. Ignored when managed deposits are enabled for your account, in which case the platform sets it automatically; otherwise it is required."
     })
   })
 });
@@ -117,7 +117,7 @@ export const CloseDeploymentResponseSchema = z.object({
 export const DepositDeploymentRequestSchema = z.object({
   data: z.object({
     dseq: DseqSchema.describe("Deployment sequence number"),
-    deposit: z.number().describe("Amount to deposit in whole tokens (e.g. 5.5)")
+    deposit: z.number().describe("Amount to deposit in dollars (e.g. 5.5)")
   })
 });
 

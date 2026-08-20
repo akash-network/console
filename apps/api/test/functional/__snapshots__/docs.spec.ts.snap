@@ -6814,7 +6814,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "properties": {
                       "deposit": {
                         "deprecated": true,
-                        "description": "Deposit in whole tokens. Ignored when managed deposits are enabled for your account, in which case the platform sets it automatically; otherwise it is required.",
+                        "description": "Deposit in dollars. Ignored when managed deposits are enabled for your account, in which case the platform sets it automatically; otherwise it is required.",
                         "type": "number",
                       },
                       "sdl": {
@@ -7802,7 +7802,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "data": {
                     "properties": {
                       "deposit": {
-                        "description": "Amount to deposit in whole tokens (e.g. 5.5)",
+                        "description": "Amount to deposit in dollars (e.g. 5.5)",
                         "type": "number",
                       },
                       "dseq": {

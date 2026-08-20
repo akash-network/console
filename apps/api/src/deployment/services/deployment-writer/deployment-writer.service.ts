@@ -42,7 +42,7 @@ export class DeploymentWriterService {
   public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
     const manifest = this.#parseManifest(input.sdl, { isTrialing: !!wallet.isTrialing });
-    const depositInTokens = this.resolveDepositInTokens(input.deposit);
+    const depositInDollars = this.resolveDepositInDollars(input.deposit);
 
     if (wallet.isTrialing) {
       await this.reclaimTrialOrphanedDeployments(wallet);
@@ -56,7 +56,7 @@ export class DeploymentWriterService {
       dseq,
       groups: manifest.groupSpecs,
       denom: this.billingConfig.get("DEPLOYMENT_GRANT_DENOM"),
-      amount: denomToUdenom(depositInTokens),
+      amount: denomToUdenom(depositInDollars),
       hash: manifestVersion,
       reclamation: manifest.reclamation
     });
@@ -73,7 +73,7 @@ export class DeploymentWriterService {
    * Behind the managed-funding flag the platform bootstraps every deployment with a fixed, on-chain-valid deposit and
    * ignores any caller-supplied amount. With the flag off the legacy contract holds: the caller must supply the deposit.
    */
-  private resolveDepositInTokens(requestedDeposit?: number): number {
+  private resolveDepositInDollars(requestedDeposit?: number): number {
     if (this.isManagedDepositEnabled()) {
       return this.deploymentConfig.get("DEPLOYMENT_DEFAULT_DEPOSIT");
     }

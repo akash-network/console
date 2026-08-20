@@ -4508,7 +4508,7 @@
                       },
                       "deposit": {
                         "type": "number",
-                        "description": "Deposit in whole tokens. Ignored when managed deposits are enabled for your account, in which case the platform sets it automatically; otherwise it is required.",
+                        "description": "Deposit in dollars. Ignored when managed deposits are enabled for your account, in which case the platform sets it automatically; otherwise it is required.",
                         "deprecated": true
                       }
                     },
@@ -4941,7 +4941,7 @@
                       },
                       "deposit": {
                         "type": "number",
-                        "description": "Amount to deposit in whole tokens (e.g. 5.5)"
+                        "description": "Amount to deposit in dollars (e.g. 5.5)"
                       }
                     },
                     "required": [
