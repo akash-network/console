@@ -47,9 +47,9 @@ export const DEPENDENCIES = {
   DeploymentSettings
 };
 
-/** Caps every band of the page at 1280px so the layout stops stretching on very wide screens. Sits inside each
- *  full-bleed wrapper's padding, so the header, tab labels and tab body all share one left edge. */
-const CAPPED_CONTENT = "mx-auto w-full max-w-screen-xl";
+/** Matches Layout's default `container p-6` content column so every band lines up with the deployment list and the
+ *  other pages. Sits inside each full-bleed wrapper, so the header, tab labels and tab body all share one left edge. */
+const PAGE_BAND = "container px-6";
 
 const TABS = ["DETAILS", "LOGS", "EVENTS", "SHELL", "UPDATE", "SETTINGS"] as const;
 type Tab = (typeof TABS)[number];
@@ -145,12 +145,12 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
     <d.Layout
       isLoading={isLoadingLeases || isLoadingDeployment || isLoadingProviders}
       disableContainer
-      containerClassName="flex min-h-[calc(100dvh_-_var(--app-header-height,57px)_-_4px)] flex-col px-6 pt-4"
+      containerClassName="flex min-h-[calc(100dvh_-_var(--app-header-height,57px)_-_4px)] flex-col pt-4"
     >
       <d.NextSeo title={`Deployment detail #${dseq}`} />
 
       {isDeploymentNotFound && (
-        <div className="mt-8 text-center">
+        <div className={cn(PAGE_BAND, "mt-8 text-center")}>
           <Title className="mb-2">404</Title>
           <p>This deployment does not exist or it was created using another wallet.</p>
           <div className="pt-4">
@@ -164,15 +164,15 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
       {deployment && isLeasesLoaded && (
         <>
-          <div className={CAPPED_CONTENT}>
+          <div className={PAGE_BAND}>
             <d.DeploymentDetailHeader deployment={deployment} leases={leases} providers={providers || []} />
 
             <d.ReclamationBanner leases={leases} dseq={dseq} className="mb-6" />
           </div>
 
           <Tabs value={activeTab} onValueChange={value => changeTab(value as Tab)} className="flex flex-1 flex-col">
-            <div className="-mx-6 border-b border-t px-6">
-              <TabsList className={cn(CAPPED_CONTENT, "flex h-auto justify-start gap-8 rounded-none border-0 bg-transparent p-0")}>
+            <div className="border-b border-t">
+              <TabsList className={cn("flex h-auto justify-start gap-8 rounded-none border-0 bg-transparent py-0", PAGE_BAND)}>
                 {TABS.map(tab => (
                   <TabsTrigger
                     key={tab}
@@ -185,8 +185,8 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
               </TabsList>
             </div>
 
-            <div className="-mx-6 flex-1 bg-muted px-6 py-6">
-              <div className={CAPPED_CONTENT}>
+            <div className="flex-1 bg-muted py-6">
+              <div className={PAGE_BAND}>
                 {activeTab === "DETAILS" && (
                   <d.DeploymentPlacements
                     leases={leases || []}
