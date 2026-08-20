@@ -56,6 +56,26 @@ describe("deployment envSchema", () => {
       expect(!result.success && result.error.issues[0].path).toEqual(["AUTO_TOP_UP_TARGET_RUNWAY_IN_H"]);
     });
 
+    it("rejects a negative target runway even when it stays above the look-ahead window", () => {
+      const result = envSchema.safeParse(setup({ AUTO_TOP_UP_TARGET_RUNWAY_IN_H: -1, AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: -2 }));
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues.some(issue => issue.path[0] === "AUTO_TOP_UP_TARGET_RUNWAY_IN_H")).toBe(true);
+    });
+
+    it("rejects a negative look-ahead window", () => {
+      const result = envSchema.safeParse(setup({ AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: -24 }));
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues.some(issue => issue.path[0] === "AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H")).toBe(true);
+    });
+
+    it("accepts a zero look-ahead window", () => {
+      const result = envSchema.safeParse(setup({ AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 0 }));
+
+      expect(result.success).toBe(true);
+    });
+
     it("accepts a target runway above the look-ahead window", () => {
       const result = envSchema.safeParse(setup({ AUTO_TOP_UP_TARGET_RUNWAY_IN_H: 36, AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 12 }));
 
