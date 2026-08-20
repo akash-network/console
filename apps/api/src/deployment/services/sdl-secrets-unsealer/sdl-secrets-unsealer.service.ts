@@ -6,8 +6,11 @@ import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import {
   SDL_SECRETS_CONTENT_ENCRYPTION,
+  SDL_SECRETS_MAX_SEAL_BYTES,
   SDL_SECRETS_MAX_SEAL_LIFETIME_MS,
   SDL_SECRETS_SEAL_ALGORITHM,
   SDL_SECRETS_WRAPPED_KEY_BYTES
@@ -77,12 +80,16 @@ export class SdlSecretsUnsealerService {
   constructor(
     @inject(SDL_SECRETS_KMS_TARGET) private readonly kmsTarget: SdlSecretsKmsTarget,
     private readonly authService: AuthService,
+    private readonly featureFlagsService: FeatureFlagsService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#loggerService = createLogger({ context: SdlSecretsUnsealerService.name });
   }
 
   async open({ seal, sdl }: { seal: string; sdl: string }): Promise<SdlSecrets> {
+    this.#assertSealedIntakeIsEnabled();
+    this.#assertSealIsWithinSizeLimit(seal);
+
     const parts = this.#splitSeal(seal);
     this.#assertSegmentsAreWellFormed(parts);
     const header = this.#validateHeader(parts.protectedHeader);
@@ -99,6 +106,26 @@ export class SdlSecretsUnsealerService {
     });
 
     return secrets;
+  }
+
+  /**
+   * The gate lives here rather than on a route because `open` is the only place every present and
+   * future caller passes through. With the flag off — including when it does not exist yet, which
+   * resolves false — sealed intake is closed and plaintext intake is unaffected.
+   */
+  #assertSealedIntakeIsEnabled() {
+    if (!this.featureFlagsService.isEnabled(FeatureFlags.SDL_SECRETS_SEALED_INTAKE)) {
+      throw this.#reject(403, "SDL_SECRETS_SEALED_INTAKE_DISABLED", "Sealed secrets are not accepted", {});
+    }
+  }
+
+  /** Byte length, not character count: otherwise multi-byte padding slips a payload past the cap. */
+  #assertSealIsWithinSizeLimit(seal: string) {
+    const sealBytes = Buffer.byteLength(seal, "utf8");
+
+    if (sealBytes > SDL_SECRETS_MAX_SEAL_BYTES) {
+      throw this.#reject(413, "SDL_SECRETS_SEAL_TOO_LARGE", "Sealed secrets are too large", { sealBytes, maxSealBytes: SDL_SECRETS_MAX_SEAL_BYTES });
+    }
   }
 
   #splitSeal(seal: string): SealParts {

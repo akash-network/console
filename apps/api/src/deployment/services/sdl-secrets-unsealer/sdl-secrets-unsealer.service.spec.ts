@@ -8,7 +8,9 @@ import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { CreateLogger } from "@src/core";
-import { SDL_SECRETS_MAX_SEAL_LIFETIME_MS } from "@src/deployment/config/sdl-secrets.config";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { SDL_SECRETS_MAX_SEAL_BYTES, SDL_SECRETS_MAX_SEAL_LIFETIME_MS } from "@src/deployment/config/sdl-secrets.config";
 import type { SdlSecretsKmsClient } from "@src/deployment/providers/kms.provider";
 import type { UserOutput } from "@src/user/repositories";
 import { SdlSecretsUnsealerService } from "./sdl-secrets-unsealer.service";
@@ -138,6 +140,28 @@ describe(SdlSecretsUnsealerService.name, () => {
     const { open, assembleSeal, clientSecrets } = setup();
 
     await expect(open(assembleSeal(clientSecrets, { sdlHash: sdlHashOf(SDL) }))).resolves.toEqual(clientSecrets);
+  });
+
+  it("refuses a sealed payload without spending an unwrap while sealed intake is off", async () => {
+    const { open, seal, kmsClient } = setup({ sealedIntakeEnabled: false });
+
+    await expect(open(await seal({ TOKEN: "t" }))).rejects.toMatchObject({ status: 403 });
+    expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+  });
+
+  it("refuses an oversized seal without spending an unwrap", async () => {
+    const { open, seal, kmsClient } = setup();
+    const oversized = (await seal({ TOKEN: "t" })).padEnd(SDL_SECRETS_MAX_SEAL_BYTES + 1, "A");
+
+    await expect(open(oversized)).rejects.toMatchObject({ status: 413 });
+    expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+  });
+
+  it("opens a seal carrying a realistic set of secrets, so the size limit does not bite legitimate payloads", async () => {
+    const { open, seal } = setup();
+    const manySecrets = Object.fromEntries(Array.from({ length: 20 }, (_, index) => [`SECRET_${index}`, randomBytes(100).toString("hex")]));
+
+    await expect(open(await seal(manySecrets))).resolves.toEqual(manySecrets);
   });
 
   it("does not call KMS when the header is unacceptable", async () => {
@@ -350,7 +374,7 @@ describe(SdlSecretsUnsealerService.name, () => {
     await expect(open(await seal({ TOKEN: "t" }))).rejects.toMatchObject({ status: 503 });
   });
 
-  function setup() {
+  function setup(input: { sealedIntakeEnabled?: boolean } = {}) {
     const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 3072 });
     const jwk = { ...publicKey.export({ format: "jwk" }), use: "enc", alg: "RSA-OAEP-256" };
     const clientSecrets = { DB_URL: `postgres://app:${randomUUID()}@db.internal/app`, API_TOKEN: randomBytes(20).toString("hex") };
@@ -398,11 +422,13 @@ describe(SdlSecretsUnsealerService.name, () => {
     });
 
     const authService = mock<AuthService>({ currentUser: mock<UserOutput>({ id: SUBJECT }) });
+    const featureFlagsService = mock<FeatureFlagsService>();
+    featureFlagsService.isEnabled.mockImplementation(flag => flag === FeatureFlags.SDL_SECRETS_SEALED_INTAKE && (input.sealedIntakeEnabled ?? true));
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger: CreateLogger = () => logger;
 
     const kmsTarget = { client: kmsClient, versionName: VERSION_NAME, kid: KID };
-    const service = new SdlSecretsUnsealerService(kmsTarget, authService, createLogger);
+    const service = new SdlSecretsUnsealerService(kmsTarget, authService, featureFlagsService, createLogger);
     const open = (seal: string, sdl = SDL) => service.open({ seal, sdl });
 
     return { open, kmsClient, authService, logger, seal, assembleSeal, privateKey, clientSecrets };

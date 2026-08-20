@@ -40,3 +40,12 @@ export const SDL_SECRETS_REQUIRED_CLAIMS = ["kid", "sub", "exp"] as const;
  * with enough slack above the client's own lifetime to absorb clock skew.
  */
 export const SDL_SECRETS_MAX_SEAL_LIFETIME_MS = 15 * 60 * 1000;
+
+/**
+ * Largest compact JWE the console will even look at. A wrapped content encryption key is at most 512
+ * bytes and the header, initialization vector and tag together are a few hundred more, so everything
+ * above that is the sealed payload — 16Kb holds a realistic set of secrets several times over while
+ * staying ~32x tighter than the generic 512Kb body limit every route inherits. Measured before the
+ * seal is split, so an oversized payload can never spend an unwrap.
+ */
+export const SDL_SECRETS_MAX_SEAL_BYTES = 16 * 1024;
