@@ -5,7 +5,9 @@ const { CryptoKeyVersionAlgorithm } = protos.google.cloud.kms.v1.CryptoKeyVersio
 /** The JOSE name for the scheme Cloud KMS calls `RSA_DECRYPT_OAEP_*_SHA256`. */
 export const SDL_SECRETS_SEAL_ALGORITHM = "RSA-OAEP-256";
 
-const SEALING_KEY_ALGORITHM_NAMES = ["RSA_DECRYPT_OAEP_2048_SHA256", "RSA_DECRYPT_OAEP_3072_SHA256", "RSA_DECRYPT_OAEP_4096_SHA256"] as const;
+const SEALING_KEY_MODULUS_BITS = [2048, 3072, 4096] as const;
+
+const SEALING_KEY_ALGORITHM_NAMES = SEALING_KEY_MODULUS_BITS.map(bits => `RSA_DECRYPT_OAEP_${bits}_SHA256` as const);
 
 /**
  * The Cloud KMS key algorithms that actually perform `RSA-OAEP-256`. A key version always decrypts
@@ -16,6 +18,13 @@ const SEALING_KEY_ALGORITHM_NAMES = ["RSA_DECRYPT_OAEP_2048_SHA256", "RSA_DECRYP
 export const SDL_SECRETS_SEALING_KEY_ALGORITHMS: ReadonlySet<string | number> = new Set(
   SEALING_KEY_ALGORITHM_NAMES.flatMap(name => [name, CryptoKeyVersionAlgorithm[name]])
 );
+
+/**
+ * Byte lengths a wrapped content encryption key may have. RSA ciphertext is always exactly the
+ * modulus size, so measuring it locally keeps a garbage encrypted key from spending an unwrap and
+ * being reported as a Cloud KMS fault.
+ */
+export const SDL_SECRETS_WRAPPED_KEY_BYTES: ReadonlySet<number> = new Set(SEALING_KEY_MODULUS_BITS.map(bits => bits / 8));
 
 /** The only content encryption the console accepts for a seal. */
 export const SDL_SECRETS_CONTENT_ENCRYPTION = "A256GCM";

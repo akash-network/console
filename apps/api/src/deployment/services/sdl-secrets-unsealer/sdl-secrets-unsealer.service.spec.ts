@@ -1,5 +1,6 @@
 import type { protos } from "@google-cloud/kms";
 import crc32c from "fast-crc32c";
+import { grpc } from "google-gax";
 import { CompactEncrypt, importJWK } from "jose";
 import { constants, generateKeyPairSync, privateDecrypt, randomBytes, randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
@@ -80,12 +81,13 @@ describe(SdlSecretsUnsealerService.name, () => {
   });
 
   it("rejects a seal whose claims were altered after sealing", async () => {
-    const { service, seal } = setup();
+    const { service, seal, kmsClient } = setup();
     const [protectedHeader, ...rest] = (await seal({ TOKEN: "t" })).split(".");
     const claims = JSON.parse(Buffer.from(protectedHeader, "base64url").toString());
-    const forged = Buffer.from(JSON.stringify({ ...claims, exp: claims.exp + 86400 })).toString("base64url");
+    const forged = Buffer.from(JSON.stringify({ ...claims, exp: claims.exp - 1 })).toString("base64url");
 
     await expect(service.open([forged, ...rest].join("."))).rejects.toMatchObject({ status: 400 });
+    expect(kmsClient.asymmetricDecrypt).toHaveBeenCalled();
   });
 
   it("rejects a seal whose ciphertext was altered after sealing", async () => {
@@ -134,10 +136,11 @@ describe(SdlSecretsUnsealerService.name, () => {
   });
 
   it("fails with 503 when KMS is unreachable", async () => {
-    const { service, seal, kmsClient } = setup();
-    kmsClient.asymmetricDecrypt.mockRejectedValue(new Error("14 UNAVAILABLE"));
+    const { service, seal, kmsClient, logger } = setup();
+    kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("14 UNAVAILABLE"), { code: grpc.status.UNAVAILABLE }));
 
     await expect(service.open(await seal({ TOKEN: "t" }))).rejects.toMatchObject({ status: 503 });
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SDL_SECRETS_CEK_UNWRAP_FAILED" }));
   });
 
   it("rejects a seal whose initialization vector is empty without spending an unwrap", async () => {
@@ -183,6 +186,32 @@ describe(SdlSecretsUnsealerService.name, () => {
 
     await expect(service.open(parts.join("."))).rejects.toMatchObject({ status: 400 });
     expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+  });
+
+  it("rejects a seal whose encrypted key is not the length the sealing key's modulus fixes without spending an unwrap", async () => {
+    const { service, seal, kmsClient } = setup();
+    const parts = (await seal({ TOKEN: "t" })).split(".");
+    parts[1] = randomBytes(200).toString("base64url");
+
+    await expect(service.open(parts.join("."))).rejects.toMatchObject({ status: 400 });
+    expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+  });
+
+  it("blames the client when KMS rejects the encrypted key as an invalid argument", async () => {
+    const { service, seal, kmsClient } = setup();
+    kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("3 INVALID_ARGUMENT: Decryption failed"), { code: grpc.status.INVALID_ARGUMENT }));
+
+    await expect(service.open(await seal({ TOKEN: "t" }))).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("does not log a KMS invalid argument as a service fault", async () => {
+    const { service, seal, kmsClient, logger } = setup();
+    kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("3 INVALID_ARGUMENT: Decryption failed"), { code: grpc.status.INVALID_ARGUMENT }));
+
+    await expect(service.open(await seal({ TOKEN: "t" }))).rejects.toThrow();
+
+    expect(logger.error).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "SDL_SECRETS_SEAL_ENCRYPTED_KEY_REJECTED" }));
   });
 
   it("rejects a seal whose authentication tag is not a length AES-GCM accepts", async () => {

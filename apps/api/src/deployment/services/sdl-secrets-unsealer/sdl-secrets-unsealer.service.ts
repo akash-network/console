@@ -1,11 +1,17 @@
 import crc32c from "fast-crc32c";
+import { grpc } from "google-gax";
 import createError from "http-errors";
 import { createDecipheriv } from "node:crypto";
 import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
-import { SDL_SECRETS_CONTENT_ENCRYPTION, SDL_SECRETS_MAX_SEAL_LIFETIME_MS, SDL_SECRETS_SEAL_ALGORITHM } from "@src/deployment/config/sdl-secrets.config";
+import {
+  SDL_SECRETS_CONTENT_ENCRYPTION,
+  SDL_SECRETS_MAX_SEAL_LIFETIME_MS,
+  SDL_SECRETS_SEAL_ALGORITHM,
+  SDL_SECRETS_WRAPPED_KEY_BYTES
+} from "@src/deployment/config/sdl-secrets.config";
 import type { SdlSecretsKmsTarget } from "@src/deployment/providers/kms.provider";
 import { SDL_SECRETS_KMS_TARGET } from "@src/deployment/providers/kms.provider";
 
@@ -37,6 +43,11 @@ const CONTENT_ENCRYPTION_IV_BYTES = 12;
 
 /** A256GCM fixes the tag at 128 bits, and Node silently accepts shorter ones — 4 bytes of authentication is not authentication. */
 const CONTENT_ENCRYPTION_TAG_BYTES = 16;
+
+/** gRPC reports the status of a failed call as a numeric `code` on the rejection. */
+function getGrpcStatus(error: unknown) {
+  return error instanceof Error && "code" in error ? error.code : undefined;
+}
 
 /**
  * Opens a transport seal — one JWE holding all of a deployment's secrets.
@@ -122,10 +133,10 @@ export class SdlSecretsUnsealerService {
 
   /** Also free, and for the same reason: a seal whose own segments cannot be used must never spend an unwrap. */
   #assertSegmentsAreWellFormed({ encryptedKey, iv, tag }: SealParts) {
-    if (!BASE64URL_SEGMENT.test(encryptedKey)) {
-      throw this.#reject(400, "SDL_SECRETS_SEAL_ENCRYPTED_KEY_INVALID", "Sealed secrets carry a malformed encrypted key", {
-        encryptedKeyLength: encryptedKey.length
-      });
+    const wrappedKeyBytes = this.#decodedByteLength(encryptedKey);
+
+    if (!SDL_SECRETS_WRAPPED_KEY_BYTES.has(wrappedKeyBytes)) {
+      throw this.#reject(400, "SDL_SECRETS_SEAL_ENCRYPTED_KEY_INVALID", "Sealed secrets carry a malformed encrypted key", { wrappedKeyBytes });
     }
 
     this.#assertSegmentDecodesTo(iv, CONTENT_ENCRYPTION_IV_BYTES, "SDL_SECRETS_SEAL_IV_INVALID", "Sealed secrets carry a malformed initialization vector");
@@ -133,11 +144,15 @@ export class SdlSecretsUnsealerService {
   }
 
   #assertSegmentDecodesTo(segment: string, expectedBytes: number, event: string, message: string) {
-    const decodedBytes = BASE64URL_SEGMENT.test(segment) ? Buffer.from(segment, "base64url").length : 0;
+    const decodedBytes = this.#decodedByteLength(segment);
 
     if (decodedBytes !== expectedBytes) {
       throw this.#reject(400, event, message, { decodedBytes, expectedBytes });
     }
+  }
+
+  #decodedByteLength(segment: string) {
+    return BASE64URL_SEGMENT.test(segment) ? Buffer.from(segment, "base64url").length : 0;
   }
 
   #parseHeader(protectedHeader: string): SealHeader {
@@ -190,6 +205,10 @@ export class SdlSecretsUnsealerService {
 
       return response;
     } catch (error) {
+      if (getGrpcStatus(error) === grpc.status.INVALID_ARGUMENT) {
+        throw this.#reject(400, "SDL_SECRETS_SEAL_ENCRYPTED_KEY_REJECTED", "Sealed secrets carry an encrypted key this key version cannot open", {});
+      }
+
       this.#loggerService.error({ event: "SDL_SECRETS_CEK_UNWRAP_FAILED", versionName: this.kmsTarget.versionName, error });
 
       throw createError(503, "Unable to reach the SDL secrets key management service");
