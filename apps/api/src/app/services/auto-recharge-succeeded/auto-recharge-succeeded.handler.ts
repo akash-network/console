@@ -1,17 +1,17 @@
 import { singleton } from "tsyringe";
 
-import { AutoTopUpSucceeded } from "@src/billing/events/auto-top-up-succeeded";
+import { AutoRechargeSucceeded } from "@src/billing/events/auto-recharge-succeeded";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { EventPayload, JobHandler, LoggerService } from "@src/core";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
-import { autoTopUpSucceededNotification } from "@src/notifications/services/notification-templates/auto-top-up-succeeded-notification";
+import { autoRechargeSucceededNotification } from "@src/notifications/services/notification-templates/auto-recharge-succeeded-notification";
 import { UserRepository } from "@src/user/repositories";
 
 @singleton()
-export class AutoTopUpSucceededHandler implements JobHandler<AutoTopUpSucceeded> {
-  public readonly accepts = AutoTopUpSucceeded;
+export class AutoRechargeSucceededHandler implements JobHandler<AutoRechargeSucceeded> {
+  public readonly accepts = AutoRechargeSucceeded;
 
   public readonly concurrency = 2;
 
@@ -24,11 +24,11 @@ export class AutoTopUpSucceededHandler implements JobHandler<AutoTopUpSucceeded>
     private readonly logger: LoggerService
   ) {}
 
-  async handle(payload: EventPayload<AutoTopUpSucceeded>): Promise<void> {
+  async handle(payload: EventPayload<AutoRechargeSucceeded>): Promise<void> {
     const user = await this.userRepository.findById(payload.userId);
     if (!user?.email) {
       this.logger.warn({
-        event: "AUTO_TOP_UP_SUCCESS_EMAIL_SKIPPED",
+        event: "AUTO_RECHARGE_SUCCESS_EMAIL_SKIPPED",
         userId: payload.userId,
         reason: "User or email not found"
       });
@@ -38,7 +38,7 @@ export class AutoTopUpSucceededHandler implements JobHandler<AutoTopUpSucceeded>
     const wallet = await this.userWalletRepository.findOneByUserId(user.id);
     if (!wallet?.address) {
       this.logger.warn({
-        event: "AUTO_TOP_UP_SUCCESS_EMAIL_SKIPPED",
+        event: "AUTO_RECHARGE_SUCCESS_EMAIL_SKIPPED",
         userId: payload.userId,
         reason: "Wallet address not found"
       });
@@ -48,7 +48,7 @@ export class AutoTopUpSucceededHandler implements JobHandler<AutoTopUpSucceeded>
     const balanceUsd = await this.balancesService.getDeploymentBalanceInFiat(wallet.address);
 
     await this.notificationService.createNotification(
-      autoTopUpSucceededNotification(user, {
+      autoRechargeSucceededNotification(user, {
         transactionId: payload.transactionId,
         amountCents: payload.amountCents,
         balanceUsd,

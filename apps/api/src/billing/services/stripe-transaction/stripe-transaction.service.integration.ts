@@ -244,7 +244,7 @@ describe(StripeTransactionService.name, () => {
       expect(outcome.bonusGrant).toBeUndefined();
     });
 
-    it("returns the auto top-up when the payment intent carries the auto_topup marker", async () => {
+    it("returns the auto recharge when the payment intent carries the auto_recharge marker", async () => {
       const { service, userRepository, stripeTransactionRepository } = setup();
       const mockUser = createTestUser();
       const amount = 5000;
@@ -260,14 +260,14 @@ describe(StripeTransactionService.name, () => {
           customer: mockUser.stripeCustomerId,
           amount,
           amount_received: amount,
-          metadata: { internal_transaction_id: internalTransaction.id, auto_topup: "true" }
+          metadata: { internal_transaction_id: internalTransaction.id, auto_recharge: "true" }
         })
       );
 
-      expect(outcome.autoTopUp).toEqual({ userId: mockUser.id, transactionId: internalTransaction.id, amountCents: amount });
+      expect(outcome.autoRecharge).toEqual({ userId: mockUser.id, transactionId: internalTransaction.id, amountCents: amount });
     });
 
-    it("does not return an auto top-up when the transaction was already settled", async () => {
+    it("does not return an auto recharge when the transaction was already settled", async () => {
       const { service, userRepository, stripeTransactionRepository } = setup();
       const mockUser = createTestUser();
       const amount = 5000;
@@ -283,14 +283,14 @@ describe(StripeTransactionService.name, () => {
           customer: mockUser.stripeCustomerId,
           amount,
           amount_received: amount,
-          metadata: { internal_transaction_id: settledTransaction.id, auto_topup: "true" }
+          metadata: { internal_transaction_id: settledTransaction.id, auto_recharge: "true" }
         })
       );
 
-      expect(outcome.autoTopUp).toBeUndefined();
+      expect(outcome.autoRecharge).toBeUndefined();
     });
 
-    it("does not return an auto top-up for a manual top-up without the marker", async () => {
+    it("does not return an auto recharge for a manual Add Funds charge without the marker", async () => {
       const { service, userRepository, stripeTransactionRepository } = setup();
       const mockUser = createTestUser();
       const amount = 5000;
@@ -310,7 +310,7 @@ describe(StripeTransactionService.name, () => {
         })
       );
 
-      expect(outcome.autoTopUp).toBeUndefined();
+      expect(outcome.autoRecharge).toBeUndefined();
     });
   });
 

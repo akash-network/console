@@ -1,7 +1,7 @@
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { singleton } from "tsyringe";
 
-import { AutoTopUpSucceeded } from "@src/billing/events/auto-top-up-succeeded";
+import { AutoRechargeSucceeded } from "@src/billing/events/auto-recharge-succeeded";
 import { FirstPurchaseBonusGranted } from "@src/billing/events/first-purchase-bonus-granted";
 import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
@@ -63,8 +63,8 @@ export class StripeWebhookService {
       if (outcome.bonusGrant) {
         await this.domainEventsService.publish(new FirstPurchaseBonusGranted(outcome.bonusGrant));
       }
-      if (outcome.autoTopUp) {
-        await this.domainEventsService.publish(new AutoTopUpSucceeded(outcome.autoTopUp));
+      if (outcome.autoRecharge) {
+        await this.domainEventsService.publish(new AutoRechargeSucceeded(outcome.autoRecharge));
       }
     } catch (error) {
       this.logger.error({

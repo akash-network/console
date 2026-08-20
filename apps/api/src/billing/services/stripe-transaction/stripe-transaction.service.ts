@@ -36,16 +36,16 @@ export interface FirstPurchaseBonusGrant {
 
 /**
  * Marks a Stripe PaymentIntent created by the automatic wallet-balance reload job. The settlement path
- * reads it to tell an automatic top-up from a manual "Add Funds" charge so only automatic ones notify.
+ * reads it to tell an automatic recharge from a manual "Add Funds" charge so only automatic ones notify.
  */
-export const AUTO_TOP_UP_METADATA_KEY = "auto_topup";
+export const AUTO_RECHARGE_METADATA_KEY = "auto_recharge";
 
 /**
- * A settled automatic top-up that the webhook dispatcher turns into an {@link AutoTopUpSucceeded} domain
+ * A settled automatic recharge that the webhook dispatcher turns into an {@link AutoRechargeSucceeded} domain
  * event once the settling transaction has committed. Present only when a real charge was credited on this
  * delivery, so retries and replays never notify twice.
  */
-export interface AutoTopUpSuccess {
+export interface AutoRechargeSuccess {
   userId: string;
   transactionId: string;
   amountCents: number;
@@ -57,7 +57,7 @@ export interface AutoTopUpSuccess {
  */
 export interface SettlementOutcome {
   bonusGrant?: FirstPurchaseBonusGrant;
-  autoTopUp?: AutoTopUpSuccess;
+  autoRecharge?: AutoRechargeSuccess;
 }
 
 /**
@@ -539,7 +539,7 @@ export class StripeTransactionService {
       paymentAmount: paymentIntent.amount_received ?? paymentIntent.amount,
       stripePaymentIntentId: paymentIntent.id,
       eventDescription: `payment_intent ${paymentIntent.id}`,
-      isAutoTopUp: paymentIntent.metadata[AUTO_TOP_UP_METADATA_KEY] === "true"
+      isAutoRecharge: paymentIntent.metadata[AUTO_RECHARGE_METADATA_KEY] === "true"
     });
   }
 
@@ -578,7 +578,7 @@ export class StripeTransactionService {
       stripePaymentIntentId,
       eventDescription: `invoice ${invoice.id}`,
       endTrial,
-      isAutoTopUp: false
+      isAutoRecharge: false
     });
   }
 
@@ -586,8 +586,8 @@ export class StripeTransactionService {
    * Credits the wallet for a settled Stripe charge: resolves the owning user, enriches the row with the
    * charge's card details, and records the succeeded transaction. Once that transaction has committed it
    * publishes the draining-deployment funding command, then returns the events the caller should publish
-   * (first-purchase bonus, automatic top-up success). Everything runs post-commit so a rolled-back credit
-   * can neither fund deployments nor send an email. The auto-top-up event is returned only when this
+   * (first-purchase bonus, automatic recharge success). Everything runs post-commit so a rolled-back credit
+   * can neither fund deployments nor send an email. The auto-recharge event is returned only when this
    * delivery actually credited the wallet, so retries and replays never notify twice.
    */
   async #settleFromWebhook(params: {
@@ -599,7 +599,7 @@ export class StripeTransactionService {
     stripePaymentIntentId: string | undefined;
     eventDescription: string;
     endTrial?: boolean;
-    isAutoTopUp: boolean;
+    isAutoRecharge: boolean;
   }): Promise<SettlementOutcome> {
     if (!params.customerId) {
       this.loggerService.error({
@@ -660,7 +660,7 @@ export class StripeTransactionService {
 
     return {
       bonusGrant: bonusAmount > 0 ? { userId: user.id, bonusAmountCents: bonusAmount, paidAmountCents: params.paymentAmount } : undefined,
-      autoTopUp: settled && params.isAutoTopUp ? { userId: user.id, transactionId: params.transaction.id, amountCents: params.paymentAmount } : undefined
+      autoRecharge: settled && params.isAutoRecharge ? { userId: user.id, transactionId: params.transaction.id, amountCents: params.paymentAmount } : undefined
     };
   }
 

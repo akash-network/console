@@ -6,7 +6,7 @@ import type { CreateNotificationInput } from "../notification/notification.servi
  * `notificationId` is deterministic per settled transaction, so the broker treats it as a singletonKey —
  * a job retry that reaches the handler twice still yields a single notification.
  */
-export function autoTopUpSucceededNotification(
+export function autoRechargeSucceededNotification(
   user: UserOutput,
   vars: { transactionId: string; amountCents: number; balanceUsd: number; billingUrl: string }
 ): CreateNotificationInput {
@@ -14,11 +14,11 @@ export function autoTopUpSucceededNotification(
   const amount = formatter.format(centsToUsd(vars.amountCents));
   const balance = formatter.format(vars.balanceUsd);
   return {
-    notificationId: `autoTopUpSucceeded.${vars.transactionId}`,
+    notificationId: `autoRechargeSucceeded.${vars.transactionId}`,
     payload: {
-      summary: `Your Akash account was topped up ${amount}`,
+      summary: `Your Akash account was recharged ${amount}`,
       description:
-        `We automatically charged your default payment method ${amount} to keep your Akash Network balance above your auto top-up threshold. ` +
+        `We automatically charged your default payment method ${amount} to keep your deployments running. ` +
         `Your available balance is now <strong>${balance}</strong>. ` +
         `<a href="${vars.billingUrl}">View your billing</a>.`
     },

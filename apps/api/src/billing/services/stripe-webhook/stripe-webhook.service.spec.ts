@@ -2,7 +2,7 @@ import type Stripe from "stripe";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { AutoTopUpSucceeded } from "@src/billing/events/auto-top-up-succeeded";
+import { AutoRechargeSucceeded } from "@src/billing/events/auto-recharge-succeeded";
 import { FirstPurchaseBonusGranted } from "@src/billing/events/first-purchase-bonus-granted";
 import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import type { StripeService } from "@src/billing/services/stripe/stripe.service";
@@ -96,26 +96,26 @@ describe(StripeWebhookService.name, () => {
       expect(domainEventsService.publish).toHaveBeenCalledWith(new FirstPurchaseBonusGranted(bonusGrant));
     });
 
-    it("publishes an auto-top-up event when settlePaymentIntent settles one", async () => {
+    it("publishes an auto-recharge event when settlePaymentIntent settles one", async () => {
       const { service, stripeTransaction, domainEventsService } = setup("payment_intent.succeeded");
-      const autoTopUp = { userId: "user_1", transactionId: "txn-1", amountCents: 5000 };
-      stripeTransaction.settlePaymentIntent.mockResolvedValue({ autoTopUp });
+      const autoRecharge = { userId: "user_1", transactionId: "txn-1", amountCents: 5000 };
+      stripeTransaction.settlePaymentIntent.mockResolvedValue({ autoRecharge });
 
       await service.routeStripeEvent("sig", "body");
 
-      expect(domainEventsService.publish).toHaveBeenCalledWith(new AutoTopUpSucceeded(autoTopUp));
+      expect(domainEventsService.publish).toHaveBeenCalledWith(new AutoRechargeSucceeded(autoRecharge));
     });
 
-    it("publishes both events when the settlement returns a bonus and an auto top-up", async () => {
+    it("publishes both events when the settlement returns a bonus and an auto recharge", async () => {
       const { service, stripeTransaction, domainEventsService } = setup("payment_intent.succeeded");
       const bonusGrant = { userId: "user_1", bonusAmountCents: 1500, paidAmountCents: 15000 };
-      const autoTopUp = { userId: "user_1", transactionId: "txn-1", amountCents: 5000 };
-      stripeTransaction.settlePaymentIntent.mockResolvedValue({ bonusGrant, autoTopUp });
+      const autoRecharge = { userId: "user_1", transactionId: "txn-1", amountCents: 5000 };
+      stripeTransaction.settlePaymentIntent.mockResolvedValue({ bonusGrant, autoRecharge });
 
       await service.routeStripeEvent("sig", "body");
 
       expect(domainEventsService.publish).toHaveBeenCalledWith(new FirstPurchaseBonusGranted(bonusGrant));
-      expect(domainEventsService.publish).toHaveBeenCalledWith(new AutoTopUpSucceeded(autoTopUp));
+      expect(domainEventsService.publish).toHaveBeenCalledWith(new AutoRechargeSucceeded(autoRecharge));
     });
 
     it("does not publish when the settlement returns an empty outcome", async () => {
