@@ -55,11 +55,12 @@ describe(PlacementCard.name, () => {
     expect(PlacementServiceRow).toHaveBeenCalledTimes(2);
   });
 
-  it("shows the reclamation card when the lease has been reclaimed", () => {
+  it("shows the reclamation card and no reclaiming badge when the lease has been reclaimed", () => {
     const ReclamationCard = vi.fn(() => <div>reclamation</div>);
     setup({ lease: buildLease({ state: "closed", groupState: "paused" }), leaseStatus: null, dependencies: { ReclamationCard } });
 
     expect(screen.getByText("reclamation")).toBeInTheDocument();
+    expect(screen.queryByText("Reclaiming")).not.toBeInTheDocument();
   });
 
   it("shows a reclaiming status while the lease is in the reclamation grace period", () => {
