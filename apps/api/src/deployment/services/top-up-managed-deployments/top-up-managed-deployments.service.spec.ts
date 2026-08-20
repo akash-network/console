@@ -743,7 +743,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const fundable = createDrainingFor(owner, walletId);
 
       drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([withAnomalousZeroAmount, fundable]);
-      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValueOnce(0).mockResolvedValue(1000000);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValueOnce(0).mockReturnValue(1000000);
       cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
 
       await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
