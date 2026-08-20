@@ -10,11 +10,12 @@ import { getGroupTeeType } from "@src/utils/confidentialCompute";
 import { isLeaseLive } from "@src/utils/leaseUtils";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { providerDisplayName } from "@src/utils/providerUtils";
-import { isProviderReclaimed } from "@src/utils/reclamationUtils";
+import { isProviderReclaimed, isReclaiming } from "@src/utils/reclamationUtils";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { ConfidentialComputeResources } from "../../ConfidentialComputeResources";
 import { DownloadAttestationEvidence } from "../../DownloadAttestationEvidence";
 import { ReclamationCard } from "../../ReclamationCard/ReclamationCard";
+import { StatusBadge } from "../DeploymentStatusBadge";
 import type { ManifestServiceDetail } from "./placementModel";
 import { getPlacementGpuModels, getPlacementName, getProviderRegion } from "./placementModel";
 import { PlacementServiceRow } from "./PlacementServiceRow";
@@ -68,7 +69,10 @@ export const PlacementCard: FC<PlacementCardProps> = ({
     <div className="rounded-xl border bg-card">
       <div className="flex flex-col gap-6 border-b p-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-4">
-          <h3 className="text-2xl font-medium tracking-tight">{name}</h3>
+          <div className="flex flex-wrap items-center gap-3">
+            <h3 className="text-2xl font-medium tracking-tight">{name}</h3>
+            {isReclaiming(lease) && <StatusBadge label="Reclaiming" tone="warning" />}
+          </div>
           {(region || providerName) && (
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               {region && (

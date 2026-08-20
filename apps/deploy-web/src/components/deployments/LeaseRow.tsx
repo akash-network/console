@@ -36,6 +36,7 @@ import { sshVmImages } from "@src/utils/sdl/data";
 import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar/ManifestErrorSnackbar";
 import { ProviderName } from "../shared/ProviderName";
+import { ReclaimingBadge } from "./ReclaimingBadge/ReclaimingBadge";
 import { ReclamationCard } from "./ReclamationCard/ReclamationCard";
 import { ConfidentialComputeResources } from "./ConfidentialComputeResources";
 import { DownloadAttestationEvidence } from "./DownloadAttestationEvidence";
@@ -181,6 +182,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
             <div className="inline-flex items-center text-xs text-muted-foreground">
               <span aria-label={`Lease ${index} state`}>{lease.state}</span>
               <StatusPill state={lease.state} size="small" />
+              <ReclaimingBadge lease={lease} className="ml-2" />
 
               <span className="ml-6 text-muted-foreground">GSEQ:</span>
               <span className="ml-1">{lease.gseq}</span>

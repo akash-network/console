@@ -62,6 +62,18 @@ describe(PlacementCard.name, () => {
     expect(screen.getByText("reclamation")).toBeInTheDocument();
   });
 
+  it("shows a reclaiming status while the lease is in the reclamation grace period", () => {
+    setup({ lease: buildLease({ state: "reclaiming" }) });
+
+    expect(screen.getByText("Reclaiming")).toBeInTheDocument();
+  });
+
+  it("does not show a reclaiming status for an active lease", () => {
+    setup();
+
+    expect(screen.queryByText("Reclaiming")).not.toBeInTheDocument();
+  });
+
   function buildLease(input?: { groupName?: string; state?: string; groupState?: string }) {
     return mock<LeaseDto>({
       id: "1",
