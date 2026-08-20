@@ -36,7 +36,7 @@ export const WalletSettingsInputSchema = z.object({
   autoReloadEnabled: z.boolean().openapi({}),
   autoReloadMode: AutoReloadModeSchema.optional().openapi({
     description:
-      "Rule used to decide when and how much to top up: `threshold` charges the fixed amount as soon as the balance reaches the threshold, `prediction` covers the next 7 days of projected spend. Left unchanged when omitted."
+      "Rule used to decide when and how much to top up: `threshold` charges the fixed amount as soon as the balance reaches the threshold, `prediction` covers the next 7 days of projected spend. Defaults to `prediction` on create when omitted; left unchanged on update."
   }),
   autoReloadThreshold: z
     .number()

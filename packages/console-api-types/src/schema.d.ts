@@ -7133,7 +7133,7 @@ export interface operations {
           data: {
             autoReloadEnabled: boolean;
             /**
-             * @description Rule used to decide when and how much to top up: `threshold` charges the fixed amount as soon as the balance reaches the threshold, `prediction` covers the next 7 days of projected spend. Left unchanged when omitted.
+             * @description Rule used to decide when and how much to top up: `threshold` charges the fixed amount as soon as the balance reaches the threshold, `prediction` covers the next 7 days of projected spend. Defaults to `prediction` on create when omitted; left unchanged on update.
              * @enum {string}
              */
             autoReloadMode?: "threshold" | "prediction";
@@ -7190,7 +7190,7 @@ export interface operations {
           data: {
             autoReloadEnabled: boolean;
             /**
-             * @description Rule used to decide when and how much to top up: `threshold` charges the fixed amount as soon as the balance reaches the threshold, `prediction` covers the next 7 days of projected spend. Left unchanged when omitted.
+             * @description Rule used to decide when and how much to top up: `threshold` charges the fixed amount as soon as the balance reaches the threshold, `prediction` covers the next 7 days of projected spend. Defaults to `prediction` on create when omitted; left unchanged on update.
              * @enum {string}
              */
             autoReloadMode?: "threshold" | "prediction";
