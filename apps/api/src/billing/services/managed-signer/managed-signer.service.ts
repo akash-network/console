@@ -7,7 +7,7 @@ import { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { IndexedTx } from "@cosmjs/stargate";
 import { context, trace } from "@opentelemetry/api";
 import assert from "http-assert";
-import { BadRequest } from "http-errors";
+import { BadRequest, isHttpError } from "http-errors";
 import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
@@ -33,6 +33,10 @@ import { TrialValidationService } from "../trial-validation/trial-validation.ser
 type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
 
 const SPENDING_TXS = [MsgCreateDeployment, MsgAccountDeposit];
+
+const INSUFFICIENT_DEPOSIT_BALANCE_MESSAGE = "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue.";
+const INSUFFICIENT_DEPOSIT_BALANCE_RELOADING_MESSAGE =
+  "Not enough balance to cover the deployment deposit. A top up from your saved payment method is on the way, so try again in a moment.";
 
 @singleton()
 export class ManagedSignerService {
@@ -123,11 +127,18 @@ export class ManagedSignerService {
     const hasCreateTrialLeaseMessage = userWallet.isTrialing && !!createLeaseMessage;
     const hasLeases = hasCreateTrialLeaseMessage ? await this.leaseHttpService.hasLeases(userWallet.address!) : null;
 
-    const tx = await this.executeDerivedTx(userWallet.id, messages);
+    let tx: Awaited<ReturnType<ManagedSignerService["executeDerivedTx"]>>;
 
-    if (tx.code !== COSMOS_TX_CODE_OK) {
-      this.logger.error({ event: "TX_LANDED_WITH_NON_ZERO_CODE", txHash: tx.hash, code: tx.code, rawLog: tx.rawLog });
-      throw await this.chainErrorService.toAppError(new Error(tx.rawLog || `tx ${tx.hash} failed on-chain with code ${tx.code}`), messages);
+    try {
+      tx = await this.executeDerivedTx(userWallet.id, messages);
+
+      if (tx.code !== COSMOS_TX_CODE_OK) {
+        this.logger.error({ event: "TX_LANDED_WITH_NON_ZERO_CODE", txHash: tx.hash, code: tx.code, rawLog: tx.rawLog });
+        throw await this.chainErrorService.toAppError(new Error(tx.rawLog || `tx ${tx.hash} failed on-chain with code ${tx.code}`), messages);
+      }
+    } catch (error) {
+      await this.#scheduleReloadOnPaymentRequired(error, userWallet);
+      throw error;
     }
 
     if (hasCreateTrialLeaseMessage) {
@@ -206,24 +217,85 @@ export class ManagedSignerService {
    * Always fetches fee allowance from the chain to ensure accuracy, as database values may be out of sync.
    * Fetches deployment allowance from the chain only when a deployment message is present, otherwise uses cached value.
    * Automatically refills fee authorization for eligible trial wallets if fee allowance is below FEE_ALLOWANCE_REFILL_THRESHOLD.
-   * Throws an assertion error if insufficient funds are available.
    *
    * @param userWallet - The user wallet to validate balances for
    * @param messages - Array of transaction messages to check for deployment messages
    * @throws {HttpError} 402 if there are not enough funds to cover the transaction fee
-   * @throws {HttpError} 402 if there are not enough funds to cover deployment costs (when deployment message is present)
+   * @throws {HttpError} 402 if the deployment allowance cannot cover the deposits the create messages ask for
    */
   async #validateBalances(userWallet: UserWalletOutput, messages: EncodeObject[]) {
     return withSpan("ManagedSignerService.validateBalances", async () => {
-      const hasDeploymentMessage = messages.some(message => message.typeUrl.endsWith(".MsgCreateDeployment"));
+      const createDeploymentMessages = this.#getCreateDeploymentMessages(messages);
+      const hasDeploymentMessage = createDeploymentMessages.length > 0;
       const [feeAllowance, deploymentAllowance] = await Promise.all([
         this.ensureFeeGrants(userWallet),
         !hasDeploymentMessage ? Promise.resolve(userWallet.deploymentAllowance) : this.balancesService.retrieveDeploymentLimit(userWallet)
       ]);
 
       assert(feeAllowance > 0, 402, "Not enough funds to cover the transaction fee");
-      assert(!hasDeploymentMessage || deploymentAllowance > 0, 402, "Not enough funds to cover the deployment costs");
+
+      const requiredDeposit = this.#sumDepositsDrawnFromGrant(createDeploymentMessages);
+
+      if (hasDeploymentMessage && (deploymentAllowance <= 0 || deploymentAllowance < requiredDeposit)) {
+        const reloadScheduled = await this.#scheduleReloadForInsufficientBalance(userWallet);
+
+        this.logger.warn({
+          event: "DEPLOYMENT_CREATE_REFUSED_INSUFFICIENT_ALLOWANCE",
+          userId: userWallet.userId,
+          address: userWallet.address,
+          deploymentAllowance,
+          requiredDeposit,
+          reloadScheduled
+        });
+
+        assert(false, 402, reloadScheduled ? INSUFFICIENT_DEPOSIT_BALANCE_RELOADING_MESSAGE : INSUFFICIENT_DEPOSIT_BALANCE_MESSAGE);
+      }
     });
+  }
+
+  #getCreateDeploymentMessages(messages: EncodeObject[]): { typeUrl: string; value: MsgCreateDeployment }[] {
+    return messages.filter((message): message is { typeUrl: string; value: MsgCreateDeployment } => message.typeUrl.endsWith(".MsgCreateDeployment"));
+  }
+
+  /**
+   * A create deposit is drawn purely from the deployment grant, so the deposits in the batch are directly
+   * comparable to the grant's remaining spend limit. Comparing against the real amount rather than a bare `> 0`
+   * refuses the request here instead of several seconds later in chain simulation, where the shortfall surfaces
+   * as an opaque 402.
+   */
+  #sumDepositsDrawnFromGrant(createDeploymentMessages: { value: MsgCreateDeployment }[]): number {
+    const denom = this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM");
+
+    return createDeploymentMessages.reduce((total, message) => {
+      const deposit = message.value.deposit?.amount;
+      return deposit?.denom === denom ? total + Number(deposit.amount) : total;
+    }, 0);
+  }
+
+  /**
+   * Refills the balance for a spend the chain refused even though the pre-flight check passed: auto-funding can
+   * drain the grant in the window between the two. The reload check itself decides whether a charge is due.
+   */
+  async #scheduleReloadOnPaymentRequired(error: unknown, userWallet: UserWalletOutput): Promise<void> {
+    if (!isHttpError(error) || error.status !== 402) {
+      return;
+    }
+
+    await this.#scheduleReloadForInsufficientBalance(userWallet);
+  }
+
+  /**
+   * Refills the balance the refused request could not cover, so a user with auto recharge on can retry instead of
+   * topping up by hand. Scheduling failures are swallowed: the caller is about to receive a clean 402 and turning
+   * that into a 500 would lose the actionable message. The returned flag reports whether auto recharge is on.
+   */
+  async #scheduleReloadForInsufficientBalance(userWallet: UserWalletOutput): Promise<boolean> {
+    try {
+      return await this.walletReloadJobService.scheduleImmediate({ userId: userWallet.userId });
+    } catch (error) {
+      this.logger.error({ event: "INSUFFICIENT_BALANCE_RELOAD_SCHEDULE_FAILED", userId: userWallet.userId, error });
+      return false;
+    }
   }
 
   async ensureFeeGrants(wallet: Pick<UserWalletOutput, "address" | "isTrialing" | "createdAt" | "activatedAt">): Promise<number> {

@@ -88,7 +88,91 @@ describe(ManagedSignerService.name, () => {
         retrieveDeploymentLimit: vi.fn().mockResolvedValue(0)
       });
 
-      await expect(service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage])).rejects.toThrow("Not enough funds to cover the deployment costs");
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage])).rejects.toThrow(
+        "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue."
+      );
+    });
+
+    it("refuses a create whose deposit exceeds the deployment allowance instead of leaving it to chain simulation", async () => {
+      const { service, walletReloadJobService, logger, txManagerService } = setupForCreate({ deploymentLimit: 400000 });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow(
+        "Add credits or turn on auto recharge to continue."
+      );
+
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ userId: "user-123" });
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "DEPLOYMENT_CREATE_REFUSED_INSUFFICIENT_ALLOWANCE",
+          deploymentAllowance: 400000,
+          requiredDeposit: 500000,
+          reloadScheduled: false
+        })
+      );
+    });
+
+    it("tells the user a top up is on the way when auto recharge covers the shortfall", async () => {
+      const { service } = setupForCreate({ deploymentLimit: 400000, scheduleImmediate: vi.fn().mockResolvedValue(true) });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow(
+        "A top up from your saved payment method is on the way, so try again in a moment."
+      );
+    });
+
+    it("allows a create whose deposit the deployment allowance exactly covers", async () => {
+      const { service, txManagerService } = setupForCreate({ deploymentLimit: 500000 });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)]);
+
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalled();
+    });
+
+    it("ignores deposits denominated in another denom, which the chain rejects on its own", async () => {
+      const { service, txManagerService } = setupForCreate({ deploymentLimit: 1 });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000, "uusdc")]);
+
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalled();
+    });
+
+    it("surfaces the 402 even when scheduling the reload fails", async () => {
+      const { service, logger } = setupForCreate({
+        deploymentLimit: 400000,
+        scheduleImmediate: vi.fn().mockRejectedValue(new Error("Failed to schedule wallet balance reload check"))
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow(
+        "Add credits or turn on auto recharge to continue."
+      );
+
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "INSUFFICIENT_BALANCE_RELOAD_SCHEDULE_FAILED", userId: "user-123" }));
+    });
+
+    it("schedules a reload when the chain refuses the broadcast for insufficient balance", async () => {
+      const { service, walletReloadJobService } = setupForCreate({
+        deploymentLimit: 500000,
+        signAndBroadcastWithDerivedWallet: vi.fn().mockRejectedValue(new Error("deposit invalid: insufficient balance")),
+        transformChainError: vi.fn().mockResolvedValue(createError(402, "Not enough balance to cover the deployment deposit."))
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow(
+        "Not enough balance to cover the deployment deposit."
+      );
+
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ userId: "user-123" });
+    });
+
+    it("does not schedule a reload when the broadcast fails for a reason other than balance", async () => {
+      const { service, walletReloadJobService } = setupForCreate({
+        deploymentLimit: 500000,
+        signAndBroadcastWithDerivedWallet: vi.fn().mockRejectedValue(new Error("bid not open")),
+        transformChainError: vi.fn().mockResolvedValue(createError(400, "Cannot create lease"))
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow("Cannot create lease");
+
+      expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
     });
 
     it("skips trial validation when anonymous free trial is disabled", async () => {
@@ -740,6 +824,26 @@ describe(ManagedSignerService.name, () => {
     });
   });
 
+  function createDeploymentMessage(depositAmount: number, denom = "uakt"): EncodeObject {
+    return {
+      typeUrl: MsgCreateDeployment.$type,
+      value: MsgCreateDeployment.fromPartial({ deposit: { amount: { denom, amount: depositAmount.toString() } } })
+    };
+  }
+
+  function setupForCreate(input: { deploymentLimit: number } & Omit<NonNullable<Parameters<typeof setup>[0]>, "retrieveDeploymentLimit">) {
+    const { deploymentLimit, ...rest } = input;
+
+    return setup({
+      findOneByUserId: vi.fn().mockResolvedValue(createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: deploymentLimit })),
+      findById: vi.fn().mockResolvedValue(createUser({ userId: "user-123" })),
+      retrieveDeploymentLimit: vi.fn().mockResolvedValue(deploymentLimit),
+      signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "TESTHASH", rawLog: "[]" }),
+      refreshUserWalletLimits: vi.fn(),
+      ...rest
+    });
+  }
+
   function setup(input?: {
     findOneByUserId?: UserWalletRepository["findOneByUserId"];
     findById?: UserRepository["findById"];
@@ -755,6 +859,7 @@ describe(ManagedSignerService.name, () => {
     publish?: DomainEventsService["publish"];
     transformChainError?: ChainErrorService["toAppError"];
     hasLeases?: LeaseHttpService["hasLeases"];
+    scheduleImmediate?: WalletReloadJobService["scheduleImmediate"];
     decode?: Registry["decode"];
   }) {
     const mocks = {
@@ -792,9 +897,10 @@ describe(ManagedSignerService.name, () => {
         hasLeases: input?.hasLeases ?? vi.fn(async () => false)
       }),
       walletReloadJobService: mock<WalletReloadJobService>({
-        scheduleImmediate: vi.fn()
+        scheduleImmediate: input?.scheduleImmediate ?? vi.fn().mockResolvedValue(false)
       }),
       billingConfigService: mockConfigService<BillingConfigService>({
+        DEPLOYMENT_GRANT_DENOM: "uakt",
         FEE_ALLOWANCE_REFILL_AMOUNT: 1000000,
         FEE_ALLOWANCE_REFILL_THRESHOLD: 100000,
         TRIAL_ALLOWANCE_EXPIRATION_DAYS: 30
@@ -805,7 +911,8 @@ describe(ManagedSignerService.name, () => {
       trialActivationJobService: mock<TrialActivationJobService>(),
       logger: mock<LoggerService>({
         setContext: vi.fn(),
-        error: vi.fn()
+        error: vi.fn(),
+        warn: vi.fn()
       })
     };
 
