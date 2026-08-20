@@ -100,20 +100,20 @@ describe(useAccountBalanceOverview.name, () => {
     expect(result.current.autoReloadEnabled).toBe(true);
   });
 
-  it("exposes the auto reload threshold when the fixed-threshold flag and auto reload are both on", () => {
-    const { result } = setup({ fixedThresholdEnabled: true, autoReloadEnabled: true, autoReloadThreshold: 275 });
+  it("exposes the auto reload threshold in threshold mode when auto reload is on", () => {
+    const { result } = setup({ autoReloadMode: "threshold", autoReloadEnabled: true, autoReloadThreshold: 275 });
 
     expect(result.current.autoReloadThreshold).toBe(275);
   });
 
-  it("hides the auto reload threshold when the fixed-threshold flag is off", () => {
-    const { result } = setup({ fixedThresholdEnabled: false, autoReloadEnabled: true, autoReloadThreshold: 275 });
+  it("hides the auto reload threshold in prediction mode", () => {
+    const { result } = setup({ autoReloadMode: "prediction", autoReloadEnabled: true, autoReloadThreshold: 275 });
 
     expect(result.current.autoReloadThreshold).toBeNull();
   });
 
   it("hides the auto reload threshold when auto reload is off", () => {
-    const { result } = setup({ fixedThresholdEnabled: true, autoReloadEnabled: false, autoReloadThreshold: 275 });
+    const { result } = setup({ autoReloadMode: "threshold", autoReloadEnabled: false, autoReloadThreshold: 275 });
 
     expect(result.current.autoReloadThreshold).toBeNull();
   });
@@ -163,7 +163,7 @@ describe(useAccountBalanceOverview.name, () => {
     hasLiveLease?: boolean;
     autoReloadEnabled?: boolean;
     autoReloadThreshold?: number;
-    fixedThresholdEnabled?: boolean;
+    autoReloadMode?: "prediction" | "threshold";
     balancesMissing?: boolean;
     balancesError?: boolean;
     balancesIdle?: boolean;
@@ -208,14 +208,25 @@ describe(useAccountBalanceOverview.name, () => {
         isLoaded: !input.priceUnavailable,
         udenomToUsd: (amount: string | number) => Number(amount)
       }),
-      useFlag: () => input.fixedThresholdEnabled ?? false,
+      useAutoReloadMode: () => ({
+        mode: input.autoReloadMode ?? "prediction",
+        isThresholdModeOffered: input.autoReloadMode === "threshold",
+        showsThresholdRule: input.autoReloadMode === "threshold",
+        isLoading: false
+      }),
       useBalances: () => ({
         data: input.balancesMissing ? undefined : balances,
         isError: input.balancesError ?? false,
         fetchStatus: input.balancesIdle ? "idle" : "fetching"
       }),
       useAllLeases: vi.fn(() => ({ data: leases })),
-      useWalletSettingsQuery: () => ({ data: { autoReloadEnabled: input.autoReloadEnabled ?? false, autoReloadThreshold: input.autoReloadThreshold } }),
+      useWalletSettingsQuery: () => ({
+        data: {
+          autoReloadEnabled: input.autoReloadEnabled ?? false,
+          autoReloadMode: input.autoReloadMode ?? "prediction",
+          autoReloadThreshold: input.autoReloadThreshold
+        }
+      }),
       useLocalNotes: () => ({ getDeploymentName: (dseq: string | number | null) => input.names?.[String(dseq)] ?? null })
     } as unknown as typeof DEPENDENCIES;
 

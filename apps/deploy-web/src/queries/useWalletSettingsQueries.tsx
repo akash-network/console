@@ -47,3 +47,5 @@ export const useWalletSettingsMutations = () => {
 };
 
 type WalletSettings = paths["/v1/wallet-settings"]["get"]["responses"][200]["content"]["application/json"];
+
+export type AutoReloadMode = WalletSettings["data"]["autoReloadMode"];
