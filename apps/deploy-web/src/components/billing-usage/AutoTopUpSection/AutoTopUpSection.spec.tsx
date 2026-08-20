@@ -13,6 +13,12 @@ describe(AutoTopUpSection.name, () => {
     expect(screen.getByText(/per week/)).toHaveTextContent("42");
   });
 
+  it("runs the weekly cost query without waiting for wallet settings when threshold mode is not offered", () => {
+    const { dependencies } = setup({ isThresholdModeOffered: false, defaultPaymentMethod: { id: "pm_123" }, isWalletSettingsLoading: true });
+
+    expect(dependencies.useWeeklyDeploymentCostQuery).toHaveBeenCalledWith({ enabled: true });
+  });
+
   describe("when threshold mode is offered", () => {
     it("renders the Auto Top-Up title", () => {
       setup({ isThresholdModeOffered: true, defaultPaymentMethod: { id: "pm_123" } });
@@ -83,6 +89,46 @@ describe(AutoTopUpSection.name, () => {
       setup({ isThresholdModeOffered: true, defaultPaymentMethod: { id: "pm_123" }, walletSettings: { autoReloadEnabled: false } });
 
       expect(screen.getByText(/Turn on Auto Top-Up to add funds automatically/)).toBeInTheDocument();
+    });
+
+    it("prompts with predicted-spend wording when disabled in prediction mode", () => {
+      setup({
+        isThresholdModeOffered: true,
+        autoReloadMode: "prediction",
+        defaultPaymentMethod: { id: "pm_123" },
+        walletSettings: { autoReloadEnabled: false, autoReloadMode: "prediction" }
+      });
+
+      expect(screen.getByText(/Turn on Auto Top-Up to automatically cover the week ahead/)).toBeInTheDocument();
+      expect(screen.queryByText(/when your balance runs low/)).not.toBeInTheDocument();
+    });
+
+    it("shows a skeleton instead of a zero predicted spend while the weekly cost is still loading", () => {
+      setup({
+        isThresholdModeOffered: true,
+        autoReloadMode: "prediction",
+        defaultPaymentMethod: { id: "pm_123" },
+        walletSettings: { autoReloadEnabled: true, autoReloadMode: "prediction" },
+        isWeeklyCostLoading: true
+      });
+
+      expect(screen.getByText("Predicted spend")).toBeInTheDocument();
+      expect(screen.queryByText("0")).not.toBeInTheDocument();
+    });
+
+    describe("while wallet settings are still loading", () => {
+      it("disables the switch so the settings dialog cannot be seeded from unresolved settings", () => {
+        setup({ isThresholdModeOffered: true, defaultPaymentMethod: { id: "pm_123" }, isWalletSettingsLoading: true });
+
+        expect(screen.getByRole("switch")).toBeDisabled();
+      });
+
+      it("holds back the mode description instead of committing to the fallback mode", () => {
+        setup({ isThresholdModeOffered: true, defaultPaymentMethod: { id: "pm_123" }, isWalletSettingsLoading: true });
+
+        expect(screen.queryByText(/Tops up when your/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Tops up to cover the week ahead/)).not.toBeInTheDocument();
+      });
     });
 
     it("opens the settings dialog in enable mode without mutating when the switch is turned on", () => {
@@ -242,7 +288,9 @@ describe(AutoTopUpSection.name, () => {
     defaultPaymentMethod?: { id: string; card?: { brand?: string; last4?: string } };
     isDefaultPaymentMethodLoading?: boolean;
     walletSettings?: { autoReloadEnabled: boolean; autoReloadMode?: "prediction" | "threshold"; autoReloadThreshold?: number; autoReloadAmount?: number };
+    isWalletSettingsLoading?: boolean;
     weeklyCost?: number;
+    isWeeklyCostLoading?: boolean;
     confirmResult?: boolean;
     upsertMutate?: ReturnType<typeof vi.fn>;
     enqueueSnackbar?: ReturnType<typeof vi.fn>;
@@ -274,8 +322,11 @@ describe(AutoTopUpSection.name, () => {
       }),
       useSnackbar: vi.fn(() => ({ enqueueSnackbar })),
       useDefaultPaymentMethodQuery: vi.fn(() => ({ data: input.defaultPaymentMethod, isLoading: input.isDefaultPaymentMethodLoading ?? false })),
-      useWalletSettingsQuery: vi.fn(() => ({ data: input.walletSettings ?? { autoReloadEnabled: false }, isLoading: false })),
-      useWeeklyDeploymentCostQuery: vi.fn(() => ({ data: input.weeklyCost ?? 5 })),
+      useWalletSettingsQuery: vi.fn(() => ({
+        data: input.isWalletSettingsLoading ? undefined : input.walletSettings ?? { autoReloadEnabled: false },
+        isLoading: input.isWalletSettingsLoading ?? false
+      })),
+      useWeeklyDeploymentCostQuery: vi.fn(() => ({ data: input.isWeeklyCostLoading ? undefined : input.weeklyCost ?? 5 })),
       useWalletSettingsMutations: vi.fn(() => ({ upsertWalletSettings: { mutate: upsertMutate, isPending: input.isPending ?? false } })),
       useAccountBalanceOverview: vi.fn(() => ({ perHour: input.perHour ?? 0, available: input.available ?? 0 })),
       useBillingActions: vi.fn(() => ({ openAddPaymentMethod })),

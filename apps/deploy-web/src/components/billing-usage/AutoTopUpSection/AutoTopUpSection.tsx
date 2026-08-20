@@ -50,7 +50,7 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
   const { enqueueSnackbar } = d.useSnackbar();
   const { data: defaultPaymentMethod, isLoading: isDefaultPaymentMethodLoading } = d.useDefaultPaymentMethodQuery();
   const { data: walletSettings, isLoading: isWalletSettingsLoading } = d.useWalletSettingsQuery();
-  const { data: weeklyCost } = d.useWeeklyDeploymentCostQuery({ enabled: !showsThresholdRule && !isWalletSettingsLoading });
+  const { data: weeklyCost } = d.useWeeklyDeploymentCostQuery({ enabled: !showsThresholdRule });
   const { upsertWalletSettings } = d.useWalletSettingsMutations();
   const { openAddPaymentMethod } = d.useBillingActions();
   const overview = d.useAccountBalanceOverview();
@@ -122,8 +122,8 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
   const isFirstLoad = (isWalletSettingsLoading && !walletSettings) || (isDefaultPaymentMethodLoading && !defaultPaymentMethod);
 
   const isReloadChangeDisabled = useMemo(() => {
-    return !hasPaymentMethod || upsertWalletSettings.isPending;
-  }, [hasPaymentMethod, upsertWalletSettings.isPending]);
+    return isFirstLoad || !hasPaymentMethod || upsertWalletSettings.isPending;
+  }, [isFirstLoad, hasPaymentMethod, upsertWalletSettings.isPending]);
 
   const defaultCardLabel = useMemo(() => {
     const card = (defaultPaymentMethod as PaymentMethod | null | undefined)?.card;
@@ -150,7 +150,9 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
         <d.CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
           <div className="space-y-1">
             <h3 className="text-lg font-bold leading-none">{isThresholdModeOffered ? "Auto Top-Up" : "Auto Recharge"}</h3>
-            {!isThresholdModeOffered ? (
+            {isFirstLoad ? (
+              <d.Skeleton className="h-4 w-72" />
+            ) : !isThresholdModeOffered ? (
               <p className="text-sm text-muted-foreground">Automatically adds credits to keep your deployments running.</p>
             ) : showsThresholdRule ? (
               <p className="text-sm text-muted-foreground">
@@ -202,7 +204,7 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
                 ) : (
                   <div className="space-y-1">
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Predicted spend</p>
-                    <p className="text-2xl font-bold leading-none">{usd(weeklyCost ?? 0)}</p>
+                    {weeklyCost === undefined ? <d.Skeleton className="h-8 w-24" /> : <p className="text-2xl font-bold leading-none">{usd(weeklyCost)}</p>}
                     <p className="text-xs text-muted-foreground">per week, from your running deployments</p>
                   </div>
                 )}
@@ -236,7 +238,11 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
               )}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Turn on Auto Top-Up to add funds automatically when your balance runs low.</p>
+            <p className="text-sm text-muted-foreground">
+              {showsThresholdRule
+                ? "Turn on Auto Top-Up to add funds automatically when your balance runs low."
+                : "Turn on Auto Top-Up to automatically cover the week ahead for your running deployments."}
+            </p>
           )}
         </d.CardContent>
       </d.Card>
