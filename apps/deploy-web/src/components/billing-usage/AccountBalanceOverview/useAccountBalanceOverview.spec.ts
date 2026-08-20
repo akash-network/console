@@ -1,10 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
+import type { Balances } from "@src/types";
+import type { LeaseDto } from "@src/types/deployment";
 import { LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
-import { DEPENDENCIES, useAccountBalanceOverview } from "./useAccountBalanceOverview";
+import type { DEPENDENCIES } from "./useAccountBalanceOverview";
+import { useAccountBalanceOverview } from "./useAccountBalanceOverview";
 
 import { renderHook } from "@testing-library/react";
+
+type WalletSettings = NonNullable<ReturnType<typeof DEPENDENCIES.useWalletSettingsQuery>["data"]>;
 
 describe(useAccountBalanceOverview.name, () => {
   it("splits total into available and reserved", () => {
@@ -100,20 +106,20 @@ describe(useAccountBalanceOverview.name, () => {
     expect(result.current.autoReloadEnabled).toBe(true);
   });
 
-  it("exposes the auto reload threshold when the fixed-threshold flag and auto reload are both on", () => {
-    const { result } = setup({ fixedThresholdEnabled: true, autoReloadEnabled: true, autoReloadThreshold: 275 });
+  it("exposes the auto reload threshold in threshold mode when auto reload is on", () => {
+    const { result } = setup({ autoReloadMode: "threshold", autoReloadEnabled: true, autoReloadThreshold: 275 });
 
     expect(result.current.autoReloadThreshold).toBe(275);
   });
 
-  it("hides the auto reload threshold when the fixed-threshold flag is off", () => {
-    const { result } = setup({ fixedThresholdEnabled: false, autoReloadEnabled: true, autoReloadThreshold: 275 });
+  it("hides the auto reload threshold in prediction mode", () => {
+    const { result } = setup({ autoReloadMode: "prediction", autoReloadEnabled: true, autoReloadThreshold: 275 });
 
     expect(result.current.autoReloadThreshold).toBeNull();
   });
 
   it("hides the auto reload threshold when auto reload is off", () => {
-    const { result } = setup({ fixedThresholdEnabled: true, autoReloadEnabled: false, autoReloadThreshold: 275 });
+    const { result } = setup({ autoReloadMode: "threshold", autoReloadEnabled: false, autoReloadThreshold: 275 });
 
     expect(result.current.autoReloadThreshold).toBeNull();
   });
@@ -163,7 +169,7 @@ describe(useAccountBalanceOverview.name, () => {
     hasLiveLease?: boolean;
     autoReloadEnabled?: boolean;
     autoReloadThreshold?: number;
-    fixedThresholdEnabled?: boolean;
+    autoReloadMode?: "prediction" | "threshold";
     balancesMissing?: boolean;
     balancesError?: boolean;
     balancesIdle?: boolean;
@@ -176,7 +182,7 @@ describe(useAccountBalanceOverview.name, () => {
     }));
     const reservedTotal = reservedDeployments.reduce((sum, deployment) => sum + deployment.fundsUsd, 0);
 
-    const balances = {
+    const balances = Object.assign(mock<Balances>(), {
       balanceUAKT: 0,
       balanceUUSDC: 0,
       balanceUACT: (input.totalUsd ?? 0) - reservedTotal,
@@ -188,37 +194,66 @@ describe(useAccountBalanceOverview.name, () => {
       deploymentGrantsUACT: 0,
       activeDeployments,
       deploymentGrants: []
-    };
+    });
 
-    const leases = input.leases
-      ? input.leases.map(lease => ({
-          dseq: lease.dseq,
-          state: lease.state ?? "active",
-          price: { denom: UACT_DENOM, amount: lease.amount ?? "1000000" }
-        }))
-      : input.hasLiveLease
-        ? [{ state: "active", price: { denom: UACT_DENOM, amount: "1000000" } }]
-        : [];
+    const leaseFixtures = input.leases ?? (input.hasLiveLease ? [{ dseq: "live", amount: "1000000" }] : []);
+    const leases = leaseFixtures.map(lease =>
+      Object.assign(mock<LeaseDto>(), {
+        dseq: lease.dseq,
+        state: lease.state ?? "active",
+        price: { denom: UACT_DENOM, amount: lease.amount ?? "1000000" }
+      })
+    );
 
-    const dependencies = {
-      ...DEPENDENCIES,
-      useWallet: () => ({ address: "akash1abc" }),
-      usePricing: () => ({
+    const useWallet: typeof DEPENDENCIES.useWallet = () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useWallet>>(), { address: "akash1abc" });
+
+    const udenomToUsd = (amount: string | number) => Number(amount);
+    const usePricing: typeof DEPENDENCIES.usePricing = () =>
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.usePricing>>(), {
         price: input.priceUnavailable ? undefined : 1,
         isLoaded: !input.priceUnavailable,
-        udenomToUsd: (amount: string | number) => Number(amount)
-      }),
-      useFlag: () => input.fixedThresholdEnabled ?? false,
-      useBalances: () => ({
-        data: input.balancesMissing ? undefined : balances,
-        isError: input.balancesError ?? false,
-        fetchStatus: input.balancesIdle ? "idle" : "fetching"
-      }),
-      useAllLeases: vi.fn(() => ({ data: leases })),
-      useWalletSettingsQuery: () => ({ data: { autoReloadEnabled: input.autoReloadEnabled ?? false, autoReloadThreshold: input.autoReloadThreshold } }),
-      useLocalNotes: () => ({ getDeploymentName: (dseq: string | number | null) => input.names?.[String(dseq)] ?? null })
-    } as unknown as typeof DEPENDENCIES;
+        udenomToUsd
+      });
 
-    return { ...renderHook(() => useAccountBalanceOverview({ dependencies })), useAllLeases: dependencies.useAllLeases };
+    const useAutoReloadMode: typeof DEPENDENCIES.useAutoReloadMode = () => ({
+      mode: input.autoReloadMode ?? "prediction",
+      isThresholdModeOffered: input.autoReloadMode === "threshold",
+      showsThresholdRule: input.autoReloadMode === "threshold",
+      isLoading: false
+    });
+
+    const balancesQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useBalances>>(), {
+      data: input.balancesMissing ? undefined : balances,
+      isError: input.balancesError ?? false,
+      fetchStatus: input.balancesIdle ? ("idle" as const) : ("fetching" as const)
+    });
+    const useBalances: typeof DEPENDENCIES.useBalances = () => balancesQuery;
+
+    const leasesQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAllLeases>>(), { data: leases });
+    const useAllLeases = vi.fn<typeof DEPENDENCIES.useAllLeases>(() => leasesQuery);
+
+    const walletSettingsQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useWalletSettingsQuery>>(), {
+      data: Object.assign(mock<WalletSettings>(), {
+        autoReloadEnabled: input.autoReloadEnabled ?? false,
+        autoReloadMode: input.autoReloadMode ?? ("prediction" as const),
+        autoReloadThreshold: input.autoReloadThreshold
+      })
+    });
+    const useWalletSettingsQuery: typeof DEPENDENCIES.useWalletSettingsQuery = () => walletSettingsQuery;
+
+    const getDeploymentName = (dseq: string | number | null) => input.names?.[String(dseq)] ?? null;
+    const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>(), { getDeploymentName });
+
+    const dependencies: typeof DEPENDENCIES = {
+      useWallet,
+      usePricing,
+      useAutoReloadMode,
+      useBalances,
+      useAllLeases,
+      useWalletSettingsQuery,
+      useLocalNotes
+    };
+
+    return { ...renderHook(() => useAccountBalanceOverview({ dependencies })), useAllLeases };
   }
 });

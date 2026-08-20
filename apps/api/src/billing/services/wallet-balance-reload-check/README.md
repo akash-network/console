@@ -2,14 +2,14 @@
 
 ## Overview
 
-This job worker automatically tops up a user's credit balance when it drops to or below a user-configured threshold. When a user has auto top-up enabled, the handler charges their default payment method a fixed amount as soon as the balance reaches the trigger point.
+This job worker automatically tops up a user's credit balance when auto top-up is enabled. It charges the user's default payment method, and the rule it applies comes from `walletSetting.autoReloadMode` — a per-user column, not a feature flag:
 
-The algorithm is selected by the `auto_reload_fixed_threshold` feature flag:
+- **`threshold`** — fixed threshold/amount, described below. This is what the billing UI offers when a user enables auto top-up.
+- **`prediction`** — predicted-spend, described at the end. Every row created before CON-884 has this mode, so existing users keep the behavior they signed up for until they switch.
 
-- **Flag ON** — fixed threshold/amount (the algorithm described below). This is the target behavior.
-- **Flag OFF** — legacy predicted-spend algorithm (documented at the end; removed once the flag is cleaned up).
+Both modes are supported; neither is scheduled for removal. The `auto_reload_fixed_threshold` flag decides nothing here: background jobs run without a real Unleash user, so a flag could not express a per-user choice anyway. It has no reader left in `apps/api` and stays in the `FeatureFlags` map only because the default-deposit rollout gates on the same flag. In `apps/deploy-web` it gates whether the mode picker is offered.
 
-## Fixed-threshold algorithm (primary)
+## Threshold mode
 
 A user configures two values on their wallet settings:
 
@@ -26,7 +26,9 @@ if (balance <= autoReloadThreshold) {
 
 The comparison is **inclusive**: a balance exactly at the threshold triggers a top-up. The `max(..., $20)` is a defensive clamp — there is no DB CHECK constraint, so the handler guarantees Stripe's minimum even if a smaller amount was somehow persisted.
 
-The check is a pure balance comparison. It fires even when the user has no active deployments, and it does not project future spend. The balance compared is the deployment-grant balance in USD (`getDeploymentBalanceInFiat`) — the same "Available Balance" shown on the billing page.
+The check is a pure balance comparison: it does not project future spend. The balance compared is the deployment-grant balance in USD (`getDeploymentBalanceInFiat`) — the same "Available Balance" shown on the billing page.
+
+One guard sits after the comparison: when the wallet owns no active deployment the charge is skipped (`no_active_deployments`), so leftover credit below the threshold never gets topped up on an idle wallet. Checks enqueued by initial deployment funding (`triggeredByDeployment`) bypass that count, because it reads the indexer-fed `Deployment` table, which lags chain state right after a lease starts.
 
 ### Worked examples (defaults: threshold $20, amount $100)
 
@@ -34,7 +36,8 @@ The check is a pure balance comparison. It fires even when the user has no activ
 | ------- | --------- | ------ | ------- |
 | $20.00  | $20       | $100   | `balance <= threshold` → **charge $100** |
 | $20.01  | $20       | $100   | `balance > threshold` → **skip** |
-| $0.00   | $20       | $100   | **charge $100** (fires with no deployments) |
+| $0.00   | $20       | $100   | **charge $100** (wallet has an active deployment) |
+| $0.00   | $20       | $100   | **skip** `no_active_deployments` (idle wallet, check not deployment-triggered) |
 | $5.00   | $20       | $15\*  | **charge $20** (clamped to the $20 minimum) |
 
 \* An amount below $20 should never persist (zod rejects it on write); the clamp is defensive only.
@@ -44,7 +47,7 @@ The check is a pure balance comparison. It fires even when the user has no activ
 Checks are **spend-event-driven**, not fixed to a daily cadence. A check is enqueued:
 
 1. When a user enables auto top-up (immediate, prefilled from the settings dialog).
-2. When a user changes their threshold or amount while enabled (immediate — backs the dialog's "top-up runs shortly after saving").
+2. When a user changes their mode, threshold, or amount while enabled (immediate — backs the dialog's "top-up runs shortly after saving").
 3. After every spending broadcast, after initial deployment funding, and after each escrow top-up cycle.
 4. On a self-rescheduled 24h job that acts only as a safety net.
 
@@ -64,7 +67,7 @@ If any validation fails, the handler logs and skips processing (does not throw).
 
 ## Payment intent
 
-The charge uses a job-scoped idempotency key (`WalletBalanceReloadCheck.<jobId>`), `confirm: true`, and `onAmountMismatch: "tolerate"`. Tolerate keeps retries safe when the computed amount differs between attempts — e.g. settings were edited or the feature flag flipped between the original charge and a retry under the reused key.
+The charge uses a job-scoped idempotency key (`WalletBalanceReloadCheck.<jobId>`), `confirm: true`, and `onAmountMismatch: "tolerate"`. Tolerate keeps retries safe when the computed amount differs between attempts — e.g. the user edited their settings or switched modes between the original charge and a retry under the reused key.
 
 ## What happens on failure?
 
@@ -76,11 +79,9 @@ The charge uses a job-scoped idempotency key (`WalletBalanceReloadCheck.<jobId>`
 
 ---
 
-## Legacy predicted-spend algorithm (behind the flag, `auto_reload_fixed_threshold` OFF)
+## Prediction mode
 
-> This section describes the pre-CON-717 behavior. It is retained only while the flag is being rolled out and is removed by the flag-cleanup follow-up.
-
-The legacy path predicts upcoming spend instead of comparing against a fixed threshold:
+This is the pre-CON-717 behavior, kept as a supported mode by CON-884. It predicts upcoming spend instead of comparing against a fixed threshold:
 
 1. **Calculate** the unfunded cost to keep all auto-top-up deployments running for the next 7 days (`RELOAD_COVERAGE_PERIOD_IN_MS`), excluding the portion already covered by escrow.
 2. **Compare** the balance against 25% of that projection (`MIN_COVERAGE_PERCENTAGE`). Reload when `balance < 0.25 * costUntilTargetDate` (~1.75 days of coverage remaining).
@@ -88,4 +89,6 @@ The legacy path predicts upcoming spend instead of comparing against a fixed thr
 4. **Skip** entirely when the projected cost is 0 (no active auto-top-up deployments).
 5. **Schedule** the next check 24 hours out.
 
-Legacy key constants: Check Interval 24h, Reload Coverage Period 7 days, Minimum Coverage Percentage 25%, Minimum Reload $20.
+Key constants: Check Interval 24h, Reload Coverage Period 7 days, Minimum Coverage Percentage 25%, Minimum Reload $20.
+
+Note that `autoReloadThreshold` and `autoReloadAmount` are ignored in this mode — the amounts are derived from projected spend. They stay on the row so that switching to threshold mode and back preserves them.

@@ -3,15 +3,29 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
-import { Form, FormField, FormInput, LoadingButton, Popup, Snackbar } from "@akashnetwork/ui/components";
+import {
+  Field,
+  FieldContent,
+  FieldLabel,
+  FieldTitle,
+  Form,
+  FormField,
+  FormInput,
+  LoadingButton,
+  Popup,
+  RadioGroup,
+  RadioGroupItem,
+  Snackbar
+} from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CreditCard } from "iconoir-react";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
 
 import { getPaymentMethodDisplay } from "@src/components/shared/PaymentMethodCard/PaymentMethodCard";
-import { useDefaultPaymentMethodQuery, useWalletSettingsMutations } from "@src/queries";
+import { type AutoReloadMode, useDefaultPaymentMethodQuery, useWalletSettingsMutations } from "@src/queries";
 
+export const DEFAULT_AUTO_RELOAD_MODE: AutoReloadMode = "threshold";
 export const DEFAULT_AUTO_RELOAD_THRESHOLD = 20;
 export const DEFAULT_AUTO_RELOAD_AMOUNT = 100;
 
@@ -24,16 +38,48 @@ const AUTO_RELOAD_MAX_USD = 10_000;
 /** Mirrors STANDARD_TOP_UP_MIN_AMOUNT_USD — the fixed floor the backend applies to every recurring auto-top-up charge, independent of the trial-aware one-time top-up minimum. */
 const AUTO_RELOAD_AMOUNT_MIN_USD = 20;
 
-const autoTopUpSchema = z.object({
-  autoReloadThreshold: z.coerce
-    .number()
-    .min(AUTO_RELOAD_THRESHOLD_MIN_USD, `Minimum threshold is $${AUTO_RELOAD_THRESHOLD_MIN_USD}`)
-    .max(AUTO_RELOAD_MAX_USD, `Maximum threshold is $${AUTO_RELOAD_MAX_USD}`),
-  autoReloadAmount: z.coerce
-    .number()
-    .min(AUTO_RELOAD_AMOUNT_MIN_USD, `Minimum amount is $${AUTO_RELOAD_AMOUNT_MIN_USD}`)
-    .max(AUTO_RELOAD_MAX_USD, `Maximum amount is $${AUTO_RELOAD_MAX_USD}`)
-});
+const MODE_OPTIONS: Array<{ value: AutoReloadMode; id: string; title: string; description: string }> = [
+  {
+    value: "threshold",
+    id: "auto-reload-mode-threshold",
+    title: "Fixed threshold",
+    description: "Charge a set amount as soon as your available balance runs low."
+  },
+  {
+    value: "prediction",
+    id: "auto-reload-mode-prediction",
+    title: "Predicted spend",
+    description: "Charge whatever it takes to cover the next week of your current deployments."
+  }
+];
+
+/**
+ * The threshold and amount bounds only apply in threshold mode: prediction mode derives its amounts from projected
+ * spend, and its inputs aren't rendered, so a stored value outside the bounds must not block the save.
+ */
+const autoTopUpSchema = z
+  .object({
+    autoReloadMode: z.enum(["threshold", "prediction"]),
+    autoReloadThreshold: z.coerce.number(),
+    autoReloadAmount: z.coerce.number()
+  })
+  .superRefine((values, ctx) => {
+    if (values.autoReloadMode !== "threshold") return;
+
+    const boundedFields = [
+      { name: "autoReloadThreshold" as const, value: values.autoReloadThreshold, min: AUTO_RELOAD_THRESHOLD_MIN_USD, label: "threshold" },
+      { name: "autoReloadAmount" as const, value: values.autoReloadAmount, min: AUTO_RELOAD_AMOUNT_MIN_USD, label: "amount" }
+    ];
+
+    for (const { name, value, min, label } of boundedFields) {
+      if (value < min) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [name], message: `Minimum ${label} is $${min}` });
+      }
+      if (value > AUTO_RELOAD_MAX_USD) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [name], message: `Maximum ${label} is $${AUTO_RELOAD_MAX_USD}` });
+      }
+    }
+  });
 
 type AutoTopUpFormValues = z.infer<typeof autoTopUpSchema>;
 
@@ -49,6 +95,7 @@ interface AutoTopUpSettingsPopupProps {
   onClose: () => void;
   /** True for the first-enable flow (Save turns auto top-up on); false when editing an already-enabled account. */
   enableOnSave: boolean;
+  mode?: AutoReloadMode;
   threshold?: number;
   amount?: number;
   dependencies?: typeof DEPENDENCIES;
@@ -58,6 +105,7 @@ export const AutoTopUpSettingsPopup: React.FC<AutoTopUpSettingsPopupProps> = ({
   open,
   onClose,
   enableOnSave,
+  mode,
   threshold,
   amount,
   dependencies: d = DEPENDENCIES
@@ -68,10 +116,11 @@ export const AutoTopUpSettingsPopup: React.FC<AutoTopUpSettingsPopupProps> = ({
 
   const defaultValues = useMemo<AutoTopUpFormValues>(
     () => ({
+      autoReloadMode: mode ?? DEFAULT_AUTO_RELOAD_MODE,
       autoReloadThreshold: threshold ?? DEFAULT_AUTO_RELOAD_THRESHOLD,
       autoReloadAmount: amount ?? DEFAULT_AUTO_RELOAD_AMOUNT
     }),
-    [threshold, amount]
+    [mode, threshold, amount]
   );
 
   const form = d.useForm<AutoTopUpFormValues>({
@@ -90,6 +139,7 @@ export const AutoTopUpSettingsPopup: React.FC<AutoTopUpSettingsPopupProps> = ({
     [open, defaultValues, form]
   );
 
+  const selectedMode = form.watch("autoReloadMode");
   const cardDisplay = defaultPaymentMethod ? getPaymentMethodDisplay(defaultPaymentMethod as PaymentMethod) : null;
 
   const saveSettings = form.handleSubmit(values => {
@@ -97,8 +147,11 @@ export const AutoTopUpSettingsPopup: React.FC<AutoTopUpSettingsPopupProps> = ({
       {
         data: {
           autoReloadEnabled: true,
-          autoReloadThreshold: values.autoReloadThreshold,
-          autoReloadAmount: values.autoReloadAmount
+          autoReloadMode: values.autoReloadMode,
+          ...(values.autoReloadMode === "threshold" && {
+            autoReloadThreshold: values.autoReloadThreshold,
+            autoReloadAmount: values.autoReloadAmount
+          })
         }
       },
       {
@@ -132,32 +185,60 @@ export const AutoTopUpSettingsPopup: React.FC<AutoTopUpSettingsPopupProps> = ({
 
           <FormField
             control={form.control}
-            name="autoReloadThreshold"
+            name="autoReloadMode"
             render={({ field }) => (
-              <FormInput
-                {...field}
-                type="number"
-                step="0.01"
-                label={`When credit balance drops to or below (minimum $${AUTO_RELOAD_THRESHOLD_MIN_USD})`}
-                description="If your current balance is at or below the threshold you set, your top-up will kick in shortly after you save."
-                startIcon={<div className="pl-3 text-sm text-muted-foreground">$</div>}
-              />
+              <RadioGroup value={field.value} onValueChange={field.onChange} aria-label="Auto top-up mode">
+                {MODE_OPTIONS.map(option => (
+                  <FieldLabel key={option.value} htmlFor={option.id}>
+                    <Field orientation="horizontal" className="cursor-pointer p-3">
+                      <RadioGroupItem value={option.value} id={option.id} className="self-center" />
+                      <FieldContent>
+                        <FieldTitle className="font-medium">{option.title}</FieldTitle>
+                        <p className="text-sm text-muted-foreground">{option.description}</p>
+                      </FieldContent>
+                    </Field>
+                  </FieldLabel>
+                ))}
+              </RadioGroup>
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="autoReloadAmount"
-            render={({ field }) => (
-              <FormInput
-                {...field}
-                type="number"
-                step="0.01"
-                label={`Purchase this amount (minimum $${AUTO_RELOAD_AMOUNT_MIN_USD})`}
-                startIcon={<div className="pl-3 text-sm text-muted-foreground">$</div>}
+          {selectedMode === "threshold" ? (
+            <>
+              <FormField
+                control={form.control}
+                name="autoReloadThreshold"
+                render={({ field }) => (
+                  <FormInput
+                    {...field}
+                    type="number"
+                    step="0.01"
+                    label={`When credit balance drops to or below (minimum $${AUTO_RELOAD_THRESHOLD_MIN_USD})`}
+                    description="If your current balance is at or below the threshold you set, your top-up will kick in shortly after you save."
+                    startIcon={<div className="pl-3 text-sm text-muted-foreground">$</div>}
+                  />
+                )}
               />
-            )}
-          />
+
+              <FormField
+                control={form.control}
+                name="autoReloadAmount"
+                render={({ field }) => (
+                  <FormInput
+                    {...field}
+                    type="number"
+                    step="0.01"
+                    label={`Purchase this amount (minimum $${AUTO_RELOAD_AMOUNT_MIN_USD})`}
+                    startIcon={<div className="pl-3 text-sm text-muted-foreground">$</div>}
+                  />
+                )}
+              />
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              We check your deployments once a day and charge enough to keep them running for another week. There is nothing else to configure.
+            </p>
+          )}
 
           <LoadingButton type="submit" className="w-full" loading={upsertWalletSettings.isPending}>
             Save changes

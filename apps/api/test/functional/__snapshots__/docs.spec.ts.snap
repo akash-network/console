@@ -15014,6 +15014,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "autoReloadEnabled": {
                           "type": "boolean",
                         },
+                        "autoReloadMode": {
+                          "description": "Rule used to decide when and how much to top up.",
+                          "enum": [
+                            "threshold",
+                            "prediction",
+                          ],
+                          "type": "string",
+                        },
                         "autoReloadThreshold": {
                           "description": "USD credit balance at or below which an automatic top-up is triggered.",
                           "type": "number",
@@ -15021,6 +15029,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       },
                       "required": [
                         "autoReloadEnabled",
+                        "autoReloadMode",
                         "autoReloadThreshold",
                         "autoReloadAmount",
                       ],
@@ -15072,6 +15081,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "autoReloadEnabled": {
                         "type": "boolean",
                       },
+                      "autoReloadMode": {
+                        "description": "Rule used to decide when and how much to top up: \`threshold\` charges the fixed amount as soon as the balance reaches the threshold, \`prediction\` covers the next 7 days of projected spend. Defaults to \`prediction\` on create when omitted; left unchanged on update.",
+                        "enum": [
+                          "threshold",
+                          "prediction",
+                        ],
+                        "type": "string",
+                      },
                       "autoReloadThreshold": {
                         "description": "USD credit balance at or below which an automatic top-up is triggered (minimum 5, maximum 10000). Defaults are applied on create when omitted.",
                         "maximum": 10000,
@@ -15108,6 +15125,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "autoReloadEnabled": {
                           "type": "boolean",
                         },
+                        "autoReloadMode": {
+                          "description": "Rule used to decide when and how much to top up.",
+                          "enum": [
+                            "threshold",
+                            "prediction",
+                          ],
+                          "type": "string",
+                        },
                         "autoReloadThreshold": {
                           "description": "USD credit balance at or below which an automatic top-up is triggered.",
                           "type": "number",
@@ -15115,6 +15140,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       },
                       "required": [
                         "autoReloadEnabled",
+                        "autoReloadMode",
                         "autoReloadThreshold",
                         "autoReloadAmount",
                       ],
@@ -15166,6 +15192,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "autoReloadEnabled": {
                         "type": "boolean",
                       },
+                      "autoReloadMode": {
+                        "description": "Rule used to decide when and how much to top up: \`threshold\` charges the fixed amount as soon as the balance reaches the threshold, \`prediction\` covers the next 7 days of projected spend. Defaults to \`prediction\` on create when omitted; left unchanged on update.",
+                        "enum": [
+                          "threshold",
+                          "prediction",
+                        ],
+                        "type": "string",
+                      },
                       "autoReloadThreshold": {
                         "description": "USD credit balance at or below which an automatic top-up is triggered (minimum 5, maximum 10000). Defaults are applied on create when omitted.",
                         "maximum": 10000,
@@ -15202,6 +15236,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "autoReloadEnabled": {
                           "type": "boolean",
                         },
+                        "autoReloadMode": {
+                          "description": "Rule used to decide when and how much to top up.",
+                          "enum": [
+                            "threshold",
+                            "prediction",
+                          ],
+                          "type": "string",
+                        },
                         "autoReloadThreshold": {
                           "description": "USD credit balance at or below which an automatic top-up is triggered.",
                           "type": "number",
@@ -15209,6 +15251,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       },
                       "required": [
                         "autoReloadEnabled",
+                        "autoReloadMode",
                         "autoReloadThreshold",
                         "autoReloadAmount",
                       ],

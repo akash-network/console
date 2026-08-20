@@ -15,7 +15,7 @@ import {
 } from "@src/components/billing-usage/AutoTopUpSettingsPopup/AutoTopUpSettingsPopup";
 import { useBillingActions } from "@src/components/billing-usage/BillingActionsProvider/BillingActionsProvider";
 import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
-import { useFlag } from "@src/hooks/useFlag";
+import { useAutoReloadMode } from "@src/components/billing-usage/useAutoReloadMode";
 import { useDefaultPaymentMethodQuery, useWalletSettingsMutations, useWalletSettingsQuery, useWeeklyDeploymentCostQuery } from "@src/queries";
 import { capitalizeFirstLetter } from "@src/utils/stringUtils";
 
@@ -30,7 +30,7 @@ export const DEPENDENCIES = {
   useAccountBalanceOverview,
   usePopup,
   useBillingActions,
-  useFlag,
+  useAutoReloadMode,
   AutoTopUpSettingsPopup,
   UsdValue,
   Button,
@@ -46,11 +46,11 @@ export const DEPENDENCIES = {
 
 export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
   const [autoTopUpPopup, setAutoTopUpPopup] = useState<{ open: boolean; enableOnSave: boolean }>({ open: false, enableOnSave: false });
-  const isFixedThresholdEnabled = d.useFlag("auto_reload_fixed_threshold");
+  const { mode, isThresholdModeOffered, showsThresholdRule } = d.useAutoReloadMode();
   const { enqueueSnackbar } = d.useSnackbar();
   const { data: defaultPaymentMethod, isLoading: isDefaultPaymentMethodLoading } = d.useDefaultPaymentMethodQuery();
   const { data: walletSettings, isLoading: isWalletSettingsLoading } = d.useWalletSettingsQuery();
-  const { data: weeklyCost } = d.useWeeklyDeploymentCostQuery({ enabled: !isFixedThresholdEnabled });
+  const { data: weeklyCost } = d.useWeeklyDeploymentCostQuery({ enabled: !showsThresholdRule });
   const { upsertWalletSettings } = d.useWalletSettingsMutations();
   const { openAddPaymentMethod } = d.useBillingActions();
   const overview = d.useAccountBalanceOverview();
@@ -122,8 +122,8 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
   const isFirstLoad = (isWalletSettingsLoading && !walletSettings) || (isDefaultPaymentMethodLoading && !defaultPaymentMethod);
 
   const isReloadChangeDisabled = useMemo(() => {
-    return !hasPaymentMethod || upsertWalletSettings.isPending;
-  }, [hasPaymentMethod, upsertWalletSettings.isPending]);
+    return isFirstLoad || !hasPaymentMethod || upsertWalletSettings.isPending;
+  }, [isFirstLoad, hasPaymentMethod, upsertWalletSettings.isPending]);
 
   const defaultCardLabel = useMemo(() => {
     const card = (defaultPaymentMethod as PaymentMethod | null | undefined)?.card;
@@ -149,18 +149,22 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
         )}
         <d.CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
           <div className="space-y-1">
-            <h3 className="text-lg font-bold leading-none">{isFixedThresholdEnabled ? "Auto Top-Up" : "Auto Recharge"}</h3>
-            {isFixedThresholdEnabled ? (
+            <h3 className="text-lg font-bold leading-none">{isThresholdModeOffered ? "Auto Top-Up" : "Auto Recharge"}</h3>
+            {isFirstLoad ? (
+              <d.Skeleton className="h-4 w-72" />
+            ) : !isThresholdModeOffered ? (
+              <p className="text-sm text-muted-foreground">Automatically adds credits to keep your deployments running.</p>
+            ) : showsThresholdRule ? (
               <p className="text-sm text-muted-foreground">
                 Tops up when your <span className="font-medium text-success">available</span> balance runs low.
               </p>
             ) : (
-              <p className="text-sm text-muted-foreground">Automatically adds credits to keep your deployments running.</p>
+              <p className="text-sm text-muted-foreground">Tops up to cover the week ahead for your running deployments.</p>
             )}
           </div>
           <d.Switch
             checked={autoReloadEnabled}
-            onCheckedChange={isFixedThresholdEnabled ? handleAutoTopUpSwitch : toggleAutoReload}
+            onCheckedChange={isThresholdModeOffered ? handleAutoTopUpSwitch : toggleAutoReload}
             disabled={isReloadChangeDisabled}
           />
         </d.CardHeader>
@@ -175,12 +179,22 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
               <button type="button" onClick={openAddPaymentMethod} className="text-primary underline">
                 Add a payment method
               </button>{" "}
-              to enable auto {isFixedThresholdEnabled ? "top-up" : "recharge"}
+              to enable auto {isThresholdModeOffered ? "top-up" : "recharge"}
             </p>
-          ) : isFixedThresholdEnabled ? (
-            autoReloadEnabled ? (
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-start justify-between gap-4">
+          ) : !isThresholdModeOffered ? (
+            <p className="text-sm text-muted-foreground">
+              Recharge amount is approximately{" "}
+              {weeklyCost === undefined ? (
+                <d.Skeleton className="inline-block h-4 w-12 align-middle" />
+              ) : (
+                <span className="font-medium text-foreground">{usd(weeklyCost)}</span>
+              )}{" "}
+              per week
+            </p>
+          ) : autoReloadEnabled ? (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                {showsThresholdRule ? (
                   <div className="flex flex-wrap gap-x-12 gap-y-4">
                     <div className="space-y-1">
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Threshold</p>
@@ -193,18 +207,26 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
                       <p className="text-xs text-muted-foreground">added each time</p>
                     </div>
                   </div>
-                  <d.Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2"
-                    aria-label="Edit auto top-up settings"
-                    disabled={isReloadChangeDisabled}
-                    onClick={() => setAutoTopUpPopup({ open: true, enableOnSave: false })}
-                  >
-                    <d.Edit className="h-4 w-4" />
-                    Edit
-                  </d.Button>
-                </div>
+                ) : (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Predicted spend</p>
+                    {weeklyCost === undefined ? <d.Skeleton className="h-8 w-24" /> : <p className="text-2xl font-bold leading-none">{usd(weeklyCost)}</p>}
+                    <p className="text-xs text-muted-foreground">per week, from your running deployments</p>
+                  </div>
+                )}
+                <d.Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  aria-label="Edit auto top-up settings"
+                  disabled={isReloadChangeDisabled}
+                  onClick={() => setAutoTopUpPopup({ open: true, enableOnSave: false })}
+                >
+                  <d.Edit className="h-4 w-4" />
+                  Edit
+                </d.Button>
+              </div>
+              {showsThresholdRule ? (
                 <p className="border-t pt-4 text-sm text-muted-foreground">
                   Charges {defaultCardLabel ?? "your default payment method"} when your available balance falls below the threshold.
                   {nextTopUpDays !== null && (
@@ -215,23 +237,28 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
                     </>
                   )}
                 </p>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Turn on Auto Top-Up to add funds automatically when your balance runs low.</p>
-            )
+              ) : (
+                <p className="border-t pt-4 text-sm text-muted-foreground">
+                  Charges {defaultCardLabel ?? "your default payment method"} for whatever your deployments need to keep running for another week.
+                </p>
+              )}
+            </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Recharge amount is approximately <span className="font-medium text-foreground">{usd(weeklyCost ?? 0)}</span> per week
+              {showsThresholdRule
+                ? "Turn on Auto Top-Up to add funds automatically when your balance runs low."
+                : "Turn on Auto Top-Up to automatically cover the week ahead for your running deployments."}
             </p>
           )}
         </d.CardContent>
       </d.Card>
 
-      {isFixedThresholdEnabled && (
+      {isThresholdModeOffered && (
         <d.AutoTopUpSettingsPopup
           open={autoTopUpPopup.open}
           onClose={() => setAutoTopUpPopup(prev => ({ ...prev, open: false }))}
           enableOnSave={autoTopUpPopup.enableOnSave}
+          mode={mode}
           threshold={walletSettings?.autoReloadThreshold}
           amount={walletSettings?.autoReloadAmount}
         />

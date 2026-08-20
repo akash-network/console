@@ -81,7 +81,10 @@ describe(AutoTopUpSettingsPopup.name, () => {
 
     await submit();
 
-    expect(upsertMutate).toHaveBeenCalledWith({ data: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100 } }, expect.anything());
+    expect(upsertMutate).toHaveBeenCalledWith(
+      { data: { autoReloadEnabled: true, autoReloadMode: "threshold", autoReloadThreshold: 20, autoReloadAmount: 100 } },
+      expect.anything()
+    );
   });
 
   it("saves the enabled flag with values in edit mode", async () => {
@@ -90,7 +93,65 @@ describe(AutoTopUpSettingsPopup.name, () => {
 
     await submit();
 
-    expect(upsertMutate).toHaveBeenCalledWith({ data: { autoReloadEnabled: true, autoReloadThreshold: 30, autoReloadAmount: 150 } }, expect.anything());
+    expect(upsertMutate).toHaveBeenCalledWith(
+      { data: { autoReloadEnabled: true, autoReloadMode: "threshold", autoReloadThreshold: 30, autoReloadAmount: 150 } },
+      expect.anything()
+    );
+  });
+
+  it("preselects threshold mode when the account has no stored mode", () => {
+    setup({});
+
+    expect(modeRadio(/fixed threshold/i)).toBeChecked();
+    expect(thresholdInput()).toBeInTheDocument();
+  });
+
+  it("preselects the stored mode and hides the threshold fields in prediction mode", () => {
+    setup({ mode: "prediction" });
+
+    expect(modeRadio(/predicted spend/i)).toBeChecked();
+    expect(screen.queryByLabelText(/when credit balance drops to or below/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/purchase this amount/i)).not.toBeInTheDocument();
+  });
+
+  it("saves prediction mode without threshold values", async () => {
+    const upsertMutate = vi.fn();
+    setup({ mode: "threshold", threshold: 30, amount: 150, upsertMutate });
+
+    fireEvent.click(modeRadio(/predicted spend/i));
+    await submit();
+
+    expect(upsertMutate).toHaveBeenCalledWith({ data: { autoReloadEnabled: true, autoReloadMode: "prediction" } }, expect.anything());
+  });
+
+  it("saves threshold mode with values when switching back from prediction", async () => {
+    const upsertMutate = vi.fn();
+    setup({ mode: "prediction", threshold: 30, amount: 150, upsertMutate });
+
+    fireEvent.click(modeRadio(/fixed threshold/i));
+    await submit();
+
+    expect(upsertMutate).toHaveBeenCalledWith(
+      { data: { autoReloadEnabled: true, autoReloadMode: "threshold", autoReloadThreshold: 30, autoReloadAmount: 150 } },
+      expect.anything()
+    );
+  });
+
+  it("saves prediction mode even when a stored threshold is below the threshold-mode minimum", async () => {
+    const upsertMutate = vi.fn();
+    setup({ mode: "prediction", threshold: 1, amount: 1, upsertMutate });
+
+    await submit();
+
+    expect(upsertMutate).toHaveBeenCalledWith({ data: { autoReloadEnabled: true, autoReloadMode: "prediction" } }, expect.anything());
+  });
+
+  it("resets the mode when the dialog transitions from closed to open", () => {
+    const { props, rerender } = setup({ open: false, mode: "threshold" });
+
+    rerender(<AutoTopUpSettingsPopup {...props} open mode="prediction" />);
+
+    expect(modeRadio(/predicted spend/i)).toBeChecked();
   });
 
   it("closes and shows a success snackbar when the save succeeds", async () => {
@@ -135,6 +196,10 @@ describe(AutoTopUpSettingsPopup.name, () => {
     expect(amountInput().value).toBe("150");
   });
 
+  function modeRadio(name: RegExp) {
+    return screen.getByRole("radio", { name });
+  }
+
   function thresholdInput() {
     return screen.getByLabelText(/when credit balance drops to or below/i) as HTMLInputElement;
   }
@@ -152,6 +217,7 @@ describe(AutoTopUpSettingsPopup.name, () => {
   function setup(input: {
     open?: boolean;
     enableOnSave?: boolean;
+    mode?: "prediction" | "threshold";
     threshold?: number;
     amount?: number;
     onClose?: () => void;
@@ -184,6 +250,7 @@ describe(AutoTopUpSettingsPopup.name, () => {
       open: input.open ?? true,
       onClose: input.onClose ?? vi.fn(),
       enableOnSave: input.enableOnSave ?? false,
+      mode: input.mode,
       threshold: input.threshold,
       amount: input.amount,
       dependencies

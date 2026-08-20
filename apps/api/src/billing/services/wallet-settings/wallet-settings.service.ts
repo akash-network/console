@@ -13,6 +13,7 @@ import { UserOutput, UserRepository } from "@src/user/repositories";
 
 export interface WalletSettingInput {
   autoReloadEnabled?: boolean;
+  autoReloadMode?: WalletSettingOutput["autoReloadMode"];
   autoReloadThreshold?: number;
   autoReloadAmount?: number;
 }
@@ -141,13 +142,15 @@ export class WalletSettingService {
       return;
     }
 
-    if (this.#hasReloadValuesChanged(prev, next)) {
+    if (this.#hasReloadRuleChanged(prev, next)) {
       await this.walletReloadJobService.scheduleForWalletSetting(next, { withCleanup: true });
     }
   }
 
-  #hasReloadValuesChanged(prev: WalletSettingOutput, next: WalletSettingOutput) {
-    return prev.autoReloadThreshold !== next.autoReloadThreshold || prev.autoReloadAmount !== next.autoReloadAmount;
+  #hasReloadRuleChanged(prev: WalletSettingOutput, next: WalletSettingOutput) {
+    return (
+      prev.autoReloadMode !== next.autoReloadMode || prev.autoReloadThreshold !== next.autoReloadThreshold || prev.autoReloadAmount !== next.autoReloadAmount
+    );
   }
 
   #toStoredSettings(settings: WalletSettingInput): WalletSettingInput {

@@ -1,0 +1,2 @@
+CREATE TYPE "public"."auto_reload_mode" AS ENUM('prediction', 'threshold');--> statement-breakpoint
+ALTER TABLE "wallet_settings" ADD COLUMN "auto_reload_mode" "auto_reload_mode" DEFAULT 'prediction' NOT NULL;

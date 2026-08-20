@@ -1,8 +1,10 @@
 import { relations, sql } from "drizzle-orm";
-import { boolean, index, integer, pgTable, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgEnum, pgTable, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 
 import { UserWallets } from "@src/billing/model-schemas/user-wallet/user-wallet.schema";
 import { Users } from "@src/user/model-schemas";
+
+export const autoReloadModeEnum = pgEnum("auto_reload_mode", ["prediction", "threshold"]);
 
 export const WalletSetting = pgTable(
   "wallet_settings",
@@ -18,6 +20,12 @@ export const WalletSetting = pgTable(
       .references(() => Users.id, { onDelete: "cascade" })
       .notNull(),
     autoReloadEnabled: boolean("auto_reload_enabled").default(false).notNull(),
+    /**
+     * Defaults to the predicted-spend rule so rows that predate this column keep the behavior their owner
+     * signed up for. The product default for a new enablement is "threshold" and is sent explicitly by the
+     * client, never inferred here.
+     */
+    autoReloadMode: autoReloadModeEnum("auto_reload_mode").notNull().default("prediction"),
     autoReloadThreshold: integer("auto_reload_threshold").notNull().default(2000),
     autoReloadAmount: integer("auto_reload_amount").notNull().default(10000),
     createdAt: timestamp("created_at").defaultNow(),

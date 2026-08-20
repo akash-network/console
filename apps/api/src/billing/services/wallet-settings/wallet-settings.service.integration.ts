@@ -175,6 +175,52 @@ describe(WalletSettingService.name, () => {
       expect(walletReloadJobService.scheduleForWalletSetting).not.toHaveBeenCalled();
     });
 
+    it("stores the requested mode on create", async () => {
+      const { user, userWallet, walletSettingRepository, walletReloadJobService, jobId, service } = setup();
+      const newSetting = generateWalletSetting({ userId: user.id, walletId: userWallet.id, autoReloadEnabled: true, autoReloadMode: "threshold" });
+      walletSettingRepository.findByUserId.mockResolvedValue(undefined);
+      walletSettingRepository.create.mockResolvedValue(newSetting);
+      walletReloadJobService.scheduleForWalletSetting.mockResolvedValue(jobId);
+
+      const result = await service.upsertWalletSetting(user.id, { autoReloadEnabled: true, autoReloadMode: "threshold", autoReloadThreshold: 20 });
+
+      expect(walletSettingRepository.create).toHaveBeenCalledWith({
+        userId: user.id,
+        walletId: userWallet.id,
+        autoReloadEnabled: true,
+        autoReloadMode: "threshold",
+        autoReloadThreshold: 2000
+      });
+      expect(result.autoReloadMode).toBe("threshold");
+    });
+
+    it("leaves the stored mode untouched when the update omits it", async () => {
+      const { user, walletSetting, walletSettingRepository, service } = setup();
+      const predictionSetting = { ...walletSetting, autoReloadEnabled: false, autoReloadMode: "prediction" as const };
+      walletSettingRepository.findByUserId.mockResolvedValue(predictionSetting);
+      walletSettingRepository.updateById.mockResolvedValue({ ...predictionSetting, autoReloadEnabled: true } as any);
+
+      const result = await service.upsertWalletSetting(user.id, { autoReloadEnabled: true });
+
+      expect(walletSettingRepository.updateById).toHaveBeenCalledWith(predictionSetting.id, { autoReloadEnabled: true }, { returning: true });
+      expect(result.autoReloadMode).toBe("prediction");
+    });
+
+    it("schedules an immediate check when the mode changes while enabled", async () => {
+      const { user, walletSetting, walletSettingRepository, walletReloadJobService, jobId, service } = setup();
+      const enabledPrev = { ...walletSetting, autoReloadEnabled: true, autoReloadMode: "prediction" as const };
+      const updated = { ...enabledPrev, autoReloadMode: "threshold" as const };
+      walletSettingRepository.findByUserId.mockResolvedValue(enabledPrev);
+      walletSettingRepository.updateById.mockResolvedValue(updated as any);
+      walletReloadJobService.scheduleForWalletSetting.mockResolvedValue(jobId);
+
+      await service.upsertWalletSetting(user.id, { autoReloadMode: "threshold" });
+
+      expect(walletReloadJobService.scheduleForWalletSetting).toHaveBeenCalledWith(expect.objectContaining({ id: updated.id, userId: user.id }), {
+        withCleanup: true
+      });
+    });
+
     it("persists reload amounts as integer cents and returns them in dollars", async () => {
       const { user, walletSetting, walletSettingRepository, walletReloadJobService, jobId, service } = setup();
       const existingSetting = { ...walletSetting, autoReloadEnabled: true };

@@ -129,6 +129,14 @@
                         "autoReloadEnabled": {
                           "type": "boolean"
                         },
+                        "autoReloadMode": {
+                          "type": "string",
+                          "enum": [
+                            "threshold",
+                            "prediction"
+                          ],
+                          "description": "Rule used to decide when and how much to top up."
+                        },
                         "autoReloadThreshold": {
                           "type": "number",
                           "description": "USD credit balance at or below which an automatic top-up is triggered."
@@ -140,6 +148,7 @@
                       },
                       "required": [
                         "autoReloadEnabled",
+                        "autoReloadMode",
                         "autoReloadThreshold",
                         "autoReloadAmount"
                       ]
@@ -184,6 +193,14 @@
                       "autoReloadEnabled": {
                         "type": "boolean"
                       },
+                      "autoReloadMode": {
+                        "type": "string",
+                        "enum": [
+                          "threshold",
+                          "prediction"
+                        ],
+                        "description": "Rule used to decide when and how much to top up: `threshold` charges the fixed amount as soon as the balance reaches the threshold, `prediction` covers the next 7 days of projected spend. Defaults to `prediction` on create when omitted; left unchanged on update."
+                      },
                       "autoReloadThreshold": {
                         "type": "number",
                         "minimum": 5,
@@ -223,6 +240,14 @@
                         "autoReloadEnabled": {
                           "type": "boolean"
                         },
+                        "autoReloadMode": {
+                          "type": "string",
+                          "enum": [
+                            "threshold",
+                            "prediction"
+                          ],
+                          "description": "Rule used to decide when and how much to top up."
+                        },
                         "autoReloadThreshold": {
                           "type": "number",
                           "description": "USD credit balance at or below which an automatic top-up is triggered."
@@ -234,6 +259,7 @@
                       },
                       "required": [
                         "autoReloadEnabled",
+                        "autoReloadMode",
                         "autoReloadThreshold",
                         "autoReloadAmount"
                       ]
@@ -278,6 +304,14 @@
                       "autoReloadEnabled": {
                         "type": "boolean"
                       },
+                      "autoReloadMode": {
+                        "type": "string",
+                        "enum": [
+                          "threshold",
+                          "prediction"
+                        ],
+                        "description": "Rule used to decide when and how much to top up: `threshold` charges the fixed amount as soon as the balance reaches the threshold, `prediction` covers the next 7 days of projected spend. Defaults to `prediction` on create when omitted; left unchanged on update."
+                      },
                       "autoReloadThreshold": {
                         "type": "number",
                         "minimum": 5,
@@ -317,6 +351,14 @@
                         "autoReloadEnabled": {
                           "type": "boolean"
                         },
+                        "autoReloadMode": {
+                          "type": "string",
+                          "enum": [
+                            "threshold",
+                            "prediction"
+                          ],
+                          "description": "Rule used to decide when and how much to top up."
+                        },
                         "autoReloadThreshold": {
                           "type": "number",
                           "description": "USD credit balance at or below which an automatic top-up is triggered."
@@ -328,6 +370,7 @@
                       },
                       "required": [
                         "autoReloadEnabled",
+                        "autoReloadMode",
                         "autoReloadThreshold",
                         "autoReloadAmount"
                       ]
