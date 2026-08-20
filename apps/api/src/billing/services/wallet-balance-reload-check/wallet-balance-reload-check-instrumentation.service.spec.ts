@@ -59,35 +59,42 @@ describe(WalletBalanceReloadCheckInstrumentationService.name, () => {
   });
 
   describe("recordReloadTriggered", () => {
-    it("records the coverage ratio and projected cost on the legacy path and logs the reload", () => {
-      const { service, histograms } = setup();
+    it("records the coverage ratio and projected cost in prediction mode and logs the reload", () => {
+      const { service, histograms, counters } = setup();
       const logContext = { walletAddress: faker.string.alphanumeric(44), balance: 10 };
 
-      service.recordReloadTriggered({ amount: 40, coverageRatio: 0.2, projectedCost: 50, logContext });
+      service.recordReloadTriggered({ mode: "prediction", amount: 40, coverageRatio: 0.2, projectedCost: 50, logContext });
 
-      expect(histograms.wallet_balance_reload_check_balance_coverage_ratio.record).toHaveBeenCalledWith(0.2);
-      expect(histograms.wallet_balance_reload_check_projected_cost_usd.record).toHaveBeenCalledWith(50);
-      expect(mockLogger.info).toHaveBeenCalledWith(expect.objectContaining({ ...logContext, amount: 40, event: "WALLET_BALANCE_RELOADED" }));
+      expect(counters.wallet_balance_reload_check_reloads_triggered_total.add).toHaveBeenCalledWith(1, { mode: "prediction" });
+      expect(histograms.wallet_balance_reload_check_balance_coverage_ratio.record).toHaveBeenCalledWith(0.2, { mode: "prediction" });
+      expect(histograms.wallet_balance_reload_check_projected_cost_usd.record).toHaveBeenCalledWith(50, { mode: "prediction" });
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ ...logContext, mode: "prediction", amount: 40, event: "WALLET_BALANCE_RELOADED" })
+      );
     });
 
-    it("omits the projected cost histogram on the fixed-threshold path", () => {
-      const { service, histograms } = setup();
+    it("omits the projected cost histogram in threshold mode", () => {
+      const { service, histograms, counters } = setup();
 
-      service.recordReloadTriggered({ amount: 100, coverageRatio: 0.5, logContext: { threshold: 20 } });
+      service.recordReloadTriggered({ mode: "threshold", amount: 100, coverageRatio: 0.5, logContext: { threshold: 20 } });
 
-      expect(histograms.wallet_balance_reload_check_balance_coverage_ratio.record).toHaveBeenCalledWith(0.5);
+      expect(counters.wallet_balance_reload_check_reloads_triggered_total.add).toHaveBeenCalledWith(1, { mode: "threshold" });
+      expect(histograms.wallet_balance_reload_check_balance_coverage_ratio.record).toHaveBeenCalledWith(0.5, { mode: "threshold" });
       expect(histograms.wallet_balance_reload_check_projected_cost_usd.record).not.toHaveBeenCalled();
     });
   });
 
   describe("recordReloadSkipped", () => {
-    it("increments the skipped counter with the reason and logs the skip", () => {
+    it("increments the skipped counter with the mode and reason and logs the skip", () => {
       const { service, counters } = setup();
 
-      service.recordReloadSkipped({ reason: "sufficient_balance", coverageRatio: 1.5, logContext: { threshold: 20 } });
+      service.recordReloadSkipped({ mode: "threshold", reason: "sufficient_balance", coverageRatio: 1.5, logContext: { threshold: 20 } });
 
-      expect(counters.wallet_balance_reload_check_reloads_skipped_total.add).toHaveBeenCalledWith(1, { reason: "sufficient_balance" });
-      expect(mockLogger.info).toHaveBeenCalledWith(expect.objectContaining({ threshold: 20, event: "WALLET_BALANCE_RELOAD_SKIPPED" }));
+      expect(counters.wallet_balance_reload_check_reloads_skipped_total.add).toHaveBeenCalledWith(1, {
+        mode: "threshold",
+        reason: "sufficient_balance"
+      });
+      expect(mockLogger.info).toHaveBeenCalledWith(expect.objectContaining({ threshold: 20, mode: "threshold", event: "WALLET_BALANCE_RELOAD_SKIPPED" }));
     });
   });
 

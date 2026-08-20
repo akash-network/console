@@ -7098,6 +7098,11 @@ export interface operations {
           "application/json": {
             data: {
               autoReloadEnabled: boolean;
+              /**
+               * @description Rule used to decide when and how much to top up.
+               * @enum {string}
+               */
+              autoReloadMode: "threshold" | "prediction";
               /** @description USD credit balance at or below which an automatic top-up is triggered. */
               autoReloadThreshold: number;
               /** @description USD amount charged to the default payment method on each automatic top-up. */
@@ -7127,6 +7132,11 @@ export interface operations {
         "application/json": {
           data: {
             autoReloadEnabled: boolean;
+            /**
+             * @description Rule used to decide when and how much to top up: `threshold` charges the fixed amount as soon as the balance reaches the threshold, `prediction` covers the next 7 days of projected spend. Left unchanged when omitted.
+             * @enum {string}
+             */
+            autoReloadMode?: "threshold" | "prediction";
             /** @description USD credit balance at or below which an automatic top-up is triggered (minimum 5, maximum 10000). Defaults are applied on create when omitted. */
             autoReloadThreshold?: number;
             /** @description USD amount charged on each automatic top-up (minimum 20, maximum 10000). Defaults are applied on create when omitted. */
@@ -7145,6 +7155,11 @@ export interface operations {
           "application/json": {
             data: {
               autoReloadEnabled: boolean;
+              /**
+               * @description Rule used to decide when and how much to top up.
+               * @enum {string}
+               */
+              autoReloadMode: "threshold" | "prediction";
               /** @description USD credit balance at or below which an automatic top-up is triggered. */
               autoReloadThreshold: number;
               /** @description USD amount charged to the default payment method on each automatic top-up. */
@@ -7174,6 +7189,11 @@ export interface operations {
         "application/json": {
           data: {
             autoReloadEnabled: boolean;
+            /**
+             * @description Rule used to decide when and how much to top up: `threshold` charges the fixed amount as soon as the balance reaches the threshold, `prediction` covers the next 7 days of projected spend. Left unchanged when omitted.
+             * @enum {string}
+             */
+            autoReloadMode?: "threshold" | "prediction";
             /** @description USD credit balance at or below which an automatic top-up is triggered (minimum 5, maximum 10000). Defaults are applied on create when omitted. */
             autoReloadThreshold?: number;
             /** @description USD amount charged on each automatic top-up (minimum 20, maximum 10000). Defaults are applied on create when omitted. */
@@ -7192,6 +7212,11 @@ export interface operations {
           "application/json": {
             data: {
               autoReloadEnabled: boolean;
+              /**
+               * @description Rule used to decide when and how much to top up.
+               * @enum {string}
+               */
+              autoReloadMode: "threshold" | "prediction";
               /** @description USD credit balance at or below which an automatic top-up is triggered. */
               autoReloadThreshold: number;
               /** @description USD amount charged to the default payment method on each automatic top-up. */

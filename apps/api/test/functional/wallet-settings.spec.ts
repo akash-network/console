@@ -66,6 +66,18 @@ describe("Wallet Settings", () => {
       expect(response.status).toBe(400);
     });
 
+    it("returns 400 when autoReloadMode is not a known mode", async () => {
+      const { token } = await setup();
+
+      const response = await app.request("/v1/wallet-settings", {
+        method: "PUT",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ data: { autoReloadEnabled: true, autoReloadMode: "fixed" } })
+      });
+
+      expect(response.status).toBe(400);
+    });
+
     it("returns 400 when autoReloadThreshold exceeds the maximum", async () => {
       const { token } = await setup();
 

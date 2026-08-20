@@ -8,6 +8,8 @@ const AUTO_RELOAD_THRESHOLD_MIN_USD = 5;
 const AUTO_RELOAD_THRESHOLD_MAX_USD = 10_000;
 const AUTO_RELOAD_AMOUNT_MAX_USD = 10_000;
 
+const AutoReloadModeSchema = z.enum(["threshold", "prediction"]);
+
 const WalletOutputSchema = z.object({
   id: z.number().openapi({}),
   userId: z.string().openapi({}),
@@ -25,12 +27,17 @@ export const WalletListResponseOutputSchema = z.object({
 
 export const WalletSettingsOutputSchema = z.object({
   autoReloadEnabled: z.boolean().openapi({}),
+  autoReloadMode: AutoReloadModeSchema.openapi({ description: "Rule used to decide when and how much to top up." }),
   autoReloadThreshold: z.number().openapi({ description: "USD credit balance at or below which an automatic top-up is triggered." }),
   autoReloadAmount: z.number().openapi({ description: "USD amount charged to the default payment method on each automatic top-up." })
 });
 
 export const WalletSettingsInputSchema = z.object({
   autoReloadEnabled: z.boolean().openapi({}),
+  autoReloadMode: AutoReloadModeSchema.optional().openapi({
+    description:
+      "Rule used to decide when and how much to top up: `threshold` charges the fixed amount as soon as the balance reaches the threshold, `prediction` covers the next 7 days of projected spend. Left unchanged when omitted."
+  }),
   autoReloadThreshold: z
     .number()
     .min(AUTO_RELOAD_THRESHOLD_MIN_USD)
@@ -67,3 +74,4 @@ export type WalletListOutputResponse = z.infer<typeof WalletListResponseOutputSc
 export type WalletSettingsResponse = z.infer<typeof WalletSettingsResponseSchema>;
 export type CreateWalletSettingsRequest = z.infer<typeof CreateWalletSettingsRequestSchema>;
 export type UpdateWalletSettingsRequest = z.infer<typeof UpdateWalletSettingsRequestSchema>;
+export type AutoReloadMode = z.infer<typeof AutoReloadModeSchema>;
