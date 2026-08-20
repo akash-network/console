@@ -5,7 +5,7 @@ import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
-import { SDL_SECRETS_REQUIRED_CLAIMS, SDL_SECRETS_SEAL_ALGORITHM } from "@src/deployment/config/sdl-secrets.config";
+import { SDL_SECRETS_REQUIRED_CLAIMS, SDL_SECRETS_SEAL_ALGORITHM, SDL_SECRETS_SEALING_KEY_ALGORITHMS } from "@src/deployment/config/sdl-secrets.config";
 import type { SdlSecretsKmsTarget } from "@src/deployment/providers/kms.provider";
 import { SDL_SECRETS_KMS_TARGET } from "@src/deployment/providers/kms.provider";
 
@@ -82,6 +82,10 @@ export class SdlSecretsContextService {
 
     if (crc32c.calculate(publicKey.pem) !== Number(publicKey.pemCrc32c?.value)) {
       throw this.#rejectUntrustworthyKey("SDL_SECRETS_KEY_CHECKSUM_MISMATCH", { versionName });
+    }
+
+    if (!SDL_SECRETS_SEALING_KEY_ALGORITHMS.has(publicKey.algorithm ?? "")) {
+      throw this.#rejectUntrustworthyKey("SDL_SECRETS_KEY_ALGORITHM_UNSUPPORTED", { versionName, algorithm: publicKey.algorithm });
     }
 
     this.#loggerService.info({ event: "SDL_SECRETS_KEY_PUBLISHED", kid, algorithm: publicKey.algorithm });

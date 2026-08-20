@@ -1,7 +1,7 @@
 import type { protos } from "@google-cloud/kms";
 import crc32c from "fast-crc32c";
 import { CompactEncrypt, importJWK } from "jose";
-import { constants, generateKeyPairSync, privateDecrypt } from "node:crypto";
+import { constants, generateKeyPairSync, privateDecrypt, randomBytes, randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -18,11 +18,11 @@ const SUBJECT = "3f2b6f7a-1c1d-4b0e-8b8a-9a0f5f5c2b11";
 
 describe(SdlSecretsUnsealerService.name, () => {
   it("returns the secrets a client sealed with a standard JOSE library", async () => {
-    const { service, seal } = setup();
+    const { service, seal, clientSecrets } = setup();
 
-    const secrets = await service.open(await seal({ DB_URL: "postgres://app:hunter2@db.internal/app", API_TOKEN: "ghp_x" }));
+    const secrets = await service.open(await seal(clientSecrets));
 
-    expect(secrets).toEqual({ DB_URL: "postgres://app:hunter2@db.internal/app", API_TOKEN: "ghp_x" });
+    expect(secrets).toEqual(clientSecrets);
   });
 
   it("unwraps the content encryption key with the configured crypto key version", async () => {
@@ -96,6 +96,31 @@ describe(SdlSecretsUnsealerService.name, () => {
     await expect(service.open(parts.join("."))).rejects.toMatchObject({ status: 400 });
   });
 
+  it("rejects a seal whose protected header is the JSON literal null", async () => {
+    const { service, seal, kmsClient } = setup();
+    const [, ...rest] = (await seal({ TOKEN: "t" })).split(".");
+
+    await expect(service.open([Buffer.from("null").toString("base64url"), ...rest].join("."))).rejects.toMatchObject({ status: 400 });
+    expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+  });
+
+  it("rejects a seal whose protected header is a JSON array", async () => {
+    const { service, seal } = setup();
+    const [, ...rest] = (await seal({ TOKEN: "t" })).split(".");
+
+    await expect(service.open([Buffer.from("[]").toString("base64url"), ...rest].join("."))).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("rejects a seal whose content encryption key is not the length AES-256 requires", async () => {
+    const { service, seal, kmsClient } = setup();
+    const shortKey = Buffer.alloc(16);
+    kmsClient.asymmetricDecrypt.mockResolvedValue([
+      { plaintext: shortKey, plaintextCrc32c: { value: String(crc32c.calculate(shortKey)) }, verifiedCiphertextCrc32c: true }
+    ]);
+
+    await expect(service.open(await seal({ TOKEN: "t" }))).rejects.toMatchObject({ status: 400 });
+  });
+
   it("rejects anything that is not a compact JWE", async () => {
     const { service } = setup();
 
@@ -115,6 +140,76 @@ describe(SdlSecretsUnsealerService.name, () => {
     await expect(service.open(await seal({ TOKEN: "t" }))).rejects.toMatchObject({ status: 503 });
   });
 
+  it("rejects a seal whose initialization vector is empty without spending an unwrap", async () => {
+    const { service, seal, kmsClient } = setup();
+    const parts = (await seal({ TOKEN: "t" })).split(".");
+    parts[2] = "";
+
+    await expect(service.open(parts.join("."))).rejects.toMatchObject({ status: 400 });
+    expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+  });
+
+  it("rejects a seal whose initialization vector is not the 96 bits A256GCM fixes", async () => {
+    const { service, seal, kmsClient } = setup();
+    const parts = (await seal({ TOKEN: "t" })).split(".");
+    parts[2] = randomBytes(13).toString("base64url");
+
+    await expect(service.open(parts.join("."))).rejects.toMatchObject({ status: 400 });
+    expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+  });
+
+  it("rejects a seal whose initialization vector is not base64url", async () => {
+    const { service, seal, kmsClient } = setup();
+    const parts = (await seal({ TOKEN: "t" })).split(".");
+    parts[2] = `${randomBytes(12).toString("base64url")}!!!!`;
+
+    await expect(service.open(parts.join("."))).rejects.toMatchObject({ status: 400 });
+    expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+  });
+
+  it("rejects a seal carrying no encrypted key without spending an unwrap", async () => {
+    const { service, seal, kmsClient } = setup();
+    const parts = (await seal({ TOKEN: "t" })).split(".");
+    parts[1] = "";
+
+    await expect(service.open(parts.join("."))).rejects.toMatchObject({ status: 400 });
+    expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+  });
+
+  it("rejects a seal whose encrypted key is not base64url without spending an unwrap", async () => {
+    const { service, seal, kmsClient } = setup();
+    const parts = (await seal({ TOKEN: "t" })).split(".");
+    parts[1] = `${parts[1]}!!!!`;
+
+    await expect(service.open(parts.join("."))).rejects.toMatchObject({ status: 400 });
+    expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+  });
+
+  it("rejects a seal whose authentication tag is not a length AES-GCM accepts", async () => {
+    const { service, seal, kmsClient } = setup();
+    const parts = (await seal({ TOKEN: "t" })).split(".");
+    parts[4] = Buffer.alloc(5).toString("base64url");
+
+    await expect(service.open(parts.join("."))).rejects.toMatchObject({ status: 400 });
+    expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+  });
+
+  it("rejects a seal whose authentication tag was truncated to a length AES-GCM accepts", async () => {
+    const { service, seal, kmsClient } = setup();
+    const parts = (await seal({ TOKEN: "t" })).split(".");
+    parts[4] = Buffer.from(parts[4], "base64url").subarray(0, 4).toString("base64url");
+
+    await expect(service.open(parts.join("."))).rejects.toMatchObject({ status: 400 });
+    expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+  });
+
+  it("fails with 503 when KMS returns no plaintext", async () => {
+    const { service, seal, kmsClient } = setup();
+    kmsClient.asymmetricDecrypt.mockResolvedValue([{ verifiedCiphertextCrc32c: true }]);
+
+    await expect(service.open(await seal({ TOKEN: "t" }))).rejects.toMatchObject({ status: 503 });
+  });
+
   it("fails with 503 when KMS reports a corrupted request", async () => {
     const { service, seal, kmsClient } = setup();
     kmsClient.asymmetricDecrypt.mockResolvedValue([{ plaintext: Buffer.alloc(32), verifiedCiphertextCrc32c: false }]);
@@ -125,6 +220,7 @@ describe(SdlSecretsUnsealerService.name, () => {
   function setup() {
     const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 3072 });
     const jwk = { ...publicKey.export({ format: "jwk" }), use: "enc", alg: "RSA-OAEP-256" };
+    const clientSecrets = { DB_URL: `postgres://app:${randomUUID()}@db.internal/app`, API_TOKEN: randomBytes(20).toString("hex") };
 
     const seal = async (secrets: unknown, claims?: Record<string, unknown>) => {
       const header = { alg: "RSA-OAEP-256", enc: "A256GCM", kid: KID, sub: SUBJECT, exp: Math.floor(Date.now() / 1000) + 300, ...claims };
@@ -154,6 +250,6 @@ describe(SdlSecretsUnsealerService.name, () => {
     const kmsTarget = { client: kmsClient, versionName: VERSION_NAME, kid: KID };
     const service = new SdlSecretsUnsealerService(kmsTarget, authService, createLogger);
 
-    return { service, kmsClient, authService, logger, seal };
+    return { service, kmsClient, authService, logger, seal, clientSecrets };
   }
 });

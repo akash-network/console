@@ -1,4 +1,4 @@
-import type { protos } from "@google-cloud/kms";
+import { protos } from "@google-cloud/kms";
 import crc32c from "fast-crc32c";
 import { createPublicKey, generateKeyPairSync } from "node:crypto";
 import { describe, expect, it } from "vitest";
@@ -111,6 +111,25 @@ describe(SdlSecretsContextService.name, () => {
     const { service } = setup({ pem: ellipticCurvePem });
 
     await expect(service.getContext()).rejects.toMatchObject({ status: 503 });
+  });
+
+  it.each(["RSA_DECRYPT_OAEP_3072_SHA1", "RSA_DECRYPT_OAEP_4096_SHA512", "RSA_SIGN_PKCS1_3072_SHA256", null] as const)(
+    "rejects a key version provisioned as %s rather than for RSA-OAEP-256",
+    async algorithm => {
+      const { service, kmsClient, publicKeyResponse } = setup();
+      kmsClient.getPublicKey.mockResolvedValue([{ ...publicKeyResponse, algorithm }]);
+
+      await expect(service.getContext()).rejects.toMatchObject({ status: 503 });
+    }
+  );
+
+  it("accepts an algorithm reported as an enum ordinal rather than a name", async () => {
+    const { service, kmsClient, publicKeyResponse } = setup();
+    kmsClient.getPublicKey.mockResolvedValue([
+      { ...publicKeyResponse, algorithm: protos.google.cloud.kms.v1.CryptoKeyVersion.CryptoKeyVersionAlgorithm.RSA_DECRYPT_OAEP_3072_SHA256 }
+    ]);
+
+    await expect(service.getContext()).resolves.toMatchObject({ jwk: expect.objectContaining({ alg: "RSA-OAEP-256" }) });
   });
 
   function asSpkiPem(jwk: SdlSecretsPublicJwk) {

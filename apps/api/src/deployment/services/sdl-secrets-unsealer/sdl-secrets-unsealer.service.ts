@@ -29,6 +29,15 @@ interface SealParts {
 
 const COMPACT_JWE_PART_COUNT = 5;
 
+/** Buffer.from silently drops characters outside the alphabet, so a garbled segment would decode to a plausible length. */
+const BASE64URL_SEGMENT = /^[A-Za-z0-9_-]+$/;
+
+/** A256GCM fixes the initialization vector at 96 bits, and Node accepts any other length without complaint. */
+const CONTENT_ENCRYPTION_IV_BYTES = 12;
+
+/** A256GCM fixes the tag at 128 bits, and Node silently accepts shorter ones — 4 bytes of authentication is not authentication. */
+const CONTENT_ENCRYPTION_TAG_BYTES = 16;
+
 /**
  * Opens a transport seal — one JWE holding all of a deployment's secrets.
  *
@@ -53,6 +62,7 @@ export class SdlSecretsUnsealerService {
   async open(seal: string): Promise<SdlSecrets> {
     const parts = this.#splitSeal(seal);
     this.#assertHeaderIsAcceptable(parts.protectedHeader);
+    this.#assertSegmentsAreWellFormed(parts);
 
     const contentEncryptionKey = await this.#unwrapContentEncryptionKey(parts.encryptedKey);
     const secrets = this.#decryptSecrets(parts, contentEncryptionKey);
@@ -110,11 +120,41 @@ export class SdlSecretsUnsealerService {
     }
   }
 
+  /** Also free, and for the same reason: a seal whose own segments cannot be used must never spend an unwrap. */
+  #assertSegmentsAreWellFormed({ encryptedKey, iv, tag }: SealParts) {
+    if (!BASE64URL_SEGMENT.test(encryptedKey)) {
+      throw this.#reject(400, "SDL_SECRETS_SEAL_ENCRYPTED_KEY_INVALID", "Sealed secrets carry a malformed encrypted key", {
+        encryptedKeyLength: encryptedKey.length
+      });
+    }
+
+    this.#assertSegmentDecodesTo(iv, CONTENT_ENCRYPTION_IV_BYTES, "SDL_SECRETS_SEAL_IV_INVALID", "Sealed secrets carry a malformed initialization vector");
+    this.#assertSegmentDecodesTo(tag, CONTENT_ENCRYPTION_TAG_BYTES, "SDL_SECRETS_SEAL_TAG_INVALID", "Sealed secrets carry a malformed authentication tag");
+  }
+
+  #assertSegmentDecodesTo(segment: string, expectedBytes: number, event: string, message: string) {
+    const decodedBytes = BASE64URL_SEGMENT.test(segment) ? Buffer.from(segment, "base64url").length : 0;
+
+    if (decodedBytes !== expectedBytes) {
+      throw this.#reject(400, event, message, { decodedBytes, expectedBytes });
+    }
+  }
+
   #parseHeader(protectedHeader: string): SealHeader {
+    const header = this.#decodeHeaderJson(protectedHeader);
+
+    if (!header || typeof header !== "object" || Array.isArray(header)) {
+      throw this.#reject(400, "SDL_SECRETS_SEAL_HEADER_UNREADABLE", "Sealed secrets carry an unreadable protected header", {});
+    }
+
+    return header;
+  }
+
+  #decodeHeaderJson(protectedHeader: string): unknown {
     try {
       return JSON.parse(Buffer.from(protectedHeader, "base64url").toString("utf8"));
     } catch {
-      throw this.#reject(400, "SDL_SECRETS_SEAL_HEADER_UNREADABLE", "Sealed secrets carry an unreadable protected header", {});
+      return null;
     }
   }
 
@@ -125,6 +165,10 @@ export class SdlSecretsUnsealerService {
 
     if (!response.verifiedCiphertextCrc32c) {
       throw this.#reject(503, "SDL_SECRETS_CEK_REQUEST_CORRUPTED", "SDL secrets could not be unsealed", {});
+    }
+
+    if (!response.plaintext) {
+      throw this.#reject(503, "SDL_SECRETS_CEK_MISSING", "SDL secrets could not be unsealed", {});
     }
 
     const contentEncryptionKey = Buffer.from(response.plaintext as Uint8Array);
@@ -153,11 +197,11 @@ export class SdlSecretsUnsealerService {
   }
 
   #decryptSecrets({ protectedHeader, iv, ciphertext, tag }: SealParts, contentEncryptionKey: Buffer): SdlSecrets {
-    const decipher = createDecipheriv("aes-256-gcm", contentEncryptionKey, Buffer.from(iv, "base64url"));
-    decipher.setAAD(Buffer.from(protectedHeader, "ascii"));
-    decipher.setAuthTag(Buffer.from(tag, "base64url"));
-
     try {
+      const decipher = createDecipheriv("aes-256-gcm", contentEncryptionKey, Buffer.from(iv, "base64url"));
+      decipher.setAAD(Buffer.from(protectedHeader, "ascii"));
+      decipher.setAuthTag(Buffer.from(tag, "base64url"));
+
       const plaintext = Buffer.concat([decipher.update(Buffer.from(ciphertext, "base64url")), decipher.final()]);
 
       return this.#parseSecrets(plaintext);
