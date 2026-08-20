@@ -18,7 +18,7 @@ export async function bootstrap() {
 
     logger.info({ event: "OPENAPI_SPEC_WRITING", path: OUT });
     await mkdir(dirname(OUT), { recursive: true });
-    await writeFile(OUT, JSON.stringify(docs, null, 2), "utf8");
+    await writeFile(OUT, `${JSON.stringify(docs, null, 2)}\n`, "utf8");
     logger.info({ event: "OPENAPI_SPEC_WRITTEN", path: OUT });
 
     process.exit(0);
