@@ -104,11 +104,44 @@ describe("DeploymentDetailHeader", () => {
     expect(screen.getByText("interconnect-badge")).toBeInTheDocument();
   });
 
+  it("prices the deployment hourly when a live lease is running on GPU", () => {
+    const { CostRate } = setup({
+      leases: [buildPricedLease({ state: "active", amount: "4000", gpuAmount: 2 })]
+    });
+
+    expect(CostRate).toHaveBeenCalledWith(expect.objectContaining({ perBlockUDenom: 4000, gpuCount: 2 }), {});
+  });
+
+  it("leaves closed leases out of the cost, so a partly torn-down deployment doesn't over-report", () => {
+    const { CostRate } = setup({
+      leases: [buildPricedLease({ state: "active", amount: "4000", gpuAmount: 1 }), buildPricedLease({ state: "closed", amount: "9000", gpuAmount: 1 })]
+    });
+
+    expect(CostRate).toHaveBeenCalledWith(expect.objectContaining({ perBlockUDenom: 4000, gpuCount: 1 }), {});
+  });
+
+  it("shows no cost when every lease is closed", () => {
+    const { CostRate } = setup({ leases: [buildPricedLease({ state: "closed", amount: "9000", gpuAmount: 1 })] });
+
+    expect(CostRate).not.toHaveBeenCalled();
+  });
+
   it("keeps redeploy off the header now that it lives on the update tab", () => {
     setup({ storedManifest: "version: '2.0'" });
 
     expect(screen.queryByRole("button", { name: "Redeploy" })).not.toBeInTheDocument();
   });
+
+  function buildPricedLease(input: { state: string; amount: string; gpuAmount: number }) {
+    return mock<LeaseDto>({
+      id: input.amount,
+      provider: "akash1provider",
+      state: input.state,
+      reason: "lease_closed_owner",
+      gpuAmount: input.gpuAmount,
+      price: { denom: "uact", amount: input.amount }
+    });
+  }
 
   function buildLeaseInPlacement(id: string, placementName: string) {
     return mock<LeaseDto>({
@@ -161,6 +194,7 @@ describe("DeploymentDetailHeader", () => {
         data: mock<NonNullable<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>["data"]>>({ autoTopUpEnabled: input.autoTopUpEnabled ?? false })
       });
     const useLeaseStatus: typeof DEPENDENCIES.useLeaseStatus = () => mock<ReturnType<typeof DEPENDENCIES.useLeaseStatus>>({ data: leaseStatus });
+    const CostRate = vi.fn(() => <div>cost-rate</div>);
 
     const deployment = mock<DeploymentDto>({
       dseq: "1786440078202",
@@ -187,11 +221,12 @@ describe("DeploymentDetailHeader", () => {
           useLeaseStatus,
           TrialDeploymentBadge,
           ConfidentialComputeBadge,
-          GpuInterconnectBadge
+          GpuInterconnectBadge,
+          CostRate
         })}
       />
     );
 
-    return { changeDeploymentName };
+    return { changeDeploymentName, CostRate };
   }
 });

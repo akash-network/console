@@ -6,12 +6,12 @@ import type { Column, Row, SortingState } from "@tanstack/react-table";
 import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 
+import { CostRate } from "@src/components/shared/CostRate";
 import type { PlacementOffer } from "@src/queries/usePlacementOffers";
 import { providerDisplayName } from "@src/utils/providerUtils";
 import type { ProviderUptime } from "./ProviderUptimeCell/deriveProviderUptime";
 import { useProvidersUptime } from "./ProviderUptimeCell/deriveProviderUptime";
 import { ProviderUptimeCell } from "./ProviderUptimeCell/ProviderUptimeCell";
-import { MarketplaceCostCell } from "./MarketplaceCostCell";
 import { MarketplaceProviderCell } from "./MarketplaceProviderCell";
 
 const columnHelper = createColumnHelper<PlacementOffer>();
@@ -266,7 +266,7 @@ function buildColumns(
             cell: ({ row }) => {
               const { price } = row.original;
               if (!price) return <span className="text-muted-foreground">{NO_REGION}</span>;
-              return <MarketplaceCostCell price={price} gpuCount={selection.gpuCount} />;
+              return <CostRate perBlockUDenom={price.amount} denom={price.denom} gpuCount={selection.gpuCount} />;
             }
           })
         ]

@@ -2,8 +2,8 @@ import type { FC } from "react";
 import { CustomTooltip } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
-import { PriceValue } from "@src/components/shared/PriceValue";
 import { perBlockToHourly } from "@src/utils/priceUtils";
+import { PriceValue } from "./PriceValue";
 
 interface Props {
   perBlockValue: number;
@@ -12,11 +12,11 @@ interface Props {
 }
 
 /**
- * Cost breakdown for a marketplace row. The row already shows the monthly rate (and the hourly rate for GPU
+ * Cost breakdown hung off a `CostRate`, which already shows the monthly rate (and the hourly rate for GPU
  * specs), so this only surfaces the rates that aren't already visible: the hourly rate for CPU-only specs, the
  * per-hour-per-GPU rate for GPU specs, and the daily rate.
  */
-export const MarketplaceCostTooltip: FC<Props> = ({ perBlockValue, denom, gpuCount }) => {
+export const CostBreakdownTooltip: FC<Props> = ({ perBlockValue, denom, gpuCount }) => {
   const hourlyValue = perBlockToHourly(perBlockValue);
   const dailyValue = hourlyValue * 24;
   const hasGpu = gpuCount > 0;
