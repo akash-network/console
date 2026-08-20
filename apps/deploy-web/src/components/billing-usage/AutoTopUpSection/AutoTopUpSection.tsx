@@ -183,7 +183,13 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
             </p>
           ) : !isThresholdModeOffered ? (
             <p className="text-sm text-muted-foreground">
-              Recharge amount is approximately <span className="font-medium text-foreground">{usd(weeklyCost ?? 0)}</span> per week
+              Recharge amount is approximately{" "}
+              {weeklyCost === undefined ? (
+                <d.Skeleton className="inline-block h-4 w-12 align-middle" />
+              ) : (
+                <span className="font-medium text-foreground">{usd(weeklyCost)}</span>
+              )}{" "}
+              per week
             </p>
           ) : autoReloadEnabled ? (
             <div className="space-y-4">

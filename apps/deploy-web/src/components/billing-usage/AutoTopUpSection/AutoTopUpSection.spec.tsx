@@ -13,6 +13,13 @@ describe(AutoTopUpSection.name, () => {
     expect(screen.getByText(/per week/)).toHaveTextContent("42");
   });
 
+  it("shows a skeleton instead of a zero recharge estimate while the weekly cost is still loading", () => {
+    setup({ isThresholdModeOffered: false, defaultPaymentMethod: { id: "pm_123" }, isWeeklyCostLoading: true });
+
+    expect(screen.getByText(/per week/)).toBeInTheDocument();
+    expect(screen.queryByText("0")).not.toBeInTheDocument();
+  });
+
   it("runs the weekly cost query without waiting for wallet settings when threshold mode is not offered", () => {
     const { dependencies } = setup({ isThresholdModeOffered: false, defaultPaymentMethod: { id: "pm_123" }, isWalletSettingsLoading: true });
 
