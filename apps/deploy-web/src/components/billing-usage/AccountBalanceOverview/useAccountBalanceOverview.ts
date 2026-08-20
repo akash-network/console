@@ -2,9 +2,9 @@
 import { useMemo } from "react";
 import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
 
+import { useAutoReloadMode } from "@src/components/billing-usage/useAutoReloadMode";
 import { useLocalNotes } from "@src/components/LocalNoteManager/useLocalNotes";
 import { useWallet } from "@src/context/WalletProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { computeWalletBalance } from "@src/hooks/useWalletBalance";
 import { useWalletSettingsQuery } from "@src/queries";
@@ -16,7 +16,7 @@ import { getLeasesCostPerBlockUsd, getTimeLeft, perBlockToHourly } from "@src/ut
 export const DEPENDENCIES = {
   useWallet,
   usePricing,
-  useFlag,
+  useAutoReloadMode,
   useBalances,
   useAllLeases,
   useWalletSettingsQuery,
@@ -40,7 +40,7 @@ export type AccountBalanceOverview = {
   lastsUntil: Date | null;
   runwayDays: number | null;
   autoReloadEnabled: boolean;
-  /** The auto-top-up trigger balance to mark on the bar, or null when no marker should render (flag off, auto-reload off, or unset). */
+  /** The auto-top-up trigger balance to mark on the bar, or null when no marker should render (prediction mode, auto-reload off, or unset). */
   autoReloadThreshold: number | null;
   isLoading: boolean;
   /** True when balances can't be loaded: the query errored out or the chain API fallback disabled it. */
@@ -54,7 +54,7 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
   const { data: leases } = d.useAllLeases(address, { state: LIVE_LEASE_STATES, enabled: !!address });
   const { data: walletSettings } = d.useWalletSettingsQuery();
   const { getDeploymentName } = d.useLocalNotes();
-  const isFixedThresholdEnabled = d.useFlag("auto_reload_fixed_threshold");
+  const { showsThresholdRule } = d.useAutoReloadMode();
 
   /** Not gated on the AKT market price: managed wallets hold ACT/USDC (1:1 USD), and blocking on market data would strand the card on its skeleton during an outage. */
   const walletBalance = useMemo(() => (balances ? computeWalletBalance(balances, price ?? 0, udenomToUsd) : null), [balances, price, udenomToUsd]);
@@ -92,7 +92,7 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
   const lastsUntil = hasSpend ? getTimeLeft(spend.perBlockUsd, totalUsd) : null;
   const autoReloadEnabled = walletSettings?.autoReloadEnabled ?? false;
   const isBalanceUnavailable = !balances && (isBalancesError || (!!address && balancesFetchStatus === "idle"));
-  const autoReloadThreshold = isFixedThresholdEnabled && autoReloadEnabled ? walletSettings?.autoReloadThreshold ?? null : null;
+  const autoReloadThreshold = showsThresholdRule && autoReloadEnabled ? walletSettings?.autoReloadThreshold ?? null : null;
 
   return {
     totalUsd,

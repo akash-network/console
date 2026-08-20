@@ -172,7 +172,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
         )}
 
         {overview.autoReloadThreshold == null && overview.autoReloadEnabled && (
-          <p className="text-sm text-success">Auto Recharge is on. Your deployments stay funded.</p>
+          <p className="text-sm text-success">Automatic top-ups are on. Your deployments stay funded.</p>
         )}
       </d.CardContent>
     </d.Card>

@@ -115,22 +115,22 @@ describe(AccountBalanceOverview.name, () => {
     expect(screen.getByRole("link", { name: /llama-chat/ })).toHaveAttribute("href", UrlService.deploymentDetails("42"));
   });
 
-  it("reassures when auto recharge is on", () => {
+  it("reassures when automatic top-ups are on", () => {
     setup({ autoReloadEnabled: true });
 
-    expect(screen.getByText(/Auto Recharge is on/)).toBeInTheDocument();
+    expect(screen.getByText(/Automatic top-ups are on/)).toBeInTheDocument();
   });
 
-  it("stays quiet about auto recharge when it is off", () => {
+  it("stays quiet about automatic top-ups when they are off", () => {
     setup({ autoReloadEnabled: false });
 
-    expect(screen.queryByText(/Auto Recharge is on/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Automatic top-ups are on/)).not.toBeInTheDocument();
   });
 
-  it("hides the auto recharge line when the bar already surfaces the top-up threshold", () => {
+  it("hides the reassurance line when the bar already surfaces the top-up threshold", () => {
     setup({ autoReloadEnabled: true, autoReloadThreshold: 275 });
 
-    expect(screen.queryByText(/Auto Recharge is on/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Automatic top-ups are on/)).not.toBeInTheDocument();
   });
 
   it("renders a skeleton instead of balance while loading", () => {
