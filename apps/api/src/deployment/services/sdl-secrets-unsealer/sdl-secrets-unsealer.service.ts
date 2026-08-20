@@ -1,7 +1,7 @@
 import crc32c from "fast-crc32c";
 import { grpc } from "google-gax";
 import createError from "http-errors";
-import { createDecipheriv } from "node:crypto";
+import { createDecipheriv, createHash } from "node:crypto";
 import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
@@ -23,6 +23,7 @@ interface SealHeader {
   kid?: unknown;
   sub?: unknown;
   exp?: unknown;
+  sdlHash?: unknown;
 }
 
 interface SealParts {
@@ -51,6 +52,10 @@ const CONTENT_ENCRYPTION_IV_BYTES = 12;
 /** A256GCM fixes the tag at 128 bits, and Node silently accepts shorter ones — 4 bytes of authentication is not authentication. */
 const CONTENT_ENCRYPTION_TAG_BYTES = 16;
 
+function isSdlBound(header: SealHeader) {
+  return header.sdlHash !== undefined;
+}
+
 /** gRPC reports the status of a failed call as a numeric `code` on the rejection. */
 function getGrpcStatus(error: unknown) {
   return error instanceof Error && "code" in error ? error.code : undefined;
@@ -63,7 +68,7 @@ function getGrpcStatus(error: unknown) {
  * apart by hand and each piece handed to a stock primitive. The only hand-written logic is the
  * split: the encrypted key goes to Cloud KMS, and the content is opened with AES-256-GCM using the
  * protected header's own ASCII as the additional authenticated data. That last detail is what makes
- * the header claims tamper-evident — altering `sub` or `exp` breaks the GCM tag.
+ * the header claims tamper-evident — altering `sub`, `exp` or `sdlHash` breaks the GCM tag.
  */
 @singleton()
 export class SdlSecretsUnsealerService {
@@ -77,15 +82,21 @@ export class SdlSecretsUnsealerService {
     this.#loggerService = createLogger({ context: SdlSecretsUnsealerService.name });
   }
 
-  async open(seal: string): Promise<SdlSecrets> {
+  async open({ seal, sdl }: { seal: string; sdl: string }): Promise<SdlSecrets> {
     const parts = this.#splitSeal(seal);
     this.#assertSegmentsAreWellFormed(parts);
-    this.#assertHeaderIsAcceptable(parts.protectedHeader);
+    const header = this.#validateHeader(parts.protectedHeader);
+    this.#assertSdlBinding(header, sdl);
 
     const contentEncryptionKey = await this.#unwrapContentEncryptionKey(parts.encryptedKey);
     const secrets = this.#decryptSecrets(parts, contentEncryptionKey);
 
-    this.#loggerService.info({ event: "SDL_SECRETS_SEAL_OPENED", kid: this.kmsTarget.kid, secretCount: Object.keys(secrets).length });
+    this.#loggerService.info({
+      event: "SDL_SECRETS_SEAL_OPENED",
+      kid: this.kmsTarget.kid,
+      secretCount: Object.keys(secrets).length,
+      sdlBound: isSdlBound(header)
+    });
 
     return secrets;
   }
@@ -103,7 +114,7 @@ export class SdlSecretsUnsealerService {
   }
 
   /** Everything here is free; nothing below it is. A malformed or stale seal must never reach Cloud KMS. */
-  #assertHeaderIsAcceptable(protectedHeader: string) {
+  #validateHeader(protectedHeader: string) {
     const header = this.#parseHeader(protectedHeader);
 
     if (header.alg !== SDL_SECRETS_SEAL_ALGORITHM || header.enc !== SDL_SECRETS_CONTENT_ENCRYPTION) {
@@ -135,6 +146,26 @@ export class SdlSecretsUnsealerService {
         exp: header.exp,
         maxLifetimeMs: SDL_SECRETS_MAX_SEAL_LIFETIME_MS
       });
+    }
+
+    return header;
+  }
+
+  /**
+   * `sub` binds a seal to a user; `sdlHash` binds it to a deployment, closing the gap where an
+   * intermediary forwards the seal and the credentials untouched while swapping the SDL for one it
+   * controls. The claim is optional on the wire but authenticated by the GCM tag, so it cannot be
+   * stripped from a seal that carries one — optionality weakens only clients that chose not to send it.
+   *
+   * The digest is over the `sdl` string exactly as it arrived, never over a parsed-then-re-serialized
+   * SDL: re-serializing reorders keys and rewrites whitespace, producing mismatches that are painful
+   * to debug. JSON string values round-trip byte-exact, so no raw-body access is needed.
+   */
+  #assertSdlBinding(header: SealHeader, sdl: string) {
+    if (!isSdlBound(header)) return;
+
+    if (header.sdlHash !== createHash("sha256").update(sdl, "utf8").digest("base64url")) {
+      throw this.#reject(403, "SDL_SECRETS_SEAL_SDL_MISMATCH", "Sealed secrets are bound to a different SDL", { received: header.sdlHash });
     }
   }
 
