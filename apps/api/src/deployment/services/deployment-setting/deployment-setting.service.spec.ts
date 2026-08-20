@@ -139,6 +139,7 @@ describe(DeploymentSettingService.name, () => {
       dseq: faker.string.numeric(6),
       autoTopUpEnabled: false,
       closed: false,
+      lastFundedAt: null,
       createdAt: faker.date.past().toISOString(),
       updatedAt: faker.date.past().toISOString(),
       ...overrides

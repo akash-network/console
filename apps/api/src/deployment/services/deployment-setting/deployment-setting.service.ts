@@ -17,7 +17,7 @@ import { DeploymentConfigService } from "../deployment-config/deployment-config.
 import { DrainingDeploymentService } from "../draining-deployment/draining-deployment.service";
 import { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed-deployments/top-up-managed-deployments-instrumentation.service";
 
-type DeploymentSettingWithEstimatedTopUpAmount = DeploymentSettingsOutput & { estimatedTopUpAmount: number; topUpFrequencyMs: number };
+type DeploymentSettingWithEstimatedTopUpAmount = Omit<DeploymentSettingsOutput, "lastFundedAt"> & { estimatedTopUpAmount: number; topUpFrequencyMs: number };
 
 @singleton()
 export class DeploymentSettingService {
@@ -89,6 +89,7 @@ export class DeploymentSettingService {
     }
   }
 
+  /** `lastFundedAt` is the auto-funding claim marker and stays out of the API payload. */
   async withEstimatedTopUpAmount(params: DeploymentSettingsOutput): Promise<DeploymentSettingWithEstimatedTopUpAmount>;
   async withEstimatedTopUpAmount(params: undefined): Promise<undefined>;
   async withEstimatedTopUpAmount(params?: DeploymentSettingsOutput): Promise<DeploymentSettingWithEstimatedTopUpAmount | undefined> {
@@ -96,20 +97,22 @@ export class DeploymentSettingService {
       return undefined;
     }
 
-    if (!params.autoTopUpEnabled) {
-      return { ...params, estimatedTopUpAmount: 0, topUpFrequencyMs: this.topUpFrequencyMs };
+    const { lastFundedAt, ...setting } = params;
+
+    if (!setting.autoTopUpEnabled) {
+      return { ...setting, estimatedTopUpAmount: 0, topUpFrequencyMs: this.topUpFrequencyMs };
     }
 
-    const estimatedTopUpAmount = await this.drainingDeploymentService.calculateTopUpAmountForDseqAndUserId(params.dseq, params.userId);
+    const estimatedTopUpAmount = await this.drainingDeploymentService.calculateTopUpAmountForDseqAndUserId(setting.dseq, setting.userId);
     if (estimatedTopUpAmount < 0) {
       this.logger.warn({
         event: "ESTIMATED_TOP_UP_AMOUNT_NEGATIVE",
         estimatedTopUpAmount,
-        dseq: params.dseq,
-        userId: params.userId
+        dseq: setting.dseq,
+        userId: setting.userId
       });
     }
 
-    return { ...params, estimatedTopUpAmount, topUpFrequencyMs: this.topUpFrequencyMs };
+    return { ...setting, estimatedTopUpAmount, topUpFrequencyMs: this.topUpFrequencyMs };
   }
 }
