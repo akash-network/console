@@ -2,7 +2,6 @@ import { inject, singleton } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
 import { RpcMessageService } from "@src/billing/services";
-import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
@@ -10,6 +9,7 @@ import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { CachedBalanceService } from "@src/deployment/services/cached-balance/cached-balance.service";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { InitialDeploymentFundingInstrumentationService } from "@src/deployment/services/initial-deployment-funding/initial-deployment-funding-instrumentation.service";
@@ -33,7 +33,7 @@ export class InitialDeploymentFundingService {
   constructor(
     private readonly blockHttpService: BlockHttpService,
     private readonly drainingDeploymentService: DrainingDeploymentService,
-    private readonly balancesService: BalancesService,
+    private readonly cachedBalanceService: CachedBalanceService,
     private readonly rpcMessageService: RpcMessageService,
     private readonly managedSignerService: ManagedSignerService,
     private readonly userWalletRepository: UserWalletRepository,
@@ -81,11 +81,17 @@ export class InitialDeploymentFundingService {
     }
 
     const desiredAmount = await this.drainingDeploymentService.calculateTopUpAmount(deployment);
-    const { deployment: deploymentLimit } = await this.balancesService.getFreshLimits({ address });
-    const amount = Math.min(desiredAmount, deploymentLimit);
+    const balance = await this.cachedBalanceService.getFresh(address);
+    const amount = Math.min(desiredAmount, balance.spendable);
 
     if (amount <= 0) {
-      this.instrumentation.recordSkipped("insufficient_balance", { dseq, address, desiredAmount, deploymentLimit });
+      this.instrumentation.recordSkipped("insufficient_balance", {
+        dseq,
+        address,
+        desiredAmount,
+        available: balance.available,
+        spendable: balance.spendable
+      });
       return;
     }
 

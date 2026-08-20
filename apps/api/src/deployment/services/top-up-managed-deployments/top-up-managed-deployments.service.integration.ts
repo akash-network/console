@@ -20,6 +20,14 @@ const CLOSED_HEIGHT = String(CURRENT_HEIGHT - 500);
 const DENOM = "uakt";
 const BLOCK_RATE = 50;
 const ESCROW_AMOUNT = "50000";
+/** Mirrors the `AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD` default of $5, in the grant denom's micro units. */
+const HEADROOM_UDENOM = 5000000;
+
+function depositedAmounts(executeDerivedTx: { mock: { calls: unknown[][] } }): number[] {
+  return executeDerivedTx.mock.calls
+    .flatMap(call => call[1] as { value: { deposit?: { amount?: { amount: string } } } }[])
+    .map(message => Number(message.value.deposit?.amount?.amount));
+}
 
 /**
  * This test defines the business rules for the auto top-up job.
@@ -197,6 +205,48 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       expect(result.ok).toBe(true);
       expect(executeDerivedTx).not.toHaveBeenCalled();
+    });
+
+    // Owner has a draining deployment and a balance just above the headroom floor.
+    // The deposit is capped at what sits above the floor, leaving the floor available
+    // for the user to create a new deployment.
+    it("leaves the balance headroom untouched when funding a draining deployment", async () => {
+      const { topUpService, executeDerivedTx, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } =
+        await setup();
+      const { user, address } = await createUserWithWallet();
+      const drainingDseq = "900001";
+
+      await createDeploymentSetting(user.id, drainingDseq);
+
+      mockLeasesForOwner(address, [createActiveLease(address, drainingDseq)]);
+      mockDeploymentsForOwner(address, [createActiveDeployment(address, drainingDseq)]);
+      stubGetFreshLimits({ [address]: HEADROOM_UDENOM + 500000 });
+
+      await topUpService.topUpDeployments({ dryRun: false });
+
+      expect(executeDerivedTx).toHaveBeenCalledOnce();
+      expect(depositedAmounts(executeDerivedTx)).toEqual([500000]);
+    });
+
+    // Owner's whole balance sits below the headroom floor. Keeping existing deployments
+    // running outranks reserving room for a new one, so the floor is waived and the
+    // deployment is funded from everything that is left.
+    it("waives the headroom when the balance is below it", async () => {
+      const { topUpService, executeDerivedTx, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } =
+        await setup();
+      const { user, address } = await createUserWithWallet();
+      const drainingDseq = "900002";
+
+      await createDeploymentSetting(user.id, drainingDseq);
+
+      mockLeasesForOwner(address, [createActiveLease(address, drainingDseq)]);
+      mockDeploymentsForOwner(address, [createActiveDeployment(address, drainingDseq)]);
+      stubGetFreshLimits({ [address]: 1000000 });
+
+      await topUpService.topUpDeployments({ dryRun: false });
+
+      expect(executeDerivedTx).toHaveBeenCalledOnce();
+      expect(depositedAmounts(executeDerivedTx)).toEqual([1000000]);
     });
   });
 
