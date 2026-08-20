@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
-import { DEPENDENCIES, useAutoReloadMode } from "./useAutoReloadMode";
+import type { DEPENDENCIES } from "./useAutoReloadMode";
+import { useAutoReloadMode } from "./useAutoReloadMode";
 
 import { renderHook } from "@testing-library/react";
+
+type WalletSettingsQueryResult = ReturnType<typeof DEPENDENCIES.useWalletSettingsQuery>;
+type WalletSettings = NonNullable<WalletSettingsQueryResult["data"]>;
 
 describe(useAutoReloadMode.name, () => {
   it("uses the stored mode even when threshold mode is not offered", () => {
@@ -42,15 +47,15 @@ describe(useAutoReloadMode.name, () => {
   });
 
   function setup(input: { isThresholdModeOffered?: boolean; storedMode?: "prediction" | "threshold"; isLoading?: boolean }) {
-    const dependencies = {
-      ...DEPENDENCIES,
-      useFlag: () => input.isThresholdModeOffered ?? false,
-      useWalletSettingsQuery: () => ({
-        data: input.storedMode ? { autoReloadMode: input.storedMode } : null,
-        isLoading: input.isLoading ?? false
-      })
-    } as unknown as typeof DEPENDENCIES;
+    const useFlag: typeof DEPENDENCIES.useFlag = () => input.isThresholdModeOffered ?? false;
 
-    return renderHook(() => useAutoReloadMode({ dependencies }));
+    const walletSettings = input.storedMode ? Object.assign(mock<WalletSettings>(), { autoReloadMode: input.storedMode }) : null;
+    const walletSettingsQuery = Object.assign(mock<WalletSettingsQueryResult>(), {
+      data: walletSettings,
+      isLoading: input.isLoading ?? false
+    });
+    const useWalletSettingsQuery: typeof DEPENDENCIES.useWalletSettingsQuery = () => walletSettingsQuery;
+
+    return renderHook(() => useAutoReloadMode({ dependencies: { useFlag, useWalletSettingsQuery } }));
   }
 });
