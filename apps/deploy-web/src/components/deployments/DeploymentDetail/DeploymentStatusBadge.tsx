@@ -6,7 +6,7 @@ import type { LeaseDto } from "@src/types/deployment";
 import { isLeaseLive } from "@src/utils/leaseUtils";
 import { classifyLeaseCloseReason, getClosedLeaseLabel, isProviderReclaimed } from "@src/utils/reclamationUtils";
 
-type StatusTone = "running" | "pending" | "warning" | "closed";
+export type StatusTone = "running" | "pending" | "warning" | "closed";
 
 const STATUS_LABELS: Record<string, string> = {
   active: "Running",
@@ -66,16 +66,24 @@ function selectLeaseToReportOn(leases: LeaseDto[]): LeaseDto {
   return closedByProvider ?? leases[0];
 }
 
+export interface StatusBadgeProps {
+  label: string;
+  tone: StatusTone;
+  className?: string;
+}
+
+export const StatusBadge: FC<StatusBadgeProps> = ({ label, tone, className }) => (
+  <span className={cn("inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium", BADGE_TONE_CLASS[tone], className)}>
+    <span className="relative flex h-2 w-2">
+      {tone === "running" && <span className={cn("absolute inline-flex h-full w-full animate-ping rounded-full opacity-75", DOT_TONE_CLASS[tone])} />}
+      <span className={cn("relative inline-flex h-2 w-2 rounded-full", DOT_TONE_CLASS[tone])} />
+    </span>
+    {label}
+  </span>
+);
+
 export const DeploymentStatusBadge: FC<DeploymentStatusBadgeProps> = ({ state, leases, className }) => {
   const { label, tone } = getDeploymentStatus(state, leases);
 
-  return (
-    <span className={cn("inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium", BADGE_TONE_CLASS[tone], className)}>
-      <span className="relative flex h-2 w-2">
-        {tone === "running" && <span className={cn("absolute inline-flex h-full w-full animate-ping rounded-full opacity-75", DOT_TONE_CLASS[tone])} />}
-        <span className={cn("relative inline-flex h-2 w-2 rounded-full", DOT_TONE_CLASS[tone])} />
-      </span>
-      {label}
-    </span>
-  );
+  return <StatusBadge label={label} tone={tone} className={className} />;
 };

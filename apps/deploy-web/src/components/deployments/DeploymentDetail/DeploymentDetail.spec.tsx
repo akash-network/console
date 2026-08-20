@@ -24,6 +24,17 @@ describe("DeploymentDetail", () => {
     expect(screen.getByText("placements")).toBeInTheDocument();
   });
 
+  it("renders the reclamation banner between the detail header and the tabs", () => {
+    setup();
+
+    const header = screen.getByText("detail-header");
+    const banner = screen.getByText("reclamation-banner");
+    const tabList = screen.getByRole("tablist");
+
+    expect(isRenderedBefore(header, banner)).toBe(true);
+    expect(isRenderedBefore(banner, tabList)).toBe(true);
+  });
+
   it("tracks a navigate_tab analytics event when switching tabs", async () => {
     const { analyticsService } = setup();
 
@@ -94,6 +105,10 @@ describe("DeploymentDetail", () => {
     expect(ManifestUpdate.mock.calls[0][0].onRedeploy).toBeUndefined();
   });
 
+  function isRenderedBefore(earlier: Element, later: Element) {
+    return Boolean(earlier.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING);
+  }
+
   function setup(input?: {
     deployment?: DeploymentDto | null;
     leases?: LeaseDto[] | null;
@@ -131,6 +146,8 @@ describe("DeploymentDetail", () => {
     const redeploy = vi.fn();
     const useRedeploy: typeof DEPENDENCIES.useRedeploy = () => redeploy;
 
+    const DeploymentDetailHeader = vi.fn(() => <div>detail-header</div>);
+    const ReclamationBanner = vi.fn(() => <div>reclamation-banner</div>);
     const DeploymentPlacements = vi.fn(() => <div>placements</div>);
     const DeploymentLogs = vi.fn(() => <div>logs</div>);
     const DeploymentLeaseShell = vi.fn(() => <div>shell</div>);
@@ -154,6 +171,8 @@ describe("DeploymentDetail", () => {
           useDeploymentDetail,
           useDeploymentLeaseList,
           useProviderList,
+          DeploymentDetailHeader,
+          ReclamationBanner,
           DeploymentPlacements,
           DeploymentLogs,
           DeploymentLeaseShell,
